@@ -1,0 +1,261 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
+Future<void> main() async {
+  var initialized = false;
+  var activeThreadId = 'thr_fake';
+  var activeTurnId = 'turn_fake';
+
+  await for (final line in stdin.transform(utf8.decoder).transform(const LineSplitter())) {
+    if (line.trim().isEmpty) {
+      continue;
+    }
+
+    final message = jsonDecode(line) as Map<String, dynamic>;
+    final method = message['method'] as String?;
+    final id = message['id'];
+
+    if (method == 'initialize') {
+      _write(<String, dynamic>{
+        'jsonrpc': '2.0',
+        'id': id,
+        'result': <String, dynamic>{
+          'serverInfo': <String, dynamic>{
+            'name': 'fake-codex-app-server',
+            'version': '0.1.0',
+          },
+        },
+      });
+      continue;
+    }
+
+    if (method == 'initialized') {
+      initialized = true;
+      continue;
+    }
+
+    if (!initialized) {
+      _write(<String, dynamic>{
+        'jsonrpc': '2.0',
+        'id': id,
+        'error': <String, dynamic>{
+          'code': -32002,
+          'message': 'Not initialized',
+        },
+      });
+      continue;
+    }
+
+    if (method == 'thread/start') {
+      _write(<String, dynamic>{
+        'jsonrpc': '2.0',
+        'id': id,
+        'result': <String, dynamic>{
+          'thread': <String, dynamic>{
+            'id': activeThreadId,
+            'preview': '',
+            'modelProvider': 'openai',
+            'createdAt': 1730910000,
+          },
+        },
+      });
+      _write(<String, dynamic>{
+        'jsonrpc': '2.0',
+        'method': 'thread/started',
+        'params': <String, dynamic>{
+          'thread': <String, dynamic>{
+            'id': activeThreadId,
+          },
+        },
+      });
+      continue;
+    }
+
+    if (method == 'turn/start') {
+      final params = message['params'] as Map<String, dynamic>;
+      activeThreadId = (params['threadId'] ?? activeThreadId).toString();
+      activeTurnId = 'turn_${DateTime.now().millisecondsSinceEpoch}';
+
+      _write(<String, dynamic>{
+        'jsonrpc': '2.0',
+        'id': id,
+        'result': <String, dynamic>{
+          'turn': <String, dynamic>{
+            'id': activeTurnId,
+            'threadId': activeThreadId,
+            'status': 'inProgress',
+            'items': <Object>[],
+          },
+        },
+      });
+
+      _write(<String, dynamic>{
+        'jsonrpc': '2.0',
+        'method': 'turn/started',
+        'params': <String, dynamic>{
+          'turn': <String, dynamic>{
+            'id': activeTurnId,
+            'threadId': activeThreadId,
+            'status': 'inProgress',
+          },
+        },
+      });
+
+      _write(<String, dynamic>{
+        'jsonrpc': '2.0',
+        'method': 'item/started',
+        'params': <String, dynamic>{
+          'item': <String, dynamic>{
+            'id': 'item_cmd_1',
+            'type': 'commandExecution',
+            'command': 'git status',
+            'cwd': params['cwd'] ?? '.',
+            'status': 'inProgress',
+          },
+        },
+      });
+
+      _write(<String, dynamic>{
+        'jsonrpc': '2.0',
+        'id': 900,
+        'method': 'item/commandExecution/requestApproval',
+        'params': <String, dynamic>{
+          'threadId': activeThreadId,
+          'turnId': activeTurnId,
+          'itemId': 'item_cmd_1',
+          'reason': 'needs approval',
+          'command': 'git status',
+          'cwd': params['cwd'] ?? '.',
+          'commandActions': <String>['filesystemRead', 'processExecution'],
+        },
+      });
+      continue;
+    }
+
+    if (id == 900 && message.containsKey('result')) {
+      final result = message['result'] as Map<String, dynamic>;
+      final decision = (result['decision'] ?? '').toString();
+      final status = decision == 'accept' ? 'completed' : 'declined';
+
+      _write(<String, dynamic>{
+        'jsonrpc': '2.0',
+        'method': 'item/completed',
+        'params': <String, dynamic>{
+          'item': <String, dynamic>{
+            'id': 'item_cmd_1',
+            'type': 'commandExecution',
+            'command': 'git status',
+            'cwd': '.',
+            'status': status,
+            'aggregatedOutput': decision == 'accept' ? 'ok' : '',
+          },
+        },
+      });
+
+      _write(<String, dynamic>{
+        'jsonrpc': '2.0',
+        'method': 'turn/completed',
+        'params': <String, dynamic>{
+          'turn': <String, dynamic>{
+            'id': activeTurnId,
+            'threadId': activeThreadId,
+            'status': decision == 'accept' ? 'completed' : 'interrupted',
+            'items': <Object>[],
+            'error': null,
+          },
+        },
+      });
+      continue;
+    }
+
+    if (method == 'mcpServerStatus/list') {
+      _write(<String, dynamic>{
+        'jsonrpc': '2.0',
+        'id': id,
+        'result': <String, dynamic>{
+          'data': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'name': 'github',
+              'transport': 'stdio',
+              'enabled': true,
+            },
+          ],
+          'nextCursor': null,
+        },
+      });
+      continue;
+    }
+
+    if (method == 'mcpServer/oauth/login') {
+      _write(<String, dynamic>{
+        'jsonrpc': '2.0',
+        'id': id,
+        'result': <String, dynamic>{
+          'authorizationUrl': 'https://example.com/oauth/start',
+        },
+      });
+      continue;
+    }
+
+    if (method == 'config/value/write' || method == 'config/mcpServer/reload') {
+      _write(<String, dynamic>{
+        'jsonrpc': '2.0',
+        'id': id,
+        'result': <String, dynamic>{},
+      });
+      continue;
+    }
+
+    if (method == 'thread/resume') {
+      _write(<String, dynamic>{
+        'jsonrpc': '2.0',
+        'id': id,
+        'result': <String, dynamic>{
+          'thread': <String, dynamic>{
+            'id': (message['params'] as Map<String, dynamic>)['threadId'],
+            'preview': '',
+            'modelProvider': 'openai',
+            'createdAt': 1730910000,
+          },
+        },
+      });
+      continue;
+    }
+
+    if (method == 'review/start') {
+      _write(<String, dynamic>{
+        'jsonrpc': '2.0',
+        'id': id,
+        'result': <String, dynamic>{
+          'turn': <String, dynamic>{
+            'id': 'turn_review_1',
+            'threadId': (message['params'] as Map<String, dynamic>)['threadId'],
+            'status': 'inProgress',
+            'items': <Object>[],
+          },
+        },
+      });
+      continue;
+    }
+
+    if (method == 'turn/interrupt') {
+      _write(<String, dynamic>{
+        'jsonrpc': '2.0',
+        'id': id,
+        'result': <String, dynamic>{},
+      });
+      continue;
+    }
+
+    _write(<String, dynamic>{
+      'jsonrpc': '2.0',
+      'id': id,
+      'result': <String, dynamic>{},
+    });
+  }
+}
+
+void _write(Map<String, dynamic> payload) {
+  stdout.writeln(jsonEncode(payload));
+}
