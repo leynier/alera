@@ -753,5 +753,62 @@ void main() {
       expect(state.activityLog, hasLength(1));
       expect(state.timelineCells, isEmpty);
     });
+
+    test('interrupted turn with user stop inserts one system notice', () {
+      var state = const SessionState(isInterrupting: true);
+      state = reduceNotification(
+        state,
+        _event('turn/completed', <String, dynamic>{
+          'turn': <String, dynamic>{
+            'id': 'turn-stop',
+            'threadId': 'thread-1',
+            'status': 'interrupted',
+          },
+        }),
+      );
+
+      final notices = _cellsByKind(state, TimelineCellKind.systemNotice);
+      expect(notices, hasLength(1));
+      expect(notices.first.markdownText, 'Stopped by user');
+      expect(notices.first.metadata['noticeType'], 'user_stop');
+      expect(notices.first.metadata['uiPlacement'], 'outside_worked');
+      expect(notices.first.metadata['ephemeralInputOnly'], isTrue);
+    });
+
+    test('interrupted turn without user stop does not insert notice', () {
+      var state = const SessionState(isInterrupting: false);
+      state = reduceNotification(
+        state,
+        _event('turn/completed', <String, dynamic>{
+          'turn': <String, dynamic>{
+            'id': 'turn-stop',
+            'threadId': 'thread-1',
+            'status': 'interrupted',
+          },
+        }),
+      );
+
+      final notices = _cellsByKind(state, TimelineCellKind.systemNotice);
+      expect(notices, isEmpty);
+    });
+
+    test(
+      'user stop notice is not duplicated on repeated completion events',
+      () {
+        var state = const SessionState(isInterrupting: true);
+        final event = _event('turn/completed', <String, dynamic>{
+          'turn': <String, dynamic>{
+            'id': 'turn-stop',
+            'threadId': 'thread-1',
+            'status': 'interrupted',
+          },
+        });
+        state = reduceNotification(state, event);
+        state = reduceNotification(state, event);
+
+        final notices = _cellsByKind(state, TimelineCellKind.systemNotice);
+        expect(notices, hasLength(1));
+      },
+    );
   });
 }

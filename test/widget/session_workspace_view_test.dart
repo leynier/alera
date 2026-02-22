@@ -983,6 +983,75 @@ void main() {
     expect(interruptCount, 0);
   });
 
+  testWidgets(
+    'user stop notice renders outside worked and remains visible when worked is collapsed',
+    (tester) async {
+      final state = SessionState(
+        timelineCells: <TimelineCell>[
+          _cell(
+            id: 'u1',
+            kind: TimelineCellKind.userMessage,
+            status: TimelineCellStatus.completed,
+            turnId: 't-stop',
+            markdownText: 'check readme',
+          ),
+          _cell(
+            id: 'reason-stop',
+            kind: TimelineCellKind.reasoning,
+            status: TimelineCellStatus.completed,
+            turnId: 't-stop',
+            title: 'Thinking',
+            markdownText: 'detail',
+            isCollapsed: true,
+          ),
+          _cell(
+            id: 'tool-stop',
+            kind: TimelineCellKind.toolCall,
+            status: TimelineCellStatus.completed,
+            turnId: 't-stop',
+            title: 'Read',
+            subtitle: 'readme.md',
+            detailsText: '...',
+            isCollapsed: true,
+          ),
+          _cell(
+            id: 'a-stop',
+            kind: TimelineCellKind.assistantMessage,
+            status: TimelineCellStatus.completed,
+            turnId: 't-stop',
+            markdownText: 'partial response',
+          ),
+          _cell(
+            id: 'n-stop',
+            kind: TimelineCellKind.systemNotice,
+            status: TimelineCellStatus.info,
+            turnId: 't-stop',
+            markdownText: 'Stopped by user',
+            metadata: const <String, dynamic>{
+              'noticeType': 'user_stop',
+              'uiPlacement': 'outside_worked',
+              'ephemeralInputOnly': true,
+            },
+          ),
+          _cell(
+            id: 'sep-stop',
+            kind: TimelineCellKind.turnSeparator,
+            status: TimelineCellStatus.declined,
+            turnId: 't-stop',
+            metadata: const <String, dynamic>{'durationMs': 120000},
+          ),
+        ],
+      );
+
+      await _pumpWorkspace(tester, state: state);
+
+      expect(find.text('Worked for 2m 0s'), findsOneWidget);
+      expect(find.text('Thinking'), findsNothing);
+      expect(find.text('Read · readme.md'), findsNothing);
+      expect(find.text('Stopped by user'), findsOneWidget);
+    },
+  );
+
   testWidgets('reasoning chevron appears on hover and hides on exit', (
     tester,
   ) async {

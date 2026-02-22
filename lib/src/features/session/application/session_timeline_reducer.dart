@@ -757,6 +757,35 @@ SessionState _onTurnCompleted(
     }
   }
 
+  final turnStatus = (_asString(turn['status']) ?? '').toLowerCase();
+  if (turnStatus == 'interrupted' && state.isInterrupting) {
+    final hasUserStopNotice = cells.any(
+      (cell) =>
+          cell.turnId == turnId &&
+          cell.kind == TimelineCellKind.systemNotice &&
+          _asString(cell.metadata['noticeType']) == 'user_stop',
+    );
+    if (!hasUserStopNotice) {
+      cells.add(
+        TimelineCell(
+          id: 'notice-user-stop-$turnId',
+          turnId: turnId,
+          kind: TimelineCellKind.systemNotice,
+          status: TimelineCellStatus.info,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+          // Display-only timeline event. This must never be sent as model input.
+          markdownText: 'Stopped by user',
+          metadata: const <String, dynamic>{
+            'noticeType': 'user_stop',
+            'uiPlacement': 'outside_worked',
+            'ephemeralInputOnly': true,
+          },
+        ),
+      );
+    }
+  }
+
   _trimTrailingOverlapWorkedVsFinal(cells, turnId: turnId);
 
   var clearStreaming = false;

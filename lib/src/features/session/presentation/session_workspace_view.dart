@@ -435,6 +435,7 @@ class _CompletedTurnSection extends StatelessWidget {
     final users = <TimelineCell>[];
     final assistants = <TimelineCell>[];
     final secondary = <TimelineCell>[];
+    final postTurnNotices = <TimelineCell>[];
 
     for (final cell in turnCells) {
       switch (cell.kind) {
@@ -444,10 +445,18 @@ class _CompletedTurnSection extends StatelessWidget {
           assistants.add(cell);
         case TimelineCellKind.progressText:
           secondary.add(cell);
-        case TimelineCellKind.reasoning ||
-            TimelineCellKind.toolCall ||
-            TimelineCellKind.systemNotice:
+        case TimelineCellKind.reasoning || TimelineCellKind.toolCall:
           secondary.add(cell);
+        case TimelineCellKind.systemNotice:
+          final placement = (cell.metadata['uiPlacement'] ?? '')
+              .toString()
+              .toLowerCase()
+              .trim();
+          if (placement == 'outside_worked') {
+            postTurnNotices.add(cell);
+          } else {
+            secondary.add(cell);
+          }
         case TimelineCellKind.turnSeparator:
           break;
       }
@@ -524,6 +533,14 @@ class _CompletedTurnSection extends StatelessWidget {
         (assistantCell) => Padding(
           padding: const EdgeInsets.only(bottom: AleraTokens.space8),
           child: _TimelineCellView(cell: assistantCell),
+        ),
+      ),
+    );
+    children.addAll(
+      postTurnNotices.map(
+        (noticeCell) => Padding(
+          padding: const EdgeInsets.only(bottom: AleraTokens.space8),
+          child: _TimelineCellView(cell: noticeCell),
         ),
       ),
     );
@@ -1684,7 +1701,7 @@ class _ComposerState extends State<_Composer> {
                           const PopupMenuItem<String>(
                             enabled: false,
                             height: 32,
-                            padding: EdgeInsets.symmetric(horizontal: 12),
+                            padding: EdgeInsets.symmetric(horizontal: 8),
                             child: Text(
                               'Select model',
                               style: TextStyle(
@@ -1711,7 +1728,7 @@ class _ComposerState extends State<_Composer> {
                           const PopupMenuItem<String>(
                             enabled: false,
                             height: 32,
-                            padding: EdgeInsets.symmetric(horizontal: 12),
+                            padding: EdgeInsets.symmetric(horizontal: 8),
                             child: Text(
                               'Select reasoning',
                               style: TextStyle(
@@ -1839,18 +1856,15 @@ class _DropdownEntryState extends State<_DropdownEntry> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AleraTokens.space2,
-        vertical: 1,
-      ),
+      padding: const EdgeInsets.symmetric(vertical: 1),
       child: InkWell(
         onTap: () => Navigator.of(context).pop(widget.value),
         mouseCursor: SystemMouseCursors.click,
         borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
         child: Padding(
           padding: const EdgeInsets.symmetric(
-            horizontal: AleraTokens.space12,
-            vertical: AleraTokens.space8,
+            horizontal: AleraTokens.space8,
+            vertical: AleraTokens.space4,
           ),
           child: Row(
             children: <Widget>[

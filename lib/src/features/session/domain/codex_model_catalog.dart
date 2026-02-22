@@ -11,15 +11,15 @@ class CodexModelOption {
 }
 
 const List<CodexModelOption> codexModelSnapshot = <CodexModelOption>[
+  CodexModelOption(id: 'gpt-5.3-codex', label: 'GPT-5.3-Codex'),
   CodexModelOption(
     id: 'gpt-5.2-codex',
     label: 'GPT-5.2-Codex',
     isDefault: true,
   ),
-  CodexModelOption(id: 'gpt-5.3-codex', label: 'GPT-5.3-Codex'),
+  CodexModelOption(id: 'gpt-5.2', label: 'GPT-5.2'),
   CodexModelOption(id: 'gpt-5.1-codex-max', label: 'GPT-5.1-Codex-Max'),
   CodexModelOption(id: 'gpt-5.1-codex-mini', label: 'GPT-5.1-Codex-Mini'),
-  CodexModelOption(id: 'gpt-5.2', label: 'GPT-5.2'),
 ];
 
 String codexDefaultModelId() {
