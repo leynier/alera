@@ -453,18 +453,15 @@ String _workedForLabel(TimelineCell separatorCell) {
   if (formatted != null) {
     return 'Worked for $formatted';
   }
-  final subtitle = separatorCell.subtitle;
-  if (subtitle != null && subtitle.trim().isNotEmpty) {
-    final firstSegment = subtitle.split('•').first.trim();
-    if (firstSegment.isNotEmpty) {
-      return 'Worked for $firstSegment';
-    }
-  }
-  return 'Worked for some time';
+  return 'Work finished';
 }
 
 String? _formatWorkedDuration(Map<String, dynamic> metadata) {
   final durationMs =
+      _asNum(metadata['computedDurationMs']) ??
+      _asNum(metadata['computed_duration_ms']) ??
+      _asNum(metadata['elapsedMs']) ??
+      _asNum(metadata['elapsed_ms']) ??
       _asNum(metadata['durationMs']) ??
       _asNum(metadata['duration_ms']) ??
       _durationFromTimestamps(metadata);
@@ -472,30 +469,57 @@ String? _formatWorkedDuration(Map<String, dynamic> metadata) {
     return null;
   }
   final totalSeconds = (durationMs / 1000).round();
+  if (totalSeconds <= 0) {
+    return '0s';
+  }
+  final days = totalSeconds ~/ 86400;
+  final hours = (totalSeconds % 86400) ~/ 3600;
+  final minutes = (totalSeconds % 3600) ~/ 60;
+  final seconds = totalSeconds % 60;
+  if (days > 0) {
+    if (hours > 0) {
+      return '${days}d ${hours}h';
+    }
+    if (minutes > 0) {
+      return '${days}d ${minutes}m';
+    }
+    return '${days}d';
+  }
+  if (hours > 0) {
+    if (minutes > 0) {
+      return '${hours}h ${minutes}m';
+    }
+    return '${hours}h';
+  }
+  if (minutes > 0) {
+    return '${minutes}m ${seconds}s';
+  }
   if (totalSeconds < 60) {
     return '${totalSeconds}s';
   }
-  final hours = totalSeconds ~/ 3600;
-  final minutes = (totalSeconds % 3600) ~/ 60;
-  final seconds = totalSeconds % 60;
-  if (hours > 0) {
-    return '${hours}h ${minutes}m';
-  }
-  if (seconds == 0) {
-    return '${minutes}m';
-  }
-  return '${minutes}m ${seconds}s';
+  return '${totalSeconds}s';
 }
 
 num? _durationFromTimestamps(Map<String, dynamic> metadata) {
-  final createdAt =
-      _asNum(metadata['createdAt']) ?? _asNum(metadata['created_at']);
-  final updatedAt =
-      _asNum(metadata['updatedAt']) ?? _asNum(metadata['updated_at']);
-  if (createdAt == null || updatedAt == null || updatedAt < createdAt) {
+  final startRaw =
+      _asNum(metadata['startedAt']) ??
+      _asNum(metadata['started_at']) ??
+      _asNum(metadata['createdAt']) ??
+      _asNum(metadata['created_at']);
+  final endRaw =
+      _asNum(metadata['completedAt']) ??
+      _asNum(metadata['completed_at']) ??
+      _asNum(metadata['updatedAt']) ??
+      _asNum(metadata['updated_at']);
+  if (startRaw == null || endRaw == null) {
     return null;
   }
-  return (updatedAt - createdAt) * 1000;
+  final startMs = _normalizeEpochToMs(startRaw);
+  final endMs = _normalizeEpochToMs(endRaw);
+  if (endMs < startMs) {
+    return null;
+  }
+  return endMs - startMs;
 }
 
 num? _asNum(dynamic value) {
@@ -506,6 +530,11 @@ num? _asNum(dynamic value) {
     return num.tryParse(value);
   }
   return null;
+}
+
+num _normalizeEpochToMs(num raw) {
+  // < 10^11 is likely epoch seconds, otherwise milliseconds.
+  return raw < 100000000000 ? raw * 1000 : raw;
 }
 
 class _UserMessageCell extends StatelessWidget {
@@ -672,63 +701,77 @@ class _ReasoningCellState extends State<_ReasoningCell> {
           MouseRegion(
             onEnter: (_) => setState(() => _isHovered = true),
             onExit: (_) => setState(() => _isHovered = false),
-            child: InkWell(
-              onTap: () => setState(() => _collapsed = !_collapsed),
-              mouseCursor: SystemMouseCursors.click,
-              borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AleraTokens.space6,
-                  vertical: AleraTokens.space4,
-                ),
-                child: Row(
-                  children: <Widget>[
-                    Flexible(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          Flexible(
-                            child: Text(
-                              widget.cell.title ?? 'Thinking',
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(
-                                    color: AleraTokens.foregroundMuted,
-                                  ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: AleraTokens.space4),
-                          AnimatedOpacity(
-                            duration: AleraTokens.durationFast,
-                            opacity: _isHovered ? 1 : 0,
-                            child: SizedBox(
-                              width: 14,
-                              child: Icon(
-                                _collapsed
-                                    ? Icons.keyboard_arrow_right
-                                    : Icons.keyboard_arrow_down,
-                                size: 14,
-                                color: AleraTokens.foregroundFaint,
+            child: AnimatedContainer(
+              duration: AleraTokens.durationFast,
+              curve: Curves.easeOut,
+              decoration: BoxDecoration(
+                color: _isHovered
+                    ? AleraTokens.surfaceVariant
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+              ),
+              child: InkWell(
+                onTap: () => setState(() => _collapsed = !_collapsed),
+                mouseCursor: SystemMouseCursors.click,
+                borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+                splashFactory: NoSplash.splashFactory,
+                hoverColor: Colors.transparent,
+                splashColor: Colors.transparent,
+                highlightColor: Colors.transparent,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AleraTokens.space6,
+                    vertical: AleraTokens.space4,
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      Flexible(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            Flexible(
+                              child: Text(
+                                widget.cell.title ?? 'Thinking',
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(
+                                      color: AleraTokens.foregroundMuted,
+                                    ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (widget.cell.status ==
-                        TimelineCellStatus.inProgress) ...<Widget>[
-                      const SizedBox(width: AleraTokens.space6),
-                      const SizedBox(
-                        width: 10,
-                        height: 10,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 1.4,
-                          color: AleraTokens.foregroundFaint,
+                            const SizedBox(width: AleraTokens.space4),
+                            AnimatedOpacity(
+                              duration: AleraTokens.durationFast,
+                              opacity: _isHovered ? 1 : 0,
+                              child: SizedBox(
+                                width: 14,
+                                child: Icon(
+                                  _collapsed
+                                      ? Icons.keyboard_arrow_right
+                                      : Icons.keyboard_arrow_down,
+                                  size: 14,
+                                  color: AleraTokens.foregroundFaint,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
+                      if (widget.cell.status ==
+                          TimelineCellStatus.inProgress) ...<Widget>[
+                        const SizedBox(width: AleraTokens.space6),
+                        const SizedBox(
+                          width: 10,
+                          height: 10,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 1.4,
+                            color: AleraTokens.foregroundFaint,
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -807,60 +850,74 @@ class _ToolCallCellState extends State<_ToolCallCell> {
           MouseRegion(
             onEnter: (_) => setState(() => _isHovered = true),
             onExit: (_) => setState(() => _isHovered = false),
-            child: InkWell(
-              onTap: () => setState(() => _collapsed = !_collapsed),
-              mouseCursor: SystemMouseCursors.click,
-              borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AleraTokens.space6,
-                  vertical: AleraTokens.space4,
-                ),
-                child: Row(
-                  children: <Widget>[
-                    Container(
-                      width: 7,
-                      height: 7,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: statusColor,
+            child: AnimatedContainer(
+              duration: AleraTokens.durationFast,
+              curve: Curves.easeOut,
+              decoration: BoxDecoration(
+                color: _isHovered
+                    ? AleraTokens.surfaceVariant
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+              ),
+              child: InkWell(
+                onTap: () => setState(() => _collapsed = !_collapsed),
+                mouseCursor: SystemMouseCursors.click,
+                borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+                splashFactory: NoSplash.splashFactory,
+                hoverColor: Colors.transparent,
+                splashColor: Colors.transparent,
+                highlightColor: Colors.transparent,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AleraTokens.space6,
+                    vertical: AleraTokens.space4,
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: statusColor,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: AleraTokens.space8),
-                    Flexible(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          Flexible(
-                            child: Text(
-                              rowLabel,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(
-                                    color: AleraTokens.foregroundMuted,
-                                  ),
-                            ),
-                          ),
-                          const SizedBox(width: AleraTokens.space4),
-                          AnimatedOpacity(
-                            duration: AleraTokens.durationFast,
-                            opacity: _isHovered ? 1 : 0,
-                            child: SizedBox(
-                              width: 14,
-                              child: Icon(
-                                _collapsed
-                                    ? Icons.keyboard_arrow_right
-                                    : Icons.keyboard_arrow_down,
-                                size: 14,
-                                color: AleraTokens.foregroundFaint,
+                      const SizedBox(width: AleraTokens.space8),
+                      Flexible(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            Flexible(
+                              child: Text(
+                                rowLabel,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(
+                                      color: AleraTokens.foregroundMuted,
+                                    ),
                               ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: AleraTokens.space4),
+                            AnimatedOpacity(
+                              duration: AleraTokens.durationFast,
+                              opacity: _isHovered ? 1 : 0,
+                              child: SizedBox(
+                                width: 14,
+                                child: Icon(
+                                  _collapsed
+                                      ? Icons.keyboard_arrow_right
+                                      : Icons.keyboard_arrow_down,
+                                  size: 14,
+                                  color: AleraTokens.foregroundFaint,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -874,7 +931,7 @@ class _ToolCallCellState extends State<_ToolCallCell> {
               padding: const EdgeInsets.all(AleraTokens.space8),
               decoration: BoxDecoration(
                 color: AleraTokens.surface,
-                borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+                borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
                 border: Border.all(color: AleraTokens.borderSubtle),
               ),
               child: SelectableText(

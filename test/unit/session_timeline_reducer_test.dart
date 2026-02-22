@@ -425,6 +425,55 @@ void main() {
       },
     );
 
+    test(
+      'turn completed computes duration from timeline when payload has none',
+      () {
+        final t0 = DateTime.utc(2026, 2, 22, 10, 0, 0);
+        var state = const SessionState();
+
+        state = appendOptimisticUserMessage(state, text: 'hello', now: t0);
+        state = reduceNotification(
+          state,
+          _event('turn/started', <String, dynamic>{
+            'turn': <String, dynamic>{
+              'id': 'turn-duration',
+              'threadId': 'thread-1',
+            },
+          }),
+          now: t0,
+        );
+        state = reduceNotification(
+          state,
+          _event('item/started', <String, dynamic>{
+            'turnId': 'turn-duration',
+            'item': <String, dynamic>{
+              'id': 'cmd-duration',
+              'type': 'commandExecution',
+              'command': 'ls',
+              'status': 'inProgress',
+            },
+          }),
+          now: t0.add(const Duration(seconds: 5)),
+        );
+        state = reduceNotification(
+          state,
+          _event('turn/completed', <String, dynamic>{
+            'turn': <String, dynamic>{
+              'id': 'turn-duration',
+              'threadId': 'thread-1',
+              'status': 'completed',
+            },
+          }),
+          now: t0.add(const Duration(seconds: 80)),
+        );
+
+        final separators = _cellsByKind(state, TimelineCellKind.turnSeparator);
+        expect(separators, hasLength(1));
+        expect(separators.first.subtitle, startsWith('1m 20s'));
+        expect(separators.first.metadata['computedDurationMs'], isNotNull);
+      },
+    );
+
     test('unknown events only affect raw log', () {
       final state = reduceNotification(
         const SessionState(),

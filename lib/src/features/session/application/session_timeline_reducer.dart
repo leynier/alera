@@ -158,7 +158,16 @@ SessionState _onTurnCompleted(
     }
   }
 
+  final durationFromCells = _computeTurnDurationFromCells(
+    cells,
+    turnId: turnId,
+    turnCompletedAt: timestamp,
+  );
   final separatorId = 'turn-separator-$turnId';
+  final separatorMetadata = <String, dynamic>{...turn};
+  if (durationFromCells != null && durationFromCells > 0) {
+    separatorMetadata['computedDurationMs'] = durationFromCells;
+  }
   final separator = TimelineCell(
     id: separatorId,
     turnId: turnId,
@@ -168,8 +177,8 @@ SessionState _onTurnCompleted(
     createdAt: timestamp,
     updatedAt: timestamp,
     title: _separatorTitle(turn),
-    subtitle: _separatorSubtitle(turn),
-    metadata: turn,
+    subtitle: _separatorSubtitle(separatorMetadata),
+    metadata: separatorMetadata,
   );
 
   final existingSeparatorIndex = _findCellById(cells, separatorId);
@@ -639,6 +648,29 @@ int _findCellById(List<TimelineCell> cells, String id) {
   return -1;
 }
 
+int? _computeTurnDurationFromCells(
+  List<TimelineCell> cells, {
+  required String turnId,
+  required DateTime turnCompletedAt,
+}) {
+  var startMs = -1;
+  for (final cell in cells) {
+    if (cell.turnId != turnId || cell.kind == TimelineCellKind.turnSeparator) {
+      continue;
+    }
+    final candidateStartMs = cell.createdAt.millisecondsSinceEpoch;
+    if (startMs == -1 || candidateStartMs < startMs) {
+      startMs = candidateStartMs;
+    }
+  }
+  if (startMs == -1) {
+    return null;
+  }
+  final endMs = turnCompletedAt.millisecondsSinceEpoch;
+  final duration = endMs - startMs;
+  return duration > 0 ? duration : null;
+}
+
 void _collapseOtherSecondaryCellsForTurn(
   List<TimelineCell> cells, {
   required String turnId,
@@ -817,19 +849,37 @@ String? _separatorSubtitle(Map<String, dynamic> turn) {
 }
 
 int? _extractDurationMs(Map<String, dynamic> turn) {
-  final durationMs = _asInt(turn['durationMs']) ?? _asInt(turn['duration_ms']);
+  final durationMs =
+      _asInt(turn['durationMs']) ??
+      _asInt(turn['duration_ms']) ??
+      _asInt(turn['computedDurationMs']) ??
+      _asInt(turn['computed_duration_ms']) ??
+      _asInt(turn['elapsedMs']) ??
+      _asInt(turn['elapsed_ms']);
   if (durationMs != null) {
     return durationMs;
   }
 
-  final createdAt = _asInt(turn['createdAt']) ?? _asInt(turn['created_at']);
-  final updatedAt = _asInt(turn['updatedAt']) ?? _asInt(turn['updated_at']);
-  if (createdAt == null || updatedAt == null || updatedAt < createdAt) {
+  final startRaw =
+      _asInt(turn['startedAt']) ??
+      _asInt(turn['started_at']) ??
+      _asInt(turn['createdAt']) ??
+      _asInt(turn['created_at']);
+  final endRaw =
+      _asInt(turn['completedAt']) ??
+      _asInt(turn['completed_at']) ??
+      _asInt(turn['updatedAt']) ??
+      _asInt(turn['updated_at']);
+  if (startRaw == null || endRaw == null) {
     return null;
   }
 
-  final deltaSeconds = updatedAt - createdAt;
-  return deltaSeconds * 1000;
+  final startMs = _normalizeEpochToMs(startRaw);
+  final endMs = _normalizeEpochToMs(endRaw);
+  if (endMs < startMs) {
+    return null;
+  }
+  return endMs - startMs;
 }
 
 int? _extractTotalTokens(Map<String, dynamic> turn) {
@@ -846,15 +896,39 @@ int? _extractTotalTokens(Map<String, dynamic> turn) {
 }
 
 String _formatDuration(int durationMs) {
-  if (durationMs < 1000) {
-    return '${durationMs}ms';
+  final totalSeconds = (durationMs / 1000).round();
+  if (totalSeconds <= 0) {
+    return '0s';
   }
-  final seconds = durationMs / 1000.0;
-  if (seconds < 60) {
-    return '${seconds.toStringAsFixed(seconds < 10 ? 1 : 0)}s';
+  final days = totalSeconds ~/ 86400;
+  final hours = (totalSeconds % 86400) ~/ 3600;
+  final minutes = (totalSeconds % 3600) ~/ 60;
+  final seconds = totalSeconds % 60;
+
+  if (days > 0) {
+    if (hours > 0) {
+      return '${days}d ${hours}h';
+    }
+    if (minutes > 0) {
+      return '${days}d ${minutes}m';
+    }
+    return '${days}d';
   }
-  final minutes = seconds / 60.0;
-  return '${minutes.toStringAsFixed(minutes < 10 ? 1 : 0)}m';
+  if (hours > 0) {
+    if (minutes > 0) {
+      return '${hours}h ${minutes}m';
+    }
+    return '${hours}h';
+  }
+  if (minutes > 0) {
+    return '${minutes}m ${seconds}s';
+  }
+  return '${seconds}s';
+}
+
+int _normalizeEpochToMs(int raw) {
+  // < 10^11 is likely epoch seconds, otherwise milliseconds.
+  return raw < 100000000000 ? raw * 1000 : raw;
 }
 
 Map<String, dynamic> _asMap(dynamic value) {

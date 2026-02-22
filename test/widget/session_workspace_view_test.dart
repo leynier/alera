@@ -255,6 +255,72 @@ void main() {
     expect(find.textContaining('event one'), findsOneWidget);
   });
 
+  testWidgets('worked for label renders minutes and seconds', (tester) async {
+    final state = SessionState(
+      timelineCells: <TimelineCell>[
+        _cell(
+          id: 'reason-ms',
+          kind: TimelineCellKind.reasoning,
+          status: TimelineCellStatus.completed,
+          turnId: 'turn-ms',
+          title: 'Thinking',
+          markdownText: 'detail',
+          isCollapsed: true,
+        ),
+        _cell(
+          id: 'assistant-ms',
+          kind: TimelineCellKind.assistantMessage,
+          status: TimelineCellStatus.completed,
+          turnId: 'turn-ms',
+          markdownText: 'done',
+        ),
+        _cell(
+          id: 'sep-ms',
+          kind: TimelineCellKind.turnSeparator,
+          status: TimelineCellStatus.completed,
+          turnId: 'turn-ms',
+          metadata: const <String, dynamic>{'durationMs': 80000},
+        ),
+      ],
+    );
+
+    await _pumpWorkspace(tester, state: state);
+    expect(find.text('Worked for 1m 20s'), findsOneWidget);
+  });
+
+  testWidgets('worked for label renders days and hours', (tester) async {
+    final state = SessionState(
+      timelineCells: <TimelineCell>[
+        _cell(
+          id: 'reason-day',
+          kind: TimelineCellKind.reasoning,
+          status: TimelineCellStatus.completed,
+          turnId: 'turn-day',
+          title: 'Thinking',
+          markdownText: 'detail',
+          isCollapsed: true,
+        ),
+        _cell(
+          id: 'assistant-day',
+          kind: TimelineCellKind.assistantMessage,
+          status: TimelineCellStatus.completed,
+          turnId: 'turn-day',
+          markdownText: 'done',
+        ),
+        _cell(
+          id: 'sep-day',
+          kind: TimelineCellKind.turnSeparator,
+          status: TimelineCellStatus.completed,
+          turnId: 'turn-day',
+          metadata: const <String, dynamic>{'durationMs': 90061000},
+        ),
+      ],
+    );
+
+    await _pumpWorkspace(tester, state: state);
+    expect(find.text('Worked for 1d 1h'), findsOneWidget);
+  });
+
   testWidgets('pressing Enter sends the message', (tester) async {
     var sentCount = 0;
     String? lastMessage;
