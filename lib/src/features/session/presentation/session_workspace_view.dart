@@ -187,8 +187,7 @@ class _MessageBubble extends StatelessWidget {
             padding: const EdgeInsets.all(AleraTokens.space12),
             decoration: BoxDecoration(
               color: AleraTokens.accentSubtle,
-              borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-              border: Border.all(color: AleraTokens.accent),
+              borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
             ),
             child: SelectableText(
               message.markdownText,
@@ -421,7 +420,7 @@ class _TurnActivityPanelState extends State<_TurnActivityPanel> {
       ),
       decoration: BoxDecoration(
         color: AleraTokens.surface,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+        borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
         border: Border.all(color: AleraTokens.borderSubtle),
       ),
       child: Column(
@@ -429,7 +428,7 @@ class _TurnActivityPanelState extends State<_TurnActivityPanel> {
           InkWell(
             onTap: () => setState(() => _expanded = !_expanded),
             mouseCursor: SystemMouseCursors.click,
-            borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+            borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
             child: Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: AleraTokens.space12,
