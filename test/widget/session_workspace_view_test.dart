@@ -75,6 +75,24 @@ Future<void> _pumpWorkspace(
   await tester.pump(const Duration(milliseconds: 250));
 }
 
+List<TimelineCell> _longAssistantTimeline({int count = 80}) {
+  return List<TimelineCell>.generate(
+    count,
+    (index) => _cell(
+      id: 'assistant-$index',
+      kind: TimelineCellKind.assistantMessage,
+      status: TimelineCellStatus.completed,
+      markdownText: 'assistant line $index',
+    ),
+  );
+}
+
+IconButton _scrollToBottomButton(WidgetTester tester) {
+  return tester.widget<IconButton>(
+    find.byKey(const ValueKey<String>('scroll-to-bottom-button')),
+  );
+}
+
 void main() {
   SessionState stateWithActiveSession({
     List<TimelineCell> timeline = const [],
@@ -897,6 +915,122 @@ void main() {
     expect(find.text('Worked for 1d 1h'), findsOneWidget);
   });
 
+  testWidgets('shows scroll-to-bottom button when user scrolls up', (
+    tester,
+  ) async {
+    await _pumpWorkspace(
+      tester,
+      state: stateWithActiveSession(timeline: _longAssistantTimeline()),
+    );
+
+    final listFinder = find.byKey(const ValueKey<String>('timeline-list'));
+    await tester.fling(listFinder, const Offset(0, -3000), 6000);
+    await tester.pumpAndSettle();
+
+    expect(_scrollToBottomButton(tester).onPressed, isNull);
+
+    await tester.drag(listFinder, const Offset(0, 300));
+    await tester.pumpAndSettle();
+
+    expect(_scrollToBottomButton(tester).onPressed, isNotNull);
+  });
+
+  testWidgets('hides scroll-to-bottom button when at bottom', (tester) async {
+    await _pumpWorkspace(
+      tester,
+      state: stateWithActiveSession(timeline: _longAssistantTimeline()),
+    );
+
+    final listFinder = find.byKey(const ValueKey<String>('timeline-list'));
+    await tester.fling(listFinder, const Offset(0, -3000), 6000);
+    await tester.pumpAndSettle();
+
+    expect(_scrollToBottomButton(tester).onPressed, isNull);
+  });
+
+  testWidgets('tapping scroll-to-bottom button goes to latest message', (
+    tester,
+  ) async {
+    await _pumpWorkspace(
+      tester,
+      state: stateWithActiveSession(timeline: _longAssistantTimeline()),
+    );
+
+    expect(_scrollToBottomButton(tester).onPressed, isNotNull);
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('scroll-to-bottom-button')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(_scrollToBottomButton(tester).onPressed, isNull);
+  });
+
+  testWidgets('auto-scrolls on AI updates when user is at bottom', (
+    tester,
+  ) async {
+    final initialTimeline = _longAssistantTimeline(count: 50);
+    await _pumpWorkspace(
+      tester,
+      state: stateWithActiveSession(timeline: initialTimeline),
+    );
+
+    final listFinder = find.byKey(const ValueKey<String>('timeline-list'));
+    await tester.fling(listFinder, const Offset(0, -3000), 6000);
+    await tester.pumpAndSettle();
+    expect(_scrollToBottomButton(tester).onPressed, isNull);
+
+    final updatedTimeline = <TimelineCell>[
+      ...initialTimeline,
+      _cell(
+        id: 'assistant-latest',
+        kind: TimelineCellKind.assistantMessage,
+        status: TimelineCellStatus.completed,
+        markdownText: 'assistant latest',
+      ),
+    ];
+    await _pumpWorkspace(
+      tester,
+      state: stateWithActiveSession(timeline: updatedTimeline),
+    );
+
+    expect(_scrollToBottomButton(tester).onPressed, isNull);
+  });
+
+  testWidgets('does not auto-scroll on AI updates when user is above bottom', (
+    tester,
+  ) async {
+    final initialTimeline = _longAssistantTimeline(count: 50);
+    await _pumpWorkspace(
+      tester,
+      state: stateWithActiveSession(timeline: initialTimeline),
+    );
+
+    final listFinder = find.byKey(const ValueKey<String>('timeline-list'));
+    await tester.fling(listFinder, const Offset(0, -3000), 6000);
+    await tester.pumpAndSettle();
+    await tester.drag(listFinder, const Offset(0, 280));
+    await tester.pumpAndSettle();
+
+    expect(_scrollToBottomButton(tester).onPressed, isNotNull);
+
+    final updatedTimeline = <TimelineCell>[
+      ...initialTimeline,
+      _cell(
+        id: 'assistant-latest',
+        kind: TimelineCellKind.assistantMessage,
+        status: TimelineCellStatus.completed,
+        markdownText: 'assistant latest',
+      ),
+    ];
+    await _pumpWorkspace(
+      tester,
+      state: stateWithActiveSession(timeline: updatedTimeline),
+    );
+
+    expect(_scrollToBottomButton(tester).onPressed, isNotNull);
+  });
+
   testWidgets('pressing Enter sends the message', (tester) async {
     var sentCount = 0;
     String? lastMessage;
@@ -919,6 +1053,27 @@ void main() {
     expect(lastMessage, 'hello world');
     final editable = tester.widget<EditableText>(find.byType(EditableText));
     expect(editable.controller.text, isEmpty);
+  });
+
+  testWidgets('sending input triggers auto-scroll to bottom', (tester) async {
+    var sentCount = 0;
+    await _pumpWorkspace(
+      tester,
+      state: stateWithActiveSession(
+        timeline: _longAssistantTimeline(count: 60),
+      ),
+      onSendInput: (_) => sentCount += 1,
+    );
+
+    expect(_scrollToBottomButton(tester).onPressed, isNotNull);
+
+    await tester.tap(find.byType(TextField));
+    await tester.enterText(find.byType(TextField), 'new user prompt');
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+
+    expect(sentCount, 1);
+    expect(_scrollToBottomButton(tester).onPressed, isNull);
   });
 
   testWidgets('composer works in pre-session mode when workspace is selected', (
@@ -1031,7 +1186,9 @@ void main() {
     expect(find.byIcon(Icons.stop), findsNothing);
     expect(find.byType(CircularProgressIndicator), findsWidgets);
 
-    final sendOrStopButton = tester.widget<IconButton>(find.byType(IconButton));
+    final sendOrStopButton = tester.widget<IconButton>(
+      find.byKey(const ValueKey<String>('composer-send-stop-button')),
+    );
     expect(sendOrStopButton.onPressed, isNull);
     expect(interruptCount, 0);
   });

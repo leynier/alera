@@ -86,6 +86,7 @@ class CodexAppServerClient {
         'threadId': threadId,
         'input': input,
         'model': model,
+        'reasoning': const <String, dynamic>{'effort': 'high'},
         ...?cwd == null ? null : <String, dynamic>{'cwd': cwd},
         'approvalPolicy': approvalPolicy,
       },

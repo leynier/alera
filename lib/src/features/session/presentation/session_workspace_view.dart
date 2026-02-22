@@ -34,8 +34,22 @@ class SessionWorkspaceView extends StatefulWidget {
 }
 
 class _SessionWorkspaceViewState extends State<SessionWorkspaceView> {
+  static const double _bottomTolerancePx = 1;
+
   final _inputController = TextEditingController();
   final Set<String> _expandedWorkedTurns = <String>{};
+  final ScrollController _timelineScrollController = ScrollController();
+  bool _showScrollToBottom = false;
+  bool _pendingScrollAfterSend = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _timelineScrollController.addListener(_handleTimelineScroll);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _updateScrollToBottomVisibility();
+    });
+  }
 
   @override
   void didUpdateWidget(covariant SessionWorkspaceView oldWidget) {
@@ -43,11 +57,39 @@ class _SessionWorkspaceViewState extends State<SessionWorkspaceView> {
     if (oldWidget.state.activeSessionId != widget.state.activeSessionId) {
       _expandedWorkedTurns.clear();
     }
+
+    final timelineChanged = !identical(
+      oldWidget.state.timelineCells,
+      widget.state.timelineCells,
+    );
+    final hasNonUserTimelineChanges =
+        timelineChanged &&
+        _hasNonUserTimelineChanges(
+          oldWidget.state.timelineCells,
+          widget.state.timelineCells,
+        );
+    final shouldAutoScrollForAi =
+        hasNonUserTimelineChanges &&
+        _isAtBottom(tolerancePx: _bottomTolerancePx);
+    final shouldAutoScrollForSend = _pendingScrollAfterSend && timelineChanged;
+
+    if (shouldAutoScrollForAi || shouldAutoScrollForSend) {
+      _scheduleScrollToBottom(animated: shouldAutoScrollForSend);
+      if (shouldAutoScrollForSend) {
+        _pendingScrollAfterSend = false;
+      }
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _updateScrollToBottomVisibility();
+    });
   }
 
   @override
   void dispose() {
     _inputController.dispose();
+    _timelineScrollController.removeListener(_handleTimelineScroll);
+    _timelineScrollController.dispose();
     super.dispose();
   }
 
@@ -60,10 +102,52 @@ class _SessionWorkspaceViewState extends State<SessionWorkspaceView> {
     return Column(
       children: <Widget>[
         Expanded(
-          child: _ChatTimelineList(
-            state: widget.state,
-            expandedWorkedTurns: _expandedWorkedTurns,
-            onToggleWorkedTurn: _toggleWorkedTurn,
+          child: Stack(
+            children: <Widget>[
+              Positioned.fill(
+                child: _ChatTimelineList(
+                  state: widget.state,
+                  expandedWorkedTurns: _expandedWorkedTurns,
+                  onToggleWorkedTurn: _toggleWorkedTurn,
+                  controller: _timelineScrollController,
+                ),
+              ),
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: AleraTokens.space12),
+                  child: IgnorePointer(
+                    ignoring: !_showScrollToBottom,
+                    child: AnimatedOpacity(
+                      duration: AleraTokens.durationFast,
+                      opacity: _showScrollToBottom ? 1 : 0,
+                      child: IconButton(
+                        key: const ValueKey<String>('scroll-to-bottom-button'),
+                        onPressed: _showScrollToBottom
+                            ? () => _scheduleScrollToBottom(animated: true)
+                            : null,
+                        mouseCursor: SystemMouseCursors.click,
+                        constraints: const BoxConstraints(
+                          minWidth: 32,
+                          minHeight: 32,
+                        ),
+                        padding: EdgeInsets.zero,
+                        style: IconButton.styleFrom(
+                          backgroundColor: AleraTokens.bg,
+                          foregroundColor: AleraTokens.foreground,
+                          side: const BorderSide(
+                            color: AleraTokens.border,
+                            width: 1,
+                          ),
+                          shape: const CircleBorder(),
+                        ),
+                        icon: const Icon(Icons.arrow_downward, size: 16),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
         _Composer(
@@ -98,6 +182,8 @@ class _SessionWorkspaceViewState extends State<SessionWorkspaceView> {
       return;
     }
     _inputController.clear();
+    _pendingScrollAfterSend = true;
+    _scheduleScrollToBottom(animated: true);
     widget.onSendInput(text);
   }
 
@@ -110,6 +196,110 @@ class _SessionWorkspaceViewState extends State<SessionWorkspaceView> {
       }
     });
   }
+
+  bool _hasNonUserTimelineChanges(
+    List<TimelineCell> previous,
+    List<TimelineCell> next,
+  ) {
+    final previousById = <String, TimelineCell>{
+      for (final cell in previous) cell.id: cell,
+    };
+
+    for (final cell in next) {
+      final old = previousById.remove(cell.id);
+      if (old == null) {
+        if (cell.kind != TimelineCellKind.userMessage) {
+          return true;
+        }
+        continue;
+      }
+      if (_hasCellChanged(old, cell) &&
+          cell.kind != TimelineCellKind.userMessage) {
+        return true;
+      }
+    }
+
+    for (final removed in previousById.values) {
+      if (removed.kind != TimelineCellKind.userMessage) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  bool _hasCellChanged(TimelineCell previous, TimelineCell next) {
+    return previous.status != next.status ||
+        previous.updatedAt != next.updatedAt ||
+        previous.isStreaming != next.isStreaming ||
+        previous.isCollapsed != next.isCollapsed ||
+        previous.title != next.title ||
+        previous.subtitle != next.subtitle ||
+        previous.markdownText != next.markdownText ||
+        previous.detailsText != next.detailsText;
+  }
+
+  void _handleTimelineScroll() {
+    _updateScrollToBottomVisibility();
+  }
+
+  bool _isAtBottom({required double tolerancePx}) {
+    if (!_timelineScrollController.hasClients) {
+      return true;
+    }
+    final position = _timelineScrollController.position;
+    final distanceToBottom = (position.maxScrollExtent - position.pixels).clamp(
+      0.0,
+      double.infinity,
+    );
+    return distanceToBottom <= tolerancePx;
+  }
+
+  void _updateScrollToBottomVisibility() {
+    if (!mounted) {
+      return;
+    }
+    if (!_timelineScrollController.hasClients) {
+      if (_showScrollToBottom) {
+        setState(() => _showScrollToBottom = false);
+      }
+      return;
+    }
+    final shouldShow = !_isAtBottom(tolerancePx: _bottomTolerancePx);
+    if (shouldShow == _showScrollToBottom) {
+      return;
+    }
+    setState(() {
+      _showScrollToBottom = shouldShow;
+    });
+  }
+
+  void _scheduleScrollToBottom({bool animated = false}) {
+    _scrollToBottomIfPossible(animated: animated);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToBottomIfPossible(animated: animated);
+    });
+  }
+
+  bool _scrollToBottomIfPossible({required bool animated}) {
+    if (!mounted || !_timelineScrollController.hasClients) {
+      return false;
+    }
+    final target = _timelineScrollController.position.maxScrollExtent;
+    if (animated) {
+      _timelineScrollController
+          .animateTo(
+            target,
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOutCubic,
+          )
+          .whenComplete(_updateScrollToBottomVisibility);
+      return true;
+    }
+    _timelineScrollController.jumpTo(target);
+    _updateScrollToBottomVisibility();
+    return true;
+  }
 }
 
 class _ChatTimelineList extends StatelessWidget {
@@ -117,11 +307,13 @@ class _ChatTimelineList extends StatelessWidget {
     required this.state,
     required this.expandedWorkedTurns,
     required this.onToggleWorkedTurn,
+    required this.controller,
   });
 
   final SessionState state;
   final Set<String> expandedWorkedTurns;
   final ValueChanged<String> onToggleWorkedTurn;
+  final ScrollController controller;
 
   @override
   Widget build(BuildContext context) {
@@ -131,6 +323,8 @@ class _ChatTimelineList extends StatelessWidget {
 
     final timelineWidgets = _buildTimelineWidgets();
     return ListView(
+      key: const ValueKey<String>('timeline-list'),
+      controller: controller,
       padding: const EdgeInsets.symmetric(
         horizontal: AleraTokens.space16,
         vertical: AleraTokens.space16,
@@ -1752,6 +1946,9 @@ class _ComposerState extends State<_Composer> {
                       ),
                       const Spacer(),
                       IconButton(
+                        key: const ValueKey<String>(
+                          'composer-send-stop-button',
+                        ),
                         onPressed: widget.canStop
                             ? (widget.isInterrupting
                                   ? null
