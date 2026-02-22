@@ -9,6 +9,8 @@ class StreamQueuedLine {
     required this.enqueuedAt,
     this.itemId,
     this.streamPhase = 'unknown',
+    this.isSoftChunk = false,
+    this.appendWithoutNewline = false,
   });
 
   final String turnId;
@@ -16,6 +18,8 @@ class StreamQueuedLine {
   final DateTime enqueuedAt;
   final String? itemId;
   final String streamPhase;
+  final bool isSoftChunk;
+  final bool appendWithoutNewline;
 }
 
 class CommitTickResult {

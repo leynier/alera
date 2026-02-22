@@ -946,6 +946,143 @@ void main() {
       expect(assistant.first.markdownText, 'partial without newline');
     });
 
+    test(
+      'final_answer long text without newline streams in soft chunks before completion',
+      () {
+        final t0 = DateTime.utc(2026, 2, 22, 4, 0, 0);
+        var state = const SessionState();
+        state = reduceNotification(
+          state,
+          _event('turn/started', <String, dynamic>{
+            'turn': <String, dynamic>{'id': 'turn-1', 'threadId': 'thread-1'},
+          }),
+          now: t0,
+        );
+        state = reduceNotification(
+          state,
+          _event('codex/event/item_started', <String, dynamic>{
+            'msg': <String, dynamic>{
+              'type': 'item_started',
+              'turn_id': 'turn-1',
+              'item': <String, dynamic>{
+                'id': 'msg-final',
+                'type': 'AgentMessage',
+                'phase': 'final_answer',
+              },
+            },
+          }),
+          now: t0,
+        );
+
+        const finalText =
+            'Este es un texto final bastante largo para probar streaming natural en chunks sin esperar siempre por salto de linea en una sola pieza.';
+        state = reduceNotification(
+          state,
+          _event('item/agentMessage/delta', <String, dynamic>{
+            'turnId': 'turn-1',
+            'itemId': 'msg-final',
+            'delta': finalText,
+          }),
+          now: t0,
+        );
+
+        expect(_cellsByKind(state, TimelineCellKind.assistantMessage), isEmpty);
+
+        state = reduceCommitTick(
+          state,
+          now: t0.add(const Duration(milliseconds: 220)),
+        );
+        final firstAssistant = _cellsByKind(
+          state,
+          TimelineCellKind.assistantMessage,
+        );
+        expect(firstAssistant, hasLength(1));
+        final firstText = firstAssistant.first.markdownText ?? '';
+        expect(firstText, isNotEmpty);
+        expect(firstText.contains('\n'), isFalse);
+
+        state = reduceCommitTick(
+          state,
+          now: t0.add(const Duration(milliseconds: 480)),
+        );
+        final secondAssistant = _cellsByKind(
+          state,
+          TimelineCellKind.assistantMessage,
+        );
+        expect(secondAssistant, hasLength(1));
+        final secondText = secondAssistant.first.markdownText ?? '';
+        expect(secondText.length, greaterThan(firstText.length));
+        expect(secondText.contains('\n'), isFalse);
+
+        state = reduceNotification(
+          state,
+          _event('item/completed', <String, dynamic>{
+            'turnId': 'turn-1',
+            'item': <String, dynamic>{
+              'id': 'msg-final',
+              'type': 'agentMessage',
+              'text': finalText,
+              'status': 'completed',
+            },
+          }),
+          now: t0.add(const Duration(seconds: 1)),
+        );
+
+        final completedAssistant = _cellsByKind(
+          state,
+          TimelineCellKind.assistantMessage,
+        );
+        expect(completedAssistant, hasLength(1));
+        expect(completedAssistant.first.markdownText, finalText);
+      },
+    );
+
+    test('commentary long text without newline does not soft-flush', () {
+      final t0 = DateTime.utc(2026, 2, 22, 4, 0, 0);
+      var state = const SessionState();
+      state = reduceNotification(
+        state,
+        _event('turn/started', <String, dynamic>{
+          'turn': <String, dynamic>{'id': 'turn-1', 'threadId': 'thread-1'},
+        }),
+        now: t0,
+      );
+      state = reduceNotification(
+        state,
+        _event('codex/event/item_started', <String, dynamic>{
+          'msg': <String, dynamic>{
+            'type': 'item_started',
+            'turn_id': 'turn-1',
+            'item': <String, dynamic>{
+              'id': 'msg-commentary',
+              'type': 'AgentMessage',
+              'phase': 'commentary',
+            },
+          },
+        }),
+        now: t0,
+      );
+
+      state = reduceNotification(
+        state,
+        _event('item/agentMessage/delta', <String, dynamic>{
+          'turnId': 'turn-1',
+          'itemId': 'msg-commentary',
+          'delta':
+              'Comentario largo sin salto de linea para validar que no haga soft flush dentro del worked.',
+        }),
+        now: t0,
+      );
+
+      state = reduceCommitTick(
+        state,
+        now: t0.add(const Duration(milliseconds: 500)),
+      );
+
+      expect(_cellsByKind(state, TimelineCellKind.assistantMessage), isEmpty);
+      expect(_cellsByKind(state, TimelineCellKind.progressText), isEmpty);
+    });
+
     test('unknown events only update raw log', () {
       final state = reduceNotification(
         const SessionState(),

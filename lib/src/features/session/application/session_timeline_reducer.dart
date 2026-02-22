@@ -125,14 +125,49 @@ SessionState reduceCommitTick(
   DateTime? now,
 }) {
   final timestamp = now ?? DateTime.now().toUtc();
+  var nextState = state;
+  final activePhase = _normalizeAgentPhase(nextState.activeAgentStreamPhase);
+  final canSoftFlushFinalAnswer =
+      nextState.activeAgentStreamItemId != null &&
+      nextState.activeAgentStreamTurnId != null &&
+      activePhase == 'final_answer';
+  if (canSoftFlushFinalAnswer) {
+    final softFlush = maybeFlushSoftChunk(
+      nextState.streamCollector,
+      now: timestamp,
+    );
+    if (softFlush.chunk != null && softFlush.chunk!.trim().isNotEmpty) {
+      final queued = <StreamQueuedLine>[
+        ...nextState.streamQueue,
+        StreamQueuedLine(
+          turnId: nextState.activeAgentStreamTurnId!,
+          itemId: nextState.activeAgentStreamItemId,
+          streamPhase: activePhase,
+          text: softFlush.chunk!,
+          enqueuedAt: timestamp,
+          isSoftChunk: true,
+          appendWithoutNewline: true,
+        ),
+      ];
+      nextState = nextState.copyWith(
+        streamCollector: softFlush.state,
+        streamQueue: queued,
+        streamQueueDepth: queued.length,
+        streamOldestAgeMs: 0,
+      );
+    } else if (!identical(softFlush.state, nextState.streamCollector)) {
+      nextState = nextState.copyWith(streamCollector: softFlush.state);
+    }
+  }
+
   final result = runCommitTick(
-    policy: state.chunkingPolicy,
-    queue: state.streamQueue,
+    policy: nextState.chunkingPolicy,
+    queue: nextState.streamQueue,
     scope: scope,
     now: timestamp,
   );
 
-  var next = state.copyWith(
+  var next = nextState.copyWith(
     chunkingPolicy: result.policy,
     streamQueue: result.remainingQueue,
     streamQueueDepth: result.queueDepth,
@@ -147,7 +182,9 @@ SessionState reduceCommitTick(
     var turnHadWorkActivity = next.turnHadWorkActivity;
 
     for (final line in result.drainedLines) {
-      final text = line.text.trimRight();
+      final text = line.appendWithoutNewline
+          ? line.text
+          : line.text.trimRight();
       if (text.isEmpty) {
         continue;
       }
@@ -177,7 +214,11 @@ SessionState reduceCommitTick(
         } else {
           final existing = cells[assistantIndex];
           final currentText = existing.markdownText ?? '';
-          final nextText = currentText.isEmpty ? text : '$currentText\n$text';
+          final nextText = currentText.isEmpty
+              ? text
+              : line.appendWithoutNewline
+              ? '$currentText$text'
+              : '$currentText\n$text';
           cells[assistantIndex] = existing.copyWith(
             turnId: line.turnId,
             itemId: line.itemId,
@@ -961,7 +1002,7 @@ SessionState _onAssistantDelta(
     turnId: turnId,
     item: const <String, dynamic>{},
   );
-  final push = pushMarkdownDelta(next.streamCollector, delta);
+  final push = pushMarkdownDelta(next.streamCollector, delta, now: timestamp);
   var queued = next.streamQueue;
   if (push.completedLines.isNotEmpty) {
     queued = <StreamQueuedLine>[

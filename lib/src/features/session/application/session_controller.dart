@@ -405,9 +405,13 @@ class SessionController extends StateNotifier<SessionState> {
 
   bool _isCommitTickNoop(SessionState current, SessionState next) {
     return current.streamQueueDepth == next.streamQueueDepth &&
-        current.timelineCells.length == next.timelineCells.length &&
+        identical(current.timelineCells, next.timelineCells) &&
         current.streamOldestAgeMs == next.streamOldestAgeMs &&
         current.chunkingPolicy.mode == next.chunkingPolicy.mode &&
+        current.streamCollector.pendingBuffer ==
+            next.streamCollector.pendingBuffer &&
+        current.streamCollector.pendingSince ==
+            next.streamCollector.pendingSince &&
         current.statusHeader == next.statusHeader &&
         current.pendingStatusRestore == next.pendingStatusRestore;
   }
