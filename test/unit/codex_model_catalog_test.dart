@@ -14,4 +14,39 @@ void main() {
     ]);
     expect(codexDefaultModelId(), 'gpt-5.2-codex');
   });
+
+  test('reasoning effort support and closest mapping follow model rules', () {
+    expect(supportedReasoningEffortsForModel('gpt-5.1-codex-mini'), <String>[
+      'medium',
+      'high',
+    ]);
+    expect(supportedReasoningEffortsForModel('gpt-5.3-codex'), <String>[
+      'low',
+      'medium',
+      'high',
+      'xhigh',
+    ]);
+
+    expect(
+      closestSupportedReasoningEffort(
+        modelId: 'gpt-5.1-codex-mini',
+        effort: 'low',
+      ),
+      'medium',
+    );
+    expect(
+      closestSupportedReasoningEffort(
+        modelId: 'gpt-5.1-codex-mini',
+        effort: 'xhigh',
+      ),
+      'high',
+    );
+    expect(
+      closestSupportedReasoningEffort(
+        modelId: 'gpt-5.3-codex',
+        effort: 'xhigh',
+      ),
+      'xhigh',
+    );
+  });
 }

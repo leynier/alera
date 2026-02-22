@@ -330,6 +330,40 @@ Future<void> main() async {
         continue;
       }
 
+      final model = (params['model'] ?? '').toString();
+      final reasoning =
+          (params['reasoning'] as Map<String, dynamic>? ??
+                  const <String, dynamic>{})
+              .cast<String, dynamic>();
+      final reasoningEffort = (reasoning['effort'] ?? '').toString();
+      const allEfforts = <String>{'low', 'medium', 'high', 'xhigh'};
+      if (!allEfforts.contains(reasoningEffort)) {
+        _write(<String, dynamic>{
+          'jsonrpc': '2.0',
+          'id': id,
+          'error': <String, dynamic>{
+            'code': -32013,
+            'message':
+                'turn/start expected valid reasoning.effort in low|medium|high|xhigh',
+          },
+        });
+        continue;
+      }
+      if (model == 'gpt-5.1-codex-mini' &&
+          reasoningEffort != 'medium' &&
+          reasoningEffort != 'high') {
+        _write(<String, dynamic>{
+          'jsonrpc': '2.0',
+          'id': id,
+          'error': <String, dynamic>{
+            'code': -32014,
+            'message':
+                "Unsupported value: '$reasoningEffort' is not supported with the 'gpt-5.1-codex-mini' model.",
+          },
+        });
+        continue;
+      }
+
       activeThreadId = (params['threadId'] ?? activeThreadId).toString();
       activeTurnId = 'turn_${DateTime.now().millisecondsSinceEpoch}';
 
@@ -383,6 +417,26 @@ Future<void> main() async {
         interruptibleTurnId = activeTurnId;
       } else if (prompt.contains('trigger_commentary_final')) {
         emitCommentaryAndFinalTurn();
+      } else if (prompt.contains('trigger_reasoning_medium')) {
+        if (reasoningEffort != 'medium') {
+          _write(<String, dynamic>{
+            'jsonrpc': '2.0',
+            'method': 'turn/completed',
+            'params': <String, dynamic>{
+              'turn': <String, dynamic>{
+                'id': activeTurnId,
+                'threadId': activeThreadId,
+                'status': 'failed',
+                'items': <Object>[],
+                'error': <String, dynamic>{
+                  'message': 'expected reasoning effort medium',
+                },
+              },
+            },
+          });
+        } else {
+          emitCompletedTurn(status: 'completed');
+        }
       } else {
         emitCompletedTurn(status: 'completed');
       }

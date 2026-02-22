@@ -56,6 +56,9 @@ Future<void> _pumpWorkspace(
   ValueChanged<String>? onSendInput,
   VoidCallback? onInterruptTurn,
   ValueChanged<String>? onModelChanged,
+  ValueChanged<String>? onReasoningEffortChanged,
+  List<String>? supportedReasoningEfforts,
+  String? activeReasoningEffort,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -67,6 +70,12 @@ Future<void> _pumpWorkspace(
           isTurnRunning: isTurnRunning,
           isInterrupting: isInterrupting,
           onModelChanged: onModelChanged ?? (_) {},
+          activeReasoningEffort:
+              activeReasoningEffort ?? state.activeReasoningEffort,
+          supportedReasoningEfforts:
+              supportedReasoningEfforts ??
+              const <String>['low', 'medium', 'high', 'xhigh'],
+          onReasoningEffortChanged: onReasoningEffortChanged ?? (_) {},
           rawLogExpanded: rawLogExpanded,
         ),
       ),
@@ -1102,6 +1111,36 @@ void main() {
     expect(sentCount, 1);
     expect(lastMessage, 'first prompt');
   });
+
+  testWidgets(
+    'reasoning selector shows only supported options for mini and emits selection',
+    (tester) async {
+      String? selectedEffort;
+      await _pumpWorkspace(
+        tester,
+        state: const SessionState(
+          selectedWorkspacePath: '/repo',
+          preSessionModelId: 'gpt-5.1-codex-mini',
+          preSessionReasoningEffort: 'high',
+        ),
+        supportedReasoningEfforts: const <String>['medium', 'high'],
+        activeReasoningEffort: 'high',
+        onReasoningEffortChanged: (value) => selectedEffort = value,
+      );
+
+      await tester.tap(find.text('High').first);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Medium'), findsOneWidget);
+      expect(find.text('Low'), findsNothing);
+      expect(find.text('Extra High'), findsNothing);
+
+      await tester.tap(find.text('Medium').last);
+      await tester.pumpAndSettle();
+
+      expect(selectedEffort, 'medium');
+    },
+  );
 
   testWidgets('pressing Shift+Enter inserts newline without sending', (
     tester,

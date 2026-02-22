@@ -77,6 +77,7 @@ class CodexAppServerClient {
     required String threadId,
     required List<Map<String, dynamic>> input,
     required String model,
+    required String reasoningEffort,
     String? cwd,
     String approvalPolicy = 'never',
   }) {
@@ -86,7 +87,7 @@ class CodexAppServerClient {
         'threadId': threadId,
         'input': input,
         'model': model,
-        'reasoning': const <String, dynamic>{'effort': 'high'},
+        'reasoning': <String, dynamic>{'effort': reasoningEffort},
         ...?cwd == null ? null : <String, dynamic>{'cwd': cwd},
         'approvalPolicy': approvalPolicy,
       },

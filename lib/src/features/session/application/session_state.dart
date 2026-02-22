@@ -9,6 +9,7 @@ class SessionState {
   const SessionState({
     this.selectedWorkspacePath,
     this.preSessionModelId,
+    this.preSessionReasoningEffort,
     this.sessions = const <AleraSession>[],
     this.activeSessionId,
     this.availableModels = codexModelSnapshot,
@@ -42,6 +43,7 @@ class SessionState {
 
   final String? selectedWorkspacePath;
   final String? preSessionModelId;
+  final String? preSessionReasoningEffort;
   final List<AleraSession> sessions;
   final String? activeSessionId;
   final List<CodexModelOption> availableModels;
@@ -96,9 +98,21 @@ class SessionState {
     return codexDefaultModelId();
   }
 
+  String get activeReasoningEffort {
+    final draft = preSessionReasoningEffort;
+    final normalized = draft != null && codexReasoningEffortExists(draft)
+        ? draft
+        : codexDefaultReasoningEffort();
+    return closestSupportedReasoningEffort(
+      modelId: activeModelId,
+      effort: normalized,
+    );
+  }
+
   SessionState copyWith({
     String? selectedWorkspacePath,
     String? preSessionModelId,
+    String? preSessionReasoningEffort,
     List<AleraSession>? sessions,
     String? activeSessionId,
     List<CodexModelOption>? availableModels,
@@ -140,6 +154,7 @@ class SessionState {
     bool clearError = false,
     bool clearSelectedWorkspacePath = false,
     bool clearPreSessionModelId = false,
+    bool clearPreSessionReasoningEffort = false,
     bool clearActiveSessionId = false,
   }) {
     return SessionState(
@@ -149,6 +164,9 @@ class SessionState {
       preSessionModelId: clearPreSessionModelId
           ? null
           : (preSessionModelId ?? this.preSessionModelId),
+      preSessionReasoningEffort: clearPreSessionReasoningEffort
+          ? null
+          : (preSessionReasoningEffort ?? this.preSessionReasoningEffort),
       sessions: sessions ?? this.sessions,
       activeSessionId: clearActiveSessionId
           ? null

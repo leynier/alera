@@ -2,6 +2,7 @@ import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/session/application/session_controller.dart';
 import 'package:alera/src/features/session/application/session_state.dart';
+import 'package:alera/src/features/session/domain/codex_model_catalog.dart';
 import 'package:alera/src/features/session/presentation/session_workspace_view.dart';
 import 'package:alera/src/features/shell/presentation/alera_status_bar.dart';
 import 'package:alera/src/features/shell/presentation/alera_top_bar.dart';
@@ -91,6 +92,11 @@ class _AleraShellPageState extends ConsumerState<AleraShellPage> {
       isTurnRunning: state.runningTurnCount > 0,
       isInterrupting: state.isInterrupting,
       onModelChanged: controller.updateActiveSessionModel,
+      activeReasoningEffort: state.activeReasoningEffort,
+      supportedReasoningEfforts: supportedReasoningEffortsForModel(
+        state.activeModelId,
+      ),
+      onReasoningEffortChanged: controller.updateReasoningEffort,
       rawLogExpanded: _rawLogExpanded,
     );
   }

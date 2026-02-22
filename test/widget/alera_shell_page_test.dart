@@ -43,7 +43,11 @@ class _ShellFakeSessionService implements SessionService {
   }
 
   @override
-  Future<void> runInput({required String sessionId, required String rawInput}) {
+  Future<void> runInput({
+    required String sessionId,
+    required String rawInput,
+    required String reasoningEffort,
+  }) {
     throw UnimplementedError();
   }
 
@@ -77,18 +81,23 @@ class _ShellFakeProjectService implements ProjectService {
 }
 
 class _ShellFakeSettingsService implements SettingsService {
-  _ShellFakeSettingsService(this._selectedModel);
+  _ShellFakeSettingsService(this._selectedModel, this._selectedReasoningEffort);
 
   String _selectedModel;
+  String _selectedReasoningEffort;
 
   @override
   Future<SettingsSnapshot> load() async {
-    return SettingsSnapshot(selectedModel: _selectedModel);
+    return SettingsSnapshot(
+      selectedModel: _selectedModel,
+      selectedReasoningEffort: _selectedReasoningEffort,
+    );
   }
 
   @override
   Future<void> save(SettingsSnapshot snapshot) async {
     _selectedModel = snapshot.selectedModel;
+    _selectedReasoningEffort = snapshot.selectedReasoningEffort;
   }
 }
 
@@ -100,7 +109,7 @@ void main() {
       final controller = SessionController(
         sessionService: fakeService,
         projectService: _ShellFakeProjectService(),
-        settingsService: _ShellFakeSettingsService('gpt-5.3-codex'),
+        settingsService: _ShellFakeSettingsService('gpt-5.3-codex', 'high'),
       );
       addTearDown(() async {
         await fakeService.shutdown();

@@ -89,6 +89,7 @@ class AgentOrchestrator {
     required String threadId,
     required String prompt,
     required String model,
+    required String reasoningEffort,
     required String cwd,
   }) async {
     final response = await _client.startTurn(
@@ -97,6 +98,7 @@ class AgentOrchestrator {
         <String, dynamic>{'type': 'text', 'text': prompt},
       ],
       model: model,
+      reasoningEffort: reasoningEffort,
       cwd: cwd,
       approvalPolicy: 'never',
     );

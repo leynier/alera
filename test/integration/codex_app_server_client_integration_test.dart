@@ -56,6 +56,7 @@ void main() {
               <String, dynamic>{'type': 'text', 'text': 'run checks'},
             ],
             model: 'gpt-5.2-codex',
+            reasoningEffort: 'high',
             cwd: '/tmp/project',
           )
           .timeout(const Duration(seconds: 5));
@@ -93,6 +94,7 @@ void main() {
               <String, dynamic>{'type': 'text', 'text': 'trigger_approval now'},
             ],
             model: 'gpt-5.2-codex',
+            reasoningEffort: 'high',
             cwd: '/tmp/project',
           )
           .timeout(const Duration(seconds: 5));
@@ -140,6 +142,7 @@ void main() {
                 },
               ],
               model: 'gpt-5.2-codex',
+              reasoningEffort: 'high',
               cwd: '/tmp/project',
             )
             .timeout(const Duration(seconds: 5));
@@ -166,5 +169,42 @@ void main() {
         await client.close();
       },
     );
+
+    test('turn/start forwards selected reasoning effort', () async {
+      final client = await _startFakeClient();
+      final notifications = <Map<String, dynamic>>[];
+      final sub = client.events.listen(notifications.add);
+
+      await client
+          .startThread(cwd: '/tmp/project')
+          .timeout(const Duration(seconds: 5));
+
+      await client
+          .startTurn(
+            threadId: 'thr_fake',
+            input: const <Map<String, dynamic>>[
+              <String, dynamic>{
+                'type': 'text',
+                'text': 'trigger_reasoning_medium',
+              },
+            ],
+            model: 'gpt-5.2-codex',
+            reasoningEffort: 'medium',
+            cwd: '/tmp/project',
+          )
+          .timeout(const Duration(seconds: 5));
+
+      final turnCompleted = await _waitForMethod(
+        notifications,
+        'turn/completed',
+      );
+      final turn =
+          (turnCompleted['params'] as Map<String, dynamic>)['turn']
+              as Map<String, dynamic>;
+      expect(turn['status'], 'completed');
+
+      await sub.cancel();
+      await client.close();
+    });
   });
 }

@@ -57,6 +57,7 @@ void main() {
           threadId: threadId,
           prompt: 'run checks',
           model: 'gpt-5.2-codex',
+          reasoningEffort: 'high',
           cwd: '/tmp/project',
         );
         expect(turnId, isNotEmpty);
@@ -89,6 +90,7 @@ void main() {
         threadId: threadId,
         prompt: 'trigger_approval now',
         model: 'gpt-5.2-codex',
+        reasoningEffort: 'high',
         cwd: '/tmp/project',
       );
 
@@ -119,6 +121,7 @@ void main() {
         threadId: threadId,
         prompt: 'trigger_interrupt now',
         model: 'gpt-5.2-codex',
+        reasoningEffort: 'high',
         cwd: '/tmp/project',
       );
 

@@ -45,10 +45,18 @@ class SessionController extends StateNotifier<SessionState> {
     final normalizedDefault = codexModelExists(defaults.selectedModel)
         ? defaults.selectedModel
         : codexDefaultModelId();
+    final normalizedReasoningEffort = closestSupportedReasoningEffort(
+      modelId: normalizedDefault,
+      effort: defaults.selectedReasoningEffort,
+    );
 
-    if (normalizedDefault != defaults.selectedModel) {
+    if (normalizedDefault != defaults.selectedModel ||
+        normalizedReasoningEffort != defaults.selectedReasoningEffort) {
       await _settingsService.save(
-        SettingsSnapshot(selectedModel: normalizedDefault),
+        SettingsSnapshot(
+          selectedModel: normalizedDefault,
+          selectedReasoningEffort: normalizedReasoningEffort,
+        ),
       );
     }
 
@@ -57,6 +65,7 @@ class SessionController extends StateNotifier<SessionState> {
       connectionState: AppServerConnectionState.disconnected,
       availableModels: codexModelSnapshot,
       preSessionModelId: normalizedDefault,
+      preSessionReasoningEffort: normalizedReasoningEffort,
     );
 
     _bootstrapped = true;
@@ -178,6 +187,10 @@ class SessionController extends StateNotifier<SessionState> {
         activeSessionId: sessionId,
         selectedWorkspacePath: target.workspacePath,
         preSessionModelId: target.model,
+        preSessionReasoningEffort: closestSupportedReasoningEffort(
+          modelId: target.model,
+          effort: state.activeReasoningEffort,
+        ),
         connectionState: AppServerConnectionState.connected,
         isInterrupting: false,
       );
@@ -215,18 +228,26 @@ class SessionController extends StateNotifier<SessionState> {
     );
     try {
       final session = await _sessionService.createSession(request);
+      final adjustedReasoningEffort = closestSupportedReasoningEffort(
+        modelId: session.model,
+        effort: state.activeReasoningEffort,
+      );
       state = state.copyWith(
         isBusy: false,
         sessions: _sessionService.sessions,
         selectedWorkspacePath: session.workspacePath,
         activeSessionId: session.id,
         preSessionModelId: session.model,
+        preSessionReasoningEffort: adjustedReasoningEffort,
         connectionState: AppServerConnectionState.connected,
         isInterrupting: false,
       );
 
       await _settingsService.save(
-        SettingsSnapshot(selectedModel: session.model),
+        SettingsSnapshot(
+          selectedModel: session.model,
+          selectedReasoningEffort: adjustedReasoningEffort,
+        ),
       );
     } catch (error) {
       state = state.copyWith(
@@ -241,10 +262,23 @@ class SessionController extends StateNotifier<SessionState> {
     if (!codexModelExists(modelId)) {
       return;
     }
+    final adjustedReasoningEffort = closestSupportedReasoningEffort(
+      modelId: modelId,
+      effort: state.activeReasoningEffort,
+    );
     final session = state.activeSession;
     if (session == null) {
-      state = state.copyWith(preSessionModelId: modelId, clearError: true);
-      await _settingsService.save(SettingsSnapshot(selectedModel: modelId));
+      state = state.copyWith(
+        preSessionModelId: modelId,
+        preSessionReasoningEffort: adjustedReasoningEffort,
+        clearError: true,
+      );
+      await _settingsService.save(
+        SettingsSnapshot(
+          selectedModel: modelId,
+          selectedReasoningEffort: adjustedReasoningEffort,
+        ),
+      );
       return;
     }
 
@@ -253,11 +287,42 @@ class SessionController extends StateNotifier<SessionState> {
         sessionId: session.id,
         modelId: modelId,
       );
-      await _settingsService.save(SettingsSnapshot(selectedModel: modelId));
+      await _settingsService.save(
+        SettingsSnapshot(
+          selectedModel: modelId,
+          selectedReasoningEffort: adjustedReasoningEffort,
+        ),
+      );
       state = state.copyWith(
         sessions: _sessionService.sessions,
         preSessionModelId: modelId,
+        preSessionReasoningEffort: adjustedReasoningEffort,
         clearError: true,
+      );
+    } catch (error) {
+      state = state.copyWith(error: error.toString());
+    }
+  }
+
+  Future<void> updateReasoningEffort(String effortId) async {
+    if (!codexReasoningEffortExists(effortId)) {
+      return;
+    }
+    final modelId = state.activeModelId;
+    final adjusted = closestSupportedReasoningEffort(
+      modelId: modelId,
+      effort: effortId,
+    );
+    try {
+      state = state.copyWith(
+        preSessionReasoningEffort: adjusted,
+        clearError: true,
+      );
+      await _settingsService.save(
+        SettingsSnapshot(
+          selectedModel: modelId,
+          selectedReasoningEffort: adjusted,
+        ),
       );
     } catch (error) {
       state = state.copyWith(error: error.toString());
@@ -285,6 +350,7 @@ class SessionController extends StateNotifier<SessionState> {
       var session = state.activeSession;
       if (session == null) {
         final model = state.activeModelId;
+        final reasoningEffort = state.activeReasoningEffort;
         final created = await _sessionService.createSession(
           SessionCreateRequest(
             projectPath: workspacePath,
@@ -292,12 +358,18 @@ class SessionController extends StateNotifier<SessionState> {
             model: model,
           ),
         );
-        await _settingsService.save(SettingsSnapshot(selectedModel: model));
+        await _settingsService.save(
+          SettingsSnapshot(
+            selectedModel: model,
+            selectedReasoningEffort: reasoningEffort,
+          ),
+        );
         state = state.copyWith(
           sessions: _sessionService.sessions,
           selectedWorkspacePath: created.workspacePath,
           activeSessionId: created.id,
           preSessionModelId: model,
+          preSessionReasoningEffort: reasoningEffort,
           connectionState: AppServerConnectionState.connected,
           isInterrupting: false,
           clearError: true,
@@ -305,7 +377,11 @@ class SessionController extends StateNotifier<SessionState> {
         session = created;
       }
 
-      await _sessionService.runInput(sessionId: session.id, rawInput: text);
+      await _sessionService.runInput(
+        sessionId: session.id,
+        rawInput: text,
+        reasoningEffort: state.activeReasoningEffort,
+      );
       state = state.copyWith(
         isBusy: false,
         sessions: _sessionService.sessions,

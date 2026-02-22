@@ -17,6 +17,7 @@ class _FakeSessionService implements SessionService {
   int runInputCallCount = 0;
   SessionCreateRequest? lastCreateSessionRequest;
   String? lastRunInputText;
+  String? lastRunInputReasoningEffort;
   int interruptCallCount = 0;
   String? interruptedSessionId;
   String? interruptedTurnOverride;
@@ -80,9 +81,11 @@ class _FakeSessionService implements SessionService {
   Future<void> runInput({
     required String sessionId,
     required String rawInput,
+    required String reasoningEffort,
   }) async {
     runInputCallCount += 1;
     lastRunInputText = rawInput;
+    lastRunInputReasoningEffort = reasoningEffort;
     final existing = _sessionsById[sessionId];
     if (existing == null) {
       throw StateError('session not found');
@@ -158,30 +161,36 @@ class _FakeProjectService implements ProjectService {
 }
 
 class _FakeSettingsService implements SettingsService {
-  _FakeSettingsService(this._selectedModel);
+  _FakeSettingsService(this._selectedModel, this._selectedReasoningEffort);
 
   String _selectedModel;
+  String _selectedReasoningEffort;
   int saveCallCount = 0;
 
   @override
   Future<SettingsSnapshot> load() async {
-    return SettingsSnapshot(selectedModel: _selectedModel);
+    return SettingsSnapshot(
+      selectedModel: _selectedModel,
+      selectedReasoningEffort: _selectedReasoningEffort,
+    );
   }
 
   @override
   Future<void> save(SettingsSnapshot snapshot) async {
     saveCallCount += 1;
     _selectedModel = snapshot.selectedModel;
+    _selectedReasoningEffort = snapshot.selectedReasoningEffort;
   }
 
   String get selectedModel => _selectedModel;
+  String get selectedReasoningEffort => _selectedReasoningEffort;
 }
 
 void main() {
   group('session controller', () {
     test('selectWorkspace without existing session boots connection', () async {
       final fakeService = _FakeSessionService();
-      final fakeSettings = _FakeSettingsService('gpt-5.3-codex');
+      final fakeSettings = _FakeSettingsService('gpt-5.3-codex', 'high');
       final controller = SessionController(
         sessionService: fakeService,
         projectService: _FakeProjectService(),
@@ -204,11 +213,12 @@ void main() {
       );
       expect(controller.state.selectedWorkspacePath, isNotNull);
       expect(controller.state.preSessionModelId, 'gpt-5.3-codex');
+      expect(controller.state.preSessionReasoningEffort, 'high');
     });
 
     test('sendInput lazily creates session on first prompt', () async {
       final fakeService = _FakeSessionService();
-      final fakeSettings = _FakeSettingsService('gpt-5.3-codex');
+      final fakeSettings = _FakeSettingsService('gpt-5.3-codex', 'high');
       final controller = SessionController(
         sessionService: fakeService,
         projectService: _FakeProjectService(),
@@ -235,6 +245,7 @@ void main() {
       );
       expect(fakeService.lastCreateSessionRequest?.projectPath, '/repo');
       expect(fakeService.lastCreateSessionRequest?.model, 'gpt-5.3-codex');
+      expect(fakeService.lastRunInputReasoningEffort, 'high');
       expect(controller.state.activeSessionId, isNotNull);
       expect(controller.state.activeSession, isNotNull);
       expect(
@@ -247,7 +258,7 @@ void main() {
       'updateActiveSessionModel without session updates draft and settings',
       () async {
         final fakeService = _FakeSessionService();
-        final fakeSettings = _FakeSettingsService('gpt-5.3-codex');
+        final fakeSettings = _FakeSettingsService('gpt-5.3-codex', 'high');
         final controller = SessionController(
           sessionService: fakeService,
           projectService: _FakeProjectService(),
@@ -264,9 +275,56 @@ void main() {
         expect(controller.state.activeSessionId, isNull);
         expect(controller.state.preSessionModelId, 'gpt-5.2-codex');
         expect(fakeSettings.selectedModel, 'gpt-5.2-codex');
+        expect(fakeSettings.selectedReasoningEffort, 'high');
         expect(fakeSettings.saveCallCount, greaterThan(0));
       },
     );
+
+    test(
+      'updateActiveSessionModel auto-adjusts unsupported reasoning effort for mini',
+      () async {
+        final fakeService = _FakeSessionService();
+        final fakeSettings = _FakeSettingsService('gpt-5.3-codex', 'xhigh');
+        final controller = SessionController(
+          sessionService: fakeService,
+          projectService: _FakeProjectService(),
+          settingsService: fakeSettings,
+        );
+        addTearDown(() async {
+          controller.dispose();
+          await fakeService.shutdown();
+        });
+
+        await controller.bootstrap();
+        await controller.updateActiveSessionModel('gpt-5.1-codex-mini');
+
+        expect(controller.state.preSessionModelId, 'gpt-5.1-codex-mini');
+        expect(controller.state.activeReasoningEffort, 'high');
+        expect(fakeSettings.selectedModel, 'gpt-5.1-codex-mini');
+        expect(fakeSettings.selectedReasoningEffort, 'high');
+      },
+    );
+
+    test('updateReasoningEffort persists selected effort', () async {
+      final fakeService = _FakeSessionService();
+      final fakeSettings = _FakeSettingsService('gpt-5.3-codex', 'high');
+      final controller = SessionController(
+        sessionService: fakeService,
+        projectService: _FakeProjectService(),
+        settingsService: fakeSettings,
+      );
+      addTearDown(() async {
+        controller.dispose();
+        await fakeService.shutdown();
+      });
+
+      await controller.bootstrap();
+      await controller.updateReasoningEffort('low');
+
+      expect(controller.state.activeReasoningEffort, 'low');
+      expect(fakeSettings.selectedReasoningEffort, 'low');
+      expect(fakeSettings.selectedModel, 'gpt-5.3-codex');
+    });
 
     test(
       'interruptActiveTurn toggles state and clears on turn completion',
@@ -275,7 +333,7 @@ void main() {
         final controller = SessionController(
           sessionService: fakeService,
           projectService: _FakeProjectService(),
-          settingsService: _FakeSettingsService('gpt-5.3-codex'),
+          settingsService: _FakeSettingsService('gpt-5.3-codex', 'high'),
         );
         addTearDown(() async {
           controller.dispose();
@@ -328,7 +386,7 @@ void main() {
       final controller = SessionController(
         sessionService: fakeService,
         projectService: _FakeProjectService(),
-        settingsService: _FakeSettingsService('gpt-5.3-codex'),
+        settingsService: _FakeSettingsService('gpt-5.3-codex', 'high'),
       );
       addTearDown(() async {
         controller.dispose();

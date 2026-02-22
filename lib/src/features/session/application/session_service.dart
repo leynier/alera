@@ -113,6 +113,7 @@ class SessionService {
   Future<void> runInput({
     required String sessionId,
     required String rawInput,
+    required String reasoningEffort,
   }) async {
     final session = _sessions[sessionId];
     if (session == null) {
@@ -126,6 +127,7 @@ class SessionService {
       threadId: session.threadId!,
       prompt: rawInput,
       model: session.model,
+      reasoningEffort: reasoningEffort,
       cwd: session.workspacePath,
     );
 

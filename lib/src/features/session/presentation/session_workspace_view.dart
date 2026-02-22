@@ -18,6 +18,9 @@ class SessionWorkspaceView extends StatefulWidget {
     required this.isTurnRunning,
     required this.isInterrupting,
     required this.onModelChanged,
+    required this.activeReasoningEffort,
+    required this.supportedReasoningEfforts,
+    required this.onReasoningEffortChanged,
     required this.rawLogExpanded,
   });
 
@@ -27,6 +30,9 @@ class SessionWorkspaceView extends StatefulWidget {
   final bool isTurnRunning;
   final bool isInterrupting;
   final ValueChanged<String> onModelChanged;
+  final String activeReasoningEffort;
+  final List<String> supportedReasoningEfforts;
+  final ValueChanged<String> onReasoningEffortChanged;
   final bool rawLogExpanded;
 
   @override
@@ -168,6 +174,9 @@ class _SessionWorkspaceViewState extends State<SessionWorkspaceView> {
           activeModelId: widget.state.activeModelId,
           availableModels: widget.state.availableModels,
           onModelChanged: widget.onModelChanged,
+          activeReasoningEffort: widget.activeReasoningEffort,
+          supportedReasoningEfforts: widget.supportedReasoningEfforts,
+          onReasoningEffortChanged: widget.onReasoningEffortChanged,
           onSend: _sendInput,
           onInterrupt: widget.onInterruptTurn,
         ),
@@ -1738,6 +1747,9 @@ class _Composer extends StatefulWidget {
     required this.activeModelId,
     required this.availableModels,
     required this.onModelChanged,
+    required this.activeReasoningEffort,
+    required this.supportedReasoningEfforts,
+    required this.onReasoningEffortChanged,
     required this.onSend,
     required this.onInterrupt,
   });
@@ -1752,6 +1764,9 @@ class _Composer extends StatefulWidget {
   final String activeModelId;
   final List<CodexModelOption> availableModels;
   final ValueChanged<String> onModelChanged;
+  final String activeReasoningEffort;
+  final List<String> supportedReasoningEfforts;
+  final ValueChanged<String> onReasoningEffortChanged;
   final VoidCallback onSend;
   final VoidCallback onInterrupt;
 
@@ -1760,15 +1775,6 @@ class _Composer extends StatefulWidget {
 }
 
 class _ComposerState extends State<_Composer> {
-  static const _reasoningOptions = <String, String>{
-    'low': 'Low',
-    'medium': 'Medium',
-    'high': 'High',
-    'extra_high': 'Extra High',
-  };
-
-  String _reasoningLevel = 'high';
-
   String get _activeModelLabel {
     for (final model in widget.availableModels) {
       if (model.id == widget.activeModelId) {
@@ -1778,7 +1784,8 @@ class _ComposerState extends State<_Composer> {
     return widget.activeModelId;
   }
 
-  String get _reasoningLabel => _reasoningOptions[_reasoningLevel] ?? 'High';
+  String get _reasoningLabel =>
+      codexReasoningEffortLabel(widget.activeReasoningEffort);
 
   void _sendFromShortcut() {
     if (!widget.canSend) {
@@ -1919,26 +1926,28 @@ class _ComposerState extends State<_Composer> {
                       ),
                       const SizedBox(width: AleraTokens.space6),
                       PopupMenuButton<String>(
-                        onSelected: (value) =>
-                            setState(() => _reasoningLevel = value),
+                        onSelected: widget.canChangeModel
+                            ? widget.onReasoningEffortChanged
+                            : null,
+                        enabled: widget.canChangeModel,
                         itemBuilder: (context) => <PopupMenuEntry<String>>[
                           const PopupMenuItem<String>(
                             enabled: false,
                             height: 32,
                             padding: EdgeInsets.symmetric(horizontal: 8),
                             child: Text(
-                              'Select reasoning',
+                              'Select reasoning effort',
                               style: TextStyle(
                                 color: AleraTokens.foregroundFaint,
                                 fontSize: 12,
                               ),
                             ),
                           ),
-                          ..._reasoningOptions.entries.map(
-                            (entry) => _DropdownEntry(
-                              value: entry.key,
-                              label: entry.value,
-                              selected: entry.key == _reasoningLevel,
+                          ...widget.supportedReasoningEfforts.map(
+                            (effort) => _DropdownEntry(
+                              value: effort,
+                              label: codexReasoningEffortLabel(effort),
+                              selected: effort == widget.activeReasoningEffort,
                             ),
                           ),
                         ],
