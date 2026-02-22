@@ -780,9 +780,8 @@ class _WorkedForDivider extends StatelessWidget {
 String? _workedForLabel(TimelineCell separatorCell) {
   final metadata = separatorCell.metadata;
   final hasMetrics = _hasRuntimeMetrics(metadata);
-  final durationMs = _durationMs(metadata);
   final formatted = _formatWorkedDuration(metadata);
-  if (formatted != null && durationMs != null && durationMs > 60000) {
+  if (formatted != null) {
     return 'Worked for $formatted';
   }
   if (hasMetrics) {

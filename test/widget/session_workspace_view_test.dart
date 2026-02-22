@@ -245,7 +245,7 @@ void main() {
   });
 
   testWidgets(
-    'multi secondary under one minute has no worked divider and renders rows directly',
+    'multi secondary under one minute shows worked divider with seconds and stays collapsed',
     (tester) async {
       final state = SessionState(
         timelineCells: <TimelineCell>[
@@ -293,11 +293,16 @@ void main() {
 
       await _pumpWorkspace(tester, state: state);
 
-      expect(find.textContaining('Worked for'), findsNothing);
+      expect(find.text('Worked for 30s'), findsOneWidget);
       expect(
         find.byKey(const ValueKey<String>('worked-divider')),
-        findsNothing,
+        findsOneWidget,
       );
+      expect(find.text('Thinking'), findsNothing);
+      expect(find.text('Ran git status'), findsNothing);
+
+      await tester.tap(find.text('Worked for 30s'));
+      await tester.pumpAndSettle();
       expect(find.text('Thinking'), findsOneWidget);
       expect(find.text('Ran git status'), findsOneWidget);
     },
