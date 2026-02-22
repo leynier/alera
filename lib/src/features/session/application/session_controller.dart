@@ -56,6 +56,7 @@ class SessionController extends StateNotifier<SessionState> {
       sessions: _sessionService.sessions,
       connectionState: AppServerConnectionState.disconnected,
       availableModels: codexModelSnapshot,
+      preSessionModelId: normalizedDefault,
     );
 
     _bootstrapped = true;
@@ -84,7 +85,7 @@ class SessionController extends StateNotifier<SessionState> {
         normalized,
       );
       state = state.copyWith(
-        isBusy: false,
+        isBusy: existing != null ? false : true,
         selectedWorkspacePath: normalized,
         sessions: _sessionService.sessions,
         activeSessionId: existing?.id,
@@ -105,13 +106,20 @@ class SessionController extends StateNotifier<SessionState> {
         clearActiveAgentStreamItemId: true,
         clearActiveAgentStreamTurnId: true,
         clearActiveAgentStreamPhase: true,
-        connectionState: existing == null
-            ? AppServerConnectionState.disconnected
-            : AppServerConnectionState.starting,
+        connectionState: AppServerConnectionState.starting,
       );
 
       if (existing != null) {
         await activateSession(existing.id);
+      } else {
+        await _sessionService.ensureConnected();
+        state = state.copyWith(
+          isBusy: false,
+          sessions: _sessionService.sessions,
+          activeSessionId: null,
+          connectionState: AppServerConnectionState.connected,
+          isInterrupting: false,
+        );
       }
       return true;
     } catch (error) {
@@ -169,6 +177,7 @@ class SessionController extends StateNotifier<SessionState> {
         sessions: _sessionService.sessions,
         activeSessionId: sessionId,
         selectedWorkspacePath: target.workspacePath,
+        preSessionModelId: target.model,
         connectionState: AppServerConnectionState.connected,
         isInterrupting: false,
       );
@@ -211,6 +220,7 @@ class SessionController extends StateNotifier<SessionState> {
         sessions: _sessionService.sessions,
         selectedWorkspacePath: session.workspacePath,
         activeSessionId: session.id,
+        preSessionModelId: session.model,
         connectionState: AppServerConnectionState.connected,
         isInterrupting: false,
       );
@@ -233,6 +243,7 @@ class SessionController extends StateNotifier<SessionState> {
     }
     final session = state.activeSession;
     if (session == null) {
+      state = state.copyWith(preSessionModelId: modelId, clearError: true);
       await _settingsService.save(SettingsSnapshot(selectedModel: modelId));
       return;
     }
@@ -245,6 +256,7 @@ class SessionController extends StateNotifier<SessionState> {
       await _settingsService.save(SettingsSnapshot(selectedModel: modelId));
       state = state.copyWith(
         sessions: _sessionService.sessions,
+        preSessionModelId: modelId,
         clearError: true,
       );
     } catch (error) {
@@ -253,8 +265,8 @@ class SessionController extends StateNotifier<SessionState> {
   }
 
   Future<void> sendInput(String rawInput) async {
-    final session = state.activeSession;
-    if (session == null) {
+    final workspacePath = state.selectedWorkspacePath;
+    if (workspacePath == null || workspacePath.isEmpty) {
       return;
     }
     if (state.runningTurnCount > 0 || state.isInterrupting) {
@@ -270,8 +282,35 @@ class SessionController extends StateNotifier<SessionState> {
       text: text,
     ).copyWith(isBusy: true, clearError: true);
     try {
+      var session = state.activeSession;
+      if (session == null) {
+        final model = state.activeModelId;
+        final created = await _sessionService.createSession(
+          SessionCreateRequest(
+            projectPath: workspacePath,
+            firstPrompt: text,
+            model: model,
+          ),
+        );
+        await _settingsService.save(SettingsSnapshot(selectedModel: model));
+        state = state.copyWith(
+          sessions: _sessionService.sessions,
+          selectedWorkspacePath: created.workspacePath,
+          activeSessionId: created.id,
+          preSessionModelId: model,
+          connectionState: AppServerConnectionState.connected,
+          isInterrupting: false,
+          clearError: true,
+        );
+        session = created;
+      }
+
       await _sessionService.runInput(sessionId: session.id, rawInput: text);
-      state = state.copyWith(isBusy: false, sessions: _sessionService.sessions);
+      state = state.copyWith(
+        isBusy: false,
+        sessions: _sessionService.sessions,
+        connectionState: AppServerConnectionState.connected,
+      );
     } catch (error) {
       state = state.copyWith(
         isBusy: false,

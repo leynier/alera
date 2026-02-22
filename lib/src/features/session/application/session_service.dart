@@ -44,6 +44,10 @@ class SessionService {
 
   Stream<SessionRuntimeEvent> get events => _eventsController.stream;
 
+  Future<void> ensureConnected() async {
+    await _ensureOrchestrator();
+  }
+
   Future<AleraSession> createSession(SessionCreateRequest request) async {
     final isGitRepo = await _projectService.isGitRepository(
       request.projectPath,

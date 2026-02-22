@@ -53,6 +53,10 @@ class _SessionWorkspaceViewState extends State<SessionWorkspaceView> {
 
   @override
   Widget build(BuildContext context) {
+    final hasWorkspace =
+        (widget.state.selectedWorkspacePath != null &&
+            widget.state.selectedWorkspacePath!.isNotEmpty) ||
+        widget.state.activeSession != null;
     return Column(
       children: <Widget>[
         Expanded(
@@ -64,9 +68,9 @@ class _SessionWorkspaceViewState extends State<SessionWorkspaceView> {
         ),
         _Composer(
           controller: _inputController,
-          textFieldEnabled: widget.state.activeSession != null,
+          textFieldEnabled: hasWorkspace,
           canSend:
-              widget.state.activeSession != null &&
+              hasWorkspace &&
               !widget.state.isBusy &&
               !widget.isTurnRunning &&
               !widget.isInterrupting,
@@ -74,7 +78,7 @@ class _SessionWorkspaceViewState extends State<SessionWorkspaceView> {
               widget.state.activeSession != null &&
               widget.isTurnRunning &&
               !widget.state.isBusy,
-          canChangeModel: widget.state.activeSession != null,
+          canChangeModel: hasWorkspace,
           isBusy: widget.state.isBusy,
           isInterrupting: widget.isInterrupting,
           activeModelId: widget.state.activeModelId,
@@ -264,19 +268,20 @@ class _EmptyChatState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final session = state.activeSession;
+    final workspacePath = session?.workspacePath ?? state.selectedWorkspacePath;
     final theme = Theme.of(context);
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           Text(
-            session?.title ?? 'session active',
+            session?.title ?? 'new session',
             style: theme.textTheme.titleMedium,
           ),
           const SizedBox(height: AleraTokens.space8),
-          if (session != null)
+          if (workspacePath != null && workspacePath.isNotEmpty)
             Text(
-              session.workspacePath,
+              workspacePath,
               style: AleraTokens.monoStyle.copyWith(
                 color: AleraTokens.foregroundFaint,
               ),

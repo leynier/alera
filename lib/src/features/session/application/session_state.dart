@@ -8,6 +8,7 @@ import 'package:alera/src/shared/models/contracts.dart';
 class SessionState {
   const SessionState({
     this.selectedWorkspacePath,
+    this.preSessionModelId,
     this.sessions = const <AleraSession>[],
     this.activeSessionId,
     this.availableModels = codexModelSnapshot,
@@ -40,6 +41,7 @@ class SessionState {
   });
 
   final String? selectedWorkspacePath;
+  final String? preSessionModelId;
   final List<AleraSession> sessions;
   final String? activeSessionId;
   final List<CodexModelOption> availableModels;
@@ -87,11 +89,16 @@ class SessionState {
     if (active != null) {
       return active.model;
     }
+    final draft = preSessionModelId;
+    if (draft != null && codexModelExists(draft)) {
+      return draft;
+    }
     return codexDefaultModelId();
   }
 
   SessionState copyWith({
     String? selectedWorkspacePath,
+    String? preSessionModelId,
     List<AleraSession>? sessions,
     String? activeSessionId,
     List<CodexModelOption>? availableModels,
@@ -132,12 +139,16 @@ class SessionState {
     bool? isBusy,
     bool clearError = false,
     bool clearSelectedWorkspacePath = false,
+    bool clearPreSessionModelId = false,
     bool clearActiveSessionId = false,
   }) {
     return SessionState(
       selectedWorkspacePath: clearSelectedWorkspacePath
           ? null
           : (selectedWorkspacePath ?? this.selectedWorkspacePath),
+      preSessionModelId: clearPreSessionModelId
+          ? null
+          : (preSessionModelId ?? this.preSessionModelId),
       sessions: sessions ?? this.sessions,
       activeSessionId: clearActiveSessionId
           ? null

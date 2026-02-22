@@ -12,6 +12,11 @@ class _FakeSessionService implements SessionService {
   final StreamController<SessionRuntimeEvent> _eventsController =
       StreamController<SessionRuntimeEvent>.broadcast();
   final Map<String, AleraSession> _sessionsById = <String, AleraSession>{};
+  int ensureConnectedCallCount = 0;
+  int createSessionCallCount = 0;
+  int runInputCallCount = 0;
+  SessionCreateRequest? lastCreateSessionRequest;
+  String? lastRunInputText;
   int interruptCallCount = 0;
   String? interruptedSessionId;
   String? interruptedTurnOverride;
@@ -28,9 +33,12 @@ class _FakeSessionService implements SessionService {
 
   @override
   Future<AleraSession> createSession(SessionCreateRequest request) async {
+    createSessionCallCount += 1;
+    lastCreateSessionRequest = request;
     final now = DateTime.now().toUtc();
+    final id = 'session-$createSessionCallCount';
     final session = AleraSession(
-      id: 'session-1',
+      id: id,
       request: request,
       workspacePath: request.projectPath,
       createdAt: now,
@@ -41,6 +49,11 @@ class _FakeSessionService implements SessionService {
     );
     _sessionsById[session.id] = session;
     return session;
+  }
+
+  @override
+  Future<void> ensureConnected() async {
+    ensureConnectedCallCount += 1;
   }
 
   @override
@@ -68,6 +81,8 @@ class _FakeSessionService implements SessionService {
     required String sessionId,
     required String rawInput,
   }) async {
+    runInputCallCount += 1;
+    lastRunInputText = rawInput;
     final existing = _sessionsById[sessionId];
     if (existing == null) {
       throw StateError('session not found');
@@ -146,6 +161,7 @@ class _FakeSettingsService implements SettingsService {
   _FakeSettingsService(this._selectedModel);
 
   String _selectedModel;
+  int saveCallCount = 0;
 
   @override
   Future<SettingsSnapshot> load() async {
@@ -154,12 +170,104 @@ class _FakeSettingsService implements SettingsService {
 
   @override
   Future<void> save(SettingsSnapshot snapshot) async {
+    saveCallCount += 1;
     _selectedModel = snapshot.selectedModel;
   }
+
+  String get selectedModel => _selectedModel;
 }
 
 void main() {
   group('session controller', () {
+    test('selectWorkspace without existing session boots connection', () async {
+      final fakeService = _FakeSessionService();
+      final fakeSettings = _FakeSettingsService('gpt-5.3-codex');
+      final controller = SessionController(
+        sessionService: fakeService,
+        projectService: _FakeProjectService(),
+        settingsService: fakeSettings,
+      );
+      addTearDown(() async {
+        controller.dispose();
+        await fakeService.shutdown();
+      });
+
+      await controller.bootstrap();
+      final ok = await controller.selectWorkspaceFromPath('/repo');
+
+      expect(ok, isTrue);
+      expect(fakeService.ensureConnectedCallCount, 1);
+      expect(controller.state.activeSessionId, isNull);
+      expect(
+        controller.state.connectionState,
+        AppServerConnectionState.connected,
+      );
+      expect(controller.state.selectedWorkspacePath, isNotNull);
+      expect(controller.state.preSessionModelId, 'gpt-5.3-codex');
+    });
+
+    test('sendInput lazily creates session on first prompt', () async {
+      final fakeService = _FakeSessionService();
+      final fakeSettings = _FakeSettingsService('gpt-5.3-codex');
+      final controller = SessionController(
+        sessionService: fakeService,
+        projectService: _FakeProjectService(),
+        settingsService: fakeSettings,
+      );
+      addTearDown(() async {
+        controller.dispose();
+        await fakeService.shutdown();
+      });
+
+      await controller.bootstrap();
+      await controller.selectWorkspaceFromPath('/repo');
+
+      expect(controller.state.activeSessionId, isNull);
+
+      await controller.sendInput('Hello from first prompt');
+
+      expect(fakeService.createSessionCallCount, 1);
+      expect(fakeService.runInputCallCount, 1);
+      expect(fakeService.lastRunInputText, 'Hello from first prompt');
+      expect(
+        fakeService.lastCreateSessionRequest?.firstPrompt,
+        'Hello from first prompt',
+      );
+      expect(fakeService.lastCreateSessionRequest?.projectPath, '/repo');
+      expect(fakeService.lastCreateSessionRequest?.model, 'gpt-5.3-codex');
+      expect(controller.state.activeSessionId, isNotNull);
+      expect(controller.state.activeSession, isNotNull);
+      expect(
+        controller.state.connectionState,
+        AppServerConnectionState.connected,
+      );
+    });
+
+    test(
+      'updateActiveSessionModel without session updates draft and settings',
+      () async {
+        final fakeService = _FakeSessionService();
+        final fakeSettings = _FakeSettingsService('gpt-5.3-codex');
+        final controller = SessionController(
+          sessionService: fakeService,
+          projectService: _FakeProjectService(),
+          settingsService: fakeSettings,
+        );
+        addTearDown(() async {
+          controller.dispose();
+          await fakeService.shutdown();
+        });
+
+        await controller.bootstrap();
+        await controller.updateActiveSessionModel('gpt-5.2-codex');
+
+        expect(controller.state.activeSessionId, isNull);
+        expect(controller.state.preSessionModelId, 'gpt-5.2-codex');
+        expect(fakeSettings.selectedModel, 'gpt-5.2-codex');
+        expect(fakeSettings.saveCallCount, greaterThan(0));
+      },
+    );
+
     test(
       'interruptActiveTurn toggles state and clears on turn completion',
       () async {

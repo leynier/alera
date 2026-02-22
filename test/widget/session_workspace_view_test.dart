@@ -921,6 +921,33 @@ void main() {
     expect(editable.controller.text, isEmpty);
   });
 
+  testWidgets('composer works in pre-session mode when workspace is selected', (
+    tester,
+  ) async {
+    var sentCount = 0;
+    String? lastMessage;
+
+    await _pumpWorkspace(
+      tester,
+      state: const SessionState(
+        selectedWorkspacePath: '/repo',
+        preSessionModelId: 'gpt-5.3-codex',
+      ),
+      onSendInput: (value) {
+        sentCount += 1;
+        lastMessage = value;
+      },
+    );
+
+    await tester.tap(find.byType(TextField));
+    await tester.enterText(find.byType(TextField), 'first prompt');
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+
+    expect(sentCount, 1);
+    expect(lastMessage, 'first prompt');
+  });
+
   testWidgets('pressing Shift+Enter inserts newline without sending', (
     tester,
   ) async {
