@@ -8,10 +8,8 @@ class SessionState {
     this.sessions = const <AleraSession>[],
     this.activeSessionId,
     this.availableModels = codexModelSnapshot,
-    this.timelineMessages = const <TimelineMessage>[],
-    this.timelineActivities = const <TimelineActivityItem>[],
-    this.turnGroups = const <TimelineTurnGroup>[],
-    this.activeStreamingAssistantMessageId,
+    this.timelineCells = const <TimelineCell>[],
+    this.activeStreamingAssistantCellId,
     this.activeTurnId,
     this.activityLog = const <String>[],
     this.connectionState = AppServerConnectionState.disconnected,
@@ -24,10 +22,8 @@ class SessionState {
   final List<AleraSession> sessions;
   final String? activeSessionId;
   final List<CodexModelOption> availableModels;
-  final List<TimelineMessage> timelineMessages;
-  final List<TimelineActivityItem> timelineActivities;
-  final List<TimelineTurnGroup> turnGroups;
-  final String? activeStreamingAssistantMessageId;
+  final List<TimelineCell> timelineCells;
+  final String? activeStreamingAssistantCellId;
   final String? activeTurnId;
   final List<String> activityLog;
   final AppServerConnectionState connectionState;
@@ -60,11 +56,9 @@ class SessionState {
     List<AleraSession>? sessions,
     String? activeSessionId,
     List<CodexModelOption>? availableModels,
-    List<TimelineMessage>? timelineMessages,
-    List<TimelineActivityItem>? timelineActivities,
-    List<TimelineTurnGroup>? turnGroups,
-    String? activeStreamingAssistantMessageId,
-    bool clearActiveStreamingAssistantMessageId = false,
+    List<TimelineCell>? timelineCells,
+    String? activeStreamingAssistantCellId,
+    bool clearActiveStreamingAssistantCellId = false,
     String? activeTurnId,
     bool clearActiveTurnId = false,
     List<String>? activityLog,
@@ -85,14 +79,14 @@ class SessionState {
           ? null
           : (activeSessionId ?? this.activeSessionId),
       availableModels: availableModels ?? this.availableModels,
-      timelineMessages: timelineMessages ?? this.timelineMessages,
-      timelineActivities: timelineActivities ?? this.timelineActivities,
-      turnGroups: turnGroups ?? this.turnGroups,
-      activeStreamingAssistantMessageId: clearActiveStreamingAssistantMessageId
+      timelineCells: timelineCells ?? this.timelineCells,
+      activeStreamingAssistantCellId: clearActiveStreamingAssistantCellId
           ? null
-          : (activeStreamingAssistantMessageId ??
-                this.activeStreamingAssistantMessageId),
-      activeTurnId: clearActiveTurnId ? null : (activeTurnId ?? this.activeTurnId),
+          : (activeStreamingAssistantCellId ??
+                this.activeStreamingAssistantCellId),
+      activeTurnId: clearActiveTurnId
+          ? null
+          : (activeTurnId ?? this.activeTurnId),
       activityLog: activityLog ?? this.activityLog,
       connectionState: connectionState ?? this.connectionState,
       runningTurnCount: runningTurnCount ?? this.runningTurnCount,

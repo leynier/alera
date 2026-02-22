@@ -1,139 +1,86 @@
-enum TimelineRole { user, assistant, system }
-
-enum ActivityKind {
-  commandExecution,
-  fileChange,
-  mcpToolCall,
-  webSearch,
+enum TimelineCellKind {
+  userMessage,
+  assistantMessage,
   reasoning,
-  plan,
-  other,
+  toolCall,
+  turnSeparator,
+  systemNotice,
 }
 
-enum TimelineActivityStatus { inProgress, completed, failed, declined }
+enum TimelineCellStatus { inProgress, completed, failed, declined, info }
 
-class TimelineMessage {
-  const TimelineMessage({
+class TimelineCell {
+  const TimelineCell({
     required this.id,
-    required this.turnId,
-    required this.role,
-    required this.markdownText,
-    required this.isStreaming,
+    required this.kind,
+    required this.status,
     required this.createdAt,
+    required this.updatedAt,
+    this.turnId,
+    this.isStreaming = false,
+    this.isCollapsed = false,
+    this.title,
+    this.subtitle,
+    this.markdownText,
+    this.detailsText,
+    this.itemId,
+    this.metadata = const <String, dynamic>{},
   });
 
   final String id;
   final String? turnId;
-  final TimelineRole role;
-  final String markdownText;
-  final bool isStreaming;
+  final TimelineCellKind kind;
+  final TimelineCellStatus status;
   final DateTime createdAt;
+  final DateTime updatedAt;
+  final bool isStreaming;
+  final bool isCollapsed;
+  final String? title;
+  final String? subtitle;
+  final String? markdownText;
+  final String? detailsText;
+  final String? itemId;
+  final Map<String, dynamic> metadata;
 
-  TimelineMessage copyWith({
+  TimelineCell copyWith({
     String? id,
     String? turnId,
     bool clearTurnId = false,
-    TimelineRole? role,
-    String? markdownText,
-    bool? isStreaming,
+    TimelineCellKind? kind,
+    TimelineCellStatus? status,
     DateTime? createdAt,
-  }) {
-    return TimelineMessage(
-      id: id ?? this.id,
-      turnId: clearTurnId ? null : (turnId ?? this.turnId),
-      role: role ?? this.role,
-      markdownText: markdownText ?? this.markdownText,
-      isStreaming: isStreaming ?? this.isStreaming,
-      createdAt: createdAt ?? this.createdAt,
-    );
-  }
-}
-
-class TimelineActivityItem {
-  const TimelineActivityItem({
-    required this.id,
-    required this.turnId,
-    required this.kind,
-    required this.title,
-    this.subtitle,
-    required this.status,
-    this.summary,
-    this.details,
-    required this.startedAt,
-    this.endedAt,
-  });
-
-  final String id;
-  final String turnId;
-  final ActivityKind kind;
-  final String title;
-  final String? subtitle;
-  final TimelineActivityStatus status;
-  final String? summary;
-  final String? details;
-  final DateTime startedAt;
-  final DateTime? endedAt;
-
-  TimelineActivityItem copyWith({
-    String? id,
-    String? turnId,
-    ActivityKind? kind,
+    DateTime? updatedAt,
+    bool? isStreaming,
+    bool? isCollapsed,
     String? title,
+    bool clearTitle = false,
     String? subtitle,
     bool clearSubtitle = false,
-    TimelineActivityStatus? status,
-    String? summary,
-    bool clearSummary = false,
-    String? details,
-    bool clearDetails = false,
-    DateTime? startedAt,
-    DateTime? endedAt,
+    String? markdownText,
+    bool clearMarkdownText = false,
+    String? detailsText,
+    bool clearDetailsText = false,
+    String? itemId,
+    bool clearItemId = false,
+    Map<String, dynamic>? metadata,
   }) {
-    return TimelineActivityItem(
+    return TimelineCell(
       id: id ?? this.id,
-      turnId: turnId ?? this.turnId,
+      turnId: clearTurnId ? null : (turnId ?? this.turnId),
       kind: kind ?? this.kind,
-      title: title ?? this.title,
-      subtitle: clearSubtitle ? null : (subtitle ?? this.subtitle),
       status: status ?? this.status,
-      summary: clearSummary ? null : (summary ?? this.summary),
-      details: clearDetails ? null : (details ?? this.details),
-      startedAt: startedAt ?? this.startedAt,
-      endedAt: endedAt ?? this.endedAt,
-    );
-  }
-}
-
-class TimelineTurnGroup {
-  const TimelineTurnGroup({
-    required this.turnId,
-    this.userMessageId,
-    this.assistantMessageId,
-    this.activityItemIds = const <String>[],
-  });
-
-  final String turnId;
-  final String? userMessageId;
-  final String? assistantMessageId;
-  final List<String> activityItemIds;
-
-  TimelineTurnGroup copyWith({
-    String? turnId,
-    String? userMessageId,
-    bool clearUserMessageId = false,
-    String? assistantMessageId,
-    bool clearAssistantMessageId = false,
-    List<String>? activityItemIds,
-  }) {
-    return TimelineTurnGroup(
-      turnId: turnId ?? this.turnId,
-      userMessageId: clearUserMessageId
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      isStreaming: isStreaming ?? this.isStreaming,
+      isCollapsed: isCollapsed ?? this.isCollapsed,
+      title: clearTitle ? null : (title ?? this.title),
+      subtitle: clearSubtitle ? null : (subtitle ?? this.subtitle),
+      markdownText: clearMarkdownText
           ? null
-          : (userMessageId ?? this.userMessageId),
-      assistantMessageId: clearAssistantMessageId
-          ? null
-          : (assistantMessageId ?? this.assistantMessageId),
-      activityItemIds: activityItemIds ?? this.activityItemIds,
+          : (markdownText ?? this.markdownText),
+      detailsText: clearDetailsText ? null : (detailsText ?? this.detailsText),
+      itemId: clearItemId ? null : (itemId ?? this.itemId),
+      metadata: metadata ?? this.metadata,
     );
   }
 }

@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
-import 'package:alera/src/features/session/application/session_controller.dart';
 import 'package:alera/src/features/session/application/session_state.dart';
 import 'package:alera/src/features/session/domain/chat_timeline.dart';
 import 'package:alera/src/features/session/domain/codex_model_catalog.dart';
@@ -14,15 +13,15 @@ class SessionWorkspaceView extends StatefulWidget {
   const SessionWorkspaceView({
     super.key,
     required this.state,
-    required this.controller,
+    required this.onSendInput,
+    required this.onModelChanged,
     required this.rawLogExpanded,
-    required this.onToggleRawLog,
   });
 
   final SessionState state;
-  final SessionController controller;
+  final ValueChanged<String> onSendInput;
+  final ValueChanged<String> onModelChanged;
   final bool rawLogExpanded;
-  final VoidCallback onToggleRawLog;
 
   @override
   State<SessionWorkspaceView> createState() => _SessionWorkspaceViewState();
@@ -30,6 +29,15 @@ class SessionWorkspaceView extends StatefulWidget {
 
 class _SessionWorkspaceViewState extends State<SessionWorkspaceView> {
   final _inputController = TextEditingController();
+  final Set<String> _expandedWorkedTurns = <String>{};
+
+  @override
+  void didUpdateWidget(covariant SessionWorkspaceView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.state.activeSessionId != widget.state.activeSessionId) {
+      _expandedWorkedTurns.clear();
+    }
+  }
 
   @override
   void dispose() {
@@ -41,7 +49,13 @@ class _SessionWorkspaceViewState extends State<SessionWorkspaceView> {
   Widget build(BuildContext context) {
     return Column(
       children: <Widget>[
-        Expanded(child: _ChatTimelineList(state: widget.state)),
+        Expanded(
+          child: _ChatTimelineList(
+            state: widget.state,
+            expandedWorkedTurns: _expandedWorkedTurns,
+            onToggleWorkedTurn: _toggleWorkedTurn,
+          ),
+        ),
         _Composer(
           controller: _inputController,
           enabled: widget.state.activeSession != null && !widget.state.isBusy,
@@ -49,7 +63,7 @@ class _SessionWorkspaceViewState extends State<SessionWorkspaceView> {
           isBusy: widget.state.isBusy,
           activeModelId: widget.state.activeModelId,
           availableModels: widget.state.availableModels,
-          onModelChanged: widget.controller.updateActiveSessionModel,
+          onModelChanged: widget.onModelChanged,
           onSend: _sendInput,
         ),
         _RawLog(state: widget.state, expanded: widget.rawLogExpanded),
@@ -63,148 +77,488 @@ class _SessionWorkspaceViewState extends State<SessionWorkspaceView> {
       return;
     }
     _inputController.clear();
-    widget.controller.sendInput(text);
+    widget.onSendInput(text);
+  }
+
+  void _toggleWorkedTurn(String turnId) {
+    setState(() {
+      if (_expandedWorkedTurns.contains(turnId)) {
+        _expandedWorkedTurns.remove(turnId);
+      } else {
+        _expandedWorkedTurns.add(turnId);
+      }
+    });
   }
 }
 
 class _ChatTimelineList extends StatelessWidget {
-  const _ChatTimelineList({required this.state});
+  const _ChatTimelineList({
+    required this.state,
+    required this.expandedWorkedTurns,
+    required this.onToggleWorkedTurn,
+  });
+
+  final SessionState state;
+  final Set<String> expandedWorkedTurns;
+  final ValueChanged<String> onToggleWorkedTurn;
+
+  @override
+  Widget build(BuildContext context) {
+    if (state.timelineCells.isEmpty) {
+      return _EmptyChatState(state: state);
+    }
+
+    final timelineWidgets = _buildTimelineWidgets();
+    return ListView(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AleraTokens.space16,
+        vertical: AleraTokens.space16,
+      ),
+      children: timelineWidgets,
+    );
+  }
+
+  List<Widget> _buildTimelineWidgets() {
+    final cells = state.timelineCells;
+    final separatorsByTurn = <String, TimelineCell>{};
+    final firstIndexByTurn = <String, int>{};
+
+    for (var i = 0; i < cells.length; i++) {
+      final cell = cells[i];
+      final turnId = cell.turnId;
+      if (turnId != null) {
+        firstIndexByTurn.putIfAbsent(turnId, () => i);
+        if (cell.kind == TimelineCellKind.turnSeparator) {
+          separatorsByTurn[turnId] = cell;
+        }
+      }
+    }
+
+    final renderedCompletedTurns = <String>{};
+    final widgets = <Widget>[];
+
+    for (var i = 0; i < cells.length; i++) {
+      final cell = cells[i];
+      final turnId = cell.turnId;
+      if (turnId == null) {
+        if (cell.kind == TimelineCellKind.turnSeparator) {
+          continue;
+        }
+        widgets.add(_timelineCellWithSpacing(cell));
+        continue;
+      }
+
+      final separator = separatorsByTurn[turnId];
+      final isCompletedTurn = separator != null;
+      if (!isCompletedTurn) {
+        if (cell.kind == TimelineCellKind.turnSeparator) {
+          continue;
+        }
+        widgets.add(_timelineCellWithSpacing(cell));
+        continue;
+      }
+
+      final firstTurnIndex = firstIndexByTurn[turnId];
+      if (firstTurnIndex != i || renderedCompletedTurns.contains(turnId)) {
+        continue;
+      }
+      renderedCompletedTurns.add(turnId);
+
+      final turnCells = cells
+          .where(
+            (candidate) =>
+                candidate.turnId == turnId &&
+                candidate.kind != TimelineCellKind.turnSeparator,
+          )
+          .toList(growable: false);
+      widgets.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: AleraTokens.space8),
+          child: _CompletedTurnSection(
+            turnId: turnId,
+            separator: separator,
+            turnCells: turnCells,
+            workedExpanded: expandedWorkedTurns.contains(turnId),
+            onToggleWorked: () => onToggleWorkedTurn(turnId),
+          ),
+        ),
+      );
+    }
+
+    return widgets;
+  }
+
+  Widget _timelineCellWithSpacing(TimelineCell cell) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AleraTokens.space8),
+      child: _TimelineCellView(cell: cell),
+    );
+  }
+}
+
+class _EmptyChatState extends StatelessWidget {
+  const _EmptyChatState({required this.state});
 
   final SessionState state;
 
   @override
   Widget build(BuildContext context) {
+    final session = state.activeSession;
     final theme = Theme.of(context);
-    final messageById = <String, TimelineMessage>{
-      for (final message in state.timelineMessages) message.id: message,
-    };
-    final activityById = <String, TimelineActivityItem>{
-      for (final activity in state.timelineActivities) activity.id: activity,
-    };
-
-    if (state.turnGroups.isEmpty && state.timelineMessages.isEmpty) {
-      final session = state.activeSession;
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Text(
-              session?.title ?? 'session active',
-              style: theme.textTheme.titleMedium,
-            ),
-            const SizedBox(height: AleraTokens.space8),
-            if (session != null)
-              Text(
-                session.workspacePath,
-                style: AleraTokens.monoStyle.copyWith(
-                  color: AleraTokens.foregroundFaint,
-                ),
-              ),
-            const SizedBox(height: AleraTokens.space16),
-            const Text(
-              'start the conversation by sending a message',
-              style: TextStyle(color: AleraTokens.foregroundFaint),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (state.turnGroups.isEmpty) {
-      return ListView(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AleraTokens.space16,
-          vertical: AleraTokens.space16,
-        ),
-        children: state.timelineMessages
-            .map((message) => _MessageBubble(message: message))
-            .toList(growable: false),
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AleraTokens.space16,
-        vertical: AleraTokens.space16,
-      ),
-      itemCount: state.turnGroups.length,
-      itemBuilder: (context, index) {
-        final group = state.turnGroups[index];
-        final userMessage = group.userMessageId == null
-            ? null
-            : messageById[group.userMessageId!];
-        final assistantMessage = group.assistantMessageId == null
-            ? null
-            : messageById[group.assistantMessageId!];
-        final activities = group.activityItemIds
-            .map((id) => activityById[id])
-            .whereType<TimelineActivityItem>()
-            .toList(growable: false);
-
-        return Padding(
-          padding: const EdgeInsets.only(bottom: AleraTokens.space12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              if (userMessage != null) _MessageBubble(message: userMessage),
-              if (assistantMessage != null)
-                _MessageBubble(message: assistantMessage),
-              if (activities.isNotEmpty)
-                _TurnActivityPanel(
-                  activities: activities,
-                  isTurnRunning:
-                      assistantMessage?.isStreaming ??
-                      state.activeTurnId == group.turnId,
-                ),
-            ],
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Text(
+            session?.title ?? 'session active',
+            style: theme.textTheme.titleMedium,
           ),
-        );
-      },
+          const SizedBox(height: AleraTokens.space8),
+          if (session != null)
+            Text(
+              session.workspacePath,
+              style: AleraTokens.monoStyle.copyWith(
+                color: AleraTokens.foregroundFaint,
+              ),
+            ),
+          const SizedBox(height: AleraTokens.space16),
+          const Text(
+            'start the conversation by sending a message',
+            style: TextStyle(color: AleraTokens.foregroundFaint),
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _MessageBubble extends StatelessWidget {
-  const _MessageBubble({required this.message});
+class _TimelineCellView extends StatelessWidget {
+  const _TimelineCellView({required this.cell});
 
-  final TimelineMessage message;
-
-  bool get _isUser => message.role == TimelineRole.user;
+  final TimelineCell cell;
 
   @override
   Widget build(BuildContext context) {
-    if (_isUser) {
-      return Align(
-        alignment: Alignment.centerRight,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 760),
-          child: Container(
-            margin: const EdgeInsets.only(
-              top: AleraTokens.space6,
-              bottom: AleraTokens.space4,
-              left: 80,
-            ),
-            padding: const EdgeInsets.all(AleraTokens.space12),
-            decoration: BoxDecoration(
-              color: AleraTokens.accentSubtle,
-              borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
-            ),
-            child: SelectableText(
-              message.markdownText,
-              style: Theme.of(context).textTheme.bodyMedium,
+    return switch (cell.kind) {
+      TimelineCellKind.userMessage => _UserMessageCell(cell: cell),
+      TimelineCellKind.assistantMessage => _AssistantMessageCell(cell: cell),
+      TimelineCellKind.reasoning => _ReasoningCell(
+        key: ValueKey(cell.id),
+        cell: cell,
+      ),
+      TimelineCellKind.toolCall => _ToolCallCell(
+        key: ValueKey(cell.id),
+        cell: cell,
+      ),
+      TimelineCellKind.turnSeparator => const SizedBox.shrink(),
+      TimelineCellKind.systemNotice => _SystemNoticeCell(cell: cell),
+    };
+  }
+}
+
+class _CompletedTurnSection extends StatelessWidget {
+  const _CompletedTurnSection({
+    required this.turnId,
+    required this.separator,
+    required this.turnCells,
+    required this.workedExpanded,
+    required this.onToggleWorked,
+  });
+
+  final String turnId;
+  final TimelineCell separator;
+  final List<TimelineCell> turnCells;
+  final bool workedExpanded;
+  final VoidCallback onToggleWorked;
+
+  @override
+  Widget build(BuildContext context) {
+    final users = <TimelineCell>[];
+    final assistants = <TimelineCell>[];
+    final secondary = <TimelineCell>[];
+
+    for (final cell in turnCells) {
+      switch (cell.kind) {
+        case TimelineCellKind.userMessage:
+          users.add(cell);
+        case TimelineCellKind.assistantMessage:
+          assistants.add(cell);
+        case TimelineCellKind.reasoning ||
+            TimelineCellKind.toolCall ||
+            TimelineCellKind.systemNotice:
+          secondary.add(cell);
+        case TimelineCellKind.turnSeparator:
+          break;
+      }
+    }
+
+    final hasSecondary = secondary.isNotEmpty;
+    final children = <Widget>[
+      for (final userCell in users)
+        Padding(
+          padding: const EdgeInsets.only(bottom: AleraTokens.space8),
+          child: _TimelineCellView(cell: userCell),
+        ),
+    ];
+
+    if (hasSecondary) {
+      children.add(
+        _WorkedForDivider(
+          label: _workedForLabel(separator),
+          expanded: workedExpanded,
+          onTap: onToggleWorked,
+        ),
+      );
+      if (workedExpanded) {
+        children.add(
+          Padding(
+            padding: const EdgeInsets.only(top: AleraTokens.space8),
+            child: Column(
+              children: <Widget>[
+                for (final secondaryCell in secondary)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AleraTokens.space6),
+                    child: _TimelineCellView(cell: secondaryCell),
+                  ),
+              ],
             ),
           ),
+        );
+      }
+    }
+
+    if (hasSecondary && workedExpanded) {
+      children.add(
+        const Padding(
+          padding: EdgeInsets.only(top: AleraTokens.space8),
+          child: _FinalMessageDivider(),
         ),
       );
     }
+    children.addAll(
+      assistants.map(
+        (assistantCell) => Padding(
+          padding: const EdgeInsets.only(bottom: AleraTokens.space8),
+          child: _TimelineCellView(cell: assistantCell),
+        ),
+      ),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: children,
+    );
+  }
+}
+
+class _WorkedForDivider extends StatelessWidget {
+  const _WorkedForDivider({
+    required this.label,
+    required this.expanded,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool expanded;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: <Widget>[
+        const Expanded(
+          child: Divider(
+            color: AleraTokens.borderSubtle,
+            height: 1,
+            thickness: 1,
+          ),
+        ),
+        InkWell(
+          onTap: onTap,
+          mouseCursor: SystemMouseCursors.click,
+          borderRadius: BorderRadius.circular(AleraTokens.radiusPill),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AleraTokens.space12,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Text(
+                  label,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: AleraTokens.foregroundMuted,
+                  ),
+                ),
+                const SizedBox(width: AleraTokens.space6),
+                Icon(
+                  expanded ? Icons.keyboard_arrow_down : Icons.chevron_right,
+                  size: 14,
+                  color: AleraTokens.foregroundFaint,
+                ),
+              ],
+            ),
+          ),
+        ),
+        const Expanded(
+          child: Divider(
+            color: AleraTokens.borderSubtle,
+            height: 1,
+            thickness: 1,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FinalMessageDivider extends StatelessWidget {
+  const _FinalMessageDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: <Widget>[
+        const Expanded(
+          child: Divider(
+            color: AleraTokens.borderSubtle,
+            height: 1,
+            thickness: 1,
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space12),
+          child: Text(
+            'Final message',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: AleraTokens.foregroundFaint,
+            ),
+          ),
+        ),
+        const Expanded(
+          child: Divider(
+            color: AleraTokens.borderSubtle,
+            height: 1,
+            thickness: 1,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+String _workedForLabel(TimelineCell separatorCell) {
+  final metadata = separatorCell.metadata;
+  final formatted = _formatWorkedDuration(metadata);
+  if (formatted != null) {
+    return 'Worked for $formatted';
+  }
+  final subtitle = separatorCell.subtitle;
+  if (subtitle != null && subtitle.trim().isNotEmpty) {
+    final firstSegment = subtitle.split('•').first.trim();
+    if (firstSegment.isNotEmpty) {
+      return 'Worked for $firstSegment';
+    }
+  }
+  return 'Worked for some time';
+}
+
+String? _formatWorkedDuration(Map<String, dynamic> metadata) {
+  final durationMs =
+      _asNum(metadata['durationMs']) ??
+      _asNum(metadata['duration_ms']) ??
+      _durationFromTimestamps(metadata);
+  if (durationMs == null || durationMs <= 0) {
+    return null;
+  }
+  final totalSeconds = (durationMs / 1000).round();
+  if (totalSeconds < 60) {
+    return '${totalSeconds}s';
+  }
+  final hours = totalSeconds ~/ 3600;
+  final minutes = (totalSeconds % 3600) ~/ 60;
+  final seconds = totalSeconds % 60;
+  if (hours > 0) {
+    return '${hours}h ${minutes}m';
+  }
+  if (seconds == 0) {
+    return '${minutes}m';
+  }
+  return '${minutes}m ${seconds}s';
+}
+
+num? _durationFromTimestamps(Map<String, dynamic> metadata) {
+  final createdAt =
+      _asNum(metadata['createdAt']) ?? _asNum(metadata['created_at']);
+  final updatedAt =
+      _asNum(metadata['updatedAt']) ?? _asNum(metadata['updated_at']);
+  if (createdAt == null || updatedAt == null || updatedAt < createdAt) {
+    return null;
+  }
+  return (updatedAt - createdAt) * 1000;
+}
+
+num? _asNum(dynamic value) {
+  if (value is num) {
+    return value;
+  }
+  if (value is String) {
+    return num.tryParse(value);
+  }
+  return null;
+}
+
+class _UserMessageCell extends StatelessWidget {
+  const _UserMessageCell({required this.cell});
+
+  final TimelineCell cell;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerRight,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 760),
+        child: Container(
+          margin: const EdgeInsets.only(
+            top: AleraTokens.space6,
+            bottom: AleraTokens.space4,
+            left: 80,
+          ),
+          padding: const EdgeInsets.all(AleraTokens.space12),
+          decoration: BoxDecoration(
+            color: AleraTokens.accentSubtle,
+            borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+          ),
+          child: SelectableText(
+            cell.markdownText ?? '',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AssistantMessageCell extends StatelessWidget {
+  const _AssistantMessageCell({required this.cell});
+
+  final TimelineCell cell;
+
+  @override
+  Widget build(BuildContext context) {
+    final visibleText = (cell.markdownText ?? '').trim().isEmpty
+        ? (cell.isStreaming ? '_thinking..._' : '_no content_')
+        : cell.markdownText!;
+
     return Padding(
       padding: const EdgeInsets.only(
         top: AleraTokens.space6,
         bottom: AleraTokens.space4,
       ),
       child: _AssistantBubbleMarkdown(
-        markdownText: message.markdownText,
-        isStreaming: message.isStreaming,
+        markdownText: visibleText,
+        isStreaming: cell.isStreaming,
       ),
     );
   }
@@ -239,15 +593,11 @@ class _AssistantBubbleMarkdown extends StatelessWidget {
       ),
     );
 
-    final visibleText = markdownText.trim().isEmpty
-        ? (isStreaming ? '_thinking..._' : '_no content_')
-        : markdownText;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         MarkdownBody(
-          data: visibleText,
+          data: markdownText,
           styleSheet: styleSheet,
           builders: <String, MarkdownElementBuilder>{
             'pre': _CodeBlockBuilder(context),
@@ -280,6 +630,296 @@ class _AssistantBubbleMarkdown extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+class _ReasoningCell extends StatefulWidget {
+  const _ReasoningCell({super.key, required this.cell});
+
+  final TimelineCell cell;
+
+  @override
+  State<_ReasoningCell> createState() => _ReasoningCellState();
+}
+
+class _ReasoningCellState extends State<_ReasoningCell> {
+  late bool _collapsed;
+  bool _isHovered = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _collapsed = widget.cell.isCollapsed;
+  }
+
+  @override
+  void didUpdateWidget(covariant _ReasoningCell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.cell.isCollapsed != oldWidget.cell.isCollapsed) {
+      _collapsed = widget.cell.isCollapsed;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final text = widget.cell.markdownText ?? '';
+    return Padding(
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          MouseRegion(
+            onEnter: (_) => setState(() => _isHovered = true),
+            onExit: (_) => setState(() => _isHovered = false),
+            child: InkWell(
+              onTap: () => setState(() => _collapsed = !_collapsed),
+              mouseCursor: SystemMouseCursors.click,
+              borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AleraTokens.space6,
+                  vertical: AleraTokens.space4,
+                ),
+                child: Row(
+                  children: <Widget>[
+                    Flexible(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Flexible(
+                            child: Text(
+                              widget.cell.title ?? 'Thinking',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: AleraTokens.foregroundMuted,
+                                  ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: AleraTokens.space4),
+                          AnimatedOpacity(
+                            duration: AleraTokens.durationFast,
+                            opacity: _isHovered ? 1 : 0,
+                            child: SizedBox(
+                              width: 14,
+                              child: Icon(
+                                _collapsed
+                                    ? Icons.keyboard_arrow_right
+                                    : Icons.keyboard_arrow_down,
+                                size: 14,
+                                color: AleraTokens.foregroundFaint,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (widget.cell.status ==
+                        TimelineCellStatus.inProgress) ...<Widget>[
+                      const SizedBox(width: AleraTokens.space6),
+                      const SizedBox(
+                        width: 10,
+                        height: 10,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 1.4,
+                          color: AleraTokens.foregroundFaint,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+          if (!_collapsed && text.trim().isNotEmpty)
+            Container(
+              margin: const EdgeInsets.only(
+                left: AleraTokens.space8,
+                top: AleraTokens.space4,
+              ),
+              padding: const EdgeInsets.only(left: AleraTokens.space8),
+              decoration: const BoxDecoration(
+                border: Border(
+                  left: BorderSide(color: AleraTokens.borderSubtle, width: 2),
+                ),
+              ),
+              child: MarkdownBody(
+                data: text,
+                styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context))
+                    .copyWith(
+                      p: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AleraTokens.foregroundMuted,
+                      ),
+                    ),
+                selectable: true,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ToolCallCell extends StatefulWidget {
+  const _ToolCallCell({super.key, required this.cell});
+
+  final TimelineCell cell;
+
+  @override
+  State<_ToolCallCell> createState() => _ToolCallCellState();
+}
+
+class _ToolCallCellState extends State<_ToolCallCell> {
+  late bool _collapsed;
+  bool _isHovered = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _collapsed = widget.cell.isCollapsed;
+  }
+
+  @override
+  void didUpdateWidget(covariant _ToolCallCell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.cell.isCollapsed != oldWidget.cell.isCollapsed) {
+      _collapsed = widget.cell.isCollapsed;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final details = widget.cell.detailsText ?? '';
+    final statusColor = _statusColor(widget.cell.status);
+    final title = widget.cell.title ?? 'tool call';
+    final subtitle = widget.cell.subtitle;
+    final rowLabel = (subtitle == null || subtitle.isEmpty)
+        ? title
+        : '$title · $subtitle';
+
+    return Padding(
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          MouseRegion(
+            onEnter: (_) => setState(() => _isHovered = true),
+            onExit: (_) => setState(() => _isHovered = false),
+            child: InkWell(
+              onTap: () => setState(() => _collapsed = !_collapsed),
+              mouseCursor: SystemMouseCursors.click,
+              borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AleraTokens.space6,
+                  vertical: AleraTokens.space4,
+                ),
+                child: Row(
+                  children: <Widget>[
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: statusColor,
+                      ),
+                    ),
+                    const SizedBox(width: AleraTokens.space8),
+                    Flexible(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Flexible(
+                            child: Text(
+                              rowLabel,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: AleraTokens.foregroundMuted,
+                                  ),
+                            ),
+                          ),
+                          const SizedBox(width: AleraTokens.space4),
+                          AnimatedOpacity(
+                            duration: AleraTokens.durationFast,
+                            opacity: _isHovered ? 1 : 0,
+                            child: SizedBox(
+                              width: 14,
+                              child: Icon(
+                                _collapsed
+                                    ? Icons.keyboard_arrow_right
+                                    : Icons.keyboard_arrow_down,
+                                size: 14,
+                                color: AleraTokens.foregroundFaint,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          if (!_collapsed && details.trim().isNotEmpty)
+            Container(
+              margin: const EdgeInsets.only(
+                left: AleraTokens.space8,
+                top: AleraTokens.space4,
+              ),
+              padding: const EdgeInsets.all(AleraTokens.space8),
+              decoration: BoxDecoration(
+                color: AleraTokens.surface,
+                borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+                border: Border.all(color: AleraTokens.borderSubtle),
+              ),
+              child: SelectableText(
+                _prettyDetails(details),
+                style: AleraTokens.monoStyle.copyWith(
+                  color: AleraTokens.foregroundMuted,
+                  fontSize: 11,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  String _prettyDetails(String raw) {
+    final trimmed = raw.trim();
+    if ((trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+        (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+      try {
+        final decoded = jsonDecode(trimmed);
+        return const JsonEncoder.withIndent('  ').convert(decoded);
+      } catch (_) {
+        return raw;
+      }
+    }
+    return raw;
+  }
+}
+
+class _SystemNoticeCell extends StatelessWidget {
+  const _SystemNoticeCell({required this.cell});
+
+  final TimelineCell cell;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.zero,
+      child: Text(
+        cell.markdownText ?? cell.title ?? 'system event',
+        style: Theme.of(
+          context,
+        ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundFaint),
+      ),
     );
   }
 }
@@ -386,282 +1026,6 @@ class _CopyableCodeBlock extends StatelessWidget {
   }
 }
 
-class _TurnActivityPanel extends StatefulWidget {
-  const _TurnActivityPanel({
-    required this.activities,
-    required this.isTurnRunning,
-  });
-
-  final List<TimelineActivityItem> activities;
-  final bool isTurnRunning;
-
-  @override
-  State<_TurnActivityPanel> createState() => _TurnActivityPanelState();
-}
-
-class _TurnActivityPanelState extends State<_TurnActivityPanel> {
-  var _expanded = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final commandCount = widget.activities
-        .where((item) => item.kind == ActivityKind.commandExecution)
-        .length;
-    final fileChangeCount = widget.activities
-        .where((item) => item.kind == ActivityKind.fileChange)
-        .length;
-    final toolCount = widget.activities.length - commandCount - fileChangeCount;
-
-    return Container(
-      margin: const EdgeInsets.only(
-        top: AleraTokens.space4,
-        left: 80,
-        right: 80,
-      ),
-      decoration: BoxDecoration(
-        color: AleraTokens.surface,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
-        border: Border.all(color: AleraTokens.borderSubtle),
-      ),
-      child: Column(
-        children: <Widget>[
-          InkWell(
-            onTap: () => setState(() => _expanded = !_expanded),
-            mouseCursor: SystemMouseCursors.click,
-            borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AleraTokens.space12,
-                vertical: AleraTokens.space8,
-              ),
-              child: Row(
-                children: <Widget>[
-                  Icon(
-                    _expanded
-                        ? Icons.keyboard_arrow_down
-                        : Icons.keyboard_arrow_right,
-                    size: 16,
-                    color: AleraTokens.foregroundMuted,
-                  ),
-                  const SizedBox(width: AleraTokens.space6),
-                  Text(
-                    'activity',
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: AleraTokens.foreground,
-                    ),
-                  ),
-                  const SizedBox(width: AleraTokens.space8),
-                  _CounterChip(label: '$commandCount cmd'),
-                  _CounterChip(label: '$fileChangeCount files'),
-                  _CounterChip(label: '$toolCount tools'),
-                  if (widget.isTurnRunning)
-                    const Padding(
-                      padding: EdgeInsets.only(left: AleraTokens.space8),
-                      child: SizedBox(
-                        width: 10,
-                        height: 10,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 1.5,
-                          color: AleraTokens.accent,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-          AnimatedCrossFade(
-            firstChild: const SizedBox.shrink(),
-            secondChild: Column(
-              children: widget.activities
-                  .map((item) => _ActivityItemTile(item: item))
-                  .toList(growable: false),
-            ),
-            crossFadeState: _expanded
-                ? CrossFadeState.showSecond
-                : CrossFadeState.showFirst,
-            duration: AleraTokens.durationMid,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CounterChip extends StatelessWidget {
-  const _CounterChip({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(right: AleraTokens.space6),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AleraTokens.space6,
-        vertical: AleraTokens.space2,
-      ),
-      decoration: BoxDecoration(
-        color: AleraTokens.surfaceVariant,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
-        border: Border.all(color: AleraTokens.borderSubtle),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: AleraTokens.foregroundMuted,
-          fontSize: 10,
-        ),
-      ),
-    );
-  }
-}
-
-class _ActivityItemTile extends StatefulWidget {
-  const _ActivityItemTile({required this.item});
-
-  final TimelineActivityItem item;
-
-  @override
-  State<_ActivityItemTile> createState() => _ActivityItemTileState();
-}
-
-class _ActivityItemTileState extends State<_ActivityItemTile> {
-  var _expanded = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final statusColor = switch (widget.item.status) {
-      TimelineActivityStatus.inProgress => AleraTokens.accent,
-      TimelineActivityStatus.completed => AleraTokens.success,
-      TimelineActivityStatus.failed => AleraTokens.error,
-      TimelineActivityStatus.declined => AleraTokens.warning,
-    };
-
-    return Container(
-      margin: const EdgeInsets.symmetric(
-        horizontal: AleraTokens.space8,
-        vertical: AleraTokens.space4,
-      ),
-      decoration: BoxDecoration(
-        color: AleraTokens.surfaceVariant,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
-        border: Border.all(color: AleraTokens.borderSubtle),
-      ),
-      child: Column(
-        children: <Widget>[
-          InkWell(
-            onTap: () => setState(() => _expanded = !_expanded),
-            mouseCursor: SystemMouseCursors.click,
-            borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
-            child: Padding(
-              padding: const EdgeInsets.all(AleraTokens.space8),
-              child: Row(
-                children: <Widget>[
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: statusColor,
-                    ),
-                  ),
-                  const SizedBox(width: AleraTokens.space8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text(
-                          widget.item.title,
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: AleraTokens.foreground),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        if ((widget.item.summary?.isNotEmpty ?? false))
-                          Text(
-                            widget.item.summary!,
-                            style: Theme.of(context).textTheme.labelSmall,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                      ],
-                    ),
-                  ),
-                  Icon(
-                    _expanded
-                        ? Icons.keyboard_arrow_down
-                        : Icons.keyboard_arrow_right,
-                    size: 16,
-                    color: AleraTokens.foregroundMuted,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          if (_expanded)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AleraTokens.space8,
-                0,
-                AleraTokens.space8,
-                AleraTokens.space8,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  if ((widget.item.subtitle?.isNotEmpty ?? false))
-                    Padding(
-                      padding: const EdgeInsets.only(
-                        bottom: AleraTokens.space6,
-                      ),
-                      child: Text(
-                        widget.item.subtitle!,
-                        style: AleraTokens.monoStyle.copyWith(fontSize: 11),
-                      ),
-                    ),
-                  if ((widget.item.details?.isNotEmpty ?? false))
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(AleraTokens.space8),
-                      decoration: BoxDecoration(
-                        color: AleraTokens.bg,
-                        borderRadius: BorderRadius.circular(
-                          AleraTokens.radiusSm,
-                        ),
-                        border: Border.all(color: AleraTokens.borderSubtle),
-                      ),
-                      child: SelectableText(
-                        _prettyDetails(widget.item.details!),
-                        style: AleraTokens.monoStyle.copyWith(
-                          color: AleraTokens.foreground,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  String _prettyDetails(String raw) {
-    final trimmed = raw.trim();
-    if ((trimmed.startsWith('{') && trimmed.endsWith('}')) ||
-        (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
-      try {
-        final decoded = jsonDecode(trimmed);
-        return const JsonEncoder.withIndent('  ').convert(decoded);
-      } catch (_) {
-        return raw;
-      }
-    }
-    return raw;
-  }
-}
-
 class _Composer extends StatefulWidget {
   const _Composer({
     required this.controller,
@@ -708,6 +1072,29 @@ class _ComposerState extends State<_Composer> {
 
   String get _reasoningLabel => _reasoningOptions[_reasoningLevel] ?? 'High';
 
+  void _sendFromShortcut() {
+    if (!widget.enabled) {
+      return;
+    }
+    widget.onSend();
+  }
+
+  void _insertLineBreak() {
+    if (!widget.enabled) {
+      return;
+    }
+    final value = widget.controller.value;
+    final selection = value.selection;
+    final start = selection.start < 0 ? value.text.length : selection.start;
+    final end = selection.end < 0 ? value.text.length : selection.end;
+    final nextText = value.text.replaceRange(start, end, '\n');
+    widget.controller.value = value.copyWith(
+      text: nextText,
+      selection: TextSelection.collapsed(offset: start + 1),
+      composing: TextRange.empty,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -736,8 +1123,12 @@ class _ComposerState extends State<_Composer> {
               children: <Widget>[
                 CallbackShortcuts(
                   bindings: <ShortcutActivator, VoidCallback>{
-                    const SingleActivator(LogicalKeyboardKey.enter, meta: true):
-                        widget.onSend,
+                    const SingleActivator(LogicalKeyboardKey.enter):
+                        _sendFromShortcut,
+                    const SingleActivator(
+                      LogicalKeyboardKey.enter,
+                      shift: true,
+                    ): _insertLineBreak,
                   },
                   child: TextField(
                     controller: widget.controller,
@@ -1020,4 +1411,14 @@ class _RawLog extends StatelessWidget {
           : null,
     );
   }
+}
+
+Color _statusColor(TimelineCellStatus status) {
+  return switch (status) {
+    TimelineCellStatus.inProgress => AleraTokens.accent,
+    TimelineCellStatus.completed => AleraTokens.success,
+    TimelineCellStatus.failed => AleraTokens.error,
+    TimelineCellStatus.declined => AleraTokens.warning,
+    TimelineCellStatus.info => AleraTokens.foregroundFaint,
+  };
 }

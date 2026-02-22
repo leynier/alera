@@ -93,10 +93,9 @@ class _AleraShellPageState extends ConsumerState<AleraShellPage> {
     }
     return SessionWorkspaceView(
       state: state,
-      controller: controller,
+      onSendInput: controller.sendInput,
+      onModelChanged: controller.updateActiveSessionModel,
       rawLogExpanded: _rawLogExpanded,
-      onToggleRawLog: () =>
-          setState(() => _rawLogExpanded = !_rawLogExpanded),
     );
   }
 
