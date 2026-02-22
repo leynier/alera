@@ -118,5 +118,53 @@ void main() {
       await sub.cancel();
       await client.close();
     });
+
+    test(
+      'commentary and final_answer phases are emitted with distinct item ids',
+      () async {
+        final client = await _startFakeClient();
+        final notifications = <Map<String, dynamic>>[];
+        final sub = client.events.listen(notifications.add);
+
+        await client
+            .startThread(cwd: '/tmp/project')
+            .timeout(const Duration(seconds: 5));
+
+        await client
+            .startTurn(
+              threadId: 'thr_fake',
+              input: const <Map<String, dynamic>>[
+                <String, dynamic>{
+                  'type': 'text',
+                  'text': 'trigger_commentary_final',
+                },
+              ],
+              model: 'gpt-5.2-codex',
+              cwd: '/tmp/project',
+            )
+            .timeout(const Duration(seconds: 5));
+
+        await _waitForMethod(notifications, 'turn/completed');
+
+        final legacyStarts = notifications
+            .where((message) => message['method'] == 'codex/event/item_started')
+            .map(
+              (message) =>
+                  (message['params'] as Map<String, dynamic>)['msg']
+                      as Map<String, dynamic>,
+            )
+            .toList(growable: false);
+
+        expect(legacyStarts, hasLength(2));
+        final firstItem = legacyStarts.first['item'] as Map<String, dynamic>;
+        final secondItem = legacyStarts.last['item'] as Map<String, dynamic>;
+        expect(firstItem['phase'], 'commentary');
+        expect(secondItem['phase'], 'final_answer');
+        expect(firstItem['id'], isNot(secondItem['id']));
+
+        await sub.cancel();
+        await client.close();
+      },
+    );
   });
 }

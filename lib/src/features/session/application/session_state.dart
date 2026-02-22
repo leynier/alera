@@ -1,5 +1,8 @@
 import 'package:alera/src/features/session/domain/codex_model_catalog.dart';
 import 'package:alera/src/features/session/domain/chat_timeline.dart';
+import 'package:alera/src/features/session/application/streaming/adaptive_chunking_policy.dart';
+import 'package:alera/src/features/session/application/streaming/commit_tick_engine.dart';
+import 'package:alera/src/features/session/application/streaming/markdown_stream_collector.dart';
 import 'package:alera/src/shared/models/contracts.dart';
 
 class SessionState {
@@ -14,6 +17,24 @@ class SessionState {
     this.activityLog = const <String>[],
     this.connectionState = AppServerConnectionState.disconnected,
     this.runningTurnCount = 0,
+    this.isInterrupting = false,
+    this.statusHeader,
+    this.pendingStatusRestore = false,
+    this.streamCollector = const MarkdownStreamCollectorState(),
+    this.streamQueue = const <StreamQueuedLine>[],
+    this.chunkingPolicy = const AdaptiveChunkingPolicyState(),
+    this.streamQueueDepth = 0,
+    this.streamOldestAgeMs,
+    this.activeAgentStreamItemId,
+    this.activeAgentStreamTurnId,
+    this.activeAgentStreamPhase,
+    this.agentMessagePhaseByItemId = const <String, String>{},
+    this.finalAnswerItemIdByTurn = const <String, String>{},
+    this.activeExecCellId,
+    this.activePlanCellId,
+    this.turnHadWorkActivity = false,
+    this.turnRuntimeMetrics = const <String, dynamic>{},
+    this.reasoningBufferByItemId = const <String, String>{},
     this.error,
     this.isBusy = false,
   });
@@ -28,6 +49,24 @@ class SessionState {
   final List<String> activityLog;
   final AppServerConnectionState connectionState;
   final int runningTurnCount;
+  final bool isInterrupting;
+  final String? statusHeader;
+  final bool pendingStatusRestore;
+  final MarkdownStreamCollectorState streamCollector;
+  final List<StreamQueuedLine> streamQueue;
+  final AdaptiveChunkingPolicyState chunkingPolicy;
+  final int streamQueueDepth;
+  final int? streamOldestAgeMs;
+  final String? activeAgentStreamItemId;
+  final String? activeAgentStreamTurnId;
+  final String? activeAgentStreamPhase;
+  final Map<String, String> agentMessagePhaseByItemId;
+  final Map<String, String> finalAnswerItemIdByTurn;
+  final String? activeExecCellId;
+  final String? activePlanCellId;
+  final bool turnHadWorkActivity;
+  final Map<String, dynamic> turnRuntimeMetrics;
+  final Map<String, String> reasoningBufferByItemId;
   final String? error;
   final bool isBusy;
 
@@ -64,6 +103,31 @@ class SessionState {
     List<String>? activityLog,
     AppServerConnectionState? connectionState,
     int? runningTurnCount,
+    bool? isInterrupting,
+    String? statusHeader,
+    bool clearStatusHeader = false,
+    bool? pendingStatusRestore,
+    MarkdownStreamCollectorState? streamCollector,
+    List<StreamQueuedLine>? streamQueue,
+    AdaptiveChunkingPolicyState? chunkingPolicy,
+    int? streamQueueDepth,
+    int? streamOldestAgeMs,
+    bool clearStreamOldestAgeMs = false,
+    String? activeAgentStreamItemId,
+    bool clearActiveAgentStreamItemId = false,
+    String? activeAgentStreamTurnId,
+    bool clearActiveAgentStreamTurnId = false,
+    String? activeAgentStreamPhase,
+    bool clearActiveAgentStreamPhase = false,
+    Map<String, String>? agentMessagePhaseByItemId,
+    Map<String, String>? finalAnswerItemIdByTurn,
+    String? activeExecCellId,
+    bool clearActiveExecCellId = false,
+    String? activePlanCellId,
+    bool clearActivePlanCellId = false,
+    bool? turnHadWorkActivity,
+    Map<String, dynamic>? turnRuntimeMetrics,
+    Map<String, String>? reasoningBufferByItemId,
     String? error,
     bool? isBusy,
     bool clearError = false,
@@ -90,6 +154,41 @@ class SessionState {
       activityLog: activityLog ?? this.activityLog,
       connectionState: connectionState ?? this.connectionState,
       runningTurnCount: runningTurnCount ?? this.runningTurnCount,
+      isInterrupting: isInterrupting ?? this.isInterrupting,
+      statusHeader: clearStatusHeader
+          ? null
+          : (statusHeader ?? this.statusHeader),
+      pendingStatusRestore: pendingStatusRestore ?? this.pendingStatusRestore,
+      streamCollector: streamCollector ?? this.streamCollector,
+      streamQueue: streamQueue ?? this.streamQueue,
+      chunkingPolicy: chunkingPolicy ?? this.chunkingPolicy,
+      streamQueueDepth: streamQueueDepth ?? this.streamQueueDepth,
+      streamOldestAgeMs: clearStreamOldestAgeMs
+          ? null
+          : (streamOldestAgeMs ?? this.streamOldestAgeMs),
+      activeAgentStreamItemId: clearActiveAgentStreamItemId
+          ? null
+          : (activeAgentStreamItemId ?? this.activeAgentStreamItemId),
+      activeAgentStreamTurnId: clearActiveAgentStreamTurnId
+          ? null
+          : (activeAgentStreamTurnId ?? this.activeAgentStreamTurnId),
+      activeAgentStreamPhase: clearActiveAgentStreamPhase
+          ? null
+          : (activeAgentStreamPhase ?? this.activeAgentStreamPhase),
+      agentMessagePhaseByItemId:
+          agentMessagePhaseByItemId ?? this.agentMessagePhaseByItemId,
+      finalAnswerItemIdByTurn:
+          finalAnswerItemIdByTurn ?? this.finalAnswerItemIdByTurn,
+      activeExecCellId: clearActiveExecCellId
+          ? null
+          : (activeExecCellId ?? this.activeExecCellId),
+      activePlanCellId: clearActivePlanCellId
+          ? null
+          : (activePlanCellId ?? this.activePlanCellId),
+      turnHadWorkActivity: turnHadWorkActivity ?? this.turnHadWorkActivity,
+      turnRuntimeMetrics: turnRuntimeMetrics ?? this.turnRuntimeMetrics,
+      reasoningBufferByItemId:
+          reasoningBufferByItemId ?? this.reasoningBufferByItemId,
       error: clearError ? null : (error ?? this.error),
       isBusy: isBusy ?? this.isBusy,
     );

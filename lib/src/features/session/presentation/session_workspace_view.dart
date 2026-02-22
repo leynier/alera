@@ -14,12 +14,18 @@ class SessionWorkspaceView extends StatefulWidget {
     super.key,
     required this.state,
     required this.onSendInput,
+    required this.onInterruptTurn,
+    required this.isTurnRunning,
+    required this.isInterrupting,
     required this.onModelChanged,
     required this.rawLogExpanded,
   });
 
   final SessionState state;
   final ValueChanged<String> onSendInput;
+  final VoidCallback onInterruptTurn;
+  final bool isTurnRunning;
+  final bool isInterrupting;
   final ValueChanged<String> onModelChanged;
   final bool rawLogExpanded;
 
@@ -58,13 +64,24 @@ class _SessionWorkspaceViewState extends State<SessionWorkspaceView> {
         ),
         _Composer(
           controller: _inputController,
-          enabled: widget.state.activeSession != null && !widget.state.isBusy,
+          textFieldEnabled: widget.state.activeSession != null,
+          canSend:
+              widget.state.activeSession != null &&
+              !widget.state.isBusy &&
+              !widget.isTurnRunning &&
+              !widget.isInterrupting,
+          canStop:
+              widget.state.activeSession != null &&
+              widget.isTurnRunning &&
+              !widget.state.isBusy,
           canChangeModel: widget.state.activeSession != null,
           isBusy: widget.state.isBusy,
+          isInterrupting: widget.isInterrupting,
           activeModelId: widget.state.activeModelId,
           availableModels: widget.state.availableModels,
           onModelChanged: widget.onModelChanged,
           onSend: _sendInput,
+          onInterrupt: widget.onInterruptTurn,
         ),
         _RawLog(state: widget.state, expanded: widget.rawLogExpanded),
       ],
@@ -439,6 +456,8 @@ class _CompletedTurnSection extends StatelessWidget {
     final secondaryRows = _buildSecondaryRows(secondary);
     final shouldRenderWorked = secondaryRows.length > 1;
     final shouldRenderSingleSecondary = secondaryRows.length == 1;
+    final workedLabel = shouldRenderWorked ? _workedForLabel(separator) : null;
+    final effectiveWorkedExpanded = workedLabel == null ? true : workedExpanded;
 
     final children = <Widget>[
       for (final userCell in users)
@@ -448,15 +467,15 @@ class _CompletedTurnSection extends StatelessWidget {
         ),
     ];
 
-    if (shouldRenderWorked) {
+    if (shouldRenderWorked && workedLabel != null) {
       children.add(
         _WorkedForDivider(
-          label: _workedForLabel(separator),
-          expanded: workedExpanded,
+          label: workedLabel,
+          expanded: effectiveWorkedExpanded,
           onTap: onToggleWorked,
         ),
       );
-      if (workedExpanded) {
+      if (effectiveWorkedExpanded) {
         children.add(
           Padding(
             padding: const EdgeInsets.only(top: AleraTokens.space8),
@@ -474,6 +493,23 @@ class _CompletedTurnSection extends StatelessWidget {
       }
     }
 
+    if (shouldRenderWorked && workedLabel == null) {
+      children.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: AleraTokens.space8),
+          child: Column(
+            children: <Widget>[
+              for (final row in secondaryRows)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AleraTokens.space6),
+                  child: _SecondaryRowView(row: row),
+                ),
+            ],
+          ),
+        ),
+      );
+    }
+
     if (shouldRenderSingleSecondary) {
       children.add(
         Padding(
@@ -483,14 +519,6 @@ class _CompletedTurnSection extends StatelessWidget {
       );
     }
 
-    if (shouldRenderWorked && workedExpanded) {
-      children.add(
-        const Padding(
-          padding: EdgeInsets.only(top: AleraTokens.space8),
-          child: _FinalMessageDivider(),
-        ),
-      );
-    }
     children.addAll(
       assistants.map(
         (assistantCell) => Padding(
@@ -694,13 +722,14 @@ class _WorkedForDivider extends StatelessWidget {
     required this.onTap,
   });
 
-  final String label;
+  final String? label;
   final bool expanded;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return Row(
+      key: const ValueKey<String>('worked-divider'),
       children: <Widget>[
         const Expanded(
           child: Divider(
@@ -721,7 +750,7 @@ class _WorkedForDivider extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 Text(
-                  label,
+                  label ?? '',
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: AleraTokens.foregroundMuted,
                   ),
@@ -748,59 +777,22 @@ class _WorkedForDivider extends StatelessWidget {
   }
 }
 
-class _FinalMessageDivider extends StatelessWidget {
-  const _FinalMessageDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: <Widget>[
-        const Expanded(
-          child: Divider(
-            color: AleraTokens.borderSubtle,
-            height: 1,
-            thickness: 1,
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space12),
-          child: Text(
-            'Final message',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: AleraTokens.foregroundFaint,
-            ),
-          ),
-        ),
-        const Expanded(
-          child: Divider(
-            color: AleraTokens.borderSubtle,
-            height: 1,
-            thickness: 1,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-String _workedForLabel(TimelineCell separatorCell) {
+String? _workedForLabel(TimelineCell separatorCell) {
   final metadata = separatorCell.metadata;
+  final hasMetrics = _hasRuntimeMetrics(metadata);
+  final durationMs = _durationMs(metadata);
   final formatted = _formatWorkedDuration(metadata);
-  if (formatted != null) {
+  if (formatted != null && durationMs != null && durationMs > 60000) {
     return 'Worked for $formatted';
   }
-  return 'Work finished';
+  if (hasMetrics) {
+    return 'Work finished';
+  }
+  return null;
 }
 
 String? _formatWorkedDuration(Map<String, dynamic> metadata) {
-  final durationMs =
-      _asNum(metadata['computedDurationMs']) ??
-      _asNum(metadata['computed_duration_ms']) ??
-      _asNum(metadata['elapsedMs']) ??
-      _asNum(metadata['elapsed_ms']) ??
-      _asNum(metadata['durationMs']) ??
-      _asNum(metadata['duration_ms']) ??
-      _durationFromTimestamps(metadata);
+  final durationMs = _durationMs(metadata);
   if (durationMs == null || durationMs <= 0) {
     return null;
   }
@@ -834,6 +826,39 @@ String? _formatWorkedDuration(Map<String, dynamic> metadata) {
     return '${totalSeconds}s';
   }
   return '${totalSeconds}s';
+}
+
+num? _durationMs(Map<String, dynamic> metadata) {
+  return _asNum(metadata['computedDurationMs']) ??
+      _asNum(metadata['computed_duration_ms']) ??
+      _asNum(metadata['elapsedMs']) ??
+      _asNum(metadata['elapsed_ms']) ??
+      _asNum(metadata['durationMs']) ??
+      _asNum(metadata['duration_ms']) ??
+      _durationFromTimestamps(metadata);
+}
+
+bool _hasRuntimeMetrics(Map<String, dynamic> metadata) {
+  final runtime = metadata['runtimeMetrics'];
+  if (runtime is Map && runtime.isNotEmpty) {
+    return true;
+  }
+  final totalTokens =
+      _asNum(metadata['totalTokens']) ??
+      _asNum(metadata['total_tokens']) ??
+      _asNum(_asMap(metadata['usage'])['totalTokens']) ??
+      _asNum(_asMap(metadata['usage'])['total_tokens']);
+  return totalTokens != null && totalTokens > 0;
+}
+
+Map<String, dynamic> _asMap(dynamic value) {
+  if (value is Map<String, dynamic>) {
+    return value;
+  }
+  if (value is Map) {
+    return value.map((key, item) => MapEntry(key.toString(), item));
+  }
+  return const <String, dynamic>{};
 }
 
 num? _durationFromTimestamps(Map<String, dynamic> metadata) {
@@ -944,24 +969,56 @@ class _ProgressTextRow extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 760),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AleraTokens.space6,
-            vertical: AleraTokens.space2,
-          ),
-          child: SelectableText(
-            text,
-            textAlign: TextAlign.left,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AleraTokens.foregroundMuted,
+    final styleSheet = MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
+      p: Theme.of(
+        context,
+      ).textTheme.bodyMedium?.copyWith(color: AleraTokens.foregroundMuted),
+      strong: Theme.of(context).textTheme.bodyMedium?.copyWith(
+        color: AleraTokens.foreground,
+        fontWeight: FontWeight.w700,
+      ),
+      em: Theme.of(context).textTheme.bodyMedium?.copyWith(
+        color: AleraTokens.foregroundMuted,
+        fontStyle: FontStyle.italic,
+      ),
+      code: AleraTokens.monoStyle.copyWith(
+        fontSize: 12,
+        color: AleraTokens.foreground,
+      ),
+      codeblockDecoration: BoxDecoration(
+        color: AleraTokens.bg,
+        borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+        border: Border.all(color: AleraTokens.border),
+      ),
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxWidth = constraints.maxWidth;
+        final width = maxWidth.isFinite
+            ? (maxWidth < 760 ? maxWidth : 760.0)
+            : 760.0;
+        return Align(
+          alignment: Alignment.centerLeft,
+          child: SizedBox(
+            width: width,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AleraTokens.space6,
+                vertical: AleraTokens.space2,
+              ),
+              child: MarkdownBody(
+                data: text,
+                styleSheet: styleSheet,
+                builders: <String, MarkdownElementBuilder>{
+                  'pre': _CodeBlockBuilder(context),
+                },
+                selectable: true,
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -1459,23 +1516,31 @@ class _CopyableCodeBlock extends StatelessWidget {
 class _Composer extends StatefulWidget {
   const _Composer({
     required this.controller,
-    required this.enabled,
+    required this.textFieldEnabled,
+    required this.canSend,
+    required this.canStop,
     required this.canChangeModel,
     required this.isBusy,
+    required this.isInterrupting,
     required this.activeModelId,
     required this.availableModels,
     required this.onModelChanged,
     required this.onSend,
+    required this.onInterrupt,
   });
 
   final TextEditingController controller;
-  final bool enabled;
+  final bool textFieldEnabled;
+  final bool canSend;
+  final bool canStop;
   final bool canChangeModel;
   final bool isBusy;
+  final bool isInterrupting;
   final String activeModelId;
   final List<CodexModelOption> availableModels;
   final ValueChanged<String> onModelChanged;
   final VoidCallback onSend;
+  final VoidCallback onInterrupt;
 
   @override
   State<_Composer> createState() => _ComposerState();
@@ -1503,14 +1568,14 @@ class _ComposerState extends State<_Composer> {
   String get _reasoningLabel => _reasoningOptions[_reasoningLevel] ?? 'High';
 
   void _sendFromShortcut() {
-    if (!widget.enabled) {
+    if (!widget.canSend) {
       return;
     }
     widget.onSend();
   }
 
   void _insertLineBreak() {
-    if (!widget.enabled) {
+    if (!widget.textFieldEnabled) {
       return;
     }
     final value = widget.controller.value;
@@ -1562,7 +1627,7 @@ class _ComposerState extends State<_Composer> {
                   },
                   child: TextField(
                     controller: widget.controller,
-                    enabled: widget.enabled,
+                    enabled: widget.textFieldEnabled,
                     minLines: 2,
                     maxLines: 6,
                     textInputAction: TextInputAction.newline,
@@ -1668,7 +1733,11 @@ class _ComposerState extends State<_Composer> {
                       ),
                       const Spacer(),
                       IconButton(
-                        onPressed: widget.enabled ? widget.onSend : null,
+                        onPressed: widget.canStop
+                            ? (widget.isInterrupting
+                                  ? null
+                                  : widget.onInterrupt)
+                            : (widget.canSend ? widget.onSend : null),
                         mouseCursor: SystemMouseCursors.click,
                         constraints: const BoxConstraints(
                           minWidth: 32,
@@ -1676,15 +1745,32 @@ class _ComposerState extends State<_Composer> {
                         ),
                         padding: EdgeInsets.zero,
                         style: IconButton.styleFrom(
-                          backgroundColor: widget.enabled
-                              ? AleraTokens.accent
-                              : AleraTokens.surface,
-                          foregroundColor: widget.enabled
-                              ? AleraTokens.onAccent
-                              : AleraTokens.foregroundFaint,
+                          backgroundColor: widget.canStop
+                              ? (widget.isInterrupting
+                                    ? AleraTokens.surfaceVariant
+                                    : AleraTokens.surface)
+                              : (widget.canSend
+                                    ? AleraTokens.accent
+                                    : AleraTokens.surface),
+                          foregroundColor: widget.canStop
+                              ? AleraTokens.foreground
+                              : (widget.canSend
+                                    ? AleraTokens.onAccent
+                                    : AleraTokens.foregroundFaint),
                           shape: const CircleBorder(),
                         ),
-                        icon: const Icon(Icons.arrow_upward, size: 16),
+                        icon: widget.canStop
+                            ? (widget.isInterrupting
+                                  ? const SizedBox(
+                                      width: 14,
+                                      height: 14,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 1.6,
+                                        color: AleraTokens.foreground,
+                                      ),
+                                    )
+                                  : const Icon(Icons.stop, size: 16))
+                            : const Icon(Icons.arrow_upward, size: 16),
                       ),
                     ],
                   ),

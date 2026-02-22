@@ -104,5 +104,37 @@ void main() {
       await sub.cancel();
       await orchestrator.close();
     });
+
+    test('interrupt stops an in-flight turn', () async {
+      final orchestrator = await _startOrchestrator();
+      final notifications = <AgentNotificationEvent>[];
+      final sub = orchestrator.events.listen((event) {
+        if (event is AgentNotificationEvent) {
+          notifications.add(event);
+        }
+      });
+
+      final threadId = await orchestrator.ensureThread(cwd: '/tmp/project');
+      final turnId = await orchestrator.runTurn(
+        threadId: threadId,
+        prompt: 'trigger_interrupt now',
+        model: 'gpt-5.2-codex',
+        cwd: '/tmp/project',
+      );
+
+      await orchestrator.interrupt(threadId: threadId, turnId: turnId);
+
+      final completed = await _waitForNotification(
+        notifications,
+        'turn/completed',
+      );
+      final turn =
+          (completed['params'] as Map<String, dynamic>)['turn']
+              as Map<String, dynamic>;
+      expect(turn['status'], 'interrupted');
+
+      await sub.cancel();
+      await orchestrator.close();
+    });
   });
 }

@@ -1,5 +1,8 @@
 import 'dart:convert';
 
+import 'package:alera/src/features/session/application/streaming/adaptive_chunking_policy.dart';
+import 'package:alera/src/features/session/application/streaming/commit_tick_engine.dart';
+import 'package:alera/src/features/session/application/streaming/markdown_stream_collector.dart';
 import 'package:alera/src/features/session/application/session_runtime_event.dart';
 import 'package:alera/src/features/session/application/session_state.dart';
 import 'package:alera/src/features/session/domain/chat_timeline.dart';
@@ -35,9 +38,17 @@ SessionState reduceNotification(
   final next = _appendRawLog(state, event);
 
   switch (event.method) {
+    case 'codex/event/item_started':
+      return _onLegacyItemStarted(next, params);
+    case 'codex/event/item_completed':
+      return _onLegacyItemCompleted(next, params);
+    case 'codex/event/task_complete':
+      return _onLegacyTaskComplete(next, params, timestamp);
     case 'turn/started':
       return _onTurnStarted(next, params, timestamp);
     case 'turn/completed':
+      return _onTurnCompleted(next, params, timestamp);
+    case 'turn/failed':
       return _onTurnCompleted(next, params, timestamp);
     case 'item/started':
       return _onItemStarted(next, params, timestamp);
@@ -46,7 +57,9 @@ SessionState reduceNotification(
     case 'item/agentMessage/delta':
       return _onAssistantDelta(next, params, timestamp);
     case 'item/reasoning/summaryTextDelta':
-      return _onReasoningDelta(next, params, timestamp);
+      return _onReasoningStatusDelta(next, params, timestamp);
+    case 'item/reasoning/textDelta':
+      return _onReasoningStatusDelta(next, params, timestamp);
     case 'item/commandExecution/outputDelta':
       return _onToolOutputDelta(
         next,
@@ -54,6 +67,8 @@ SessionState reduceNotification(
         timestamp: timestamp,
         fallbackTitle: 'Ran command',
       );
+    case 'item/commandExecution/terminalInteraction':
+      return _onTerminalInteraction(next, params, timestamp: timestamp);
     case 'item/fileChange/outputDelta':
       return _onToolOutputDelta(
         next,
@@ -68,6 +83,13 @@ SessionState reduceNotification(
         timestamp: timestamp,
         fallbackTitle: 'MCP tool call',
       );
+    case 'item/mcpToolCall/progress':
+      return _onToolInteraction(
+        next,
+        params,
+        timestamp: timestamp,
+        fallbackTitle: 'MCP tool call',
+      );
     case 'item/webSearch/outputDelta':
       return _onToolOutputDelta(
         next,
@@ -75,6 +97,8 @@ SessionState reduceNotification(
         timestamp: timestamp,
         fallbackTitle: 'Web search',
       );
+    case 'turn/diff/updated':
+      return _onTurnDiffUpdated(next, params, timestamp);
     case 'item/plan/delta':
       return _onToolOutputDelta(
         next,
@@ -82,9 +106,134 @@ SessionState reduceNotification(
         timestamp: timestamp,
         fallbackTitle: 'plan',
       );
+    case 'token_count':
+      return _onTokenCount(next, params);
+    case 'error':
+    case 'stream/error':
+    case 'stream_error':
+      return _onStreamError(next, params);
+    case 'background/event':
+      return _onBackgroundStatus(next, params);
     default:
       return next;
   }
+}
+
+SessionState reduceCommitTick(
+  SessionState state, {
+  CommitTickScope scope = CommitTickScope.anyMode,
+  DateTime? now,
+}) {
+  final timestamp = now ?? DateTime.now().toUtc();
+  final result = runCommitTick(
+    policy: state.chunkingPolicy,
+    queue: state.streamQueue,
+    scope: scope,
+    now: timestamp,
+  );
+
+  var next = state.copyWith(
+    chunkingPolicy: result.policy,
+    streamQueue: result.remainingQueue,
+    streamQueueDepth: result.queueDepth,
+    streamOldestAgeMs: result.oldestAgeMs,
+    clearStreamOldestAgeMs: result.oldestAgeMs == null,
+  );
+
+  if (result.drainedLines.isNotEmpty) {
+    final cells = <TimelineCell>[...next.timelineCells];
+    var activeStreamingAssistantCellId = next.activeStreamingAssistantCellId;
+    var activeTurnId = next.activeTurnId;
+    var turnHadWorkActivity = next.turnHadWorkActivity;
+
+    for (final line in result.drainedLines) {
+      final text = line.text.trimRight();
+      if (text.isEmpty) {
+        continue;
+      }
+      final streamPhase = _normalizeAgentPhase(line.streamPhase);
+      if (streamPhase == 'final_answer') {
+        final assistantCellId = line.itemId ?? 'assistant-final-${line.turnId}';
+        final assistantIndex = _findCellById(cells, assistantCellId);
+        if (assistantIndex == -1) {
+          cells.add(
+            TimelineCell(
+              id: assistantCellId,
+              turnId: line.turnId,
+              itemId: line.itemId,
+              kind: TimelineCellKind.assistantMessage,
+              status: TimelineCellStatus.inProgress,
+              createdAt: timestamp,
+              updatedAt: timestamp,
+              isStreaming: true,
+              markdownText: text,
+              metadata: _withStreamCommitMetadata(
+                const <String, dynamic>{},
+                itemId: line.itemId,
+                streamPhase: streamPhase,
+              ),
+            ),
+          );
+        } else {
+          final existing = cells[assistantIndex];
+          final currentText = existing.markdownText ?? '';
+          final nextText = currentText.isEmpty ? text : '$currentText\n$text';
+          cells[assistantIndex] = existing.copyWith(
+            turnId: line.turnId,
+            itemId: line.itemId,
+            status: TimelineCellStatus.inProgress,
+            isStreaming: true,
+            markdownText: nextText,
+            metadata: _withStreamCommitMetadata(
+              existing.metadata,
+              itemId: line.itemId,
+              streamPhase: streamPhase,
+            ),
+            updatedAt: timestamp,
+          );
+        }
+        activeStreamingAssistantCellId = assistantCellId;
+      } else {
+        cells.add(
+          TimelineCell(
+            id: 'stream-${line.turnId}-${timestamp.microsecondsSinceEpoch}',
+            turnId: line.turnId,
+            itemId: line.itemId,
+            kind: TimelineCellKind.progressText,
+            status: TimelineCellStatus.completed,
+            createdAt: timestamp,
+            updatedAt: timestamp,
+            markdownText: text,
+            metadata: <String, dynamic>{
+              'isInterim': true,
+              'streamSource': 'commit_tick',
+              if (line.itemId != null) 'streamItemId': line.itemId,
+              'streamCommitted': true,
+              'streamPhase': streamPhase,
+              'isWorkActivity': true,
+            },
+          ),
+        );
+        turnHadWorkActivity = true;
+      }
+      activeTurnId = line.turnId;
+    }
+    next = next.copyWith(
+      timelineCells: cells,
+      activeStreamingAssistantCellId: activeStreamingAssistantCellId,
+      activeTurnId: activeTurnId,
+      turnHadWorkActivity: turnHadWorkActivity,
+    );
+  }
+
+  if (next.pendingStatusRestore && result.allIdle) {
+    next = next.copyWith(
+      pendingStatusRestore: false,
+      statusHeader: next.activeTurnId == null ? null : 'Working',
+    );
+  }
+
+  return next;
 }
 
 SessionState _appendRawLog(SessionState state, SessionNotificationEvent event) {
@@ -94,6 +243,358 @@ SessionState _appendRawLog(SessionState state, SessionNotificationEvent event) {
       ? nextLog
       : nextLog.sublist(nextLog.length - 200);
   return state.copyWith(activityLog: clipped);
+}
+
+SessionState _onLegacyItemStarted(
+  SessionState state,
+  Map<String, dynamic> params,
+) {
+  final msg = _asMap(params['msg']);
+  if ((_asString(msg['type']) ?? '').toLowerCase() != 'item_started') {
+    return state;
+  }
+
+  final item = _asMap(msg['item']);
+  final itemType = _normalizeLegacyItemType(_asString(item['type']));
+  if (itemType != 'agentMessage') {
+    return state;
+  }
+
+  final itemId = _asString(item['id']);
+  final turnId = _asString(msg['turn_id']);
+  if (itemId == null || itemId.isEmpty || turnId == null || turnId.isEmpty) {
+    return state;
+  }
+
+  final phase = _normalizeAgentPhase(_asString(item['phase']));
+  final nextByItem = <String, String>{...state.agentMessagePhaseByItemId};
+  nextByItem[itemId] = phase;
+
+  final nextFinalByTurn = <String, String>{...state.finalAnswerItemIdByTurn};
+  if (phase == 'final_answer') {
+    nextFinalByTurn[turnId] = itemId;
+  }
+
+  return state.copyWith(
+    agentMessagePhaseByItemId: nextByItem,
+    finalAnswerItemIdByTurn: nextFinalByTurn,
+  );
+}
+
+SessionState _onLegacyItemCompleted(
+  SessionState state,
+  Map<String, dynamic> params,
+) {
+  final msg = _asMap(params['msg']);
+  if ((_asString(msg['type']) ?? '').toLowerCase() != 'item_completed') {
+    return state;
+  }
+
+  final item = _asMap(msg['item']);
+  final itemType = _normalizeLegacyItemType(_asString(item['type']));
+  if (itemType != 'agentMessage') {
+    return state;
+  }
+
+  final itemId = _asString(item['id']);
+  final turnId = _asString(msg['turn_id']);
+  if (itemId == null || itemId.isEmpty || turnId == null || turnId.isEmpty) {
+    return state;
+  }
+
+  final phase = _normalizeAgentPhase(_asString(item['phase']));
+  final nextByItem = <String, String>{...state.agentMessagePhaseByItemId};
+  nextByItem[itemId] = phase;
+
+  final nextFinalByTurn = <String, String>{...state.finalAnswerItemIdByTurn};
+  if (phase == 'final_answer') {
+    nextFinalByTurn[turnId] = itemId;
+  }
+
+  return state.copyWith(
+    agentMessagePhaseByItemId: nextByItem,
+    finalAnswerItemIdByTurn: nextFinalByTurn,
+  );
+}
+
+SessionState _onLegacyTaskComplete(
+  SessionState state,
+  Map<String, dynamic> params,
+  DateTime timestamp,
+) {
+  final msg = _asMap(params['msg']);
+  if ((_asString(msg['type']) ?? '').toLowerCase() != 'task_complete') {
+    return state;
+  }
+
+  final turnId = _asString(msg['turn_id']) ?? state.activeTurnId;
+  if (turnId == null || turnId.isEmpty) {
+    return state;
+  }
+
+  final hasExplicitFinal = state.finalAnswerItemIdByTurn.containsKey(turnId);
+  if (hasExplicitFinal) {
+    return state;
+  }
+
+  final lastAgentMessage = _asString(msg['last_agent_message'])?.trim();
+  if (lastAgentMessage == null || lastAgentMessage.isEmpty) {
+    return state;
+  }
+
+  final cells = <TimelineCell>[...state.timelineCells];
+  final existingFinal = cells.lastWhere(
+    (cell) =>
+        cell.turnId == turnId &&
+        cell.kind == TimelineCellKind.assistantMessage &&
+        (cell.markdownText ?? '').trim().isNotEmpty,
+    orElse: () => TimelineCell(
+      id: '',
+      kind: TimelineCellKind.systemNotice,
+      status: TimelineCellStatus.info,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    ),
+  );
+
+  if (existingFinal.id.isNotEmpty &&
+      (existingFinal.markdownText ?? '').trim() == lastAgentMessage) {
+    return state;
+  }
+
+  final cellId = existingFinal.id.isNotEmpty
+      ? existingFinal.id
+      : 'assistant-final-$turnId';
+  final existingIndex = existingFinal.id.isEmpty
+      ? -1
+      : _findCellById(cells, existingFinal.id);
+
+  final metadata = <String, dynamic>{
+    'streamPhase': 'final_answer',
+    'source': 'task_complete',
+  };
+
+  if (existingIndex == -1) {
+    cells.add(
+      TimelineCell(
+        id: cellId,
+        turnId: turnId,
+        itemId: _asString(state.finalAnswerItemIdByTurn[turnId]),
+        kind: TimelineCellKind.assistantMessage,
+        status: TimelineCellStatus.completed,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        markdownText: lastAgentMessage,
+        metadata: metadata,
+      ),
+    );
+  } else {
+    cells[existingIndex] = cells[existingIndex].copyWith(
+      markdownText: lastAgentMessage,
+      isStreaming: false,
+      status: TimelineCellStatus.completed,
+      metadata: metadata,
+      updatedAt: timestamp,
+    );
+  }
+
+  return state.copyWith(timelineCells: cells);
+}
+
+Map<String, dynamic> _withStreamCommitMetadata(
+  Map<String, dynamic> current, {
+  required String? itemId,
+  required String streamPhase,
+}) {
+  return <String, dynamic>{
+    ...current,
+    'streamSource': 'commit_tick',
+    if (itemId != null && itemId.isNotEmpty) 'streamItemId': itemId,
+    'streamCommitted': true,
+    'streamPhase': streamPhase,
+  };
+}
+
+SessionState _flushActiveAgentStreamToQueue(SessionState state, DateTime now) {
+  final itemId = state.activeAgentStreamItemId;
+  final turnId = state.activeAgentStreamTurnId;
+  if (itemId == null ||
+      itemId.isEmpty ||
+      turnId == null ||
+      turnId.isEmpty ||
+      state.streamCollector.pendingBuffer.isEmpty) {
+    return state.copyWith(
+      streamCollector: const MarkdownStreamCollectorState(),
+    );
+  }
+
+  final finalize = finalizeMarkdownStream(state.streamCollector);
+  if (finalize.completedLines.isEmpty) {
+    return state.copyWith(streamCollector: finalize.state);
+  }
+
+  final streamPhase = _normalizeAgentPhase(state.activeAgentStreamPhase);
+  final queued = <StreamQueuedLine>[
+    ...state.streamQueue,
+    ...finalize.completedLines.map(
+      (line) => StreamQueuedLine(
+        turnId: turnId,
+        itemId: itemId,
+        streamPhase: streamPhase,
+        text: line,
+        enqueuedAt: now,
+      ),
+    ),
+  ];
+
+  return state.copyWith(
+    streamCollector: finalize.state,
+    streamQueue: queued,
+    streamQueueDepth: queued.length,
+    streamOldestAgeMs: 0,
+  );
+}
+
+String _resolveAgentPhase(
+  SessionState state, {
+  required String itemId,
+  required String turnId,
+  required Map<String, dynamic> item,
+}) {
+  final explicit = _normalizeAgentPhase(_asString(item['phase']));
+  if (explicit != 'unknown') {
+    return explicit;
+  }
+
+  final fromMap = _normalizeAgentPhase(state.agentMessagePhaseByItemId[itemId]);
+  if (fromMap != 'unknown') {
+    return fromMap;
+  }
+
+  final finalForTurn = state.finalAnswerItemIdByTurn[turnId];
+  if (finalForTurn == itemId) {
+    return 'final_answer';
+  }
+
+  return 'unknown';
+}
+
+String _normalizeAgentPhase(String? raw) {
+  final normalized = (raw ?? '').toLowerCase().trim();
+  if (normalized == 'final_answer' || normalized == 'finalanswer') {
+    return 'final_answer';
+  }
+  if (normalized == 'commentary') {
+    return 'commentary';
+  }
+  return 'unknown';
+}
+
+String _normalizeLegacyItemType(String? raw) {
+  final value = (raw ?? '').toLowerCase().trim();
+  if (value == 'agentmessage' || value == 'agent_message') {
+    return 'agentMessage';
+  }
+  if (value == 'usermessage' || value == 'user_message') {
+    return 'userMessage';
+  }
+  if (value == 'commandexecution' || value == 'command_execution') {
+    return 'commandExecution';
+  }
+  if (value == 'filechange' || value == 'file_change') {
+    return 'fileChange';
+  }
+  if (value == 'mcptoolcall' || value == 'mcp_tool_call') {
+    return 'mcpToolCall';
+  }
+  if (value == 'websearch' || value == 'web_search') {
+    return 'webSearch';
+  }
+  if (value == 'reasoning') {
+    return 'reasoning';
+  }
+  return raw ?? '';
+}
+
+void _trimTrailingOverlapWorkedVsFinal(
+  List<TimelineCell> cells, {
+  required String turnId,
+}) {
+  var finalIndex = -1;
+  var finalText = '';
+  for (var i = cells.length - 1; i >= 0; i--) {
+    final candidate = cells[i];
+    if (candidate.turnId != turnId ||
+        candidate.kind != TimelineCellKind.assistantMessage) {
+      continue;
+    }
+    final text = (candidate.markdownText ?? '').trim();
+    if (text.isEmpty) {
+      continue;
+    }
+    finalIndex = i;
+    finalText = text;
+    break;
+  }
+  if (finalIndex == -1 || finalText.isEmpty) {
+    return;
+  }
+
+  var lastProgressIndex = -1;
+  for (var i = cells.length - 1; i >= 0; i--) {
+    final candidate = cells[i];
+    if (candidate.turnId != turnId ||
+        candidate.kind != TimelineCellKind.progressText) {
+      continue;
+    }
+    final text = candidate.markdownText ?? '';
+    if (text.trim().isEmpty) {
+      continue;
+    }
+    lastProgressIndex = i;
+    break;
+  }
+  if (lastProgressIndex == -1) {
+    return;
+  }
+
+  final progress = cells[lastProgressIndex];
+  final progressText = progress.markdownText ?? '';
+  final overlap = _trailingLeadingOverlapLength(progressText, finalText);
+  if (overlap <= 0) {
+    return;
+  }
+  final trimmedProgressText = progressText.trimRight();
+  final isFullDuplicate = overlap >= trimmedProgressText.length;
+  final isMeaningfulOverlap = overlap >= 8;
+  if (!isFullDuplicate && !isMeaningfulOverlap) {
+    return;
+  }
+
+  final trimmedProgress = progressText
+      .substring(0, progressText.length - overlap)
+      .trimRight();
+  if (trimmedProgress.isEmpty) {
+    cells.removeAt(lastProgressIndex);
+    return;
+  }
+
+  cells[lastProgressIndex] = progress.copyWith(
+    markdownText: trimmedProgress,
+    updatedAt: cells[finalIndex].updatedAt,
+  );
+}
+
+int _trailingLeadingOverlapLength(String left, String right) {
+  final max = left.length < right.length ? left.length : right.length;
+  for (var len = max; len > 0; len--) {
+    final leftSlice = left.substring(left.length - len);
+    final rightSlice = right.substring(0, len);
+    if (leftSlice == rightSlice) {
+      return len;
+    }
+  }
+  return 0;
 }
 
 SessionState _onTurnStarted(
@@ -123,7 +624,29 @@ SessionState _onTurnStarted(
     }
   }
 
-  return state.copyWith(timelineCells: cells, activeTurnId: turnId);
+  final nextFinalByTurn = <String, String>{...state.finalAnswerItemIdByTurn};
+  nextFinalByTurn.remove(turnId);
+
+  return state.copyWith(
+    timelineCells: cells,
+    activeTurnId: turnId,
+    statusHeader: 'Working',
+    pendingStatusRestore: false,
+    streamCollector: const MarkdownStreamCollectorState(),
+    streamQueue: const <StreamQueuedLine>[],
+    chunkingPolicy: const AdaptiveChunkingPolicyState(),
+    streamQueueDepth: 0,
+    clearStreamOldestAgeMs: true,
+    clearActiveAgentStreamItemId: true,
+    clearActiveAgentStreamTurnId: true,
+    clearActiveAgentStreamPhase: true,
+    finalAnswerItemIdByTurn: nextFinalByTurn,
+    turnHadWorkActivity: false,
+    turnRuntimeMetrics: const <String, dynamic>{},
+    reasoningBufferByItemId: const <String, String>{},
+    clearActiveExecCellId: true,
+    clearActivePlanCellId: true,
+  );
 }
 
 SessionState _onTurnCompleted(
@@ -137,7 +660,23 @@ SessionState _onTurnCompleted(
     return state;
   }
 
-  final cells = <TimelineCell>[...state.timelineCells];
+  var nextState = state;
+  if (nextState.activeAgentStreamItemId != null &&
+      nextState.activeAgentStreamTurnId == turnId) {
+    nextState = _flushActiveAgentStreamToQueue(nextState, timestamp);
+  }
+
+  var guard = 0;
+  while (nextState.streamQueue.isNotEmpty && guard < 200) {
+    nextState = reduceCommitTick(
+      nextState,
+      scope: CommitTickScope.anyMode,
+      now: timestamp,
+    );
+    guard += 1;
+  }
+
+  final cells = <TimelineCell>[...nextState.timelineCells];
   for (var i = 0; i < cells.length; i++) {
     final cell = cells[i];
     if (cell.turnId != turnId) {
@@ -167,38 +706,61 @@ SessionState _onTurnCompleted(
     }
   }
 
+  final runtimeMetrics = <String, dynamic>{...nextState.turnRuntimeMetrics};
+  final showWorkSeparator =
+      nextState.turnHadWorkActivity || runtimeMetrics.isNotEmpty;
+
+  if (!showWorkSeparator) {
+    cells.removeWhere(
+      (cell) =>
+          cell.turnId == turnId && cell.kind == TimelineCellKind.progressText,
+    );
+  }
+
   final durationFromCells = _computeTurnDurationFromCells(
     cells,
     turnId: turnId,
     turnCompletedAt: timestamp,
   );
   final separatorId = 'turn-separator-$turnId';
-  final separatorMetadata = <String, dynamic>{...turn};
+  final separatorMetadata = <String, dynamic>{
+    ...turn,
+    'isWorkActivity': nextState.turnHadWorkActivity,
+    if (runtimeMetrics.isNotEmpty) 'runtimeMetrics': runtimeMetrics,
+  };
   if (durationFromCells != null && durationFromCells > 0) {
     separatorMetadata['computedDurationMs'] = durationFromCells;
   }
-  final separator = TimelineCell(
-    id: separatorId,
-    turnId: turnId,
-    kind: TimelineCellKind.turnSeparator,
-    status:
-        _statusFromString(_asString(turn['status'])) ?? TimelineCellStatus.info,
-    createdAt: timestamp,
-    updatedAt: timestamp,
-    title: _separatorTitle(turn),
-    subtitle: _separatorSubtitle(separatorMetadata),
-    metadata: separatorMetadata,
-  );
-
   final existingSeparatorIndex = _findCellById(cells, separatorId);
-  if (existingSeparatorIndex == -1) {
-    cells.add(separator);
+  if (showWorkSeparator) {
+    final separator = TimelineCell(
+      id: separatorId,
+      turnId: turnId,
+      kind: TimelineCellKind.turnSeparator,
+      status:
+          _statusFromString(_asString(turn['status'])) ??
+          TimelineCellStatus.info,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      title: _separatorTitle(turn),
+      subtitle: _separatorSubtitle(separatorMetadata),
+      metadata: separatorMetadata,
+    );
+    if (existingSeparatorIndex == -1) {
+      cells.add(separator);
+    } else {
+      cells[existingSeparatorIndex] = separator;
+    }
   } else {
-    cells[existingSeparatorIndex] = separator;
+    if (existingSeparatorIndex != -1) {
+      cells.removeAt(existingSeparatorIndex);
+    }
   }
 
+  _trimTrailingOverlapWorkedVsFinal(cells, turnId: turnId);
+
   var clearStreaming = false;
-  final activeStreamingId = state.activeStreamingAssistantCellId;
+  final activeStreamingId = nextState.activeStreamingAssistantCellId;
   if (activeStreamingId != null) {
     final activeIndex = _findCellById(cells, activeStreamingId);
     if (activeIndex != -1 && cells[activeIndex].turnId == turnId) {
@@ -206,10 +768,31 @@ SessionState _onTurnCompleted(
     }
   }
 
-  return state.copyWith(
+  final nextFinalByTurn = <String, String>{
+    ...nextState.finalAnswerItemIdByTurn,
+  };
+  nextFinalByTurn.remove(turnId);
+
+  return nextState.copyWith(
     timelineCells: cells,
     clearActiveStreamingAssistantCellId: clearStreaming,
-    clearActiveTurnId: state.activeTurnId == turnId,
+    clearActiveTurnId: nextState.activeTurnId == turnId,
+    clearStatusHeader: true,
+    pendingStatusRestore: false,
+    streamCollector: const MarkdownStreamCollectorState(),
+    streamQueue: const <StreamQueuedLine>[],
+    chunkingPolicy: const AdaptiveChunkingPolicyState(),
+    streamQueueDepth: 0,
+    clearStreamOldestAgeMs: true,
+    clearActiveAgentStreamItemId: nextState.activeAgentStreamTurnId == turnId,
+    clearActiveAgentStreamTurnId: nextState.activeAgentStreamTurnId == turnId,
+    clearActiveAgentStreamPhase: nextState.activeAgentStreamTurnId == turnId,
+    finalAnswerItemIdByTurn: nextFinalByTurn,
+    turnHadWorkActivity: false,
+    turnRuntimeMetrics: const <String, dynamic>{},
+    reasoningBufferByItemId: const <String, String>{},
+    clearActiveExecCellId: true,
+    clearActivePlanCellId: true,
   );
 }
 
@@ -221,66 +804,71 @@ SessionState _onAssistantDelta(
   final turnId = _asString(params['turnId']) ?? state.activeTurnId;
   final itemId = _asString(params['itemId']);
   final delta = _asString(params['delta']) ?? '';
-  if (turnId == null || turnId.isEmpty || delta.isEmpty) {
+  if (turnId == null ||
+      turnId.isEmpty ||
+      itemId == null ||
+      itemId.isEmpty ||
+      delta.isEmpty) {
     return state;
   }
 
-  final cells = <TimelineCell>[...state.timelineCells];
-  final index = _buildCellIndex(cells);
-  if (index.hasSecondaryByTurn[turnId] == true) {
-    final result = _upsertProgressTextDelta(
-      cells,
-      index: index,
-      turnId: turnId,
-      delta: delta,
-      timestamp: timestamp,
-    );
-    return state.copyWith(
-      timelineCells: result.cells,
-      activeTurnId: turnId,
-      clearActiveStreamingAssistantCellId: true,
-    );
+  var next = state;
+  final activeItemId = next.activeAgentStreamItemId;
+  final activeTurnId = next.activeAgentStreamTurnId;
+  if (activeItemId != null &&
+      activeTurnId != null &&
+      (activeItemId != itemId || activeTurnId != turnId)) {
+    next = _flushActiveAgentStreamToQueue(next, timestamp);
   }
 
-  var assistantCellId = index.assistantCellIdByTurn[turnId];
-  assistantCellId ??= itemId != null ? index.cellIdByItemId[itemId] : null;
-  assistantCellId ??= itemId ?? 'assistant-$turnId';
-
-  final existingIndex = _findCellById(cells, assistantCellId);
-  if (existingIndex == -1) {
-    cells.add(
-      TimelineCell(
-        id: assistantCellId,
-        turnId: turnId,
-        itemId: itemId,
-        kind: TimelineCellKind.assistantMessage,
-        status: TimelineCellStatus.inProgress,
-        createdAt: timestamp,
-        updatedAt: timestamp,
-        isStreaming: true,
-        markdownText: delta,
+  final phase = _resolveAgentPhase(
+    next,
+    itemId: itemId,
+    turnId: turnId,
+    item: const <String, dynamic>{},
+  );
+  final push = pushMarkdownDelta(next.streamCollector, delta);
+  var queued = next.streamQueue;
+  if (push.completedLines.isNotEmpty) {
+    queued = <StreamQueuedLine>[
+      ...next.streamQueue,
+      ...push.completedLines.map(
+        (line) => StreamQueuedLine(
+          turnId: turnId,
+          itemId: itemId,
+          streamPhase: phase,
+          text: line,
+          enqueuedAt: timestamp,
+        ),
       ),
-    );
-  } else {
-    final existing = cells[existingIndex];
-    cells[existingIndex] = existing.copyWith(
-      turnId: turnId,
-      itemId: itemId,
-      status: TimelineCellStatus.inProgress,
-      isStreaming: true,
-      markdownText: '${existing.markdownText ?? ''}$delta',
-      updatedAt: timestamp,
-    );
+    ];
   }
 
-  return state.copyWith(
-    timelineCells: cells,
-    activeStreamingAssistantCellId: assistantCellId,
+  next = next.copyWith(
+    streamCollector: push.state,
+    streamQueue: queued,
     activeTurnId: turnId,
+    activeAgentStreamItemId: itemId,
+    activeAgentStreamTurnId: turnId,
+    activeAgentStreamPhase: phase,
+    statusHeader: 'Working',
+    pendingStatusRestore: false,
+  );
+  if (queued.isNotEmpty) {
+    next = reduceCommitTick(
+      next,
+      scope: CommitTickScope.anyMode,
+      now: timestamp,
+    );
+  }
+  return next.copyWith(
+    streamQueueDepth: next.streamQueue.length,
+    streamOldestAgeMs: next.streamQueue.isEmpty ? null : next.streamOldestAgeMs,
+    clearStreamOldestAgeMs: next.streamQueue.isEmpty,
   );
 }
 
-SessionState _onReasoningDelta(
+SessionState _onReasoningStatusDelta(
   SessionState state,
   Map<String, dynamic> params,
   DateTime timestamp,
@@ -289,59 +877,62 @@ SessionState _onReasoningDelta(
   final itemId =
       _asString(params['itemId']) ??
       (turnId == null ? null : 'reasoning-$turnId');
-  final delta = _asString(params['delta']) ?? '';
+  final delta =
+      _asString(params['delta']) ??
+      _asString(params['textDelta']) ??
+      _asString(params['summaryTextDelta']) ??
+      '';
   if (turnId == null || turnId.isEmpty || itemId == null || delta.isEmpty) {
     return state;
   }
 
-  final cells = <TimelineCell>[...state.timelineCells];
-  var index = _buildCellIndex(cells);
-  final phase = _startSecondaryPhase(
-    cells,
-    index: index,
-    turnId: turnId,
-    timestamp: timestamp,
-    phaseClosedByItemId: itemId,
-  );
-  index = phase.index;
-
-  final cellId = index.cellIdByItemId[itemId] ?? itemId;
-  final existingIndex = _findCellById(cells, cellId);
-
-  if (existingIndex == -1) {
-    cells.add(
-      TimelineCell(
-        id: cellId,
-        turnId: turnId,
-        itemId: itemId,
-        kind: TimelineCellKind.reasoning,
-        status: TimelineCellStatus.inProgress,
-        createdAt: timestamp,
-        updatedAt: timestamp,
-        markdownText: delta,
-      ),
-    );
-  } else {
-    final existing = cells[existingIndex];
-    cells[existingIndex] = existing.copyWith(
-      turnId: turnId,
-      itemId: itemId,
-      kind: TimelineCellKind.reasoning,
-      status: TimelineCellStatus.inProgress,
-      isCollapsed: false,
-      markdownText: '${existing.markdownText ?? ''}$delta',
-      updatedAt: timestamp,
+  final sanitized = _sanitizeInterimDeltaForDisplay(delta);
+  if (sanitized == null || sanitized.trim().isEmpty) {
+    return state.copyWith(
+      activeTurnId: turnId,
+      statusHeader: 'Thinking',
+      pendingStatusRestore: true,
     );
   }
 
-  _collapseOtherSecondaryCellsForTurn(
-    cells,
-    turnId: turnId,
-    exceptCellId: cellId,
-    timestamp: timestamp,
-  );
+  final nextReasoning = <String, String>{...state.reasoningBufferByItemId};
+  final current = nextReasoning[itemId];
+  nextReasoning[itemId] = current == null || current.isEmpty
+      ? sanitized
+      : '$current$sanitized';
 
-  return state.copyWith(timelineCells: cells, activeTurnId: turnId);
+  return state.copyWith(
+    activeTurnId: turnId,
+    reasoningBufferByItemId: nextReasoning,
+    statusHeader: 'Thinking',
+    pendingStatusRestore: true,
+  );
+}
+
+SessionState _onTurnDiffUpdated(
+  SessionState state,
+  Map<String, dynamic> params,
+  DateTime timestamp,
+) {
+  final turnId = _asString(params['turnId']) ?? state.activeTurnId;
+  final diff = _asString(params['diff']) ?? '';
+  if (turnId == null || turnId.isEmpty || diff.isEmpty) {
+    return state;
+  }
+
+  final metrics = <String, dynamic>{
+    ...state.turnRuntimeMetrics,
+    'diffChars': diff.length,
+    'hasDiff': true,
+    'lastDiffUpdatedAtMs': timestamp.millisecondsSinceEpoch,
+  };
+  return state.copyWith(
+    activeTurnId: turnId,
+    statusHeader: 'Editing files',
+    pendingStatusRestore: true,
+    turnHadWorkActivity: true,
+    turnRuntimeMetrics: metrics,
+  );
 }
 
 SessionState _onToolOutputDelta(
@@ -350,10 +941,172 @@ SessionState _onToolOutputDelta(
   required DateTime timestamp,
   required String fallbackTitle,
 }) {
+  final delta = _asString(params['delta']) ?? '';
+  return _onToolDetailsChunk(
+    state,
+    params,
+    timestamp: timestamp,
+    fallbackTitle: fallbackTitle,
+    chunk: delta,
+    append: true,
+  );
+}
+
+SessionState _onToolInteraction(
+  SessionState state,
+  Map<String, dynamic> params, {
+  required DateTime timestamp,
+  required String fallbackTitle,
+}) {
+  final chunk =
+      _asString(params['message']) ??
+      _asString(params['stdin']) ??
+      _asString(params['delta']) ??
+      '';
+  return _onToolDetailsChunk(
+    state,
+    params,
+    timestamp: timestamp,
+    fallbackTitle: fallbackTitle,
+    chunk: chunk,
+    append: true,
+  );
+}
+
+SessionState _onTerminalInteraction(
+  SessionState state,
+  Map<String, dynamic> params, {
+  required DateTime timestamp,
+}) {
+  final turnId = _asString(params['turnId']) ?? state.activeTurnId;
+  final message =
+      _asString(params['message']) ??
+      _asString(params['stdin']) ??
+      _asString(params['delta']) ??
+      '';
+  final lower = message.toLowerCase();
+  final isWaitingBackground =
+      lower.contains('background terminal') &&
+      (lower.contains('wait') ||
+          lower.contains('waiting') ||
+          lower.contains('idle'));
+
+  if (isWaitingBackground) {
+    return state.copyWith(
+      activeTurnId: turnId,
+      statusHeader: 'Waiting for background terminal',
+      pendingStatusRestore: false,
+      turnHadWorkActivity: true,
+    );
+  }
+
+  final next = _onToolInteraction(
+    state,
+    params,
+    timestamp: timestamp,
+    fallbackTitle: 'Ran command',
+  );
+  return next.copyWith(
+    activeTurnId: turnId,
+    statusHeader: 'Working',
+    pendingStatusRestore: false,
+    turnHadWorkActivity: true,
+  );
+}
+
+SessionState _onTokenCount(SessionState state, Map<String, dynamic> params) {
+  final info = _asMap(params['info']);
+  if (info.isEmpty) {
+    return state;
+  }
+  final totalUsage = _asMap(info['total_token_usage']).isNotEmpty
+      ? _asMap(info['total_token_usage'])
+      : _asMap(info['totalTokenUsage']);
+  final nextMetrics = <String, dynamic>{...state.turnRuntimeMetrics};
+  if (totalUsage.isNotEmpty) {
+    nextMetrics['tokenUsage'] = totalUsage;
+    final totalTokens =
+        _asInt(totalUsage['total_tokens']) ?? _asInt(totalUsage['totalTokens']);
+    if (totalTokens != null) {
+      nextMetrics['totalTokens'] = totalTokens;
+    }
+  } else {
+    nextMetrics['tokenInfo'] = info;
+  }
+  return state.copyWith(turnRuntimeMetrics: nextMetrics);
+}
+
+SessionState _onStreamError(SessionState state, Map<String, dynamic> params) {
+  final message =
+      _asString(params['message']) ??
+      _asString(_asMap(params['error'])['message']) ??
+      'stream error';
+  return state.copyWith(
+    statusHeader: 'Stream error: $message',
+    pendingStatusRestore: false,
+  );
+}
+
+SessionState _onBackgroundStatus(
+  SessionState state,
+  Map<String, dynamic> params,
+) {
+  final kind =
+      (_asString(params['kind']) ??
+              _asString(params['type']) ??
+              _asString(params['event']) ??
+              '')
+          .toLowerCase();
+  final message = (_asString(params['message']) ?? '').toLowerCase();
+
+  final waiting =
+      kind.contains('wait') ||
+      message.contains('waiting for background terminal') ||
+      (message.contains('background terminal') && message.contains('waiting'));
+  if (waiting) {
+    return state.copyWith(
+      statusHeader: 'Waiting for background terminal',
+      pendingStatusRestore: false,
+    );
+  }
+
+  final finished =
+      kind.contains('finished') ||
+      kind.contains('completed') ||
+      message.contains('background terminal finished');
+  if (finished) {
+    return state.copyWith(pendingStatusRestore: true);
+  }
+
+  final errored =
+      kind.contains('error') ||
+      message.contains('background terminal error') ||
+      message.contains('failed');
+  if (errored) {
+    return state.copyWith(
+      statusHeader: 'Background terminal error',
+      pendingStatusRestore: false,
+    );
+  }
+
+  return state;
+}
+
+SessionState _onToolDetailsChunk(
+  SessionState state,
+  Map<String, dynamic> params, {
+  required DateTime timestamp,
+  required String fallbackTitle,
+  required String chunk,
+  required bool append,
+}) {
   final turnId = _asString(params['turnId']) ?? state.activeTurnId;
   final itemId = _asString(params['itemId']);
-  final delta = _asString(params['delta']) ?? '';
-  if (turnId == null || turnId.isEmpty || itemId == null || delta.isEmpty) {
+  if (turnId == null ||
+      turnId.isEmpty ||
+      itemId == null ||
+      itemId.isEmpty ||
+      chunk.isEmpty) {
     return state;
   }
 
@@ -382,11 +1135,13 @@ SessionState _onToolOutputDelta(
         createdAt: timestamp,
         updatedAt: timestamp,
         title: fallbackTitle,
-        detailsText: delta,
+        detailsText: chunk,
       ),
     );
   } else {
     final existing = cells[existingIndex];
+    final current = existing.detailsText ?? '';
+    final detailsText = append ? '$current$chunk' : chunk;
     cells[existingIndex] = existing.copyWith(
       turnId: turnId,
       itemId: itemId,
@@ -395,7 +1150,7 @@ SessionState _onToolOutputDelta(
           : TimelineCellKind.toolCall,
       status: TimelineCellStatus.inProgress,
       isCollapsed: false,
-      detailsText: '${existing.detailsText ?? ''}$delta',
+      detailsText: detailsText,
       updatedAt: timestamp,
     );
   }
@@ -410,6 +1165,9 @@ SessionState _onToolOutputDelta(
   return state.copyWith(
     timelineCells: cells,
     activeTurnId: turnId,
+    turnHadWorkActivity: true,
+    statusHeader: 'Working',
+    pendingStatusRestore: false,
     clearActiveStreamingAssistantCellId: phase.clearActiveStreamingAssistant,
   );
 }
@@ -432,7 +1190,27 @@ SessionState _onItemStarted(
     return state;
   }
 
-  if (itemType == 'agentMessage' || itemType == 'userMessage') {
+  if (itemType == 'agentMessage') {
+    final phase = _normalizeAgentPhase(_asString(item['phase']));
+    if (phase == 'unknown') {
+      return state;
+    }
+
+    final nextByItem = <String, String>{...state.agentMessagePhaseByItemId};
+    nextByItem[itemId] = phase;
+
+    final nextFinalByTurn = <String, String>{...state.finalAnswerItemIdByTurn};
+    if (phase == 'final_answer') {
+      nextFinalByTurn[turnId] = itemId;
+    }
+
+    return state.copyWith(
+      agentMessagePhaseByItemId: nextByItem,
+      finalAnswerItemIdByTurn: nextFinalByTurn,
+    );
+  }
+
+  if (itemType == 'userMessage') {
     return state;
   }
 
@@ -516,9 +1294,18 @@ SessionState _onItemStarted(
     timestamp: timestamp,
   );
 
+  final isPlan = itemType == 'plan';
+  final isExecLike = kind == TimelineCellKind.toolCall && !isPlan;
   return state.copyWith(
     timelineCells: cells,
     activeTurnId: turnId,
+    turnHadWorkActivity: true,
+    statusHeader: itemType == 'reasoning' ? 'Thinking' : 'Working',
+    pendingStatusRestore: itemType == 'reasoning',
+    activeExecCellId: isExecLike ? cellId : state.activeExecCellId,
+    clearActiveExecCellId: !isExecLike && state.activeExecCellId == cellId,
+    activePlanCellId: isPlan ? cellId : state.activePlanCellId,
+    clearActivePlanCellId: !isPlan && state.activePlanCellId == cellId,
     clearActiveStreamingAssistantCellId: phase.clearActiveStreamingAssistant,
   );
 }
@@ -546,8 +1333,24 @@ SessionState _onItemCompleted(
   }
 
   if (itemType == 'agentMessage') {
+    final phase = _normalizeAgentPhase(_asString(item['phase']));
+    var nextState = state;
+    if (phase != 'unknown') {
+      final nextByItem = <String, String>{...state.agentMessagePhaseByItemId};
+      nextByItem[itemId] = phase;
+      nextState = nextState.copyWith(agentMessagePhaseByItemId: nextByItem);
+      if (phase == 'final_answer') {
+        final nextFinalByTurn = <String, String>{
+          ...state.finalAnswerItemIdByTurn,
+        };
+        nextFinalByTurn[turnId] = itemId;
+        nextState = nextState.copyWith(
+          finalAnswerItemIdByTurn: nextFinalByTurn,
+        );
+      }
+    }
     return _onAssistantItemCompleted(
-      state,
+      nextState,
       turnId: turnId,
       itemId: itemId,
       item: item,
@@ -576,7 +1379,12 @@ SessionState _onItemCompleted(
 
   final title = _itemTitle(itemType, itemMetadata);
   final subtitle = _itemSubtitle(itemType, itemMetadata);
-  final reasoningText = _reasoningSummary(itemMetadata);
+  var reasoningText = _reasoningSummary(itemMetadata);
+  if (kind == TimelineCellKind.reasoning &&
+      reasoningText.isEmpty &&
+      state.reasoningBufferByItemId.containsKey(itemId)) {
+    reasoningText = state.reasoningBufferByItemId[itemId] ?? '';
+  }
   final markdownText = kind == TimelineCellKind.reasoning
       ? (reasoningText.isEmpty ? null : reasoningText)
       : null;
@@ -621,7 +1429,21 @@ SessionState _onItemCompleted(
     );
   }
 
-  return state.copyWith(timelineCells: cells, activeTurnId: turnId);
+  final nextReasoningBuffer = <String, String>{
+    ...state.reasoningBufferByItemId,
+  };
+  nextReasoningBuffer.remove(itemId);
+
+  return state.copyWith(
+    timelineCells: cells,
+    activeTurnId: turnId,
+    turnHadWorkActivity: true,
+    reasoningBufferByItemId: nextReasoningBuffer,
+    statusHeader: itemType == 'reasoning' ? 'Working' : state.statusHeader,
+    pendingStatusRestore: itemType == 'reasoning',
+    clearActiveExecCellId: state.activeExecCellId == cellId,
+    clearActivePlanCellId: state.activePlanCellId == cellId,
+  );
 }
 
 SessionState _onAssistantItemCompleted(
@@ -631,82 +1453,192 @@ SessionState _onAssistantItemCompleted(
   required Map<String, dynamic> item,
   required DateTime timestamp,
 }) {
-  var finalText = _assistantFinalText(item);
-  final cells = <TimelineCell>[...state.timelineCells];
-  final index = _buildCellIndex(cells);
-  final interimText = _collectInterimTextForTurn(cells, turnId: turnId);
-  final dedupe = _computeFinalDedupe(
-    interimText: interimText,
-    finalText: finalText,
-  );
-  var dedupeCharsRemoved = 0;
-
-  if (dedupe.interimTrimChars > 0) {
-    dedupeCharsRemoved = _trimInterimTailForTurn(
-      cells,
-      turnId: turnId,
-      charsToTrim: dedupe.interimTrimChars,
-      timestamp: timestamp,
-    );
-  }
-  if (dedupe.finalTrimPrefixChars > 0) {
-    final trimmedFinal = _trimFinalPrefix(
-      finalText,
-      dedupe.finalTrimPrefixChars,
-    );
-    if (trimmedFinal.isNotEmpty) {
-      finalText = trimmedFinal;
-      dedupeCharsRemoved += dedupe.finalTrimPrefixChars;
+  var nextState = state;
+  if (nextState.activeAgentStreamItemId == itemId &&
+      nextState.activeAgentStreamTurnId == turnId) {
+    nextState = _flushActiveAgentStreamToQueue(nextState, timestamp);
+    var guard = 0;
+    while (nextState.streamQueue.isNotEmpty && guard < 200) {
+      nextState = reduceCommitTick(
+        nextState,
+        scope: CommitTickScope.anyMode,
+        now: timestamp,
+      );
+      guard += 1;
     }
   }
 
-  var assistantCellId = index.assistantCellIdByTurn[turnId];
-  assistantCellId ??= index.cellIdByItemId[itemId];
-  assistantCellId ??= itemId;
+  final phase = _resolveAgentPhase(
+    nextState,
+    itemId: itemId,
+    turnId: turnId,
+    item: item,
+  );
+  final finalText = _assistantFinalText(item);
+  final cells = <TimelineCell>[...nextState.timelineCells];
+  final shouldClearActiveStream =
+      nextState.activeAgentStreamItemId == itemId &&
+      nextState.activeAgentStreamTurnId == turnId;
+  final status =
+      _statusFromString(_asString(item['status'])) ??
+      TimelineCellStatus.completed;
+
+  if (phase == 'commentary') {
+    if (finalText.trim().isNotEmpty &&
+        !_hasCommittedStreamForItem(cells, turnId: turnId, itemId: itemId)) {
+      cells.add(
+        TimelineCell(
+          id: 'commentary-$turnId-${timestamp.microsecondsSinceEpoch}',
+          turnId: turnId,
+          itemId: itemId,
+          kind: TimelineCellKind.progressText,
+          status: TimelineCellStatus.completed,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+          markdownText: finalText,
+          metadata: <String, dynamic>{
+            'isInterim': true,
+            'streamPhase': 'commentary',
+            'streamItemId': itemId,
+            'streamCommitted': false,
+            'source': 'item_completed',
+          },
+        ),
+      );
+    }
+    return nextState.copyWith(
+      timelineCells: cells,
+      turnHadWorkActivity: true,
+      clearActiveAgentStreamItemId: shouldClearActiveStream,
+      clearActiveAgentStreamTurnId: shouldClearActiveStream,
+      clearActiveAgentStreamPhase: shouldClearActiveStream,
+      clearActiveStreamingAssistantCellId:
+          shouldClearActiveStream &&
+          (nextState.activeStreamingAssistantCellId ?? '').isNotEmpty,
+    );
+  }
+
+  final hasFinalAuthorityForTurn =
+      nextState.finalAnswerItemIdByTurn[turnId] == itemId;
+  final shouldTreatAsFinal =
+      phase == 'final_answer' ||
+      (phase == 'unknown' &&
+          (hasFinalAuthorityForTurn || finalText.isNotEmpty));
+  if (!shouldTreatAsFinal) {
+    return nextState.copyWith(
+      clearActiveAgentStreamItemId: shouldClearActiveStream,
+      clearActiveAgentStreamTurnId: shouldClearActiveStream,
+      clearActiveAgentStreamPhase: shouldClearActiveStream,
+    );
+  }
+
+  final index = _buildCellIndex(cells);
+  final streamCommittedForItem = _hasCommittedStreamForItem(
+    cells,
+    turnId: turnId,
+    itemId: itemId,
+  );
+
+  var assistantCellId = itemId;
+  final indexedByItemId = index.cellIdByItemId[itemId];
+  if (indexedByItemId != null) {
+    final indexedAt = _findCellById(cells, indexedByItemId);
+    if (indexedAt != -1 &&
+        cells[indexedAt].kind == TimelineCellKind.assistantMessage) {
+      assistantCellId = indexedByItemId;
+    }
+  }
+  if (assistantCellId == itemId) {
+    for (final cell in cells.reversed) {
+      if (cell.turnId == turnId &&
+          cell.kind == TimelineCellKind.assistantMessage &&
+          cell.itemId == itemId) {
+        assistantCellId = cell.id;
+        break;
+      }
+    }
+  }
 
   final assistantMetadata = <String, dynamic>{
     ...item,
-    if (dedupe.mode != null) 'dedupeMode': dedupe.mode,
-    if (dedupe.mode != null) 'dedupeCharsRemoved': dedupeCharsRemoved,
+    'streamPhase': 'final_answer',
+    if (streamCommittedForItem) 'dedupeMode': 'stream_commit_same_item_id',
+    if (streamCommittedForItem) 'streamItemId': itemId,
+    if (streamCommittedForItem) 'streamCommitted': true,
   };
 
   final existingIndex = _findCellById(cells, assistantCellId);
-  if (existingIndex == -1) {
+  if (existingIndex == -1 ||
+      cells[existingIndex].kind != TimelineCellKind.assistantMessage) {
+    final baseText = streamCommittedForItem ? '' : finalText;
     cells.add(
       TimelineCell(
         id: assistantCellId,
         turnId: turnId,
         itemId: itemId,
         kind: TimelineCellKind.assistantMessage,
-        status:
-            _statusFromString(_asString(item['status'])) ??
-            TimelineCellStatus.completed,
+        status: status,
         createdAt: timestamp,
         updatedAt: timestamp,
         isStreaming: false,
-        markdownText: finalText,
+        markdownText: baseText.isEmpty ? null : baseText,
         metadata: assistantMetadata,
       ),
     );
   } else {
     final existing = cells[existingIndex];
+    final mergedText = streamCommittedForItem
+        ? (existing.markdownText ?? '')
+        : finalText.isEmpty
+        ? (existing.markdownText ?? '')
+        : _mergeFinalText(existing.markdownText ?? '', finalText);
     cells[existingIndex] = existing.copyWith(
       turnId: turnId,
       itemId: itemId,
-      status: _statusFromString(_asString(item['status'])) ?? existing.status,
+      status: status,
       isStreaming: false,
-      markdownText: _mergeFinalText(existing.markdownText ?? '', finalText),
+      markdownText: mergedText,
       metadata: assistantMetadata,
       updatedAt: timestamp,
     );
   }
 
+  _trimTrailingOverlapWorkedVsFinal(cells, turnId: turnId);
+
   final shouldClearStreaming =
-      state.activeStreamingAssistantCellId == assistantCellId;
-  return state.copyWith(
+      nextState.activeStreamingAssistantCellId == assistantCellId;
+  return nextState.copyWith(
     timelineCells: cells,
     clearActiveStreamingAssistantCellId: shouldClearStreaming,
+    clearActiveAgentStreamItemId: shouldClearActiveStream,
+    clearActiveAgentStreamTurnId: shouldClearActiveStream,
+    clearActiveAgentStreamPhase: shouldClearActiveStream,
   );
+}
+
+bool _hasCommittedStreamForItem(
+  List<TimelineCell> cells, {
+  required String turnId,
+  required String itemId,
+}) {
+  for (final cell in cells) {
+    if (cell.turnId != turnId) {
+      continue;
+    }
+    final metadata = cell.metadata;
+    final streamCommitted = metadata['streamCommitted'] == true;
+    if (!streamCommitted) {
+      continue;
+    }
+    final streamItemId =
+        _asString(metadata['streamItemId']) ??
+        _asString(metadata['stream_item_id']) ??
+        cell.itemId;
+    if (streamItemId == itemId) {
+      return true;
+    }
+  }
+  return false;
 }
 
 class _CellIndex {
@@ -772,13 +1704,6 @@ _CellIndex _buildCellIndex(List<TimelineCell> cells) {
     activeProgressTextCellIdByTurn: activeProgressTextCellIdByTurn,
     maxProgressPhaseByTurn: maxProgressPhaseByTurn,
   );
-}
-
-class _ProgressDeltaResult {
-  const _ProgressDeltaResult({required this.cells, this.cellId});
-
-  final List<TimelineCell> cells;
-  final String? cellId;
 }
 
 class _SecondaryPhaseResult {
@@ -859,63 +1784,6 @@ _SecondaryPhaseResult _startSecondaryPhase(
   );
 }
 
-_ProgressDeltaResult _upsertProgressTextDelta(
-  List<TimelineCell> cells, {
-  required _CellIndex index,
-  required String turnId,
-  required String delta,
-  required DateTime timestamp,
-}) {
-  final sanitizedDelta = _sanitizeInterimDeltaForDisplay(delta);
-  if (sanitizedDelta == null || sanitizedDelta.isEmpty) {
-    return _ProgressDeltaResult(
-      cells: cells,
-      cellId: index.activeProgressTextCellIdByTurn[turnId],
-    );
-  }
-
-  final activeProgressId = index.activeProgressTextCellIdByTurn[turnId];
-  if (activeProgressId != null) {
-    final activeProgressIndex = _findCellById(cells, activeProgressId);
-    if (activeProgressIndex != -1) {
-      final current = cells[activeProgressIndex];
-      cells[activeProgressIndex] = current.copyWith(
-        status: TimelineCellStatus.inProgress,
-        markdownText: _appendInterimChunk(current.markdownText, sanitizedDelta),
-        updatedAt: timestamp,
-      );
-      return _ProgressDeltaResult(cells: cells, cellId: activeProgressId);
-    }
-  }
-
-  final phase = (index.maxProgressPhaseByTurn[turnId] ?? -1) + 1;
-  final cellId = 'progress-$turnId-${timestamp.microsecondsSinceEpoch}';
-  cells.add(
-    TimelineCell(
-      id: cellId,
-      turnId: turnId,
-      kind: TimelineCellKind.progressText,
-      status: TimelineCellStatus.inProgress,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-      markdownText: sanitizedDelta,
-      metadata: <String, dynamic>{
-        'progressPhaseIndex': phase,
-        'isInterim': true,
-        'source': 'assistant_delta',
-      },
-    ),
-  );
-  return _ProgressDeltaResult(cells: cells, cellId: cellId);
-}
-
-String _appendInterimChunk(String? current, String nextChunk) {
-  if (current == null || current.isEmpty) {
-    return nextChunk;
-  }
-  return '$current$nextChunk';
-}
-
 String? _sanitizeInterimDeltaForDisplay(String delta) {
   final normalized = delta.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
   final trimmed = normalized.trim();
@@ -946,137 +1814,6 @@ bool _isHumanFacingInterimLine(String line) {
     return false;
   }
   return true;
-}
-
-class _FinalDedupeDecision {
-  const _FinalDedupeDecision({
-    required this.interimTrimChars,
-    required this.finalTrimPrefixChars,
-    this.mode,
-  });
-
-  final int interimTrimChars;
-  final int finalTrimPrefixChars;
-  final String? mode;
-}
-
-_FinalDedupeDecision _computeFinalDedupe({
-  required String interimText,
-  required String finalText,
-}) {
-  if (interimText.isEmpty || finalText.isEmpty) {
-    return const _FinalDedupeDecision(
-      interimTrimChars: 0,
-      finalTrimPrefixChars: 0,
-    );
-  }
-
-  if (interimText == finalText) {
-    return _FinalDedupeDecision(
-      interimTrimChars: interimText.length,
-      finalTrimPrefixChars: 0,
-      mode: 'exact_match_trim_interim',
-    );
-  }
-
-  if (finalText.startsWith(interimText)) {
-    return _FinalDedupeDecision(
-      interimTrimChars: interimText.length,
-      finalTrimPrefixChars: 0,
-      mode: 'final_starts_with_interim_trim_interim',
-    );
-  }
-
-  final overlapChars = _largestSuffixPrefixOverlap(interimText, finalText);
-  final overlapThreshold = finalText.length < 24
-      ? 8
-      : (finalText.length * 0.3).round();
-  if (overlapChars >= overlapThreshold) {
-    return _FinalDedupeDecision(
-      interimTrimChars: 0,
-      finalTrimPrefixChars: overlapChars,
-      mode: 'interim_ends_with_final_prefix_trim_final_prefix',
-    );
-  }
-
-  return const _FinalDedupeDecision(
-    interimTrimChars: 0,
-    finalTrimPrefixChars: 0,
-  );
-}
-
-int _largestSuffixPrefixOverlap(String interimText, String finalText) {
-  final max = interimText.length < finalText.length
-      ? interimText.length
-      : finalText.length;
-  for (var size = max; size > 0; size--) {
-    if (interimText.endsWith(finalText.substring(0, size))) {
-      return size;
-    }
-  }
-  return 0;
-}
-
-String _collectInterimTextForTurn(
-  List<TimelineCell> cells, {
-  required String turnId,
-}) {
-  final buffer = StringBuffer();
-  for (final cell in cells) {
-    if (cell.turnId != turnId || cell.kind != TimelineCellKind.progressText) {
-      continue;
-    }
-    final text = (cell.markdownText ?? '').trim();
-    if (text.isEmpty) {
-      continue;
-    }
-    if (buffer.isNotEmpty) {
-      buffer.write('\n');
-    }
-    buffer.write(text);
-  }
-  return buffer.toString();
-}
-
-int _trimInterimTailForTurn(
-  List<TimelineCell> cells, {
-  required String turnId,
-  required int charsToTrim,
-  required DateTime timestamp,
-}) {
-  if (charsToTrim <= 0) {
-    return 0;
-  }
-
-  var remaining = charsToTrim;
-  var removed = 0;
-  for (var i = cells.length - 1; i >= 0; i--) {
-    if (remaining <= 0) {
-      break;
-    }
-    final cell = cells[i];
-    if (cell.turnId != turnId || cell.kind != TimelineCellKind.progressText) {
-      continue;
-    }
-    final current = cell.markdownText ?? '';
-    if (current.isEmpty) {
-      continue;
-    }
-
-    final cut = remaining < current.length ? remaining : current.length;
-    final nextText = current.substring(0, current.length - cut).trimRight();
-    cells[i] = cell.copyWith(markdownText: nextText, updatedAt: timestamp);
-    remaining -= cut;
-    removed += cut;
-  }
-  return removed;
-}
-
-String _trimFinalPrefix(String finalText, int trimChars) {
-  if (trimChars <= 0 || trimChars >= finalText.length) {
-    return finalText;
-  }
-  return finalText.substring(trimChars).trimLeft();
 }
 
 int _findCellById(List<TimelineCell> cells, String id) {

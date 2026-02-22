@@ -5,6 +5,7 @@ Future<void> main() async {
   var initialized = false;
   var activeThreadId = 'thr_fake';
   var activeTurnId = 'turn_fake';
+  String? interruptibleTurnId;
 
   void emitCompletedTurn({
     required String status,
@@ -33,6 +34,187 @@ Future<void> main() async {
           'id': activeTurnId,
           'threadId': activeThreadId,
           'status': status,
+          'items': <Object>[],
+          'error': null,
+        },
+      },
+    });
+  }
+
+  void emitCommentaryAndFinalTurn() {
+    const commentaryItemId = 'msg_commentary_1';
+    const finalItemId = 'msg_final_1';
+
+    _write(<String, dynamic>{
+      'jsonrpc': '2.0',
+      'method': 'codex/event/item_started',
+      'params': <String, dynamic>{
+        'msg': <String, dynamic>{
+          'type': 'item_started',
+          'thread_id': activeThreadId,
+          'turn_id': activeTurnId,
+          'item': <String, dynamic>{
+            'type': 'AgentMessage',
+            'id': commentaryItemId,
+            'phase': 'commentary',
+          },
+        },
+      },
+    });
+    _write(<String, dynamic>{
+      'jsonrpc': '2.0',
+      'method': 'item/started',
+      'params': <String, dynamic>{
+        'threadId': activeThreadId,
+        'turnId': activeTurnId,
+        'item': <String, dynamic>{
+          'type': 'agentMessage',
+          'id': commentaryItemId,
+          'text': '',
+        },
+      },
+    });
+    _write(<String, dynamic>{
+      'jsonrpc': '2.0',
+      'method': 'item/agentMessage/delta',
+      'params': <String, dynamic>{
+        'threadId': activeThreadId,
+        'turnId': activeTurnId,
+        'itemId': commentaryItemId,
+        'delta': 'Voy a revisar el README\\n',
+      },
+    });
+    _write(<String, dynamic>{
+      'jsonrpc': '2.0',
+      'method': 'codex/event/item_completed',
+      'params': <String, dynamic>{
+        'msg': <String, dynamic>{
+          'type': 'item_completed',
+          'thread_id': activeThreadId,
+          'turn_id': activeTurnId,
+          'item': <String, dynamic>{
+            'type': 'AgentMessage',
+            'id': commentaryItemId,
+            'phase': 'commentary',
+            'content': <Map<String, dynamic>>[
+              <String, dynamic>{
+                'type': 'Text',
+                'text': 'Voy a revisar el README',
+              },
+            ],
+          },
+        },
+      },
+    });
+    _write(<String, dynamic>{
+      'jsonrpc': '2.0',
+      'method': 'item/completed',
+      'params': <String, dynamic>{
+        'threadId': activeThreadId,
+        'turnId': activeTurnId,
+        'item': <String, dynamic>{
+          'type': 'agentMessage',
+          'id': commentaryItemId,
+          'status': 'completed',
+          'text': 'Voy a revisar el README',
+        },
+      },
+    });
+
+    _write(<String, dynamic>{
+      'jsonrpc': '2.0',
+      'method': 'codex/event/item_started',
+      'params': <String, dynamic>{
+        'msg': <String, dynamic>{
+          'type': 'item_started',
+          'thread_id': activeThreadId,
+          'turn_id': activeTurnId,
+          'item': <String, dynamic>{
+            'type': 'AgentMessage',
+            'id': finalItemId,
+            'phase': 'final_answer',
+          },
+        },
+      },
+    });
+    _write(<String, dynamic>{
+      'jsonrpc': '2.0',
+      'method': 'item/started',
+      'params': <String, dynamic>{
+        'threadId': activeThreadId,
+        'turnId': activeTurnId,
+        'item': <String, dynamic>{
+          'type': 'agentMessage',
+          'id': finalItemId,
+          'text': '',
+        },
+      },
+    });
+    _write(<String, dynamic>{
+      'jsonrpc': '2.0',
+      'method': 'item/agentMessage/delta',
+      'params': <String, dynamic>{
+        'threadId': activeThreadId,
+        'turnId': activeTurnId,
+        'itemId': finalItemId,
+        'delta': 'El readme.md esta en espanol.\\n',
+      },
+    });
+    _write(<String, dynamic>{
+      'jsonrpc': '2.0',
+      'method': 'codex/event/item_completed',
+      'params': <String, dynamic>{
+        'msg': <String, dynamic>{
+          'type': 'item_completed',
+          'thread_id': activeThreadId,
+          'turn_id': activeTurnId,
+          'item': <String, dynamic>{
+            'type': 'AgentMessage',
+            'id': finalItemId,
+            'phase': 'final_answer',
+            'content': <Map<String, dynamic>>[
+              <String, dynamic>{
+                'type': 'Text',
+                'text': 'El readme.md esta en espanol.',
+              },
+            ],
+          },
+        },
+      },
+    });
+    _write(<String, dynamic>{
+      'jsonrpc': '2.0',
+      'method': 'item/completed',
+      'params': <String, dynamic>{
+        'threadId': activeThreadId,
+        'turnId': activeTurnId,
+        'item': <String, dynamic>{
+          'type': 'agentMessage',
+          'id': finalItemId,
+          'status': 'completed',
+          'text': 'El readme.md esta en espanol.',
+        },
+      },
+    });
+    _write(<String, dynamic>{
+      'jsonrpc': '2.0',
+      'method': 'codex/event/task_complete',
+      'params': <String, dynamic>{
+        'msg': <String, dynamic>{
+          'type': 'task_complete',
+          'turn_id': activeTurnId,
+          'last_agent_message': 'El readme.md esta en espanol.',
+        },
+      },
+    });
+    _write(<String, dynamic>{
+      'jsonrpc': '2.0',
+      'method': 'turn/completed',
+      'params': <String, dynamic>{
+        'turn': <String, dynamic>{
+          'id': activeTurnId,
+          'threadId': activeThreadId,
+          'status': 'completed',
           'items': <Object>[],
           'error': null,
         },
@@ -197,6 +379,10 @@ Future<void> main() async {
             'commandActions': <String>['filesystemRead', 'processExecution'],
           },
         });
+      } else if (prompt.contains('trigger_interrupt')) {
+        interruptibleTurnId = activeTurnId;
+      } else if (prompt.contains('trigger_commentary_final')) {
+        emitCommentaryAndFinalTurn();
       } else {
         emitCompletedTurn(status: 'completed');
       }
@@ -231,6 +417,16 @@ Future<void> main() async {
     }
 
     if (method == 'turn/interrupt') {
+      final params =
+          (message['params'] as Map<String, dynamic>? ??
+                  const <String, dynamic>{})
+              .cast<String, dynamic>();
+      final turnId = (params['turnId'] ?? '').toString();
+      final threadId = (params['threadId'] ?? '').toString();
+      if (interruptibleTurnId == turnId && activeThreadId == threadId) {
+        interruptibleTurnId = null;
+        emitCompletedTurn(status: 'interrupted', itemStatus: 'declined');
+      }
       _write(<String, dynamic>{
         'jsonrpc': '2.0',
         'id': id,

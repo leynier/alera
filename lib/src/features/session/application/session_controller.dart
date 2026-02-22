@@ -6,6 +6,9 @@ import 'package:alera/src/features/session/application/session_runtime_event.dar
 import 'package:alera/src/features/session/application/session_service.dart';
 import 'package:alera/src/features/session/application/session_state.dart';
 import 'package:alera/src/features/session/application/session_timeline_reducer.dart';
+import 'package:alera/src/features/session/application/streaming/adaptive_chunking_policy.dart';
+import 'package:alera/src/features/session/application/streaming/commit_tick_engine.dart';
+import 'package:alera/src/features/session/application/streaming/markdown_stream_collector.dart';
 import 'package:alera/src/features/session/domain/chat_timeline.dart';
 import 'package:alera/src/features/session/domain/codex_model_catalog.dart';
 import 'package:alera/src/features/settings/application/settings_service.dart';
@@ -29,6 +32,7 @@ class SessionController extends StateNotifier<SessionState> {
   final ProjectService _projectService;
   final SettingsService _settingsService;
   StreamSubscription<SessionRuntimeEvent>? _eventsSub;
+  Timer? _commitTickTimer;
 
   var _bootstrapped = false;
 
@@ -66,6 +70,7 @@ class SessionController extends StateNotifier<SessionState> {
 
     state = state.copyWith(isBusy: true, clearError: true);
     try {
+      _stopCommitTicker();
       final validation = await _projectService.validateGitRepository(
         normalized,
       );
@@ -89,6 +94,17 @@ class SessionController extends StateNotifier<SessionState> {
         clearError: true,
         activityLog: const <String>[],
         runningTurnCount: 0,
+        isInterrupting: false,
+        clearStatusHeader: true,
+        pendingStatusRestore: false,
+        streamCollector: const MarkdownStreamCollectorState(),
+        streamQueue: const <StreamQueuedLine>[],
+        chunkingPolicy: const AdaptiveChunkingPolicyState(),
+        streamQueueDepth: 0,
+        clearStreamOldestAgeMs: true,
+        clearActiveAgentStreamItemId: true,
+        clearActiveAgentStreamTurnId: true,
+        clearActiveAgentStreamPhase: true,
         connectionState: existing == null
             ? AppServerConnectionState.disconnected
             : AppServerConnectionState.starting,
@@ -121,6 +137,7 @@ class SessionController extends StateNotifier<SessionState> {
       return;
     }
 
+    _stopCommitTicker();
     state = state.copyWith(
       isBusy: true,
       clearError: true,
@@ -132,6 +149,17 @@ class SessionController extends StateNotifier<SessionState> {
       clearActiveTurnId: true,
       activityLog: const <String>[],
       runningTurnCount: 0,
+      isInterrupting: false,
+      clearStatusHeader: true,
+      pendingStatusRestore: false,
+      streamCollector: const MarkdownStreamCollectorState(),
+      streamQueue: const <StreamQueuedLine>[],
+      chunkingPolicy: const AdaptiveChunkingPolicyState(),
+      streamQueueDepth: 0,
+      clearStreamOldestAgeMs: true,
+      clearActiveAgentStreamItemId: true,
+      clearActiveAgentStreamTurnId: true,
+      clearActiveAgentStreamPhase: true,
     );
 
     try {
@@ -142,6 +170,7 @@ class SessionController extends StateNotifier<SessionState> {
         activeSessionId: sessionId,
         selectedWorkspacePath: target.workspacePath,
         connectionState: AppServerConnectionState.connected,
+        isInterrupting: false,
       );
     } catch (error) {
       state = state.copyWith(
@@ -153,6 +182,7 @@ class SessionController extends StateNotifier<SessionState> {
   }
 
   Future<void> createSession(SessionCreateRequest request) async {
+    _stopCommitTicker();
     state = state.copyWith(
       isBusy: true,
       clearError: true,
@@ -162,6 +192,17 @@ class SessionController extends StateNotifier<SessionState> {
       clearActiveTurnId: true,
       activityLog: const <String>[],
       runningTurnCount: 0,
+      isInterrupting: false,
+      clearStatusHeader: true,
+      pendingStatusRestore: false,
+      streamCollector: const MarkdownStreamCollectorState(),
+      streamQueue: const <StreamQueuedLine>[],
+      chunkingPolicy: const AdaptiveChunkingPolicyState(),
+      streamQueueDepth: 0,
+      clearStreamOldestAgeMs: true,
+      clearActiveAgentStreamItemId: true,
+      clearActiveAgentStreamTurnId: true,
+      clearActiveAgentStreamPhase: true,
     );
     try {
       final session = await _sessionService.createSession(request);
@@ -171,6 +212,7 @@ class SessionController extends StateNotifier<SessionState> {
         selectedWorkspacePath: session.workspacePath,
         activeSessionId: session.id,
         connectionState: AppServerConnectionState.connected,
+        isInterrupting: false,
       );
 
       await _settingsService.save(
@@ -215,6 +257,9 @@ class SessionController extends StateNotifier<SessionState> {
     if (session == null) {
       return;
     }
+    if (state.runningTurnCount > 0 || state.isInterrupting) {
+      return;
+    }
     final text = rawInput.trim();
     if (text.isEmpty) {
       return;
@@ -236,12 +281,34 @@ class SessionController extends StateNotifier<SessionState> {
     }
   }
 
+  Future<void> interruptActiveTurn() async {
+    final session = state.activeSession;
+    if (session == null) {
+      return;
+    }
+    if (state.runningTurnCount <= 0 || state.isInterrupting) {
+      return;
+    }
+
+    state = state.copyWith(isInterrupting: true, clearError: true);
+    try {
+      await _sessionService.interruptActiveTurn(sessionId: session.id);
+    } catch (error) {
+      state = state.copyWith(
+        isInterrupting: false,
+        error: error.toString(),
+        connectionState: AppServerConnectionState.error,
+      );
+    }
+  }
+
   Future<SettingsSnapshot> loadSettingsDefaults() {
     return _settingsService.load();
   }
 
   @override
   void dispose() {
+    _stopCommitTicker();
     unawaited(_eventsSub?.cancel());
     super.dispose();
   }
@@ -254,16 +321,56 @@ class SessionController extends StateNotifier<SessionState> {
       }
 
       final reduced = reduceNotification(state, event);
+      final ticked = reduceCommitTick(reduced);
       final runningTurnCount = _computeRunningTurnCount(
-        current: state.runningTurnCount,
+        current: ticked.runningTurnCount,
         method: event.method,
       );
+      final shouldClearInterrupting =
+          ticked.isInterrupting &&
+          (event.method == 'turn/completed' || event.method == 'turn/failed');
 
-      state = reduced.copyWith(
+      state = ticked.copyWith(
         sessions: _sessionService.sessions,
         runningTurnCount: runningTurnCount,
+        isInterrupting: shouldClearInterrupting ? false : ticked.isInterrupting,
       );
+      _updateCommitTicker();
     }
+  }
+
+  void _updateCommitTicker() {
+    final shouldRun =
+        state.runningTurnCount > 0 || state.streamQueue.isNotEmpty;
+    if (!shouldRun) {
+      _stopCommitTicker();
+      return;
+    }
+
+    _commitTickTimer ??= Timer.periodic(const Duration(milliseconds: 80), (_) {
+      final current = state;
+      final next = reduceCommitTick(current);
+      if (!_isCommitTickNoop(current, next)) {
+        state = next;
+      }
+      if (next.runningTurnCount <= 0 && next.streamQueue.isEmpty) {
+        _stopCommitTicker();
+      }
+    });
+  }
+
+  void _stopCommitTicker() {
+    _commitTickTimer?.cancel();
+    _commitTickTimer = null;
+  }
+
+  bool _isCommitTickNoop(SessionState current, SessionState next) {
+    return current.streamQueueDepth == next.streamQueueDepth &&
+        current.timelineCells.length == next.timelineCells.length &&
+        current.streamOldestAgeMs == next.streamOldestAgeMs &&
+        current.chunkingPolicy.mode == next.chunkingPolicy.mode &&
+        current.statusHeader == next.statusHeader &&
+        current.pendingStatusRestore == next.pendingStatusRestore;
   }
 
   bool _notificationMatchesSession(

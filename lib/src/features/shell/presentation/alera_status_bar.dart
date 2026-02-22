@@ -9,11 +9,15 @@ class AleraStatusBar extends StatelessWidget {
     required this.state,
     required this.rawLogExpanded,
     required this.onToggleRawLog,
+    required this.onCopyRawLog,
+    required this.canCopyRawLog,
   });
 
   final SessionState state;
   final bool rawLogExpanded;
   final VoidCallback onToggleRawLog;
+  final VoidCallback onCopyRawLog;
+  final bool canCopyRawLog;
 
   @override
   Widget build(BuildContext context) {
@@ -37,6 +41,14 @@ class AleraStatusBar extends StatelessWidget {
               color: AleraTokens.accent,
             ),
           ],
+          if (state.statusHeader != null &&
+              state.statusHeader!.trim().isNotEmpty) ...<Widget>[
+            _separator(),
+            _StatusChip(
+              label: state.statusHeader!,
+              color: AleraTokens.foregroundMuted,
+            ),
+          ],
           const Spacer(),
           Text(
             workspacePath ?? '',
@@ -49,8 +61,31 @@ class AleraStatusBar extends StatelessWidget {
           ),
           const SizedBox(width: AleraTokens.space8),
           Tooltip(
+            message: canCopyRawLog ? 'copy raw logs' : 'no raw logs',
+            child: InkWell(
+              key: const ValueKey<String>('copy-raw-log-button'),
+              onTap: canCopyRawLog ? onCopyRawLog : null,
+              mouseCursor: canCopyRawLog
+                  ? SystemMouseCursors.click
+                  : SystemMouseCursors.basic,
+              borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+              child: Padding(
+                padding: const EdgeInsets.all(AleraTokens.space4),
+                child: Icon(
+                  Icons.content_copy,
+                  size: 14,
+                  color: canCopyRawLog
+                      ? AleraTokens.foreground
+                      : AleraTokens.foregroundFaint,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: AleraTokens.space6),
+          Tooltip(
             message: rawLogExpanded ? 'hide raw log' : 'show raw log',
             child: InkWell(
+              key: const ValueKey<String>('toggle-raw-log-button'),
               onTap: onToggleRawLog,
               mouseCursor: SystemMouseCursors.click,
               borderRadius: BorderRadius.circular(AleraTokens.radiusSm),

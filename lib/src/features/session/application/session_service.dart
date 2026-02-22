@@ -132,6 +132,27 @@ class SessionService {
     _sessions[sessionId] = updated;
   }
 
+  Future<void> interruptActiveTurn({
+    required String sessionId,
+    String? turnIdOverride,
+  }) async {
+    final session = _sessions[sessionId];
+    if (session == null) {
+      throw StateError('session not found: $sessionId');
+    }
+    final threadId = session.threadId;
+    if (threadId == null || threadId.isEmpty) {
+      throw StateError('session has no thread id');
+    }
+    final turnId = turnIdOverride ?? session.lastTurnId;
+    if (turnId == null || turnId.isEmpty) {
+      throw StateError('session has no active turn id');
+    }
+
+    await _ensureOrchestrator();
+    await _orchestrator.interrupt(threadId: threadId, turnId: turnId);
+  }
+
   Future<void> shutdown() async {
     await _orchestratorSub?.cancel();
     await _eventsController.close();

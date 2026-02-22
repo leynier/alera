@@ -9,6 +9,7 @@ import 'package:alera/src/features/shell/presentation/alera_top_bar.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 
 class AleraShellPage extends ConsumerStatefulWidget {
@@ -62,6 +63,8 @@ class _AleraShellPageState extends ConsumerState<AleraShellPage> {
             rawLogExpanded: _rawLogExpanded,
             onToggleRawLog: () =>
                 setState(() => _rawLogExpanded = !_rawLogExpanded),
+            onCopyRawLog: () => _copyRawLog(state),
+            canCopyRawLog: state.activityLog.isNotEmpty,
           ),
         ],
       ),
@@ -94,6 +97,9 @@ class _AleraShellPageState extends ConsumerState<AleraShellPage> {
     return SessionWorkspaceView(
       state: state,
       onSendInput: controller.sendInput,
+      onInterruptTurn: controller.interruptActiveTurn,
+      isTurnRunning: state.runningTurnCount > 0,
+      isInterrupting: state.isInterrupting,
       onModelChanged: controller.updateActiveSessionModel,
       rawLogExpanded: _rawLogExpanded,
     );
@@ -167,6 +173,40 @@ class _AleraShellPageState extends ConsumerState<AleraShellPage> {
       ),
     );
   }
+
+  Future<void> _copyRawLog(SessionState state) async {
+    if (state.activityLog.isEmpty) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('no logs to copy')));
+      return;
+    }
+
+    final text = buildRawLogClipboardText(state.activityLog);
+    try {
+      await Clipboard.setData(ClipboardData(text: text));
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('raw logs copied')));
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('failed to copy raw logs')));
+    }
+  }
+}
+
+String buildRawLogClipboardText(List<String> logs) {
+  return logs.join('\n');
 }
 
 class _EmptyState extends StatelessWidget {

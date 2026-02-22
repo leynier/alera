@@ -51,7 +51,10 @@ Future<void> _pumpWorkspace(
   WidgetTester tester, {
   required SessionState state,
   bool rawLogExpanded = false,
+  bool isTurnRunning = false,
+  bool isInterrupting = false,
   ValueChanged<String>? onSendInput,
+  VoidCallback? onInterruptTurn,
   ValueChanged<String>? onModelChanged,
 }) async {
   await tester.pumpWidget(
@@ -60,6 +63,9 @@ Future<void> _pumpWorkspace(
         body: SessionWorkspaceView(
           state: state,
           onSendInput: onSendInput ?? (_) {},
+          onInterruptTurn: onInterruptTurn ?? () {},
+          isTurnRunning: isTurnRunning,
+          isInterrupting: isInterrupting,
           onModelChanged: onModelChanged ?? (_) {},
           rawLogExpanded: rawLogExpanded,
         ),
@@ -146,6 +152,10 @@ void main() {
       expect(find.text('hello'), findsOneWidget);
       expect(find.text('final answer'), findsOneWidget);
       expect(find.textContaining('Worked for'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('worked-divider')),
+        findsOneWidget,
+      );
       expect(find.text('Final message'), findsNothing);
       expect(find.text('Thinking'), findsNothing);
       expect(find.text('Ran git status'), findsNothing);
@@ -177,7 +187,7 @@ void main() {
           kind: TimelineCellKind.turnSeparator,
           status: TimelineCellStatus.completed,
           turnId: 't1',
-          metadata: const <String, dynamic>{'durationMs': 1200},
+          metadata: const <String, dynamic>{'durationMs': 120000},
         ),
       ],
     );
@@ -235,6 +245,65 @@ void main() {
   });
 
   testWidgets(
+    'multi secondary under one minute has no worked divider and renders rows directly',
+    (tester) async {
+      final state = SessionState(
+        timelineCells: <TimelineCell>[
+          _cell(
+            id: 'u1',
+            kind: TimelineCellKind.userMessage,
+            status: TimelineCellStatus.completed,
+            turnId: 't1',
+            markdownText: 'hello',
+          ),
+          _cell(
+            id: 'reason1',
+            kind: TimelineCellKind.reasoning,
+            status: TimelineCellStatus.completed,
+            turnId: 't1',
+            title: 'Thinking',
+            markdownText: 'Reasoning detail text',
+            isCollapsed: true,
+          ),
+          _cell(
+            id: 'tool1',
+            kind: TimelineCellKind.toolCall,
+            status: TimelineCellStatus.completed,
+            turnId: 't1',
+            title: 'Ran git status',
+            detailsText: 'On branch main',
+            isCollapsed: true,
+          ),
+          _cell(
+            id: 'a1',
+            kind: TimelineCellKind.assistantMessage,
+            status: TimelineCellStatus.completed,
+            turnId: 't1',
+            markdownText: 'done',
+          ),
+          _cell(
+            id: 'sep1',
+            kind: TimelineCellKind.turnSeparator,
+            status: TimelineCellStatus.completed,
+            turnId: 't1',
+            metadata: const <String, dynamic>{'durationMs': 30000},
+          ),
+        ],
+      );
+
+      await _pumpWorkspace(tester, state: state);
+
+      expect(find.textContaining('Worked for'), findsNothing);
+      expect(
+        find.byKey(const ValueKey<String>('worked-divider')),
+        findsNothing,
+      );
+      expect(find.text('Thinking'), findsOneWidget);
+      expect(find.text('Ran git status'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
     'expanding worked for shows secondary cells and manual toggles do not accordion',
     (tester) async {
       final state = SessionState(
@@ -276,7 +345,7 @@ void main() {
             kind: TimelineCellKind.turnSeparator,
             status: TimelineCellStatus.completed,
             turnId: 't1',
-            metadata: const <String, dynamic>{'durationMs': 1200},
+            metadata: const <String, dynamic>{'durationMs': 120000},
           ),
         ],
       );
@@ -293,7 +362,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Thinking'), findsOneWidget);
       expect(find.text('git diff'), findsOneWidget);
-      expect(find.text('Final message'), findsOneWidget);
+      expect(find.text('Final message'), findsNothing);
 
       await tester.tap(find.text('Thinking'));
       await tester.pumpAndSettle();
@@ -350,7 +419,7 @@ void main() {
           kind: TimelineCellKind.turnSeparator,
           status: TimelineCellStatus.completed,
           turnId: 't-progress',
-          metadata: const <String, dynamic>{'durationMs': 1200},
+          metadata: const <String, dynamic>{'durationMs': 120000},
         ),
       ],
     );
@@ -364,7 +433,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Interim assistant text'), findsOneWidget);
-    expect(find.text('Final message'), findsOneWidget);
+    expect(find.text('Final message'), findsNothing);
 
     final interimDx = tester.getTopLeft(find.text('Interim assistant text')).dx;
     final toolDx = tester.getTopLeft(find.text('Ran git status')).dx;
@@ -416,6 +485,51 @@ void main() {
     expect(find.textContaining('Worked for'), findsNothing);
     expect(find.text('Final message'), findsNothing);
     expect(find.text('Interim only'), findsOneWidget);
+  });
+
+  testWidgets('progressText rows render markdown content', (tester) async {
+    final state = SessionState(
+      timelineCells: <TimelineCell>[
+        _cell(
+          id: 'u1',
+          kind: TimelineCellKind.userMessage,
+          status: TimelineCellStatus.completed,
+          turnId: 't-progress-markdown',
+          markdownText: 'hello',
+        ),
+        _cell(
+          id: 'progress-md',
+          kind: TimelineCellKind.progressText,
+          status: TimelineCellStatus.completed,
+          turnId: 't-progress-markdown',
+          markdownText: 'Texto con **negrita** y `codigo`.',
+          metadata: const <String, dynamic>{
+            'progressPhaseIndex': 0,
+            'isInterim': true,
+          },
+        ),
+        _cell(
+          id: 'a1',
+          kind: TimelineCellKind.assistantMessage,
+          status: TimelineCellStatus.completed,
+          turnId: 't-progress-markdown',
+          markdownText: 'final answer',
+        ),
+        _cell(
+          id: 'sep1',
+          kind: TimelineCellKind.turnSeparator,
+          status: TimelineCellStatus.completed,
+          turnId: 't-progress-markdown',
+          metadata: const <String, dynamic>{'durationMs': 1200},
+        ),
+      ],
+    );
+
+    await _pumpWorkspace(tester, state: state);
+
+    expect(find.textContaining('**negrita**'), findsNothing);
+    expect(find.textContaining('negrita'), findsOneWidget);
+    expect(find.textContaining('codigo'), findsOneWidget);
   });
 
   testWidgets('empty progressText does not force worked section visibility', (
@@ -474,68 +588,74 @@ void main() {
     expect(find.text('Ran git status'), findsOneWidget);
   });
 
-  testWidgets('deduped overlap scenario shows non-duplicated final text', (
-    tester,
-  ) async {
-    var state = const SessionState();
-    state = reduceNotification(
-      state,
-      _event('turn/started', <String, dynamic>{
-        'turn': <String, dynamic>{'id': 'turn-widget-dedupe', 'threadId': 't'},
-      }),
-    );
-    state = reduceNotification(
-      state,
-      _event('item/started', <String, dynamic>{
-        'turnId': 'turn-widget-dedupe',
-        'item': <String, dynamic>{
-          'id': 'cmd-widget-dedupe',
-          'type': 'commandExecution',
-          'command': 'ls',
-          'status': 'inProgress',
-        },
-      }),
-    );
-    state = reduceNotification(
-      state,
-      _event('item/agentMessage/delta', <String, dynamic>{
-        'turnId': 'turn-widget-dedupe',
-        'itemId': 'msg-widget-dedupe',
-        'delta': 'trabajando y validando',
-      }),
-    );
-    state = reduceNotification(
-      state,
-      _event('item/completed', <String, dynamic>{
-        'turnId': 'turn-widget-dedupe',
-        'item': <String, dynamic>{
-          'id': 'msg-widget-dedupe',
-          'type': 'agentMessage',
-          'status': 'completed',
-          'text': 'y validando cambios finales',
-        },
-      }),
-    );
-    state = reduceNotification(
-      state,
-      _event('turn/completed', <String, dynamic>{
-        'turn': <String, dynamic>{
-          'id': 'turn-widget-dedupe',
-          'threadId': 't',
-          'status': 'completed',
-          'durationMs': 1000,
-        },
-      }),
-    );
+  testWidgets(
+    'stream-committed item keeps streamed text and ignores final payload text',
+    (tester) async {
+      var state = const SessionState();
+      state = reduceNotification(
+        state,
+        _event('turn/started', <String, dynamic>{
+          'turn': <String, dynamic>{
+            'id': 'turn-widget-dedupe',
+            'threadId': 't',
+          },
+        }),
+      );
+      state = reduceNotification(
+        state,
+        _event('item/started', <String, dynamic>{
+          'turnId': 'turn-widget-dedupe',
+          'item': <String, dynamic>{
+            'id': 'cmd-widget-dedupe',
+            'type': 'commandExecution',
+            'command': 'ls',
+            'status': 'inProgress',
+          },
+        }),
+      );
+      state = reduceNotification(
+        state,
+        _event('item/agentMessage/delta', <String, dynamic>{
+          'turnId': 'turn-widget-dedupe',
+          'itemId': 'msg-widget-dedupe',
+          'delta': 'trabajando y validando\n',
+        }),
+      );
+      state = reduceNotification(
+        state,
+        _event('item/completed', <String, dynamic>{
+          'turnId': 'turn-widget-dedupe',
+          'item': <String, dynamic>{
+            'id': 'msg-widget-dedupe',
+            'type': 'agentMessage',
+            'status': 'completed',
+            'text': 'y validando cambios finales',
+          },
+        }),
+      );
+      state = reduceNotification(
+        state,
+        _event('turn/completed', <String, dynamic>{
+          'turn': <String, dynamic>{
+            'id': 'turn-widget-dedupe',
+            'threadId': 't',
+            'status': 'completed',
+            'durationMs': 120000,
+          },
+        }),
+      );
 
-    await _pumpWorkspace(tester, state: state);
-    await tester.tap(find.textContaining('Worked for'));
-    await tester.pumpAndSettle();
+      await _pumpWorkspace(tester, state: state);
+      final workedFinder = find.textContaining('Worked for');
+      if (workedFinder.evaluate().isNotEmpty) {
+        await tester.tap(workedFinder);
+        await tester.pumpAndSettle();
+      }
 
-    expect(find.textContaining('trabajando y validando'), findsOneWidget);
-    expect(find.textContaining('cambios finales'), findsOneWidget);
-    expect(find.textContaining('y validando cambios finales'), findsNothing);
-  });
+      expect(find.textContaining('trabajando y validando'), findsOneWidget);
+      expect(find.textContaining('y validando cambios finales'), findsNothing);
+    },
+  );
 
   testWidgets('exploratory tool calls are grouped as explored row', (
     tester,
@@ -792,6 +912,70 @@ void main() {
     expect(sentCount, 0);
     final editable = tester.widget<EditableText>(find.byType(EditableText));
     expect(editable.controller.text, 'hello\n');
+  });
+
+  testWidgets('shows stop button while a turn is running', (tester) async {
+    await _pumpWorkspace(
+      tester,
+      state: stateWithActiveSession(),
+      isTurnRunning: true,
+    );
+
+    expect(find.byIcon(Icons.stop), findsOneWidget);
+    expect(find.byIcon(Icons.arrow_upward), findsNothing);
+  });
+
+  testWidgets('tapping stop triggers interrupt callback', (tester) async {
+    var interruptCount = 0;
+    await _pumpWorkspace(
+      tester,
+      state: stateWithActiveSession(),
+      isTurnRunning: true,
+      onInterruptTurn: () => interruptCount += 1,
+    );
+
+    await tester.tap(find.byIcon(Icons.stop));
+    await tester.pumpAndSettle();
+
+    expect(interruptCount, 1);
+  });
+
+  testWidgets('while running, Enter does not send a message', (tester) async {
+    var sentCount = 0;
+    await _pumpWorkspace(
+      tester,
+      state: stateWithActiveSession(),
+      isTurnRunning: true,
+      onSendInput: (_) => sentCount += 1,
+    );
+
+    await tester.tap(find.byType(TextField));
+    await tester.enterText(find.byType(TextField), 'should not send');
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+
+    expect(sentCount, 0);
+    expect(find.byIcon(Icons.stop), findsOneWidget);
+  });
+
+  testWidgets('interrupting state disables stop and shows spinner', (
+    tester,
+  ) async {
+    var interruptCount = 0;
+    await _pumpWorkspace(
+      tester,
+      state: stateWithActiveSession(),
+      isTurnRunning: true,
+      isInterrupting: true,
+      onInterruptTurn: () => interruptCount += 1,
+    );
+
+    expect(find.byIcon(Icons.stop), findsNothing);
+    expect(find.byType(CircularProgressIndicator), findsWidgets);
+
+    final sendOrStopButton = tester.widget<IconButton>(find.byType(IconButton));
+    expect(sendOrStopButton.onPressed, isNull);
+    expect(interruptCount, 0);
   });
 
   testWidgets('reasoning chevron appears on hover and hides on exit', (
