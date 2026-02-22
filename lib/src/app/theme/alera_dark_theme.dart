@@ -203,5 +203,15 @@ ThemeData buildAleraDarkTheme() {
       titleTextStyle: textTheme.titleLarge,
       contentTextStyle: textTheme.bodyMedium,
     ),
+    popupMenuTheme: PopupMenuThemeData(
+      color: AleraTokens.surfaceElevated,
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+        side: const BorderSide(color: AleraTokens.border),
+      ),
+      menuPadding: const EdgeInsets.all(10),
+      textStyle: textTheme.bodyMedium,
+    ),
   );
 }

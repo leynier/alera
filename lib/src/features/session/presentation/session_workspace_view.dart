@@ -15,10 +15,14 @@ class SessionWorkspaceView extends StatefulWidget {
     super.key,
     required this.state,
     required this.controller,
+    required this.rawLogExpanded,
+    required this.onToggleRawLog,
   });
 
   final SessionState state;
   final SessionController controller;
+  final bool rawLogExpanded;
+  final VoidCallback onToggleRawLog;
 
   @override
   State<SessionWorkspaceView> createState() => _SessionWorkspaceViewState();
@@ -26,7 +30,6 @@ class SessionWorkspaceView extends StatefulWidget {
 
 class _SessionWorkspaceViewState extends State<SessionWorkspaceView> {
   final _inputController = TextEditingController();
-  bool _rawLogExpanded = false;
 
   @override
   void dispose() {
@@ -48,11 +51,8 @@ class _SessionWorkspaceViewState extends State<SessionWorkspaceView> {
           availableModels: widget.state.availableModels,
           onModelChanged: widget.controller.updateActiveSessionModel,
           onSend: _sendInput,
-          rawLogExpanded: _rawLogExpanded,
-          onToggleRawLog: () =>
-              setState(() => _rawLogExpanded = !_rawLogExpanded),
         ),
-        _RawLog(state: widget.state, expanded: _rawLogExpanded),
+        _RawLog(state: widget.state, expanded: widget.rawLogExpanded),
       ],
     );
   }
@@ -173,56 +173,39 @@ class _MessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final align = _isUser ? Alignment.centerRight : Alignment.centerLeft;
-    final maxWidth = _isUser ? 760.0 : 920.0;
-    final background = _isUser
-        ? AleraTokens.accentSubtle
-        : AleraTokens.surfaceVariant;
-    final borderColor = _isUser ? AleraTokens.accent : AleraTokens.borderSubtle;
-
-    return Align(
-      alignment: align,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: maxWidth),
-        child: Container(
-          margin: EdgeInsets.only(
-            top: AleraTokens.space6,
-            bottom: AleraTokens.space4,
-            left: _isUser ? 80 : 0,
-            right: _isUser ? 0 : 80,
-          ),
-          padding: const EdgeInsets.all(AleraTokens.space12),
-          decoration: BoxDecoration(
-            color: background,
-            borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-            border: Border.all(color: borderColor),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(
-                _isUser ? 'you' : 'assistant',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: _isUser
-                      ? AleraTokens.accent
-                      : AleraTokens.foregroundFaint,
-                  letterSpacing: 0.6,
-                ),
-              ),
-              const SizedBox(height: AleraTokens.space8),
-              if (_isUser)
-                SelectableText(
-                  message.markdownText,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                )
-              else
-                _AssistantBubbleMarkdown(
-                  markdownText: message.markdownText,
-                  isStreaming: message.isStreaming,
-                ),
-            ],
+    if (_isUser) {
+      return Align(
+        alignment: Alignment.centerRight,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 760),
+          child: Container(
+            margin: const EdgeInsets.only(
+              top: AleraTokens.space6,
+              bottom: AleraTokens.space4,
+              left: 80,
+            ),
+            padding: const EdgeInsets.all(AleraTokens.space12),
+            decoration: BoxDecoration(
+              color: AleraTokens.accentSubtle,
+              borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+              border: Border.all(color: AleraTokens.accent),
+            ),
+            child: SelectableText(
+              message.markdownText,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
           ),
         ),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.only(
+        top: AleraTokens.space6,
+        bottom: AleraTokens.space4,
+      ),
+      child: _AssistantBubbleMarkdown(
+        markdownText: message.markdownText,
+        isStreaming: message.isStreaming,
       ),
     );
   }
@@ -680,7 +663,7 @@ class _ActivityItemTileState extends State<_ActivityItemTile> {
   }
 }
 
-class _Composer extends StatelessWidget {
+class _Composer extends StatefulWidget {
   const _Composer({
     required this.controller,
     required this.enabled,
@@ -690,8 +673,6 @@ class _Composer extends StatelessWidget {
     required this.availableModels,
     required this.onModelChanged,
     required this.onSend,
-    required this.rawLogExpanded,
-    required this.onToggleRawLog,
   });
 
   final TextEditingController controller;
@@ -702,19 +683,39 @@ class _Composer extends StatelessWidget {
   final List<CodexModelOption> availableModels;
   final ValueChanged<String> onModelChanged;
   final VoidCallback onSend;
-  final bool rawLogExpanded;
-  final VoidCallback onToggleRawLog;
+
+  @override
+  State<_Composer> createState() => _ComposerState();
+}
+
+class _ComposerState extends State<_Composer> {
+  static const _reasoningOptions = <String, String>{
+    'low': 'Low',
+    'medium': 'Medium',
+    'high': 'High',
+    'extra_high': 'Extra High',
+  };
+
+  String _reasoningLevel = 'high';
+
+  String get _activeModelLabel {
+    for (final model in widget.availableModels) {
+      if (model.id == widget.activeModelId) {
+        return model.label;
+      }
+    }
+    return widget.activeModelId;
+  }
+
+  String get _reasoningLabel => _reasoningOptions[_reasoningLevel] ?? 'High';
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return Padding(
       padding: const EdgeInsets.all(AleraTokens.space12),
-      decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
-      ),
       child: Column(
         children: <Widget>[
-          if (isBusy)
+          if (widget.isBusy)
             Padding(
               padding: const EdgeInsets.only(bottom: AleraTokens.space8),
               child: ClipRRect(
@@ -726,107 +727,249 @@ class _Composer extends StatelessWidget {
                 ),
               ),
             ),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: <Widget>[
-              Tooltip(
-                message: rawLogExpanded ? 'hide raw log' : 'show raw log',
-                child: IconButton(
-                  onPressed: onToggleRawLog,
-                  mouseCursor: SystemMouseCursors.click,
-                  icon: Icon(
-                    Icons.terminal,
-                    size: 18,
-                    color: rawLogExpanded
-                        ? AleraTokens.accent
-                        : AleraTokens.foregroundFaint,
-                  ),
-                ),
-              ),
-              const SizedBox(width: AleraTokens.space8),
-              Expanded(
-                child: CallbackShortcuts(
+          Container(
+            decoration: BoxDecoration(
+              color: AleraTokens.surfaceVariant,
+              borderRadius: BorderRadius.circular(AleraTokens.radiusXl),
+              border: Border.all(color: AleraTokens.border),
+            ),
+            child: Column(
+              children: <Widget>[
+                CallbackShortcuts(
                   bindings: <ShortcutActivator, VoidCallback>{
                     const SingleActivator(LogicalKeyboardKey.enter, meta: true):
-                        onSend,
+                        widget.onSend,
                   },
                   child: TextField(
-                    controller: controller,
-                    enabled: enabled,
-                    minLines: 1,
+                    controller: widget.controller,
+                    enabled: widget.enabled,
+                    minLines: 2,
                     maxLines: 6,
                     textInputAction: TextInputAction.newline,
-                    decoration: InputDecoration(
-                      hintText: 'send message (⌘+Enter)',
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: AleraTokens.space12,
-                        vertical: AleraTokens.space8,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                    decoration: const InputDecoration(
+                      hintText: 'Ask for follow-up changes',
+                      filled: true,
+                      fillColor: Colors.transparent,
+                      hoverColor: Colors.transparent,
+                      contentPadding: EdgeInsets.fromLTRB(
+                        AleraTokens.space16,
+                        AleraTokens.space16,
+                        AleraTokens.space16,
+                        AleraTokens.space8,
                       ),
-                      border: OutlineInputBorder(
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      disabledBorder: InputBorder.none,
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AleraTokens.space8,
+                    0,
+                    AleraTokens.space8,
+                    AleraTokens.space8,
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      InkWell(
+                        onTap: () {},
+                        mouseCursor: SystemMouseCursors.click,
                         borderRadius: BorderRadius.circular(
-                          AleraTokens.radiusMd,
+                          AleraTokens.radiusSm,
                         ),
-                        borderSide: const BorderSide(color: AleraTokens.border),
+                        child: const Padding(
+                          padding: EdgeInsets.all(AleraTokens.space4),
+                          child: Icon(
+                            Icons.add,
+                            size: 18,
+                            color: AleraTokens.foregroundMuted,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: AleraTokens.space8),
-              IconButton(
-                onPressed: enabled ? onSend : null,
-                mouseCursor: SystemMouseCursors.click,
-                style: IconButton.styleFrom(
-                  backgroundColor: enabled
-                      ? AleraTokens.accent
-                      : AleraTokens.surfaceVariant,
-                  foregroundColor: enabled
-                      ? AleraTokens.onAccent
-                      : AleraTokens.foregroundFaint,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-                  ),
-                ),
-                icon: const Icon(Icons.arrow_upward, size: 18),
-              ),
-            ],
-          ),
-          const SizedBox(height: AleraTokens.space8),
-          Row(
-            children: <Widget>[
-              Text('model', style: Theme.of(context).textTheme.labelSmall),
-              const SizedBox(width: AleraTokens.space8),
-              SizedBox(
-                width: 260,
-                child: DropdownButtonFormField<String>(
-                  initialValue: activeModelId,
-                  items: availableModels
-                      .map(
-                        (model) => DropdownMenuItem<String>(
-                          value: model.id,
-                          child: Text(model.label),
+                      const SizedBox(width: AleraTokens.space4),
+                      PopupMenuButton<String>(
+                        onSelected: widget.canChangeModel
+                            ? widget.onModelChanged
+                            : null,
+                        enabled: widget.canChangeModel,
+                        constraints: const BoxConstraints(minWidth: 220),
+                        itemBuilder: (context) => <PopupMenuEntry<String>>[
+                          const PopupMenuItem<String>(
+                            enabled: false,
+                            height: 32,
+                            padding: EdgeInsets.symmetric(horizontal: 12),
+                            child: Text(
+                              'Select model',
+                              style: TextStyle(
+                                color: AleraTokens.foregroundFaint,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                          ...widget.availableModels.map(
+                            (model) => _DropdownEntry(
+                              value: model.id,
+                              label: model.label,
+                              selected: model.id == widget.activeModelId,
+                            ),
+                          ),
+                        ],
+                        child: _ComposerChip(label: _activeModelLabel),
+                      ),
+                      const SizedBox(width: AleraTokens.space6),
+                      PopupMenuButton<String>(
+                        onSelected: (value) =>
+                            setState(() => _reasoningLevel = value),
+                        itemBuilder: (context) => <PopupMenuEntry<String>>[
+                          const PopupMenuItem<String>(
+                            enabled: false,
+                            height: 32,
+                            padding: EdgeInsets.symmetric(horizontal: 12),
+                            child: Text(
+                              'Select reasoning',
+                              style: TextStyle(
+                                color: AleraTokens.foregroundFaint,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                          ..._reasoningOptions.entries.map(
+                            (entry) => _DropdownEntry(
+                              value: entry.key,
+                              label: entry.value,
+                              selected: entry.key == _reasoningLevel,
+                            ),
+                          ),
+                        ],
+                        child: _ComposerChip(label: _reasoningLabel),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        onPressed: widget.enabled ? widget.onSend : null,
+                        mouseCursor: SystemMouseCursors.click,
+                        constraints: const BoxConstraints(
+                          minWidth: 32,
+                          minHeight: 32,
                         ),
-                      )
-                      .toList(growable: false),
-                  onChanged: canChangeModel
-                      ? (value) {
-                          if (value != null) {
-                            onModelChanged(value);
-                          }
-                        }
-                      : null,
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: AleraTokens.space8,
-                      vertical: AleraTokens.space8,
-                    ),
+                        padding: EdgeInsets.zero,
+                        style: IconButton.styleFrom(
+                          backgroundColor: widget.enabled
+                              ? AleraTokens.accent
+                              : AleraTokens.surface,
+                          foregroundColor: widget.enabled
+                              ? AleraTokens.onAccent
+                              : AleraTokens.foregroundFaint,
+                          shape: const CircleBorder(),
+                        ),
+                        icon: const Icon(Icons.arrow_upward, size: 16),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ComposerChip extends StatelessWidget {
+  const _ComposerChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AleraTokens.space8,
+          vertical: AleraTokens.space4,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Text(
+              label,
+              style: const TextStyle(
+                color: AleraTokens.foregroundMuted,
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(width: AleraTokens.space4),
+            const Icon(
+              Icons.keyboard_arrow_down,
+              size: 14,
+              color: AleraTokens.foregroundFaint,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DropdownEntry extends PopupMenuEntry<String> {
+  const _DropdownEntry({
+    required this.value,
+    required this.label,
+    this.selected = false,
+  });
+
+  final String value;
+  final String label;
+  final bool selected;
+
+  @override
+  double get height => 36;
+
+  @override
+  bool represents(String? value) => this.value == value;
+
+  @override
+  State<_DropdownEntry> createState() => _DropdownEntryState();
+}
+
+class _DropdownEntryState extends State<_DropdownEntry> {
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AleraTokens.space2,
+        vertical: 1,
+      ),
+      child: InkWell(
+        onTap: () => Navigator.of(context).pop(widget.value),
+        mouseCursor: SystemMouseCursors.click,
+        borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AleraTokens.space12,
+            vertical: AleraTokens.space8,
+          ),
+          child: Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  widget.label,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
+              if (widget.selected)
+                const Icon(
+                  Icons.check,
+                  size: 16,
+                  color: AleraTokens.foreground,
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }

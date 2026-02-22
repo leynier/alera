@@ -20,6 +20,7 @@ class AleraShellPage extends ConsumerStatefulWidget {
 
 class _AleraShellPageState extends ConsumerState<AleraShellPage> {
   String? _lastErrorMessage;
+  bool _rawLogExpanded = false;
 
   @override
   void initState() {
@@ -56,7 +57,12 @@ class _AleraShellPageState extends ConsumerState<AleraShellPage> {
           Expanded(
             child: _buildContent(state: state, controller: controller),
           ),
-          AleraStatusBar(state: state),
+          AleraStatusBar(
+            state: state,
+            rawLogExpanded: _rawLogExpanded,
+            onToggleRawLog: () =>
+                setState(() => _rawLogExpanded = !_rawLogExpanded),
+          ),
         ],
       ),
     );
@@ -85,7 +91,13 @@ class _AleraShellPageState extends ConsumerState<AleraShellPage> {
         availableModels: state.availableModels,
       );
     }
-    return SessionWorkspaceView(state: state, controller: controller);
+    return SessionWorkspaceView(
+      state: state,
+      controller: controller,
+      rawLogExpanded: _rawLogExpanded,
+      onToggleRawLog: () =>
+          setState(() => _rawLogExpanded = !_rawLogExpanded),
+    );
   }
 
   Future<void> _selectWorkspace(SessionController controller) async {

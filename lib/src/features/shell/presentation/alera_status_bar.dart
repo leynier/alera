@@ -4,9 +4,16 @@ import 'package:alera/src/shared/models/contracts.dart';
 import 'package:flutter/material.dart';
 
 class AleraStatusBar extends StatelessWidget {
-  const AleraStatusBar({super.key, required this.state});
+  const AleraStatusBar({
+    super.key,
+    required this.state,
+    required this.rawLogExpanded,
+    required this.onToggleRawLog,
+  });
 
   final SessionState state;
+  final bool rawLogExpanded;
+  final VoidCallback onToggleRawLog;
 
   @override
   Widget build(BuildContext context) {
@@ -38,6 +45,25 @@ class AleraStatusBar extends StatelessWidget {
             style: AleraTokens.monoStyle.copyWith(
               fontSize: 10,
               color: AleraTokens.foregroundFaint,
+            ),
+          ),
+          const SizedBox(width: AleraTokens.space8),
+          Tooltip(
+            message: rawLogExpanded ? 'hide raw log' : 'show raw log',
+            child: InkWell(
+              onTap: onToggleRawLog,
+              mouseCursor: SystemMouseCursors.click,
+              borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+              child: Padding(
+                padding: const EdgeInsets.all(AleraTokens.space4),
+                child: Icon(
+                  Icons.terminal,
+                  size: 14,
+                  color: rawLogExpanded
+                      ? AleraTokens.foreground
+                      : AleraTokens.foregroundFaint,
+                ),
+              ),
             ),
           ),
         ],

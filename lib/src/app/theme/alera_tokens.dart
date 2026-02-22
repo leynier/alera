@@ -25,6 +25,7 @@ abstract final class AleraTokens {
   static const double radiusMd = 6.0;
   static const double radiusLg = 10.0;
   static const double radiusXl = 12.0;
+  static const double radiusPill = 20.0;
 
   static const Color bg = Color(0xFF101010);
   static const Color surface = Color(0xFF181818);
@@ -32,8 +33,8 @@ abstract final class AleraTokens {
   static const Color surfaceElevated = Color(0xFF242424);
   static const Color border = Color(0xFF323232);
   static const Color borderSubtle = Color(0xFF272727);
-  static const Color accent = Color(0xFFFCD452);
-  static const Color accentSubtle = Color(0x1AFCD452);
+  static const Color accent = Color(0xFFE0E0E0);
+  static const Color accentSubtle = Color(0x1AE0E0E0);
   static const Color onAccent = Color(0xFF101010);
   static const Color foreground = Color(0xFFF5F5F5);
   static const Color foregroundMuted = Color(0xFFA1A1A1);
@@ -41,7 +42,7 @@ abstract final class AleraTokens {
   static const Color success = Color(0xFF22C55E);
   static const Color error = Color(0xFFF87171);
   static const Color onError = Color(0xFF2C0D0D);
-  static const Color warning = Color(0xFFFBBF24);
+  static const Color warning = Color(0xFFA0A0A0);
 
   static const Duration durationFast = Duration(milliseconds: 100);
   static const Duration durationMid = Duration(milliseconds: 180);
