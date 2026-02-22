@@ -76,6 +76,20 @@ void main() {
       );
       state = reduceNotification(
         state,
+        _event('codex/event/item_started', <String, dynamic>{
+          'msg': <String, dynamic>{
+            'type': 'item_started',
+            'turn_id': 'turn-1',
+            'item': <String, dynamic>{
+              'id': 'msg-1',
+              'type': 'AgentMessage',
+              'phase': 'commentary',
+            },
+          },
+        }),
+      );
+      state = reduceNotification(
+        state,
         _event('item/agentMessage/delta', <String, dynamic>{
           'turnId': 'turn-1',
           'itemId': 'msg-1',
@@ -120,6 +134,20 @@ void main() {
             'type': 'commandExecution',
             'command': 'ls',
             'status': 'inProgress',
+          },
+        }),
+      );
+      state = reduceNotification(
+        state,
+        _event('codex/event/item_started', <String, dynamic>{
+          'msg': <String, dynamic>{
+            'type': 'item_started',
+            'turn_id': 'turn-1',
+            'item': <String, dynamic>{
+              'id': 'msg-1',
+              'type': 'AgentMessage',
+              'phase': 'commentary',
+            },
           },
         }),
       );
@@ -488,6 +516,179 @@ void main() {
         final progress = _cellsByKind(state, TimelineCellKind.progressText);
         expect(progress, hasLength(1));
         expect(progress.first.itemId, 'msg-stream');
+      },
+    );
+
+    test(
+      'unknown phase agentMessage defaults to final and does not create empty assistant',
+      () {
+        var state = const SessionState();
+        state = reduceNotification(
+          state,
+          _event('turn/started', <String, dynamic>{
+            'turn': <String, dynamic>{'id': 'turn-1', 'threadId': 'thread-1'},
+          }),
+        );
+        state = reduceNotification(
+          state,
+          _event('item/started', <String, dynamic>{
+            'turnId': 'turn-1',
+            'item': <String, dynamic>{
+              'id': 'msg-unknown',
+              'type': 'agentMessage',
+            },
+          }),
+        );
+        state = reduceNotification(
+          state,
+          _event('item/agentMessage/delta', <String, dynamic>{
+            'turnId': 'turn-1',
+            'itemId': 'msg-unknown',
+            'delta': 'Hello mini\n',
+          }),
+        );
+        state = reduceNotification(
+          state,
+          _event('item/completed', <String, dynamic>{
+            'turnId': 'turn-1',
+            'item': <String, dynamic>{
+              'id': 'msg-unknown',
+              'type': 'agentMessage',
+              'status': 'completed',
+              'text': 'Hello mini',
+            },
+          }),
+        );
+
+        final assistant = _cellsByKind(
+          state,
+          TimelineCellKind.assistantMessage,
+        );
+        final progress = _cellsByKind(state, TimelineCellKind.progressText);
+        expect(assistant, hasLength(1));
+        expect(assistant.first.itemId, 'msg-unknown');
+        expect((assistant.first.markdownText ?? '').trim(), 'Hello mini');
+        expect(progress, isEmpty);
+      },
+    );
+
+    test(
+      'explicit final item reclassifies prior unknown assistant stream to progress',
+      () {
+        var state = const SessionState();
+        state = reduceNotification(
+          state,
+          _event('turn/started', <String, dynamic>{
+            'turn': <String, dynamic>{'id': 'turn-1', 'threadId': 'thread-1'},
+          }),
+        );
+        state = reduceNotification(
+          state,
+          _event('codex/event/item_started', <String, dynamic>{
+            'msg': <String, dynamic>{
+              'type': 'item_started',
+              'turn_id': 'turn-1',
+              'item': <String, dynamic>{
+                'id': 'msg-unknown',
+                'type': 'AgentMessage',
+              },
+            },
+          }),
+        );
+        state = reduceNotification(
+          state,
+          _event('item/agentMessage/delta', <String, dynamic>{
+            'turnId': 'turn-1',
+            'itemId': 'msg-unknown',
+            'delta': 'Interim row\n',
+          }),
+        );
+        state = reduceNotification(
+          state,
+          _event('codex/event/item_started', <String, dynamic>{
+            'msg': <String, dynamic>{
+              'type': 'item_started',
+              'turn_id': 'turn-1',
+              'item': <String, dynamic>{
+                'id': 'msg-final',
+                'type': 'AgentMessage',
+                'phase': 'final_answer',
+              },
+            },
+          }),
+        );
+        state = reduceNotification(
+          state,
+          _event('item/agentMessage/delta', <String, dynamic>{
+            'turnId': 'turn-1',
+            'itemId': 'msg-final',
+            'delta': 'Final answer\n',
+          }),
+        );
+        state = reduceNotification(
+          state,
+          _event('item/completed', <String, dynamic>{
+            'turnId': 'turn-1',
+            'item': <String, dynamic>{
+              'id': 'msg-final',
+              'type': 'agentMessage',
+              'status': 'completed',
+              'text': 'Final answer',
+            },
+          }),
+        );
+
+        final assistant = _cellsByKind(
+          state,
+          TimelineCellKind.assistantMessage,
+        );
+        final progress = _cellsByKind(state, TimelineCellKind.progressText);
+        expect(assistant, hasLength(1));
+        expect(assistant.first.itemId, 'msg-final');
+        expect((assistant.first.markdownText ?? '').trim(), 'Final answer');
+        expect(progress, hasLength(1));
+        expect(progress.first.itemId, 'msg-unknown');
+        expect((progress.first.markdownText ?? '').trim(), 'Interim row');
+      },
+    );
+
+    test(
+      'task_complete upserts existing empty assistant cell instead of duplicating',
+      () {
+        final now = DateTime.utc(2026, 2, 22);
+        var state = SessionState(
+          timelineCells: <TimelineCell>[
+            TimelineCell(
+              id: 'assistant-final-turn-1',
+              turnId: 'turn-1',
+              itemId: 'msg-missing',
+              kind: TimelineCellKind.assistantMessage,
+              status: TimelineCellStatus.completed,
+              createdAt: now,
+              updatedAt: now,
+              markdownText: null,
+            ),
+          ],
+        );
+
+        state = reduceNotification(
+          state,
+          _event('codex/event/task_complete', <String, dynamic>{
+            'msg': <String, dynamic>{
+              'type': 'task_complete',
+              'turn_id': 'turn-1',
+              'last_agent_message': 'Recovered final',
+            },
+          }),
+        );
+
+        final assistant = _cellsByKind(
+          state,
+          TimelineCellKind.assistantMessage,
+        );
+        expect(assistant, hasLength(1));
+        expect(assistant.first.id, 'assistant-final-turn-1');
+        expect(assistant.first.markdownText, 'Recovered final');
       },
     );
 

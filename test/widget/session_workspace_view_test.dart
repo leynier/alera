@@ -199,6 +199,32 @@ void main() {
     expect(find.textContaining('Worked for'), findsNothing);
   });
 
+  testWidgets('empty completed assistant cells are hidden', (tester) async {
+    final state = SessionState(
+      timelineCells: <TimelineCell>[
+        _cell(
+          id: 'a-empty',
+          kind: TimelineCellKind.assistantMessage,
+          status: TimelineCellStatus.completed,
+          turnId: 't1',
+          markdownText: '',
+        ),
+        _cell(
+          id: 'a-visible',
+          kind: TimelineCellKind.assistantMessage,
+          status: TimelineCellStatus.completed,
+          turnId: 't1',
+          markdownText: 'visible assistant text',
+        ),
+      ],
+    );
+
+    await _pumpWorkspace(tester, state: state);
+
+    expect(find.text('visible assistant text'), findsOneWidget);
+    expect(find.text('_no content_'), findsNothing);
+  });
+
   testWidgets('single secondary row hides worked and final message', (
     tester,
   ) async {

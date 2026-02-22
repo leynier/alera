@@ -39,9 +39,9 @@ SessionState reduceNotification(
 
   switch (event.method) {
     case 'codex/event/item_started':
-      return _onLegacyItemStarted(next, params);
+      return _onLegacyItemStarted(next, params, timestamp);
     case 'codex/event/item_completed':
-      return _onLegacyItemCompleted(next, params);
+      return _onLegacyItemCompleted(next, params, timestamp);
     case 'codex/event/task_complete':
       return _onLegacyTaskComplete(next, params, timestamp);
     case 'turn/started':
@@ -248,6 +248,7 @@ SessionState _appendRawLog(SessionState state, SessionNotificationEvent event) {
 SessionState _onLegacyItemStarted(
   SessionState state,
   Map<String, dynamic> params,
+  DateTime timestamp,
 ) {
   final msg = _asMap(params['msg']);
   if ((_asString(msg['type']) ?? '').toLowerCase() != 'item_started') {
@@ -266,7 +267,11 @@ SessionState _onLegacyItemStarted(
     return state;
   }
 
-  final phase = _normalizeAgentPhase(_asString(item['phase']));
+  final previousPhase = state.agentMessagePhaseByItemId[itemId];
+  final phase = _mergeAgentPhase(
+    previousPhase: previousPhase,
+    incomingPhase: _normalizeAgentPhase(_asString(item['phase'])),
+  );
   final nextByItem = <String, String>{...state.agentMessagePhaseByItemId};
   nextByItem[itemId] = phase;
 
@@ -275,15 +280,25 @@ SessionState _onLegacyItemStarted(
     nextFinalByTurn[turnId] = itemId;
   }
 
-  return state.copyWith(
+  var nextState = state.copyWith(
     agentMessagePhaseByItemId: nextByItem,
     finalAnswerItemIdByTurn: nextFinalByTurn,
   );
+  if (phase == 'final_answer') {
+    nextState = _reclassifyUnknownAssistantCellsForTurn(
+      nextState,
+      turnId: turnId,
+      finalItemId: itemId,
+      timestamp: timestamp,
+    );
+  }
+  return nextState;
 }
 
 SessionState _onLegacyItemCompleted(
   SessionState state,
   Map<String, dynamic> params,
+  DateTime timestamp,
 ) {
   final msg = _asMap(params['msg']);
   if ((_asString(msg['type']) ?? '').toLowerCase() != 'item_completed') {
@@ -302,7 +317,11 @@ SessionState _onLegacyItemCompleted(
     return state;
   }
 
-  final phase = _normalizeAgentPhase(_asString(item['phase']));
+  final previousPhase = state.agentMessagePhaseByItemId[itemId];
+  final phase = _mergeAgentPhase(
+    previousPhase: previousPhase,
+    incomingPhase: _normalizeAgentPhase(_asString(item['phase'])),
+  );
   final nextByItem = <String, String>{...state.agentMessagePhaseByItemId};
   nextByItem[itemId] = phase;
 
@@ -311,10 +330,19 @@ SessionState _onLegacyItemCompleted(
     nextFinalByTurn[turnId] = itemId;
   }
 
-  return state.copyWith(
+  var nextState = state.copyWith(
     agentMessagePhaseByItemId: nextByItem,
     finalAnswerItemIdByTurn: nextFinalByTurn,
   );
+  if (phase == 'final_answer') {
+    nextState = _reclassifyUnknownAssistantCellsForTurn(
+      nextState,
+      turnId: turnId,
+      finalItemId: itemId,
+      timestamp: timestamp,
+    );
+  }
+  return nextState;
 }
 
 SessionState _onLegacyTaskComplete(
@@ -343,31 +371,25 @@ SessionState _onLegacyTaskComplete(
   }
 
   final cells = <TimelineCell>[...state.timelineCells];
-  final existingFinal = cells.lastWhere(
-    (cell) =>
-        cell.turnId == turnId &&
-        cell.kind == TimelineCellKind.assistantMessage &&
-        (cell.markdownText ?? '').trim().isNotEmpty,
-    orElse: () => TimelineCell(
-      id: '',
-      kind: TimelineCellKind.systemNotice,
-      status: TimelineCellStatus.info,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-    ),
-  );
+  TimelineCell? existingAssistant;
+  for (var i = cells.length - 1; i >= 0; i--) {
+    final candidate = cells[i];
+    if (candidate.turnId == turnId &&
+        candidate.kind == TimelineCellKind.assistantMessage) {
+      existingAssistant = candidate;
+      break;
+    }
+  }
 
-  if (existingFinal.id.isNotEmpty &&
-      (existingFinal.markdownText ?? '').trim() == lastAgentMessage) {
+  if (existingAssistant != null &&
+      (existingAssistant.markdownText ?? '').trim() == lastAgentMessage) {
     return state;
   }
 
-  final cellId = existingFinal.id.isNotEmpty
-      ? existingFinal.id
-      : 'assistant-final-$turnId';
-  final existingIndex = existingFinal.id.isEmpty
+  final cellId = existingAssistant?.id ?? 'assistant-final-$turnId';
+  final existingIndex = existingAssistant == null
       ? -1
-      : _findCellById(cells, existingFinal.id);
+      : _findCellById(cells, existingAssistant.id);
 
   final metadata = <String, dynamic>{
     'streamPhase': 'final_answer',
@@ -472,11 +494,94 @@ String _resolveAgentPhase(
   }
 
   final finalForTurn = state.finalAnswerItemIdByTurn[turnId];
-  if (finalForTurn == itemId) {
-    return 'final_answer';
+  if (finalForTurn != null && finalForTurn.isNotEmpty) {
+    return finalForTurn == itemId ? 'final_answer' : 'commentary';
   }
 
-  return 'unknown';
+  // Smart fallback for providers that omit phase:
+  // treat as final by default unless an explicit final for this turn is known.
+  return 'final_answer';
+}
+
+String _mergeAgentPhase({
+  required String? previousPhase,
+  required String incomingPhase,
+}) {
+  final normalizedPrevious = _normalizeAgentPhase(previousPhase);
+  if (incomingPhase == 'unknown' && normalizedPrevious != 'unknown') {
+    return normalizedPrevious;
+  }
+  return incomingPhase;
+}
+
+SessionState _reclassifyUnknownAssistantCellsForTurn(
+  SessionState state, {
+  required String turnId,
+  required String finalItemId,
+  required DateTime timestamp,
+}) {
+  final cells = <TimelineCell>[...state.timelineCells];
+  var mutated = false;
+  var clearActiveStreaming = false;
+
+  for (var i = 0; i < cells.length; i++) {
+    final cell = cells[i];
+    if (cell.turnId != turnId ||
+        cell.kind != TimelineCellKind.assistantMessage) {
+      continue;
+    }
+    final itemId = cell.itemId;
+    if (itemId == null || itemId.isEmpty || itemId == finalItemId) {
+      continue;
+    }
+    final phase = _normalizeAgentPhase(state.agentMessagePhaseByItemId[itemId]);
+    if (phase != 'unknown') {
+      continue;
+    }
+
+    final text = (cell.markdownText ?? '').trim();
+    if (text.isEmpty) {
+      if (state.activeStreamingAssistantCellId == cell.id) {
+        clearActiveStreaming = true;
+      }
+      cells.removeAt(i);
+      i -= 1;
+      mutated = true;
+      continue;
+    }
+
+    final metadata = <String, dynamic>{
+      ...cell.metadata,
+      'isInterim': true,
+      'streamSource': 'phase_reclassification',
+      'streamItemId': itemId,
+      'streamCommitted': true,
+      'streamPhase': 'commentary',
+      'isWorkActivity': true,
+    };
+
+    if (state.activeStreamingAssistantCellId == cell.id) {
+      clearActiveStreaming = true;
+    }
+
+    cells[i] = cell.copyWith(
+      kind: TimelineCellKind.progressText,
+      status: TimelineCellStatus.completed,
+      isStreaming: false,
+      metadata: metadata,
+      updatedAt: timestamp,
+    );
+    mutated = true;
+  }
+
+  if (!mutated) {
+    return state;
+  }
+  return state.copyWith(
+    timelineCells: cells,
+    clearActiveStreamingAssistantCellId: clearActiveStreaming,
+    turnHadWorkActivity: true,
+  );
 }
 
 String _normalizeAgentPhase(String? raw) {
@@ -1220,11 +1325,10 @@ SessionState _onItemStarted(
   }
 
   if (itemType == 'agentMessage') {
-    final phase = _normalizeAgentPhase(_asString(item['phase']));
-    if (phase == 'unknown') {
-      return state;
-    }
-
+    final phase = _mergeAgentPhase(
+      previousPhase: state.agentMessagePhaseByItemId[itemId],
+      incomingPhase: _normalizeAgentPhase(_asString(item['phase'])),
+    );
     final nextByItem = <String, String>{...state.agentMessagePhaseByItemId};
     nextByItem[itemId] = phase;
 
@@ -1233,10 +1337,19 @@ SessionState _onItemStarted(
       nextFinalByTurn[turnId] = itemId;
     }
 
-    return state.copyWith(
+    var nextState = state.copyWith(
       agentMessagePhaseByItemId: nextByItem,
       finalAnswerItemIdByTurn: nextFinalByTurn,
     );
+    if (phase == 'final_answer') {
+      nextState = _reclassifyUnknownAssistantCellsForTurn(
+        nextState,
+        turnId: turnId,
+        finalItemId: itemId,
+        timestamp: timestamp,
+      );
+    }
+    return nextState;
   }
 
   if (itemType == 'userMessage') {
@@ -1362,21 +1475,26 @@ SessionState _onItemCompleted(
   }
 
   if (itemType == 'agentMessage') {
-    final phase = _normalizeAgentPhase(_asString(item['phase']));
+    final phase = _mergeAgentPhase(
+      previousPhase: state.agentMessagePhaseByItemId[itemId],
+      incomingPhase: _normalizeAgentPhase(_asString(item['phase'])),
+    );
     var nextState = state;
-    if (phase != 'unknown') {
-      final nextByItem = <String, String>{...state.agentMessagePhaseByItemId};
-      nextByItem[itemId] = phase;
-      nextState = nextState.copyWith(agentMessagePhaseByItemId: nextByItem);
-      if (phase == 'final_answer') {
-        final nextFinalByTurn = <String, String>{
-          ...state.finalAnswerItemIdByTurn,
-        };
-        nextFinalByTurn[turnId] = itemId;
-        nextState = nextState.copyWith(
-          finalAnswerItemIdByTurn: nextFinalByTurn,
-        );
-      }
+    final nextByItem = <String, String>{...state.agentMessagePhaseByItemId};
+    nextByItem[itemId] = phase;
+    nextState = nextState.copyWith(agentMessagePhaseByItemId: nextByItem);
+    if (phase == 'final_answer') {
+      final nextFinalByTurn = <String, String>{
+        ...state.finalAnswerItemIdByTurn,
+      };
+      nextFinalByTurn[turnId] = itemId;
+      nextState = nextState.copyWith(finalAnswerItemIdByTurn: nextFinalByTurn);
+      nextState = _reclassifyUnknownAssistantCellsForTurn(
+        nextState,
+        turnId: turnId,
+        finalItemId: itemId,
+        timestamp: timestamp,
+      );
     }
     return _onAssistantItemCompleted(
       nextState,
@@ -1514,7 +1632,11 @@ SessionState _onAssistantItemCompleted(
 
   if (phase == 'commentary') {
     if (finalText.trim().isNotEmpty &&
-        !_hasCommittedStreamForItem(cells, turnId: turnId, itemId: itemId)) {
+        !_hasCommittedStreamTextForItem(
+          cells,
+          turnId: turnId,
+          itemId: itemId,
+        )) {
       cells.add(
         TimelineCell(
           id: 'commentary-$turnId-${timestamp.microsecondsSinceEpoch}',
@@ -1562,7 +1684,7 @@ SessionState _onAssistantItemCompleted(
   }
 
   final index = _buildCellIndex(cells);
-  final streamCommittedForItem = _hasCommittedStreamForItem(
+  final streamCommittedForItem = _hasCommittedAssistantStreamTextForItem(
     cells,
     turnId: turnId,
     itemId: itemId,
@@ -1645,13 +1767,46 @@ SessionState _onAssistantItemCompleted(
   );
 }
 
-bool _hasCommittedStreamForItem(
+bool _hasCommittedAssistantStreamTextForItem(
+  List<TimelineCell> cells, {
+  required String turnId,
+  required String itemId,
+}) {
+  for (final cell in cells) {
+    if (cell.turnId != turnId ||
+        cell.kind != TimelineCellKind.assistantMessage) {
+      continue;
+    }
+    if ((cell.markdownText ?? '').trim().isEmpty) {
+      continue;
+    }
+    final metadata = cell.metadata;
+    final streamCommitted = metadata['streamCommitted'] == true;
+    if (!streamCommitted) {
+      continue;
+    }
+    final streamItemId =
+        _asString(metadata['streamItemId']) ??
+        _asString(metadata['stream_item_id']) ??
+        cell.itemId;
+    if (streamItemId == itemId) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool _hasCommittedStreamTextForItem(
   List<TimelineCell> cells, {
   required String turnId,
   required String itemId,
 }) {
   for (final cell in cells) {
     if (cell.turnId != turnId) {
+      continue;
+    }
+    final text = (cell.markdownText ?? '').trim();
+    if (text.isEmpty) {
       continue;
     }
     final metadata = cell.metadata;

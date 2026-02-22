@@ -954,11 +954,9 @@ class _AssistantMessageCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final rawText = cell.markdownText ?? '';
-    if (rawText.trim().isEmpty && cell.isStreaming) {
+    if (rawText.trim().isEmpty) {
       return const SizedBox.shrink();
     }
-
-    final visibleText = rawText.trim().isEmpty ? '_no content_' : rawText;
 
     return Padding(
       padding: const EdgeInsets.only(
@@ -966,7 +964,7 @@ class _AssistantMessageCell extends StatelessWidget {
         bottom: AleraTokens.space4,
       ),
       child: _AssistantBubbleMarkdown(
-        markdownText: visibleText,
+        markdownText: rawText,
         isStreaming: cell.isStreaming,
       ),
     );
