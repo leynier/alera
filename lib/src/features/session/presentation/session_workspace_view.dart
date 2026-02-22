@@ -1744,18 +1744,12 @@ class _ComposerState extends State<_Composer> {
                         ),
                         padding: EdgeInsets.zero,
                         style: IconButton.styleFrom(
-                          backgroundColor: widget.canStop
-                              ? (widget.isInterrupting
-                                    ? AleraTokens.surfaceVariant
-                                    : AleraTokens.surface)
-                              : (widget.canSend
-                                    ? AleraTokens.accent
-                                    : AleraTokens.surface),
-                          foregroundColor: widget.canStop
-                              ? AleraTokens.foreground
-                              : (widget.canSend
-                                    ? AleraTokens.onAccent
-                                    : AleraTokens.foregroundFaint),
+                          backgroundColor: (widget.canSend || widget.canStop)
+                              ? AleraTokens.accent
+                              : AleraTokens.surface,
+                          foregroundColor: (widget.canSend || widget.canStop)
+                              ? AleraTokens.onAccent
+                              : AleraTokens.foregroundFaint,
                           shape: const CircleBorder(),
                         ),
                         icon: widget.canStop
@@ -1765,10 +1759,10 @@ class _ComposerState extends State<_Composer> {
                                       height: 14,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 1.6,
-                                        color: AleraTokens.foreground,
+                                        color: AleraTokens.onAccent,
                                       ),
                                     )
-                                  : const Icon(Icons.stop, size: 16))
+                                  : const Icon(Icons.stop, size: 18))
                             : const Icon(Icons.arrow_upward, size: 16),
                       ),
                     ],
