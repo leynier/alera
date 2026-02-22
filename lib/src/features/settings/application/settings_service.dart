@@ -1,18 +1,10 @@
-import 'dart:convert';
-
+import 'package:alera/src/features/session/domain/codex_model_catalog.dart';
 import 'package:alera/src/shared/infra/storage/preferences_store.dart';
-import 'package:alera/src/shared/models/contracts.dart';
 
 class SettingsSnapshot {
-  const SettingsSnapshot({
-    required this.plannerModel,
-    required this.executorModel,
-    required this.approvalPolicy,
-  });
+  const SettingsSnapshot({required this.selectedModel});
 
-  final String plannerModel;
-  final String executorModel;
-  final ApprovalPolicy approvalPolicy;
+  final String selectedModel;
 }
 
 class SettingsService {
@@ -20,50 +12,29 @@ class SettingsService {
 
   final StringStore _preferencesStore;
 
-  static const String _plannerModelKey = 'settings.model.planner';
-  static const String _executorModelKey = 'settings.model.executor';
-  static const String _approvalPolicyKey = 'settings.approval.policy';
+  static const String _selectedModelKey = 'settings.model.selected';
+  static const String _legacyExecutorModelKey = 'settings.model.executor';
 
   Future<SettingsSnapshot> load() async {
-    final plannerModel =
-        await _preferencesStore.getString(_plannerModelKey) ?? 'gpt-5';
-    final executorModel =
-        await _preferencesStore.getString(_executorModelKey) ?? 'gpt-5-codex';
+    final selected = await _preferencesStore.getString(_selectedModelKey);
+    if (selected != null && codexModelExists(selected)) {
+      return SettingsSnapshot(selectedModel: selected);
+    }
 
-    final policyRaw = await _preferencesStore.getString(_approvalPolicyKey);
-    final policy = _decodePolicy(policyRaw) ?? ApprovalPolicy.ask;
-
-    return SettingsSnapshot(
-      plannerModel: plannerModel,
-      executorModel: executorModel,
-      approvalPolicy: policy,
+    final legacyExecutor = await _preferencesStore.getString(
+      _legacyExecutorModelKey,
     );
+    if (legacyExecutor != null && codexModelExists(legacyExecutor)) {
+      return SettingsSnapshot(selectedModel: legacyExecutor);
+    }
+
+    return SettingsSnapshot(selectedModel: codexDefaultModelId());
   }
 
   Future<void> save(SettingsSnapshot snapshot) async {
-    await _preferencesStore.setString(_plannerModelKey, snapshot.plannerModel);
-    await _preferencesStore.setString(_executorModelKey, snapshot.executorModel);
-    await _preferencesStore.setString(
-      _approvalPolicyKey,
-      jsonEncode(snapshot.approvalPolicy.name),
-    );
-  }
-
-  ApprovalPolicy? _decodePolicy(String? raw) {
-    if (raw == null || raw.isEmpty) {
-      return null;
-    }
-
-    final decoded = jsonDecode(raw);
-    if (decoded is! String) {
-      return null;
-    }
-
-    for (final value in ApprovalPolicy.values) {
-      if (value.name == decoded) {
-        return value;
-      }
-    }
-    return null;
+    final normalized = codexModelExists(snapshot.selectedModel)
+        ? snapshot.selectedModel
+        : codexDefaultModelId();
+    await _preferencesStore.setString(_selectedModelKey, normalized);
   }
 }

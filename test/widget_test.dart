@@ -4,13 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   testWidgets('renders alera shell', (tester) async {
-    await tester.pumpWidget(
-      const ProviderScope(
-        child: AleraApp(),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.text('Alera'), findsOneWidget);
+    await tester.pumpWidget(const ProviderScope(child: AleraApp()));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('select a repository folder'), findsOneWidget);
   });
 }

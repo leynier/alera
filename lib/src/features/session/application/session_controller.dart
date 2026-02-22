@@ -1,59 +1,218 @@
 import 'dart:async';
+import 'dart:io';
 
-import 'package:alera/src/features/mcp/application/mcp_service.dart';
+import 'package:alera/src/features/projects/application/project_service.dart';
 import 'package:alera/src/features/session/application/session_runtime_event.dart';
 import 'package:alera/src/features/session/application/session_service.dart';
 import 'package:alera/src/features/session/application/session_state.dart';
+import 'package:alera/src/features/session/application/session_timeline_reducer.dart';
+import 'package:alera/src/features/session/domain/chat_timeline.dart';
+import 'package:alera/src/features/session/domain/codex_model_catalog.dart';
 import 'package:alera/src/features/settings/application/settings_service.dart';
-import 'package:alera/src/features/terminal/application/terminal_manager.dart';
 import 'package:alera/src/shared/models/contracts.dart';
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:path/path.dart' as p;
 
 class SessionController extends StateNotifier<SessionState> {
   SessionController({
     required SessionService sessionService,
-    required TerminalManager terminalManager,
-    required McpService mcpService,
+    required ProjectService projectService,
     required SettingsService settingsService,
-  })  : _sessionService = sessionService,
-        _terminalManager = terminalManager,
-        _mcpService = mcpService,
-        _settingsService = settingsService,
-        super(const SessionState()) {
+  }) : _sessionService = sessionService,
+       _projectService = projectService,
+       _settingsService = settingsService,
+       super(const SessionState()) {
     _eventsSub = _sessionService.events.listen(_onSessionEvent);
-    unawaited(loadMcpServers());
   }
 
   final SessionService _sessionService;
-  final TerminalManager _terminalManager;
-  final McpService _mcpService;
+  final ProjectService _projectService;
   final SettingsService _settingsService;
   StreamSubscription<SessionRuntimeEvent>? _eventsSub;
 
-  Future<void> createSession(SessionCreateRequest request) async {
+  var _bootstrapped = false;
+
+  Future<void> bootstrap() async {
+    if (_bootstrapped) {
+      return;
+    }
+
+    final defaults = await _settingsService.load();
+    final normalizedDefault = codexModelExists(defaults.selectedModel)
+        ? defaults.selectedModel
+        : codexDefaultModelId();
+
+    if (normalizedDefault != defaults.selectedModel) {
+      await _settingsService.save(
+        SettingsSnapshot(selectedModel: normalizedDefault),
+      );
+    }
+
+    state = state.copyWith(
+      sessions: _sessionService.sessions,
+      connectionState: AppServerConnectionState.disconnected,
+      availableModels: codexModelSnapshot,
+    );
+
+    _bootstrapped = true;
+  }
+
+  Future<bool> selectWorkspaceFromPath(String rawPath) async {
+    final trimmed = rawPath.trim();
+    if (trimmed.isEmpty) {
+      return false;
+    }
+    final normalized = p.normalize(Directory(trimmed).absolute.path);
+
     state = state.copyWith(isBusy: true, clearError: true);
     try {
-      final session = await _sessionService.createSession(request);
-      final terminal = await _terminalManager.create(cwd: session.workspacePath);
+      final validation = await _projectService.validateGitRepository(
+        normalized,
+      );
+      if (!validation.isValidGitRepository) {
+        throw StateError(
+          validation.message ?? 'selected folder is not a git repository',
+        );
+      }
 
+      final existing = _sessionService.findLatestSessionForWorkspace(
+        normalized,
+      );
+      state = state.copyWith(
+        isBusy: false,
+        selectedWorkspacePath: normalized,
+        sessions: _sessionService.sessions,
+        activeSessionId: existing?.id,
+        timelineMessages: const <TimelineMessage>[],
+        timelineActivities: const <TimelineActivityItem>[],
+        turnGroups: const <TimelineTurnGroup>[],
+        clearActiveStreamingAssistantMessageId: true,
+        clearActiveTurnId: true,
+        clearError: true,
+        activityLog: const <String>[],
+        runningTurnCount: 0,
+        connectionState: existing == null
+            ? AppServerConnectionState.disconnected
+            : AppServerConnectionState.starting,
+      );
+
+      if (existing != null) {
+        await activateSession(existing.id);
+      }
+      return true;
+    } catch (error) {
+      state = state.copyWith(
+        isBusy: false,
+        error: error.toString(),
+        connectionState: AppServerConnectionState.error,
+      );
+      return false;
+    }
+  }
+
+  Future<void> activateSession(String sessionId) async {
+    final sessions = _sessionService.sessions;
+    AleraSession? target;
+    for (final entry in sessions) {
+      if (entry.id == sessionId) {
+        target = entry;
+        break;
+      }
+    }
+    if (target == null) {
+      return;
+    }
+
+    state = state.copyWith(
+      isBusy: true,
+      clearError: true,
+      connectionState: AppServerConnectionState.starting,
+      activeSessionId: sessionId,
+      selectedWorkspacePath: target.workspacePath,
+      timelineMessages: const <TimelineMessage>[],
+      timelineActivities: const <TimelineActivityItem>[],
+      turnGroups: const <TimelineTurnGroup>[],
+      clearActiveStreamingAssistantMessageId: true,
+      clearActiveTurnId: true,
+      activityLog: const <String>[],
+      runningTurnCount: 0,
+    );
+
+    try {
+      await _sessionService.setActiveSession(sessionId);
       state = state.copyWith(
         isBusy: false,
         sessions: _sessionService.sessions,
+        activeSessionId: sessionId,
+        selectedWorkspacePath: target.workspacePath,
+        connectionState: AppServerConnectionState.connected,
+      );
+    } catch (error) {
+      state = state.copyWith(
+        isBusy: false,
+        error: error.toString(),
+        connectionState: AppServerConnectionState.error,
+      );
+    }
+  }
+
+  Future<void> createSession(SessionCreateRequest request) async {
+    state = state.copyWith(
+      isBusy: true,
+      clearError: true,
+      connectionState: AppServerConnectionState.starting,
+      timelineMessages: const <TimelineMessage>[],
+      timelineActivities: const <TimelineActivityItem>[],
+      turnGroups: const <TimelineTurnGroup>[],
+      clearActiveStreamingAssistantMessageId: true,
+      clearActiveTurnId: true,
+      activityLog: const <String>[],
+      runningTurnCount: 0,
+    );
+    try {
+      final session = await _sessionService.createSession(request);
+      state = state.copyWith(
+        isBusy: false,
+        sessions: _sessionService.sessions,
+        selectedWorkspacePath: session.workspacePath,
         activeSessionId: session.id,
-        terminalSession: terminal,
+        connectionState: AppServerConnectionState.connected,
       );
 
       await _settingsService.save(
-        SettingsSnapshot(
-          plannerModel: request.plannerModel,
-          executorModel: request.executorModel,
-          approvalPolicy: request.fullAccess
-              ? ApprovalPolicy.autoApproveAllowed
-              : ApprovalPolicy.ask,
-        ),
+        SettingsSnapshot(selectedModel: session.model),
       );
     } catch (error) {
-      state = state.copyWith(isBusy: false, error: error.toString());
+      state = state.copyWith(
+        isBusy: false,
+        error: error.toString(),
+        connectionState: AppServerConnectionState.error,
+      );
+    }
+  }
+
+  Future<void> updateActiveSessionModel(String modelId) async {
+    if (!codexModelExists(modelId)) {
+      return;
+    }
+    final session = state.activeSession;
+    if (session == null) {
+      await _settingsService.save(SettingsSnapshot(selectedModel: modelId));
+      return;
+    }
+
+    try {
+      await _sessionService.updateSessionModel(
+        sessionId: session.id,
+        modelId: modelId,
+      );
+      await _settingsService.save(SettingsSnapshot(selectedModel: modelId));
+      state = state.copyWith(
+        sessions: _sessionService.sessions,
+        clearError: true,
+      );
+    } catch (error) {
+      state = state.copyWith(error: error.toString());
     }
   }
 
@@ -62,135 +221,24 @@ class SessionController extends StateNotifier<SessionState> {
     if (session == null) {
       return;
     }
-
-    state = state.copyWith(isBusy: true, clearError: true);
-    try {
-      await _sessionService.runInput(sessionId: session.id, rawInput: rawInput);
-      state = state.copyWith(
-        isBusy: false,
-        sessions: _sessionService.sessions,
-      );
-    } catch (error) {
-      state = state.copyWith(isBusy: false, error: error.toString());
-    }
-  }
-
-  Future<void> promoteActiveToWorktree() async {
-    final session = state.activeSession;
-    if (session == null) {
+    final text = rawInput.trim();
+    if (text.isEmpty) {
       return;
     }
 
-    state = state.copyWith(isBusy: true, clearError: true);
-
+    state = appendOptimisticUserMessage(
+      state,
+      text: text,
+    ).copyWith(isBusy: true, clearError: true);
     try {
-      await _sessionService.promoteToWorktree(session.id);
+      await _sessionService.runInput(sessionId: session.id, rawInput: text);
+      state = state.copyWith(isBusy: false, sessions: _sessionService.sessions);
+    } catch (error) {
       state = state.copyWith(
         isBusy: false,
-        sessions: _sessionService.sessions,
+        error: error.toString(),
+        connectionState: AppServerConnectionState.error,
       );
-    } catch (error) {
-      state = state.copyWith(isBusy: false, error: error.toString());
-    }
-  }
-
-  Future<void> closeActiveSession({required bool removeWorktree}) async {
-    final session = state.activeSession;
-    if (session == null) {
-      return;
-    }
-
-    state = state.copyWith(isBusy: true, clearError: true);
-
-    try {
-      await state.terminalSession?.dispose();
-      await _sessionService.closeSession(
-        sessionId: session.id,
-        removeWorktree: removeWorktree,
-      );
-      state = state.copyWith(
-        isBusy: false,
-        sessions: _sessionService.sessions,
-        activeSessionId: _sessionService.sessions.isNotEmpty
-            ? _sessionService.sessions.first.id
-            : null,
-        terminalSession: null,
-      );
-    } catch (error) {
-      state = state.copyWith(isBusy: false, error: error.toString());
-    }
-  }
-
-  Future<void> decideApproval({
-    required PendingApproval approval,
-    required ApprovalDecisionType decision,
-    AllowScope? allowScope,
-  }) async {
-    try {
-      await _sessionService.resolveApproval(
-        approval: approval,
-        decision: decision,
-        allowScope: allowScope,
-      );
-
-      final updated = state.pendingApprovals
-          .where((candidate) => candidate.requestId != approval.requestId)
-          .toList(growable: false);
-
-      state = state.copyWith(pendingApprovals: updated);
-    } catch (error) {
-      state = state.copyWith(error: error.toString());
-    }
-  }
-
-  Future<void> loadMcpServers() async {
-    try {
-      final servers = await _mcpService.listServers();
-      state = state.copyWith(mcpServers: servers);
-    } catch (_) {
-      // mcp listing can fail when app-server is offline; keep UI usable.
-    }
-  }
-
-  Future<void> addMcpServer({
-    required String id,
-    required String command,
-  }) async {
-    state = state.copyWith(isBusy: true, clearError: true, clearOauthUrl: true);
-    try {
-      await _mcpService.setServerConfig(
-        serverId: id,
-        config: <String, dynamic>{
-          'command': command,
-        },
-      );
-      await _mcpService.reloadConfig();
-      await loadMcpServers();
-      state = state.copyWith(isBusy: false);
-    } catch (error) {
-      state = state.copyWith(isBusy: false, error: error.toString());
-    }
-  }
-
-  Future<void> removeMcpServer(String id) async {
-    state = state.copyWith(isBusy: true, clearError: true, clearOauthUrl: true);
-    try {
-      await _mcpService.removeServerConfig(id);
-      await _mcpService.reloadConfig();
-      await loadMcpServers();
-      state = state.copyWith(isBusy: false);
-    } catch (error) {
-      state = state.copyWith(isBusy: false, error: error.toString());
-    }
-  }
-
-  Future<void> loginMcpServer(String id) async {
-    state = state.copyWith(isBusy: true, clearError: true);
-    try {
-      final url = await _mcpService.startOauthLogin(id);
-      state = state.copyWith(isBusy: false, lastOauthUrl: url);
-    } catch (error) {
-      state = state.copyWith(isBusy: false, error: error.toString());
     }
   }
 
@@ -205,31 +253,57 @@ class SessionController extends StateNotifier<SessionState> {
   }
 
   void _onSessionEvent(SessionRuntimeEvent event) {
-    if (event is SessionApprovalRequestedEvent) {
-      final exists = state.pendingApprovals
-          .any((candidate) => candidate.requestId == event.approval.requestId);
-      if (!exists) {
-        state = state.copyWith(
-          pendingApprovals: <PendingApproval>[
-            ...state.pendingApprovals,
-            event.approval,
-          ],
-        );
-      }
-      return;
-    }
-
     if (event is SessionNotificationEvent) {
-      final text = '${event.method}: ${event.payload['params'] ?? ''}';
-      final nextLog = <String>[...state.activityLog, text];
-      final clipped = nextLog.length <= 200
-          ? nextLog
-          : nextLog.sublist(nextLog.length - 200);
+      final active = state.activeSession;
+      if (active != null && !_notificationMatchesSession(event, active)) {
+        return;
+      }
 
-      state = state.copyWith(
+      final reduced = reduceNotification(state, event);
+      final runningTurnCount = _computeRunningTurnCount(
+        current: state.runningTurnCount,
+        method: event.method,
+      );
+
+      state = reduced.copyWith(
         sessions: _sessionService.sessions,
-        activityLog: clipped,
+        runningTurnCount: runningTurnCount,
       );
     }
+  }
+
+  bool _notificationMatchesSession(
+    SessionNotificationEvent event,
+    AleraSession session,
+  ) {
+    final params = event.payload['params'];
+    if (params is! Map<String, dynamic>) {
+      return true;
+    }
+
+    final threadId = params['threadId']?.toString();
+    if (threadId != null && threadId.isNotEmpty) {
+      return session.threadId == threadId;
+    }
+
+    final turn = params['turn'];
+    if (turn is! Map<String, dynamic>) {
+      return true;
+    }
+    final turnThreadId = turn['threadId']?.toString();
+    if (turnThreadId == null || turnThreadId.isEmpty) {
+      return true;
+    }
+    return session.threadId == turnThreadId;
+  }
+
+  int _computeRunningTurnCount({required int current, required String method}) {
+    if (method == 'turn/started') {
+      return current + 1;
+    }
+    if (method == 'turn/completed' || method == 'turn/failed') {
+      return current > 0 ? current - 1 : 0;
+    }
+    return current;
   }
 }

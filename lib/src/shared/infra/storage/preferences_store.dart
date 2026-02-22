@@ -16,17 +16,9 @@ class PreferencesStore implements StringStore {
     return _preferences.setString(key, value);
   }
 
-  Future<void> setStringList(String key, List<String> values) {
-    return _preferences.setStringList(key, values);
-  }
-
   @override
   Future<String?> getString(String key) {
     return _preferences.getString(key);
-  }
-
-  Future<List<String>?> getStringList(String key) {
-    return _preferences.getStringList(key);
   }
 
   @override

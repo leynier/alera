@@ -7,9 +7,5 @@ void main() {
   WidgetsFlutterBinding.ensureInitialized();
   AppLogger.configure();
 
-  runApp(
-    const ProviderScope(
-      child: AleraApp(),
-    ),
-  );
+  runApp(const ProviderScope(child: AleraApp()));
 }

@@ -13,7 +13,8 @@ void main() {
         'result': <String, dynamic>{'ok': true},
       });
 
-      final frame = 'Content-Length: ${utf8.encode(payload).length}\r\n\r\n$payload';
+      final frame =
+          'Content-Length: ${utf8.encode(payload).length}\r\n\r\n$payload';
       final partA = frame.substring(0, 20);
       final partB = frame.substring(20);
 

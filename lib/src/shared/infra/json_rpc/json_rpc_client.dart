@@ -23,11 +23,11 @@ class JsonRpcClient {
     required List<String> arguments,
     String? workingDirectory,
     Map<String, String>? environment,
-  })  : _processRunner = processRunner,
-        _executable = executable,
-        _arguments = arguments,
-        _workingDirectory = workingDirectory,
-        _environment = environment;
+  }) : _processRunner = processRunner,
+       _executable = executable,
+       _arguments = arguments,
+       _workingDirectory = workingDirectory,
+       _environment = environment;
 
   final ProcessRunner _processRunner;
   final String _executable;
@@ -78,19 +78,21 @@ class JsonRpcClient {
       });
     }, onError: _onIoError);
 
-    unawaited(_process!.exitCode.then((code) {
-      if (_closed) {
-        return;
-      }
-      final error = StateError('JSON-RPC process exited with code $code');
-      for (final completer in _pendingRequests.values) {
-        if (!completer.isCompleted) {
-          completer.completeError(error);
+    unawaited(
+      _process!.exitCode.then((code) {
+        if (_closed) {
+          return;
         }
-      }
-      _pendingRequests.clear();
-      _notificationsController.addError(error);
-    }));
+        final error = StateError('JSON-RPC process exited with code $code');
+        for (final completer in _pendingRequests.values) {
+          if (!completer.isCompleted) {
+            completer.completeError(error);
+          }
+        }
+        _pendingRequests.clear();
+        _notificationsController.addError(error);
+      }),
+    );
   }
 
   Future<Map<String, dynamic>> request(
@@ -114,10 +116,7 @@ class JsonRpcClient {
     return completer.future;
   }
 
-  Future<void> notify(
-    String method, {
-    Map<String, dynamic>? params,
-  }) async {
+  Future<void> notify(String method, {Map<String, dynamic>? params}) async {
     _ensureOpen();
 
     final payload = <String, dynamic>{
@@ -129,10 +128,7 @@ class JsonRpcClient {
     _write(payload);
   }
 
-  Future<void> respondSuccess(
-    Object id, {
-    Map<String, dynamic>? result,
-  }) async {
+  Future<void> respondSuccess(Object id, {Map<String, dynamic>? result}) async {
     _ensureOpen();
     final payload = <String, dynamic>{
       'jsonrpc': '2.0',

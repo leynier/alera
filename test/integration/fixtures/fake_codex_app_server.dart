@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -7,7 +6,42 @@ Future<void> main() async {
   var activeThreadId = 'thr_fake';
   var activeTurnId = 'turn_fake';
 
-  await for (final line in stdin.transform(utf8.decoder).transform(const LineSplitter())) {
+  void emitCompletedTurn({
+    required String status,
+    String itemStatus = 'completed',
+  }) {
+    _write(<String, dynamic>{
+      'jsonrpc': '2.0',
+      'method': 'item/completed',
+      'params': <String, dynamic>{
+        'item': <String, dynamic>{
+          'id': 'item_cmd_1',
+          'type': 'commandExecution',
+          'command': 'git status',
+          'cwd': '.',
+          'status': itemStatus,
+          'aggregatedOutput': status == 'completed' ? 'ok' : '',
+        },
+      },
+    });
+
+    _write(<String, dynamic>{
+      'jsonrpc': '2.0',
+      'method': 'turn/completed',
+      'params': <String, dynamic>{
+        'turn': <String, dynamic>{
+          'id': activeTurnId,
+          'threadId': activeThreadId,
+          'status': status,
+          'items': <Object>[],
+          'error': null,
+        },
+      },
+    });
+  }
+
+  await for (final line
+      in stdin.transform(utf8.decoder).transform(const LineSplitter())) {
     if (line.trim().isEmpty) {
       continue;
     }
@@ -48,6 +82,22 @@ Future<void> main() async {
     }
 
     if (method == 'thread/start') {
+      final params =
+          (message['params'] as Map<String, dynamic>? ??
+                  const <String, dynamic>{})
+              .cast<String, dynamic>();
+      if (params['approvalPolicy'] != 'never') {
+        _write(<String, dynamic>{
+          'jsonrpc': '2.0',
+          'id': id,
+          'error': <String, dynamic>{
+            'code': -32010,
+            'message': 'thread/start expected approvalPolicy=never',
+          },
+        });
+        continue;
+      }
+
       _write(<String, dynamic>{
         'jsonrpc': '2.0',
         'id': id,
@@ -64,16 +114,40 @@ Future<void> main() async {
         'jsonrpc': '2.0',
         'method': 'thread/started',
         'params': <String, dynamic>{
-          'thread': <String, dynamic>{
-            'id': activeThreadId,
-          },
+          'thread': <String, dynamic>{'id': activeThreadId},
         },
       });
       continue;
     }
 
     if (method == 'turn/start') {
-      final params = message['params'] as Map<String, dynamic>;
+      final params = (message['params'] as Map<String, dynamic>)
+          .cast<String, dynamic>();
+
+      if (params.containsKey('collaborationMode')) {
+        _write(<String, dynamic>{
+          'jsonrpc': '2.0',
+          'id': id,
+          'error': <String, dynamic>{
+            'code': -32011,
+            'message': 'turn/start must not include collaborationMode',
+          },
+        });
+        continue;
+      }
+
+      if (params['approvalPolicy'] != 'never') {
+        _write(<String, dynamic>{
+          'jsonrpc': '2.0',
+          'id': id,
+          'error': <String, dynamic>{
+            'code': -32012,
+            'message': 'turn/start expected approvalPolicy=never',
+          },
+        });
+        continue;
+      }
+
       activeThreadId = (params['threadId'] ?? activeThreadId).toString();
       activeTurnId = 'turn_${DateTime.now().millisecondsSinceEpoch}';
 
@@ -102,108 +176,41 @@ Future<void> main() async {
         },
       });
 
-      _write(<String, dynamic>{
-        'jsonrpc': '2.0',
-        'method': 'item/started',
-        'params': <String, dynamic>{
-          'item': <String, dynamic>{
-            'id': 'item_cmd_1',
-            'type': 'commandExecution',
+      final input = (params['input'] as List<dynamic>? ?? const <dynamic>[])
+          .cast<Map<dynamic, dynamic>>();
+      final prompt = input.isEmpty
+          ? ''
+          : (input.first['text'] ?? '').toString().toLowerCase();
+
+      if (prompt.contains('trigger_approval')) {
+        _write(<String, dynamic>{
+          'jsonrpc': '2.0',
+          'id': 900,
+          'method': 'item/commandExecution/requestApproval',
+          'params': <String, dynamic>{
+            'threadId': activeThreadId,
+            'turnId': activeTurnId,
+            'itemId': 'item_cmd_1',
+            'reason': 'needs approval',
             'command': 'git status',
             'cwd': params['cwd'] ?? '.',
-            'status': 'inProgress',
+            'commandActions': <String>['filesystemRead', 'processExecution'],
           },
-        },
-      });
-
-      _write(<String, dynamic>{
-        'jsonrpc': '2.0',
-        'id': 900,
-        'method': 'item/commandExecution/requestApproval',
-        'params': <String, dynamic>{
-          'threadId': activeThreadId,
-          'turnId': activeTurnId,
-          'itemId': 'item_cmd_1',
-          'reason': 'needs approval',
-          'command': 'git status',
-          'cwd': params['cwd'] ?? '.',
-          'commandActions': <String>['filesystemRead', 'processExecution'],
-        },
-      });
+        });
+      } else {
+        emitCompletedTurn(status: 'completed');
+      }
       continue;
     }
 
     if (id == 900 && message.containsKey('result')) {
       final result = message['result'] as Map<String, dynamic>;
       final decision = (result['decision'] ?? '').toString();
-      final status = decision == 'accept' ? 'completed' : 'declined';
-
-      _write(<String, dynamic>{
-        'jsonrpc': '2.0',
-        'method': 'item/completed',
-        'params': <String, dynamic>{
-          'item': <String, dynamic>{
-            'id': 'item_cmd_1',
-            'type': 'commandExecution',
-            'command': 'git status',
-            'cwd': '.',
-            'status': status,
-            'aggregatedOutput': decision == 'accept' ? 'ok' : '',
-          },
-        },
-      });
-
-      _write(<String, dynamic>{
-        'jsonrpc': '2.0',
-        'method': 'turn/completed',
-        'params': <String, dynamic>{
-          'turn': <String, dynamic>{
-            'id': activeTurnId,
-            'threadId': activeThreadId,
-            'status': decision == 'accept' ? 'completed' : 'interrupted',
-            'items': <Object>[],
-            'error': null,
-          },
-        },
-      });
-      continue;
-    }
-
-    if (method == 'mcpServerStatus/list') {
-      _write(<String, dynamic>{
-        'jsonrpc': '2.0',
-        'id': id,
-        'result': <String, dynamic>{
-          'data': <Map<String, dynamic>>[
-            <String, dynamic>{
-              'name': 'github',
-              'transport': 'stdio',
-              'enabled': true,
-            },
-          ],
-          'nextCursor': null,
-        },
-      });
-      continue;
-    }
-
-    if (method == 'mcpServer/oauth/login') {
-      _write(<String, dynamic>{
-        'jsonrpc': '2.0',
-        'id': id,
-        'result': <String, dynamic>{
-          'authorizationUrl': 'https://example.com/oauth/start',
-        },
-      });
-      continue;
-    }
-
-    if (method == 'config/value/write' || method == 'config/mcpServer/reload') {
-      _write(<String, dynamic>{
-        'jsonrpc': '2.0',
-        'id': id,
-        'result': <String, dynamic>{},
-      });
+      if (decision == 'accept') {
+        emitCompletedTurn(status: 'completed');
+      } else {
+        emitCompletedTurn(status: 'interrupted', itemStatus: 'declined');
+      }
       continue;
     }
 
@@ -217,22 +224,6 @@ Future<void> main() async {
             'preview': '',
             'modelProvider': 'openai',
             'createdAt': 1730910000,
-          },
-        },
-      });
-      continue;
-    }
-
-    if (method == 'review/start') {
-      _write(<String, dynamic>{
-        'jsonrpc': '2.0',
-        'id': id,
-        'result': <String, dynamic>{
-          'turn': <String, dynamic>{
-            'id': 'turn_review_1',
-            'threadId': (message['params'] as Map<String, dynamic>)['threadId'],
-            'status': 'inProgress',
-            'items': <Object>[],
           },
         },
       });

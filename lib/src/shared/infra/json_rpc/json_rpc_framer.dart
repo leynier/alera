@@ -41,8 +41,10 @@ class JsonRpcFramer {
 
     final headerBytes = _buffer.sublist(0, headerEnd);
     final header = utf8.decode(headerBytes);
-    final match = RegExp(r'Content-Length:\s*(\d+)', caseSensitive: false)
-        .firstMatch(header);
+    final match = RegExp(
+      r'Content-Length:\s*(\d+)',
+      caseSensitive: false,
+    ).firstMatch(header);
 
     if (match == null) {
       return null;
@@ -69,9 +71,9 @@ class JsonRpcFramer {
     final lineBytes = _buffer.sublist(0, newlineIndex);
     _buffer.removeRange(0, newlineIndex + 1);
 
-    final trimmed = Uint8List.fromList(lineBytes)
-        .where((value) => value != 13)
-        .toList(growable: false);
+    final trimmed = Uint8List.fromList(
+      lineBytes,
+    ).where((value) => value != 13).toList(growable: false);
     if (trimmed.isEmpty) {
       return null;
     }

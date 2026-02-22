@@ -17,6 +17,4 @@ class AppLogger {
       print('[${record.level.name}] ${record.loggerName}: ${record.message}');
     });
   }
-
-  static Logger scoped(String name) => Logger(name);
 }

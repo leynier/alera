@@ -1,4 +1,5 @@
-import 'package:alera/src/app/router.dart';
+import 'package:alera/src/app/theme/alera_dark_theme.dart';
+import 'package:alera/src/features/shell/presentation/alera_shell_page.dart';
 import 'package:flutter/material.dart';
 
 class AleraApp extends StatelessWidget {
@@ -6,15 +7,13 @@ class AleraApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final router = buildRouter();
-
-    return MaterialApp.router(
+    return MaterialApp(
       title: 'Alera',
-      routerConfig: router,
+      home: const AleraShellPage(),
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF0D8A6A)),
-      ),
+      theme: buildAleraDarkTheme(),
+      darkTheme: buildAleraDarkTheme(),
+      themeMode: ThemeMode.dark,
     );
   }
 }
