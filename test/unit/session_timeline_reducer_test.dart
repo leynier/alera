@@ -54,6 +54,265 @@ void main() {
       expect(state.activeStreamingAssistantCellId, assistant.first.id);
     });
 
+    test(
+      'freeze assistant interim text into progressText on first secondary',
+      () {
+        var state = const SessionState();
+
+        state = reduceNotification(
+          state,
+          _event('turn/started', <String, dynamic>{
+            'turn': <String, dynamic>{
+              'id': 'turn-progress-freeze',
+              'threadId': 'thread-1',
+            },
+          }),
+        );
+        state = reduceNotification(
+          state,
+          _event('item/agentMessage/delta', <String, dynamic>{
+            'turnId': 'turn-progress-freeze',
+            'itemId': 'msg-progress-freeze',
+            'delta': 'Thinking out loud',
+          }),
+        );
+
+        state = reduceNotification(
+          state,
+          _event('item/started', <String, dynamic>{
+            'turnId': 'turn-progress-freeze',
+            'item': <String, dynamic>{
+              'id': 'cmd-progress-freeze',
+              'type': 'commandExecution',
+              'command': 'rg TODO',
+              'status': 'inProgress',
+            },
+          }),
+        );
+
+        final progress = _cellsByKind(state, TimelineCellKind.progressText);
+        expect(progress, hasLength(1));
+        expect(progress.first.markdownText, 'Thinking out loud');
+        expect(progress.first.metadata['isInterim'], isTrue);
+
+        final assistant = _cellsByKind(
+          state,
+          TimelineCellKind.assistantMessage,
+        );
+        expect(assistant, hasLength(1));
+        expect(assistant.first.markdownText, isNull);
+      },
+    );
+
+    test(
+      'assistant deltas after secondary starts append to active progressText',
+      () {
+        var state = const SessionState();
+
+        state = reduceNotification(
+          state,
+          _event('turn/started', <String, dynamic>{
+            'turn': <String, dynamic>{
+              'id': 'turn-progress-live',
+              'threadId': 'thread-1',
+            },
+          }),
+        );
+        state = reduceNotification(
+          state,
+          _event('item/started', <String, dynamic>{
+            'turnId': 'turn-progress-live',
+            'item': <String, dynamic>{
+              'id': 'cmd-progress-live',
+              'type': 'commandExecution',
+              'command': 'ls',
+              'status': 'inProgress',
+            },
+          }),
+        );
+
+        state = reduceNotification(
+          state,
+          _event('item/agentMessage/delta', <String, dynamic>{
+            'turnId': 'turn-progress-live',
+            'itemId': 'msg-progress-live',
+            'delta': 'line 1',
+          }),
+        );
+        state = reduceNotification(
+          state,
+          _event('item/agentMessage/delta', <String, dynamic>{
+            'turnId': 'turn-progress-live',
+            'itemId': 'msg-progress-live',
+            'delta': '\nline 2',
+          }),
+        );
+
+        final progress = _cellsByKind(state, TimelineCellKind.progressText);
+        expect(progress, hasLength(1));
+        expect(progress.first.markdownText, 'line 1\nline 2');
+        expect(progress.first.status, TimelineCellStatus.inProgress);
+
+        final assistant = _cellsByKind(
+          state,
+          TimelineCellKind.assistantMessage,
+        );
+        expect(assistant, isEmpty);
+      },
+    );
+
+    test(
+      'new secondary phase freezes current progressText and next deltas create a new one',
+      () {
+        var state = const SessionState();
+
+        state = reduceNotification(
+          state,
+          _event('turn/started', <String, dynamic>{
+            'turn': <String, dynamic>{
+              'id': 'turn-progress-phase',
+              'threadId': 'thread-1',
+            },
+          }),
+        );
+        state = reduceNotification(
+          state,
+          _event('item/started', <String, dynamic>{
+            'turnId': 'turn-progress-phase',
+            'item': <String, dynamic>{
+              'id': 'cmd-1',
+              'type': 'commandExecution',
+              'command': 'ls',
+              'status': 'inProgress',
+            },
+          }),
+        );
+        state = reduceNotification(
+          state,
+          _event('item/agentMessage/delta', <String, dynamic>{
+            'turnId': 'turn-progress-phase',
+            'itemId': 'msg-progress-phase',
+            'delta': 'phase one',
+          }),
+        );
+        state = reduceNotification(
+          state,
+          _event('item/started', <String, dynamic>{
+            'turnId': 'turn-progress-phase',
+            'item': <String, dynamic>{
+              'id': 'reason-1',
+              'type': 'reasoning',
+              'status': 'inProgress',
+            },
+          }),
+        );
+        state = reduceNotification(
+          state,
+          _event('item/agentMessage/delta', <String, dynamic>{
+            'turnId': 'turn-progress-phase',
+            'itemId': 'msg-progress-phase',
+            'delta': 'phase two',
+          }),
+        );
+
+        final progress = _cellsByKind(state, TimelineCellKind.progressText);
+        expect(progress, hasLength(2));
+        expect(progress[0].markdownText, 'phase one');
+        expect(progress[0].status, TimelineCellStatus.completed);
+        expect(progress[0].metadata['phaseClosedAtTurnItemId'], 'reason-1');
+        expect(progress[1].markdownText, 'phase two');
+      },
+    );
+
+    test('progressText metadata includes interim source marker', () {
+      var state = const SessionState();
+
+      state = reduceNotification(
+        state,
+        _event('turn/started', <String, dynamic>{
+          'turn': <String, dynamic>{
+            'id': 'turn-source',
+            'threadId': 'thread-1',
+          },
+        }),
+      );
+      state = reduceNotification(
+        state,
+        _event('item/started', <String, dynamic>{
+          'turnId': 'turn-source',
+          'item': <String, dynamic>{
+            'id': 'cmd-source',
+            'type': 'commandExecution',
+            'command': 'ls',
+            'status': 'inProgress',
+          },
+        }),
+      );
+      state = reduceNotification(
+        state,
+        _event('item/agentMessage/delta', <String, dynamic>{
+          'turnId': 'turn-source',
+          'itemId': 'msg-source',
+          'delta': 'working',
+        }),
+      );
+
+      final progress = _cellsByKind(state, TimelineCellKind.progressText);
+      expect(progress, hasLength(1));
+      expect(progress.first.metadata['isInterim'], isTrue);
+      expect(progress.first.metadata['source'], 'assistant_delta');
+    });
+
+    test('filters internal-like interim lines from progressText', () {
+      var state = const SessionState();
+
+      state = reduceNotification(
+        state,
+        _event('turn/started', <String, dynamic>{
+          'turn': <String, dynamic>{
+            'id': 'turn-filter',
+            'threadId': 'thread-1',
+          },
+        }),
+      );
+      state = reduceNotification(
+        state,
+        _event('item/started', <String, dynamic>{
+          'turnId': 'turn-filter',
+          'item': <String, dynamic>{
+            'id': 'cmd-filter',
+            'type': 'commandExecution',
+            'command': 'ls',
+            'status': 'inProgress',
+          },
+        }),
+      );
+      state = reduceNotification(
+        state,
+        _event('item/agentMessage/delta', <String, dynamic>{
+          'turnId': 'turn-filter',
+          'itemId': 'msg-filter',
+          'delta': 'Finalizing response with file path',
+        }),
+      );
+      state = reduceNotification(
+        state,
+        _event('item/agentMessage/delta', <String, dynamic>{
+          'turnId': 'turn-filter',
+          'itemId': 'msg-filter',
+          'delta': 'Voy a validar el archivo ahora.',
+        }),
+      );
+
+      final progress = _cellsByKind(state, TimelineCellKind.progressText);
+      expect(progress, hasLength(1));
+      expect(progress.first.markdownText, 'Voy a validar el archivo ahora.');
+      expect(
+        progress.first.markdownText,
+        isNot(contains('Finalizing response')),
+      );
+    });
+
     test('assistant completed merges final text without duplication', () {
       var state = const SessionState();
 
@@ -104,6 +363,190 @@ void main() {
       expect(assistant.first.markdownText, 'Hola, en que te ayudo?');
       expect(assistant.first.isStreaming, isFalse);
     });
+
+    test(
+      'assistant completion keeps progressText rows and sets final message',
+      () {
+        var state = const SessionState();
+
+        state = reduceNotification(
+          state,
+          _event('turn/started', <String, dynamic>{
+            'turn': <String, dynamic>{
+              'id': 'turn-final-preserve',
+              'threadId': 'thread-1',
+            },
+          }),
+        );
+        state = reduceNotification(
+          state,
+          _event('item/started', <String, dynamic>{
+            'turnId': 'turn-final-preserve',
+            'item': <String, dynamic>{
+              'id': 'cmd-final-preserve',
+              'type': 'commandExecution',
+              'command': 'ls',
+              'status': 'inProgress',
+            },
+          }),
+        );
+        state = reduceNotification(
+          state,
+          _event('item/agentMessage/delta', <String, dynamic>{
+            'turnId': 'turn-final-preserve',
+            'itemId': 'msg-final-preserve',
+            'delta': 'interim',
+          }),
+        );
+        state = reduceNotification(
+          state,
+          _event('item/completed', <String, dynamic>{
+            'turnId': 'turn-final-preserve',
+            'item': <String, dynamic>{
+              'id': 'msg-final-preserve',
+              'type': 'agentMessage',
+              'status': 'completed',
+              'text': 'final answer',
+            },
+          }),
+        );
+
+        final progress = _cellsByKind(state, TimelineCellKind.progressText);
+        expect(progress, hasLength(1));
+        expect(progress.first.markdownText, 'interim');
+
+        final assistant = _cellsByKind(
+          state,
+          TimelineCellKind.assistantMessage,
+        );
+        expect(assistant, hasLength(1));
+        expect(assistant.first.markdownText, 'final answer');
+      },
+    );
+
+    test(
+      'assistant completion dedupes when final text exactly matches interim text',
+      () {
+        var state = const SessionState();
+
+        state = reduceNotification(
+          state,
+          _event('turn/started', <String, dynamic>{
+            'turn': <String, dynamic>{
+              'id': 'turn-dedupe-exact',
+              'threadId': 'thread-1',
+            },
+          }),
+        );
+        state = reduceNotification(
+          state,
+          _event('item/started', <String, dynamic>{
+            'turnId': 'turn-dedupe-exact',
+            'item': <String, dynamic>{
+              'id': 'cmd-dedupe-exact',
+              'type': 'commandExecution',
+              'command': 'ls',
+              'status': 'inProgress',
+            },
+          }),
+        );
+        state = reduceNotification(
+          state,
+          _event('item/agentMessage/delta', <String, dynamic>{
+            'turnId': 'turn-dedupe-exact',
+            'itemId': 'msg-dedupe-exact',
+            'delta': 'Mismo texto',
+          }),
+        );
+        state = reduceNotification(
+          state,
+          _event('item/completed', <String, dynamic>{
+            'turnId': 'turn-dedupe-exact',
+            'item': <String, dynamic>{
+              'id': 'msg-dedupe-exact',
+              'type': 'agentMessage',
+              'status': 'completed',
+              'text': 'Mismo texto',
+            },
+          }),
+        );
+
+        final progress = _cellsByKind(state, TimelineCellKind.progressText);
+        expect(progress, hasLength(1));
+        expect((progress.first.markdownText ?? '').trim(), isEmpty);
+
+        final assistant = _cellsByKind(
+          state,
+          TimelineCellKind.assistantMessage,
+        );
+        expect(assistant, hasLength(1));
+        expect(assistant.first.markdownText, 'Mismo texto');
+        expect(
+          assistant.first.metadata['dedupeMode'],
+          'exact_match_trim_interim',
+        );
+      },
+    );
+
+    test(
+      'assistant completion trims duplicated final prefix overlap conservatively',
+      () {
+        var state = const SessionState();
+
+        state = reduceNotification(
+          state,
+          _event('turn/started', <String, dynamic>{
+            'turn': <String, dynamic>{
+              'id': 'turn-dedupe-overlap',
+              'threadId': 'thread-1',
+            },
+          }),
+        );
+        state = reduceNotification(
+          state,
+          _event('item/started', <String, dynamic>{
+            'turnId': 'turn-dedupe-overlap',
+            'item': <String, dynamic>{
+              'id': 'cmd-dedupe-overlap',
+              'type': 'commandExecution',
+              'command': 'ls',
+              'status': 'inProgress',
+            },
+          }),
+        );
+        state = reduceNotification(
+          state,
+          _event('item/agentMessage/delta', <String, dynamic>{
+            'turnId': 'turn-dedupe-overlap',
+            'itemId': 'msg-dedupe-overlap',
+            'delta': 'Trabajando sobre README y validando',
+          }),
+        );
+        state = reduceNotification(
+          state,
+          _event('item/completed', <String, dynamic>{
+            'turnId': 'turn-dedupe-overlap',
+            'item': <String, dynamic>{
+              'id': 'msg-dedupe-overlap',
+              'type': 'agentMessage',
+              'status': 'completed',
+              'text': 'y validando cambios finales',
+            },
+          }),
+        );
+
+        final assistant = _cellsByKind(
+          state,
+          TimelineCellKind.assistantMessage,
+        );
+        expect(assistant, hasLength(1));
+        expect(assistant.first.markdownText, 'cambios finales');
+        expect(
+          assistant.first.metadata['dedupeMode'],
+          'interim_ends_with_final_prefix_trim_final_prefix',
+        );
+      },
+    );
 
     test('creates assistant from item completed when no deltas arrived', () {
       var state = const SessionState();
@@ -191,6 +634,200 @@ void main() {
       expect(tools.first.title, 'Ran git status');
       expect(tools.first.detailsText, contains('On branch main'));
       expect(tools.first.status, TimelineCellStatus.completed);
+    });
+
+    test('commandExecution uses commandActions for human-friendly labels', () {
+      var state = const SessionState();
+
+      state = reduceNotification(
+        state,
+        _event('turn/started', <String, dynamic>{
+          'turn': <String, dynamic>{'id': 'turn-actions', 'threadId': 'thr-1'},
+        }),
+      );
+
+      state = reduceNotification(
+        state,
+        _event('item/completed', <String, dynamic>{
+          'turnId': 'turn-actions',
+          'item': <String, dynamic>{
+            'id': 'cmd-read',
+            'type': 'commandExecution',
+            'command': 'cat README.md',
+            'commandActions': <String>['read'],
+            'status': 'completed',
+          },
+        }),
+      );
+      state = reduceNotification(
+        state,
+        _event('item/completed', <String, dynamic>{
+          'turnId': 'turn-actions',
+          'item': <String, dynamic>{
+            'id': 'cmd-search',
+            'type': 'commandExecution',
+            'command': 'rg timeline',
+            'commandActions': <String>['search'],
+            'status': 'completed',
+          },
+        }),
+      );
+      state = reduceNotification(
+        state,
+        _event('item/completed', <String, dynamic>{
+          'turnId': 'turn-actions',
+          'item': <String, dynamic>{
+            'id': 'cmd-unknown',
+            'type': 'commandExecution',
+            'command': 'git status',
+            'commandActions': <String>['unknown'],
+            'status': 'completed',
+          },
+        }),
+      );
+
+      final tools = _cellsByKind(state, TimelineCellKind.toolCall);
+      expect(tools, hasLength(3));
+
+      expect(tools[0].title, 'Read');
+      expect(tools[0].subtitle, 'cat README.md');
+      expect(tools[0].metadata['isExploratory'], isTrue);
+      expect(tools[0].metadata['exploreBucket'], 'file');
+      expect(tools[0].metadata['commandActionsNormalized'], <String>['read']);
+
+      expect(tools[1].title, 'Search');
+      expect(tools[1].subtitle, 'rg timeline');
+      expect(tools[1].metadata['isExploratory'], isTrue);
+      expect(tools[1].metadata['exploreBucket'], 'search');
+
+      expect(tools[2].title, 'Ran git status');
+      expect(tools[2].metadata['isExploratory'], isFalse);
+    });
+
+    test(
+      'commandExecution falls back to heuristics when actions are missing',
+      () {
+        var state = const SessionState();
+
+        state = reduceNotification(
+          state,
+          _event('turn/started', <String, dynamic>{
+            'turn': <String, dynamic>{
+              'id': 'turn-heuristic',
+              'threadId': 'thr-1',
+            },
+          }),
+        );
+
+        state = reduceNotification(
+          state,
+          _event('item/completed', <String, dynamic>{
+            'turnId': 'turn-heuristic',
+            'item': <String, dynamic>{
+              'id': 'cmd-list',
+              'type': 'commandExecution',
+              'command': 'rg --files lib',
+              'status': 'completed',
+            },
+          }),
+        );
+        state = reduceNotification(
+          state,
+          _event('item/completed', <String, dynamic>{
+            'turnId': 'turn-heuristic',
+            'item': <String, dynamic>{
+              'id': 'cmd-search',
+              'type': 'commandExecution',
+              'command': 'grep TODO README.md',
+              'status': 'completed',
+            },
+          }),
+        );
+        state = reduceNotification(
+          state,
+          _event('item/completed', <String, dynamic>{
+            'turnId': 'turn-heuristic',
+            'item': <String, dynamic>{
+              'id': 'cmd-ran',
+              'type': 'commandExecution',
+              'command': 'git status',
+              'status': 'completed',
+            },
+          }),
+        );
+
+        final tools = _cellsByKind(state, TimelineCellKind.toolCall);
+        expect(tools, hasLength(3));
+        expect(tools[0].title, 'List');
+        expect(tools[0].metadata['exploreBucket'], 'file');
+        expect(tools[1].title, 'Search');
+        expect(tools[1].metadata['exploreBucket'], 'search');
+        expect(tools[2].title, 'Ran git status');
+        expect(tools[2].metadata['isExploratory'], isFalse);
+      },
+    );
+
+    test('integrated items get human-friendly labels', () {
+      var state = const SessionState();
+
+      state = reduceNotification(
+        state,
+        _event('turn/started', <String, dynamic>{
+          'turn': <String, dynamic>{
+            'id': 'turn-integrated',
+            'threadId': 'thr-1',
+          },
+        }),
+      );
+
+      state = reduceNotification(
+        state,
+        _event('item/completed', <String, dynamic>{
+          'turnId': 'turn-integrated',
+          'item': <String, dynamic>{
+            'id': 'change-1',
+            'type': 'fileChange',
+            'status': 'completed',
+            'changes': <Map<String, dynamic>>[
+              <String, dynamic>{'path': 'lib/a.dart'},
+              <String, dynamic>{'path': 'lib/b.dart'},
+            ],
+          },
+        }),
+      );
+      state = reduceNotification(
+        state,
+        _event('item/completed', <String, dynamic>{
+          'turnId': 'turn-integrated',
+          'item': <String, dynamic>{
+            'id': 'search-1',
+            'type': 'webSearch',
+            'status': 'completed',
+            'action': 'search',
+            'query': 'codex app-server',
+          },
+        }),
+      );
+      state = reduceNotification(
+        state,
+        _event('item/completed', <String, dynamic>{
+          'turnId': 'turn-integrated',
+          'item': <String, dynamic>{
+            'id': 'mcp-1',
+            'type': 'mcpToolCall',
+            'status': 'completed',
+            'server': 'filesystem',
+            'tool': 'read_file',
+          },
+        }),
+      );
+
+      final tools = _cellsByKind(state, TimelineCellKind.toolCall);
+      expect(tools, hasLength(3));
+      expect(tools[0].title, 'Edited 2 files');
+      expect(tools[1].title, 'Web search: Search');
+      expect(tools[1].subtitle, 'codex app-server');
+      expect(tools[2].title, 'MCP: filesystem/read_file');
     });
 
     test('reasoning delta and completed stay inline in same cell', () {
@@ -347,7 +984,7 @@ void main() {
       expect(state.timelineCells[0].kind, TimelineCellKind.userMessage);
       expect(state.timelineCells[0].turnId, 'turn-5');
       expect(state.timelineCells[1].kind, TimelineCellKind.toolCall);
-      expect(state.timelineCells[2].kind, TimelineCellKind.assistantMessage);
+      expect(state.timelineCells[2].kind, TimelineCellKind.progressText);
     });
 
     test(
@@ -405,6 +1042,7 @@ void main() {
 
         final tools = _cellsByKind(state, TimelineCellKind.toolCall);
         final reasoning = _cellsByKind(state, TimelineCellKind.reasoning);
+        final progress = _cellsByKind(state, TimelineCellKind.progressText);
         final separators = _cellsByKind(state, TimelineCellKind.turnSeparator);
         final assistant = _cellsByKind(
           state,
@@ -415,8 +1053,10 @@ void main() {
         expect(tools.first.isCollapsed, isTrue);
         expect(reasoning, hasLength(1));
         expect(reasoning.first.isCollapsed, isTrue);
-        expect(assistant, hasLength(1));
-        expect(assistant.first.isStreaming, isFalse);
+        expect(progress, hasLength(1));
+        expect(progress.first.markdownText, 'answer');
+        expect(progress.first.status, TimelineCellStatus.completed);
+        expect(assistant, isEmpty);
         expect(separators, hasLength(1));
         expect(separators.first.title, 'turn completed');
         expect(separators.first.subtitle, contains('tokens'));

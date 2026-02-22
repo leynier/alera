@@ -154,6 +154,25 @@ class _ChatTimelineList extends StatelessWidget {
         if (cell.kind == TimelineCellKind.turnSeparator) {
           continue;
         }
+        if (_isExploratoryToolCell(cell)) {
+          final runLength = _exploratoryRunLength(cells, i);
+          if (runLength >= 2) {
+            final cluster = cells.sublist(i, i + runLength);
+            widgets.add(
+              Padding(
+                padding: const EdgeInsets.only(bottom: AleraTokens.space8),
+                child: _ExploringClusterCell(
+                  key: ValueKey(
+                    'cluster-open-${cluster.first.id}-${cluster.last.id}',
+                  ),
+                  cells: cluster,
+                ),
+              ),
+            );
+            i += runLength - 1;
+            continue;
+          }
+        }
         widgets.add(_timelineCellWithSpacing(cell));
         continue;
       }
@@ -193,6 +212,30 @@ class _ChatTimelineList extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: AleraTokens.space8),
       child: _TimelineCellView(cell: cell),
     );
+  }
+
+  int _exploratoryRunLength(List<TimelineCell> cells, int startIndex) {
+    final start = cells[startIndex];
+    if (!_isExploratoryToolCell(start)) {
+      return 0;
+    }
+
+    final turnId = start.turnId;
+    var current = startIndex;
+    while (current < cells.length) {
+      final candidate = cells[current];
+      if (candidate.kind == TimelineCellKind.turnSeparator) {
+        break;
+      }
+      if (candidate.turnId != turnId) {
+        break;
+      }
+      if (!_isExploratoryToolCell(candidate)) {
+        break;
+      }
+      current += 1;
+    }
+    return current - startIndex;
   }
 }
 
@@ -242,6 +285,7 @@ class _TimelineCellView extends StatelessWidget {
     return switch (cell.kind) {
       TimelineCellKind.userMessage => _UserMessageCell(cell: cell),
       TimelineCellKind.assistantMessage => _AssistantMessageCell(cell: cell),
+      TimelineCellKind.progressText => _ProgressTextRow(cell: cell),
       TimelineCellKind.reasoning => _ReasoningCell(
         key: ValueKey(cell.id),
         cell: cell,
@@ -253,6 +297,104 @@ class _TimelineCellView extends StatelessWidget {
       TimelineCellKind.turnSeparator => const SizedBox.shrink(),
       TimelineCellKind.systemNotice => _SystemNoticeCell(cell: cell),
     };
+  }
+}
+
+class _SecondaryRenderRow {
+  _SecondaryRenderRow.single(this.cell) : clusterCells = null;
+
+  _SecondaryRenderRow.cluster(List<TimelineCell> cells)
+    : cell = null,
+      clusterCells = List<TimelineCell>.unmodifiable(cells);
+
+  final TimelineCell? cell;
+  final List<TimelineCell>? clusterCells;
+
+  bool get isCluster => clusterCells != null;
+}
+
+List<_SecondaryRenderRow> _buildSecondaryRows(List<TimelineCell> cells) {
+  final rows = <_SecondaryRenderRow>[];
+  final renderable = cells
+      .where(_isRenderableSecondaryCell)
+      .toList(growable: false);
+  var index = 0;
+  while (index < renderable.length) {
+    final cell = renderable[index];
+    if (_isExploratoryToolCell(cell)) {
+      var end = index + 1;
+      while (end < renderable.length &&
+          _isExploratoryToolCell(renderable[end])) {
+        end += 1;
+      }
+      final sequence = renderable.sublist(index, end);
+      if (sequence.length >= 2) {
+        rows.add(_SecondaryRenderRow.cluster(sequence));
+      } else {
+        rows.add(_SecondaryRenderRow.single(cell));
+      }
+      index = end;
+      continue;
+    }
+    rows.add(_SecondaryRenderRow.single(cell));
+    index += 1;
+  }
+  return rows;
+}
+
+bool _isRenderableSecondaryCell(TimelineCell cell) {
+  if (cell.kind != TimelineCellKind.progressText) {
+    return true;
+  }
+  return (cell.markdownText ?? '').trim().isNotEmpty;
+}
+
+bool _isExploratoryToolCell(TimelineCell cell) {
+  if (cell.kind != TimelineCellKind.toolCall) {
+    return false;
+  }
+
+  final flag = cell.metadata['isExploratory'];
+  if (flag is bool) {
+    return flag;
+  }
+  if (flag is String) {
+    final value = flag.toLowerCase().trim();
+    if (value == 'true') {
+      return true;
+    }
+    if (value == 'false') {
+      return false;
+    }
+  }
+
+  final bucket = cell.metadata['exploreBucket']?.toString().toLowerCase();
+  if (bucket == 'file' || bucket == 'search') {
+    return true;
+  }
+
+  final title = (cell.title ?? '').toLowerCase();
+  return title.startsWith('read') ||
+      title.startsWith('list') ||
+      title.startsWith('search');
+}
+
+class _SecondaryRowView extends StatelessWidget {
+  const _SecondaryRowView({required this.row});
+
+  final _SecondaryRenderRow row;
+
+  @override
+  Widget build(BuildContext context) {
+    if (row.isCluster) {
+      return _ExploringClusterCell(
+        key: ValueKey(
+          'cluster-${row.clusterCells!.first.id}-${row.clusterCells!.last.id}',
+        ),
+        cells: row.clusterCells!,
+      );
+    }
+    return _TimelineCellView(cell: row.cell!);
   }
 }
 
@@ -283,6 +425,8 @@ class _CompletedTurnSection extends StatelessWidget {
           users.add(cell);
         case TimelineCellKind.assistantMessage:
           assistants.add(cell);
+        case TimelineCellKind.progressText:
+          secondary.add(cell);
         case TimelineCellKind.reasoning ||
             TimelineCellKind.toolCall ||
             TimelineCellKind.systemNotice:
@@ -292,7 +436,10 @@ class _CompletedTurnSection extends StatelessWidget {
       }
     }
 
-    final hasSecondary = secondary.isNotEmpty;
+    final secondaryRows = _buildSecondaryRows(secondary);
+    final shouldRenderWorked = secondaryRows.length > 1;
+    final shouldRenderSingleSecondary = secondaryRows.length == 1;
+
     final children = <Widget>[
       for (final userCell in users)
         Padding(
@@ -301,7 +448,7 @@ class _CompletedTurnSection extends StatelessWidget {
         ),
     ];
 
-    if (hasSecondary) {
+    if (shouldRenderWorked) {
       children.add(
         _WorkedForDivider(
           label: _workedForLabel(separator),
@@ -315,10 +462,10 @@ class _CompletedTurnSection extends StatelessWidget {
             padding: const EdgeInsets.only(top: AleraTokens.space8),
             child: Column(
               children: <Widget>[
-                for (final secondaryCell in secondary)
+                for (final row in secondaryRows)
                   Padding(
                     padding: const EdgeInsets.only(bottom: AleraTokens.space6),
-                    child: _TimelineCellView(cell: secondaryCell),
+                    child: _SecondaryRowView(row: row),
                   ),
               ],
             ),
@@ -327,7 +474,16 @@ class _CompletedTurnSection extends StatelessWidget {
       }
     }
 
-    if (hasSecondary && workedExpanded) {
+    if (shouldRenderSingleSecondary) {
+      children.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: AleraTokens.space8),
+          child: _SecondaryRowView(row: secondaryRows.first),
+        ),
+      );
+    }
+
+    if (shouldRenderWorked && workedExpanded) {
       children.add(
         const Padding(
           padding: EdgeInsets.only(top: AleraTokens.space8),
@@ -349,6 +505,186 @@ class _CompletedTurnSection extends StatelessWidget {
       children: children,
     );
   }
+}
+
+class _ExploringClusterCell extends StatefulWidget {
+  const _ExploringClusterCell({super.key, required this.cells});
+
+  final List<TimelineCell> cells;
+
+  @override
+  State<_ExploringClusterCell> createState() => _ExploringClusterCellState();
+}
+
+class _ExploringClusterCellState extends State<_ExploringClusterCell> {
+  late bool _collapsed;
+  bool _isHovered = false;
+
+  bool get _isStreaming {
+    for (final cell in widget.cells) {
+      if (cell.status == TimelineCellStatus.inProgress || cell.isStreaming) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _collapsed = !_isStreaming;
+  }
+
+  @override
+  void didUpdateWidget(covariant _ExploringClusterCell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final wasStreaming = oldWidget.cells.any(
+      (cell) =>
+          cell.status == TimelineCellStatus.inProgress || cell.isStreaming,
+    );
+    final isStreaming = _isStreaming;
+    if (wasStreaming != isStreaming) {
+      _collapsed = !isStreaming;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final summary = _exploredSummary(widget.cells);
+    final label = _isStreaming
+        ? 'Exploring'
+        : summary == null
+        ? 'Explored'
+        : 'Explored $summary';
+    final status = widget.cells.last.status;
+    final statusColor = _statusColor(status);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        MouseRegion(
+          onEnter: (_) => setState(() => _isHovered = true),
+          onExit: (_) => setState(() => _isHovered = false),
+          child: AnimatedContainer(
+            duration: AleraTokens.durationFast,
+            curve: Curves.easeOut,
+            decoration: BoxDecoration(
+              color: _isHovered
+                  ? AleraTokens.surfaceVariant
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+            ),
+            child: InkWell(
+              onTap: () => setState(() => _collapsed = !_collapsed),
+              mouseCursor: SystemMouseCursors.click,
+              borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+              splashFactory: NoSplash.splashFactory,
+              hoverColor: Colors.transparent,
+              splashColor: Colors.transparent,
+              highlightColor: Colors.transparent,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AleraTokens.space6,
+                  vertical: AleraTokens.space4,
+                ),
+                child: Row(
+                  children: <Widget>[
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: statusColor,
+                      ),
+                    ),
+                    const SizedBox(width: AleraTokens.space8),
+                    Flexible(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Flexible(
+                            child: Text(
+                              label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: AleraTokens.foregroundMuted,
+                                  ),
+                            ),
+                          ),
+                          const SizedBox(width: AleraTokens.space4),
+                          AnimatedOpacity(
+                            duration: AleraTokens.durationFast,
+                            opacity: _isHovered ? 1 : 0,
+                            child: SizedBox(
+                              width: 14,
+                              child: Icon(
+                                _collapsed
+                                    ? Icons.keyboard_arrow_right
+                                    : Icons.keyboard_arrow_down,
+                                size: 14,
+                                color: AleraTokens.foregroundFaint,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        if (!_collapsed)
+          Padding(
+            padding: const EdgeInsets.only(top: AleraTokens.space4),
+            child: Column(
+              children: <Widget>[
+                for (final cell in widget.cells)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AleraTokens.space6),
+                    child: _ToolCallCell(
+                      key: ValueKey('cluster-item-${cell.id}'),
+                      cell: cell,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+String? _exploredSummary(List<TimelineCell> cells) {
+  var fileCount = 0;
+  var searchCount = 0;
+
+  for (final cell in cells) {
+    final bucket = cell.metadata['exploreBucket']?.toString().toLowerCase();
+    if (bucket == 'search') {
+      searchCount += 1;
+      continue;
+    }
+    if (bucket == 'file') {
+      fileCount += 1;
+    }
+  }
+
+  final parts = <String>[];
+  if (fileCount > 0) {
+    parts.add('$fileCount ${fileCount == 1 ? 'file' : 'files'}');
+  }
+  if (searchCount > 0) {
+    parts.add('$searchCount ${searchCount == 1 ? 'search' : 'searches'}');
+  }
+
+  if (parts.isEmpty) {
+    return null;
+  }
+  return parts.join(', ');
 }
 
 class _WorkedForDivider extends StatelessWidget {
@@ -576,9 +912,12 @@ class _AssistantMessageCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final visibleText = (cell.markdownText ?? '').trim().isEmpty
-        ? (cell.isStreaming ? '_thinking..._' : '_no content_')
-        : cell.markdownText!;
+    final rawText = cell.markdownText ?? '';
+    if (rawText.trim().isEmpty && cell.isStreaming) {
+      return const SizedBox.shrink();
+    }
+
+    final visibleText = rawText.trim().isEmpty ? '_no content_' : rawText;
 
     return Padding(
       padding: const EdgeInsets.only(
@@ -588,6 +927,40 @@ class _AssistantMessageCell extends StatelessWidget {
       child: _AssistantBubbleMarkdown(
         markdownText: visibleText,
         isStreaming: cell.isStreaming,
+      ),
+    );
+  }
+}
+
+class _ProgressTextRow extends StatelessWidget {
+  const _ProgressTextRow({required this.cell});
+
+  final TimelineCell cell;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = (cell.markdownText ?? '').trim();
+    if (text.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 760),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AleraTokens.space6,
+            vertical: AleraTokens.space2,
+          ),
+          child: SelectableText(
+            text,
+            textAlign: TextAlign.left,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: AleraTokens.foregroundMuted,
+            ),
+          ),
+        ),
       ),
     );
   }

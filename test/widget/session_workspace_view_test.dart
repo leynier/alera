@@ -1,4 +1,6 @@
 import 'package:alera/src/features/session/application/session_state.dart';
+import 'package:alera/src/features/session/application/session_runtime_event.dart';
+import 'package:alera/src/features/session/application/session_timeline_reducer.dart';
 import 'package:alera/src/features/session/domain/chat_timeline.dart';
 import 'package:alera/src/features/session/presentation/session_workspace_view.dart';
 import 'package:alera/src/shared/models/contracts.dart';
@@ -35,6 +37,13 @@ TimelineCell _cell({
     metadata: metadata,
     isStreaming: isStreaming,
     isCollapsed: isCollapsed,
+  );
+}
+
+SessionNotificationEvent _event(String method, Map<String, dynamic> params) {
+  return SessionNotificationEvent(
+    method: method,
+    payload: <String, dynamic>{'params': params},
   );
 }
 
@@ -107,6 +116,15 @@ void main() {
             isCollapsed: true,
           ),
           _cell(
+            id: 'tool1',
+            kind: TimelineCellKind.toolCall,
+            status: TimelineCellStatus.completed,
+            turnId: 't1',
+            title: 'Ran git status',
+            detailsText: 'On branch main',
+            isCollapsed: true,
+          ),
+          _cell(
             id: 'a1',
             kind: TimelineCellKind.assistantMessage,
             status: TimelineCellStatus.completed,
@@ -130,6 +148,7 @@ void main() {
       expect(find.textContaining('Worked for'), findsOneWidget);
       expect(find.text('Final message'), findsNothing);
       expect(find.text('Thinking'), findsNothing);
+      expect(find.text('Ran git status'), findsNothing);
       expect(find.text('Reasoning detail text'), findsNothing);
     },
   );
@@ -168,6 +187,51 @@ void main() {
     expect(find.text('Final message'), findsNothing);
     expect(find.text('done'), findsOneWidget);
     expect(find.textContaining('Worked for'), findsNothing);
+  });
+
+  testWidgets('single secondary row hides worked and final message', (
+    tester,
+  ) async {
+    final state = SessionState(
+      timelineCells: <TimelineCell>[
+        _cell(
+          id: 'u1',
+          kind: TimelineCellKind.userMessage,
+          status: TimelineCellStatus.completed,
+          turnId: 't1',
+          markdownText: 'hello',
+        ),
+        _cell(
+          id: 'reason1',
+          kind: TimelineCellKind.reasoning,
+          status: TimelineCellStatus.completed,
+          turnId: 't1',
+          title: 'Thinking',
+          markdownText: 'Reasoning detail text',
+          isCollapsed: true,
+        ),
+        _cell(
+          id: 'a1',
+          kind: TimelineCellKind.assistantMessage,
+          status: TimelineCellStatus.completed,
+          turnId: 't1',
+          markdownText: 'done',
+        ),
+        _cell(
+          id: 'sep1',
+          kind: TimelineCellKind.turnSeparator,
+          status: TimelineCellStatus.completed,
+          turnId: 't1',
+          metadata: const <String, dynamic>{'durationMs': 1200},
+        ),
+      ],
+    );
+
+    await _pumpWorkspace(tester, state: state);
+
+    expect(find.textContaining('Worked for'), findsNothing);
+    expect(find.text('Final message'), findsNothing);
+    expect(find.text('Thinking'), findsOneWidget);
   });
 
   testWidgets(
@@ -242,6 +306,349 @@ void main() {
     },
   );
 
+  testWidgets('progressText renders as plain inline row inside worked', (
+    tester,
+  ) async {
+    final state = SessionState(
+      timelineCells: <TimelineCell>[
+        _cell(
+          id: 'u1',
+          kind: TimelineCellKind.userMessage,
+          status: TimelineCellStatus.completed,
+          turnId: 't-progress',
+          markdownText: 'hello',
+        ),
+        _cell(
+          id: 'progress1',
+          kind: TimelineCellKind.progressText,
+          status: TimelineCellStatus.completed,
+          turnId: 't-progress',
+          markdownText: 'Interim assistant text',
+          metadata: const <String, dynamic>{
+            'progressPhaseIndex': 0,
+            'isInterim': true,
+          },
+        ),
+        _cell(
+          id: 'tool1',
+          kind: TimelineCellKind.toolCall,
+          status: TimelineCellStatus.completed,
+          turnId: 't-progress',
+          title: 'Ran git status',
+          detailsText: 'On branch main',
+          isCollapsed: true,
+        ),
+        _cell(
+          id: 'a1',
+          kind: TimelineCellKind.assistantMessage,
+          status: TimelineCellStatus.completed,
+          turnId: 't-progress',
+          markdownText: 'final answer',
+        ),
+        _cell(
+          id: 'sep1',
+          kind: TimelineCellKind.turnSeparator,
+          status: TimelineCellStatus.completed,
+          turnId: 't-progress',
+          metadata: const <String, dynamic>{'durationMs': 1200},
+        ),
+      ],
+    );
+
+    await _pumpWorkspace(tester, state: state);
+
+    expect(find.textContaining('Worked for'), findsOneWidget);
+    expect(find.text('Interim assistant text'), findsNothing);
+
+    await tester.tap(find.textContaining('Worked for'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Interim assistant text'), findsOneWidget);
+    expect(find.text('Final message'), findsOneWidget);
+
+    final interimDx = tester.getTopLeft(find.text('Interim assistant text')).dx;
+    final toolDx = tester.getTopLeft(find.text('Ran git status')).dx;
+    expect((interimDx - toolDx).abs(), lessThan(28));
+  });
+
+  testWidgets('single progressText secondary hides worked and final message', (
+    tester,
+  ) async {
+    final state = SessionState(
+      timelineCells: <TimelineCell>[
+        _cell(
+          id: 'u1',
+          kind: TimelineCellKind.userMessage,
+          status: TimelineCellStatus.completed,
+          turnId: 't-progress-single',
+          markdownText: 'hello',
+        ),
+        _cell(
+          id: 'progress1',
+          kind: TimelineCellKind.progressText,
+          status: TimelineCellStatus.completed,
+          turnId: 't-progress-single',
+          markdownText: 'Interim only',
+          metadata: const <String, dynamic>{
+            'progressPhaseIndex': 0,
+            'isInterim': true,
+          },
+        ),
+        _cell(
+          id: 'a1',
+          kind: TimelineCellKind.assistantMessage,
+          status: TimelineCellStatus.completed,
+          turnId: 't-progress-single',
+          markdownText: 'final answer',
+        ),
+        _cell(
+          id: 'sep1',
+          kind: TimelineCellKind.turnSeparator,
+          status: TimelineCellStatus.completed,
+          turnId: 't-progress-single',
+          metadata: const <String, dynamic>{'durationMs': 1200},
+        ),
+      ],
+    );
+
+    await _pumpWorkspace(tester, state: state);
+
+    expect(find.textContaining('Worked for'), findsNothing);
+    expect(find.text('Final message'), findsNothing);
+    expect(find.text('Interim only'), findsOneWidget);
+  });
+
+  testWidgets('empty progressText does not force worked section visibility', (
+    tester,
+  ) async {
+    final state = SessionState(
+      timelineCells: <TimelineCell>[
+        _cell(
+          id: 'u1',
+          kind: TimelineCellKind.userMessage,
+          status: TimelineCellStatus.completed,
+          turnId: 't-empty-progress',
+          markdownText: 'hello',
+        ),
+        _cell(
+          id: 'progress-empty',
+          kind: TimelineCellKind.progressText,
+          status: TimelineCellStatus.completed,
+          turnId: 't-empty-progress',
+          markdownText: '   ',
+          metadata: const <String, dynamic>{
+            'progressPhaseIndex': 0,
+            'isInterim': true,
+          },
+        ),
+        _cell(
+          id: 'tool1',
+          kind: TimelineCellKind.toolCall,
+          status: TimelineCellStatus.completed,
+          turnId: 't-empty-progress',
+          title: 'Ran git status',
+          detailsText: 'On branch main',
+          isCollapsed: true,
+        ),
+        _cell(
+          id: 'a1',
+          kind: TimelineCellKind.assistantMessage,
+          status: TimelineCellStatus.completed,
+          turnId: 't-empty-progress',
+          markdownText: 'final answer',
+        ),
+        _cell(
+          id: 'sep1',
+          kind: TimelineCellKind.turnSeparator,
+          status: TimelineCellStatus.completed,
+          turnId: 't-empty-progress',
+          metadata: const <String, dynamic>{'durationMs': 1200},
+        ),
+      ],
+    );
+
+    await _pumpWorkspace(tester, state: state);
+
+    expect(find.textContaining('Worked for'), findsNothing);
+    expect(find.text('Final message'), findsNothing);
+    expect(find.text('Ran git status'), findsOneWidget);
+  });
+
+  testWidgets('deduped overlap scenario shows non-duplicated final text', (
+    tester,
+  ) async {
+    var state = const SessionState();
+    state = reduceNotification(
+      state,
+      _event('turn/started', <String, dynamic>{
+        'turn': <String, dynamic>{'id': 'turn-widget-dedupe', 'threadId': 't'},
+      }),
+    );
+    state = reduceNotification(
+      state,
+      _event('item/started', <String, dynamic>{
+        'turnId': 'turn-widget-dedupe',
+        'item': <String, dynamic>{
+          'id': 'cmd-widget-dedupe',
+          'type': 'commandExecution',
+          'command': 'ls',
+          'status': 'inProgress',
+        },
+      }),
+    );
+    state = reduceNotification(
+      state,
+      _event('item/agentMessage/delta', <String, dynamic>{
+        'turnId': 'turn-widget-dedupe',
+        'itemId': 'msg-widget-dedupe',
+        'delta': 'trabajando y validando',
+      }),
+    );
+    state = reduceNotification(
+      state,
+      _event('item/completed', <String, dynamic>{
+        'turnId': 'turn-widget-dedupe',
+        'item': <String, dynamic>{
+          'id': 'msg-widget-dedupe',
+          'type': 'agentMessage',
+          'status': 'completed',
+          'text': 'y validando cambios finales',
+        },
+      }),
+    );
+    state = reduceNotification(
+      state,
+      _event('turn/completed', <String, dynamic>{
+        'turn': <String, dynamic>{
+          'id': 'turn-widget-dedupe',
+          'threadId': 't',
+          'status': 'completed',
+          'durationMs': 1000,
+        },
+      }),
+    );
+
+    await _pumpWorkspace(tester, state: state);
+    await tester.tap(find.textContaining('Worked for'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('trabajando y validando'), findsOneWidget);
+    expect(find.textContaining('cambios finales'), findsOneWidget);
+    expect(find.textContaining('y validando cambios finales'), findsNothing);
+  });
+
+  testWidgets('exploratory tool calls are grouped as explored row', (
+    tester,
+  ) async {
+    final state = SessionState(
+      timelineCells: <TimelineCell>[
+        _cell(
+          id: 'u1',
+          kind: TimelineCellKind.userMessage,
+          status: TimelineCellStatus.completed,
+          turnId: 'turn-explore',
+          markdownText: 'inspect files',
+        ),
+        _cell(
+          id: 'tool-read',
+          kind: TimelineCellKind.toolCall,
+          status: TimelineCellStatus.completed,
+          turnId: 'turn-explore',
+          title: 'Read',
+          subtitle: 'cat README.md',
+          detailsText: 'README contents',
+          metadata: const <String, dynamic>{
+            'isExploratory': true,
+            'exploreBucket': 'file',
+          },
+          isCollapsed: true,
+        ),
+        _cell(
+          id: 'tool-search',
+          kind: TimelineCellKind.toolCall,
+          status: TimelineCellStatus.completed,
+          turnId: 'turn-explore',
+          title: 'Search',
+          subtitle: 'rg TODO',
+          detailsText: 'TODO line',
+          metadata: const <String, dynamic>{
+            'isExploratory': true,
+            'exploreBucket': 'search',
+          },
+          isCollapsed: true,
+        ),
+        _cell(
+          id: 'assistant',
+          kind: TimelineCellKind.assistantMessage,
+          status: TimelineCellStatus.completed,
+          turnId: 'turn-explore',
+          markdownText: 'done',
+        ),
+        _cell(
+          id: 'sep',
+          kind: TimelineCellKind.turnSeparator,
+          status: TimelineCellStatus.completed,
+          turnId: 'turn-explore',
+          metadata: const <String, dynamic>{'durationMs': 10000},
+        ),
+      ],
+    );
+
+    await _pumpWorkspace(tester, state: state);
+
+    expect(find.textContaining('Worked for'), findsNothing);
+    expect(find.text('Final message'), findsNothing);
+    expect(find.text('Explored 1 file, 1 search'), findsOneWidget);
+
+    await tester.tap(find.text('Explored 1 file, 1 search'));
+    await tester.pumpAndSettle();
+    expect(find.text('Read · cat README.md'), findsOneWidget);
+    expect(find.text('Search · rg TODO'), findsOneWidget);
+  });
+
+  testWidgets('streaming exploratory calls show exploring row expanded', (
+    tester,
+  ) async {
+    final state = SessionState(
+      timelineCells: <TimelineCell>[
+        _cell(
+          id: 'tool-read-live',
+          kind: TimelineCellKind.toolCall,
+          status: TimelineCellStatus.inProgress,
+          turnId: 'turn-live',
+          title: 'Read',
+          subtitle: 'cat README.md',
+          detailsText: 'line 1',
+          metadata: const <String, dynamic>{
+            'isExploratory': true,
+            'exploreBucket': 'file',
+          },
+          isCollapsed: false,
+        ),
+        _cell(
+          id: 'tool-search-live',
+          kind: TimelineCellKind.toolCall,
+          status: TimelineCellStatus.inProgress,
+          turnId: 'turn-live',
+          title: 'Search',
+          subtitle: 'rg TODO',
+          detailsText: 'match',
+          metadata: const <String, dynamic>{
+            'isExploratory': true,
+            'exploreBucket': 'search',
+          },
+          isCollapsed: false,
+        ),
+      ],
+    );
+
+    await _pumpWorkspace(tester, state: state);
+
+    expect(find.text('Exploring'), findsOneWidget);
+    expect(find.text('Read · cat README.md'), findsOneWidget);
+    expect(find.text('Search · rg TODO'), findsOneWidget);
+  });
+
   testWidgets('raw log footer stays collapsable', (tester) async {
     final state = SessionState(
       activityLog: const <String>['event one', 'event two'],
@@ -265,6 +672,15 @@ void main() {
           turnId: 'turn-ms',
           title: 'Thinking',
           markdownText: 'detail',
+          isCollapsed: true,
+        ),
+        _cell(
+          id: 'tool-ms',
+          kind: TimelineCellKind.toolCall,
+          status: TimelineCellStatus.completed,
+          turnId: 'turn-ms',
+          title: 'Ran pwd',
+          detailsText: '/repo',
           isCollapsed: true,
         ),
         _cell(
@@ -298,6 +714,15 @@ void main() {
           turnId: 'turn-day',
           title: 'Thinking',
           markdownText: 'detail',
+          isCollapsed: true,
+        ),
+        _cell(
+          id: 'tool-day',
+          kind: TimelineCellKind.toolCall,
+          status: TimelineCellStatus.completed,
+          turnId: 'turn-day',
+          title: 'Ran pwd',
+          detailsText: '/repo',
           isCollapsed: true,
         ),
         _cell(

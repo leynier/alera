@@ -59,21 +59,21 @@ SessionState reduceNotification(
         next,
         params,
         timestamp: timestamp,
-        fallbackTitle: 'file change',
+        fallbackTitle: 'Edited files',
       );
     case 'item/mcpToolCall/outputDelta':
       return _onToolOutputDelta(
         next,
         params,
         timestamp: timestamp,
-        fallbackTitle: 'mcp tool call',
+        fallbackTitle: 'MCP tool call',
       );
     case 'item/webSearch/outputDelta':
       return _onToolOutputDelta(
         next,
         params,
         timestamp: timestamp,
-        fallbackTitle: 'web search',
+        fallbackTitle: 'Web search',
       );
     case 'item/plan/delta':
       return _onToolOutputDelta(
@@ -153,6 +153,15 @@ SessionState _onTurnCompleted(
       continue;
     }
 
+    if (cell.kind == TimelineCellKind.progressText &&
+        cell.status == TimelineCellStatus.inProgress) {
+      cells[i] = cell.copyWith(
+        status: TimelineCellStatus.completed,
+        updatedAt: timestamp,
+      );
+      continue;
+    }
+
     if (_isSecondaryKind(cell.kind)) {
       cells[i] = cell.copyWith(isCollapsed: true, updatedAt: timestamp);
     }
@@ -218,6 +227,21 @@ SessionState _onAssistantDelta(
 
   final cells = <TimelineCell>[...state.timelineCells];
   final index = _buildCellIndex(cells);
+  if (index.hasSecondaryByTurn[turnId] == true) {
+    final result = _upsertProgressTextDelta(
+      cells,
+      index: index,
+      turnId: turnId,
+      delta: delta,
+      timestamp: timestamp,
+    );
+    return state.copyWith(
+      timelineCells: result.cells,
+      activeTurnId: turnId,
+      clearActiveStreamingAssistantCellId: true,
+    );
+  }
+
   var assistantCellId = index.assistantCellIdByTurn[turnId];
   assistantCellId ??= itemId != null ? index.cellIdByItemId[itemId] : null;
   assistantCellId ??= itemId ?? 'assistant-$turnId';
@@ -271,7 +295,16 @@ SessionState _onReasoningDelta(
   }
 
   final cells = <TimelineCell>[...state.timelineCells];
-  final index = _buildCellIndex(cells);
+  var index = _buildCellIndex(cells);
+  final phase = _startSecondaryPhase(
+    cells,
+    index: index,
+    turnId: turnId,
+    timestamp: timestamp,
+    phaseClosedByItemId: itemId,
+  );
+  index = phase.index;
+
   final cellId = index.cellIdByItemId[itemId] ?? itemId;
   final existingIndex = _findCellById(cells, cellId);
 
@@ -325,7 +358,16 @@ SessionState _onToolOutputDelta(
   }
 
   final cells = <TimelineCell>[...state.timelineCells];
-  final index = _buildCellIndex(cells);
+  var index = _buildCellIndex(cells);
+  final phase = _startSecondaryPhase(
+    cells,
+    index: index,
+    turnId: turnId,
+    timestamp: timestamp,
+    phaseClosedByItemId: itemId,
+  );
+  index = phase.index;
+
   final cellId = index.cellIdByItemId[itemId] ?? itemId;
   final existingIndex = _findCellById(cells, cellId);
 
@@ -365,7 +407,11 @@ SessionState _onToolOutputDelta(
     timestamp: timestamp,
   );
 
-  return state.copyWith(timelineCells: cells, activeTurnId: turnId);
+  return state.copyWith(
+    timelineCells: cells,
+    activeTurnId: turnId,
+    clearActiveStreamingAssistantCellId: phase.clearActiveStreamingAssistant,
+  );
 }
 
 SessionState _onItemStarted(
@@ -391,20 +437,39 @@ SessionState _onItemStarted(
   }
 
   final cells = <TimelineCell>[...state.timelineCells];
-  final index = _buildCellIndex(cells);
+  var index = _buildCellIndex(cells);
+  final phase = _startSecondaryPhase(
+    cells,
+    index: index,
+    turnId: turnId,
+    timestamp: timestamp,
+    phaseClosedByItemId: itemId,
+  );
+  index = phase.index;
+
   final cellId = index.cellIdByItemId[itemId] ?? itemId;
   final existingIndex = _findCellById(cells, cellId);
   final kind = itemType == 'reasoning'
       ? TimelineCellKind.reasoning
       : TimelineCellKind.toolCall;
+  final existingMetadata = existingIndex == -1
+      ? const <String, dynamic>{}
+      : cells[existingIndex].metadata;
+  final itemMetadata = _normalizeItemMetadata(
+    itemType,
+    item,
+    previous: existingMetadata,
+  );
 
-  final title = _itemTitle(itemType, item);
-  final subtitle = _itemSubtitle(itemType, item);
+  final title = _itemTitle(itemType, itemMetadata);
+  final subtitle = _itemSubtitle(itemType, itemMetadata);
   final markdownText = kind == TimelineCellKind.reasoning
-      ? (_reasoningSummary(item).isEmpty ? null : _reasoningSummary(item))
+      ? (_reasoningSummary(itemMetadata).isEmpty
+            ? null
+            : _reasoningSummary(itemMetadata))
       : null;
   final detailsText = kind == TimelineCellKind.toolCall
-      ? _itemDetails(itemType, item)
+      ? _itemDetails(itemType, itemMetadata)
       : null;
 
   final candidate = TimelineCell(
@@ -422,7 +487,7 @@ SessionState _onItemStarted(
     subtitle: subtitle,
     markdownText: markdownText,
     detailsText: detailsText,
-    metadata: item,
+    metadata: itemMetadata,
   );
 
   if (existingIndex == -1) {
@@ -451,7 +516,11 @@ SessionState _onItemStarted(
     timestamp: timestamp,
   );
 
-  return state.copyWith(timelineCells: cells, activeTurnId: turnId);
+  return state.copyWith(
+    timelineCells: cells,
+    activeTurnId: turnId,
+    clearActiveStreamingAssistantCellId: phase.clearActiveStreamingAssistant,
+  );
 }
 
 SessionState _onItemCompleted(
@@ -493,19 +562,25 @@ SessionState _onItemCompleted(
   final kind = itemType == 'reasoning'
       ? TimelineCellKind.reasoning
       : TimelineCellKind.toolCall;
+  final existingMetadata = existingIndex == -1
+      ? const <String, dynamic>{}
+      : cells[existingIndex].metadata;
+  final itemMetadata = _normalizeItemMetadata(
+    itemType,
+    item,
+    previous: existingMetadata,
+  );
   final status =
       _statusFromString(_asString(item['status'])) ??
       TimelineCellStatus.completed;
 
-  final title = _itemTitle(itemType, item);
-  final subtitle = _itemSubtitle(itemType, item);
-  final reasoningText = _reasoningSummary(item);
+  final title = _itemTitle(itemType, itemMetadata);
+  final subtitle = _itemSubtitle(itemType, itemMetadata);
+  final reasoningText = _reasoningSummary(itemMetadata);
   final markdownText = kind == TimelineCellKind.reasoning
       ? (reasoningText.isEmpty ? null : reasoningText)
       : null;
-  final detailsText = kind == TimelineCellKind.toolCall
-      ? _itemDetails(itemType, item)
-      : _itemDetails(itemType, item);
+  final detailsText = _itemDetails(itemType, itemMetadata);
 
   if (existingIndex == -1) {
     cells.add(
@@ -522,7 +597,7 @@ SessionState _onItemCompleted(
         subtitle: subtitle,
         markdownText: markdownText,
         detailsText: detailsText,
-        metadata: item,
+        metadata: itemMetadata,
       ),
     );
   } else {
@@ -541,7 +616,7 @@ SessionState _onItemCompleted(
       subtitle: subtitle,
       markdownText: mergedReasoning,
       detailsText: mergedDetails,
-      metadata: item,
+      metadata: itemMetadata,
       updatedAt: timestamp,
     );
   }
@@ -556,13 +631,44 @@ SessionState _onAssistantItemCompleted(
   required Map<String, dynamic> item,
   required DateTime timestamp,
 }) {
-  final finalText = _assistantFinalText(item);
+  var finalText = _assistantFinalText(item);
   final cells = <TimelineCell>[...state.timelineCells];
   final index = _buildCellIndex(cells);
+  final interimText = _collectInterimTextForTurn(cells, turnId: turnId);
+  final dedupe = _computeFinalDedupe(
+    interimText: interimText,
+    finalText: finalText,
+  );
+  var dedupeCharsRemoved = 0;
+
+  if (dedupe.interimTrimChars > 0) {
+    dedupeCharsRemoved = _trimInterimTailForTurn(
+      cells,
+      turnId: turnId,
+      charsToTrim: dedupe.interimTrimChars,
+      timestamp: timestamp,
+    );
+  }
+  if (dedupe.finalTrimPrefixChars > 0) {
+    final trimmedFinal = _trimFinalPrefix(
+      finalText,
+      dedupe.finalTrimPrefixChars,
+    );
+    if (trimmedFinal.isNotEmpty) {
+      finalText = trimmedFinal;
+      dedupeCharsRemoved += dedupe.finalTrimPrefixChars;
+    }
+  }
 
   var assistantCellId = index.assistantCellIdByTurn[turnId];
   assistantCellId ??= index.cellIdByItemId[itemId];
   assistantCellId ??= itemId;
+
+  final assistantMetadata = <String, dynamic>{
+    ...item,
+    if (dedupe.mode != null) 'dedupeMode': dedupe.mode,
+    if (dedupe.mode != null) 'dedupeCharsRemoved': dedupeCharsRemoved,
+  };
 
   final existingIndex = _findCellById(cells, assistantCellId);
   if (existingIndex == -1) {
@@ -579,7 +685,7 @@ SessionState _onAssistantItemCompleted(
         updatedAt: timestamp,
         isStreaming: false,
         markdownText: finalText,
-        metadata: item,
+        metadata: assistantMetadata,
       ),
     );
   } else {
@@ -590,7 +696,7 @@ SessionState _onAssistantItemCompleted(
       status: _statusFromString(_asString(item['status'])) ?? existing.status,
       isStreaming: false,
       markdownText: _mergeFinalText(existing.markdownText ?? '', finalText),
-      metadata: item,
+      metadata: assistantMetadata,
       updatedAt: timestamp,
     );
   }
@@ -608,17 +714,26 @@ class _CellIndex {
     required this.assistantCellIdByTurn,
     required this.cellIdByItemId,
     required this.pendingUserCellIdQueue,
+    required this.hasSecondaryByTurn,
+    required this.activeProgressTextCellIdByTurn,
+    required this.maxProgressPhaseByTurn,
   });
 
   final Map<String, String> assistantCellIdByTurn;
   final Map<String, String> cellIdByItemId;
   final List<String> pendingUserCellIdQueue;
+  final Map<String, bool> hasSecondaryByTurn;
+  final Map<String, String> activeProgressTextCellIdByTurn;
+  final Map<String, int> maxProgressPhaseByTurn;
 }
 
 _CellIndex _buildCellIndex(List<TimelineCell> cells) {
   final assistantCellIdByTurn = <String, String>{};
   final cellIdByItemId = <String, String>{};
   final pendingUserCellIdQueue = <String>[];
+  final hasSecondaryByTurn = <String, bool>{};
+  final activeProgressTextCellIdByTurn = <String, String>{};
+  final maxProgressPhaseByTurn = <String, int>{};
 
   for (final cell in cells) {
     if (cell.turnId != null && cell.kind == TimelineCellKind.assistantMessage) {
@@ -630,13 +745,338 @@ _CellIndex _buildCellIndex(List<TimelineCell> cells) {
     if (cell.kind == TimelineCellKind.userMessage && cell.turnId == null) {
       pendingUserCellIdQueue.add(cell.id);
     }
+    final turnId = cell.turnId;
+    if (turnId != null && _isSecondaryKind(cell.kind)) {
+      hasSecondaryByTurn[turnId] = true;
+    }
+    if (turnId != null && cell.kind == TimelineCellKind.progressText) {
+      if (cell.status == TimelineCellStatus.inProgress) {
+        activeProgressTextCellIdByTurn[turnId] = cell.id;
+      }
+      final phase =
+          _asInt(cell.metadata['progressPhaseIndex']) ??
+          _asInt(cell.metadata['progress_phase_index']) ??
+          0;
+      final current = maxProgressPhaseByTurn[turnId];
+      if (current == null || phase > current) {
+        maxProgressPhaseByTurn[turnId] = phase;
+      }
+    }
   }
 
   return _CellIndex(
     assistantCellIdByTurn: assistantCellIdByTurn,
     cellIdByItemId: cellIdByItemId,
     pendingUserCellIdQueue: pendingUserCellIdQueue,
+    hasSecondaryByTurn: hasSecondaryByTurn,
+    activeProgressTextCellIdByTurn: activeProgressTextCellIdByTurn,
+    maxProgressPhaseByTurn: maxProgressPhaseByTurn,
   );
+}
+
+class _ProgressDeltaResult {
+  const _ProgressDeltaResult({required this.cells, this.cellId});
+
+  final List<TimelineCell> cells;
+  final String? cellId;
+}
+
+class _SecondaryPhaseResult {
+  const _SecondaryPhaseResult({
+    required this.index,
+    required this.clearActiveStreamingAssistant,
+  });
+
+  final _CellIndex index;
+  final bool clearActiveStreamingAssistant;
+}
+
+_SecondaryPhaseResult _startSecondaryPhase(
+  List<TimelineCell> cells, {
+  required _CellIndex index,
+  required String turnId,
+  required DateTime timestamp,
+  String? phaseClosedByItemId,
+}) {
+  var clearedAssistantStreaming = false;
+  final activeProgressId = index.activeProgressTextCellIdByTurn[turnId];
+  if (activeProgressId != null) {
+    final activeProgressIndex = _findCellById(cells, activeProgressId);
+    if (activeProgressIndex != -1) {
+      final activeProgress = cells[activeProgressIndex];
+      if (activeProgress.status == TimelineCellStatus.inProgress) {
+        final metadata = <String, dynamic>{...activeProgress.metadata};
+        if (phaseClosedByItemId != null && phaseClosedByItemId.isNotEmpty) {
+          metadata['phaseClosedAtTurnItemId'] = phaseClosedByItemId;
+        }
+        cells[activeProgressIndex] = activeProgress.copyWith(
+          status: TimelineCellStatus.completed,
+          metadata: metadata,
+          updatedAt: timestamp,
+        );
+      }
+    }
+  }
+
+  final assistantCellId = index.assistantCellIdByTurn[turnId];
+  if (assistantCellId != null) {
+    final assistantIndex = _findCellById(cells, assistantCellId);
+    if (assistantIndex != -1) {
+      final assistant = cells[assistantIndex];
+      final assistantText = assistant.markdownText ?? '';
+      if (assistant.isStreaming && assistantText.trim().isNotEmpty) {
+        final phase = (index.maxProgressPhaseByTurn[turnId] ?? -1) + 1;
+        final progressCellId =
+            'progress-$turnId-${timestamp.microsecondsSinceEpoch}';
+        cells.add(
+          TimelineCell(
+            id: progressCellId,
+            turnId: turnId,
+            kind: TimelineCellKind.progressText,
+            status: TimelineCellStatus.completed,
+            createdAt: timestamp,
+            updatedAt: timestamp,
+            markdownText: assistantText,
+            metadata: <String, dynamic>{
+              'progressPhaseIndex': phase,
+              'isInterim': true,
+              'source': 'assistant_delta',
+            },
+          ),
+        );
+        cells[assistantIndex] = assistant.copyWith(
+          clearMarkdownText: true,
+          updatedAt: timestamp,
+        );
+        clearedAssistantStreaming = true;
+      }
+    }
+  }
+
+  return _SecondaryPhaseResult(
+    index: _buildCellIndex(cells),
+    clearActiveStreamingAssistant: clearedAssistantStreaming,
+  );
+}
+
+_ProgressDeltaResult _upsertProgressTextDelta(
+  List<TimelineCell> cells, {
+  required _CellIndex index,
+  required String turnId,
+  required String delta,
+  required DateTime timestamp,
+}) {
+  final sanitizedDelta = _sanitizeInterimDeltaForDisplay(delta);
+  if (sanitizedDelta == null || sanitizedDelta.isEmpty) {
+    return _ProgressDeltaResult(
+      cells: cells,
+      cellId: index.activeProgressTextCellIdByTurn[turnId],
+    );
+  }
+
+  final activeProgressId = index.activeProgressTextCellIdByTurn[turnId];
+  if (activeProgressId != null) {
+    final activeProgressIndex = _findCellById(cells, activeProgressId);
+    if (activeProgressIndex != -1) {
+      final current = cells[activeProgressIndex];
+      cells[activeProgressIndex] = current.copyWith(
+        status: TimelineCellStatus.inProgress,
+        markdownText: _appendInterimChunk(current.markdownText, sanitizedDelta),
+        updatedAt: timestamp,
+      );
+      return _ProgressDeltaResult(cells: cells, cellId: activeProgressId);
+    }
+  }
+
+  final phase = (index.maxProgressPhaseByTurn[turnId] ?? -1) + 1;
+  final cellId = 'progress-$turnId-${timestamp.microsecondsSinceEpoch}';
+  cells.add(
+    TimelineCell(
+      id: cellId,
+      turnId: turnId,
+      kind: TimelineCellKind.progressText,
+      status: TimelineCellStatus.inProgress,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      markdownText: sanitizedDelta,
+      metadata: <String, dynamic>{
+        'progressPhaseIndex': phase,
+        'isInterim': true,
+        'source': 'assistant_delta',
+      },
+    ),
+  );
+  return _ProgressDeltaResult(cells: cells, cellId: cellId);
+}
+
+String _appendInterimChunk(String? current, String nextChunk) {
+  if (current == null || current.isEmpty) {
+    return nextChunk;
+  }
+  return '$current$nextChunk';
+}
+
+String? _sanitizeInterimDeltaForDisplay(String delta) {
+  final normalized = delta.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+  final trimmed = normalized.trim();
+  if (trimmed.isEmpty) {
+    return null;
+  }
+  if (!_isHumanFacingInterimLine(trimmed)) {
+    return null;
+  }
+  return normalized;
+}
+
+bool _isHumanFacingInterimLine(String line) {
+  final lower = line.toLowerCase();
+  if (lower.contains('finalizing response')) {
+    return false;
+  }
+  if (lower.contains('background terminal finished')) {
+    return false;
+  }
+  if (lower.contains('terminal finished with')) {
+    return false;
+  }
+  if (RegExp(r'^(thread|turn|item)[/:]').hasMatch(lower)) {
+    return false;
+  }
+  if (line.startsWith('{') && line.contains('"method"')) {
+    return false;
+  }
+  return true;
+}
+
+class _FinalDedupeDecision {
+  const _FinalDedupeDecision({
+    required this.interimTrimChars,
+    required this.finalTrimPrefixChars,
+    this.mode,
+  });
+
+  final int interimTrimChars;
+  final int finalTrimPrefixChars;
+  final String? mode;
+}
+
+_FinalDedupeDecision _computeFinalDedupe({
+  required String interimText,
+  required String finalText,
+}) {
+  if (interimText.isEmpty || finalText.isEmpty) {
+    return const _FinalDedupeDecision(
+      interimTrimChars: 0,
+      finalTrimPrefixChars: 0,
+    );
+  }
+
+  if (interimText == finalText) {
+    return _FinalDedupeDecision(
+      interimTrimChars: interimText.length,
+      finalTrimPrefixChars: 0,
+      mode: 'exact_match_trim_interim',
+    );
+  }
+
+  if (finalText.startsWith(interimText)) {
+    return _FinalDedupeDecision(
+      interimTrimChars: interimText.length,
+      finalTrimPrefixChars: 0,
+      mode: 'final_starts_with_interim_trim_interim',
+    );
+  }
+
+  final overlapChars = _largestSuffixPrefixOverlap(interimText, finalText);
+  final overlapThreshold = finalText.length < 24
+      ? 8
+      : (finalText.length * 0.3).round();
+  if (overlapChars >= overlapThreshold) {
+    return _FinalDedupeDecision(
+      interimTrimChars: 0,
+      finalTrimPrefixChars: overlapChars,
+      mode: 'interim_ends_with_final_prefix_trim_final_prefix',
+    );
+  }
+
+  return const _FinalDedupeDecision(
+    interimTrimChars: 0,
+    finalTrimPrefixChars: 0,
+  );
+}
+
+int _largestSuffixPrefixOverlap(String interimText, String finalText) {
+  final max = interimText.length < finalText.length
+      ? interimText.length
+      : finalText.length;
+  for (var size = max; size > 0; size--) {
+    if (interimText.endsWith(finalText.substring(0, size))) {
+      return size;
+    }
+  }
+  return 0;
+}
+
+String _collectInterimTextForTurn(
+  List<TimelineCell> cells, {
+  required String turnId,
+}) {
+  final buffer = StringBuffer();
+  for (final cell in cells) {
+    if (cell.turnId != turnId || cell.kind != TimelineCellKind.progressText) {
+      continue;
+    }
+    final text = (cell.markdownText ?? '').trim();
+    if (text.isEmpty) {
+      continue;
+    }
+    if (buffer.isNotEmpty) {
+      buffer.write('\n');
+    }
+    buffer.write(text);
+  }
+  return buffer.toString();
+}
+
+int _trimInterimTailForTurn(
+  List<TimelineCell> cells, {
+  required String turnId,
+  required int charsToTrim,
+  required DateTime timestamp,
+}) {
+  if (charsToTrim <= 0) {
+    return 0;
+  }
+
+  var remaining = charsToTrim;
+  var removed = 0;
+  for (var i = cells.length - 1; i >= 0; i--) {
+    if (remaining <= 0) {
+      break;
+    }
+    final cell = cells[i];
+    if (cell.turnId != turnId || cell.kind != TimelineCellKind.progressText) {
+      continue;
+    }
+    final current = cell.markdownText ?? '';
+    if (current.isEmpty) {
+      continue;
+    }
+
+    final cut = remaining < current.length ? remaining : current.length;
+    final nextText = current.substring(0, current.length - cut).trimRight();
+    cells[i] = cell.copyWith(markdownText: nextText, updatedAt: timestamp);
+    remaining -= cut;
+    removed += cut;
+  }
+  return removed;
+}
+
+String _trimFinalPrefix(String finalText, int trimChars) {
+  if (trimChars <= 0 || trimChars >= finalText.length) {
+    return finalText;
+  }
+  return finalText.substring(trimChars).trimLeft();
 }
 
 int _findCellById(List<TimelineCell> cells, String id) {
@@ -682,7 +1122,9 @@ void _collapseOtherSecondaryCellsForTurn(
     if (cell.turnId != turnId || cell.id == exceptCellId) {
       continue;
     }
-    if (!_isSecondaryKind(cell.kind) || cell.isCollapsed) {
+    if (!_isSecondaryKind(cell.kind) ||
+        cell.kind == TimelineCellKind.progressText ||
+        cell.isCollapsed) {
       continue;
     }
     cells[i] = cell.copyWith(isCollapsed: true, updatedAt: timestamp);
@@ -690,7 +1132,8 @@ void _collapseOtherSecondaryCellsForTurn(
 }
 
 bool _isSecondaryKind(TimelineCellKind kind) {
-  return kind == TimelineCellKind.reasoning ||
+  return kind == TimelineCellKind.progressText ||
+      kind == TimelineCellKind.reasoning ||
       kind == TimelineCellKind.toolCall ||
       kind == TimelineCellKind.systemNotice;
 }
@@ -710,18 +1153,27 @@ TimelineCellStatus? _statusFromString(String? status) {
 String _itemTitle(String itemType, Map<String, dynamic> item) {
   switch (itemType) {
     case 'commandExecution':
+      final classification = _classifyCommandExecution(item);
       final command = _asString(item['command']);
+      if (classification.isExploratory) {
+        return classification.verbLabel;
+      }
       return command == null || command.isEmpty
           ? 'Ran command'
           : 'Ran $command';
     case 'fileChange':
-      return 'file change';
+      final count = _changesCount(item['changes']);
+      if (count == null || count <= 0) {
+        return 'Edited files';
+      }
+      return 'Edited $count ${count == 1 ? 'file' : 'files'}';
     case 'mcpToolCall':
-      final server = _asString(item['server']) ?? 'mcp';
+      final server = _asString(item['server']) ?? 'server';
       final tool = _asString(item['tool']) ?? 'tool';
-      return '$server:$tool';
+      return 'MCP: $server/$tool';
     case 'webSearch':
-      return _asString(item['query']) ?? 'web search';
+      final action = _webSearchActionLabel(item['action']);
+      return action == null ? 'Web search' : 'Web search: $action';
     case 'reasoning':
       return 'Thinking';
     case 'plan':
@@ -734,11 +1186,17 @@ String _itemTitle(String itemType, Map<String, dynamic> item) {
 String? _itemSubtitle(String itemType, Map<String, dynamic> item) {
   switch (itemType) {
     case 'commandExecution':
+      final classification = _classifyCommandExecution(item);
+      if (classification.isExploratory) {
+        return _asString(item['command']);
+      }
       return _asString(item['cwd']);
     case 'fileChange':
-      return _changesSubtitle(item['changes']);
+      return _changesPathsSubtitle(item['changes']);
     case 'webSearch':
-      return _asString(item['action']);
+      return _asString(item['query']) ?? _asString(item['url']);
+    case 'mcpToolCall':
+      return _asString(item['status']);
     default:
       return null;
   }
@@ -761,6 +1219,166 @@ String? _itemDetails(String itemType, Map<String, dynamic> item) {
     default:
       return _encode(item);
   }
+}
+
+Map<String, dynamic> _normalizeItemMetadata(
+  String itemType,
+  Map<String, dynamic> item, {
+  Map<String, dynamic> previous = const <String, dynamic>{},
+}) {
+  final metadata = <String, dynamic>{...previous, ...item};
+  if (itemType != 'commandExecution') {
+    return metadata;
+  }
+
+  final classification = _classifyCommandExecution(metadata);
+  metadata['commandActionsNormalized'] = classification.normalizedActions;
+  metadata['isExploratory'] = classification.isExploratory;
+  if (classification.exploreBucket == null) {
+    metadata.remove('exploreBucket');
+  } else {
+    metadata['exploreBucket'] = classification.exploreBucket;
+  }
+  return metadata;
+}
+
+class _CommandClassification {
+  const _CommandClassification({
+    required this.verbLabel,
+    required this.normalizedActions,
+    required this.isExploratory,
+    required this.exploreBucket,
+  });
+
+  final String verbLabel;
+  final List<String> normalizedActions;
+  final bool isExploratory;
+  final String? exploreBucket;
+}
+
+_CommandClassification _classifyCommandExecution(Map<String, dynamic> item) {
+  var normalizedActions = _extractCommandActionsNormalized(item);
+  if (normalizedActions.isEmpty) {
+    final heuristic = _classifyCommandByHeuristic(_asString(item['command']));
+    normalizedActions = <String>[heuristic];
+  }
+
+  final hasSearch = normalizedActions.contains('search');
+  final hasRead = normalizedActions.contains('read');
+  final hasList = normalizedActions.contains('list');
+  final verbLabel = hasSearch
+      ? 'Search'
+      : hasRead
+      ? 'Read'
+      : hasList
+      ? 'List'
+      : 'Ran';
+  final isExploratory = hasSearch || hasRead || hasList;
+  final exploreBucket = hasSearch
+      ? 'search'
+      : (hasRead || hasList ? 'file' : null);
+  return _CommandClassification(
+    verbLabel: verbLabel,
+    normalizedActions: normalizedActions,
+    isExploratory: isExploratory,
+    exploreBucket: exploreBucket,
+  );
+}
+
+List<String> _extractCommandActionsNormalized(Map<String, dynamic> item) {
+  final normalizedFromMetadata = item['commandActionsNormalized'];
+  if (normalizedFromMetadata is List) {
+    final values = <String>[];
+    for (final entry in normalizedFromMetadata) {
+      final value = _normalizeCommandAction(entry);
+      if (value != null && !values.contains(value)) {
+        values.add(value);
+      }
+    }
+    if (values.isNotEmpty) {
+      return values;
+    }
+  }
+
+  final rawActions = item['commandActions'];
+  if (rawActions is List) {
+    final values = <String>[];
+    for (final raw in rawActions) {
+      final value = _normalizeCommandAction(raw);
+      if (value != null && !values.contains(value)) {
+        values.add(value);
+      }
+    }
+    return values;
+  }
+
+  return const <String>[];
+}
+
+String? _normalizeCommandAction(dynamic raw) {
+  final token = switch (raw) {
+    String value => value,
+    Map map =>
+      _asString(map['type']) ??
+          _asString(map['action']) ??
+          _asString(map['name']),
+    _ => null,
+  };
+  if (token == null || token.isEmpty) {
+    return null;
+  }
+
+  final value = token.toLowerCase();
+  if (value == 'search') {
+    return 'search';
+  }
+  if (value == 'read' || value == 'filesystemread') {
+    return 'read';
+  }
+  if (value == 'listfiles' || value == 'list_files' || value == 'list') {
+    return 'list';
+  }
+  if (value == 'unknown') {
+    return 'ran';
+  }
+  return null;
+}
+
+String _classifyCommandByHeuristic(String? command) {
+  final raw = (command ?? '').trim().toLowerCase();
+  if (raw.isEmpty) {
+    return 'ran';
+  }
+
+  if (raw.startsWith('rg --files') ||
+      raw.startsWith('rga --files') ||
+      raw.startsWith('git ls-files') ||
+      RegExp(r'^(ls|tree|eza|exa|du|fd)\b').hasMatch(raw)) {
+    return 'list';
+  }
+
+  if (RegExp(r'^(git grep)\b').hasMatch(raw) ||
+      RegExp(r'^(rg|rga|grep|egrep|fgrep)\b').hasMatch(raw)) {
+    return 'search';
+  }
+
+  if (RegExp(r'^(cat|bat|less|head|tail)\b').hasMatch(raw) ||
+      raw.startsWith('sed -n')) {
+    return 'read';
+  }
+
+  return 'ran';
+}
+
+String? _webSearchActionLabel(dynamic rawAction) {
+  final action = _asString(rawAction)?.toLowerCase();
+  return switch (action) {
+    null => null,
+    'search' => 'Search',
+    'open_page' || 'openpage' || 'open' => 'Open page',
+    'find_in_page' || 'findinpage' || 'find' => 'Find in page',
+    _ => null,
+  };
 }
 
 String _assistantFinalText(Map<String, dynamic> item) {
@@ -962,12 +1580,45 @@ int? _asInt(dynamic value) {
   return null;
 }
 
-String? _changesSubtitle(dynamic rawChanges) {
+int? _changesCount(dynamic rawChanges) {
   if (rawChanges is List) {
+    return rawChanges.length;
+  }
+  return null;
+}
+
+String? _changesPathsSubtitle(dynamic rawChanges) {
+  if (rawChanges is! List || rawChanges.isEmpty) {
+    return null;
+  }
+
+  final paths = <String>[];
+  for (final entry in rawChanges) {
+    final map = _asMap(entry);
+    final path =
+        _asString(map['path']) ??
+        _asString(map['newPath']) ??
+        _asString(map['new_path']) ??
+        _asString(map['oldPath']) ??
+        _asString(map['old_path']);
+    if (path != null && path.isNotEmpty) {
+      paths.add(path);
+    }
+  }
+
+  if (paths.isEmpty) {
     final count = rawChanges.length;
     return '$count ${count == 1 ? 'change' : 'changes'}';
   }
-  return null;
+
+  const maxVisible = 2;
+  if (paths.length <= maxVisible) {
+    return paths.join(', ');
+  }
+
+  final hidden = paths.length - maxVisible;
+  final preview = paths.take(maxVisible).join(', ');
+  return '$preview +$hidden more';
 }
 
 String _reasoningSummary(Map<String, dynamic> item) {

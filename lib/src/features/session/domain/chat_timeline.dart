@@ -1,6 +1,7 @@
 enum TimelineCellKind {
   userMessage,
   assistantMessage,
+  progressText,
   reasoning,
   toolCall,
   turnSeparator,
