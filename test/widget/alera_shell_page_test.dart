@@ -150,37 +150,40 @@ void main() {
     },
   );
 
-  testWidgets('workspace selected uses centered max-width chat container', (
-    tester,
-  ) async {
-    final (controller, fakeService) = await buildController();
-    addTearDown(() async {
-      await fakeService.shutdown();
-    });
-    await tester.binding.setSurfaceSize(const Size(1600, 900));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+  testWidgets(
+    'workspace selected keeps full-width chat viewport and centered content',
+    (tester) async {
+      final (controller, fakeService) = await buildController();
+      addTearDown(() async {
+        await fakeService.shutdown();
+      });
+      await tester.binding.setSurfaceSize(const Size(1600, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    await controller.selectWorkspaceFromPath('/repo');
+      await controller.selectWorkspaceFromPath('/repo');
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          sessionControllerProvider.overrideWith((ref) => controller),
-        ],
-        child: const MaterialApp(home: AleraShellPage()),
-      ),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionControllerProvider.overrideWith((ref) => controller),
+          ],
+          child: const MaterialApp(home: AleraShellPage()),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
-    final workspaceRect = tester.getRect(find.byType(SessionWorkspaceView));
-    final scaffoldRect = tester.getRect(find.byType(Scaffold));
+      final workspaceRect = tester.getRect(find.byType(SessionWorkspaceView));
+      final scaffoldRect = tester.getRect(find.byType(Scaffold));
+      final textFieldRect = tester.getRect(find.byType(TextField));
 
-    expect(workspaceRect.width, lessThanOrEqualTo(780));
-    final leftGap = workspaceRect.left - scaffoldRect.left;
-    final rightGap = scaffoldRect.right - workspaceRect.right;
-    expect((leftGap - rightGap).abs(), lessThan(1.0));
-  });
+      expect((workspaceRect.width - scaffoldRect.width).abs(), lessThan(1.0));
+      expect(textFieldRect.width, lessThanOrEqualTo(720));
+      final leftGap = textFieldRect.left - scaffoldRect.left;
+      final rightGap = scaffoldRect.right - textFieldRect.right;
+      expect((leftGap - rightGap).abs(), lessThan(1.0));
+    },
+  );
 
   testWidgets('top and status bars remain full width', (tester) async {
     final (controller, fakeService) = await buildController();

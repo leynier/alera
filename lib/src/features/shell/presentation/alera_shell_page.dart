@@ -20,8 +20,6 @@ class AleraShellPage extends ConsumerStatefulWidget {
 }
 
 class _AleraShellPageState extends ConsumerState<AleraShellPage> {
-  static const double _chatContentMaxWidth = 780;
-
   String? _lastErrorMessage;
   bool _rawLogExpanded = false;
 
@@ -87,26 +85,21 @@ class _AleraShellPageState extends ConsumerState<AleraShellPage> {
         onAction: () => _selectWorkspace(controller),
       );
     }
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: _chatContentMaxWidth),
-        child: SessionWorkspaceView(
-          state: state,
-          onSendInput: controller.sendInput,
-          onInterruptTurn: controller.interruptActiveTurn,
-          isTurnRunning: state.runningTurnCount > 0,
-          isInterrupting: state.isInterrupting,
-          onModelChanged: controller.updateActiveSessionModel,
-          activeReasoningEffort: state.activeReasoningEffort,
-          supportedReasoningEfforts: supportedReasoningEffortsForModel(
-            state.activeModelId,
-          ),
-          onReasoningEffortChanged: controller.updateReasoningEffort,
-          isMarkdownEnabled: state.activeMarkdownEnabled,
-          onMarkdownModeChanged: controller.updateMarkdownEnabled,
-          rawLogExpanded: _rawLogExpanded,
-        ),
+    return SessionWorkspaceView(
+      state: state,
+      onSendInput: controller.sendInput,
+      onInterruptTurn: controller.interruptActiveTurn,
+      isTurnRunning: state.runningTurnCount > 0,
+      isInterrupting: state.isInterrupting,
+      onModelChanged: controller.updateActiveSessionModel,
+      activeReasoningEffort: state.activeReasoningEffort,
+      supportedReasoningEfforts: supportedReasoningEffortsForModel(
+        state.activeModelId,
       ),
+      onReasoningEffortChanged: controller.updateReasoningEffort,
+      isMarkdownEnabled: state.activeMarkdownEnabled,
+      onMarkdownModeChanged: controller.updateMarkdownEnabled,
+      rawLogExpanded: _rawLogExpanded,
     );
   }
 

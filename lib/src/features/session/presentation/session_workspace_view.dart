@@ -45,6 +45,10 @@ class SessionWorkspaceView extends StatefulWidget {
 }
 
 class _SessionWorkspaceViewState extends State<SessionWorkspaceView> {
+  static const double _contentMaxWidth = 720;
+  static const double _timelineExtraInset = AleraTokens.space8;
+  static const double _timelineContentMaxWidth =
+      _contentMaxWidth - (AleraTokens.space12 * 2) - _timelineExtraInset;
   static const double _bottomTolerancePx = 1;
 
   final _inputController = TextEditingController();
@@ -123,6 +127,7 @@ class _SessionWorkspaceViewState extends State<SessionWorkspaceView> {
                   controller: _timelineScrollController,
                   markdownEnabled: widget.isMarkdownEnabled,
                   onMarkdownModeChanged: widget.onMarkdownModeChanged,
+                  contentMaxWidth: _timelineContentMaxWidth,
                 ),
               ),
               Align(
@@ -163,31 +168,44 @@ class _SessionWorkspaceViewState extends State<SessionWorkspaceView> {
             ],
           ),
         ),
-        _Composer(
-          controller: _inputController,
-          textFieldEnabled: hasWorkspace,
-          canSend:
-              hasWorkspace &&
-              !widget.state.isBusy &&
-              !widget.isTurnRunning &&
-              !widget.isInterrupting,
-          canStop:
-              widget.state.activeSession != null &&
-              widget.isTurnRunning &&
-              !widget.state.isBusy,
-          canChangeModel: hasWorkspace,
-          isBusy: widget.state.isBusy,
-          isInterrupting: widget.isInterrupting,
-          activeModelId: widget.state.activeModelId,
-          availableModels: widget.state.availableModels,
-          onModelChanged: widget.onModelChanged,
-          activeReasoningEffort: widget.activeReasoningEffort,
-          supportedReasoningEfforts: widget.supportedReasoningEfforts,
-          onReasoningEffortChanged: widget.onReasoningEffortChanged,
-          onSend: _sendInput,
-          onInterrupt: widget.onInterruptTurn,
+        Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: _contentMaxWidth),
+            child: _Composer(
+              controller: _inputController,
+              textFieldEnabled: hasWorkspace,
+              canSend:
+                  hasWorkspace &&
+                  !widget.state.isBusy &&
+                  !widget.isTurnRunning &&
+                  !widget.isInterrupting,
+              canStop:
+                  widget.state.activeSession != null &&
+                  widget.isTurnRunning &&
+                  !widget.state.isBusy,
+              canChangeModel: hasWorkspace,
+              isBusy: widget.state.isBusy,
+              isInterrupting: widget.isInterrupting,
+              activeModelId: widget.state.activeModelId,
+              availableModels: widget.state.availableModels,
+              onModelChanged: widget.onModelChanged,
+              activeReasoningEffort: widget.activeReasoningEffort,
+              supportedReasoningEfforts: widget.supportedReasoningEfforts,
+              onReasoningEffortChanged: widget.onReasoningEffortChanged,
+              onSend: _sendInput,
+              onInterrupt: widget.onInterruptTurn,
+            ),
+          ),
         ),
-        _RawLog(state: widget.state, expanded: widget.rawLogExpanded),
+        Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: _contentMaxWidth),
+            child: _RawLog(
+              state: widget.state,
+              expanded: widget.rawLogExpanded,
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -326,6 +344,7 @@ class _ChatTimelineList extends StatelessWidget {
     required this.controller,
     required this.markdownEnabled,
     required this.onMarkdownModeChanged,
+    required this.contentMaxWidth,
   });
 
   final SessionState state;
@@ -334,6 +353,7 @@ class _ChatTimelineList extends StatelessWidget {
   final ScrollController controller;
   final bool markdownEnabled;
   final ValueChanged<bool> onMarkdownModeChanged;
+  final double contentMaxWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -350,7 +370,18 @@ class _ChatTimelineList extends StatelessWidget {
           horizontal: AleraTokens.space16,
           vertical: AleraTokens.space16,
         ),
-        children: timelineWidgets,
+        children: <Widget>[
+          Center(
+            child: ConstrainedBox(
+              key: const ValueKey<String>('timeline-content-container'),
+              constraints: BoxConstraints(maxWidth: contentMaxWidth),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: timelineWidgets,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -2043,21 +2074,15 @@ class _MessageMarkdownToggleButton extends StatelessWidget {
         onTap: () => onChanged(!markdownEnabled),
         mouseCursor: SystemMouseCursors.click,
         borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
-        child: Container(
-          decoration: BoxDecoration(
-            color: markdownEnabled ? AleraTokens.surfaceVariant : null,
-            borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
-          ),
-          padding: const EdgeInsets.symmetric(
+        child: const Padding(
+          padding: EdgeInsets.symmetric(
             horizontal: AleraTokens.space4,
             vertical: AleraTokens.space2,
           ),
           child: Icon(
             Icons.code,
             size: 13,
-            color: markdownEnabled
-                ? AleraTokens.foregroundMuted
-                : AleraTokens.foregroundFaint,
+            color: AleraTokens.foregroundFaint,
           ),
         ),
       ),
@@ -2293,9 +2318,9 @@ class _ComposerState extends State<_Composer> {
                       fillColor: Colors.transparent,
                       hoverColor: Colors.transparent,
                       contentPadding: EdgeInsets.fromLTRB(
+                        AleraTokens.space12,
                         AleraTokens.space16,
-                        AleraTokens.space16,
-                        AleraTokens.space16,
+                        AleraTokens.space12,
                         AleraTokens.space8,
                       ),
                       border: InputBorder.none,

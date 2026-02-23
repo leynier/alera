@@ -361,6 +361,21 @@ void main() {
     expect(find.byType(PopupMenuButton<bool>), findsNothing);
   });
 
+  testWidgets('composer text field uses 12px horizontal content padding', (
+    tester,
+  ) async {
+    await _pumpWorkspace(tester, state: const SessionState());
+
+    final textField = tester.widget<TextField>(find.byType(TextField));
+    final padding = textField.decoration?.contentPadding;
+    expect(padding, isA<EdgeInsets>());
+    final edgeInsets = padding! as EdgeInsets;
+    expect(edgeInsets.left, 12);
+    expect(edgeInsets.right, 12);
+    expect(edgeInsets.top, 16);
+    expect(edgeInsets.bottom, 8);
+  });
+
   testWidgets('user completed renders markdown when content is safe', (
     tester,
   ) async {
@@ -1458,6 +1473,56 @@ void main() {
 
     await _pumpWorkspace(tester, state: state);
     expect(find.text('Worked for 1d 1h'), findsOneWidget);
+  });
+
+  testWidgets(
+    'timeline scrollable spans viewport width and content stays centered',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1600, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await _pumpWorkspace(
+        tester,
+        state: stateWithActiveSession(timeline: _longAssistantTimeline()),
+      );
+
+      final listRect = tester.getRect(
+        find.byKey(const ValueKey<String>('timeline-list')),
+      );
+      final scaffoldRect = tester.getRect(find.byType(Scaffold));
+      final contentRect = tester.getRect(
+        find.byKey(const ValueKey<String>('timeline-content-container')),
+      );
+
+      expect((listRect.width - scaffoldRect.width).abs(), lessThan(1.0));
+      expect(contentRect.width, lessThanOrEqualTo(720));
+      final leftGap = contentRect.left - listRect.left;
+      final rightGap = listRect.right - contentRect.right;
+      expect((leftGap - rightGap).abs(), lessThan(2.0));
+    },
+  );
+
+  testWidgets('scroll-to-bottom button stays horizontally centered', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1600, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await _pumpWorkspace(
+      tester,
+      state: stateWithActiveSession(timeline: _longAssistantTimeline()),
+    );
+    await tester.pumpAndSettle();
+
+    expect(_scrollToBottomButton(tester).onPressed, isNotNull);
+
+    final buttonRect = tester.getRect(
+      find.byKey(const ValueKey<String>('scroll-to-bottom-button')),
+    );
+    final listRect = tester.getRect(
+      find.byKey(const ValueKey<String>('timeline-list')),
+    );
+    expect((buttonRect.center.dx - listRect.center.dx).abs(), lessThan(2.0));
   });
 
   testWidgets('shows scroll-to-bottom button when user scrolls up', (
