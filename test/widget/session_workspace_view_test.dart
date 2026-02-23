@@ -60,6 +60,8 @@ Future<void> _pumpWorkspace(
   ValueChanged<String>? onReasoningEffortChanged,
   List<String>? supportedReasoningEfforts,
   String? activeReasoningEffort,
+  bool? isMarkdownEnabled,
+  ValueChanged<bool>? onMarkdownModeChanged,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -77,6 +79,8 @@ Future<void> _pumpWorkspace(
               supportedReasoningEfforts ??
               const <String>['low', 'medium', 'high', 'xhigh'],
           onReasoningEffortChanged: onReasoningEffortChanged ?? (_) {},
+          isMarkdownEnabled: isMarkdownEnabled ?? true,
+          onMarkdownModeChanged: onMarkdownModeChanged ?? (_) {},
           rawLogExpanded: rawLogExpanded,
         ),
       ),
@@ -321,6 +325,462 @@ void main() {
       expect(find.text('Texto con `backtick abierto'), findsOneWidget);
     },
   );
+
+  testWidgets(
+    'timeline is wrapped in SelectionArea for cross-message selection',
+    (tester) async {
+      final state = SessionState(
+        timelineCells: <TimelineCell>[
+          _cell(
+            id: 'user-selection',
+            kind: TimelineCellKind.userMessage,
+            status: TimelineCellStatus.completed,
+            markdownText: 'primer mensaje',
+          ),
+          _cell(
+            id: 'assistant-selection',
+            kind: TimelineCellKind.assistantMessage,
+            status: TimelineCellStatus.completed,
+            markdownText: 'segundo mensaje',
+          ),
+        ],
+      );
+
+      await _pumpWorkspace(tester, state: state);
+
+      expect(find.byType(SelectionArea), findsOneWidget);
+      expect(find.byType(SelectableText), findsNothing);
+    },
+  );
+
+  testWidgets('composer no longer renders markdown popup control', (
+    tester,
+  ) async {
+    await _pumpWorkspace(tester, state: const SessionState());
+
+    expect(find.byType(PopupMenuButton<bool>), findsNothing);
+  });
+
+  testWidgets('user completed renders markdown when content is safe', (
+    tester,
+  ) async {
+    final state = SessionState(
+      timelineCells: <TimelineCell>[
+        _cell(
+          id: 'user-safe-markdown',
+          kind: TimelineCellKind.userMessage,
+          status: TimelineCellStatus.completed,
+          markdownText: 'Texto con **negrita** y `codigo`.',
+        ),
+      ],
+    );
+
+    await _pumpWorkspace(tester, state: state);
+
+    expect(find.byType(MarkdownBody), findsOneWidget);
+    expect(find.textContaining('negrita'), findsOneWidget);
+  });
+
+  testWidgets(
+    'user completed falls back to plain text when markdown is unsafe',
+    (tester) async {
+      final state = SessionState(
+        timelineCells: <TimelineCell>[
+          _cell(
+            id: 'user-unsafe-markdown',
+            kind: TimelineCellKind.userMessage,
+            status: TimelineCellStatus.completed,
+            markdownText: 'Texto con `backtick abierto',
+          ),
+        ],
+      );
+
+      await _pumpWorkspace(tester, state: state);
+
+      expect(find.byType(MarkdownBody), findsNothing);
+      expect(find.text('Texto con `backtick abierto'), findsOneWidget);
+    },
+  );
+
+  testWidgets('markdown mode off renders plain text for completed user', (
+    tester,
+  ) async {
+    final state = SessionState(
+      timelineCells: <TimelineCell>[
+        _cell(
+          id: 'user-markdown-off',
+          kind: TimelineCellKind.userMessage,
+          status: TimelineCellStatus.completed,
+          markdownText: 'Texto con **negrita**',
+        ),
+      ],
+    );
+
+    await _pumpWorkspace(tester, state: state, isMarkdownEnabled: false);
+
+    expect(find.byType(MarkdownBody), findsNothing);
+    expect(find.text('Texto con **negrita**'), findsOneWidget);
+  });
+
+  testWidgets('copy buttons are visible and copy message text', (tester) async {
+    final previousDetector = copyMouseConnectionDetector;
+    copyMouseConnectionDetector = () => false;
+    addTearDown(() {
+      copyMouseConnectionDetector = previousDetector;
+    });
+
+    final clipboardWrites = <MethodCall>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+          if (call.method == 'Clipboard.setData') {
+            clipboardWrites.add(call);
+          }
+          return null;
+        });
+    addTearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, null);
+    });
+
+    final state = SessionState(
+      timelineCells: <TimelineCell>[
+        _cell(
+          id: 'user-copy',
+          kind: TimelineCellKind.userMessage,
+          status: TimelineCellStatus.completed,
+          markdownText: 'texto user',
+        ),
+        _cell(
+          id: 'assistant-copy',
+          kind: TimelineCellKind.assistantMessage,
+          status: TimelineCellStatus.completed,
+          markdownText: 'texto assistant **raw**',
+        ),
+      ],
+    );
+
+    await _pumpWorkspace(tester, state: state);
+
+    expect(
+      find.byKey(const ValueKey<String>('copy-user-user-copy')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('copy-assistant-assistant-copy')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const ValueKey<String>('copy-user-user-copy')));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(clipboardWrites.length, 1);
+    expect(
+      (clipboardWrites.first.arguments as Map<dynamic, dynamic>)['text'],
+      'texto user',
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('copy-assistant-assistant-copy')),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(clipboardWrites.length, 2);
+    expect(
+      (clipboardWrites.last.arguments as Map<dynamic, dynamic>)['text'],
+      'texto assistant **raw**',
+    );
+  });
+
+  testWidgets('user copy button is outside at lower-right of the user bubble', (
+    tester,
+  ) async {
+    final state = SessionState(
+      timelineCells: <TimelineCell>[
+        _cell(
+          id: 'user-pos',
+          kind: TimelineCellKind.userMessage,
+          status: TimelineCellStatus.completed,
+          markdownText: 'mensaje corto',
+        ),
+      ],
+    );
+
+    await _pumpWorkspace(tester, state: state);
+
+    final bubbleFinder = find.byKey(
+      const ValueKey<String>('user-bubble-user-pos'),
+    );
+    final copyFinder = find.byKey(const ValueKey<String>('copy-user-user-pos'));
+
+    expect(bubbleFinder, findsOneWidget);
+    expect(copyFinder, findsOneWidget);
+
+    final bubbleRect = tester.getRect(bubbleFinder);
+    final buttonRect = tester.getRect(copyFinder);
+
+    expect((buttonRect.right - bubbleRect.right).abs(), lessThan(2));
+    expect(buttonRect.center.dy, greaterThan(bubbleRect.bottom));
+  });
+
+  testWidgets(
+    'assistant copy button is outside at lower-left of the assistant bubble',
+    (tester) async {
+      final state = SessionState(
+        timelineCells: <TimelineCell>[
+          _cell(
+            id: 'assistant-pos',
+            kind: TimelineCellKind.assistantMessage,
+            status: TimelineCellStatus.completed,
+            markdownText: 'respuesta',
+          ),
+        ],
+      );
+
+      await _pumpWorkspace(tester, state: state);
+
+      final bubbleFinder = find.byKey(
+        const ValueKey<String>('assistant-bubble-assistant-pos'),
+      );
+      final copyFinder = find.byKey(
+        const ValueKey<String>('copy-assistant-assistant-pos'),
+      );
+
+      expect(bubbleFinder, findsOneWidget);
+      expect(copyFinder, findsOneWidget);
+
+      final bubbleRect = tester.getRect(bubbleFinder);
+      final buttonRect = tester.getRect(copyFinder);
+
+      expect((buttonRect.left - bubbleRect.left).abs(), lessThan(2));
+      expect(buttonRect.center.dy, greaterThan(bubbleRect.bottom));
+    },
+  );
+
+  testWidgets('copy buttons are hover-only with mouse connected', (
+    tester,
+  ) async {
+    final previousDetector = copyMouseConnectionDetector;
+    copyMouseConnectionDetector = () => true;
+    addTearDown(() {
+      copyMouseConnectionDetector = previousDetector;
+    });
+
+    final clipboardWrites = <MethodCall>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+          if (call.method == 'Clipboard.setData') {
+            clipboardWrites.add(call);
+          }
+          return null;
+        });
+    addTearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, null);
+    });
+
+    final state = SessionState(
+      timelineCells: <TimelineCell>[
+        _cell(
+          id: 'user-hover',
+          kind: TimelineCellKind.userMessage,
+          status: TimelineCellStatus.completed,
+          markdownText: 'texto user hover',
+        ),
+        _cell(
+          id: 'assistant-hover',
+          kind: TimelineCellKind.assistantMessage,
+          status: TimelineCellStatus.completed,
+          markdownText: 'texto assistant hover',
+        ),
+      ],
+    );
+
+    await _pumpWorkspace(tester, state: state);
+
+    final userCopyFinder = find.byKey(
+      const ValueKey<String>('copy-user-user-hover'),
+    );
+    final assistantCopyFinder = find.byKey(
+      const ValueKey<String>('copy-assistant-assistant-hover'),
+    );
+    final userZoneFinder = find.byKey(
+      const ValueKey<String>('copy-zone-user-user-hover'),
+    );
+    final assistantZoneFinder = find.byKey(
+      const ValueKey<String>('copy-zone-assistant-assistant-hover'),
+    );
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: const Offset(1, 1));
+    await tester.pumpAndSettle();
+
+    await tester.tap(userCopyFinder, warnIfMissed: false);
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(clipboardWrites, isEmpty);
+
+    await tester.tap(assistantCopyFinder, warnIfMissed: false);
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(clipboardWrites, isEmpty);
+
+    await mouse.moveTo(tester.getCenter(userZoneFinder));
+    await tester.pumpAndSettle();
+    await tester.tap(userCopyFinder);
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(clipboardWrites.length, 1);
+
+    await mouse.moveTo(tester.getCenter(assistantZoneFinder));
+    await tester.pumpAndSettle();
+    await tester.tap(assistantCopyFinder);
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(clipboardWrites.length, 2);
+  });
+
+  testWidgets(
+    'markdown toggle buttons are hover-only with mouse connected and emit inverse value',
+    (tester) async {
+      final previousDetector = copyMouseConnectionDetector;
+      copyMouseConnectionDetector = () => true;
+      addTearDown(() {
+        copyMouseConnectionDetector = previousDetector;
+      });
+
+      final toggledValues = <bool>[];
+      final state = SessionState(
+        timelineCells: <TimelineCell>[
+          _cell(
+            id: 'user-markdown-hover',
+            kind: TimelineCellKind.userMessage,
+            status: TimelineCellStatus.completed,
+            markdownText: 'texto user hover',
+          ),
+          _cell(
+            id: 'assistant-markdown-hover',
+            kind: TimelineCellKind.assistantMessage,
+            status: TimelineCellStatus.completed,
+            markdownText: 'texto assistant hover',
+          ),
+        ],
+      );
+
+      await _pumpWorkspace(
+        tester,
+        state: state,
+        isMarkdownEnabled: true,
+        onMarkdownModeChanged: toggledValues.add,
+      );
+
+      final userToggleFinder = find.byKey(
+        const ValueKey<String>('toggle-markdown-user-user-markdown-hover'),
+      );
+      final assistantToggleFinder = find.byKey(
+        const ValueKey<String>(
+          'toggle-markdown-assistant-assistant-markdown-hover',
+        ),
+      );
+      final userZoneFinder = find.byKey(
+        const ValueKey<String>('copy-zone-user-user-markdown-hover'),
+      );
+      final assistantZoneFinder = find.byKey(
+        const ValueKey<String>('copy-zone-assistant-assistant-markdown-hover'),
+      );
+
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      addTearDown(mouse.removePointer);
+      await mouse.addPointer(location: const Offset(1, 1));
+      await tester.pumpAndSettle();
+
+      await tester.tap(userToggleFinder, warnIfMissed: false);
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.tap(assistantToggleFinder, warnIfMissed: false);
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(toggledValues, isEmpty);
+
+      await mouse.moveTo(tester.getCenter(userZoneFinder));
+      await tester.pumpAndSettle();
+      await tester.tap(userToggleFinder);
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(toggledValues, <bool>[false]);
+
+      await mouse.moveTo(tester.getCenter(assistantZoneFinder));
+      await tester.pumpAndSettle();
+      await tester.tap(assistantToggleFinder);
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(toggledValues, <bool>[false, false]);
+    },
+  );
+
+  testWidgets('markdown toggle buttons are visible without hover on touch', (
+    tester,
+  ) async {
+    final previousDetector = copyMouseConnectionDetector;
+    copyMouseConnectionDetector = () => false;
+    addTearDown(() {
+      copyMouseConnectionDetector = previousDetector;
+    });
+
+    final toggledValues = <bool>[];
+    final state = SessionState(
+      timelineCells: <TimelineCell>[
+        _cell(
+          id: 'user-markdown-touch',
+          kind: TimelineCellKind.userMessage,
+          status: TimelineCellStatus.completed,
+          markdownText: 'texto user touch',
+        ),
+        _cell(
+          id: 'assistant-markdown-touch',
+          kind: TimelineCellKind.assistantMessage,
+          status: TimelineCellStatus.completed,
+          markdownText: 'texto assistant touch',
+        ),
+      ],
+    );
+
+    await _pumpWorkspace(
+      tester,
+      state: state,
+      isMarkdownEnabled: false,
+      onMarkdownModeChanged: toggledValues.add,
+    );
+
+    final userToggleFinder = find.byKey(
+      const ValueKey<String>('toggle-markdown-user-user-markdown-touch'),
+    );
+    final assistantToggleFinder = find.byKey(
+      const ValueKey<String>(
+        'toggle-markdown-assistant-assistant-markdown-touch',
+      ),
+    );
+
+    expect(userToggleFinder, findsOneWidget);
+    expect(assistantToggleFinder, findsOneWidget);
+
+    await tester.tap(userToggleFinder);
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tap(assistantToggleFinder);
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(toggledValues, <bool>[true, true]);
+  });
+
+  testWidgets('markdown mode off renders plain text for completed assistant', (
+    tester,
+  ) async {
+    final state = SessionState(
+      timelineCells: <TimelineCell>[
+        _cell(
+          id: 'assistant-markdown-off',
+          kind: TimelineCellKind.assistantMessage,
+          status: TimelineCellStatus.completed,
+          markdownText: 'Texto con **negrita**',
+        ),
+      ],
+    );
+
+    await _pumpWorkspace(tester, state: state, isMarkdownEnabled: false);
+
+    expect(find.byType(MarkdownBody), findsNothing);
+    expect(find.text('Texto con **negrita**'), findsOneWidget);
+  });
 
   testWidgets('single secondary row hides worked and final message', (
     tester,

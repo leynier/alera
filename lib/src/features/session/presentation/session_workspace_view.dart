@@ -5,6 +5,7 @@ import 'package:alera/src/features/session/application/session_state.dart';
 import 'package:alera/src/features/session/domain/chat_timeline.dart';
 import 'package:alera/src/features/session/domain/codex_model_catalog.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:markdown/markdown.dart' as md;
@@ -21,6 +22,8 @@ class SessionWorkspaceView extends StatefulWidget {
     required this.activeReasoningEffort,
     required this.supportedReasoningEfforts,
     required this.onReasoningEffortChanged,
+    required this.isMarkdownEnabled,
+    required this.onMarkdownModeChanged,
     required this.rawLogExpanded,
   });
 
@@ -33,6 +36,8 @@ class SessionWorkspaceView extends StatefulWidget {
   final String activeReasoningEffort;
   final List<String> supportedReasoningEfforts;
   final ValueChanged<String> onReasoningEffortChanged;
+  final bool isMarkdownEnabled;
+  final ValueChanged<bool> onMarkdownModeChanged;
   final bool rawLogExpanded;
 
   @override
@@ -116,6 +121,8 @@ class _SessionWorkspaceViewState extends State<SessionWorkspaceView> {
                   expandedWorkedTurns: _expandedWorkedTurns,
                   onToggleWorkedTurn: _toggleWorkedTurn,
                   controller: _timelineScrollController,
+                  markdownEnabled: widget.isMarkdownEnabled,
+                  onMarkdownModeChanged: widget.onMarkdownModeChanged,
                 ),
               ),
               Align(
@@ -317,12 +324,16 @@ class _ChatTimelineList extends StatelessWidget {
     required this.expandedWorkedTurns,
     required this.onToggleWorkedTurn,
     required this.controller,
+    required this.markdownEnabled,
+    required this.onMarkdownModeChanged,
   });
 
   final SessionState state;
   final Set<String> expandedWorkedTurns;
   final ValueChanged<String> onToggleWorkedTurn;
   final ScrollController controller;
+  final bool markdownEnabled;
+  final ValueChanged<bool> onMarkdownModeChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -331,14 +342,16 @@ class _ChatTimelineList extends StatelessWidget {
     }
 
     final timelineWidgets = _buildTimelineWidgets();
-    return ListView(
-      key: const ValueKey<String>('timeline-list'),
-      controller: controller,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AleraTokens.space16,
-        vertical: AleraTokens.space16,
+    return SelectionArea(
+      child: ListView(
+        key: const ValueKey<String>('timeline-list'),
+        controller: controller,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AleraTokens.space16,
+          vertical: AleraTokens.space16,
+        ),
+        children: timelineWidgets,
       ),
-      children: timelineWidgets,
     );
   }
 
@@ -423,6 +436,8 @@ class _ChatTimelineList extends StatelessWidget {
             turnCells: turnCells,
             workedExpanded: expandedWorkedTurns.contains(turnId),
             onToggleWorked: () => onToggleWorkedTurn(turnId),
+            markdownEnabled: markdownEnabled,
+            onMarkdownModeChanged: onMarkdownModeChanged,
           ),
         ),
       );
@@ -434,7 +449,11 @@ class _ChatTimelineList extends StatelessWidget {
   Widget _timelineCellWithSpacing(TimelineCell cell) {
     return Padding(
       padding: const EdgeInsets.only(bottom: AleraTokens.space8),
-      child: _TimelineCellView(cell: cell),
+      child: _TimelineCellView(
+        cell: cell,
+        markdownEnabled: markdownEnabled,
+        onMarkdownModeChanged: onMarkdownModeChanged,
+      ),
     );
   }
 
@@ -501,19 +520,37 @@ class _EmptyChatState extends StatelessWidget {
 }
 
 class _TimelineCellView extends StatelessWidget {
-  const _TimelineCellView({required this.cell});
+  const _TimelineCellView({
+    required this.cell,
+    required this.markdownEnabled,
+    required this.onMarkdownModeChanged,
+  });
 
   final TimelineCell cell;
+  final bool markdownEnabled;
+  final ValueChanged<bool> onMarkdownModeChanged;
 
   @override
   Widget build(BuildContext context) {
     return switch (cell.kind) {
-      TimelineCellKind.userMessage => _UserMessageCell(cell: cell),
-      TimelineCellKind.assistantMessage => _AssistantMessageCell(cell: cell),
-      TimelineCellKind.progressText => _ProgressTextRow(cell: cell),
+      TimelineCellKind.userMessage => _UserMessageCell(
+        cell: cell,
+        markdownEnabled: markdownEnabled,
+        onMarkdownModeChanged: onMarkdownModeChanged,
+      ),
+      TimelineCellKind.assistantMessage => _AssistantMessageCell(
+        cell: cell,
+        markdownEnabled: markdownEnabled,
+        onMarkdownModeChanged: onMarkdownModeChanged,
+      ),
+      TimelineCellKind.progressText => _ProgressTextRow(
+        cell: cell,
+        markdownEnabled: markdownEnabled,
+      ),
       TimelineCellKind.reasoning => _ReasoningCell(
         key: ValueKey(cell.id),
         cell: cell,
+        markdownEnabled: markdownEnabled,
       ),
       TimelineCellKind.toolCall => _ToolCallCell(
         key: ValueKey(cell.id),
@@ -605,9 +642,15 @@ bool _isExploratoryToolCell(TimelineCell cell) {
 }
 
 class _SecondaryRowView extends StatelessWidget {
-  const _SecondaryRowView({required this.row});
+  const _SecondaryRowView({
+    required this.row,
+    required this.markdownEnabled,
+    required this.onMarkdownModeChanged,
+  });
 
   final _SecondaryRenderRow row;
+  final bool markdownEnabled;
+  final ValueChanged<bool> onMarkdownModeChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -619,7 +662,11 @@ class _SecondaryRowView extends StatelessWidget {
         cells: row.clusterCells!,
       );
     }
-    return _TimelineCellView(cell: row.cell!);
+    return _TimelineCellView(
+      cell: row.cell!,
+      markdownEnabled: markdownEnabled,
+      onMarkdownModeChanged: onMarkdownModeChanged,
+    );
   }
 }
 
@@ -630,6 +677,8 @@ class _CompletedTurnSection extends StatelessWidget {
     required this.turnCells,
     required this.workedExpanded,
     required this.onToggleWorked,
+    required this.markdownEnabled,
+    required this.onMarkdownModeChanged,
   });
 
   final String turnId;
@@ -637,6 +686,8 @@ class _CompletedTurnSection extends StatelessWidget {
   final List<TimelineCell> turnCells;
   final bool workedExpanded;
   final VoidCallback onToggleWorked;
+  final bool markdownEnabled;
+  final ValueChanged<bool> onMarkdownModeChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -680,7 +731,11 @@ class _CompletedTurnSection extends StatelessWidget {
       for (final userCell in users)
         Padding(
           padding: const EdgeInsets.only(bottom: AleraTokens.space8),
-          child: _TimelineCellView(cell: userCell),
+          child: _TimelineCellView(
+            cell: userCell,
+            markdownEnabled: markdownEnabled,
+            onMarkdownModeChanged: onMarkdownModeChanged,
+          ),
         ),
     ];
 
@@ -701,7 +756,11 @@ class _CompletedTurnSection extends StatelessWidget {
                 for (final row in secondaryRows)
                   Padding(
                     padding: const EdgeInsets.only(bottom: AleraTokens.space6),
-                    child: _SecondaryRowView(row: row),
+                    child: _SecondaryRowView(
+                      row: row,
+                      markdownEnabled: markdownEnabled,
+                      onMarkdownModeChanged: onMarkdownModeChanged,
+                    ),
                   ),
               ],
             ),
@@ -719,7 +778,11 @@ class _CompletedTurnSection extends StatelessWidget {
               for (final row in secondaryRows)
                 Padding(
                   padding: const EdgeInsets.only(bottom: AleraTokens.space6),
-                  child: _SecondaryRowView(row: row),
+                  child: _SecondaryRowView(
+                    row: row,
+                    markdownEnabled: markdownEnabled,
+                    onMarkdownModeChanged: onMarkdownModeChanged,
+                  ),
                 ),
             ],
           ),
@@ -731,7 +794,11 @@ class _CompletedTurnSection extends StatelessWidget {
       children.add(
         Padding(
           padding: const EdgeInsets.only(bottom: AleraTokens.space8),
-          child: _SecondaryRowView(row: secondaryRows.first),
+          child: _SecondaryRowView(
+            row: secondaryRows.first,
+            markdownEnabled: markdownEnabled,
+            onMarkdownModeChanged: onMarkdownModeChanged,
+          ),
         ),
       );
     }
@@ -740,7 +807,11 @@ class _CompletedTurnSection extends StatelessWidget {
       assistants.map(
         (assistantCell) => Padding(
           padding: const EdgeInsets.only(bottom: AleraTokens.space8),
-          child: _TimelineCellView(cell: assistantCell),
+          child: _TimelineCellView(
+            cell: assistantCell,
+            markdownEnabled: markdownEnabled,
+            onMarkdownModeChanged: onMarkdownModeChanged,
+          ),
         ),
       ),
     );
@@ -748,7 +819,11 @@ class _CompletedTurnSection extends StatelessWidget {
       postTurnNotices.map(
         (noticeCell) => Padding(
           padding: const EdgeInsets.only(bottom: AleraTokens.space8),
-          child: _TimelineCellView(cell: noticeCell),
+          child: _TimelineCellView(
+            cell: noticeCell,
+            markdownEnabled: markdownEnabled,
+            onMarkdownModeChanged: onMarkdownModeChanged,
+          ),
         ),
       ),
     );
@@ -1104,31 +1179,86 @@ num _normalizeEpochToMs(num raw) {
   return raw < 100000000000 ? raw * 1000 : raw;
 }
 
-class _UserMessageCell extends StatelessWidget {
-  const _UserMessageCell({required this.cell});
+class _UserMessageCell extends StatefulWidget {
+  const _UserMessageCell({
+    required this.cell,
+    required this.markdownEnabled,
+    required this.onMarkdownModeChanged,
+  });
 
   final TimelineCell cell;
+  final bool markdownEnabled;
+  final ValueChanged<bool> onMarkdownModeChanged;
+
+  @override
+  State<_UserMessageCell> createState() => _UserMessageCellState();
+}
+
+class _UserMessageCellState extends State<_UserMessageCell> {
+  bool _isHovered = false;
 
   @override
   Widget build(BuildContext context) {
+    final messageText = widget.cell.markdownText ?? '';
+    final showCopy = _isHovered || !_mouseIsConnected();
     return Align(
       alignment: Alignment.centerRight,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 760),
-        child: Container(
-          margin: const EdgeInsets.only(
+        child: Padding(
+          padding: const EdgeInsets.only(
             top: AleraTokens.space6,
             bottom: AleraTokens.space4,
             left: 80,
           ),
-          padding: const EdgeInsets.all(AleraTokens.space12),
-          decoration: BoxDecoration(
-            color: AleraTokens.accentSubtle,
-            borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
-          ),
-          child: SelectableText(
-            cell.markdownText ?? '',
-            style: Theme.of(context).textTheme.bodyMedium,
+          child: MouseRegion(
+            key: ValueKey<String>('copy-zone-user-${widget.cell.id}'),
+            onEnter: (_) => setState(() => _isHovered = true),
+            onExit: (_) => setState(() => _isHovered = false),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 18),
+                  child: Container(
+                    key: ValueKey<String>('user-bubble-${widget.cell.id}'),
+                    padding: const EdgeInsets.all(AleraTokens.space12),
+                    decoration: BoxDecoration(
+                      color: AleraTokens.accentSubtle,
+                      borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+                    ),
+                    child: _UserBubbleContent(
+                      markdownText: messageText,
+                      markdownEnabled: widget.markdownEnabled,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: IgnorePointer(
+                    ignoring: !showCopy,
+                    child: AnimatedOpacity(
+                      duration: AleraTokens.durationFast,
+                      opacity: showCopy ? 1 : 0,
+                      child: _MessageActionButtons(
+                        alignLeft: false,
+                        copyKey: ValueKey<String>(
+                          'copy-user-${widget.cell.id}',
+                        ),
+                        copyText: messageText,
+                        copiedLabel: 'message copied',
+                        toggleKey: ValueKey<String>(
+                          'toggle-markdown-user-${widget.cell.id}',
+                        ),
+                        markdownEnabled: widget.markdownEnabled,
+                        onToggleMarkdown: widget.onMarkdownModeChanged,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1136,35 +1266,103 @@ class _UserMessageCell extends StatelessWidget {
   }
 }
 
-class _AssistantMessageCell extends StatelessWidget {
-  const _AssistantMessageCell({required this.cell});
+class _AssistantMessageCell extends StatefulWidget {
+  const _AssistantMessageCell({
+    required this.cell,
+    required this.markdownEnabled,
+    required this.onMarkdownModeChanged,
+  });
 
   final TimelineCell cell;
+  final bool markdownEnabled;
+  final ValueChanged<bool> onMarkdownModeChanged;
+
+  @override
+  State<_AssistantMessageCell> createState() => _AssistantMessageCellState();
+}
+
+class _AssistantMessageCellState extends State<_AssistantMessageCell> {
+  bool _isHovered = false;
 
   @override
   Widget build(BuildContext context) {
-    final rawText = cell.markdownText ?? '';
+    final rawText = widget.cell.markdownText ?? '';
     if (rawText.trim().isEmpty) {
       return const SizedBox.shrink();
     }
+    final showCopy = _isHovered || !_mouseIsConnected();
 
     return Padding(
       padding: const EdgeInsets.only(
         top: AleraTokens.space6,
         bottom: AleraTokens.space4,
       ),
-      child: _AssistantBubbleMarkdown(
-        markdownText: rawText,
-        isStreaming: cell.isStreaming,
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 760),
+          child: MouseRegion(
+            key: ValueKey<String>('copy-zone-assistant-${widget.cell.id}'),
+            onEnter: (_) => setState(() => _isHovered = true),
+            onExit: (_) => setState(() => _isHovered = false),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 18),
+                  child: Container(
+                    key: ValueKey<String>('assistant-bubble-${widget.cell.id}'),
+                    child: _AssistantBubbleMarkdown(
+                      markdownText: rawText,
+                      isStreaming: widget.cell.isStreaming,
+                      markdownEnabled: widget.markdownEnabled,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: 0,
+                  bottom: 0,
+                  child: IgnorePointer(
+                    ignoring: !showCopy,
+                    child: AnimatedOpacity(
+                      duration: AleraTokens.durationFast,
+                      opacity: showCopy ? 1 : 0,
+                      child: _MessageActionButtons(
+                        alignLeft: true,
+                        copyKey: ValueKey<String>(
+                          'copy-assistant-${widget.cell.id}',
+                        ),
+                        copyText: rawText,
+                        copiedLabel: 'message copied',
+                        toggleKey: ValueKey<String>(
+                          'toggle-markdown-assistant-${widget.cell.id}',
+                        ),
+                        markdownEnabled: widget.markdownEnabled,
+                        onToggleMarkdown: widget.onMarkdownModeChanged,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
 }
 
+@visibleForTesting
+bool Function() copyMouseConnectionDetector = () =>
+    RendererBinding.instance.mouseTracker.mouseIsConnected;
+
+bool _mouseIsConnected() => copyMouseConnectionDetector();
+
 class _ProgressTextRow extends StatelessWidget {
-  const _ProgressTextRow({required this.cell});
+  const _ProgressTextRow({required this.cell, required this.markdownEnabled});
 
   final TimelineCell cell;
+  final bool markdownEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -1211,14 +1409,21 @@ class _ProgressTextRow extends StatelessWidget {
                 horizontal: AleraTokens.space6,
                 vertical: AleraTokens.space2,
               ),
-              child: MarkdownBody(
-                data: text,
-                styleSheet: styleSheet,
-                builders: <String, MarkdownElementBuilder>{
-                  'pre': _CodeBlockBuilder(context),
-                },
-                selectable: true,
-              ),
+              child: markdownEnabled
+                  ? MarkdownBody(
+                      data: text,
+                      styleSheet: styleSheet,
+                      builders: <String, MarkdownElementBuilder>{
+                        'pre': _CodeBlockBuilder(context),
+                      },
+                      selectable: false,
+                    )
+                  : Text(
+                      text,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AleraTokens.foregroundMuted,
+                      ),
+                    ),
             ),
           ),
         );
@@ -1231,15 +1436,17 @@ class _AssistantBubbleMarkdown extends StatelessWidget {
   const _AssistantBubbleMarkdown({
     required this.markdownText,
     required this.isStreaming,
+    required this.markdownEnabled,
   });
 
   final String markdownText;
   final bool isStreaming;
+  final bool markdownEnabled;
 
   @override
   Widget build(BuildContext context) {
     final shouldRenderMarkdown =
-        !isStreaming && _isMarkdownRenderSafe(markdownText);
+        markdownEnabled && !isStreaming && _isMarkdownRenderSafe(markdownText);
     final styleSheet = MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
       p: Theme.of(context).textTheme.bodyMedium,
       code: AleraTokens.monoStyle.copyWith(
@@ -1268,13 +1475,10 @@ class _AssistantBubbleMarkdown extends StatelessWidget {
             builders: <String, MarkdownElementBuilder>{
               'pre': _CodeBlockBuilder(context),
             },
-            selectable: true,
+            selectable: false,
           )
         else
-          SelectableText(
-            markdownText,
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
+          Text(markdownText, style: Theme.of(context).textTheme.bodyMedium),
         if (isStreaming)
           const Padding(
             padding: EdgeInsets.only(top: AleraTokens.space6),
@@ -1301,6 +1505,90 @@ class _AssistantBubbleMarkdown extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+class _UserBubbleContent extends StatelessWidget {
+  const _UserBubbleContent({
+    required this.markdownText,
+    required this.markdownEnabled,
+  });
+
+  final String markdownText;
+  final bool markdownEnabled;
+
+  @override
+  Widget build(BuildContext context) {
+    if (markdownEnabled && _isMarkdownRenderSafe(markdownText)) {
+      final styleSheet = MarkdownStyleSheet.fromTheme(Theme.of(context))
+          .copyWith(
+            p: Theme.of(context).textTheme.bodyMedium,
+            code: AleraTokens.monoStyle.copyWith(
+              fontSize: 12,
+              color: AleraTokens.foreground,
+            ),
+            codeblockDecoration: BoxDecoration(
+              color: AleraTokens.bg,
+              borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+              border: Border.all(color: AleraTokens.border),
+            ),
+          );
+      return MarkdownBody(
+        data: markdownText,
+        styleSheet: styleSheet,
+        selectable: false,
+      );
+    }
+    return Text(markdownText, style: Theme.of(context).textTheme.bodyMedium);
+  }
+}
+
+class _MessageActionButtons extends StatelessWidget {
+  const _MessageActionButtons({
+    required this.alignLeft,
+    required this.copyKey,
+    required this.copyText,
+    required this.copiedLabel,
+    required this.toggleKey,
+    required this.markdownEnabled,
+    required this.onToggleMarkdown,
+  });
+
+  final bool alignLeft;
+  final ValueKey<String> copyKey;
+  final String copyText;
+  final String copiedLabel;
+  final ValueKey<String> toggleKey;
+  final bool markdownEnabled;
+  final ValueChanged<bool> onToggleMarkdown;
+
+  @override
+  Widget build(BuildContext context) {
+    final copy = _MessageCopyButton(
+      key: copyKey,
+      copyText: copyText,
+      copiedLabel: copiedLabel,
+    );
+    final markdownToggle = _MessageMarkdownToggleButton(
+      key: toggleKey,
+      markdownEnabled: markdownEnabled,
+      onChanged: onToggleMarkdown,
+    );
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: alignLeft
+          ? <Widget>[
+              copy,
+              const SizedBox(width: AleraTokens.space2),
+              markdownToggle,
+            ]
+          : <Widget>[
+              markdownToggle,
+              const SizedBox(width: AleraTokens.space2),
+              copy,
+            ],
     );
   }
 }
@@ -1362,9 +1650,14 @@ bool _hasBalancedInlineBackticksOutsideFences(String text) {
 }
 
 class _ReasoningCell extends StatefulWidget {
-  const _ReasoningCell({super.key, required this.cell});
+  const _ReasoningCell({
+    super.key,
+    required this.cell,
+    required this.markdownEnabled,
+  });
 
   final TimelineCell cell;
+  final bool markdownEnabled;
 
   @override
   State<_ReasoningCell> createState() => _ReasoningCellState();
@@ -1486,16 +1779,25 @@ class _ReasoningCellState extends State<_ReasoningCell> {
                   left: BorderSide(color: AleraTokens.borderSubtle, width: 2),
                 ),
               ),
-              child: MarkdownBody(
-                data: text,
-                styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context))
-                    .copyWith(
-                      p: Theme.of(context).textTheme.bodySmall?.copyWith(
+              child: widget.markdownEnabled
+                  ? MarkdownBody(
+                      data: text,
+                      styleSheet:
+                          MarkdownStyleSheet.fromTheme(
+                            Theme.of(context),
+                          ).copyWith(
+                            p: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AleraTokens.foregroundMuted,
+                            ),
+                          ),
+                      selectable: false,
+                    )
+                  : Text(
+                      text,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AleraTokens.foregroundMuted,
                       ),
                     ),
-                selectable: true,
-              ),
             ),
         ],
       ),
@@ -1674,6 +1976,90 @@ class _SystemNoticeCell extends StatelessWidget {
         style: Theme.of(
           context,
         ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundFaint),
+      ),
+    );
+  }
+}
+
+class _MessageCopyButton extends StatelessWidget {
+  const _MessageCopyButton({
+    super.key,
+    required this.copyText,
+    required this.copiedLabel,
+  });
+
+  final String copyText;
+  final String copiedLabel;
+
+  Future<void> _copy(BuildContext context) async {
+    if (copyText.isEmpty) {
+      return;
+    }
+    await Clipboard.setData(ClipboardData(text: copyText));
+    if (!context.mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(copiedLabel)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () => _copy(context),
+      mouseCursor: SystemMouseCursors.click,
+      borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+      child: const Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: AleraTokens.space4,
+          vertical: AleraTokens.space2,
+        ),
+        child: Icon(
+          Icons.content_copy,
+          size: 12,
+          color: AleraTokens.foregroundFaint,
+        ),
+      ),
+    );
+  }
+}
+
+class _MessageMarkdownToggleButton extends StatelessWidget {
+  const _MessageMarkdownToggleButton({
+    super.key,
+    required this.markdownEnabled,
+    required this.onChanged,
+  });
+
+  final bool markdownEnabled;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: markdownEnabled ? 'Markdown ON' : 'Markdown OFF',
+      child: InkWell(
+        onTap: () => onChanged(!markdownEnabled),
+        mouseCursor: SystemMouseCursors.click,
+        borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+        child: Container(
+          decoration: BoxDecoration(
+            color: markdownEnabled ? AleraTokens.surfaceVariant : null,
+            borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+          ),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AleraTokens.space4,
+            vertical: AleraTokens.space2,
+          ),
+          child: Icon(
+            Icons.code,
+            size: 13,
+            color: markdownEnabled
+                ? AleraTokens.foregroundMuted
+                : AleraTokens.foregroundFaint,
+          ),
+        ),
       ),
     );
   }
@@ -1964,7 +2350,7 @@ class _ComposerState extends State<_Composer> {
                             ),
                           ),
                           ...widget.availableModels.map(
-                            (model) => _DropdownEntry(
+                            (model) => _DropdownEntry<String>(
                               value: model.id,
                               label: model.label,
                               selected: model.id == widget.activeModelId,
@@ -1993,7 +2379,7 @@ class _ComposerState extends State<_Composer> {
                             ),
                           ),
                           ...widget.supportedReasoningEfforts.map(
-                            (effort) => _DropdownEntry(
+                            (effort) => _DropdownEntry<String>(
                               value: effort,
                               label: codexReasoningEffortLabel(effort),
                               selected: effort == widget.activeReasoningEffort,
@@ -2089,14 +2475,14 @@ class _ComposerChip extends StatelessWidget {
   }
 }
 
-class _DropdownEntry extends PopupMenuEntry<String> {
+class _DropdownEntry<T> extends PopupMenuEntry<T> {
   const _DropdownEntry({
     required this.value,
     required this.label,
     this.selected = false,
   });
 
-  final String value;
+  final T value;
   final String label;
   final bool selected;
 
@@ -2104,13 +2490,13 @@ class _DropdownEntry extends PopupMenuEntry<String> {
   double get height => 36;
 
   @override
-  bool represents(String? value) => this.value == value;
+  bool represents(T? value) => this.value == value;
 
   @override
-  State<_DropdownEntry> createState() => _DropdownEntryState();
+  State<_DropdownEntry<T>> createState() => _DropdownEntryState<T>();
 }
 
-class _DropdownEntryState extends State<_DropdownEntry> {
+class _DropdownEntryState<T> extends State<_DropdownEntry<T>> {
   @override
   Widget build(BuildContext context) {
     return Padding(

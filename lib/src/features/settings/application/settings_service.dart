@@ -5,10 +5,12 @@ class SettingsSnapshot {
   const SettingsSnapshot({
     required this.selectedModel,
     required this.selectedReasoningEffort,
+    required this.markdownEnabled,
   });
 
   final String selectedModel;
   final String selectedReasoningEffort;
+  final bool markdownEnabled;
 }
 
 class SettingsService {
@@ -20,21 +22,27 @@ class SettingsService {
   static const String _legacyExecutorModelKey = 'settings.model.executor';
   static const String _selectedReasoningEffortKey =
       'settings.reasoning.effort.selected';
+  static const String _markdownEnabledKey = 'settings.markdown.enabled';
 
   Future<SettingsSnapshot> load() async {
     final selected = await _preferencesStore.getString(_selectedModelKey);
     final selectedReasoningEffort = await _preferencesStore.getString(
       _selectedReasoningEffortKey,
     );
+    final markdownEnabledRaw = await _preferencesStore.getString(
+      _markdownEnabledKey,
+    );
     final normalizedReasoningEffort =
         codexReasoningEffortExists(selectedReasoningEffort ?? '')
         ? selectedReasoningEffort!
         : codexDefaultReasoningEffort();
+    final markdownEnabled = _parseBoolOrDefault(markdownEnabledRaw, true);
 
     if (selected != null && codexModelExists(selected)) {
       return SettingsSnapshot(
         selectedModel: selected,
         selectedReasoningEffort: normalizedReasoningEffort,
+        markdownEnabled: markdownEnabled,
       );
     }
 
@@ -45,12 +53,14 @@ class SettingsService {
       return SettingsSnapshot(
         selectedModel: legacyExecutor,
         selectedReasoningEffort: normalizedReasoningEffort,
+        markdownEnabled: markdownEnabled,
       );
     }
 
     return SettingsSnapshot(
       selectedModel: codexDefaultModelId(),
       selectedReasoningEffort: normalizedReasoningEffort,
+      markdownEnabled: markdownEnabled,
     );
   }
 
@@ -67,5 +77,23 @@ class SettingsService {
       _selectedReasoningEffortKey,
       normalizedReasoningEffort,
     );
+    await _preferencesStore.setString(
+      _markdownEnabledKey,
+      snapshot.markdownEnabled ? 'true' : 'false',
+    );
+  }
+
+  bool _parseBoolOrDefault(String? raw, bool fallback) {
+    if (raw == null) {
+      return fallback;
+    }
+    final normalized = raw.trim().toLowerCase();
+    if (normalized == 'true') {
+      return true;
+    }
+    if (normalized == 'false') {
+      return false;
+    }
+    return fallback;
   }
 }

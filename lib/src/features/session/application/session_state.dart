@@ -10,6 +10,7 @@ class SessionState {
     this.selectedWorkspacePath,
     this.preSessionModelId,
     this.preSessionReasoningEffort,
+    this.preSessionMarkdownEnabled,
     this.sessions = const <AleraSession>[],
     this.activeSessionId,
     this.availableModels = codexModelSnapshot,
@@ -44,6 +45,7 @@ class SessionState {
   final String? selectedWorkspacePath;
   final String? preSessionModelId;
   final String? preSessionReasoningEffort;
+  final bool? preSessionMarkdownEnabled;
   final List<AleraSession> sessions;
   final String? activeSessionId;
   final List<CodexModelOption> availableModels;
@@ -109,10 +111,13 @@ class SessionState {
     );
   }
 
+  bool get activeMarkdownEnabled => preSessionMarkdownEnabled ?? true;
+
   SessionState copyWith({
     String? selectedWorkspacePath,
     String? preSessionModelId,
     String? preSessionReasoningEffort,
+    bool? preSessionMarkdownEnabled,
     List<AleraSession>? sessions,
     String? activeSessionId,
     List<CodexModelOption>? availableModels,
@@ -155,6 +160,7 @@ class SessionState {
     bool clearSelectedWorkspacePath = false,
     bool clearPreSessionModelId = false,
     bool clearPreSessionReasoningEffort = false,
+    bool clearPreSessionMarkdownEnabled = false,
     bool clearActiveSessionId = false,
   }) {
     return SessionState(
@@ -167,6 +173,9 @@ class SessionState {
       preSessionReasoningEffort: clearPreSessionReasoningEffort
           ? null
           : (preSessionReasoningEffort ?? this.preSessionReasoningEffort),
+      preSessionMarkdownEnabled: clearPreSessionMarkdownEnabled
+          ? null
+          : (preSessionMarkdownEnabled ?? this.preSessionMarkdownEnabled),
       sessions: sessions ?? this.sessions,
       activeSessionId: clearActiveSessionId
           ? null

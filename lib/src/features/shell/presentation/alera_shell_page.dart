@@ -8,8 +8,8 @@ import 'package:alera/src/features/shell/presentation/alera_status_bar.dart';
 import 'package:alera/src/features/shell/presentation/alera_top_bar.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 class AleraShellPage extends ConsumerStatefulWidget {
@@ -20,6 +20,8 @@ class AleraShellPage extends ConsumerStatefulWidget {
 }
 
 class _AleraShellPageState extends ConsumerState<AleraShellPage> {
+  static const double _chatContentMaxWidth = 780;
+
   String? _lastErrorMessage;
   bool _rawLogExpanded = false;
 
@@ -85,19 +87,26 @@ class _AleraShellPageState extends ConsumerState<AleraShellPage> {
         onAction: () => _selectWorkspace(controller),
       );
     }
-    return SessionWorkspaceView(
-      state: state,
-      onSendInput: controller.sendInput,
-      onInterruptTurn: controller.interruptActiveTurn,
-      isTurnRunning: state.runningTurnCount > 0,
-      isInterrupting: state.isInterrupting,
-      onModelChanged: controller.updateActiveSessionModel,
-      activeReasoningEffort: state.activeReasoningEffort,
-      supportedReasoningEfforts: supportedReasoningEffortsForModel(
-        state.activeModelId,
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: _chatContentMaxWidth),
+        child: SessionWorkspaceView(
+          state: state,
+          onSendInput: controller.sendInput,
+          onInterruptTurn: controller.interruptActiveTurn,
+          isTurnRunning: state.runningTurnCount > 0,
+          isInterrupting: state.isInterrupting,
+          onModelChanged: controller.updateActiveSessionModel,
+          activeReasoningEffort: state.activeReasoningEffort,
+          supportedReasoningEfforts: supportedReasoningEffortsForModel(
+            state.activeModelId,
+          ),
+          onReasoningEffortChanged: controller.updateReasoningEffort,
+          isMarkdownEnabled: state.activeMarkdownEnabled,
+          onMarkdownModeChanged: controller.updateMarkdownEnabled,
+          rawLogExpanded: _rawLogExpanded,
+        ),
       ),
-      onReasoningEffortChanged: controller.updateReasoningEffort,
-      rawLogExpanded: _rawLogExpanded,
     );
   }
 

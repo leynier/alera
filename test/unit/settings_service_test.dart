@@ -14,6 +14,7 @@ void main() {
 
       expect(snapshot.selectedModel, codexDefaultModelId());
       expect(snapshot.selectedReasoningEffort, codexDefaultReasoningEffort());
+      expect(snapshot.markdownEnabled, isTrue);
     });
 
     test('migrates from legacy executor model key', () async {
@@ -25,6 +26,7 @@ void main() {
 
       expect(snapshot.selectedModel, 'gpt-5.1-codex-mini');
       expect(snapshot.selectedReasoningEffort, codexDefaultReasoningEffort());
+      expect(snapshot.markdownEnabled, isTrue);
     });
 
     test('persists selected model and reads it back', () async {
@@ -35,12 +37,14 @@ void main() {
         const SettingsSnapshot(
           selectedModel: 'gpt-5.2',
           selectedReasoningEffort: 'xhigh',
+          markdownEnabled: false,
         ),
       );
       final snapshot = await service.load();
 
       expect(snapshot.selectedModel, 'gpt-5.2');
       expect(snapshot.selectedReasoningEffort, 'xhigh');
+      expect(snapshot.markdownEnabled, isFalse);
     });
   });
 }

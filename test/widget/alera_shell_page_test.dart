@@ -8,6 +8,8 @@ import 'package:alera/src/features/session/application/session_service.dart';
 import 'package:alera/src/features/session/presentation/session_workspace_view.dart';
 import 'package:alera/src/features/settings/application/settings_service.dart';
 import 'package:alera/src/features/shell/presentation/alera_shell_page.dart';
+import 'package:alera/src/features/shell/presentation/alera_status_bar.dart';
+import 'package:alera/src/features/shell/presentation/alera_top_bar.dart';
 import 'package:alera/src/shared/models/contracts.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -81,16 +83,22 @@ class _ShellFakeProjectService implements ProjectService {
 }
 
 class _ShellFakeSettingsService implements SettingsService {
-  _ShellFakeSettingsService(this._selectedModel, this._selectedReasoningEffort);
+  _ShellFakeSettingsService(
+    this._selectedModel,
+    this._selectedReasoningEffort,
+    this._markdownEnabled,
+  );
 
   String _selectedModel;
   String _selectedReasoningEffort;
+  bool _markdownEnabled;
 
   @override
   Future<SettingsSnapshot> load() async {
     return SettingsSnapshot(
       selectedModel: _selectedModel,
       selectedReasoningEffort: _selectedReasoningEffort,
+      markdownEnabled: _markdownEnabled,
     );
   }
 
@@ -98,24 +106,31 @@ class _ShellFakeSettingsService implements SettingsService {
   Future<void> save(SettingsSnapshot snapshot) async {
     _selectedModel = snapshot.selectedModel;
     _selectedReasoningEffort = snapshot.selectedReasoningEffort;
+    _markdownEnabled = snapshot.markdownEnabled;
   }
 }
 
 void main() {
+  Future<(SessionController, _ShellFakeSessionService)>
+  buildController() async {
+    final fakeService = _ShellFakeSessionService();
+    final controller = SessionController(
+      sessionService: fakeService,
+      projectService: _ShellFakeProjectService(),
+      settingsService: _ShellFakeSettingsService('gpt-5.3-codex', 'high', true),
+    );
+    await controller.bootstrap();
+    return (controller, fakeService);
+  }
+
   testWidgets(
     'shell renders SessionWorkspaceView when workspace is selected and no active session',
     (tester) async {
-      final fakeService = _ShellFakeSessionService();
-      final controller = SessionController(
-        sessionService: fakeService,
-        projectService: _ShellFakeProjectService(),
-        settingsService: _ShellFakeSettingsService('gpt-5.3-codex', 'high'),
-      );
+      final (controller, fakeService) = await buildController();
       addTearDown(() async {
         await fakeService.shutdown();
       });
 
-      await controller.bootstrap();
       await controller.selectWorkspaceFromPath('/repo');
 
       await tester.pumpWidget(
@@ -134,4 +149,88 @@ void main() {
       expect(find.text('select a repository folder'), findsNothing);
     },
   );
+
+  testWidgets('workspace selected uses centered max-width chat container', (
+    tester,
+  ) async {
+    final (controller, fakeService) = await buildController();
+    addTearDown(() async {
+      await fakeService.shutdown();
+    });
+    await tester.binding.setSurfaceSize(const Size(1600, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await controller.selectWorkspaceFromPath('/repo');
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          sessionControllerProvider.overrideWith((ref) => controller),
+        ],
+        child: const MaterialApp(home: AleraShellPage()),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final workspaceRect = tester.getRect(find.byType(SessionWorkspaceView));
+    final scaffoldRect = tester.getRect(find.byType(Scaffold));
+
+    expect(workspaceRect.width, lessThanOrEqualTo(780));
+    final leftGap = workspaceRect.left - scaffoldRect.left;
+    final rightGap = scaffoldRect.right - workspaceRect.right;
+    expect((leftGap - rightGap).abs(), lessThan(1.0));
+  });
+
+  testWidgets('top and status bars remain full width', (tester) async {
+    final (controller, fakeService) = await buildController();
+    addTearDown(() async {
+      await fakeService.shutdown();
+    });
+    await tester.binding.setSurfaceSize(const Size(1600, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await controller.selectWorkspaceFromPath('/repo');
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          sessionControllerProvider.overrideWith((ref) => controller),
+        ],
+        child: const MaterialApp(home: AleraShellPage()),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final scaffoldRect = tester.getRect(find.byType(Scaffold));
+    final topBarRect = tester.getRect(find.byType(AleraTopBar));
+    final statusBarRect = tester.getRect(find.byType(AleraStatusBar));
+
+    expect((topBarRect.width - scaffoldRect.width).abs(), lessThan(1.0));
+    expect((statusBarRect.width - scaffoldRect.width).abs(), lessThan(1.0));
+  });
+
+  testWidgets('empty state unchanged when no workspace is selected', (
+    tester,
+  ) async {
+    final (controller, fakeService) = await buildController();
+    addTearDown(() async {
+      await fakeService.shutdown();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          sessionControllerProvider.overrideWith((ref) => controller),
+        ],
+        child: const MaterialApp(home: AleraShellPage()),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('select a repository folder'), findsOneWidget);
+    expect(find.byType(SessionWorkspaceView), findsNothing);
+  });
 }

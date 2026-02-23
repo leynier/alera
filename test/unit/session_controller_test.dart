@@ -161,10 +161,15 @@ class _FakeProjectService implements ProjectService {
 }
 
 class _FakeSettingsService implements SettingsService {
-  _FakeSettingsService(this._selectedModel, this._selectedReasoningEffort);
+  _FakeSettingsService(
+    this._selectedModel,
+    this._selectedReasoningEffort,
+    this._markdownEnabled,
+  );
 
   String _selectedModel;
   String _selectedReasoningEffort;
+  bool _markdownEnabled;
   int saveCallCount = 0;
 
   @override
@@ -172,6 +177,7 @@ class _FakeSettingsService implements SettingsService {
     return SettingsSnapshot(
       selectedModel: _selectedModel,
       selectedReasoningEffort: _selectedReasoningEffort,
+      markdownEnabled: _markdownEnabled,
     );
   }
 
@@ -180,17 +186,19 @@ class _FakeSettingsService implements SettingsService {
     saveCallCount += 1;
     _selectedModel = snapshot.selectedModel;
     _selectedReasoningEffort = snapshot.selectedReasoningEffort;
+    _markdownEnabled = snapshot.markdownEnabled;
   }
 
   String get selectedModel => _selectedModel;
   String get selectedReasoningEffort => _selectedReasoningEffort;
+  bool get markdownEnabled => _markdownEnabled;
 }
 
 void main() {
   group('session controller', () {
     test('selectWorkspace without existing session boots connection', () async {
       final fakeService = _FakeSessionService();
-      final fakeSettings = _FakeSettingsService('gpt-5.3-codex', 'high');
+      final fakeSettings = _FakeSettingsService('gpt-5.3-codex', 'high', true);
       final controller = SessionController(
         sessionService: fakeService,
         projectService: _FakeProjectService(),
@@ -214,11 +222,12 @@ void main() {
       expect(controller.state.selectedWorkspacePath, isNotNull);
       expect(controller.state.preSessionModelId, 'gpt-5.3-codex');
       expect(controller.state.preSessionReasoningEffort, 'high');
+      expect(controller.state.activeMarkdownEnabled, isTrue);
     });
 
     test('sendInput lazily creates session on first prompt', () async {
       final fakeService = _FakeSessionService();
-      final fakeSettings = _FakeSettingsService('gpt-5.3-codex', 'high');
+      final fakeSettings = _FakeSettingsService('gpt-5.3-codex', 'high', true);
       final controller = SessionController(
         sessionService: fakeService,
         projectService: _FakeProjectService(),
@@ -258,7 +267,11 @@ void main() {
       'updateActiveSessionModel without session updates draft and settings',
       () async {
         final fakeService = _FakeSessionService();
-        final fakeSettings = _FakeSettingsService('gpt-5.3-codex', 'high');
+        final fakeSettings = _FakeSettingsService(
+          'gpt-5.3-codex',
+          'high',
+          true,
+        );
         final controller = SessionController(
           sessionService: fakeService,
           projectService: _FakeProjectService(),
@@ -284,7 +297,11 @@ void main() {
       'updateActiveSessionModel auto-adjusts unsupported reasoning effort for mini',
       () async {
         final fakeService = _FakeSessionService();
-        final fakeSettings = _FakeSettingsService('gpt-5.3-codex', 'xhigh');
+        final fakeSettings = _FakeSettingsService(
+          'gpt-5.3-codex',
+          'xhigh',
+          true,
+        );
         final controller = SessionController(
           sessionService: fakeService,
           projectService: _FakeProjectService(),
@@ -307,7 +324,7 @@ void main() {
 
     test('updateReasoningEffort persists selected effort', () async {
       final fakeService = _FakeSessionService();
-      final fakeSettings = _FakeSettingsService('gpt-5.3-codex', 'high');
+      final fakeSettings = _FakeSettingsService('gpt-5.3-codex', 'high', true);
       final controller = SessionController(
         sessionService: fakeService,
         projectService: _FakeProjectService(),
@@ -326,6 +343,28 @@ void main() {
       expect(fakeSettings.selectedModel, 'gpt-5.3-codex');
     });
 
+    test('updateMarkdownEnabled persists selected markdown mode', () async {
+      final fakeService = _FakeSessionService();
+      final fakeSettings = _FakeSettingsService('gpt-5.3-codex', 'high', true);
+      final controller = SessionController(
+        sessionService: fakeService,
+        projectService: _FakeProjectService(),
+        settingsService: fakeSettings,
+      );
+      addTearDown(() async {
+        controller.dispose();
+        await fakeService.shutdown();
+      });
+
+      await controller.bootstrap();
+      await controller.updateMarkdownEnabled(false);
+
+      expect(controller.state.activeMarkdownEnabled, isFalse);
+      expect(fakeSettings.markdownEnabled, isFalse);
+      expect(fakeSettings.selectedModel, 'gpt-5.3-codex');
+      expect(fakeSettings.selectedReasoningEffort, 'high');
+    });
+
     test(
       'interruptActiveTurn toggles state and clears on turn completion',
       () async {
@@ -333,7 +372,7 @@ void main() {
         final controller = SessionController(
           sessionService: fakeService,
           projectService: _FakeProjectService(),
-          settingsService: _FakeSettingsService('gpt-5.3-codex', 'high'),
+          settingsService: _FakeSettingsService('gpt-5.3-codex', 'high', true),
         );
         addTearDown(() async {
           controller.dispose();
@@ -386,7 +425,7 @@ void main() {
       final controller = SessionController(
         sessionService: fakeService,
         projectService: _FakeProjectService(),
-        settingsService: _FakeSettingsService('gpt-5.3-codex', 'high'),
+        settingsService: _FakeSettingsService('gpt-5.3-codex', 'high', true),
       );
       addTearDown(() async {
         controller.dispose();

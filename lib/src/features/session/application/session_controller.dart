@@ -56,6 +56,7 @@ class SessionController extends StateNotifier<SessionState> {
         SettingsSnapshot(
           selectedModel: normalizedDefault,
           selectedReasoningEffort: normalizedReasoningEffort,
+          markdownEnabled: defaults.markdownEnabled,
         ),
       );
     }
@@ -66,6 +67,7 @@ class SessionController extends StateNotifier<SessionState> {
       availableModels: codexModelSnapshot,
       preSessionModelId: normalizedDefault,
       preSessionReasoningEffort: normalizedReasoningEffort,
+      preSessionMarkdownEnabled: defaults.markdownEnabled,
     );
 
     _bootstrapped = true;
@@ -247,6 +249,7 @@ class SessionController extends StateNotifier<SessionState> {
         SettingsSnapshot(
           selectedModel: session.model,
           selectedReasoningEffort: adjustedReasoningEffort,
+          markdownEnabled: state.activeMarkdownEnabled,
         ),
       );
     } catch (error) {
@@ -277,6 +280,7 @@ class SessionController extends StateNotifier<SessionState> {
         SettingsSnapshot(
           selectedModel: modelId,
           selectedReasoningEffort: adjustedReasoningEffort,
+          markdownEnabled: state.activeMarkdownEnabled,
         ),
       );
       return;
@@ -291,6 +295,7 @@ class SessionController extends StateNotifier<SessionState> {
         SettingsSnapshot(
           selectedModel: modelId,
           selectedReasoningEffort: adjustedReasoningEffort,
+          markdownEnabled: state.activeMarkdownEnabled,
         ),
       );
       state = state.copyWith(
@@ -322,6 +327,25 @@ class SessionController extends StateNotifier<SessionState> {
         SettingsSnapshot(
           selectedModel: modelId,
           selectedReasoningEffort: adjusted,
+          markdownEnabled: state.activeMarkdownEnabled,
+        ),
+      );
+    } catch (error) {
+      state = state.copyWith(error: error.toString());
+    }
+  }
+
+  Future<void> updateMarkdownEnabled(bool enabled) async {
+    try {
+      state = state.copyWith(
+        preSessionMarkdownEnabled: enabled,
+        clearError: true,
+      );
+      await _settingsService.save(
+        SettingsSnapshot(
+          selectedModel: state.activeModelId,
+          selectedReasoningEffort: state.activeReasoningEffort,
+          markdownEnabled: enabled,
         ),
       );
     } catch (error) {
@@ -362,6 +386,7 @@ class SessionController extends StateNotifier<SessionState> {
           SettingsSnapshot(
             selectedModel: model,
             selectedReasoningEffort: reasoningEffort,
+            markdownEnabled: state.activeMarkdownEnabled,
           ),
         );
         state = state.copyWith(
