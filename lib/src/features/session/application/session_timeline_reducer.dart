@@ -1309,6 +1309,7 @@ SessionState _onToolDetailsChunk(
         status: TimelineCellStatus.inProgress,
         createdAt: timestamp,
         updatedAt: timestamp,
+        isCollapsed: true,
         title: fallbackTitle,
         detailsText: chunk,
       ),
@@ -1324,18 +1325,10 @@ SessionState _onToolDetailsChunk(
           ? TimelineCellKind.reasoning
           : TimelineCellKind.toolCall,
       status: TimelineCellStatus.inProgress,
-      isCollapsed: false,
       detailsText: detailsText,
       updatedAt: timestamp,
     );
   }
-
-  _collapseOtherSecondaryCellsForTurn(
-    cells,
-    turnId: turnId,
-    exceptCellId: cellId,
-    timestamp: timestamp,
-  );
 
   return state.copyWith(
     timelineCells: cells,
@@ -1443,7 +1436,7 @@ SessionState _onItemStarted(
         TimelineCellStatus.inProgress,
     createdAt: timestamp,
     updatedAt: timestamp,
-    isCollapsed: false,
+    isCollapsed: true,
     title: title,
     subtitle: subtitle,
     markdownText: markdownText,
@@ -1465,17 +1458,9 @@ SessionState _onItemStarted(
       markdownText: candidate.markdownText,
       detailsText: candidate.detailsText,
       metadata: candidate.metadata,
-      isCollapsed: false,
       updatedAt: timestamp,
     );
   }
-
-  _collapseOtherSecondaryCellsForTurn(
-    cells,
-    turnId: turnId,
-    exceptCellId: cellId,
-    timestamp: timestamp,
-  );
 
   final isPlan = itemType == 'plan';
   final isExecLike = kind == TimelineCellKind.toolCall && !isPlan;
@@ -1588,7 +1573,7 @@ SessionState _onItemCompleted(
         status: status,
         createdAt: timestamp,
         updatedAt: timestamp,
-        isCollapsed: false,
+        isCollapsed: true,
         title: title,
         subtitle: subtitle,
         markdownText: markdownText,
@@ -2071,26 +2056,6 @@ int? _computeTurnDurationFromCells(
   final endMs = turnCompletedAt.millisecondsSinceEpoch;
   final duration = endMs - startMs;
   return duration > 0 ? duration : null;
-}
-
-void _collapseOtherSecondaryCellsForTurn(
-  List<TimelineCell> cells, {
-  required String turnId,
-  required String exceptCellId,
-  required DateTime timestamp,
-}) {
-  for (var i = 0; i < cells.length; i++) {
-    final cell = cells[i];
-    if (cell.turnId != turnId || cell.id == exceptCellId) {
-      continue;
-    }
-    if (!_isSecondaryKind(cell.kind) ||
-        cell.kind == TimelineCellKind.progressText ||
-        cell.isCollapsed) {
-      continue;
-    }
-    cells[i] = cell.copyWith(isCollapsed: true, updatedAt: timestamp);
-  }
 }
 
 bool _isSecondaryKind(TimelineCellKind kind) {

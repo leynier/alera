@@ -784,7 +784,7 @@ void main() {
     expect(find.text('Search · rg TODO'), findsOneWidget);
   });
 
-  testWidgets('streaming exploratory calls show exploring row expanded', (
+  testWidgets('streaming exploratory calls start collapsed and expand on tap', (
     tester,
   ) async {
     final state = SessionState(
@@ -823,6 +823,12 @@ void main() {
     await _pumpWorkspace(tester, state: state);
 
     expect(find.text('Exploring'), findsOneWidget);
+    expect(find.text('Read · cat README.md'), findsNothing);
+    expect(find.text('Search · rg TODO'), findsNothing);
+
+    await tester.tap(find.text('Exploring'));
+    await tester.pumpAndSettle();
+
     expect(find.text('Read · cat README.md'), findsOneWidget);
     expect(find.text('Search · rg TODO'), findsOneWidget);
   });

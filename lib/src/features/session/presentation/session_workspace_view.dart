@@ -773,38 +773,20 @@ class _ExploringClusterCellState extends State<_ExploringClusterCell> {
   late bool _collapsed;
   bool _isHovered = false;
 
-  bool get _isStreaming {
-    for (final cell in widget.cells) {
-      if (cell.status == TimelineCellStatus.inProgress || cell.isStreaming) {
-        return true;
-      }
-    }
-    return false;
-  }
-
   @override
   void initState() {
     super.initState();
-    _collapsed = !_isStreaming;
-  }
-
-  @override
-  void didUpdateWidget(covariant _ExploringClusterCell oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    final wasStreaming = oldWidget.cells.any(
-      (cell) =>
-          cell.status == TimelineCellStatus.inProgress || cell.isStreaming,
-    );
-    final isStreaming = _isStreaming;
-    if (wasStreaming != isStreaming) {
-      _collapsed = !isStreaming;
-    }
+    _collapsed = true;
   }
 
   @override
   Widget build(BuildContext context) {
     final summary = _exploredSummary(widget.cells);
-    final label = _isStreaming
+    final isStreaming = widget.cells.any(
+      (cell) =>
+          cell.status == TimelineCellStatus.inProgress || cell.isStreaming,
+    );
+    final label = isStreaming
         ? 'Exploring'
         : summary == null
         ? 'Explored'

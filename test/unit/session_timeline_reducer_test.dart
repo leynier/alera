@@ -735,6 +735,110 @@ void main() {
       },
     );
 
+    test('new secondary row starts collapsed on item started', () {
+      var state = const SessionState();
+      state = reduceNotification(
+        state,
+        _event('turn/started', <String, dynamic>{
+          'turn': <String, dynamic>{'id': 'turn-1', 'threadId': 'thread-1'},
+        }),
+      );
+
+      state = reduceNotification(
+        state,
+        _event('item/started', <String, dynamic>{
+          'turnId': 'turn-1',
+          'item': <String, dynamic>{
+            'id': 'cmd-1',
+            'type': 'commandExecution',
+            'command': 'ls',
+            'status': 'inProgress',
+          },
+        }),
+      );
+
+      final toolCells = _cellsByKind(state, TimelineCellKind.toolCall);
+      expect(toolCells, hasLength(1));
+      expect(toolCells.first.isCollapsed, isTrue);
+    });
+
+    test('updates keep manual expanded state for existing secondary row', () {
+      final now = DateTime.utc(2026, 2, 23);
+      var state = SessionState(
+        timelineCells: <TimelineCell>[
+          TimelineCell(
+            id: 'cmd-1',
+            turnId: 'turn-1',
+            itemId: 'cmd-1',
+            kind: TimelineCellKind.toolCall,
+            status: TimelineCellStatus.inProgress,
+            createdAt: now,
+            updatedAt: now,
+            isCollapsed: false,
+            title: 'Ran command',
+            detailsText: 'old',
+          ),
+        ],
+      );
+
+      state = reduceNotification(
+        state,
+        _event('item/commandExecution/outputDelta', <String, dynamic>{
+          'turnId': 'turn-1',
+          'itemId': 'cmd-1',
+          'delta': ' + new output',
+        }),
+      );
+
+      final toolCells = _cellsByKind(state, TimelineCellKind.toolCall);
+      expect(toolCells, hasLength(1));
+      expect(toolCells.first.isCollapsed, isFalse);
+      expect(toolCells.first.detailsText, contains('new output'));
+    });
+
+    test(
+      'starting another secondary does not collapse an already open row',
+      () {
+        final now = DateTime.utc(2026, 2, 23);
+        var state = SessionState(
+          timelineCells: <TimelineCell>[
+            TimelineCell(
+              id: 'cmd-1',
+              turnId: 'turn-1',
+              itemId: 'cmd-1',
+              kind: TimelineCellKind.toolCall,
+              status: TimelineCellStatus.inProgress,
+              createdAt: now,
+              updatedAt: now,
+              isCollapsed: false,
+              title: 'Ran command',
+              detailsText: 'open row',
+            ),
+          ],
+        );
+
+        state = reduceNotification(
+          state,
+          _event('item/started', <String, dynamic>{
+            'turnId': 'turn-1',
+            'item': <String, dynamic>{
+              'id': 'cmd-2',
+              'type': 'commandExecution',
+              'command': 'pwd',
+              'status': 'inProgress',
+            },
+          }),
+        );
+
+        final toolCells = _cellsByKind(state, TimelineCellKind.toolCall);
+        expect(toolCells, hasLength(2));
+        final first = toolCells.firstWhere((cell) => cell.id == 'cmd-1');
+        final second = toolCells.firstWhere((cell) => cell.id == 'cmd-2');
+        expect(first.isCollapsed, isFalse);
+        expect(second.isCollapsed, isTrue);
+      },
+    );
+
     test(
       'commentary and final_answer in same turn do not duplicate content',
       () {
