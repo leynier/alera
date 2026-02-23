@@ -7,6 +7,7 @@ import 'package:alera/src/shared/models/contracts.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 TimelineCell _cell({
@@ -251,6 +252,75 @@ void main() {
     expect(find.text('visible assistant text'), findsOneWidget);
     expect(find.text('_no content_'), findsNothing);
   });
+
+  testWidgets('assistant streaming renders plain text without MarkdownBody', (
+    tester,
+  ) async {
+    final state = SessionState(
+      timelineCells: <TimelineCell>[
+        _cell(
+          id: 'a-streaming',
+          kind: TimelineCellKind.assistantMessage,
+          status: TimelineCellStatus.inProgress,
+          turnId: 't1',
+          markdownText: 'Texto **negrita** con `codigo` en stream',
+          isStreaming: true,
+        ),
+      ],
+    );
+
+    await _pumpWorkspace(tester, state: state);
+
+    expect(
+      find.text('Texto **negrita** con `codigo` en stream'),
+      findsOneWidget,
+    );
+    expect(find.byType(MarkdownBody), findsNothing);
+    expect(find.text('streaming...'), findsOneWidget);
+  });
+
+  testWidgets('assistant completed renders markdown when content is safe', (
+    tester,
+  ) async {
+    final state = SessionState(
+      timelineCells: <TimelineCell>[
+        _cell(
+          id: 'a-safe-markdown',
+          kind: TimelineCellKind.assistantMessage,
+          status: TimelineCellStatus.completed,
+          turnId: 't1',
+          markdownText: 'Texto con **negrita** y `codigo`.',
+        ),
+      ],
+    );
+
+    await _pumpWorkspace(tester, state: state);
+
+    expect(find.byType(MarkdownBody), findsOneWidget);
+    expect(find.textContaining('negrita'), findsOneWidget);
+  });
+
+  testWidgets(
+    'assistant completed falls back to plain text when markdown is unsafe',
+    (tester) async {
+      final state = SessionState(
+        timelineCells: <TimelineCell>[
+          _cell(
+            id: 'a-unsafe-markdown',
+            kind: TimelineCellKind.assistantMessage,
+            status: TimelineCellStatus.completed,
+            turnId: 't1',
+            markdownText: 'Texto con `backtick abierto',
+          ),
+        ],
+      );
+
+      await _pumpWorkspace(tester, state: state);
+
+      expect(find.byType(MarkdownBody), findsNothing);
+      expect(find.text('Texto con `backtick abierto'), findsOneWidget);
+    },
+  );
 
   testWidgets('single secondary row hides worked and final message', (
     tester,

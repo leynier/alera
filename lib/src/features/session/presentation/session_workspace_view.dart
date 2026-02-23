@@ -1238,6 +1238,8 @@ class _AssistantBubbleMarkdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final shouldRenderMarkdown =
+        !isStreaming && _isMarkdownRenderSafe(markdownText);
     final styleSheet = MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
       p: Theme.of(context).textTheme.bodyMedium,
       code: AleraTokens.monoStyle.copyWith(
@@ -1259,14 +1261,20 @@ class _AssistantBubbleMarkdown extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        MarkdownBody(
-          data: markdownText,
-          styleSheet: styleSheet,
-          builders: <String, MarkdownElementBuilder>{
-            'pre': _CodeBlockBuilder(context),
-          },
-          selectable: true,
-        ),
+        if (shouldRenderMarkdown)
+          MarkdownBody(
+            data: markdownText,
+            styleSheet: styleSheet,
+            builders: <String, MarkdownElementBuilder>{
+              'pre': _CodeBlockBuilder(context),
+            },
+            selectable: true,
+          )
+        else
+          SelectableText(
+            markdownText,
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
         if (isStreaming)
           const Padding(
             padding: EdgeInsets.only(top: AleraTokens.space6),
@@ -1295,6 +1303,62 @@ class _AssistantBubbleMarkdown extends StatelessWidget {
       ],
     );
   }
+}
+
+bool _isMarkdownRenderSafe(String text) {
+  final normalized = text.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+  if (normalized.trim().isEmpty) {
+    return false;
+  }
+  if (!_hasBalancedCodeFences(normalized)) {
+    return false;
+  }
+  if (!_hasBalancedInlineBackticksOutsideFences(normalized)) {
+    return false;
+  }
+  try {
+    final document = md.Document(extensionSet: md.ExtensionSet.gitHubFlavored);
+    document.parseLines(normalized.split('\n'));
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+bool _hasBalancedCodeFences(String text) {
+  var count = 0;
+  var index = 0;
+  while (true) {
+    index = text.indexOf('```', index);
+    if (index == -1) {
+      break;
+    }
+    count += 1;
+    index += 3;
+  }
+  return count.isEven;
+}
+
+bool _hasBalancedInlineBackticksOutsideFences(String text) {
+  var inFence = false;
+  var inlineBackticks = 0;
+
+  for (var i = 0; i < text.length; i++) {
+    if (i + 2 < text.length &&
+        text.codeUnitAt(i) == 0x60 &&
+        text.codeUnitAt(i + 1) == 0x60 &&
+        text.codeUnitAt(i + 2) == 0x60) {
+      inFence = !inFence;
+      i += 2;
+      continue;
+    }
+
+    if (!inFence && text.codeUnitAt(i) == 0x60) {
+      inlineBackticks += 1;
+    }
+  }
+
+  return !inFence && inlineBackticks.isEven;
 }
 
 class _ReasoningCell extends StatefulWidget {
@@ -1819,6 +1883,9 @@ class _ComposerState extends State<_Composer> {
             child: Column(
               children: <Widget>[
                 CallbackShortcuts(
+                  // NOTE: Flutter/macOS debug can assert on synthesized Meta
+                  // KeyUp events in HardwareKeyboard. This is framework-level;
+                  // shortcut behavior here intentionally remains unchanged.
                   bindings: <ShortcutActivator, VoidCallback>{
                     const SingleActivator(LogicalKeyboardKey.enter):
                         _sendFromShortcut,
