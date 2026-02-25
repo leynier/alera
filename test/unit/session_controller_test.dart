@@ -4,6 +4,7 @@ import 'package:alera/src/features/projects/application/project_service.dart';
 import 'package:alera/src/features/session/application/session_controller.dart';
 import 'package:alera/src/features/session/application/session_runtime_event.dart';
 import 'package:alera/src/features/session/application/session_service.dart';
+import 'package:alera/src/features/session/domain/pending_user_input.dart';
 import 'package:alera/src/features/settings/application/settings_service.dart';
 import 'package:alera/src/shared/models/contracts.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -18,9 +19,15 @@ class _FakeSessionService implements SessionService {
   SessionCreateRequest? lastCreateSessionRequest;
   String? lastRunInputText;
   String? lastRunInputReasoningEffort;
+  bool? lastRunInputPlanModeEnabled;
   int interruptCallCount = 0;
   String? interruptedSessionId;
   String? interruptedTurnOverride;
+  int respondUserInputCallCount = 0;
+  Object? lastRespondUserInputRequestId;
+  Map<String, dynamic>? lastRespondUserInputAnswers;
+  Duration runInputDelay = Duration.zero;
+  Future<void> Function()? onRunInputBeforeComplete;
 
   @override
   Stream<SessionRuntimeEvent> get events => _eventsController.stream;
@@ -78,22 +85,52 @@ class _FakeSessionService implements SessionService {
   }
 
   @override
+  Future<void> approveRequest(
+    Object requestId, {
+    bool forSession = false,
+  }) async {}
+
+  @override
+  Future<void> declineRequest(Object requestId) async {}
+
+  @override
+  Future<void> respondUserInput(
+    Object requestId,
+    Map<String, dynamic> answers,
+  ) async {
+    respondUserInputCallCount += 1;
+    lastRespondUserInputRequestId = requestId;
+    lastRespondUserInputAnswers = answers;
+  }
+
+  @override
   Future<void> runInput({
     required String sessionId,
     required String rawInput,
     required String reasoningEffort,
+    List<Map<String, dynamic>> extraInputItems = const <Map<String, dynamic>>[],
+    bool planModeEnabled = false,
+    String approvalPolicy = 'never',
   }) async {
     runInputCallCount += 1;
     lastRunInputText = rawInput;
     lastRunInputReasoningEffort = reasoningEffort;
+    lastRunInputPlanModeEnabled = planModeEnabled;
+    final turnId = 'turn-$runInputCallCount';
     final existing = _sessionsById[sessionId];
     if (existing == null) {
       throw StateError('session not found');
     }
     _sessionsById[sessionId] = existing.copyWith(
-      lastTurnId: 'turn-1',
+      lastTurnId: turnId,
       updatedAt: DateTime.now().toUtc(),
     );
+    if (onRunInputBeforeComplete != null) {
+      await onRunInputBeforeComplete!.call();
+    }
+    if (runInputDelay > Duration.zero) {
+      await Future<void>.delayed(runInputDelay);
+    }
   }
 
   @override
@@ -147,6 +184,10 @@ class _FakeSessionService implements SessionService {
         payload: <String, dynamic>{'params': params},
       ),
     );
+  }
+
+  void emitRuntimeEvent(SessionRuntimeEvent event) {
+    _eventsController.add(event);
   }
 }
 
@@ -466,5 +507,1271 @@ void main() {
 
       expect(controller.state.statusHeader, isNull);
     });
+
+    test(
+      'user input request is accepted when threadId matches active session',
+      () async {
+        final fakeService = _FakeSessionService();
+        final controller = SessionController(
+          sessionService: fakeService,
+          projectService: _FakeProjectService(),
+          settingsService: _FakeSettingsService('gpt-5.3-codex', 'high', true),
+        );
+        addTearDown(() async {
+          controller.dispose();
+          await fakeService.shutdown();
+        });
+
+        await controller.bootstrap();
+        await controller.createSession(
+          const SessionCreateRequest(
+            projectPath: '/repo',
+            firstPrompt: 'hello',
+            model: 'gpt-5.3-codex',
+          ),
+        );
+
+        fakeService.emitRuntimeEvent(
+          const SessionUserInputRequestEvent(
+            requestId: 1001,
+            threadId: 'thread-1',
+            turnId: 'turn-x',
+            itemId: 'item-x',
+            questions: <Map<String, dynamic>>[
+              <String, dynamic>{
+                'id': 'implement_now',
+                'header': 'Implement',
+                'question': 'Implement this plan?',
+                'options': <Map<String, dynamic>>[
+                  <String, dynamic>{'label': 'yes', 'description': 'Proceed'},
+                ],
+              },
+            ],
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        expect(controller.state.pendingUserInput, isNotNull);
+        expect(
+          controller.state.pendingUserInput?.questions.first.id,
+          'implement_now',
+        );
+      },
+    );
+
+    test(
+      'user input request is dropped when explicit threadId mismatches',
+      () async {
+        final fakeService = _FakeSessionService();
+        final controller = SessionController(
+          sessionService: fakeService,
+          projectService: _FakeProjectService(),
+          settingsService: _FakeSettingsService('gpt-5.3-codex', 'high', true),
+        );
+        addTearDown(() async {
+          controller.dispose();
+          await fakeService.shutdown();
+        });
+
+        await controller.bootstrap();
+        await controller.createSession(
+          const SessionCreateRequest(
+            projectPath: '/repo',
+            firstPrompt: 'hello',
+            model: 'gpt-5.3-codex',
+          ),
+        );
+
+        fakeService.emitRuntimeEvent(
+          const SessionUserInputRequestEvent(
+            requestId: 1002,
+            threadId: 'thread-other',
+            turnId: 'turn-x',
+            itemId: 'item-x',
+            questions: <Map<String, dynamic>>[
+              <String, dynamic>{
+                'id': 'implement_now',
+                'header': 'Implement',
+                'question': 'Implement this plan?',
+              },
+            ],
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        expect(controller.state.pendingUserInput, isNull);
+      },
+    );
+
+    test(
+      'user input request falls back to turnId when threadId is absent',
+      () async {
+        final fakeService = _FakeSessionService();
+        final controller = SessionController(
+          sessionService: fakeService,
+          projectService: _FakeProjectService(),
+          settingsService: _FakeSettingsService('gpt-5.3-codex', 'high', true),
+        );
+        addTearDown(() async {
+          controller.dispose();
+          await fakeService.shutdown();
+        });
+
+        await controller.bootstrap();
+        await controller.createSession(
+          const SessionCreateRequest(
+            projectPath: '/repo',
+            firstPrompt: 'hello',
+            model: 'gpt-5.3-codex',
+          ),
+        );
+        fakeService.emitNotification('turn/started', <String, dynamic>{
+          'turn': <String, dynamic>{
+            'id': 'turn-1',
+            'threadId': 'thread-1',
+            'status': 'inProgress',
+          },
+        });
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        fakeService.emitRuntimeEvent(
+          const SessionUserInputRequestEvent(
+            requestId: 1003,
+            threadId: null,
+            turnId: 'turn-1',
+            itemId: 'item-x',
+            questions: <Map<String, dynamic>>[
+              <String, dynamic>{
+                'id': 'implement_now',
+                'header': 'Implement',
+                'question': 'Implement this plan?',
+              },
+            ],
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        expect(controller.state.pendingUserInput, isNotNull);
+
+        controller.dismissUserInput();
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        fakeService.emitNotification('turn/started', <String, dynamic>{
+          'turn': <String, dynamic>{
+            'id': 'turn-2',
+            'threadId': 'thread-1',
+            'status': 'inProgress',
+          },
+        });
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        fakeService.emitRuntimeEvent(
+          const SessionUserInputRequestEvent(
+            requestId: 1004,
+            threadId: '   ',
+            turnId: 'turn-2',
+            itemId: 'item-y',
+            questions: <Map<String, dynamic>>[
+              <String, dynamic>{
+                'id': 'implement_now',
+                'header': 'Implement',
+                'question': 'Implement this plan?',
+              },
+            ],
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        expect(controller.state.pendingUserInput, isNotNull);
+
+        controller.dismissUserInput();
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        fakeService.emitRuntimeEvent(
+          const SessionUserInputRequestEvent(
+            requestId: 1005,
+            threadId: null,
+            turnId: 'turn-other',
+            itemId: 'item-z',
+            questions: <Map<String, dynamic>>[
+              <String, dynamic>{
+                'id': 'implement_now',
+                'header': 'Implement',
+                'question': 'Implement this plan?',
+              },
+            ],
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        expect(controller.state.pendingUserInput, isNull);
+      },
+    );
+
+    test(
+      'user input request with empty questions auto-responds and logs',
+      () async {
+        final fakeService = _FakeSessionService();
+        final controller = SessionController(
+          sessionService: fakeService,
+          projectService: _FakeProjectService(),
+          settingsService: _FakeSettingsService('gpt-5.3-codex', 'high', true),
+        );
+        addTearDown(() async {
+          controller.dispose();
+          await fakeService.shutdown();
+        });
+
+        await controller.bootstrap();
+        await controller.createSession(
+          const SessionCreateRequest(
+            projectPath: '/repo',
+            firstPrompt: 'hello',
+            model: 'gpt-5.3-codex',
+          ),
+        );
+
+        fakeService.emitRuntimeEvent(
+          const SessionUserInputRequestEvent(
+            requestId: 1006,
+            threadId: 'thread-1',
+            turnId: 'turn-1',
+            itemId: 'item-empty',
+            questions: <Map<String, dynamic>>[],
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        expect(controller.state.pendingUserInput, isNull);
+        expect(fakeService.respondUserInputCallCount, greaterThan(0));
+        expect(fakeService.lastRespondUserInputRequestId, 1006);
+        expect(fakeService.lastRespondUserInputAnswers, isEmpty);
+        expect(
+          controller.state.activityLog.any(
+            (line) => line.contains('invalid -> auto-answered'),
+          ),
+          isTrue,
+        );
+      },
+    );
+
+    test(
+      'invalid backend user input request does not block local plan fallback',
+      () async {
+        final fakeService = _FakeSessionService();
+        final controller = SessionController(
+          sessionService: fakeService,
+          projectService: _FakeProjectService(),
+          settingsService: _FakeSettingsService('gpt-5.3-codex', 'high', true),
+        );
+        addTearDown(() async {
+          controller.dispose();
+          await fakeService.shutdown();
+        });
+
+        await controller.bootstrap();
+        await controller.selectWorkspaceFromPath('/repo');
+        controller.togglePlanMode();
+        await controller.sendInput('build a plan');
+
+        fakeService.emitNotification('item/plan/delta', <String, dynamic>{
+          'threadId': 'thread-1',
+          'turnId': 'turn-1',
+          'itemId': 'turn-1-plan',
+          'delta': 'step 1',
+        });
+        fakeService.emitRuntimeEvent(
+          const SessionUserInputRequestEvent(
+            requestId: 1201,
+            threadId: 'thread-1',
+            turnId: 'turn-1',
+            itemId: 'item-invalid',
+            questions: <Map<String, dynamic>>[
+              <String, dynamic>{
+                'id': 'implement_now',
+                'header': 'Implementation',
+              },
+            ],
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        expect(controller.state.pendingUserInput, isNull);
+        expect(fakeService.respondUserInputCallCount, 1);
+        expect(fakeService.lastRespondUserInputRequestId, 1201);
+        expect(fakeService.lastRespondUserInputAnswers, isEmpty);
+
+        fakeService.emitNotification('turn/completed', <String, dynamic>{
+          'turn': <String, dynamic>{
+            'id': 'turn-1',
+            'threadId': 'thread-1',
+            'status': 'completed',
+          },
+        });
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        expect(controller.state.pendingUserInput, isNotNull);
+        expect(
+          controller.state.pendingUserInput?.source,
+          PendingUserInputSource.localPlanFallback,
+        );
+        expect(
+          controller.state.activityLog.any(
+            (line) =>
+                line.contains('runtime/planFallback gate') &&
+                line.contains('turnId=turn-1') &&
+                line.contains('hasBackendRequest=false'),
+          ),
+          isTrue,
+        );
+      },
+    );
+
+    test('user input request supports question schema aliases', () async {
+      final fakeService = _FakeSessionService();
+      final controller = SessionController(
+        sessionService: fakeService,
+        projectService: _FakeProjectService(),
+        settingsService: _FakeSettingsService('gpt-5.3-codex', 'high', true),
+      );
+      addTearDown(() async {
+        controller.dispose();
+        await fakeService.shutdown();
+      });
+
+      await controller.bootstrap();
+      await controller.createSession(
+        const SessionCreateRequest(
+          projectPath: '/repo',
+          firstPrompt: 'hello',
+          model: 'gpt-5.3-codex',
+        ),
+      );
+
+      fakeService.emitRuntimeEvent(
+        const SessionUserInputRequestEvent(
+          requestId: 1202,
+          threadId: 'thread-1',
+          turnId: 'turn-alias',
+          itemId: 'item-alias',
+          questions: <Map<String, dynamic>>[
+            <String, dynamic>{
+              'questionId': 'implement_alias',
+              'title': 'Implementation',
+              'prompt': 'Implement this plan?',
+              'isOther': true,
+              'other_label': 'No, and tell Alera what to do differently',
+              'choices': <Map<String, dynamic>>[
+                <String, dynamic>{
+                  'value': 'Yes, implement this plan',
+                  'hint': 'Proceed with implementation',
+                },
+              ],
+            },
+          ],
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      final pending = controller.state.pendingUserInput;
+      expect(pending, isNotNull);
+      expect(pending?.source, PendingUserInputSource.backend);
+      expect(pending?.questions.single.id, 'implement_alias');
+      expect(pending?.questions.single.header, 'Implementation');
+      expect(pending?.questions.single.question, 'Implement this plan?');
+      expect(
+        pending?.questions.single.otherLabel,
+        'No, and tell Alera what to do differently',
+      );
+      expect(
+        pending?.questions.single.options?.single.label,
+        'Yes, implement this plan',
+      );
+      expect(
+        pending?.questions.single.options?.single.description,
+        'Proceed with implementation',
+      );
+      expect(fakeService.respondUserInputCallCount, 0);
+      expect(
+        controller.state.activityLog.any(
+          (line) =>
+              line.contains('runtime/requestUserInput parsed') &&
+              line.contains('turnId=turn-alias') &&
+              line.contains('usedAliases=true'),
+        ),
+        isTrue,
+      );
+    });
+
+    test(
+      'valid backend user input request still suppresses local plan fallback',
+      () async {
+        final fakeService = _FakeSessionService();
+        final controller = SessionController(
+          sessionService: fakeService,
+          projectService: _FakeProjectService(),
+          settingsService: _FakeSettingsService('gpt-5.3-codex', 'high', true),
+        );
+        addTearDown(() async {
+          controller.dispose();
+          await fakeService.shutdown();
+        });
+
+        await controller.bootstrap();
+        await controller.selectWorkspaceFromPath('/repo');
+        controller.togglePlanMode();
+        await controller.sendInput('build a plan');
+
+        fakeService.emitNotification('item/plan/delta', <String, dynamic>{
+          'threadId': 'thread-1',
+          'turnId': 'turn-1',
+          'itemId': 'turn-1-plan',
+          'delta': 'step 1',
+        });
+        fakeService.emitRuntimeEvent(
+          const SessionUserInputRequestEvent(
+            requestId: 1203,
+            threadId: 'thread-1',
+            turnId: 'turn-1',
+            itemId: 'item-valid',
+            questions: <Map<String, dynamic>>[
+              <String, dynamic>{
+                'id': 'implement_now',
+                'header': 'Implement',
+                'question': 'Implement this plan?',
+              },
+            ],
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        fakeService.emitNotification('turn/completed', <String, dynamic>{
+          'turn': <String, dynamic>{
+            'id': 'turn-1',
+            'threadId': 'thread-1',
+            'status': 'completed',
+          },
+        });
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        final pending = controller.state.pendingUserInput;
+        expect(pending, isNotNull);
+        expect(pending?.source, PendingUserInputSource.backend);
+        expect(pending?.questions.single.id, 'implement_now');
+        expect(pending?.localPlanTurnId, isNull);
+        expect(fakeService.respondUserInputCallCount, 0);
+      },
+    );
+
+    test(
+      'backend request seen without pending card for same turn does not block local fallback',
+      () async {
+        final fakeService = _FakeSessionService();
+        final controller = SessionController(
+          sessionService: fakeService,
+          projectService: _FakeProjectService(),
+          settingsService: _FakeSettingsService('gpt-5.3-codex', 'high', true),
+        );
+        addTearDown(() async {
+          controller.dispose();
+          await fakeService.shutdown();
+        });
+
+        await controller.bootstrap();
+        await controller.selectWorkspaceFromPath('/repo');
+        controller.togglePlanMode();
+        await controller.sendInput('build a plan');
+
+        fakeService.emitNotification('item/plan/delta', <String, dynamic>{
+          'threadId': 'thread-1',
+          'turnId': 'turn-1',
+          'itemId': 'turn-1-plan',
+          'delta': 'step 1',
+        });
+
+        fakeService.emitRuntimeEvent(
+          const SessionUserInputRequestEvent(
+            requestId: 1204,
+            threadId: 'thread-1',
+            turnId: 'turn-1',
+            itemId: 'item-turn-1',
+            questions: <Map<String, dynamic>>[
+              <String, dynamic>{
+                'id': 'implement_now',
+                'header': 'Implement',
+                'question': 'Implement this plan?',
+              },
+            ],
+          ),
+        );
+        fakeService.emitRuntimeEvent(
+          const SessionUserInputRequestEvent(
+            requestId: 1205,
+            threadId: 'thread-1',
+            turnId: 'turn-2',
+            itemId: 'item-turn-2',
+            questions: <Map<String, dynamic>>[
+              <String, dynamic>{
+                'id': 'implement_now',
+                'header': 'Implement',
+                'question': 'Implement this plan?',
+              },
+            ],
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        expect(controller.state.pendingUserInput, isNotNull);
+        expect(
+          controller.state.pendingUserInput?.source,
+          PendingUserInputSource.backend,
+        );
+        expect(controller.state.pendingUserInput?.turnId, 'turn-2');
+
+        fakeService.emitNotification('turn/completed', <String, dynamic>{
+          'turn': <String, dynamic>{
+            'id': 'turn-1',
+            'threadId': 'thread-1',
+            'status': 'completed',
+          },
+        });
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        expect(controller.state.pendingUserInput, isNotNull);
+        expect(
+          controller.state.pendingUserInput?.source,
+          PendingUserInputSource.localPlanFallback,
+        );
+        expect(controller.state.pendingUserInput?.localPlanTurnId, 'turn-1');
+        expect(
+          controller.state.activityLog.any(
+            (line) =>
+                line.contains(
+                  'runtime/planFallback backendRequestWithoutPending',
+                ) &&
+                line.contains('turnId=turn-1'),
+          ),
+          isTrue,
+        );
+      },
+    );
+
+    test(
+      'backend dismiss marks turn as resolved and prevents local fallback',
+      () async {
+        final fakeService = _FakeSessionService();
+        final controller = SessionController(
+          sessionService: fakeService,
+          projectService: _FakeProjectService(),
+          settingsService: _FakeSettingsService('gpt-5.3-codex', 'high', true),
+        );
+        addTearDown(() async {
+          controller.dispose();
+          await fakeService.shutdown();
+        });
+
+        await controller.bootstrap();
+        await controller.selectWorkspaceFromPath('/repo');
+        controller.togglePlanMode();
+        await controller.sendInput('build a plan');
+
+        fakeService.emitNotification('item/plan/delta', <String, dynamic>{
+          'threadId': 'thread-1',
+          'turnId': 'turn-1',
+          'itemId': 'turn-1-plan',
+          'delta': 'step 1',
+        });
+        fakeService.emitRuntimeEvent(
+          const SessionUserInputRequestEvent(
+            requestId: 1206,
+            threadId: 'thread-1',
+            turnId: 'turn-1',
+            itemId: 'item-valid',
+            questions: <Map<String, dynamic>>[
+              <String, dynamic>{
+                'id': 'implement_now',
+                'header': 'Implement',
+                'question': 'Implement this plan?',
+              },
+            ],
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        controller.dismissUserInput();
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        expect(controller.state.pendingUserInput, isNull);
+        expect(fakeService.respondUserInputCallCount, 1);
+        expect(fakeService.lastRespondUserInputRequestId, 1206);
+        expect(fakeService.lastRespondUserInputAnswers, isEmpty);
+
+        fakeService.emitNotification('turn/completed', <String, dynamic>{
+          'turn': <String, dynamic>{
+            'id': 'turn-1',
+            'threadId': 'thread-1',
+            'status': 'completed',
+          },
+        });
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        expect(controller.state.pendingUserInput, isNull);
+        expect(
+          controller.state.activityLog.any(
+            (line) => line.contains('runtime/planFallback shown turnId=turn-1'),
+          ),
+          isFalse,
+        );
+      },
+    );
+
+    test(
+      'backend submit marks turn as resolved and prevents local fallback',
+      () async {
+        final fakeService = _FakeSessionService();
+        final controller = SessionController(
+          sessionService: fakeService,
+          projectService: _FakeProjectService(),
+          settingsService: _FakeSettingsService('gpt-5.3-codex', 'high', true),
+        );
+        addTearDown(() async {
+          controller.dispose();
+          await fakeService.shutdown();
+        });
+
+        await controller.bootstrap();
+        await controller.selectWorkspaceFromPath('/repo');
+        controller.togglePlanMode();
+        await controller.sendInput('build a plan');
+
+        fakeService.emitNotification('item/plan/delta', <String, dynamic>{
+          'threadId': 'thread-1',
+          'turnId': 'turn-1',
+          'itemId': 'turn-1-plan',
+          'delta': 'step 1',
+        });
+        fakeService.emitRuntimeEvent(
+          const SessionUserInputRequestEvent(
+            requestId: 1207,
+            threadId: 'thread-1',
+            turnId: 'turn-1',
+            itemId: 'item-valid',
+            questions: <Map<String, dynamic>>[
+              <String, dynamic>{
+                'id': 'implement_now',
+                'header': 'Implement',
+                'question': 'Implement this plan?',
+              },
+            ],
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        await controller.submitUserInput(<String, dynamic>{
+          'implement_now': <String, dynamic>{
+            'answers': <String>['Yes, implement this plan'],
+          },
+        });
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        expect(controller.state.pendingUserInput, isNull);
+        expect(fakeService.respondUserInputCallCount, 1);
+        expect(fakeService.lastRespondUserInputRequestId, 1207);
+        expect(fakeService.lastRespondUserInputAnswers, <String, dynamic>{
+          'implement_now': <String, dynamic>{
+            'answers': <String>['Yes, implement this plan'],
+          },
+        });
+
+        fakeService.emitNotification('turn/completed', <String, dynamic>{
+          'turn': <String, dynamic>{
+            'id': 'turn-1',
+            'threadId': 'thread-1',
+            'status': 'completed',
+          },
+        });
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        expect(controller.state.pendingUserInput, isNull);
+        expect(
+          controller.state.activityLog.any(
+            (line) => line.contains('runtime/planFallback shown turnId=turn-1'),
+          ),
+          isFalse,
+        );
+      },
+    );
+
+    test('backend empty submit is ignored and does not resolve turn', () async {
+      final fakeService = _FakeSessionService();
+      final controller = SessionController(
+        sessionService: fakeService,
+        projectService: _FakeProjectService(),
+        settingsService: _FakeSettingsService('gpt-5.3-codex', 'high', true),
+      );
+      addTearDown(() async {
+        controller.dispose();
+        await fakeService.shutdown();
+      });
+
+      await controller.bootstrap();
+      await controller.selectWorkspaceFromPath('/repo');
+      controller.togglePlanMode();
+      await controller.sendInput('build a plan');
+
+      fakeService.emitNotification('item/plan/delta', <String, dynamic>{
+        'threadId': 'thread-1',
+        'turnId': 'turn-1',
+        'itemId': 'turn-1-plan',
+        'delta': 'step 1',
+      });
+      fakeService.emitRuntimeEvent(
+        const SessionUserInputRequestEvent(
+          requestId: 1208,
+          threadId: 'thread-1',
+          turnId: 'turn-1',
+          itemId: 'item-valid',
+          questions: <Map<String, dynamic>>[
+            <String, dynamic>{
+              'id': 'implement_now',
+              'header': 'Implement',
+              'question': 'Implement this plan?',
+            },
+          ],
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      await controller.submitUserInput(const <String, dynamic>{});
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(controller.state.pendingUserInput, isNotNull);
+      expect(
+        controller.state.pendingUserInput?.source,
+        PendingUserInputSource.backend,
+      );
+      expect(fakeService.respondUserInputCallCount, 0);
+      expect(
+        controller.state.activityLog.any(
+          (line) =>
+              line.contains('runtime/userInput submitIgnored empty') &&
+              line.contains('source=backend') &&
+              line.contains('turnId=turn-1'),
+        ),
+        isTrue,
+      );
+
+      fakeService.emitNotification('turn/completed', <String, dynamic>{
+        'turn': <String, dynamic>{
+          'id': 'turn-1',
+          'threadId': 'thread-1',
+          'status': 'completed',
+        },
+      });
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(controller.state.pendingUserInput, isNotNull);
+      expect(
+        controller.state.pendingUserInput?.source,
+        PendingUserInputSource.backend,
+      );
+      expect(
+        controller.state.activityLog.any(
+          (line) =>
+              line.contains('runtime/planFallback gate') &&
+              line.contains('turnId=turn-1') &&
+              line.contains('resolved=false'),
+        ),
+        isTrue,
+      );
+    });
+
+    test(
+      'local plan fallback appears when plan turn completes without backend request',
+      () async {
+        final fakeService = _FakeSessionService();
+        final controller = SessionController(
+          sessionService: fakeService,
+          projectService: _FakeProjectService(),
+          settingsService: _FakeSettingsService('gpt-5.3-codex', 'high', true),
+        );
+        addTearDown(() async {
+          controller.dispose();
+          await fakeService.shutdown();
+        });
+
+        await controller.bootstrap();
+        await controller.selectWorkspaceFromPath('/repo');
+        controller.togglePlanMode();
+        await controller.sendInput('build a plan');
+
+        fakeService.emitNotification('item/plan/delta', <String, dynamic>{
+          'threadId': 'thread-1',
+          'turnId': 'turn-1',
+          'itemId': 'turn-1-plan',
+          'delta': 'step 1',
+        });
+        fakeService.emitNotification('turn/completed', <String, dynamic>{
+          'turn': <String, dynamic>{
+            'id': 'turn-1',
+            'threadId': 'thread-1',
+            'status': 'completed',
+          },
+        });
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        final pending = controller.state.pendingUserInput;
+        expect(pending, isNotNull);
+        expect(pending?.source, PendingUserInputSource.localPlanFallback);
+        expect(pending?.localPlanTurnId, 'turn-1');
+        expect(pending?.questions.single.question, 'Implement this plan?');
+        expect(
+          pending?.questions.single.otherLabel,
+          'No, and tell Alera what to do differently',
+        );
+      },
+    );
+
+    test(
+      'local plan fallback appears when turn completes before runInput returns',
+      () async {
+        final fakeService = _FakeSessionService();
+        fakeService.runInputDelay = const Duration(milliseconds: 30);
+        fakeService.onRunInputBeforeComplete = () async {
+          fakeService.emitNotification('item/plan/delta', <String, dynamic>{
+            'threadId': 'thread-1',
+            'turnId': 'turn-1',
+            'itemId': 'turn-1-plan',
+            'delta': 'step 1',
+          });
+          fakeService.emitNotification('turn/completed', <String, dynamic>{
+            'turn': <String, dynamic>{
+              'id': 'turn-1',
+              'threadId': 'thread-1',
+              'status': 'completed',
+            },
+          });
+        };
+        final controller = SessionController(
+          sessionService: fakeService,
+          projectService: _FakeProjectService(),
+          settingsService: _FakeSettingsService('gpt-5.3-codex', 'high', true),
+        );
+        addTearDown(() async {
+          controller.dispose();
+          await fakeService.shutdown();
+        });
+
+        await controller.bootstrap();
+        await controller.selectWorkspaceFromPath('/repo');
+        controller.togglePlanMode();
+        await controller.sendInput('build a plan');
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        final pending = controller.state.pendingUserInput;
+        expect(pending, isNotNull);
+        expect(pending?.source, PendingUserInputSource.localPlanFallback);
+        expect(
+          controller.state.activityLog.any(
+            (line) => line.contains('awaiting late arm turnId=turn-1'),
+          ),
+          isTrue,
+        );
+      },
+    );
+
+    test(
+      'local plan fallback appears when backend submit resolves before runInput returns',
+      () async {
+        final fakeService = _FakeSessionService();
+        late SessionController controller;
+        fakeService.runInputDelay = const Duration(milliseconds: 30);
+        fakeService.onRunInputBeforeComplete = () async {
+          fakeService.emitNotification('item/plan/delta', <String, dynamic>{
+            'threadId': 'thread-1',
+            'turnId': 'turn-1',
+            'itemId': 'turn-1-plan',
+            'delta': 'step 1',
+          });
+          fakeService.emitRuntimeEvent(
+            const SessionUserInputRequestEvent(
+              requestId: 1209,
+              threadId: 'thread-1',
+              turnId: 'turn-1',
+              itemId: 'item-valid',
+              questions: <Map<String, dynamic>>[
+                <String, dynamic>{
+                  'id': 'implement_now',
+                  'header': 'Implementation',
+                  'question': 'Implement this plan?',
+                  'options': <Map<String, dynamic>>[
+                    <String, dynamic>{
+                      'label': 'Yes, implement this plan',
+                      'description': 'Proceed with implementation',
+                    },
+                  ],
+                },
+              ],
+            ),
+          );
+          await Future<void>.delayed(const Duration(milliseconds: 20));
+          await controller.submitUserInput(<String, dynamic>{
+            'implement_now': <String, dynamic>{
+              'answers': <String>['Yes, implement this plan'],
+            },
+          });
+          fakeService.emitNotification('turn/completed', <String, dynamic>{
+            'turn': <String, dynamic>{
+              'id': 'turn-1',
+              'threadId': 'thread-1',
+              'status': 'completed',
+            },
+          });
+        };
+        controller = SessionController(
+          sessionService: fakeService,
+          projectService: _FakeProjectService(),
+          settingsService: _FakeSettingsService('gpt-5.3-codex', 'high', true),
+        );
+        addTearDown(() async {
+          controller.dispose();
+          await fakeService.shutdown();
+        });
+
+        await controller.bootstrap();
+        await controller.selectWorkspaceFromPath('/repo');
+        controller.togglePlanMode();
+        await controller.sendInput('build a plan');
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        expect(fakeService.respondUserInputCallCount, 1);
+        final pending = controller.state.pendingUserInput;
+        expect(pending, isNotNull);
+        expect(pending?.source, PendingUserInputSource.localPlanFallback);
+        expect(
+          controller.state.activityLog.any(
+            (line) =>
+                line.contains('runtime/planFallback gate') &&
+                line.contains('turnId=turn-1') &&
+                line.contains('late=true'),
+          ),
+          isTrue,
+        );
+      },
+    );
+
+    test(
+      'late fallback is not shown when plan mode is turned off before runInput returns',
+      () async {
+        final fakeService = _FakeSessionService();
+        fakeService.runInputDelay = const Duration(milliseconds: 30);
+        fakeService.onRunInputBeforeComplete = () async {
+          fakeService.emitNotification('item/plan/delta', <String, dynamic>{
+            'threadId': 'thread-1',
+            'turnId': 'turn-1',
+            'itemId': 'turn-1-plan',
+            'delta': 'step 1',
+          });
+          fakeService.emitNotification('turn/completed', <String, dynamic>{
+            'turn': <String, dynamic>{
+              'id': 'turn-1',
+              'threadId': 'thread-1',
+              'status': 'completed',
+            },
+          });
+        };
+        final controller = SessionController(
+          sessionService: fakeService,
+          projectService: _FakeProjectService(),
+          settingsService: _FakeSettingsService('gpt-5.3-codex', 'high', true),
+        );
+        addTearDown(() async {
+          controller.dispose();
+          await fakeService.shutdown();
+        });
+
+        await controller.bootstrap();
+        await controller.selectWorkspaceFromPath('/repo');
+        controller.togglePlanMode();
+
+        final sendFuture = controller.sendInput('build a plan');
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+        controller.togglePlanMode();
+        await sendFuture;
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        expect(controller.state.planModeEnabled, isFalse);
+        expect(controller.state.pendingUserInput, isNull);
+        expect(
+          controller.state.activityLog.any(
+            (line) =>
+                line.contains('runtime/planFallback gate') &&
+                line.contains('planModeOn=false') &&
+                line.contains('late=true'),
+          ),
+          isTrue,
+        );
+      },
+    );
+
+    test(
+      'local plan fallback yes sends Implement plan and disables plan mode',
+      () async {
+        final fakeService = _FakeSessionService();
+        final controller = SessionController(
+          sessionService: fakeService,
+          projectService: _FakeProjectService(),
+          settingsService: _FakeSettingsService('gpt-5.3-codex', 'high', true),
+        );
+        addTearDown(() async {
+          controller.dispose();
+          await fakeService.shutdown();
+        });
+
+        await controller.bootstrap();
+        await controller.selectWorkspaceFromPath('/repo');
+        controller.togglePlanMode();
+        await controller.sendInput('build a plan');
+
+        fakeService.emitNotification('item/plan/delta', <String, dynamic>{
+          'threadId': 'thread-1',
+          'turnId': 'turn-1',
+          'itemId': 'turn-1-plan',
+          'delta': 'step 1',
+        });
+        fakeService.emitNotification('turn/completed', <String, dynamic>{
+          'turn': <String, dynamic>{
+            'id': 'turn-1',
+            'threadId': 'thread-1',
+            'status': 'completed',
+          },
+        });
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        await controller.submitUserInput(<String, dynamic>{
+          'implement_plan': <String, dynamic>{
+            'answers': <String>['Yes, implement this plan'],
+          },
+        });
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        expect(controller.state.pendingUserInput, isNull);
+        expect(controller.state.planModeEnabled, isFalse);
+        expect(fakeService.runInputCallCount, 2);
+        expect(fakeService.lastRunInputText, 'Implement plan');
+        expect(fakeService.lastRunInputPlanModeEnabled, isFalse);
+        expect(fakeService.respondUserInputCallCount, 0);
+      },
+    );
+
+    test(
+      'local plan fallback no sends refinement and keeps plan mode enabled',
+      () async {
+        final fakeService = _FakeSessionService();
+        final controller = SessionController(
+          sessionService: fakeService,
+          projectService: _FakeProjectService(),
+          settingsService: _FakeSettingsService('gpt-5.3-codex', 'high', true),
+        );
+        addTearDown(() async {
+          controller.dispose();
+          await fakeService.shutdown();
+        });
+
+        await controller.bootstrap();
+        await controller.selectWorkspaceFromPath('/repo');
+        controller.togglePlanMode();
+        await controller.sendInput('build a plan');
+
+        fakeService.emitNotification('item/plan/delta', <String, dynamic>{
+          'threadId': 'thread-1',
+          'turnId': 'turn-1',
+          'itemId': 'turn-1-plan',
+          'delta': 'step 1',
+        });
+        fakeService.emitNotification('turn/completed', <String, dynamic>{
+          'turn': <String, dynamic>{
+            'id': 'turn-1',
+            'threadId': 'thread-1',
+            'status': 'completed',
+          },
+        });
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        await controller.submitUserInput(<String, dynamic>{
+          'implement_plan': <String, dynamic>{
+            'answers': <String>['Please split this into two commits'],
+          },
+        });
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        expect(controller.state.pendingUserInput, isNull);
+        expect(controller.state.planModeEnabled, isTrue);
+        expect(fakeService.runInputCallCount, 2);
+        expect(
+          fakeService.lastRunInputText,
+          'Please split this into two commits',
+        );
+        expect(fakeService.lastRunInputPlanModeEnabled, isTrue);
+        expect(fakeService.respondUserInputCallCount, 0);
+      },
+    );
+
+    test(
+      'local plan fallback dismiss closes card without RPC response',
+      () async {
+        final fakeService = _FakeSessionService();
+        final controller = SessionController(
+          sessionService: fakeService,
+          projectService: _FakeProjectService(),
+          settingsService: _FakeSettingsService('gpt-5.3-codex', 'high', true),
+        );
+        addTearDown(() async {
+          controller.dispose();
+          await fakeService.shutdown();
+        });
+
+        await controller.bootstrap();
+        await controller.selectWorkspaceFromPath('/repo');
+        controller.togglePlanMode();
+        await controller.sendInput('build a plan');
+
+        fakeService.emitNotification('item/plan/delta', <String, dynamic>{
+          'threadId': 'thread-1',
+          'turnId': 'turn-1',
+          'itemId': 'turn-1-plan',
+          'delta': 'step 1',
+        });
+        fakeService.emitNotification('turn/completed', <String, dynamic>{
+          'turn': <String, dynamic>{
+            'id': 'turn-1',
+            'threadId': 'thread-1',
+            'status': 'completed',
+          },
+        });
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        controller.dismissUserInput();
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        expect(controller.state.pendingUserInput, isNull);
+        expect(fakeService.runInputCallCount, 1);
+        expect(fakeService.respondUserInputCallCount, 0);
+      },
+    );
+
+    test(
+      'local plan fallback empty submit is ignored and keeps card visible',
+      () async {
+        final fakeService = _FakeSessionService();
+        final controller = SessionController(
+          sessionService: fakeService,
+          projectService: _FakeProjectService(),
+          settingsService: _FakeSettingsService('gpt-5.3-codex', 'high', true),
+        );
+        addTearDown(() async {
+          controller.dispose();
+          await fakeService.shutdown();
+        });
+
+        await controller.bootstrap();
+        await controller.selectWorkspaceFromPath('/repo');
+        controller.togglePlanMode();
+        await controller.sendInput('build a plan');
+
+        fakeService.emitNotification('item/plan/delta', <String, dynamic>{
+          'threadId': 'thread-1',
+          'turnId': 'turn-1',
+          'itemId': 'turn-1-plan',
+          'delta': 'step 1',
+        });
+        fakeService.emitNotification('turn/completed', <String, dynamic>{
+          'turn': <String, dynamic>{
+            'id': 'turn-1',
+            'threadId': 'thread-1',
+            'status': 'completed',
+          },
+        });
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        await controller.submitUserInput(const <String, dynamic>{});
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        expect(controller.state.pendingUserInput, isNotNull);
+        expect(
+          controller.state.pendingUserInput?.source,
+          PendingUserInputSource.localPlanFallback,
+        );
+        expect(fakeService.runInputCallCount, 1);
+        expect(fakeService.respondUserInputCallCount, 0);
+        expect(
+          controller.state.activityLog.any(
+            (line) =>
+                line.contains('runtime/userInput submitIgnored empty') &&
+                line.contains('source=localPlanFallback') &&
+                line.contains('turnId=turn-1'),
+          ),
+          isTrue,
+        );
+      },
+    );
+
+    test(
+      'late backend user input request is auto-answered after local fallback resolution',
+      () async {
+        final fakeService = _FakeSessionService();
+        final controller = SessionController(
+          sessionService: fakeService,
+          projectService: _FakeProjectService(),
+          settingsService: _FakeSettingsService('gpt-5.3-codex', 'high', true),
+        );
+        addTearDown(() async {
+          controller.dispose();
+          await fakeService.shutdown();
+        });
+
+        await controller.bootstrap();
+        await controller.selectWorkspaceFromPath('/repo');
+        controller.togglePlanMode();
+        await controller.sendInput('build a plan');
+
+        fakeService.emitNotification('item/plan/delta', <String, dynamic>{
+          'threadId': 'thread-1',
+          'turnId': 'turn-1',
+          'itemId': 'turn-1-plan',
+          'delta': 'step 1',
+        });
+        fakeService.emitNotification('turn/completed', <String, dynamic>{
+          'turn': <String, dynamic>{
+            'id': 'turn-1',
+            'threadId': 'thread-1',
+            'status': 'completed',
+          },
+        });
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        controller.dismissUserInput();
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        fakeService.emitRuntimeEvent(
+          const SessionUserInputRequestEvent(
+            requestId: 1100,
+            threadId: 'thread-1',
+            turnId: 'turn-1',
+            itemId: 'late-request',
+            questions: <Map<String, dynamic>>[
+              <String, dynamic>{'id': 'q1', 'question': 'late'},
+            ],
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        expect(controller.state.pendingUserInput, isNull);
+        expect(fakeService.respondUserInputCallCount, 1);
+        expect(fakeService.lastRespondUserInputRequestId, 1100);
+        expect(fakeService.lastRespondUserInputAnswers, isEmpty);
+        expect(
+          controller.state.activityLog.any(
+            (line) => line.contains('ignored late backend request'),
+          ),
+          isTrue,
+        );
+      },
+    );
   });
 }

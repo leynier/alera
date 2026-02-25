@@ -80,6 +80,7 @@ class CodexAppServerClient {
     required String reasoningEffort,
     String? cwd,
     String approvalPolicy = 'never',
+    Map<String, dynamic>? collaborationMode,
   }) {
     return _client.request(
       'turn/start',
@@ -90,6 +91,9 @@ class CodexAppServerClient {
         'reasoning': <String, dynamic>{'effort': reasoningEffort},
         ...?cwd == null ? null : <String, dynamic>{'cwd': cwd},
         'approvalPolicy': approvalPolicy,
+        ...?collaborationMode == null
+            ? null
+            : <String, dynamic>{'collaborationMode': collaborationMode},
       },
     );
   }
@@ -128,6 +132,15 @@ class CodexAppServerClient {
         'success': success,
       },
     );
+  }
+
+  Future<void> respondUserInput({
+    required Object requestId,
+    required Map<String, dynamic> answers,
+  }) {
+    return _client.respondSuccess(requestId, result: <String, dynamic>{
+      'answers': answers,
+    });
   }
 
   Future<void> respondError({

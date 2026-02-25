@@ -87,20 +87,21 @@ class AgentOrchestrator {
 
   Future<String> runTurn({
     required String threadId,
-    required String prompt,
+    required List<Map<String, dynamic>> input,
     required String model,
     required String reasoningEffort,
     required String cwd,
+    String approvalPolicy = 'never',
+    Map<String, dynamic>? collaborationMode,
   }) async {
     final response = await _client.startTurn(
       threadId: threadId,
-      input: <Map<String, dynamic>>[
-        <String, dynamic>{'type': 'text', 'text': prompt},
-      ],
+      input: input,
       model: model,
       reasoningEffort: reasoningEffort,
       cwd: cwd,
-      approvalPolicy: 'never',
+      approvalPolicy: approvalPolicy,
+      collaborationMode: collaborationMode,
     );
 
     final turn = (response['result'] as Map<String, dynamic>?)?['turn'];
@@ -122,16 +123,65 @@ class AgentOrchestrator {
     await _client.close();
   }
 
+  Future<void> approveRequest(Object requestId, {bool forSession = false}) {
+    return _client.respondApproval(
+      requestId: requestId,
+      decision: 'accept',
+      forSession: forSession,
+    );
+  }
+
+  Future<void> declineRequest(Object requestId) {
+    return _client.respondApproval(requestId: requestId, decision: 'reject');
+  }
+
+  String _describeApprovalRequest(String method, Map<String, dynamic> params) {
+    if (method == 'item/commandExecution/requestApproval') {
+      final cmd =
+          params['command']?.toString() ??
+          params['cmd']?.toString() ??
+          params['args']?.toString();
+      if (cmd != null && cmd.isNotEmpty) {
+        return 'Run command: $cmd';
+      }
+      return 'Run a command';
+    }
+    if (method == 'item/fileChange/requestApproval') {
+      final path = params['path']?.toString() ?? params['filePath']?.toString();
+      if (path != null && path.isNotEmpty) {
+        return 'Modify file: $path';
+      }
+      return 'Modify a file';
+    }
+    return 'Approve action';
+  }
+
+  String? _optionalId(Object? value) {
+    final raw = value?.toString();
+    if (raw == null) {
+      return null;
+    }
+    final normalized = raw.trim();
+    if (normalized.isEmpty) {
+      return null;
+    }
+    return normalized;
+  }
+
   void _handleIncomingRequest(JsonRpcServerRequest request) {
     final method = request.method;
 
     if (method == 'item/commandExecution/requestApproval' ||
         method == 'item/fileChange/requestApproval') {
-      unawaited(
-        _client.respondApproval(
+      final params = request.params;
+      final description = _describeApprovalRequest(method, params);
+      final threadId = _optionalId(params['threadId']);
+      _eventsController.add(
+        AgentApprovalRequestEvent(
           requestId: request.id,
-          decision: 'accept',
-          forSession: true,
+          method: method,
+          description: description,
+          threadId: threadId,
         ),
       );
       return;
@@ -159,6 +209,27 @@ class AgentOrchestrator {
       return;
     }
 
+    if (method == 'item/tool/requestUserInput' ||
+        method == 'item/tool/request_user_input') {
+      final params = request.params;
+      final rawQuestions = params['questions'];
+      final questions = (rawQuestions is List)
+          ? rawQuestions.whereType<Map<String, dynamic>>().toList(
+              growable: false,
+            )
+          : const <Map<String, dynamic>>[];
+      _eventsController.add(
+        AgentUserInputRequestEvent(
+          requestId: request.id,
+          threadId: _optionalId(params['threadId']),
+          turnId: (params['turnId'] ?? '').toString(),
+          itemId: (params['itemId'] ?? '').toString(),
+          questions: questions,
+        ),
+      );
+      return;
+    }
+
     _eventsController.add(
       AgentNotificationEvent(
         method: method,
@@ -169,5 +240,12 @@ class AgentOrchestrator {
         },
       ),
     );
+  }
+
+  Future<void> respondUserInput(
+    Object requestId,
+    Map<String, dynamic> answers,
+  ) {
+    return _client.respondUserInput(requestId: requestId, answers: answers);
   }
 }

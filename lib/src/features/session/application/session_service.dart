@@ -114,6 +114,9 @@ class SessionService {
     required String sessionId,
     required String rawInput,
     required String reasoningEffort,
+    List<Map<String, dynamic>> extraInputItems = const <Map<String, dynamic>>[],
+    bool planModeEnabled = false,
+    String approvalPolicy = 'never',
   }) async {
     final session = _sessions[sessionId];
     if (session == null) {
@@ -123,12 +126,28 @@ class SessionService {
       throw StateError('session has no thread id');
     }
     await _ensureOrchestrator();
+    final input = <Map<String, dynamic>>[
+      <String, dynamic>{'type': 'text', 'text': rawInput},
+      ...extraInputItems,
+    ];
+    final collaborationMode = planModeEnabled
+        ? <String, dynamic>{
+            'mode': 'plan',
+            'settings': <String, dynamic>{
+              'model': session.model,
+              'reasoning_effort': null,
+              'developer_instructions': null,
+            },
+          }
+        : null;
     final turnId = await _orchestrator.runTurn(
       threadId: session.threadId!,
-      prompt: rawInput,
+      input: input,
       model: session.model,
       reasoningEffort: reasoningEffort,
       cwd: session.workspacePath,
+      approvalPolicy: approvalPolicy,
+      collaborationMode: collaborationMode,
     );
 
     final updated = session.copyWith(
@@ -159,6 +178,21 @@ class SessionService {
     await _orchestrator.interrupt(threadId: threadId, turnId: turnId);
   }
 
+  Future<void> approveRequest(Object requestId, {bool forSession = false}) {
+    return _orchestrator.approveRequest(requestId, forSession: forSession);
+  }
+
+  Future<void> declineRequest(Object requestId) {
+    return _orchestrator.declineRequest(requestId);
+  }
+
+  Future<void> respondUserInput(
+    Object requestId,
+    Map<String, dynamic> answers,
+  ) {
+    return _orchestrator.respondUserInput(requestId, answers);
+  }
+
   Future<void> shutdown() async {
     await _orchestratorSub?.cancel();
     await _eventsController.close();
@@ -179,6 +213,25 @@ class SessionService {
       _updateSessionTurnStateFromNotification(event);
       _eventsController.add(
         SessionNotificationEvent(method: event.method, payload: event.payload),
+      );
+    } else if (event is AgentApprovalRequestEvent) {
+      _eventsController.add(
+        SessionApprovalRequestEvent(
+          requestId: event.requestId,
+          method: event.method,
+          description: event.description,
+          threadId: event.threadId,
+        ),
+      );
+    } else if (event is AgentUserInputRequestEvent) {
+      _eventsController.add(
+        SessionUserInputRequestEvent(
+          requestId: event.requestId,
+          threadId: event.threadId,
+          turnId: event.turnId,
+          itemId: event.itemId,
+          questions: event.questions,
+        ),
       );
     }
   }

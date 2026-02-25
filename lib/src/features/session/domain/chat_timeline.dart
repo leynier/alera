@@ -4,6 +4,7 @@ enum TimelineCellKind {
   progressText,
   reasoning,
   toolCall,
+  plan,
   turnSeparator,
   systemNotice,
 }

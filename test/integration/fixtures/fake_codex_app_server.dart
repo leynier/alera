@@ -413,6 +413,61 @@ Future<void> main() async {
             'commandActions': <String>['filesystemRead', 'processExecution'],
           },
         });
+      } else if (prompt.contains('trigger_user_input_no_thread')) {
+        _write(<String, dynamic>{
+          'jsonrpc': '2.0',
+          'id': 901,
+          'method': 'item/tool/request_user_input',
+          'params': <String, dynamic>{
+            'turnId': activeTurnId,
+            'itemId': 'item_user_input_1',
+            'questions': <Map<String, dynamic>>[
+              <String, dynamic>{
+                'id': 'implement_now',
+                'header': 'Implementation',
+                'question': 'Implement this plan now?',
+                'isOther': false,
+                'isSecret': false,
+                'options': <Map<String, dynamic>>[
+                  <String, dynamic>{
+                    'label': 'Yes, implement this plan',
+                    'description': 'Proceed with implementation',
+                  },
+                  <String, dynamic>{
+                    'label': 'No, change the plan',
+                    'description': 'Keep refining the plan',
+                  },
+                ],
+              },
+            ],
+          },
+        });
+      } else if (prompt.contains('trigger_user_input_empty_thread')) {
+        _write(<String, dynamic>{
+          'jsonrpc': '2.0',
+          'id': 902,
+          'method': 'item/tool/requestUserInput',
+          'params': <String, dynamic>{
+            'threadId': '   ',
+            'turnId': activeTurnId,
+            'itemId': 'item_user_input_2',
+            'questions': <Map<String, dynamic>>[
+              <String, dynamic>{
+                'id': 'implement_now',
+                'header': 'Implementation',
+                'question': 'Implement this plan now?',
+                'isOther': false,
+                'isSecret': false,
+                'options': <Map<String, dynamic>>[
+                  <String, dynamic>{
+                    'label': 'Yes, implement this plan',
+                    'description': 'Proceed with implementation',
+                  },
+                ],
+              },
+            ],
+          },
+        });
       } else if (prompt.contains('trigger_interrupt')) {
         interruptibleTurnId = activeTurnId;
       } else if (prompt.contains('trigger_commentary_final')) {
@@ -451,6 +506,11 @@ Future<void> main() async {
       } else {
         emitCompletedTurn(status: 'interrupted', itemStatus: 'declined');
       }
+      continue;
+    }
+
+    if ((id == 901 || id == 902) && message.containsKey('result')) {
+      emitCompletedTurn(status: 'completed');
       continue;
     }
 

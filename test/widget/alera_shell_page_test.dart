@@ -49,9 +49,27 @@ class _ShellFakeSessionService implements SessionService {
     required String sessionId,
     required String rawInput,
     required String reasoningEffort,
+    List<Map<String, dynamic>> extraInputItems = const <Map<String, dynamic>>[],
+    bool planModeEnabled = false,
+    String approvalPolicy = 'never',
   }) {
     throw UnimplementedError();
   }
+
+  @override
+  Future<void> approveRequest(
+    Object requestId, {
+    bool forSession = false,
+  }) async {}
+
+  @override
+  Future<void> declineRequest(Object requestId) async {}
+
+  @override
+  Future<void> respondUserInput(
+    Object requestId,
+    Map<String, dynamic> answers,
+  ) async {}
 
   @override
   Future<AleraSession> setActiveSession(String sessionId) {

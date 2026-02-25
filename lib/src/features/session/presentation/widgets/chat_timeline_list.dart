@@ -1,0 +1,451 @@
+import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/features/session/application/session_state.dart';
+import 'package:alera/src/features/session/domain/chat_timeline.dart';
+import 'package:alera/src/features/session/presentation/widgets/timeline_cells.dart';
+import 'package:alera/src/features/session/presentation/widgets/worked_for_divider.dart';
+import 'package:flutter/material.dart';
+
+class ChatTimelineList extends StatelessWidget {
+  const ChatTimelineList({
+    super.key,
+    required this.state,
+    required this.expandedWorkedTurns,
+    required this.onToggleWorkedTurn,
+    required this.controller,
+    required this.markdownEnabled,
+    required this.onMarkdownModeChanged,
+    required this.contentMaxWidth,
+  });
+
+  final SessionState state;
+  final Set<String> expandedWorkedTurns;
+  final ValueChanged<String> onToggleWorkedTurn;
+  final ScrollController controller;
+  final bool markdownEnabled;
+  final ValueChanged<bool> onMarkdownModeChanged;
+  final double contentMaxWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    if (state.timelineCells.isEmpty) {
+      return EmptyChatState(state: state);
+    }
+    final timelineWidgets = _buildTimelineWidgets();
+    return SelectionArea(
+      child: ListView(
+        key: const ValueKey<String>('timeline-list'),
+        controller: controller,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AleraTokens.space16,
+          vertical: AleraTokens.space16,
+        ),
+        children: <Widget>[
+          Center(
+            child: ConstrainedBox(
+              key: const ValueKey<String>('timeline-content-container'),
+              constraints: BoxConstraints(maxWidth: contentMaxWidth),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: timelineWidgets,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildTimelineWidgets() {
+    final cells = state.timelineCells;
+    final separatorsByTurn = <String, TimelineCell>{};
+    final firstIndexByTurn = <String, int>{};
+    for (var i = 0; i < cells.length; i++) {
+      final cell = cells[i];
+      final turnId = cell.turnId;
+      if (turnId != null) {
+        firstIndexByTurn.putIfAbsent(turnId, () => i);
+        if (cell.kind == TimelineCellKind.turnSeparator) {
+          separatorsByTurn[turnId] = cell;
+        }
+      }
+    }
+    final renderedCompletedTurns = <String>{};
+    final widgets = <Widget>[];
+    for (var i = 0; i < cells.length; i++) {
+      final cell = cells[i];
+      final turnId = cell.turnId;
+      if (turnId == null) {
+        if (cell.kind == TimelineCellKind.turnSeparator) {
+          continue;
+        }
+        widgets.add(_timelineCellWithSpacing(cell));
+        continue;
+      }
+      final separator = separatorsByTurn[turnId];
+      final isCompletedTurn = separator != null;
+      if (!isCompletedTurn) {
+        if (cell.kind == TimelineCellKind.turnSeparator) {
+          continue;
+        }
+        if (isExploratoryToolCell(cell)) {
+          final runLength = _exploratoryRunLength(cells, i);
+          if (runLength >= 2) {
+            final cluster = cells.sublist(i, i + runLength);
+            widgets.add(
+              Padding(
+                padding: const EdgeInsets.only(bottom: AleraTokens.space8),
+                child: ExploringClusterCell(
+                  key: ValueKey(
+                    'cluster-open-${cluster.first.id}-${cluster.last.id}',
+                  ),
+                  cells: cluster,
+                ),
+              ),
+            );
+            i += runLength - 1;
+            continue;
+          }
+        }
+        widgets.add(_timelineCellWithSpacing(cell));
+        continue;
+      }
+      final firstTurnIndex = firstIndexByTurn[turnId];
+      if (firstTurnIndex != i || renderedCompletedTurns.contains(turnId)) {
+        continue;
+      }
+      renderedCompletedTurns.add(turnId);
+      final turnCells = cells
+          .where(
+            (candidate) =>
+                candidate.turnId == turnId &&
+                candidate.kind != TimelineCellKind.turnSeparator,
+          )
+          .toList(growable: false);
+      widgets.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: AleraTokens.space8),
+          child: CompletedTurnSection(
+            turnId: turnId,
+            separator: separator,
+            turnCells: turnCells,
+            workedExpanded: expandedWorkedTurns.contains(turnId),
+            onToggleWorked: () => onToggleWorkedTurn(turnId),
+            markdownEnabled: markdownEnabled,
+            onMarkdownModeChanged: onMarkdownModeChanged,
+          ),
+        ),
+      );
+    }
+    return widgets;
+  }
+
+  Widget _timelineCellWithSpacing(TimelineCell cell) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AleraTokens.space8),
+      child: TimelineCellView(
+        cell: cell,
+        markdownEnabled: markdownEnabled,
+        onMarkdownModeChanged: onMarkdownModeChanged,
+      ),
+    );
+  }
+
+  int _exploratoryRunLength(List<TimelineCell> cells, int startIndex) {
+    final start = cells[startIndex];
+    if (!isExploratoryToolCell(start)) {
+      return 0;
+    }
+    final turnId = start.turnId;
+    var current = startIndex;
+    while (current < cells.length) {
+      final candidate = cells[current];
+      if (candidate.kind == TimelineCellKind.turnSeparator) {
+        break;
+      }
+      if (candidate.turnId != turnId) {
+        break;
+      }
+      if (!isExploratoryToolCell(candidate)) {
+        break;
+      }
+      current += 1;
+    }
+    return current - startIndex;
+  }
+}
+
+class EmptyChatState extends StatelessWidget {
+  const EmptyChatState({super.key, required this.state});
+
+  final SessionState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final session = state.activeSession;
+    final workspacePath = session?.workspacePath ?? state.selectedWorkspacePath;
+    final theme = Theme.of(context);
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Text(
+            session?.title ?? 'new session',
+            style: theme.textTheme.titleMedium,
+          ),
+          const SizedBox(height: AleraTokens.space8),
+          if (workspacePath != null && workspacePath.isNotEmpty)
+            Text(
+              workspacePath,
+              style: AleraTokens.monoStyle.copyWith(
+                color: AleraTokens.foregroundFaint,
+              ),
+            ),
+          const SizedBox(height: AleraTokens.space16),
+          const Text(
+            'start the conversation by sending a message',
+            style: TextStyle(color: AleraTokens.foregroundFaint),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class SecondaryRenderRow {
+  SecondaryRenderRow.single(this.cell) : clusterCells = null;
+
+  SecondaryRenderRow.cluster(List<TimelineCell> cells)
+    : cell = null,
+      clusterCells = List<TimelineCell>.unmodifiable(cells);
+
+  final TimelineCell? cell;
+  final List<TimelineCell>? clusterCells;
+
+  bool get isCluster => clusterCells != null;
+}
+
+List<SecondaryRenderRow> buildSecondaryRows(List<TimelineCell> cells) {
+  final rows = <SecondaryRenderRow>[];
+  final renderable = cells
+      .where(_isRenderableSecondaryCell)
+      .toList(growable: false);
+  var index = 0;
+  while (index < renderable.length) {
+    final cell = renderable[index];
+    if (isExploratoryToolCell(cell)) {
+      var end = index + 1;
+      while (end < renderable.length &&
+          isExploratoryToolCell(renderable[end])) {
+        end += 1;
+      }
+      final sequence = renderable.sublist(index, end);
+      if (sequence.length >= 2) {
+        rows.add(SecondaryRenderRow.cluster(sequence));
+      } else {
+        rows.add(SecondaryRenderRow.single(cell));
+      }
+      index = end;
+      continue;
+    }
+    rows.add(SecondaryRenderRow.single(cell));
+    index += 1;
+  }
+  return rows;
+}
+
+bool _isRenderableSecondaryCell(TimelineCell cell) {
+  if (cell.kind != TimelineCellKind.progressText) {
+    return true;
+  }
+  return (cell.markdownText ?? '').trim().isNotEmpty;
+}
+
+class SecondaryRowView extends StatelessWidget {
+  const SecondaryRowView({
+    super.key,
+    required this.row,
+    required this.markdownEnabled,
+    required this.onMarkdownModeChanged,
+  });
+
+  final SecondaryRenderRow row;
+  final bool markdownEnabled;
+  final ValueChanged<bool> onMarkdownModeChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    if (row.isCluster) {
+      return ExploringClusterCell(
+        key: ValueKey(
+          'cluster-${row.clusterCells!.first.id}-${row.clusterCells!.last.id}',
+        ),
+        cells: row.clusterCells!,
+      );
+    }
+    return TimelineCellView(
+      cell: row.cell!,
+      markdownEnabled: markdownEnabled,
+      onMarkdownModeChanged: onMarkdownModeChanged,
+    );
+  }
+}
+
+class CompletedTurnSection extends StatelessWidget {
+  const CompletedTurnSection({
+    super.key,
+    required this.turnId,
+    required this.separator,
+    required this.turnCells,
+    required this.workedExpanded,
+    required this.onToggleWorked,
+    required this.markdownEnabled,
+    required this.onMarkdownModeChanged,
+  });
+
+  final String turnId;
+  final TimelineCell separator;
+  final List<TimelineCell> turnCells;
+  final bool workedExpanded;
+  final VoidCallback onToggleWorked;
+  final bool markdownEnabled;
+  final ValueChanged<bool> onMarkdownModeChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final users = <TimelineCell>[];
+    final assistants = <TimelineCell>[];
+    final secondary = <TimelineCell>[];
+    final postTurnNotices = <TimelineCell>[];
+    for (final cell in turnCells) {
+      switch (cell.kind) {
+        case TimelineCellKind.userMessage:
+          users.add(cell);
+        case TimelineCellKind.assistantMessage:
+          assistants.add(cell);
+        case TimelineCellKind.progressText:
+          secondary.add(cell);
+        case TimelineCellKind.plan:
+          assistants.add(cell);
+        case TimelineCellKind.reasoning || TimelineCellKind.toolCall:
+          secondary.add(cell);
+        case TimelineCellKind.systemNotice:
+          final placement = (cell.metadata['uiPlacement'] ?? '')
+              .toString()
+              .toLowerCase()
+              .trim();
+          if (placement == 'outside_worked') {
+            postTurnNotices.add(cell);
+          } else {
+            secondary.add(cell);
+          }
+        case TimelineCellKind.turnSeparator:
+          break;
+      }
+    }
+    final secondaryRows = buildSecondaryRows(secondary);
+    final shouldRenderWorked = secondaryRows.length > 1;
+    final shouldRenderSingleSecondary = secondaryRows.length == 1;
+    final workedLabel = shouldRenderWorked ? workedForLabel(separator) : null;
+    final effectiveWorkedExpanded = workedLabel == null ? true : workedExpanded;
+    final children = <Widget>[
+      for (final userCell in users)
+        Padding(
+          padding: const EdgeInsets.only(bottom: AleraTokens.space8),
+          child: TimelineCellView(
+            cell: userCell,
+            markdownEnabled: markdownEnabled,
+            onMarkdownModeChanged: onMarkdownModeChanged,
+          ),
+        ),
+    ];
+    if (shouldRenderWorked && workedLabel != null) {
+      children.add(
+        WorkedForDivider(
+          label: workedLabel,
+          expanded: effectiveWorkedExpanded,
+          onTap: onToggleWorked,
+        ),
+      );
+      if (effectiveWorkedExpanded) {
+        children.add(
+          Padding(
+            padding: const EdgeInsets.only(top: AleraTokens.space8),
+            child: Column(
+              children: <Widget>[
+                for (final row in secondaryRows)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AleraTokens.space6),
+                    child: SecondaryRowView(
+                      row: row,
+                      markdownEnabled: markdownEnabled,
+                      onMarkdownModeChanged: onMarkdownModeChanged,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      }
+    }
+    if (shouldRenderWorked && workedLabel == null) {
+      children.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: AleraTokens.space8),
+          child: Column(
+            children: <Widget>[
+              for (final row in secondaryRows)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AleraTokens.space6),
+                  child: SecondaryRowView(
+                    row: row,
+                    markdownEnabled: markdownEnabled,
+                    onMarkdownModeChanged: onMarkdownModeChanged,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      );
+    }
+    if (shouldRenderSingleSecondary) {
+      children.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: AleraTokens.space8),
+          child: SecondaryRowView(
+            row: secondaryRows.first,
+            markdownEnabled: markdownEnabled,
+            onMarkdownModeChanged: onMarkdownModeChanged,
+          ),
+        ),
+      );
+    }
+    children.addAll(
+      assistants.map(
+        (assistantCell) => Padding(
+          padding: const EdgeInsets.only(bottom: AleraTokens.space8),
+          child: TimelineCellView(
+            cell: assistantCell,
+            markdownEnabled: markdownEnabled,
+            onMarkdownModeChanged: onMarkdownModeChanged,
+          ),
+        ),
+      ),
+    );
+    children.addAll(
+      postTurnNotices.map(
+        (noticeCell) => Padding(
+          padding: const EdgeInsets.only(bottom: AleraTokens.space8),
+          child: TimelineCellView(
+            cell: noticeCell,
+            markdownEnabled: markdownEnabled,
+            onMarkdownModeChanged: onMarkdownModeChanged,
+          ),
+        ),
+      ),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: children,
+    );
+  }
+}

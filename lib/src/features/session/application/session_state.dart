@@ -1,5 +1,9 @@
 import 'package:alera/src/features/session/domain/codex_model_catalog.dart';
 import 'package:alera/src/features/session/domain/chat_timeline.dart';
+import 'package:alera/src/features/session/domain/composer_attachment.dart';
+import 'package:alera/src/features/session/domain/pending_approval.dart';
+import 'package:alera/src/features/session/domain/pending_message.dart';
+import 'package:alera/src/features/session/domain/pending_user_input.dart';
 import 'package:alera/src/features/session/application/streaming/adaptive_chunking_policy.dart';
 import 'package:alera/src/features/session/application/streaming/commit_tick_engine.dart';
 import 'package:alera/src/features/session/application/streaming/markdown_stream_collector.dart';
@@ -38,6 +42,13 @@ class SessionState {
     this.turnHadWorkActivity = false,
     this.turnRuntimeMetrics = const <String, dynamic>{},
     this.reasoningBufferByItemId = const <String, String>{},
+    this.composerAttachments = const <ComposerAttachment>[],
+    this.pendingMessages = const <PendingMessage>[],
+    this.lastTurnDiff,
+    this.planModeEnabled = false,
+    this.permissionMode = PermissionMode.defaultMode,
+    this.pendingApprovals = const <PendingApproval>[],
+    this.pendingUserInput,
     this.error,
     this.isBusy = false,
   });
@@ -73,6 +84,19 @@ class SessionState {
   final bool turnHadWorkActivity;
   final Map<String, dynamic> turnRuntimeMetrics;
   final Map<String, String> reasoningBufferByItemId;
+  final List<ComposerAttachment> composerAttachments;
+  // Messages queued while a turn is running, processed in order.
+  final List<PendingMessage> pendingMessages;
+  // Latest unified diff from turn/diff/updated events.
+  final String? lastTurnDiff;
+  // Whether plan mode (collaborative mode) is enabled for the next turn.
+  final bool planModeEnabled;
+  // Current permission mode: default (ask) or fullAccess (auto-accept).
+  final PermissionMode permissionMode;
+  // Approval requests waiting for user decision.
+  final List<PendingApproval> pendingApprovals;
+  // User input request from plan mode (request_user_input tool).
+  final PendingUserInput? pendingUserInput;
   final String? error;
   final bool isBusy;
 
@@ -154,6 +178,15 @@ class SessionState {
     bool? turnHadWorkActivity,
     Map<String, dynamic>? turnRuntimeMetrics,
     Map<String, String>? reasoningBufferByItemId,
+    List<ComposerAttachment>? composerAttachments,
+    List<PendingMessage>? pendingMessages,
+    String? lastTurnDiff,
+    bool clearLastTurnDiff = false,
+    bool? planModeEnabled,
+    PermissionMode? permissionMode,
+    List<PendingApproval>? pendingApprovals,
+    PendingUserInput? pendingUserInput,
+    bool clearPendingUserInput = false,
     String? error,
     bool? isBusy,
     bool clearError = false,
@@ -227,6 +260,17 @@ class SessionState {
       turnRuntimeMetrics: turnRuntimeMetrics ?? this.turnRuntimeMetrics,
       reasoningBufferByItemId:
           reasoningBufferByItemId ?? this.reasoningBufferByItemId,
+      composerAttachments: composerAttachments ?? this.composerAttachments,
+      pendingMessages: pendingMessages ?? this.pendingMessages,
+      lastTurnDiff: clearLastTurnDiff
+          ? null
+          : (lastTurnDiff ?? this.lastTurnDiff),
+      planModeEnabled: planModeEnabled ?? this.planModeEnabled,
+      permissionMode: permissionMode ?? this.permissionMode,
+      pendingApprovals: pendingApprovals ?? this.pendingApprovals,
+      pendingUserInput: clearPendingUserInput
+          ? null
+          : (pendingUserInput ?? this.pendingUserInput),
       error: clearError ? null : (error ?? this.error),
       isBusy: isBusy ?? this.isBusy,
     );

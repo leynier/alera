@@ -3,6 +3,7 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/session/application/session_controller.dart';
 import 'package:alera/src/features/session/application/session_state.dart';
 import 'package:alera/src/features/session/domain/codex_model_catalog.dart';
+import 'package:alera/src/features/session/domain/composer_attachment.dart';
 import 'package:alera/src/features/session/presentation/session_workspace_view.dart';
 import 'package:alera/src/features/shell/presentation/alera_status_bar.dart';
 import 'package:alera/src/features/shell/presentation/alera_top_bar.dart';
@@ -11,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
+import 'package:uuid/uuid.dart';
 
 class AleraShellPage extends ConsumerStatefulWidget {
   const AleraShellPage({super.key});
@@ -100,7 +102,64 @@ class _AleraShellPageState extends ConsumerState<AleraShellPage> {
       isMarkdownEnabled: state.activeMarkdownEnabled,
       onMarkdownModeChanged: controller.updateMarkdownEnabled,
       rawLogExpanded: _rawLogExpanded,
+      onAddAttachment: () => _addAttachment(controller),
+      onRemoveAttachment: controller.removeAttachment,
+      onRemoveFromQueue: controller.removeFromQueue,
+      onPlanModeToggled: controller.togglePlanMode,
+      onPermissionModeToggled: controller.togglePermissionMode,
+      onApproveRequest: controller.approveRequest,
+      onDeclineRequest: controller.declineRequest,
+      onSubmitUserInput: controller.submitUserInput,
+      onDismissUserInput: controller.dismissUserInput,
     );
+  }
+
+  Future<void> _addAttachment(SessionController controller) async {
+    final XFile? file;
+    try {
+      file = await openFile(
+        acceptedTypeGroups: <XTypeGroup>[const XTypeGroup(label: 'all files')],
+      );
+    } catch (_) {
+      return;
+    }
+    if (file == null) {
+      return;
+    }
+    final kind = _attachmentKindFromPath(file.path);
+    final mimeType = kind == AttachmentKind.image ? _imageMimeType(file.path) : null;
+    controller.addAttachment(
+      ComposerAttachment(
+        id: const Uuid().v4(),
+        kind: kind,
+        path: file.path,
+        displayName: file.name,
+        mimeType: mimeType,
+      ),
+    );
+  }
+
+  AttachmentKind _attachmentKindFromPath(String path) {
+    final ext = p.extension(path).toLowerCase().replaceFirst('.', '');
+    if (const <String>{'jpg', 'jpeg', 'png', 'gif', 'webp'}.contains(ext)) {
+      return AttachmentKind.image;
+    }
+    return AttachmentKind.file;
+  }
+
+  String _imageMimeType(String path) {
+    final ext = p.extension(path).toLowerCase().replaceFirst('.', '');
+    switch (ext) {
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'gif':
+        return 'image/gif';
+      case 'webp':
+        return 'image/webp';
+      default:
+        return 'image/png';
+    }
   }
 
   Future<void> _selectWorkspace(SessionController controller) async {

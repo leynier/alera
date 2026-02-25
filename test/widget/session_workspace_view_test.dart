@@ -2,6 +2,7 @@ import 'package:alera/src/features/session/application/session_state.dart';
 import 'package:alera/src/features/session/application/session_runtime_event.dart';
 import 'package:alera/src/features/session/application/session_timeline_reducer.dart';
 import 'package:alera/src/features/session/domain/chat_timeline.dart';
+import 'package:alera/src/features/session/domain/pending_user_input.dart';
 import 'package:alera/src/features/session/presentation/session_workspace_view.dart';
 import 'package:alera/src/shared/models/contracts.dart';
 import 'package:flutter/gestures.dart';
@@ -62,6 +63,9 @@ Future<void> _pumpWorkspace(
   String? activeReasoningEffort,
   bool? isMarkdownEnabled,
   ValueChanged<bool>? onMarkdownModeChanged,
+  ValueChanged<Map<String, dynamic>>? onSubmitUserInput,
+  VoidCallback? onDismissUserInput,
+  Duration settleDuration = const Duration(milliseconds: 250),
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -82,11 +86,20 @@ Future<void> _pumpWorkspace(
           isMarkdownEnabled: isMarkdownEnabled ?? true,
           onMarkdownModeChanged: onMarkdownModeChanged ?? (_) {},
           rawLogExpanded: rawLogExpanded,
+          onAddAttachment: () {},
+          onRemoveAttachment: (_) {},
+          onRemoveFromQueue: (_) {},
+          onPlanModeToggled: () {},
+          onPermissionModeToggled: () {},
+          onApproveRequest: (_, {forSession = false}) async {},
+          onDeclineRequest: (_) async {},
+          onSubmitUserInput: onSubmitUserInput ?? (_) {},
+          onDismissUserInput: onDismissUserInput ?? () {},
         ),
       ),
     ),
   );
-  await tester.pump(const Duration(milliseconds: 250));
+  await tester.pump(settleDuration);
 }
 
 List<TimelineCell> _longAssistantTimeline({int count = 80}) {
@@ -131,6 +144,42 @@ void main() {
       timelineCells: timeline,
     );
   }
+
+  testWidgets('user input card renders custom other label', (tester) async {
+    final state = SessionState(
+      pendingUserInput: const PendingUserInput(
+        requestId: 'local-plan-fallback-turn-1',
+        threadId: 'thread-1',
+        turnId: 'turn-1',
+        itemId: 'turn-1-local-plan-fallback',
+        questions: <UserInputQuestion>[
+          UserInputQuestion(
+            id: 'implement_plan',
+            header: 'Implementation',
+            question: 'Implement this plan?',
+            isOther: true,
+            options: <UserInputOption>[
+              UserInputOption(
+                label: 'Yes, implement this plan',
+                description: 'Proceed with implementation',
+              ),
+            ],
+            otherLabel: 'No, and tell Alera what to do differently',
+          ),
+        ],
+        source: PendingUserInputSource.localPlanFallback,
+        localPlanTurnId: 'turn-1',
+      ),
+    );
+
+    await _pumpWorkspace(tester, state: state);
+
+    expect(find.text('Implement this plan?'), findsOneWidget);
+    expect(
+      find.text('No, and tell Alera what to do differently'),
+      findsOneWidget,
+    );
+  });
 
   testWidgets(
     'shows worked for collapsed and final message for completed turn',

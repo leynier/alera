@@ -3,11 +3,14 @@ class CodexModelOption {
     required this.id,
     required this.label,
     this.isDefault = false,
+    this.contextWindowTokens = 200000,
   });
 
   final String id;
   final String label;
   final bool isDefault;
+  // Approximate context window size in tokens.
+  final int contextWindowTokens;
 }
 
 const String codexReasoningEffortLow = 'low';
@@ -30,15 +33,32 @@ const Map<String, String> codexReasoningEffortLabels = <String, String>{
 };
 
 const List<CodexModelOption> codexModelSnapshot = <CodexModelOption>[
-  CodexModelOption(id: 'gpt-5.3-codex', label: 'GPT-5.3-Codex'),
+  CodexModelOption(
+    id: 'gpt-5.3-codex',
+    label: 'GPT-5.3-Codex',
+    contextWindowTokens: 200000,
+  ),
   CodexModelOption(
     id: 'gpt-5.2-codex',
     label: 'GPT-5.2-Codex',
     isDefault: true,
+    contextWindowTokens: 200000,
   ),
-  CodexModelOption(id: 'gpt-5.2', label: 'GPT-5.2'),
-  CodexModelOption(id: 'gpt-5.1-codex-max', label: 'GPT-5.1-Codex-Max'),
-  CodexModelOption(id: 'gpt-5.1-codex-mini', label: 'GPT-5.1-Codex-Mini'),
+  CodexModelOption(
+    id: 'gpt-5.2',
+    label: 'GPT-5.2',
+    contextWindowTokens: 128000,
+  ),
+  CodexModelOption(
+    id: 'gpt-5.1-codex-max',
+    label: 'GPT-5.1-Codex-Max',
+    contextWindowTokens: 200000,
+  ),
+  CodexModelOption(
+    id: 'gpt-5.1-codex-mini',
+    label: 'GPT-5.1-Codex-Mini',
+    contextWindowTokens: 128000,
+  ),
 ];
 
 const Map<String, List<String>> _modelReasoningEfforts = <String, List<String>>{
@@ -120,6 +140,15 @@ String closestSupportedReasoningEffort({
     }
   }
   return closest;
+}
+
+int contextWindowForModel(String modelId) {
+  for (final model in codexModelSnapshot) {
+    if (model.id == modelId) {
+      return model.contextWindowTokens;
+    }
+  }
+  return 200000;
 }
 
 int _reasoningEffortRank(String effort) {

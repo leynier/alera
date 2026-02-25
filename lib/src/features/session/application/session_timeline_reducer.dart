@@ -6,13 +6,25 @@ import 'package:alera/src/features/session/application/streaming/markdown_stream
 import 'package:alera/src/features/session/application/session_runtime_event.dart';
 import 'package:alera/src/features/session/application/session_state.dart';
 import 'package:alera/src/features/session/domain/chat_timeline.dart';
+import 'package:alera/src/features/session/domain/composer_attachment.dart';
 
 SessionState appendOptimisticUserMessage(
   SessionState state, {
   required String text,
+  List<ComposerAttachment> attachments = const <ComposerAttachment>[],
   DateTime? now,
 }) {
   final timestamp = now ?? DateTime.now().toUtc();
+  final attachmentMaps = attachments
+      .map(
+        (a) => <String, dynamic>{
+          'kind': a.kind.name,
+          'path': a.path,
+          'displayName': a.displayName,
+          'mimeType': a.mimeType,
+        },
+      )
+      .toList(growable: false);
   final cell = TimelineCell(
     id: 'user-${timestamp.microsecondsSinceEpoch}',
     turnId: null,
@@ -21,6 +33,9 @@ SessionState appendOptimisticUserMessage(
     createdAt: timestamp,
     updatedAt: timestamp,
     markdownText: text,
+    metadata: attachmentMaps.isEmpty
+        ? const <String, dynamic>{}
+        : <String, dynamic>{'attachments': attachmentMaps},
   );
 
   return state.copyWith(
@@ -1107,6 +1122,7 @@ SessionState _onTurnDiffUpdated(
     pendingStatusRestore: true,
     turnHadWorkActivity: true,
     turnRuntimeMetrics: metrics,
+    lastTurnDiff: diff,
   );
 }
 
@@ -1299,32 +1315,42 @@ SessionState _onToolDetailsChunk(
   final cellId = index.cellIdByItemId[itemId] ?? itemId;
   final existingIndex = _findCellById(cells, cellId);
 
+  final isPlan = fallbackTitle == 'plan';
+  final cellKind = isPlan ? TimelineCellKind.plan : TimelineCellKind.toolCall;
   if (existingIndex == -1) {
     cells.add(
       TimelineCell(
         id: cellId,
         turnId: turnId,
         itemId: itemId,
-        kind: TimelineCellKind.toolCall,
+        kind: cellKind,
         status: TimelineCellStatus.inProgress,
         createdAt: timestamp,
         updatedAt: timestamp,
-        isCollapsed: true,
+        isCollapsed: !isPlan,
         title: fallbackTitle,
+        markdownText: isPlan ? chunk : null,
         detailsText: chunk,
       ),
     );
   } else {
     final existing = cells[existingIndex];
-    final current = existing.detailsText ?? '';
-    final detailsText = append ? '$current$chunk' : chunk;
+    final currentDetails = existing.detailsText ?? '';
+    final detailsText = append ? '$currentDetails$chunk' : chunk;
+    final updatedMarkdown = isPlan
+        ? (append ? '${existing.markdownText ?? ''}$chunk' : chunk)
+        : existing.markdownText;
+    final preservedKind = switch (existing.kind) {
+      TimelineCellKind.reasoning => TimelineCellKind.reasoning,
+      TimelineCellKind.plan => TimelineCellKind.plan,
+      _ => TimelineCellKind.toolCall,
+    };
     cells[existingIndex] = existing.copyWith(
       turnId: turnId,
       itemId: itemId,
-      kind: existing.kind == TimelineCellKind.reasoning
-          ? TimelineCellKind.reasoning
-          : TimelineCellKind.toolCall,
+      kind: preservedKind,
       status: TimelineCellStatus.inProgress,
+      markdownText: updatedMarkdown,
       detailsText: detailsText,
       updatedAt: timestamp,
     );
@@ -1405,6 +1431,8 @@ SessionState _onItemStarted(
   final existingIndex = _findCellById(cells, cellId);
   final kind = itemType == 'reasoning'
       ? TimelineCellKind.reasoning
+      : itemType == 'plan'
+      ? TimelineCellKind.plan
       : TimelineCellKind.toolCall;
   final existingMetadata = existingIndex == -1
       ? const <String, dynamic>{}
@@ -1436,7 +1464,7 @@ SessionState _onItemStarted(
         TimelineCellStatus.inProgress,
     createdAt: timestamp,
     updatedAt: timestamp,
-    isCollapsed: true,
+    isCollapsed: kind != TimelineCellKind.plan,
     title: title,
     subtitle: subtitle,
     markdownText: markdownText,
@@ -1537,6 +1565,8 @@ SessionState _onItemCompleted(
   final existingIndex = _findCellById(cells, cellId);
   final kind = itemType == 'reasoning'
       ? TimelineCellKind.reasoning
+      : itemType == 'plan'
+      ? TimelineCellKind.plan
       : TimelineCellKind.toolCall;
   final existingMetadata = existingIndex == -1
       ? const <String, dynamic>{}
@@ -1560,6 +1590,8 @@ SessionState _onItemCompleted(
   }
   final markdownText = kind == TimelineCellKind.reasoning
       ? (reasoningText.isEmpty ? null : reasoningText)
+      : kind == TimelineCellKind.plan
+      ? (existingIndex == -1 ? null : cells[existingIndex].markdownText)
       : null;
   final detailsText = _itemDetails(itemType, itemMetadata);
 
@@ -1573,7 +1605,7 @@ SessionState _onItemCompleted(
         status: status,
         createdAt: timestamp,
         updatedAt: timestamp,
-        isCollapsed: true,
+        isCollapsed: kind != TimelineCellKind.plan,
         title: title,
         subtitle: subtitle,
         markdownText: markdownText,
@@ -1585,6 +1617,8 @@ SessionState _onItemCompleted(
     final existing = cells[existingIndex];
     final mergedReasoning = kind == TimelineCellKind.reasoning
         ? _mergeFinalText(existing.markdownText ?? '', markdownText ?? '')
+        : kind == TimelineCellKind.plan
+        ? existing.markdownText
         : existing.markdownText;
     final mergedDetails = _mergeOptionalText(existing.detailsText, detailsText);
 
