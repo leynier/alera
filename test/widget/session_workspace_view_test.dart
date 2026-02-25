@@ -9,7 +9,7 @@ import 'package:alera/src/shared/models/contracts.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:flutter_streaming_text_markdown/flutter_streaming_text_markdown.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 TimelineCell _cell({
@@ -603,7 +603,7 @@ void main() {
     expect(find.text('_no content_'), findsNothing);
   });
 
-  testWidgets('assistant streaming renders plain text without MarkdownBody', (
+  testWidgets('assistant streaming renders progressive markdown', (
     tester,
   ) async {
     final state = SessionState(
@@ -621,11 +621,8 @@ void main() {
 
     await _pumpWorkspace(tester, state: state);
 
-    expect(
-      find.text('Texto **negrita** con `codigo` en stream'),
-      findsOneWidget,
-    );
-    expect(find.byType(MarkdownBody), findsNothing);
+    expect(find.byType(StreamingText), findsOneWidget);
+    expect(find.textContaining('negrita'), findsOneWidget);
     expect(find.text('Streaming...'), findsOneWidget);
   });
 
@@ -646,12 +643,13 @@ void main() {
 
     await _pumpWorkspace(tester, state: state);
 
-    expect(find.byType(MarkdownBody), findsOneWidget);
+    expect(find.byType(StreamingText), findsOneWidget);
+    expect(find.textContaining('**negrita**'), findsNothing);
     expect(find.textContaining('negrita'), findsOneWidget);
   });
 
   testWidgets(
-    'assistant completed falls back to plain text when markdown is unsafe',
+    'assistant completed renders malformed markdown without fallback',
     (tester) async {
       final state = SessionState(
         timelineCells: <TimelineCell>[
@@ -667,8 +665,8 @@ void main() {
 
       await _pumpWorkspace(tester, state: state);
 
-      expect(find.byType(MarkdownBody), findsNothing);
-      expect(find.text('Texto con `backtick abierto'), findsOneWidget);
+      expect(find.byType(StreamingText), findsOneWidget);
+      expect(find.textContaining('backtick abierto'), findsOneWidget);
     },
   );
 
@@ -738,12 +736,13 @@ void main() {
 
     await _pumpWorkspace(tester, state: state);
 
-    expect(find.byType(MarkdownBody), findsOneWidget);
+    expect(find.byType(StreamingText), findsNothing);
+    expect(find.textContaining('**negrita**'), findsNothing);
     expect(find.textContaining('negrita'), findsOneWidget);
   });
 
   testWidgets(
-    'user completed falls back to plain text when markdown is unsafe',
+    'user completed renders malformed markdown without fallback',
     (tester) async {
       final state = SessionState(
         timelineCells: <TimelineCell>[
@@ -758,8 +757,8 @@ void main() {
 
       await _pumpWorkspace(tester, state: state);
 
-      expect(find.byType(MarkdownBody), findsNothing);
-      expect(find.text('Texto con `backtick abierto'), findsOneWidget);
+      expect(find.byType(StreamingText), findsNothing);
+      expect(find.textContaining('backtick abierto'), findsOneWidget);
     },
   );
 
@@ -779,7 +778,7 @@ void main() {
 
     await _pumpWorkspace(tester, state: state, isMarkdownEnabled: false);
 
-    expect(find.byType(MarkdownBody), findsNothing);
+    expect(find.byType(StreamingText), findsNothing);
     expect(find.text('Texto con **negrita**'), findsOneWidget);
   });
 
@@ -1139,7 +1138,7 @@ void main() {
 
     await _pumpWorkspace(tester, state: state, isMarkdownEnabled: false);
 
-    expect(find.byType(MarkdownBody), findsNothing);
+    expect(find.byType(StreamingText), findsNothing);
     expect(find.text('Texto con **negrita**'), findsOneWidget);
   });
 

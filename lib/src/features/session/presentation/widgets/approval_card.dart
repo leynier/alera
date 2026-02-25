@@ -51,9 +51,21 @@ class ApprovalCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AleraTokens.space8),
-          Text(
-            approval.description,
-            style: const TextStyle(fontSize: 13, color: AleraTokens.foreground),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 320),
+            child: Scrollbar(
+              thumbVisibility: true,
+              child: SingleChildScrollView(
+                key: const ValueKey<String>('approval-description-scroll'),
+                child: Text(
+                  approval.description,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AleraTokens.foreground,
+                  ),
+                ),
+              ),
+            ),
           ),
           const SizedBox(height: AleraTokens.space8),
           Wrap(

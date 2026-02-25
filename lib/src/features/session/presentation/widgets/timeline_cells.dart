@@ -7,7 +7,6 @@ import 'package:alera/src/features/session/domain/composer_attachment.dart';
 import 'package:alera/src/features/session/presentation/widgets/markdown_helpers.dart';
 import 'package:alera/src/features/session/presentation/widgets/status_color.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 
 class TimelineCellView extends StatelessWidget {
   const TimelineCellView({
@@ -288,39 +287,17 @@ class AssistantBubbleMarkdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final shouldRenderMarkdown =
-        markdownEnabled && !isStreaming && isMarkdownRenderSafe(markdownText);
-    final styleSheet = MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
-      p: Theme.of(context).textTheme.bodyMedium,
-      code: AleraTokens.monoStyle.copyWith(
-        fontSize: 12,
-        color: AleraTokens.foreground,
-      ),
-      codeblockDecoration: BoxDecoration(
-        color: AleraTokens.bg,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
-        border: Border.all(color: AleraTokens.border),
-      ),
-      blockquoteDecoration: BoxDecoration(
-        color: AleraTokens.surface,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
-        border: Border.all(color: AleraTokens.borderSubtle),
-      ),
-    );
+    final messageStyle = Theme.of(context).textTheme.bodyMedium;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        if (shouldRenderMarkdown)
-          MarkdownBody(
-            data: markdownText,
-            styleSheet: styleSheet,
-            builders: <String, MarkdownElementBuilder>{
-              'pre': CodeBlockBuilder(context),
-            },
-            selectable: false,
-          )
-        else
-          Text(markdownText, style: Theme.of(context).textTheme.bodyMedium),
+        buildMarkdownContent(
+          context: context,
+          text: markdownText,
+          markdownEnabled: markdownEnabled,
+          textStyle: messageStyle,
+          markdownStyle: messageStyle,
+        ),
         if (isStreaming)
           const Padding(
             padding: EdgeInsets.only(top: AleraTokens.space6),
@@ -363,27 +340,15 @@ class UserBubbleContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (markdownEnabled && isMarkdownRenderSafe(markdownText)) {
-      final styleSheet = MarkdownStyleSheet.fromTheme(Theme.of(context))
-          .copyWith(
-            p: Theme.of(context).textTheme.bodyMedium,
-            code: AleraTokens.monoStyle.copyWith(
-              fontSize: 12,
-              color: AleraTokens.foreground,
-            ),
-            codeblockDecoration: BoxDecoration(
-              color: AleraTokens.bg,
-              borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
-              border: Border.all(color: AleraTokens.border),
-            ),
-          );
-      return MarkdownBody(
-        data: markdownText,
-        styleSheet: styleSheet,
-        selectable: false,
-      );
-    }
-    return Text(markdownText, style: Theme.of(context).textTheme.bodyMedium);
+    final messageStyle = Theme.of(context).textTheme.bodyMedium;
+    return buildMarkdownContent(
+      context: context,
+      text: markdownText,
+      markdownEnabled: markdownEnabled,
+      textStyle: messageStyle,
+      markdownStyle: messageStyle,
+      useStreaming: false,
+    );
   }
 }
 
@@ -403,28 +368,9 @@ class ProgressTextRow extends StatelessWidget {
     if (text.isEmpty) {
       return const SizedBox.shrink();
     }
-    final styleSheet = MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
-      p: Theme.of(
-        context,
-      ).textTheme.bodyMedium?.copyWith(color: AleraTokens.foregroundMuted),
-      strong: Theme.of(context).textTheme.bodyMedium?.copyWith(
-        color: AleraTokens.foreground,
-        fontWeight: FontWeight.w700,
-      ),
-      em: Theme.of(context).textTheme.bodyMedium?.copyWith(
-        color: AleraTokens.foregroundMuted,
-        fontStyle: FontStyle.italic,
-      ),
-      code: AleraTokens.monoStyle.copyWith(
-        fontSize: 12,
-        color: AleraTokens.foreground,
-      ),
-      codeblockDecoration: BoxDecoration(
-        color: AleraTokens.bg,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
-        border: Border.all(color: AleraTokens.border),
-      ),
-    );
+    final progressStyle = Theme.of(
+      context,
+    ).textTheme.bodyMedium?.copyWith(color: AleraTokens.foregroundMuted);
     return LayoutBuilder(
       builder: (context, constraints) {
         final maxWidth = constraints.maxWidth;
@@ -440,21 +386,13 @@ class ProgressTextRow extends StatelessWidget {
                 horizontal: AleraTokens.space6,
                 vertical: AleraTokens.space2,
               ),
-              child: markdownEnabled
-                  ? MarkdownBody(
-                      data: text,
-                      styleSheet: styleSheet,
-                      builders: <String, MarkdownElementBuilder>{
-                        'pre': CodeBlockBuilder(context),
-                      },
-                      selectable: false,
-                    )
-                  : Text(
-                      text,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AleraTokens.foregroundMuted,
-                      ),
-                    ),
+              child: buildMarkdownContent(
+                context: context,
+                text: text,
+                markdownEnabled: markdownEnabled,
+                textStyle: progressStyle,
+                markdownStyle: progressStyle,
+              ),
             ),
           ),
         );
@@ -594,25 +532,17 @@ class _ReasoningCellState extends State<ReasoningCell> {
                   left: BorderSide(color: AleraTokens.borderSubtle, width: 2),
                 ),
               ),
-              child: widget.markdownEnabled
-                  ? MarkdownBody(
-                      data: text,
-                      styleSheet:
-                          MarkdownStyleSheet.fromTheme(
-                            Theme.of(context),
-                          ).copyWith(
-                            p: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AleraTokens.foregroundMuted,
-                            ),
-                          ),
-                      selectable: false,
-                    )
-                  : Text(
-                      text,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AleraTokens.foregroundMuted,
-                      ),
-                    ),
+              child: buildMarkdownContent(
+                context: context,
+                text: text,
+                markdownEnabled: widget.markdownEnabled,
+                textStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AleraTokens.foregroundMuted,
+                ),
+                markdownStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AleraTokens.foregroundMuted,
+                ),
+              ),
             ),
         ],
       ),
@@ -949,36 +879,14 @@ class _PlanCellState extends State<PlanCell> {
   }
 
   Widget _buildBody(BuildContext context, String text) {
-    final shouldRenderMarkdown =
-        widget.markdownEnabled && isMarkdownRenderSafe(text);
-    final styleSheet = MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
-      p: Theme.of(context).textTheme.bodyMedium,
-      code: AleraTokens.monoStyle.copyWith(
-        fontSize: 12,
-        color: AleraTokens.foreground,
-      ),
-      codeblockDecoration: BoxDecoration(
-        color: AleraTokens.bg,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
-        border: Border.all(color: AleraTokens.border),
-      ),
-      blockquoteDecoration: BoxDecoration(
-        color: AleraTokens.bg,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
-        border: Border.all(color: AleraTokens.borderSubtle),
-      ),
+    final bodyStyle = Theme.of(context).textTheme.bodyMedium;
+    return buildMarkdownContent(
+      context: context,
+      text: text,
+      markdownEnabled: widget.markdownEnabled,
+      textStyle: bodyStyle,
+      markdownStyle: bodyStyle,
     );
-    if (shouldRenderMarkdown) {
-      return MarkdownBody(
-        data: text,
-        styleSheet: styleSheet,
-        builders: <String, MarkdownElementBuilder>{
-          'pre': CodeBlockBuilder(context),
-        },
-        selectable: false,
-      );
-    }
-    return Text(text, style: Theme.of(context).textTheme.bodyMedium);
   }
 }
 
