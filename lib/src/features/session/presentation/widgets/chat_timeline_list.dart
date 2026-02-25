@@ -15,6 +15,8 @@ class ChatTimelineList extends StatelessWidget {
     required this.markdownEnabled,
     required this.onMarkdownModeChanged,
     required this.contentMaxWidth,
+    required this.showImplementPlanButton,
+    required this.onImplementPlanPressed,
   });
 
   final SessionState state;
@@ -24,6 +26,8 @@ class ChatTimelineList extends StatelessWidget {
   final bool markdownEnabled;
   final ValueChanged<bool> onMarkdownModeChanged;
   final double contentMaxWidth;
+  final bool showImplementPlanButton;
+  final VoidCallback onImplementPlanPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +50,23 @@ class ChatTimelineList extends StatelessWidget {
               constraints: BoxConstraints(maxWidth: contentMaxWidth),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: timelineWidgets,
+                children: <Widget>[
+                  ...timelineWidgets,
+                  if (showImplementPlanButton)
+                    Padding(
+                      padding: const EdgeInsets.only(
+                        bottom: AleraTokens.space8,
+                      ),
+                      child: Align(
+                        alignment: Alignment.center,
+                        child: FilledButton(
+                          key: const ValueKey<String>('implement-plan-button'),
+                          onPressed: onImplementPlanPressed,
+                          child: const Text('Implement Plan'),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
           ),

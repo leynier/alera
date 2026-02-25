@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/session/application/session_state.dart';
 import 'package:alera/src/features/session/domain/chat_timeline.dart';
@@ -33,6 +35,7 @@ class SessionWorkspaceView extends StatefulWidget {
     required this.onRemoveAttachment,
     required this.onRemoveFromQueue,
     required this.onPlanModeToggled,
+    required this.onImplementPlanPressed,
     required this.onPermissionModeToggled,
     required this.onApproveRequest,
     required this.onDeclineRequest,
@@ -56,8 +59,10 @@ class SessionWorkspaceView extends StatefulWidget {
   final ValueChanged<String> onRemoveAttachment;
   final ValueChanged<String> onRemoveFromQueue;
   final VoidCallback onPlanModeToggled;
+  final Future<void> Function() onImplementPlanPressed;
   final VoidCallback onPermissionModeToggled;
-  final Future<void> Function(Object requestId, {bool forSession}) onApproveRequest;
+  final Future<void> Function(Object requestId, {bool forSession})
+  onApproveRequest;
   final Future<void> Function(Object requestId) onDeclineRequest;
   final ValueChanged<Map<String, dynamic>> onSubmitUserInput;
   final VoidCallback onDismissUserInput;
@@ -133,6 +138,7 @@ class _SessionWorkspaceViewState extends State<SessionWorkspaceView> {
         (widget.state.selectedWorkspacePath != null &&
             widget.state.selectedWorkspacePath!.isNotEmpty) ||
         widget.state.activeSession != null;
+    final shouldShowImplementPlanButton = _shouldShowImplementPlanButton();
     return Column(
       children: <Widget>[
         Expanded(
@@ -147,6 +153,8 @@ class _SessionWorkspaceViewState extends State<SessionWorkspaceView> {
                   markdownEnabled: widget.isMarkdownEnabled,
                   onMarkdownModeChanged: widget.onMarkdownModeChanged,
                   contentMaxWidth: _timelineContentMaxWidth,
+                  showImplementPlanButton: shouldShowImplementPlanButton,
+                  onImplementPlanPressed: _onImplementPlanPressed,
                 ),
               ),
               Align(
@@ -196,21 +204,23 @@ class _SessionWorkspaceViewState extends State<SessionWorkspaceView> {
                   horizontal: AleraTokens.space12,
                 ),
                 child: Column(
-                  children: widget.state.pendingApprovals.map((approval) {
-                    return ApprovalCard(
-                      approval: approval,
-                      onApprove: () => widget.onApproveRequest(
-                        approval.requestId,
-                        forSession: false,
-                      ),
-                      onApproveForSession: () => widget.onApproveRequest(
-                        approval.requestId,
-                        forSession: true,
-                      ),
-                      onDecline: () =>
-                          widget.onDeclineRequest(approval.requestId),
-                    );
-                  }).toList(growable: false),
+                  children: widget.state.pendingApprovals
+                      .map((approval) {
+                        return ApprovalCard(
+                          approval: approval,
+                          onApprove: () => widget.onApproveRequest(
+                            approval.requestId,
+                            forSession: false,
+                          ),
+                          onApproveForSession: () => widget.onApproveRequest(
+                            approval.requestId,
+                            forSession: true,
+                          ),
+                          onDecline: () =>
+                              widget.onDeclineRequest(approval.requestId),
+                        );
+                      })
+                      .toList(growable: false),
                 ),
               ),
             ),
@@ -275,18 +285,18 @@ class _SessionWorkspaceViewState extends State<SessionWorkspaceView> {
               workspacePath: widget.state.selectedWorkspacePath,
               planModeEnabled: widget.state.planModeEnabled,
               onPlanModeToggled: hasWorkspace ? widget.onPlanModeToggled : null,
-              fullAccessEnabled: widget.state.permissionMode == PermissionMode.fullAccess,
-              onPermissionModeToggled: hasWorkspace ? widget.onPermissionModeToggled : null,
+              fullAccessEnabled:
+                  widget.state.permissionMode == PermissionMode.fullAccess,
+              onPermissionModeToggled: hasWorkspace
+                  ? widget.onPermissionModeToggled
+                  : null,
             ),
           ),
         ),
         Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: _contentMaxWidth),
-            child: RawLog(
-              state: widget.state,
-              expanded: widget.rawLogExpanded,
-            ),
+            child: RawLog(state: widget.state, expanded: widget.rawLogExpanded),
           ),
         ),
       ],
@@ -302,6 +312,10 @@ class _SessionWorkspaceViewState extends State<SessionWorkspaceView> {
     _pendingScrollAfterSend = true;
     _scheduleScrollToBottom(animated: true);
     widget.onSendInput(text);
+  }
+
+  void _onImplementPlanPressed() {
+    unawaited(widget.onImplementPlanPressed());
   }
 
   void _toggleWorkedTurn(String turnId) {
@@ -351,6 +365,24 @@ class _SessionWorkspaceViewState extends State<SessionWorkspaceView> {
         previous.subtitle != next.subtitle ||
         previous.markdownText != next.markdownText ||
         previous.detailsText != next.detailsText;
+  }
+
+  bool _shouldShowImplementPlanButton() {
+    if (widget.state.pendingMessages.isNotEmpty) {
+      return false;
+    }
+    var lastPlanIndex = -1;
+    var lastUserMessageIndex = -1;
+    final cells = widget.state.timelineCells;
+    for (var i = 0; i < cells.length; i++) {
+      final cell = cells[i];
+      if (cell.kind == TimelineCellKind.plan) {
+        lastPlanIndex = i;
+      } else if (cell.kind == TimelineCellKind.userMessage) {
+        lastUserMessageIndex = i;
+      }
+    }
+    return lastPlanIndex != -1 && lastPlanIndex > lastUserMessageIndex;
   }
 
   void _handleTimelineScroll() {

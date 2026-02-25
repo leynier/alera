@@ -498,6 +498,7 @@ class _ReasoningCellState extends State<ReasoningCell> {
   @override
   Widget build(BuildContext context) {
     final text = widget.cell.markdownText ?? '';
+    final thinkingColor = AleraTokens.foregroundMuted;
     return Padding(
       padding: EdgeInsets.zero,
       child: Column(
@@ -530,6 +531,8 @@ class _ReasoningCellState extends State<ReasoningCell> {
                   ),
                   child: Row(
                     children: <Widget>[
+                      Icon(Icons.psychology, size: 10, color: thinkingColor),
+                      const SizedBox(width: AleraTokens.space4),
                       Flexible(
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -538,9 +541,7 @@ class _ReasoningCellState extends State<ReasoningCell> {
                               child: Text(
                                 widget.cell.title ?? 'Thinking',
                                 style: Theme.of(context).textTheme.bodySmall
-                                    ?.copyWith(
-                                      color: AleraTokens.foregroundMuted,
-                                    ),
+                                    ?.copyWith(color: thinkingColor),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),

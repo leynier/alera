@@ -6,6 +6,7 @@ class PendingMessage {
     required this.text,
     this.attachments = const <ComposerAttachment>[],
     this.planModeEnabled = false,
+    this.forceDefaultCollaborationMode = false,
   });
 
   final String id;
@@ -13,4 +14,6 @@ class PendingMessage {
   final List<ComposerAttachment> attachments;
   // Plan mode captured at enqueue time, not at dequeue time.
   final bool planModeEnabled;
+  // Explicitly reset backend collaboration mode to default on this send.
+  final bool forceDefaultCollaborationMode;
 }

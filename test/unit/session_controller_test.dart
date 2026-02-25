@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:alera/src/features/projects/application/project_service.dart';
 import 'package:alera/src/features/session/application/session_controller.dart';
 import 'package:alera/src/features/session/application/session_runtime_event.dart';
 import 'package:alera/src/features/session/application/session_service.dart';
+import 'package:alera/src/features/session/domain/composer_attachment.dart';
 import 'package:alera/src/features/session/domain/pending_user_input.dart';
 import 'package:alera/src/features/settings/application/settings_service.dart';
 import 'package:alera/src/shared/models/contracts.dart';
@@ -20,6 +22,9 @@ class _FakeSessionService implements SessionService {
   String? lastRunInputText;
   String? lastRunInputReasoningEffort;
   bool? lastRunInputPlanModeEnabled;
+  bool? lastRunInputForceDefaultCollaborationMode;
+  List<Map<String, dynamic>> lastRunInputExtraInputItems =
+      const <Map<String, dynamic>>[];
   int interruptCallCount = 0;
   String? interruptedSessionId;
   String? interruptedTurnOverride;
@@ -110,12 +115,17 @@ class _FakeSessionService implements SessionService {
     required String reasoningEffort,
     List<Map<String, dynamic>> extraInputItems = const <Map<String, dynamic>>[],
     bool planModeEnabled = false,
+    bool forceDefaultCollaborationMode = false,
     String approvalPolicy = 'never',
   }) async {
     runInputCallCount += 1;
     lastRunInputText = rawInput;
     lastRunInputReasoningEffort = reasoningEffort;
     lastRunInputPlanModeEnabled = planModeEnabled;
+    lastRunInputForceDefaultCollaborationMode = forceDefaultCollaborationMode;
+    lastRunInputExtraInputItems = List<Map<String, dynamic>>.of(
+      extraInputItems,
+    );
     final turnId = 'turn-$runInputCallCount';
     final existing = _sessionsById[sessionId];
     if (existing == null) {
@@ -1509,6 +1519,163 @@ void main() {
         );
       },
     );
+
+    test(
+      'implementPlanFromChatAction sends explicit default collaboration reset',
+      () async {
+        final fakeService = _FakeSessionService();
+        final controller = SessionController(
+          sessionService: fakeService,
+          projectService: _FakeProjectService(),
+          settingsService: _FakeSettingsService('gpt-5.3-codex', 'high', true),
+        );
+        addTearDown(() async {
+          controller.dispose();
+          await fakeService.shutdown();
+        });
+
+        await controller.bootstrap();
+        await controller.selectWorkspaceFromPath('/repo');
+        controller.togglePlanMode();
+        expect(controller.state.planModeEnabled, isTrue);
+
+        await controller.implementPlanFromChatAction();
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        expect(controller.state.planModeEnabled, isFalse);
+        expect(fakeService.runInputCallCount, 1);
+        expect(fakeService.lastRunInputText, 'Implement plan');
+        expect(fakeService.lastRunInputPlanModeEnabled, isFalse);
+        expect(fakeService.lastRunInputForceDefaultCollaborationMode, isTrue);
+      },
+    );
+
+    test('implementPlanFromChatAction queued preserves reset intent', () async {
+      final fakeService = _FakeSessionService();
+      final controller = SessionController(
+        sessionService: fakeService,
+        projectService: _FakeProjectService(),
+        settingsService: _FakeSettingsService('gpt-5.3-codex', 'high', true),
+      );
+      addTearDown(() async {
+        controller.dispose();
+        await fakeService.shutdown();
+      });
+
+      await controller.bootstrap();
+      await controller.selectWorkspaceFromPath('/repo');
+      controller.togglePlanMode();
+      await controller.sendInput('start running turn');
+
+      fakeService.emitNotification('turn/started', <String, dynamic>{
+        'turn': <String, dynamic>{
+          'id': 'turn-1',
+          'threadId': 'thread-1',
+          'status': 'inProgress',
+        },
+      });
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(controller.state.runningTurnCount, greaterThan(0));
+      await controller.implementPlanFromChatAction();
+
+      expect(controller.state.planModeEnabled, isFalse);
+      expect(controller.state.pendingMessages.length, 1);
+      final queued = controller.state.pendingMessages.first;
+      expect(queued.text, 'Implement plan');
+      expect(queued.planModeEnabled, isFalse);
+      expect(queued.forceDefaultCollaborationMode, isTrue);
+      expect(queued.attachments, isEmpty);
+    });
+
+    test('dequeued implement plan sends default collaboration reset', () async {
+      final fakeService = _FakeSessionService();
+      final controller = SessionController(
+        sessionService: fakeService,
+        projectService: _FakeProjectService(),
+        settingsService: _FakeSettingsService('gpt-5.3-codex', 'high', true),
+      );
+      addTearDown(() async {
+        controller.dispose();
+        await fakeService.shutdown();
+      });
+
+      await controller.bootstrap();
+      await controller.selectWorkspaceFromPath('/repo');
+      controller.togglePlanMode();
+      await controller.sendInput('start running turn');
+
+      fakeService.emitNotification('turn/started', <String, dynamic>{
+        'turn': <String, dynamic>{
+          'id': 'turn-1',
+          'threadId': 'thread-1',
+          'status': 'inProgress',
+        },
+      });
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      await controller.implementPlanFromChatAction();
+      fakeService.emitNotification('turn/completed', <String, dynamic>{
+        'turn': <String, dynamic>{
+          'id': 'turn-1',
+          'threadId': 'thread-1',
+          'status': 'completed',
+        },
+      });
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+
+      expect(fakeService.runInputCallCount, 2);
+      expect(fakeService.lastRunInputText, 'Implement plan');
+      expect(fakeService.lastRunInputPlanModeEnabled, isFalse);
+      expect(fakeService.lastRunInputForceDefaultCollaborationMode, isTrue);
+    });
+
+    test('implementPlanFromChatAction sends with empty attachments', () async {
+      final fakeService = _FakeSessionService();
+      final controller = SessionController(
+        sessionService: fakeService,
+        projectService: _FakeProjectService(),
+        settingsService: _FakeSettingsService('gpt-5.3-codex', 'high', true),
+      );
+      addTearDown(() async {
+        controller.dispose();
+        await fakeService.shutdown();
+      });
+
+      await controller.bootstrap();
+      await controller.selectWorkspaceFromPath('/repo');
+
+      final tempDir = await Directory.systemTemp.createTemp(
+        'alera_implement_plan_test_',
+      );
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+      final file = File('${tempDir.path}/context.txt');
+      await file.writeAsString('extra attachment context');
+
+      controller.addAttachment(
+        ComposerAttachment(
+          id: 'attachment-1',
+          kind: AttachmentKind.file,
+          path: file.path,
+          displayName: 'context.txt',
+          mimeType: 'text/plain',
+        ),
+      );
+      expect(controller.state.composerAttachments.length, 1);
+
+      await controller.implementPlanFromChatAction();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(controller.state.composerAttachments, isEmpty);
+      expect(fakeService.lastRunInputText, 'Implement plan');
+      expect(fakeService.lastRunInputPlanModeEnabled, isFalse);
+      expect(fakeService.lastRunInputForceDefaultCollaborationMode, isTrue);
+      expect(fakeService.lastRunInputExtraInputItems, isEmpty);
+    });
 
     test(
       'local plan fallback yes sends Implement plan and disables plan mode',

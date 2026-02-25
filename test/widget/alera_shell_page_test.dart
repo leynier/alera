@@ -51,6 +51,7 @@ class _ShellFakeSessionService implements SessionService {
     required String reasoningEffort,
     List<Map<String, dynamic>> extraInputItems = const <Map<String, dynamic>>[],
     bool planModeEnabled = false,
+    bool forceDefaultCollaborationMode = false,
     String approvalPolicy = 'never',
   }) {
     throw UnimplementedError();

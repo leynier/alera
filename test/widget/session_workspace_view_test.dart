@@ -2,6 +2,7 @@ import 'package:alera/src/features/session/application/session_state.dart';
 import 'package:alera/src/features/session/application/session_runtime_event.dart';
 import 'package:alera/src/features/session/application/session_timeline_reducer.dart';
 import 'package:alera/src/features/session/domain/chat_timeline.dart';
+import 'package:alera/src/features/session/domain/pending_message.dart';
 import 'package:alera/src/features/session/domain/pending_user_input.dart';
 import 'package:alera/src/features/session/presentation/session_workspace_view.dart';
 import 'package:alera/src/shared/models/contracts.dart';
@@ -61,6 +62,8 @@ Future<void> _pumpWorkspace(
   ValueChanged<String>? onReasoningEffortChanged,
   List<String>? supportedReasoningEfforts,
   String? activeReasoningEffort,
+  VoidCallback? onPlanModeToggled,
+  Future<void> Function()? onImplementPlanPressed,
   bool? isMarkdownEnabled,
   ValueChanged<bool>? onMarkdownModeChanged,
   ValueChanged<Map<String, dynamic>>? onSubmitUserInput,
@@ -89,7 +92,8 @@ Future<void> _pumpWorkspace(
           onAddAttachment: () {},
           onRemoveAttachment: (_) {},
           onRemoveFromQueue: (_) {},
-          onPlanModeToggled: () {},
+          onPlanModeToggled: onPlanModeToggled ?? () {},
+          onImplementPlanPressed: onImplementPlanPressed ?? () async {},
           onPermissionModeToggled: () {},
           onApproveRequest: (_, {forSession = false}) async {},
           onDeclineRequest: (_) async {},
@@ -179,6 +183,299 @@ void main() {
       find.text('No, and tell Alera what to do differently'),
       findsOneWidget,
     );
+  });
+
+  testWidgets(
+    'shows implement plan button when latest plan is newer than latest user message',
+    (tester) async {
+      final state = stateWithActiveSession(
+        timeline: <TimelineCell>[
+          _cell(
+            id: 'user-1',
+            kind: TimelineCellKind.userMessage,
+            status: TimelineCellStatus.completed,
+            turnId: 'turn-1',
+            markdownText: 'plan this work',
+          ),
+          _cell(
+            id: 'plan-1',
+            kind: TimelineCellKind.plan,
+            status: TimelineCellStatus.completed,
+            turnId: 'turn-1',
+            markdownText: '1. Implement it',
+            isCollapsed: true,
+          ),
+        ],
+      );
+
+      await _pumpWorkspace(tester, state: state);
+
+      expect(
+        find.byKey(const ValueKey<String>('implement-plan-button')),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets('implement plan button renders inside timeline container', (
+    tester,
+  ) async {
+    final state = stateWithActiveSession(
+      timeline: <TimelineCell>[
+        _cell(
+          id: 'plan-1',
+          kind: TimelineCellKind.plan,
+          status: TimelineCellStatus.completed,
+          turnId: 'turn-1',
+          markdownText: 'plan',
+          isCollapsed: true,
+        ),
+      ],
+    );
+
+    await _pumpWorkspace(tester, state: state);
+
+    final buttonFinder = find.byKey(
+      const ValueKey<String>('implement-plan-button'),
+    );
+    expect(buttonFinder, findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey<String>('timeline-content-container')),
+        matching: buttonFinder,
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets(
+    'implement plan button is rendered in timeline list, not external slot',
+    (tester) async {
+      final state = stateWithActiveSession(
+        timeline: <TimelineCell>[
+          _cell(
+            id: 'plan-1',
+            kind: TimelineCellKind.plan,
+            status: TimelineCellStatus.completed,
+            turnId: 'turn-1',
+            markdownText: 'plan',
+            isCollapsed: true,
+          ),
+        ],
+      );
+
+      await _pumpWorkspace(tester, state: state);
+
+      final buttonFinder = find.byKey(
+        const ValueKey<String>('implement-plan-button'),
+      );
+      expect(
+        find.ancestor(
+          of: buttonFinder,
+          matching: find.byKey(const ValueKey<String>('timeline-list')),
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets('shows implement plan button for collapsed plan', (tester) async {
+    final state = stateWithActiveSession(
+      timeline: <TimelineCell>[
+        _cell(
+          id: 'user-1',
+          kind: TimelineCellKind.userMessage,
+          status: TimelineCellStatus.completed,
+          turnId: 'turn-1',
+          markdownText: 'build plan',
+        ),
+        _cell(
+          id: 'plan-1',
+          kind: TimelineCellKind.plan,
+          status: TimelineCellStatus.completed,
+          turnId: 'turn-1',
+          markdownText: 'collapsed plan details',
+          isCollapsed: true,
+        ),
+      ],
+    );
+
+    await _pumpWorkspace(tester, state: state);
+
+    expect(find.text('collapsed plan details'), findsNothing);
+    expect(
+      find.byKey(const ValueKey<String>('implement-plan-button')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('shows implement plan button for expanded plan', (tester) async {
+    final state = stateWithActiveSession(
+      timeline: <TimelineCell>[
+        _cell(
+          id: 'user-1',
+          kind: TimelineCellKind.userMessage,
+          status: TimelineCellStatus.completed,
+          turnId: 'turn-1',
+          markdownText: 'build plan',
+        ),
+        _cell(
+          id: 'plan-1',
+          kind: TimelineCellKind.plan,
+          status: TimelineCellStatus.completed,
+          turnId: 'turn-1',
+          markdownText: 'expanded plan details',
+          isCollapsed: false,
+        ),
+      ],
+    );
+
+    await _pumpWorkspace(tester, state: state);
+
+    expect(find.text('expanded plan details'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('implement-plan-button')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('hides implement plan button when a newer user message exists', (
+    tester,
+  ) async {
+    final state = stateWithActiveSession(
+      timeline: <TimelineCell>[
+        _cell(
+          id: 'plan-1',
+          kind: TimelineCellKind.plan,
+          status: TimelineCellStatus.completed,
+          turnId: 'turn-1',
+          markdownText: 'stale plan',
+          isCollapsed: true,
+        ),
+        _cell(
+          id: 'user-2',
+          kind: TimelineCellKind.userMessage,
+          status: TimelineCellStatus.completed,
+          turnId: 'turn-2',
+          markdownText: 'new user request',
+        ),
+      ],
+    );
+
+    await _pumpWorkspace(tester, state: state);
+
+    expect(
+      find.byKey(const ValueKey<String>('implement-plan-button')),
+      findsNothing,
+    );
+  });
+
+  testWidgets(
+    'hides implement plan button when pending message queue is not empty',
+    (tester) async {
+      final state =
+          stateWithActiveSession(
+            timeline: <TimelineCell>[
+              _cell(
+                id: 'user-1',
+                kind: TimelineCellKind.userMessage,
+                status: TimelineCellStatus.completed,
+                turnId: 'turn-1',
+                markdownText: 'plan this',
+              ),
+              _cell(
+                id: 'plan-1',
+                kind: TimelineCellKind.plan,
+                status: TimelineCellStatus.completed,
+                turnId: 'turn-1',
+                markdownText: 'pending queue plan',
+                isCollapsed: true,
+              ),
+            ],
+          ).copyWith(
+            pendingMessages: const <PendingMessage>[
+              PendingMessage(id: 'queued-1', text: 'follow-up'),
+            ],
+          );
+
+      await _pumpWorkspace(tester, state: state);
+
+      expect(
+        find.byKey(const ValueKey<String>('implement-plan-button')),
+        findsNothing,
+      );
+    },
+  );
+
+  testWidgets('tap implement plan triggers dedicated callback', (tester) async {
+    final calls = <String>[];
+    final state = stateWithActiveSession(
+      timeline: <TimelineCell>[
+        _cell(
+          id: 'plan-1',
+          kind: TimelineCellKind.plan,
+          status: TimelineCellStatus.completed,
+          turnId: 'turn-1',
+          markdownText: 'plan',
+          isCollapsed: true,
+        ),
+      ],
+    );
+
+    await _pumpWorkspace(
+      tester,
+      state: state,
+      onPlanModeToggled: () => calls.add('toggle'),
+      onSendInput: (value) => calls.add('send:$value'),
+      onImplementPlanPressed: () async => calls.add('implement'),
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('implement-plan-button')),
+    );
+    await tester.pump();
+
+    expect(calls, <String>['implement']);
+  });
+
+  testWidgets('backend user input card and implement plan button can coexist', (
+    tester,
+  ) async {
+    final state =
+        stateWithActiveSession(
+          timeline: <TimelineCell>[
+            _cell(
+              id: 'plan-1',
+              kind: TimelineCellKind.plan,
+              status: TimelineCellStatus.completed,
+              turnId: 'turn-1',
+              markdownText: 'plan',
+              isCollapsed: true,
+            ),
+          ],
+        ).copyWith(
+          pendingUserInput: const PendingUserInput(
+            requestId: 42,
+            threadId: 'thread-1',
+            turnId: 'turn-1',
+            itemId: 'item-user-input',
+            questions: <UserInputQuestion>[
+              UserInputQuestion(
+                id: 'implement_now',
+                header: 'Implementation',
+                question: 'Implement this plan now?',
+              ),
+            ],
+          ),
+        );
+
+    await _pumpWorkspace(tester, state: state);
+
+    expect(
+      find.byKey(const ValueKey<String>('implement-plan-button')),
+      findsOneWidget,
+    );
+    expect(find.text('Implement this plan now?'), findsOneWidget);
   });
 
   testWidgets(

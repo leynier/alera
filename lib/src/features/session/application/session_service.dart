@@ -116,6 +116,7 @@ class SessionService {
     required String reasoningEffort,
     List<Map<String, dynamic>> extraInputItems = const <Map<String, dynamic>>[],
     bool planModeEnabled = false,
+    bool forceDefaultCollaborationMode = false,
     String approvalPolicy = 'never',
   }) async {
     final session = _sessions[sessionId];
@@ -130,16 +131,28 @@ class SessionService {
       <String, dynamic>{'type': 'text', 'text': rawInput},
       ...extraInputItems,
     ];
-    final collaborationMode = planModeEnabled
-        ? <String, dynamic>{
-            'mode': 'plan',
-            'settings': <String, dynamic>{
-              'model': session.model,
-              'reasoning_effort': null,
-              'developer_instructions': null,
-            },
-          }
-        : null;
+    final Map<String, dynamic>? collaborationMode;
+    if (planModeEnabled) {
+      collaborationMode = <String, dynamic>{
+        'mode': 'plan',
+        'settings': <String, dynamic>{
+          'model': session.model,
+          'reasoning_effort': null,
+          'developer_instructions': null,
+        },
+      };
+    } else if (forceDefaultCollaborationMode) {
+      collaborationMode = <String, dynamic>{
+        'mode': 'default',
+        'settings': <String, dynamic>{
+          'model': session.model,
+          'reasoning_effort': null,
+          'developer_instructions': null,
+        },
+      };
+    } else {
+      collaborationMode = null;
+    }
     final turnId = await _orchestrator.runTurn(
       threadId: session.threadId!,
       input: input,

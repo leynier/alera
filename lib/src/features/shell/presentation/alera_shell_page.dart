@@ -106,6 +106,7 @@ class _AleraShellPageState extends ConsumerState<AleraShellPage> {
       onRemoveAttachment: controller.removeAttachment,
       onRemoveFromQueue: controller.removeFromQueue,
       onPlanModeToggled: controller.togglePlanMode,
+      onImplementPlanPressed: controller.implementPlanFromChatAction,
       onPermissionModeToggled: controller.togglePermissionMode,
       onApproveRequest: controller.approveRequest,
       onDeclineRequest: controller.declineRequest,

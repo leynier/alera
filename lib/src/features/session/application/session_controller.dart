@@ -582,6 +582,7 @@ class SessionController extends StateNotifier<SessionState> {
         text: text,
         attachments: List<ComposerAttachment>.of(state.composerAttachments),
         planModeEnabled: state.planModeEnabled,
+        forceDefaultCollaborationMode: false,
       );
       state = state.copyWith(
         pendingMessages: <PendingMessage>[...state.pendingMessages, queued],
@@ -593,6 +594,36 @@ class SessionController extends StateNotifier<SessionState> {
     final planMode = state.planModeEnabled;
     state = state.copyWith(composerAttachments: const <ComposerAttachment>[]);
     await _executeInput(text, attachments, planMode);
+  }
+
+  Future<void> implementPlanFromChatAction() async {
+    final workspacePath = state.selectedWorkspacePath;
+    if (workspacePath == null || workspacePath.isEmpty) {
+      return;
+    }
+    state = state.copyWith(
+      planModeEnabled: false,
+      composerAttachments: const <ComposerAttachment>[],
+    );
+    if (state.runningTurnCount > 0 || state.isInterrupting) {
+      final queued = PendingMessage(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        text: _localPlanFallbackAutoInput,
+        attachments: const <ComposerAttachment>[],
+        planModeEnabled: false,
+        forceDefaultCollaborationMode: true,
+      );
+      state = state.copyWith(
+        pendingMessages: <PendingMessage>[...state.pendingMessages, queued],
+      );
+      return;
+    }
+    await _executeInput(
+      _localPlanFallbackAutoInput,
+      const <ComposerAttachment>[],
+      false,
+      forceDefaultCollaborationMode: true,
+    );
   }
 
   Future<List<Map<String, dynamic>>> _buildAttachmentInputItems(
@@ -641,14 +672,20 @@ class SessionController extends StateNotifier<SessionState> {
     final next = state.pendingMessages.first;
     final remaining = state.pendingMessages.skip(1).toList(growable: false);
     state = state.copyWith(pendingMessages: remaining);
-    await _executeInput(next.text, next.attachments, next.planModeEnabled);
+    await _executeInput(
+      next.text,
+      next.attachments,
+      next.planModeEnabled,
+      forceDefaultCollaborationMode: next.forceDefaultCollaborationMode,
+    );
   }
 
   Future<void> _executeInput(
     String text,
     List<ComposerAttachment> attachments,
-    bool planModeEnabled,
-  ) async {
+    bool planModeEnabled, {
+    bool forceDefaultCollaborationMode = false,
+  }) async {
     final workspacePath = state.selectedWorkspacePath;
     if (workspacePath == null || workspacePath.isEmpty) {
       return;
@@ -703,6 +740,7 @@ class SessionController extends StateNotifier<SessionState> {
         reasoningEffort: state.activeReasoningEffort,
         extraInputItems: extraInputItems,
         planModeEnabled: planModeEnabled,
+        forceDefaultCollaborationMode: forceDefaultCollaborationMode,
         approvalPolicy: approvalPolicy,
       );
       AleraSession? updatedSession;
