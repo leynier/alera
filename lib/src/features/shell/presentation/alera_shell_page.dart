@@ -7,6 +7,7 @@ import 'package:alera/src/features/session/domain/composer_attachment.dart';
 import 'package:alera/src/features/session/presentation/session_workspace_view.dart';
 import 'package:alera/src/features/shell/presentation/alera_status_bar.dart';
 import 'package:alera/src/features/shell/presentation/alera_top_bar.dart';
+import 'package:alera/src/shared/presentation/toast/alera_toast.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -203,35 +204,11 @@ class _AleraShellPageState extends ConsumerState<AleraShellPage> {
   }
 
   void _showSuccess(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: <Widget>[
-            const Icon(
-              Icons.check_circle_outline,
-              size: 16,
-              color: AleraTokens.success,
-            ),
-            const SizedBox(width: AleraTokens.space8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-      ),
-    );
+    AleraToast.show(context, message: message, tone: AleraToastTone.success);
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: <Widget>[
-            const Icon(Icons.error_outline, size: 16, color: AleraTokens.error),
-            const SizedBox(width: AleraTokens.space8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-      ),
-    );
+    AleraToast.show(context, message: message, tone: AleraToastTone.error);
   }
 
   Future<void> _copyRawLog(SessionState state) async {
@@ -239,9 +216,11 @@ class _AleraShellPageState extends ConsumerState<AleraShellPage> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
+      AleraToast.show(
         context,
-      ).showSnackBar(const SnackBar(content: Text('No logs to copy')));
+        message: 'No logs to copy',
+        tone: AleraToastTone.error,
+      );
       return;
     }
 
@@ -251,16 +230,20 @@ class _AleraShellPageState extends ConsumerState<AleraShellPage> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
+      AleraToast.show(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Raw logs copied')));
+        message: 'Raw logs copied',
+        tone: AleraToastTone.success,
+      );
     } catch (_) {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
+      AleraToast.show(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Failed to copy raw logs')));
+        message: 'Failed to copy raw logs',
+        tone: AleraToastTone.error,
+      );
     }
   }
 }
@@ -370,12 +353,10 @@ class _SelectWorkspaceDialogState extends State<_SelectWorkspaceDialog> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Native folder picker is not available; paste path manually.',
-          ),
-        ),
+      AleraToast.show(
+        context,
+        message: 'Native folder picker is not available; paste path manually.',
+        tone: AleraToastTone.info,
       );
     }
   }

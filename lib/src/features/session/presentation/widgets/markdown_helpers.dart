@@ -1,4 +1,5 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/shared/presentation/toast/alera_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -111,9 +112,11 @@ class MessageCopyButton extends StatelessWidget {
     if (!context.mounted) {
       return;
     }
-    ScaffoldMessenger.of(
+    AleraToast.show(
       context,
-    ).showSnackBar(SnackBar(content: Text(copiedLabel)));
+      message: copiedLabel,
+      tone: AleraToastTone.success,
+    );
   }
 
   @override
