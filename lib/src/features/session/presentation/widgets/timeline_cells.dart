@@ -128,19 +128,23 @@ class _UserMessageCellState extends State<UserMessageCell> {
                             child: Wrap(
                               spacing: AleraTokens.space6,
                               runSpacing: AleraTokens.space6,
-                              children: attachments.map((att) {
-                                final kind = att['kind']?.toString();
-                                final path = att['path']?.toString() ?? '';
-                                final displayName =
-                                    att['displayName']?.toString() ?? path;
-                                if (kind == AttachmentKind.image.name) {
-                                  return _AttachmentThumbnail(
-                                    path: path,
-                                    displayName: displayName,
-                                  );
-                                }
-                                return _AttachmentChip(displayName: displayName);
-                              }).toList(growable: false),
+                              children: attachments
+                                  .map((att) {
+                                    final kind = att['kind']?.toString();
+                                    final path = att['path']?.toString() ?? '';
+                                    final displayName =
+                                        att['displayName']?.toString() ?? path;
+                                    if (kind == AttachmentKind.image.name) {
+                                      return _AttachmentThumbnail(
+                                        path: path,
+                                        displayName: displayName,
+                                      );
+                                    }
+                                    return _AttachmentChip(
+                                      displayName: displayName,
+                                    );
+                                  })
+                                  .toList(growable: false),
                             ),
                           ),
                         UserBubbleContent(
@@ -165,7 +169,7 @@ class _UserMessageCellState extends State<UserMessageCell> {
                           'copy-user-${widget.cell.id}',
                         ),
                         copyText: messageText,
-                        copiedLabel: 'message copied',
+                        copiedLabel: 'Message copied',
                         toggleKey: ValueKey<String>(
                           'toggle-markdown-user-${widget.cell.id}',
                         ),
@@ -251,7 +255,7 @@ class _AssistantMessageCellState extends State<AssistantMessageCell> {
                           'copy-assistant-${widget.cell.id}',
                         ),
                         copyText: rawText,
-                        copiedLabel: 'message copied',
+                        copiedLabel: 'Message copied',
                         toggleKey: ValueKey<String>(
                           'toggle-markdown-assistant-${widget.cell.id}',
                         ),
@@ -333,7 +337,7 @@ class AssistantBubbleMarkdown extends StatelessWidget {
                 ),
                 SizedBox(width: AleraTokens.space6),
                 Text(
-                  'streaming...',
+                  'Streaming...',
                   style: TextStyle(
                     color: AleraTokens.foregroundFaint,
                     fontSize: 11,
@@ -646,7 +650,7 @@ class _ToolCallCellState extends State<ToolCallCell> {
   Widget build(BuildContext context) {
     final details = widget.cell.detailsText ?? '';
     final cellStatusColor = statusColor(widget.cell.status);
-    final title = widget.cell.title ?? 'tool call';
+    final title = widget.cell.title ?? 'Tool call';
     final subtitle = widget.cell.subtitle;
     final rowLabel = (subtitle == null || subtitle.isEmpty)
         ? title
@@ -844,7 +848,9 @@ class _PlanCellState extends State<PlanCell> {
                       ),
                       decoration: BoxDecoration(
                         color: AleraTokens.surfaceElevated,
-                        borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+                        borderRadius: BorderRadius.circular(
+                          AleraTokens.radiusSm,
+                        ),
                       ),
                       child: Text(
                         'Plan',
@@ -857,7 +863,7 @@ class _PlanCellState extends State<PlanCell> {
                     const Spacer(),
                     MessageCopyButton(
                       copyText: copyText,
-                      copiedLabel: 'plan copied',
+                      copiedLabel: 'Plan copied',
                     ),
                     const SizedBox(width: AleraTokens.space4),
                     Tooltip(
@@ -865,7 +871,9 @@ class _PlanCellState extends State<PlanCell> {
                       child: InkWell(
                         onTap: () => setState(() => _collapsed = !_collapsed),
                         mouseCursor: SystemMouseCursors.click,
-                        borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+                        borderRadius: BorderRadius.circular(
+                          AleraTokens.radiusSm,
+                        ),
                         splashFactory: NoSplash.splashFactory,
                         hoverColor: Colors.transparent,
                         splashColor: Colors.transparent,
@@ -924,11 +932,8 @@ class _PlanCellState extends State<PlanCell> {
                         const SizedBox(width: AleraTokens.space4),
                         Text(
                           'Collapse plan',
-                          style: Theme.of(
-                            context,
-                          ).textTheme.labelSmall?.copyWith(
-                            color: AleraTokens.foregroundFaint,
-                          ),
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(color: AleraTokens.foregroundFaint),
                         ),
                       ],
                     ),
@@ -986,7 +991,7 @@ class SystemNoticeCell extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.zero,
       child: Text(
-        cell.markdownText ?? cell.title ?? 'system event',
+        cell.markdownText ?? cell.title ?? 'System event',
         style: Theme.of(
           context,
         ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundFaint),

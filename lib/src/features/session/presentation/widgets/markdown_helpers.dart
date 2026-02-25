@@ -91,7 +91,7 @@ class CopyableCodeBlock extends StatelessWidget {
     }
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text('code copied')));
+    ).showSnackBar(const SnackBar(content: Text('Code copied')));
   }
 
   @override
@@ -120,7 +120,7 @@ class CopyableCodeBlock extends StatelessWidget {
               children: <Widget>[
                 const Expanded(
                   child: Text(
-                    'code',
+                    'Code',
                     style: TextStyle(
                       color: AleraTokens.foregroundFaint,
                       fontSize: 10,
@@ -137,7 +137,7 @@ class CopyableCodeBlock extends StatelessWidget {
                       vertical: AleraTokens.space2,
                     ),
                     child: Text(
-                      'copy',
+                      'Copy',
                       style: TextStyle(
                         color: AleraTokens.accent,
                         fontSize: 11,
@@ -282,11 +282,7 @@ class MessageMarkdownToggleButton extends StatelessWidget {
             horizontal: AleraTokens.space4,
             vertical: AleraTokens.space2,
           ),
-          child: Icon(
-            Icons.code,
-            size: 13,
-            color: AleraTokens.foregroundFaint,
-          ),
+          child: Icon(Icons.code, size: 13, color: AleraTokens.foregroundFaint),
         ),
       ),
     );

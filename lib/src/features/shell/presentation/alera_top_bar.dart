@@ -46,7 +46,7 @@ class AleraTopBar extends StatelessWidget {
           FilledButton.tonalIcon(
             onPressed: isBusy ? null : onSelectWorkspace,
             icon: const Icon(Icons.folder_open, size: 16),
-            label: const Text('select folder'),
+            label: const Text('Select folder'),
           ),
         ],
       ),
@@ -57,7 +57,7 @@ class AleraTopBar extends StatelessWidget {
     final workspace = workspaceName;
     if (workspace == null || workspace.isEmpty) {
       return Text(
-        'alera',
+        'Alera',
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: theme.textTheme.titleSmall,

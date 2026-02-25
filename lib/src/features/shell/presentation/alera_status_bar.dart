@@ -39,7 +39,7 @@ class AleraStatusBar extends StatelessWidget {
           if (state.runningTurnCount > 0) ...<Widget>[
             _separator(),
             _StatusChip(
-              label: '${state.runningTurnCount} running',
+              label: 'Running: ${state.runningTurnCount}',
               color: AleraTokens.accent,
             ),
           ],
@@ -66,7 +66,7 @@ class AleraStatusBar extends StatelessWidget {
                 onTap: () =>
                     DiffViewerDialog.show(context, state.lastTurnDiff!),
                 mouseCursor: SystemMouseCursors.click,
-                borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+                borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
                 child: const Padding(
                   padding: EdgeInsets.all(AleraTokens.space4),
                   child: Icon(
@@ -90,14 +90,14 @@ class AleraStatusBar extends StatelessWidget {
           ),
           const SizedBox(width: AleraTokens.space8),
           Tooltip(
-            message: canCopyRawLog ? 'copy raw logs' : 'no raw logs',
+            message: canCopyRawLog ? 'Copy raw logs' : 'No raw logs',
             child: InkWell(
               key: const ValueKey<String>('copy-raw-log-button'),
               onTap: canCopyRawLog ? onCopyRawLog : null,
               mouseCursor: canCopyRawLog
                   ? SystemMouseCursors.click
                   : SystemMouseCursors.basic,
-              borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+              borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
               child: Padding(
                 padding: const EdgeInsets.all(AleraTokens.space4),
                 child: Icon(
@@ -112,12 +112,12 @@ class AleraStatusBar extends StatelessWidget {
           ),
           const SizedBox(width: AleraTokens.space6),
           Tooltip(
-            message: rawLogExpanded ? 'hide raw log' : 'show raw log',
+            message: rawLogExpanded ? 'Hide raw log' : 'Show raw log',
             child: InkWell(
               key: const ValueKey<String>('toggle-raw-log-button'),
               onTap: onToggleRawLog,
               mouseCursor: SystemMouseCursors.click,
-              borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+              borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
               child: Padding(
                 padding: const EdgeInsets.all(AleraTokens.space4),
                 child: Icon(
@@ -157,10 +157,10 @@ class AleraStatusBar extends StatelessWidget {
 
   String _connectionLabel() {
     return switch (state.connectionState) {
-      AppServerConnectionState.connected => 'connected',
-      AppServerConnectionState.starting => 'starting',
-      AppServerConnectionState.error => 'error',
-      AppServerConnectionState.disconnected => 'offline',
+      AppServerConnectionState.connected => 'Connected',
+      AppServerConnectionState.starting => 'Starting',
+      AppServerConnectionState.error => 'Error',
+      AppServerConnectionState.disconnected => 'Offline',
     };
   }
 
@@ -201,10 +201,7 @@ class _StatusChip extends StatelessWidget {
 }
 
 class _ContextChip extends StatelessWidget {
-  const _ContextChip({
-    required this.usedTokens,
-    required this.windowTokens,
-  });
+  const _ContextChip({required this.usedTokens, required this.windowTokens});
 
   final int usedTokens;
   final int windowTokens;
@@ -240,7 +237,7 @@ class _ContextChip extends StatelessWidget {
             width: 28,
             height: 4,
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(2),
+              borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
               child: LinearProgressIndicator(
                 value: _fraction,
                 backgroundColor: AleraTokens.border,

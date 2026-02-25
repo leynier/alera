@@ -94,7 +94,7 @@ ThemeData buildAleraDarkTheme() {
   });
   final buttonShape = WidgetStateProperty.all<OutlinedBorder>(
     RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+      borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
     ),
   );
   final buttonSize = WidgetStateProperty.all<Size>(const Size(0, 34));
@@ -113,7 +113,7 @@ ThemeData buildAleraDarkTheme() {
       color: AleraTokens.surfaceVariant,
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+        borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
       ),
       margin: EdgeInsets.zero,
     ),
@@ -210,7 +210,7 @@ ThemeData buildAleraDarkTheme() {
         borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
         side: const BorderSide(color: AleraTokens.border),
       ),
-      menuPadding: const EdgeInsets.all(10),
+      menuPadding: const EdgeInsets.all(AleraTokens.space12),
       textStyle: textTheme.bodyMedium,
     ),
   );

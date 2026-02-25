@@ -203,7 +203,7 @@ class AgentOrchestrator {
         _client.respondError(
           requestId: request.id,
           code: -32601,
-          message: 'tool calls are not supported in this build',
+          message: 'Tool calls are not supported in this build',
         ),
       );
       return;

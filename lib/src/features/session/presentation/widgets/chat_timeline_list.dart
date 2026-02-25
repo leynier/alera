@@ -189,7 +189,7 @@ class EmptyChatState extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           Text(
-            session?.title ?? 'new session',
+            session?.title ?? 'New session',
             style: theme.textTheme.titleMedium,
           ),
           const SizedBox(height: AleraTokens.space8),
@@ -202,7 +202,7 @@ class EmptyChatState extends StatelessWidget {
             ),
           const SizedBox(height: AleraTokens.space16),
           const Text(
-            'start the conversation by sending a message',
+            'Start the conversation by sending a message',
             style: TextStyle(color: AleraTokens.foregroundFaint),
           ),
         ],

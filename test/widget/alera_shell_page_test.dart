@@ -164,7 +164,7 @@ void main() {
 
       expect(find.byType(SessionWorkspaceView), findsOneWidget);
       expect(find.byType(TextField), findsOneWidget);
-      expect(find.text('select a repository folder'), findsNothing);
+      expect(find.text('Select a repository folder'), findsNothing);
     },
   );
 
@@ -251,7 +251,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('select a repository folder'), findsOneWidget);
+    expect(find.text('Select a repository folder'), findsOneWidget);
     expect(find.byType(SessionWorkspaceView), findsNothing);
   });
 }

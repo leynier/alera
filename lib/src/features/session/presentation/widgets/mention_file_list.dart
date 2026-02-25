@@ -24,7 +24,7 @@ class MentionFileList extends StatelessWidget {
         border: Border.all(color: AleraTokens.border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
+            color: AleraTokens.shadowSoft,
             blurRadius: 8,
             offset: const Offset(0, -2),
           ),
@@ -39,7 +39,7 @@ class MentionFileList extends StatelessWidget {
           final selected = index == selectedIndex;
           return InkWell(
             onTap: () => onSelect(file),
-            borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+            borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
             child: Container(
               color: selected
                   ? AleraTokens.accent.withValues(alpha: 0.12)

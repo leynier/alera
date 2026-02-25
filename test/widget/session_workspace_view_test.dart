@@ -329,7 +329,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.byType(MarkdownBody), findsNothing);
-    expect(find.text('streaming...'), findsOneWidget);
+    expect(find.text('Streaming...'), findsOneWidget);
   });
 
   testWidgets('assistant completed renders markdown when content is safe', (

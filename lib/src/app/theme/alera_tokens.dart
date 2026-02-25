@@ -42,7 +42,8 @@ abstract final class AleraTokens {
   static const Color success = Color(0xFF22C55E);
   static const Color error = Color(0xFFF87171);
   static const Color onError = Color(0xFF2C0D0D);
-  static const Color warning = Color(0xFFA0A0A0);
+  static const Color warning = Color(0xFFF59E0B);
+  static const Color shadowSoft = Color(0x14000000);
 
   static const Duration durationFast = Duration(milliseconds: 100);
   static const Duration durationMid = Duration(milliseconds: 180);

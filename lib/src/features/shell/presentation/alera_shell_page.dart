@@ -81,9 +81,9 @@ class _AleraShellPageState extends ConsumerState<AleraShellPage> {
     if (workspacePath == null || workspacePath.isEmpty) {
       return _EmptyState(
         icon: Icons.folder_open_outlined,
-        title: 'select a repository folder',
-        message: 'choose a git repository folder to start working.',
-        actionLabel: 'select folder',
+        title: 'Select a repository folder',
+        message: 'Choose a git repository folder to start working.',
+        actionLabel: 'Select folder',
         onAction: () => _selectWorkspace(controller),
       );
     }
@@ -118,7 +118,7 @@ class _AleraShellPageState extends ConsumerState<AleraShellPage> {
     final XFile? file;
     try {
       file = await openFile(
-        acceptedTypeGroups: <XTypeGroup>[const XTypeGroup(label: 'all files')],
+        acceptedTypeGroups: <XTypeGroup>[const XTypeGroup(label: 'All files')],
       );
     } catch (_) {
       return;
@@ -127,7 +127,9 @@ class _AleraShellPageState extends ConsumerState<AleraShellPage> {
       return;
     }
     final kind = _attachmentKindFromPath(file.path);
-    final mimeType = kind == AttachmentKind.image ? _imageMimeType(file.path) : null;
+    final mimeType = kind == AttachmentKind.image
+        ? _imageMimeType(file.path)
+        : null;
     controller.addAttachment(
       ComposerAttachment(
         id: const Uuid().v4(),
@@ -174,11 +176,11 @@ class _AleraShellPageState extends ConsumerState<AleraShellPage> {
     }
     if (!ok) {
       final latestState = ref.read(sessionControllerProvider);
-      final message = latestState.error ?? 'failed to select folder';
+      final message = latestState.error ?? 'Failed to select folder';
       _showError(message);
       return;
     }
-    _showSuccess('workspace selected');
+    _showSuccess('Workspace selected');
   }
 
   Future<String?> _showWorkspaceDialog() {
@@ -238,7 +240,7 @@ class _AleraShellPageState extends ConsumerState<AleraShellPage> {
       }
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('no logs to copy')));
+      ).showSnackBar(const SnackBar(content: Text('No logs to copy')));
       return;
     }
 
@@ -250,14 +252,14 @@ class _AleraShellPageState extends ConsumerState<AleraShellPage> {
       }
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('raw logs copied')));
+      ).showSnackBar(const SnackBar(content: Text('Raw logs copied')));
     } catch (_) {
       if (!mounted) {
         return;
       }
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('failed to copy raw logs')));
+      ).showSnackBar(const SnackBar(content: Text('Failed to copy raw logs')));
     }
   }
 }
@@ -319,7 +321,7 @@ class _EmptyState extends StatelessWidget {
                   icon: const Icon(Icons.folder_open, size: 16),
                   label: Text(actionLabel!),
                   style: FilledButton.styleFrom(
-                    minimumSize: const Size(170, 40),
+                    minimumSize: const Size(170, 34),
                   ),
                 ),
               ],
@@ -354,7 +356,7 @@ class _SelectWorkspaceDialogState extends State<_SelectWorkspaceDialog> {
   Future<void> _browse() async {
     try {
       final selected = await getDirectoryPath(
-        confirmButtonText: 'select repository',
+        confirmButtonText: 'Select repository',
       );
       if (!mounted || selected == null || selected.trim().isEmpty) {
         return;
@@ -370,7 +372,7 @@ class _SelectWorkspaceDialogState extends State<_SelectWorkspaceDialog> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'native folder picker is not available; paste path manually.',
+            'Native folder picker is not available; paste path manually.',
           ),
         ),
       );
@@ -389,7 +391,7 @@ class _SelectWorkspaceDialogState extends State<_SelectWorkspaceDialog> {
             color: AleraTokens.accent,
           ),
           const SizedBox(width: AleraTokens.space8),
-          Text('select folder', style: theme.textTheme.titleLarge),
+          Text('Select folder', style: theme.textTheme.titleLarge),
         ],
       ),
       content: SizedBox(
@@ -399,7 +401,7 @@ class _SelectWorkspaceDialogState extends State<_SelectWorkspaceDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Text(
-              'choose the git repository you want to work on',
+              'Choose the git repository you want to work on',
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: AleraTokens.space16),
@@ -407,10 +409,10 @@ class _SelectWorkspaceDialogState extends State<_SelectWorkspaceDialog> {
               controller: _pathController,
               autofocus: true,
               decoration: InputDecoration(
-                labelText: 'repository path',
+                labelText: 'Repository path',
                 hintText: '/path/to/git/repository',
                 suffixIcon: Tooltip(
-                  message: 'browse',
+                  message: 'Browse',
                   child: IconButton(
                     onPressed: _browse,
                     mouseCursor: SystemMouseCursors.click,
@@ -426,9 +428,9 @@ class _SelectWorkspaceDialogState extends State<_SelectWorkspaceDialog> {
       actions: <Widget>[
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('cancel'),
+          child: const Text('Cancel'),
         ),
-        FilledButton(onPressed: _submit, child: const Text('use folder')),
+        FilledButton(onPressed: _submit, child: const Text('Use folder')),
       ],
     );
   }

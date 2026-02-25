@@ -31,7 +31,7 @@ class ApprovalCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AleraTokens.surfaceVariant,
         border: Border.all(color: AleraTokens.border),
-        borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+        borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -59,79 +59,25 @@ class ApprovalCard extends StatelessWidget {
           Wrap(
             spacing: AleraTokens.space6,
             children: <Widget>[
-              _ApprovalButton(
-                label: 'Allow once',
-                primary: true,
-                onTap: onApprove,
+              FilledButton(
+                onPressed: onApprove,
+                child: const Text('Allow once'),
               ),
-              _ApprovalButton(
-                label: 'Allow for session',
-                primary: false,
-                onTap: onApproveForSession,
+              OutlinedButton(
+                onPressed: onApproveForSession,
+                child: const Text('Allow for session'),
               ),
-              _ApprovalButton(
-                label: 'Decline',
-                primary: false,
-                danger: true,
-                onTap: onDecline,
+              FilledButton(
+                onPressed: onDecline,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AleraTokens.error,
+                  foregroundColor: AleraTokens.onError,
+                ),
+                child: const Text('Decline'),
               ),
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _ApprovalButton extends StatelessWidget {
-  const _ApprovalButton({
-    required this.label,
-    required this.primary,
-    required this.onTap,
-    this.danger = false,
-  });
-
-  final String label;
-  final bool primary;
-  final bool danger;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final bg = primary
-        ? AleraTokens.accent
-        : danger
-            ? Colors.transparent
-            : AleraTokens.surface;
-    final fg = primary
-        ? AleraTokens.onAccent
-        : danger
-            ? Colors.redAccent
-            : AleraTokens.foregroundMuted;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
-      mouseCursor: SystemMouseCursors.click,
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AleraTokens.space8,
-          vertical: AleraTokens.space4,
-        ),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
-          border: primary
-              ? null
-              : Border.all(
-                  color: danger
-                      ? Colors.redAccent.withValues(alpha: 0.5)
-                      : AleraTokens.border,
-                ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(fontSize: 12, color: fg, fontWeight: FontWeight.w500),
-        ),
       ),
     );
   }

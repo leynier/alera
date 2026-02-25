@@ -6,6 +6,6 @@ void main() {
   testWidgets('renders alera shell', (tester) async {
     await tester.pumpWidget(const ProviderScope(child: AleraApp()));
     await tester.pump(const Duration(seconds: 1));
-    expect(find.text('select a repository folder'), findsOneWidget);
+    expect(find.text('Select a repository folder'), findsOneWidget);
   });
 }

@@ -104,8 +104,7 @@ class _ComposerState extends State<Composer> {
   String get _reasoningLabel =>
       codexReasoningEffortLabel(widget.activeReasoningEffort);
 
-  bool get _hasOverlay =>
-      _mentionFiles.isNotEmpty || _slashCommands.isNotEmpty;
+  bool get _hasOverlay => _mentionFiles.isNotEmpty || _slashCommands.isNotEmpty;
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
     if (!_hasOverlay || event is! KeyDownEvent) {
@@ -114,15 +113,19 @@ class _ComposerState extends State<Composer> {
     if (_slashCommands.isNotEmpty) {
       if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
         setState(() {
-          _slashSelectedIndex =
-              (_slashSelectedIndex - 1).clamp(0, _slashCommands.length - 1);
+          _slashSelectedIndex = (_slashSelectedIndex - 1).clamp(
+            0,
+            _slashCommands.length - 1,
+          );
         });
         return KeyEventResult.handled;
       }
       if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
         setState(() {
-          _slashSelectedIndex =
-              (_slashSelectedIndex + 1).clamp(0, _slashCommands.length - 1);
+          _slashSelectedIndex = (_slashSelectedIndex + 1).clamp(
+            0,
+            _slashCommands.length - 1,
+          );
         });
         return KeyEventResult.handled;
       }
@@ -143,15 +146,19 @@ class _ComposerState extends State<Composer> {
     if (_mentionFiles.isNotEmpty) {
       if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
         setState(() {
-          _mentionSelectedIndex =
-              (_mentionSelectedIndex - 1).clamp(0, _mentionFiles.length - 1);
+          _mentionSelectedIndex = (_mentionSelectedIndex - 1).clamp(
+            0,
+            _mentionFiles.length - 1,
+          );
         });
         return KeyEventResult.handled;
       }
       if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
         setState(() {
-          _mentionSelectedIndex =
-              (_mentionSelectedIndex + 1).clamp(0, _mentionFiles.length - 1);
+          _mentionSelectedIndex = (_mentionSelectedIndex + 1).clamp(
+            0,
+            _mentionFiles.length - 1,
+          );
         });
         return KeyEventResult.handled;
       }
@@ -242,7 +249,8 @@ class _ComposerState extends State<Composer> {
       widget.controller.clear();
     } else {
       final inserted = cmd.insertText ?? '';
-      final newText = '${beforeCursor.substring(0, insertStart)}$inserted$afterCursor';
+      final newText =
+          '${beforeCursor.substring(0, insertStart)}$inserted$afterCursor';
       widget.controller.value = TextEditingValue(
         text: newText,
         selection: TextSelection.collapsed(
@@ -264,11 +272,9 @@ class _ComposerState extends State<Composer> {
     }
     final ProcessResult result;
     try {
-      result = await Process.run(
-        'git',
-        <String>['ls-files'],
-        workingDirectory: workspacePath,
-      );
+      result = await Process.run('git', <String>[
+        'ls-files',
+      ], workingDirectory: workspacePath);
     } catch (_) {
       _clearMention();
       return;
@@ -287,9 +293,7 @@ class _ComposerState extends State<Composer> {
     final filtered = query.isEmpty
         ? all.take(20).toList(growable: false)
         : all
-              .where(
-                (f) => f.toLowerCase().contains(query.toLowerCase()),
-              )
+              .where((f) => f.toLowerCase().contains(query.toLowerCase()))
               .take(20)
               .toList(growable: false);
     setState(() {
@@ -518,7 +522,9 @@ class _ComposerState extends State<Composer> {
                         message: 'Toggle plan mode',
                         child: InkWell(
                           onTap: widget.onPlanModeToggled,
-                          borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+                          borderRadius: BorderRadius.circular(
+                            AleraTokens.radiusLg,
+                          ),
                           mouseCursor: SystemMouseCursors.click,
                           child: Padding(
                             padding: const EdgeInsets.symmetric(
@@ -545,7 +551,9 @@ class _ComposerState extends State<Composer> {
                         message: 'Toggle full access mode',
                         child: InkWell(
                           onTap: widget.onPermissionModeToggled,
-                          borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+                          borderRadius: BorderRadius.circular(
+                            AleraTokens.radiusLg,
+                          ),
                           mouseCursor: SystemMouseCursors.click,
                           child: Padding(
                             padding: const EdgeInsets.symmetric(
@@ -556,7 +564,7 @@ class _ComposerState extends State<Composer> {
                               'Full access',
                               style: TextStyle(
                                 color: widget.fullAccessEnabled
-                                    ? Colors.orange
+                                    ? AleraTokens.warning
                                     : AleraTokens.foregroundFaint,
                                 fontSize: 12,
                                 fontWeight: widget.fullAccessEnabled

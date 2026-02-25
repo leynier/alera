@@ -211,7 +211,7 @@ class _UserInputCardState extends State<UserInputCard> {
                 FilledButton.icon(
                   onPressed: canContinue ? _onContinue : null,
                   style: FilledButton.styleFrom(
-                    minimumSize: const Size(80, 32),
+                    minimumSize: const Size(80, 34),
                     padding: const EdgeInsets.symmetric(
                       horizontal: AleraTokens.space16,
                       vertical: AleraTokens.space8,
@@ -414,7 +414,7 @@ class _OptionRow extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       mouseCursor: SystemMouseCursors.click,
-      borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+      borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(
@@ -423,7 +423,7 @@ class _OptionRow extends StatelessWidget {
         ),
         decoration: BoxDecoration(
           color: isSelected ? AleraTokens.surfaceElevated : Colors.transparent,
-          borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+          borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
