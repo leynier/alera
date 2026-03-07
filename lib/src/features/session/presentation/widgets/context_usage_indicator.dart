@@ -1,5 +1,6 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/session/domain/context_usage.dart';
+import 'package:alera/src/shared/utils/format_utils.dart';
 import 'package:flutter/material.dart';
 
 /// A circular progress indicator that shows how much of the context window
@@ -261,15 +262,5 @@ class _ContextUsageIndicatorState extends State<ContextUsageIndicator> {
     );
   }
 
-  String _formatTokens(int count) {
-    if (count >= 1000000) {
-      final m = count / 1000000;
-      return '${m.toStringAsFixed(m.truncateToDouble() == m ? 0 : 1)}M';
-    }
-    if (count >= 1000) {
-      final k = count / 1000;
-      return '${k.toStringAsFixed(k.truncateToDouble() == k ? 0 : 1)}k';
-    }
-    return count.toString();
-  }
+  String _formatTokens(int count) => formatTokenCount(count);
 }

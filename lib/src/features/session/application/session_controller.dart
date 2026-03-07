@@ -590,8 +590,6 @@ class SessionController extends StateNotifier<SessionState> {
     String text,
     List<ComposerAttachment> attachments,
   ) {
-    final index = state.pendingMessages.indexWhere((m) => m.id == id);
-    if (index == -1) return;
     final updated = state.pendingMessages.map((m) {
       if (m.id == id) {
         return m.copyWith(text: text, attachments: attachments);

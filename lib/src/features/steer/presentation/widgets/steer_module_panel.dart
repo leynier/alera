@@ -1,5 +1,6 @@
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/features/steer/domain/steer_rule.dart';
 import 'package:alera/src/features/steer/domain/steer_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -180,7 +181,7 @@ class _ExpandedPanelState extends State<_ExpandedPanel> {
     );
   }
 
-  Widget _buildRulesList(List<dynamic> sortedRules) {
+  Widget _buildRulesList(List<SteerRule> sortedRules) {
     return ListView.builder(
       shrinkWrap: true,
       padding: const EdgeInsets.symmetric(vertical: AleraTokens.space8),
@@ -279,7 +280,7 @@ class _RuleItem extends StatelessWidget {
     required this.onRemove,
   });
 
-  final dynamic rule;
+  final SteerRule rule;
   final VoidCallback onToggle;
   final VoidCallback onRemove;
 

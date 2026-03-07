@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:alera/src/features/steer/domain/steer_rule.dart';
 import 'package:alera/src/features/steer/domain/steer_state.dart';
@@ -26,7 +27,7 @@ class SteerController extends StateNotifier<SteerState> {
         final json = jsonDecode(jsonStr) as Map<String, dynamic>;
         state = SteerState.fromJson(json);
       }
-    } catch (_) {
+    } catch (e) {
       // If loading fails, start with empty state.
       state = const SteerState();
     }
@@ -37,7 +38,7 @@ class SteerController extends StateNotifier<SteerState> {
     try {
       final jsonStr = jsonEncode(state.toJson());
       await _preferencesStore.setString(_storageKey, jsonStr);
-    } catch (_) {
+    } catch (e) {
       // Silently fail if persistence fails.
     }
   }
@@ -60,7 +61,7 @@ class SteerController extends StateNotifier<SteerState> {
     }
     final maxOrder = state.rules.isEmpty
         ? 0
-        : state.rules.map((r) => r.order).reduce((a, b) => a > b ? a : b);
+        : state.rules.map((r) => r.order).reduce(max);
     final newRule = SteerRule(
       id: _uuid.v4(),
       label: trimmed,
