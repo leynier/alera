@@ -214,6 +214,30 @@ class CodexAppServerClient {
     );
   }
 
+  /// Requests manual context compaction for the given thread.
+  Future<Map<String, dynamic>> compactThread({required String threadId}) {
+    return _wsClient!.request(
+      'thread/compact/start',
+      params: <String, dynamic>{'threadId': threadId},
+    );
+  }
+
+  /// Steers an active turn with new input, redirecting the agent mid-turn.
+  Future<Map<String, dynamic>> steerTurn({
+    required String threadId,
+    required List<Map<String, dynamic>> input,
+    required String expectedTurnId,
+  }) {
+    return _wsClient!.request(
+      'turn/steer',
+      params: <String, dynamic>{
+        'threadId': threadId,
+        'input': input,
+        'expectedTurnId': expectedTurnId,
+      },
+    );
+  }
+
   Future<void> respondApproval({
     required Object requestId,
     String decision = 'accept',

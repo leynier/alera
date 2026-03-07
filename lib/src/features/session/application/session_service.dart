@@ -191,6 +191,55 @@ class SessionService {
     await _orchestrator.interrupt(threadId: threadId, turnId: turnId);
   }
 
+  /// Requests manual context compaction for the active session.
+  Future<void> compactContext({required String sessionId}) async {
+    final session = _sessions[sessionId];
+    if (session == null) {
+      throw StateError('session not found: $sessionId');
+    }
+    final threadId = session.threadId;
+    if (threadId == null || threadId.isEmpty) {
+      throw StateError('session has no thread id');
+    }
+    await _ensureOrchestrator();
+    await _orchestrator.compactThread(threadId: threadId);
+  }
+
+  /// Steers the active turn with new user input (redirect mid-turn).
+  ///
+  /// Returns the new turn ID from the steer response.
+  Future<String> steerActiveTurn({
+    required String sessionId,
+    required String rawInput,
+    required String expectedTurnId,
+    List<Map<String, dynamic>> extraInputItems = const <Map<String, dynamic>>[],
+  }) async {
+    final session = _sessions[sessionId];
+    if (session == null) {
+      throw StateError('session not found: $sessionId');
+    }
+    final threadId = session.threadId;
+    if (threadId == null || threadId.isEmpty) {
+      throw StateError('session has no thread id');
+    }
+    await _ensureOrchestrator();
+    final input = <Map<String, dynamic>>[
+      <String, dynamic>{'type': 'text', 'text': rawInput},
+      ...extraInputItems,
+    ];
+    final newTurnId = await _orchestrator.steerTurn(
+      threadId: threadId,
+      input: input,
+      expectedTurnId: expectedTurnId,
+    );
+    final updated = session.copyWith(
+      lastTurnId: newTurnId,
+      updatedAt: DateTime.now().toUtc(),
+    );
+    _sessions[sessionId] = updated;
+    return newTurnId;
+  }
+
   Future<void> approveRequest(Object requestId, {bool forSession = false}) {
     return _orchestrator.approveRequest(requestId, forSession: forSession);
   }

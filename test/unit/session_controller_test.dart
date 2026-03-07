@@ -90,6 +90,19 @@ class _FakeSessionService implements SessionService {
   }
 
   @override
+  Future<void> compactContext({required String sessionId}) async {}
+
+  @override
+  Future<String> steerActiveTurn({
+    required String sessionId,
+    required String rawInput,
+    required String expectedTurnId,
+    List<Map<String, dynamic>> extraInputItems = const <Map<String, dynamic>>[],
+  }) async {
+    return expectedTurnId;
+  }
+
+  @override
   Future<void> approveRequest(
     Object requestId, {
     bool forSession = false,
