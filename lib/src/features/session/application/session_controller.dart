@@ -559,11 +559,46 @@ class SessionController extends StateNotifier<SessionState> {
   }
 
   void removeFromQueue(String id) {
+    final wasEditing = state.editingPendingMessageId == id;
     state = state.copyWith(
       pendingMessages: state.pendingMessages
           .where((m) => m.id != id)
           .toList(growable: false),
+      clearEditingPendingMessageId: wasEditing,
     );
+    // If we were editing this message and it's now deleted, process the queue.
+    if (wasEditing) {
+      unawaited(_processNextQueuedMessage());
+    }
+  }
+
+  void deletePendingMessage(String id) {
+    // Same as removeFromQueue but semantically for deletion from edit dialog.
+    removeFromQueue(id);
+  }
+
+  void startEditingPendingMessage(String id) {
+    state = state.copyWith(editingPendingMessageId: id);
+  }
+
+  void finishEditingPendingMessage() {
+    state = state.copyWith(clearEditingPendingMessageId: true);
+    // Trigger queue processing in case messages were waiting.
+    unawaited(_processNextQueuedMessage());
+  }
+
+  void updatePendingMessage(
+    String id,
+    String text,
+    List<ComposerAttachment> attachments,
+  ) {
+    final updated = state.pendingMessages.map((m) {
+      if (m.id == id) {
+        return m.copyWith(text: text, attachments: attachments);
+      }
+      return m;
+    }).toList(growable: false);
+    state = state.copyWith(pendingMessages: updated);
   }
 
   Future<void> sendInput(String rawInput) async {
@@ -662,6 +697,10 @@ class SessionController extends StateNotifier<SessionState> {
       return;
     }
     final next = state.pendingMessages.first;
+    // Check if message is being edited - wait for edit to complete.
+    if (state.editingPendingMessageId == next.id) {
+      return;
+    }
     final remaining = state.pendingMessages.skip(1).toList(growable: false);
     state = state.copyWith(pendingMessages: remaining);
     await _executeInput(

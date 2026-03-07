@@ -7,10 +7,12 @@ class MessageQueueBar extends StatelessWidget {
     super.key,
     required this.messages,
     required this.onRemove,
+    required this.onEdit,
   });
 
   final List<PendingMessage> messages;
   final ValueChanged<String> onRemove;
+  final ValueChanged<PendingMessage> onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -61,7 +63,11 @@ class MessageQueueBar extends StatelessWidget {
                 const Divider(height: 1, color: AleraTokens.border),
             itemBuilder: (context, index) {
               final msg = messages[index];
-              return _QueueItem(message: msg, onRemove: onRemove);
+              return _QueueItem(
+                message: msg,
+                onRemove: onRemove,
+                onEdit: onEdit,
+              );
             },
           ),
         ],
@@ -71,10 +77,15 @@ class MessageQueueBar extends StatelessWidget {
 }
 
 class _QueueItem extends StatelessWidget {
-  const _QueueItem({required this.message, required this.onRemove});
+  const _QueueItem({
+    required this.message,
+    required this.onRemove,
+    required this.onEdit,
+  });
 
   final PendingMessage message;
   final ValueChanged<String> onRemove;
+  final ValueChanged<PendingMessage> onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -106,6 +117,20 @@ class _QueueItem extends StatelessWidget {
               ),
             ),
           ],
+          const SizedBox(width: AleraTokens.space4),
+          InkWell(
+            onTap: () => onEdit(message),
+            borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+            mouseCursor: SystemMouseCursors.click,
+            child: const Padding(
+              padding: EdgeInsets.all(AleraTokens.space2),
+              child: Icon(
+                Icons.edit,
+                size: 13,
+                color: AleraTokens.foregroundFaint,
+              ),
+            ),
+          ),
           const SizedBox(width: AleraTokens.space4),
           InkWell(
             onTap: () => onRemove(message.id),

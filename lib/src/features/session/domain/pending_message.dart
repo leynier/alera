@@ -16,4 +16,21 @@ class PendingMessage {
   final bool planModeEnabled;
   // Explicitly reset backend collaboration mode to default on this send.
   final bool forceDefaultCollaborationMode;
+
+  PendingMessage copyWith({
+    String? id,
+    String? text,
+    List<ComposerAttachment>? attachments,
+    bool? planModeEnabled,
+    bool? forceDefaultCollaborationMode,
+  }) {
+    return PendingMessage(
+      id: id ?? this.id,
+      text: text ?? this.text,
+      attachments: attachments ?? this.attachments,
+      planModeEnabled: planModeEnabled ?? this.planModeEnabled,
+      forceDefaultCollaborationMode:
+          forceDefaultCollaborationMode ?? this.forceDefaultCollaborationMode,
+    );
+  }
 }
