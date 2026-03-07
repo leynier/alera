@@ -9,7 +9,7 @@ import 'package:flutter/material.dart';
 void showImageZoomDialog(BuildContext context, String path) {
   showDialog<void>(
     context: context,
-    barrierColor: Colors.black87,
+    barrierColor: Colors.black54,
     builder: (context) => _ImageZoomOverlay(path: path),
   );
 }
@@ -32,13 +32,16 @@ class _ImageZoomOverlay extends StatelessWidget {
         Center(
           child: InteractiveViewer(
             maxScale: 5,
-            child: Image.file(
-              File(path),
-              fit: BoxFit.contain,
-              errorBuilder: (_, _, _) => const Icon(
-                Icons.broken_image,
-                size: 48,
-                color: AleraTokens.foregroundFaint,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+              child: Image.file(
+                File(path),
+                fit: BoxFit.contain,
+                errorBuilder: (_, _, _) => const Icon(
+                  Icons.broken_image,
+                  size: 48,
+                  color: AleraTokens.foregroundFaint,
+                ),
               ),
             ),
           ),

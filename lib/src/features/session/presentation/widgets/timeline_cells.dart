@@ -1109,8 +1109,7 @@ class _AttachmentChip extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: AleraTokens.surface,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
-        border: Border.all(color: AleraTokens.borderSubtle),
+        borderRadius: BorderRadius.circular(AleraTokens.radiusXl),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1151,7 +1150,7 @@ class _AttachmentThumbnail extends StatelessWidget {
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+          borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
           child: Image.file(
             file,
             width: 60,

@@ -23,12 +23,12 @@ class AttachmentBar extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AleraTokens.space8,
-        AleraTokens.space4,
+        AleraTokens.space8,
         AleraTokens.space8,
         0,
       ),
       child: SizedBox(
-        height: 32,
+        height: 28,
         child: Builder(
           builder: (context) {
             final sorted = List<ComposerAttachment>.of(attachments)
@@ -63,14 +63,33 @@ class _AttachmentChip extends StatelessWidget {
   final ComposerAttachment attachment;
   final VoidCallback onRemove;
 
+  Widget _buildLabel(BuildContext context, bool isImage) {
+    final label = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space6),
+      child: Text(
+        attachment.displayName,
+        style: const TextStyle(
+          fontSize: 11,
+          color: AleraTokens.foregroundMuted,
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+    if (!isImage) return label;
+    return GestureDetector(
+      onTap: () => showImageZoomDialog(context, attachment.path),
+      child: MouseRegion(cursor: SystemMouseCursors.click, child: label),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isImage = attachment.kind == AttachmentKind.image;
     return Container(
       decoration: BoxDecoration(
         color: AleraTokens.surface,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
-        border: Border.all(color: AleraTokens.borderSubtle),
+        borderRadius: BorderRadius.circular(AleraTokens.radiusXl),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -82,18 +101,18 @@ class _AttachmentChip extends StatelessWidget {
                 cursor: SystemMouseCursors.click,
                 child: ClipRRect(
                   borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(AleraTokens.radiusSm),
-                    bottomLeft: Radius.circular(AleraTokens.radiusSm),
+                    topLeft: Radius.circular(AleraTokens.radiusXl),
+                    bottomLeft: Radius.circular(AleraTokens.radiusXl),
                   ),
                   child: SizedBox(
-                    width: 32,
-                    height: 32,
+                    width: 28,
+                    height: 28,
                     child: Image.file(
                       File(attachment.path),
                       fit: BoxFit.cover,
                       errorBuilder: (_, _, _) => const Icon(
                         Icons.broken_image,
-                        size: 16,
+                        size: 14,
                         color: AleraTokens.foregroundFaint,
                       ),
                     ),
@@ -103,29 +122,18 @@ class _AttachmentChip extends StatelessWidget {
             )
           else
             const Padding(
-              padding: EdgeInsets.only(left: AleraTokens.space6),
+              padding: EdgeInsets.only(left: AleraTokens.space8),
               child: Icon(
                 Icons.insert_drive_file_outlined,
                 size: 14,
                 color: AleraTokens.foregroundMuted,
               ),
             ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space6),
-            child: Text(
-              attachment.displayName,
-              style: const TextStyle(
-                fontSize: 11,
-                color: AleraTokens.foregroundMuted,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
+          _buildLabel(context, isImage),
           InkWell(
             onTap: onRemove,
             mouseCursor: SystemMouseCursors.click,
-            borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+            borderRadius: BorderRadius.circular(AleraTokens.radiusXl),
             child: const Padding(
               padding: EdgeInsets.all(AleraTokens.space4),
               child: Icon(

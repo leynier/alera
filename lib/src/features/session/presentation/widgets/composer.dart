@@ -4,8 +4,8 @@ import 'dart:io';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/session/domain/codex_model_catalog.dart';
 import 'package:alera/src/features/session/domain/composer_attachment.dart';
-import 'package:alera/src/features/session/presentation/widgets/attachment_bar.dart';
 import 'package:alera/src/features/session/domain/slash_command.dart';
+import 'package:alera/src/features/session/presentation/widgets/attachment_bar.dart';
 import 'package:alera/src/features/session/presentation/widgets/mention_file_list.dart';
 import 'package:alera/src/features/session/presentation/widgets/slash_command_list.dart';
 import 'package:flutter/material.dart';
@@ -389,6 +389,11 @@ class _ComposerState extends State<Composer> {
             ),
             child: Column(
               children: <Widget>[
+                if (widget.attachments.isNotEmpty)
+                  AttachmentBar(
+                    attachments: widget.attachments,
+                    onRemove: widget.onRemoveAttachment ?? (_) {},
+                  ),
                 CallbackShortcuts(
                   // NOTE: Flutter/macOS debug can assert on synthesized Meta
                   // KeyUp events in HardwareKeyboard. This is framework-level;
@@ -427,11 +432,6 @@ class _ComposerState extends State<Composer> {
                     ),
                   ),
                 ),
-                if (widget.attachments.isNotEmpty)
-                  AttachmentBar(
-                    attachments: widget.attachments,
-                    onRemove: widget.onRemoveAttachment ?? (_) {},
-                  ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(
                     AleraTokens.space8,
