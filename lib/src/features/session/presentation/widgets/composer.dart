@@ -4,8 +4,10 @@ import 'dart:io';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/session/domain/codex_model_catalog.dart';
 import 'package:alera/src/features/session/domain/composer_attachment.dart';
+import 'package:alera/src/features/session/domain/context_usage.dart';
 import 'package:alera/src/features/session/domain/slash_command.dart';
 import 'package:alera/src/features/session/presentation/widgets/attachment_bar.dart';
+import 'package:alera/src/features/session/presentation/widgets/context_usage_indicator.dart';
 import 'package:alera/src/features/session/presentation/widgets/mention_file_list.dart';
 import 'package:alera/src/features/session/presentation/widgets/slash_command_list.dart';
 import 'package:flutter/material.dart';
@@ -41,6 +43,8 @@ class Composer extends StatefulWidget {
     this.fullAccessEnabled = false,
     this.onPermissionModeToggled,
     this.focusNode,
+    this.contextUsage,
+    this.onCompact,
   });
 
   final TextEditingController controller;
@@ -69,6 +73,8 @@ class Composer extends StatefulWidget {
   final bool fullAccessEnabled;
   final VoidCallback? onPermissionModeToggled;
   final FocusNode? focusNode;
+  final ContextUsage? contextUsage;
+  final VoidCallback? onCompact;
 
   @override
   State<Composer> createState() => ComposerState();
@@ -387,11 +393,7 @@ class ComposerState extends State<Composer> {
   }
 
   void _sendFromShortcut() {
-    if (!widget.canSend) {
-      return;
-    }
-    // If there's text, always send. If empty and canStop, don't send.
-    if (widget.controller.text.trim().isEmpty && widget.canStop) {
+    if (!widget.canSend || widget.canStop) {
       return;
     }
     widget.onSend();
@@ -451,221 +453,226 @@ class ComposerState extends State<Composer> {
               borderRadius: BorderRadius.circular(AleraTokens.radiusXl),
               border: Border.all(color: AleraTokens.border),
             ),
-            child: Column(
+            child: Stack(
               children: <Widget>[
-                if (widget.attachments.isNotEmpty)
-                  AttachmentBar(
-                    attachments: widget.attachments,
-                    onRemove: widget.onRemoveAttachment ?? (_) {},
-                  ),
-                CallbackShortcuts(
-                  // NOTE: Flutter/macOS debug can assert on synthesized Meta
-                  // KeyUp events in HardwareKeyboard. This is framework-level;
-                  // shortcut behavior here intentionally remains unchanged.
-                  bindings: <ShortcutActivator, VoidCallback>{
-                    const SingleActivator(LogicalKeyboardKey.enter):
-                        _sendFromShortcut,
-                    const SingleActivator(
-                      LogicalKeyboardKey.enter,
-                      shift: true,
-                    ): _insertLineBreak,
-                  },
-                  child: TextField(
-                    controller: widget.controller,
-                    focusNode: _focusNode,
-                    enabled: widget.textFieldEnabled,
-                    minLines: 2,
-                    maxLines: 6,
-                    textInputAction: TextInputAction.newline,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                    decoration: InputDecoration(
-                      hintText: widget.hintText,
-                      filled: true,
-                      fillColor: Colors.transparent,
-                      hoverColor: Colors.transparent,
-                      contentPadding: EdgeInsets.fromLTRB(
-                        AleraTokens.space12,
-                        AleraTokens.space16,
-                        AleraTokens.space12,
+                Column(
+                  children: <Widget>[
+                    if (widget.attachments.isNotEmpty)
+                      Padding(
+                        padding: EdgeInsets.only(
+                          right:
+                              (widget.contextUsage != null &&
+                                  widget.onCompact != null)
+                              ? 24.0
+                              : 0.0,
+                        ),
+                        child: AttachmentBar(
+                          attachments: widget.attachments,
+                          onRemove: widget.onRemoveAttachment ?? (_) {},
+                        ),
+                      ),
+                    CallbackShortcuts(
+                      // NOTE: Flutter/macOS debug can assert on synthesized Meta
+                      // KeyUp events in HardwareKeyboard. This is framework-level;
+                      // shortcut behavior here intentionally remains unchanged.
+                      bindings: <ShortcutActivator, VoidCallback>{
+                        const SingleActivator(LogicalKeyboardKey.enter):
+                            _sendFromShortcut,
+                        const SingleActivator(
+                          LogicalKeyboardKey.enter,
+                          shift: true,
+                        ): _insertLineBreak,
+                      },
+                      child: TextField(
+                        controller: widget.controller,
+                        focusNode: _focusNode,
+                        enabled: widget.textFieldEnabled,
+                        minLines: 2,
+                        maxLines: 6,
+                        textInputAction: TextInputAction.newline,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                        decoration: InputDecoration(
+                          hintText: widget.hintText,
+                          filled: true,
+                          fillColor: Colors.transparent,
+                          hoverColor: Colors.transparent,
+                          contentPadding: EdgeInsets.fromLTRB(
+                            AleraTokens.space12,
+                            AleraTokens.space16,
+                            (widget.contextUsage != null &&
+                                    widget.onCompact != null)
+                                ? 36.0
+                                : AleraTokens.space12,
+                            AleraTokens.space8,
+                          ),
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          disabledBorder: InputBorder.none,
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AleraTokens.space8,
+                        0,
+                        AleraTokens.space8,
                         AleraTokens.space8,
                       ),
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      disabledBorder: InputBorder.none,
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AleraTokens.space8,
-                    0,
-                    AleraTokens.space8,
-                    AleraTokens.space8,
-                  ),
-                  child: Row(
-                    children: <Widget>[
-                      IconButton(
-                        onPressed: widget.onAddAttachment,
-                        tooltip: 'Add photos & files',
-                        mouseCursor: SystemMouseCursors.click,
-                        constraints: const BoxConstraints(
-                          minWidth: 28,
-                          minHeight: 28,
-                        ),
-                        padding: const EdgeInsets.all(AleraTokens.space4),
-                        icon: Icon(
-                          Icons.add,
-                          size: 18,
-                          color: widget.onAddAttachment != null
-                              ? AleraTokens.foregroundMuted
-                              : AleraTokens.foregroundFaint,
-                        ),
-                      ),
-                      const SizedBox(width: AleraTokens.space4),
-                      PopupMenuButton<String>(
-                        key: _modelMenuKey,
-                        tooltip: 'Choose model (${_shortcutHint('⇧M')})',
-                        onSelected: widget.canChangeModel
-                            ? widget.onModelChanged
-                            : null,
-                        enabled: widget.canChangeModel,
-                        constraints: const BoxConstraints(minWidth: 220),
-                        itemBuilder: (context) => <PopupMenuEntry<String>>[
-                          const PopupMenuItem<String>(
-                            enabled: false,
-                            height: 32,
-                            padding: EdgeInsets.symmetric(horizontal: 8),
-                            child: Text(
-                              'Select model',
-                              style: TextStyle(
-                                color: AleraTokens.foregroundFaint,
-                                fontSize: 12,
+                      child: Row(
+                        children: <Widget>[
+                          IconButton(
+                            onPressed: widget.onAddAttachment,
+                            tooltip: 'Add photos & files',
+                            mouseCursor: SystemMouseCursors.click,
+                            constraints: const BoxConstraints(
+                              minWidth: 28,
+                              minHeight: 28,
+                            ),
+                            padding: const EdgeInsets.all(AleraTokens.space4),
+                            icon: Icon(
+                              Icons.add,
+                              size: 18,
+                              color: widget.onAddAttachment != null
+                                  ? AleraTokens.foregroundMuted
+                                  : AleraTokens.foregroundFaint,
+                            ),
+                          ),
+                          const SizedBox(width: AleraTokens.space4),
+                          PopupMenuButton<String>(
+                            key: _modelMenuKey,
+                            tooltip: 'Choose model (${_shortcutHint('⇧M')})',
+                            onSelected: widget.canChangeModel
+                                ? widget.onModelChanged
+                                : null,
+                            enabled: widget.canChangeModel,
+                            constraints: const BoxConstraints(minWidth: 220),
+                            itemBuilder: (context) => <PopupMenuEntry<String>>[
+                              const PopupMenuItem<String>(
+                                enabled: false,
+                                height: 32,
+                                padding: EdgeInsets.symmetric(horizontal: 8),
+                                child: Text(
+                                  'Select model',
+                                  style: TextStyle(
+                                    color: AleraTokens.foregroundFaint,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                              ...widget.availableModels.map(
+                                (model) => DropdownEntry<String>(
+                                  value: model.id,
+                                  label: model.label,
+                                  selected: model.id == widget.activeModelId,
+                                ),
+                              ),
+                            ],
+                            child: ComposerChip(label: _activeModelLabel),
+                          ),
+                          const SizedBox(width: AleraTokens.space6),
+                          PopupMenuButton<String>(
+                            key: _reasoningMenuKey,
+                            tooltip:
+                                'Select reasoning effort (${_shortcutHint('T')})',
+                            onSelected: widget.canChangeModel
+                                ? widget.onReasoningEffortChanged
+                                : null,
+                            enabled: widget.canChangeModel,
+                            itemBuilder: (context) => <PopupMenuEntry<String>>[
+                              const PopupMenuItem<String>(
+                                enabled: false,
+                                height: 32,
+                                padding: EdgeInsets.symmetric(horizontal: 8),
+                                child: Text(
+                                  'Select reasoning effort',
+                                  style: TextStyle(
+                                    color: AleraTokens.foregroundFaint,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                              ...widget.supportedReasoningEfforts.map(
+                                (effort) => DropdownEntry<String>(
+                                  value: effort,
+                                  label: codexReasoningEffortLabel(effort),
+                                  selected:
+                                      effort == widget.activeReasoningEffort,
+                                ),
+                              ),
+                            ],
+                            child: ComposerChip(label: _reasoningLabel),
+                          ),
+                          const SizedBox(width: AleraTokens.space6),
+                          Tooltip(
+                            message:
+                                'Toggle plan mode (${_shortcutHint('⇧P')})',
+                            child: InkWell(
+                              onTap: widget.onPlanModeToggled,
+                              borderRadius: BorderRadius.circular(
+                                AleraTokens.radiusLg,
+                              ),
+                              mouseCursor: SystemMouseCursors.click,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AleraTokens.space8,
+                                  vertical: AleraTokens.space4,
+                                ),
+                                child: Text(
+                                  'Plan',
+                                  style: TextStyle(
+                                    color: widget.planModeEnabled
+                                        ? AleraTokens.accent
+                                        : AleraTokens.foregroundFaint,
+                                    fontSize: 12,
+                                    fontWeight: widget.planModeEnabled
+                                        ? FontWeight.w600
+                                        : FontWeight.normal,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
-                          ...widget.availableModels.map(
-                            (model) => DropdownEntry<String>(
-                              value: model.id,
-                              label: model.label,
-                              selected: model.id == widget.activeModelId,
-                            ),
-                          ),
-                        ],
-                        child: ComposerChip(label: _activeModelLabel),
-                      ),
-                      const SizedBox(width: AleraTokens.space6),
-                      PopupMenuButton<String>(
-                        key: _reasoningMenuKey,
-                        tooltip:
-                            'Select reasoning effort (${_shortcutHint('T')})',
-                        onSelected: widget.canChangeModel
-                            ? widget.onReasoningEffortChanged
-                            : null,
-                        enabled: widget.canChangeModel,
-                        itemBuilder: (context) => <PopupMenuEntry<String>>[
-                          const PopupMenuItem<String>(
-                            enabled: false,
-                            height: 32,
-                            padding: EdgeInsets.symmetric(horizontal: 8),
-                            child: Text(
-                              'Select reasoning effort',
-                              style: TextStyle(
-                                color: AleraTokens.foregroundFaint,
-                                fontSize: 12,
+                          const SizedBox(width: AleraTokens.space6),
+                          Tooltip(
+                            message:
+                                'Toggle full access mode (${_shortcutHint('⇧Y')})',
+                            child: InkWell(
+                              onTap: widget.onPermissionModeToggled,
+                              borderRadius: BorderRadius.circular(
+                                AleraTokens.radiusLg,
+                              ),
+                              mouseCursor: SystemMouseCursors.click,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AleraTokens.space8,
+                                  vertical: AleraTokens.space4,
+                                ),
+                                child: Text(
+                                  'Full access',
+                                  style: TextStyle(
+                                    color: widget.fullAccessEnabled
+                                        ? AleraTokens.warning
+                                        : AleraTokens.foregroundFaint,
+                                    fontSize: 12,
+                                    fontWeight: widget.fullAccessEnabled
+                                        ? FontWeight.w600
+                                        : FontWeight.normal,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
-                          ...widget.supportedReasoningEfforts.map(
-                            (effort) => DropdownEntry<String>(
-                              value: effort,
-                              label: codexReasoningEffortLabel(effort),
-                              selected: effort == widget.activeReasoningEffort,
-                            ),
-                          ),
-                        ],
-                        child: ComposerChip(label: _reasoningLabel),
-                      ),
-                      const SizedBox(width: AleraTokens.space6),
-                      Tooltip(
-                        message: 'Toggle plan mode (${_shortcutHint('⇧P')})',
-                        child: InkWell(
-                          onTap: widget.onPlanModeToggled,
-                          borderRadius: BorderRadius.circular(
-                            AleraTokens.radiusLg,
-                          ),
-                          mouseCursor: SystemMouseCursors.click,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AleraTokens.space8,
-                              vertical: AleraTokens.space4,
-                            ),
-                            child: Text(
-                              'Plan',
-                              style: TextStyle(
-                                color: widget.planModeEnabled
-                                    ? AleraTokens.accent
-                                    : AleraTokens.foregroundFaint,
-                                fontSize: 12,
-                                fontWeight: widget.planModeEnabled
-                                    ? FontWeight.w600
-                                    : FontWeight.normal,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: AleraTokens.space6),
-                      Tooltip(
-                        message:
-                            'Toggle full access mode (${_shortcutHint('⇧Y')})',
-                        child: InkWell(
-                          onTap: widget.onPermissionModeToggled,
-                          borderRadius: BorderRadius.circular(
-                            AleraTokens.radiusLg,
-                          ),
-                          mouseCursor: SystemMouseCursors.click,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AleraTokens.space8,
-                              vertical: AleraTokens.space4,
-                            ),
-                            child: Text(
-                              'Full access',
-                              style: TextStyle(
-                                color: widget.fullAccessEnabled
-                                    ? AleraTokens.warning
-                                    : AleraTokens.foregroundFaint,
-                                fontSize: 12,
-                                fontWeight: widget.fullAccessEnabled
-                                    ? FontWeight.w600
-                                    : FontWeight.normal,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const Spacer(),
-                      // Single button that adapts based on composer state:
-                      // - Has text: Send button (queues message)
-                      // - Empty + running: Stop button (interrupts)
-                      // - Empty + not running: Send button (disabled)
-                      ValueListenableBuilder<TextEditingValue>(
-                        valueListenable: widget.controller,
-                        builder: (context, value, child) {
-                          final hasText = value.text.trim().isNotEmpty;
-                          final showStop = !hasText && widget.canStop;
-                          return IconButton(
+                          const Spacer(),
+                          IconButton(
                             key: const ValueKey<String>(
-                              'composer-action-button',
+                              'composer-send-stop-button',
                             ),
-                            onPressed: showStop
+                            onPressed: widget.canStop
                                 ? (widget.isInterrupting
-                                    ? null
-                                    : widget.onInterrupt)
-                                : (widget.canSend && hasText
-                                    ? widget.onSend
-                                    : null),
+                                      ? null
+                                      : widget.onInterrupt)
+                                : (widget.canSend ? widget.onSend : null),
                             mouseCursor: SystemMouseCursors.click,
                             constraints: const BoxConstraints(
                               minWidth: 32,
@@ -674,35 +681,44 @@ class ComposerState extends State<Composer> {
                             padding: EdgeInsets.zero,
                             style: IconButton.styleFrom(
                               backgroundColor:
-                                  (widget.canSend && hasText) || widget.canStop
-                                      ? AleraTokens.accent
-                                      : AleraTokens.surface,
+                                  (widget.canSend || widget.canStop)
+                                  ? AleraTokens.accent
+                                  : AleraTokens.surface,
                               foregroundColor:
-                                  (widget.canSend && hasText) || widget.canStop
-                                      ? AleraTokens.onAccent
-                                      : AleraTokens.foregroundFaint,
+                                  (widget.canSend || widget.canStop)
+                                  ? AleraTokens.onAccent
+                                  : AleraTokens.foregroundFaint,
                               shape: const CircleBorder(),
                             ),
-                            icon: showStop
+                            icon: widget.canStop
                                 ? (widget.isInterrupting
-                                    ? const RepaintBoundary(
-                                        child: SizedBox(
-                                          width: 14,
-                                          height: 14,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 1.6,
-                                            color: AleraTokens.onAccent,
+                                      ? const RepaintBoundary(
+                                          child: SizedBox(
+                                            width: 14,
+                                            height: 14,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 1.6,
+                                              color: AleraTokens.onAccent,
+                                            ),
                                           ),
-                                        ),
-                                      )
-                                    : const Icon(Icons.stop, size: 18))
+                                        )
+                                      : const Icon(Icons.stop, size: 18))
                                 : const Icon(Icons.arrow_upward, size: 16),
-                          );
-                        },
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
+                if (widget.contextUsage != null && widget.onCompact != null)
+                  Positioned(
+                    top: 10,
+                    right: 12,
+                    child: ContextUsageIndicator(
+                      contextUsage: widget.contextUsage!,
+                      onCompact: widget.onCompact!,
+                    ),
+                  ),
               ],
             ),
           ),

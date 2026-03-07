@@ -52,6 +52,7 @@ class SessionWorkspaceView extends StatefulWidget {
     required this.onDeclineRequest,
     required this.onSubmitUserInput,
     required this.onDismissUserInput,
+    this.onCompact,
   });
 
   final SessionState state;
@@ -83,6 +84,7 @@ class SessionWorkspaceView extends StatefulWidget {
   final Future<void> Function(Object requestId) onDeclineRequest;
   final ValueChanged<Map<String, dynamic>> onSubmitUserInput;
   final VoidCallback onDismissUserInput;
+  final VoidCallback? onCompact;
 
   @override
   State<SessionWorkspaceView> createState() => _SessionWorkspaceViewState();
@@ -325,6 +327,7 @@ class _SessionWorkspaceViewState extends State<SessionWorkspaceView> {
                   textFieldEnabled: hasWorkspace,
                   canSend:
                       hasWorkspace &&
+                      !widget.state.isBusy &&
                       !widget.isInterrupting,
                   canStop:
                       widget.state.activeSession != null &&
@@ -358,6 +361,8 @@ class _SessionWorkspaceViewState extends State<SessionWorkspaceView> {
                   onPermissionModeToggled: hasWorkspace
                       ? widget.onPermissionModeToggled
                       : null,
+                  contextUsage: widget.state.contextUsage,
+                  onCompact: widget.onCompact,
                 ),
               ),
             ),

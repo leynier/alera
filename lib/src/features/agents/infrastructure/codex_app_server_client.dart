@@ -258,6 +258,14 @@ class CodexAppServerClient {
     return _wsClient!.respondError(id: requestId, code: code, message: message);
   }
 
+  /// Requests manual context compaction for the given thread.
+  Future<Map<String, dynamic>> compactThread({required String threadId}) {
+    return _wsClient!.request(
+      'thread/compact/start',
+      params: <String, dynamic>{'threadId': threadId},
+    );
+  }
+
   Future<void> close() async {
     await _wsClient?.close();
     _process?.kill();

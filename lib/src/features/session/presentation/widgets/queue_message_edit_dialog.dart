@@ -345,7 +345,9 @@ class _QueueMessageEditDialogState extends State<QueueMessageEditDialog> {
     ).then((confirmed) {
       if (confirmed == true) {
         widget.onDelete();
-        Navigator.of(context).pop();
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
       }
     });
   }

@@ -32,6 +32,9 @@ class SessionController extends StateNotifier<SessionState> {
     _eventsSub = _sessionService.events.listen(_onSessionEvent);
   }
 
+  // Callback to get steer context from SteerController.
+  String? Function()? getSteerContext;
+
   final SessionService _sessionService;
   final ProjectService _projectService;
   final SettingsService _settingsService;
@@ -572,11 +575,6 @@ class SessionController extends StateNotifier<SessionState> {
     }
   }
 
-  void deletePendingMessage(String id) {
-    // Same as removeFromQueue but semantically for deletion from edit dialog.
-    removeFromQueue(id);
-  }
-
   void startEditingPendingMessage(String id) {
     state = state.copyWith(editingPendingMessageId: id);
   }
@@ -592,6 +590,8 @@ class SessionController extends StateNotifier<SessionState> {
     String text,
     List<ComposerAttachment> attachments,
   ) {
+    final index = state.pendingMessages.indexWhere((m) => m.id == id);
+    if (index == -1) return;
     final updated = state.pendingMessages.map((m) {
       if (m.id == id) {
         return m.copyWith(text: text, attachments: attachments);
@@ -689,6 +689,20 @@ class SessionController extends StateNotifier<SessionState> {
     return items;
   }
 
+  // Build steer context input items from active steer rules.
+  List<Map<String, dynamic>> _buildSteerInputItems() {
+    final steerContext = getSteerContext?.call();
+    if (steerContext == null || steerContext.isEmpty) {
+      return const <Map<String, dynamic>>[];
+    }
+    return <Map<String, dynamic>>[
+      <String, dynamic>{
+        'type': 'text',
+        'text': '[Steering instructions: $steerContext]',
+      },
+    ];
+  }
+
   Future<void> _processNextQueuedMessage() async {
     if (state.pendingMessages.isEmpty) {
       return;
@@ -758,9 +772,11 @@ class SessionController extends StateNotifier<SessionState> {
         session = created;
       }
       final mentionItems = await _buildMentionInputItems(text, workspacePath);
+      final steerItems = _buildSteerInputItems();
       final extraInputItems = <Map<String, dynamic>>[
         ...await _buildAttachmentInputItems(attachments),
         ...mentionItems,
+        ...steerItems,
       ];
       final approvalPolicy = state.permissionMode == PermissionMode.fullAccess
           ? 'never'
@@ -860,6 +876,29 @@ class SessionController extends StateNotifier<SessionState> {
         isInterrupting: false,
         error: error.toString(),
         connectionState: AppServerConnectionState.error,
+      );
+    }
+  }
+
+  /// Requests manual context compaction for the active session.
+  Future<void> compactContext() async {
+    final session = state.activeSession;
+    if (session == null) {
+      return;
+    }
+    if (state.contextUsage.isCompacting) {
+      return;
+    }
+    state = state.copyWith(
+      contextUsage: state.contextUsage.copyWith(isCompacting: true),
+      clearError: true,
+    );
+    try {
+      await _sessionService.compactContext(sessionId: session.id);
+    } catch (error) {
+      state = state.copyWith(
+        contextUsage: state.contextUsage.copyWith(isCompacting: false),
+        error: error.toString(),
       );
     }
   }
