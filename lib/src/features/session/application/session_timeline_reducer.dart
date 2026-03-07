@@ -127,7 +127,7 @@ SessionState reduceNotification(
     case 'codex/event/token_count':
       return _onTokenCount(next, _asMap(params['msg']));
     case 'codex/event/context_compacted':
-      return _onContextCompacted(next);
+      return _onContextCompacted(next, timestamp);
     case 'error':
     case 'stream/error':
     case 'stream_error':
@@ -1271,10 +1271,21 @@ SessionState _onTokenCount(SessionState state, Map<String, dynamic> params) {
   );
 }
 
-SessionState _onContextCompacted(SessionState state) {
+SessionState _onContextCompacted(SessionState state, DateTime timestamp) {
   // Signal that compaction completed; token counts will be refreshed
   // by the next token_count event.
+  final cell = TimelineCell(
+    id: 'notice-context-compacted-${timestamp.microsecondsSinceEpoch}',
+    turnId: state.activeTurnId,
+    kind: TimelineCellKind.systemNotice,
+    status: TimelineCellStatus.info,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    markdownText: 'Context compacted',
+    metadata: const <String, dynamic>{'noticeType': 'context_compacted'},
+  );
   return state.copyWith(
+    timelineCells: <TimelineCell>[...state.timelineCells, cell],
     contextUsage: state.contextUsage.copyWith(isCompacting: false),
   );
 }

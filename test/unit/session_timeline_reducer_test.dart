@@ -276,9 +276,11 @@ void main() {
       var state = const SessionState();
       state = reduceNotification(
         state,
-        _event('token_count', <String, dynamic>{
-          'info': <String, dynamic>{
-            'total_token_usage': <String, dynamic>{'total_tokens': 123},
+        _event('codex/event/token_count', <String, dynamic>{
+          'msg': <String, dynamic>{
+            'info': <String, dynamic>{
+              'total_token_usage': <String, dynamic>{'total_tokens': 123},
+            },
           },
         }),
       );
