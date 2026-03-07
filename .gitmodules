@@ -1,0 +1,18 @@
+[submodule "reference_projects/codex"]
+	path = reference_projects/codex
+	url = https://github.com/openai/codex
+[submodule "reference_projects/jean"]
+	path = reference_projects/jean
+	url = https://github.com/coollabsio/jean
+[submodule "reference_projects/t3code"]
+	path = reference_projects/t3code
+	url = https://github.com/pingdotgg/t3code
+[submodule "reference_projects/CodexMonitor"]
+	path = reference_projects/CodexMonitor
+	url = https://github.com/Dimillian/CodexMonitor
+[submodule "reference_projects/1Code"]
+	path = reference_projects/1Code
+	url = https://github.com/21st-dev/1Code
+[submodule "reference_projects/superset"]
+	path = reference_projects/superset
+	url = https://github.com/superset-sh/superset

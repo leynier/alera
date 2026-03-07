@@ -17,6 +17,3 @@ coverage/
 macos/Flutter/ephemeral/
 linux/flutter/ephemeral/
 windows/flutter/ephemeral/
-
-# Keep external references out of repo
-reference_projects/
