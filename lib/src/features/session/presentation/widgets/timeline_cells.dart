@@ -48,6 +48,10 @@ class TimelineCellView extends StatelessWidget {
         key: ValueKey(cell.id),
         cell: cell,
       ),
+      TimelineCellKind.subAgent => SubAgentCell(
+        key: ValueKey(cell.id),
+        cell: cell,
+      ),
       TimelineCellKind.plan => PlanCell(
         key: ValueKey(cell.id),
         cell: cell,
@@ -76,8 +80,6 @@ class UserMessageCell extends StatefulWidget {
 }
 
 class _UserMessageCellState extends State<UserMessageCell> {
-  bool _isHovered = false;
-
   List<Map<String, dynamic>> _parseAttachments() {
     final raw = widget.cell.metadata['attachments'];
     if (raw is! List) {
@@ -100,7 +102,6 @@ class _UserMessageCellState extends State<UserMessageCell> {
   @override
   Widget build(BuildContext context) {
     final messageText = widget.cell.markdownText ?? '';
-    final showCopy = _isHovered || !mouseIsConnected();
     final attachments = _parseAttachments();
     return Align(
       alignment: Alignment.centerRight,
@@ -112,94 +113,82 @@ class _UserMessageCellState extends State<UserMessageCell> {
             bottom: AleraTokens.space4,
             left: 80,
           ),
-          child: MouseRegion(
-            key: ValueKey<String>('copy-zone-user-${widget.cell.id}'),
-            onEnter: (_) => setState(() => _isHovered = true),
-            onExit: (_) => setState(() => _isHovered = false),
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: <Widget>[
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 18),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      if (attachments.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(
-                            bottom: AleraTokens.space6,
-                          ),
-                          child: Wrap(
-                            alignment: WrapAlignment.end,
-                            spacing: AleraTokens.space6,
-                            runSpacing: AleraTokens.space6,
-                            children: attachments
-                                .map((att) {
-                                  final kind = att['kind']?.toString();
-                                  final path = att['path']?.toString() ?? '';
-                                  final displayName =
-                                      att['displayName']?.toString() ?? path;
-                                  if (kind == AttachmentKind.image.name) {
-                                    return _AttachmentThumbnail(
-                                      path: path,
-                                      displayName: displayName,
-                                    );
-                                  }
-                                  return _AttachmentChip(
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.only(bottom: 18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    if (attachments.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(
+                          bottom: AleraTokens.space6,
+                        ),
+                        child: Wrap(
+                          alignment: WrapAlignment.end,
+                          spacing: AleraTokens.space6,
+                          runSpacing: AleraTokens.space6,
+                          children: attachments
+                              .map((att) {
+                                final kind = att['kind']?.toString();
+                                final path = att['path']?.toString() ?? '';
+                                final displayName =
+                                    att['displayName']?.toString() ?? path;
+                                if (kind == AttachmentKind.image.name) {
+                                  return _AttachmentThumbnail(
                                     path: path,
                                     displayName: displayName,
                                   );
-                                })
-                                .toList(growable: false),
-                          ),
+                                }
+                                return _AttachmentChip(
+                                  path: path,
+                                  displayName: displayName,
+                                );
+                              })
+                              .toList(growable: false),
                         ),
-                      if (messageText.trim().isNotEmpty)
-                        Container(
-                          key: ValueKey<String>(
-                            'user-bubble-${widget.cell.id}',
-                          ),
-                          padding: const EdgeInsets.all(AleraTokens.space12),
-                          decoration: BoxDecoration(
-                            color: AleraTokens.accentSubtle,
-                            borderRadius: BorderRadius.circular(
-                              AleraTokens.radiusLg,
-                            ),
-                          ),
-                          child: UserBubbleContent(
-                            markdownText: messageText,
-                            markdownEnabled: widget.markdownEnabled,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                Positioned(
-                  right: 0,
-                  bottom: 0,
-                  child: IgnorePointer(
-                    ignoring: !showCopy,
-                    child: AnimatedOpacity(
-                      duration: AleraTokens.durationFast,
-                      opacity: showCopy ? 1 : 0,
-                      child: MessageActionButtons(
-                        alignLeft: false,
-                        copyKey: ValueKey<String>(
-                          'copy-user-${widget.cell.id}',
-                        ),
-                        copyText: messageText,
-                        copiedLabel: 'Message copied',
-                        toggleKey: ValueKey<String>(
-                          'toggle-markdown-user-${widget.cell.id}',
-                        ),
-                        markdownEnabled: widget.markdownEnabled,
-                        onToggleMarkdown: widget.onMarkdownModeChanged,
                       ),
-                    ),
-                  ),
+                    if (messageText.trim().isNotEmpty)
+                      Container(
+                        key: ValueKey<String>(
+                          'user-bubble-${widget.cell.id}',
+                        ),
+                        padding: const EdgeInsets.all(AleraTokens.space12),
+                        decoration: BoxDecoration(
+                          color: AleraTokens.accentSubtle,
+                          borderRadius: BorderRadius.circular(
+                            AleraTokens.radiusLg,
+                          ),
+                        ),
+                        child: UserBubbleContent(
+                          markdownText: messageText,
+                          markdownEnabled: widget.markdownEnabled,
+                        ),
+                      ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              Positioned(
+                right: 0,
+                bottom: 0,
+                child: MessageActionButtons(
+                  alignLeft: false,
+                  copyKey: ValueKey<String>(
+                    'copy-user-${widget.cell.id}',
+                  ),
+                  copyText: messageText,
+                  copiedLabel: 'Message copied',
+                  toggleKey: ValueKey<String>(
+                    'toggle-markdown-user-${widget.cell.id}',
+                  ),
+                  markdownEnabled: widget.markdownEnabled,
+                  onToggleMarkdown: widget.onMarkdownModeChanged,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -224,15 +213,12 @@ class AssistantMessageCell extends StatefulWidget {
 }
 
 class _AssistantMessageCellState extends State<AssistantMessageCell> {
-  bool _isHovered = false;
-
   @override
   Widget build(BuildContext context) {
     final rawText = widget.cell.markdownText ?? '';
     if (rawText.trim().isEmpty) {
       return const SizedBox.shrink();
     }
-    final showCopy = _isHovered || !mouseIsConnected();
     return Padding(
       padding: const EdgeInsets.only(
         top: AleraTokens.space6,
@@ -242,50 +228,38 @@ class _AssistantMessageCellState extends State<AssistantMessageCell> {
         alignment: Alignment.centerLeft,
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 760),
-          child: MouseRegion(
-            key: ValueKey<String>('copy-zone-assistant-${widget.cell.id}'),
-            onEnter: (_) => setState(() => _isHovered = true),
-            onExit: (_) => setState(() => _isHovered = false),
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: <Widget>[
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 18),
-                  child: Container(
-                    key: ValueKey<String>('assistant-bubble-${widget.cell.id}'),
-                    child: AssistantBubbleMarkdown(
-                      markdownText: rawText,
-                      isStreaming: widget.cell.isStreaming,
-                      markdownEnabled: widget.markdownEnabled,
-                    ),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.only(bottom: 18),
+                child: Container(
+                  key: ValueKey<String>('assistant-bubble-${widget.cell.id}'),
+                  child: AssistantBubbleMarkdown(
+                    markdownText: rawText,
+                    isStreaming: widget.cell.isStreaming,
+                    markdownEnabled: widget.markdownEnabled,
                   ),
                 ),
-                Positioned(
-                  left: 0,
-                  bottom: 0,
-                  child: IgnorePointer(
-                    ignoring: !showCopy,
-                    child: AnimatedOpacity(
-                      duration: AleraTokens.durationFast,
-                      opacity: showCopy ? 1 : 0,
-                      child: MessageActionButtons(
-                        alignLeft: true,
-                        copyKey: ValueKey<String>(
-                          'copy-assistant-${widget.cell.id}',
-                        ),
-                        copyText: rawText,
-                        copiedLabel: 'Message copied',
-                        toggleKey: ValueKey<String>(
-                          'toggle-markdown-assistant-${widget.cell.id}',
-                        ),
-                        markdownEnabled: widget.markdownEnabled,
-                        onToggleMarkdown: widget.onMarkdownModeChanged,
-                      ),
-                    ),
+              ),
+              Positioned(
+                left: 0,
+                bottom: 0,
+                child: MessageActionButtons(
+                  alignLeft: true,
+                  copyKey: ValueKey<String>(
+                    'copy-assistant-${widget.cell.id}',
                   ),
+                  copyText: rawText,
+                  copiedLabel: 'Message copied',
+                  toggleKey: ValueKey<String>(
+                    'toggle-markdown-assistant-${widget.cell.id}',
+                  ),
+                  markdownEnabled: widget.markdownEnabled,
+                  onToggleMarkdown: widget.onMarkdownModeChanged,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -732,6 +706,178 @@ class _ToolCallCellState extends State<ToolCallCell> {
       }
     }
     return raw;
+  }
+}
+
+class SubAgentCell extends StatefulWidget {
+  const SubAgentCell({super.key, required this.cell});
+
+  final TimelineCell cell;
+
+  @override
+  State<SubAgentCell> createState() => _SubAgentCellState();
+}
+
+class _SubAgentCellState extends State<SubAgentCell> {
+  late bool _collapsed;
+  bool _isHovered = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _collapsed = widget.cell.isCollapsed;
+  }
+
+  @override
+  void didUpdateWidget(covariant SubAgentCell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.cell.isCollapsed != oldWidget.cell.isCollapsed) {
+      _collapsed = widget.cell.isCollapsed;
+    }
+  }
+
+  String _formatDetails() {
+    final arguments = widget.cell.metadata['arguments'];
+    final output = widget.cell.metadata['output'];
+    final result = widget.cell.metadata['result'];
+    final buffer = StringBuffer();
+    if (arguments != null) {
+      buffer.writeln('// Arguments');
+      buffer.writeln(const JsonEncoder.withIndent('  ').convert(arguments));
+    }
+    if (output != null && output.toString().isNotEmpty) {
+      if (buffer.isNotEmpty) buffer.writeln();
+      buffer.writeln('// Output');
+      buffer.writeln(output);
+    }
+    if (result != null) {
+      if (buffer.isNotEmpty) buffer.writeln();
+      buffer.writeln('// Result');
+      buffer.writeln(const JsonEncoder.withIndent('  ').convert(result));
+    }
+    final detailsText = widget.cell.detailsText;
+    if (detailsText != null && detailsText.isNotEmpty) {
+      if (buffer.isNotEmpty) buffer.writeln();
+      buffer.writeln('// Details');
+      buffer.writeln(detailsText);
+    }
+    return buffer.toString().trim();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cellStatusColor = statusColor(widget.cell.status);
+    final title = widget.cell.title ?? 'Sub-agent task';
+    final subtitle = widget.cell.subtitle;
+    final rowLabel = (subtitle == null || subtitle.isEmpty)
+        ? title
+        : '$title · $subtitle';
+    final details = _formatDetails();
+    return Padding(
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          MouseRegion(
+            onEnter: (_) => setState(() => _isHovered = true),
+            onExit: (_) => setState(() => _isHovered = false),
+            child: AnimatedContainer(
+              duration: AleraTokens.durationFast,
+              curve: Curves.easeOut,
+              decoration: BoxDecoration(
+                color: _isHovered
+                    ? AleraTokens.surfaceVariant
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+              ),
+              child: InkWell(
+                onTap: () => setState(() => _collapsed = !_collapsed),
+                mouseCursor: SystemMouseCursors.click,
+                borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+                splashFactory: NoSplash.splashFactory,
+                hoverColor: Colors.transparent,
+                splashColor: Colors.transparent,
+                highlightColor: Colors.transparent,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AleraTokens.space6,
+                    vertical: AleraTokens.space4,
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      SizedBox(
+                        width: 10,
+                        child: Center(
+                          child: Icon(
+                            Icons.smart_toy,
+                            size: 10,
+                            color: cellStatusColor,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: AleraTokens.space6),
+                      Flexible(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            Flexible(
+                              child: Text(
+                                rowLabel,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(
+                                      color: AleraTokens.foregroundMuted,
+                                    ),
+                              ),
+                            ),
+                            const SizedBox(width: AleraTokens.space4),
+                            AnimatedOpacity(
+                              duration: AleraTokens.durationFast,
+                              opacity: _isHovered ? 1 : 0,
+                              child: SizedBox(
+                                width: 14,
+                                child: Icon(
+                                  _collapsed
+                                      ? Icons.keyboard_arrow_right
+                                      : Icons.keyboard_arrow_down,
+                                  size: 14,
+                                  color: AleraTokens.foregroundFaint,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (!_collapsed && details.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.only(
+                left: AleraTokens.space8,
+                top: AleraTokens.space4,
+              ),
+              padding: const EdgeInsets.all(AleraTokens.space8),
+              decoration: BoxDecoration(
+                color: AleraTokens.surface,
+                borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+                border: Border.all(color: AleraTokens.borderSubtle),
+              ),
+              child: SelectableText(
+                details,
+                style: AleraTokens.monoStyle.copyWith(
+                  color: AleraTokens.foregroundMuted,
+                  fontSize: 11,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 }
 
@@ -1182,6 +1328,10 @@ class _AttachmentThumbnail extends StatelessWidget {
 }
 
 bool isExploratoryToolCell(TimelineCell cell) {
+  // Sub-agent cells are treated as exploratory for clustering
+  if (cell.kind == TimelineCellKind.subAgent) {
+    return true;
+  }
   if (cell.kind != TimelineCellKind.toolCall) {
     return false;
   }

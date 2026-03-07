@@ -1,5 +1,6 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/session/domain/chat_timeline.dart';
+import 'package:alera/src/shared/utils/cast_utils.dart';
 import 'package:flutter/material.dart';
 
 class WorkedForDivider extends StatelessWidget {
@@ -116,12 +117,12 @@ String? _formatWorkedDuration(Map<String, dynamic> metadata) {
 }
 
 num? _durationMs(Map<String, dynamic> metadata) {
-  return _asNum(metadata['computedDurationMs']) ??
-      _asNum(metadata['computed_duration_ms']) ??
-      _asNum(metadata['elapsedMs']) ??
-      _asNum(metadata['elapsed_ms']) ??
-      _asNum(metadata['durationMs']) ??
-      _asNum(metadata['duration_ms']) ??
+  return asNum(metadata['computedDurationMs']) ??
+      asNum(metadata['computed_duration_ms']) ??
+      asNum(metadata['elapsedMs']) ??
+      asNum(metadata['elapsed_ms']) ??
+      asNum(metadata['durationMs']) ??
+      asNum(metadata['duration_ms']) ??
       _durationFromTimestamps(metadata);
 }
 
@@ -131,34 +132,24 @@ bool _hasRuntimeMetrics(Map<String, dynamic> metadata) {
     return true;
   }
   final totalTokens =
-      _asNum(metadata['totalTokens']) ??
-      _asNum(metadata['total_tokens']) ??
-      _asNum(_asMap(metadata['usage'])['totalTokens']) ??
-      _asNum(_asMap(metadata['usage'])['total_tokens']);
+      asNum(metadata['totalTokens']) ??
+      asNum(metadata['total_tokens']) ??
+      asNum(asMap(metadata['usage'])['totalTokens']) ??
+      asNum(asMap(metadata['usage'])['total_tokens']);
   return totalTokens != null && totalTokens > 0;
-}
-
-Map<String, dynamic> _asMap(dynamic value) {
-  if (value is Map<String, dynamic>) {
-    return value;
-  }
-  if (value is Map) {
-    return value.map((key, item) => MapEntry(key.toString(), item));
-  }
-  return const <String, dynamic>{};
 }
 
 num? _durationFromTimestamps(Map<String, dynamic> metadata) {
   final startRaw =
-      _asNum(metadata['startedAt']) ??
-      _asNum(metadata['started_at']) ??
-      _asNum(metadata['createdAt']) ??
-      _asNum(metadata['created_at']);
+      asNum(metadata['startedAt']) ??
+      asNum(metadata['started_at']) ??
+      asNum(metadata['createdAt']) ??
+      asNum(metadata['created_at']);
   final endRaw =
-      _asNum(metadata['completedAt']) ??
-      _asNum(metadata['completed_at']) ??
-      _asNum(metadata['updatedAt']) ??
-      _asNum(metadata['updated_at']);
+      asNum(metadata['completedAt']) ??
+      asNum(metadata['completed_at']) ??
+      asNum(metadata['updatedAt']) ??
+      asNum(metadata['updated_at']);
   if (startRaw == null || endRaw == null) {
     return null;
   }
@@ -168,16 +159,6 @@ num? _durationFromTimestamps(Map<String, dynamic> metadata) {
     return null;
   }
   return endMs - startMs;
-}
-
-num? _asNum(dynamic value) {
-  if (value is num) {
-    return value;
-  }
-  if (value is String) {
-    return num.tryParse(value);
-  }
-  return null;
 }
 
 num _normalizeEpochToMs(num raw) {

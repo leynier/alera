@@ -138,6 +138,20 @@ const collabToolNames = <String>{
 /// Returns true if the tool call name is a collab (multi-agent) tool.
 bool isCollabToolCall(String toolName) => collabToolNames.contains(toolName);
 
+// Sub-agent tool name constants.
+const toolNameRemoteAgent = 'remote_agent';
+const toolNameSubAgent = 'sub_agent';
+const toolNameSpawnAgent = 'spawnAgent';
+const toolNameWait = 'wait';
+
+/// Names of sub-agent tools.
+const subAgentToolNames = <String>{
+  toolNameRemoteAgent,
+  toolNameSubAgent,
+  toolNameSpawnAgent,
+  toolNameWait,
+};
+
 /// Parses a raw status value from a Codex event.
 ///
 /// Handles both string values ("running") and map values ({ "completed": "..." }).

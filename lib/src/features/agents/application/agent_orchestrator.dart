@@ -3,7 +3,9 @@ import 'dart:convert';
 
 import 'package:alera/src/features/agents/application/agent_orchestrator_event.dart';
 import 'package:alera/src/features/agents/infrastructure/codex_app_server_client.dart';
+import 'package:alera/src/features/session/domain/collab_agent.dart';
 import 'package:alera/src/shared/infra/json_rpc/json_rpc_client.dart';
+import 'package:alera/src/shared/infra/json_rpc/json_rpc_error_codes.dart';
 
 class AgentOrchestrator {
   AgentOrchestrator(this._client);
@@ -211,24 +213,43 @@ class AgentOrchestrator {
     }
 
     if (method == 'item/tool/call') {
+      final tool = (request.params['tool'] ?? '').toString();
+      final arguments =
+          (request.params['arguments'] as Map?)?.cast<String, dynamic>() ??
+          const <String, dynamic>{};
       _eventsController.add(
         AgentToolCallRequestEvent(
           requestId: request.id,
           threadId: (request.params['threadId'] ?? '').toString(),
           turnId: (request.params['turnId'] ?? '').toString(),
-          tool: (request.params['tool'] ?? '').toString(),
-          arguments:
-              (request.params['arguments'] as Map?)?.cast<String, dynamic>() ??
-              const <String, dynamic>{},
+          tool: tool,
+          arguments: arguments,
         ),
       );
-      unawaited(
-        _client.respondError(
-          requestId: request.id,
-          code: -32601,
-          message: 'Tool calls are not supported in this build',
-        ),
-      );
+      // Handle sub-agent tool calls
+      if (tool == toolNameRemoteAgent || tool == toolNameSubAgent) {
+        // Sub-agent calls are handled by the timeline system
+        // Respond with success to acknowledge receipt
+        // The actual results will be streamed via timeline events
+        unawaited(
+          _client.respondToolCall(
+            requestId: request.id,
+            contentItems: const <Map<String, dynamic>>[
+              <String, dynamic>{'type': 'text', 'text': 'Sub-agent execution started'},
+            ],
+            success: true,
+          ),
+        );
+      } else {
+        // Other tool calls not yet supported
+        unawaited(
+          _client.respondError(
+            requestId: request.id,
+            code: jsonRpcMethodNotFound,
+            message: 'Tool calls are not supported in this build',
+          ),
+        );
+      }
       return;
     }
 
