@@ -35,7 +35,11 @@ class _ContextUsageIndicatorState extends State<ContextUsageIndicator> {
   void didUpdateWidget(covariant ContextUsageIndicator oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (_overlayEntry != null) {
-      _overlayEntry!.markNeedsBuild();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_overlayEntry != null && mounted) {
+          _overlayEntry!.markNeedsBuild();
+        }
+      });
     }
   }
 
