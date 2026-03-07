@@ -38,6 +38,7 @@ class Composer extends StatefulWidget {
     this.onPlanModeToggled,
     this.fullAccessEnabled = false,
     this.onPermissionModeToggled,
+    this.focusNode,
   });
 
   final TextEditingController controller;
@@ -64,13 +65,18 @@ class Composer extends StatefulWidget {
   final VoidCallback? onPlanModeToggled;
   final bool fullAccessEnabled;
   final VoidCallback? onPermissionModeToggled;
+  final FocusNode? focusNode;
 
   @override
-  State<Composer> createState() => _ComposerState();
+  State<Composer> createState() => ComposerState();
 }
 
-class _ComposerState extends State<Composer> {
+class ComposerState extends State<Composer> {
   late final FocusNode _focusNode;
+  final GlobalKey<PopupMenuButtonState<String>> _modelMenuKey =
+      GlobalKey<PopupMenuButtonState<String>>();
+  final GlobalKey<PopupMenuButtonState<String>> _reasoningMenuKey =
+      GlobalKey<PopupMenuButtonState<String>>();
   List<String> _mentionFiles = const <String>[];
   int _mentionSelectedIndex = 0;
   Timer? _mentionDebounce;
@@ -80,16 +86,35 @@ class _ComposerState extends State<Composer> {
   @override
   void initState() {
     super.initState();
-    _focusNode = FocusNode(onKeyEvent: _handleKeyEvent);
+    _focusNode = widget.focusNode ?? FocusNode();
+    _focusNode.onKeyEvent = _handleKeyEvent;
     widget.controller.addListener(_onControllerChanged);
   }
 
   @override
   void dispose() {
     _mentionDebounce?.cancel();
-    _focusNode.dispose();
+    if (widget.focusNode == null) {
+      _focusNode.dispose();
+    }
     widget.controller.removeListener(_onControllerChanged);
     super.dispose();
+  }
+
+  void requestFocus() {
+    _focusNode.requestFocus();
+  }
+
+  void openModelsDropdown() {
+    _modelMenuKey.currentState?.showButtonMenu();
+  }
+
+  void openReasoningDropdown() {
+    _reasoningMenuKey.currentState?.showButtonMenu();
+  }
+
+  String _shortcutHint(String modifier) {
+    return Platform.isMacOS ? '⌘$modifier' : 'Ctrl+$modifier';
   }
 
   String get _activeModelLabel {
@@ -460,6 +485,8 @@ class _ComposerState extends State<Composer> {
                       ),
                       const SizedBox(width: AleraTokens.space4),
                       PopupMenuButton<String>(
+                        key: _modelMenuKey,
+                        tooltip: 'Choose model (${_shortcutHint('⇧M')})',
                         onSelected: widget.canChangeModel
                             ? widget.onModelChanged
                             : null,
@@ -490,6 +517,9 @@ class _ComposerState extends State<Composer> {
                       ),
                       const SizedBox(width: AleraTokens.space6),
                       PopupMenuButton<String>(
+                        key: _reasoningMenuKey,
+                        tooltip:
+                            'Select reasoning effort (${_shortcutHint('T')})',
                         onSelected: widget.canChangeModel
                             ? widget.onReasoningEffortChanged
                             : null,
@@ -519,7 +549,7 @@ class _ComposerState extends State<Composer> {
                       ),
                       const SizedBox(width: AleraTokens.space6),
                       Tooltip(
-                        message: 'Toggle plan mode',
+                        message: 'Toggle plan mode (${_shortcutHint('⇧P')})',
                         child: InkWell(
                           onTap: widget.onPlanModeToggled,
                           borderRadius: BorderRadius.circular(
@@ -548,7 +578,8 @@ class _ComposerState extends State<Composer> {
                       ),
                       const SizedBox(width: AleraTokens.space6),
                       Tooltip(
-                        message: 'Toggle full access mode',
+                        message:
+                            'Toggle full access mode (${_shortcutHint('⇧Y')})',
                         child: InkWell(
                           onTap: widget.onPermissionModeToggled,
                           borderRadius: BorderRadius.circular(
@@ -690,6 +721,7 @@ class _DropdownEntryState<T> extends State<DropdownEntry<T>> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 1),
       child: InkWell(
+        autofocus: widget.selected,
         onTap: () => Navigator.of(context).pop(widget.value),
         mouseCursor: SystemMouseCursors.click,
         borderRadius: BorderRadius.circular(AleraTokens.radiusLg),

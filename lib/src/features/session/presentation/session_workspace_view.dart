@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/session/application/session_state.dart';
@@ -12,6 +13,7 @@ import 'package:alera/src/features/session/presentation/widgets/message_queue_ba
 import 'package:alera/src/features/session/presentation/widgets/raw_log.dart';
 import 'package:alera/src/features/session/presentation/widgets/user_input_card.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 // Re-export for test compatibility.
 export 'package:alera/src/features/session/presentation/widgets/markdown_helpers.dart'
@@ -85,6 +87,7 @@ class _SessionWorkspaceViewState extends State<SessionWorkspaceView> {
   final ScrollController _timelineScrollController = ScrollController();
   bool _showScrollToBottom = false;
   bool _pendingScrollAfterSend = false;
+  final GlobalKey<ComposerState> _composerKey = GlobalKey<ComposerState>();
 
   @override
   void initState() {
@@ -145,167 +148,216 @@ class _SessionWorkspaceViewState extends State<SessionWorkspaceView> {
             widget.state.selectedWorkspacePath!.isNotEmpty) ||
         widget.state.activeSession != null;
     final shouldShowImplementPlanButton = _shouldShowImplementPlanButton();
-    return Column(
-      children: <Widget>[
-        Expanded(
-          child: Stack(
-            children: <Widget>[
-              Positioned.fill(
-                child: ChatTimelineList(
-                  state: widget.state,
-                  expandedWorkedTurns: _expandedWorkedTurns,
-                  onToggleWorkedTurn: _toggleWorkedTurn,
-                  controller: _timelineScrollController,
-                  markdownEnabled: widget.isMarkdownEnabled,
-                  onMarkdownModeChanged: widget.onMarkdownModeChanged,
-                  contentMaxWidth: _timelineContentMaxWidth,
-                  showImplementPlanButton: shouldShowImplementPlanButton,
-                  onImplementPlanPressed: _onImplementPlanPressed,
-                ),
-              ),
-              Align(
-                alignment: Alignment.bottomCenter,
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: AleraTokens.space12),
-                  child: IgnorePointer(
-                    ignoring: !_showScrollToBottom,
-                    child: AnimatedOpacity(
-                      duration: AleraTokens.durationFast,
-                      opacity: _showScrollToBottom ? 1 : 0,
-                      child: IconButton(
-                        key: const ValueKey<String>('scroll-to-bottom-button'),
-                        onPressed: _showScrollToBottom
-                            ? () => _scheduleScrollToBottom(animated: true)
-                            : null,
-                        mouseCursor: SystemMouseCursors.click,
-                        constraints: const BoxConstraints(
-                          minWidth: 32,
-                          minHeight: 32,
-                        ),
-                        padding: EdgeInsets.zero,
-                        style: IconButton.styleFrom(
-                          backgroundColor: AleraTokens.bg,
-                          foregroundColor: AleraTokens.foreground,
-                          side: const BorderSide(
-                            color: AleraTokens.border,
-                            width: 1,
-                          ),
-                          shape: const CircleBorder(),
-                        ),
-                        icon: const Icon(Icons.arrow_downward, size: 16),
+    final useMeta = Platform.isMacOS;
+    return CallbackShortcuts(
+      bindings: <ShortcutActivator, VoidCallback>{
+        SingleActivator(
+          LogicalKeyboardKey.keyL,
+          meta: useMeta,
+          control: !useMeta,
+        ): _focusComposer,
+        SingleActivator(
+          LogicalKeyboardKey.keyP,
+          shift: true,
+          meta: useMeta,
+          control: !useMeta,
+        ): _togglePlanMode,
+        SingleActivator(
+          LogicalKeyboardKey.keyY,
+          shift: true,
+          meta: useMeta,
+          control: !useMeta,
+        ): _toggleFullAccess,
+        SingleActivator(
+          LogicalKeyboardKey.keyM,
+          shift: true,
+          meta: useMeta,
+          control: !useMeta,
+        ): _openModelDropdown,
+        SingleActivator(
+          LogicalKeyboardKey.keyT,
+          meta: useMeta,
+          control: !useMeta,
+        ): _openReasoningDropdown,
+        const SingleActivator(LogicalKeyboardKey.tab, shift: true):
+            _togglePlanMode,
+      },
+      child: Focus(
+        autofocus: true,
+        child: Column(
+          children: <Widget>[
+            Expanded(
+              child: Stack(
+                children: <Widget>[
+                  Positioned.fill(
+                    child: ChatTimelineList(
+                      state: widget.state,
+                      expandedWorkedTurns: _expandedWorkedTurns,
+                      onToggleWorkedTurn: _toggleWorkedTurn,
+                      controller: _timelineScrollController,
+                      markdownEnabled: widget.isMarkdownEnabled,
+                      onMarkdownModeChanged: widget.onMarkdownModeChanged,
+                      contentMaxWidth: _timelineContentMaxWidth,
+                      showImplementPlanButton: shouldShowImplementPlanButton,
+                      onImplementPlanPressed: _onImplementPlanPressed,
+                    ),
+                  ),
+                  Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Padding(
+                      padding: const EdgeInsets.only(
+                        bottom: AleraTokens.space12,
                       ),
+                      child: IgnorePointer(
+                        ignoring: !_showScrollToBottom,
+                        child: AnimatedOpacity(
+                          duration: AleraTokens.durationFast,
+                          opacity: _showScrollToBottom ? 1 : 0,
+                          child: IconButton(
+                            key: const ValueKey<String>(
+                              'scroll-to-bottom-button',
+                            ),
+                            onPressed: _showScrollToBottom
+                                ? () => _scheduleScrollToBottom(animated: true)
+                                : null,
+                            mouseCursor: SystemMouseCursors.click,
+                            constraints: const BoxConstraints(
+                              minWidth: 32,
+                              minHeight: 32,
+                            ),
+                            padding: EdgeInsets.zero,
+                            style: IconButton.styleFrom(
+                              backgroundColor: AleraTokens.bg,
+                              foregroundColor: AleraTokens.foreground,
+                              side: const BorderSide(
+                                color: AleraTokens.border,
+                                width: 1,
+                              ),
+                              shape: const CircleBorder(),
+                            ),
+                            icon: const Icon(Icons.arrow_downward, size: 16),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (widget.state.pendingApprovals.isNotEmpty)
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: _contentMaxWidth),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AleraTokens.space12,
+                    ),
+                    child: Column(
+                      children: widget.state.pendingApprovals
+                          .map((approval) {
+                            return ApprovalCard(
+                              approval: approval,
+                              onApprove: () => widget.onApproveRequest(
+                                approval.requestId,
+                                forSession: false,
+                              ),
+                              onApproveForSession: () =>
+                                  widget.onApproveRequest(
+                                    approval.requestId,
+                                    forSession: true,
+                                  ),
+                              onDecline: () =>
+                                  widget.onDeclineRequest(approval.requestId),
+                            );
+                          })
+                          .toList(growable: false),
                     ),
                   ),
                 ),
               ),
-            ],
-          ),
-        ),
-        if (widget.state.pendingApprovals.isNotEmpty)
-          Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: _contentMaxWidth),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AleraTokens.space12,
+            if (widget.state.pendingUserInput != null)
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: _contentMaxWidth),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AleraTokens.space12,
+                    ),
+                    child: UserInputCard(
+                      pendingUserInput: widget.state.pendingUserInput!,
+                      onSubmit: widget.onSubmitUserInput,
+                      onDismiss: widget.onDismissUserInput,
+                    ),
+                  ),
                 ),
-                child: Column(
-                  children: widget.state.pendingApprovals
-                      .map((approval) {
-                        return ApprovalCard(
-                          approval: approval,
-                          onApprove: () => widget.onApproveRequest(
-                            approval.requestId,
-                            forSession: false,
-                          ),
-                          onApproveForSession: () => widget.onApproveRequest(
-                            approval.requestId,
-                            forSession: true,
-                          ),
-                          onDecline: () =>
-                              widget.onDeclineRequest(approval.requestId),
-                        );
-                      })
-                      .toList(growable: false),
+              ),
+            if (widget.state.pendingMessages.isNotEmpty)
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: _contentMaxWidth),
+                  child: MessageQueueBar(
+                    messages: widget.state.pendingMessages,
+                    onRemove: widget.onRemoveFromQueue,
+                  ),
+                ),
+              ),
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: _contentMaxWidth),
+                child: Composer(
+                  key: _composerKey,
+                  controller: _inputController,
+                  textFieldEnabled: hasWorkspace,
+                  canSend:
+                      hasWorkspace &&
+                      !widget.state.isBusy &&
+                      !widget.isInterrupting,
+                  canStop:
+                      widget.state.activeSession != null &&
+                      widget.isTurnRunning &&
+                      !widget.state.isBusy,
+                  canChangeModel: hasWorkspace,
+                  isBusy: widget.state.isBusy,
+                  isInterrupting: widget.isInterrupting,
+                  activeModelId: widget.state.activeModelId,
+                  availableModels: widget.state.availableModels,
+                  onModelChanged: widget.onModelChanged,
+                  activeReasoningEffort: widget.activeReasoningEffort,
+                  supportedReasoningEfforts: widget.supportedReasoningEfforts,
+                  onReasoningEffortChanged: widget.onReasoningEffortChanged,
+                  hintText: widget.state.activeSession != null
+                      ? 'Ask for follow-up changes'
+                      : 'Ask Alera anything, @ to add files, / for commands',
+                  onSend: _sendInput,
+                  onInterrupt: widget.onInterruptTurn,
+                  attachments: widget.state.composerAttachments,
+                  onAddAttachment: hasWorkspace ? widget.onAddAttachment : null,
+                  onRemoveAttachment: widget.onRemoveAttachment,
+                  workspacePath: widget.state.selectedWorkspacePath,
+                  planModeEnabled: widget.state.planModeEnabled,
+                  onPlanModeToggled: hasWorkspace
+                      ? widget.onPlanModeToggled
+                      : null,
+                  fullAccessEnabled:
+                      widget.state.permissionMode == PermissionMode.fullAccess,
+                  onPermissionModeToggled: hasWorkspace
+                      ? widget.onPermissionModeToggled
+                      : null,
                 ),
               ),
             ),
-          ),
-        if (widget.state.pendingUserInput != null)
-          Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: _contentMaxWidth),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AleraTokens.space12,
-                ),
-                child: UserInputCard(
-                  pendingUserInput: widget.state.pendingUserInput!,
-                  onSubmit: widget.onSubmitUserInput,
-                  onDismiss: widget.onDismissUserInput,
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: _contentMaxWidth),
+                child: RawLog(
+                  state: widget.state,
+                  expanded: widget.rawLogExpanded,
                 ),
               ),
             ),
-          ),
-        if (widget.state.pendingMessages.isNotEmpty)
-          Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: _contentMaxWidth),
-              child: MessageQueueBar(
-                messages: widget.state.pendingMessages,
-                onRemove: widget.onRemoveFromQueue,
-              ),
-            ),
-          ),
-        Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: _contentMaxWidth),
-            child: Composer(
-              controller: _inputController,
-              textFieldEnabled: hasWorkspace,
-              canSend:
-                  hasWorkspace &&
-                  !widget.state.isBusy &&
-                  !widget.isInterrupting,
-              canStop:
-                  widget.state.activeSession != null &&
-                  widget.isTurnRunning &&
-                  !widget.state.isBusy,
-              canChangeModel: hasWorkspace,
-              isBusy: widget.state.isBusy,
-              isInterrupting: widget.isInterrupting,
-              activeModelId: widget.state.activeModelId,
-              availableModels: widget.state.availableModels,
-              onModelChanged: widget.onModelChanged,
-              activeReasoningEffort: widget.activeReasoningEffort,
-              supportedReasoningEfforts: widget.supportedReasoningEfforts,
-              onReasoningEffortChanged: widget.onReasoningEffortChanged,
-              hintText: widget.state.activeSession != null
-                  ? 'Ask for follow-up changes'
-                  : 'Ask Alera anything, @ to add files, / for commands',
-              onSend: _sendInput,
-              onInterrupt: widget.onInterruptTurn,
-              attachments: widget.state.composerAttachments,
-              onAddAttachment: hasWorkspace ? widget.onAddAttachment : null,
-              onRemoveAttachment: widget.onRemoveAttachment,
-              workspacePath: widget.state.selectedWorkspacePath,
-              planModeEnabled: widget.state.planModeEnabled,
-              onPlanModeToggled: hasWorkspace ? widget.onPlanModeToggled : null,
-              fullAccessEnabled:
-                  widget.state.permissionMode == PermissionMode.fullAccess,
-              onPermissionModeToggled: hasWorkspace
-                  ? widget.onPermissionModeToggled
-                  : null,
-            ),
-          ),
+          ],
         ),
-        Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: _contentMaxWidth),
-            child: RawLog(state: widget.state, expanded: widget.rawLogExpanded),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -318,6 +370,26 @@ class _SessionWorkspaceViewState extends State<SessionWorkspaceView> {
     _pendingScrollAfterSend = true;
     _scheduleScrollToBottom(animated: true);
     widget.onSendInput(text);
+  }
+
+  void _focusComposer() {
+    _composerKey.currentState?.requestFocus();
+  }
+
+  void _togglePlanMode() {
+    widget.onPlanModeToggled();
+  }
+
+  void _toggleFullAccess() {
+    widget.onPermissionModeToggled();
+  }
+
+  void _openModelDropdown() {
+    _composerKey.currentState?.openModelsDropdown();
+  }
+
+  void _openReasoningDropdown() {
+    _composerKey.currentState?.openReasoningDropdown();
   }
 
   void _onImplementPlanPressed() {
