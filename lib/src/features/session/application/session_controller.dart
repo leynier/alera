@@ -1,12 +1,7 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:alera/src/features/projects/application/project_service.dart';
-import 'package:alera/src/features/session/domain/composer_attachment.dart';
-import 'package:alera/src/features/session/domain/pending_approval.dart';
-import 'package:alera/src/features/session/domain/pending_message.dart';
-import 'package:alera/src/features/session/domain/pending_user_input.dart';
 import 'package:alera/src/features/session/application/session_runtime_event.dart';
 import 'package:alera/src/features/session/application/session_service.dart';
 import 'package:alera/src/features/session/application/session_state.dart';
@@ -16,6 +11,10 @@ import 'package:alera/src/features/session/application/streaming/commit_tick_eng
 import 'package:alera/src/features/session/application/streaming/markdown_stream_collector.dart';
 import 'package:alera/src/features/session/domain/chat_timeline.dart';
 import 'package:alera/src/features/session/domain/codex_model_catalog.dart';
+import 'package:alera/src/features/session/domain/composer_attachment.dart';
+import 'package:alera/src/features/session/domain/pending_approval.dart';
+import 'package:alera/src/features/session/domain/pending_message.dart';
+import 'package:alera/src/features/session/domain/pending_user_input.dart';
 import 'package:alera/src/features/settings/application/settings_service.dart';
 import 'package:alera/src/shared/models/contracts.dart';
 import 'package:flutter_riverpod/legacy.dart';
@@ -639,23 +638,16 @@ class SessionController extends StateNotifier<SessionState> {
         continue;
       }
       if (att.kind == AttachmentKind.image) {
-        final bytes = await file.readAsBytes();
-        items.add(<String, dynamic>{
-          'type': 'image',
-          'url':
-              'data:${att.mimeType ?? "image/png"};base64,${base64Encode(bytes)}',
-        });
+        // Use Codex app-server v2 native localImage type — avoids base64
+        // encoding large images in-memory.
+        items.add(<String, dynamic>{'type': 'localImage', 'path': att.path});
       } else {
-        final String content;
-        try {
-          content = await file.readAsString();
-        } on FileSystemException {
-          // Binary or undecodable file — skip rather than crash the send path.
-          continue;
-        }
+        // Non-image files: instruct the model to use the Read tool.
+        // This safely handles binary files (PDFs, DOCX, etc.) without
+        // attempting to decode them as UTF-8.
         items.add(<String, dynamic>{
           'type': 'text',
-          'text': '--- File: ${att.path} ---\n$content',
+          'text': '[File: ${att.path} - Use the Read tool to view this file]',
         });
       }
     }

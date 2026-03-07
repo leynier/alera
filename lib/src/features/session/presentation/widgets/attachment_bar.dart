@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/session/domain/composer_attachment.dart';
 import 'package:alera/src/features/session/presentation/widgets/image_zoom_dialog.dart';
+import 'package:alera/src/shared/utils/file_utils.dart';
 import 'package:flutter/material.dart';
 
 class AttachmentBar extends StatelessWidget {
@@ -76,9 +77,10 @@ class _AttachmentChip extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
       ),
     );
-    if (!isImage) return label;
     return GestureDetector(
-      onTap: () => showImageZoomDialog(context, attachment.path),
+      onTap: () => isImage
+          ? showImageZoomDialog(context, attachment.path)
+          : openFileNative(attachment.path),
       child: MouseRegion(cursor: SystemMouseCursors.click, child: label),
     );
   }
@@ -121,12 +123,18 @@ class _AttachmentChip extends StatelessWidget {
               ),
             )
           else
-            const Padding(
-              padding: EdgeInsets.only(left: AleraTokens.space8),
-              child: Icon(
-                Icons.insert_drive_file_outlined,
-                size: 14,
-                color: AleraTokens.foregroundMuted,
+            GestureDetector(
+              onTap: () => openFileNative(attachment.path),
+              child: const MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: Padding(
+                  padding: EdgeInsets.only(left: AleraTokens.space8),
+                  child: Icon(
+                    Icons.insert_drive_file_outlined,
+                    size: 14,
+                    color: AleraTokens.foregroundMuted,
+                  ),
+                ),
               ),
             ),
           _buildLabel(context, isImage),

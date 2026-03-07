@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/session/application/session_controller.dart';
@@ -104,6 +106,7 @@ class _AleraShellPageState extends ConsumerState<AleraShellPage> {
       onMarkdownModeChanged: controller.updateMarkdownEnabled,
       rawLogExpanded: _rawLogExpanded,
       onAddAttachment: () => _addAttachment(controller),
+      onPasteImage: (file) => _pasteImage(controller, file),
       onRemoveAttachment: controller.removeAttachment,
       onRemoveFromQueue: controller.removeFromQueue,
       onPlanModeToggled: controller.togglePlanMode,
@@ -139,6 +142,18 @@ class _AleraShellPageState extends ConsumerState<AleraShellPage> {
         path: file.path,
         displayName: file.name,
         mimeType: mimeType,
+      ),
+    );
+  }
+
+  void _pasteImage(SessionController controller, File file) {
+    controller.addAttachment(
+      ComposerAttachment(
+        id: const Uuid().v4(),
+        kind: AttachmentKind.image,
+        path: file.path,
+        displayName: p.basename(file.path),
+        mimeType: 'image/png',
       ),
     );
   }

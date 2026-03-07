@@ -7,6 +7,7 @@ import 'package:alera/src/features/session/domain/composer_attachment.dart';
 import 'package:alera/src/features/session/presentation/widgets/image_zoom_dialog.dart';
 import 'package:alera/src/features/session/presentation/widgets/markdown_helpers.dart';
 import 'package:alera/src/features/session/presentation/widgets/status_color.dart';
+import 'package:alera/src/shared/utils/file_utils.dart';
 import 'package:flutter/material.dart';
 
 class TimelineCellView extends StatelessWidget {
@@ -146,6 +147,7 @@ class _UserMessageCellState extends State<UserMessageCell> {
                                     );
                                   }
                                   return _AttachmentChip(
+                                    path: path,
                                     displayName: displayName,
                                   );
                                 })
@@ -1100,38 +1102,48 @@ String? exploredSummary(List<TimelineCell> cells) {
 }
 
 class _AttachmentChip extends StatelessWidget {
-  const _AttachmentChip({required this.displayName});
+  const _AttachmentChip({required this.path, required this.displayName});
 
+  final String path;
   final String displayName;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AleraTokens.space8,
-        vertical: AleraTokens.space4,
-      ),
-      decoration: BoxDecoration(
-        color: AleraTokens.surface,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusXl),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          const Icon(
-            Icons.insert_drive_file_outlined,
-            size: 12,
-            color: AleraTokens.foregroundMuted,
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => openFileNative(path),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AleraTokens.space8,
+            vertical: AleraTokens.space4,
           ),
-          const SizedBox(width: AleraTokens.space4),
-          Text(
-            displayName,
-            style: const TextStyle(
-              fontSize: 11,
-              color: AleraTokens.foregroundMuted,
-            ),
+          decoration: BoxDecoration(
+            color: AleraTokens.surface,
+            borderRadius: BorderRadius.circular(AleraTokens.radiusXl),
           ),
-        ],
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              const Icon(
+                Icons.insert_drive_file_outlined,
+                size: 12,
+                color: AleraTokens.foregroundMuted,
+              ),
+              const SizedBox(width: AleraTokens.space4),
+              SelectionContainer.disabled(
+                child: Text(
+                  displayName,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AleraTokens.foregroundMuted,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1147,7 +1159,7 @@ class _AttachmentThumbnail extends StatelessWidget {
   Widget build(BuildContext context) {
     final file = File(path);
     if (!file.existsSync()) {
-      return _AttachmentChip(displayName: displayName);
+      return _AttachmentChip(path: path, displayName: displayName);
     }
     return GestureDetector(
       onTap: () => showImageZoomDialog(context, path),
@@ -1161,7 +1173,7 @@ class _AttachmentThumbnail extends StatelessWidget {
             height: 60,
             fit: BoxFit.cover,
             errorBuilder: (context, error, stackTrace) =>
-                _AttachmentChip(displayName: displayName),
+                _AttachmentChip(path: path, displayName: displayName),
           ),
         ),
       ),

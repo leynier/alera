@@ -10,6 +10,7 @@ import 'package:alera/src/features/session/presentation/widgets/mention_file_lis
 import 'package:alera/src/features/session/presentation/widgets/slash_command_list.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:pasteboard/pasteboard.dart';
 
 class Composer extends StatefulWidget {
   const Composer({
@@ -32,6 +33,7 @@ class Composer extends StatefulWidget {
     this.hintText = 'Ask for follow-up changes',
     this.attachments = const <ComposerAttachment>[],
     this.onAddAttachment,
+    this.onPasteImage,
     this.onRemoveAttachment,
     this.workspacePath,
     this.planModeEnabled = false,
@@ -59,6 +61,7 @@ class Composer extends StatefulWidget {
   final String hintText;
   final List<ComposerAttachment> attachments;
   final VoidCallback? onAddAttachment;
+  final ValueChanged<File>? onPasteImage;
   final ValueChanged<String>? onRemoveAttachment;
   final String? workspacePath;
   final bool planModeEnabled;
@@ -132,6 +135,19 @@ class ComposerState extends State<Composer> {
   bool get _hasOverlay => _mentionFiles.isNotEmpty || _slashCommands.isNotEmpty;
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    // Intercept Cmd+V / Ctrl+V for clipboard image pasting.
+    if (event is KeyDownEvent &&
+        event.logicalKey == LogicalKeyboardKey.keyV &&
+        (Platform.isMacOS
+            ? HardwareKeyboard.instance.isMetaPressed
+            : HardwareKeyboard.instance.isControlPressed)) {
+      _tryPasteImage();
+      // Return ignored so the framework still handles normal text paste if
+      // no image is found. _tryPasteImage runs asynchronously and will add
+      // the image attachment when it succeeds.
+      return KeyEventResult.ignored;
+    }
+
     if (!_hasOverlay || event is! KeyDownEvent) {
       return KeyEventResult.ignored;
     }
@@ -351,6 +367,23 @@ class ComposerState extends State<Composer> {
       _mentionFiles = const <String>[];
       _mentionSelectedIndex = 0;
     });
+  }
+
+  Future<void> _tryPasteImage() async {
+    final callback = widget.onPasteImage;
+    if (callback == null) return;
+    try {
+      final bytes = await Pasteboard.image;
+      if (bytes == null || bytes.isEmpty) return;
+      final tempDir = Directory.systemTemp;
+      final tempFile = File(
+        '${tempDir.path}/alera_paste_${DateTime.now().millisecondsSinceEpoch}.png',
+      );
+      await tempFile.writeAsBytes(bytes);
+      callback(tempFile);
+    } catch (_) {
+      // No image in clipboard or write failed — silently ignore.
+    }
   }
 
   void _sendFromShortcut() {

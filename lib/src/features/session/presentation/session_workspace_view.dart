@@ -35,6 +35,7 @@ class SessionWorkspaceView extends StatefulWidget {
     required this.onMarkdownModeChanged,
     required this.rawLogExpanded,
     required this.onAddAttachment,
+    this.onPasteImage,
     required this.onRemoveAttachment,
     required this.onRemoveFromQueue,
     required this.onPlanModeToggled,
@@ -59,6 +60,7 @@ class SessionWorkspaceView extends StatefulWidget {
   final ValueChanged<bool> onMarkdownModeChanged;
   final bool rawLogExpanded;
   final VoidCallback onAddAttachment;
+  final ValueChanged<File>? onPasteImage;
   final ValueChanged<String> onRemoveAttachment;
   final ValueChanged<String> onRemoveFromQueue;
   final VoidCallback onPlanModeToggled;
@@ -332,6 +334,7 @@ class _SessionWorkspaceViewState extends State<SessionWorkspaceView> {
                   onInterrupt: widget.onInterruptTurn,
                   attachments: widget.state.composerAttachments,
                   onAddAttachment: hasWorkspace ? widget.onAddAttachment : null,
+                  onPasteImage: hasWorkspace ? widget.onPasteImage : null,
                   onRemoveAttachment: widget.onRemoveAttachment,
                   workspacePath: widget.state.selectedWorkspacePath,
                   planModeEnabled: widget.state.planModeEnabled,
