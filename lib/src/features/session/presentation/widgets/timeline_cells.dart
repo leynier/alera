@@ -322,12 +322,14 @@ class AssistantBubbleMarkdown extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                SizedBox(
-                  width: 12,
-                  height: 12,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 1.5,
-                    color: AleraTokens.accent,
+                RepaintBoundary(
+                  child: SizedBox(
+                    width: 12,
+                    height: 12,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 1.5,
+                      color: AleraTokens.accent,
+                    ),
                   ),
                 ),
                 SizedBox(width: AleraTokens.space6),
@@ -523,12 +525,14 @@ class _ReasoningCellState extends State<ReasoningCell> {
                       if (widget.cell.status ==
                           TimelineCellStatus.inProgress) ...<Widget>[
                         const SizedBox(width: AleraTokens.space6),
-                        const SizedBox(
-                          width: 10,
-                          height: 10,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 1.4,
-                            color: AleraTokens.foregroundFaint,
+                        const RepaintBoundary(
+                          child: SizedBox(
+                            width: 10,
+                            height: 10,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 1.4,
+                              color: AleraTokens.foregroundFaint,
+                            ),
                           ),
                         ),
                       ],

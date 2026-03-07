@@ -399,10 +399,12 @@ class ComposerState extends State<Composer> {
               padding: const EdgeInsets.only(bottom: AleraTokens.space8),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
-                child: const LinearProgressIndicator(
-                  minHeight: 2,
-                  color: AleraTokens.accent,
-                  backgroundColor: AleraTokens.surfaceVariant,
+                child: const RepaintBoundary(
+                  child: LinearProgressIndicator(
+                    minHeight: 2,
+                    color: AleraTokens.accent,
+                    backgroundColor: AleraTokens.surfaceVariant,
+                  ),
                 ),
               ),
             ),
@@ -633,12 +635,14 @@ class ComposerState extends State<Composer> {
                         ),
                         icon: widget.canStop
                             ? (widget.isInterrupting
-                                  ? const SizedBox(
-                                      width: 14,
-                                      height: 14,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 1.6,
-                                        color: AleraTokens.onAccent,
+                                  ? const RepaintBoundary(
+                                      child: SizedBox(
+                                        width: 14,
+                                        height: 14,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 1.6,
+                                          color: AleraTokens.onAccent,
+                                        ),
                                       ),
                                     )
                                   : const Icon(Icons.stop, size: 18))

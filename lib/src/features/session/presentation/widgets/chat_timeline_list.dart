@@ -35,42 +35,43 @@ class ChatTimelineList extends StatelessWidget {
       return EmptyChatState(state: state);
     }
     final timelineWidgets = _buildTimelineWidgets();
+    final itemCount =
+        timelineWidgets.length + (showImplementPlanButton ? 1 : 0);
+
     return SelectionArea(
-      child: ListView(
+      child: ListView.builder(
         key: const ValueKey<String>('timeline-list'),
         controller: controller,
         padding: const EdgeInsets.symmetric(
           horizontal: AleraTokens.space16,
           vertical: AleraTokens.space16,
         ),
-        children: <Widget>[
-          Center(
-            child: ConstrainedBox(
-              key: const ValueKey<String>('timeline-content-container'),
-              constraints: BoxConstraints(maxWidth: contentMaxWidth),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  ...timelineWidgets,
-                  if (showImplementPlanButton)
-                    Padding(
-                      padding: const EdgeInsets.only(
-                        bottom: AleraTokens.space8,
-                      ),
-                      child: Align(
-                        alignment: Alignment.center,
-                        child: FilledButton(
-                          key: const ValueKey<String>('implement-plan-button'),
-                          onPressed: onImplementPlanPressed,
-                          child: const Text('Implement Plan'),
-                        ),
-                      ),
-                    ),
-                ],
+        itemCount: itemCount,
+        itemBuilder: (context, index) {
+          Widget child;
+          if (index < timelineWidgets.length) {
+            child = timelineWidgets[index];
+          } else {
+            child = Padding(
+              padding: const EdgeInsets.only(bottom: AleraTokens.space8),
+              child: Align(
+                alignment: Alignment.center,
+                child: FilledButton(
+                  key: const ValueKey<String>('implement-plan-button'),
+                  onPressed: onImplementPlanPressed,
+                  child: const Text('Implement Plan'),
+                ),
               ),
+            );
+          }
+
+          return Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: contentMaxWidth),
+              child: child,
             ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }

@@ -33,12 +33,14 @@ class AleraTopBar extends StatelessWidget {
           AnimatedOpacity(
             opacity: isBusy ? 1.0 : 0.0,
             duration: AleraTokens.durationMid,
-            child: const SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(
-                strokeWidth: 1.5,
-                color: AleraTokens.accent,
+            child: const RepaintBoundary(
+              child: SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 1.5,
+                  color: AleraTokens.accent,
+                ),
               ),
             ),
           ),

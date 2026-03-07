@@ -10,6 +10,22 @@
             "deviceId": "macos",
             "request": "launch",
             "type": "dart"
+        },
+        {
+            "name": "Alera (macOS - Profile)",
+            "program": "lib/main.dart",
+            "deviceId": "macos",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile"
+        },
+        {
+            "name": "Alera (macOS - Release)",
+            "program": "lib/main.dart",
+            "deviceId": "macos",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release"
         }
     ]
 }
