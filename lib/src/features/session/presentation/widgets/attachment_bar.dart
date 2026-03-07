@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/session/domain/composer_attachment.dart';
+import 'package:alera/src/features/session/presentation/widgets/image_zoom_dialog.dart';
 import 'package:flutter/material.dart';
 
 class AttachmentBar extends StatelessWidget {
@@ -28,16 +29,26 @@ class AttachmentBar extends StatelessWidget {
       ),
       child: SizedBox(
         height: 32,
-        child: ListView.separated(
-          scrollDirection: Axis.horizontal,
-          itemCount: attachments.length,
-          separatorBuilder: (_, _) =>
-              const SizedBox(width: AleraTokens.space4),
-          itemBuilder: (context, index) {
-            final att = attachments[index];
-            return _AttachmentChip(
-              attachment: att,
-              onRemove: () => onRemove(att.id),
+        child: Builder(
+          builder: (context) {
+            final sorted = List<ComposerAttachment>.of(attachments)
+              ..sort((a, b) {
+                final aIsImage = a.kind == AttachmentKind.image ? 0 : 1;
+                final bIsImage = b.kind == AttachmentKind.image ? 0 : 1;
+                return aIsImage.compareTo(bIsImage);
+              });
+            return ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: sorted.length,
+              separatorBuilder: (_, _) =>
+                  const SizedBox(width: AleraTokens.space4),
+              itemBuilder: (context, index) {
+                final att = sorted[index];
+                return _AttachmentChip(
+                  attachment: att,
+                  onRemove: () => onRemove(att.id),
+                );
+              },
             );
           },
         ),
@@ -47,10 +58,7 @@ class AttachmentBar extends StatelessWidget {
 }
 
 class _AttachmentChip extends StatelessWidget {
-  const _AttachmentChip({
-    required this.attachment,
-    required this.onRemove,
-  });
+  const _AttachmentChip({required this.attachment, required this.onRemove});
 
   final ComposerAttachment attachment;
   final VoidCallback onRemove;
@@ -68,21 +76,27 @@ class _AttachmentChip extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           if (isImage)
-            ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(AleraTokens.radiusSm),
-                bottomLeft: Radius.circular(AleraTokens.radiusSm),
-              ),
-              child: SizedBox(
-                width: 32,
-                height: 32,
-                child: Image.file(
-                  File(attachment.path),
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => const Icon(
-                    Icons.broken_image,
-                    size: 16,
-                    color: AleraTokens.foregroundFaint,
+            GestureDetector(
+              onTap: () => showImageZoomDialog(context, attachment.path),
+              child: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(AleraTokens.radiusSm),
+                    bottomLeft: Radius.circular(AleraTokens.radiusSm),
+                  ),
+                  child: SizedBox(
+                    width: 32,
+                    height: 32,
+                    child: Image.file(
+                      File(attachment.path),
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => const Icon(
+                        Icons.broken_image,
+                        size: 16,
+                        color: AleraTokens.foregroundFaint,
+                      ),
+                    ),
                   ),
                 ),
               ),

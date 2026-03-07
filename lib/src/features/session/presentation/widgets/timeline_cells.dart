@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/session/domain/chat_timeline.dart';
 import 'package:alera/src/features/session/domain/composer_attachment.dart';
+import 'package:alera/src/features/session/presentation/widgets/image_zoom_dialog.dart';
 import 'package:alera/src/features/session/presentation/widgets/markdown_helpers.dart';
 import 'package:alera/src/features/session/presentation/widgets/status_color.dart';
 import 'package:flutter/material.dart';
@@ -81,7 +82,18 @@ class _UserMessageCellState extends State<UserMessageCell> {
     if (raw is! List) {
       return const <Map<String, dynamic>>[];
     }
-    return raw.whereType<Map<String, dynamic>>().toList(growable: false);
+    final list = raw.whereType<Map<String, dynamic>>().toList();
+    // Sort: files first, images second.
+    list.sort((a, b) {
+      final aIsImage = a['kind']?.toString() == AttachmentKind.image.name
+          ? 1
+          : 0;
+      final bIsImage = b['kind']?.toString() == AttachmentKind.image.name
+          ? 1
+          : 0;
+      return aIsImage.compareTo(bIsImage);
+    });
+    return list;
   }
 
   @override
@@ -1134,15 +1146,21 @@ class _AttachmentThumbnail extends StatelessWidget {
     if (!file.existsSync()) {
       return _AttachmentChip(displayName: displayName);
     }
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
-      child: Image.file(
-        file,
-        width: 60,
-        height: 60,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) =>
-            _AttachmentChip(displayName: displayName),
+    return GestureDetector(
+      onTap: () => showImageZoomDialog(context, path),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+          child: Image.file(
+            file,
+            width: 60,
+            height: 60,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) =>
+                _AttachmentChip(displayName: displayName),
+          ),
+        ),
       ),
     );
   }
