@@ -91,12 +91,14 @@ class ComposerState extends State<Composer> {
   Timer? _mentionDebounce;
   List<SlashCommandDef> _slashCommands = const <SlashCommandDef>[];
   int _slashSelectedIndex = 0;
+  bool _hasText = false;
 
   @override
   void initState() {
     super.initState();
     _focusNode = widget.focusNode ?? FocusNode();
     _focusNode.onKeyEvent = _handleKeyEvent;
+    _hasText = widget.controller.text.isNotEmpty;
     widget.controller.addListener(_onControllerChanged);
   }
 
@@ -227,6 +229,12 @@ class ComposerState extends State<Composer> {
   }
 
   void _onControllerChanged() {
+    final newHasText = widget.controller.text.isNotEmpty;
+    if (newHasText != _hasText) {
+      setState(() {
+        _hasText = newHasText;
+      });
+    }
     _mentionDebounce?.cancel();
     _mentionDebounce = Timer(
       const Duration(milliseconds: 120),
@@ -393,7 +401,7 @@ class ComposerState extends State<Composer> {
   }
 
   void _sendFromShortcut() {
-    if (!widget.canSend || widget.canStop) {
+    if (!widget.canSend) {
       return;
     }
     widget.onSend();
@@ -412,6 +420,53 @@ class ComposerState extends State<Composer> {
       text: nextText,
       selection: TextSelection.collapsed(offset: start + 1),
       composing: TextRange.empty,
+    );
+  }
+
+  Widget _buildActionButton() {
+    final bool isSendMode = _hasText || !widget.canStop;
+    final VoidCallback? onPressed;
+    final Widget icon;
+
+    if (isSendMode) {
+      onPressed = widget.canSend ? widget.onSend : null;
+      icon = const Icon(Icons.arrow_upward, size: 16);
+    } else if (widget.isInterrupting) {
+      onPressed = null;
+      icon = const RepaintBoundary(
+        child: SizedBox(
+          width: 14,
+          height: 14,
+          child: CircularProgressIndicator(
+            strokeWidth: 1.6,
+            color: AleraTokens.onAccent,
+          ),
+        ),
+      );
+    } else {
+      onPressed = widget.onInterrupt;
+      icon = const Icon(Icons.stop, size: 18);
+    }
+
+    return IconButton(
+      key: const ValueKey<String>('composer-send-stop-button'),
+      onPressed: onPressed,
+      mouseCursor: SystemMouseCursors.click,
+      constraints: const BoxConstraints(
+        minWidth: 32,
+        minHeight: 32,
+      ),
+      padding: EdgeInsets.zero,
+      style: IconButton.styleFrom(
+        backgroundColor: (widget.canSend || widget.canStop)
+            ? AleraTokens.accent
+            : AleraTokens.surface,
+        foregroundColor: (widget.canSend || widget.canStop)
+            ? AleraTokens.onAccent
+            : AleraTokens.foregroundFaint,
+        shape: const CircleBorder(),
+      ),
+      icon: icon,
     );
   }
 
@@ -664,47 +719,7 @@ class ComposerState extends State<Composer> {
                             ),
                           ),
                           const Spacer(),
-                          IconButton(
-                            key: const ValueKey<String>(
-                              'composer-send-stop-button',
-                            ),
-                            onPressed: widget.canStop
-                                ? (widget.isInterrupting
-                                      ? null
-                                      : widget.onInterrupt)
-                                : (widget.canSend ? widget.onSend : null),
-                            mouseCursor: SystemMouseCursors.click,
-                            constraints: const BoxConstraints(
-                              minWidth: 32,
-                              minHeight: 32,
-                            ),
-                            padding: EdgeInsets.zero,
-                            style: IconButton.styleFrom(
-                              backgroundColor:
-                                  (widget.canSend || widget.canStop)
-                                  ? AleraTokens.accent
-                                  : AleraTokens.surface,
-                              foregroundColor:
-                                  (widget.canSend || widget.canStop)
-                                  ? AleraTokens.onAccent
-                                  : AleraTokens.foregroundFaint,
-                              shape: const CircleBorder(),
-                            ),
-                            icon: widget.canStop
-                                ? (widget.isInterrupting
-                                      ? const RepaintBoundary(
-                                          child: SizedBox(
-                                            width: 14,
-                                            height: 14,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 1.6,
-                                              color: AleraTokens.onAccent,
-                                            ),
-                                          ),
-                                        )
-                                      : const Icon(Icons.stop, size: 18))
-                                : const Icon(Icons.arrow_upward, size: 16),
-                          ),
+                          _buildActionButton(),
                         ],
                       ),
                     ),
