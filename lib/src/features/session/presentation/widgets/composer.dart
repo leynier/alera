@@ -140,6 +140,8 @@ class ComposerState extends State<Composer> {
 
   bool get _hasOverlay => _mentionFiles.isNotEmpty || _slashCommands.isNotEmpty;
 
+  bool get _hasComposerText => widget.controller.text.trim().isNotEmpty;
+
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
     // Intercept Cmd+V / Ctrl+V for clipboard image pasting.
     if (event is KeyDownEvent &&
@@ -393,7 +395,7 @@ class ComposerState extends State<Composer> {
   }
 
   void _sendFromShortcut() {
-    if (!widget.canSend || widget.canStop) {
+    if (!widget.canSend) {
       return;
     }
     widget.onSend();
@@ -668,11 +670,13 @@ class ComposerState extends State<Composer> {
                             key: const ValueKey<String>(
                               'composer-send-stop-button',
                             ),
-                            onPressed: widget.canStop
-                                ? (widget.isInterrupting
-                                      ? null
-                                      : widget.onInterrupt)
-                                : (widget.canSend ? widget.onSend : null),
+                            onPressed: _hasComposerText
+                                ? (widget.canSend ? widget.onSend : null)
+                                : (widget.canStop
+                                      ? (widget.isInterrupting
+                                            ? null
+                                            : widget.onInterrupt)
+                                      : (widget.canSend ? widget.onSend : null)),
                             mouseCursor: SystemMouseCursors.click,
                             constraints: const BoxConstraints(
                               minWidth: 32,
@@ -690,20 +694,22 @@ class ComposerState extends State<Composer> {
                                   : AleraTokens.foregroundFaint,
                               shape: const CircleBorder(),
                             ),
-                            icon: widget.canStop
-                                ? (widget.isInterrupting
-                                      ? const RepaintBoundary(
-                                          child: SizedBox(
-                                            width: 14,
-                                            height: 14,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 1.6,
-                                              color: AleraTokens.onAccent,
-                                            ),
-                                          ),
-                                        )
-                                      : const Icon(Icons.stop, size: 18))
-                                : const Icon(Icons.arrow_upward, size: 16),
+                            icon: _hasComposerText
+                                ? const Icon(Icons.arrow_upward, size: 16)
+                                : (widget.canStop
+                                      ? (widget.isInterrupting
+                                            ? const RepaintBoundary(
+                                                child: SizedBox(
+                                                  width: 14,
+                                                  height: 14,
+                                                  child: CircularProgressIndicator(
+                                                    strokeWidth: 1.6,
+                                                    color: AleraTokens.onAccent,
+                                                  ),
+                                                ),
+                                              )
+                                            : const Icon(Icons.stop, size: 18))
+                                      : const Icon(Icons.arrow_upward, size: 16)),
                           ),
                         ],
                       ),
