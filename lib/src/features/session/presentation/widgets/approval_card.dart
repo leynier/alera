@@ -2,7 +2,7 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/session/domain/pending_approval.dart';
 import 'package:flutter/material.dart';
 
-class ApprovalCard extends StatelessWidget {
+class ApprovalCard extends StatefulWidget {
   const ApprovalCard({
     super.key,
     required this.approval,
@@ -16,8 +16,21 @@ class ApprovalCard extends StatelessWidget {
   final VoidCallback onApproveForSession;
   final VoidCallback onDecline;
 
+  @override
+  State<ApprovalCard> createState() => _ApprovalCardState();
+}
+
+class _ApprovalCardState extends State<ApprovalCard> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   IconData get _icon {
-    if (approval.method.contains('fileChange')) {
+    if (widget.approval.method.contains('fileChange')) {
       return Icons.edit_document;
     }
     return Icons.terminal;
@@ -55,10 +68,12 @@ class ApprovalCard extends StatelessWidget {
             constraints: const BoxConstraints(maxHeight: 320),
             child: Scrollbar(
               thumbVisibility: true,
+              controller: _scrollController,
               child: SingleChildScrollView(
                 key: const ValueKey<String>('approval-description-scroll'),
+                controller: _scrollController,
                 child: Text(
-                  approval.description,
+                  widget.approval.description,
                   style: const TextStyle(
                     fontSize: 13,
                     color: AleraTokens.foreground,
@@ -72,15 +87,15 @@ class ApprovalCard extends StatelessWidget {
             spacing: AleraTokens.space6,
             children: <Widget>[
               FilledButton(
-                onPressed: onApprove,
+                onPressed: widget.onApprove,
                 child: const Text('Allow once'),
               ),
               OutlinedButton(
-                onPressed: onApproveForSession,
+                onPressed: widget.onApproveForSession,
                 child: const Text('Allow for session'),
               ),
               FilledButton(
-                onPressed: onDecline,
+                onPressed: widget.onDecline,
                 style: FilledButton.styleFrom(
                   backgroundColor: AleraTokens.error,
                   foregroundColor: AleraTokens.onError,
