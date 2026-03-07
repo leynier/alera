@@ -116,6 +116,29 @@ class AgentOrchestrator {
     return _client.interruptTurn(threadId: threadId, turnId: turnId);
   }
 
+  /// Requests manual context compaction for the given thread.
+  Future<void> compactThread({required String threadId}) {
+    return _client.compactThread(threadId: threadId);
+  }
+
+  /// Steers an active turn with new input (redirect mid-turn).
+  /// Returns the new turn ID.
+  Future<String> steerTurn({
+    required String threadId,
+    required List<Map<String, dynamic>> input,
+    required String expectedTurnId,
+  }) async {
+    final response = await _client.steerTurn(
+      threadId: threadId,
+      input: input,
+      expectedTurnId: expectedTurnId,
+    );
+    final turnId =
+        (response['result'] as Map<String, dynamic>?)?['turnId'] as String? ??
+        (response['result'] as Map<String, dynamic>?)?['turn_id'] as String?;
+    return turnId ?? expectedTurnId;
+  }
+
   Future<void> close() async {
     await _notificationSub?.cancel();
     await _requestSub?.cancel();

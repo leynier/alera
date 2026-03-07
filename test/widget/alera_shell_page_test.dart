@@ -45,6 +45,21 @@ class _ShellFakeSessionService implements SessionService {
   }
 
   @override
+  Future<void> compactContext({required String sessionId}) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<String> steerActiveTurn({
+    required String sessionId,
+    required String rawInput,
+    required String expectedTurnId,
+    List<Map<String, dynamic>> extraInputItems = const <Map<String, dynamic>>[],
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<void> runInput({
     required String sessionId,
     required String rawInput,
