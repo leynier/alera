@@ -1,7 +1,13 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:alera/src/shared/infra/json_rpc/json_rpc_client.dart';
+import 'package:alera/src/shared/infra/json_rpc/json_rpc_websocket_client.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
+
+/// Matches the WebSocket listen address printed on `stderr` by the Codex
+/// `app-server` when started with `--listen ws://127.0.0.1:0`.
+final _wsListenRegex = RegExp(r'ws://127\.0\.0\.1:(\d+)');
 
 class CodexAppServerClient {
   CodexAppServerClient({
@@ -10,31 +16,131 @@ class CodexAppServerClient {
     List<String> arguments = const <String>[
       'app-server',
       '--listen',
-      'stdio://',
+      'ws://127.0.0.1:0',
     ],
     String? workingDirectory,
     Map<String, String>? environment,
-  }) : _client = JsonRpcClient(
-         processRunner: processRunner,
-         executable: executable,
-         arguments: arguments,
-         workingDirectory: workingDirectory,
-         environment: environment,
-       );
+  }) : _processRunner = processRunner,
+       _executable = executable,
+       _arguments = arguments,
+       _workingDirectory = workingDirectory,
+       _environment = environment;
 
-  final JsonRpcClient _client;
+  final ProcessRunner _processRunner;
+  final String _executable;
+  final List<String> _arguments;
+  final String? _workingDirectory;
+  final Map<String, String>? _environment;
 
-  Stream<Map<String, dynamic>> get events => _client.notifications;
-  Stream<JsonRpcServerRequest> get requests => _client.incomingRequests;
+  JsonRpcWebSocketClient? _wsClient;
+  StartedProcess? _process;
+
+  final StreamController<Map<String, dynamic>> _stderrController =
+      StreamController<Map<String, dynamic>>.broadcast();
+
+  Stream<Map<String, dynamic>> get events {
+    final ws = _wsClient;
+    if (ws == null) {
+      return _stderrController.stream;
+    }
+    final controller = StreamController<Map<String, dynamic>>.broadcast();
+    ws.notifications.listen(controller.add, onError: controller.addError);
+    _stderrController.stream.listen(
+      controller.add,
+      onError: controller.addError,
+    );
+    return controller.stream;
+  }
+
+  Stream<JsonRpcServerRequest> get requests {
+    final ws = _wsClient;
+    if (ws == null) {
+      return const Stream.empty();
+    }
+    return ws.incomingRequests;
+  }
 
   Future<void> start() async {
-    await _client.start();
+    _process = await _processRunner.start(
+      _executable,
+      _arguments,
+      workingDirectory: _workingDirectory,
+      environment: _environment,
+    );
+
+    final port = await _waitForWebSocketPort(_process!);
+
+    _wsClient = JsonRpcWebSocketClient(Uri.parse('ws://127.0.0.1:$port'));
+    await _wsClient!.connect();
+
     await initialize();
-    await _client.notify('initialized');
+    await _wsClient!.notify('initialized');
+  }
+
+  /// Reads `stderr` from the spawned process until the WebSocket listen banner
+  /// is found. Returns the dynamically assigned port number.
+  ///
+  /// All `stderr` output is forwarded as `alera.stderr` notifications so the
+  /// UI can still display server logs.
+  Future<int> _waitForWebSocketPort(StartedProcess process) {
+    final completer = Completer<int>();
+    final buffer = StringBuffer();
+
+    late final StreamSubscription<List<int>> sub;
+    sub = process.stderr.listen(
+      (data) {
+        final text = utf8.decode(data, allowMalformed: true);
+        buffer.write(text);
+
+        // Forward as notification for log visibility.
+        _stderrController.add(<String, dynamic>{
+          'jsonrpc': '2.0',
+          'method': 'alera.stderr',
+          'params': <String, dynamic>{'data': text},
+        });
+
+        if (!completer.isCompleted) {
+          final match = _wsListenRegex.firstMatch(buffer.toString());
+          if (match != null) {
+            completer.complete(int.parse(match.group(1)!));
+          }
+        }
+      },
+      onError: (Object error) {
+        if (!completer.isCompleted) {
+          completer.completeError(error);
+        }
+      },
+    );
+
+    // Fail if the process exits before we find the port.
+    unawaited(
+      process.exitCode.then((code) {
+        if (!completer.isCompleted) {
+          completer.completeError(
+            StateError(
+              'Codex app-server exited with code $code before advertising '
+              'WebSocket port',
+            ),
+          );
+        }
+      }),
+    );
+
+    // Safety timeout in case the banner never appears.
+    return completer.future.timeout(
+      const Duration(seconds: 30),
+      onTimeout: () {
+        sub.cancel();
+        throw TimeoutException(
+          'Timed out waiting for Codex app-server WebSocket port',
+        );
+      },
+    );
   }
 
   Future<Map<String, dynamic>> initialize() {
-    return _client.request(
+    return _wsClient!.request(
       'initialize',
       params: <String, dynamic>{
         'clientInfo': <String, dynamic>{
@@ -48,7 +154,7 @@ class CodexAppServerClient {
   }
 
   Future<Map<String, dynamic>> listModels() {
-    return _client.request('model/list');
+    return _wsClient!.request('model/list');
   }
 
   Future<Map<String, dynamic>> startThread({
@@ -56,7 +162,7 @@ class CodexAppServerClient {
     String? model,
     String approvalPolicy = 'never',
   }) {
-    return _client.request(
+    return _wsClient!.request(
       'thread/start',
       params: <String, dynamic>{
         ...?cwd == null ? null : <String, dynamic>{'cwd': cwd},
@@ -67,7 +173,7 @@ class CodexAppServerClient {
   }
 
   Future<Map<String, dynamic>> resumeThread(String threadId) {
-    return _client.request(
+    return _wsClient!.request(
       'thread/resume',
       params: <String, dynamic>{'threadId': threadId},
     );
@@ -82,7 +188,7 @@ class CodexAppServerClient {
     String approvalPolicy = 'never',
     Map<String, dynamic>? collaborationMode,
   }) {
-    return _client.request(
+    return _wsClient!.request(
       'turn/start',
       params: <String, dynamic>{
         'threadId': threadId,
@@ -102,7 +208,7 @@ class CodexAppServerClient {
     required String threadId,
     required String turnId,
   }) {
-    return _client.request(
+    return _wsClient!.request(
       'turn/interrupt',
       params: <String, dynamic>{'threadId': threadId, 'turnId': turnId},
     );
@@ -117,7 +223,7 @@ class CodexAppServerClient {
     if (decision == 'accept' && forSession) {
       result['acceptSettings'] = <String, dynamic>{'forSession': true};
     }
-    return _client.respondSuccess(requestId, result: result);
+    return _wsClient!.respondSuccess(requestId, result: result);
   }
 
   Future<void> respondToolCall({
@@ -125,7 +231,7 @@ class CodexAppServerClient {
     required List<Map<String, dynamic>> contentItems,
     bool success = true,
   }) {
-    return _client.respondSuccess(
+    return _wsClient!.respondSuccess(
       requestId,
       result: <String, dynamic>{
         'contentItems': contentItems,
@@ -138,9 +244,10 @@ class CodexAppServerClient {
     required Object requestId,
     required Map<String, dynamic> answers,
   }) {
-    return _client.respondSuccess(requestId, result: <String, dynamic>{
-      'answers': answers,
-    });
+    return _wsClient!.respondSuccess(
+      requestId,
+      result: <String, dynamic>{'answers': answers},
+    );
   }
 
   Future<void> respondError({
@@ -148,10 +255,12 @@ class CodexAppServerClient {
     required int code,
     required String message,
   }) {
-    return _client.respondError(id: requestId, code: code, message: message);
+    return _wsClient!.respondError(id: requestId, code: code, message: message);
   }
 
-  Future<void> close() {
-    return _client.close();
+  Future<void> close() async {
+    await _wsClient?.close();
+    _process?.kill();
+    await _stderrController.close();
   }
 }
