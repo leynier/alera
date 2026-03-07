@@ -8,11 +8,15 @@ class MessageQueueBar extends StatelessWidget {
     required this.messages,
     required this.onRemove,
     required this.onEdit,
+    required this.onSteer,
+    required this.canSteer,
   });
 
   final List<PendingMessage> messages;
   final ValueChanged<String> onRemove;
   final ValueChanged<PendingMessage> onEdit;
+  final ValueChanged<String> onSteer;
+  final bool canSteer;
 
   @override
   Widget build(BuildContext context) {
@@ -67,6 +71,8 @@ class MessageQueueBar extends StatelessWidget {
                 message: msg,
                 onRemove: onRemove,
                 onEdit: onEdit,
+                onSteer: onSteer,
+                canSteer: canSteer,
               );
             },
           ),
@@ -81,11 +87,15 @@ class _QueueItem extends StatelessWidget {
     required this.message,
     required this.onRemove,
     required this.onEdit,
+    required this.onSteer,
+    required this.canSteer,
   });
 
   final PendingMessage message;
   final ValueChanged<String> onRemove;
   final ValueChanged<PendingMessage> onEdit;
+  final ValueChanged<String> onSteer;
+  final bool canSteer;
 
   @override
   Widget build(BuildContext context) {
@@ -114,6 +124,22 @@ class _QueueItem extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 11,
                 color: AleraTokens.foregroundFaint,
+              ),
+            ),
+          ],
+          if (canSteer) ...<Widget>[
+            const SizedBox(width: AleraTokens.space4),
+            InkWell(
+              onTap: () => onSteer(message.id),
+              borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+              mouseCursor: SystemMouseCursors.click,
+              child: const Padding(
+                padding: EdgeInsets.all(AleraTokens.space2),
+                child: Icon(
+                  Icons.arrow_upward,
+                  size: 13,
+                  color: AleraTokens.accent,
+                ),
               ),
             ),
           ],

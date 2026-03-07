@@ -804,9 +804,12 @@ SessionState _onTurnStarted(
   if (pendingUserCellId != null) {
     final userIndex = _findCellById(cells, pendingUserCellId);
     if (userIndex != -1) {
+      final wasSteering = cells[userIndex].metadata['isSteering'] == true;
       cells[userIndex] = cells[userIndex].copyWith(
         turnId: turnId,
         updatedAt: timestamp,
+        status: wasSteering ? TimelineCellStatus.completed : null,
+        metadata: wasSteering ? const <String, dynamic>{} : null,
       );
     }
   }

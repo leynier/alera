@@ -575,6 +575,70 @@ class SessionController extends StateNotifier<SessionState> {
     }
   }
 
+  Future<void> steerQueuedMessage(String messageId) async {
+    final message = state.pendingMessages.firstWhere(
+      (m) => m.id == messageId,
+      orElse: () => throw StateError('queued message not found: $messageId'),
+    );
+    final activeTurnId = state.activeTurnId;
+    final activeSessionId = state.activeSessionId;
+    if (activeTurnId == null || activeSessionId == null) {
+      return;
+    }
+
+    // Remove from queue.
+    state = state.copyWith(
+      pendingMessages: state.pendingMessages
+          .where((m) => m.id != messageId)
+          .toList(growable: false),
+    );
+
+    // Append optimistic user message with steering metadata.
+    final now = DateTime.now().toUtc();
+    final cell = TimelineCell(
+      id: 'user-steer-${now.microsecondsSinceEpoch}',
+      kind: TimelineCellKind.userMessage,
+      status: TimelineCellStatus.inProgress,
+      createdAt: now,
+      updatedAt: now,
+      markdownText: message.text,
+      metadata: const <String, dynamic>{'isSteering': true},
+    );
+    state = state.copyWith(
+      timelineCells: <TimelineCell>[...state.timelineCells, cell],
+    );
+
+    // Build extra input items (attachments + steer rules).
+    final attachmentItems =
+        await _buildAttachmentInputItems(message.attachments);
+    final steerItems = _buildSteerInputItems();
+    final extraItems = <Map<String, dynamic>>[
+      ...attachmentItems,
+      ...steerItems,
+    ];
+
+    try {
+      await _sessionService.steerActiveTurn(
+        sessionId: activeSessionId,
+        rawInput: message.text,
+        expectedTurnId: activeTurnId,
+        extraInputItems: extraItems,
+      );
+    } catch (e) {
+      // Update the steering cell to failed status.
+      final cells = <TimelineCell>[...state.timelineCells];
+      final idx = cells.indexWhere((c) => c.id == cell.id);
+      if (idx != -1) {
+        cells[idx] = cells[idx].copyWith(
+          status: TimelineCellStatus.failed,
+          metadata: const <String, dynamic>{},
+        );
+        state = state.copyWith(timelineCells: cells);
+      }
+      state = state.copyWith(error: e.toString());
+    }
+  }
+
   void startEditingPendingMessage(String id) {
     state = state.copyWith(editingPendingMessageId: id);
   }

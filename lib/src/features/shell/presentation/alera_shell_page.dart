@@ -114,6 +114,7 @@ class _AleraShellPageState extends ConsumerState<AleraShellPage> {
             onPasteImage: (file) => _pasteImage(controller, file),
             onRemoveAttachment: controller.removeAttachment,
             onRemoveFromQueue: controller.removeFromQueue,
+            onSteerQueuedMessage: controller.steerQueuedMessage,
             onStartEditingPendingMessage: controller.startEditingPendingMessage,
             onUpdatePendingMessage: controller.updatePendingMessage,
             onDeletePendingMessage: controller.removeFromQueue,

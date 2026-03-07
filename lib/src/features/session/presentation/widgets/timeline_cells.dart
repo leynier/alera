@@ -99,10 +99,15 @@ class _UserMessageCellState extends State<UserMessageCell> {
     return list;
   }
 
+  bool get _isSteering =>
+      widget.cell.metadata['isSteering'] == true &&
+      widget.cell.status == TimelineCellStatus.inProgress;
+
   @override
   Widget build(BuildContext context) {
     final messageText = widget.cell.markdownText ?? '';
     final attachments = _parseAttachments();
+    final isSteering = _isSteering;
     return Align(
       alignment: Alignment.centerRight,
       child: ConstrainedBox(
@@ -162,10 +167,44 @@ class _UserMessageCellState extends State<UserMessageCell> {
                           borderRadius: BorderRadius.circular(
                             AleraTokens.radiusLg,
                           ),
+                          border: isSteering
+                              ? Border.all(
+                                  color: AleraTokens.accent.withValues(
+                                    alpha: 0.3,
+                                  ),
+                                )
+                              : null,
                         ),
                         child: UserBubbleContent(
                           markdownText: messageText,
                           markdownEnabled: widget.markdownEnabled,
+                        ),
+                      ),
+                    if (isSteering)
+                      Padding(
+                        padding: const EdgeInsets.only(
+                          top: AleraTokens.space4,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            SizedBox(
+                              width: 10,
+                              height: 10,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 1.5,
+                                color: AleraTokens.foregroundFaint,
+                              ),
+                            ),
+                            const SizedBox(width: AleraTokens.space4),
+                            const Text(
+                              'Steering...',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AleraTokens.foregroundFaint,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                   ],
