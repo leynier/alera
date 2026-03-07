@@ -1294,7 +1294,10 @@ SessionState _onContextCompacted(SessionState state, DateTime timestamp) {
     createdAt: timestamp,
     updatedAt: timestamp,
     markdownText: 'Context compacted',
-    metadata: const <String, dynamic>{'noticeType': 'context_compacted'},
+    metadata: const <String, dynamic>{
+      'noticeType': 'context_compacted',
+      'uiPlacement': 'outside_worked',
+    },
   );
   return state.copyWith(
     timelineCells: <TimelineCell>[...state.timelineCells, cell],
