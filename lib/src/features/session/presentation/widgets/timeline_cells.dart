@@ -470,7 +470,7 @@ class _ReasoningCellState extends State<ReasoningCell> {
                   child: Row(
                     children: <Widget>[
                       Icon(Icons.psychology, size: 10, color: thinkingColor),
-                      const SizedBox(width: AleraTokens.space4),
+                      const SizedBox(width: AleraTokens.space6),
                       Flexible(
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -618,15 +618,20 @@ class _ToolCallCellState extends State<ToolCallCell> {
                   ),
                   child: Row(
                     children: <Widget>[
-                      Container(
-                        width: 7,
-                        height: 7,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: cellStatusColor,
+                      SizedBox(
+                        width: 10,
+                        child: Center(
+                          child: Container(
+                            width: 7,
+                            height: 7,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: cellStatusColor,
+                            ),
+                          ),
                         ),
                       ),
-                      const SizedBox(width: AleraTokens.space8),
+                      const SizedBox(width: AleraTokens.space6),
                       Flexible(
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -972,15 +977,20 @@ class _ExploringClusterCellState extends State<ExploringClusterCell> {
                 ),
                 child: Row(
                   children: <Widget>[
-                    Container(
-                      width: 7,
-                      height: 7,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: cellStatusColor,
+                    SizedBox(
+                      width: 10,
+                      child: Center(
+                        child: Container(
+                          width: 7,
+                          height: 7,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: cellStatusColor,
+                          ),
+                        ),
                       ),
                     ),
-                    const SizedBox(width: AleraTokens.space8),
+                    const SizedBox(width: AleraTokens.space6),
                     Flexible(
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
