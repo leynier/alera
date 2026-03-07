@@ -108,50 +108,56 @@ class _UserMessageCellState extends State<UserMessageCell> {
               children: <Widget>[
                 Padding(
                   padding: const EdgeInsets.only(bottom: 18),
-                  child: Container(
-                    key: ValueKey<String>('user-bubble-${widget.cell.id}'),
-                    padding: const EdgeInsets.all(AleraTokens.space12),
-                    decoration: BoxDecoration(
-                      color: AleraTokens.accentSubtle,
-                      borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        if (attachments.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(
-                              bottom: AleraTokens.space8,
-                            ),
-                            child: Wrap(
-                              spacing: AleraTokens.space6,
-                              runSpacing: AleraTokens.space6,
-                              children: attachments
-                                  .map((att) {
-                                    final kind = att['kind']?.toString();
-                                    final path = att['path']?.toString() ?? '';
-                                    final displayName =
-                                        att['displayName']?.toString() ?? path;
-                                    if (kind == AttachmentKind.image.name) {
-                                      return _AttachmentThumbnail(
-                                        path: path,
-                                        displayName: displayName,
-                                      );
-                                    }
-                                    return _AttachmentChip(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      if (attachments.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(
+                            bottom: AleraTokens.space6,
+                          ),
+                          child: Wrap(
+                            alignment: WrapAlignment.end,
+                            spacing: AleraTokens.space6,
+                            runSpacing: AleraTokens.space6,
+                            children: attachments
+                                .map((att) {
+                                  final kind = att['kind']?.toString();
+                                  final path = att['path']?.toString() ?? '';
+                                  final displayName =
+                                      att['displayName']?.toString() ?? path;
+                                  if (kind == AttachmentKind.image.name) {
+                                    return _AttachmentThumbnail(
+                                      path: path,
                                       displayName: displayName,
                                     );
-                                  })
-                                  .toList(growable: false),
+                                  }
+                                  return _AttachmentChip(
+                                    displayName: displayName,
+                                  );
+                                })
+                                .toList(growable: false),
+                          ),
+                        ),
+                      if (messageText.trim().isNotEmpty)
+                        Container(
+                          key: ValueKey<String>(
+                            'user-bubble-${widget.cell.id}',
+                          ),
+                          padding: const EdgeInsets.all(AleraTokens.space12),
+                          decoration: BoxDecoration(
+                            color: AleraTokens.accentSubtle,
+                            borderRadius: BorderRadius.circular(
+                              AleraTokens.radiusLg,
                             ),
                           ),
-                        UserBubbleContent(
-                          markdownText: messageText,
-                          markdownEnabled: widget.markdownEnabled,
+                          child: UserBubbleContent(
+                            markdownText: messageText,
+                            markdownEnabled: widget.markdownEnabled,
+                          ),
                         ),
-                      ],
-                    ),
+                    ],
                   ),
                 ),
                 Positioned(
