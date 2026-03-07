@@ -5,21 +5,11 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "alera",
+            "name": "Alera (macOS)",
+            "program": "lib/main.dart",
+            "deviceId": "macos",
             "request": "launch",
             "type": "dart"
-        },
-        {
-            "name": "alera (profile mode)",
-            "request": "launch",
-            "type": "dart",
-            "flutterMode": "profile"
-        },
-        {
-            "name": "alera (release mode)",
-            "request": "launch",
-            "type": "dart",
-            "flutterMode": "release"
         }
     ]
 }
