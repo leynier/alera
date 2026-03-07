@@ -116,6 +116,7 @@ class _AleraShellPageState extends ConsumerState<AleraShellPage> {
       onDeclineRequest: controller.declineRequest,
       onSubmitUserInput: controller.submitUserInput,
       onDismissUserInput: controller.dismissUserInput,
+      onCompact: controller.compactContext,
     );
   }
 

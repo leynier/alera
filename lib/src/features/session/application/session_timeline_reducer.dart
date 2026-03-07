@@ -1,12 +1,15 @@
 import 'dart:convert';
 
+import 'package:alera/src/features/session/application/session_runtime_event.dart';
+import 'package:alera/src/features/session/application/session_state.dart';
 import 'package:alera/src/features/session/application/streaming/adaptive_chunking_policy.dart';
 import 'package:alera/src/features/session/application/streaming/commit_tick_engine.dart';
 import 'package:alera/src/features/session/application/streaming/markdown_stream_collector.dart';
-import 'package:alera/src/features/session/application/session_runtime_event.dart';
-import 'package:alera/src/features/session/application/session_state.dart';
 import 'package:alera/src/features/session/domain/chat_timeline.dart';
+import 'package:alera/src/features/session/domain/codex_model_catalog.dart';
+import 'package:alera/src/features/session/domain/collab_agent.dart';
 import 'package:alera/src/features/session/domain/composer_attachment.dart';
+import 'package:alera/src/features/session/domain/token_usage.dart';
 
 SessionState appendOptimisticUserMessage(
   SessionState state, {
@@ -121,14 +124,28 @@ SessionState reduceNotification(
         timestamp: timestamp,
         fallbackTitle: 'plan',
       );
-    case 'token_count':
-      return _onTokenCount(next, params);
+    case 'codex/event/token_count':
+      return _onTokenCount(next, _asMap(params['msg']));
+    case 'codex/event/context_compacted':
+      return _onContextCompacted(next);
     case 'error':
     case 'stream/error':
     case 'stream_error':
       return _onStreamError(next, params);
     case 'background/event':
       return _onBackgroundStatus(next, params);
+    // Multi-agent (collab) events:
+    case 'codex/event/collab_agent_spawn_begin':
+    case 'codex/event/collab_agent_spawn_end':
+    case 'codex/event/collab_agent_interaction_begin':
+    case 'codex/event/collab_agent_interaction_end':
+    case 'codex/event/collab_waiting_begin':
+    case 'codex/event/collab_waiting_end':
+    case 'codex/event/collab_close_begin':
+    case 'codex/event/collab_close_end':
+    case 'codex/event/collab_resume_begin':
+    case 'codex/event/collab_resume_end':
+      return _onCollabEvent(next, event.method, _asMap(params['msg']));
     default:
       return next;
   }
@@ -1224,7 +1241,246 @@ SessionState _onTokenCount(SessionState state, Map<String, dynamic> params) {
   } else {
     nextMetrics['tokenInfo'] = info;
   }
-  return state.copyWith(turnRuntimeMetrics: nextMetrics);
+
+  // Parse structured context usage.
+  var tokenUsageInfo = TokenUsageInfo.fromMap(info);
+  if (tokenUsageInfo.modelContextWindow == null) {
+    final windowSize = contextWindowForModel(state.activeModelId);
+    tokenUsageInfo = TokenUsageInfo(
+      totalTokenUsage: tokenUsageInfo.totalTokenUsage,
+      lastTokenUsage: tokenUsageInfo.lastTokenUsage,
+      modelContextWindow: windowSize,
+    );
+  }
+
+  final rawRateLimits = params['rate_limits'] ?? params['rateLimits'];
+  final rateLimitsMap = rawRateLimits is Map
+      ? _asMap(rawRateLimits)
+      : const <String, dynamic>{};
+  final rateLimits = rateLimitsMap.isNotEmpty
+      ? RateLimitSnapshot.fromMap(rateLimitsMap)
+      : state.contextUsage.rateLimits;
+
+  return state.copyWith(
+    turnRuntimeMetrics: nextMetrics,
+    contextUsage: state.contextUsage.copyWith(
+      tokenUsageInfo: tokenUsageInfo,
+      rateLimits: rateLimits,
+      isCompacting: false,
+    ),
+  );
+}
+
+SessionState _onContextCompacted(SessionState state) {
+  // Signal that compaction completed; token counts will be refreshed
+  // by the next token_count event.
+  return state.copyWith(
+    contextUsage: state.contextUsage.copyWith(isCompacting: false),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Multi-agent (collab) events
+// ---------------------------------------------------------------------------
+
+SessionState _onCollabEvent(
+  SessionState state,
+  String method,
+  Map<String, dynamic> params,
+) {
+  switch (method) {
+    case 'codex/event/collab_agent_spawn_begin':
+      return _onCollabSpawnBegin(state, params);
+    case 'codex/event/collab_agent_spawn_end':
+      return _onCollabSpawnEnd(state, params);
+    case 'codex/event/collab_agent_interaction_end':
+      return _onCollabInteractionEnd(state, params);
+    case 'codex/event/collab_waiting_end':
+      return _onCollabWaitingEnd(state, params);
+    case 'codex/event/collab_close_end':
+      return _onCollabCloseEnd(state, params);
+    case 'codex/event/collab_resume_end':
+      return _onCollabResumeEnd(state, params);
+    // Begin events for interaction/waiting/close/resume are informational
+    // (no state change needed; UI can show from the begin event if desired
+    // in the future).
+    default:
+      return state;
+  }
+}
+
+SessionState _onCollabSpawnBegin(
+  SessionState state,
+  Map<String, dynamic> params,
+) {
+  final callId = _asString(params['call_id']) ?? '';
+  if (callId.isEmpty) return state;
+
+  final senderThreadId = _asString(params['sender_thread_id']) ?? '';
+  final prompt = _asString(params['prompt']);
+
+  final entry = CollabAgentEntry(
+    callId: callId,
+    ref: const CollabAgentRef(threadId: ''),
+    status: CollabAgentStatus.pendingInit,
+    prompt: prompt,
+    senderThreadId: senderThreadId,
+  );
+
+  return state.copyWith(
+    collabAgents: <CollabAgentEntry>[...state.collabAgents, entry],
+  );
+}
+
+SessionState _onCollabSpawnEnd(
+  SessionState state,
+  Map<String, dynamic> params,
+) {
+  final callId = _asString(params['call_id']) ?? '';
+  if (callId.isEmpty) return state;
+
+  final newThreadId = _asString(params['new_thread_id']) ?? '';
+  final nickname = _asString(params['new_agent_nickname']);
+  final role = _asString(params['new_agent_role']);
+  final status = parseAgentStatus(params['status']);
+  final message = parseAgentStatusMessage(params['status']);
+
+  final agents = <CollabAgentEntry>[...state.collabAgents];
+  final index = agents.indexWhere((a) => a.callId == callId);
+  if (index != -1) {
+    agents[index] = agents[index].copyWith(
+      ref: CollabAgentRef(
+        threadId: newThreadId,
+        agentNickname: nickname,
+        agentRole: role,
+      ),
+      status: status,
+      message: message,
+    );
+  } else {
+    agents.add(
+      CollabAgentEntry(
+        callId: callId,
+        ref: CollabAgentRef(
+          threadId: newThreadId,
+          agentNickname: nickname,
+          agentRole: role,
+        ),
+        status: status,
+        prompt: _asString(params['prompt']),
+        message: message,
+        senderThreadId: _asString(params['sender_thread_id']),
+      ),
+    );
+  }
+
+  return state.copyWith(collabAgents: agents);
+}
+
+SessionState _onCollabInteractionEnd(
+  SessionState state,
+  Map<String, dynamic> params,
+) {
+  final receiverThreadId = _asString(params['receiver_thread_id']) ?? '';
+  if (receiverThreadId.isEmpty) return state;
+
+  final status = parseAgentStatus(params['status']);
+  final message = parseAgentStatusMessage(params['status']);
+  final nickname = _asString(params['receiver_agent_nickname']);
+  final role = _asString(params['receiver_agent_role']);
+
+  return _updateCollabAgentByThreadId(
+    state,
+    threadId: receiverThreadId,
+    status: status,
+    message: message,
+    nickname: nickname,
+    role: role,
+  );
+}
+
+SessionState _onCollabWaitingEnd(
+  SessionState state,
+  Map<String, dynamic> params,
+) {
+  final statusesMap = params['statuses'];
+  if (statusesMap is! Map) return state;
+
+  var next = state;
+  for (final entry in statusesMap.entries) {
+    final threadId = entry.key.toString();
+    final status = parseAgentStatus(entry.value);
+    final message = parseAgentStatusMessage(entry.value);
+    next = _updateCollabAgentByThreadId(
+      next,
+      threadId: threadId,
+      status: status,
+      message: message,
+    );
+  }
+  return next;
+}
+
+SessionState _onCollabCloseEnd(
+  SessionState state,
+  Map<String, dynamic> params,
+) {
+  final receiverThreadId = _asString(params['receiver_thread_id']) ?? '';
+  if (receiverThreadId.isEmpty) return state;
+
+  return _updateCollabAgentByThreadId(
+    state,
+    threadId: receiverThreadId,
+    status: CollabAgentStatus.shutdown,
+  );
+}
+
+SessionState _onCollabResumeEnd(
+  SessionState state,
+  Map<String, dynamic> params,
+) {
+  final receiverThreadId = _asString(params['receiver_thread_id']) ?? '';
+  if (receiverThreadId.isEmpty) return state;
+
+  final status = parseAgentStatus(params['status']);
+  final message = parseAgentStatusMessage(params['status']);
+
+  return _updateCollabAgentByThreadId(
+    state,
+    threadId: receiverThreadId,
+    status: status,
+    message: message,
+  );
+}
+
+SessionState _updateCollabAgentByThreadId(
+  SessionState state, {
+  required String threadId,
+  required CollabAgentStatus status,
+  String? message,
+  String? nickname,
+  String? role,
+}) {
+  final agents = <CollabAgentEntry>[...state.collabAgents];
+  final index = agents.indexWhere((a) => a.ref.threadId == threadId);
+  if (index == -1) return state;
+
+  var ref = agents[index].ref;
+  if (nickname != null || role != null) {
+    ref = CollabAgentRef(
+      threadId: threadId,
+      agentNickname: nickname ?? ref.agentNickname,
+      agentRole: role ?? ref.agentRole,
+    );
+  }
+
+  agents[index] = agents[index].copyWith(
+    ref: ref,
+    status: status,
+    message: message,
+  );
+
+  return state.copyWith(collabAgents: agents);
 }
 
 SessionState _onStreamError(SessionState state, Map<String, dynamic> params) {
@@ -2139,6 +2395,8 @@ String _itemTitle(String itemType, Map<String, dynamic> item) {
       return 'Thinking';
     case 'plan':
       return 'plan';
+    case 'contextCompaction':
+      return 'Compacting context';
     default:
       return itemType;
   }

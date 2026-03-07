@@ -1,12 +1,14 @@
-import 'package:alera/src/features/session/domain/codex_model_catalog.dart';
-import 'package:alera/src/features/session/domain/chat_timeline.dart';
-import 'package:alera/src/features/session/domain/composer_attachment.dart';
-import 'package:alera/src/features/session/domain/pending_approval.dart';
-import 'package:alera/src/features/session/domain/pending_message.dart';
-import 'package:alera/src/features/session/domain/pending_user_input.dart';
 import 'package:alera/src/features/session/application/streaming/adaptive_chunking_policy.dart';
 import 'package:alera/src/features/session/application/streaming/commit_tick_engine.dart';
 import 'package:alera/src/features/session/application/streaming/markdown_stream_collector.dart';
+import 'package:alera/src/features/session/domain/chat_timeline.dart';
+import 'package:alera/src/features/session/domain/codex_model_catalog.dart';
+import 'package:alera/src/features/session/domain/collab_agent.dart';
+import 'package:alera/src/features/session/domain/composer_attachment.dart';
+import 'package:alera/src/features/session/domain/context_usage.dart';
+import 'package:alera/src/features/session/domain/pending_approval.dart';
+import 'package:alera/src/features/session/domain/pending_message.dart';
+import 'package:alera/src/features/session/domain/pending_user_input.dart';
 import 'package:alera/src/shared/models/contracts.dart';
 
 class SessionState {
@@ -49,6 +51,8 @@ class SessionState {
     this.permissionMode = PermissionMode.defaultMode,
     this.pendingApprovals = const <PendingApproval>[],
     this.pendingUserInput,
+    this.contextUsage = ContextUsage.empty,
+    this.collabAgents = const <CollabAgentEntry>[],
     this.error,
     this.isBusy = false,
   });
@@ -97,6 +101,12 @@ class SessionState {
   final List<PendingApproval> pendingApprovals;
   // User input request from plan mode (request_user_input tool).
   final PendingUserInput? pendingUserInput;
+
+  /// Aggregated context usage (token counts, context window, rate limits).
+  final ContextUsage contextUsage;
+
+  /// Active collaborative sub-agents (multi-agent feature).
+  final List<CollabAgentEntry> collabAgents;
   final String? error;
   final bool isBusy;
 
@@ -187,6 +197,8 @@ class SessionState {
     List<PendingApproval>? pendingApprovals,
     PendingUserInput? pendingUserInput,
     bool clearPendingUserInput = false,
+    ContextUsage? contextUsage,
+    List<CollabAgentEntry>? collabAgents,
     String? error,
     bool? isBusy,
     bool clearError = false,
@@ -271,6 +283,8 @@ class SessionState {
       pendingUserInput: clearPendingUserInput
           ? null
           : (pendingUserInput ?? this.pendingUserInput),
+      contextUsage: contextUsage ?? this.contextUsage,
+      collabAgents: collabAgents ?? this.collabAgents,
       error: clearError ? null : (error ?? this.error),
       isBusy: isBusy ?? this.isBusy,
     );

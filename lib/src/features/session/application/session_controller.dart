@@ -825,6 +825,29 @@ class SessionController extends StateNotifier<SessionState> {
     }
   }
 
+  /// Requests manual context compaction for the active session.
+  Future<void> compactContext() async {
+    final session = state.activeSession;
+    if (session == null) {
+      return;
+    }
+    if (state.contextUsage.isCompacting) {
+      return;
+    }
+    state = state.copyWith(
+      contextUsage: state.contextUsage.copyWith(isCompacting: true),
+      clearError: true,
+    );
+    try {
+      await _sessionService.compactContext(sessionId: session.id);
+    } catch (error) {
+      state = state.copyWith(
+        contextUsage: state.contextUsage.copyWith(isCompacting: false),
+        error: error.toString(),
+      );
+    }
+  }
+
   Future<SettingsSnapshot> loadSettingsDefaults() {
     return _settingsService.load();
   }
