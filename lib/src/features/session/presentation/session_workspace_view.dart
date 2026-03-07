@@ -41,6 +41,7 @@ class SessionWorkspaceView extends StatefulWidget {
     this.onPasteImage,
     required this.onRemoveAttachment,
     required this.onRemoveFromQueue,
+    required this.onSteerQueuedMessage,
     required this.onStartEditingPendingMessage,
     required this.onUpdatePendingMessage,
     required this.onDeletePendingMessage,
@@ -71,6 +72,7 @@ class SessionWorkspaceView extends StatefulWidget {
   final ValueChanged<File>? onPasteImage;
   final ValueChanged<String> onRemoveAttachment;
   final ValueChanged<String> onRemoveFromQueue;
+  final ValueChanged<String> onSteerQueuedMessage;
   final ValueChanged<String> onStartEditingPendingMessage;
   final void Function(String id, String text, List<ComposerAttachment> attachments)
       onUpdatePendingMessage;
@@ -315,6 +317,8 @@ class _SessionWorkspaceViewState extends State<SessionWorkspaceView> {
                     messages: widget.state.pendingMessages,
                     onRemove: widget.onRemoveFromQueue,
                     onEdit: _handleEditQueuedMessage,
+                    onSteer: widget.onSteerQueuedMessage,
+                    canSteer: widget.isTurnRunning && !widget.isInterrupting,
                   ),
                 ),
               ),

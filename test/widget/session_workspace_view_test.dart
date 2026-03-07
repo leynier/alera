@@ -92,6 +92,7 @@ Future<void> _pumpWorkspace(
           onAddAttachment: () {},
           onRemoveAttachment: (_) {},
           onRemoveFromQueue: (_) {},
+          onSteerQueuedMessage: (_) {},
           onStartEditingPendingMessage: (_) {},
           onUpdatePendingMessage: (_, __, ___) {},
           onDeletePendingMessage: (_) {},
