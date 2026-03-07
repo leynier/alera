@@ -4,9 +4,10 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/session/application/session_state.dart';
 import 'package:alera/src/features/session/domain/chat_timeline.dart';
 import 'package:alera/src/features/session/domain/pending_approval.dart';
+import 'package:alera/src/features/session/presentation/widgets/approval_card.dart';
 import 'package:alera/src/features/session/presentation/widgets/chat_timeline_list.dart';
 import 'package:alera/src/features/session/presentation/widgets/composer.dart';
-import 'package:alera/src/features/session/presentation/widgets/approval_card.dart';
+import 'package:alera/src/features/session/presentation/widgets/composer_text_controller.dart';
 import 'package:alera/src/features/session/presentation/widgets/message_queue_bar.dart';
 import 'package:alera/src/features/session/presentation/widgets/raw_log.dart';
 import 'package:alera/src/features/session/presentation/widgets/user_input_card.dart';
@@ -78,7 +79,8 @@ class _SessionWorkspaceViewState extends State<SessionWorkspaceView> {
       _contentMaxWidth - (AleraTokens.space12 * 2) - _timelineExtraInset;
   static const double _bottomTolerancePx = 1;
 
-  final _inputController = TextEditingController();
+  late final _inputController = ComposerTextController()
+    ..workspacePath = widget.state.selectedWorkspacePath;
   final Set<String> _expandedWorkedTurns = <String>{};
   final ScrollController _timelineScrollController = ScrollController();
   bool _showScrollToBottom = false;
@@ -96,6 +98,10 @@ class _SessionWorkspaceViewState extends State<SessionWorkspaceView> {
   @override
   void didUpdateWidget(covariant SessionWorkspaceView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.state.selectedWorkspacePath !=
+        widget.state.selectedWorkspacePath) {
+      _inputController.workspacePath = widget.state.selectedWorkspacePath;
+    }
     if (oldWidget.state.activeSessionId != widget.state.activeSessionId) {
       _expandedWorkedTurns.clear();
     }
