@@ -38,7 +38,7 @@ class CodexAppServerClient {
       'initialize',
       params: <String, dynamic>{
         'clientInfo': <String, dynamic>{
-          'name': 'alera',
+          'name': 'Alera',
           'title': 'Alera Desktop',
           'version': '0.1.0',
         },
