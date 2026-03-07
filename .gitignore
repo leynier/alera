@@ -11,7 +11,8 @@ coverage/
 # IDE
 .idea/
 *.iml
-.vscode/
+.vscode/*
+!.vscode/launch.json
 
 # Platform generated
 macos/Flutter/ephemeral/
