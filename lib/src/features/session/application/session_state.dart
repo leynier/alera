@@ -46,6 +46,7 @@ class SessionState {
     this.reasoningBufferByItemId = const <String, String>{},
     this.composerAttachments = const <ComposerAttachment>[],
     this.pendingMessages = const <PendingMessage>[],
+    this.editingPendingMessageId,
     this.lastTurnDiff,
     this.planModeEnabled = false,
     this.permissionMode = PermissionMode.defaultMode,
@@ -91,6 +92,8 @@ class SessionState {
   final List<ComposerAttachment> composerAttachments;
   // Messages queued while a turn is running, processed in order.
   final List<PendingMessage> pendingMessages;
+  // ID of the message currently being edited in the queue.
+  final String? editingPendingMessageId;
   // Latest unified diff from turn/diff/updated events.
   final String? lastTurnDiff;
   // Whether plan mode (collaborative mode) is enabled for the next turn.
@@ -190,6 +193,8 @@ class SessionState {
     Map<String, String>? reasoningBufferByItemId,
     List<ComposerAttachment>? composerAttachments,
     List<PendingMessage>? pendingMessages,
+    String? editingPendingMessageId,
+    bool clearEditingPendingMessageId = false,
     String? lastTurnDiff,
     bool clearLastTurnDiff = false,
     bool? planModeEnabled,
@@ -274,6 +279,9 @@ class SessionState {
           reasoningBufferByItemId ?? this.reasoningBufferByItemId,
       composerAttachments: composerAttachments ?? this.composerAttachments,
       pendingMessages: pendingMessages ?? this.pendingMessages,
+      editingPendingMessageId: clearEditingPendingMessageId
+          ? null
+          : (editingPendingMessageId ?? this.editingPendingMessageId),
       lastTurnDiff: clearLastTurnDiff
           ? null
           : (lastTurnDiff ?? this.lastTurnDiff),

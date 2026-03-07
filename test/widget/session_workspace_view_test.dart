@@ -92,6 +92,10 @@ Future<void> _pumpWorkspace(
           onAddAttachment: () {},
           onRemoveAttachment: (_) {},
           onRemoveFromQueue: (_) {},
+          onStartEditingPendingMessage: (_) {},
+          onUpdatePendingMessage: (_, __, ___) {},
+          onDeletePendingMessage: (_) {},
+          onFinishEditingPendingMessage: () {},
           onPlanModeToggled: onPlanModeToggled ?? () {},
           onImplementPlanPressed: onImplementPlanPressed ?? () async {},
           onPermissionModeToggled: () {},
@@ -2112,15 +2116,33 @@ void main() {
     expect(editable.controller.text, 'hello\n');
   });
 
-  testWidgets('shows stop button while a turn is running', (tester) async {
+  testWidgets('shows stop button while a turn is running and composer empty', (tester) async {
     await _pumpWorkspace(
       tester,
       state: stateWithActiveSession(),
       isTurnRunning: true,
     );
 
+    // Composer is empty, so stop button should show
     expect(find.byIcon(Icons.stop), findsOneWidget);
     expect(find.byIcon(Icons.arrow_upward), findsNothing);
+  });
+
+  testWidgets('shows send button while running when composer has text', (tester) async {
+    await _pumpWorkspace(
+      tester,
+      state: stateWithActiveSession(),
+      isTurnRunning: true,
+    );
+
+    // Type something in the composer
+    await tester.tap(find.byType(TextField));
+    await tester.enterText(find.byType(TextField), 'queued message');
+    await tester.pumpAndSettle();
+
+    // Now send button should show instead of stop
+    expect(find.byIcon(Icons.stop), findsNothing);
+    expect(find.byIcon(Icons.arrow_upward), findsOneWidget);
   });
 
   testWidgets('tapping stop triggers interrupt callback', (tester) async {
@@ -2138,7 +2160,7 @@ void main() {
     expect(interruptCount, 1);
   });
 
-  testWidgets('while running, Enter does not send a message', (tester) async {
+  testWidgets('while running, Enter queues a message', (tester) async {
     var sentCount = 0;
     await _pumpWorkspace(
       tester,
@@ -2148,11 +2170,12 @@ void main() {
     );
 
     await tester.tap(find.byType(TextField));
-    await tester.enterText(find.byType(TextField), 'should not send');
+    await tester.enterText(find.byType(TextField), 'should queue');
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pumpAndSettle();
 
-    expect(sentCount, 0);
+    expect(sentCount, 1);
+    // After sending, composer is empty so stop button shows again
     expect(find.byIcon(Icons.stop), findsOneWidget);
   });
 
@@ -2171,10 +2194,10 @@ void main() {
     expect(find.byIcon(Icons.stop), findsNothing);
     expect(find.byType(CircularProgressIndicator), findsWidgets);
 
-    final sendOrStopButton = tester.widget<IconButton>(
-      find.byKey(const ValueKey<String>('composer-send-stop-button')),
+    final actionButton = tester.widget<IconButton>(
+      find.byKey(const ValueKey<String>('composer-action-button')),
     );
-    expect(sendOrStopButton.onPressed, isNull);
+    expect(actionButton.onPressed, isNull);
     expect(interruptCount, 0);
   });
 

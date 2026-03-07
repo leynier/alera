@@ -271,4 +271,9 @@ class AgentOrchestrator {
   ) {
     return _client.respondUserInput(requestId: requestId, answers: answers);
   }
+
+  /// Requests manual context compaction for the given thread.
+  Future<void> compactThread({required String threadId}) {
+    return _client.compactThread(threadId: threadId);
+  }
 }

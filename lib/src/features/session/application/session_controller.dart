@@ -32,6 +32,9 @@ class SessionController extends StateNotifier<SessionState> {
     _eventsSub = _sessionService.events.listen(_onSessionEvent);
   }
 
+  // Callback to get steer context from SteerController.
+  String? Function()? getSteerContext;
+
   final SessionService _sessionService;
   final ProjectService _projectService;
   final SettingsService _settingsService;
@@ -559,11 +562,41 @@ class SessionController extends StateNotifier<SessionState> {
   }
 
   void removeFromQueue(String id) {
+    final wasEditing = state.editingPendingMessageId == id;
     state = state.copyWith(
       pendingMessages: state.pendingMessages
           .where((m) => m.id != id)
           .toList(growable: false),
+      clearEditingPendingMessageId: wasEditing,
     );
+    // If we were editing this message and it's now deleted, process the queue.
+    if (wasEditing) {
+      unawaited(_processNextQueuedMessage());
+    }
+  }
+
+  void startEditingPendingMessage(String id) {
+    state = state.copyWith(editingPendingMessageId: id);
+  }
+
+  void finishEditingPendingMessage() {
+    state = state.copyWith(clearEditingPendingMessageId: true);
+    // Trigger queue processing in case messages were waiting.
+    unawaited(_processNextQueuedMessage());
+  }
+
+  void updatePendingMessage(
+    String id,
+    String text,
+    List<ComposerAttachment> attachments,
+  ) {
+    final updated = state.pendingMessages.map((m) {
+      if (m.id == id) {
+        return m.copyWith(text: text, attachments: attachments);
+      }
+      return m;
+    }).toList(growable: false);
+    state = state.copyWith(pendingMessages: updated);
   }
 
   Future<void> sendInput(String rawInput) async {
@@ -654,6 +687,20 @@ class SessionController extends StateNotifier<SessionState> {
     return items;
   }
 
+  // Build steer context input items from active steer rules.
+  List<Map<String, dynamic>> _buildSteerInputItems() {
+    final steerContext = getSteerContext?.call();
+    if (steerContext == null || steerContext.isEmpty) {
+      return const <Map<String, dynamic>>[];
+    }
+    return <Map<String, dynamic>>[
+      <String, dynamic>{
+        'type': 'text',
+        'text': '[Steering instructions: $steerContext]',
+      },
+    ];
+  }
+
   Future<void> _processNextQueuedMessage() async {
     if (state.pendingMessages.isEmpty) {
       return;
@@ -662,6 +709,10 @@ class SessionController extends StateNotifier<SessionState> {
       return;
     }
     final next = state.pendingMessages.first;
+    // Check if message is being edited - wait for edit to complete.
+    if (state.editingPendingMessageId == next.id) {
+      return;
+    }
     final remaining = state.pendingMessages.skip(1).toList(growable: false);
     state = state.copyWith(pendingMessages: remaining);
     await _executeInput(
@@ -719,9 +770,11 @@ class SessionController extends StateNotifier<SessionState> {
         session = created;
       }
       final mentionItems = await _buildMentionInputItems(text, workspacePath);
+      final steerItems = _buildSteerInputItems();
       final extraInputItems = <Map<String, dynamic>>[
         ...await _buildAttachmentInputItems(attachments),
         ...mentionItems,
+        ...steerItems,
       ];
       final approvalPolicy = state.permissionMode == PermissionMode.fullAccess
           ? 'never'

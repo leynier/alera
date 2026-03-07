@@ -4,12 +4,15 @@ import 'dart:io';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/session/application/session_state.dart';
 import 'package:alera/src/features/session/domain/chat_timeline.dart';
+import 'package:alera/src/features/session/domain/composer_attachment.dart';
 import 'package:alera/src/features/session/domain/pending_approval.dart';
+import 'package:alera/src/features/session/domain/pending_message.dart';
 import 'package:alera/src/features/session/presentation/widgets/approval_card.dart';
 import 'package:alera/src/features/session/presentation/widgets/chat_timeline_list.dart';
 import 'package:alera/src/features/session/presentation/widgets/composer.dart';
 import 'package:alera/src/features/session/presentation/widgets/composer_text_controller.dart';
 import 'package:alera/src/features/session/presentation/widgets/message_queue_bar.dart';
+import 'package:alera/src/features/session/presentation/widgets/queue_message_edit_dialog.dart';
 import 'package:alera/src/features/session/presentation/widgets/raw_log.dart';
 import 'package:alera/src/features/session/presentation/widgets/user_input_card.dart';
 import 'package:flutter/material.dart';
@@ -38,6 +41,10 @@ class SessionWorkspaceView extends StatefulWidget {
     this.onPasteImage,
     required this.onRemoveAttachment,
     required this.onRemoveFromQueue,
+    required this.onStartEditingPendingMessage,
+    required this.onUpdatePendingMessage,
+    required this.onDeletePendingMessage,
+    required this.onFinishEditingPendingMessage,
     required this.onPlanModeToggled,
     required this.onImplementPlanPressed,
     required this.onPermissionModeToggled,
@@ -64,6 +71,11 @@ class SessionWorkspaceView extends StatefulWidget {
   final ValueChanged<File>? onPasteImage;
   final ValueChanged<String> onRemoveAttachment;
   final ValueChanged<String> onRemoveFromQueue;
+  final ValueChanged<String> onStartEditingPendingMessage;
+  final void Function(String id, String text, List<ComposerAttachment> attachments)
+      onUpdatePendingMessage;
+  final ValueChanged<String> onDeletePendingMessage;
+  final VoidCallback onFinishEditingPendingMessage;
   final VoidCallback onPlanModeToggled;
   final Future<void> Function() onImplementPlanPressed;
   final VoidCallback onPermissionModeToggled;
@@ -302,6 +314,7 @@ class _SessionWorkspaceViewState extends State<SessionWorkspaceView> {
                   child: MessageQueueBar(
                     messages: widget.state.pendingMessages,
                     onRemove: widget.onRemoveFromQueue,
+                    onEdit: _handleEditQueuedMessage,
                   ),
                 ),
               ),
@@ -377,6 +390,32 @@ class _SessionWorkspaceViewState extends State<SessionWorkspaceView> {
     _pendingScrollAfterSend = true;
     _scheduleScrollToBottom(animated: true);
     widget.onSendInput(text);
+  }
+
+  void _handleEditQueuedMessage(PendingMessage message) {
+    // Notify controller that editing has started.
+    widget.onStartEditingPendingMessage(message.id);
+    showDialog<void>(
+      context: context,
+      builder: (context) => QueueMessageEditDialog(
+        message: message,
+        workspacePath: widget.state.selectedWorkspacePath,
+        onSave: (result) {
+          widget.onUpdatePendingMessage(message.id, result.text, result.attachments);
+          widget.onFinishEditingPendingMessage();
+        },
+        onDelete: () {
+          widget.onDeletePendingMessage(message.id);
+          // onDeletePendingMessage calls removeFromQueue which handles editing state.
+        },
+      ),
+    ).then((_) {
+      // If dialog is dismissed without saving (e.g., via Escape key),
+      // we still need to clear the editing state.
+      if (widget.state.editingPendingMessageId == message.id) {
+        widget.onFinishEditingPendingMessage();
+      }
+    });
   }
 
   void _focusComposer() {

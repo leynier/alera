@@ -5,6 +5,8 @@ import 'package:alera/src/features/session/application/session_controller.dart';
 import 'package:alera/src/features/session/application/session_service.dart';
 import 'package:alera/src/features/session/application/session_state.dart';
 import 'package:alera/src/features/settings/application/settings_service.dart';
+import 'package:alera/src/features/steer/application/steer_controller.dart';
+import 'package:alera/src/features/steer/domain/steer_state.dart';
 import 'package:alera/src/shared/infra/process/io_process_runner.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 import 'package:alera/src/shared/infra/storage/preferences_store.dart';
@@ -49,9 +51,20 @@ final sessionServiceProvider = Provider<SessionService>((ref) {
 
 final sessionControllerProvider =
     StateNotifierProvider<SessionController, SessionState>((ref) {
-      return SessionController(
+      final controller = SessionController(
         sessionService: ref.watch(sessionServiceProvider),
         projectService: ref.watch(projectServiceProvider),
         settingsService: ref.watch(settingsServiceProvider),
+      );
+      // Wire up steer context from SteerController.
+      final steerController = ref.read(steerControllerProvider.notifier);
+      controller.getSteerContext = steerController.getSteerContext;
+      return controller;
+    });
+
+final steerControllerProvider =
+    StateNotifierProvider<SteerController, SteerState>((ref) {
+      return SteerController(
+        preferencesStore: ref.watch(preferencesStoreProvider),
       );
     });

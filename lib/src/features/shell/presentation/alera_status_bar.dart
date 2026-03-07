@@ -3,6 +3,7 @@ import 'package:alera/src/features/session/application/session_state.dart';
 import 'package:alera/src/features/session/domain/codex_model_catalog.dart';
 import 'package:alera/src/features/session/presentation/widgets/diff_viewer.dart';
 import 'package:alera/src/shared/models/contracts.dart';
+import 'package:alera/src/shared/utils/format_utils.dart';
 import 'package:flutter/material.dart';
 
 class AleraStatusBar extends StatelessWidget {
@@ -216,11 +217,7 @@ class _ContextChip extends StatelessWidget {
     return AleraTokens.success;
   }
 
-  String _formatTokens(int t) {
-    if (t >= 1000000) return '${(t / 1000000).toStringAsFixed(1)}M';
-    if (t >= 1000) return '${(t / 1000).toStringAsFixed(0)}K';
-    return t.toString();
-  }
+  String _formatTokens(int t) => formatTokenCount(t);
 
   @override
   Widget build(BuildContext context) {
