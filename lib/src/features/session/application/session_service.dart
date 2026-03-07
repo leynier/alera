@@ -335,17 +335,4 @@ class SessionService {
     }
     return compact.length <= 60 ? compact : '${compact.substring(0, 57)}...';
   }
-
-  Future<void> compactContext({required String sessionId}) async {
-    final session = _sessions[sessionId];
-    if (session == null) {
-      throw StateError('session not found: $sessionId');
-    }
-    final threadId = session.threadId;
-    if (threadId == null || threadId.isEmpty) {
-      throw StateError('session has no thread id');
-    }
-    await _ensureOrchestrator();
-    await _orchestrator.compactThread(threadId: threadId);
-  }
 }
