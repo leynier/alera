@@ -34,6 +34,11 @@ const Map<String, String> codexReasoningEffortLabels = <String, String>{
 
 const List<CodexModelOption> codexModelSnapshot = <CodexModelOption>[
   CodexModelOption(
+    id: 'gpt-5.4',
+    label: 'GPT-5.4',
+    contextWindowTokens: 200000,
+  ),
+  CodexModelOption(
     id: 'gpt-5.3-codex',
     label: 'GPT-5.3-Codex',
     contextWindowTokens: 200000,
