@@ -312,7 +312,6 @@ class _SessionWorkspaceViewState extends State<SessionWorkspaceView> {
                   textFieldEnabled: hasWorkspace,
                   canSend:
                       hasWorkspace &&
-                      !widget.state.isBusy &&
                       !widget.isInterrupting,
                   canStop:
                       widget.state.activeSession != null &&
