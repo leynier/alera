@@ -347,7 +347,7 @@ class CompletedTurnSection extends StatelessWidget {
           secondary.add(cell);
         case TimelineCellKind.plan:
           assistants.add(cell);
-        case TimelineCellKind.reasoning || TimelineCellKind.toolCall:
+        case TimelineCellKind.reasoning || TimelineCellKind.toolCall || TimelineCellKind.subAgent:
           secondary.add(cell);
         case TimelineCellKind.systemNotice:
           final placement = (cell.metadata['uiPlacement'] ?? '')

@@ -124,8 +124,16 @@ SessionState reduceNotification(
         timestamp: timestamp,
         fallbackTitle: 'plan',
       );
+    case 'item/subAgent/started':
+      return _onSubAgentStarted(next, params, timestamp);
+    case 'item/subAgent/delta':
+      return _onSubAgentDelta(next, params, timestamp);
+    case 'item/subAgent/completed':
+      return _onSubAgentCompleted(next, params, timestamp);
     case 'codex/event/token_count':
       return _onTokenCount(next, _asMap(params['msg']));
+    case 'token_count':
+      return _onTokenCount(next, params);
     case 'codex/event/context_compacted':
       return _onContextCompacted(next);
     case 'error':
@@ -1689,6 +1697,10 @@ SessionState _onItemStarted(
       ? TimelineCellKind.reasoning
       : itemType == 'plan'
       ? TimelineCellKind.plan
+      : itemType == 'subAgent' ||
+              itemType == 'remoteAgent' ||
+              itemType == 'collabAgentToolCall'
+      ? TimelineCellKind.subAgent
       : TimelineCellKind.toolCall;
   final existingMetadata = existingIndex == -1
       ? const <String, dynamic>{}
@@ -1699,14 +1711,23 @@ SessionState _onItemStarted(
     previous: existingMetadata,
   );
 
-  final title = _itemTitle(itemType, itemMetadata);
+  final String title;
+  if (kind == TimelineCellKind.subAgent) {
+    final fallbackTask = _itemTitle(itemType, itemMetadata);
+    final tool = _asString(itemMetadata['tool']);
+    final arguments = (itemMetadata['arguments'] as Map<String, dynamic>?)
+        ?? (tool != null ? <String, dynamic>{'tool': tool} : null);
+    title = _subAgentTitle(arguments, fallbackTask);
+  } else {
+    title = _itemTitle(itemType, itemMetadata);
+  }
   final subtitle = _itemSubtitle(itemType, itemMetadata);
   final markdownText = kind == TimelineCellKind.reasoning
       ? (_reasoningSummary(itemMetadata).isEmpty
             ? null
             : _reasoningSummary(itemMetadata))
       : null;
-  final detailsText = kind == TimelineCellKind.toolCall
+  final detailsText = kind == TimelineCellKind.toolCall || kind == TimelineCellKind.subAgent
       ? _itemDetails(itemType, itemMetadata)
       : null;
 
@@ -1823,6 +1844,10 @@ SessionState _onItemCompleted(
       ? TimelineCellKind.reasoning
       : itemType == 'plan'
       ? TimelineCellKind.plan
+      : itemType == 'subAgent' ||
+              itemType == 'remoteAgent' ||
+              itemType == 'collabAgentToolCall'
+      ? TimelineCellKind.subAgent
       : TimelineCellKind.toolCall;
   final existingMetadata = existingIndex == -1
       ? const <String, dynamic>{}
@@ -1836,7 +1861,16 @@ SessionState _onItemCompleted(
       _statusFromString(_asString(item['status'])) ??
       TimelineCellStatus.completed;
 
-  final title = _itemTitle(itemType, itemMetadata);
+  final String title;
+  if (kind == TimelineCellKind.subAgent) {
+    final fallbackTask = _itemTitle(itemType, itemMetadata);
+    final tool = _asString(itemMetadata['tool']);
+    final arguments = (itemMetadata['arguments'] as Map<String, dynamic>?)
+        ?? (tool != null ? <String, dynamic>{'tool': tool} : null);
+    title = _subAgentTitle(arguments, fallbackTask);
+  } else {
+    title = _itemTitle(itemType, itemMetadata);
+  }
   final subtitle = _itemSubtitle(itemType, itemMetadata);
   var reasoningText = _reasoningSummary(itemMetadata);
   if (kind == TimelineCellKind.reasoning &&
@@ -2352,6 +2386,7 @@ bool _isSecondaryKind(TimelineCellKind kind) {
   return kind == TimelineCellKind.progressText ||
       kind == TimelineCellKind.reasoning ||
       kind == TimelineCellKind.toolCall ||
+      kind == TimelineCellKind.subAgent ||
       kind == TimelineCellKind.systemNotice;
 }
 
@@ -2397,6 +2432,11 @@ String _itemTitle(String itemType, Map<String, dynamic> item) {
       return 'plan';
     case 'contextCompaction':
       return 'Compacting context';
+    case 'collabAgentToolCall':
+      return 'Running sub-agent';
+    case 'subAgent':
+    case 'remoteAgent':
+      return 'Sub-agent task';
     default:
       return itemType;
   }
@@ -2416,6 +2456,10 @@ String? _itemSubtitle(String itemType, Map<String, dynamic> item) {
       return _asString(item['query']) ?? _asString(item['url']);
     case 'mcpToolCall':
       return _asString(item['status']);
+    case 'collabAgentToolCall':
+    case 'subAgent':
+    case 'remoteAgent':
+      return _asString(item['task']) ?? _asString(item['description']);
     default:
       return null;
   }
@@ -2873,4 +2917,187 @@ String? _encode(dynamic value) {
   } catch (_) {
     return value.toString();
   }
+}
+
+String _subAgentTitle(Map<String, dynamic>? arguments, String? fallbackTask) {
+  final tool = _asString(arguments?['tool']);
+  switch (tool) {
+    case 'spawnAgent':
+      return 'Spawning sub-agent';
+    case 'wait':
+      return 'Waiting for sub-agent';
+    case null:
+    case '':
+      return fallbackTask ?? 'Sub-agent task';
+    default:
+      // For any other tool, format it nicely
+      return 'Running ${tool.replaceAll('_', ' ')}';
+  }
+}
+
+SessionState _onSubAgentStarted(
+  SessionState state,
+  Map<String, dynamic> params,
+  DateTime timestamp,
+) {
+  final turnId = _asString(params['turnId']) ?? state.activeTurnId;
+  final itemId = _asString(params['itemId']);
+  if (turnId == null || turnId.isEmpty || itemId == null || itemId.isEmpty) {
+    return state;
+  }
+  final cells = <TimelineCell>[...state.timelineCells];
+  var index = _buildCellIndex(cells);
+  final phase = _startSecondaryPhase(
+    cells,
+    index: index,
+    turnId: turnId,
+    timestamp: timestamp,
+    phaseClosedByItemId: itemId,
+  );
+  index = phase.index;
+  final cellId = index.cellIdByItemId[itemId] ?? itemId;
+  final existingIndex = _findCellById(cells, cellId);
+  final fallbackTask = _asString(params['task']) ?? 'Sub-agent task';
+  final arguments = params['arguments'] as Map<String, dynamic>?;
+  final title = _subAgentTitle(arguments, fallbackTask);
+  final metadata = <String, dynamic>{
+    'isSubAgent': true,
+    if (arguments != null) 'arguments': arguments,
+  };
+  if (existingIndex == -1) {
+    cells.add(
+      TimelineCell(
+        id: cellId,
+        turnId: turnId,
+        itemId: itemId,
+        kind: TimelineCellKind.subAgent,
+        status: TimelineCellStatus.inProgress,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        isCollapsed: true,
+        title: title,
+        detailsText: arguments != null ? _encode(arguments) : null,
+        metadata: metadata,
+      ),
+    );
+  } else {
+    final existing = cells[existingIndex];
+    cells[existingIndex] = existing.copyWith(
+      turnId: turnId,
+      itemId: itemId,
+      kind: TimelineCellKind.subAgent,
+      status: TimelineCellStatus.inProgress,
+      title: title,
+      updatedAt: timestamp,
+      metadata: <String, dynamic>{...existing.metadata, ...metadata},
+    );
+  }
+  return state.copyWith(
+    timelineCells: cells,
+    activeTurnId: turnId,
+    turnHadWorkActivity: true,
+    statusHeader: title,
+    pendingStatusRestore: false,
+    clearActiveStreamingAssistantCellId: phase.clearActiveStreamingAssistant,
+  );
+}
+
+SessionState _onSubAgentDelta(
+  SessionState state,
+  Map<String, dynamic> params,
+  DateTime timestamp,
+) {
+  final turnId = _asString(params['turnId']) ?? state.activeTurnId;
+  final itemId = _asString(params['itemId']);
+  final delta = _asString(params['delta']);
+  if (turnId == null ||
+      turnId.isEmpty ||
+      itemId == null ||
+      itemId.isEmpty ||
+      delta == null ||
+      delta.isEmpty) {
+    return state;
+  }
+  final cells = <TimelineCell>[...state.timelineCells];
+  final index = _buildCellIndex(cells);
+  final cellId = index.cellIdByItemId[itemId] ?? itemId;
+  final existingIndex = _findCellById(cells, cellId);
+  if (existingIndex == -1) {
+    return state;
+  }
+  final existing = cells[existingIndex];
+  final currentOutput = existing.metadata['output'] as String? ?? '';
+  final newOutput = currentOutput.isEmpty ? delta : '$currentOutput\n$delta';
+  cells[existingIndex] = existing.copyWith(
+    updatedAt: timestamp,
+    metadata: <String, dynamic>{...existing.metadata, 'output': newOutput},
+  );
+  return state.copyWith(
+    timelineCells: cells,
+    activeTurnId: turnId,
+    turnHadWorkActivity: true,
+    statusHeader: existing.title,
+    pendingStatusRestore: false,
+  );
+}
+
+SessionState _onSubAgentCompleted(
+  SessionState state,
+  Map<String, dynamic> params,
+  DateTime timestamp,
+) {
+  final turnId = _asString(params['turnId']) ?? state.activeTurnId;
+  final itemId = _asString(params['itemId']);
+  if (turnId == null || turnId.isEmpty || itemId == null || itemId.isEmpty) {
+    return state;
+  }
+  final cells = <TimelineCell>[...state.timelineCells];
+  final index = _buildCellIndex(cells);
+  final cellId = index.cellIdByItemId[itemId] ?? itemId;
+  final existingIndex = _findCellById(cells, cellId);
+  final result = params['result'] as Map<String, dynamic>?;
+  final success = result?['success'] as bool? ?? true;
+  final status = success ? TimelineCellStatus.completed : TimelineCellStatus.failed;
+  if (existingIndex == -1) {
+    final fallbackTask = _asString(params['task']) ?? 'Sub-agent task';
+    final arguments = params['arguments'] as Map<String, dynamic>?;
+    final title = _subAgentTitle(arguments, fallbackTask);
+    final metadata = <String, dynamic>{
+      'isSubAgent': true,
+      if (arguments != null) 'arguments': arguments,
+      if (result != null) 'result': result,
+    };
+    cells.add(
+      TimelineCell(
+        id: cellId,
+        turnId: turnId,
+        itemId: itemId,
+        kind: TimelineCellKind.subAgent,
+        status: status,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        isCollapsed: true,
+        title: title,
+        metadata: metadata,
+      ),
+    );
+  } else {
+    final existing = cells[existingIndex];
+    final metadata = <String, dynamic>{
+      ...existing.metadata,
+      if (result != null) 'result': result,
+    };
+    cells[existingIndex] = existing.copyWith(
+      status: status,
+      updatedAt: timestamp,
+      metadata: metadata,
+    );
+  }
+  return state.copyWith(
+    timelineCells: cells,
+    activeTurnId: turnId,
+    turnHadWorkActivity: true,
+    statusHeader: 'Working',
+    pendingStatusRestore: false,
+  );
 }
