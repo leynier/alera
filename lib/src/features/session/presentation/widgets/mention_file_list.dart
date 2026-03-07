@@ -1,7 +1,7 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:flutter/material.dart';
 
-class MentionFileList extends StatelessWidget {
+class MentionFileList extends StatefulWidget {
   const MentionFileList({
     super.key,
     required this.files,
@@ -12,6 +12,62 @@ class MentionFileList extends StatelessWidget {
   final List<String> files;
   final int selectedIndex;
   final ValueChanged<String> onSelect;
+
+  @override
+  State<MentionFileList> createState() => _MentionFileListState();
+}
+
+class _MentionFileListState extends State<MentionFileList> {
+  final ScrollController _scrollController = ScrollController();
+  final List<GlobalKey> _itemKeys = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _updateItemKeys();
+  }
+
+  @override
+  void didUpdateWidget(MentionFileList oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.files.length != oldWidget.files.length) {
+      _updateItemKeys();
+    }
+    if (widget.selectedIndex != oldWidget.selectedIndex) {
+      _scrollToSelected();
+    }
+  }
+
+  void _updateItemKeys() {
+    _itemKeys.clear();
+    for (var i = 0; i < widget.files.length; i++) {
+      _itemKeys.add(GlobalKey());
+    }
+  }
+
+  void _scrollToSelected() {
+    if (widget.selectedIndex < 0 || widget.selectedIndex >= _itemKeys.length) {
+      return;
+    }
+
+    final key = _itemKeys[widget.selectedIndex];
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (key.currentContext != null) {
+        Scrollable.ensureVisible(
+          key.currentContext!,
+          duration: const Duration(milliseconds: 100),
+          curve: Curves.easeInOut,
+          alignment: 0.5,
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,14 +87,17 @@ class MentionFileList extends StatelessWidget {
         ],
       ),
       child: ListView.builder(
+        controller: _scrollController,
         shrinkWrap: true,
         padding: const EdgeInsets.symmetric(vertical: AleraTokens.space4),
-        itemCount: files.length,
+        itemCount: widget.files.length,
         itemBuilder: (context, index) {
-          final file = files[index];
-          final selected = index == selectedIndex;
+          final file = widget.files[index];
+          final selected = index == widget.selectedIndex;
           return InkWell(
-            onTap: () => onSelect(file),
+            key: _itemKeys[index],
+            onTap: () => widget.onSelect(file),
+            mouseCursor: SystemMouseCursors.click,
             borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
             child: Container(
               color: selected
