@@ -350,11 +350,11 @@ class CompletedTurnSection extends StatelessWidget {
         case TimelineCellKind.reasoning || TimelineCellKind.toolCall || TimelineCellKind.subAgent:
           secondary.add(cell);
         case TimelineCellKind.systemNotice:
-          final placement = (cell.metadata['uiPlacement'] ?? '')
+          final placement = (cell.metadata[TimelineCellMetadata.uiPlacementKey] ?? '')
               .toString()
               .toLowerCase()
               .trim();
-          if (placement == 'outside_worked') {
+          if (placement == TimelineCellMetadata.outsideWorked) {
             postTurnNotices.add(cell);
           } else {
             secondary.add(cell);

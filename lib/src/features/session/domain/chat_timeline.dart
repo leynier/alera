@@ -12,6 +12,15 @@ enum TimelineCellKind {
 
 enum TimelineCellStatus { inProgress, completed, failed, declined, info }
 
+/// Constants for TimelineCell metadata keys and values.
+abstract class TimelineCellMetadata {
+  /// Key for UI placement of system notices.
+  static const String uiPlacementKey = 'uiPlacement';
+
+  /// Value for placing notice outside the "Worked..." section.
+  static const String outsideWorked = 'outside_worked';
+}
+
 class TimelineCell {
   const TimelineCell({
     required this.id,
