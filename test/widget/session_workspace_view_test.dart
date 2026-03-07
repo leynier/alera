@@ -2248,7 +2248,7 @@ void main() {
             markdownText: 'Stopped by user',
             metadata: const <String, dynamic>{
               'noticeType': 'user_stop',
-              'uiPlacement': 'outside_worked',
+              TimelineCellMetadata.uiPlacementKey: TimelineCellMetadata.outsideWorked,
               'ephemeralInputOnly': true,
             },
           ),

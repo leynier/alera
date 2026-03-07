@@ -968,7 +968,7 @@ SessionState _onTurnCompleted(
           markdownText: 'Stopped by user',
           metadata: const <String, dynamic>{
             'noticeType': 'user_stop',
-            'uiPlacement': 'outside_worked',
+            TimelineCellMetadata.uiPlacementKey: TimelineCellMetadata.outsideWorked,
             'ephemeralInputOnly': true,
           },
         ),
@@ -1296,7 +1296,7 @@ SessionState _onContextCompacted(SessionState state, DateTime timestamp) {
     markdownText: 'Context compacted',
     metadata: const <String, dynamic>{
       'noticeType': 'context_compacted',
-      'uiPlacement': 'outside_worked',
+      TimelineCellMetadata.uiPlacementKey: TimelineCellMetadata.outsideWorked,
     },
   );
   return state.copyWith(

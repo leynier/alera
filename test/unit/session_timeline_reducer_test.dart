@@ -1215,7 +1215,10 @@ void main() {
       expect(notices, hasLength(1));
       expect(notices.first.markdownText, 'Stopped by user');
       expect(notices.first.metadata['noticeType'], 'user_stop');
-      expect(notices.first.metadata['uiPlacement'], 'outside_worked');
+      expect(
+        notices.first.metadata[TimelineCellMetadata.uiPlacementKey],
+        TimelineCellMetadata.outsideWorked,
+      );
       expect(notices.first.metadata['ephemeralInputOnly'], isTrue);
     });
 
