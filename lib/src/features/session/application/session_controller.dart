@@ -602,7 +602,7 @@ class SessionController extends StateNotifier<SessionState> {
       createdAt: now,
       updatedAt: now,
       markdownText: message.text,
-      metadata: const <String, dynamic>{'isSteering': true},
+      metadata: const <String, dynamic>{TimelineCellMetadata.isSteeringKey: true},
     );
     state = state.copyWith(
       timelineCells: <TimelineCell>[...state.timelineCells, cell],
@@ -618,24 +618,44 @@ class SessionController extends StateNotifier<SessionState> {
     ];
 
     try {
-      await _sessionService.steerActiveTurn(
+      final returnedTurnId = await _sessionService.steerActiveTurn(
         sessionId: activeSessionId,
         rawInput: message.text,
         expectedTurnId: activeTurnId,
         extraInputItems: extraItems,
       );
+      // Mark the steering cell as completed and assign it to the turn.
+      _updateTimelineCell(
+        cell.id,
+        (c) => c.copyWith(
+          status: TimelineCellStatus.completed,
+          turnId: returnedTurnId,
+          metadata: const <String, dynamic>{},
+          updatedAt: DateTime.now().toUtc(),
+        ),
+      );
     } catch (e) {
       // Update the steering cell to failed status.
-      final cells = <TimelineCell>[...state.timelineCells];
-      final idx = cells.indexWhere((c) => c.id == cell.id);
-      if (idx != -1) {
-        cells[idx] = cells[idx].copyWith(
+      _updateTimelineCell(
+        cell.id,
+        (c) => c.copyWith(
           status: TimelineCellStatus.failed,
           metadata: const <String, dynamic>{},
-        );
-        state = state.copyWith(timelineCells: cells);
-      }
+        ),
+      );
       state = state.copyWith(error: e.toString());
+    }
+  }
+
+  void _updateTimelineCell(
+    String cellId,
+    TimelineCell Function(TimelineCell) transform,
+  ) {
+    final cells = <TimelineCell>[...state.timelineCells];
+    final idx = cells.findIndexById(cellId);
+    if (idx != -1) {
+      cells[idx] = transform(cells[idx]);
+      state = state.copyWith(timelineCells: cells);
     }
   }
 

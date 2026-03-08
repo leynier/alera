@@ -232,7 +232,7 @@ SessionState reduceCommitTick(
       final streamPhase = _normalizeAgentPhase(line.streamPhase);
       if (streamPhase == 'final_answer') {
         final assistantCellId = line.itemId ?? 'assistant-final-${line.turnId}';
-        final assistantIndex = _findCellById(cells, assistantCellId);
+        final assistantIndex = cells.findIndexById(assistantCellId);
         if (assistantIndex == -1) {
           cells.add(
             TimelineCell(
@@ -471,7 +471,7 @@ SessionState _onLegacyTaskComplete(
   final cellId = existingAssistant?.id ?? 'assistant-final-$turnId';
   final existingIndex = existingAssistant == null
       ? -1
-      : _findCellById(cells, existingAssistant.id);
+      : cells.findIndexById(existingAssistant.id);
 
   final metadata = <String, dynamic>{
     'streamPhase': 'final_answer',
@@ -802,9 +802,10 @@ SessionState _onTurnStarted(
       : index.pendingUserCellIdQueue.last;
 
   if (pendingUserCellId != null) {
-    final userIndex = _findCellById(cells, pendingUserCellId);
+    final userIndex = cells.findIndexById(pendingUserCellId);
     if (userIndex != -1) {
-      final wasSteering = cells[userIndex].metadata['isSteering'] == true;
+      final wasSteering =
+          cells[userIndex].metadata[TimelineCellMetadata.isSteeringKey] == true;
       cells[userIndex] = cells[userIndex].copyWith(
         turnId: turnId,
         updatedAt: timestamp,
@@ -869,10 +870,21 @@ SessionState _onTurnCompleted(
   final cells = <TimelineCell>[...nextState.timelineCells];
   for (var i = 0; i < cells.length; i++) {
     final cell = cells[i];
+    // Safety net: complete any orphaned steering cells still in-progress.
+    if (cell.kind == TimelineCellKind.userMessage &&
+        cell.status == TimelineCellStatus.inProgress &&
+        cell.metadata[TimelineCellMetadata.isSteeringKey] == true) {
+      cells[i] = cell.copyWith(
+        status: TimelineCellStatus.completed,
+        metadata: const <String, dynamic>{},
+        turnId: cell.turnId ?? turnId,
+        updatedAt: timestamp,
+      );
+      continue;
+    }
     if (cell.turnId != turnId) {
       continue;
     }
-
     if (cell.kind == TimelineCellKind.assistantMessage && cell.isStreaming) {
       cells[i] = cell.copyWith(
         isStreaming: false,
@@ -881,7 +893,6 @@ SessionState _onTurnCompleted(
       );
       continue;
     }
-
     if (cell.kind == TimelineCellKind.progressText &&
         cell.status == TimelineCellStatus.inProgress) {
       cells[i] = cell.copyWith(
@@ -890,7 +901,6 @@ SessionState _onTurnCompleted(
       );
       continue;
     }
-
     if (_isSecondaryKind(cell.kind)) {
       cells[i] = cell.copyWith(isCollapsed: true, updatedAt: timestamp);
     }
@@ -921,7 +931,7 @@ SessionState _onTurnCompleted(
   if (durationFromCells != null && durationFromCells > 0) {
     separatorMetadata['computedDurationMs'] = durationFromCells;
   }
-  final existingSeparatorIndex = _findCellById(cells, separatorId);
+  final existingSeparatorIndex = cells.findIndexById(separatorId);
   if (showWorkSeparator) {
     final separator = TimelineCell(
       id: separatorId,
@@ -981,7 +991,7 @@ SessionState _onTurnCompleted(
   var clearStreaming = false;
   final activeStreamingId = nextState.activeStreamingAssistantCellId;
   if (activeStreamingId != null) {
-    final activeIndex = _findCellById(cells, activeStreamingId);
+    final activeIndex = cells.findIndexById(activeStreamingId);
     if (activeIndex != -1 && cells[activeIndex].turnId == turnId) {
       clearStreaming = true;
     }
@@ -1595,7 +1605,7 @@ SessionState _onToolDetailsChunk(
   index = phase.index;
 
   final cellId = index.cellIdByItemId[itemId] ?? itemId;
-  final existingIndex = _findCellById(cells, cellId);
+  final existingIndex = cells.findIndexById(cellId);
 
   final isPlan = fallbackTitle == 'plan';
   final cellKind = isPlan ? TimelineCellKind.plan : TimelineCellKind.toolCall;
@@ -1710,7 +1720,7 @@ SessionState _onItemStarted(
   index = phase.index;
 
   final cellId = index.cellIdByItemId[itemId] ?? itemId;
-  final existingIndex = _findCellById(cells, cellId);
+  final existingIndex = cells.findIndexById(cellId);
   final kind = _resolveCellKind(itemType);
   final existingMetadata = existingIndex == -1
       ? const <String, dynamic>{}
@@ -1840,7 +1850,7 @@ SessionState _onItemCompleted(
   final cells = <TimelineCell>[...state.timelineCells];
   final index = _buildCellIndex(cells);
   final cellId = index.cellIdByItemId[itemId] ?? itemId;
-  final existingIndex = _findCellById(cells, cellId);
+  final existingIndex = cells.findIndexById(cellId);
   final kind = _resolveCellKind(itemType);
   final existingMetadata = existingIndex == -1
       ? const <String, dynamic>{}
@@ -2027,7 +2037,7 @@ SessionState _onAssistantItemCompleted(
   var assistantCellId = itemId;
   final indexedByItemId = index.cellIdByItemId[itemId];
   if (indexedByItemId != null) {
-    final indexedAt = _findCellById(cells, indexedByItemId);
+    final indexedAt = cells.findIndexById(indexedByItemId);
     if (indexedAt != -1 &&
         cells[indexedAt].kind == TimelineCellKind.assistantMessage) {
       assistantCellId = indexedByItemId;
@@ -2052,7 +2062,7 @@ SessionState _onAssistantItemCompleted(
     if (streamCommittedForItem) 'streamCommitted': true,
   };
 
-  final existingIndex = _findCellById(cells, assistantCellId);
+  final existingIndex = cells.findIndexById(assistantCellId);
   if (existingIndex == -1 ||
       cells[existingIndex].kind != TimelineCellKind.assistantMessage) {
     final baseText = streamCommittedForItem ? '' : finalText;
@@ -2244,7 +2254,7 @@ _SecondaryPhaseResult _startSecondaryPhase(
   var clearedAssistantStreaming = false;
   final activeProgressId = index.activeProgressTextCellIdByTurn[turnId];
   if (activeProgressId != null) {
-    final activeProgressIndex = _findCellById(cells, activeProgressId);
+    final activeProgressIndex = cells.findIndexById(activeProgressId);
     if (activeProgressIndex != -1) {
       final activeProgress = cells[activeProgressIndex];
       if (activeProgress.status == TimelineCellStatus.inProgress) {
@@ -2263,7 +2273,7 @@ _SecondaryPhaseResult _startSecondaryPhase(
 
   final assistantCellId = index.assistantCellIdByTurn[turnId];
   if (assistantCellId != null) {
-    final assistantIndex = _findCellById(cells, assistantCellId);
+    final assistantIndex = cells.findIndexById(assistantCellId);
     if (assistantIndex != -1) {
       final assistant = cells[assistantIndex];
       final assistantText = assistant.markdownText ?? '';
@@ -2334,14 +2344,6 @@ bool _isHumanFacingInterimLine(String line) {
   return true;
 }
 
-int _findCellById(List<TimelineCell> cells, String id) {
-  for (var i = 0; i < cells.length; i++) {
-    if (cells[i].id == id) {
-      return i;
-    }
-  }
-  return -1;
-}
 
 int? _computeTurnDurationFromCells(
   List<TimelineCell> cells, {
@@ -2957,7 +2959,7 @@ SessionState _onSubAgentStarted(
   );
   index = phase.index;
   final cellId = index.cellIdByItemId[itemId] ?? itemId;
-  final existingIndex = _findCellById(cells, cellId);
+  final existingIndex = cells.findIndexById(cellId);
   final fallbackTask = _asString(params['task']) ?? 'Sub-agent task';
   final arguments = params['arguments'] as Map<String, dynamic>?;
   final title = _subAgentTitle(arguments, fallbackTask);
@@ -3021,7 +3023,7 @@ SessionState _onSubAgentDelta(
   }
   final index = _buildCellIndex(state.timelineCells);
   final cellId = index.cellIdByItemId[itemId] ?? itemId;
-  final existingIndex = _findCellById(state.timelineCells, cellId);
+  final existingIndex = state.timelineCells.findIndexById(cellId);
   if (existingIndex == -1) {
     return state;
   }
@@ -3066,7 +3068,7 @@ SessionState _onSubAgentCompleted(
   }
   final index = _buildCellIndex(state.timelineCells);
   final cellId = index.cellIdByItemId[itemId] ?? itemId;
-  final existingIndex = _findCellById(state.timelineCells, cellId);
+  final existingIndex = state.timelineCells.findIndexById(cellId);
   final result = params['result'] as Map<String, dynamic>?;
   final success = result?['success'] as bool? ?? true;
   final status = success ? TimelineCellStatus.completed : TimelineCellStatus.failed;

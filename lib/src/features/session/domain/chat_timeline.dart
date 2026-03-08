@@ -19,6 +19,9 @@ abstract class TimelineCellMetadata {
 
   /// Value for placing notice outside the "Worked..." section.
   static const String outsideWorked = 'outside_worked';
+
+  /// Key indicating a user message is a steering injection.
+  static const String isSteeringKey = 'isSteering';
 }
 
 class TimelineCell {
@@ -94,5 +97,14 @@ class TimelineCell {
       itemId: clearItemId ? null : (itemId ?? this.itemId),
       metadata: metadata ?? this.metadata,
     );
+  }
+}
+
+extension TimelineCellListExtension on List<TimelineCell> {
+  int findIndexById(String id) {
+    for (var i = 0; i < length; i++) {
+      if (this[i].id == id) return i;
+    }
+    return -1;
   }
 }
