@@ -2154,13 +2154,52 @@ class SessionController extends StateNotifier<SessionState> {
         if (phase != 'final_answer') {
           return;
         }
-        _assistantTerminalSignalsByTurn[turnId] = _AssistantTerminalSignal(
+        _recordAssistantTerminalSignal(
+          turnId,
           itemId: itemId,
           phase: phase,
           source: 'legacy_item_completed',
-          atMs: at.millisecondsSinceEpoch,
+          at: at,
         );
-        _assistantMissingTurnCompletionWarnings.remove(turnId);
+        return;
+      case 'item/completed':
+        final item = params['item'];
+        if (item is! Map<String, dynamic>) {
+          return;
+        }
+        final itemType = item['type']?.toString().trim().toLowerCase();
+        if (itemType != 'agentmessage' && itemType != 'agent_message') {
+          return;
+        }
+        final turnId = _normalizeOptionalId(
+          params['turnId']?.toString() ?? item['turnId']?.toString(),
+        );
+        if (turnId == null) {
+          return;
+        }
+        final itemId = _normalizeOptionalId(item['id']?.toString());
+        final explicitPhase = _normalizeAssistantPhase(
+          item['phase']?.toString(),
+        );
+        final phase = explicitPhase != 'unknown'
+            ? explicitPhase
+            : (itemId != null &&
+                  state.finalAnswerItemIdByTurn[turnId] == itemId)
+            ? 'final_answer'
+            : (state.activeAgentStreamTurnId == turnId &&
+                  state.activeAgentStreamItemId == itemId)
+            ? _normalizeAssistantPhase(state.activeAgentStreamPhase)
+            : 'unknown';
+        if (phase != 'final_answer') {
+          return;
+        }
+        _recordAssistantTerminalSignal(
+          turnId,
+          itemId: itemId,
+          phase: phase,
+          source: 'item_completed',
+          at: at,
+        );
         return;
       case 'codex/event/task_complete':
         final msg = params['msg'];
@@ -2176,15 +2215,31 @@ class SessionController extends StateNotifier<SessionState> {
             (state.activeAgentStreamTurnId == turnId
                 ? _normalizeOptionalId(state.activeAgentStreamItemId)
                 : null);
-        _assistantTerminalSignalsByTurn[turnId] = _AssistantTerminalSignal(
+        _recordAssistantTerminalSignal(
+          turnId,
           itemId: itemId,
           phase: 'final_answer',
           source: 'task_complete',
-          atMs: at.millisecondsSinceEpoch,
+          at: at,
         );
-        _assistantMissingTurnCompletionWarnings.remove(turnId);
         return;
     }
+  }
+
+  void _recordAssistantTerminalSignal(
+    String turnId, {
+    required String? itemId,
+    required String phase,
+    required String source,
+    required DateTime at,
+  }) {
+    _assistantTerminalSignalsByTurn[turnId] = _AssistantTerminalSignal(
+      itemId: itemId,
+      phase: phase,
+      source: source,
+      atMs: at.millisecondsSinceEpoch,
+    );
+    _assistantMissingTurnCompletionWarnings.remove(turnId);
   }
 
   void _maybeLogAssistantStreamWarnings({required DateTime at}) {

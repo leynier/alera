@@ -2088,7 +2088,7 @@ SessionState _onAssistantItemCompleted(
 
   if (phase == 'commentary') {
     if (finalText.trim().isNotEmpty &&
-        !_hasCommittedStreamTextForItem(
+        !_hasProgressTextForItem(
           cells,
           turnId: turnId,
           itemId: itemId,
@@ -2255,13 +2255,13 @@ bool _hasCommittedAssistantStreamTextForItem(
   return false;
 }
 
-bool _hasCommittedStreamTextForItem(
+bool _hasProgressTextForItem(
   List<TimelineCell> cells, {
   required String turnId,
   required String itemId,
 }) {
   for (final cell in cells) {
-    if (cell.turnId != turnId) {
+    if (cell.turnId != turnId || cell.kind != TimelineCellKind.progressText) {
       continue;
     }
     final text = (cell.markdownText ?? '').trim();
@@ -2269,10 +2269,6 @@ bool _hasCommittedStreamTextForItem(
       continue;
     }
     final metadata = cell.metadata;
-    final streamCommitted = metadata['streamCommitted'] == true;
-    if (!streamCommitted) {
-      continue;
-    }
     final streamItemId =
         _asString(metadata['streamItemId']) ??
         _asString(metadata['stream_item_id']) ??

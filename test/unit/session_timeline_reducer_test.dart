@@ -1497,6 +1497,72 @@ void main() {
     );
 
     test(
+      'legacy and modern commentary completions do not duplicate pending commentary',
+      () {
+        var state = const SessionState();
+        state = reduceNotification(
+          state,
+          _event('turn/started', <String, dynamic>{
+            'turn': <String, dynamic>{'id': 'turn-1', 'threadId': 'thread-1'},
+          }),
+        );
+        state = reduceNotification(
+          state,
+          _event('codex/event/item_started', <String, dynamic>{
+            'msg': <String, dynamic>{
+              'type': 'item_started',
+              'turn_id': 'turn-1',
+              'item': <String, dynamic>{
+                'id': 'msg-commentary',
+                'type': 'AgentMessage',
+                'phase': 'commentary',
+              },
+            },
+          }),
+        );
+        state = reduceNotification(
+          state,
+          _event('codex/event/item_completed', <String, dynamic>{
+            'msg': <String, dynamic>{
+              'type': 'item_completed',
+              'turn_id': 'turn-1',
+              'item': <String, dynamic>{
+                'id': 'msg-commentary',
+                'type': 'AgentMessage',
+                'phase': 'commentary',
+                'content': <Map<String, dynamic>>[
+                  <String, dynamic>{
+                    'type': 'text',
+                    'text': 'legacy commentary',
+                  },
+                ],
+              },
+            },
+          }),
+        );
+
+        state = reduceNotification(
+          state,
+          _event('item/completed', <String, dynamic>{
+            'turnId': 'turn-1',
+            'item': <String, dynamic>{
+              'id': 'msg-commentary',
+              'type': 'agentMessage',
+              'phase': 'commentary',
+              'status': 'completed',
+              'text': 'legacy commentary',
+            },
+          }),
+        );
+
+        final progress = _cellsByKind(state, TimelineCellKind.progressText);
+        expect(progress, hasLength(1));
+        expect(progress.first.itemId, 'msg-commentary');
+        expect(progress.first.markdownText, 'legacy commentary');
+      },
+    );
+
+    test(
       'final_answer long text without newline streams in soft chunks before completion',
       () {
         final t0 = DateTime.utc(2026, 2, 22, 4, 0, 0);

@@ -2371,5 +2371,67 @@ void main() {
         expect(controller.state.runningTurnCount, 1);
       },
     );
+
+    test(
+      'logs missing turn completion after modern assistant completion without clearing running turn count',
+      () async {
+        final fakeService = _FakeSessionService();
+        var now = DateTime.utc(2026, 3, 8, 12);
+        final controller = SessionController(
+          sessionService: fakeService,
+          projectService: _FakeProjectService(),
+          settingsService: _FakeSettingsService('gpt-5.3-codex', 'high', true),
+          now: () => now,
+          assistantStreamWarningGrace: const Duration(milliseconds: 20),
+        );
+        addTearDown(() async {
+          controller.dispose();
+          await fakeService.shutdown();
+        });
+
+        await controller.bootstrap();
+        await controller.selectWorkspaceFromPath('/repo');
+        await controller.sendInput('hello');
+
+        fakeService.emitNotification('turn/started', <String, dynamic>{
+          'turn': <String, dynamic>{
+            'id': 'turn-1',
+            'threadId': 'thread-1',
+            'status': 'inProgress',
+          },
+        });
+        fakeService.emitNotification(
+          'item/completed',
+          <String, dynamic>{
+            'turnId': 'turn-1',
+            'item': <String, dynamic>{
+              'id': 'msg-final',
+              'type': 'agentMessage',
+              'phase': 'final_answer',
+              'status': 'completed',
+              'text': 'modern final',
+            },
+          },
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        now = now.add(const Duration(milliseconds: 40));
+        await Future<void>.delayed(const Duration(milliseconds: 140));
+
+        expect(
+          controller.state.activityLog.any(
+            (line) =>
+                line.contains(
+                  'runtime/assistantStream missingTurnCompletion',
+                ) &&
+                line.contains('turnId=turn-1') &&
+                line.contains('itemId=msg-final') &&
+                line.contains('signal=item_completed'),
+          ),
+          isTrue,
+        );
+        expect(controller.state.runningTurnCount, 1);
+      },
+    );
   });
 }
