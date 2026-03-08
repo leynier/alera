@@ -598,7 +598,7 @@ void main() {
           TimelineCellKind.assistantMessage,
         );
         expect(assistant, hasLength(1));
-        expect(assistant.first.markdownText, 'stream line');
+        expect(assistant.first.markdownText, 'stream line\n\n');
         expect(
           assistant.first.metadata['dedupeMode'],
           'stream_commit_same_item_id',
@@ -1180,7 +1180,10 @@ void main() {
         expect(progress, hasLength(1));
         expect(progress.first.markdownText, 'Voy a revisar el README');
         expect(assistant, hasLength(1));
-        expect(assistant.first.markdownText, 'El readme.md está en español.');
+        expect(
+          assistant.first.markdownText,
+          'El readme.md está en español.\n\n',
+        );
       },
     );
 
@@ -1418,7 +1421,7 @@ void main() {
           TimelineCellKind.assistantMessage,
         );
         expect(assistant, hasLength(1));
-        expect(assistant.first.markdownText, 'legacy final');
+        expect(assistant.first.markdownText, 'legacy final\n\n');
         expect(assistant.first.isStreaming, isFalse);
         expect(state.activeAgentStreamItemId, isNull);
         expect(state.activeAgentStreamTurnId, isNull);
