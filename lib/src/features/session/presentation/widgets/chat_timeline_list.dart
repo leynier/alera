@@ -378,6 +378,7 @@ class CompletedTurnSection extends StatelessWidget {
     final children = <Widget>[
       for (final userCell in users)
         Padding(
+          key: ValueKey('u-${userCell.id}'),
           padding: const EdgeInsets.only(bottom: AleraTokens.space8),
           child: TimelineCellView(
             cell: userCell,
@@ -389,6 +390,7 @@ class CompletedTurnSection extends StatelessWidget {
     if (shouldRenderWorked && workedLabel != null) {
       children.add(
         WorkedForDivider(
+          key: ValueKey('worked-$turnId'),
           label: workedLabel,
           expanded: effectiveWorkedExpanded,
           onTap: onToggleWorked,
@@ -397,6 +399,7 @@ class CompletedTurnSection extends StatelessWidget {
       if (effectiveWorkedExpanded) {
         children.add(
           Padding(
+            key: ValueKey('secondary-$turnId'),
             padding: const EdgeInsets.only(top: AleraTokens.space8),
             child: Column(
               children: <Widget>[
@@ -418,6 +421,7 @@ class CompletedTurnSection extends StatelessWidget {
     if (shouldRenderWorked && workedLabel == null) {
       children.add(
         Padding(
+          key: ValueKey('secondary-nolabel-$turnId'),
           padding: const EdgeInsets.only(bottom: AleraTokens.space8),
           child: Column(
             children: <Widget>[
@@ -438,6 +442,7 @@ class CompletedTurnSection extends StatelessWidget {
     if (shouldRenderSingleSecondary) {
       children.add(
         Padding(
+          key: ValueKey('single-secondary-$turnId'),
           padding: const EdgeInsets.only(bottom: AleraTokens.space8),
           child: SecondaryRowView(
             row: secondaryRows.first,
@@ -450,6 +455,7 @@ class CompletedTurnSection extends StatelessWidget {
     children.addAll(
       assistants.map(
         (assistantCell) => Padding(
+          key: ValueKey('a-${assistantCell.id}'),
           padding: const EdgeInsets.only(bottom: AleraTokens.space8),
           child: TimelineCellView(
             cell: assistantCell,
@@ -462,6 +468,7 @@ class CompletedTurnSection extends StatelessWidget {
     children.addAll(
       postTurnRows.map(
         (rowCell) => Padding(
+          key: ValueKey('p-${rowCell.id}'),
           padding: const EdgeInsets.only(bottom: AleraTokens.space8),
           child: TimelineCellView(
             cell: rowCell,
