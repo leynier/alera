@@ -730,6 +730,7 @@ class SessionController extends StateNotifier<SessionState> {
         state,
         questionAnswers: questionAnswers,
         turnId: effectiveTurnId,
+        now: _now(),
       );
     }
   }
