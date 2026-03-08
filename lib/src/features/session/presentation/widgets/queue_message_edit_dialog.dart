@@ -360,16 +360,9 @@ class _QueueMessageEditDialogState extends State<QueueMessageEditDialog> {
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: Colors.transparent,
-      child: Container(
+      child: SizedBox(
         width: 600,
-        decoration: BoxDecoration(
-          color: AleraTokens.surface,
-          borderRadius: BorderRadius.circular(AleraTokens.radiusXl),
-          border: Border.all(color: AleraTokens.border),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(AleraTokens.space16),
-          child: Column(
+        child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
@@ -522,7 +515,6 @@ class _QueueMessageEditDialogState extends State<QueueMessageEditDialog> {
                 ],
               ),
             ],
-          ),
         ),
       ),
     );
