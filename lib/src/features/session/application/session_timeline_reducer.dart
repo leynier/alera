@@ -10,12 +10,14 @@ import 'package:alera/src/features/session/domain/chat_timeline.dart';
 import 'package:alera/src/features/session/domain/codex_model_catalog.dart';
 import 'package:alera/src/features/session/domain/collab_agent.dart';
 import 'package:alera/src/features/session/domain/composer_attachment.dart';
+import 'package:alera/src/features/session/domain/composer_draft_item.dart';
 import 'package:alera/src/features/session/domain/token_usage.dart';
 
 SessionState appendOptimisticUserMessage(
   SessionState state, {
   required String text,
   List<ComposerAttachment> attachments = const <ComposerAttachment>[],
+  List<ComposerDraftItem> draftItems = const <ComposerDraftItem>[],
   DateTime? now,
 }) {
   final timestamp = now ?? DateTime.now().toUtc();
@@ -37,9 +39,20 @@ SessionState appendOptimisticUserMessage(
     createdAt: timestamp,
     updatedAt: timestamp,
     markdownText: text,
-    metadata: attachmentMaps.isEmpty
-        ? const <String, dynamic>{}
-        : <String, dynamic>{'attachments': attachmentMaps},
+    metadata: <String, dynamic>{
+      if (attachmentMaps.isNotEmpty) 'attachments': attachmentMaps,
+      if (draftItems.isNotEmpty)
+        'draftItems': draftItems
+            .map(
+              (item) => <String, dynamic>{
+                'kind': item.kind.name,
+                'name': item.name,
+                'path': item.path,
+                'tokenText': item.tokenText,
+              },
+            )
+            .toList(growable: false),
+    },
   );
 
   return state.copyWith(
@@ -978,7 +991,8 @@ SessionState _onTurnCompleted(
           markdownText: 'Stopped by user',
           metadata: const <String, dynamic>{
             'noticeType': 'user_stop',
-            TimelineCellMetadata.uiPlacementKey: TimelineCellMetadata.outsideWorked,
+            TimelineCellMetadata.uiPlacementKey:
+                TimelineCellMetadata.outsideWorked,
             'ephemeralInputOnly': true,
           },
         ),
@@ -1738,7 +1752,8 @@ SessionState _onItemStarted(
             ? null
             : _reasoningSummary(itemMetadata))
       : null;
-  final detailsText = kind == TimelineCellKind.toolCall || kind == TimelineCellKind.subAgent
+  final detailsText =
+      kind == TimelineCellKind.toolCall || kind == TimelineCellKind.subAgent
       ? _itemDetails(itemType, itemMetadata)
       : null;
 
@@ -1924,6 +1939,14 @@ SessionState _onItemCompleted(
     ...state.reasoningBufferByItemId,
   };
   nextReasoningBuffer.remove(itemId);
+  _upsertExitedReviewBodyCell(
+    cells,
+    turnId: turnId,
+    itemId: itemId,
+    itemType: itemType,
+    itemMetadata: itemMetadata,
+    timestamp: timestamp,
+  );
 
   return state.copyWith(
     timelineCells: cells,
@@ -1934,6 +1957,60 @@ SessionState _onItemCompleted(
     pendingStatusRestore: itemType == 'reasoning',
     clearActiveExecCellId: state.activeExecCellId == cellId,
     clearActivePlanCellId: state.activePlanCellId == cellId,
+  );
+}
+
+void _upsertExitedReviewBodyCell(
+  List<TimelineCell> cells, {
+  required String turnId,
+  required String itemId,
+  required String itemType,
+  required Map<String, dynamic> itemMetadata,
+  required DateTime timestamp,
+}) {
+  if (itemType != 'exitedReviewMode') {
+    return;
+  }
+
+  final bodyCellId = 'review-exit-body-$itemId';
+  final existingIndex = cells.findIndexById(bodyCellId);
+  final reviewText = (_asString(itemMetadata['review']) ?? '').trim();
+
+  if (reviewText.isEmpty) {
+    if (existingIndex != -1) {
+      cells.removeAt(existingIndex);
+    }
+    return;
+  }
+
+  final bodyCell = TimelineCell(
+    id: bodyCellId,
+    turnId: turnId,
+    kind: TimelineCellKind.progressText,
+    status: TimelineCellStatus.completed,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    markdownText: reviewText,
+    metadata: const <String, dynamic>{
+      TimelineCellMetadata.uiPlacementKey: TimelineCellMetadata.outsideWorked,
+      'reviewExitBody': true,
+    },
+  );
+
+  if (existingIndex == -1) {
+    cells.add(bodyCell);
+    return;
+  }
+
+  cells[existingIndex] = cells[existingIndex].copyWith(
+    turnId: turnId,
+    status: TimelineCellStatus.completed,
+    markdownText: reviewText,
+    metadata: const <String, dynamic>{
+      TimelineCellMetadata.uiPlacementKey: TimelineCellMetadata.outsideWorked,
+      'reviewExitBody': true,
+    },
+    updatedAt: timestamp,
   );
 }
 
@@ -2344,7 +2421,6 @@ bool _isHumanFacingInterimLine(String line) {
   return true;
 }
 
-
 int? _computeTurnDurationFromCells(
   List<TimelineCell> cells, {
   required String turnId,
@@ -2394,8 +2470,8 @@ TimelineCellKind _resolveCellKind(String itemType) {
       : itemType == 'plan'
       ? TimelineCellKind.plan
       : itemType == 'subAgent' ||
-              itemType == 'remoteAgent' ||
-              itemType == 'collabAgentToolCall'
+            itemType == 'remoteAgent' ||
+            itemType == 'collabAgentToolCall'
       ? TimelineCellKind.subAgent
       : TimelineCellKind.toolCall;
 }
@@ -2408,8 +2484,9 @@ String _resolveItemTitle(
   if (kind == TimelineCellKind.subAgent) {
     final fallbackTask = _itemTitle(itemType, itemMetadata);
     final tool = _asString(itemMetadata['tool']);
-    final arguments = (itemMetadata['arguments'] as Map<String, dynamic>?)
-        ?? (tool != null ? <String, dynamic>{'tool': tool} : null);
+    final arguments =
+        (itemMetadata['arguments'] as Map<String, dynamic>?) ??
+        (tool != null ? <String, dynamic>{'tool': tool} : null);
     return _subAgentTitle(arguments, fallbackTask);
   }
   return _itemTitle(itemType, itemMetadata);
@@ -2445,6 +2522,10 @@ String _itemTitle(String itemType, Map<String, dynamic> item) {
       return 'plan';
     case 'contextCompaction':
       return 'Compacting context';
+    case 'enteredReviewMode':
+      return 'Preparing review';
+    case 'exitedReviewMode':
+      return 'Review finished';
     case 'collabAgentToolCall':
       return 'Running sub-agent';
     case 'subAgent':
@@ -2492,6 +2573,8 @@ String? _itemDetails(String itemType, Map<String, dynamic> item) {
       return _reasoningSummary(item);
     case 'plan':
       return _asString(item['text']);
+    case 'exitedReviewMode':
+      return null;
     default:
       return _encode(item);
   }
@@ -3036,7 +3119,9 @@ SessionState _onSubAgentDelta(
   if (currentOutput.length >= maxOutputLength) {
     newOutput = currentOutput;
   } else if (currentOutput.isEmpty) {
-    newOutput = delta.length > maxOutputLength ? delta.substring(0, maxOutputLength) : delta;
+    newOutput = delta.length > maxOutputLength
+        ? delta.substring(0, maxOutputLength)
+        : delta;
   } else {
     newOutput = '$currentOutput\n$delta';
     if (newOutput.length > maxOutputLength) {
@@ -3071,7 +3156,9 @@ SessionState _onSubAgentCompleted(
   final existingIndex = state.timelineCells.findIndexById(cellId);
   final result = params['result'] as Map<String, dynamic>?;
   final success = result?['success'] as bool? ?? true;
-  final status = success ? TimelineCellStatus.completed : TimelineCellStatus.failed;
+  final status = success
+      ? TimelineCellStatus.completed
+      : TimelineCellStatus.failed;
   final cells = <TimelineCell>[...state.timelineCells];
   if (existingIndex == -1) {
     final fallbackTask = _asString(params['task']) ?? 'Sub-agent task';

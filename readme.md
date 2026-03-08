@@ -10,7 +10,8 @@ Alera is a Flutter desktop orchestrator for `codex app-server`, currently config
 - Approval engine with allowlist precedence: `session > project > global`.
 - Dual model selection (`planner` and `executor`) in session requests.
 - MCP service abstraction through app-server methods.
-- Local slash command layer (`/init`, `/review`).
+- Native slash command layer with built-ins such as `/new`, `/compact`, `/review`, `/plan`, `/skills`, and `/apps`.
+- Custom prompt commands discovered from `<workspace>/.codex/prompts/*.md` and `$CODEX_HOME/prompts/*.md`.
 - Embedded terminal with `xterm` + `flutter_pty` and automatic fallback to process pipes.
 - Desktop-safe persistence baseline (`drift`, secure storage, shared prefs fallback).
 

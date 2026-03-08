@@ -131,25 +131,25 @@ class SessionService {
       <String, dynamic>{'type': 'text', 'text': rawInput},
       ...extraInputItems,
     ];
-    final Map<String, dynamic>? collaborationMode;
+    final CodexCollaborationMode? collaborationMode;
     if (planModeEnabled) {
-      collaborationMode = <String, dynamic>{
-        'mode': 'plan',
-        'settings': <String, dynamic>{
-          'model': session.model,
-          'reasoning_effort': null,
-          'developer_instructions': null,
-        },
-      };
+      collaborationMode = CodexCollaborationMode(
+        kind: CodexCollaborationModeKind.plan,
+        settings: CodexCollaborationModeSettings(
+          model: session.model,
+          reasoningEffort: null,
+          developerInstructions: null,
+        ),
+      );
     } else if (forceDefaultCollaborationMode) {
-      collaborationMode = <String, dynamic>{
-        'mode': 'default',
-        'settings': <String, dynamic>{
-          'model': session.model,
-          'reasoning_effort': null,
-          'developer_instructions': null,
-        },
-      };
+      collaborationMode = CodexCollaborationMode(
+        kind: CodexCollaborationModeKind.defaultMode,
+        settings: CodexCollaborationModeSettings(
+          model: session.model,
+          reasoningEffort: null,
+          developerInstructions: null,
+        ),
+      );
     } else {
       collaborationMode = null;
     }
@@ -240,6 +240,104 @@ class SessionService {
     return newTurnId;
   }
 
+  Future<void> renameSessionThread({
+    required String sessionId,
+    required String name,
+  }) async {
+    final session = _sessions[sessionId];
+    if (session == null) {
+      throw StateError('session not found: $sessionId');
+    }
+    final threadId = session.threadId;
+    if (threadId == null || threadId.isEmpty) {
+      throw StateError('session has no thread id');
+    }
+    final normalizedName = name.trim();
+    if (normalizedName.isEmpty) {
+      throw StateError('thread name must not be empty');
+    }
+
+    await _ensureOrchestrator();
+    await _orchestrator.setThreadName(threadId: threadId, name: normalizedName);
+    _sessions[sessionId] = session.copyWith(
+      title: normalizedName,
+      updatedAt: DateTime.now().toUtc(),
+    );
+  }
+
+  Future<void> renameThread({required String sessionId, required String name}) {
+    return renameSessionThread(sessionId: sessionId, name: name);
+  }
+
+  Future<CodexReviewStartResult> startReview({
+    required String sessionId,
+    required CodexReviewTarget target,
+    CodexReviewDelivery? delivery,
+  }) async {
+    final session = _sessions[sessionId];
+    if (session == null) {
+      throw StateError('session not found: $sessionId');
+    }
+    final threadId = session.threadId;
+    if (threadId == null || threadId.isEmpty) {
+      throw StateError('session has no thread id');
+    }
+
+    await _ensureOrchestrator();
+    final result = await _orchestrator.startReview(
+      threadId: threadId,
+      target: target,
+      delivery: delivery,
+    );
+
+    _sessions[sessionId] = session.copyWith(
+      lastTurnId: result.reviewThreadId == threadId ? result.turn.id : null,
+      updatedAt: DateTime.now().toUtc(),
+    );
+    return result;
+  }
+
+  Future<List<CodexCollaborationModePreset>> listCollaborationModes() async {
+    await _ensureOrchestrator();
+    return _orchestrator.listCollaborationModes();
+  }
+
+  Future<List<CodexSkillsListEntry>> listSkills({
+    List<String>? cwds,
+    bool forceReload = false,
+    List<CodexSkillsListExtraRootsForCwd>? perCwdExtraUserRoots,
+  }) async {
+    await _ensureOrchestrator();
+    return _orchestrator.listSkills(
+      cwds: cwds,
+      forceReload: forceReload,
+      perCwdExtraUserRoots: perCwdExtraUserRoots,
+    );
+  }
+
+  Future<CodexAppsPage> listApps({
+    String? sessionId,
+    String? cursor,
+    int? limit,
+    bool forceRefetch = false,
+  }) async {
+    String? threadId;
+    if (sessionId != null) {
+      final session = _sessions[sessionId];
+      if (session == null) {
+        throw StateError('session not found: $sessionId');
+      }
+      threadId = session.threadId;
+    }
+    await _ensureOrchestrator();
+    return _orchestrator.listApps(
+      cursor: cursor,
+      limit: limit,
+      threadId: threadId,
+      forceRefetch: forceRefetch,
+    );
+  }
+
   Future<void> approveRequest(Object requestId, {bool forSession = false}) {
     return _orchestrator.approveRequest(requestId, forSession: forSession);
   }
@@ -273,6 +371,7 @@ class SessionService {
   void _onOrchestratorEvent(AgentOrchestratorEvent event) {
     if (event is AgentNotificationEvent) {
       _updateSessionTurnStateFromNotification(event);
+      _updateSessionThreadNameFromNotification(event);
       _eventsController.add(
         SessionNotificationEvent(method: event.method, payload: event.payload),
       );
@@ -322,6 +421,30 @@ class SessionService {
       if (entry.value.threadId == threadId) {
         _sessions[entry.key] = entry.value.copyWith(
           lastTurnId: turnId,
+          updatedAt: DateTime.now().toUtc(),
+        );
+      }
+    }
+  }
+
+  void _updateSessionThreadNameFromNotification(AgentNotificationEvent event) {
+    if (event.method != 'thread/name/updated') {
+      return;
+    }
+    final params = event.payload['params'];
+    if (params is! Map<String, dynamic>) {
+      return;
+    }
+    final update = CodexThreadNameUpdatedNotification.fromJson(params);
+    final title = update.threadName?.trim();
+    if (title == null || title.isEmpty) {
+      return;
+    }
+
+    for (final entry in _sessions.entries) {
+      if (entry.value.threadId == update.threadId) {
+        _sessions[entry.key] = entry.value.copyWith(
+          title: title,
           updatedAt: DateTime.now().toUtc(),
         );
       }

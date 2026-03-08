@@ -5,8 +5,10 @@ import 'package:alera/src/features/projects/application/project_service.dart';
 import 'package:alera/src/features/session/application/session_controller.dart';
 import 'package:alera/src/features/session/application/session_runtime_event.dart';
 import 'package:alera/src/features/session/application/session_service.dart';
+import 'package:alera/src/features/session/domain/chat_timeline.dart';
 import 'package:alera/src/features/session/domain/composer_attachment.dart';
 import 'package:alera/src/features/session/domain/pending_user_input.dart';
+import 'package:alera/src/features/session/domain/review_preset_selection.dart';
 import 'package:alera/src/features/settings/application/settings_service.dart';
 import 'package:alera/src/shared/models/contracts.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -31,6 +33,7 @@ class _FakeSessionService implements SessionService {
   int respondUserInputCallCount = 0;
   Object? lastRespondUserInputRequestId;
   Map<String, dynamic>? lastRespondUserInputAnswers;
+  CodexReviewTarget? lastReviewTarget;
   Duration runInputDelay = Duration.zero;
   Future<void> Function()? onRunInputBeforeComplete;
 
@@ -157,6 +160,108 @@ class _FakeSessionService implements SessionService {
   }
 
   @override
+  Future<void> renameSessionThread({
+    required String sessionId,
+    required String name,
+  }) async {
+    final existing = _sessionsById[sessionId];
+    if (existing == null) {
+      throw StateError('session not found');
+    }
+    _sessionsById[sessionId] = existing.copyWith(
+      title: name,
+      updatedAt: DateTime.now().toUtc(),
+    );
+  }
+
+  @override
+  Future<void> renameThread({required String sessionId, required String name}) {
+    return renameSessionThread(sessionId: sessionId, name: name);
+  }
+
+  @override
+  Future<CodexReviewStartResult> startReview({
+    required String sessionId,
+    required CodexReviewTarget target,
+    CodexReviewDelivery? delivery,
+  }) async {
+    lastReviewTarget = target;
+    final existing = _sessionsById[sessionId];
+    if (existing == null) {
+      throw StateError('session not found');
+    }
+    final reviewThreadId = delivery == CodexReviewDelivery.detached
+        ? '${existing.threadId}-review'
+        : existing.threadId!;
+    final turnId = 'review-turn-$runInputCallCount';
+    _sessionsById[sessionId] = existing.copyWith(
+      lastTurnId: reviewThreadId == existing.threadId
+          ? turnId
+          : existing.lastTurnId,
+      updatedAt: DateTime.now().toUtc(),
+    );
+    return CodexReviewStartResult(
+      turn: CodexTurnSummary(id: turnId, status: 'inProgress'),
+      reviewThreadId: reviewThreadId,
+    );
+  }
+
+  @override
+  Future<List<CodexCollaborationModePreset>> listCollaborationModes() async {
+    return const <CodexCollaborationModePreset>[
+      CodexCollaborationModePreset(
+        name: 'default',
+        kind: CodexCollaborationModeKind.defaultMode,
+        model: 'gpt-5.2-codex',
+      ),
+    ];
+  }
+
+  @override
+  Future<List<CodexSkillsListEntry>> listSkills({
+    List<String>? cwds,
+    bool forceReload = false,
+    List<CodexSkillsListExtraRootsForCwd>? perCwdExtraUserRoots,
+  }) async {
+    return <CodexSkillsListEntry>[
+      CodexSkillsListEntry(
+        cwd: (cwds == null || cwds.isEmpty) ? '/tmp/project' : cwds.first,
+        skills: const <CodexSkillMetadata>[
+          CodexSkillMetadata(
+            name: 'fake-skill',
+            description: 'Fake skill',
+            path: '/tmp/project/.codex/skills/fake/SKILL.md',
+            scope: 'repo',
+            enabled: true,
+          ),
+        ],
+        errors: const <CodexSkillErrorInfo>[],
+      ),
+    ];
+  }
+
+  @override
+  Future<CodexAppsPage> listApps({
+    String? sessionId,
+    String? cursor,
+    int? limit,
+    bool forceRefetch = false,
+  }) async {
+    return const CodexAppsPage(
+      data: <CodexAppInfo>[
+        CodexAppInfo(
+          id: 'demo-app',
+          name: 'Demo App',
+          isAccessible: true,
+          isEnabled: true,
+          pluginDisplayNames: <String>[],
+        ),
+      ],
+      nextCursor: null,
+    );
+  }
+
+  @override
   Future<AleraSession> setActiveSession(String sessionId) async {
     final existing = _sessionsById[sessionId];
     if (existing == null) {
@@ -221,6 +326,11 @@ class _FakeProjectService implements ProjectService {
   @override
   Future<ProjectValidationResult> validateGitRepository(String path) async {
     return ProjectValidationResult.ok();
+  }
+
+  @override
+  Future<List<String>> listGitBranches(String path) async {
+    return const <String>['main', 'origin/main', 'feature/demo'];
   }
 }
 
@@ -1953,5 +2063,92 @@ void main() {
         );
       },
     );
+
+    test('/status does not append a timeline notice', () async {
+      final fakeService = _FakeSessionService();
+      final controller = SessionController(
+        sessionService: fakeService,
+        projectService: _FakeProjectService(),
+        settingsService: _FakeSettingsService('gpt-5.3-codex', 'high', true),
+      );
+      addTearDown(() async {
+        controller.dispose();
+        await fakeService.shutdown();
+      });
+
+      await controller.bootstrap();
+      await controller.selectWorkspaceFromPath('/repo');
+
+      await controller.sendInput('/status');
+
+      expect(controller.state.timelineCells, isEmpty);
+      expect(fakeService.runInputCallCount, 0);
+    });
+
+    test('/rename appends a descriptive system notice', () async {
+      final fakeService = _FakeSessionService();
+      final controller = SessionController(
+        sessionService: fakeService,
+        projectService: _FakeProjectService(),
+        settingsService: _FakeSettingsService('gpt-5.3-codex', 'high', true),
+      );
+      addTearDown(() async {
+        controller.dispose();
+        await fakeService.shutdown();
+      });
+
+      await controller.bootstrap();
+      await controller.selectWorkspaceFromPath('/repo');
+      await controller.sendInput('hello');
+
+      await controller.sendInput('/rename Better name');
+
+      final lastCell = controller.state.timelineCells.last;
+      expect(lastCell.kind, TimelineCellKind.systemNotice);
+      expect(lastCell.title, 'Thread renamed');
+      expect(lastCell.markdownText, 'Thread renamed to Better name.');
+    });
+
+    test('startReviewFromPreset maps presets to typed targets', () async {
+      final fakeService = _FakeSessionService();
+      final controller = SessionController(
+        sessionService: fakeService,
+        projectService: _FakeProjectService(),
+        settingsService: _FakeSettingsService('gpt-5.3-codex', 'high', true),
+      );
+      addTearDown(() async {
+        controller.dispose();
+        await fakeService.shutdown();
+      });
+
+      await controller.bootstrap();
+      await controller.selectWorkspaceFromPath('/repo');
+
+      await controller.startReviewFromPreset(
+        ReviewPresetSelection.baseBranch,
+        value: 'origin/main',
+      );
+      expect(fakeService.lastReviewTarget, isA<CodexReviewBaseBranchTarget>());
+
+      await controller.startReviewFromPreset(
+        ReviewPresetSelection.commit,
+        value: 'abc123',
+      );
+      expect(fakeService.lastReviewTarget, isA<CodexReviewCommitTarget>());
+
+      await controller.startReviewFromPreset(
+        ReviewPresetSelection.customInstructions,
+        value: 'Focus on migrations',
+      );
+      expect(fakeService.lastReviewTarget, isA<CodexReviewCustomTarget>());
+
+      await controller.startReviewFromPreset(
+        ReviewPresetSelection.uncommittedChanges,
+      );
+      expect(
+        fakeService.lastReviewTarget,
+        isA<CodexReviewUncommittedChangesTarget>(),
+      );
+    });
   });
 }

@@ -117,10 +117,17 @@ class _AleraShellPageState extends ConsumerState<AleraShellPage> {
       onPlanModeToggled: controller.togglePlanMode,
       onImplementPlanPressed: controller.implementPlanFromChatAction,
       onPermissionModeToggled: controller.togglePermissionMode,
+      onPermissionModeSelected: controller.setPermissionMode,
       onApproveRequest: controller.approveRequest,
       onDeclineRequest: controller.declineRequest,
       onSubmitUserInput: controller.submitUserInput,
       onDismissUserInput: controller.dismissUserInput,
+      onListSkills: controller.listAvailableSkills,
+      onListApps: controller.listAvailableApps,
+      onListReviewBranches: controller.listReviewBranches,
+      onAddDraftItem: controller.addComposerDraftItem,
+      onRemoveDraftItem: controller.removeComposerDraftItem,
+      onStartReviewFromPreset: controller.startReviewFromPreset,
       onCompact: controller.compactContext,
     );
   }

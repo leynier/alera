@@ -70,4 +70,29 @@ class ProjectService {
 
     return ProjectValidationResult.fail('path is not a git repository: $path');
   }
+
+  Future<List<String>> listGitBranches(String path) async {
+    final result = await _processRunner.run('git', <String>[
+      '-C',
+      path,
+      'for-each-ref',
+      '--format=%(refname:short)',
+      'refs/heads',
+      'refs/remotes',
+    ]);
+    if (result.exitCode != 0) {
+      return const <String>[];
+    }
+    final seen = <String>{};
+    final branches = <String>[];
+    for (final line in result.stdout.split('\n')) {
+      final branch = line.trim();
+      if (branch.isEmpty || branch.endsWith('/HEAD') || !seen.add(branch)) {
+        continue;
+      }
+      branches.add(branch);
+    }
+    branches.sort();
+    return branches;
+  }
 }

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:alera/src/features/agents/infrastructure/codex_app_server_client.dart';
 import 'package:alera/src/shared/infra/process/io_process_runner.dart';
+import 'package:alera/src/shared/models/contracts.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
@@ -32,6 +33,23 @@ Future<Map<String, dynamic>> _waitForMethod(
     await Future<void>.delayed(const Duration(milliseconds: 20));
   }
   throw TimeoutException('method not observed: $method');
+}
+
+Future<Map<String, dynamic>> _waitForNotification(
+  List<Map<String, dynamic>> notifications,
+  bool Function(Map<String, dynamic> notification) matches,
+  String description,
+) async {
+  final deadline = DateTime.now().add(const Duration(seconds: 4));
+  while (DateTime.now().isBefore(deadline)) {
+    for (final message in notifications) {
+      if (matches(message)) {
+        return message;
+      }
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+  }
+  throw TimeoutException('notification not observed: $description');
 }
 
 void main() {
@@ -206,5 +224,128 @@ void main() {
       await sub.cancel();
       await client.close();
     });
+
+    test('thread/name/set emits thread/name/updated', () async {
+      final client = await _startFakeClient();
+      final notifications = <Map<String, dynamic>>[];
+      final sub = client.events.listen(notifications.add);
+
+      await client
+          .startThread(cwd: '/tmp/project')
+          .timeout(const Duration(seconds: 5));
+
+      await client
+          .setThreadName(threadId: 'thr_fake', name: 'Review session')
+          .timeout(const Duration(seconds: 5));
+
+      final updated = await _waitForMethod(
+        notifications,
+        'thread/name/updated',
+      );
+      expect(updated['params'], <String, dynamic>{
+        'threadId': 'thr_fake',
+        'threadName': 'Review session',
+      });
+
+      await sub.cancel();
+      await client.close();
+    });
+
+    test('review/start detached returns typed review metadata', () async {
+      final client = await _startFakeClient();
+      final notifications = <Map<String, dynamic>>[];
+      final sub = client.events.listen(notifications.add);
+
+      await client
+          .startThread(cwd: '/tmp/project')
+          .timeout(const Duration(seconds: 5));
+
+      final result = await client
+          .startReview(
+            threadId: 'thr_fake',
+            target: const CodexReviewCommitTarget(
+              sha: '1234567deadbeef',
+              title: 'Polish tui colors',
+            ),
+            delivery: CodexReviewDelivery.detached,
+          )
+          .timeout(const Duration(seconds: 5));
+
+      expect(result.turn.id, isNotEmpty);
+      expect(result.turn.status, 'inProgress');
+      expect(result.reviewThreadId, startsWith('thr_review_'));
+
+      final threadStarted = await _waitForNotification(
+        notifications,
+        (message) =>
+            message['method'] == 'thread/started' &&
+            ((message['params'] as Map<String, dynamic>)['thread']
+                    as Map<String, dynamic>)['id'] ==
+                result.reviewThreadId,
+        'thread/started for detached review thread',
+      );
+      final detachedThread =
+          (threadStarted['params'] as Map<String, dynamic>)['thread']
+              as Map<String, dynamic>;
+      expect(detachedThread['id'], result.reviewThreadId);
+
+      final completed = await _waitForMethod(notifications, 'turn/completed');
+      final turn =
+          (completed['params'] as Map<String, dynamic>)['turn']
+              as Map<String, dynamic>;
+      expect(turn['threadId'], result.reviewThreadId);
+      expect(turn['status'], 'completed');
+
+      await sub.cancel();
+      await client.close();
+    });
+
+    test(
+      'list wrappers return typed collaboration modes, skills, and apps',
+      () async {
+        final client = await _startFakeClient();
+        final notifications = <Map<String, dynamic>>[];
+        final sub = client.events.listen(notifications.add);
+
+        final collaborationModes = await client
+            .listCollaborationModes()
+            .timeout(const Duration(seconds: 5));
+        expect(collaborationModes, hasLength(2));
+        expect(collaborationModes.first.name, 'default');
+        expect(collaborationModes.last.kind, CodexCollaborationModeKind.plan);
+
+        final skills = await client
+            .listSkills(
+              cwds: const <String>['/tmp/project'],
+              forceReload: true,
+              perCwdExtraUserRoots: const <CodexSkillsListExtraRootsForCwd>[
+                CodexSkillsListExtraRootsForCwd(
+                  cwd: '/tmp/project',
+                  extraUserRoots: <String>['/tmp/shared-skills'],
+                ),
+              ],
+            )
+            .timeout(const Duration(seconds: 5));
+        expect(skills, hasLength(1));
+        expect(skills.first.cwd, '/tmp/project');
+        expect(skills.first.skills, hasLength(2));
+        expect(skills.first.skills.first.path, contains('/tmp/project'));
+
+        final apps = await client
+            .listApps(limit: 1, threadId: 'thr_fake')
+            .timeout(const Duration(seconds: 5));
+        expect(apps.data, hasLength(1));
+        expect(apps.data.first.id, 'demo-app');
+        expect(apps.data.first.labels?['threadId'], 'thr_fake');
+        expect(apps.nextCursor, '1');
+
+        final updated = await _waitForMethod(notifications, 'app/list/updated');
+        final updatedParams = updated['params'] as Map<String, dynamic>;
+        expect(updatedParams['nextCursor'], '1');
+
+        await sub.cancel();
+        await client.close();
+      },
+    );
   });
 }

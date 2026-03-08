@@ -40,6 +40,7 @@ abstract final class AleraTokens {
   static const Color foregroundMuted = Color(0xFFA1A1A1);
   static const Color foregroundFaint = Color(0xFF606060);
   static const Color success = Color(0xFF22C55E);
+  static const Color info = Color(0xFF60A5FA);
   static const Color error = Color(0xFFF87171);
   static const Color onError = Color(0xFF2C0D0D);
   static const Color warning = Color(0xFFF59E0B);

@@ -88,6 +88,52 @@ class _ShellFakeSessionService implements SessionService {
   ) async {}
 
   @override
+  Future<void> renameSessionThread({
+    required String sessionId,
+    required String name,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> renameThread({required String sessionId, required String name}) {
+    return renameSessionThread(sessionId: sessionId, name: name);
+  }
+
+  @override
+  Future<CodexReviewStartResult> startReview({
+    required String sessionId,
+    required CodexReviewTarget target,
+    CodexReviewDelivery? delivery,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<List<CodexCollaborationModePreset>> listCollaborationModes() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<List<CodexSkillsListEntry>> listSkills({
+    List<String>? cwds,
+    bool forceReload = false,
+    List<CodexSkillsListExtraRootsForCwd>? perCwdExtraUserRoots,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<CodexAppsPage> listApps({
+    String? sessionId,
+    String? cursor,
+    int? limit,
+    bool forceRefetch = false,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<AleraSession> setActiveSession(String sessionId) {
     throw UnimplementedError();
   }
@@ -113,6 +159,11 @@ class _ShellFakeProjectService implements ProjectService {
   @override
   Future<ProjectValidationResult> validateGitRepository(String path) async {
     return ProjectValidationResult.ok();
+  }
+
+  @override
+  Future<List<String>> listGitBranches(String path) async {
+    return const <String>['main', 'origin/main'];
   }
 }
 

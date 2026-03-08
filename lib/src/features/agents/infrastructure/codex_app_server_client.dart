@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:alera/src/shared/models/contracts.dart';
 import 'package:alera/src/shared/infra/json_rpc/json_rpc_client.dart';
 import 'package:alera/src/shared/infra/json_rpc/json_rpc_websocket_client.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
@@ -157,6 +158,74 @@ class CodexAppServerClient {
     return _wsClient!.request('model/list');
   }
 
+  Future<List<CodexCollaborationModePreset>> listCollaborationModes() async {
+    final result = await _requestResult(
+      'collaborationMode/list',
+      params: const <String, dynamic>{},
+    );
+    final data = result['data'];
+    if (data is! List) {
+      throw StateError('collaborationMode/list result is missing data');
+    }
+    return data
+        .whereType<Map>()
+        .map(
+          (item) => CodexCollaborationModePreset.fromJson(
+            item.cast<String, dynamic>(),
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  Future<List<CodexSkillsListEntry>> listSkills({
+    List<String>? cwds,
+    bool forceReload = false,
+    List<CodexSkillsListExtraRootsForCwd>? perCwdExtraUserRoots,
+  }) async {
+    final result = await _requestResult(
+      'skills/list',
+      params: <String, dynamic>{
+        ...?cwds == null ? null : <String, dynamic>{'cwds': cwds},
+        'forceReload': forceReload,
+        ...?perCwdExtraUserRoots == null
+            ? null
+            : <String, dynamic>{
+                'perCwdExtraUserRoots': perCwdExtraUserRoots
+                    .map((entry) => entry.toJson())
+                    .toList(growable: false),
+              },
+      },
+    );
+    final data = result['data'];
+    if (data is! List) {
+      throw StateError('skills/list result is missing data');
+    }
+    return data
+        .whereType<Map>()
+        .map(
+          (item) => CodexSkillsListEntry.fromJson(item.cast<String, dynamic>()),
+        )
+        .toList(growable: false);
+  }
+
+  Future<CodexAppsPage> listApps({
+    String? cursor,
+    int? limit,
+    String? threadId,
+    bool forceRefetch = false,
+  }) async {
+    final result = await _requestResult(
+      'app/list',
+      params: <String, dynamic>{
+        'cursor': cursor,
+        'limit': limit,
+        'threadId': threadId,
+        'forceRefetch': forceRefetch,
+      },
+    );
+    return CodexAppsPage.fromJson(result);
+  }
+
   Future<Map<String, dynamic>> startThread({
     String? cwd,
     String? model,
@@ -186,7 +255,7 @@ class CodexAppServerClient {
     required String reasoningEffort,
     String? cwd,
     String approvalPolicy = 'never',
-    Map<String, dynamic>? collaborationMode,
+    CodexCollaborationMode? collaborationMode,
   }) {
     return _wsClient!.request(
       'turn/start',
@@ -199,8 +268,38 @@ class CodexAppServerClient {
         'approvalPolicy': approvalPolicy,
         ...?collaborationMode == null
             ? null
-            : <String, dynamic>{'collaborationMode': collaborationMode},
+            : <String, dynamic>{
+                'collaborationMode': collaborationMode.toJson(),
+              },
       },
+    );
+  }
+
+  Future<CodexReviewStartResult> startReview({
+    required String threadId,
+    required CodexReviewTarget target,
+    CodexReviewDelivery? delivery,
+  }) async {
+    final result = await _requestResult(
+      'review/start',
+      params: <String, dynamic>{
+        'threadId': threadId,
+        'target': target.toJson(),
+        ...?delivery == null
+            ? null
+            : <String, dynamic>{'delivery': delivery.wireValue},
+      },
+    );
+    return CodexReviewStartResult.fromJson(result);
+  }
+
+  Future<void> setThreadName({
+    required String threadId,
+    required String name,
+  }) async {
+    await _requestResult(
+      'thread/name/set',
+      params: <String, dynamic>{'threadId': threadId, 'name': name},
     );
   }
 
@@ -286,5 +385,17 @@ class CodexAppServerClient {
     await _wsClient?.close();
     _process?.kill();
     await _stderrController.close();
+  }
+
+  Future<Map<String, dynamic>> _requestResult(
+    String method, {
+    Map<String, dynamic>? params,
+  }) async {
+    final response = await _wsClient!.request(method, params: params);
+    final result = response['result'];
+    if (result is! Map<String, dynamic>) {
+      throw StateError('$method returned no result object');
+    }
+    return result;
   }
 }
