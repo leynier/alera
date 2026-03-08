@@ -340,7 +340,11 @@ class CompletedTurnSection extends StatelessWidget {
     for (final cell in turnCells) {
       switch (cell.kind) {
         case TimelineCellKind.userMessage:
-          users.add(cell);
+          if (cell.metadata[TimelineCellMetadata.isSteeringKey] == true) {
+            assistants.add(cell);
+          } else {
+            users.add(cell);
+          }
         case TimelineCellKind.assistantMessage:
           assistants.add(cell);
         case TimelineCellKind.progressText:

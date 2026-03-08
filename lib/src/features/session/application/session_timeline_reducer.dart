@@ -810,7 +810,6 @@ SessionState _onTurnStarted(
         turnId: turnId,
         updatedAt: timestamp,
         status: wasSteering ? TimelineCellStatus.completed : null,
-        metadata: wasSteering ? const <String, dynamic>{} : null,
       );
     }
   }
@@ -876,7 +875,6 @@ SessionState _onTurnCompleted(
         cell.metadata[TimelineCellMetadata.isSteeringKey] == true) {
       cells[i] = cell.copyWith(
         status: TimelineCellStatus.completed,
-        metadata: const <String, dynamic>{},
         turnId: cell.turnId ?? turnId,
         updatedAt: timestamp,
       );
