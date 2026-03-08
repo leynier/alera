@@ -59,6 +59,10 @@ class TimelineCellView extends StatelessWidget {
       ),
       TimelineCellKind.turnSeparator => const SizedBox.shrink(),
       TimelineCellKind.systemNotice => SystemNoticeCell(cell: cell),
+      TimelineCellKind.questionAnswer => QuestionAnswerCell(
+        key: ValueKey(cell.id),
+        cell: cell,
+      ),
     };
   }
 }
@@ -1132,6 +1136,196 @@ class SystemNoticeCell extends StatelessWidget {
         ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundFaint),
       ),
     );
+  }
+}
+
+class QuestionAnswerCell extends StatefulWidget {
+  const QuestionAnswerCell({super.key, required this.cell});
+
+  final TimelineCell cell;
+
+  @override
+  State<QuestionAnswerCell> createState() => _QuestionAnswerCellState();
+}
+
+class _QuestionAnswerCellState extends State<QuestionAnswerCell> {
+  late bool _collapsed;
+  bool _isHovered = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _collapsed = widget.cell.isCollapsed;
+  }
+
+  @override
+  void didUpdateWidget(covariant QuestionAnswerCell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.cell.isCollapsed != oldWidget.cell.isCollapsed) {
+      _collapsed = widget.cell.isCollapsed;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final questions = _getQuestions();
+    final title = widget.cell.title ?? 'Asked ${questions.length} question${questions.length == 1 ? '' : 's'}';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        MouseRegion(
+          onEnter: (_) => setState(() => _isHovered = true),
+          onExit: (_) => setState(() => _isHovered = false),
+          child: AnimatedContainer(
+            duration: AleraTokens.durationFast,
+            curve: Curves.easeOut,
+            decoration: BoxDecoration(
+              color: _isHovered
+                  ? AleraTokens.surfaceVariant
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+            ),
+            child: InkWell(
+              onTap: () => setState(() => _collapsed = !_collapsed),
+              mouseCursor: SystemMouseCursors.click,
+              borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+              splashFactory: NoSplash.splashFactory,
+              hoverColor: Colors.transparent,
+              splashColor: Colors.transparent,
+              highlightColor: Colors.transparent,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AleraTokens.space6,
+                  vertical: AleraTokens.space4,
+                ),
+                child: Row(
+                  children: <Widget>[
+                    SizedBox(
+                      width: 10,
+                      child: Center(
+                        child: Container(
+                          width: 7,
+                          height: 7,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AleraTokens.success,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: AleraTokens.space6),
+                    Flexible(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Flexible(
+                            child: Text(
+                              title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: AleraTokens.foregroundMuted,
+                                  ),
+                            ),
+                          ),
+                          const SizedBox(width: AleraTokens.space4),
+                          AnimatedOpacity(
+                            duration: AleraTokens.durationFast,
+                            opacity: _isHovered ? 1 : 0,
+                            child: SizedBox(
+                              width: 14,
+                              child: Icon(
+                                _collapsed
+                                    ? Icons.keyboard_arrow_right
+                                    : Icons.keyboard_arrow_down,
+                                size: 14,
+                                color: AleraTokens.foregroundFaint,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        if (!_collapsed && questions.isNotEmpty)
+          Container(
+            margin: const EdgeInsets.only(
+              left: AleraTokens.space8,
+              top: AleraTokens.space4,
+            ),
+            padding: const EdgeInsets.all(AleraTokens.space8),
+            decoration: BoxDecoration(
+              color: AleraTokens.surface,
+              borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+              border: Border.all(color: AleraTokens.borderSubtle),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: _buildQuestionWidgets(context, questions),
+            ),
+          ),
+      ],
+    );
+  }
+
+  List<Map<String, String>> _getQuestions() {
+    final questions = widget.cell.metadata['questions'] as List<dynamic>?;
+    if (questions == null) return <Map<String, String>>[];
+    return questions.map((q) {
+      final map = q as Map<String, dynamic>;
+      return <String, String>{
+        'question': map['question']?.toString() ?? '',
+        'answer': map['answer']?.toString() ?? '',
+      };
+    }).toList();
+  }
+
+  List<Widget> _buildQuestionWidgets(BuildContext context, List<Map<String, String>> questions) {
+    final widgets = <Widget>[];
+    for (var i = 0; i < questions.length; i++) {
+      final qa = questions[i];
+      final question = qa['question'] ?? '';
+      final answer = qa['answer'] ?? '';
+      widgets.add(
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              question,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AleraTokens.foregroundMuted,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: AleraTokens.space4),
+            Text(
+              answer,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AleraTokens.foreground,
+              ),
+            ),
+          ],
+        ),
+      );
+      if (i < questions.length - 1) {
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: AleraTokens.space8),
+            child: Divider(
+              height: 1,
+              color: AleraTokens.borderSubtle,
+            ),
+          ),
+        );
+      }
+    }
+    return widgets;
   }
 }
 

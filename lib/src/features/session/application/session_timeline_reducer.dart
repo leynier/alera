@@ -59,6 +59,30 @@ SessionState appendOptimisticUserMessage(
   );
 }
 
+SessionState appendQuestionAnswerCell(
+  SessionState state, {
+  required List<Map<String, String>> questionAnswers,
+  String? turnId,
+  DateTime? now,
+}) {
+  final timestamp = now ?? DateTime.now().toUtc();
+  final cell = TimelineCell(
+    id: 'qa-${timestamp.microsecondsSinceEpoch}',
+    turnId: turnId,
+    kind: TimelineCellKind.questionAnswer,
+    status: TimelineCellStatus.completed,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    title: 'Asked ${questionAnswers.length} question${questionAnswers.length == 1 ? '' : 's'}',
+    metadata: <String, dynamic>{
+      'questions': questionAnswers,
+    },
+  );
+  return state.copyWith(
+    timelineCells: <TimelineCell>[...state.timelineCells, cell],
+  );
+}
+
 SessionState reduceNotification(
   SessionState state,
   SessionNotificationEvent event, {
@@ -2483,7 +2507,8 @@ bool _isSecondaryKind(TimelineCellKind kind) {
       kind == TimelineCellKind.reasoning ||
       kind == TimelineCellKind.toolCall ||
       kind == TimelineCellKind.subAgent ||
-      kind == TimelineCellKind.systemNotice;
+      kind == TimelineCellKind.systemNotice ||
+      kind == TimelineCellKind.questionAnswer;
 }
 
 TimelineCellStatus? _statusFromString(String? status) {
