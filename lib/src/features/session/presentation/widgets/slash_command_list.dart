@@ -1,5 +1,5 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
-import 'package:alera/src/features/session/domain/slash_command.dart';
+import 'package:alera/src/features/session/domain/commands/alera_command.dart';
 import 'package:flutter/material.dart';
 
 class SlashCommandList extends StatefulWidget {
@@ -10,9 +10,9 @@ class SlashCommandList extends StatefulWidget {
     required this.onSelect,
   });
 
-  final List<SlashCommandDef> commands;
+  final List<AleraCommand> commands;
   final int selectedIndex;
-  final ValueChanged<SlashCommandDef> onSelect;
+  final ValueChanged<AleraCommand> onSelect;
 
   @override
   State<SlashCommandList> createState() => _SlashCommandListState();
@@ -108,37 +108,87 @@ class _SlashCommandListState extends State<SlashCommandList> {
                 horizontal: AleraTokens.space12,
                 vertical: AleraTokens.space6,
               ),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 80,
-                    child: Text(
-                      '/${cmd.name}',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: selected
-                            ? AleraTokens.accent
-                            : AleraTokens.foreground,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: Text(
+                          '/${cmd.name}',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: selected
+                                ? AleraTokens.accent
+                                : AleraTokens.foreground,
+                          ),
+                        ),
+                      ),
+                      _CommandSourcePill(command: cmd),
+                    ],
+                  ),
+                  const SizedBox(height: AleraTokens.space2),
+                  Text(
+                    cmd.description,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AleraTokens.foregroundMuted,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (cmd.argumentHint != null && cmd.argumentHint!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: AleraTokens.space2),
+                      child: Text(
+                        cmd.argumentHint!,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AleraTokens.foregroundFaint,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                  ),
-                  const SizedBox(width: AleraTokens.space8),
-                  Expanded(
-                    child: Text(
-                      cmd.description,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AleraTokens.foregroundMuted,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
                 ],
               ),
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _CommandSourcePill extends StatelessWidget {
+  const _CommandSourcePill({required this.command});
+
+  final AleraCommand command;
+
+  String get _label {
+    if (command.isBuiltin) {
+      return 'Built-in';
+    }
+    return command.scope == CustomCommandScope.repo ? 'Repo' : 'User';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AleraTokens.space6,
+        vertical: AleraTokens.space2,
+      ),
+      decoration: BoxDecoration(
+        color: AleraTokens.surface,
+        borderRadius: BorderRadius.circular(AleraTokens.radiusPill),
+        border: Border.all(color: AleraTokens.borderSubtle),
+      ),
+      child: Text(
+        _label,
+        style: const TextStyle(
+          fontSize: 10,
+          color: AleraTokens.foregroundFaint,
+        ),
       ),
     );
   }

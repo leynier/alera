@@ -10,11 +10,18 @@ import 'package:alera/src/features/session/application/streaming/adaptive_chunki
 import 'package:alera/src/features/session/application/streaming/commit_tick_engine.dart';
 import 'package:alera/src/features/session/application/streaming/markdown_stream_collector.dart';
 import 'package:alera/src/features/session/domain/chat_timeline.dart';
+import 'package:alera/src/features/session/domain/commands/alera_command.dart';
+import 'package:alera/src/features/session/domain/commands/command_parser.dart';
+import 'package:alera/src/features/session/domain/commands/command_registry.dart';
+import 'package:alera/src/features/session/domain/commands/custom_command_expander.dart';
 import 'package:alera/src/features/session/domain/codex_model_catalog.dart';
 import 'package:alera/src/features/session/domain/composer_attachment.dart';
+import 'package:alera/src/features/session/domain/composer_draft_item.dart';
+import 'package:alera/src/features/session/domain/context_usage.dart';
 import 'package:alera/src/features/session/domain/pending_approval.dart';
 import 'package:alera/src/features/session/domain/pending_message.dart';
 import 'package:alera/src/features/session/domain/pending_user_input.dart';
+import 'package:alera/src/features/session/domain/review_preset_selection.dart';
 import 'package:alera/src/features/settings/application/settings_service.dart';
 import 'package:alera/src/shared/models/contracts.dart';
 import 'package:flutter_riverpod/legacy.dart';
@@ -38,6 +45,7 @@ class SessionController extends StateNotifier<SessionState> {
   final SessionService _sessionService;
   final ProjectService _projectService;
   final SettingsService _settingsService;
+  final CommandRegistry _commandRegistry = const CommandRegistry();
   StreamSubscription<SessionRuntimeEvent>? _eventsSub;
   Timer? _commitTickTimer;
   Timer? _interruptSafetyTimer;
@@ -90,6 +98,7 @@ class SessionController extends StateNotifier<SessionState> {
       sessions: _sessionService.sessions,
       connectionState: AppServerConnectionState.disconnected,
       availableModels: codexModelSnapshot,
+      availableCommands: builtinAleraCommands(),
       preSessionModelId: normalizedDefault,
       preSessionReasoningEffort: normalizedReasoningEffort,
       preSessionMarkdownEnabled: defaults.markdownEnabled,
@@ -120,9 +129,13 @@ class SessionController extends StateNotifier<SessionState> {
       final existing = _sessionService.findLatestSessionForWorkspace(
         normalized,
       );
+      final availableCommands = await _commandRegistry.loadForWorkspace(
+        normalized,
+      );
       state = state.copyWith(
         isBusy: existing != null ? false : true,
         selectedWorkspacePath: normalized,
+        availableCommands: availableCommands,
         sessions: _sessionService.sessions,
         activeSessionId: existing?.id,
         timelineCells: const <TimelineCell>[],
@@ -187,6 +200,9 @@ class SessionController extends StateNotifier<SessionState> {
       isBusy: true,
       clearError: true,
       connectionState: AppServerConnectionState.starting,
+      availableCommands: await _commandRegistry.loadForWorkspace(
+        target.workspacePath,
+      ),
       activeSessionId: sessionId,
       selectedWorkspacePath: target.workspacePath,
       timelineCells: const <TimelineCell>[],
@@ -401,6 +417,31 @@ class SessionController extends StateNotifier<SessionState> {
     state = state.copyWith(composerAttachments: const <ComposerAttachment>[]);
   }
 
+  void addComposerDraftItem(ComposerDraftItem item) {
+    state = state.copyWith(
+      composerDraftItems: <ComposerDraftItem>[
+        ...state.composerDraftItems.where((candidate) {
+          return candidate.kind != item.kind ||
+              candidate.path != item.path ||
+              candidate.name != item.name;
+        }),
+        item,
+      ],
+    );
+  }
+
+  void removeComposerDraftItem(String id) {
+    state = state.copyWith(
+      composerDraftItems: state.composerDraftItems
+          .where((item) => item.id != id)
+          .toList(growable: false),
+    );
+  }
+
+  void clearComposerDraftItems() {
+    state = state.copyWith(composerDraftItems: const <ComposerDraftItem>[]);
+  }
+
   void togglePlanMode() {
     state = state.copyWith(planModeEnabled: !state.planModeEnabled);
   }
@@ -410,6 +451,81 @@ class SessionController extends StateNotifier<SessionState> {
         ? PermissionMode.fullAccess
         : PermissionMode.defaultMode;
     state = state.copyWith(permissionMode: next);
+  }
+
+  void setPermissionMode(PermissionMode mode) {
+    state = state.copyWith(permissionMode: mode);
+  }
+
+  Future<List<CodexSkillMetadata>> listAvailableSkills() async {
+    final workspacePath = state.selectedWorkspacePath;
+    if (workspacePath == null || workspacePath.isEmpty) {
+      return const <CodexSkillMetadata>[];
+    }
+    final entries = await _sessionService.listSkills(
+      cwds: <String>[workspacePath],
+    );
+    final skills = <CodexSkillMetadata>[];
+    for (final entry in entries) {
+      skills.addAll(entry.skills.where((skill) => skill.enabled));
+    }
+    return skills;
+  }
+
+  Future<List<CodexAppInfo>> listAvailableApps() async {
+    final page = await _sessionService.listApps(
+      sessionId: state.activeSessionId,
+      limit: 50,
+    );
+    return page.data
+        .where((app) => app.isAccessible && app.isEnabled)
+        .toList(growable: false);
+  }
+
+  Future<List<String>> listReviewBranches() async {
+    final workspacePath = state.selectedWorkspacePath;
+    if (workspacePath == null || workspacePath.isEmpty) {
+      return const <String>[];
+    }
+    return _projectService.listGitBranches(workspacePath);
+  }
+
+  Future<void> startReviewFromPreset(
+    ReviewPresetSelection preset, {
+    String? value,
+  }) async {
+    switch (preset) {
+      case ReviewPresetSelection.uncommittedChanges:
+        await _startReviewWithTarget(
+          const CodexReviewUncommittedChangesTarget(),
+        );
+        return;
+      case ReviewPresetSelection.baseBranch:
+        final branch = value?.trim();
+        if (branch == null || branch.isEmpty) {
+          return;
+        }
+        await _startReviewWithTarget(
+          CodexReviewBaseBranchTarget(branch: branch),
+        );
+        return;
+      case ReviewPresetSelection.commit:
+        final sha = value?.trim();
+        if (sha == null || sha.isEmpty) {
+          return;
+        }
+        await _startReviewWithTarget(CodexReviewCommitTarget(sha: sha));
+        return;
+      case ReviewPresetSelection.customInstructions:
+        final instructions = value?.trim();
+        if (instructions == null || instructions.isEmpty) {
+          return;
+        }
+        await _startReviewWithTarget(
+          CodexReviewCustomTarget(instructions: instructions),
+        );
+        return;
+    }
   }
 
   Future<void> approveRequest(
@@ -603,15 +719,18 @@ class SessionController extends StateNotifier<SessionState> {
       createdAt: now,
       updatedAt: now,
       markdownText: message.text,
-      metadata: const <String, dynamic>{TimelineCellMetadata.isSteeringKey: true},
+      metadata: const <String, dynamic>{
+        TimelineCellMetadata.isSteeringKey: true,
+      },
     );
     state = state.copyWith(
       timelineCells: <TimelineCell>[...state.timelineCells, cell],
     );
 
     // Build extra input items (attachments + steer rules).
-    final attachmentItems =
-        await _buildAttachmentInputItems(message.attachments);
+    final attachmentItems = await _buildAttachmentInputItems(
+      message.attachments,
+    );
     final steerItems = _buildSteerInputItems();
     final extraItems = <Map<String, dynamic>>[
       ...attachmentItems,
@@ -640,9 +759,7 @@ class SessionController extends StateNotifier<SessionState> {
       // Update the steering cell to failed status.
       _updateTimelineCell(
         cell.id,
-        (c) => c.copyWith(
-          status: TimelineCellStatus.failed,
-        ),
+        (c) => c.copyWith(status: TimelineCellStatus.failed),
       );
       state = state.copyWith(error: e.toString());
     }
@@ -675,12 +792,14 @@ class SessionController extends StateNotifier<SessionState> {
     String text,
     List<ComposerAttachment> attachments,
   ) {
-    final updated = state.pendingMessages.map((m) {
-      if (m.id == id) {
-        return m.copyWith(text: text, attachments: attachments);
-      }
-      return m;
-    }).toList(growable: false);
+    final updated = state.pendingMessages
+        .map((m) {
+          if (m.id == id) {
+            return m.copyWith(text: text, attachments: attachments);
+          }
+          return m;
+        })
+        .toList(growable: false);
     state = state.copyWith(pendingMessages: updated);
   }
 
@@ -693,24 +812,290 @@ class SessionController extends StateNotifier<SessionState> {
     if (text.isEmpty) {
       return;
     }
+    final parsedSlash = parseSlashCommand(text);
+    final resolvedCommand = parsedSlash == null
+        ? null
+        : _commandRegistry.findExact(state.availableCommands, parsedSlash.name);
+    if (resolvedCommand != null) {
+      await _dispatchResolvedCommand(
+        resolvedCommand,
+        parsedSlash!,
+        workspacePath: workspacePath,
+      );
+      return;
+    }
     if (state.runningTurnCount > 0 || state.isInterrupting) {
       final queued = PendingMessage(
         id: DateTime.now().microsecondsSinceEpoch.toString(),
         text: text,
         attachments: List<ComposerAttachment>.of(state.composerAttachments),
+        draftItems: List<ComposerDraftItem>.of(state.composerDraftItems),
         planModeEnabled: state.planModeEnabled,
         forceDefaultCollaborationMode: false,
       );
       state = state.copyWith(
         pendingMessages: <PendingMessage>[...state.pendingMessages, queued],
         composerAttachments: const <ComposerAttachment>[],
+        composerDraftItems: const <ComposerDraftItem>[],
       );
       return;
     }
     final attachments = List<ComposerAttachment>.of(state.composerAttachments);
+    final draftItems = List<ComposerDraftItem>.of(state.composerDraftItems);
     final planMode = state.planModeEnabled;
-    state = state.copyWith(composerAttachments: const <ComposerAttachment>[]);
-    await _executeInput(text, attachments, planMode);
+    state = state.copyWith(
+      composerAttachments: const <ComposerAttachment>[],
+      composerDraftItems: const <ComposerDraftItem>[],
+    );
+    await _executeInput(text, attachments, draftItems, planMode);
+  }
+
+  Future<void> _dispatchResolvedCommand(
+    AleraCommand command,
+    ParsedSlashCommand parsed, {
+    required String workspacePath,
+  }) async {
+    if (command.isCustom) {
+      final expanded = expandCustomCommand(command, parsed.rawArgs);
+      final resolvedText = _mergeExpandedCommandText(
+        expanded.text,
+        parsed.remainingText,
+      );
+      if (resolvedText.isEmpty) {
+        return;
+      }
+      await _sendResolvedInput(
+        resolvedText,
+        planModeEnabled: state.planModeEnabled,
+      );
+      return;
+    }
+    switch (command.builtinId) {
+      case BuiltinCommandId.newChat:
+      case BuiltinCommandId.clear:
+        _startNewChat();
+      case BuiltinCommandId.compact:
+        await compactContext();
+      case BuiltinCommandId.review:
+        await _runReviewCommand(parsed);
+      case BuiltinCommandId.plan:
+        await _runPlanCommand(parsed);
+      case BuiltinCommandId.rename:
+        await _runRenameCommand(parsed);
+      case BuiltinCommandId.status:
+        return;
+      case BuiltinCommandId.model:
+      case BuiltinCommandId.permissions:
+      case BuiltinCommandId.mention:
+      case BuiltinCommandId.skills:
+      case BuiltinCommandId.apps:
+        _appendSystemNotice(
+          title: 'Command handled in the composer',
+          message: 'Run /${command.name} from the composer UI action path.',
+        );
+      case null:
+        return;
+    }
+  }
+
+  Future<void> _sendResolvedInput(
+    String text, {
+    required bool planModeEnabled,
+    bool forceDefaultCollaborationMode = false,
+  }) async {
+    if (state.runningTurnCount > 0 || state.isInterrupting) {
+      final queued = PendingMessage(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        text: text,
+        attachments: List<ComposerAttachment>.of(state.composerAttachments),
+        draftItems: List<ComposerDraftItem>.of(state.composerDraftItems),
+        planModeEnabled: planModeEnabled,
+        forceDefaultCollaborationMode: forceDefaultCollaborationMode,
+      );
+      state = state.copyWith(
+        pendingMessages: <PendingMessage>[...state.pendingMessages, queued],
+        composerAttachments: const <ComposerAttachment>[],
+        composerDraftItems: const <ComposerDraftItem>[],
+      );
+      return;
+    }
+    final attachments = List<ComposerAttachment>.of(state.composerAttachments);
+    final draftItems = List<ComposerDraftItem>.of(state.composerDraftItems);
+    state = state.copyWith(
+      composerAttachments: const <ComposerAttachment>[],
+      composerDraftItems: const <ComposerDraftItem>[],
+    );
+    await _executeInput(
+      text,
+      attachments,
+      draftItems,
+      planModeEnabled,
+      forceDefaultCollaborationMode: forceDefaultCollaborationMode,
+    );
+  }
+
+  void _startNewChat() {
+    _stopCommitTicker();
+    state = state.copyWith(
+      clearActiveSessionId: true,
+      timelineCells: const <TimelineCell>[],
+      clearActiveStreamingAssistantCellId: true,
+      clearActiveTurnId: true,
+      activityLog: const <String>[],
+      runningTurnCount: 0,
+      isInterrupting: false,
+      clearStatusHeader: true,
+      pendingStatusRestore: false,
+      streamCollector: const MarkdownStreamCollectorState(),
+      streamQueue: const <StreamQueuedLine>[],
+      chunkingPolicy: const AdaptiveChunkingPolicyState(),
+      streamQueueDepth: 0,
+      clearStreamOldestAgeMs: true,
+      clearActiveAgentStreamItemId: true,
+      clearActiveAgentStreamTurnId: true,
+      clearActiveAgentStreamPhase: true,
+      pendingApprovals: const <PendingApproval>[],
+      clearPendingUserInput: true,
+      composerAttachments: const <ComposerAttachment>[],
+      composerDraftItems: const <ComposerDraftItem>[],
+      pendingMessages: const <PendingMessage>[],
+      contextUsage: ContextUsage.empty,
+      clearError: true,
+    );
+  }
+
+  Future<void> _runReviewCommand(ParsedSlashCommand parsed) async {
+    await _startReviewWithTarget(
+      parsed.hasArgs
+          ? CodexReviewCustomTarget(instructions: parsed.rawArgs)
+          : const CodexReviewUncommittedChangesTarget(),
+    );
+  }
+
+  Future<void> _runPlanCommand(ParsedSlashCommand parsed) async {
+    state = state.copyWith(planModeEnabled: true);
+    if (!parsed.hasArgs) {
+      _appendSystemNotice(
+        title: 'Plan mode enabled',
+        message: 'Your next message will run in plan mode.',
+      );
+      return;
+    }
+    await _sendResolvedInput(parsed.rawArgs, planModeEnabled: true);
+  }
+
+  Future<void> _runRenameCommand(ParsedSlashCommand parsed) async {
+    final session = state.activeSession;
+    if (session == null) {
+      _appendSystemNotice(
+        title: 'Rename unavailable',
+        message: 'Start a chat before renaming the current thread.',
+      );
+      return;
+    }
+    final nextName = parsed.rawArgs.trim();
+    if (nextName.isEmpty) {
+      _appendSystemNotice(
+        title: 'Rename usage',
+        message: 'Use /rename <name>.',
+      );
+      return;
+    }
+    try {
+      await _sessionService.renameSessionThread(
+        sessionId: session.id,
+        name: nextName,
+      );
+      state = state.copyWith(sessions: _sessionService.sessions);
+      _appendSystemNotice(
+        title: 'Thread renamed',
+        message: 'Thread renamed to $nextName.',
+      );
+    } catch (error) {
+      state = state.copyWith(error: error.toString());
+    }
+  }
+
+  Future<AleraSession?> _ensureActiveSessionForCommand(
+    String fallbackPrompt,
+  ) async {
+    final current = state.activeSession;
+    if (current != null) {
+      return current;
+    }
+    final workspacePath = state.selectedWorkspacePath;
+    if (workspacePath == null || workspacePath.isEmpty) {
+      return null;
+    }
+    final model = state.activeModelId;
+    final reasoningEffort = state.activeReasoningEffort;
+    final created = await _sessionService.createSession(
+      SessionCreateRequest(
+        projectPath: workspacePath,
+        firstPrompt: fallbackPrompt,
+        model: model,
+      ),
+    );
+    await _settingsService.save(
+      SettingsSnapshot(
+        selectedModel: model,
+        selectedReasoningEffort: reasoningEffort,
+        markdownEnabled: state.activeMarkdownEnabled,
+      ),
+    );
+    state = state.copyWith(
+      sessions: _sessionService.sessions,
+      activeSessionId: created.id,
+      preSessionModelId: model,
+      preSessionReasoningEffort: reasoningEffort,
+      connectionState: AppServerConnectionState.connected,
+      isInterrupting: false,
+      clearError: true,
+    );
+    return created;
+  }
+
+  String _mergeExpandedCommandText(String expandedText, String remainingText) {
+    final normalizedExpanded = expandedText.trim();
+    final normalizedRemaining = remainingText.trim();
+    if (normalizedExpanded.isEmpty) {
+      return normalizedRemaining;
+    }
+    if (normalizedRemaining.isEmpty) {
+      return normalizedExpanded;
+    }
+    return '$normalizedExpanded\n\n$normalizedRemaining';
+  }
+
+  Future<void> _startReviewWithTarget(CodexReviewTarget target) async {
+    final session = await _ensureActiveSessionForCommand('/review');
+    if (session == null) {
+      return;
+    }
+    try {
+      await _sessionService.startReview(sessionId: session.id, target: target);
+    } catch (error) {
+      state = state.copyWith(error: error.toString());
+    }
+  }
+
+  void _appendSystemNotice({required String title, required String message}) {
+    final timestamp = DateTime.now().toUtc();
+    final cell = TimelineCell(
+      id: 'system-${timestamp.microsecondsSinceEpoch}',
+      kind: TimelineCellKind.systemNotice,
+      status: TimelineCellStatus.info,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      title: title,
+      markdownText: message,
+      metadata: const <String, dynamic>{
+        TimelineCellMetadata.uiPlacementKey: TimelineCellMetadata.outsideWorked,
+      },
+    );
+    state = state.copyWith(
+      timelineCells: <TimelineCell>[...state.timelineCells, cell],
+    );
   }
 
   Future<void> implementPlanFromChatAction() async {
@@ -727,6 +1112,7 @@ class SessionController extends StateNotifier<SessionState> {
         id: DateTime.now().microsecondsSinceEpoch.toString(),
         text: _localPlanFallbackAutoInput,
         attachments: const <ComposerAttachment>[],
+        draftItems: const <ComposerDraftItem>[],
         planModeEnabled: false,
         forceDefaultCollaborationMode: true,
       );
@@ -738,6 +1124,7 @@ class SessionController extends StateNotifier<SessionState> {
     await _executeInput(
       _localPlanFallbackAutoInput,
       const <ComposerAttachment>[],
+      const <ComposerDraftItem>[],
       false,
       forceDefaultCollaborationMode: true,
     );
@@ -803,6 +1190,7 @@ class SessionController extends StateNotifier<SessionState> {
     await _executeInput(
       next.text,
       next.attachments,
+      next.draftItems,
       next.planModeEnabled,
       forceDefaultCollaborationMode: next.forceDefaultCollaborationMode,
     );
@@ -811,6 +1199,7 @@ class SessionController extends StateNotifier<SessionState> {
   Future<void> _executeInput(
     String text,
     List<ComposerAttachment> attachments,
+    List<ComposerDraftItem> draftItems,
     bool planModeEnabled, {
     bool forceDefaultCollaborationMode = false,
   }) async {
@@ -822,6 +1211,7 @@ class SessionController extends StateNotifier<SessionState> {
       state,
       text: text,
       attachments: attachments,
+      draftItems: draftItems,
     ).copyWith(isBusy: true, clearError: true);
     try {
       var session = state.activeSession;
@@ -858,6 +1248,7 @@ class SessionController extends StateNotifier<SessionState> {
       final steerItems = _buildSteerInputItems();
       final extraInputItems = <Map<String, dynamic>>[
         ...await _buildAttachmentInputItems(attachments),
+        ..._buildDraftItemInputItems(draftItems),
         ...mentionItems,
         ...steerItems,
       ];
@@ -940,6 +1331,32 @@ class SessionController extends StateNotifier<SessionState> {
       });
     }
     return items;
+  }
+
+  List<Map<String, dynamic>> _buildDraftItemInputItems(
+    List<ComposerDraftItem> draftItems,
+  ) {
+    if (draftItems.isEmpty) {
+      return const <Map<String, dynamic>>[];
+    }
+    return draftItems
+        .map((item) {
+          switch (item.kind) {
+            case ComposerDraftItemKind.skill:
+              return <String, dynamic>{
+                'type': 'skill',
+                'name': item.name,
+                'path': item.path,
+              };
+            case ComposerDraftItemKind.mention:
+              return <String, dynamic>{
+                'type': 'mention',
+                'name': item.name,
+                'path': item.path,
+              };
+          }
+        })
+        .toList(growable: false);
   }
 
   Future<void> interruptActiveTurn() async {
@@ -1169,6 +1586,7 @@ class SessionController extends StateNotifier<SessionState> {
       await _executeInput(
         _localPlanFallbackAutoInput,
         const <ComposerAttachment>[],
+        const <ComposerDraftItem>[],
         false,
       );
       return;
@@ -1181,6 +1599,7 @@ class SessionController extends StateNotifier<SessionState> {
     await _executeInput(
       decision.refinement!,
       const <ComposerAttachment>[],
+      const <ComposerDraftItem>[],
       true,
     );
   }

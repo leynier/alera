@@ -2,11 +2,16 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/features/session/domain/commands/alera_command.dart';
+import 'package:alera/src/features/session/domain/commands/command_parser.dart';
+import 'package:alera/src/features/session/domain/commands/command_registry.dart';
 import 'package:alera/src/features/session/domain/codex_model_catalog.dart';
 import 'package:alera/src/features/session/domain/composer_attachment.dart';
+import 'package:alera/src/features/session/domain/composer_draft_item.dart';
 import 'package:alera/src/features/session/domain/context_usage.dart';
-import 'package:alera/src/features/session/domain/slash_command.dart';
+import 'package:alera/src/features/session/domain/pending_approval.dart';
 import 'package:alera/src/features/session/presentation/widgets/attachment_bar.dart';
+import 'package:alera/src/features/session/presentation/widgets/composer_draft_item_bar.dart';
 import 'package:alera/src/features/session/presentation/widgets/context_usage_indicator.dart';
 import 'package:alera/src/features/session/presentation/widgets/mention_file_list.dart';
 import 'package:alera/src/features/session/presentation/widgets/slash_command_list.dart';
@@ -34,14 +39,18 @@ class Composer extends StatefulWidget {
     required this.onInterrupt,
     this.hintText = 'Ask for follow-up changes',
     this.attachments = const <ComposerAttachment>[],
+    this.draftItems = const <ComposerDraftItem>[],
+    this.availableCommands = const <AleraCommand>[],
     this.onAddAttachment,
     this.onPasteImage,
     this.onRemoveAttachment,
+    this.onRemoveDraftItem,
+    this.onImmediateCommandSelected,
     this.workspacePath,
     this.planModeEnabled = false,
     this.onPlanModeToggled,
-    this.fullAccessEnabled = false,
-    this.onPermissionModeToggled,
+    this.permissionMode = PermissionMode.defaultMode,
+    this.onPermissionModeSelected,
     this.focusNode,
     this.contextUsage,
     this.onCompact,
@@ -64,14 +73,18 @@ class Composer extends StatefulWidget {
   final VoidCallback onInterrupt;
   final String hintText;
   final List<ComposerAttachment> attachments;
+  final List<ComposerDraftItem> draftItems;
+  final List<AleraCommand> availableCommands;
   final VoidCallback? onAddAttachment;
   final ValueChanged<File>? onPasteImage;
   final ValueChanged<String>? onRemoveAttachment;
+  final ValueChanged<String>? onRemoveDraftItem;
+  final ValueChanged<AleraCommand>? onImmediateCommandSelected;
   final String? workspacePath;
   final bool planModeEnabled;
   final VoidCallback? onPlanModeToggled;
-  final bool fullAccessEnabled;
-  final VoidCallback? onPermissionModeToggled;
+  final PermissionMode permissionMode;
+  final ValueChanged<PermissionMode>? onPermissionModeSelected;
   final FocusNode? focusNode;
   final ContextUsage? contextUsage;
   final VoidCallback? onCompact;
@@ -86,10 +99,13 @@ class ComposerState extends State<Composer> {
       GlobalKey<PopupMenuButtonState<String>>();
   final GlobalKey<PopupMenuButtonState<String>> _reasoningMenuKey =
       GlobalKey<PopupMenuButtonState<String>>();
+  final GlobalKey<PopupMenuButtonState<PermissionMode>> _permissionMenuKey =
+      GlobalKey<PopupMenuButtonState<PermissionMode>>();
+  final CommandRegistry _commandRegistry = const CommandRegistry();
   List<String> _mentionFiles = const <String>[];
   int _mentionSelectedIndex = 0;
   Timer? _mentionDebounce;
-  List<SlashCommandDef> _slashCommands = const <SlashCommandDef>[];
+  List<AleraCommand> _slashCommands = const <AleraCommand>[];
   int _slashSelectedIndex = 0;
   bool _hasText = false;
 
@@ -124,6 +140,10 @@ class ComposerState extends State<Composer> {
     _reasoningMenuKey.currentState?.showButtonMenu();
   }
 
+  void openPermissionDropdown() {
+    _permissionMenuKey.currentState?.showButtonMenu();
+  }
+
   String _shortcutHint(String modifier) {
     return Platform.isMacOS ? '⌘$modifier' : 'Ctrl+$modifier';
   }
@@ -140,19 +160,24 @@ class ComposerState extends State<Composer> {
   String get _reasoningLabel =>
       codexReasoningEffortLabel(widget.activeReasoningEffort);
 
+  String get _permissionLabel {
+    switch (widget.permissionMode) {
+      case PermissionMode.defaultMode:
+        return 'Ask first';
+      case PermissionMode.fullAccess:
+        return 'Full access';
+    }
+  }
+
   bool get _hasOverlay => _mentionFiles.isNotEmpty || _slashCommands.isNotEmpty;
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
-    // Intercept Cmd+V / Ctrl+V for clipboard image pasting.
     if (event is KeyDownEvent &&
         event.logicalKey == LogicalKeyboardKey.keyV &&
         (Platform.isMacOS
             ? HardwareKeyboard.instance.isMetaPressed
             : HardwareKeyboard.instance.isControlPressed)) {
       _tryPasteImage();
-      // Return ignored so the framework still handles normal text paste if
-      // no image is found. _tryPasteImage runs asynchronously and will add
-      // the image attachment when it succeeds.
       return KeyEventResult.ignored;
     }
 
@@ -185,10 +210,7 @@ class ComposerState extends State<Composer> {
         return KeyEventResult.handled;
       }
       if (event.logicalKey == LogicalKeyboardKey.escape) {
-        setState(() {
-          _slashCommands = const <SlashCommandDef>[];
-          _slashSelectedIndex = 0;
-        });
+        _clearSlash();
         return KeyEventResult.handled;
       }
     }
@@ -218,10 +240,7 @@ class ComposerState extends State<Composer> {
         return KeyEventResult.handled;
       }
       if (event.logicalKey == LogicalKeyboardKey.escape) {
-        setState(() {
-          _mentionFiles = const <String>[];
-          _mentionSelectedIndex = 0;
-        });
+        _clearMention();
         return KeyEventResult.handled;
       }
     }
@@ -250,12 +269,10 @@ class ComposerState extends State<Composer> {
       _clearSlash();
       return;
     }
-    final beforeCursor = text.substring(0, cursor);
-    final slashMatch = RegExp(r'(?:^|(?<=\s))/(\S*)$').firstMatch(beforeCursor);
-    if (slashMatch != null) {
+    if (looksLikeSlashQuery(text, cursor)) {
       _clearMention();
-      final query = slashMatch.group(1) ?? '';
-      final filtered = filterSlashCommands(query);
+      final query = extractSlashQuery(text, cursor);
+      final filtered = _commandRegistry.filter(widget.availableCommands, query);
       setState(() {
         _slashCommands = filtered;
         _slashSelectedIndex = 0;
@@ -263,6 +280,7 @@ class ComposerState extends State<Composer> {
       return;
     }
     _clearSlash();
+    final beforeCursor = text.substring(0, cursor);
     final mentionMatch = RegExp(r'@(\S*)$').firstMatch(beforeCursor);
     if (mentionMatch == null) {
       _clearMention();
@@ -284,39 +302,59 @@ class ComposerState extends State<Composer> {
   void _clearSlash() {
     if (_slashCommands.isNotEmpty) {
       setState(() {
-        _slashCommands = const <SlashCommandDef>[];
+        _slashCommands = const <AleraCommand>[];
         _slashSelectedIndex = 0;
       });
     }
   }
 
-  void _selectSlashCommand(SlashCommandDef cmd) {
+  void _selectSlashCommand(AleraCommand command) {
+    if (_requiresInlineCommandInput(command)) {
+      final insertion = command.supportsInlineArgs || command.isCustom
+          ? '/${command.name} '
+          : '/${command.name}';
+      _replaceActiveSlashQuery(insertion);
+      _clearSlash();
+      return;
+    }
+    if (command.builtinId == BuiltinCommandId.mention) {
+      _replaceActiveSlashQuery('@');
+      _clearSlash();
+      return;
+    }
+    widget.controller.clear();
+    _clearSlash();
+    widget.onImmediateCommandSelected?.call(command);
+  }
+
+  bool _requiresInlineCommandInput(AleraCommand command) {
+    if (command.isCustom) {
+      return true;
+    }
+    return command.builtinId == BuiltinCommandId.rename;
+  }
+
+  void _replaceActiveSlashQuery(String replacement) {
     final text = widget.controller.text;
     final cursor = widget.controller.selection.baseOffset;
     if (cursor < 0) {
       return;
     }
     final beforeCursor = text.substring(0, cursor);
-    final match = RegExp(r'(?:^|(?<=\s))/\S*$').firstMatch(beforeCursor);
-    final insertStart = match != null ? match.start : 0;
-    final afterCursor = text.substring(cursor);
-    if (cmd.kind == SlashCommandKind.clearInput) {
-      widget.controller.clear();
-    } else {
-      final inserted = cmd.insertText ?? '';
-      final newText =
-          '${beforeCursor.substring(0, insertStart)}$inserted$afterCursor';
-      widget.controller.value = TextEditingValue(
-        text: newText,
-        selection: TextSelection.collapsed(
-          offset: insertStart + inserted.length,
-        ),
-      );
+    final match = RegExp(r'^/\S*$').firstMatch(beforeCursor);
+    if (match == null) {
+      return;
     }
-    setState(() {
-      _slashCommands = const <SlashCommandDef>[];
-      _slashSelectedIndex = 0;
-    });
+    final afterCursor = text.substring(cursor);
+    final newText =
+        '${beforeCursor.substring(0, match.start)}$replacement$afterCursor';
+    widget.controller.value = TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(
+        offset: match.start + replacement.length,
+      ),
+      composing: TextRange.empty,
+    );
   }
 
   Future<void> _fetchMentionFiles(String query) async {
@@ -376,19 +414,21 @@ class ComposerState extends State<Composer> {
       selection: TextSelection.collapsed(
         offset: match.start + relativePath.length + 2,
       ),
+      composing: TextRange.empty,
     );
-    setState(() {
-      _mentionFiles = const <String>[];
-      _mentionSelectedIndex = 0;
-    });
+    _clearMention();
   }
 
   Future<void> _tryPasteImage() async {
     final callback = widget.onPasteImage;
-    if (callback == null) return;
+    if (callback == null) {
+      return;
+    }
     try {
       final bytes = await Pasteboard.image;
-      if (bytes == null || bytes.isEmpty) return;
+      if (bytes == null || bytes.isEmpty) {
+        return;
+      }
       final tempDir = Directory.systemTemp;
       final tempFile = File(
         '${tempDir.path}/alera_paste_${DateTime.now().millisecondsSinceEpoch}.png',
@@ -396,7 +436,7 @@ class ComposerState extends State<Composer> {
       await tempFile.writeAsBytes(bytes);
       callback(tempFile);
     } catch (_) {
-      // No image in clipboard or write failed — silently ignore.
+      // Ignore clipboard failures.
     }
   }
 
@@ -424,7 +464,7 @@ class ComposerState extends State<Composer> {
   }
 
   Widget _buildActionButton() {
-    final bool isSendMode = _hasText || !widget.canStop;
+    final isSendMode = _hasText || !widget.canStop;
     final VoidCallback? onPressed;
     final Widget icon;
 
@@ -452,10 +492,7 @@ class ComposerState extends State<Composer> {
       key: const ValueKey<String>('composer-send-stop-button'),
       onPressed: onPressed,
       mouseCursor: SystemMouseCursors.click,
-      constraints: const BoxConstraints(
-        minWidth: 32,
-        minHeight: 32,
-      ),
+      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
       padding: EdgeInsets.zero,
       style: IconButton.styleFrom(
         backgroundColor: (widget.canSend || widget.canStop)
@@ -472,6 +509,8 @@ class ComposerState extends State<Composer> {
 
   @override
   Widget build(BuildContext context) {
+    final hasContextCompact =
+        widget.contextUsage != null && widget.onCompact != null;
     return Padding(
       padding: const EdgeInsets.all(AleraTokens.space12),
       child: Column(
@@ -512,14 +551,20 @@ class ComposerState extends State<Composer> {
               children: <Widget>[
                 Column(
                   children: <Widget>[
+                    if (widget.draftItems.isNotEmpty)
+                      Padding(
+                        padding: EdgeInsets.only(
+                          right: hasContextCompact ? 24.0 : 0.0,
+                        ),
+                        child: ComposerDraftItemBar(
+                          items: widget.draftItems,
+                          onRemove: widget.onRemoveDraftItem ?? (_) {},
+                        ),
+                      ),
                     if (widget.attachments.isNotEmpty)
                       Padding(
                         padding: EdgeInsets.only(
-                          right:
-                              (widget.contextUsage != null &&
-                                  widget.onCompact != null)
-                              ? 24.0
-                              : 0.0,
+                          right: hasContextCompact ? 24.0 : 0.0,
                         ),
                         child: AttachmentBar(
                           attachments: widget.attachments,
@@ -527,9 +572,6 @@ class ComposerState extends State<Composer> {
                         ),
                       ),
                     CallbackShortcuts(
-                      // NOTE: Flutter/macOS debug can assert on synthesized Meta
-                      // KeyUp events in HardwareKeyboard. This is framework-level;
-                      // shortcut behavior here intentionally remains unchanged.
                       bindings: <ShortcutActivator, VoidCallback>{
                         const SingleActivator(LogicalKeyboardKey.enter):
                             _sendFromShortcut,
@@ -554,10 +596,7 @@ class ComposerState extends State<Composer> {
                           contentPadding: EdgeInsets.fromLTRB(
                             AleraTokens.space12,
                             AleraTokens.space16,
-                            (widget.contextUsage != null &&
-                                    widget.onCompact != null)
-                                ? 36.0
-                                : AleraTokens.space12,
+                            hasContextCompact ? 36.0 : AleraTokens.space12,
                             AleraTokens.space8,
                           ),
                           border: InputBorder.none,
@@ -668,7 +707,15 @@ class ComposerState extends State<Composer> {
                                 AleraTokens.radiusLg,
                               ),
                               mouseCursor: SystemMouseCursors.click,
-                              child: Padding(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: widget.planModeEnabled
+                                      ? AleraTokens.info.withValues(alpha: 0.14)
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(
+                                    AleraTokens.radiusLg,
+                                  ),
+                                ),
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: AleraTokens.space8,
                                   vertical: AleraTokens.space4,
@@ -677,7 +724,7 @@ class ComposerState extends State<Composer> {
                                   'Plan',
                                   style: TextStyle(
                                     color: widget.planModeEnabled
-                                        ? AleraTokens.accent
+                                        ? AleraTokens.info
                                         : AleraTokens.foregroundFaint,
                                     fontSize: 12,
                                     fontWeight: widget.planModeEnabled
@@ -689,33 +736,47 @@ class ComposerState extends State<Composer> {
                             ),
                           ),
                           const SizedBox(width: AleraTokens.space6),
-                          Tooltip(
-                            message:
-                                'Toggle full access mode (${_shortcutHint('⇧Y')})',
-                            child: InkWell(
-                              onTap: widget.onPermissionModeToggled,
-                              borderRadius: BorderRadius.circular(
-                                AleraTokens.radiusLg,
-                              ),
-                              mouseCursor: SystemMouseCursors.click,
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: AleraTokens.space8,
-                                  vertical: AleraTokens.space4,
-                                ),
-                                child: Text(
-                                  'Full access',
-                                  style: TextStyle(
-                                    color: widget.fullAccessEnabled
-                                        ? AleraTokens.warning
-                                        : AleraTokens.foregroundFaint,
-                                    fontSize: 12,
-                                    fontWeight: widget.fullAccessEnabled
-                                        ? FontWeight.w600
-                                        : FontWeight.normal,
+                          PopupMenuButton<PermissionMode>(
+                            key: _permissionMenuKey,
+                            tooltip:
+                                'Choose approval mode (${_shortcutHint('⇧Y')})',
+                            onSelected: widget.onPermissionModeSelected,
+                            itemBuilder: (context) =>
+                                <PopupMenuEntry<PermissionMode>>[
+                                  const PopupMenuItem<PermissionMode>(
+                                    enabled: false,
+                                    height: 32,
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                    ),
+                                    child: Text(
+                                      'Select approval mode',
+                                      style: TextStyle(
+                                        color: AleraTokens.foregroundFaint,
+                                        fontSize: 12,
+                                      ),
+                                    ),
                                   ),
-                                ),
-                              ),
+                                  DropdownEntry<PermissionMode>(
+                                    value: PermissionMode.defaultMode,
+                                    label: 'Ask first',
+                                    selected:
+                                        widget.permissionMode ==
+                                        PermissionMode.defaultMode,
+                                  ),
+                                  DropdownEntry<PermissionMode>(
+                                    value: PermissionMode.fullAccess,
+                                    label: 'Full access',
+                                    selected:
+                                        widget.permissionMode ==
+                                        PermissionMode.fullAccess,
+                                  ),
+                                ],
+                            child: ComposerChip(
+                              label: _permissionLabel,
+                              highlight:
+                                  widget.permissionMode ==
+                                  PermissionMode.fullAccess,
                             ),
                           ),
                           const Spacer(),
@@ -725,7 +786,7 @@ class ComposerState extends State<Composer> {
                     ),
                   ],
                 ),
-                if (widget.contextUsage != null && widget.onCompact != null)
+                if (hasContextCompact)
                   Positioned(
                     top: 10,
                     right: 12,
@@ -744,12 +805,16 @@ class ComposerState extends State<Composer> {
 }
 
 class ComposerChip extends StatelessWidget {
-  const ComposerChip({super.key, required this.label});
+  const ComposerChip({super.key, required this.label, this.highlight = false});
 
   final String label;
+  final bool highlight;
 
   @override
   Widget build(BuildContext context) {
+    final textColor = highlight
+        ? AleraTokens.warning
+        : AleraTokens.foregroundMuted;
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: Padding(
@@ -760,13 +825,7 @@ class ComposerChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Text(
-              label,
-              style: const TextStyle(
-                color: AleraTokens.foregroundMuted,
-                fontSize: 12,
-              ),
-            ),
+            Text(label, style: TextStyle(color: textColor, fontSize: 12)),
             const SizedBox(width: AleraTokens.space4),
             const Icon(
               Icons.keyboard_arrow_down,

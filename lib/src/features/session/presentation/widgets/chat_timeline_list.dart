@@ -336,8 +336,9 @@ class CompletedTurnSection extends StatelessWidget {
     final users = <TimelineCell>[];
     final assistants = <TimelineCell>[];
     final secondary = <TimelineCell>[];
-    final postTurnNotices = <TimelineCell>[];
+    final postTurnRows = <TimelineCell>[];
     for (final cell in turnCells) {
+      final placement = _uiPlacement(cell);
       switch (cell.kind) {
         case TimelineCellKind.userMessage:
           if (cell.metadata[TimelineCellMetadata.isSteeringKey] == true) {
@@ -348,18 +349,20 @@ class CompletedTurnSection extends StatelessWidget {
         case TimelineCellKind.assistantMessage:
           assistants.add(cell);
         case TimelineCellKind.progressText:
-          secondary.add(cell);
+          if (placement == TimelineCellMetadata.outsideWorked) {
+            postTurnRows.add(cell);
+          } else {
+            secondary.add(cell);
+          }
         case TimelineCellKind.plan:
           assistants.add(cell);
-        case TimelineCellKind.reasoning || TimelineCellKind.toolCall || TimelineCellKind.subAgent:
+        case TimelineCellKind.reasoning ||
+            TimelineCellKind.toolCall ||
+            TimelineCellKind.subAgent:
           secondary.add(cell);
         case TimelineCellKind.systemNotice:
-          final placement = (cell.metadata[TimelineCellMetadata.uiPlacementKey] ?? '')
-              .toString()
-              .toLowerCase()
-              .trim();
           if (placement == TimelineCellMetadata.outsideWorked) {
-            postTurnNotices.add(cell);
+            postTurnRows.add(cell);
           } else {
             secondary.add(cell);
           }
@@ -457,11 +460,11 @@ class CompletedTurnSection extends StatelessWidget {
       ),
     );
     children.addAll(
-      postTurnNotices.map(
-        (noticeCell) => Padding(
+      postTurnRows.map(
+        (rowCell) => Padding(
           padding: const EdgeInsets.only(bottom: AleraTokens.space8),
           child: TimelineCellView(
-            cell: noticeCell,
+            cell: rowCell,
             markdownEnabled: markdownEnabled,
             onMarkdownModeChanged: onMarkdownModeChanged,
           ),
@@ -473,4 +476,11 @@ class CompletedTurnSection extends StatelessWidget {
       children: children,
     );
   }
+}
+
+String _uiPlacement(TimelineCell cell) {
+  return (cell.metadata[TimelineCellMetadata.uiPlacementKey] ?? '')
+      .toString()
+      .toLowerCase()
+      .trim();
 }

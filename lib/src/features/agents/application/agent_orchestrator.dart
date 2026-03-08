@@ -6,6 +6,7 @@ import 'package:alera/src/features/agents/infrastructure/codex_app_server_client
 import 'package:alera/src/features/session/domain/collab_agent.dart';
 import 'package:alera/src/shared/infra/json_rpc/json_rpc_client.dart';
 import 'package:alera/src/shared/infra/json_rpc/json_rpc_error_codes.dart';
+import 'package:alera/src/shared/models/contracts.dart';
 
 class AgentOrchestrator {
   AgentOrchestrator(this._client);
@@ -94,7 +95,7 @@ class AgentOrchestrator {
     required String reasoningEffort,
     required String cwd,
     String approvalPolicy = 'never',
-    Map<String, dynamic>? collaborationMode,
+    CodexCollaborationMode? collaborationMode,
   }) async {
     final response = await _client.startTurn(
       threadId: threadId,
@@ -112,6 +113,52 @@ class AgentOrchestrator {
       throw StateError('app-server did not return a turn id');
     }
     return turnId;
+  }
+
+  Future<CodexReviewStartResult> startReview({
+    required String threadId,
+    required CodexReviewTarget target,
+    CodexReviewDelivery? delivery,
+  }) {
+    return _client.startReview(
+      threadId: threadId,
+      target: target,
+      delivery: delivery,
+    );
+  }
+
+  Future<void> setThreadName({required String threadId, required String name}) {
+    return _client.setThreadName(threadId: threadId, name: name);
+  }
+
+  Future<List<CodexCollaborationModePreset>> listCollaborationModes() {
+    return _client.listCollaborationModes();
+  }
+
+  Future<List<CodexSkillsListEntry>> listSkills({
+    List<String>? cwds,
+    bool forceReload = false,
+    List<CodexSkillsListExtraRootsForCwd>? perCwdExtraUserRoots,
+  }) {
+    return _client.listSkills(
+      cwds: cwds,
+      forceReload: forceReload,
+      perCwdExtraUserRoots: perCwdExtraUserRoots,
+    );
+  }
+
+  Future<CodexAppsPage> listApps({
+    String? cursor,
+    int? limit,
+    String? threadId,
+    bool forceRefetch = false,
+  }) {
+    return _client.listApps(
+      cursor: cursor,
+      limit: limit,
+      threadId: threadId,
+      forceRefetch: forceRefetch,
+    );
   }
 
   Future<void> interrupt({required String threadId, required String turnId}) {
@@ -235,7 +282,10 @@ class AgentOrchestrator {
           _client.respondToolCall(
             requestId: request.id,
             contentItems: const <Map<String, dynamic>>[
-              <String, dynamic>{'type': 'text', 'text': 'Sub-agent execution started'},
+              <String, dynamic>{
+                'type': 'text',
+                'text': 'Sub-agent execution started',
+              },
             ],
             success: true,
           ),

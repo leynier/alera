@@ -5,10 +5,12 @@ import 'package:alera/src/features/session/domain/chat_timeline.dart';
 import 'package:alera/src/features/session/domain/codex_model_catalog.dart';
 import 'package:alera/src/features/session/domain/collab_agent.dart';
 import 'package:alera/src/features/session/domain/composer_attachment.dart';
+import 'package:alera/src/features/session/domain/composer_draft_item.dart';
 import 'package:alera/src/features/session/domain/context_usage.dart';
 import 'package:alera/src/features/session/domain/pending_approval.dart';
 import 'package:alera/src/features/session/domain/pending_message.dart';
 import 'package:alera/src/features/session/domain/pending_user_input.dart';
+import 'package:alera/src/features/session/domain/commands/alera_command.dart';
 import 'package:alera/src/shared/models/contracts.dart';
 
 class SessionState {
@@ -45,6 +47,8 @@ class SessionState {
     this.turnRuntimeMetrics = const <String, dynamic>{},
     this.reasoningBufferByItemId = const <String, String>{},
     this.composerAttachments = const <ComposerAttachment>[],
+    this.composerDraftItems = const <ComposerDraftItem>[],
+    this.availableCommands = const <AleraCommand>[],
     this.pendingMessages = const <PendingMessage>[],
     this.editingPendingMessageId,
     this.lastTurnDiff,
@@ -90,6 +94,8 @@ class SessionState {
   final Map<String, dynamic> turnRuntimeMetrics;
   final Map<String, String> reasoningBufferByItemId;
   final List<ComposerAttachment> composerAttachments;
+  final List<ComposerDraftItem> composerDraftItems;
+  final List<AleraCommand> availableCommands;
   // Messages queued while a turn is running, processed in order.
   final List<PendingMessage> pendingMessages;
   // ID of the message currently being edited in the queue.
@@ -192,6 +198,8 @@ class SessionState {
     Map<String, dynamic>? turnRuntimeMetrics,
     Map<String, String>? reasoningBufferByItemId,
     List<ComposerAttachment>? composerAttachments,
+    List<ComposerDraftItem>? composerDraftItems,
+    List<AleraCommand>? availableCommands,
     List<PendingMessage>? pendingMessages,
     String? editingPendingMessageId,
     bool clearEditingPendingMessageId = false,
@@ -278,6 +286,8 @@ class SessionState {
       reasoningBufferByItemId:
           reasoningBufferByItemId ?? this.reasoningBufferByItemId,
       composerAttachments: composerAttachments ?? this.composerAttachments,
+      composerDraftItems: composerDraftItems ?? this.composerDraftItems,
+      availableCommands: availableCommands ?? this.availableCommands,
       pendingMessages: pendingMessages ?? this.pendingMessages,
       editingPendingMessageId: clearEditingPendingMessageId
           ? null

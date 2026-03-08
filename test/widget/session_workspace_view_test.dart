@@ -746,26 +746,25 @@ void main() {
     expect(find.textContaining('negrita'), findsOneWidget);
   });
 
-  testWidgets(
-    'user completed renders malformed markdown without fallback',
-    (tester) async {
-      final state = SessionState(
-        timelineCells: <TimelineCell>[
-          _cell(
-            id: 'user-unsafe-markdown',
-            kind: TimelineCellKind.userMessage,
-            status: TimelineCellStatus.completed,
-            markdownText: 'Texto con `backtick abierto',
-          ),
-        ],
-      );
+  testWidgets('user completed renders malformed markdown without fallback', (
+    tester,
+  ) async {
+    final state = SessionState(
+      timelineCells: <TimelineCell>[
+        _cell(
+          id: 'user-unsafe-markdown',
+          kind: TimelineCellKind.userMessage,
+          status: TimelineCellStatus.completed,
+          markdownText: 'Texto con `backtick abierto',
+        ),
+      ],
+    );
 
-      await _pumpWorkspace(tester, state: state);
+    await _pumpWorkspace(tester, state: state);
 
-      expect(find.byType(StreamingText), findsNothing);
-      expect(find.textContaining('backtick abierto'), findsOneWidget);
-    },
-  );
+    expect(find.byType(StreamingText), findsNothing);
+    expect(find.textContaining('backtick abierto'), findsOneWidget);
+  });
 
   testWidgets('markdown mode off renders plain text for completed user', (
     tester,
@@ -2117,7 +2116,9 @@ void main() {
     expect(editable.controller.text, 'hello\n');
   });
 
-  testWidgets('shows stop button while a turn is running and composer empty', (tester) async {
+  testWidgets('shows stop button while a turn is running and composer empty', (
+    tester,
+  ) async {
     await _pumpWorkspace(
       tester,
       state: stateWithActiveSession(),
@@ -2129,7 +2130,9 @@ void main() {
     expect(find.byIcon(Icons.arrow_upward), findsNothing);
   });
 
-  testWidgets('shows send button while running when composer has text', (tester) async {
+  testWidgets('shows send button while running when composer has text', (
+    tester,
+  ) async {
     await _pumpWorkspace(
       tester,
       state: stateWithActiveSession(),
@@ -2248,7 +2251,8 @@ void main() {
             markdownText: 'Stopped by user',
             metadata: const <String, dynamic>{
               'noticeType': 'user_stop',
-              TimelineCellMetadata.uiPlacementKey: TimelineCellMetadata.outsideWorked,
+              TimelineCellMetadata.uiPlacementKey:
+                  TimelineCellMetadata.outsideWorked,
               'ephemeralInputOnly': true,
             },
           ),
@@ -2270,6 +2274,66 @@ void main() {
       expect(find.text('Stopped by user'), findsOneWidget);
     },
   );
+
+  testWidgets('review exit body renders outside worked', (tester) async {
+    final state = SessionState(
+      timelineCells: <TimelineCell>[
+        _cell(
+          id: 'review-entered',
+          kind: TimelineCellKind.toolCall,
+          status: TimelineCellStatus.completed,
+          turnId: 't-review',
+          title: 'Preparing review',
+          isCollapsed: true,
+        ),
+        _cell(
+          id: 'review-exited',
+          kind: TimelineCellKind.toolCall,
+          status: TimelineCellStatus.completed,
+          turnId: 't-review',
+          title: 'Review finished',
+          isCollapsed: true,
+        ),
+        _cell(
+          id: 'review-body',
+          kind: TimelineCellKind.progressText,
+          status: TimelineCellStatus.completed,
+          turnId: 't-review',
+          markdownText: 'The working tree is clean.',
+          metadata: const <String, dynamic>{
+            TimelineCellMetadata.uiPlacementKey:
+                TimelineCellMetadata.outsideWorked,
+          },
+        ),
+        _cell(
+          id: 'sep-review',
+          kind: TimelineCellKind.turnSeparator,
+          status: TimelineCellStatus.completed,
+          turnId: 't-review',
+          metadata: const <String, dynamic>{'durationMs': 120000},
+        ),
+      ],
+    );
+
+    await _pumpWorkspace(tester, state: state);
+
+    expect(find.text('Worked for 2m 0s'), findsOneWidget);
+    expect(find.text('The working tree is clean.'), findsOneWidget);
+    expect(find.textContaining('"type": "exitedReviewMode"'), findsNothing);
+    expect(find.text('Review finished'), findsNothing);
+
+    await tester.tap(find.text('Worked for 2m 0s'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Review finished'), findsOneWidget);
+    expect(find.text('The working tree is clean.'), findsOneWidget);
+
+    await tester.tap(find.text('Worked for 2m 0s'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Review finished'), findsNothing);
+    expect(find.text('The working tree is clean.'), findsOneWidget);
+  });
 
   testWidgets('reasoning chevron appears on hover and hides on exit', (
     tester,

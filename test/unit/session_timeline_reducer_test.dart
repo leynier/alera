@@ -272,6 +272,93 @@ void main() {
       );
     });
 
+    test('enteredReviewMode uses a user-friendly title', () {
+      var state = const SessionState();
+      state = reduceNotification(
+        state,
+        _event('turn/started', <String, dynamic>{
+          'turn': <String, dynamic>{'id': 'turn-1', 'threadId': 'thread-1'},
+        }),
+      );
+      state = reduceNotification(
+        state,
+        _event('item/completed', <String, dynamic>{
+          'turnId': 'turn-1',
+          'item': <String, dynamic>{
+            'id': 'review-1',
+            'type': 'enteredReviewMode',
+            'status': 'completed',
+          },
+        }),
+      );
+
+      final reviewRows = _cellsByKind(state, TimelineCellKind.toolCall);
+      expect(reviewRows, hasLength(1));
+      expect(reviewRows.single.title, 'Preparing review');
+    });
+
+    test('exitedReviewMode extracts review text outside worked', () {
+      var state = const SessionState();
+      state = reduceNotification(
+        state,
+        _event('turn/started', <String, dynamic>{
+          'turn': <String, dynamic>{'id': 'turn-1', 'threadId': 'thread-1'},
+        }),
+      );
+      state = reduceNotification(
+        state,
+        _event('item/completed', <String, dynamic>{
+          'turnId': 'turn-1',
+          'item': <String, dynamic>{
+            'id': 'review-1',
+            'type': 'exitedReviewMode',
+            'status': 'completed',
+            'review': 'Working tree is clean.',
+          },
+        }),
+      );
+
+      final reviewRows = _cellsByKind(state, TimelineCellKind.toolCall);
+      expect(reviewRows, hasLength(1));
+      expect(reviewRows.single.title, 'Review finished');
+      expect(reviewRows.single.detailsText, isNull);
+
+      final reviewBodies = _cellsByKind(state, TimelineCellKind.progressText);
+      expect(reviewBodies, hasLength(1));
+      expect(reviewBodies.single.markdownText, 'Working tree is clean.');
+      expect(
+        reviewBodies.single.metadata[TimelineCellMetadata.uiPlacementKey],
+        TimelineCellMetadata.outsideWorked,
+      );
+    });
+
+    test('exitedReviewMode without review text does not create a body row', () {
+      var state = const SessionState();
+      state = reduceNotification(
+        state,
+        _event('turn/started', <String, dynamic>{
+          'turn': <String, dynamic>{'id': 'turn-1', 'threadId': 'thread-1'},
+        }),
+      );
+      state = reduceNotification(
+        state,
+        _event('item/completed', <String, dynamic>{
+          'turnId': 'turn-1',
+          'item': <String, dynamic>{
+            'id': 'review-1',
+            'type': 'exitedReviewMode',
+            'status': 'completed',
+          },
+        }),
+      );
+
+      final reviewRows = _cellsByKind(state, TimelineCellKind.toolCall);
+      expect(reviewRows, hasLength(1));
+      expect(reviewRows.single.title, 'Review finished');
+      expect(reviewRows.single.detailsText, isNull);
+      expect(_cellsByKind(state, TimelineCellKind.progressText), isEmpty);
+    });
+
     test('token_count stores runtime metrics', () {
       var state = const SessionState();
       state = reduceNotification(
