@@ -1,9 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="7" fill="#181818"/>
-  <g transform="translate(4, 4)" fill="#F5F5F5">
-    <rect x="2" y="2" width="2.8" height="20" rx="1.2" transform="rotate(-10 2 2)" opacity="0.4"/>
-    <rect x="6.5" y="2" width="2.8" height="20" rx="1.2" transform="rotate(-10 6.5 2)" opacity="0.65"/>
-    <rect x="11" y="2" width="2.8" height="20" rx="1.2" transform="rotate(-10 11 2)" opacity="0.9"/>
-    <path d="M14 22L20 2h3.2l6 20h-3.5l-1.5-5.2H19l-1.5 5.2H14zm6.2-8.2h5.2l-2.6-8.8-2.6 8.8z"/>
-  </g>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" fill="#181818" rx="7"/><g fill="#F5F5F5" transform="translate(4, 4)"><rect width="2.8" height="20" x="2" y="2" opacity=".4" rx="1.2" transform="rotate(-10 2 2)"/><rect width="2.8" height="20" x="6.5" y="2" opacity=".65" rx="1.2" transform="rotate(-10 6.5 2)"/><rect width="2.8" height="20" x="11" y="2" opacity=".9" rx="1.2" transform="rotate(-10 11 2)"/><path d="M14 22L20 2h3.2l6 20h-3.5l-1.5-5.2H19l-1.5 5.2H14zm6.2-8.2h5.2l-2.6-8.8-2.6 8.8z"/></g></svg>
