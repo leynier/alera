@@ -75,7 +75,7 @@ MarkdownStreamPushResult pushMarkdownDelta(
 
   final completePart = merged.substring(0, lastNewline + 1);
   final pending = merged.substring(lastNewline + 1);
-  final lines = _nonEmptyLines(completePart.split('\n'));
+  final lines = _trimmedLines(completePart.split('\n'));
   return MarkdownStreamPushResult(
     state: state.copyWith(
       pendingBuffer: pending,
@@ -202,14 +202,5 @@ bool _hasOpenCodeFence(String text) {
   return count.isOdd;
 }
 
-List<String> _nonEmptyLines(List<String> lines) {
-  final out = <String>[];
-  for (final line in lines) {
-    final trimmed = line.trimRight();
-    if (trimmed.isEmpty) {
-      continue;
-    }
-    out.add(trimmed);
-  }
-  return out;
-}
+List<String> _trimmedLines(List<String> lines) =>
+    lines.map((line) => line.trimRight()).toList();
