@@ -240,9 +240,6 @@ SessionState reduceCommitTick(
       final text = line.appendWithoutNewline
           ? line.text
           : line.text.trimRight();
-      if (text.isEmpty) {
-        continue;
-      }
       final streamPhase = _normalizeAgentPhase(line.streamPhase);
       if (streamPhase == 'final_answer') {
         final assistantCellId = line.itemId ?? 'assistant-final-${line.turnId}';
@@ -269,11 +266,17 @@ SessionState reduceCommitTick(
         } else {
           final existing = cells[assistantIndex];
           final currentText = existing.markdownText ?? '';
-          final nextText = currentText.isEmpty
-              ? text
-              : line.appendWithoutNewline
-              ? '$currentText$text'
-              : '$currentText\n$text';
+          final String nextText;
+          if (text.isEmpty) {
+            // Empty line = paragraph break
+            nextText = currentText.isEmpty ? '' : '$currentText\n\n';
+          } else {
+            nextText = currentText.isEmpty
+                ? text
+                : line.appendWithoutNewline
+                    ? '$currentText$text'
+                    : '$currentText\n$text';
+          }
           cells[assistantIndex] = existing.copyWith(
             turnId: line.turnId,
             itemId: line.itemId,
@@ -289,7 +292,7 @@ SessionState reduceCommitTick(
           );
         }
         activeStreamingAssistantCellId = assistantCellId;
-      } else {
+      } else if (text.isNotEmpty) {
         cells.add(
           TimelineCell(
             id: 'stream-${line.turnId}-${timestamp.microsecondsSinceEpoch}',
