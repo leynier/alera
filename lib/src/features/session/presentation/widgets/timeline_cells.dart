@@ -100,15 +100,20 @@ class _UserMessageCellState extends State<UserMessageCell> {
   }
 
   bool get _isSteering =>
-      widget.cell.metadata['isSteering'] == true &&
+      widget.cell.metadata[TimelineCellMetadata.isSteeringKey] == true &&
       widget.cell.status == TimelineCellStatus.inProgress;
+
+  bool get _wasSteered =>
+      widget.cell.metadata[TimelineCellMetadata.isSteeringKey] == true &&
+      widget.cell.status != TimelineCellStatus.inProgress;
 
   @override
   Widget build(BuildContext context) {
     final messageText = widget.cell.markdownText ?? '';
     final attachments = _parseAttachments();
     final isSteering = _isSteering;
-    return Align(
+    final wasSteered = _wasSteered;
+    Widget content = Align(
       alignment: Alignment.centerRight,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 760),
@@ -207,6 +212,19 @@ class _UserMessageCellState extends State<UserMessageCell> {
                           ],
                         ),
                       ),
+                    if (wasSteered)
+                      Padding(
+                        padding: const EdgeInsets.only(
+                          top: AleraTokens.space4,
+                        ),
+                        child: const Text(
+                          'Steered',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AleraTokens.foregroundFaint,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -232,6 +250,10 @@ class _UserMessageCellState extends State<UserMessageCell> {
         ),
       ),
     );
+    if (isSteering) {
+      content = Opacity(opacity: 0.6, child: content);
+    }
+    return content;
   }
 }
 

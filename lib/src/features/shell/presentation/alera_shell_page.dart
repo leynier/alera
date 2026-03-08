@@ -9,7 +9,6 @@ import 'package:alera/src/features/session/domain/composer_attachment.dart';
 import 'package:alera/src/features/session/presentation/session_workspace_view.dart';
 import 'package:alera/src/features/shell/presentation/alera_status_bar.dart';
 import 'package:alera/src/features/shell/presentation/alera_top_bar.dart';
-import 'package:alera/src/features/steer/presentation/widgets/steer_module_panel.dart';
 import 'package:alera/src/shared/presentation/toast/alera_toast.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
@@ -91,56 +90,38 @@ class _AleraShellPageState extends ConsumerState<AleraShellPage> {
         onAction: () => _selectWorkspace(controller),
       );
     }
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Expanded(
-          child: SessionWorkspaceView(
-            state: state,
-            onSendInput: controller.sendInput,
-            onInterruptTurn: controller.interruptActiveTurn,
-            isTurnRunning: state.runningTurnCount > 0,
-            isInterrupting: state.isInterrupting,
-            onModelChanged: controller.updateActiveSessionModel,
-            activeReasoningEffort: state.activeReasoningEffort,
-            supportedReasoningEfforts: supportedReasoningEffortsForModel(
-              state.activeModelId,
-            ),
-            onReasoningEffortChanged: controller.updateReasoningEffort,
-            isMarkdownEnabled: state.activeMarkdownEnabled,
-            onMarkdownModeChanged: controller.updateMarkdownEnabled,
-            rawLogExpanded: _rawLogExpanded,
-            onAddAttachment: () => _addAttachment(controller),
-            onPasteImage: (file) => _pasteImage(controller, file),
-            onRemoveAttachment: controller.removeAttachment,
-            onRemoveFromQueue: controller.removeFromQueue,
-            onSteerQueuedMessage: controller.steerQueuedMessage,
-            onStartEditingPendingMessage: controller.startEditingPendingMessage,
-            onUpdatePendingMessage: controller.updatePendingMessage,
-            onDeletePendingMessage: controller.removeFromQueue,
-            onFinishEditingPendingMessage: controller.finishEditingPendingMessage,
-            onPlanModeToggled: controller.togglePlanMode,
-            onImplementPlanPressed: controller.implementPlanFromChatAction,
-            onPermissionModeToggled: controller.togglePermissionMode,
-            onApproveRequest: controller.approveRequest,
-            onDeclineRequest: controller.declineRequest,
-            onSubmitUserInput: controller.submitUserInput,
-            onDismissUserInput: controller.dismissUserInput,
-            onCompact: controller.compactContext,
-          ),
-        ),
-        const Padding(
-          padding: EdgeInsets.only(
-            right: AleraTokens.space12,
-            top: AleraTokens.space12,
-            bottom: AleraTokens.space12,
-          ),
-          child: Align(
-            alignment: Alignment.topRight,
-            child: SteerModulePanel(),
-          ),
-        ),
-      ],
+    return SessionWorkspaceView(
+      state: state,
+      onSendInput: controller.sendInput,
+      onInterruptTurn: controller.interruptActiveTurn,
+      isTurnRunning: state.runningTurnCount > 0,
+      isInterrupting: state.isInterrupting,
+      onModelChanged: controller.updateActiveSessionModel,
+      activeReasoningEffort: state.activeReasoningEffort,
+      supportedReasoningEfforts: supportedReasoningEffortsForModel(
+        state.activeModelId,
+      ),
+      onReasoningEffortChanged: controller.updateReasoningEffort,
+      isMarkdownEnabled: state.activeMarkdownEnabled,
+      onMarkdownModeChanged: controller.updateMarkdownEnabled,
+      rawLogExpanded: _rawLogExpanded,
+      onAddAttachment: () => _addAttachment(controller),
+      onPasteImage: (file) => _pasteImage(controller, file),
+      onRemoveAttachment: controller.removeAttachment,
+      onRemoveFromQueue: controller.removeFromQueue,
+      onSteerQueuedMessage: controller.steerQueuedMessage,
+      onStartEditingPendingMessage: controller.startEditingPendingMessage,
+      onUpdatePendingMessage: controller.updatePendingMessage,
+      onDeletePendingMessage: controller.removeFromQueue,
+      onFinishEditingPendingMessage: controller.finishEditingPendingMessage,
+      onPlanModeToggled: controller.togglePlanMode,
+      onImplementPlanPressed: controller.implementPlanFromChatAction,
+      onPermissionModeToggled: controller.togglePermissionMode,
+      onApproveRequest: controller.approveRequest,
+      onDeclineRequest: controller.declineRequest,
+      onSubmitUserInput: controller.submitUserInput,
+      onDismissUserInput: controller.dismissUserInput,
+      onCompact: controller.compactContext,
     );
   }
 
