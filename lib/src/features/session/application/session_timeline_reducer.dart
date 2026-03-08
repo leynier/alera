@@ -7,7 +7,6 @@ import 'package:alera/src/features/session/application/streaming/adaptive_chunki
 import 'package:alera/src/features/session/application/streaming/commit_tick_engine.dart';
 import 'package:alera/src/features/session/application/streaming/markdown_stream_collector.dart';
 import 'package:alera/src/features/session/domain/chat_timeline.dart';
-import 'package:alera/src/features/session/domain/codex_model_catalog.dart';
 import 'package:alera/src/features/session/domain/collab_agent.dart';
 import 'package:alera/src/features/session/domain/composer_attachment.dart';
 import 'package:alera/src/features/session/domain/token_usage.dart';
@@ -131,12 +130,14 @@ SessionState reduceNotification(
       return _onSubAgentDelta(next, params, timestamp);
     case 'item/subAgent/completed':
       return _onSubAgentCompleted(next, params, timestamp);
+    case 'thread/tokenUsage/updated':
+      return _onThreadTokenUsageUpdated(next, params);
+    case 'account/rateLimits/updated':
+      return _onAccountRateLimitsUpdated(next, params);
     case 'codex/event/token_count':
       return _onTokenCount(next, asMap(params['msg']));
     case 'token_count':
       return _onTokenCount(next, params);
-    case 'codex/event/context_compacted':
-      return _onContextCompacted(next, timestamp);
     case 'error':
     case 'stream/error':
     case 'stream_error':
@@ -1261,55 +1262,49 @@ SessionState _onTokenCount(SessionState state, Map<String, dynamic> params) {
   } else {
     nextMetrics['tokenInfo'] = info;
   }
+  return state.copyWith(turnRuntimeMetrics: nextMetrics);
+}
 
-  // Parse structured context usage.
-  var tokenUsageInfo = TokenUsageInfo.fromMap(info);
-  if (tokenUsageInfo.modelContextWindow == null) {
-    final windowSize = contextWindowForModel(state.activeModelId);
-    tokenUsageInfo = TokenUsageInfo(
-      totalTokenUsage: tokenUsageInfo.totalTokenUsage,
-      lastTokenUsage: tokenUsageInfo.lastTokenUsage,
-      modelContextWindow: windowSize,
-    );
+SessionState _onThreadTokenUsageUpdated(
+  SessionState state,
+  Map<String, dynamic> params,
+) {
+  final tokenUsage = asMap(params['tokenUsage']);
+  if (tokenUsage.isEmpty) {
+    return state;
   }
 
-  final rawRateLimits = params['rate_limits'] ?? params['rateLimits'];
-  final rateLimitsMap = rawRateLimits is Map
-      ? asMap(rawRateLimits)
-      : const <String, dynamic>{};
-  final rateLimits = rateLimitsMap.isNotEmpty
-      ? RateLimitSnapshot.fromMap(rateLimitsMap)
-      : state.contextUsage.rateLimits;
+  final tokenUsageInfo = TokenUsageInfo.fromMap(<String, dynamic>{
+    'totalTokenUsage': tokenUsage['total'],
+    'lastTokenUsage': tokenUsage['last'],
+    'modelContextWindow': tokenUsage['modelContextWindow'],
+  });
+  final nextMetrics = <String, dynamic>{...state.turnRuntimeMetrics};
+  nextMetrics['tokenUsage'] = tokenUsage;
+  nextMetrics['totalTokens'] = tokenUsageInfo.currentContextTokens;
 
   return state.copyWith(
     turnRuntimeMetrics: nextMetrics,
     contextUsage: state.contextUsage.copyWith(
       tokenUsageInfo: tokenUsageInfo,
-      rateLimits: rateLimits,
       isCompacting: false,
     ),
   );
 }
 
-SessionState _onContextCompacted(SessionState state, DateTime timestamp) {
-  // Signal that compaction completed; token counts will be refreshed
-  // by the next token_count event.
-  final cell = TimelineCell(
-    id: 'notice-context-compacted-${timestamp.microsecondsSinceEpoch}',
-    turnId: state.activeTurnId,
-    kind: TimelineCellKind.systemNotice,
-    status: TimelineCellStatus.info,
-    createdAt: timestamp,
-    updatedAt: timestamp,
-    markdownText: 'Context compacted',
-    metadata: const <String, dynamic>{
-      'noticeType': 'context_compacted',
-      TimelineCellMetadata.uiPlacementKey: TimelineCellMetadata.outsideWorked,
-    },
-  );
+SessionState _onAccountRateLimitsUpdated(
+  SessionState state,
+  Map<String, dynamic> params,
+) {
+  final rateLimits = asMap(params['rateLimits']);
+  if (rateLimits.isEmpty) {
+    return state;
+  }
+
   return state.copyWith(
-    timelineCells: <TimelineCell>[...state.timelineCells, cell],
-    contextUsage: state.contextUsage.copyWith(isCompacting: false),
+    contextUsage: state.contextUsage.copyWith(
+      rateLimits: RateLimitSnapshot.fromMap(rateLimits),
+    ),
   );
 }
 
@@ -1706,6 +1701,8 @@ SessionState _onItemStarted(
     return state;
   }
 
+  final isContextCompaction = itemType == 'contextCompaction';
+
   final cells = <TimelineCell>[...state.timelineCells];
   var index = _buildCellIndex(cells);
   final phase = _startSecondaryPhase(
@@ -1789,6 +1786,9 @@ SessionState _onItemStarted(
     activePlanCellId: isPlan ? cellId : state.activePlanCellId,
     clearActivePlanCellId: !isPlan && state.activePlanCellId == cellId,
     clearActiveStreamingAssistantCellId: phase.clearActiveStreamingAssistant,
+    contextUsage: isContextCompaction
+        ? state.contextUsage.copyWith(isCompacting: true)
+        : state.contextUsage,
   );
 }
 
@@ -1813,6 +1813,8 @@ SessionState _onItemCompleted(
   if (itemType == 'userMessage') {
     return state;
   }
+
+  final isContextCompaction = itemType == 'contextCompaction';
 
   if (itemType == 'agentMessage') {
     final phase = _mergeAgentPhase(
@@ -1932,6 +1934,9 @@ SessionState _onItemCompleted(
     pendingStatusRestore: itemType == 'reasoning',
     clearActiveExecCellId: state.activeExecCellId == cellId,
     clearActivePlanCellId: state.activePlanCellId == cellId,
+    contextUsage: isContextCompaction
+        ? state.contextUsage.copyWith(isCompacting: false)
+        : state.contextUsage,
   );
 }
 
