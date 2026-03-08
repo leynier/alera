@@ -394,41 +394,47 @@ void main() {
       expect(state.turnRuntimeMetrics['totalTokens'], 12000);
     });
 
-    test('thread token usage updated falls back to total tokens when last is 0', () {
-      var state = const SessionState();
-      state = reduceNotification(
-        state,
-        _event('thread/tokenUsage/updated', <String, dynamic>{
-          'threadId': 'thread-1',
-          'turnId': 'turn-1',
-          'tokenUsage': <String, dynamic>{
-            'total': <String, dynamic>{'totalTokens': 64000},
-            'last': <String, dynamic>{'totalTokens': 0},
-            'modelContextWindow': 128000,
-          },
-        }),
-      );
+    test(
+      'thread token usage updated falls back to total tokens when last is 0',
+      () {
+        var state = const SessionState();
+        state = reduceNotification(
+          state,
+          _event('thread/tokenUsage/updated', <String, dynamic>{
+            'threadId': 'thread-1',
+            'turnId': 'turn-1',
+            'tokenUsage': <String, dynamic>{
+              'total': <String, dynamic>{'totalTokens': 64000},
+              'last': <String, dynamic>{'totalTokens': 0},
+              'modelContextWindow': 128000,
+            },
+          }),
+        );
 
-      expect(state.contextUsage.tokensInContext, 64000);
-      expect(state.turnRuntimeMetrics['totalTokens'], 64000);
-    });
+        expect(state.contextUsage.tokensInContext, 64000);
+        expect(state.turnRuntimeMetrics['totalTokens'], 64000);
+      },
+    );
 
-    test('account rate limits updated stores rate limits without token usage event', () {
-      var state = const SessionState();
-      state = reduceNotification(
-        state,
-        _event('account/rateLimits/updated', <String, dynamic>{
-          'rateLimits': <String, dynamic>{
-            'primary': <String, dynamic>{'usedPercent': 30, 'resetsAt': 123},
-          },
-        }),
-      );
+    test(
+      'account rate limits updated stores rate limits without token usage event',
+      () {
+        var state = const SessionState();
+        state = reduceNotification(
+          state,
+          _event('account/rateLimits/updated', <String, dynamic>{
+            'rateLimits': <String, dynamic>{
+              'primary': <String, dynamic>{'usedPercent': 30, 'resetsAt': 123},
+            },
+          }),
+        );
 
-      expect(state.contextUsage.rateLimits, isNotNull);
-      expect(state.contextUsage.rateLimits!.primary, isNotNull);
-      expect(state.contextUsage.rateLimits!.primary!.usedPercent, 30);
-      expect(state.contextUsage.rateLimits!.primary!.resetsAt, 123);
-    });
+        expect(state.contextUsage.rateLimits, isNotNull);
+        expect(state.contextUsage.rateLimits!.primary, isNotNull);
+        expect(state.contextUsage.rateLimits!.primary!.usedPercent, 30);
+        expect(state.contextUsage.rateLimits!.primary!.resetsAt, 123);
+      },
+    );
 
     test('context compaction item toggles compacting state', () {
       var state = const SessionState();
@@ -867,6 +873,78 @@ void main() {
     );
 
     test(
+      'task_complete clears active assistant streaming state when rescuing',
+      () {
+        final now = DateTime.utc(2026, 2, 22);
+        var state = const SessionState();
+        state = reduceNotification(
+          state,
+          _event('turn/started', <String, dynamic>{
+            'turn': <String, dynamic>{'id': 'turn-1', 'threadId': 'thread-1'},
+          }),
+          now: now,
+        );
+        state = reduceNotification(
+          state,
+          _event('codex/event/item_started', <String, dynamic>{
+            'msg': <String, dynamic>{
+              'type': 'item_started',
+              'turn_id': 'turn-1',
+              'item': <String, dynamic>{
+                'id': 'msg-final',
+                'type': 'AgentMessage',
+                'phase': 'final_answer',
+              },
+            },
+          }),
+          now: now,
+        );
+        state = reduceNotification(
+          state,
+          _event('item/agentMessage/delta', <String, dynamic>{
+            'turnId': 'turn-1',
+            'itemId': 'msg-final',
+            'delta': 'Recovered final\n',
+          }),
+          now: now,
+        );
+
+        final assistantBefore = _cellsByKind(
+          state,
+          TimelineCellKind.assistantMessage,
+        );
+        expect(assistantBefore, hasLength(1));
+        expect(assistantBefore.first.isStreaming, isTrue);
+        expect(state.activeStreamingAssistantCellId, isNotNull);
+
+        state = reduceNotification(
+          state,
+          _event('codex/event/task_complete', <String, dynamic>{
+            'msg': <String, dynamic>{
+              'type': 'task_complete',
+              'turn_id': 'turn-1',
+              'last_agent_message': 'Recovered final',
+            },
+          }),
+          now: now.add(const Duration(seconds: 1)),
+        );
+
+        final assistantAfter = _cellsByKind(
+          state,
+          TimelineCellKind.assistantMessage,
+        );
+        expect(assistantAfter, hasLength(1));
+        expect(assistantAfter.first.markdownText, 'Recovered final');
+        expect(assistantAfter.first.isStreaming, isFalse);
+        expect(state.activeStreamingAssistantCellId, isNull);
+        expect(state.activeAgentStreamItemId, isNull);
+        expect(state.activeAgentStreamTurnId, isNull);
+        expect(state.activeAgentStreamPhase, isNull);
+        expect(state.activeAgentStreamLastDeltaAtMs, isNull);
+      },
+    );
+
+    test(
       'commandExecution classification uses commandActions then heuristic',
       () {
         var state = const SessionState();
@@ -1223,6 +1301,197 @@ void main() {
       expect(assistant, hasLength(1));
       expect(assistant.first.markdownText, 'partial without newline');
     });
+
+    test(
+      'legacy item_completed final_answer recovers payload text from capitalized Text content',
+      () {
+        var state = const SessionState();
+        state = reduceNotification(
+          state,
+          _event('turn/started', <String, dynamic>{
+            'turn': <String, dynamic>{'id': 'turn-1', 'threadId': 'thread-1'},
+          }),
+        );
+        state = reduceNotification(
+          state,
+          _event('codex/event/item_started', <String, dynamic>{
+            'msg': <String, dynamic>{
+              'type': 'item_started',
+              'turn_id': 'turn-1',
+              'item': <String, dynamic>{
+                'id': 'msg-final',
+                'type': 'AgentMessage',
+                'phase': 'final_answer',
+              },
+            },
+          }),
+        );
+
+        state = reduceNotification(
+          state,
+          _event('codex/event/item_completed', <String, dynamic>{
+            'msg': <String, dynamic>{
+              'type': 'item_completed',
+              'turn_id': 'turn-1',
+              'item': <String, dynamic>{
+                'id': 'msg-final',
+                'type': 'AgentMessage',
+                'phase': 'final_answer',
+                'content': <Map<String, dynamic>>[
+                  <String, dynamic>{'type': 'Text', 'text': 'legacy final'},
+                ],
+              },
+            },
+          }),
+        );
+
+        final assistant = _cellsByKind(
+          state,
+          TimelineCellKind.assistantMessage,
+        );
+        expect(assistant, hasLength(1));
+        expect(assistant.first.markdownText, 'legacy final');
+        expect(assistant.first.isStreaming, isFalse);
+      },
+    );
+
+    test(
+      'legacy item_completed final_answer closes assistant stream without modern item completion',
+      () {
+        var state = const SessionState();
+        state = reduceNotification(
+          state,
+          _event('turn/started', <String, dynamic>{
+            'turn': <String, dynamic>{'id': 'turn-1', 'threadId': 'thread-1'},
+          }),
+        );
+        state = reduceNotification(
+          state,
+          _event('codex/event/item_started', <String, dynamic>{
+            'msg': <String, dynamic>{
+              'type': 'item_started',
+              'turn_id': 'turn-1',
+              'item': <String, dynamic>{
+                'id': 'msg-final',
+                'type': 'AgentMessage',
+                'phase': 'final_answer',
+              },
+            },
+          }),
+        );
+        state = reduceNotification(
+          state,
+          _event('item/agentMessage/delta', <String, dynamic>{
+            'turnId': 'turn-1',
+            'itemId': 'msg-final',
+            'delta': 'legacy final\n',
+          }),
+        );
+
+        final streamingAssistant = _cellsByKind(
+          state,
+          TimelineCellKind.assistantMessage,
+        );
+        expect(streamingAssistant, hasLength(1));
+        expect(streamingAssistant.first.isStreaming, isTrue);
+
+        state = reduceNotification(
+          state,
+          _event('codex/event/item_completed', <String, dynamic>{
+            'msg': <String, dynamic>{
+              'type': 'item_completed',
+              'turn_id': 'turn-1',
+              'item': <String, dynamic>{
+                'id': 'msg-final',
+                'type': 'AgentMessage',
+                'phase': 'final_answer',
+                'content': <Map<String, dynamic>>[
+                  <String, dynamic>{'type': 'text', 'text': 'legacy final'},
+                ],
+              },
+            },
+          }),
+        );
+
+        final assistant = _cellsByKind(
+          state,
+          TimelineCellKind.assistantMessage,
+        );
+        expect(assistant, hasLength(1));
+        expect(assistant.first.markdownText, 'legacy final');
+        expect(assistant.first.isStreaming, isFalse);
+        expect(state.activeAgentStreamItemId, isNull);
+        expect(state.activeAgentStreamTurnId, isNull);
+        expect(state.activeAgentStreamPhase, isNull);
+        expect(state.activeAgentStreamLastDeltaAtMs, isNull);
+      },
+    );
+
+    test(
+      'legacy item_completed commentary flushes pending commentary without modern item completion',
+      () {
+        var state = const SessionState();
+        state = reduceNotification(
+          state,
+          _event('turn/started', <String, dynamic>{
+            'turn': <String, dynamic>{'id': 'turn-1', 'threadId': 'thread-1'},
+          }),
+        );
+        state = reduceNotification(
+          state,
+          _event('codex/event/item_started', <String, dynamic>{
+            'msg': <String, dynamic>{
+              'type': 'item_started',
+              'turn_id': 'turn-1',
+              'item': <String, dynamic>{
+                'id': 'msg-commentary',
+                'type': 'AgentMessage',
+                'phase': 'commentary',
+              },
+            },
+          }),
+        );
+        state = reduceNotification(
+          state,
+          _event('item/agentMessage/delta', <String, dynamic>{
+            'turnId': 'turn-1',
+            'itemId': 'msg-commentary',
+            'delta': 'legacy commentary',
+          }),
+        );
+
+        expect(_cellsByKind(state, TimelineCellKind.progressText), isEmpty);
+        expect(state.activeAgentStreamItemId, 'msg-commentary');
+
+        state = reduceNotification(
+          state,
+          _event('codex/event/item_completed', <String, dynamic>{
+            'msg': <String, dynamic>{
+              'type': 'item_completed',
+              'turn_id': 'turn-1',
+              'item': <String, dynamic>{
+                'id': 'msg-commentary',
+                'type': 'AgentMessage',
+                'phase': 'commentary',
+                'content': <Map<String, dynamic>>[
+                  <String, dynamic>{
+                    'type': 'text',
+                    'text': 'legacy commentary',
+                  },
+                ],
+              },
+            },
+          }),
+        );
+
+        final progress = _cellsByKind(state, TimelineCellKind.progressText);
+        expect(progress, hasLength(1));
+        expect(progress.first.markdownText, 'legacy commentary');
+        expect(_cellsByKind(state, TimelineCellKind.assistantMessage), isEmpty);
+        expect(state.activeAgentStreamItemId, isNull);
+        expect(state.activeAgentStreamLastDeltaAtMs, isNull);
+      },
+    );
 
     test(
       'final_answer long text without newline streams in soft chunks before completion',
