@@ -48,6 +48,7 @@ class SessionController extends StateNotifier<SessionState> {
   final CommandRegistry _commandRegistry = const CommandRegistry();
   StreamSubscription<SessionRuntimeEvent>? _eventsSub;
   Timer? _commitTickTimer;
+  Timer? _interruptSafetyTimer;
 
   var _bootstrapped = false;
   static const String _localPlanFallbackQuestionId = 'implement_plan';
@@ -737,19 +738,20 @@ class SessionController extends StateNotifier<SessionState> {
     ];
 
     try {
-      final returnedTurnId = await _sessionService.steerActiveTurn(
-        sessionId: activeSessionId,
-        rawInput: message.text,
-        expectedTurnId: activeTurnId,
-        extraInputItems: extraItems,
-      );
+      final returnedTurnId = await _sessionService
+          .steerActiveTurn(
+            sessionId: activeSessionId,
+            rawInput: message.text,
+            expectedTurnId: activeTurnId,
+            extraInputItems: extraItems,
+          )
+          .timeout(const Duration(seconds: 15));
       // Mark the steering cell as completed and assign it to the turn.
       _updateTimelineCell(
         cell.id,
         (c) => c.copyWith(
           status: TimelineCellStatus.completed,
           turnId: returnedTurnId,
-          metadata: const <String, dynamic>{},
           updatedAt: DateTime.now().toUtc(),
         ),
       );
@@ -757,10 +759,7 @@ class SessionController extends StateNotifier<SessionState> {
       // Update the steering cell to failed status.
       _updateTimelineCell(
         cell.id,
-        (c) => c.copyWith(
-          status: TimelineCellStatus.failed,
-          metadata: const <String, dynamic>{},
-        ),
+        (c) => c.copyWith(status: TimelineCellStatus.failed),
       );
       state = state.copyWith(error: e.toString());
     }
@@ -1371,7 +1370,11 @@ class SessionController extends StateNotifier<SessionState> {
 
     state = state.copyWith(isInterrupting: true, clearError: true);
     try {
-      await _sessionService.interruptActiveTurn(sessionId: session.id);
+      await _sessionService.interruptActiveTurn(
+        sessionId: session.id,
+        turnIdOverride: state.activeTurnId,
+      );
+      _scheduleInterruptSafetyTimeout();
     } catch (error) {
       state = state.copyWith(
         isInterrupting: false,
@@ -1379,6 +1382,15 @@ class SessionController extends StateNotifier<SessionState> {
         connectionState: AppServerConnectionState.error,
       );
     }
+  }
+
+  void _scheduleInterruptSafetyTimeout() {
+    _interruptSafetyTimer?.cancel();
+    _interruptSafetyTimer = Timer(const Duration(seconds: 10), () {
+      if (state.isInterrupting) {
+        state = state.copyWith(isInterrupting: false);
+      }
+    });
   }
 
   /// Requests manual context compaction for the active session.
@@ -1411,6 +1423,7 @@ class SessionController extends StateNotifier<SessionState> {
   @override
   void dispose() {
     _stopCommitTicker();
+    _interruptSafetyTimer?.cancel();
     unawaited(_eventsSub?.cancel());
     super.dispose();
   }
@@ -1519,6 +1532,10 @@ class SessionController extends StateNotifier<SessionState> {
       final shouldClearInterrupting =
           ticked.isInterrupting &&
           (event.method == 'turn/completed' || event.method == 'turn/failed');
+      if (shouldClearInterrupting) {
+        _interruptSafetyTimer?.cancel();
+        _interruptSafetyTimer = null;
+      }
 
       state = ticked.copyWith(
         sessions: _sessionService.sessions,

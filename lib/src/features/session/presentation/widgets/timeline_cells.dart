@@ -103,11 +103,16 @@ class _UserMessageCellState extends State<UserMessageCell> {
       widget.cell.metadata[TimelineCellMetadata.isSteeringKey] == true &&
       widget.cell.status == TimelineCellStatus.inProgress;
 
+  bool get _wasSteered =>
+      widget.cell.metadata[TimelineCellMetadata.isSteeringKey] == true &&
+      widget.cell.status != TimelineCellStatus.inProgress;
+
   @override
   Widget build(BuildContext context) {
     final messageText = widget.cell.markdownText ?? '';
     final attachments = _parseAttachments();
     final isSteering = _isSteering;
+    final wasSteered = _wasSteered;
     Widget content = Align(
       alignment: Alignment.centerRight,
       child: ConstrainedBox(
@@ -158,9 +163,7 @@ class _UserMessageCellState extends State<UserMessageCell> {
                       ),
                     if (messageText.trim().isNotEmpty)
                       Container(
-                        key: ValueKey<String>(
-                          'user-bubble-${widget.cell.id}',
-                        ),
+                        key: ValueKey<String>('user-bubble-${widget.cell.id}'),
                         padding: const EdgeInsets.all(AleraTokens.space12),
                         decoration: BoxDecoration(
                           color: AleraTokens.accentSubtle,
@@ -182,9 +185,7 @@ class _UserMessageCellState extends State<UserMessageCell> {
                       ),
                     if (isSteering)
                       Padding(
-                        padding: const EdgeInsets.only(
-                          top: AleraTokens.space4,
-                        ),
+                        padding: const EdgeInsets.only(top: AleraTokens.space4),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: <Widget>[
@@ -207,6 +208,17 @@ class _UserMessageCellState extends State<UserMessageCell> {
                           ],
                         ),
                       ),
+                    if (wasSteered)
+                      Padding(
+                        padding: const EdgeInsets.only(top: AleraTokens.space4),
+                        child: const Text(
+                          'Steered',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AleraTokens.foregroundFaint,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -215,9 +227,7 @@ class _UserMessageCellState extends State<UserMessageCell> {
                 bottom: 0,
                 child: MessageActionButtons(
                   alignLeft: false,
-                  copyKey: ValueKey<String>(
-                    'copy-user-${widget.cell.id}',
-                  ),
+                  copyKey: ValueKey<String>('copy-user-${widget.cell.id}'),
                   copyText: messageText,
                   copiedLabel: 'Message copied',
                   toggleKey: ValueKey<String>(
@@ -290,9 +300,7 @@ class _AssistantMessageCellState extends State<AssistantMessageCell> {
                 bottom: 0,
                 child: MessageActionButtons(
                   alignLeft: true,
-                  copyKey: ValueKey<String>(
-                    'copy-assistant-${widget.cell.id}',
-                  ),
+                  copyKey: ValueKey<String>('copy-assistant-${widget.cell.id}'),
                   copyText: rawText,
                   copiedLabel: 'Message copied',
                   toggleKey: ValueKey<String>(

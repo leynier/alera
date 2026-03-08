@@ -153,7 +153,7 @@ class _QueueItem extends StatelessWidget {
               child: Icon(
                 Icons.edit,
                 size: 13,
-                color: AleraTokens.foregroundFaint,
+                color: AleraTokens.accent,
               ),
             ),
           ),
@@ -167,7 +167,7 @@ class _QueueItem extends StatelessWidget {
               child: Icon(
                 Icons.close,
                 size: 13,
-                color: AleraTokens.foregroundFaint,
+                color: AleraTokens.error,
               ),
             ),
           ),

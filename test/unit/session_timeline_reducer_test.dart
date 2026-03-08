@@ -374,6 +374,91 @@ void main() {
       expect(state.turnRuntimeMetrics['totalTokens'], 123);
     });
 
+    test('thread token usage updated uses last tokens for current context', () {
+      var state = const SessionState();
+      state = reduceNotification(
+        state,
+        _event('thread/tokenUsage/updated', <String, dynamic>{
+          'threadId': 'thread-1',
+          'turnId': 'turn-1',
+          'tokenUsage': <String, dynamic>{
+            'total': <String, dynamic>{'totalTokens': 205000},
+            'last': <String, dynamic>{'totalTokens': 12000},
+            'modelContextWindow': 128000,
+          },
+        }),
+      );
+
+      expect(state.contextUsage.tokensInContext, 12000);
+      expect(state.contextUsage.contextWindowSize, 128000);
+      expect(state.turnRuntimeMetrics['totalTokens'], 12000);
+    });
+
+    test('thread token usage updated falls back to total tokens when last is 0', () {
+      var state = const SessionState();
+      state = reduceNotification(
+        state,
+        _event('thread/tokenUsage/updated', <String, dynamic>{
+          'threadId': 'thread-1',
+          'turnId': 'turn-1',
+          'tokenUsage': <String, dynamic>{
+            'total': <String, dynamic>{'totalTokens': 64000},
+            'last': <String, dynamic>{'totalTokens': 0},
+            'modelContextWindow': 128000,
+          },
+        }),
+      );
+
+      expect(state.contextUsage.tokensInContext, 64000);
+      expect(state.turnRuntimeMetrics['totalTokens'], 64000);
+    });
+
+    test('account rate limits updated stores rate limits without token usage event', () {
+      var state = const SessionState();
+      state = reduceNotification(
+        state,
+        _event('account/rateLimits/updated', <String, dynamic>{
+          'rateLimits': <String, dynamic>{
+            'primary': <String, dynamic>{'usedPercent': 30, 'resetsAt': 123},
+          },
+        }),
+      );
+
+      expect(state.contextUsage.rateLimits, isNotNull);
+      expect(state.contextUsage.rateLimits!.primary, isNotNull);
+      expect(state.contextUsage.rateLimits!.primary!.usedPercent, 30);
+      expect(state.contextUsage.rateLimits!.primary!.resetsAt, 123);
+    });
+
+    test('context compaction item toggles compacting state', () {
+      var state = const SessionState();
+      state = reduceNotification(
+        state,
+        _event('item/started', <String, dynamic>{
+          'turnId': 'turn-1',
+          'item': <String, dynamic>{
+            'id': 'compact-1',
+            'type': 'contextCompaction',
+            'status': 'inProgress',
+          },
+        }),
+      );
+      expect(state.contextUsage.isCompacting, isTrue);
+
+      state = reduceNotification(
+        state,
+        _event('item/completed', <String, dynamic>{
+          'turnId': 'turn-1',
+          'item': <String, dynamic>{
+            'id': 'compact-1',
+            'type': 'contextCompaction',
+            'status': 'completed',
+          },
+        }),
+      );
+      expect(state.contextUsage.isCompacting, isFalse);
+    });
+
     test('turn completion appends separator only when there is work', () {
       var state = const SessionState();
       state = reduceNotification(

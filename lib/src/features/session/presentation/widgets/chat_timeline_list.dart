@@ -341,7 +341,11 @@ class CompletedTurnSection extends StatelessWidget {
       final placement = _uiPlacement(cell);
       switch (cell.kind) {
         case TimelineCellKind.userMessage:
-          users.add(cell);
+          if (cell.metadata[TimelineCellMetadata.isSteeringKey] == true) {
+            assistants.add(cell);
+          } else {
+            users.add(cell);
+          }
         case TimelineCellKind.assistantMessage:
           assistants.add(cell);
         case TimelineCellKind.progressText:
