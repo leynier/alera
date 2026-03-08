@@ -8,6 +8,7 @@ enum TimelineCellKind {
   plan,
   turnSeparator,
   systemNotice,
+  questionAnswer,
 }
 
 enum TimelineCellStatus { inProgress, completed, failed, declined, info }

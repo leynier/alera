@@ -360,6 +360,8 @@ class CompletedTurnSection extends StatelessWidget {
             TimelineCellKind.toolCall ||
             TimelineCellKind.subAgent:
           secondary.add(cell);
+        case TimelineCellKind.questionAnswer:
+          secondary.add(cell);
         case TimelineCellKind.systemNotice:
           if (placement == TimelineCellMetadata.outsideWorked) {
             postTurnRows.add(cell);

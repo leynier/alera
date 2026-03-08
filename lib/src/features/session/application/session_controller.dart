@@ -601,6 +601,19 @@ class SessionController extends StateNotifier<SessionState> {
         );
         return;
       }
+      // Add question-answer cells to timeline for local plan fallback
+      final fallbackAnswer = decision.accepted
+          ? 'Yes, implement this plan'
+          : 'No, and tell Alera what to do differently';
+      _appendQuestionAnswerCells(
+        pending,
+        <String, dynamic>{
+          pending.questions.first.id: <String, dynamic>{
+            'answers': <String>[fallbackAnswer],
+          },
+        },
+        turnId: pendingTurnId,
+      );
       state = state.copyWith(clearPendingUserInput: true);
       if (pendingTurnId != null) {
         final reason = decision.accepted
@@ -648,6 +661,8 @@ class SessionController extends StateNotifier<SessionState> {
           'turnId=$pendingTurnId',
         );
       }
+      // Add question-answer cells to timeline
+      _appendQuestionAnswerCells(pending, answers, turnId: pendingTurnId);
       state = state.copyWith(clearPendingUserInput: true);
     } catch (e) {
       state = state.copyWith(error: e.toString());
@@ -694,6 +709,30 @@ class SessionController extends StateNotifier<SessionState> {
         const <String, dynamic>{},
       ),
     );
+  }
+
+  void _appendQuestionAnswerCells(PendingUserInput pending, Map<String, dynamic> answers, {String? turnId}) {
+    final effectiveTurnId = turnId ?? _normalizeOptionalId(state.activeTurnId);
+    final questionAnswers = <Map<String, String>>[];
+    for (final question in pending.questions) {
+      final answerData = answers[question.id] as Map<String, dynamic>?;
+      final answerList = answerData?['answers'] as List<dynamic>?;
+      if (answerList != null && answerList.isNotEmpty) {
+        final mainAnswer = answerList.first.toString();
+        questionAnswers.add({
+          'question': question.question,
+          'answer': mainAnswer,
+        });
+      }
+    }
+    if (questionAnswers.isNotEmpty) {
+      state = appendQuestionAnswerCell(
+        state,
+        questionAnswers: questionAnswers,
+        turnId: effectiveTurnId,
+        now: _now(),
+      );
+    }
   }
 
   void removeFromQueue(String id) {
