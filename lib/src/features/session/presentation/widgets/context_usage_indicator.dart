@@ -135,6 +135,7 @@ class _ContextUsageIndicatorState extends State<ContextUsageIndicator> {
   Widget _buildOverlay() {
     final usage = widget.contextUsage;
     final total = usage.tokensInContext;
+    final sessionTotal = usage.sessionTokensUsed;
     final window = usage.contextWindowSize ?? 0;
     final percentUsed = window > 0 ? (total / window).clamp(0.0, 1.0) : 0.0;
     final percentLeft = ((1 - percentUsed) * 100).toInt();
@@ -194,12 +195,22 @@ class _ContextUsageIndicatorState extends State<ContextUsageIndicator> {
                   ),
                   const SizedBox(height: AleraTokens.space4),
                   Text(
-                    '${_formatTokens(total)} / ${_formatTokens(window)} tokens used',
+                    '${_formatTokens(total)} / ${_formatTokens(window)} tokens in current context',
                     style: const TextStyle(
                       color: AleraTokens.foregroundMuted,
                       fontSize: 12,
                     ),
                   ),
+                  if (sessionTotal > 0) ...<Widget>[
+                    const SizedBox(height: AleraTokens.space4),
+                    Text(
+                      '${_formatTokens(sessionTotal)} session tokens used',
+                      style: const TextStyle(
+                        color: AleraTokens.foregroundMuted,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: AleraTokens.space8),
                   // Credits info (if available).
                   if (usage.rateLimits?.credits != null &&

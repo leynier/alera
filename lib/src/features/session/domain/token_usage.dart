@@ -14,6 +14,14 @@ class TokenUsage {
   final int reasoningOutputTokens;
   final int totalTokens;
 
+  int get nonCachedInputTokens {
+    final value = inputTokens - cachedInputTokens;
+    return value > 0 ? value : 0;
+  }
+
+  int get blendedTotalTokens =>
+      nonCachedInputTokens + (outputTokens < 0 ? 0 : outputTokens);
+
   factory TokenUsage.fromMap(Map<String, dynamic> map) {
     return TokenUsage(
       inputTokens:
@@ -53,12 +61,27 @@ class TokenUsageInfo {
   /// Maximum context window size for the active model (in tokens).
   final int? modelContextWindow;
 
+  /// Tokens occupying the current context window.
+  ///
+  /// Prefer the last turn usage when present because `totalTokenUsage` is
+  /// cumulative across the session and can otherwise overstate current context.
+  int get currentContextTokens {
+    final last = lastTokenUsage.totalTokens;
+    if (last > 0) {
+      return last;
+    }
+    return totalTokenUsage.totalTokens;
+  }
+
+  /// Blended session usage for display as an accumulated "tokens used" value.
+  int get blendedTotalTokens => totalTokenUsage.blendedTotalTokens;
+
   /// Percentage of the context window remaining (0–100).
   /// Returns `null` if the context window is unknown.
   double? get percentRemaining {
     final window = modelContextWindow;
     if (window == null || window <= 0) return null;
-    final used = totalTokenUsage.totalTokens;
+    final used = currentContextTokens;
     final pct = 100.0 - (used / window * 100.0);
     return pct.clamp(0.0, 100.0);
   }
@@ -108,6 +131,8 @@ class RateLimitWindow {
           _doubleOr(map['usedPercent']) ??
           0.0,
       windowDurationMins:
+          _intOr(map['window_minutes']) ??
+          _intOr(map['windowMinutes']) ??
           _intOr(map['window_duration_mins']) ??
           _intOr(map['windowDurationMins']),
       resetsAt: _intOr(map['resets_at']) ?? _intOr(map['resetsAt']),

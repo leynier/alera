@@ -2,7 +2,7 @@ import 'package:alera/src/features/session/domain/token_usage.dart';
 
 /// Aggregated context usage state for a session.
 ///
-/// Updated on each `token_count` event and reset on `context_compacted`.
+/// Updated on each `thread/tokenUsage/updated` event.
 class ContextUsage {
   const ContextUsage({
     this.tokenUsageInfo = TokenUsageInfo.empty,
@@ -20,7 +20,10 @@ class ContextUsage {
   final bool isCompacting;
 
   /// Total tokens currently in context.
-  int get tokensInContext => tokenUsageInfo.totalTokenUsage.totalTokens;
+  int get tokensInContext => tokenUsageInfo.currentContextTokens;
+
+  /// Accumulated blended session usage.
+  int get sessionTokensUsed => tokenUsageInfo.blendedTotalTokens;
 
   /// Maximum context window size, or null if unknown.
   int? get contextWindowSize => tokenUsageInfo.modelContextWindow;
