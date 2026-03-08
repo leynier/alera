@@ -1,0 +1,51 @@
+---
+const steps = [
+  {
+    number: '01',
+    title: 'Select your repository',
+    description: 'Point Alera at any git repository. Your workspace, your rules.',
+  },
+  {
+    number: '02',
+    title: 'Choose your agents',
+    description: 'Connect Codex, Claude, or any supported agent. Switch between them mid-conversation.',
+  },
+  {
+    number: '03',
+    title: 'Ship faster together',
+    description: 'Review changes, approve actions, and iterate in a unified timeline. Stay in control.',
+  },
+];
+---
+
+<section id="workflow" class="py-24 px-6 border-t border-border-subtle/50">
+  <div class="max-w-5xl mx-auto">
+    <div class="text-center mb-16">
+      <p class="text-label-md text-foreground-faint uppercase tracking-widest font-mono mb-4">How it works</p>
+      <h2 class="text-headline-lg md:text-[32px] font-semibold tracking-tight text-foreground mb-4">
+        From idea to shipped
+      </h2>
+      <p class="text-[15px] text-foreground-muted max-w-lg mx-auto">
+        Three steps to orchestrate AI agents in your codebase.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
+      <!-- Connecting line (desktop) -->
+      <div class="hidden md:block absolute top-8 left-[20%] right-[20%] h-px bg-gradient-to-r from-border-subtle via-border to-border-subtle"></div>
+
+      {steps.map((step, i) => (
+        <div
+          class="text-center relative opacity-0-initial animate-fade-in-up"
+          style={`animation-delay: ${300 + i * 120}ms`}
+        >
+          <div class="w-16 h-16 rounded-full bg-surface border border-border flex items-center justify-center mx-auto mb-6 relative z-10 transition-all duration-mid hover:border-foreground-faint hover:bg-surface-variant">
+            <span class="font-mono text-sm font-medium text-foreground-faint">{step.number}</span>
+          </div>
+          <h3 class="text-title-lg text-foreground mb-2">{step.title}</h3>
+          <p class="text-body-md text-foreground-muted leading-relaxed max-w-[260px] mx-auto">{step.description}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>

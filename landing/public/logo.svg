@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 24" fill="currentColor">
+  <!-- Small rounded dot top-left -->
+  <rect x="1" y="2" width="3.8" height="3.8" rx="1.2" transform="rotate(-30 2.9 3.9)"/>
+  <!-- Three diagonal stripes -->
+  <rect x="2.5" y="6.5" width="3.5" height="14" rx="1.7" transform="rotate(-30 4.25 13.5)"/>
+  <rect x="6.8" y="5" width="3.5" height="16" rx="1.7" transform="rotate(-30 8.55 13)"/>
+  <rect x="11.1" y="3.5" width="3.5" height="18" rx="1.7" transform="rotate(-30 12.85 12.5)"/>
+  <!-- "A" right leg and peak -->
+  <path d="M14.5 22L20 4h4.5l4.5 18h-5l-1.2-5h-6.1l-1.2 5h-1zm5.5-8.5h4.5L22.2 6l-2.2 7.5z" fill-rule="evenodd"/>
+</svg>

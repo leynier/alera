@@ -1,0 +1,56 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+}
+
+const { title } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="description" content="A workspace for AI agents. One native interface for Codex, Claude, Copilot, and more. Built with Flutter for macOS, Windows, and Linux." />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="theme-color" content="#101010" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content="One native interface for Codex, Claude, Copilot, and more. Built with Flutter for macOS, Windows, and Linux." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://alera.dev" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content="One native interface for Codex, Claude, Copilot, and more. Built with Flutter for macOS, Windows, and Linux." />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <title>{title}</title>
+  </head>
+  <body class="bg-bg text-foreground font-sans antialiased">
+    <slot />
+  </body>
+</html>
+
+<style is:global>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    min-height: 100vh;
+    line-height: 1.6;
+  }
+
+  ::selection {
+    background: rgba(224, 224, 224, 0.2);
+    color: #F5F5F5;
+  }
+</style>

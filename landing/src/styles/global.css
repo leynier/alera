@@ -1,0 +1,112 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-bg: #101010;
+    --color-surface: #181818;
+    --color-surface-variant: #202020;
+    --color-surface-elevated: #242424;
+    --color-border: #323232;
+    --color-border-subtle: #272727;
+    --color-accent: #E0E0E0;
+    --color-accent-subtle: rgba(224, 224, 224, 0.1);
+    --color-on-accent: #101010;
+    --color-foreground: #F5F5F5;
+    --color-foreground-muted: #A1A1A1;
+    --color-foreground-faint: #606060;
+    --color-success: #22C55E;
+    --color-error: #F87171;
+    --color-on-error: #2C0D0D;
+    --color-warning: #F59E0B;
+  }
+
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  [id] {
+    scroll-margin-top: 5rem;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    background: linear-gradient(135deg, #F5F5F5 0%, #A1A1A1 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-gradient-accent {
+    background: linear-gradient(135deg, #FFFFFF 0%, #E0E0E0 40%, #A1A1A1 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .opacity-0-initial {
+    opacity: 0;
+  }
+
+  .hero-glow {
+    background: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(224, 224, 224, 0.04) 0%, transparent 70%);
+  }
+
+  .mockup-shadow {
+    box-shadow:
+      0 0 0 1px rgba(50, 50, 50, 0.5),
+      0 25px 50px -12px rgba(0, 0, 0, 0.6),
+      0 0 80px -20px rgba(224, 224, 224, 0.03);
+  }
+}
+
+.noise-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 256px 256px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.tooltip-coming-soon {
+  position: relative;
+  cursor: default;
+}
+
+.tooltip-coming-soon::after {
+  content: 'Coming soon';
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: #242424;
+  border: 1px solid #323232;
+  color: #A1A1A1;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.tooltip-coming-soon:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.animation-delay-100 { animation-delay: 100ms; }
+.animation-delay-200 { animation-delay: 200ms; }
+.animation-delay-300 { animation-delay: 300ms; }
+.animation-delay-400 { animation-delay: 400ms; }
+.animation-delay-500 { animation-delay: 500ms; }
+.animation-delay-600 { animation-delay: 600ms; }
+.animation-delay-700 { animation-delay: 700ms; }
