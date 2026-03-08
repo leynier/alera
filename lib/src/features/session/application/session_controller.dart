@@ -32,9 +32,13 @@ class SessionController extends StateNotifier<SessionState> {
     required SessionService sessionService,
     required ProjectService projectService,
     required SettingsService settingsService,
+    DateTime Function()? now,
+    Duration assistantStreamWarningGrace = const Duration(seconds: 5),
   }) : _sessionService = sessionService,
        _projectService = projectService,
        _settingsService = settingsService,
+       _now = now ?? _defaultNow,
+       _assistantStreamWarningGrace = assistantStreamWarningGrace,
        super(const SessionState()) {
     _eventsSub = _sessionService.events.listen(_onSessionEvent);
   }
@@ -45,6 +49,8 @@ class SessionController extends StateNotifier<SessionState> {
   final SessionService _sessionService;
   final ProjectService _projectService;
   final SettingsService _settingsService;
+  final DateTime Function() _now;
+  final Duration _assistantStreamWarningGrace;
   final CommandRegistry _commandRegistry = const CommandRegistry();
   StreamSubscription<SessionRuntimeEvent>? _eventsSub;
   Timer? _commitTickTimer;
@@ -60,6 +66,8 @@ class SessionController extends StateNotifier<SessionState> {
   static const int _maxTrackedResolvedPlanTurns = 120;
   static const int _maxTrackedCompletedPlanTurns = 120;
 
+  static DateTime _defaultNow() => DateTime.now().toUtc();
+
   final Set<String> _planModeRequestedTurnIds = <String>{};
   final Set<String> _turnsWithPlanActivity = <String>{};
   final Set<String> _turnsWithUserInputRequest = <String>{};
@@ -68,6 +76,10 @@ class SessionController extends StateNotifier<SessionState> {
   final List<String> _resolvedPlanTurnOrder = <String>[];
   final List<String> _completedTurnOrder = <String>[];
   final Map<String, String> _resolvedReasonByTurn = <String, String>{};
+  final Map<String, _AssistantTerminalSignal> _assistantTerminalSignalsByTurn =
+      <String, _AssistantTerminalSignal>{};
+  final Set<String> _assistantStreamStallWarnings = <String>{};
+  final Set<String> _assistantMissingTurnCompletionWarnings = <String>{};
 
   Future<void> bootstrap() async {
     if (_bootstrapped) {
@@ -117,6 +129,7 @@ class SessionController extends StateNotifier<SessionState> {
     state = state.copyWith(isBusy: true, clearError: true);
     try {
       _stopCommitTicker();
+      _resetAssistantStreamTracking();
       final validation = await _projectService.validateGitRepository(
         normalized,
       );
@@ -155,6 +168,7 @@ class SessionController extends StateNotifier<SessionState> {
         clearActiveAgentStreamItemId: true,
         clearActiveAgentStreamTurnId: true,
         clearActiveAgentStreamPhase: true,
+        clearActiveAgentStreamLastDeltaAtMs: true,
         connectionState: AppServerConnectionState.starting,
         pendingApprovals: const <PendingApproval>[],
       );
@@ -196,6 +210,7 @@ class SessionController extends StateNotifier<SessionState> {
     }
 
     _stopCommitTicker();
+    _resetAssistantStreamTracking();
     state = state.copyWith(
       isBusy: true,
       clearError: true,
@@ -221,6 +236,7 @@ class SessionController extends StateNotifier<SessionState> {
       clearActiveAgentStreamItemId: true,
       clearActiveAgentStreamTurnId: true,
       clearActiveAgentStreamPhase: true,
+      clearActiveAgentStreamLastDeltaAtMs: true,
       pendingApprovals: const <PendingApproval>[],
     );
 
@@ -250,6 +266,7 @@ class SessionController extends StateNotifier<SessionState> {
 
   Future<void> createSession(SessionCreateRequest request) async {
     _stopCommitTicker();
+    _resetAssistantStreamTracking();
     state = state.copyWith(
       isBusy: true,
       clearError: true,
@@ -270,6 +287,7 @@ class SessionController extends StateNotifier<SessionState> {
       clearActiveAgentStreamItemId: true,
       clearActiveAgentStreamTurnId: true,
       clearActiveAgentStreamPhase: true,
+      clearActiveAgentStreamLastDeltaAtMs: true,
     );
     try {
       final session = await _sessionService.createSession(request);
@@ -936,6 +954,7 @@ class SessionController extends StateNotifier<SessionState> {
 
   void _startNewChat() {
     _stopCommitTicker();
+    _resetAssistantStreamTracking();
     state = state.copyWith(
       clearActiveSessionId: true,
       timelineCells: const <TimelineCell>[],
@@ -954,6 +973,7 @@ class SessionController extends StateNotifier<SessionState> {
       clearActiveAgentStreamItemId: true,
       clearActiveAgentStreamTurnId: true,
       clearActiveAgentStreamPhase: true,
+      clearActiveAgentStreamLastDeltaAtMs: true,
       pendingApprovals: const <PendingApproval>[],
       clearPendingUserInput: true,
       composerAttachments: const <ComposerAttachment>[],
@@ -1522,9 +1542,10 @@ class SessionController extends StateNotifier<SessionState> {
         return;
       }
 
+      final eventNow = _now();
       _trackPlanActivityFromNotification(event);
-      final reduced = reduceNotification(state, event);
-      final ticked = reduceCommitTick(reduced);
+      final reduced = reduceNotification(state, event, now: eventNow);
+      final ticked = reduceCommitTick(reduced, now: eventNow);
       final runningTurnCount = _computeRunningTurnCount(
         current: ticked.runningTurnCount,
         method: event.method,
@@ -1542,6 +1563,7 @@ class SessionController extends StateNotifier<SessionState> {
         runningTurnCount: runningTurnCount,
         isInterrupting: shouldClearInterrupting ? false : ticked.isInterrupting,
       );
+      _trackAssistantTerminalSignal(event, at: eventNow);
 
       final completedTurnId = _extractCompletedTurnId(event);
       if (completedTurnId != null) {
@@ -1564,6 +1586,7 @@ class SessionController extends StateNotifier<SessionState> {
         }
       }
 
+      _maybeLogAssistantStreamWarnings(at: eventNow);
       _updateCommitTicker();
       if (runningTurnCount == 0 &&
           (event.method == 'turn/completed' || event.method == 'turn/failed') &&
@@ -2076,6 +2099,241 @@ class SessionController extends StateNotifier<SessionState> {
     return true;
   }
 
+  void _trackAssistantTerminalSignal(
+    SessionNotificationEvent event, {
+    required DateTime at,
+  }) {
+    final params = event.payload['params'];
+    if (params is! Map<String, dynamic>) {
+      return;
+    }
+
+    switch (event.method) {
+      case 'turn/started':
+      case 'turn/completed':
+      case 'turn/failed':
+        final turn = params['turn'];
+        if (turn is! Map<String, dynamic>) {
+          return;
+        }
+        final turnId = _normalizeOptionalId(turn['id']?.toString());
+        if (turnId != null) {
+          _clearAssistantStreamTracking(turnId);
+        }
+        return;
+      case 'codex/event/item_completed':
+        final msg = params['msg'];
+        if (msg is! Map<String, dynamic>) {
+          return;
+        }
+        final item = msg['item'];
+        if (item is! Map<String, dynamic>) {
+          return;
+        }
+        final itemType = item['type']?.toString().trim().toLowerCase();
+        if (itemType != 'agentmessage' && itemType != 'agent_message') {
+          return;
+        }
+        final turnId = _normalizeOptionalId(msg['turn_id']?.toString());
+        if (turnId == null) {
+          return;
+        }
+        final itemId = _normalizeOptionalId(item['id']?.toString());
+        final explicitPhase = _normalizeAssistantPhase(
+          item['phase']?.toString(),
+        );
+        final phase = explicitPhase != 'unknown'
+            ? explicitPhase
+            : (itemId != null &&
+                  state.finalAnswerItemIdByTurn[turnId] == itemId)
+            ? 'final_answer'
+            : (state.activeAgentStreamTurnId == turnId &&
+                  state.activeAgentStreamItemId == itemId)
+            ? _normalizeAssistantPhase(state.activeAgentStreamPhase)
+            : 'unknown';
+        if (phase != 'final_answer') {
+          return;
+        }
+        _recordAssistantTerminalSignal(
+          turnId,
+          itemId: itemId,
+          phase: phase,
+          source: 'legacy_item_completed',
+          at: at,
+        );
+        return;
+      case 'item/completed':
+        final item = params['item'];
+        if (item is! Map<String, dynamic>) {
+          return;
+        }
+        final itemType = item['type']?.toString().trim().toLowerCase();
+        if (itemType != 'agentmessage' && itemType != 'agent_message') {
+          return;
+        }
+        final turnId = _normalizeOptionalId(
+          params['turnId']?.toString() ?? item['turnId']?.toString(),
+        );
+        if (turnId == null) {
+          return;
+        }
+        final itemId = _normalizeOptionalId(item['id']?.toString());
+        final explicitPhase = _normalizeAssistantPhase(
+          item['phase']?.toString(),
+        );
+        final phase = explicitPhase != 'unknown'
+            ? explicitPhase
+            : (itemId != null &&
+                  state.finalAnswerItemIdByTurn[turnId] == itemId)
+            ? 'final_answer'
+            : (state.activeAgentStreamTurnId == turnId &&
+                  state.activeAgentStreamItemId == itemId)
+            ? _normalizeAssistantPhase(state.activeAgentStreamPhase)
+            : 'unknown';
+        if (phase != 'final_answer') {
+          return;
+        }
+        _recordAssistantTerminalSignal(
+          turnId,
+          itemId: itemId,
+          phase: phase,
+          source: 'item_completed',
+          at: at,
+        );
+        return;
+      case 'codex/event/task_complete':
+        final msg = params['msg'];
+        if (msg is! Map<String, dynamic>) {
+          return;
+        }
+        final turnId = _normalizeOptionalId(msg['turn_id']?.toString());
+        if (turnId == null) {
+          return;
+        }
+        final itemId =
+            _normalizeOptionalId(state.finalAnswerItemIdByTurn[turnId]) ??
+            (state.activeAgentStreamTurnId == turnId
+                ? _normalizeOptionalId(state.activeAgentStreamItemId)
+                : null);
+        _recordAssistantTerminalSignal(
+          turnId,
+          itemId: itemId,
+          phase: 'final_answer',
+          source: 'task_complete',
+          at: at,
+        );
+        return;
+    }
+  }
+
+  void _recordAssistantTerminalSignal(
+    String turnId, {
+    required String? itemId,
+    required String phase,
+    required String source,
+    required DateTime at,
+  }) {
+    _assistantTerminalSignalsByTurn[turnId] = _AssistantTerminalSignal(
+      itemId: itemId,
+      phase: phase,
+      source: source,
+      atMs: at.millisecondsSinceEpoch,
+    );
+    _assistantMissingTurnCompletionWarnings.remove(turnId);
+  }
+
+  void _maybeLogAssistantStreamWarnings({required DateTime at}) {
+    _maybeLogFinalAnswerStreamStall(at: at);
+    _maybeLogMissingTurnCompletionAfterTerminalSignal(at: at);
+  }
+
+  void _maybeLogFinalAnswerStreamStall({required DateTime at}) {
+    final turnId = _normalizeOptionalId(state.activeAgentStreamTurnId);
+    final itemId = _normalizeOptionalId(state.activeAgentStreamItemId);
+    final phase = _normalizeAssistantPhase(state.activeAgentStreamPhase);
+    final lastDeltaAtMs = state.activeAgentStreamLastDeltaAtMs;
+    if (turnId == null ||
+        itemId == null ||
+        phase != 'final_answer' ||
+        lastDeltaAtMs == null) {
+      return;
+    }
+
+    final idleMs = at.millisecondsSinceEpoch - lastDeltaAtMs;
+    if (idleMs < _assistantStreamWarningGrace.inMilliseconds) {
+      return;
+    }
+    if (_assistantTerminalSignalsByTurn.containsKey(turnId)) {
+      return;
+    }
+
+    final warningKey = '$turnId:$itemId';
+    if (_assistantStreamStallWarnings.contains(warningKey)) {
+      return;
+    }
+    _assistantStreamStallWarnings.add(warningKey);
+    _appendRuntimeLog(
+      'runtime/assistantStream stalled '
+      'turnId=$turnId '
+      'itemId=$itemId '
+      'phase=$phase '
+      'signal=none '
+      'idleMs=$idleMs',
+    );
+  }
+
+  void _maybeLogMissingTurnCompletionAfterTerminalSignal({
+    required DateTime at,
+  }) {
+    for (final entry in _assistantTerminalSignalsByTurn.entries.toList()) {
+      final turnId = entry.key;
+      if (_completedTurnIds.contains(turnId) ||
+          _assistantMissingTurnCompletionWarnings.contains(turnId)) {
+        continue;
+      }
+
+      final idleMs = at.millisecondsSinceEpoch - entry.value.atMs;
+      if (idleMs < _assistantStreamWarningGrace.inMilliseconds) {
+        continue;
+      }
+
+      _assistantMissingTurnCompletionWarnings.add(turnId);
+      _appendRuntimeLog(
+        'runtime/assistantStream missingTurnCompletion '
+        'turnId=$turnId '
+        'itemId=${entry.value.itemId ?? "<null>"} '
+        'phase=${entry.value.phase} '
+        'signal=${entry.value.source} '
+        'idleMs=$idleMs',
+      );
+    }
+  }
+
+  void _clearAssistantStreamTracking(String turnId) {
+    _assistantTerminalSignalsByTurn.remove(turnId);
+    _assistantMissingTurnCompletionWarnings.remove(turnId);
+    _assistantStreamStallWarnings.removeWhere(
+      (warningKey) => warningKey.startsWith('$turnId:'),
+    );
+  }
+
+  void _resetAssistantStreamTracking() {
+    _assistantTerminalSignalsByTurn.clear();
+    _assistantStreamStallWarnings.clear();
+    _assistantMissingTurnCompletionWarnings.clear();
+  }
+
+  String _normalizeAssistantPhase(String? raw) {
+    final normalized = raw?.trim().toLowerCase();
+    if (normalized == 'finalanswer') {
+      return 'final_answer';
+    }
+    if (normalized == 'final_answer' || normalized == 'commentary') {
+      return normalized!;
+    }
+    return 'unknown';
+  }
+
   void _appendRuntimeLog(String message) {
     final nextLog = <String>[...state.activityLog, message];
     final clipped = nextLog.length <= 200
@@ -2094,10 +2352,12 @@ class SessionController extends StateNotifier<SessionState> {
 
     _commitTickTimer ??= Timer.periodic(const Duration(milliseconds: 80), (_) {
       final current = state;
-      final next = reduceCommitTick(current);
+      final tickNow = _now();
+      final next = reduceCommitTick(current, now: tickNow);
       if (!_isCommitTickNoop(current, next)) {
         state = next;
       }
+      _maybeLogAssistantStreamWarnings(at: tickNow);
       if (next.runningTurnCount <= 0 && next.streamQueue.isEmpty) {
         _stopCommitTicker();
       }
@@ -2156,6 +2416,20 @@ class SessionController extends StateNotifier<SessionState> {
     }
     return current;
   }
+}
+
+class _AssistantTerminalSignal {
+  const _AssistantTerminalSignal({
+    required this.itemId,
+    required this.phase,
+    required this.source,
+    required this.atMs,
+  });
+
+  final String? itemId;
+  final String phase;
+  final String source;
+  final int atMs;
 }
 
 class _ParsedUserInputQuestions {

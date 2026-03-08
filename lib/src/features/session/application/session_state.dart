@@ -39,6 +39,7 @@ class SessionState {
     this.activeAgentStreamItemId,
     this.activeAgentStreamTurnId,
     this.activeAgentStreamPhase,
+    this.activeAgentStreamLastDeltaAtMs,
     this.agentMessagePhaseByItemId = const <String, String>{},
     this.finalAnswerItemIdByTurn = const <String, String>{},
     this.activeExecCellId,
@@ -86,6 +87,7 @@ class SessionState {
   final String? activeAgentStreamItemId;
   final String? activeAgentStreamTurnId;
   final String? activeAgentStreamPhase;
+  final int? activeAgentStreamLastDeltaAtMs;
   final Map<String, String> agentMessagePhaseByItemId;
   final Map<String, String> finalAnswerItemIdByTurn;
   final String? activeExecCellId;
@@ -188,6 +190,8 @@ class SessionState {
     bool clearActiveAgentStreamTurnId = false,
     String? activeAgentStreamPhase,
     bool clearActiveAgentStreamPhase = false,
+    int? activeAgentStreamLastDeltaAtMs,
+    bool clearActiveAgentStreamLastDeltaAtMs = false,
     Map<String, String>? agentMessagePhaseByItemId,
     Map<String, String>? finalAnswerItemIdByTurn,
     String? activeExecCellId,
@@ -271,6 +275,10 @@ class SessionState {
       activeAgentStreamPhase: clearActiveAgentStreamPhase
           ? null
           : (activeAgentStreamPhase ?? this.activeAgentStreamPhase),
+      activeAgentStreamLastDeltaAtMs: clearActiveAgentStreamLastDeltaAtMs
+          ? null
+          : (activeAgentStreamLastDeltaAtMs ??
+                this.activeAgentStreamLastDeltaAtMs),
       agentMessagePhaseByItemId:
           agentMessagePhaseByItemId ?? this.agentMessagePhaseByItemId,
       finalAnswerItemIdByTurn:

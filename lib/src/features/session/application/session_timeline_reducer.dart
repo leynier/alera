@@ -441,7 +441,17 @@ SessionState _onLegacyItemCompleted(
       timestamp: timestamp,
     );
   }
-  return nextState;
+  final normalizedItem = _normalizeLegacyAssistantCompletionItem(
+    item,
+    phase: phase,
+  );
+  return _onAssistantItemCompleted(
+    nextState,
+    turnId: turnId,
+    itemId: itemId,
+    item: normalizedItem,
+    timestamp: timestamp,
+  );
 }
 
 SessionState _onLegacyTaskComplete(
@@ -460,7 +470,16 @@ SessionState _onLegacyTaskComplete(
   }
 
   final hasExplicitFinal = state.finalAnswerItemIdByTurn.containsKey(turnId);
-  if (hasExplicitFinal) {
+  final hasActiveStreamForTurn = state.activeAgentStreamTurnId == turnId;
+  final hasStreamingAssistantForTurn = state.timelineCells.any(
+    (cell) =>
+        cell.turnId == turnId &&
+        cell.kind == TimelineCellKind.assistantMessage &&
+        cell.isStreaming,
+  );
+  if (hasExplicitFinal &&
+      !hasActiveStreamForTurn &&
+      !hasStreamingAssistantForTurn) {
     return state;
   }
 
@@ -478,11 +497,6 @@ SessionState _onLegacyTaskComplete(
       existingAssistant = candidate;
       break;
     }
-  }
-
-  if (existingAssistant != null &&
-      (existingAssistant.markdownText ?? '').trim() == lastAgentMessage) {
-    return state;
   }
 
   final cellId = existingAssistant?.id ?? 'assistant-final-$turnId';
@@ -519,7 +533,18 @@ SessionState _onLegacyTaskComplete(
     );
   }
 
-  return state.copyWith(timelineCells: cells);
+  final shouldClearActiveStream = state.activeAgentStreamTurnId == turnId;
+  final shouldClearStreamingAssistant =
+      shouldClearActiveStream &&
+      (state.activeStreamingAssistantCellId ?? '').isNotEmpty;
+  return state.copyWith(
+    timelineCells: cells,
+    clearActiveStreamingAssistantCellId: shouldClearStreamingAssistant,
+    clearActiveAgentStreamItemId: shouldClearActiveStream,
+    clearActiveAgentStreamTurnId: shouldClearActiveStream,
+    clearActiveAgentStreamPhase: shouldClearActiveStream,
+    clearActiveAgentStreamLastDeltaAtMs: shouldClearActiveStream,
+  );
 }
 
 Map<String, dynamic> _withStreamCommitMetadata(
@@ -847,6 +872,7 @@ SessionState _onTurnStarted(
     clearActiveAgentStreamItemId: true,
     clearActiveAgentStreamTurnId: true,
     clearActiveAgentStreamPhase: true,
+    clearActiveAgentStreamLastDeltaAtMs: true,
     finalAnswerItemIdByTurn: nextFinalByTurn,
     turnHadWorkActivity: false,
     turnRuntimeMetrics: const <String, dynamic>{},
@@ -1032,6 +1058,8 @@ SessionState _onTurnCompleted(
     clearActiveAgentStreamItemId: nextState.activeAgentStreamTurnId == turnId,
     clearActiveAgentStreamTurnId: nextState.activeAgentStreamTurnId == turnId,
     clearActiveAgentStreamPhase: nextState.activeAgentStreamTurnId == turnId,
+    clearActiveAgentStreamLastDeltaAtMs:
+        nextState.activeAgentStreamTurnId == turnId,
     finalAnswerItemIdByTurn: nextFinalByTurn,
     turnHadWorkActivity: false,
     turnRuntimeMetrics: const <String, dynamic>{},
@@ -1096,6 +1124,7 @@ SessionState _onAssistantDelta(
     activeAgentStreamItemId: itemId,
     activeAgentStreamTurnId: turnId,
     activeAgentStreamPhase: phase,
+    activeAgentStreamLastDeltaAtMs: timestamp.millisecondsSinceEpoch,
     statusHeader: 'Working',
     pendingStatusRestore: false,
   );
@@ -2059,7 +2088,7 @@ SessionState _onAssistantItemCompleted(
 
   if (phase == 'commentary') {
     if (finalText.trim().isNotEmpty &&
-        !_hasCommittedStreamTextForItem(
+        !_hasProgressTextForItem(
           cells,
           turnId: turnId,
           itemId: itemId,
@@ -2090,6 +2119,7 @@ SessionState _onAssistantItemCompleted(
       clearActiveAgentStreamItemId: shouldClearActiveStream,
       clearActiveAgentStreamTurnId: shouldClearActiveStream,
       clearActiveAgentStreamPhase: shouldClearActiveStream,
+      clearActiveAgentStreamLastDeltaAtMs: shouldClearActiveStream,
       clearActiveStreamingAssistantCellId:
           shouldClearActiveStream &&
           (nextState.activeStreamingAssistantCellId ?? '').isNotEmpty,
@@ -2107,6 +2137,7 @@ SessionState _onAssistantItemCompleted(
       clearActiveAgentStreamItemId: shouldClearActiveStream,
       clearActiveAgentStreamTurnId: shouldClearActiveStream,
       clearActiveAgentStreamPhase: shouldClearActiveStream,
+      clearActiveAgentStreamLastDeltaAtMs: shouldClearActiveStream,
     );
   }
 
@@ -2191,6 +2222,7 @@ SessionState _onAssistantItemCompleted(
     clearActiveAgentStreamItemId: shouldClearActiveStream,
     clearActiveAgentStreamTurnId: shouldClearActiveStream,
     clearActiveAgentStreamPhase: shouldClearActiveStream,
+    clearActiveAgentStreamLastDeltaAtMs: shouldClearActiveStream,
   );
 }
 
@@ -2223,13 +2255,13 @@ bool _hasCommittedAssistantStreamTextForItem(
   return false;
 }
 
-bool _hasCommittedStreamTextForItem(
+bool _hasProgressTextForItem(
   List<TimelineCell> cells, {
   required String turnId,
   required String itemId,
 }) {
   for (final cell in cells) {
-    if (cell.turnId != turnId) {
+    if (cell.turnId != turnId || cell.kind != TimelineCellKind.progressText) {
       continue;
     }
     final text = (cell.markdownText ?? '').trim();
@@ -2237,10 +2269,6 @@ bool _hasCommittedStreamTextForItem(
       continue;
     }
     final metadata = cell.metadata;
-    final streamCommitted = metadata['streamCommitted'] == true;
-    if (!streamCommitted) {
-      continue;
-    }
     final streamItemId =
         _asString(metadata['streamItemId']) ??
         _asString(metadata['stream_item_id']) ??
@@ -2758,7 +2786,7 @@ String _assistantFinalText(Map<String, dynamic> item) {
     for (final entry in content) {
       if (entry is Map) {
         final map = asMap(entry);
-        if (_asString(map['type']) == 'text') {
+        if ((_asString(map['type']) ?? '').toLowerCase() == 'text') {
           final text = _asString(map['text']);
           if (text != null) {
             if (buffer.isNotEmpty) {
@@ -2773,6 +2801,49 @@ String _assistantFinalText(Map<String, dynamic> item) {
   }
 
   return '';
+}
+
+Map<String, dynamic> _normalizeLegacyAssistantCompletionItem(
+  Map<String, dynamic> item, {
+  required String phase,
+}) {
+  final contentText = _legacyAssistantContentText(item);
+  final text = contentText.isNotEmpty
+      ? contentText
+      : _asString(item['text']) ?? _asString(item['message']) ?? '';
+  return <String, dynamic>{
+    ...item,
+    'type': 'agentMessage',
+    'phase': phase,
+    'status': _asString(item['status']) ?? 'completed',
+    'text': text,
+  };
+}
+
+String _legacyAssistantContentText(Map<String, dynamic> item) {
+  final content = item['content'];
+  if (content is! List) {
+    return '';
+  }
+  final buffer = StringBuffer();
+  for (final entry in content) {
+    if (entry is! Map) {
+      continue;
+    }
+    final map = asMap(entry);
+    if ((_asString(map['type']) ?? '').toLowerCase() != 'text') {
+      continue;
+    }
+    final text = _asString(map['text']);
+    if (text == null || text.isEmpty) {
+      continue;
+    }
+    if (buffer.isNotEmpty) {
+      buffer.writeln();
+    }
+    buffer.write(text);
+  }
+  return buffer.toString();
 }
 
 String _mergeFinalText(String current, String finalText) {
