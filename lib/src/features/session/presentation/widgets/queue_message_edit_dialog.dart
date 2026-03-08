@@ -367,205 +367,162 @@ class _QueueMessageEditDialogState extends State<QueueMessageEditDialog> {
           borderRadius: BorderRadius.circular(AleraTokens.radiusXl),
           border: Border.all(color: AleraTokens.border),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            // Header.
-            Padding(
-              padding: const EdgeInsets.all(AleraTokens.space16),
-              child: Row(
-                children: <Widget>[
-                  const Icon(
-                    Icons.edit_outlined,
-                    size: 18,
-                    color: AleraTokens.foregroundMuted,
-                  ),
-                  const SizedBox(width: AleraTokens.space8),
-                  const Text(
-                    'Edit queued message',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AleraTokens.foreground,
-                    ),
-                  ),
-                  const Spacer(),
-                  InkWell(
-                    onTap: _cancel,
-                    borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
-                    mouseCursor: SystemMouseCursors.click,
-                    child: const Padding(
-                      padding: EdgeInsets.all(AleraTokens.space4),
-                      child: Icon(
-                        Icons.close,
-                        size: 18,
-                        color: AleraTokens.foregroundFaint,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 1, color: AleraTokens.border),
-            // Content.
-            Flexible(
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.all(AleraTokens.space16),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: <Widget>[
-                      // Attachment bar.
-                      if (_attachments.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(
-                            bottom: AleraTokens.space12,
-                          ),
-                          child: AttachmentBar(
-                            attachments: _attachments,
-                            onRemove: _removeAttachment,
-                          ),
-                        ),
-                      // Text field with mention overlay.
-                      Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          Container(
-                            decoration: BoxDecoration(
-                              color: AleraTokens.surfaceVariant,
-                              borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
-                              border: Border.all(color: AleraTokens.border),
-                            ),
-                            child: TextField(
-                              controller: _textController,
-                              focusNode: _focusNode,
-                              minLines: 3,
-                              maxLines: 8,
-                              textInputAction: TextInputAction.newline,
-                              style: Theme.of(context).textTheme.bodyMedium,
-                              decoration: InputDecoration(
-                                hintText: 'Edit your message...',
-                                filled: true,
-                                fillColor: Colors.transparent,
-                                hoverColor: Colors.transparent,
-                                contentPadding: const EdgeInsets.fromLTRB(
-                                  AleraTokens.space12,
-                                  AleraTokens.space12,
-                                  AleraTokens.space12,
-                                  AleraTokens.space48,
-                                ),
-                                border: InputBorder.none,
-                                enabledBorder: InputBorder.none,
-                                focusedBorder: InputBorder.none,
-                                disabledBorder: InputBorder.none,
-                              ),
-                            ),
-                          ),
-                          // Add attachment button inside text field area.
-                          Positioned(
-                            left: AleraTokens.space8,
-                            bottom: AleraTokens.space8,
-                            child: IconButton(
-                              onPressed: _addAttachment,
-                              tooltip: 'Add photos & files',
-                              mouseCursor: SystemMouseCursors.click,
-                              constraints: const BoxConstraints(
-                                minWidth: 28,
-                                minHeight: 28,
-                              ),
-                              padding: const EdgeInsets.all(AleraTokens.space4),
-                              icon: const Icon(
-                                Icons.add,
-                                size: 18,
-                                color: AleraTokens.foregroundMuted,
-                              ),
-                            ),
-                          ),
-                          // @ mention overlay positioned above text field.
-                          if (_mentionFiles.isNotEmpty)
-                            Positioned(
-                              bottom: 60,
-                              left: 0,
-                              right: 0,
-                              child: Material(
-                                elevation: 4,
-                                color: Colors.transparent,
-                                borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: AleraTokens.surfaceElevated,
-                                    borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
-                                    border: Border.all(color: AleraTokens.border),
-                                    boxShadow: const [
-                                      BoxShadow(
-                                        color: AleraTokens.shadowSoft,
-                                        blurRadius: 8,
-                                        offset: Offset(0, -2),
-                                      ),
-                                    ],
-                                  ),
-                                  child: MentionFileList(
-                                    files: _mentionFiles,
-                                    selectedIndex: _mentionSelectedIndex,
-                                    onSelect: _selectMention,
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ],
+        child: Padding(
+          padding: const EdgeInsets.all(AleraTokens.space16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              // Attachment bar.
+              if (_attachments.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AleraTokens.space12),
+                  child: AttachmentBar(
+                    attachments: _attachments,
+                    onRemove: _removeAttachment,
                   ),
                 ),
-              ),
-            ),
-            const Divider(height: 1, color: AleraTokens.border),
-            // Action bar.
-            Padding(
-              padding: const EdgeInsets.all(AleraTokens.space12),
-              child: Row(
-                children: <Widget>[
-                  // Delete button (left side).
-                  FilledButton(
-                    onPressed: _delete,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AleraTokens.error,
-                      foregroundColor: AleraTokens.onError,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AleraTokens.space16,
-                        vertical: AleraTokens.space8,
-                      ),
-                      minimumSize: const Size(0, 34),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+              // Composer area with overlaid action buttons.
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AleraTokens.surfaceVariant,
+                      borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+                      border: Border.all(color: AleraTokens.border),
+                    ),
+                    child: TextField(
+                      controller: _textController,
+                      focusNode: _focusNode,
+                      minLines: 3,
+                      maxLines: 8,
+                      textInputAction: TextInputAction.newline,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                      decoration: InputDecoration(
+                        hintText: 'Edit your message...',
+                        filled: true,
+                        fillColor: Colors.transparent,
+                        hoverColor: Colors.transparent,
+                        contentPadding: const EdgeInsets.fromLTRB(
+                          AleraTokens.space12,
+                          AleraTokens.space12,
+                          AleraTokens.space32,
+                          AleraTokens.space48,
+                        ),
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        disabledBorder: InputBorder.none,
                       ),
                     ),
-                    child: const Text('Delete'),
                   ),
-                  const Spacer(),
-                  // Save button (right side).
-                  FilledButton(
-                    onPressed: _save,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AleraTokens.accent,
-                      foregroundColor: AleraTokens.onAccent,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AleraTokens.space16,
-                        vertical: AleraTokens.space8,
-                      ),
-                      minimumSize: const Size(0, 34),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+                  // Close and delete buttons stacked top right.
+                  Positioned(
+                    top: AleraTokens.space8,
+                    right: AleraTokens.space8,
+                    child: Column(
+                      children: [
+                        InkWell(
+                          onTap: _cancel,
+                          borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+                          mouseCursor: SystemMouseCursors.click,
+                          child: const Padding(
+                            padding: EdgeInsets.all(AleraTokens.space4),
+                            child: Icon(
+                              Icons.close,
+                              size: 15,
+                              color: AleraTokens.foregroundFaint,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: AleraTokens.space4),
+                        InkWell(
+                          onTap: _delete,
+                          borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+                          mouseCursor: SystemMouseCursors.click,
+                          child: const Padding(
+                            padding: EdgeInsets.all(AleraTokens.space4),
+                            child: Icon(
+                              Icons.delete_outline,
+                              size: 15,
+                              color: AleraTokens.error,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Add attachment button (bottom left).
+                  Positioned(
+                    left: AleraTokens.space8,
+                    bottom: AleraTokens.space8,
+                    child: IconButton(
+                      onPressed: _addAttachment,
+                      tooltip: 'Add photos & files',
+                      mouseCursor: SystemMouseCursors.click,
+                      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                      padding: const EdgeInsets.all(AleraTokens.space4),
+                      icon: const Icon(
+                        Icons.add,
+                        size: 18,
+                        color: AleraTokens.foregroundMuted,
                       ),
                     ),
-                    child: const Text('Save'),
                   ),
+                  // Save button (bottom right).
+                  Positioned(
+                    right: AleraTokens.space8,
+                    bottom: AleraTokens.space8,
+                    child: InkWell(
+                      onTap: _save,
+                      borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+                      mouseCursor: SystemMouseCursors.click,
+                      child: const Padding(
+                        padding: EdgeInsets.all(AleraTokens.space4),
+                        child: Icon(
+                          Icons.save_outlined,
+                          size: 18,
+                          color: AleraTokens.accent,
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Mention overlay positioned above the composer.
+                  if (_mentionFiles.isNotEmpty)
+                    Positioned(
+                      bottom: 60,
+                      left: 0,
+                      right: 0,
+                      child: Material(
+                        elevation: 4,
+                        color: Colors.transparent,
+                        borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: AleraTokens.surfaceElevated,
+                            borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+                            border: Border.all(color: AleraTokens.border),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: AleraTokens.shadowSoft,
+                                blurRadius: 8,
+                                offset: Offset(0, -2),
+                              ),
+                            ],
+                          ),
+                          child: MentionFileList(
+                            files: _mentionFiles,
+                            selectedIndex: _mentionSelectedIndex,
+                            onSelect: _selectMention,
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
