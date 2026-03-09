@@ -488,14 +488,20 @@ class _ReasoningCellState extends State<ReasoningCell> {
   Widget build(BuildContext context) {
     final text = widget.cell.markdownText ?? '';
     final thinkingColor = AleraTokens.foregroundMuted;
+    final isExpandable = text.trim().isNotEmpty ||
+        widget.cell.status == TimelineCellStatus.inProgress;
     return Padding(
       padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           MouseRegion(
-            onEnter: (_) => setState(() => _isHovered = true),
-            onExit: (_) => setState(() => _isHovered = false),
+            onEnter: (_) {
+              if (isExpandable) setState(() => _isHovered = true);
+            },
+            onExit: (_) {
+              if (_isHovered) setState(() => _isHovered = false);
+            },
             child: AnimatedContainer(
               duration: AleraTokens.durationFast,
               curve: Curves.easeOut,
@@ -506,8 +512,12 @@ class _ReasoningCellState extends State<ReasoningCell> {
                 borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
               ),
               child: InkWell(
-                onTap: () => setState(() => _collapsed = !_collapsed),
-                mouseCursor: SystemMouseCursors.click,
+                onTap: isExpandable
+                    ? () => setState(() => _collapsed = !_collapsed)
+                    : null,
+                mouseCursor: isExpandable
+                    ? SystemMouseCursors.click
+                    : SystemMouseCursors.basic,
                 borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
                 splashFactory: NoSplash.splashFactory,
                 hoverColor: Colors.transparent,
@@ -535,21 +545,23 @@ class _ReasoningCellState extends State<ReasoningCell> {
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            const SizedBox(width: AleraTokens.space4),
-                            AnimatedOpacity(
-                              duration: AleraTokens.durationFast,
-                              opacity: _isHovered ? 1 : 0,
-                              child: SizedBox(
-                                width: 14,
-                                child: Icon(
-                                  _collapsed
-                                      ? Icons.keyboard_arrow_right
-                                      : Icons.keyboard_arrow_down,
-                                  size: 14,
-                                  color: AleraTokens.foregroundFaint,
+                            if (isExpandable) ...<Widget>[
+                              const SizedBox(width: AleraTokens.space4),
+                              AnimatedOpacity(
+                                duration: AleraTokens.durationFast,
+                                opacity: _isHovered ? 1 : 0,
+                                child: SizedBox(
+                                  width: 14,
+                                  child: Icon(
+                                    _collapsed
+                                        ? Icons.keyboard_arrow_right
+                                        : Icons.keyboard_arrow_down,
+                                    size: 14,
+                                    color: AleraTokens.foregroundFaint,
+                                  ),
                                 ),
                               ),
-                            ),
+                            ],
                           ],
                         ),
                       ),
@@ -632,7 +644,6 @@ class _ToolCallCellState extends State<ToolCallCell> {
 
   @override
   Widget build(BuildContext context) {
-    final details = widget.cell.detailsText ?? '';
     final cellStatusColor = statusColor(widget.cell.status);
     final title = widget.cell.title ?? 'Tool call';
     final subtitle = widget.cell.subtitle;
@@ -724,7 +735,7 @@ class _ToolCallCellState extends State<ToolCallCell> {
               ),
             ),
           ),
-          if (!_collapsed && details.trim().isNotEmpty)
+          if (!_collapsed && _hasDetails())
             Container(
               margin: const EdgeInsets.only(
                 left: AleraTokens.space8,
@@ -736,31 +747,272 @@ class _ToolCallCellState extends State<ToolCallCell> {
                 borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
                 border: Border.all(color: AleraTokens.borderSubtle),
               ),
-              child: SelectableText(
-                _prettyDetails(details),
-                style: AleraTokens.monoStyle.copyWith(
-                  color: AleraTokens.foregroundMuted,
-                  fontSize: 11,
-                ),
-              ),
+              child: _buildToolDetail(),
             ),
         ],
       ),
     );
   }
 
-  String _prettyDetails(String raw) {
-    final trimmed = raw.trim();
-    if ((trimmed.startsWith('{') && trimmed.endsWith('}')) ||
-        (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
-      try {
-        final decoded = jsonDecode(trimmed);
-        return const JsonEncoder.withIndent('  ').convert(decoded);
-      } catch (_) {
-        return raw;
-      }
+  bool _hasDetails() {
+    final itemType = widget.cell.metadata['type']?.toString();
+    if (itemType == 'webSearch') {
+      final query = widget.cell.metadata['query'];
+      final url = widget.cell.metadata['url'];
+      return (query != null && query.toString().isNotEmpty) ||
+          (url != null && url.toString().isNotEmpty);
     }
-    return raw;
+    if (itemType == 'fileChange') {
+      final changes = widget.cell.metadata['changes'];
+      return changes is List && changes.isNotEmpty;
+    }
+    if (itemType == 'mcpToolCall') {
+      final args = widget.cell.metadata['arguments'];
+      final details = widget.cell.detailsText ?? '';
+      return (args is Map && args.isNotEmpty) || details.trim().isNotEmpty;
+    }
+    return (widget.cell.detailsText ?? '').trim().isNotEmpty;
+  }
+
+  Widget _buildToolDetail() {
+    final itemType = widget.cell.metadata['type']?.toString();
+    return switch (itemType) {
+      'fileChange' => _FileChangeDetail(cell: widget.cell),
+      'webSearch' => _WebSearchDetail(cell: widget.cell),
+      'mcpToolCall' => _McpToolDetail(cell: widget.cell),
+      _ => SelectableText(
+          _prettyDetails(widget.cell.detailsText ?? ''),
+          style: AleraTokens.monoStyle.copyWith(
+            color: AleraTokens.foregroundMuted,
+            fontSize: 11,
+          ),
+        ),
+    };
+  }
+}
+
+String _prettyDetails(String raw) {
+  final trimmed = raw.trim();
+  if ((trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+      (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+    try {
+      final decoded = jsonDecode(trimmed);
+      return const JsonEncoder.withIndent('  ').convert(decoded);
+    } catch (_) {
+      return raw;
+    }
+  }
+  return raw;
+}
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.label});
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AleraTokens.space4),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: AleraTokens.foregroundFaint,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+class _KeyValueRow extends StatelessWidget {
+  const _KeyValueRow({required this.label, required this.value});
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = AleraTokens.monoStyle.copyWith(fontSize: 11);
+    if (value.length > 100) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(label, style: style.copyWith(color: AleraTokens.foregroundFaint)),
+          const SizedBox(height: AleraTokens.space2),
+          SelectableText(
+            value,
+            style: style.copyWith(color: AleraTokens.foregroundMuted),
+          ),
+        ],
+      );
+    }
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          '$label  ',
+          style: style.copyWith(color: AleraTokens.foregroundFaint),
+        ),
+        Flexible(
+          child: SelectableText(
+            value,
+            style: style.copyWith(color: AleraTokens.foregroundMuted),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+String? _extractChangePath(dynamic entry) {
+  if (entry is! Map) return null;
+  return (entry['path'] ??
+          entry['newPath'] ??
+          entry['new_path'] ??
+          entry['oldPath'] ??
+          entry['old_path'])
+      ?.toString();
+}
+
+class _FileChangeDetail extends StatelessWidget {
+  const _FileChangeDetail({required this.cell});
+  final TimelineCell cell;
+
+  @override
+  Widget build(BuildContext context) {
+    final changes = cell.metadata['changes'];
+    if (changes is! List || changes.isEmpty) {
+      return SelectableText(
+        _prettyDetails(cell.detailsText ?? ''),
+        style: AleraTokens.monoStyle.copyWith(
+          color: AleraTokens.foregroundMuted,
+          fontSize: 11,
+        ),
+      );
+    }
+    final style = AleraTokens.monoStyle.copyWith(
+      color: AleraTokens.foregroundMuted,
+      fontSize: 11,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        for (final entry in changes)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: AleraTokens.space2),
+            child: Row(
+              children: <Widget>[
+                const Icon(
+                  Icons.description_outlined,
+                  size: 12,
+                  color: AleraTokens.foregroundFaint,
+                ),
+                const SizedBox(width: AleraTokens.space6),
+                Flexible(
+                  child: SelectableText(
+                    _extractChangePath(entry) ?? 'unknown',
+                    style: style,
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _WebSearchDetail extends StatelessWidget {
+  const _WebSearchDetail({required this.cell});
+  final TimelineCell cell;
+
+  @override
+  Widget build(BuildContext context) {
+    final query = cell.metadata['query']?.toString();
+    final url = cell.metadata['url']?.toString();
+    final action = cell.metadata['action']?.toString();
+    final rows = <Widget>[];
+    if (query != null && query.isNotEmpty) {
+      rows.add(_KeyValueRow(label: 'Query', value: query));
+    }
+    if (url != null && url.isNotEmpty) {
+      rows.add(_KeyValueRow(label: 'URL', value: url));
+    }
+    if (action != null && action.isNotEmpty) {
+      rows.add(_KeyValueRow(label: 'Action', value: action));
+    }
+    if (rows.isEmpty) {
+      return SelectableText(
+        _prettyDetails(cell.detailsText ?? ''),
+        style: AleraTokens.monoStyle.copyWith(
+          color: AleraTokens.foregroundMuted,
+          fontSize: 11,
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        for (var i = 0; i < rows.length; i++) ...<Widget>[
+          if (i > 0) const SizedBox(height: AleraTokens.space4),
+          rows[i],
+        ],
+      ],
+    );
+  }
+}
+
+class _McpToolDetail extends StatelessWidget {
+  const _McpToolDetail({required this.cell});
+  final TimelineCell cell;
+
+  @override
+  Widget build(BuildContext context) {
+    final arguments = cell.metadata['arguments'];
+    final result = cell.detailsText ?? '';
+    final hasArgs = arguments is Map && arguments.isNotEmpty;
+    final hasResult = result.trim().isNotEmpty;
+    final monoStyle = AleraTokens.monoStyle.copyWith(
+      color: AleraTokens.foregroundMuted,
+      fontSize: 11,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        if (hasArgs) ...<Widget>[
+          const _SectionHeader(label: 'Arguments'),
+          ..._buildMapRows(arguments as Map<String, dynamic>),
+        ],
+        if (hasArgs && hasResult)
+          const SizedBox(height: AleraTokens.space8),
+        if (hasResult) ...<Widget>[
+          const _SectionHeader(label: 'Result'),
+          SelectableText(_prettyDetails(result), style: monoStyle),
+        ],
+      ],
+    );
+  }
+
+  List<Widget> _buildMapRows(Map<String, dynamic> map) {
+    return <Widget>[
+      for (var i = 0; i < map.entries.length; i++) ...<Widget>[
+        if (i > 0) const SizedBox(height: AleraTokens.space4),
+        _KeyValueRow(
+          label: map.entries.elementAt(i).key,
+          value: _formatValue(map.entries.elementAt(i).value),
+        ),
+      ],
+    ];
+  }
+
+  String _formatValue(dynamic value) {
+    if (value == null) return 'null';
+    if (value is String) return value;
+    if (value is num || value is bool) return value.toString();
+    try {
+      return const JsonEncoder.withIndent('  ').convert(value);
+    } catch (_) {
+      return value.toString();
+    }
   }
 }
 
@@ -791,32 +1043,15 @@ class _SubAgentCellState extends State<SubAgentCell> {
     }
   }
 
-  String _formatDetails() {
+  bool _hasDetails() {
     final arguments = widget.cell.metadata['arguments'];
     final output = widget.cell.metadata['output'];
     final result = widget.cell.metadata['result'];
-    final buffer = StringBuffer();
-    if (arguments != null) {
-      buffer.writeln('// Arguments');
-      buffer.writeln(const JsonEncoder.withIndent('  ').convert(arguments));
-    }
-    if (output != null && output.toString().isNotEmpty) {
-      if (buffer.isNotEmpty) buffer.writeln();
-      buffer.writeln('// Output');
-      buffer.writeln(output);
-    }
-    if (result != null) {
-      if (buffer.isNotEmpty) buffer.writeln();
-      buffer.writeln('// Result');
-      buffer.writeln(const JsonEncoder.withIndent('  ').convert(result));
-    }
     final detailsText = widget.cell.detailsText;
-    if (detailsText != null && detailsText.isNotEmpty) {
-      if (buffer.isNotEmpty) buffer.writeln();
-      buffer.writeln('// Details');
-      buffer.writeln(detailsText);
-    }
-    return buffer.toString().trim();
+    return (arguments is Map && arguments.isNotEmpty) ||
+        (output != null && output.toString().isNotEmpty) ||
+        result != null ||
+        (detailsText != null && detailsText.isNotEmpty);
   }
 
   @override
@@ -827,7 +1062,6 @@ class _SubAgentCellState extends State<SubAgentCell> {
     final rowLabel = (subtitle == null || subtitle.isEmpty)
         ? title
         : '$title · $subtitle';
-    final details = _formatDetails();
     return Padding(
       padding: EdgeInsets.zero,
       child: Column(
@@ -910,7 +1144,7 @@ class _SubAgentCellState extends State<SubAgentCell> {
               ),
             ),
           ),
-          if (!_collapsed && details.isNotEmpty)
+          if (!_collapsed && _hasDetails())
             Container(
               margin: const EdgeInsets.only(
                 left: AleraTokens.space8,
@@ -922,17 +1156,102 @@ class _SubAgentCellState extends State<SubAgentCell> {
                 borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
                 border: Border.all(color: AleraTokens.borderSubtle),
               ),
-              child: SelectableText(
-                details,
-                style: AleraTokens.monoStyle.copyWith(
-                  color: AleraTokens.foregroundMuted,
-                  fontSize: 11,
-                ),
-              ),
+              child: _SubAgentDetailContent(cell: widget.cell),
             ),
         ],
       ),
     );
+  }
+}
+
+class _SubAgentDetailContent extends StatelessWidget {
+  const _SubAgentDetailContent({required this.cell});
+  final TimelineCell cell;
+
+  @override
+  Widget build(BuildContext context) {
+    final arguments = cell.metadata['arguments'];
+    final output = cell.metadata['output'];
+    final result = cell.metadata['result'];
+    final detailsText = cell.detailsText;
+    final hasArgs = arguments is Map && arguments.isNotEmpty;
+    final hasOutput = output != null && output.toString().isNotEmpty;
+    final hasResult = result != null;
+    final hasDetails = detailsText != null && detailsText.isNotEmpty;
+    final monoStyle = AleraTokens.monoStyle.copyWith(
+      color: AleraTokens.foregroundMuted,
+      fontSize: 11,
+    );
+    final sections = <Widget>[];
+    if (hasArgs) {
+      sections.add(const _SectionHeader(label: 'Arguments'));
+      if (arguments is Map<String, dynamic>) {
+        for (var i = 0; i < arguments.entries.length; i++) {
+          if (i > 0) sections.add(const SizedBox(height: AleraTokens.space4));
+          sections.add(_KeyValueRow(
+            label: arguments.entries.elementAt(i).key,
+            value: _formatValue(arguments.entries.elementAt(i).value),
+          ));
+        }
+      } else {
+        sections.add(SelectableText(
+          _prettyDetails(const JsonEncoder.withIndent('  ').convert(arguments)),
+          style: monoStyle,
+        ));
+      }
+    }
+    if (hasOutput) {
+      if (sections.isNotEmpty) {
+        sections.add(const SizedBox(height: AleraTokens.space8));
+      }
+      sections.add(const _SectionHeader(label: 'Output'));
+      sections.add(SelectableText(output.toString(), style: monoStyle));
+    }
+    if (hasResult) {
+      if (sections.isNotEmpty) {
+        sections.add(const SizedBox(height: AleraTokens.space8));
+      }
+      sections.add(const _SectionHeader(label: 'Result'));
+      if (result is Map<String, dynamic>) {
+        for (var i = 0; i < result.entries.length; i++) {
+          if (i > 0) sections.add(const SizedBox(height: AleraTokens.space4));
+          sections.add(_KeyValueRow(
+            label: result.entries.elementAt(i).key,
+            value: _formatValue(result.entries.elementAt(i).value),
+          ));
+        }
+      } else {
+        sections.add(SelectableText(
+          _prettyDetails(_formatValue(result)),
+          style: monoStyle,
+        ));
+      }
+    }
+    if (hasDetails) {
+      if (sections.isNotEmpty) {
+        sections.add(const SizedBox(height: AleraTokens.space8));
+      }
+      sections.add(const _SectionHeader(label: 'Details'));
+      sections.add(SelectableText(
+        _prettyDetails(detailsText),
+        style: monoStyle,
+      ));
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: sections,
+    );
+  }
+
+  String _formatValue(dynamic value) {
+    if (value == null) return 'null';
+    if (value is String) return value;
+    if (value is num || value is bool) return value.toString();
+    try {
+      return const JsonEncoder.withIndent('  ').convert(value);
+    } catch (_) {
+      return value.toString();
+    }
   }
 }
 
