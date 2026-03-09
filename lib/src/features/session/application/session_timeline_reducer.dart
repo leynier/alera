@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:alera/src/features/session/application/session_runtime_event.dart';
-import 'package:alera/src/shared/utils/cast_utils.dart';
 import 'package:alera/src/features/session/application/session_state.dart';
 import 'package:alera/src/features/session/application/streaming/adaptive_chunking_policy.dart';
 import 'package:alera/src/features/session/application/streaming/commit_tick_engine.dart';
@@ -11,6 +10,7 @@ import 'package:alera/src/features/session/domain/collab_agent.dart';
 import 'package:alera/src/features/session/domain/composer_attachment.dart';
 import 'package:alera/src/features/session/domain/composer_draft_item.dart';
 import 'package:alera/src/features/session/domain/token_usage.dart';
+import 'package:alera/src/shared/utils/cast_utils.dart';
 
 SessionState appendOptimisticUserMessage(
   SessionState state, {
@@ -73,10 +73,9 @@ SessionState appendQuestionAnswerCell(
     status: TimelineCellStatus.completed,
     createdAt: timestamp,
     updatedAt: timestamp,
-    title: 'Asked ${questionAnswers.length} question${questionAnswers.length == 1 ? '' : 's'}',
-    metadata: <String, dynamic>{
-      'questions': questionAnswers,
-    },
+    title:
+        'Asked ${questionAnswers.length} question${questionAnswers.length == 1 ? '' : 's'}',
+    metadata: <String, dynamic>{'questions': questionAnswers},
   );
   return state.copyWith(
     timelineCells: <TimelineCell>[...state.timelineCells, cell],
@@ -298,8 +297,8 @@ SessionState reduceCommitTick(
             nextText = currentText.isEmpty
                 ? text
                 : line.appendWithoutNewline
-                    ? '$currentText$text'
-                    : '$currentText\n$text';
+                ? '$currentText$text'
+                : '$currentText\n$text';
           }
           cells[assistantIndex] = existing.copyWith(
             turnId: line.turnId,
@@ -2112,11 +2111,7 @@ SessionState _onAssistantItemCompleted(
 
   if (phase == 'commentary') {
     if (finalText.trim().isNotEmpty &&
-        !_hasProgressTextForItem(
-          cells,
-          turnId: turnId,
-          itemId: itemId,
-        )) {
+        !_hasProgressTextForItem(cells, turnId: turnId, itemId: itemId)) {
       cells.add(
         TimelineCell(
           id: 'commentary-$turnId-${timestamp.microsecondsSinceEpoch}',
@@ -3150,7 +3145,7 @@ SessionState _onSubAgentStarted(
   final title = _subAgentTitle(arguments, fallbackTask);
   final metadata = <String, dynamic>{
     'isSubAgent': true,
-    if (arguments != null) 'arguments': arguments,
+    'arguments': ?arguments,
   };
   if (existingIndex == -1) {
     cells.add(
@@ -3268,8 +3263,8 @@ SessionState _onSubAgentCompleted(
     final title = _subAgentTitle(arguments, fallbackTask);
     final metadata = <String, dynamic>{
       'isSubAgent': true,
-      if (arguments != null) 'arguments': arguments,
-      if (result != null) 'result': result,
+      'arguments': ?arguments,
+      'result': ?result,
     };
     cells.add(
       TimelineCell(
@@ -3287,10 +3282,7 @@ SessionState _onSubAgentCompleted(
     );
   } else {
     final existing = cells[existingIndex];
-    final metadata = <String, dynamic>{
-      ...existing.metadata,
-      if (result != null) 'result': result,
-    };
+    final metadata = <String, dynamic>{...existing.metadata, 'result': ?result};
     cells[existingIndex] = existing.copyWith(
       status: status,
       updatedAt: timestamp,

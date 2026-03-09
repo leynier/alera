@@ -1,5 +1,5 @@
-import 'package:alera/src/features/session/application/session_state.dart';
 import 'package:alera/src/features/session/application/session_runtime_event.dart';
+import 'package:alera/src/features/session/application/session_state.dart';
 import 'package:alera/src/features/session/application/session_timeline_reducer.dart';
 import 'package:alera/src/features/session/domain/chat_timeline.dart';
 import 'package:alera/src/features/session/domain/pending_message.dart';
@@ -94,7 +94,7 @@ Future<void> _pumpWorkspace(
           onRemoveFromQueue: (_) {},
           onSteerQueuedMessage: (_) {},
           onStartEditingPendingMessage: (_) {},
-          onUpdatePendingMessage: (_, __, ___) {},
+          onUpdatePendingMessage: (_, _, _) {},
           onDeletePendingMessage: (_) {},
           onFinishEditingPendingMessage: () {},
           onPlanModeToggled: onPlanModeToggled ?? () {},

@@ -1,6 +1,4 @@
 import 'package:alera/src/features/steer/application/steer_controller.dart';
-import 'package:alera/src/features/steer/domain/steer_state.dart';
-import 'package:alera/src/shared/infra/storage/preferences_store.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../unit/_fakes.dart';
