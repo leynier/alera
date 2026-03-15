@@ -707,15 +707,7 @@ class ComposerState extends State<Composer> {
                                 AleraTokens.radiusLg,
                               ),
                               mouseCursor: SystemMouseCursors.click,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: widget.planModeEnabled
-                                      ? AleraTokens.info.withValues(alpha: 0.14)
-                                      : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(
-                                    AleraTokens.radiusLg,
-                                  ),
-                                ),
+                              child: Padding(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: AleraTokens.space8,
                                   vertical: AleraTokens.space4,
