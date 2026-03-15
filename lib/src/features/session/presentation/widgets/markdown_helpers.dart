@@ -28,12 +28,10 @@ Widget buildMarkdownContent({
     );
   }
   final prepared = remend(normalizeMarkdownNewlines(text));
-  return SelectionContainer.disabled(
-    child: MarkdownBody(
-      data: prepared,
-      styleSheet: _buildStyleSheet(markdownStyle ?? textStyle),
-      selectable: true,
-    ),
+  return _SelectionSafeMarkdownBody(
+    data: prepared,
+    styleSheet: _buildStyleSheet(markdownStyle ?? textStyle),
+    selectable: false,
   );
 }
 
@@ -237,6 +235,30 @@ class MessageCopyButton extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// [MarkdownBody] subclass that wraps [Table] children in
+/// [SelectionContainer.disabled] so the parent [SelectionArea] does not
+/// dispatch selection events to them (which would crash with the
+/// `geometry.hasSelection` assertion). All other children remain plain
+/// [Text.rich] widgets that register with [SelectionArea] for
+/// cross-paragraph selection.
+class _SelectionSafeMarkdownBody extends MarkdownBody {
+  const _SelectionSafeMarkdownBody({
+    required super.data,
+    super.styleSheet,
+    super.selectable,
+  });
+  @override
+  Widget build(BuildContext context, List<Widget>? children) {
+    final safe = children?.map((child) {
+      if (child is Table) {
+        return SelectionContainer.disabled(child: child);
+      }
+      return child;
+    }).toList();
+    return super.build(context, safe);
   }
 }
 

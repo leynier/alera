@@ -639,7 +639,7 @@ void main() {
 
     await _pumpWorkspace(tester, state: state);
 
-    expect(find.byType(MarkdownBody), findsOneWidget);
+    expect(find.byWidgetPredicate((w) => w is MarkdownBody), findsOneWidget);
     expect(find.textContaining('negrita'), findsOneWidget);
     expect(find.text('Streaming...'), findsOneWidget);
   });
@@ -661,7 +661,7 @@ void main() {
 
     await _pumpWorkspace(tester, state: state);
 
-    expect(find.byType(MarkdownBody), findsOneWidget);
+    expect(find.byWidgetPredicate((w) => w is MarkdownBody), findsOneWidget);
     expect(find.textContaining('**negrita**'), findsNothing);
     expect(find.textContaining('negrita'), findsOneWidget);
   });
@@ -687,7 +687,7 @@ void main() {
 
       await _pumpWorkspace(tester, state: state);
 
-      final markdownRect = tester.getRect(find.byType(MarkdownBody));
+      final markdownRect = tester.getRect(find.byWidgetPredicate((w) => w is MarkdownBody));
       expect(markdownRect.width, greaterThan(650));
     },
   );
@@ -760,7 +760,7 @@ void main() {
 
       await _pumpWorkspace(tester, state: state);
 
-      final streamingRect = tester.getRect(find.byType(MarkdownBody));
+      final streamingRect = tester.getRect(find.byWidgetPredicate((w) => w is MarkdownBody));
       expect(streamingRect.width, greaterThan(650));
     },
   );
@@ -782,7 +782,7 @@ void main() {
 
       await _pumpWorkspace(tester, state: state);
 
-      expect(find.byType(MarkdownBody), findsOneWidget);
+      expect(find.byWidgetPredicate((w) => w is MarkdownBody), findsOneWidget);
       expect(find.textContaining('backtick abierto'), findsOneWidget);
     },
   );
@@ -810,10 +810,9 @@ void main() {
       await _pumpWorkspace(tester, state: state);
 
       expect(find.byType(SelectionArea), findsOneWidget);
-      // MarkdownBody(selectable: true) renders SelectableText widgets that
-      // handle their own selection, wrapped in SelectionContainer.disabled
-      // to prevent the parent SelectionArea from dispatching to Table widgets.
-      expect(find.byType(SelectableText), findsWidgets);
+      // MarkdownBody(selectable: false) renders Text.rich (RichText) that
+      // registers with the parent SelectionArea for cross-paragraph selection.
+      expect(find.byType(RichText), findsWidgets);
     },
   );
 
@@ -856,7 +855,7 @@ void main() {
 
     await _pumpWorkspace(tester, state: state);
 
-    expect(find.byType(MarkdownBody), findsOneWidget);
+    expect(find.byWidgetPredicate((w) => w is MarkdownBody), findsOneWidget);
     expect(find.textContaining('**negrita**'), findsNothing);
     expect(find.textContaining('negrita'), findsOneWidget);
   });
@@ -877,7 +876,7 @@ void main() {
 
     await _pumpWorkspace(tester, state: state);
 
-    expect(find.byType(MarkdownBody), findsOneWidget);
+    expect(find.byWidgetPredicate((w) => w is MarkdownBody), findsOneWidget);
     expect(find.textContaining('backtick abierto'), findsOneWidget);
   });
 
@@ -897,7 +896,7 @@ void main() {
 
     await _pumpWorkspace(tester, state: state, isMarkdownEnabled: false);
 
-    expect(find.byType(MarkdownBody), findsNothing);
+    expect(find.byWidgetPredicate((w) => w is MarkdownBody), findsNothing);
     expect(find.text('Texto con **negrita**'), findsOneWidget);
   });
 
@@ -1257,7 +1256,7 @@ void main() {
 
     await _pumpWorkspace(tester, state: state, isMarkdownEnabled: false);
 
-    expect(find.byType(MarkdownBody), findsNothing);
+    expect(find.byWidgetPredicate((w) => w is MarkdownBody), findsNothing);
     expect(find.text('Texto con **negrita**'), findsOneWidget);
   });
 
