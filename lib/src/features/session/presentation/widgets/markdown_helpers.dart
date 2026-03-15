@@ -38,6 +38,16 @@ Widget buildMarkdownContent({
     onTapLink: _onTapLink,
     inlineSyntaxes: [md.EmojiSyntax()],
     builders: {'pre': CodeBlockBuilder()},
+    checkboxBuilder: (bool checked) {
+      return Transform.translate(
+        offset: const Offset(0, 4),
+        child: Icon(
+          checked ? Icons.check_box : Icons.check_box_outline_blank,
+          size: 18,
+          color: checked ? AleraTokens.success : AleraTokens.foregroundFaint,
+        ),
+      );
+    },
   );
 }
 
@@ -265,6 +275,7 @@ class _SelectionSafeMarkdownBody extends MarkdownBody {
     super.onTapLink,
     super.inlineSyntaxes,
     super.builders,
+    super.checkboxBuilder,
   });
   @override
   Widget build(BuildContext context, List<Widget>? children) {
