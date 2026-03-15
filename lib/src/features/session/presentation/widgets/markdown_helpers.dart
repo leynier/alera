@@ -227,7 +227,7 @@ class MessageMarkdownToggleButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool effectivelyActive = !mouseIsConnected() || active;
     return Tooltip(
-      message: effectivelyActive ? (markdownEnabled ? 'Markdown ON' : 'Markdown OFF') : '',
+      message: effectivelyActive ? (markdownEnabled ? 'Markdown on' : 'Markdown off') : '',
       child: InkWell(
         onTap: effectivelyActive ? () => onChanged(!markdownEnabled) : null,
         mouseCursor: effectivelyActive ? SystemMouseCursors.click : SystemMouseCursors.basic,

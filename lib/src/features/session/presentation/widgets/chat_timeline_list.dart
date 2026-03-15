@@ -46,7 +46,7 @@ class ChatTimelineList extends StatelessWidget {
             child: FilledButton(
               key: const ValueKey<String>('implement-plan-button'),
               onPressed: onImplementPlanPressed,
-              child: const Text('Implement Plan'),
+              child: const Text('Implement plan'),
             ),
           ),
         ),
