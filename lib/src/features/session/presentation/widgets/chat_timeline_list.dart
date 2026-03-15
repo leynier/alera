@@ -34,63 +34,60 @@ class ChatTimelineList extends StatelessWidget {
     if (state.timelineCells.isEmpty) {
       return EmptyChatState(state: state);
     }
-
-    final widgets = _buildTimelineWidgets();
-
-    if (showImplementPlanButton) {
-      widgets.add(
-        Padding(
-          padding: const EdgeInsets.only(bottom: AleraTokens.space8),
-          child: Align(
-            alignment: Alignment.center,
-            child: FilledButton(
-              key: const ValueKey<String>('implement-plan-button'),
-              onPressed: onImplementPlanPressed,
-              child: const Text('Implement plan'),
-            ),
-          ),
-        ),
-      );
-    }
+    final items = _buildTimelineItems();
+    final itemCount = items.length + (showImplementPlanButton ? 1 : 0);
 
     return SelectionArea(
-      child: SingleChildScrollView(
+      child: ListView.builder(
         key: const ValueKey<String>('timeline-list'),
         controller: controller,
         padding: const EdgeInsets.all(AleraTokens.space16),
-        child: Center(
-          child: ConstrainedBox(
-            key: const ValueKey<String>('timeline-content-container'),
-            constraints: BoxConstraints(maxWidth: contentMaxWidth),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: widgets,
+        itemCount: itemCount,
+        itemBuilder: (context, index) {
+          final Widget child;
+          if (index < items.length) {
+            child = _buildTimelineItem(items[index]);
+          } else {
+            child = Padding(
+              padding: const EdgeInsets.only(bottom: AleraTokens.space8),
+              child: Align(
+                alignment: Alignment.center,
+                child: FilledButton(
+                  key: const ValueKey<String>('implement-plan-button'),
+                  onPressed: onImplementPlanPressed,
+                  child: const Text('Implement plan'),
+                ),
+              ),
+            );
+          }
+
+          return Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: contentMaxWidth),
+              child: child,
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
 
-  List<Widget> _buildTimelineWidgets() {
-    final items = _buildTimelineItems();
-    return items.map((item) {
-      return switch (item) {
-        _CellItem(cell: final cell) => _timelineCellWithSpacing(cell),
-        _ClusterItem(cells: final cluster) => Padding(
-          padding: const EdgeInsets.only(bottom: AleraTokens.space8),
-          child: ExploringClusterCell(
-            key: ValueKey(
-              'cluster-open-${cluster.first.id}-${cluster.last.id}',
-            ),
-            cells: cluster,
-          ),
+  Widget _buildTimelineItem(_TimelineItem item) {
+    return switch (item) {
+      _CellItem(cell: final cell) => _timelineCellWithSpacing(cell),
+      _ClusterItem(cells: final cluster) => Padding(
+        padding: const EdgeInsets.only(bottom: AleraTokens.space8),
+        child: ExploringClusterCell(
+          key: ValueKey('cluster-open-${cluster.first.id}-${cluster.last.id}'),
+          cells: cluster,
         ),
-        _TurnItem(
-          turnId: final turnId,
-          separator: final separator,
-          turnCells: final turnCells,
-        ) => Padding(
+      ),
+      _TurnItem(
+        turnId: final turnId,
+        separator: final separator,
+        turnCells: final turnCells,
+      ) =>
+        Padding(
           padding: const EdgeInsets.only(bottom: AleraTokens.space8),
           child: CompletedTurnSection(
             turnId: turnId,
@@ -102,8 +99,7 @@ class ChatTimelineList extends StatelessWidget {
             onMarkdownModeChanged: onMarkdownModeChanged,
           ),
         ),
-      };
-    }).toList();
+    };
   }
 
   List<_TimelineItem> _buildTimelineItems() {
@@ -162,11 +158,7 @@ class ChatTimelineList extends StatelessWidget {
       renderedCompletedTurns.add(turnId);
       final turnCells = turnCellsMap[turnId] ?? const <TimelineCell>[];
       items.add(
-        _TurnItem(
-          turnId: turnId,
-          separator: separator,
-          turnCells: turnCells,
-        ),
+        _TurnItem(turnId: turnId, separator: separator, turnCells: turnCells),
       );
     }
     return items;

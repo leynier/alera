@@ -54,12 +54,15 @@ class _AleraShellPageState extends ConsumerState<AleraShellPage> {
     final workspacePath = ref.watch(
       sessionControllerProvider.select((s) => s.selectedWorkspacePath),
     );
+    final statusBarWorkspacePath = ref.watch(
+      sessionControllerProvider.select(
+        (s) => s.activeSession?.workspacePath ?? s.selectedWorkspacePath,
+      ),
+    );
     final activeSessionTitle = ref.watch(
       sessionControllerProvider.select((s) => s.activeSession?.title),
     );
-    final isBusy = ref.watch(
-      sessionControllerProvider.select((s) => s.isBusy),
-    );
+    final isBusy = ref.watch(sessionControllerProvider.select((s) => s.isBusy));
     final activityLogEmpty = ref.watch(
       sessionControllerProvider.select((s) => s.activityLog.isEmpty),
     );
@@ -99,11 +102,12 @@ class _AleraShellPageState extends ConsumerState<AleraShellPage> {
             runningTurnCount: runningTurnCount,
             statusHeader: statusHeader,
             lastTurnDiff: lastTurnDiff,
-            workspacePath: workspacePath,
+            workspacePath: statusBarWorkspacePath,
             rawLogExpanded: _rawLogExpanded,
             onToggleRawLog: () =>
                 setState(() => _rawLogExpanded = !_rawLogExpanded),
-            onCopyRawLog: () => _copyRawLog(ref.read(sessionControllerProvider)),
+            onCopyRawLog: () =>
+                _copyRawLog(ref.read(sessionControllerProvider)),
             canCopyRawLog: !activityLogEmpty,
           ),
         ],
@@ -364,7 +368,9 @@ class _EmptyState extends StatelessWidget {
                   color: AleraTokens.foregroundMuted,
                 ),
               ),
-              if (actionLabel != null && actionLabel!.trim().isNotEmpty && onAction != null) ...<Widget>[
+              if (actionLabel != null &&
+                  actionLabel!.trim().isNotEmpty &&
+                  onAction != null) ...<Widget>[
                 const SizedBox(height: AleraTokens.space24),
                 FilledButton.icon(
                   onPressed: onAction,

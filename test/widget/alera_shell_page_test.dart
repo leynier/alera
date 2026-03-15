@@ -16,20 +16,32 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _ShellFakeSessionService implements SessionService {
+  _ShellFakeSessionService({
+    List<AleraSession> sessions = const <AleraSession>[],
+  }) : _sessions = List<AleraSession>.of(sessions);
+
   final StreamController<SessionRuntimeEvent> _eventsController =
       StreamController<SessionRuntimeEvent>.broadcast();
+  final List<AleraSession> _sessions;
 
   @override
   Stream<SessionRuntimeEvent> get events => _eventsController.stream;
 
   @override
-  List<AleraSession> get sessions => const <AleraSession>[];
+  List<AleraSession> get sessions => List<AleraSession>.unmodifiable(_sessions);
 
   @override
   Future<void> ensureConnected() async {}
 
   @override
-  AleraSession? findLatestSessionForWorkspace(String workspacePath) => null;
+  AleraSession? findLatestSessionForWorkspace(String workspacePath) {
+    for (final session in _sessions.reversed) {
+      if (session.workspacePath == workspacePath) {
+        return session;
+      }
+    }
+    return null;
+  }
 
   @override
   Future<AleraSession> createSession(SessionCreateRequest request) {
@@ -134,8 +146,8 @@ class _ShellFakeSessionService implements SessionService {
   }
 
   @override
-  Future<AleraSession> setActiveSession(String sessionId) {
-    throw UnimplementedError();
+  Future<AleraSession> setActiveSession(String sessionId) async {
+    return _sessions.firstWhere((session) => session.id == sessionId);
   }
 
   @override
@@ -196,9 +208,31 @@ class _ShellFakeSettingsService implements SettingsService {
 }
 
 void main() {
-  Future<(SessionController, _ShellFakeSessionService)>
-  buildController() async {
-    final fakeService = _ShellFakeSessionService();
+  AleraSession buildSession({
+    required String id,
+    required String workspacePath,
+    String title = 'session',
+  }) {
+    final now = DateTime.utc(2026, 3, 15);
+    return AleraSession(
+      id: id,
+      request: SessionCreateRequest(
+        projectPath: workspacePath,
+        firstPrompt: 'hello',
+        model: 'gpt-5.3-codex',
+      ),
+      workspacePath: workspacePath,
+      createdAt: now,
+      updatedAt: now,
+      title: title,
+      model: 'gpt-5.3-codex',
+    );
+  }
+
+  Future<(SessionController, _ShellFakeSessionService)> buildController({
+    List<AleraSession> sessions = const <AleraSession>[],
+  }) async {
+    final fakeService = _ShellFakeSessionService(sessions: sessions);
     final controller = SessionController(
       sessionService: fakeService,
       projectService: _ShellFakeProjectService(),
@@ -297,6 +331,47 @@ void main() {
 
     expect((topBarRect.width - scaffoldRect.width).abs(), lessThan(1.0));
     expect((statusBarRect.width - scaffoldRect.width).abs(), lessThan(1.0));
+  });
+
+  testWidgets('status bar shows active session workspace path fallback', (
+    tester,
+  ) async {
+    final session = buildSession(
+      id: 'session-1',
+      workspacePath: '/session-repo',
+      title: 'existing session',
+    );
+    final (controller, fakeService) = await buildController(
+      sessions: <AleraSession>[session],
+    );
+    addTearDown(() async {
+      await fakeService.shutdown();
+    });
+
+    controller.state = controller.state.copyWith(
+      selectedWorkspacePath: '/selected-repo',
+      sessions: <AleraSession>[session],
+      activeSessionId: session.id,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          sessionControllerProvider.overrideWith((ref) => controller),
+        ],
+        child: const MaterialApp(home: AleraShellPage()),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(
+      find.descendant(
+        of: find.byType(AleraStatusBar),
+        matching: find.text('/session-repo'),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('empty state unchanged when no workspace is selected', (
