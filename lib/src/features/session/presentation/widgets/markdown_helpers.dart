@@ -1,10 +1,13 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/features/session/presentation/widgets/code_block_builder.dart';
 import 'package:alera/src/shared/presentation/toast/alera_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
+import 'package:markdown/markdown.dart' as md;
 import 'package:remend/remend.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 @visibleForTesting
 bool Function() copyMouseConnectionDetector = () =>
@@ -32,6 +35,9 @@ Widget buildMarkdownContent({
     data: prepared,
     styleSheet: _buildStyleSheet(markdownStyle ?? textStyle),
     selectable: false,
+    onTapLink: _onTapLink,
+    inlineSyntaxes: [md.EmojiSyntax()],
+    builders: {'pre': CodeBlockBuilder()},
   );
 }
 
@@ -61,6 +67,13 @@ MarkdownStyleSheet _buildStyleSheet(TextStyle? baseStyle) {
     ),
     blockSpacing: AleraTokens.space8,
   );
+}
+
+void _onTapLink(String text, String? href, String title) {
+  if (href == null || href.isEmpty) return;
+  final uri = Uri.tryParse(href);
+  if (uri == null) return;
+  launchUrl(uri, mode: LaunchMode.externalApplication);
 }
 
 final _blockLinePattern = RegExp(
@@ -249,6 +262,9 @@ class _SelectionSafeMarkdownBody extends MarkdownBody {
     required super.data,
     super.styleSheet,
     super.selectable,
+    super.onTapLink,
+    super.inlineSyntaxes,
+    super.builders,
   });
   @override
   Widget build(BuildContext context, List<Widget>? children) {
