@@ -810,10 +810,10 @@ void main() {
       await _pumpWorkspace(tester, state: state);
 
       expect(find.byType(SelectionArea), findsOneWidget);
-      // MarkdownBody uses SelectionContainer.disabled to avoid right-click
-      // crashes with Table widgets. Text is rendered as RichText, not
-      // SelectableText.
-      expect(find.byType(SelectionContainer), findsWidgets);
+      // MarkdownBody(selectable: true) renders SelectableText widgets that
+      // handle their own selection, wrapped in SelectionContainer.disabled
+      // to prevent the parent SelectionArea from dispatching to Table widgets.
+      expect(find.byType(SelectableText), findsWidgets);
     },
   );
 

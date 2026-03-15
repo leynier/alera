@@ -32,7 +32,7 @@ Widget buildMarkdownContent({
     child: MarkdownBody(
       data: prepared,
       styleSheet: _buildStyleSheet(markdownStyle ?? textStyle),
-      selectable: false,
+      selectable: true,
     ),
   );
 }
