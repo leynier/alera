@@ -1,5 +1,5 @@
-import 'package:alera/src/features/session/application/session_state.dart';
 import 'package:alera/src/features/shell/presentation/alera_status_bar.dart';
+import 'package:alera/src/shared/models/contracts.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -14,7 +14,9 @@ Future<void> _pumpStatusBar(
     MaterialApp(
       home: Scaffold(
         body: AleraStatusBar(
-          state: const SessionState(selectedWorkspacePath: '/repo'),
+          connectionState: AppServerConnectionState.connected,
+          runningTurnCount: 0,
+          workspacePath: '/repo',
           rawLogExpanded: rawLogExpanded,
           onToggleRawLog: onToggleRawLog,
           onCopyRawLog: onCopyRawLog,
@@ -34,10 +36,9 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: AleraStatusBar(
-            state: const SessionState(
-              selectedWorkspacePath: '/repo',
-              turnRuntimeMetrics: <String, dynamic>{'totalTokens': 205000},
-            ),
+            connectionState: AppServerConnectionState.connected,
+            runningTurnCount: 0,
+            workspacePath: '/repo',
             rawLogExpanded: false,
             onToggleRawLog: () {},
             onCopyRawLog: () {},

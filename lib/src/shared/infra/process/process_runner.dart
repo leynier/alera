@@ -27,7 +27,7 @@ class StartedProcess {
   final Stream<List<int>> stderr;
   final int pid;
   final Future<int> exitCode;
-  final bool Function() kill;
+  final bool Function([dynamic signal]) kill;
 }
 
 abstract interface class ProcessRunner {

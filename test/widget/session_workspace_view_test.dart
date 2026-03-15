@@ -1,3 +1,4 @@
+import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/session/application/session_runtime_event.dart';
 import 'package:alera/src/features/session/application/session_state.dart';
 import 'package:alera/src/features/session/application/session_timeline_reducer.dart';
@@ -130,6 +131,21 @@ IconButton _scrollToBottomButton(WidgetTester tester) {
   );
 }
 
+const double _timelineRowMaxWidth =
+    720 - (AleraTokens.space12 * 2) - AleraTokens.space8;
+
+Finder _timelineContentRowFinder() {
+  return find.descendant(
+    of: find.byKey(const ValueKey<String>('timeline-list')),
+    matching: find.byWidgetPredicate(
+      (widget) =>
+          widget is ConstrainedBox &&
+          widget.constraints.maxWidth == _timelineRowMaxWidth,
+      description: 'timeline content row',
+    ),
+  );
+}
+
 void main() {
   SessionState stateWithActiveSession({
     List<TimelineCell> timeline = const [],
@@ -223,7 +239,7 @@ void main() {
     },
   );
 
-  testWidgets('implement plan button renders inside timeline container', (
+  testWidgets('implement plan button renders inside a timeline row', (
     tester,
   ) async {
     final state = stateWithActiveSession(
@@ -246,10 +262,7 @@ void main() {
     );
     expect(buttonFinder, findsOneWidget);
     expect(
-      find.descendant(
-        of: find.byKey(const ValueKey<String>('timeline-content-container')),
-        matching: buttonFinder,
-      ),
+      find.ancestor(of: buttonFinder, matching: _timelineContentRowFinder()),
       findsOneWidget,
     );
   });
@@ -1941,12 +1954,10 @@ void main() {
         find.byKey(const ValueKey<String>('timeline-list')),
       );
       final scaffoldRect = tester.getRect(find.byType(Scaffold));
-      final contentRect = tester.getRect(
-        find.byKey(const ValueKey<String>('timeline-content-container')),
-      );
+      final contentRect = tester.getRect(_timelineContentRowFinder().first);
 
       expect((listRect.width - scaffoldRect.width).abs(), lessThan(1.0));
-      expect(contentRect.width, lessThanOrEqualTo(720));
+      expect(contentRect.width, lessThanOrEqualTo(_timelineRowMaxWidth));
       final leftGap = contentRect.left - listRect.left;
       final rightGap = listRect.right - contentRect.right;
       expect((leftGap - rightGap).abs(), lessThan(2.0));

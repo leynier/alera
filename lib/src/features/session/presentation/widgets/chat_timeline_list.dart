@@ -34,23 +34,19 @@ class ChatTimelineList extends StatelessWidget {
     if (state.timelineCells.isEmpty) {
       return EmptyChatState(state: state);
     }
-    final timelineWidgets = _buildTimelineWidgets();
-    final itemCount =
-        timelineWidgets.length + (showImplementPlanButton ? 1 : 0);
+    final items = _buildTimelineItems();
+    final itemCount = items.length + (showImplementPlanButton ? 1 : 0);
 
     return SelectionArea(
       child: ListView.builder(
         key: const ValueKey<String>('timeline-list'),
         controller: controller,
-        padding: const EdgeInsets.symmetric(
-          horizontal: AleraTokens.space16,
-          vertical: AleraTokens.space16,
-        ),
+        padding: const EdgeInsets.all(AleraTokens.space16),
         itemCount: itemCount,
         itemBuilder: (context, index) {
-          Widget child;
-          if (index < timelineWidgets.length) {
-            child = timelineWidgets[index];
+          final Widget child;
+          if (index < items.length) {
+            child = _buildTimelineItem(items[index]);
           } else {
             child = Padding(
               padding: const EdgeInsets.only(bottom: AleraTokens.space8),
@@ -59,7 +55,7 @@ class ChatTimelineList extends StatelessWidget {
                 child: FilledButton(
                   key: const ValueKey<String>('implement-plan-button'),
                   onPressed: onImplementPlanPressed,
-                  child: const Text('Implement Plan'),
+                  child: const Text('Implement plan'),
                 ),
               ),
             );
@@ -76,73 +72,21 @@ class ChatTimelineList extends StatelessWidget {
     );
   }
 
-  List<Widget> _buildTimelineWidgets() {
-    final cells = state.timelineCells;
-    final separatorsByTurn = <String, TimelineCell>{};
-    final firstIndexByTurn = <String, int>{};
-    for (var i = 0; i < cells.length; i++) {
-      final cell = cells[i];
-      final turnId = cell.turnId;
-      if (turnId != null) {
-        firstIndexByTurn.putIfAbsent(turnId, () => i);
-        if (cell.kind == TimelineCellKind.turnSeparator) {
-          separatorsByTurn[turnId] = cell;
-        }
-      }
-    }
-    final renderedCompletedTurns = <String>{};
-    final widgets = <Widget>[];
-    for (var i = 0; i < cells.length; i++) {
-      final cell = cells[i];
-      final turnId = cell.turnId;
-      if (turnId == null) {
-        if (cell.kind == TimelineCellKind.turnSeparator) {
-          continue;
-        }
-        widgets.add(_timelineCellWithSpacing(cell));
-        continue;
-      }
-      final separator = separatorsByTurn[turnId];
-      final isCompletedTurn = separator != null;
-      if (!isCompletedTurn) {
-        if (cell.kind == TimelineCellKind.turnSeparator) {
-          continue;
-        }
-        if (isExploratoryToolCell(cell)) {
-          final runLength = _exploratoryRunLength(cells, i);
-          if (runLength >= 2) {
-            final cluster = cells.sublist(i, i + runLength);
-            widgets.add(
-              Padding(
-                padding: const EdgeInsets.only(bottom: AleraTokens.space8),
-                child: ExploringClusterCell(
-                  key: ValueKey(
-                    'cluster-open-${cluster.first.id}-${cluster.last.id}',
-                  ),
-                  cells: cluster,
-                ),
-              ),
-            );
-            i += runLength - 1;
-            continue;
-          }
-        }
-        widgets.add(_timelineCellWithSpacing(cell));
-        continue;
-      }
-      final firstTurnIndex = firstIndexByTurn[turnId];
-      if (firstTurnIndex != i || renderedCompletedTurns.contains(turnId)) {
-        continue;
-      }
-      renderedCompletedTurns.add(turnId);
-      final turnCells = cells
-          .where(
-            (candidate) =>
-                candidate.turnId == turnId &&
-                candidate.kind != TimelineCellKind.turnSeparator,
-          )
-          .toList(growable: false);
-      widgets.add(
+  Widget _buildTimelineItem(_TimelineItem item) {
+    return switch (item) {
+      _CellItem(cell: final cell) => _timelineCellWithSpacing(cell),
+      _ClusterItem(cells: final cluster) => Padding(
+        padding: const EdgeInsets.only(bottom: AleraTokens.space8),
+        child: ExploringClusterCell(
+          key: ValueKey('cluster-open-${cluster.first.id}-${cluster.last.id}'),
+          cells: cluster,
+        ),
+      ),
+      _TurnItem(
+        turnId: final turnId,
+        separator: final separator,
+        turnCells: final turnCells,
+      ) =>
         Padding(
           padding: const EdgeInsets.only(bottom: AleraTokens.space8),
           child: CompletedTurnSection(
@@ -155,9 +99,69 @@ class ChatTimelineList extends StatelessWidget {
             onMarkdownModeChanged: onMarkdownModeChanged,
           ),
         ),
+    };
+  }
+
+  List<_TimelineItem> _buildTimelineItems() {
+    final cells = state.timelineCells;
+    final separatorsByTurn = <String, TimelineCell>{};
+    final firstIndexByTurn = <String, int>{};
+    final turnCellsMap = <String, List<TimelineCell>>{};
+
+    for (var i = 0; i < cells.length; i++) {
+      final cell = cells[i];
+      final turnId = cell.turnId;
+      if (turnId != null) {
+        firstIndexByTurn.putIfAbsent(turnId, () => i);
+        if (cell.kind == TimelineCellKind.turnSeparator) {
+          separatorsByTurn[turnId] = cell;
+        } else {
+          turnCellsMap.putIfAbsent(turnId, () => []).add(cell);
+        }
+      }
+    }
+
+    final renderedCompletedTurns = <String>{};
+    final items = <_TimelineItem>[];
+    for (var i = 0; i < cells.length; i++) {
+      final cell = cells[i];
+      final turnId = cell.turnId;
+      if (turnId == null) {
+        if (cell.kind == TimelineCellKind.turnSeparator) {
+          continue;
+        }
+        items.add(_CellItem(cell));
+        continue;
+      }
+      final separator = separatorsByTurn[turnId];
+      final isCompletedTurn = separator != null;
+      if (!isCompletedTurn) {
+        if (cell.kind == TimelineCellKind.turnSeparator) {
+          continue;
+        }
+        if (isExploratoryToolCell(cell)) {
+          final runLength = _exploratoryRunLength(cells, i);
+          if (runLength >= 2) {
+            final cluster = cells.sublist(i, i + runLength);
+            items.add(_ClusterItem(cluster));
+            i += runLength - 1;
+            continue;
+          }
+        }
+        items.add(_CellItem(cell));
+        continue;
+      }
+      final firstTurnIndex = firstIndexByTurn[turnId];
+      if (firstTurnIndex != i || renderedCompletedTurns.contains(turnId)) {
+        continue;
+      }
+      renderedCompletedTurns.add(turnId);
+      final turnCells = turnCellsMap[turnId] ?? const <TimelineCell>[];
+      items.add(
+        _TurnItem(turnId: turnId, separator: separator, turnCells: turnCells),
       );
     }
-    return widgets;
+    return items;
   }
 
   Widget _timelineCellWithSpacing(TimelineCell cell) {
@@ -490,6 +494,28 @@ class CompletedTurnSection extends StatelessWidget {
 String _uiPlacement(TimelineCell cell) {
   return (cell.metadata[TimelineCellMetadata.uiPlacementKey] ?? '')
       .toString()
-      .toLowerCase()
       .trim();
+}
+
+sealed class _TimelineItem {}
+
+class _CellItem extends _TimelineItem {
+  _CellItem(this.cell);
+  final TimelineCell cell;
+}
+
+class _ClusterItem extends _TimelineItem {
+  _ClusterItem(this.cells);
+  final List<TimelineCell> cells;
+}
+
+class _TurnItem extends _TimelineItem {
+  _TurnItem({
+    required this.turnId,
+    required this.separator,
+    required this.turnCells,
+  });
+  final String turnId;
+  final TimelineCell separator;
+  final List<TimelineCell> turnCells;
 }

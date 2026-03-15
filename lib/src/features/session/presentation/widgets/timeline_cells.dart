@@ -84,6 +84,8 @@ class UserMessageCell extends StatefulWidget {
 }
 
 class _UserMessageCellState extends State<UserMessageCell> {
+  bool _isHovered = false;
+
   List<Map<String, dynamic>> _parseAttachments() {
     final raw = widget.cell.metadata['attachments'];
     if (raw is! List) {
@@ -121,15 +123,18 @@ class _UserMessageCellState extends State<UserMessageCell> {
       alignment: Alignment.centerRight,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 760),
-        child: Padding(
-          padding: const EdgeInsets.only(
-            top: AleraTokens.space6,
-            bottom: AleraTokens.space4,
-            left: 80,
-          ),
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: <Widget>[
+        child: MouseRegion(
+          onEnter: (_) => setState(() => _isHovered = true),
+          onExit: (_) => setState(() => _isHovered = false),
+          child: Padding(
+            padding: const EdgeInsets.only(
+              top: AleraTokens.space6,
+              bottom: AleraTokens.space4,
+              left: 80,
+            ),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: <Widget>[
               Padding(
                 padding: const EdgeInsets.only(bottom: 18),
                 child: Column(
@@ -226,22 +231,25 @@ class _UserMessageCellState extends State<UserMessageCell> {
                   ],
                 ),
               ),
-              Positioned(
-                right: 0,
-                bottom: 0,
-                child: MessageActionButtons(
-                  alignLeft: false,
-                  copyKey: ValueKey<String>('copy-user-${widget.cell.id}'),
-                  copyText: messageText,
-                  copiedLabel: 'Message copied',
-                  toggleKey: ValueKey<String>(
-                    'toggle-markdown-user-${widget.cell.id}',
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: MessageActionButtons(
+                    key: ValueKey<String>('copy-zone-user-${widget.cell.id}'),
+                    alignLeft: false,
+                    copyKey: ValueKey<String>('copy-user-${widget.cell.id}'),
+                    copyText: messageText,
+                    copiedLabel: 'Message copied',
+                    toggleKey: ValueKey<String>(
+                      'toggle-markdown-user-${widget.cell.id}',
+                    ),
+                    markdownEnabled: widget.markdownEnabled,
+                    onToggleMarkdown: widget.onMarkdownModeChanged,
+                    active: _isHovered,
                   ),
-                  markdownEnabled: widget.markdownEnabled,
-                  onToggleMarkdown: widget.onMarkdownModeChanged,
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -270,6 +278,8 @@ class AssistantMessageCell extends StatefulWidget {
 }
 
 class _AssistantMessageCellState extends State<AssistantMessageCell> {
+  bool _isHovered = false;
+
   @override
   Widget build(BuildContext context) {
     final rawText = widget.cell.markdownText ?? '';
@@ -287,9 +297,12 @@ class _AssistantMessageCellState extends State<AssistantMessageCell> {
           constraints: const BoxConstraints(maxWidth: 760),
           child: SizedBox(
             width: double.infinity,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: <Widget>[
+            child: MouseRegion(
+              onEnter: (_) => setState(() => _isHovered = true),
+              onExit: (_) => setState(() => _isHovered = false),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: <Widget>[
                 Padding(
                   padding: const EdgeInsets.only(bottom: 18),
                   child: Container(
@@ -301,24 +314,29 @@ class _AssistantMessageCellState extends State<AssistantMessageCell> {
                     ),
                   ),
                 ),
-                Positioned(
-                  left: 0,
-                  bottom: 0,
-                  child: MessageActionButtons(
-                    alignLeft: true,
-                    copyKey: ValueKey<String>(
-                      'copy-assistant-${widget.cell.id}',
+                  Positioned(
+                    left: 0,
+                    bottom: 0,
+                    child: MessageActionButtons(
+                      key: ValueKey<String>(
+                        'copy-zone-assistant-${widget.cell.id}',
+                      ),
+                      alignLeft: true,
+                      copyKey: ValueKey<String>(
+                        'copy-assistant-${widget.cell.id}',
+                      ),
+                      copyText: rawText,
+                      copiedLabel: 'Message copied',
+                      toggleKey: ValueKey<String>(
+                        'toggle-markdown-assistant-${widget.cell.id}',
+                      ),
+                      markdownEnabled: widget.markdownEnabled,
+                      onToggleMarkdown: widget.onMarkdownModeChanged,
+                      active: _isHovered,
                     ),
-                    copyText: rawText,
-                    copiedLabel: 'Message copied',
-                    toggleKey: ValueKey<String>(
-                      'toggle-markdown-assistant-${widget.cell.id}',
-                    ),
-                    markdownEnabled: widget.markdownEnabled,
-                    onToggleMarkdown: widget.onMarkdownModeChanged,
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

@@ -76,7 +76,7 @@ void main() {
 
     await tester.enterText(find.byType(TextField).first, '/status');
     await tester.tap(
-      find.byKey(const ValueKey<String>('composer-send-stop-button')),
+      find.byKey(const ValueKey<String>('composer-action-button')),
     );
     await tester.pumpAndSettle();
 
@@ -92,7 +92,7 @@ void main() {
 
     await tester.enterText(find.byType(TextField).first, '/status');
     await tester.tap(
-      find.byKey(const ValueKey<String>('composer-send-stop-button')),
+      find.byKey(const ValueKey<String>('composer-action-button')),
     );
     await tester.pumpAndSettle();
 
@@ -120,7 +120,7 @@ void main() {
 
     await tester.enterText(find.byType(TextField).first, '/review');
     await tester.tap(
-      find.byKey(const ValueKey<String>('composer-send-stop-button')),
+      find.byKey(const ValueKey<String>('composer-action-button')),
     );
     await tester.pumpAndSettle();
 
@@ -152,7 +152,7 @@ void main() {
 
     await tester.enterText(find.byType(TextField).first, '/review');
     await tester.tap(
-      find.byKey(const ValueKey<String>('composer-send-stop-button')),
+      find.byKey(const ValueKey<String>('composer-action-button')),
     );
     await tester.pumpAndSettle();
 
@@ -184,7 +184,7 @@ void main() {
 
     await tester.enterText(find.byType(TextField).first, '/review');
     await tester.tap(
-      find.byKey(const ValueKey<String>('composer-send-stop-button')),
+      find.byKey(const ValueKey<String>('composer-action-button')),
     );
     await tester.pumpAndSettle();
 
@@ -211,7 +211,7 @@ void main() {
 
     await tester.enterText(find.byType(TextField).first, '/review');
     await tester.tap(
-      find.byKey(const ValueKey<String>('composer-send-stop-button')),
+      find.byKey(const ValueKey<String>('composer-action-button')),
     );
     await tester.pumpAndSettle();
 
@@ -253,7 +253,7 @@ void main() {
 
     await tester.enterText(find.byType(TextField).first, '/skills');
     await tester.tap(
-      find.byKey(const ValueKey<String>('composer-send-stop-button')),
+      find.byKey(const ValueKey<String>('composer-action-button')),
     );
     await tester.pumpAndSettle();
 
@@ -288,7 +288,7 @@ void main() {
 
     await tester.enterText(find.byType(TextField).first, '/skills');
     await tester.tap(
-      find.byKey(const ValueKey<String>('composer-send-stop-button')),
+      find.byKey(const ValueKey<String>('composer-action-button')),
     );
     await tester.pumpAndSettle();
 
@@ -319,7 +319,7 @@ void main() {
 
     await tester.enterText(find.byType(TextField).first, '/skills');
     await tester.tap(
-      find.byKey(const ValueKey<String>('composer-send-stop-button')),
+      find.byKey(const ValueKey<String>('composer-action-button')),
     );
     await tester.pumpAndSettle();
 

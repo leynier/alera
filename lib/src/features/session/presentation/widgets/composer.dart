@@ -489,7 +489,7 @@ class ComposerState extends State<Composer> {
     }
 
     return IconButton(
-      key: const ValueKey<String>('composer-send-stop-button'),
+      key: const ValueKey<String>('composer-action-button'),
       onPressed: onPressed,
       mouseCursor: SystemMouseCursors.click,
       constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
