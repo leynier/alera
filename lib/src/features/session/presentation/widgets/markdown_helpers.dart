@@ -3,8 +3,8 @@ import 'package:alera/src/shared/presentation/toast/alera_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_streaming_text_markdown/flutter_streaming_text_markdown.dart';
-import 'package:gpt_markdown/gpt_markdown.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
+import 'package:remend/remend.dart';
 
 @visibleForTesting
 bool Function() copyMouseConnectionDetector = () =>
@@ -19,29 +19,47 @@ Widget buildMarkdownContent({
   required TextStyle? textStyle,
   TextStyle? markdownStyle,
   TextAlign? textAlign,
-  bool useStreaming = true,
 }) {
   if (!markdownEnabled) {
-    return Text(text, style: textStyle, textAlign: textAlign);
-  }
-  if (!useStreaming) {
-    return GptMarkdown(
+    return Text(
       normalizeMarkdownNewlines(text),
-      style: markdownStyle ?? textStyle,
+      style: textStyle,
       textAlign: textAlign,
-      textDirection: Directionality.of(context),
     );
   }
-  return StreamingText(
-    text: text,
-    style: textStyle,
-    markdownEnabled: true,
-    markdownStyleSheet: markdownStyle ?? textStyle,
-    animationsEnabled: false,
-    fadeInEnabled: false,
-    showCursor: false,
+  final prepared = remend(normalizeMarkdownNewlines(text));
+  return MarkdownBody(
+    data: prepared,
+    styleSheet: _buildStyleSheet(markdownStyle ?? textStyle),
     selectable: false,
-    textAlign: textAlign,
+  );
+}
+
+MarkdownStyleSheet _buildStyleSheet(TextStyle? baseStyle) {
+  final base = baseStyle ?? const TextStyle(color: AleraTokens.foreground);
+  return MarkdownStyleSheet(
+    p: base,
+    strong: base.copyWith(fontWeight: FontWeight.bold),
+    em: base.copyWith(fontStyle: FontStyle.italic),
+    code: AleraTokens.monoStyle,
+    codeblockDecoration: BoxDecoration(
+      color: AleraTokens.surfaceVariant,
+      border: Border.all(color: AleraTokens.borderSubtle),
+      borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+    ),
+    blockquoteDecoration: BoxDecoration(
+      border: Border(
+        left: BorderSide(color: AleraTokens.borderSubtle, width: 3),
+      ),
+    ),
+    a: base.copyWith(color: AleraTokens.info),
+    tableBorder: TableBorder.all(color: AleraTokens.border),
+    horizontalRuleDecoration: BoxDecoration(
+      border: Border(
+        top: BorderSide(color: AleraTokens.border),
+      ),
+    ),
+    blockSpacing: AleraTokens.space8,
   );
 }
 
@@ -52,6 +70,8 @@ final _blockLinePattern = RegExp(
 final _listItemStart = RegExp(
   r'^(?:[-*] |\d+\. |\[[ x]\] |\([ x]\) )',
 );
+
+final _tableRowStart = RegExp(r'^\|');
 
 /// Converts single newlines within paragraphs to spaces so that text
 /// reflows to fill the available width.  Preserves paragraph breaks
@@ -73,10 +93,15 @@ String normalizeMarkdownNewlines(String text) {
     for (var i = 1; i < lines.length; i++) {
       final cur = lines[i].trimLeft();
       final prev = lines[i - 1].trimLeft();
+      final isTableCur = _tableRowStart.hasMatch(cur);
       final isBlockCur = _blockLinePattern.hasMatch(cur);
       final isBlockPrev = _blockLinePattern.hasMatch(prev);
       final isListPrev = _listItemStart.hasMatch(prev);
-      if (isBlockCur) {
+      final isTablePrev = _tableRowStart.hasMatch(prev);
+      if (isTableCur && isTablePrev &&
+          !lines[i - 1].trimRight().endsWith('|')) {
+        buf.write(' ');
+      } else if (isBlockCur) {
         buf.write('\n');
       } else if (isBlockPrev && !isListPrev) {
         buf.write('\n');
@@ -86,14 +111,16 @@ String normalizeMarkdownNewlines(String text) {
       buf.write(lines[i]);
     }
     return buf.toString();
-  }).toList();
+  }).where((p) => p.isNotEmpty).toList();
   final joined = StringBuffer();
   for (var i = 0; i < processed.length; i++) {
     if (i > 0) {
       final prevLast = processed[i - 1].split('\n').last.trimLeft();
       final curFirst = processed[i].split('\n').first.trimLeft();
-      if (_listItemStart.hasMatch(prevLast) &&
-          _listItemStart.hasMatch(curFirst)) {
+      if ((_listItemStart.hasMatch(prevLast) &&
+              _listItemStart.hasMatch(curFirst)) ||
+          (_tableRowStart.hasMatch(prevLast) &&
+              _tableRowStart.hasMatch(curFirst))) {
         joined.write('\n');
       } else {
         joined.write('\n\n');
@@ -106,7 +133,7 @@ String normalizeMarkdownNewlines(String text) {
   for (var i = 0; i < placeholders.length; i++) {
     result = result.replaceFirst('\x00CB$i\x00', placeholders[i]);
   }
-  return result;
+  return result.replaceAll(RegExp(r'\n{3,}'), '\n\n');
 }
 
 class MessageActionButtons extends StatelessWidget {

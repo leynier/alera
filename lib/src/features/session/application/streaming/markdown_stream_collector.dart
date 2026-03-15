@@ -76,6 +76,12 @@ MarkdownStreamPushResult pushMarkdownDelta(
   final completePart = merged.substring(0, lastNewline + 1);
   final pending = merged.substring(lastNewline + 1);
   final lines = _trimmedLines(completePart.split('\n'));
+  // split() on a string ending with \n always produces a trailing empty
+  // element.  Remove it so the assembly loop does not insert a spurious
+  // paragraph break (\n\n) after every single line.
+  if (lines.isNotEmpty && lines.last.isEmpty) {
+    lines.removeLast();
+  }
   return MarkdownStreamPushResult(
     state: state.copyWith(
       pendingBuffer: pending,
@@ -98,7 +104,7 @@ MarkdownStreamSoftFlushResult maybeFlushSoftChunk(
   if (buffer.isEmpty) {
     return MarkdownStreamSoftFlushResult(state: state);
   }
-  if (_hasOpenCodeFence(buffer)) {
+  if (_hasOpenCodeFence(buffer) || _looksLikeTableRow(buffer)) {
     return MarkdownStreamSoftFlushResult(state: state);
   }
 
@@ -187,6 +193,10 @@ bool _isNaturalBoundary(int codeUnit) {
       codeUnit == 0x21 || // !
       codeUnit == 0x3F; // ?
 }
+
+// Table rows start with | and must stay intact for the markdown parser.
+// Splitting mid-row (like code fences) would break table rendering.
+bool _looksLikeTableRow(String text) => text.trimLeft().startsWith('|');
 
 bool _hasOpenCodeFence(String text) {
   var index = 0;

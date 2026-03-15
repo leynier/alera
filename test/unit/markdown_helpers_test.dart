@@ -61,6 +61,17 @@ void main() {
       );
     });
 
+    test('joins word-wrapped table cell content starting with pipe', () {
+      expect(
+        normalizeMarkdownNewlines(
+          '| Seguimiento | Falta de visibilidad\n'
+          '| Indicadores semanales | Mejor control |',
+        ),
+        '| Seguimiento | Falta de visibilidad '
+        '| Indicadores semanales | Mejor control |',
+      );
+    });
+
     test('preserves horizontal rules', () {
       expect(
         normalizeMarkdownNewlines('Above\n---\nBelow'),
@@ -150,6 +161,69 @@ void main() {
         '4. Revisar el equipo.\n'
         '5. Realizar una última verificación el día anterior.',
       );
+    });
+
+    test('collapses paragraph breaks between consecutive table rows', () {
+      expect(
+        normalizeMarkdownNewlines(
+          '| A | B |\n\n|---|---|\n\n| 1 | 2 |\n\n| 3 | 4 |',
+        ),
+        '| A | B |\n|---|---|\n| 1 | 2 |\n| 3 | 4 |',
+      );
+    });
+
+    test('collapses triple newlines between table rows', () {
+      expect(
+        normalizeMarkdownNewlines(
+          '| A | B |\n\n\n\n|---|---|\n\n\n\n| 1 | 2 |',
+        ),
+        '| A | B |\n|---|---|\n| 1 | 2 |',
+      );
+    });
+
+    test('preserves paragraph break between table and non-table text', () {
+      expect(
+        normalizeMarkdownNewlines(
+          '| A | B |\n\n|---|---|\n\n| 1 | 2 |\n\nSome text.',
+        ),
+        '| A | B |\n|---|---|\n| 1 | 2 |\n\nSome text.',
+      );
+    });
+
+    test('normalizes real LLM table output with headers and separators', () {
+      final input = '## Informe breve de proyecto\n\n'
+          'El proyecto **Aurora** avanza de forma estable.\n\n'
+          '### Resumen general\n\n'
+          '| Área | Estado | Comentario |\n'
+          '|---|---|---|\n'
+          '| Diseño | Completado | Interfaz principal aprobada |\n'
+          '| Desarrollo | En progreso | Módulo de autenticación casi listo |\n\n'
+          '### Métricas principales\n\n'
+          '| Indicador | Valor actual | Objetivo |\n'
+          '|---|---:|---:|\n'
+          '| Avance total | 72% | 100% |\n'
+          '| Tareas completadas | 18 | 25 |\n\n'
+          '### Próximos pasos\n\n'
+          '1. Finalizar el módulo.\n'
+          '2. Corregir el error.\n\n'
+          'Texto final.';
+      final expected = '## Informe breve de proyecto\n\n'
+          'El proyecto **Aurora** avanza de forma estable.\n\n'
+          '### Resumen general\n\n'
+          '| Área | Estado | Comentario |\n'
+          '|---|---|---|\n'
+          '| Diseño | Completado | Interfaz principal aprobada |\n'
+          '| Desarrollo | En progreso | Módulo de autenticación casi listo |\n\n'
+          '### Métricas principales\n\n'
+          '| Indicador | Valor actual | Objetivo |\n'
+          '|---|---:|---:|\n'
+          '| Avance total | 72% | 100% |\n'
+          '| Tareas completadas | 18 | 25 |\n\n'
+          '### Próximos pasos\n\n'
+          '1. Finalizar el módulo.\n'
+          '2. Corregir el error.\n\n'
+          'Texto final.';
+      expect(normalizeMarkdownNewlines(input), expected);
     });
 
     test('collapses loose list items from LLM output', () {

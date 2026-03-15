@@ -10,9 +10,8 @@ import 'package:alera/src/shared/models/contracts.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_streaming_text_markdown/flutter_streaming_text_markdown.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gpt_markdown/gpt_markdown.dart';
 
 TimelineCell _cell({
   required String id,
@@ -640,7 +639,7 @@ void main() {
 
     await _pumpWorkspace(tester, state: state);
 
-    expect(find.byType(StreamingText), findsOneWidget);
+    expect(find.byType(MarkdownBody), findsOneWidget);
     expect(find.textContaining('negrita'), findsOneWidget);
     expect(find.text('Streaming...'), findsOneWidget);
   });
@@ -662,8 +661,7 @@ void main() {
 
     await _pumpWorkspace(tester, state: state);
 
-    expect(find.byType(StreamingText), findsNothing);
-    expect(find.byType(GptMarkdown), findsOneWidget);
+    expect(find.byType(MarkdownBody), findsOneWidget);
     expect(find.textContaining('**negrita**'), findsNothing);
     expect(find.textContaining('negrita'), findsOneWidget);
   });
@@ -689,7 +687,7 @@ void main() {
 
       await _pumpWorkspace(tester, state: state);
 
-      final markdownRect = tester.getRect(find.byType(GptMarkdown));
+      final markdownRect = tester.getRect(find.byType(MarkdownBody));
       expect(markdownRect.width, greaterThan(650));
     },
   );
@@ -762,7 +760,7 @@ void main() {
 
       await _pumpWorkspace(tester, state: state);
 
-      final streamingRect = tester.getRect(find.byType(StreamingText));
+      final streamingRect = tester.getRect(find.byType(MarkdownBody));
       expect(streamingRect.width, greaterThan(650));
     },
   );
@@ -784,8 +782,7 @@ void main() {
 
       await _pumpWorkspace(tester, state: state);
 
-      expect(find.byType(StreamingText), findsNothing);
-      expect(find.byType(GptMarkdown), findsOneWidget);
+      expect(find.byType(MarkdownBody), findsOneWidget);
       expect(find.textContaining('backtick abierto'), findsOneWidget);
     },
   );
@@ -856,7 +853,7 @@ void main() {
 
     await _pumpWorkspace(tester, state: state);
 
-    expect(find.byType(StreamingText), findsNothing);
+    expect(find.byType(MarkdownBody), findsOneWidget);
     expect(find.textContaining('**negrita**'), findsNothing);
     expect(find.textContaining('negrita'), findsOneWidget);
   });
@@ -877,7 +874,7 @@ void main() {
 
     await _pumpWorkspace(tester, state: state);
 
-    expect(find.byType(StreamingText), findsNothing);
+    expect(find.byType(MarkdownBody), findsOneWidget);
     expect(find.textContaining('backtick abierto'), findsOneWidget);
   });
 
@@ -897,7 +894,7 @@ void main() {
 
     await _pumpWorkspace(tester, state: state, isMarkdownEnabled: false);
 
-    expect(find.byType(StreamingText), findsNothing);
+    expect(find.byType(MarkdownBody), findsNothing);
     expect(find.text('Texto con **negrita**'), findsOneWidget);
   });
 
@@ -1257,7 +1254,7 @@ void main() {
 
     await _pumpWorkspace(tester, state: state, isMarkdownEnabled: false);
 
-    expect(find.byType(StreamingText), findsNothing);
+    expect(find.byType(MarkdownBody), findsNothing);
     expect(find.text('Texto con **negrita**'), findsOneWidget);
   });
 
