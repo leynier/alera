@@ -810,7 +810,7 @@ void main() {
       await _pumpWorkspace(tester, state: state);
 
       expect(find.byType(SelectionArea), findsOneWidget);
-      expect(find.byType(SelectableText), findsNothing);
+      expect(find.byType(SelectableText), findsWidgets);
     },
   );
 

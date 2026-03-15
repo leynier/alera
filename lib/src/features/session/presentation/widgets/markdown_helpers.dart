@@ -31,7 +31,7 @@ Widget buildMarkdownContent({
   return MarkdownBody(
     data: prepared,
     styleSheet: _buildStyleSheet(markdownStyle ?? textStyle),
-    selectable: false,
+    selectable: true,
   );
 }
 
