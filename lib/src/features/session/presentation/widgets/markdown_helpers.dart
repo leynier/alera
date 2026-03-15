@@ -28,10 +28,12 @@ Widget buildMarkdownContent({
     );
   }
   final prepared = remend(normalizeMarkdownNewlines(text));
-  return MarkdownBody(
-    data: prepared,
-    styleSheet: _buildStyleSheet(markdownStyle ?? textStyle),
-    selectable: true,
+  return SelectionContainer.disabled(
+    child: MarkdownBody(
+      data: prepared,
+      styleSheet: _buildStyleSheet(markdownStyle ?? textStyle),
+      selectable: false,
+    ),
   );
 }
 
