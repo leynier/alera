@@ -104,7 +104,9 @@ MarkdownStreamSoftFlushResult maybeFlushSoftChunk(
   if (buffer.isEmpty) {
     return MarkdownStreamSoftFlushResult(state: state);
   }
-  if (_hasOpenCodeFence(buffer) || _looksLikeTableRow(buffer)) {
+  if (_hasOpenCodeFence(buffer) ||
+      _looksLikeTableRow(buffer) ||
+      _hasOpenMarkdownLink(buffer)) {
     return MarkdownStreamSoftFlushResult(state: state);
   }
 
@@ -197,6 +199,13 @@ bool _isNaturalBoundary(int codeUnit) {
 // Table rows start with | and must stay intact for the markdown parser.
 // Splitting mid-row (like code fences) would break table rendering.
 bool _looksLikeTableRow(String text) => text.trimLeft().startsWith('|');
+
+// Markdown links [text](url) and images ![alt](url) must not be split
+// mid-URL.  If ]( appears without a matching ) the link is still open.
+bool _hasOpenMarkdownLink(String text) {
+  final i = text.lastIndexOf('](');
+  return i >= 0 && !text.substring(i).contains(')');
+}
 
 bool _hasOpenCodeFence(String text) {
   var index = 0;

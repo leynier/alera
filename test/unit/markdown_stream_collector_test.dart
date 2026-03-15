@@ -145,6 +145,40 @@ void main() {
       );
     });
 
+    test('does not soft-flush an incomplete markdown image link', () {
+      final now = DateTime.utc(2026, 2, 22, 4, 0, 0);
+      final state = MarkdownStreamCollectorState(
+        pendingBuffer:
+            '![Imagen de prueba](https://placehold.',
+        pendingSince: now.subtract(const Duration(milliseconds: 300)),
+      );
+      final result = maybeFlushSoftChunk(state, now: now);
+      expect(result.chunk, isNull);
+      expect(result.state.pendingBuffer, state.pendingBuffer);
+    });
+
+    test('does not soft-flush an incomplete inline link', () {
+      final now = DateTime.utc(2026, 2, 22, 4, 0, 0);
+      final state = MarkdownStreamCollectorState(
+        pendingBuffer:
+            'Visita [OpenAI](https://openai.',
+        pendingSince: now.subtract(const Duration(milliseconds: 300)),
+      );
+      final result = maybeFlushSoftChunk(state, now: now);
+      expect(result.chunk, isNull);
+    });
+
+    test('allows soft-flush when markdown link is complete', () {
+      final now = DateTime.utc(2026, 2, 22, 4, 0, 0);
+      final state = MarkdownStreamCollectorState(
+        pendingBuffer:
+            'Visita [OpenAI](https://openai.com) para más info sobre modelos.',
+        pendingSince: now.subtract(const Duration(milliseconds: 300)),
+      );
+      final result = maybeFlushSoftChunk(state, now: now);
+      expect(result.chunk, isNotNull);
+    });
+
     test('does not soft-flush with an open markdown code fence', () {
       final now = DateTime.utc(2026, 2, 22, 4, 0, 0);
       final state = MarkdownStreamCollectorState(
