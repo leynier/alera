@@ -26,7 +26,7 @@ Widget buildMarkdownContent({
   }
   if (!useStreaming) {
     return GptMarkdown(
-      text,
+      normalizeMarkdownNewlines(text),
       style: markdownStyle ?? textStyle,
       textAlign: textAlign,
       textDirection: Directionality.of(context),
@@ -43,6 +43,70 @@ Widget buildMarkdownContent({
     selectable: false,
     textAlign: textAlign,
   );
+}
+
+final _blockLinePattern = RegExp(
+  r'^(?:[-*] |> |#{1,6} |\d+\. |\[[ x]\] |\([ x]\) |```|---+|\|)',
+);
+
+final _listItemStart = RegExp(
+  r'^(?:[-*] |\d+\. |\[[ x]\] |\([ x]\) )',
+);
+
+/// Converts single newlines within paragraphs to spaces so that text
+/// reflows to fill the available width.  Preserves paragraph breaks
+/// (\n\n), newlines adjacent to block-level markdown elements, and
+/// content inside fenced code blocks.
+@visibleForTesting
+String normalizeMarkdownNewlines(String text) {
+  final codeBlockRe = RegExp(r'```.*?```', dotAll: true);
+  final placeholders = <String>[];
+  var work = text.replaceAllMapped(codeBlockRe, (m) {
+    placeholders.add(m[0]!);
+    return '\x00CB${placeholders.length - 1}\x00';
+  });
+  final paragraphs = work.split('\n\n');
+  final processed = paragraphs.map((paragraph) {
+    final lines = paragraph.split('\n');
+    if (lines.length <= 1) return paragraph;
+    final buf = StringBuffer(lines[0]);
+    for (var i = 1; i < lines.length; i++) {
+      final cur = lines[i].trimLeft();
+      final prev = lines[i - 1].trimLeft();
+      final isBlockCur = _blockLinePattern.hasMatch(cur);
+      final isBlockPrev = _blockLinePattern.hasMatch(prev);
+      final isListPrev = _listItemStart.hasMatch(prev);
+      if (isBlockCur) {
+        buf.write('\n');
+      } else if (isBlockPrev && !isListPrev) {
+        buf.write('\n');
+      } else if (!lines[i - 1].endsWith(' ')) {
+        buf.write(' ');
+      }
+      buf.write(lines[i]);
+    }
+    return buf.toString();
+  }).toList();
+  final joined = StringBuffer();
+  for (var i = 0; i < processed.length; i++) {
+    if (i > 0) {
+      final prevLast = processed[i - 1].split('\n').last.trimLeft();
+      final curFirst = processed[i].split('\n').first.trimLeft();
+      if (_listItemStart.hasMatch(prevLast) &&
+          _listItemStart.hasMatch(curFirst)) {
+        joined.write('\n');
+      } else {
+        joined.write('\n\n');
+      }
+    }
+    joined.write(processed[i]);
+  }
+  final normalized = joined.toString();
+  var result = normalized;
+  for (var i = 0; i < placeholders.length; i++) {
+    result = result.replaceFirst('\x00CB$i\x00', placeholders[i]);
+  }
+  return result;
 }
 
 class MessageActionButtons extends StatelessWidget {

@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_streaming_text_markdown/flutter_streaming_text_markdown.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gpt_markdown/gpt_markdown.dart';
 
 TimelineCell _cell({
   required String id,
@@ -648,10 +649,110 @@ void main() {
 
     await _pumpWorkspace(tester, state: state);
 
-    expect(find.byType(StreamingText), findsOneWidget);
+    expect(find.byType(StreamingText), findsNothing);
+    expect(find.byType(GptMarkdown), findsOneWidget);
     expect(find.textContaining('**negrita**'), findsNothing);
     expect(find.textContaining('negrita'), findsOneWidget);
   });
+
+  testWidgets(
+    'assistant completed uses available timeline width for markdown layout',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1600, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final state = SessionState(
+        timelineCells: <TimelineCell>[
+          _cell(
+            id: 'a-wide-markdown',
+            kind: TimelineCellKind.assistantMessage,
+            status: TimelineCellStatus.completed,
+            turnId: 't1',
+            markdownText:
+                '# Texto breve\n\nEste es un ejemplo de texto en Markdown con listas.\n\n- Markdown es simple\n- Las listas ayudan a organizar la información',
+          ),
+        ],
+      );
+
+      await _pumpWorkspace(tester, state: state);
+
+      final markdownRect = tester.getRect(find.byType(GptMarkdown));
+      expect(markdownRect.width, greaterThan(650));
+    },
+  );
+
+  testWidgets('completed turn assistant message uses full timeline width', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1600, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final state = SessionState(
+      timelineCells: <TimelineCell>[
+        _cell(
+          id: 'user-1',
+          kind: TimelineCellKind.userMessage,
+          status: TimelineCellStatus.completed,
+          turnId: 't1',
+          markdownText: 'Escribe un texto pequeño que contenga listas',
+        ),
+        _cell(
+          id: 'reasoning-1',
+          kind: TimelineCellKind.reasoning,
+          status: TimelineCellStatus.completed,
+          turnId: 't1',
+          markdownText: 'Thinking about lists...',
+          isCollapsed: true,
+        ),
+        _cell(
+          id: 'assistant-1',
+          kind: TimelineCellKind.assistantMessage,
+          status: TimelineCellStatus.completed,
+          turnId: 't1',
+          markdownText:
+              'Aquí tienes un texto pequeño con listas:\n\nHoy quiero organizar mejor mi semana. Para empezar, tengo tres prioridades principales:\n\n- Terminar una tarea pendiente\n- Hacer ejercicio al menos dos días\n- Leer un poco cada noche\n\nTambién quiero seguir este orden:\n\n1. Trabajar en la mañana\n2. Descansar después de comer\n3. Dedicar tiempo a actividades personales por la noche\n\nSi quieres, puedo escribir otro más formal, más creativo o más largo.',
+        ),
+        _cell(
+          id: 'sep-1',
+          kind: TimelineCellKind.turnSeparator,
+          status: TimelineCellStatus.completed,
+          turnId: 't1',
+          title: 'Worked for 5s',
+        ),
+      ],
+    );
+    await _pumpWorkspace(tester, state: state);
+    final bubbleRect = tester.getRect(
+      find.byKey(const ValueKey<String>('assistant-bubble-assistant-1')),
+    );
+    expect(bubbleRect.width, greaterThan(650));
+  });
+
+  testWidgets(
+    'assistant streaming uses available timeline width for markdown layout',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1600, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final state = SessionState(
+        timelineCells: <TimelineCell>[
+          _cell(
+            id: 'a-wide-streaming',
+            kind: TimelineCellKind.assistantMessage,
+            status: TimelineCellStatus.inProgress,
+            turnId: 't1',
+            isStreaming: true,
+            markdownText:
+                'Hoy quiero organizar una tarde tranquila y productiva en casa. Para que todo salga bien, preparé una pequeña lista de prioridades y otra de cosas opcionales.',
+          ),
+        ],
+      );
+
+      await _pumpWorkspace(tester, state: state);
+
+      final streamingRect = tester.getRect(find.byType(StreamingText));
+      expect(streamingRect.width, greaterThan(650));
+    },
+  );
 
   testWidgets(
     'assistant completed renders malformed markdown without fallback',
@@ -670,7 +771,8 @@ void main() {
 
       await _pumpWorkspace(tester, state: state);
 
-      expect(find.byType(StreamingText), findsOneWidget);
+      expect(find.byType(StreamingText), findsNothing);
+      expect(find.byType(GptMarkdown), findsOneWidget);
       expect(find.textContaining('backtick abierto'), findsOneWidget);
     },
   );

@@ -285,36 +285,41 @@ class _AssistantMessageCellState extends State<AssistantMessageCell> {
         alignment: Alignment.centerLeft,
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 760),
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.only(bottom: 18),
-                child: Container(
-                  key: ValueKey<String>('assistant-bubble-${widget.cell.id}'),
-                  child: AssistantBubbleMarkdown(
-                    markdownText: rawText,
-                    isStreaming: widget.cell.isStreaming,
+          child: SizedBox(
+            width: double.infinity,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 18),
+                  child: Container(
+                    key: ValueKey<String>('assistant-bubble-${widget.cell.id}'),
+                    child: AssistantBubbleMarkdown(
+                      markdownText: rawText,
+                      isStreaming: widget.cell.isStreaming,
+                      markdownEnabled: widget.markdownEnabled,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: 0,
+                  bottom: 0,
+                  child: MessageActionButtons(
+                    alignLeft: true,
+                    copyKey: ValueKey<String>(
+                      'copy-assistant-${widget.cell.id}',
+                    ),
+                    copyText: rawText,
+                    copiedLabel: 'Message copied',
+                    toggleKey: ValueKey<String>(
+                      'toggle-markdown-assistant-${widget.cell.id}',
+                    ),
                     markdownEnabled: widget.markdownEnabled,
+                    onToggleMarkdown: widget.onMarkdownModeChanged,
                   ),
                 ),
-              ),
-              Positioned(
-                left: 0,
-                bottom: 0,
-                child: MessageActionButtons(
-                  alignLeft: true,
-                  copyKey: ValueKey<String>('copy-assistant-${widget.cell.id}'),
-                  copyText: rawText,
-                  copiedLabel: 'Message copied',
-                  toggleKey: ValueKey<String>(
-                    'toggle-markdown-assistant-${widget.cell.id}',
-                  ),
-                  markdownEnabled: widget.markdownEnabled,
-                  onToggleMarkdown: widget.onMarkdownModeChanged,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -340,12 +345,16 @@ class AssistantBubbleMarkdown extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        buildMarkdownContent(
-          context: context,
-          text: markdownText,
-          markdownEnabled: markdownEnabled,
-          textStyle: messageStyle,
-          markdownStyle: messageStyle,
+        SizedBox(
+          width: double.infinity,
+          child: buildMarkdownContent(
+            context: context,
+            text: markdownText,
+            markdownEnabled: markdownEnabled,
+            textStyle: messageStyle,
+            markdownStyle: messageStyle,
+            useStreaming: isStreaming,
+          ),
         ),
         if (isStreaming)
           const Padding(
@@ -1488,7 +1497,9 @@ class _QuestionAnswerCellState extends State<QuestionAnswerCell> {
   @override
   Widget build(BuildContext context) {
     final questions = _getQuestions();
-    final title = widget.cell.title ?? 'Asked ${questions.length} question${questions.length == 1 ? '' : 's'}';
+    final title =
+        widget.cell.title ??
+        'Asked ${questions.length} question${questions.length == 1 ? '' : 's'}';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
@@ -1605,7 +1616,10 @@ class _QuestionAnswerCellState extends State<QuestionAnswerCell> {
     }).toList();
   }
 
-  List<Widget> _buildQuestionWidgets(BuildContext context, List<Map<String, String>> questions) {
+  List<Widget> _buildQuestionWidgets(
+    BuildContext context,
+    List<Map<String, String>> questions,
+  ) {
     final widgets = <Widget>[];
     for (var i = 0; i < questions.length; i++) {
       final qa = questions[i];
@@ -1625,9 +1639,9 @@ class _QuestionAnswerCellState extends State<QuestionAnswerCell> {
             const SizedBox(height: AleraTokens.space4),
             Text(
               answer,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AleraTokens.foreground,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AleraTokens.foreground),
             ),
           ],
         ),
@@ -1636,10 +1650,7 @@ class _QuestionAnswerCellState extends State<QuestionAnswerCell> {
         widgets.add(
           Padding(
             padding: const EdgeInsets.symmetric(vertical: AleraTokens.space8),
-            child: Divider(
-              height: 1,
-              color: AleraTokens.borderSubtle,
-            ),
+            child: Divider(height: 1, color: AleraTokens.borderSubtle),
           ),
         );
       }
