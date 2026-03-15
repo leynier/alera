@@ -119,6 +119,7 @@ class MessageActionButtons extends StatelessWidget {
     required this.toggleKey,
     required this.markdownEnabled,
     required this.onToggleMarkdown,
+    this.active = true,
   });
 
   final bool alignLeft;
@@ -128,6 +129,7 @@ class MessageActionButtons extends StatelessWidget {
   final ValueKey<String> toggleKey;
   final bool markdownEnabled;
   final ValueChanged<bool> onToggleMarkdown;
+  final bool active;
 
   @override
   Widget build(BuildContext context) {
@@ -135,11 +137,13 @@ class MessageActionButtons extends StatelessWidget {
       key: copyKey,
       copyText: copyText,
       copiedLabel: copiedLabel,
+      active: active,
     );
     final markdownToggle = MessageMarkdownToggleButton(
       key: toggleKey,
       markdownEnabled: markdownEnabled,
       onChanged: onToggleMarkdown,
+      active: active,
     );
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -163,10 +167,12 @@ class MessageCopyButton extends StatelessWidget {
     super.key,
     required this.copyText,
     required this.copiedLabel,
+    this.active = true,
   });
 
   final String copyText;
   final String copiedLabel;
+  final bool active;
 
   Future<void> _copy(BuildContext context) async {
     if (copyText.isEmpty) {
@@ -185,19 +191,20 @@ class MessageCopyButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool effectivelyActive = !mouseIsConnected() || active;
     return InkWell(
-      onTap: () => _copy(context),
-      mouseCursor: SystemMouseCursors.click,
+      onTap: effectivelyActive ? () => _copy(context) : null,
+      mouseCursor: effectivelyActive ? SystemMouseCursors.click : SystemMouseCursors.basic,
       borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
-      child: const Padding(
-        padding: EdgeInsets.symmetric(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
           horizontal: AleraTokens.space4,
           vertical: AleraTokens.space2,
         ),
         child: Icon(
           Icons.content_copy,
           size: 12,
-          color: AleraTokens.foregroundFaint,
+          color: effectivelyActive ? AleraTokens.foregroundFaint : Colors.transparent,
         ),
       ),
     );
@@ -209,25 +216,32 @@ class MessageMarkdownToggleButton extends StatelessWidget {
     super.key,
     required this.markdownEnabled,
     required this.onChanged,
+    this.active = true,
   });
 
   final bool markdownEnabled;
   final ValueChanged<bool> onChanged;
+  final bool active;
 
   @override
   Widget build(BuildContext context) {
+    final bool effectivelyActive = !mouseIsConnected() || active;
     return Tooltip(
-      message: markdownEnabled ? 'Markdown ON' : 'Markdown OFF',
+      message: effectivelyActive ? (markdownEnabled ? 'Markdown ON' : 'Markdown OFF') : '',
       child: InkWell(
-        onTap: () => onChanged(!markdownEnabled),
-        mouseCursor: SystemMouseCursors.click,
+        onTap: effectivelyActive ? () => onChanged(!markdownEnabled) : null,
+        mouseCursor: effectivelyActive ? SystemMouseCursors.click : SystemMouseCursors.basic,
         borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
-        child: const Padding(
-          padding: EdgeInsets.symmetric(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
             horizontal: AleraTokens.space4,
             vertical: AleraTokens.space2,
           ),
-          child: Icon(Icons.code, size: 13, color: AleraTokens.foregroundFaint),
+          child: Icon(
+            Icons.code,
+            size: 13,
+            color: effectivelyActive ? AleraTokens.foregroundFaint : Colors.transparent,
+          ),
         ),
       ),
     );

@@ -1,5 +1,4 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
-import 'package:alera/src/features/session/application/session_state.dart';
 import 'package:alera/src/features/session/presentation/widgets/diff_viewer.dart';
 import 'package:alera/src/shared/models/contracts.dart';
 import 'package:flutter/material.dart';
@@ -7,14 +6,22 @@ import 'package:flutter/material.dart';
 class AleraStatusBar extends StatelessWidget {
   const AleraStatusBar({
     super.key,
-    required this.state,
+    required this.connectionState,
+    required this.runningTurnCount,
+    this.statusHeader,
+    this.lastTurnDiff,
+    this.workspacePath,
     required this.rawLogExpanded,
     required this.onToggleRawLog,
     required this.onCopyRawLog,
     required this.canCopyRawLog,
   });
 
-  final SessionState state;
+  final AppServerConnectionState connectionState;
+  final int runningTurnCount;
+  final String? statusHeader;
+  final String? lastTurnDiff;
+  final String? workspacePath;
   final bool rawLogExpanded;
   final VoidCallback onToggleRawLog;
   final VoidCallback onCopyRawLog;
@@ -23,8 +30,9 @@ class AleraStatusBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final session = state.activeSession;
-    final workspacePath = session?.workspacePath ?? state.selectedWorkspacePath;
+    final header = statusHeader;
+    final diff = lastTurnDiff;
+
     return Container(
       height: AleraTokens.statusBarHeight,
       padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space12),
@@ -34,29 +42,30 @@ class AleraStatusBar extends StatelessWidget {
       ),
       child: Row(
         children: <Widget>[
-          _StatusChip(label: _connectionLabel(), color: _connectionColor()),
-          if (state.runningTurnCount > 0) ...<Widget>[
+          _StatusChip(
+            label: _connectionLabel(connectionState),
+            color: _connectionColor(connectionState),
+          ),
+          if (runningTurnCount > 0) ...<Widget>[
             _separator(),
             _StatusChip(
-              label: 'Running: ${state.runningTurnCount}',
+              label: 'Running: $runningTurnCount',
               color: AleraTokens.accent,
             ),
           ],
-          if (state.statusHeader != null &&
-              state.statusHeader!.trim().isNotEmpty) ...<Widget>[
+          if (header != null && header.trim().isNotEmpty) ...<Widget>[
             _separator(),
             _StatusChip(
-              label: state.statusHeader!,
+              label: header,
               color: AleraTokens.foregroundMuted,
             ),
           ],
           const Spacer(),
-          if (state.lastTurnDiff != null) ...<Widget>[
+          if (diff != null) ...<Widget>[
             Tooltip(
               message: 'View file changes',
               child: InkWell(
-                onTap: () =>
-                    DiffViewerDialog.show(context, state.lastTurnDiff!),
+                onTap: () => DiffViewerDialog.show(context, diff),
                 mouseCursor: SystemMouseCursors.click,
                 borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
                 child: const Padding(
@@ -141,8 +150,8 @@ class AleraStatusBar extends StatelessWidget {
     );
   }
 
-  String _connectionLabel() {
-    return switch (state.connectionState) {
+  String _connectionLabel(AppServerConnectionState state) {
+    return switch (state) {
       AppServerConnectionState.connected => 'Connected',
       AppServerConnectionState.starting => 'Starting',
       AppServerConnectionState.error => 'Error',
@@ -150,8 +159,8 @@ class AleraStatusBar extends StatelessWidget {
     };
   }
 
-  Color _connectionColor() {
-    return switch (state.connectionState) {
+  Color _connectionColor(AppServerConnectionState state) {
+    return switch (state) {
       AppServerConnectionState.connected => AleraTokens.success,
       AppServerConnectionState.starting => AleraTokens.accent,
       AppServerConnectionState.error => AleraTokens.error,

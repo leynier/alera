@@ -53,7 +53,9 @@ class IoProcessRunner implements ProcessRunner {
       stderr: process.stderr,
       pid: process.pid,
       exitCode: process.exitCode,
-      kill: () => process.kill(),
+      kill: ([signal]) => process.kill(
+        signal is ProcessSignal ? signal : ProcessSignal.sigterm,
+      ),
     );
   }
 }

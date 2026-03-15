@@ -38,38 +38,73 @@ class _AleraShellPageState extends ConsumerState<AleraShellPage> {
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(sessionControllerProvider);
     final controller = ref.read(sessionControllerProvider.notifier);
+    final error = ref.watch(sessionControllerProvider.select((s) => s.error));
 
-    if (state.error != null && state.error != _lastErrorMessage) {
-      _lastErrorMessage = state.error;
+    if (error != null && error != _lastErrorMessage) {
+      _lastErrorMessage = error;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) {
           return;
         }
-        _showError(state.error!);
+        _showError(error);
       });
     }
+
+    final workspacePath = ref.watch(
+      sessionControllerProvider.select((s) => s.selectedWorkspacePath),
+    );
+    final activeSessionTitle = ref.watch(
+      sessionControllerProvider.select((s) => s.activeSession?.title),
+    );
+    final isBusy = ref.watch(
+      sessionControllerProvider.select((s) => s.isBusy),
+    );
+    final activityLogEmpty = ref.watch(
+      sessionControllerProvider.select((s) => s.activityLog.isEmpty),
+    );
+
+    final connectionState = ref.watch(
+      sessionControllerProvider.select((s) => s.connectionState),
+    );
+    final runningTurnCount = ref.watch(
+      sessionControllerProvider.select((s) => s.runningTurnCount),
+    );
+    final statusHeader = ref.watch(
+      sessionControllerProvider.select((s) => s.statusHeader),
+    );
+    final lastTurnDiff = ref.watch(
+      sessionControllerProvider.select((s) => s.lastTurnDiff),
+    );
 
     return Scaffold(
       body: Column(
         children: <Widget>[
           AleraTopBar(
-            workspaceName: _workspaceName(state.selectedWorkspacePath),
-            sessionTitle: state.activeSession?.title,
-            isBusy: state.isBusy,
+            workspaceName: _workspaceName(workspacePath),
+            sessionTitle: activeSessionTitle,
+            isBusy: isBusy,
             onSelectWorkspace: () => _selectWorkspace(controller),
           ),
           Expanded(
-            child: _buildContent(state: state, controller: controller),
+            child: Consumer(
+              builder: (context, ref, child) {
+                final state = ref.watch(sessionControllerProvider);
+                return _buildContent(state: state, controller: controller);
+              },
+            ),
           ),
           AleraStatusBar(
-            state: state,
+            connectionState: connectionState,
+            runningTurnCount: runningTurnCount,
+            statusHeader: statusHeader,
+            lastTurnDiff: lastTurnDiff,
+            workspacePath: workspacePath,
             rawLogExpanded: _rawLogExpanded,
             onToggleRawLog: () =>
                 setState(() => _rawLogExpanded = !_rawLogExpanded),
-            onCopyRawLog: () => _copyRawLog(state),
-            canCopyRawLog: state.activityLog.isNotEmpty,
+            onCopyRawLog: () => _copyRawLog(ref.read(sessionControllerProvider)),
+            canCopyRawLog: !activityLogEmpty,
           ),
         ],
       ),
@@ -88,6 +123,7 @@ class _AleraShellPageState extends ConsumerState<AleraShellPage> {
         message: 'Choose a git repository folder to start working.',
         actionLabel: 'Select folder',
         onAction: () => _selectWorkspace(controller),
+        statusHeader: state.statusHeader,
       );
     }
     return SessionWorkspaceView(
@@ -287,6 +323,7 @@ class _EmptyState extends StatelessWidget {
     required this.message,
     this.actionLabel,
     this.onAction,
+    this.statusHeader,
   });
 
   final IconData icon;
@@ -294,6 +331,7 @@ class _EmptyState extends StatelessWidget {
   final String message;
   final String? actionLabel;
   final VoidCallback? onAction;
+  final String? statusHeader;
 
   @override
   Widget build(BuildContext context) {
@@ -326,7 +364,7 @@ class _EmptyState extends StatelessWidget {
                   color: AleraTokens.foregroundMuted,
                 ),
               ),
-              if (actionLabel != null && onAction != null) ...<Widget>[
+              if (actionLabel != null && actionLabel!.trim().isNotEmpty && onAction != null) ...<Widget>[
                 const SizedBox(height: AleraTokens.space24),
                 FilledButton.icon(
                   onPressed: onAction,

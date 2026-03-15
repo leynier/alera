@@ -29,7 +29,7 @@ class AttachmentBar extends StatelessWidget {
         0,
       ),
       child: SizedBox(
-        height: 28,
+        height: 34,
         child: Builder(
           builder: (context) {
             final sorted = List<ComposerAttachment>.of(attachments)
@@ -69,8 +69,7 @@ class _AttachmentChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space6),
       child: Text(
         attachment.displayName,
-        style: const TextStyle(
-          fontSize: 11,
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
           color: AleraTokens.foregroundMuted,
         ),
         maxLines: 1,
@@ -91,7 +90,7 @@ class _AttachmentChip extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AleraTokens.surface,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusXl),
+        borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -103,12 +102,12 @@ class _AttachmentChip extends StatelessWidget {
                 cursor: SystemMouseCursors.click,
                 child: ClipRRect(
                   borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(AleraTokens.radiusXl),
-                    bottomLeft: Radius.circular(AleraTokens.radiusXl),
+                    topLeft: Radius.circular(AleraTokens.radiusMd),
+                    bottomLeft: Radius.circular(AleraTokens.radiusMd),
                   ),
                   child: SizedBox(
-                    width: 28,
-                    height: 28,
+                    width: 34,
+                    height: 34,
                     child: Image.file(
                       File(attachment.path),
                       fit: BoxFit.cover,
@@ -141,7 +140,7 @@ class _AttachmentChip extends StatelessWidget {
           InkWell(
             onTap: onRemove,
             mouseCursor: SystemMouseCursors.click,
-            borderRadius: BorderRadius.circular(AleraTokens.radiusXl),
+            borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
             child: const Padding(
               padding: EdgeInsets.all(AleraTokens.space4),
               child: Icon(
