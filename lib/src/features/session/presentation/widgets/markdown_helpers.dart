@@ -380,27 +380,32 @@ class _MarkdownImageState extends State<_MarkdownImage> {
   bool get _isNetwork =>
       widget.uri.scheme == 'http' || widget.uri.scheme == 'https';
 
+  bool get _isFile =>
+      widget.uri.scheme == '' || widget.uri.scheme == 'file';
+
   @override
   Widget build(BuildContext context) {
-    final Widget image = _isNetwork
-        ? Image.network(
-            widget.uri.toString(),
-            fit: BoxFit.contain,
-            errorBuilder: (_, _, _) => const Icon(
-              Icons.broken_image,
-              size: 48,
-              color: AleraTokens.foregroundFaint,
-            ),
-          )
-        : Image.file(
-            File(widget.uri.toFilePath()),
-            fit: BoxFit.contain,
-            errorBuilder: (_, _, _) => const Icon(
-              Icons.broken_image,
-              size: 48,
-              color: AleraTokens.foregroundFaint,
-            ),
-          );
+    const brokenIcon = Icon(
+      Icons.broken_image,
+      size: 48,
+      color: AleraTokens.foregroundFaint,
+    );
+    final Widget image;
+    if (_isNetwork) {
+      image = Image.network(
+        widget.uri.toString(),
+        fit: BoxFit.contain,
+        errorBuilder: (_, _, _) => brokenIcon,
+      );
+    } else if (_isFile) {
+      image = Image.file(
+        File(widget.uri.toFilePath()),
+        fit: BoxFit.contain,
+        errorBuilder: (_, _, _) => brokenIcon,
+      );
+    } else {
+      image = brokenIcon;
+    }
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _isHovered = true),
@@ -420,20 +425,26 @@ class _MarkdownImageState extends State<_MarkdownImage> {
                 Positioned(
                   top: AleraTokens.space4,
                   right: AleraTokens.space4,
-                  child: IconButton(
-                    onPressed: () => launchUrl(
-                      widget.uri,
-                      mode: LaunchMode.externalApplication,
-                    ),
-                    style: IconButton.styleFrom(
-                      backgroundColor:
-                          AleraTokens.surface.withValues(alpha: 0.6),
-                      shape: const CircleBorder(),
-                    ),
-                    icon: const Icon(
-                      Icons.open_in_new,
-                      size: 16,
-                      color: AleraTokens.foreground,
+                  child: SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: IconButton(
+                      padding: EdgeInsets.zero,
+                      onPressed: () => launchUrl(
+                        widget.uri,
+                        mode: LaunchMode.externalApplication,
+                      ),
+                      style: IconButton.styleFrom(
+                        backgroundColor:
+                            AleraTokens.surface.withValues(alpha: 0.6),
+                        shape: const CircleBorder(),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      icon: const Icon(
+                        Icons.open_in_new,
+                        size: 14,
+                        color: AleraTokens.foreground,
+                      ),
                     ),
                   ),
                 ),

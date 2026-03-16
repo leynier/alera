@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:flutter/material.dart';
@@ -24,8 +25,10 @@ void showImageZoomDialogForUri(BuildContext context, Uri uri) {
   if (uri.scheme == 'http' || uri.scheme == 'https') {
     provider = NetworkImage(uri.toString());
     externalUrl = uri;
-  } else {
+  } else if (uri.scheme == '' || uri.scheme == 'file') {
     provider = FileImage(File(uri.toFilePath()));
+  } else {
+    provider = MemoryImage(Uint8List(0));
   }
   showDialog<void>(
     context: context,
