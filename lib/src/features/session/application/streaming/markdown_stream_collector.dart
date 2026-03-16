@@ -2,21 +2,26 @@ class MarkdownStreamCollectorState {
   const MarkdownStreamCollectorState({
     this.pendingBuffer = '',
     this.pendingSince,
+    this.pendingStartsAfterNewline = false,
   });
 
   final String pendingBuffer;
   final DateTime? pendingSince;
+  final bool pendingStartsAfterNewline;
 
   MarkdownStreamCollectorState copyWith({
     String? pendingBuffer,
     DateTime? pendingSince,
     bool clearPendingSince = false,
+    bool? pendingStartsAfterNewline,
   }) {
     return MarkdownStreamCollectorState(
       pendingBuffer: pendingBuffer ?? this.pendingBuffer,
       pendingSince: clearPendingSince
           ? null
           : (pendingSince ?? this.pendingSince),
+      pendingStartsAfterNewline:
+          pendingStartsAfterNewline ?? this.pendingStartsAfterNewline,
     );
   }
 }
@@ -42,10 +47,15 @@ class MarkdownStreamFinalizeResult {
 }
 
 class MarkdownStreamSoftFlushResult {
-  const MarkdownStreamSoftFlushResult({required this.state, this.chunk});
+  const MarkdownStreamSoftFlushResult({
+    required this.state,
+    this.chunk,
+    this.startsAfterNewline = false,
+  });
 
   final MarkdownStreamCollectorState state;
   final String? chunk;
+  final bool startsAfterNewline;
 }
 
 MarkdownStreamPushResult pushMarkdownDelta(
@@ -76,11 +86,18 @@ MarkdownStreamPushResult pushMarkdownDelta(
   final completePart = merged.substring(0, lastNewline + 1);
   final pending = merged.substring(lastNewline + 1);
   final lines = _trimmedLines(completePart.split('\n'));
+  // split() on a string ending with \n always produces a trailing empty
+  // element.  Remove it so the assembly loop does not insert a spurious
+  // paragraph break (\n\n) after every single line.
+  if (lines.isNotEmpty && lines.last.isEmpty) {
+    lines.removeLast();
+  }
   return MarkdownStreamPushResult(
     state: state.copyWith(
       pendingBuffer: pending,
       pendingSince: pending.isEmpty ? null : now,
       clearPendingSince: pending.isEmpty,
+      pendingStartsAfterNewline: pending.isNotEmpty,
     ),
     completedLines: lines,
   );
@@ -98,7 +115,9 @@ MarkdownStreamSoftFlushResult maybeFlushSoftChunk(
   if (buffer.isEmpty) {
     return MarkdownStreamSoftFlushResult(state: state);
   }
-  if (_hasOpenCodeFence(buffer)) {
+  if (_hasOpenCodeFence(buffer) ||
+      _looksLikeTableRow(buffer) ||
+      _hasOpenMarkdownLink(buffer)) {
     return MarkdownStreamSoftFlushResult(state: state);
   }
 
@@ -132,8 +151,10 @@ MarkdownStreamSoftFlushResult maybeFlushSoftChunk(
       pendingBuffer: remaining,
       pendingSince: remaining.isEmpty ? null : now,
       clearPendingSince: remaining.isEmpty,
+      pendingStartsAfterNewline: false,
     ),
     chunk: chunk,
+    startsAfterNewline: state.pendingStartsAfterNewline,
   );
 }
 
@@ -186,6 +207,17 @@ bool _isNaturalBoundary(int codeUnit) {
       codeUnit == 0x3A || // :
       codeUnit == 0x21 || // !
       codeUnit == 0x3F; // ?
+}
+
+// Table rows start with | and must stay intact for the markdown parser.
+// Splitting mid-row (like code fences) would break table rendering.
+bool _looksLikeTableRow(String text) => text.trimLeft().startsWith('|');
+
+// Markdown links [text](url) and images ![alt](url) must not be split
+// mid-URL.  If ]( appears without a matching ) the link is still open.
+bool _hasOpenMarkdownLink(String text) {
+  final i = text.lastIndexOf('](');
+  return i >= 0 && !text.substring(i).contains(')');
 }
 
 bool _hasOpenCodeFence(String text) {

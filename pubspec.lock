@@ -254,14 +254,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.0.0"
-  flutter_math_fork:
-    dependency: transitive
+  flutter_markdown_plus:
+    dependency: "direct main"
     description:
-      name: flutter_math_fork
-      sha256: "6d5f2f1aa57ae539ffb0a04bb39d2da67af74601d685a161aff7ce5bda5fa407"
+      name: flutter_markdown_plus
+      sha256: "039177906850278e8fb1cd364115ee0a46281135932fa8ecea8455522166d2de"
       url: "https://pub.dev"
     source: hosted
-    version: "0.7.4"
+    version: "1.0.7"
   flutter_riverpod:
     dependency: "direct main"
     description:
@@ -270,22 +270,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.3"
-  flutter_streaming_text_markdown:
-    dependency: "direct main"
-    description:
-      name: flutter_streaming_text_markdown
-      sha256: e73bc50f1d56ededb17eaaa78c275236b6eafc0c04022436de93e18c07e344db
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.5.0"
-  flutter_svg:
-    dependency: transitive
-    description:
-      name: flutter_svg
-      sha256: "87fbd7c534435b6c5d9d98b01e1fd527812b82e68ddd8bd35fc45ed0fa8f0a95"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.2.3"
   flutter_test:
     dependency: "direct dev"
     description: flutter
@@ -320,14 +304,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.3.3"
-  gpt_markdown:
+  highlight:
     dependency: "direct main"
     description:
-      name: gpt_markdown
-      sha256: "9b88dfaffea644070b648c204ca4a55745a49f4ad0b58ed0ab70913ad593c7a1"
+      name: highlight
+      sha256: "5353a83ffe3e3eca7df0abfb72dcf3fa66cc56b953728e7113ad4ad88497cf21"
       url: "https://pub.dev"
     source: hosted
-    version: "1.1.5"
+    version: "0.7.0"
   hooks:
     dependency: transitive
     description:
@@ -424,6 +408,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.3.0"
+  markdown:
+    dependency: "direct main"
+    description:
+      name: markdown
+      sha256: "935e23e1ff3bc02d390bad4d4be001208ee92cc217cb5b5a6c19bc14aaa318c1"
+      url: "https://pub.dev"
+    source: hosted
+    version: "7.3.0"
   matcher:
     dependency: transitive
     description:
@@ -464,14 +456,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.17.4"
-  nested:
-    dependency: transitive
-    description:
-      name: nested
-      sha256: "03bac4c528c64c95c722ec99280375a6f2fc708eec17c7b3f07253b626cd2a20"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.0.0"
   node_preamble:
     dependency: transitive
     description:
@@ -512,14 +496,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.9.1"
-  path_parsing:
-    dependency: transitive
-    description:
-      name: path_parsing
-      sha256: "883402936929eac138ee0a45da5b0f2c80f89913e6dc3bf77eb65b84b409c6ca"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.1.0"
   path_provider:
     dependency: transitive
     description:
@@ -608,14 +584,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.5.0"
-  provider:
-    dependency: transitive
-    description:
-      name: provider
-      sha256: "4e82183fa20e5ca25703ead7e05de9e4cceed1fbd1eadc1ac3cb6f565a09f272"
-      url: "https://pub.dev"
-    source: hosted
-    version: "6.1.5+1"
   pub_semver:
     dependency: transitive
     description:
@@ -624,6 +592,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.2.0"
+  remend:
+    dependency: "direct main"
+    description:
+      name: remend
+      sha256: "11786165ec94b83d9bca1c91877d57545c100db632e330ceec1dc3f6e400b184"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.2.2"
   riverpod:
     dependency: transitive
     description:
@@ -813,14 +789,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.6.16"
-  tuple:
-    dependency: transitive
-    description:
-      name: tuple
-      sha256: a97ce2013f240b2f3807bcbaf218765b6f301c3eff91092bcfa23a039e7dd151
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.0.2"
   typed_data:
     dependency: transitive
     description:
@@ -901,30 +869,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.5.2"
-  vector_graphics:
-    dependency: transitive
-    description:
-      name: vector_graphics
-      sha256: a4f059dc26fc8295b5921376600a194c4ec7d55e72f2fe4c7d2831e103d461e6
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.1.19"
-  vector_graphics_codec:
-    dependency: transitive
-    description:
-      name: vector_graphics_codec
-      sha256: "99fd9fbd34d9f9a32efd7b6a6aae14125d8237b10403b422a6a6dfeac2806146"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.1.13"
-  vector_graphics_compiler:
-    dependency: transitive
-    description:
-      name: vector_graphics_compiler
-      sha256: "5a88dd14c0954a5398af544651c7fb51b457a2a556949bfb25369b210ef73a74"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.2.0"
   vector_math:
     dependency: transitive
     description:
@@ -1006,5 +950,5 @@ packages:
     source: hosted
     version: "3.1.3"
 sdks:
-  dart: ">=3.11.0 <4.0.0"
+  dart: ">=3.11.1 <4.0.0"
   flutter: ">=3.38.4"

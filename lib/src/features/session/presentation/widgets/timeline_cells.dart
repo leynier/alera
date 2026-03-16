@@ -371,7 +371,6 @@ class AssistantBubbleMarkdown extends StatelessWidget {
             markdownEnabled: markdownEnabled,
             textStyle: messageStyle,
             markdownStyle: messageStyle,
-            useStreaming: isStreaming,
           ),
         ),
         if (isStreaming)
@@ -425,7 +424,6 @@ class UserBubbleContent extends StatelessWidget {
       markdownEnabled: markdownEnabled,
       textStyle: messageStyle,
       markdownStyle: messageStyle,
-      useStreaming: false,
     );
   }
 }

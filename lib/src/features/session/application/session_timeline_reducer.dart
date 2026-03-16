@@ -224,7 +224,7 @@ SessionState reduceCommitTick(
           text: softFlush.chunk!,
           enqueuedAt: timestamp,
           isSoftChunk: true,
-          appendWithoutNewline: true,
+          appendWithoutNewline: !softFlush.startsAfterNewline,
         ),
       ];
       nextState = nextState.copyWith(
