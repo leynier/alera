@@ -1,4 +1,5 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/features/session/presentation/widgets/markdown_helpers.dart';
 import 'package:alera/src/shared/presentation/toast/alera_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -143,6 +144,7 @@ class _CodeBlockWithCopyState extends State<_CodeBlockWithCopy> {
 
   @override
   Widget build(BuildContext context) {
+    final bool effectivelyActive = !mouseIsConnected() || _isHovered;
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
@@ -169,8 +171,8 @@ class _CodeBlockWithCopyState extends State<_CodeBlockWithCopy> {
             top: AleraTokens.space4,
             right: AleraTokens.space4,
             child: InkWell(
-              onTap: _isHovered ? _copy : null,
-              mouseCursor: _isHovered
+              onTap: effectivelyActive ? _copy : null,
+              mouseCursor: effectivelyActive
                   ? SystemMouseCursors.click
                   : SystemMouseCursors.basic,
               borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
@@ -182,7 +184,7 @@ class _CodeBlockWithCopyState extends State<_CodeBlockWithCopy> {
                 child: Icon(
                   Icons.content_copy,
                   size: 12,
-                  color: _isHovered
+                  color: effectivelyActive
                       ? AleraTokens.foregroundFaint
                       : Colors.transparent,
                 ),

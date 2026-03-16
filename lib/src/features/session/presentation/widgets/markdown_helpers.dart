@@ -327,6 +327,7 @@ class _SelectableTableBlockState extends State<_SelectableTableBlock> {
 
   @override
   Widget build(BuildContext context) {
+    final bool effectivelyActive = !mouseIsConnected() || _isHovered;
     return SelectionContainer.disabled(
       child: MouseRegion(
         onEnter: (_) => setState(() => _isHovered = true),
@@ -338,8 +339,8 @@ class _SelectableTableBlockState extends State<_SelectableTableBlock> {
               top: AleraTokens.space4,
               right: AleraTokens.space4,
               child: InkWell(
-                onTap: _isHovered ? _copy : null,
-                mouseCursor: _isHovered
+                onTap: effectivelyActive ? _copy : null,
+                mouseCursor: effectivelyActive
                     ? SystemMouseCursors.click
                     : SystemMouseCursors.basic,
                 borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
@@ -351,7 +352,7 @@ class _SelectableTableBlockState extends State<_SelectableTableBlock> {
                   child: Icon(
                     Icons.content_copy,
                     size: 12,
-                    color: _isHovered
+                    color: effectivelyActive
                         ? AleraTokens.foregroundFaint
                         : Colors.transparent,
                   ),
