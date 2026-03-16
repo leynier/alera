@@ -504,22 +504,19 @@ class MessageMarkdownToggleButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool effectivelyActive = !mouseIsConnected() || active;
-    return Tooltip(
-      message: effectivelyActive ? (markdownEnabled ? 'Markdown on' : 'Markdown off') : '',
-      child: InkWell(
-        onTap: effectivelyActive ? () => onChanged(!markdownEnabled) : null,
-        mouseCursor: effectivelyActive ? SystemMouseCursors.click : SystemMouseCursors.basic,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AleraTokens.space4,
-            vertical: AleraTokens.space2,
-          ),
-          child: Icon(
-            Icons.code,
-            size: 13,
-            color: effectivelyActive ? AleraTokens.foregroundFaint : Colors.transparent,
-          ),
+    return InkWell(
+      onTap: effectivelyActive ? () => onChanged(!markdownEnabled) : null,
+      mouseCursor: effectivelyActive ? SystemMouseCursors.click : SystemMouseCursors.basic,
+      borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AleraTokens.space4,
+          vertical: AleraTokens.space2,
+        ),
+        child: Icon(
+          Icons.code,
+          size: 13,
+          color: effectivelyActive ? AleraTokens.foregroundFaint : Colors.transparent,
         ),
       ),
     );
