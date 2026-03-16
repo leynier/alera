@@ -268,11 +268,10 @@ class MessageCopyButton extends StatelessWidget {
 }
 
 /// [MarkdownBody] subclass that wraps [Table] children in
-/// [SelectionContainer.disabled] so the parent [SelectionArea] does not
-/// dispatch selection events to them (which would crash with the
-/// `geometry.hasSelection` assertion). All other children remain plain
-/// [Text.rich] widgets that register with [SelectionArea] for
-/// cross-paragraph selection.
+/// [_SelectableTableBlock] so the parent [SelectionArea] does not dispatch
+/// selection events to them (which would crash with the
+/// `geometry.hasSelection` assertion), while still allowing independent
+/// text selection within the table via a local [SelectionArea].
 class _SelectionSafeMarkdownBody extends MarkdownBody {
   const _SelectionSafeMarkdownBody({
     required super.data,
@@ -287,12 +286,107 @@ class _SelectionSafeMarkdownBody extends MarkdownBody {
   Widget build(BuildContext context, List<Widget>? children) {
     final safe = children?.map((child) {
       if (child is Table) {
-        return SelectionContainer.disabled(child: child);
+        return _SelectableTableBlock(table: child);
       }
       return child;
     }).toList();
     return super.build(context, safe);
   }
+}
+
+class _SelectableTableBlock extends StatefulWidget {
+  const _SelectableTableBlock({required this.table});
+  final Table table;
+  @override
+  State<_SelectableTableBlock> createState() => _SelectableTableBlockState();
+}
+
+class _SelectableTableBlockState extends State<_SelectableTableBlock> {
+  bool _isHovered = false;
+
+  Future<void> _copy() async {
+    final text = _extractTableText(widget.table);
+    if (text.isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: text));
+    if (!mounted) return;
+    AleraToast.show(
+      context,
+      message: 'Table copied',
+      tone: AleraToastTone.success,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SelectionContainer.disabled(
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _isHovered = true),
+        onExit: (_) => setState(() => _isHovered = false),
+        child: Stack(
+          children: <Widget>[
+            SelectionArea(child: widget.table),
+            Positioned(
+              top: AleraTokens.space4,
+              right: AleraTokens.space4,
+              child: InkWell(
+                onTap: _isHovered ? _copy : null,
+                mouseCursor: _isHovered
+                    ? SystemMouseCursors.click
+                    : SystemMouseCursors.basic,
+                borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AleraTokens.space4,
+                    vertical: AleraTokens.space2,
+                  ),
+                  child: Icon(
+                    Icons.content_copy,
+                    size: 12,
+                    color: _isHovered
+                        ? AleraTokens.foregroundFaint
+                        : Colors.transparent,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+String _extractTableText(Table table) {
+  final buf = StringBuffer();
+  for (final row in table.children) {
+    final cells = <String>[];
+    for (final cell in row.children) {
+      cells.add(_extractWidgetText(cell).trim());
+    }
+    buf.writeln(cells.join('\t'));
+  }
+  return buf.toString().trimRight();
+}
+
+String _extractWidgetText(Widget widget) {
+  if (widget is Text) {
+    return widget.data ?? widget.textSpan?.toPlainText() ?? '';
+  }
+  if (widget is RichText) {
+    return widget.text.toPlainText();
+  }
+  if (widget is SingleChildRenderObjectWidget) {
+    final child = widget.child;
+    if (child != null) return _extractWidgetText(child);
+    return '';
+  }
+  if (widget is ProxyWidget) {
+    return _extractWidgetText(widget.child);
+  }
+  if (widget is MultiChildRenderObjectWidget) {
+    return widget.children.map(_extractWidgetText).join(' ');
+  }
+  return '';
 }
 
 class MessageMarkdownToggleButton extends StatelessWidget {
