@@ -20,6 +20,8 @@ abstract final class AleraTokens {
   static const double sidebarDefaultWidth = 300.0;
   static const double sidebarCollapsedWidth = 52.0;
   static const double activityLogHeight = 160.0;
+  static const double imageMaxWidth = 400.0;
+  static const double imageMaxHeight = 300.0;
 
   static const double radiusSm = 4.0;
   static const double radiusMd = 6.0;
@@ -45,6 +47,7 @@ abstract final class AleraTokens {
   static const Color onError = Color(0xFF2C0D0D);
   static const Color warning = Color(0xFFF59E0B);
   static const Color shadowSoft = Color(0x14000000);
+  static const Color barrierDark = Color(0x8A000000);
 
   static const Duration durationFast = Duration(milliseconds: 100);
   static const Duration durationMid = Duration(milliseconds: 180);

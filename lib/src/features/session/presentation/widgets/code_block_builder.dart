@@ -1,5 +1,8 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/features/session/presentation/widgets/markdown_helpers.dart';
+import 'package:alera/src/shared/presentation/toast/alera_toast.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:highlight/highlight.dart' show highlight, Node;
 import 'package:markdown/markdown.dart' as md;
@@ -36,22 +39,8 @@ class CodeBlockBuilder extends MarkdownElementBuilder {
     for (final node in result.nodes ?? <Node>[]) {
       _buildSpans(node, spans, null);
     }
-    return _ScrollControllerBuilder(
-      builder:
-          (BuildContext ctx, ScrollController controller, Widget? child) {
-        return Scrollbar(
-          controller: controller,
-          child: SingleChildScrollView(
-            controller: controller,
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.all(AleraTokens.space12),
-            child: child,
-          ),
-        );
-      },
-      child: Text.rich(
-        TextSpan(style: AleraTokens.monoStyle, children: spans),
-      ),
+    return SelectionContainer.disabled(
+      child: _CodeBlockWithCopy(code: code, spans: spans),
     );
   }
 
@@ -129,6 +118,83 @@ class CodeBlockBuilder extends MarkdownElementBuilder {
     'selector-id': AleraTokens.accent,
     'selector-class': AleraTokens.success,
   };
+}
+
+class _CodeBlockWithCopy extends StatefulWidget {
+  const _CodeBlockWithCopy({required this.code, required this.spans});
+  final String code;
+  final List<TextSpan> spans;
+  @override
+  State<_CodeBlockWithCopy> createState() => _CodeBlockWithCopyState();
+}
+
+class _CodeBlockWithCopyState extends State<_CodeBlockWithCopy> {
+  bool _isHovered = false;
+
+  Future<void> _copy() async {
+    if (widget.code.isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: widget.code));
+    if (!mounted) return;
+    AleraToast.show(
+      context,
+      message: 'Code copied',
+      tone: AleraToastTone.success,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool effectivelyActive = !mouseIsConnected() || _isHovered;
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: Stack(
+        children: <Widget>[
+          _ScrollControllerBuilder(
+            builder: (BuildContext ctx, ScrollController controller,
+                Widget? child) {
+              return Scrollbar(
+                controller: controller,
+                child: SingleChildScrollView(
+                  controller: controller,
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.all(AleraTokens.space12),
+                  child: child,
+                ),
+              );
+            },
+            child: Text.rich(
+              TextSpan(style: AleraTokens.monoStyle, children: widget.spans),
+            ),
+          ),
+          Positioned(
+            top: AleraTokens.space4,
+            right: AleraTokens.space4,
+            child: InkWell(
+              onTap: effectivelyActive ? _copy : null,
+              mouseCursor: effectivelyActive
+                  ? SystemMouseCursors.click
+                  : SystemMouseCursors.basic,
+              borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AleraTokens.space4,
+                  vertical: AleraTokens.space2,
+                ),
+                child: Icon(
+                  Icons.content_copy,
+                  size: 12,
+                  color: effectivelyActive
+                      ? AleraTokens.foregroundFaint
+                      : Colors.transparent,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Minimal reproduction of the private _ScrollControllerBuilder from
