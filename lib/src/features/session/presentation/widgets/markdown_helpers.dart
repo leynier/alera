@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/session/presentation/widgets/code_block_builder.dart';
+import 'package:alera/src/features/session/presentation/widgets/image_zoom_dialog.dart';
 import 'package:alera/src/shared/presentation/toast/alera_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -38,6 +41,11 @@ Widget buildMarkdownContent({
     onTapLink: _onTapLink,
     inlineSyntaxes: [md.EmojiSyntax()],
     builders: {'pre': CodeBlockBuilder()},
+    imageBuilder: (Uri uri, String? title, String? alt) {
+      return SelectionContainer.disabled(
+        child: _MarkdownImage(uri: uri, alt: alt),
+      );
+    },
     checkboxBuilder: (bool checked) {
       return Transform.translate(
         offset: const Offset(0, 4),
@@ -280,6 +288,7 @@ class _SelectionSafeMarkdownBody extends MarkdownBody {
     super.onTapLink,
     super.inlineSyntaxes,
     super.builders,
+    super.imageBuilder,
     super.checkboxBuilder,
   });
   @override
@@ -350,6 +359,85 @@ class _SelectableTableBlockState extends State<_SelectableTableBlock> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MarkdownImage extends StatefulWidget {
+  const _MarkdownImage({required this.uri, this.alt});
+  final Uri uri;
+  final String? alt;
+  @override
+  State<_MarkdownImage> createState() => _MarkdownImageState();
+}
+
+class _MarkdownImageState extends State<_MarkdownImage> {
+  bool _isHovered = false;
+
+  bool get _isNetwork =>
+      widget.uri.scheme == 'http' || widget.uri.scheme == 'https';
+
+  @override
+  Widget build(BuildContext context) {
+    final Widget image = _isNetwork
+        ? Image.network(
+            widget.uri.toString(),
+            fit: BoxFit.contain,
+            errorBuilder: (_, _, _) => const Icon(
+              Icons.broken_image,
+              size: 48,
+              color: AleraTokens.foregroundFaint,
+            ),
+          )
+        : Image.file(
+            File(widget.uri.toFilePath()),
+            fit: BoxFit.contain,
+            errorBuilder: (_, _, _) => const Icon(
+              Icons.broken_image,
+              size: 48,
+              color: AleraTokens.foregroundFaint,
+            ),
+          );
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        onTap: () => showImageZoomDialogForUri(context, widget.uri),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400, maxHeight: 300),
+          child: Stack(
+            children: <Widget>[
+              ClipRRect(
+                borderRadius:
+                    BorderRadius.circular(AleraTokens.radiusMd),
+                child: image,
+              ),
+              if (_isHovered && _isNetwork)
+                Positioned(
+                  top: AleraTokens.space4,
+                  right: AleraTokens.space4,
+                  child: IconButton(
+                    onPressed: () => launchUrl(
+                      widget.uri,
+                      mode: LaunchMode.externalApplication,
+                    ),
+                    style: IconButton.styleFrom(
+                      backgroundColor:
+                          AleraTokens.surface.withValues(alpha: 0.6),
+                      shape: const CircleBorder(),
+                    ),
+                    icon: const Icon(
+                      Icons.open_in_new,
+                      size: 16,
+                      color: AleraTokens.foreground,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
