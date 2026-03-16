@@ -1767,5 +1767,56 @@ void main() {
         expect(notices, hasLength(1));
       },
     );
+    test('soft-flushed chunk after newline uses newline separator', () {
+      var state = const SessionState();
+      final t0 = DateTime.utc(2026, 3, 1, 12, 0, 0);
+      state = reduceNotification(
+        state,
+        _event('turn/started', <String, dynamic>{
+          'turn': <String, dynamic>{'id': 'turn-1', 'threadId': 'thread-1'},
+        }),
+        now: t0,
+      );
+      state = reduceNotification(
+        state,
+        _event('codex/event/item_started', <String, dynamic>{
+          'msg': <String, dynamic>{
+            'type': 'item_started',
+            'turn_id': 'turn-1',
+            'item': <String, dynamic>{
+              'id': 'msg-1',
+              'type': 'AgentMessage',
+              'phase': 'final_answer',
+            },
+          },
+        }),
+        now: t0,
+      );
+      // Send a delta with a newline so "Hello" becomes a completed line and
+      // the remaining text sits in pendingBuffer with pendingStartsAfterNewline.
+      state = reduceNotification(
+        state,
+        _event('item/agentMessage/delta', <String, dynamic>{
+          'turnId': 'turn-1',
+          'itemId': 'msg-1',
+          'delta':
+              'Hello\nThis remaining text is long enough for a soft flush to pick it up easily.',
+        }),
+        now: t0,
+      );
+      // Drain the completed line "Hello" first.
+      state = reduceCommitTick(state, now: t0);
+      final cells1 = _cellsByKind(state, TimelineCellKind.assistantMessage);
+      expect(cells1, hasLength(1));
+      expect(cells1.first.markdownText, 'Hello');
+      // Now trigger soft-flush by advancing time well past the 180ms threshold.
+      final t1 = t0.add(const Duration(milliseconds: 300));
+      state = reduceCommitTick(state, now: t1);
+      state = reduceCommitTick(state, now: t1);
+      final cells2 = _cellsByKind(state, TimelineCellKind.assistantMessage);
+      expect(cells2, hasLength(1));
+      // The soft-flushed chunk must be joined with \n, not concatenated.
+      expect(cells2.first.markdownText, startsWith('Hello\n'));
+    });
   });
 }

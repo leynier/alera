@@ -2,21 +2,26 @@ class MarkdownStreamCollectorState {
   const MarkdownStreamCollectorState({
     this.pendingBuffer = '',
     this.pendingSince,
+    this.pendingStartsAfterNewline = false,
   });
 
   final String pendingBuffer;
   final DateTime? pendingSince;
+  final bool pendingStartsAfterNewline;
 
   MarkdownStreamCollectorState copyWith({
     String? pendingBuffer,
     DateTime? pendingSince,
     bool clearPendingSince = false,
+    bool? pendingStartsAfterNewline,
   }) {
     return MarkdownStreamCollectorState(
       pendingBuffer: pendingBuffer ?? this.pendingBuffer,
       pendingSince: clearPendingSince
           ? null
           : (pendingSince ?? this.pendingSince),
+      pendingStartsAfterNewline:
+          pendingStartsAfterNewline ?? this.pendingStartsAfterNewline,
     );
   }
 }
@@ -42,10 +47,15 @@ class MarkdownStreamFinalizeResult {
 }
 
 class MarkdownStreamSoftFlushResult {
-  const MarkdownStreamSoftFlushResult({required this.state, this.chunk});
+  const MarkdownStreamSoftFlushResult({
+    required this.state,
+    this.chunk,
+    this.startsAfterNewline = false,
+  });
 
   final MarkdownStreamCollectorState state;
   final String? chunk;
+  final bool startsAfterNewline;
 }
 
 MarkdownStreamPushResult pushMarkdownDelta(
@@ -87,6 +97,7 @@ MarkdownStreamPushResult pushMarkdownDelta(
       pendingBuffer: pending,
       pendingSince: pending.isEmpty ? null : now,
       clearPendingSince: pending.isEmpty,
+      pendingStartsAfterNewline: pending.isNotEmpty,
     ),
     completedLines: lines,
   );
@@ -140,8 +151,10 @@ MarkdownStreamSoftFlushResult maybeFlushSoftChunk(
       pendingBuffer: remaining,
       pendingSince: remaining.isEmpty ? null : now,
       clearPendingSince: remaining.isEmpty,
+      pendingStartsAfterNewline: false,
     ),
     chunk: chunk,
+    startsAfterNewline: state.pendingStartsAfterNewline,
   );
 }
 

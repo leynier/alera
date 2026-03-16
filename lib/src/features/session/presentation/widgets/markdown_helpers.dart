@@ -108,6 +108,12 @@ String normalizeMarkdownNewlines(String text) {
     placeholders.add(m[0]!);
     return '\x00CB${placeholders.length - 1}\x00';
   });
+  // Protect unclosed code fences (streaming: closing ``` not yet received)
+  final unclosedFence = work.indexOf('```');
+  if (unclosedFence != -1) {
+    placeholders.add(work.substring(unclosedFence));
+    work = '${work.substring(0, unclosedFence)}\x00CB${placeholders.length - 1}\x00';
+  }
   final paragraphs = work.split('\n\n');
   final processed = paragraphs.map((paragraph) {
     final lines = paragraph.split('\n');

@@ -226,6 +226,33 @@ void main() {
       expect(normalizeMarkdownNewlines(input), expected);
     });
 
+    test('preserves content inside unclosed code fence', () {
+      // The newline before the fence is joined as a space (same as closed
+      // blocks), but internal content stays intact.
+      expect(
+        normalizeMarkdownNewlines(
+          'Before.\n```python\ndef greet(name):\n    return f"Hello {name}"',
+        ),
+        'Before. ```python\ndef greet(name):\n    return f"Hello {name}"',
+      );
+    });
+
+    test('handles unclosed code fence after a closed code block', () {
+      expect(
+        normalizeMarkdownNewlines(
+          '```js\nvar x = 1;\n```\nMiddle text.\n```python\ndef foo():\n    pass',
+        ),
+        '```js\nvar x = 1;\n``` Middle text. ```python\ndef foo():\n    pass',
+      );
+    });
+
+    test('handles unclosed code fence with no content after fence marker', () {
+      expect(
+        normalizeMarkdownNewlines('Some intro.\n```'),
+        'Some intro. ```',
+      );
+    });
+
     test('collapses loose list items from LLM output', () {
       final input = 'Lista numerada de pasos a seguir:\n\n'
           '1. Confirmar la disponibilidad del espacio.\n\n'

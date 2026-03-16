@@ -179,6 +179,59 @@ void main() {
       expect(result.chunk, isNotNull);
     });
 
+    test('pushMarkdownDelta sets pendingStartsAfterNewline when newline splits buffer', () {
+      final now = DateTime.utc(2026, 2, 22, 4, 0, 0);
+      const state = MarkdownStreamCollectorState();
+      final r = pushMarkdownDelta(state, 'line one\nline two', now: now);
+      expect(r.completedLines, ['line one']);
+      expect(r.state.pendingBuffer, 'line two');
+      expect(r.state.pendingStartsAfterNewline, isTrue);
+    });
+
+    test('pushMarkdownDelta preserves pendingStartsAfterNewline across no-newline deltas', () {
+      final now = DateTime.utc(2026, 2, 22, 4, 0, 0);
+      const state = MarkdownStreamCollectorState();
+      final r1 = pushMarkdownDelta(state, 'line one\nline', now: now);
+      expect(r1.state.pendingStartsAfterNewline, isTrue);
+      final r2 = pushMarkdownDelta(r1.state, ' two cont', now: now);
+      expect(r2.completedLines, isEmpty);
+      expect(r2.state.pendingBuffer, 'line two cont');
+      expect(r2.state.pendingStartsAfterNewline, isTrue);
+    });
+
+    test('pushMarkdownDelta does not set pendingStartsAfterNewline without newline', () {
+      final now = DateTime.utc(2026, 2, 22, 4, 0, 0);
+      const state = MarkdownStreamCollectorState();
+      final r = pushMarkdownDelta(state, 'no newline here', now: now);
+      expect(r.state.pendingStartsAfterNewline, isFalse);
+    });
+
+    test('maybeFlushSoftChunk returns startsAfterNewline from input state', () {
+      final now = DateTime.utc(2026, 2, 22, 4, 0, 0);
+      final state = MarkdownStreamCollectorState(
+        pendingBuffer:
+            'This text is long enough to be soft-flushed by the collector when it reaches the target.',
+        pendingSince: now.subtract(const Duration(milliseconds: 250)),
+        pendingStartsAfterNewline: true,
+      );
+      final result = maybeFlushSoftChunk(state, now: now);
+      expect(result.chunk, isNotNull);
+      expect(result.startsAfterNewline, isTrue);
+    });
+
+    test('maybeFlushSoftChunk remaining state has pendingStartsAfterNewline false', () {
+      final now = DateTime.utc(2026, 2, 22, 4, 0, 0);
+      final state = MarkdownStreamCollectorState(
+        pendingBuffer:
+            'This text is long enough to be soft-flushed by the collector when it reaches the target.',
+        pendingSince: now.subtract(const Duration(milliseconds: 250)),
+        pendingStartsAfterNewline: true,
+      );
+      final result = maybeFlushSoftChunk(state, now: now);
+      expect(result.chunk, isNotNull);
+      expect(result.state.pendingStartsAfterNewline, isFalse);
+    });
+
     test('does not soft-flush with an open markdown code fence', () {
       final now = DateTime.utc(2026, 2, 22, 4, 0, 0);
       final state = MarkdownStreamCollectorState(
