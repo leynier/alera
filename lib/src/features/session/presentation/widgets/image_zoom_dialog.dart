@@ -9,7 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 void showImageZoomDialog(BuildContext context, String path) {
   showDialog<void>(
     context: context,
-    barrierColor: Colors.black54,
+    barrierColor: AleraTokens.barrierDark,
     builder: (context) => _ImageZoomOverlay(
       imageProvider: FileImage(File(path)),
     ),
@@ -32,7 +32,7 @@ void showImageZoomDialogForUri(BuildContext context, Uri uri) {
   }
   showDialog<void>(
     context: context,
-    barrierColor: Colors.black54,
+    barrierColor: AleraTokens.barrierDark,
     builder: (context) => _ImageZoomOverlay(
       imageProvider: provider,
       externalUrl: externalUrl,

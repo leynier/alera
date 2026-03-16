@@ -413,7 +413,7 @@ class _MarkdownImageState extends State<_MarkdownImage> {
       child: GestureDetector(
         onTap: () => showImageZoomDialogForUri(context, widget.uri),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 400, maxHeight: 300),
+          constraints: const BoxConstraints(maxWidth: AleraTokens.imageMaxWidth, maxHeight: AleraTokens.imageMaxHeight),
           child: Stack(
             children: <Widget>[
               ClipRRect(
@@ -426,8 +426,8 @@ class _MarkdownImageState extends State<_MarkdownImage> {
                   top: AleraTokens.space4,
                   right: AleraTokens.space4,
                   child: SizedBox(
-                    width: 24,
-                    height: 24,
+                    width: AleraTokens.space24,
+                    height: AleraTokens.space24,
                     child: IconButton(
                       padding: EdgeInsets.zero,
                       onPressed: () => launchUrl(
