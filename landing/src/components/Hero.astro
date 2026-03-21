@@ -6,41 +6,41 @@
   <div class="hero-glow absolute inset-0 pointer-events-none"></div>
 
   <!-- Atmospheric gradient overlay -->
-  <div class="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[600px] bg-gradient-to-b from-primary/5 to-transparent pointer-events-none"></div>
+  <div class="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[600px] bg-gradient-to-b from-accent/5 to-transparent pointer-events-none"></div>
 
   <!-- Noise texture overlay -->
   <div class="noise-overlay absolute inset-0 pointer-events-none"></div>
 
   <div class="relative z-10 max-w-[1440px] mx-auto flex flex-col items-center text-center">
     <!-- Eyebrow badge -->
-    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary-container text-on-surface font-label text-xs uppercase tracking-widest mb-8 opacity-0-initial animate-fade-in">
+    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface-variant text-foreground font-mono text-xs uppercase tracking-widest mb-8 opacity-0-initial animate-fade-in">
       <span class="relative flex h-2 w-2">
-        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-secondary opacity-75"></span>
-        <span class="relative inline-flex rounded-full h-2 w-2 bg-secondary"></span>
+        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-foreground-muted opacity-75"></span>
+        <span class="relative inline-flex rounded-full h-2 w-2 bg-foreground-muted"></span>
       </span>
       Coming soon
     </div>
 
     <!-- Headline -->
-    <h1 class="font-headline text-5xl md:text-7xl font-bold tracking-tighter text-on-surface mb-6 max-w-4xl leading-[1.1] opacity-0-initial animate-fade-in-up animation-delay-100">
+    <h1 class="text-5xl md:text-7xl font-bold tracking-tighter text-foreground mb-6 max-w-4xl leading-[1.1] opacity-0-initial animate-fade-in-up animation-delay-100">
       <span class="md:hidden">One workspace<br>for every<br><span class="text-shimmer">AI agent</span></span>
       <span class="hidden md:inline">One workspace for<br>every <span class="text-shimmer">AI agent</span></span>
     </h1>
 
     <!-- Subtitle -->
-    <p class="text-on-surface-variant text-lg md:text-xl max-w-2xl mb-12 font-body leading-relaxed opacity-0-initial animate-fade-in-up animation-delay-200">
+    <p class="text-foreground-muted text-lg md:text-xl max-w-2xl mb-12 leading-relaxed opacity-0-initial animate-fade-in-up animation-delay-200">
       Orchestrate Codex, Claude, Copilot, Cursor, and Gemini from a single native interface. Built with Flutter for macOS, Windows, and Linux.
     </p>
 
     <!-- CTA buttons -->
     <div class="flex flex-col sm:flex-row gap-4 opacity-0-initial animate-fade-in-up animation-delay-300">
-      <button class="px-8 py-4 rounded-xl bg-surface-container-highest text-outline font-label font-bold uppercase tracking-widest cursor-not-allowed opacity-50 border border-outline-variant/20 flex items-center gap-3">
+      <button class="px-8 py-4 rounded-xl bg-surface-container-highest text-foreground-faint font-mono font-bold uppercase tracking-widest cursor-not-allowed opacity-50 border border-border-subtle/20 flex items-center gap-3">
         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
         </svg>
         Download
       </button>
-      <button class="px-8 py-4 rounded-xl bg-transparent text-outline font-label font-bold uppercase tracking-widest cursor-not-allowed opacity-50 border border-outline-variant/20 flex items-center gap-3">
+      <button class="px-8 py-4 rounded-xl bg-transparent text-foreground-faint font-mono font-bold uppercase tracking-widest cursor-not-allowed opacity-50 border border-border-subtle/20 flex items-center gap-3">
         <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
           <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
         </svg>

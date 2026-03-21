@@ -21,28 +21,28 @@ const steps = [
 <section id="workflow" class="py-32 bg-surface-container-lowest">
   <div class="max-w-[1440px] mx-auto px-8">
     <div class="text-center mb-24">
-      <h2 class="font-headline text-4xl font-bold tracking-tight mb-4">
+      <h2 class="text-4xl font-bold tracking-tight mb-4">
         From idea to shipped
       </h2>
-      <p class="text-on-surface-variant text-lg">
+      <p class="text-foreground-muted text-lg">
         Three steps to orchestrate AI agents in your codebase.
       </p>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-16 relative">
       <!-- Ghost connecting line (desktop) -->
-      <div class="hidden md:block absolute top-10 left-[15%] right-[15%] h-[1px] bg-outline-variant/20 z-0"></div>
+      <div class="hidden md:block absolute top-10 left-[15%] right-[15%] h-[1px] bg-border-subtle/20 z-0"></div>
 
       {steps.map((step, i) => (
         <div
           class="relative z-10 flex flex-col items-center text-center opacity-0-initial animate-fade-in-up"
           style={`animation-delay: ${300 + i * 120}ms`}
         >
-          <div class="w-20 h-20 rounded-full bg-surface-container-lowest border-2 border-outline-variant/30 flex items-center justify-center font-mono text-2xl font-bold mb-8 text-outline">
+          <div class="w-20 h-20 rounded-full bg-surface-container-lowest border-2 border-border-subtle/30 flex items-center justify-center font-mono text-2xl font-bold mb-8 text-foreground-faint">
             {step.number}
           </div>
-          <h4 class="font-headline text-xl font-bold mb-3">{step.title}</h4>
-          <p class="text-on-surface-variant text-sm max-w-xs">{step.description}</p>
+          <h4 class="text-xl font-bold mb-3">{step.title}</h4>
+          <p class="text-foreground-muted text-sm max-w-xs">{step.description}</p>
         </div>
       ))}
     </div>

@@ -30,7 +30,7 @@ const agents = [
 
 <section class="py-20 bg-surface-container-low">
   <div class="max-w-[1440px] mx-auto px-8">
-    <p class="font-label text-xs font-bold uppercase tracking-[0.2em] text-outline text-center mb-12">
+    <p class="font-mono text-xs font-bold uppercase tracking-[0.2em] text-foreground-faint text-center mb-12">
       Works with your favorite agents
     </p>
 
@@ -40,10 +40,10 @@ const agents = [
           class="flex flex-col items-center gap-3 w-[calc(50%-1rem)] md:w-auto opacity-0-initial animate-fade-in-up"
           style={`animation-delay: ${200 + i * 80}ms`}
         >
-          <div class="w-12 h-12 bg-surface-container-high rounded-lg flex items-center justify-center border border-outline-variant/10">
+          <div class="w-12 h-12 bg-surface-container-high rounded-lg flex items-center justify-center border border-border-subtle/10">
             <svg
               viewBox={agent.viewBox}
-              class="w-6 h-6 fill-current text-on-surface"
+              class="w-6 h-6 fill-current text-foreground"
               aria-label={agent.name}
             >
               <path d={agent.path} />

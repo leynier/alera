@@ -21,10 +21,10 @@ const features = [
 <section id="features" class="py-32 px-8">
   <div class="max-w-[1440px] mx-auto">
     <div class="flex flex-col mb-20">
-      <h2 class="font-headline text-4xl font-bold tracking-tight mb-4">
+      <h2 class="text-4xl font-bold tracking-tight mb-4">
         Built for how you actually work
       </h2>
-      <p class="text-on-surface-variant max-w-xl text-lg">
+      <p class="text-foreground-muted max-w-xl text-lg">
         A native desktop workspace that brings all your AI agents together without compromise.
       </p>
     </div>
@@ -32,16 +32,16 @@ const features = [
     <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
       {features.map((feature, i) => (
         <div
-          class="group p-8 rounded-xl bg-surface-container-low hover:bg-surface-container-high transition-all duration-300 border border-outline-variant/5 opacity-0-initial animate-fade-in-up"
+          class="group p-8 rounded-xl bg-surface-container-low hover:bg-surface-container-high transition-all duration-300 border border-border-subtle/5 opacity-0-initial animate-fade-in-up"
           style={`animation-delay: ${300 + i * 100}ms`}
         >
-          <div class="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-6 text-primary group-hover:scale-110 transition-transform">
+          <div class="w-12 h-12 bg-accent/10 rounded-lg flex items-center justify-center mb-6 text-accent group-hover:scale-110 transition-transform">
             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <Fragment set:html={feature.icon} />
             </svg>
           </div>
-          <h3 class="font-headline text-xl font-bold mb-4">{feature.title}</h3>
-          <p class="text-on-surface-variant leading-relaxed">{feature.description}</p>
+          <h3 class="text-xl font-bold mb-4">{feature.title}</h3>
+          <p class="text-foreground-muted leading-relaxed">{feature.description}</p>
         </div>
       ))}
     </div>
