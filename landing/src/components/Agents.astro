@@ -28,28 +28,28 @@ const agents = [
 ];
 ---
 
-<section class="py-20 px-6 border-t border-border-subtle/50">
-  <div class="max-w-4xl mx-auto">
-    <p class="text-center text-label-md text-foreground-faint uppercase tracking-widest font-mono mb-12">
+<section class="py-20 bg-surface-container-low">
+  <div class="max-w-[1440px] mx-auto px-8">
+    <p class="font-label text-xs font-bold uppercase tracking-[0.2em] text-outline text-center mb-12">
       Works with your favorite agents
     </p>
 
-    <div class="flex flex-wrap justify-center items-center gap-8 md:gap-12">
+    <div class="flex flex-wrap justify-center md:grid md:grid-cols-5 gap-8 items-center opacity-60 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-700">
       {agents.map((agent, i) => (
         <div
-          class="flex flex-col items-center gap-3 group opacity-0-initial animate-fade-in-up"
+          class="flex flex-col items-center gap-3 w-[calc(50%-1rem)] md:w-auto opacity-0-initial animate-fade-in-up"
           style={`animation-delay: ${200 + i * 80}ms`}
         >
-          <div class="w-14 h-14 rounded-xl bg-surface border border-border flex items-center justify-center transition-all duration-mid group-hover:border-foreground-faint group-hover:bg-surface-variant group-hover:scale-105">
+          <div class="w-12 h-12 bg-surface-container-high rounded-lg flex items-center justify-center border border-outline-variant/10">
             <svg
               viewBox={agent.viewBox}
-              class="w-6 h-6 fill-current text-foreground-faint group-hover:text-foreground transition-colors duration-mid"
+              class="w-6 h-6 fill-current text-on-surface"
               aria-label={agent.name}
             >
               <path d={agent.path} />
             </svg>
           </div>
-          <span class="text-label-md text-foreground-faint tracking-wider font-mono">
+          <span class="font-mono text-sm tracking-tight">
             {agent.name}
           </span>
         </div>

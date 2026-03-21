@@ -4,22 +4,24 @@
 
 @layer base {
   :root {
-    --color-bg: #101010;
-    --color-surface: #181818;
-    --color-surface-variant: #202020;
-    --color-surface-elevated: #242424;
-    --color-border: #323232;
-    --color-border-subtle: #272727;
-    --color-accent: #E0E0E0;
-    --color-accent-subtle: rgba(224, 224, 224, 0.1);
-    --color-on-accent: #101010;
-    --color-foreground: #F5F5F5;
-    --color-foreground-muted: #A1A1A1;
-    --color-foreground-faint: #606060;
-    --color-success: #22C55E;
-    --color-error: #F87171;
-    --color-on-error: #2C0D0D;
-    --color-warning: #F59E0B;
+    --color-surface: #111114;
+    --color-surface-container-lowest: #0a0a0d;
+    --color-surface-container-low: #18181b;
+    --color-surface-container: #1f1f22;
+    --color-surface-container-high: #27272a;
+    --color-surface-container-highest: #333336;
+    --color-surface-variant: #333336;
+    --color-primary: #e2e2e2;
+    --color-primary-container: #d0d0d0;
+    --color-brand: #e2e2e2;
+    --color-secondary-container: #27272a;
+    --color-on-surface: #e2e2e2;
+    --color-on-surface-variant: #a1a1a4;
+    --color-outline: #71717a;
+    --color-outline-variant: #3f3f46;
+    --color-on-primary: #111114;
+    --color-error: #fca5a5;
+    --color-on-error: #450a0a;
   }
 
   html {
@@ -33,17 +35,40 @@
 
 @layer utilities {
   .text-gradient {
-    background: linear-gradient(135deg, #F5F5F5 0%, #A1A1A1 100%);
+    background: linear-gradient(135deg, #f5f5f5 0%, #a1a1a4 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
 
   .text-gradient-accent {
-    background: linear-gradient(135deg, #FFFFFF 0%, #E0E0E0 40%, #A1A1A1 100%);
+    background: linear-gradient(135deg, #ffffff 0%, #e2e2e2 40%, #a1a1a4 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+  }
+
+  .text-shimmer {
+    background: linear-gradient(
+      105deg,
+      #a1a1a4 0%,
+      #a1a1a4 38%,
+      #d0d0d0 44%,
+      #ffffff 50%,
+      #d0d0d0 56%,
+      #a1a1a4 62%,
+      #a1a1a4 100%
+    );
+    background-size: 300% 100%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: shimmer 5s linear infinite;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: 0% 0; }
+    100% { background-position: 100% 0; }
   }
 
   .opacity-0-initial {
@@ -51,14 +76,20 @@
   }
 
   .hero-glow {
-    background: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(224, 224, 224, 0.04) 0%, transparent 70%);
+    background: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(226, 226, 226, 0.04) 0%, transparent 70%);
   }
 
   .mockup-shadow {
-    box-shadow:
-      0 0 0 1px rgba(50, 50, 50, 0.5),
-      0 25px 50px -12px rgba(0, 0, 0, 0.6),
-      0 0 80px -20px rgba(224, 224, 224, 0.03);
+    box-shadow: 0 0 40px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  .glass-card {
+    background: rgba(39, 39, 42, 0.5);
+    backdrop-filter: blur(12px);
+  }
+
+  .atmospheric-glow {
+    background: radial-gradient(600px circle at var(--x, 50%) var(--y, 50%), rgba(226, 226, 226, 0.03), transparent 40%);
   }
 }
 
@@ -86,9 +117,9 @@
   transform: translateX(-50%) translateY(4px);
   padding: 4px 10px;
   border-radius: 6px;
-  background: #242424;
-  border: 1px solid #323232;
-  color: #A1A1A1;
+  background: #27272a;
+  border: 1px solid rgba(63, 63, 70, 0.15);
+  color: #71717a;
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.3px;
