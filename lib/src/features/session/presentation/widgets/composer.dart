@@ -35,6 +35,8 @@ class Composer extends StatefulWidget {
     required this.activeReasoningEffort,
     required this.supportedReasoningEfforts,
     required this.onReasoningEffortChanged,
+    required this.activeSpeedMode,
+    required this.onSpeedModeChanged,
     required this.onSend,
     required this.onInterrupt,
     this.hintText = 'Ask for follow-up changes',
@@ -69,6 +71,8 @@ class Composer extends StatefulWidget {
   final String activeReasoningEffort;
   final List<String> supportedReasoningEfforts;
   final ValueChanged<String> onReasoningEffortChanged;
+  final String activeSpeedMode;
+  final ValueChanged<String> onSpeedModeChanged;
   final VoidCallback onSend;
   final VoidCallback onInterrupt;
   final String hintText;
@@ -98,6 +102,8 @@ class ComposerState extends State<Composer> {
   final GlobalKey<PopupMenuButtonState<String>> _modelMenuKey =
       GlobalKey<PopupMenuButtonState<String>>();
   final GlobalKey<PopupMenuButtonState<String>> _reasoningMenuKey =
+      GlobalKey<PopupMenuButtonState<String>>();
+  final GlobalKey<PopupMenuButtonState<String>> _speedMenuKey =
       GlobalKey<PopupMenuButtonState<String>>();
   final GlobalKey<PopupMenuButtonState<PermissionMode>> _permissionMenuKey =
       GlobalKey<PopupMenuButtonState<PermissionMode>>();
@@ -159,6 +165,8 @@ class ComposerState extends State<Composer> {
 
   String get _reasoningLabel =>
       codexReasoningEffortLabel(widget.activeReasoningEffort);
+
+  String get _speedLabel => codexSpeedModeLabel(widget.activeSpeedMode);
 
   String get _permissionLabel {
     switch (widget.permissionMode) {
@@ -615,163 +623,244 @@ class ComposerState extends State<Composer> {
                       ),
                       child: Row(
                         children: <Widget>[
-                          IconButton(
-                            onPressed: widget.onAddAttachment,
-                            tooltip: 'Add photos & files',
-                            mouseCursor: SystemMouseCursors.click,
-                            constraints: const BoxConstraints(
-                              minWidth: 28,
-                              minHeight: 28,
-                            ),
-                            padding: const EdgeInsets.all(AleraTokens.space4),
-                            icon: Icon(
-                              Icons.add,
-                              size: 18,
-                              color: widget.onAddAttachment != null
-                                  ? AleraTokens.foregroundMuted
-                                  : AleraTokens.foregroundFaint,
-                            ),
-                          ),
-                          const SizedBox(width: AleraTokens.space4),
-                          PopupMenuButton<String>(
-                            key: _modelMenuKey,
-                            tooltip: 'Choose model (${_shortcutHint('⇧M')})',
-                            onSelected: widget.canChangeModel
-                                ? widget.onModelChanged
-                                : null,
-                            enabled: widget.canChangeModel,
-                            constraints: const BoxConstraints(minWidth: 220),
-                            itemBuilder: (context) => <PopupMenuEntry<String>>[
-                              const PopupMenuItem<String>(
-                                enabled: false,
-                                height: 32,
-                                padding: EdgeInsets.symmetric(horizontal: 8),
-                                child: Text(
-                                  'Select model',
-                                  style: TextStyle(
-                                    color: AleraTokens.foregroundFaint,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ),
-                              ...widget.availableModels.map(
-                                (model) => DropdownEntry<String>(
-                                  value: model.id,
-                                  label: model.label,
-                                  selected: model.id == widget.activeModelId,
-                                ),
-                              ),
-                            ],
-                            child: ComposerChip(label: _activeModelLabel),
-                          ),
-                          const SizedBox(width: AleraTokens.space6),
-                          PopupMenuButton<String>(
-                            key: _reasoningMenuKey,
-                            tooltip:
-                                'Select reasoning effort (${_shortcutHint('T')})',
-                            onSelected: widget.canChangeModel
-                                ? widget.onReasoningEffortChanged
-                                : null,
-                            enabled: widget.canChangeModel,
-                            itemBuilder: (context) => <PopupMenuEntry<String>>[
-                              const PopupMenuItem<String>(
-                                enabled: false,
-                                height: 32,
-                                padding: EdgeInsets.symmetric(horizontal: 8),
-                                child: Text(
-                                  'Select reasoning effort',
-                                  style: TextStyle(
-                                    color: AleraTokens.foregroundFaint,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ),
-                              ...widget.supportedReasoningEfforts.map(
-                                (effort) => DropdownEntry<String>(
-                                  value: effort,
-                                  label: codexReasoningEffortLabel(effort),
-                                  selected:
-                                      effort == widget.activeReasoningEffort,
-                                ),
-                              ),
-                            ],
-                            child: ComposerChip(label: _reasoningLabel),
-                          ),
-                          const SizedBox(width: AleraTokens.space6),
-                          Tooltip(
-                            message:
-                                'Toggle plan mode (${_shortcutHint('⇧P')})',
-                            child: InkWell(
-                              onTap: widget.onPlanModeToggled,
-                              borderRadius: BorderRadius.circular(
-                                AleraTokens.radiusLg,
-                              ),
-                              mouseCursor: SystemMouseCursors.click,
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: AleraTokens.space8,
-                                  vertical: AleraTokens.space4,
-                                ),
-                                child: Text(
-                                  'Plan',
-                                  style: TextStyle(
-                                    color: widget.planModeEnabled
-                                        ? AleraTokens.info
-                                        : AleraTokens.foregroundFaint,
-                                    fontSize: 12,
-                                    fontWeight: widget.planModeEnabled
-                                        ? FontWeight.w600
-                                        : FontWeight.normal,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: AleraTokens.space6),
-                          PopupMenuButton<PermissionMode>(
-                            key: _permissionMenuKey,
-                            tooltip:
-                                'Choose approval mode (${_shortcutHint('⇧Y')})',
-                            onSelected: widget.onPermissionModeSelected,
-                            itemBuilder: (context) =>
-                                <PopupMenuEntry<PermissionMode>>[
-                                  const PopupMenuItem<PermissionMode>(
-                                    enabled: false,
-                                    height: 32,
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: 8,
+                          Expanded(
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: <Widget>[
+                                  IconButton(
+                                    onPressed: widget.onAddAttachment,
+                                    tooltip: 'Add photos & files',
+                                    mouseCursor: SystemMouseCursors.click,
+                                    constraints: const BoxConstraints(
+                                      minWidth: 28,
+                                      minHeight: 28,
                                     ),
-                                    child: Text(
-                                      'Select approval mode',
-                                      style: TextStyle(
-                                        color: AleraTokens.foregroundFaint,
-                                        fontSize: 12,
+                                    padding: const EdgeInsets.all(
+                                      AleraTokens.space4,
+                                    ),
+                                    icon: Icon(
+                                      Icons.add,
+                                      size: 18,
+                                      color: widget.onAddAttachment != null
+                                          ? AleraTokens.foregroundMuted
+                                          : AleraTokens.foregroundFaint,
+                                    ),
+                                  ),
+                                  const SizedBox(width: AleraTokens.space4),
+                                  PopupMenuButton<String>(
+                                    key: _modelMenuKey,
+                                    tooltip:
+                                        'Choose model (${_shortcutHint('⇧M')})',
+                                    onSelected: widget.canChangeModel
+                                        ? widget.onModelChanged
+                                        : null,
+                                    enabled: widget.canChangeModel,
+                                    constraints: const BoxConstraints(
+                                      minWidth: 220,
+                                    ),
+                                    itemBuilder: (context) =>
+                                        <PopupMenuEntry<String>>[
+                                          const PopupMenuItem<String>(
+                                            enabled: false,
+                                            height: 32,
+                                            padding: EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                            ),
+                                            child: Text(
+                                              'Select model',
+                                              style: TextStyle(
+                                                color:
+                                                    AleraTokens.foregroundFaint,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ),
+                                          ...widget.availableModels.map(
+                                            (model) => DropdownEntry<String>(
+                                              value: model.id,
+                                              label: model.label,
+                                              selected:
+                                                  model.id ==
+                                                  widget.activeModelId,
+                                            ),
+                                          ),
+                                        ],
+                                    child: ComposerChip(
+                                      label: _activeModelLabel,
+                                    ),
+                                  ),
+                                  const SizedBox(width: AleraTokens.space6),
+                                  PopupMenuButton<String>(
+                                    key: _reasoningMenuKey,
+                                    tooltip:
+                                        'Select reasoning effort (${_shortcutHint('T')})',
+                                    onSelected: widget.canChangeModel
+                                        ? widget.onReasoningEffortChanged
+                                        : null,
+                                    enabled: widget.canChangeModel,
+                                    itemBuilder: (context) =>
+                                        <PopupMenuEntry<String>>[
+                                          const PopupMenuItem<String>(
+                                            enabled: false,
+                                            height: 32,
+                                            padding: EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                            ),
+                                            child: Text(
+                                              'Select reasoning effort',
+                                              style: TextStyle(
+                                                color:
+                                                    AleraTokens.foregroundFaint,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ),
+                                          ...widget.supportedReasoningEfforts
+                                              .map(
+                                                (
+                                                  effort,
+                                                ) => DropdownEntry<String>(
+                                                  value: effort,
+                                                  label:
+                                                      codexReasoningEffortLabel(
+                                                        effort,
+                                                      ),
+                                                  selected:
+                                                      effort ==
+                                                      widget
+                                                          .activeReasoningEffort,
+                                                ),
+                                              ),
+                                        ],
+                                    child: ComposerChip(label: _reasoningLabel),
+                                  ),
+                                  if (supportsFastModeForModel(
+                                    widget.activeModelId,
+                                  )) ...<Widget>[
+                                    const SizedBox(width: AleraTokens.space6),
+                                    PopupMenuButton<String>(
+                                      key: _speedMenuKey,
+                                      tooltip: 'Select speed mode',
+                                      onSelected: widget.canChangeModel
+                                          ? widget.onSpeedModeChanged
+                                          : null,
+                                      enabled: widget.canChangeModel,
+                                      itemBuilder: (context) =>
+                                          <PopupMenuEntry<String>>[
+                                            const PopupMenuItem<String>(
+                                              enabled: false,
+                                              height: 32,
+                                              padding: EdgeInsets.symmetric(
+                                                horizontal: 8,
+                                              ),
+                                              child: Text(
+                                                'Select speed mode',
+                                                style: TextStyle(
+                                                  color: AleraTokens
+                                                      .foregroundFaint,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ),
+                                            ...supportedSpeedModesForModel(
+                                              widget.activeModelId,
+                                            ).map(
+                                              (speedMode) =>
+                                                  DropdownEntry<String>(
+                                                    value: speedMode,
+                                                    label: codexSpeedModeLabel(
+                                                      speedMode,
+                                                    ),
+                                                    selected:
+                                                        speedMode ==
+                                                        widget.activeSpeedMode,
+                                                  ),
+                                            ),
+                                          ],
+                                      child: ComposerChip(label: _speedLabel),
+                                    ),
+                                  ],
+                                  const SizedBox(width: AleraTokens.space6),
+                                  PopupMenuButton<PermissionMode>(
+                                    key: _permissionMenuKey,
+                                    tooltip:
+                                        'Choose approval mode (${_shortcutHint('⇧Y')})',
+                                    onSelected: widget.onPermissionModeSelected,
+                                    itemBuilder: (context) =>
+                                        <PopupMenuEntry<PermissionMode>>[
+                                          const PopupMenuItem<PermissionMode>(
+                                            enabled: false,
+                                            height: 32,
+                                            padding: EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                            ),
+                                            child: Text(
+                                              'Select approval mode',
+                                              style: TextStyle(
+                                                color:
+                                                    AleraTokens.foregroundFaint,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ),
+                                          DropdownEntry<PermissionMode>(
+                                            value: PermissionMode.defaultMode,
+                                            label: 'Ask first',
+                                            selected:
+                                                widget.permissionMode ==
+                                                PermissionMode.defaultMode,
+                                          ),
+                                          DropdownEntry<PermissionMode>(
+                                            value: PermissionMode.fullAccess,
+                                            label: 'Full access',
+                                            selected:
+                                                widget.permissionMode ==
+                                                PermissionMode.fullAccess,
+                                          ),
+                                        ],
+                                    child: ComposerChip(
+                                      label: _permissionLabel,
+                                      highlight:
+                                          widget.permissionMode ==
+                                          PermissionMode.fullAccess,
+                                    ),
+                                  ),
+                                  const SizedBox(width: AleraTokens.space6),
+                                  Tooltip(
+                                    message:
+                                        'Toggle plan mode (${_shortcutHint('⇧P')})',
+                                    child: InkWell(
+                                      onTap: widget.onPlanModeToggled,
+                                      borderRadius: BorderRadius.circular(
+                                        AleraTokens.radiusLg,
+                                      ),
+                                      mouseCursor: SystemMouseCursors.click,
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: AleraTokens.space8,
+                                          vertical: AleraTokens.space4,
+                                        ),
+                                        child: Text(
+                                          'Plan',
+                                          style: TextStyle(
+                                            color: widget.planModeEnabled
+                                                ? AleraTokens.info
+                                                : AleraTokens.foregroundFaint,
+                                            fontSize: 12,
+                                            fontWeight: widget.planModeEnabled
+                                                ? FontWeight.w600
+                                                : FontWeight.normal,
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ),
-                                  DropdownEntry<PermissionMode>(
-                                    value: PermissionMode.defaultMode,
-                                    label: 'Ask first',
-                                    selected:
-                                        widget.permissionMode ==
-                                        PermissionMode.defaultMode,
-                                  ),
-                                  DropdownEntry<PermissionMode>(
-                                    value: PermissionMode.fullAccess,
-                                    label: 'Full access',
-                                    selected:
-                                        widget.permissionMode ==
-                                        PermissionMode.fullAccess,
-                                  ),
                                 ],
-                            child: ComposerChip(
-                              label: _permissionLabel,
-                              highlight:
-                                  widget.permissionMode ==
-                                  PermissionMode.fullAccess,
+                              ),
                             ),
                           ),
-                          const Spacer(),
+                          const SizedBox(width: AleraTokens.space6),
                           _buildActionButton(),
                         ],
                       ),

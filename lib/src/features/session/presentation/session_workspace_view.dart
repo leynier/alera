@@ -40,6 +40,8 @@ class SessionWorkspaceView extends StatefulWidget {
     required this.activeReasoningEffort,
     required this.supportedReasoningEfforts,
     required this.onReasoningEffortChanged,
+    required this.activeSpeedMode,
+    required this.onSpeedModeChanged,
     required this.isMarkdownEnabled,
     required this.onMarkdownModeChanged,
     required this.rawLogExpanded,
@@ -78,6 +80,8 @@ class SessionWorkspaceView extends StatefulWidget {
   final String activeReasoningEffort;
   final List<String> supportedReasoningEfforts;
   final ValueChanged<String> onReasoningEffortChanged;
+  final String activeSpeedMode;
+  final ValueChanged<String> onSpeedModeChanged;
   final bool isMarkdownEnabled;
   final ValueChanged<bool> onMarkdownModeChanged;
   final bool rawLogExpanded;
@@ -369,6 +373,8 @@ class _SessionWorkspaceViewState extends State<SessionWorkspaceView> {
                   activeReasoningEffort: widget.activeReasoningEffort,
                   supportedReasoningEfforts: widget.supportedReasoningEfforts,
                   onReasoningEffortChanged: widget.onReasoningEffortChanged,
+                  activeSpeedMode: widget.activeSpeedMode,
+                  onSpeedModeChanged: widget.onSpeedModeChanged,
                   hintText: widget.state.activeSession != null
                       ? 'Ask for follow-up changes'
                       : 'Ask Alera anything, @ to add files, / for commands',

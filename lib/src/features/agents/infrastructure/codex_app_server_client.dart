@@ -254,6 +254,7 @@ class CodexAppServerClient {
     required String model,
     required String reasoningEffort,
     String? cwd,
+    String? serviceTier,
     String approvalPolicy = 'never',
     CodexCollaborationMode? collaborationMode,
   }) {
@@ -264,6 +265,7 @@ class CodexAppServerClient {
         'input': input,
         'model': model,
         'reasoning': <String, dynamic>{'effort': reasoningEffort},
+        'serviceTier': serviceTier,
         ...?cwd == null ? null : <String, dynamic>{'cwd': cwd},
         'approvalPolicy': approvalPolicy,
         ...?collaborationMode == null

@@ -7,6 +7,7 @@ import 'package:alera/src/features/session/application/session_runtime_event.dar
 import 'package:alera/src/features/session/application/session_service.dart';
 import 'package:alera/src/features/session/domain/chat_timeline.dart';
 import 'package:alera/src/features/session/domain/composer_attachment.dart';
+import 'package:alera/src/features/session/domain/pending_approval.dart';
 import 'package:alera/src/features/session/domain/pending_user_input.dart';
 import 'package:alera/src/features/session/domain/review_preset_selection.dart';
 import 'package:alera/src/features/settings/application/settings_service.dart';
@@ -23,6 +24,7 @@ class _FakeSessionService implements SessionService {
   SessionCreateRequest? lastCreateSessionRequest;
   String? lastRunInputText;
   String? lastRunInputReasoningEffort;
+  String? lastRunInputSpeedMode;
   bool? lastRunInputPlanModeEnabled;
   bool? lastRunInputForceDefaultCollaborationMode;
   List<Map<String, dynamic>> lastRunInputExtraInputItems =
@@ -129,6 +131,7 @@ class _FakeSessionService implements SessionService {
     required String sessionId,
     required String rawInput,
     required String reasoningEffort,
+    required String speedMode,
     List<Map<String, dynamic>> extraInputItems = const <Map<String, dynamic>>[],
     bool planModeEnabled = false,
     bool forceDefaultCollaborationMode = false,
@@ -137,6 +140,7 @@ class _FakeSessionService implements SessionService {
     runInputCallCount += 1;
     lastRunInputText = rawInput;
     lastRunInputReasoningEffort = reasoningEffort;
+    lastRunInputSpeedMode = speedMode;
     lastRunInputPlanModeEnabled = planModeEnabled;
     lastRunInputForceDefaultCollaborationMode = forceDefaultCollaborationMode;
     lastRunInputExtraInputItems = List<Map<String, dynamic>>.of(
@@ -338,12 +342,20 @@ class _FakeSettingsService implements SettingsService {
   _FakeSettingsService(
     this._selectedModel,
     this._selectedReasoningEffort,
-    this._markdownEnabled,
-  );
+    this._markdownEnabled, {
+    String selectedSpeedMode = 'normal',
+    bool planModeEnabled = false,
+    PermissionMode permissionMode = PermissionMode.defaultMode,
+  }) : _selectedSpeedMode = selectedSpeedMode,
+       _planModeEnabled = planModeEnabled,
+       _permissionMode = permissionMode;
 
   String _selectedModel;
   String _selectedReasoningEffort;
+  String _selectedSpeedMode;
   bool _markdownEnabled;
+  bool _planModeEnabled;
+  PermissionMode _permissionMode;
   int saveCallCount = 0;
 
   @override
@@ -351,7 +363,10 @@ class _FakeSettingsService implements SettingsService {
     return SettingsSnapshot(
       selectedModel: _selectedModel,
       selectedReasoningEffort: _selectedReasoningEffort,
+      selectedSpeedMode: _selectedSpeedMode,
       markdownEnabled: _markdownEnabled,
+      planModeEnabled: _planModeEnabled,
+      permissionMode: _permissionMode,
     );
   }
 
@@ -360,12 +375,18 @@ class _FakeSettingsService implements SettingsService {
     saveCallCount += 1;
     _selectedModel = snapshot.selectedModel;
     _selectedReasoningEffort = snapshot.selectedReasoningEffort;
+    _selectedSpeedMode = snapshot.selectedSpeedMode;
     _markdownEnabled = snapshot.markdownEnabled;
+    _planModeEnabled = snapshot.planModeEnabled;
+    _permissionMode = snapshot.permissionMode;
   }
 
   String get selectedModel => _selectedModel;
   String get selectedReasoningEffort => _selectedReasoningEffort;
+  String get selectedSpeedMode => _selectedSpeedMode;
   bool get markdownEnabled => _markdownEnabled;
+  bool get planModeEnabled => _planModeEnabled;
+  PermissionMode get permissionMode => _permissionMode;
 }
 
 void main() {
@@ -397,6 +418,31 @@ void main() {
       expect(controller.state.preSessionModelId, 'gpt-5.3-codex');
       expect(controller.state.preSessionReasoningEffort, 'high');
       expect(controller.state.activeMarkdownEnabled, isTrue);
+    });
+
+    test('bootstrap restores plan and permission from settings', () async {
+      final fakeService = _FakeSessionService();
+      final fakeSettings = _FakeSettingsService(
+        'gpt-5.3-codex',
+        'high',
+        true,
+        planModeEnabled: true,
+        permissionMode: PermissionMode.fullAccess,
+      );
+      final controller = SessionController(
+        sessionService: fakeService,
+        projectService: _FakeProjectService(),
+        settingsService: fakeSettings,
+      );
+      addTearDown(() async {
+        controller.dispose();
+        await fakeService.shutdown();
+      });
+
+      await controller.bootstrap();
+
+      expect(controller.state.planModeEnabled, isTrue);
+      expect(controller.state.permissionMode, PermissionMode.fullAccess);
     });
 
     test('sendInput lazily creates session on first prompt', () async {
@@ -516,6 +562,111 @@ void main() {
       expect(fakeSettings.selectedReasoningEffort, 'low');
       expect(fakeSettings.selectedModel, 'gpt-5.3-codex');
     });
+
+    test('togglePlanMode persists plan mode to settings', () async {
+      final fakeService = _FakeSessionService();
+      final fakeSettings = _FakeSettingsService(
+        'gpt-5.3-codex',
+        'high',
+        true,
+        planModeEnabled: false,
+      );
+      final controller = SessionController(
+        sessionService: fakeService,
+        projectService: _FakeProjectService(),
+        settingsService: fakeSettings,
+      );
+      addTearDown(() async {
+        controller.dispose();
+        await fakeService.shutdown();
+      });
+
+      await controller.bootstrap();
+      expect(controller.state.planModeEnabled, isFalse);
+
+      controller.togglePlanMode();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(controller.state.planModeEnabled, isTrue);
+      expect(fakeSettings.planModeEnabled, isTrue);
+    });
+
+    test('setPermissionMode persists approval mode to settings', () async {
+      final fakeService = _FakeSessionService();
+      final fakeSettings = _FakeSettingsService(
+        'gpt-5.3-codex',
+        'high',
+        true,
+      );
+      final controller = SessionController(
+        sessionService: fakeService,
+        projectService: _FakeProjectService(),
+        settingsService: fakeSettings,
+      );
+      addTearDown(() async {
+        controller.dispose();
+        await fakeService.shutdown();
+      });
+
+      await controller.bootstrap();
+      expect(controller.state.permissionMode, PermissionMode.defaultMode);
+
+      controller.setPermissionMode(PermissionMode.fullAccess);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(controller.state.permissionMode, PermissionMode.fullAccess);
+      expect(fakeSettings.permissionMode, PermissionMode.fullAccess);
+    });
+
+    test('updateSpeedMode persists fast for supported models', () async {
+      final fakeService = _FakeSessionService();
+      final fakeSettings = _FakeSettingsService('gpt-5.5', 'high', true);
+      final controller = SessionController(
+        sessionService: fakeService,
+        projectService: _FakeProjectService(),
+        settingsService: fakeSettings,
+      );
+      addTearDown(() async {
+        controller.dispose();
+        await fakeService.shutdown();
+      });
+
+      await controller.bootstrap();
+      await controller.updateSpeedMode('fast');
+
+      expect(controller.state.activeSpeedMode, 'fast');
+      expect(fakeSettings.selectedSpeedMode, 'fast');
+    });
+
+    test(
+      'updateActiveSessionModel downgrades fast for unsupported models',
+      () async {
+        final fakeService = _FakeSessionService();
+        final fakeSettings = _FakeSettingsService(
+          'gpt-5.5',
+          'high',
+          true,
+          selectedSpeedMode: 'fast',
+        );
+        final controller = SessionController(
+          sessionService: fakeService,
+          projectService: _FakeProjectService(),
+          settingsService: fakeSettings,
+        );
+        addTearDown(() async {
+          controller.dispose();
+          await fakeService.shutdown();
+        });
+
+        await controller.bootstrap();
+        expect(controller.state.activeSpeedMode, 'fast');
+
+        await controller.updateActiveSessionModel('gpt-5.3-codex');
+
+        expect(controller.state.activeSpeedMode, 'normal');
+        expect(fakeSettings.selectedSpeedMode, 'normal');
+      },
+    );
 
     test('updateMarkdownEnabled persists selected markdown mode', () async {
       final fakeService = _FakeSessionService();
@@ -2400,19 +2551,16 @@ void main() {
             'status': 'inProgress',
           },
         });
-        fakeService.emitNotification(
-          'item/completed',
-          <String, dynamic>{
-            'turnId': 'turn-1',
-            'item': <String, dynamic>{
-              'id': 'msg-final',
-              'type': 'agentMessage',
-              'phase': 'final_answer',
-              'status': 'completed',
-              'text': 'modern final',
-            },
+        fakeService.emitNotification('item/completed', <String, dynamic>{
+          'turnId': 'turn-1',
+          'item': <String, dynamic>{
+            'id': 'msg-final',
+            'type': 'agentMessage',
+            'phase': 'final_answer',
+            'status': 'completed',
+            'text': 'modern final',
           },
-        );
+        });
         await Future<void>.delayed(const Duration(milliseconds: 20));
 
         now = now.add(const Duration(milliseconds: 40));

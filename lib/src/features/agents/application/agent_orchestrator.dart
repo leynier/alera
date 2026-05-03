@@ -94,6 +94,7 @@ class AgentOrchestrator {
     required String model,
     required String reasoningEffort,
     required String cwd,
+    String? serviceTier,
     String approvalPolicy = 'never',
     CodexCollaborationMode? collaborationMode,
   }) async {
@@ -102,6 +103,7 @@ class AgentOrchestrator {
       input: input,
       model: model,
       reasoningEffort: reasoningEffort,
+      serviceTier: serviceTier,
       cwd: cwd,
       approvalPolicy: approvalPolicy,
       collaborationMode: collaborationMode,

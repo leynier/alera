@@ -4,6 +4,7 @@ class CodexModelOption {
     required this.label,
     this.isDefault = false,
     this.contextWindowTokens = 200000,
+    this.supportsFastMode = false,
   });
 
   final String id;
@@ -11,12 +12,16 @@ class CodexModelOption {
   final bool isDefault;
   // Approximate context window size in tokens.
   final int contextWindowTokens;
+  final bool supportsFastMode;
 }
 
 const String codexReasoningEffortLow = 'low';
 const String codexReasoningEffortMedium = 'medium';
 const String codexReasoningEffortHigh = 'high';
 const String codexReasoningEffortXhigh = 'xhigh';
+
+const String codexSpeedModeNormal = 'normal';
+const String codexSpeedModeFast = 'fast';
 
 const List<String> codexReasoningEffortOrder = <String>[
   codexReasoningEffortLow,
@@ -32,16 +37,43 @@ const Map<String, String> codexReasoningEffortLabels = <String, String>{
   codexReasoningEffortXhigh: 'Extra High',
 };
 
+const List<String> codexSpeedModeOrder = <String>[
+  codexSpeedModeNormal,
+  codexSpeedModeFast,
+];
+
+const Map<String, String> codexSpeedModeLabels = <String, String>{
+  codexSpeedModeNormal: 'Normal',
+  codexSpeedModeFast: 'Fast',
+};
+
 const List<CodexModelOption> codexModelSnapshot = <CodexModelOption>[
+  CodexModelOption(
+    id: 'gpt-5.5',
+    label: 'GPT-5.5',
+    contextWindowTokens: 272000,
+    supportsFastMode: true,
+  ),
   CodexModelOption(
     id: 'gpt-5.4',
     label: 'GPT-5.4',
     contextWindowTokens: 200000,
+    supportsFastMode: true,
+  ),
+  CodexModelOption(
+    id: 'gpt-5.4-mini',
+    label: 'GPT-5.4-Mini',
+    contextWindowTokens: 272000,
   ),
   CodexModelOption(
     id: 'gpt-5.3-codex',
     label: 'GPT-5.3-Codex',
     contextWindowTokens: 200000,
+  ),
+  CodexModelOption(
+    id: 'gpt-5.3-codex-spark',
+    label: 'GPT-5.3-Codex-Spark',
+    contextWindowTokens: 272000,
   ),
   CodexModelOption(
     id: 'gpt-5.2-codex',
@@ -93,6 +125,8 @@ bool codexModelExists(String id) {
 
 String codexDefaultReasoningEffort() => codexReasoningEffortHigh;
 
+String codexDefaultSpeedMode() => codexSpeedModeNormal;
+
 bool codexReasoningEffortExists(String effort) {
   return codexReasoningEffortOrder.contains(effort);
 }
@@ -100,6 +134,15 @@ bool codexReasoningEffortExists(String effort) {
 String codexReasoningEffortLabel(String effort) {
   return codexReasoningEffortLabels[effort] ??
       codexReasoningEffortLabels[codexDefaultReasoningEffort()]!;
+}
+
+bool codexSpeedModeExists(String speedMode) {
+  return codexSpeedModeOrder.contains(speedMode);
+}
+
+String codexSpeedModeLabel(String speedMode) {
+  return codexSpeedModeLabels[speedMode] ??
+      codexSpeedModeLabels[codexDefaultSpeedMode()]!;
 }
 
 List<String> supportedReasoningEffortsForModel(String modelId) {
@@ -111,6 +154,36 @@ bool isReasoningEffortSupported({
   required String effort,
 }) {
   return supportedReasoningEffortsForModel(modelId).contains(effort);
+}
+
+bool supportsFastModeForModel(String modelId) {
+  for (final model in codexModelSnapshot) {
+    if (model.id == modelId) {
+      return model.supportsFastMode;
+    }
+  }
+  return false;
+}
+
+List<String> supportedSpeedModesForModel(String modelId) {
+  if (supportsFastModeForModel(modelId)) {
+    return codexSpeedModeOrder;
+  }
+  return const <String>[codexSpeedModeNormal];
+}
+
+String closestSupportedSpeedMode({
+  required String modelId,
+  required String speedMode,
+}) {
+  final normalized = codexSpeedModeExists(speedMode)
+      ? speedMode
+      : codexDefaultSpeedMode();
+  final supported = supportedSpeedModesForModel(modelId);
+  if (supported.contains(normalized)) {
+    return normalized;
+  }
+  return codexDefaultSpeedMode();
 }
 
 String closestSupportedReasoningEffort({

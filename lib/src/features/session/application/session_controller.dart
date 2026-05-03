@@ -81,6 +81,25 @@ class SessionController extends StateNotifier<SessionState> {
   final Set<String> _assistantStreamStallWarnings = <String>{};
   final Set<String> _assistantMissingTurnCompletionWarnings = <String>{};
 
+  SettingsSnapshot _settingsSnapshotFromState() {
+    return SettingsSnapshot(
+      selectedModel: state.activeModelId,
+      selectedReasoningEffort: state.activeReasoningEffort,
+      selectedSpeedMode: state.activeSpeedMode,
+      markdownEnabled: state.activeMarkdownEnabled,
+      planModeEnabled: state.planModeEnabled,
+      permissionMode: state.permissionMode,
+    );
+  }
+
+  Future<void> _persistUserSettings() async {
+    try {
+      await _settingsService.save(_settingsSnapshotFromState());
+    } catch (error) {
+      state = state.copyWith(error: error.toString());
+    }
+  }
+
   Future<void> bootstrap() async {
     if (_bootstrapped) {
       return;
@@ -94,14 +113,22 @@ class SessionController extends StateNotifier<SessionState> {
       modelId: normalizedDefault,
       effort: defaults.selectedReasoningEffort,
     );
+    final normalizedSpeedMode = closestSupportedSpeedMode(
+      modelId: normalizedDefault,
+      speedMode: defaults.selectedSpeedMode,
+    );
 
     if (normalizedDefault != defaults.selectedModel ||
-        normalizedReasoningEffort != defaults.selectedReasoningEffort) {
+        normalizedReasoningEffort != defaults.selectedReasoningEffort ||
+        normalizedSpeedMode != defaults.selectedSpeedMode) {
       await _settingsService.save(
         SettingsSnapshot(
           selectedModel: normalizedDefault,
           selectedReasoningEffort: normalizedReasoningEffort,
+          selectedSpeedMode: normalizedSpeedMode,
           markdownEnabled: defaults.markdownEnabled,
+          planModeEnabled: defaults.planModeEnabled,
+          permissionMode: defaults.permissionMode,
         ),
       );
     }
@@ -113,7 +140,10 @@ class SessionController extends StateNotifier<SessionState> {
       availableCommands: builtinAleraCommands(),
       preSessionModelId: normalizedDefault,
       preSessionReasoningEffort: normalizedReasoningEffort,
+      preSessionSpeedMode: normalizedSpeedMode,
       preSessionMarkdownEnabled: defaults.markdownEnabled,
+      planModeEnabled: defaults.planModeEnabled,
+      permissionMode: defaults.permissionMode,
     );
 
     _bootstrapped = true;
@@ -252,6 +282,10 @@ class SessionController extends StateNotifier<SessionState> {
           modelId: target.model,
           effort: state.activeReasoningEffort,
         ),
+        preSessionSpeedMode: closestSupportedSpeedMode(
+          modelId: target.model,
+          speedMode: state.activeSpeedMode,
+        ),
         connectionState: AppServerConnectionState.connected,
         isInterrupting: false,
       );
@@ -295,6 +329,10 @@ class SessionController extends StateNotifier<SessionState> {
         modelId: session.model,
         effort: state.activeReasoningEffort,
       );
+      final adjustedSpeedMode = closestSupportedSpeedMode(
+        modelId: session.model,
+        speedMode: state.activeSpeedMode,
+      );
       state = state.copyWith(
         isBusy: false,
         sessions: _sessionService.sessions,
@@ -302,17 +340,12 @@ class SessionController extends StateNotifier<SessionState> {
         activeSessionId: session.id,
         preSessionModelId: session.model,
         preSessionReasoningEffort: adjustedReasoningEffort,
+        preSessionSpeedMode: adjustedSpeedMode,
         connectionState: AppServerConnectionState.connected,
         isInterrupting: false,
       );
 
-      await _settingsService.save(
-        SettingsSnapshot(
-          selectedModel: session.model,
-          selectedReasoningEffort: adjustedReasoningEffort,
-          markdownEnabled: state.activeMarkdownEnabled,
-        ),
-      );
+      await _settingsService.save(_settingsSnapshotFromState());
     } catch (error) {
       state = state.copyWith(
         isBusy: false,
@@ -330,20 +363,19 @@ class SessionController extends StateNotifier<SessionState> {
       modelId: modelId,
       effort: state.activeReasoningEffort,
     );
+    final adjustedSpeedMode = closestSupportedSpeedMode(
+      modelId: modelId,
+      speedMode: state.activeSpeedMode,
+    );
     final session = state.activeSession;
     if (session == null) {
       state = state.copyWith(
         preSessionModelId: modelId,
         preSessionReasoningEffort: adjustedReasoningEffort,
+        preSessionSpeedMode: adjustedSpeedMode,
         clearError: true,
       );
-      await _settingsService.save(
-        SettingsSnapshot(
-          selectedModel: modelId,
-          selectedReasoningEffort: adjustedReasoningEffort,
-          markdownEnabled: state.activeMarkdownEnabled,
-        ),
-      );
+      await _settingsService.save(_settingsSnapshotFromState());
       return;
     }
 
@@ -352,19 +384,14 @@ class SessionController extends StateNotifier<SessionState> {
         sessionId: session.id,
         modelId: modelId,
       );
-      await _settingsService.save(
-        SettingsSnapshot(
-          selectedModel: modelId,
-          selectedReasoningEffort: adjustedReasoningEffort,
-          markdownEnabled: state.activeMarkdownEnabled,
-        ),
-      );
       state = state.copyWith(
         sessions: _sessionService.sessions,
         preSessionModelId: modelId,
         preSessionReasoningEffort: adjustedReasoningEffort,
+        preSessionSpeedMode: adjustedSpeedMode,
         clearError: true,
       );
+      await _settingsService.save(_settingsSnapshotFromState());
     } catch (error) {
       state = state.copyWith(error: error.toString());
     }
@@ -384,13 +411,24 @@ class SessionController extends StateNotifier<SessionState> {
         preSessionReasoningEffort: adjusted,
         clearError: true,
       );
-      await _settingsService.save(
-        SettingsSnapshot(
-          selectedModel: modelId,
-          selectedReasoningEffort: adjusted,
-          markdownEnabled: state.activeMarkdownEnabled,
-        ),
-      );
+      await _settingsService.save(_settingsSnapshotFromState());
+    } catch (error) {
+      state = state.copyWith(error: error.toString());
+    }
+  }
+
+  Future<void> updateSpeedMode(String speedMode) async {
+    if (!codexSpeedModeExists(speedMode)) {
+      return;
+    }
+    final modelId = state.activeModelId;
+    final adjusted = closestSupportedSpeedMode(
+      modelId: modelId,
+      speedMode: speedMode,
+    );
+    try {
+      state = state.copyWith(preSessionSpeedMode: adjusted, clearError: true);
+      await _settingsService.save(_settingsSnapshotFromState());
     } catch (error) {
       state = state.copyWith(error: error.toString());
     }
@@ -402,13 +440,7 @@ class SessionController extends StateNotifier<SessionState> {
         preSessionMarkdownEnabled: enabled,
         clearError: true,
       );
-      await _settingsService.save(
-        SettingsSnapshot(
-          selectedModel: state.activeModelId,
-          selectedReasoningEffort: state.activeReasoningEffort,
-          markdownEnabled: enabled,
-        ),
-      );
+      await _settingsService.save(_settingsSnapshotFromState());
     } catch (error) {
       state = state.copyWith(error: error.toString());
     }
@@ -462,6 +494,7 @@ class SessionController extends StateNotifier<SessionState> {
 
   void togglePlanMode() {
     state = state.copyWith(planModeEnabled: !state.planModeEnabled);
+    unawaited(_persistUserSettings());
   }
 
   void togglePermissionMode() {
@@ -469,10 +502,12 @@ class SessionController extends StateNotifier<SessionState> {
         ? PermissionMode.fullAccess
         : PermissionMode.defaultMode;
     state = state.copyWith(permissionMode: next);
+    unawaited(_persistUserSettings());
   }
 
   void setPermissionMode(PermissionMode mode) {
     state = state.copyWith(permissionMode: mode);
+    unawaited(_persistUserSettings());
   }
 
   Future<List<CodexSkillMetadata>> listAvailableSkills() async {
@@ -605,15 +640,11 @@ class SessionController extends StateNotifier<SessionState> {
       final fallbackAnswer = decision.accepted
           ? 'Yes, implement this plan'
           : 'No, and tell Alera what to do differently';
-      _appendQuestionAnswerCells(
-        pending,
-        <String, dynamic>{
-          pending.questions.first.id: <String, dynamic>{
-            'answers': <String>[fallbackAnswer],
-          },
+      _appendQuestionAnswerCells(pending, <String, dynamic>{
+        pending.questions.first.id: <String, dynamic>{
+          'answers': <String>[fallbackAnswer],
         },
-        turnId: pendingTurnId,
-      );
+      }, turnId: pendingTurnId);
       state = state.copyWith(clearPendingUserInput: true);
       if (pendingTurnId != null) {
         final reason = decision.accepted
@@ -711,7 +742,11 @@ class SessionController extends StateNotifier<SessionState> {
     );
   }
 
-  void _appendQuestionAnswerCells(PendingUserInput pending, Map<String, dynamic> answers, {String? turnId}) {
+  void _appendQuestionAnswerCells(
+    PendingUserInput pending,
+    Map<String, dynamic> answers, {
+    String? turnId,
+  }) {
     final effectiveTurnId = turnId ?? _normalizeOptionalId(state.activeTurnId);
     final questionAnswers = <Map<String, String>>[];
     for (final question in pending.questions) {
@@ -888,6 +923,7 @@ class SessionController extends StateNotifier<SessionState> {
         attachments: List<ComposerAttachment>.of(state.composerAttachments),
         draftItems: List<ComposerDraftItem>.of(state.composerDraftItems),
         planModeEnabled: state.planModeEnabled,
+        speedMode: state.activeSpeedMode,
         forceDefaultCollaborationMode: false,
       );
       state = state.copyWith(
@@ -967,6 +1003,7 @@ class SessionController extends StateNotifier<SessionState> {
         attachments: List<ComposerAttachment>.of(state.composerAttachments),
         draftItems: List<ComposerDraftItem>.of(state.composerDraftItems),
         planModeEnabled: planModeEnabled,
+        speedMode: state.activeSpeedMode,
         forceDefaultCollaborationMode: forceDefaultCollaborationMode,
       );
       state = state.copyWith(
@@ -1088,6 +1125,7 @@ class SessionController extends StateNotifier<SessionState> {
     }
     final model = state.activeModelId;
     final reasoningEffort = state.activeReasoningEffort;
+    final speedMode = state.activeSpeedMode;
     final created = await _sessionService.createSession(
       SessionCreateRequest(
         projectPath: workspacePath,
@@ -1095,22 +1133,17 @@ class SessionController extends StateNotifier<SessionState> {
         model: model,
       ),
     );
-    await _settingsService.save(
-      SettingsSnapshot(
-        selectedModel: model,
-        selectedReasoningEffort: reasoningEffort,
-        markdownEnabled: state.activeMarkdownEnabled,
-      ),
-    );
     state = state.copyWith(
       sessions: _sessionService.sessions,
       activeSessionId: created.id,
       preSessionModelId: model,
       preSessionReasoningEffort: reasoningEffort,
+      preSessionSpeedMode: speedMode,
       connectionState: AppServerConnectionState.connected,
       isInterrupting: false,
       clearError: true,
     );
+    await _settingsService.save(_settingsSnapshotFromState());
     return created;
   }
 
@@ -1166,6 +1199,7 @@ class SessionController extends StateNotifier<SessionState> {
       planModeEnabled: false,
       composerAttachments: const <ComposerAttachment>[],
     );
+    unawaited(_persistUserSettings());
     if (state.runningTurnCount > 0 || state.isInterrupting) {
       final queued = PendingMessage(
         id: DateTime.now().microsecondsSinceEpoch.toString(),
@@ -1173,6 +1207,7 @@ class SessionController extends StateNotifier<SessionState> {
         attachments: const <ComposerAttachment>[],
         draftItems: const <ComposerDraftItem>[],
         planModeEnabled: false,
+        speedMode: state.activeSpeedMode,
         forceDefaultCollaborationMode: true,
       );
       state = state.copyWith(
@@ -1251,6 +1286,7 @@ class SessionController extends StateNotifier<SessionState> {
       next.attachments,
       next.draftItems,
       next.planModeEnabled,
+      speedMode: next.speedMode,
       forceDefaultCollaborationMode: next.forceDefaultCollaborationMode,
     );
   }
@@ -1260,6 +1296,7 @@ class SessionController extends StateNotifier<SessionState> {
     List<ComposerAttachment> attachments,
     List<ComposerDraftItem> draftItems,
     bool planModeEnabled, {
+    String? speedMode,
     bool forceDefaultCollaborationMode = false,
   }) async {
     final workspacePath = state.selectedWorkspacePath;
@@ -1277,18 +1314,15 @@ class SessionController extends StateNotifier<SessionState> {
       if (session == null) {
         final model = state.activeModelId;
         final reasoningEffort = state.activeReasoningEffort;
+        final selectedSpeedMode = closestSupportedSpeedMode(
+          modelId: model,
+          speedMode: speedMode ?? state.activeSpeedMode,
+        );
         final created = await _sessionService.createSession(
           SessionCreateRequest(
             projectPath: workspacePath,
             firstPrompt: text,
             model: model,
-          ),
-        );
-        await _settingsService.save(
-          SettingsSnapshot(
-            selectedModel: model,
-            selectedReasoningEffort: reasoningEffort,
-            markdownEnabled: state.activeMarkdownEnabled,
           ),
         );
         state = state.copyWith(
@@ -1297,10 +1331,12 @@ class SessionController extends StateNotifier<SessionState> {
           activeSessionId: created.id,
           preSessionModelId: model,
           preSessionReasoningEffort: reasoningEffort,
+          preSessionSpeedMode: selectedSpeedMode,
           connectionState: AppServerConnectionState.connected,
           isInterrupting: false,
           clearError: true,
         );
+        await _settingsService.save(_settingsSnapshotFromState());
         session = created;
       }
       final mentionItems = await _buildMentionInputItems(text, workspacePath);
@@ -1318,6 +1354,10 @@ class SessionController extends StateNotifier<SessionState> {
         sessionId: session.id,
         rawInput: text,
         reasoningEffort: state.activeReasoningEffort,
+        speedMode: closestSupportedSpeedMode(
+          modelId: session.model,
+          speedMode: speedMode ?? state.activeSpeedMode,
+        ),
         extraInputItems: extraInputItems,
         planModeEnabled: planModeEnabled,
         forceDefaultCollaborationMode: forceDefaultCollaborationMode,

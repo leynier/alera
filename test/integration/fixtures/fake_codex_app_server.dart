@@ -538,6 +538,18 @@ Future<void> main() async {
           });
           continue;
         }
+        final serviceTier = params['serviceTier']?.toString();
+        if (serviceTier != null && serviceTier != 'fast') {
+          _write(<String, dynamic>{
+            'jsonrpc': '2.0',
+            'id': id,
+            'error': <String, dynamic>{
+              'code': -32015,
+              'message': 'turn/start expected serviceTier=null|fast',
+            },
+          });
+          continue;
+        }
 
         activeThreadId = (params['threadId'] ?? activeThreadId).toString();
         activeTurnId = 'turn_${DateTime.now().millisecondsSinceEpoch}';
@@ -573,7 +585,41 @@ Future<void> main() async {
             ? ''
             : (input.first['text'] ?? '').toString().toLowerCase();
 
-        if (prompt.contains('trigger_approval')) {
+        if (prompt.contains('trigger_service_tier_fast') &&
+            serviceTier != 'fast') {
+          _write(<String, dynamic>{
+            'jsonrpc': '2.0',
+            'method': 'turn/completed',
+            'params': <String, dynamic>{
+              'turn': <String, dynamic>{
+                'id': activeTurnId,
+                'threadId': activeThreadId,
+                'status': 'failed',
+                'items': <Object>[],
+                'error': <String, dynamic>{
+                  'message': 'expected serviceTier fast',
+                },
+              },
+            },
+          });
+        } else if (prompt.contains('trigger_service_tier_normal') &&
+            (!params.containsKey('serviceTier') || serviceTier != null)) {
+          _write(<String, dynamic>{
+            'jsonrpc': '2.0',
+            'method': 'turn/completed',
+            'params': <String, dynamic>{
+              'turn': <String, dynamic>{
+                'id': activeTurnId,
+                'threadId': activeThreadId,
+                'status': 'failed',
+                'items': <Object>[],
+                'error': <String, dynamic>{
+                  'message': 'expected explicit serviceTier null',
+                },
+              },
+            },
+          });
+        } else if (prompt.contains('trigger_approval')) {
           _write(<String, dynamic>{
             'jsonrpc': '2.0',
             'id': 900,

@@ -8,6 +8,7 @@ class PendingMessage {
     this.attachments = const <ComposerAttachment>[],
     this.draftItems = const <ComposerDraftItem>[],
     this.planModeEnabled = false,
+    this.speedMode = 'normal',
     this.forceDefaultCollaborationMode = false,
   });
 
@@ -17,6 +18,8 @@ class PendingMessage {
   final List<ComposerDraftItem> draftItems;
   // Plan mode captured at enqueue time, not at dequeue time.
   final bool planModeEnabled;
+  // Speed mode captured at enqueue time, not at dequeue time.
+  final String speedMode;
   // Explicitly reset backend collaboration mode to default on this send.
   final bool forceDefaultCollaborationMode;
 
@@ -26,6 +29,7 @@ class PendingMessage {
     List<ComposerAttachment>? attachments,
     List<ComposerDraftItem>? draftItems,
     bool? planModeEnabled,
+    String? speedMode,
     bool? forceDefaultCollaborationMode,
   }) {
     return PendingMessage(
@@ -34,6 +38,7 @@ class PendingMessage {
       attachments: attachments ?? this.attachments,
       draftItems: draftItems ?? this.draftItems,
       planModeEnabled: planModeEnabled ?? this.planModeEnabled,
+      speedMode: speedMode ?? this.speedMode,
       forceDefaultCollaborationMode:
           forceDefaultCollaborationMode ?? this.forceDefaultCollaborationMode,
     );

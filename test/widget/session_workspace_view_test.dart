@@ -87,6 +87,8 @@ Future<void> _pumpWorkspace(
               supportedReasoningEfforts ??
               const <String>['low', 'medium', 'high', 'xhigh'],
           onReasoningEffortChanged: onReasoningEffortChanged ?? (_) {},
+          activeSpeedMode: state.activeSpeedMode,
+          onSpeedModeChanged: (_) {},
           isMarkdownEnabled: isMarkdownEnabled ?? true,
           onMarkdownModeChanged: onMarkdownModeChanged ?? (_) {},
           rawLogExpanded: rawLogExpanded,
@@ -687,7 +689,9 @@ void main() {
 
       await _pumpWorkspace(tester, state: state);
 
-      final markdownRect = tester.getRect(find.byWidgetPredicate((w) => w is MarkdownBody));
+      final markdownRect = tester.getRect(
+        find.byWidgetPredicate((w) => w is MarkdownBody),
+      );
       expect(markdownRect.width, greaterThan(650));
     },
   );
@@ -760,7 +764,9 @@ void main() {
 
       await _pumpWorkspace(tester, state: state);
 
-      final streamingRect = tester.getRect(find.byWidgetPredicate((w) => w is MarkdownBody));
+      final streamingRect = tester.getRect(
+        find.byWidgetPredicate((w) => w is MarkdownBody),
+      );
       expect(streamingRect.width, greaterThan(650));
     },
   );

@@ -142,6 +142,8 @@ class _AleraShellPageState extends ConsumerState<AleraShellPage> {
         state.activeModelId,
       ),
       onReasoningEffortChanged: controller.updateReasoningEffort,
+      activeSpeedMode: state.activeSpeedMode,
+      onSpeedModeChanged: controller.updateSpeedMode,
       isMarkdownEnabled: state.activeMarkdownEnabled,
       onMarkdownModeChanged: controller.updateMarkdownEnabled,
       rawLogExpanded: _rawLogExpanded,

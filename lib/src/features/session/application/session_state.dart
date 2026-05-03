@@ -18,6 +18,7 @@ class SessionState {
     this.selectedWorkspacePath,
     this.preSessionModelId,
     this.preSessionReasoningEffort,
+    this.preSessionSpeedMode,
     this.preSessionMarkdownEnabled,
     this.sessions = const <AleraSession>[],
     this.activeSessionId,
@@ -66,6 +67,7 @@ class SessionState {
   final String? selectedWorkspacePath;
   final String? preSessionModelId;
   final String? preSessionReasoningEffort;
+  final String? preSessionSpeedMode;
   final bool? preSessionMarkdownEnabled;
   final List<AleraSession> sessions;
   final String? activeSessionId;
@@ -156,12 +158,24 @@ class SessionState {
     );
   }
 
+  String get activeSpeedMode {
+    final draft = preSessionSpeedMode;
+    final normalized = draft != null && codexSpeedModeExists(draft)
+        ? draft
+        : codexDefaultSpeedMode();
+    return closestSupportedSpeedMode(
+      modelId: activeModelId,
+      speedMode: normalized,
+    );
+  }
+
   bool get activeMarkdownEnabled => preSessionMarkdownEnabled ?? true;
 
   SessionState copyWith({
     String? selectedWorkspacePath,
     String? preSessionModelId,
     String? preSessionReasoningEffort,
+    String? preSessionSpeedMode,
     bool? preSessionMarkdownEnabled,
     List<AleraSession>? sessions,
     String? activeSessionId,
@@ -222,6 +236,7 @@ class SessionState {
     bool clearSelectedWorkspacePath = false,
     bool clearPreSessionModelId = false,
     bool clearPreSessionReasoningEffort = false,
+    bool clearPreSessionSpeedMode = false,
     bool clearPreSessionMarkdownEnabled = false,
     bool clearActiveSessionId = false,
   }) {
@@ -235,6 +250,9 @@ class SessionState {
       preSessionReasoningEffort: clearPreSessionReasoningEffort
           ? null
           : (preSessionReasoningEffort ?? this.preSessionReasoningEffort),
+      preSessionSpeedMode: clearPreSessionSpeedMode
+          ? null
+          : (preSessionSpeedMode ?? this.preSessionSpeedMode),
       preSessionMarkdownEnabled: clearPreSessionMarkdownEnabled
           ? null
           : (preSessionMarkdownEnabled ?? this.preSessionMarkdownEnabled),

@@ -31,6 +31,8 @@ Future<void> _pumpWorkspace(
           activeReasoningEffort: state.activeReasoningEffort,
           supportedReasoningEfforts: const <String>['low', 'medium', 'high'],
           onReasoningEffortChanged: (_) {},
+          activeSpeedMode: state.activeSpeedMode,
+          onSpeedModeChanged: (_) {},
           isMarkdownEnabled: true,
           onMarkdownModeChanged: (_) {},
           rawLogExpanded: false,

@@ -13,6 +13,9 @@ Future<void> _pumpComposer(
   List<ComposerDraftItem> draftItems = const <ComposerDraftItem>[],
   ValueChanged<AleraCommand>? onImmediateCommandSelected,
   ValueChanged<String>? onRemoveDraftItem,
+  String activeModelId = 'gpt-5.3-codex',
+  String activeSpeedMode = 'normal',
+  ValueChanged<String>? onSpeedModeChanged,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -25,14 +28,17 @@ Future<void> _pumpComposer(
           canChangeModel: true,
           isBusy: false,
           isInterrupting: false,
-          activeModelId: 'gpt-5.3-codex',
+          activeModelId: activeModelId,
           availableModels: const <CodexModelOption>[
             CodexModelOption(id: 'gpt-5.3-codex', label: 'GPT-5.3 Codex'),
+            CodexModelOption(id: 'gpt-5.5', label: 'GPT-5.5'),
           ],
           onModelChanged: (_) {},
           activeReasoningEffort: 'high',
           supportedReasoningEfforts: const <String>['low', 'medium', 'high'],
           onReasoningEffortChanged: (_) {},
+          activeSpeedMode: activeSpeedMode,
+          onSpeedModeChanged: onSpeedModeChanged ?? (_) {},
           onSend: () {},
           onInterrupt: () {},
           availableCommands: availableCommands,
@@ -156,6 +162,8 @@ void main() {
             activeReasoningEffort: 'high',
             supportedReasoningEfforts: const <String>['low', 'medium', 'high'],
             onReasoningEffortChanged: (_) {},
+            activeSpeedMode: 'normal',
+            onSpeedModeChanged: (_) {},
             onSend: () {},
             onInterrupt: () {},
             planModeEnabled: true,
@@ -167,5 +175,44 @@ void main() {
 
     final text = tester.widget<Text>(find.text('Plan'));
     expect(text.style?.color, AleraTokens.info);
+  });
+
+  testWidgets('speed selector is hidden when model has no fast mode', (
+    tester,
+  ) async {
+    final controller = TextEditingController();
+    addTearDown(controller.dispose);
+
+    await _pumpComposer(tester, controller: controller);
+
+    expect(find.byTooltip('Select speed mode'), findsNothing);
+  });
+
+  testWidgets('speed selector shows supported modes and emits selection', (
+    tester,
+  ) async {
+    final controller = TextEditingController();
+    String? selectedSpeedMode;
+    addTearDown(controller.dispose);
+
+    await _pumpComposer(
+      tester,
+      controller: controller,
+      activeModelId: 'gpt-5.5',
+      activeSpeedMode: 'normal',
+      onSpeedModeChanged: (speedMode) => selectedSpeedMode = speedMode,
+    );
+
+    expect(find.text('Normal'), findsOneWidget);
+
+    await tester.tap(find.text('Normal'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Fast'), findsOneWidget);
+
+    await tester.tap(find.text('Fast').last);
+    await tester.pumpAndSettle();
+
+    expect(selectedSpeedMode, 'fast');
   });
 }

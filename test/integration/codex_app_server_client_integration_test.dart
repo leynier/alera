@@ -225,6 +225,82 @@ void main() {
       await client.close();
     });
 
+    test('turn/start forwards fast service tier', () async {
+      final client = await _startFakeClient();
+      final notifications = <Map<String, dynamic>>[];
+      final sub = client.events.listen(notifications.add);
+
+      await client
+          .startThread(cwd: '/tmp/project')
+          .timeout(const Duration(seconds: 5));
+
+      await client
+          .startTurn(
+            threadId: 'thr_fake',
+            input: const <Map<String, dynamic>>[
+              <String, dynamic>{
+                'type': 'text',
+                'text': 'trigger_service_tier_fast',
+              },
+            ],
+            model: 'gpt-5.5',
+            reasoningEffort: 'high',
+            serviceTier: 'fast',
+            cwd: '/tmp/project',
+          )
+          .timeout(const Duration(seconds: 5));
+
+      final turnCompleted = await _waitForMethod(
+        notifications,
+        'turn/completed',
+      );
+      final turn =
+          (turnCompleted['params'] as Map<String, dynamic>)['turn']
+              as Map<String, dynamic>;
+      expect(turn['status'], 'completed');
+
+      await sub.cancel();
+      await client.close();
+    });
+
+    test('turn/start forwards explicit normal service tier', () async {
+      final client = await _startFakeClient();
+      final notifications = <Map<String, dynamic>>[];
+      final sub = client.events.listen(notifications.add);
+
+      await client
+          .startThread(cwd: '/tmp/project')
+          .timeout(const Duration(seconds: 5));
+
+      await client
+          .startTurn(
+            threadId: 'thr_fake',
+            input: const <Map<String, dynamic>>[
+              <String, dynamic>{
+                'type': 'text',
+                'text': 'trigger_service_tier_normal',
+              },
+            ],
+            model: 'gpt-5.5',
+            reasoningEffort: 'high',
+            serviceTier: null,
+            cwd: '/tmp/project',
+          )
+          .timeout(const Duration(seconds: 5));
+
+      final turnCompleted = await _waitForMethod(
+        notifications,
+        'turn/completed',
+      );
+      final turn =
+          (turnCompleted['params'] as Map<String, dynamic>)['turn']
+              as Map<String, dynamic>;
+      expect(turn['status'], 'completed');
+
+      await sub.cancel();
+      await client.close();
+    });
+
     test('thread/name/set emits thread/name/updated', () async {
       final client = await _startFakeClient();
       final notifications = <Map<String, dynamic>>[];

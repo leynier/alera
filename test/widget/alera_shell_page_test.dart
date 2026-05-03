@@ -6,6 +6,7 @@ import 'package:alera/src/features/session/application/session_controller.dart';
 import 'package:alera/src/features/session/application/session_runtime_event.dart';
 import 'package:alera/src/features/session/application/session_service.dart';
 import 'package:alera/src/features/session/presentation/session_workspace_view.dart';
+import 'package:alera/src/features/session/domain/pending_approval.dart';
 import 'package:alera/src/features/settings/application/settings_service.dart';
 import 'package:alera/src/features/shell/presentation/alera_shell_page.dart';
 import 'package:alera/src/features/shell/presentation/alera_status_bar.dart';
@@ -76,6 +77,7 @@ class _ShellFakeSessionService implements SessionService {
     required String sessionId,
     required String rawInput,
     required String reasoningEffort,
+    required String speedMode,
     List<Map<String, dynamic>> extraInputItems = const <Map<String, dynamic>>[],
     bool planModeEnabled = false,
     bool forceDefaultCollaborationMode = false,
@@ -183,19 +185,30 @@ class _ShellFakeSettingsService implements SettingsService {
   _ShellFakeSettingsService(
     this._selectedModel,
     this._selectedReasoningEffort,
-    this._markdownEnabled,
-  );
+    this._markdownEnabled, {
+    String selectedSpeedMode = 'normal',
+    bool planModeEnabled = false,
+    PermissionMode permissionMode = PermissionMode.defaultMode,
+  }) : _selectedSpeedMode = selectedSpeedMode,
+       _planModeEnabled = planModeEnabled,
+       _permissionMode = permissionMode;
 
   String _selectedModel;
   String _selectedReasoningEffort;
+  String _selectedSpeedMode;
   bool _markdownEnabled;
+  bool _planModeEnabled;
+  PermissionMode _permissionMode;
 
   @override
   Future<SettingsSnapshot> load() async {
     return SettingsSnapshot(
       selectedModel: _selectedModel,
       selectedReasoningEffort: _selectedReasoningEffort,
+      selectedSpeedMode: _selectedSpeedMode,
       markdownEnabled: _markdownEnabled,
+      planModeEnabled: _planModeEnabled,
+      permissionMode: _permissionMode,
     );
   }
 
@@ -203,7 +216,10 @@ class _ShellFakeSettingsService implements SettingsService {
   Future<void> save(SettingsSnapshot snapshot) async {
     _selectedModel = snapshot.selectedModel;
     _selectedReasoningEffort = snapshot.selectedReasoningEffort;
+    _selectedSpeedMode = snapshot.selectedSpeedMode;
     _markdownEnabled = snapshot.markdownEnabled;
+    _planModeEnabled = snapshot.planModeEnabled;
+    _permissionMode = snapshot.permissionMode;
   }
 }
 

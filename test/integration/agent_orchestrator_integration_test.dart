@@ -121,6 +121,44 @@ void main() {
       },
     );
 
+    test('runTurn forwards fast service tier', () async {
+      final orchestrator = await _startOrchestrator();
+      final notifications = <AgentNotificationEvent>[];
+      final sub = orchestrator.events.listen((event) {
+        if (event is AgentNotificationEvent) {
+          notifications.add(event);
+        }
+      });
+
+      final threadId = await orchestrator.ensureThread(cwd: '/tmp/project');
+      final turnId = await orchestrator.runTurn(
+        threadId: threadId,
+        input: <Map<String, dynamic>>[
+          <String, dynamic>{
+            'type': 'text',
+            'text': 'trigger_service_tier_fast',
+          },
+        ],
+        model: 'gpt-5.5',
+        reasoningEffort: 'high',
+        serviceTier: 'fast',
+        cwd: '/tmp/project',
+      );
+      expect(turnId, isNotEmpty);
+
+      final completed = await _waitForNotification(
+        notifications,
+        'turn/completed',
+      );
+      final turn =
+          (completed['params'] as Map<String, dynamic>)['turn']
+              as Map<String, dynamic>;
+      expect(turn['status'], 'completed');
+
+      await sub.cancel();
+      await orchestrator.close();
+    });
+
     test('interrupt stops an in-flight turn', () async {
       final orchestrator = await _startOrchestrator();
       final notifications = <AgentNotificationEvent>[];
