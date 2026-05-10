@@ -2,6 +2,10 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:alera/src/features/projects/application/project_service.dart';
+import 'package:alera/src/features/projects/domain/chat_message.dart';
+import 'package:alera/src/features/projects/domain/chat_summary.dart';
+import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/projects/domain/worktree.dart';
 import 'package:alera/src/features/session/application/session_runtime_event.dart';
 import 'package:alera/src/features/session/application/session_service.dart';
 import 'package:alera/src/features/session/application/session_state.dart';
@@ -15,6 +19,7 @@ import 'package:alera/src/features/session/domain/commands/command_parser.dart';
 import 'package:alera/src/features/session/domain/commands/command_registry.dart';
 import 'package:alera/src/features/session/domain/commands/custom_command_expander.dart';
 import 'package:alera/src/features/session/domain/codex_model_catalog.dart';
+import 'package:alera/src/features/session/domain/collab_agent.dart';
 import 'package:alera/src/features/session/domain/composer_attachment.dart';
 import 'package:alera/src/features/session/domain/composer_draft_item.dart';
 import 'package:alera/src/features/session/domain/context_usage.dart';
@@ -57,6 +62,93 @@ class SessionController extends StateNotifier<SessionState> {
   Timer? _interruptSafetyTimer;
 
   var _bootstrapped = false;
+  String? _pendingProjectId;
+  String? _pendingWorktreeId;
+
+  /// Counts of currently running turns per session id, updated regardless of
+  /// which chat is currently active so we can restore the composer state when
+  /// the user returns to a mid-flight chat.
+  final Map<String, int> _runningTurnsBySession = <String, int>{};
+
+  /// Latest turn id observed for each session while a turn is running. Cleared
+  /// when the count for a session reaches 0.
+  final Map<String, String> _latestTurnIdBySession = <String, String>{};
+
+  int _runningTurnCountFor(String sessionId) =>
+      _runningTurnsBySession[sessionId] ?? 0;
+
+  String? _activeRunningTurnIdFor(String sessionId) {
+    if (_runningTurnCountFor(sessionId) <= 0) {
+      return null;
+    }
+    return _latestTurnIdBySession[sessionId];
+  }
+
+  void _resetRunningTurnsFor(String sessionId) {
+    _runningTurnsBySession.remove(sessionId);
+    _latestTurnIdBySession.remove(sessionId);
+  }
+
+  /// Clears chat-scoped transient state (composer queue + attachments + draft
+  /// items + pending edit, plus pending user input, last turn diff, context
+  /// usage and collab agents) so nothing from the previous chat leaks into
+  /// the next one.
+  void _clearChatScopedState() {
+    state = state.copyWith(
+      pendingMessages: const <PendingMessage>[],
+      composerAttachments: const <ComposerAttachment>[],
+      composerDraftItems: const <ComposerDraftItem>[],
+      clearEditingPendingMessageId: true,
+      clearPendingUserInput: true,
+      clearLastTurnDiff: true,
+      contextUsage: ContextUsage.empty,
+      collabAgents: const <CollabAgentEntry>[],
+      pendingApprovals: const <PendingApproval>[],
+    );
+  }
+
+  void _updateRunningTurnFromNotification(SessionNotificationEvent event) {
+    if (event.method != 'turn/started' &&
+        event.method != 'turn/completed' &&
+        event.method != 'turn/failed') {
+      return;
+    }
+    final params = event.payload['params'];
+    if (params is! Map<String, dynamic>) {
+      return;
+    }
+    final turn = params['turn'];
+    if (turn is! Map<String, dynamic>) {
+      return;
+    }
+    final turnId = turn['id']?.toString();
+    final threadId = turn['threadId']?.toString();
+    if (threadId == null || threadId.isEmpty) {
+      return;
+    }
+    for (final session in _sessionService.sessions) {
+      if (session.threadId != threadId) {
+        continue;
+      }
+      if (event.method == 'turn/started') {
+        _runningTurnsBySession[session.id] =
+            (_runningTurnsBySession[session.id] ?? 0) + 1;
+        if (turnId != null && turnId.isNotEmpty) {
+          _latestTurnIdBySession[session.id] = turnId;
+        }
+      } else {
+        final current = _runningTurnsBySession[session.id] ?? 0;
+        final next = current > 0 ? current - 1 : 0;
+        if (next == 0) {
+          _runningTurnsBySession.remove(session.id);
+          _latestTurnIdBySession.remove(session.id);
+        } else {
+          _runningTurnsBySession[session.id] = next;
+        }
+      }
+    }
+  }
+
   static const String _localPlanFallbackQuestionId = 'implement_plan';
   static const String _localPlanFallbackPrompt = 'Implement this plan?';
   static const String _localPlanFallbackYesLabel = 'Yes, implement this plan';
@@ -156,6 +248,8 @@ class SessionController extends StateNotifier<SessionState> {
     }
     final normalized = p.normalize(Directory(trimmed).absolute.path);
 
+    _persistTimelineSnapshot();
+    _clearChatScopedState();
     state = state.copyWith(isBusy: true, clearError: true);
     try {
       _stopCommitTicker();
@@ -226,6 +320,189 @@ class SessionController extends StateNotifier<SessionState> {
     }
   }
 
+  /// Prepares a brand-new chat scoped to [project] (and optionally [worktree])
+  /// that has not been persisted yet. The codex thread + chat record will be
+  /// created lazily when the user sends the first prompt.
+  Future<void> activateChatStub({
+    required Project project,
+    Worktree? worktree,
+    String title = 'new chat',
+  }) async {
+    final workspacePath = worktree?.path ?? project.repoPath;
+    _persistTimelineSnapshot();
+    _clearChatScopedState();
+    _pendingProjectId = project.id;
+    _pendingWorktreeId = worktree?.id;
+    _stopCommitTicker();
+    _resetAssistantStreamTracking();
+    state = state.copyWith(
+      clearActiveSessionId: true,
+      selectedWorkspacePath: workspacePath,
+      timelineCells: const <TimelineCell>[],
+      clearActiveStreamingAssistantCellId: true,
+      clearActiveTurnId: true,
+      activityLog: const <String>[],
+      runningTurnCount: 0,
+      isInterrupting: false,
+      clearStatusHeader: true,
+      pendingStatusRestore: false,
+      streamCollector: const MarkdownStreamCollectorState(),
+      streamQueue: const <StreamQueuedLine>[],
+      chunkingPolicy: const AdaptiveChunkingPolicyState(),
+      streamQueueDepth: 0,
+      clearStreamOldestAgeMs: true,
+      clearActiveAgentStreamItemId: true,
+      clearActiveAgentStreamTurnId: true,
+      clearActiveAgentStreamPhase: true,
+      clearActiveAgentStreamLastDeltaAtMs: true,
+      pendingApprovals: const <PendingApproval>[],
+    );
+    try {
+      await _sessionService.ensureConnected();
+      state = state.copyWith(
+        connectionState: AppServerConnectionState.connected,
+      );
+    } catch (error) {
+      state = state.copyWith(
+        error: error.toString(),
+        connectionState: AppServerConnectionState.error,
+      );
+    }
+  }
+
+  /// Activates a chat persisted in the projects layer. Adopts the chat into
+  /// the in-memory session map (if needed) and resumes the underlying codex
+  /// thread.
+  Future<void> activateChat({
+    required ChatSummary chat,
+    required Project project,
+    Worktree? worktree,
+  }) async {
+    final workspacePath = worktree?.path ?? project.repoPath;
+    final existing = _sessionService.findSessionById(chat.id);
+    if (existing == null) {
+      _sessionService.adoptPersistedSession(
+        AleraSession(
+          id: chat.id,
+          request: SessionCreateRequest(
+            projectPath: workspacePath,
+            firstPrompt: '',
+            model: chat.model,
+            projectId: project.id,
+            worktreeId: worktree?.id,
+          ),
+          workspacePath: workspacePath,
+          createdAt: chat.createdAt,
+          updatedAt: chat.updatedAt,
+          title: chat.title,
+          model: chat.model,
+          threadId: chat.threadId,
+          lastTurnId: chat.lastTurnId,
+          projectId: project.id,
+          worktreeId: worktree?.id,
+        ),
+      );
+    }
+    state = state.copyWith(
+      sessions: _sessionService.sessions,
+      selectedWorkspacePath: workspacePath,
+    );
+    await activateSession(chat.id);
+    await _hydrateTimelineFromHistory(chat.id);
+  }
+
+  Future<void> _hydrateTimelineFromHistory(String chatId) async {
+    final persistedCells = await _sessionService.loadPersistedCells(chatId);
+    if (persistedCells.isNotEmpty) {
+      final restored = persistedCells
+          .map((c) => c.copyWith(isStreaming: false))
+          .toList(growable: false);
+      final preserved = state.timelineCells;
+      state = state.copyWith(
+        timelineCells: <TimelineCell>[...restored, ...preserved],
+      );
+      return;
+    }
+    final messages = await _sessionService.loadPersistedMessages(chatId);
+    if (messages.isEmpty) {
+      return;
+    }
+    final cells = <TimelineCell>[];
+    for (var i = 0; i < messages.length; i++) {
+      final msg = messages[i];
+      String? turnId = msg.turnId;
+      if (turnId == null && msg.role == ChatMessageRole.user) {
+        for (var j = i + 1; j < messages.length; j++) {
+          if (messages[j].role == ChatMessageRole.assistant) {
+            turnId = messages[j].turnId;
+            break;
+          }
+          if (messages[j].role == ChatMessageRole.user) {
+            break;
+          }
+        }
+      }
+      cells.add(_historicCellFromMessage(msg, assignedTurnId: turnId));
+    }
+    final preserved = state.timelineCells;
+    state = state.copyWith(
+      timelineCells: <TimelineCell>[...cells, ...preserved],
+    );
+  }
+
+  TimelineCell _historicCellFromMessage(
+    ChatMessage message, {
+    String? assignedTurnId,
+  }) {
+    final TimelineCellKind kind;
+    final String idPrefix;
+    switch (message.role) {
+      case ChatMessageRole.user:
+        kind = TimelineCellKind.userMessage;
+        idPrefix = 'user-historic';
+        break;
+      case ChatMessageRole.assistant:
+        kind = TimelineCellKind.assistantMessage;
+        idPrefix = 'assistant-historic';
+        break;
+      case ChatMessageRole.system:
+        kind = TimelineCellKind.systemNotice;
+        idPrefix = 'system-historic';
+        break;
+    }
+    return TimelineCell(
+      id: '$idPrefix-${message.seq}',
+      kind: kind,
+      status: TimelineCellStatus.completed,
+      createdAt: message.createdAt,
+      updatedAt: message.createdAt,
+      markdownText: message.text,
+      turnId: assignedTurnId,
+      isStreaming: false,
+      metadata: const <String, dynamic>{'historic': true},
+    );
+  }
+
+  /// Removes a chat from the in-memory session map (the projects layer is
+  /// responsible for removing its persisted record).
+  Future<void> dropChatLocally(String chatId) async {
+    if (state.activeSessionId == chatId) {
+      state = state.copyWith(
+        clearActiveSessionId: true,
+        timelineCells: const <TimelineCell>[],
+        clearActiveStreamingAssistantCellId: true,
+        clearActiveTurnId: true,
+        activityLog: const <String>[],
+        runningTurnCount: 0,
+        isInterrupting: false,
+        clearStatusHeader: true,
+      );
+    }
+    _resetRunningTurnsFor(chatId);
+    await _sessionService.deleteSession(chatId);
+    state = state.copyWith(sessions: _sessionService.sessions);
+  }
+
   Future<void> activateSession(String sessionId) async {
     final sessions = _sessionService.sessions;
     AleraSession? target;
@@ -237,6 +514,10 @@ class SessionController extends StateNotifier<SessionState> {
     }
     if (target == null) {
       return;
+    }
+    if (state.activeSessionId != null && state.activeSessionId != sessionId) {
+      _persistTimelineSnapshot();
+      _clearChatScopedState();
     }
 
     _stopCommitTicker();
@@ -272,6 +553,8 @@ class SessionController extends StateNotifier<SessionState> {
 
     try {
       await _sessionService.setActiveSession(sessionId);
+      final restoredRunningTurns = _runningTurnCountFor(sessionId);
+      final restoredActiveTurnId = _activeRunningTurnIdFor(sessionId);
       state = state.copyWith(
         isBusy: false,
         sessions: _sessionService.sessions,
@@ -288,6 +571,9 @@ class SessionController extends StateNotifier<SessionState> {
         ),
         connectionState: AppServerConnectionState.connected,
         isInterrupting: false,
+        runningTurnCount: restoredRunningTurns,
+        activeTurnId: restoredActiveTurnId,
+        clearActiveTurnId: restoredActiveTurnId == null,
       );
     } catch (error) {
       state = state.copyWith(
@@ -1029,6 +1315,8 @@ class SessionController extends StateNotifier<SessionState> {
   }
 
   void _startNewChat() {
+    _persistTimelineSnapshot();
+    _clearChatScopedState();
     _stopCommitTicker();
     _resetAssistantStreamTracking();
     state = state.copyWith(
@@ -1131,8 +1419,12 @@ class SessionController extends StateNotifier<SessionState> {
         projectPath: workspacePath,
         firstPrompt: fallbackPrompt,
         model: model,
+        projectId: _pendingProjectId,
+        worktreeId: _pendingWorktreeId,
       ),
     );
+    _pendingProjectId = null;
+    _pendingWorktreeId = null;
     state = state.copyWith(
       sessions: _sessionService.sessions,
       activeSessionId: created.id,
@@ -1323,8 +1615,12 @@ class SessionController extends StateNotifier<SessionState> {
             projectPath: workspacePath,
             firstPrompt: text,
             model: model,
+            projectId: _pendingProjectId,
+            worktreeId: _pendingWorktreeId,
           ),
         );
+        _pendingProjectId = null;
+        _pendingWorktreeId = null;
         state = state.copyWith(
           sessions: _sessionService.sessions,
           selectedWorkspacePath: created.workspacePath,
@@ -1339,6 +1635,14 @@ class SessionController extends StateNotifier<SessionState> {
         await _settingsService.save(_settingsSnapshotFromState());
         session = created;
       }
+      unawaited(
+        _sessionService.persistMessage(
+          sessionId: session.id,
+          role: ChatMessageRole.user,
+          text: text,
+        ),
+      );
+      _persistTimelineSnapshot();
       final mentionItems = await _buildMentionInputItems(text, workspacePath);
       final steerItems = _buildSteerInputItems();
       final extraInputItems = <Map<String, dynamic>>[
@@ -1523,6 +1827,8 @@ class SessionController extends StateNotifier<SessionState> {
   void dispose() {
     _stopCommitTicker();
     _interruptSafetyTimer?.cancel();
+    _snapshotDebounceTimer?.cancel();
+    _persistTimelineSnapshot();
     unawaited(_eventsSub?.cancel());
     super.dispose();
   }
@@ -1616,6 +1922,7 @@ class SessionController extends StateNotifier<SessionState> {
       return;
     }
     if (event is SessionNotificationEvent) {
+      _updateRunningTurnFromNotification(event);
       final active = state.activeSession;
       if (active != null && !_notificationMatchesSession(event, active)) {
         return;
@@ -1647,6 +1954,8 @@ class SessionController extends StateNotifier<SessionState> {
       final completedTurnId = _extractCompletedTurnId(event);
       if (completedTurnId != null) {
         _rememberCompletedTurn(completedTurnId);
+        _persistAssistantFinalForTurn(completedTurnId);
+        _persistTimelineSnapshot();
         final wasRequested = _planModeRequestedTurnIds.contains(
           completedTurnId,
         );
@@ -1667,6 +1976,7 @@ class SessionController extends StateNotifier<SessionState> {
 
       _maybeLogAssistantStreamWarnings(at: eventNow);
       _updateCommitTicker();
+      _scheduleTimelineSnapshot();
       if (runningTurnCount == 0 &&
           (event.method == 'turn/completed' || event.method == 'turn/failed') &&
           state.pendingUserInput == null) {
@@ -2484,6 +2794,66 @@ class SessionController extends StateNotifier<SessionState> {
       return true;
     }
     return session.threadId == turnThreadId;
+  }
+
+  Timer? _snapshotDebounceTimer;
+  static const Duration _snapshotDebounce = Duration(milliseconds: 400);
+
+  void _scheduleTimelineSnapshot() {
+    _snapshotDebounceTimer?.cancel();
+    _snapshotDebounceTimer = Timer(_snapshotDebounce, () {
+      _snapshotDebounceTimer = null;
+      _persistTimelineSnapshot();
+    });
+  }
+
+  void _persistTimelineSnapshot() {
+    _snapshotDebounceTimer?.cancel();
+    _snapshotDebounceTimer = null;
+    final activeSessionId = state.activeSessionId;
+    if (activeSessionId == null) {
+      return;
+    }
+    final cells = state.timelineCells
+        .map((cell) => cell.copyWith(isStreaming: false))
+        .toList(growable: false);
+    unawaited(
+      _sessionService.persistTimelineCells(
+        sessionId: activeSessionId,
+        cells: cells,
+      ),
+    );
+  }
+
+  void _persistAssistantFinalForTurn(String turnId) {
+    final activeSessionId = state.activeSessionId;
+    if (activeSessionId == null) {
+      return;
+    }
+    final cells = state.timelineCells
+        .where(
+          (cell) =>
+              cell.turnId == turnId &&
+              cell.kind == TimelineCellKind.assistantMessage &&
+              cell.markdownText != null &&
+              cell.markdownText!.trim().isNotEmpty,
+        )
+        .toList(growable: false);
+    if (cells.isEmpty) {
+      return;
+    }
+    final text = cells.map((c) => c.markdownText!).join('\n\n').trim();
+    if (text.isEmpty) {
+      return;
+    }
+    unawaited(
+      _sessionService.persistMessage(
+        sessionId: activeSessionId,
+        role: ChatMessageRole.assistant,
+        text: text,
+        turnId: turnId,
+      ),
+    );
   }
 
   int _computeRunningTurnCount({required int current, required String method}) {

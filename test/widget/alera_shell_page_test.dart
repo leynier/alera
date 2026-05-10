@@ -2,9 +2,12 @@ import 'dart:async';
 
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/features/projects/application/project_service.dart';
+import 'package:alera/src/features/projects/domain/chat_message.dart';
+import 'package:sembast/sembast_memory.dart';
 import 'package:alera/src/features/session/application/session_controller.dart';
 import 'package:alera/src/features/session/application/session_runtime_event.dart';
 import 'package:alera/src/features/session/application/session_service.dart';
+import 'package:alera/src/features/session/domain/chat_timeline.dart';
 import 'package:alera/src/features/session/presentation/session_workspace_view.dart';
 import 'package:alera/src/features/session/domain/pending_approval.dart';
 import 'package:alera/src/features/settings/application/settings_service.dart';
@@ -164,6 +167,60 @@ class _ShellFakeSessionService implements SessionService {
   }) {
     throw UnimplementedError();
   }
+
+  @override
+  AleraSession? findSessionById(String sessionId) {
+    for (final session in _sessions) {
+      if (session.id == sessionId) {
+        return session;
+      }
+    }
+    return null;
+  }
+
+  @override
+  void adoptPersistedSession(AleraSession session) {
+    _sessions.add(session);
+  }
+
+  @override
+  Future<void> deleteSession(String sessionId) async {
+    _sessions.removeWhere((s) => s.id == sessionId);
+  }
+
+  @override
+  Future<void> persistMessage({
+    required String sessionId,
+    required ChatMessageRole role,
+    required String text,
+    String? toolCallsJson,
+    int? tokensIn,
+    int? tokensOut,
+    double? costUsd,
+    String? turnId,
+  }) async {}
+
+  @override
+  Future<List<ChatMessage>> loadPersistedMessages(String chatId) async {
+    return const <ChatMessage>[];
+  }
+
+  @override
+  Future<List<TimelineCell>> loadPersistedCells(String chatId) async {
+    return const <TimelineCell>[];
+  }
+
+  @override
+  Future<void> persistTimelineCells({
+    required String sessionId,
+    required List<TimelineCell> cells,
+  }) async {}
+
+  @override
+  int runningTurnCountFor(String sessionId) => 0;
+
+  @override
+  String? activeTurnIdFor(String sessionId) => null;
 }
 
 class _ShellFakeProjectService implements ProjectService {
@@ -258,6 +315,10 @@ void main() {
     return (controller, fakeService);
   }
 
+  Future<Database> openMemoryDb() {
+    return databaseFactoryMemory.openDatabase('test.db');
+  }
+
   testWidgets(
     'shell renders SessionWorkspaceView when workspace is selected and no active session',
     (tester) async {
@@ -271,6 +332,9 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
+            aleraDatabaseProvider.overrideWith(
+              (ref) async => await openMemoryDb(),
+            ),
             sessionControllerProvider.overrideWith((ref) => controller),
           ],
           child: const MaterialApp(home: AleraShellPage()),
@@ -281,7 +345,7 @@ void main() {
 
       expect(find.byType(SessionWorkspaceView), findsOneWidget);
       expect(find.byType(TextField), findsOneWidget);
-      expect(find.text('Select a repository folder'), findsNothing);
+      expect(find.text('Pick a chat'), findsNothing);
     },
   );
 
@@ -300,6 +364,9 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
+            aleraDatabaseProvider.overrideWith(
+              (ref) async => await openMemoryDb(),
+            ),
             sessionControllerProvider.overrideWith((ref) => controller),
           ],
           child: const MaterialApp(home: AleraShellPage()),
@@ -311,11 +378,15 @@ void main() {
       final workspaceRect = tester.getRect(find.byType(SessionWorkspaceView));
       final scaffoldRect = tester.getRect(find.byType(Scaffold));
       final textFieldRect = tester.getRect(find.byType(TextField));
+      const sidebarWidth = 264.0;
 
-      expect((workspaceRect.width - scaffoldRect.width).abs(), lessThan(1.0));
+      expect(
+        (workspaceRect.width - (scaffoldRect.width - sidebarWidth)).abs(),
+        lessThan(1.0),
+      );
       expect(textFieldRect.width, lessThanOrEqualTo(720));
-      final leftGap = textFieldRect.left - scaffoldRect.left;
-      final rightGap = scaffoldRect.right - textFieldRect.right;
+      final leftGap = textFieldRect.left - workspaceRect.left;
+      final rightGap = workspaceRect.right - textFieldRect.right;
       expect((leftGap - rightGap).abs(), lessThan(1.0));
     },
   );
@@ -333,6 +404,9 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          aleraDatabaseProvider.overrideWith(
+            (ref) async => await openMemoryDb(),
+          ),
           sessionControllerProvider.overrideWith((ref) => controller),
         ],
         child: const MaterialApp(home: AleraShellPage()),
@@ -344,9 +418,16 @@ void main() {
     final scaffoldRect = tester.getRect(find.byType(Scaffold));
     final topBarRect = tester.getRect(find.byType(AleraTopBar));
     final statusBarRect = tester.getRect(find.byType(AleraStatusBar));
+    const sidebarWidth = 264.0;
 
-    expect((topBarRect.width - scaffoldRect.width).abs(), lessThan(1.0));
-    expect((statusBarRect.width - scaffoldRect.width).abs(), lessThan(1.0));
+    expect(
+      (topBarRect.width - (scaffoldRect.width - sidebarWidth)).abs(),
+      lessThan(1.0),
+    );
+    expect(
+      (statusBarRect.width - (scaffoldRect.width - sidebarWidth)).abs(),
+      lessThan(1.0),
+    );
   });
 
   testWidgets('status bar shows active session workspace path fallback', (
@@ -373,6 +454,9 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          aleraDatabaseProvider.overrideWith(
+            (ref) async => await openMemoryDb(),
+          ),
           sessionControllerProvider.overrideWith((ref) => controller),
         ],
         child: const MaterialApp(home: AleraShellPage()),
@@ -401,6 +485,9 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          aleraDatabaseProvider.overrideWith(
+            (ref) async => await openMemoryDb(),
+          ),
           sessionControllerProvider.overrideWith((ref) => controller),
         ],
         child: const MaterialApp(home: AleraShellPage()),
@@ -409,7 +496,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('Select a repository folder'), findsOneWidget);
+    expect(find.text('Pick a chat'), findsOneWidget);
     expect(find.byType(SessionWorkspaceView), findsNothing);
   });
 }

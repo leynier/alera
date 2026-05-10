@@ -524,11 +524,25 @@ class SessionCreateRequest {
     required this.projectPath,
     required this.firstPrompt,
     required this.model,
+    this.projectId,
+    this.worktreeId,
+    this.worktreeName,
   });
 
   final String projectPath;
   final String firstPrompt;
   final String model;
+
+  /// Project this session belongs to. Required for any persisted chat; left
+  /// optional only for legacy callers that have not been migrated yet.
+  final String? projectId;
+
+  /// If set, the chat runs on an existing worktree.
+  final String? worktreeId;
+
+  /// If set (and [worktreeId] is null), the session creator should provision a
+  /// new worktree with this slug before opening the chat.
+  final String? worktreeName;
 }
 
 class AleraSession {
@@ -542,6 +556,8 @@ class AleraSession {
     required this.model,
     this.threadId,
     this.lastTurnId,
+    this.projectId,
+    this.worktreeId,
   });
 
   final String id;
@@ -553,6 +569,8 @@ class AleraSession {
   final String model;
   final String? threadId;
   final String? lastTurnId;
+  final String? projectId;
+  final String? worktreeId;
 
   AleraSession copyWith({
     String? threadId,
@@ -561,6 +579,8 @@ class AleraSession {
     DateTime? updatedAt,
     String? title,
     String? model,
+    String? projectId,
+    String? worktreeId,
   }) {
     return AleraSession(
       id: id,
@@ -572,6 +592,8 @@ class AleraSession {
       model: model ?? this.model,
       threadId: threadId ?? this.threadId,
       lastTurnId: lastTurnId ?? this.lastTurnId,
+      projectId: projectId ?? this.projectId,
+      worktreeId: worktreeId ?? this.worktreeId,
     );
   }
 }

@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/features/projects/presentation/add_project_dialog.dart';
+import 'package:alera/src/features/projects/presentation/project_sidebar.dart';
 import 'package:alera/src/features/session/application/session_controller.dart';
 import 'package:alera/src/features/session/application/session_state.dart';
 import 'package:alera/src/features/session/domain/codex_model_catalog.dart';
@@ -17,14 +19,79 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 
-class AleraShellPage extends ConsumerStatefulWidget {
+class AleraShellPage extends ConsumerWidget {
   const AleraShellPage({super.key});
 
   @override
-  ConsumerState<AleraShellPage> createState() => _AleraShellPageState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final dbAsync = ref.watch(aleraDatabaseProvider);
+    return dbAsync.when(
+      loading: () => const _ShellLoading(),
+      error: (error, _) => _ShellError(error: error.toString()),
+      data: (_) => const _AleraShellPageBody(),
+    );
+  }
 }
 
-class _AleraShellPageState extends ConsumerState<AleraShellPage> {
+class _ShellLoading extends StatelessWidget {
+  const _ShellLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
+  }
+}
+
+class _ShellError extends StatelessWidget {
+  const _ShellError({required this.error});
+
+  final String error;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AleraTokens.space24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              const Icon(
+                Icons.error_outline,
+                color: AleraTokens.error,
+                size: 32,
+              ),
+              const SizedBox(height: AleraTokens.space12),
+              Text(
+                'Failed to open the local database',
+                style: theme.textTheme.titleMedium,
+              ),
+              const SizedBox(height: AleraTokens.space8),
+              Text(
+                error,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: AleraTokens.foregroundMuted,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AleraShellPageBody extends ConsumerStatefulWidget {
+  const _AleraShellPageBody();
+
+  @override
+  ConsumerState<_AleraShellPageBody> createState() =>
+      _AleraShellPageBodyState();
+}
+
+class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
   String? _lastErrorMessage;
   bool _rawLogExpanded = false;
 
@@ -33,6 +100,7 @@ class _AleraShellPageState extends ConsumerState<AleraShellPage> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await ref.read(sessionControllerProvider.notifier).bootstrap();
+      await ref.read(projectsControllerProvider.notifier).bootstrap();
     });
   }
 
@@ -81,34 +149,44 @@ class _AleraShellPageState extends ConsumerState<AleraShellPage> {
     );
 
     return Scaffold(
-      body: Column(
+      body: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          AleraTopBar(
-            workspaceName: _workspaceName(workspacePath),
-            sessionTitle: activeSessionTitle,
-            isBusy: isBusy,
-            onSelectWorkspace: () => _selectWorkspace(controller),
-          ),
+          const ProjectSidebar(),
           Expanded(
-            child: Consumer(
-              builder: (context, ref, child) {
-                final state = ref.watch(sessionControllerProvider);
-                return _buildContent(state: state, controller: controller);
-              },
+            child: Column(
+              children: <Widget>[
+                AleraTopBar(
+                  workspaceName: _workspaceName(workspacePath),
+                  sessionTitle: activeSessionTitle,
+                  isBusy: isBusy,
+                ),
+                Expanded(
+                  child: Consumer(
+                    builder: (context, ref, child) {
+                      final state = ref.watch(sessionControllerProvider);
+                      return _buildContent(
+                        state: state,
+                        controller: controller,
+                      );
+                    },
+                  ),
+                ),
+                AleraStatusBar(
+                  connectionState: connectionState,
+                  runningTurnCount: runningTurnCount,
+                  statusHeader: statusHeader,
+                  lastTurnDiff: lastTurnDiff,
+                  workspacePath: statusBarWorkspacePath,
+                  rawLogExpanded: _rawLogExpanded,
+                  onToggleRawLog: () =>
+                      setState(() => _rawLogExpanded = !_rawLogExpanded),
+                  onCopyRawLog: () =>
+                      _copyRawLog(ref.read(sessionControllerProvider)),
+                  canCopyRawLog: !activityLogEmpty,
+                ),
+              ],
             ),
-          ),
-          AleraStatusBar(
-            connectionState: connectionState,
-            runningTurnCount: runningTurnCount,
-            statusHeader: statusHeader,
-            lastTurnDiff: lastTurnDiff,
-            workspacePath: statusBarWorkspacePath,
-            rawLogExpanded: _rawLogExpanded,
-            onToggleRawLog: () =>
-                setState(() => _rawLogExpanded = !_rawLogExpanded),
-            onCopyRawLog: () =>
-                _copyRawLog(ref.read(sessionControllerProvider)),
-            canCopyRawLog: !activityLogEmpty,
           ),
         ],
       ),
@@ -122,11 +200,12 @@ class _AleraShellPageState extends ConsumerState<AleraShellPage> {
     final workspacePath = state.selectedWorkspacePath;
     if (workspacePath == null || workspacePath.isEmpty) {
       return _EmptyState(
-        icon: Icons.folder_open_outlined,
-        title: 'Select a repository folder',
-        message: 'Choose a git repository folder to start working.',
-        actionLabel: 'Select folder',
-        onAction: () => _selectWorkspace(controller),
+        icon: Icons.workspaces_outline,
+        title: 'Pick a chat',
+        message:
+            'Select an existing chat from the sidebar, or add a project and start a new chat.',
+        actionLabel: 'Add project',
+        onAction: () => _addProject(context),
         statusHeader: state.statusHeader,
       );
     }
@@ -236,30 +315,28 @@ class _AleraShellPageState extends ConsumerState<AleraShellPage> {
     }
   }
 
-  Future<void> _selectWorkspace(SessionController controller) async {
-    final path = await _showWorkspaceDialog();
-    if (path == null || path.trim().isEmpty) {
-      return;
-    }
-
-    final ok = await controller.selectWorkspaceFromPath(path.trim());
-    if (!mounted) {
-      return;
-    }
-    if (!ok) {
-      final latestState = ref.read(sessionControllerProvider);
-      final message = latestState.error ?? 'Failed to select folder';
-      _showError(message);
-      return;
-    }
-    _showSuccess('Workspace selected');
-  }
-
-  Future<String?> _showWorkspaceDialog() {
-    return showDialog<String>(
+  Future<void> _addProject(BuildContext context) async {
+    final result = await showDialog<AddProjectResult>(
       context: context,
-      builder: (context) => const _SelectWorkspaceDialog(),
+      builder: (_) => const AddProjectDialog(),
     );
+    if (result == null || !mounted) {
+      return;
+    }
+    try {
+      await ref
+          .read(projectsControllerProvider.notifier)
+          .addProject(repoPath: result.repoPath, name: result.name);
+      if (!mounted) {
+        return;
+      }
+      _showSuccess('Project added');
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      _showError(error.toString());
+    }
   }
 
   String? _workspaceName(String? workspacePath) {
@@ -387,107 +464,6 @@ class _EmptyState extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _SelectWorkspaceDialog extends StatefulWidget {
-  const _SelectWorkspaceDialog();
-
-  @override
-  State<_SelectWorkspaceDialog> createState() => _SelectWorkspaceDialogState();
-}
-
-class _SelectWorkspaceDialogState extends State<_SelectWorkspaceDialog> {
-  final TextEditingController _pathController = TextEditingController();
-
-  @override
-  void dispose() {
-    _pathController.dispose();
-    super.dispose();
-  }
-
-  void _submit() {
-    Navigator.of(context).pop(_pathController.text.trim());
-  }
-
-  Future<void> _browse() async {
-    try {
-      final selected = await getDirectoryPath(
-        confirmButtonText: 'Select repository',
-      );
-      if (!mounted || selected == null || selected.trim().isEmpty) {
-        return;
-      }
-      _pathController.text = selected.trim();
-      _pathController.selection = TextSelection.fromPosition(
-        TextPosition(offset: _pathController.text.length),
-      );
-    } catch (_) {
-      if (!mounted) {
-        return;
-      }
-      AleraToast.show(
-        context,
-        message: 'Native folder picker is not available; paste path manually.',
-        tone: AleraToastTone.info,
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return AlertDialog(
-      title: Row(
-        children: <Widget>[
-          const Icon(
-            Icons.folder_special_outlined,
-            size: 18,
-            color: AleraTokens.accent,
-          ),
-          const SizedBox(width: AleraTokens.space8),
-          Text('Select folder', style: theme.textTheme.titleLarge),
-        ],
-      ),
-      content: SizedBox(
-        width: 560,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Text(
-              'Choose the git repository you want to work on',
-              style: theme.textTheme.bodySmall,
-            ),
-            const SizedBox(height: AleraTokens.space16),
-            TextField(
-              controller: _pathController,
-              autofocus: true,
-              decoration: InputDecoration(
-                labelText: 'Repository path',
-                hintText: '/path/to/git/repository',
-                suffixIcon: Tooltip(
-                  message: 'Browse',
-                  child: IconButton(
-                    onPressed: _browse,
-                    mouseCursor: SystemMouseCursors.click,
-                    icon: const Icon(Icons.folder_open, size: 18),
-                  ),
-                ),
-              ),
-              onSubmitted: (_) => _submit(),
-            ),
-          ],
-        ),
-      ),
-      actions: <Widget>[
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(onPressed: _submit, child: const Text('Use folder')),
-      ],
     );
   }
 }

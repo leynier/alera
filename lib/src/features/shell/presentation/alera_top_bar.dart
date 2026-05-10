@@ -7,13 +7,11 @@ class AleraTopBar extends StatelessWidget {
     required this.workspaceName,
     required this.sessionTitle,
     required this.isBusy,
-    required this.onSelectWorkspace,
   });
 
   final String? workspaceName;
   final String? sessionTitle;
   final bool isBusy;
-  final VoidCallback onSelectWorkspace;
 
   @override
   Widget build(BuildContext context) {
@@ -45,11 +43,6 @@ class AleraTopBar extends StatelessWidget {
             ),
           ),
           const SizedBox(width: AleraTokens.space8),
-          FilledButton.tonalIcon(
-            onPressed: isBusy ? null : onSelectWorkspace,
-            icon: const Icon(Icons.folder_open, size: 16),
-            label: const Text('Select folder'),
-          ),
         ],
       ),
     );

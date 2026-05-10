@@ -2,8 +2,12 @@ import 'dart:async';
 
 import 'package:alera/src/features/agents/application/agent_orchestrator.dart';
 import 'package:alera/src/features/agents/application/agent_orchestrator_event.dart';
+import 'package:alera/src/features/projects/application/chat_repository.dart';
 import 'package:alera/src/features/projects/application/project_service.dart';
+import 'package:alera/src/features/projects/domain/chat_message.dart';
+import 'package:alera/src/features/projects/domain/chat_summary.dart';
 import 'package:alera/src/features/session/application/session_runtime_event.dart';
+import 'package:alera/src/features/session/domain/chat_timeline.dart';
 import 'package:alera/src/shared/models/contracts.dart';
 import 'package:uuid/uuid.dart';
 
@@ -11,11 +15,14 @@ class SessionService {
   SessionService({
     required AgentOrchestrator orchestrator,
     required ProjectService projectService,
+    ChatRepository? chatRepository,
   }) : _orchestrator = orchestrator,
-       _projectService = projectService;
+       _projectService = projectService,
+       _chatRepository = chatRepository;
 
   final AgentOrchestrator _orchestrator;
   final ProjectService _projectService;
+  final ChatRepository? _chatRepository;
   final Uuid _uuid = const Uuid();
 
   final Map<String, AleraSession> _sessions = <String, AleraSession>{};
@@ -70,10 +77,118 @@ class SessionService {
       title: title,
       model: request.model,
       threadId: threadId,
+      projectId: request.projectId,
+      worktreeId: request.worktreeId,
     );
 
     _sessions[session.id] = session;
+    await _persistChatSummary(session);
     return session;
+  }
+
+  /// Adopts a previously persisted [AleraSession] into the in-memory map (used
+  /// when hydrating from Sembast on startup). Does not contact the orchestrator.
+  void adoptPersistedSession(AleraSession session) {
+    _sessions[session.id] = session;
+  }
+
+  AleraSession? findSessionById(String sessionId) => _sessions[sessionId];
+
+  Future<void> deleteSession(String sessionId) async {
+    final session = _sessions.remove(sessionId);
+    _runningTurnsBySession.remove(sessionId);
+    if (session == null) {
+      return;
+    }
+    await _chatRepository?.remove(sessionId);
+  }
+
+  Future<List<ChatMessage>> loadPersistedMessages(String chatId) async {
+    final repo = _chatRepository;
+    if (repo == null) {
+      return const <ChatMessage>[];
+    }
+    return repo.loadMessages(chatId);
+  }
+
+  Future<List<TimelineCell>> loadPersistedCells(String chatId) async {
+    final repo = _chatRepository;
+    if (repo == null) {
+      return const <TimelineCell>[];
+    }
+    return repo.loadCells(chatId);
+  }
+
+  Future<void> persistTimelineCells({
+    required String sessionId,
+    required List<TimelineCell> cells,
+  }) async {
+    final repo = _chatRepository;
+    if (repo == null) {
+      return;
+    }
+    final session = _sessions[sessionId];
+    if (session == null || session.projectId == null) {
+      // Only persist for chats that already have a project association.
+      return;
+    }
+    await repo.replaceCells(sessionId, cells);
+  }
+
+  Future<void> persistMessage({
+    required String sessionId,
+    required ChatMessageRole role,
+    required String text,
+    String? toolCallsJson,
+    int? tokensIn,
+    int? tokensOut,
+    double? costUsd,
+    String? turnId,
+  }) async {
+    final repo = _chatRepository;
+    if (repo == null) {
+      return;
+    }
+    final session = _sessions[sessionId];
+    if (session == null) {
+      return;
+    }
+    final seq = await repo.nextSeq(sessionId);
+    await repo.appendMessage(
+      ChatMessage(
+        chatId: sessionId,
+        seq: seq,
+        role: role,
+        text: text,
+        toolCallsJson: toolCallsJson,
+        tokensIn: tokensIn,
+        tokensOut: tokensOut,
+        costUsd: costUsd,
+        turnId: turnId,
+        createdAt: DateTime.now().toUtc(),
+      ),
+    );
+    await _persistChatSummary(session);
+  }
+
+  Future<void> _persistChatSummary(AleraSession session) async {
+    final repo = _chatRepository;
+    if (repo == null || session.projectId == null) {
+      return;
+    }
+    await repo.upsert(
+      ChatSummary(
+        id: session.id,
+        projectId: session.projectId!,
+        worktreeId: session.worktreeId,
+        title: session.title,
+        model: session.model,
+        threadId: session.threadId,
+        lastTurnId: session.lastTurnId,
+        createdAt: session.createdAt,
+        updatedAt: session.updatedAt,
+      ),
+    );
   }
 
   Future<AleraSession> setActiveSession(String sessionId) async {
@@ -93,6 +208,7 @@ class SessionService {
       updatedAt: DateTime.now().toUtc(),
     );
     _sessions[sessionId] = updated;
+    await _persistChatSummary(updated);
     return updated;
   }
 
@@ -104,10 +220,12 @@ class SessionService {
     if (existing == null) {
       throw StateError('session not found: $sessionId');
     }
-    _sessions[sessionId] = existing.copyWith(
+    final updated = existing.copyWith(
       model: modelId,
       updatedAt: DateTime.now().toUtc(),
     );
+    _sessions[sessionId] = updated;
+    await _persistChatSummary(updated);
   }
 
   Future<void> runInput({
@@ -170,6 +288,7 @@ class SessionService {
       updatedAt: DateTime.now().toUtc(),
     );
     _sessions[sessionId] = updated;
+    await _persistChatSummary(updated);
   }
 
   Future<void> interruptActiveTurn({
@@ -239,6 +358,7 @@ class SessionService {
       updatedAt: DateTime.now().toUtc(),
     );
     _sessions[sessionId] = updated;
+    await _persistChatSummary(updated);
     return newTurnId;
   }
 
@@ -261,10 +381,12 @@ class SessionService {
 
     await _ensureOrchestrator();
     await _orchestrator.setThreadName(threadId: threadId, name: normalizedName);
-    _sessions[sessionId] = session.copyWith(
+    final updated = session.copyWith(
       title: normalizedName,
       updatedAt: DateTime.now().toUtc(),
     );
+    _sessions[sessionId] = updated;
+    await _persistChatSummary(updated);
   }
 
   Future<void> renameThread({required String sessionId, required String name}) {
@@ -292,10 +414,12 @@ class SessionService {
       delivery: delivery,
     );
 
-    _sessions[sessionId] = session.copyWith(
+    final updated = session.copyWith(
       lastTurnId: result.reviewThreadId == threadId ? result.turn.id : null,
       updatedAt: DateTime.now().toUtc(),
     );
+    _sessions[sessionId] = updated;
+    await _persistChatSummary(updated);
     return result;
   }
 
@@ -399,8 +523,23 @@ class SessionService {
     }
   }
 
+  final Map<String, int> _runningTurnsBySession = <String, int>{};
+
+  int runningTurnCountFor(String sessionId) {
+    return _runningTurnsBySession[sessionId] ?? 0;
+  }
+
+  String? activeTurnIdFor(String sessionId) {
+    if ((_runningTurnsBySession[sessionId] ?? 0) <= 0) {
+      return null;
+    }
+    return _sessions[sessionId]?.lastTurnId;
+  }
+
   void _updateSessionTurnStateFromNotification(AgentNotificationEvent event) {
-    if (event.method != 'turn/started' && event.method != 'turn/completed') {
+    if (event.method != 'turn/started' &&
+        event.method != 'turn/completed' &&
+        event.method != 'turn/failed') {
       return;
     }
 
@@ -421,10 +560,19 @@ class SessionService {
 
     for (final entry in _sessions.entries) {
       if (entry.value.threadId == threadId) {
-        _sessions[entry.key] = entry.value.copyWith(
+        if (event.method == 'turn/started') {
+          _runningTurnsBySession[entry.key] =
+              (_runningTurnsBySession[entry.key] ?? 0) + 1;
+        } else {
+          final current = _runningTurnsBySession[entry.key] ?? 0;
+          _runningTurnsBySession[entry.key] = current > 0 ? current - 1 : 0;
+        }
+        final updated = entry.value.copyWith(
           lastTurnId: turnId,
           updatedAt: DateTime.now().toUtc(),
         );
+        _sessions[entry.key] = updated;
+        unawaited(_persistChatSummary(updated));
       }
     }
   }
@@ -445,10 +593,12 @@ class SessionService {
 
     for (final entry in _sessions.entries) {
       if (entry.value.threadId == update.threadId) {
-        _sessions[entry.key] = entry.value.copyWith(
+        final updated = entry.value.copyWith(
           title: title,
           updatedAt: DateTime.now().toUtc(),
         );
+        _sessions[entry.key] = updated;
+        unawaited(_persistChatSummary(updated));
       }
     }
   }

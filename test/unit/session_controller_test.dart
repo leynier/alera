@@ -2,11 +2,16 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:alera/src/features/projects/application/project_service.dart';
+import 'package:alera/src/features/projects/domain/chat_message.dart';
+import 'package:alera/src/features/projects/domain/chat_summary.dart';
+import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/session/application/session_controller.dart';
 import 'package:alera/src/features/session/application/session_runtime_event.dart';
 import 'package:alera/src/features/session/application/session_service.dart';
 import 'package:alera/src/features/session/domain/chat_timeline.dart';
 import 'package:alera/src/features/session/domain/composer_attachment.dart';
+import 'package:alera/src/features/session/domain/composer_draft_item.dart';
+import 'package:alera/src/features/session/domain/pending_message.dart';
 import 'package:alera/src/features/session/domain/pending_approval.dart';
 import 'package:alera/src/features/session/domain/pending_user_input.dart';
 import 'package:alera/src/features/session/domain/review_preset_selection.dart';
@@ -42,6 +47,10 @@ class _FakeSessionService implements SessionService {
   @override
   Stream<SessionRuntimeEvent> get events => _eventsController.stream;
 
+  void emitEvent(SessionRuntimeEvent event) {
+    _eventsController.add(event);
+  }
+
   @override
   List<AleraSession> get sessions {
     final list = _sessionsById.values.toList(growable: false);
@@ -64,6 +73,8 @@ class _FakeSessionService implements SessionService {
       title: 'session',
       model: request.model,
       threadId: 'thread-1',
+      projectId: request.projectId,
+      worktreeId: request.worktreeId,
     );
     _sessionsById[session.id] = session;
     return session;
@@ -280,6 +291,75 @@ class _FakeSessionService implements SessionService {
   }
 
   @override
+  AleraSession? findSessionById(String sessionId) => _sessionsById[sessionId];
+
+  @override
+  void adoptPersistedSession(AleraSession session) {
+    _sessionsById[session.id] = session;
+  }
+
+  @override
+  Future<void> deleteSession(String sessionId) async {
+    _sessionsById.remove(sessionId);
+  }
+
+  @override
+  Future<void> persistMessage({
+    required String sessionId,
+    required ChatMessageRole role,
+    required String text,
+    String? toolCallsJson,
+    int? tokensIn,
+    int? tokensOut,
+    double? costUsd,
+    String? turnId,
+  }) async {}
+
+  List<ChatMessage> persistedMessagesFor(String chatId) =>
+      _persistedMessages[chatId] ?? const <ChatMessage>[];
+
+  void seedPersistedMessages(String chatId, List<ChatMessage> messages) {
+    _persistedMessages[chatId] = List<ChatMessage>.unmodifiable(messages);
+  }
+
+  final Map<String, List<ChatMessage>> _persistedMessages =
+      <String, List<ChatMessage>>{};
+
+  @override
+  Future<List<ChatMessage>> loadPersistedMessages(String chatId) async {
+    return persistedMessagesFor(chatId);
+  }
+
+  final Map<String, List<TimelineCell>> _persistedCells =
+      <String, List<TimelineCell>>{};
+
+  void seedPersistedCells(String chatId, List<TimelineCell> cells) {
+    _persistedCells[chatId] = List<TimelineCell>.unmodifiable(cells);
+  }
+
+  List<TimelineCell> persistedCellsFor(String chatId) =>
+      _persistedCells[chatId] ?? const <TimelineCell>[];
+
+  @override
+  Future<List<TimelineCell>> loadPersistedCells(String chatId) async {
+    return persistedCellsFor(chatId);
+  }
+
+  @override
+  Future<void> persistTimelineCells({
+    required String sessionId,
+    required List<TimelineCell> cells,
+  }) async {
+    _persistedCells[sessionId] = List<TimelineCell>.unmodifiable(cells);
+  }
+
+  @override
+  int runningTurnCountFor(String sessionId) => 0;
+
+  @override
+  String? activeTurnIdFor(String sessionId) => null;
+
+  @override
   Future<void> updateSessionModel({
     required String sessionId,
     required String modelId,
@@ -484,6 +564,50 @@ void main() {
     });
 
     test(
+      'slash command first input preserves pending project context',
+      () async {
+        final fakeService = _FakeSessionService();
+        final fakeSettings = _FakeSettingsService(
+          'gpt-5.3-codex',
+          'high',
+          true,
+        );
+        final controller = SessionController(
+          sessionService: fakeService,
+          projectService: _FakeProjectService(),
+          settingsService: fakeSettings,
+        );
+        addTearDown(() async {
+          controller.dispose();
+          await fakeService.shutdown();
+        });
+
+        await controller.bootstrap();
+        final now = DateTime.utc(2026, 5, 10, 12);
+        final project = Project(
+          id: 'project-review',
+          name: 'alera',
+          repoPath: '/repo',
+          createdAt: now,
+          updatedAt: now,
+        );
+
+        await controller.activateChatStub(project: project);
+        await controller.sendInput('/review');
+
+        expect(fakeService.createSessionCallCount, 1);
+        expect(
+          fakeService.lastReviewTarget,
+          isA<CodexReviewUncommittedChangesTarget>(),
+        );
+        expect(fakeService.lastCreateSessionRequest?.firstPrompt, '/review');
+        expect(fakeService.lastCreateSessionRequest?.projectPath, '/repo');
+        expect(fakeService.lastCreateSessionRequest?.projectId, project.id);
+        expect(fakeService.lastCreateSessionRequest?.worktreeId, isNull);
+      },
+    );
+
+    test(
       'updateActiveSessionModel without session updates draft and settings',
       () async {
         final fakeService = _FakeSessionService();
@@ -593,11 +717,7 @@ void main() {
 
     test('setPermissionMode persists approval mode to settings', () async {
       final fakeService = _FakeSessionService();
-      final fakeSettings = _FakeSettingsService(
-        'gpt-5.3-codex',
-        'high',
-        true,
-      );
+      final fakeSettings = _FakeSettingsService('gpt-5.3-codex', 'high', true);
       final controller = SessionController(
         sessionService: fakeService,
         projectService: _FakeProjectService(),
@@ -2579,6 +2699,459 @@ void main() {
           isTrue,
         );
         expect(controller.state.runningTurnCount, 1);
+      },
+    );
+
+    test('activateChat hydrates timeline from persisted messages', () async {
+      final fakeService = _FakeSessionService();
+      final fakeSettings = _FakeSettingsService('gpt-5.3-codex', 'high', true);
+      final controller = SessionController(
+        sessionService: fakeService,
+        projectService: _FakeProjectService(),
+        settingsService: fakeSettings,
+      );
+      addTearDown(() async {
+        controller.dispose();
+        await fakeService.shutdown();
+      });
+
+      await controller.bootstrap();
+
+      final now = DateTime.utc(2026, 5, 1, 12);
+      final project = Project(
+        id: 'project-1',
+        name: 'alera',
+        repoPath: '/repo',
+        createdAt: now,
+        updatedAt: now,
+      );
+      final chatId = 'chat-1';
+      final session = AleraSession(
+        id: chatId,
+        request: SessionCreateRequest(
+          projectPath: project.repoPath,
+          firstPrompt: '',
+          model: 'gpt-5.3-codex',
+          projectId: project.id,
+        ),
+        workspacePath: project.repoPath,
+        createdAt: now,
+        updatedAt: now,
+        title: 'existing chat',
+        model: 'gpt-5.3-codex',
+        threadId: 'thread-1',
+        projectId: project.id,
+      );
+      fakeService.adoptPersistedSession(session);
+      fakeService.seedPersistedMessages(chatId, <ChatMessage>[
+        ChatMessage(
+          chatId: chatId,
+          seq: 0,
+          role: ChatMessageRole.user,
+          text: 'hola',
+          createdAt: now,
+        ),
+        ChatMessage(
+          chatId: chatId,
+          seq: 1,
+          role: ChatMessageRole.assistant,
+          text: '¡hola! ¿en qué te ayudo?',
+          turnId: 'turn-7',
+          createdAt: now.add(const Duration(seconds: 2)),
+        ),
+      ]);
+
+      final summary = ChatSummary(
+        id: chatId,
+        projectId: project.id,
+        title: 'existing chat',
+        model: 'gpt-5.3-codex',
+        threadId: 'thread-1',
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      await controller.activateChat(chat: summary, project: project);
+
+      final cells = controller.state.timelineCells;
+      expect(cells.length, 2);
+      expect(cells[0].kind, TimelineCellKind.userMessage);
+      expect(cells[0].markdownText, 'hola');
+      expect(cells[0].turnId, 'turn-7');
+      expect(cells[0].metadata['historic'], isTrue);
+      expect(cells[1].kind, TimelineCellKind.assistantMessage);
+      expect(cells[1].markdownText, '¡hola! ¿en qué te ayudo?');
+      expect(cells[1].turnId, 'turn-7');
+      expect(cells[1].metadata['historic'], isTrue);
+    });
+
+    test('activateChat hydrates timeline from persisted cells with reasoning '
+        'and tool calls', () async {
+      final fakeService = _FakeSessionService();
+      final fakeSettings = _FakeSettingsService('gpt-5.3-codex', 'high', true);
+      final controller = SessionController(
+        sessionService: fakeService,
+        projectService: _FakeProjectService(),
+        settingsService: fakeSettings,
+      );
+      addTearDown(() async {
+        controller.dispose();
+        await fakeService.shutdown();
+      });
+
+      await controller.bootstrap();
+
+      final now = DateTime.utc(2026, 5, 1, 14);
+      final project = Project(
+        id: 'project-2',
+        name: 'alera',
+        repoPath: '/repo',
+        createdAt: now,
+        updatedAt: now,
+      );
+      final chatId = 'chat-2';
+      fakeService.adoptPersistedSession(
+        AleraSession(
+          id: chatId,
+          request: SessionCreateRequest(
+            projectPath: project.repoPath,
+            firstPrompt: '',
+            model: 'gpt-5.3-codex',
+            projectId: project.id,
+          ),
+          workspacePath: project.repoPath,
+          createdAt: now,
+          updatedAt: now,
+          title: 'snapshot chat',
+          model: 'gpt-5.3-codex',
+          threadId: 'thread-snap',
+          projectId: project.id,
+        ),
+      );
+      fakeService.seedPersistedCells(chatId, <TimelineCell>[
+        TimelineCell(
+          id: 'user-1',
+          kind: TimelineCellKind.userMessage,
+          status: TimelineCellStatus.completed,
+          createdAt: now,
+          updatedAt: now,
+          markdownText: 'lista los archivos',
+        ),
+        TimelineCell(
+          id: 'reasoning-1',
+          kind: TimelineCellKind.reasoning,
+          status: TimelineCellStatus.completed,
+          createdAt: now.add(const Duration(seconds: 1)),
+          updatedAt: now.add(const Duration(seconds: 1)),
+          markdownText: 'pensando un momento...',
+          turnId: 'turn-snap',
+        ),
+        TimelineCell(
+          id: 'tool-1',
+          kind: TimelineCellKind.toolCall,
+          status: TimelineCellStatus.completed,
+          createdAt: now.add(const Duration(seconds: 2)),
+          updatedAt: now.add(const Duration(seconds: 2)),
+          title: 'shell',
+          detailsText: 'ls -la',
+          turnId: 'turn-snap',
+        ),
+        TimelineCell(
+          id: 'assistant-final-turn-snap',
+          kind: TimelineCellKind.assistantMessage,
+          status: TimelineCellStatus.completed,
+          createdAt: now.add(const Duration(seconds: 3)),
+          updatedAt: now.add(const Duration(seconds: 3)),
+          markdownText: 'aquí están los archivos.',
+          turnId: 'turn-snap',
+        ),
+      ]);
+
+      final summary = ChatSummary(
+        id: chatId,
+        projectId: project.id,
+        title: 'snapshot chat',
+        model: 'gpt-5.3-codex',
+        threadId: 'thread-snap',
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      await controller.activateChat(chat: summary, project: project);
+
+      final cells = controller.state.timelineCells;
+      expect(cells.length, 4);
+      expect(cells.map((c) => c.kind).toList(), <TimelineCellKind>[
+        TimelineCellKind.userMessage,
+        TimelineCellKind.reasoning,
+        TimelineCellKind.toolCall,
+        TimelineCellKind.assistantMessage,
+      ]);
+      expect(cells[1].markdownText, 'pensando un momento...');
+      expect(cells[2].title, 'shell');
+      expect(cells[2].detailsText, 'ls -la');
+      expect(cells[3].markdownText, 'aquí están los archivos.');
+      for (final cell in cells) {
+        expect(cell.isStreaming, isFalse);
+      }
+    });
+
+    test(
+      'activateChat restores running turn counter so the composer shows stop',
+      () async {
+        final fakeService = _FakeSessionService();
+        final fakeSettings = _FakeSettingsService(
+          'gpt-5.3-codex',
+          'high',
+          true,
+        );
+        final controller = SessionController(
+          sessionService: fakeService,
+          projectService: _FakeProjectService(),
+          settingsService: fakeSettings,
+        );
+        addTearDown(() async {
+          controller.dispose();
+          await fakeService.shutdown();
+        });
+
+        await controller.bootstrap();
+
+        final now = DateTime.utc(2026, 5, 1, 16);
+        final project = Project(
+          id: 'project-3',
+          name: 'alera',
+          repoPath: '/repo',
+          createdAt: now,
+          updatedAt: now,
+        );
+        final chatId = 'chat-3';
+        fakeService.adoptPersistedSession(
+          AleraSession(
+            id: chatId,
+            request: SessionCreateRequest(
+              projectPath: project.repoPath,
+              firstPrompt: '',
+              model: 'gpt-5.3-codex',
+              projectId: project.id,
+            ),
+            workspacePath: project.repoPath,
+            createdAt: now,
+            updatedAt: now,
+            title: 'mid-flight chat',
+            model: 'gpt-5.3-codex',
+            threadId: 'thread-3',
+            lastTurnId: 'turn-live',
+            projectId: project.id,
+          ),
+        );
+        // Emit a turn/started notification so the controller registers the
+        // running turn before the user navigates back to the chat.
+        fakeService.emitEvent(
+          SessionNotificationEvent(
+            method: 'turn/started',
+            payload: <String, dynamic>{
+              'params': <String, dynamic>{
+                'turn': <String, dynamic>{
+                  'id': 'turn-live',
+                  'threadId': 'thread-3',
+                },
+              },
+            },
+          ),
+        );
+        await Future<void>.delayed(Duration.zero);
+
+        final summary = ChatSummary(
+          id: chatId,
+          projectId: project.id,
+          title: 'mid-flight chat',
+          model: 'gpt-5.3-codex',
+          threadId: 'thread-3',
+          lastTurnId: 'turn-live',
+          createdAt: now,
+          updatedAt: now,
+        );
+
+        await controller.activateChat(chat: summary, project: project);
+
+        expect(controller.state.runningTurnCount, 1);
+        expect(controller.state.activeTurnId, 'turn-live');
+      },
+    );
+
+    test('activateChat clears queued messages from a previous chat', () async {
+      final fakeService = _FakeSessionService();
+      final fakeSettings = _FakeSettingsService('gpt-5.3-codex', 'high', true);
+      final controller = SessionController(
+        sessionService: fakeService,
+        projectService: _FakeProjectService(),
+        settingsService: fakeSettings,
+      );
+      addTearDown(() async {
+        controller.dispose();
+        await fakeService.shutdown();
+      });
+
+      await controller.bootstrap();
+
+      controller.state = controller.state.copyWith(
+        pendingMessages: <PendingMessage>[
+          PendingMessage(
+            id: 'queued-1',
+            text: 'leftover from chat A',
+            attachments: const <ComposerAttachment>[],
+            draftItems: const <ComposerDraftItem>[],
+            planModeEnabled: false,
+            speedMode: 'normal',
+            forceDefaultCollaborationMode: false,
+          ),
+        ],
+      );
+
+      final now = DateTime.utc(2026, 5, 1, 19);
+      final project = Project(
+        id: 'project-5',
+        name: 'alera',
+        repoPath: '/repo',
+        createdAt: now,
+        updatedAt: now,
+      );
+      const chatId = 'chat-5';
+      fakeService.adoptPersistedSession(
+        AleraSession(
+          id: chatId,
+          request: SessionCreateRequest(
+            projectPath: project.repoPath,
+            firstPrompt: '',
+            model: 'gpt-5.3-codex',
+            projectId: project.id,
+          ),
+          workspacePath: project.repoPath,
+          createdAt: now,
+          updatedAt: now,
+          title: 'fresh chat',
+          model: 'gpt-5.3-codex',
+          threadId: 'thread-5',
+          projectId: project.id,
+        ),
+      );
+
+      final summary = ChatSummary(
+        id: chatId,
+        projectId: project.id,
+        title: 'fresh chat',
+        model: 'gpt-5.3-codex',
+        threadId: 'thread-5',
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      // Simulate the user already being in a different chat before switching.
+      controller.state = controller.state.copyWith(
+        activeSessionId: 'previous-chat',
+      );
+
+      await controller.activateChat(chat: summary, project: project);
+
+      expect(controller.state.pendingMessages, isEmpty);
+      expect(controller.state.composerAttachments, isEmpty);
+      expect(controller.state.composerDraftItems, isEmpty);
+      expect(controller.state.editingPendingMessageId, isNull);
+    });
+
+    test(
+      'activateChat clears running turn when generation finished while away',
+      () async {
+        final fakeService = _FakeSessionService();
+        final fakeSettings = _FakeSettingsService(
+          'gpt-5.3-codex',
+          'high',
+          true,
+        );
+        final controller = SessionController(
+          sessionService: fakeService,
+          projectService: _FakeProjectService(),
+          settingsService: fakeSettings,
+        );
+        addTearDown(() async {
+          controller.dispose();
+          await fakeService.shutdown();
+        });
+
+        await controller.bootstrap();
+
+        final now = DateTime.utc(2026, 5, 1, 18);
+        final project = Project(
+          id: 'project-4',
+          name: 'alera',
+          repoPath: '/repo',
+          createdAt: now,
+          updatedAt: now,
+        );
+        const chatId = 'chat-4';
+        const threadId = 'thread-4';
+        const turnId = 'turn-finished';
+        fakeService.adoptPersistedSession(
+          AleraSession(
+            id: chatId,
+            request: SessionCreateRequest(
+              projectPath: project.repoPath,
+              firstPrompt: '',
+              model: 'gpt-5.3-codex',
+              projectId: project.id,
+            ),
+            workspacePath: project.repoPath,
+            createdAt: now,
+            updatedAt: now,
+            title: 'finished chat',
+            model: 'gpt-5.3-codex',
+            threadId: threadId,
+            lastTurnId: turnId,
+            projectId: project.id,
+          ),
+        );
+
+        // Simulate the turn that started and then completed while the user
+        // was viewing a different chat.
+        fakeService.emitEvent(
+          SessionNotificationEvent(
+            method: 'turn/started',
+            payload: <String, dynamic>{
+              'params': <String, dynamic>{
+                'turn': <String, dynamic>{'id': turnId, 'threadId': threadId},
+              },
+            },
+          ),
+        );
+        await Future<void>.delayed(Duration.zero);
+        fakeService.emitEvent(
+          SessionNotificationEvent(
+            method: 'turn/completed',
+            payload: <String, dynamic>{
+              'params': <String, dynamic>{
+                'turn': <String, dynamic>{'id': turnId, 'threadId': threadId},
+              },
+            },
+          ),
+        );
+        await Future<void>.delayed(Duration.zero);
+
+        final summary = ChatSummary(
+          id: chatId,
+          projectId: project.id,
+          title: 'finished chat',
+          model: 'gpt-5.3-codex',
+          threadId: threadId,
+          lastTurnId: turnId,
+          createdAt: now,
+          updatedAt: now,
+        );
+
+        await controller.activateChat(chat: summary, project: project);
+
+        expect(controller.state.runningTurnCount, 0);
+        expect(controller.state.activeTurnId, isNull);
       },
     );
   });

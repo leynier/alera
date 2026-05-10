@@ -109,3 +109,85 @@ extension TimelineCellListExtension on List<TimelineCell> {
     return -1;
   }
 }
+
+extension TimelineCellSerialization on TimelineCell {
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'id': id,
+      'turnId': turnId,
+      'kind': kind.name,
+      'status': status.name,
+      'createdAt': createdAt.toUtc().toIso8601String(),
+      'updatedAt': updatedAt.toUtc().toIso8601String(),
+      'isStreaming': isStreaming,
+      'isCollapsed': isCollapsed,
+      'title': title,
+      'subtitle': subtitle,
+      'markdownText': markdownText,
+      'detailsText': detailsText,
+      'itemId': itemId,
+      'metadata': metadata,
+    };
+  }
+}
+
+TimelineCell timelineCellFromJson(Map<String, Object?> json) {
+  final id = json['id'];
+  final kindRaw = json['kind'];
+  final statusRaw = json['status'];
+  final createdAtRaw = json['createdAt'];
+  final updatedAtRaw = json['updatedAt'];
+  if (id is! String || id.isEmpty) {
+    throw StateError('TimelineCell record missing id');
+  }
+  if (kindRaw is! String) {
+    throw StateError('TimelineCell record missing kind');
+  }
+  if (statusRaw is! String) {
+    throw StateError('TimelineCell record missing status');
+  }
+  if (createdAtRaw is! String) {
+    throw StateError('TimelineCell record missing createdAt');
+  }
+  if (updatedAtRaw is! String) {
+    throw StateError('TimelineCell record missing updatedAt');
+  }
+  final kind = _timelineCellKindFromName(kindRaw);
+  final status = _timelineCellStatusFromName(statusRaw);
+  final metadataRaw = json['metadata'];
+  final metadata = metadataRaw is Map
+      ? metadataRaw
+            .map((key, value) => MapEntry(key.toString(), value))
+            .cast<String, dynamic>()
+      : const <String, dynamic>{};
+  return TimelineCell(
+    id: id,
+    turnId: json['turnId'] as String?,
+    kind: kind,
+    status: status,
+    createdAt: DateTime.parse(createdAtRaw).toUtc(),
+    updatedAt: DateTime.parse(updatedAtRaw).toUtc(),
+    isStreaming: false,
+    isCollapsed: json['isCollapsed'] == true,
+    title: json['title'] as String?,
+    subtitle: json['subtitle'] as String?,
+    markdownText: json['markdownText'] as String?,
+    detailsText: json['detailsText'] as String?,
+    itemId: json['itemId'] as String?,
+    metadata: metadata,
+  );
+}
+
+TimelineCellKind _timelineCellKindFromName(String name) {
+  for (final kind in TimelineCellKind.values) {
+    if (kind.name == name) return kind;
+  }
+  throw StateError('Unknown TimelineCellKind: $name');
+}
+
+TimelineCellStatus _timelineCellStatusFromName(String name) {
+  for (final status in TimelineCellStatus.values) {
+    if (status.name == name) return status;
+  }
+  throw StateError('Unknown TimelineCellStatus: $name');
+}
