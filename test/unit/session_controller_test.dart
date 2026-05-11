@@ -37,12 +37,17 @@ class _FakeSessionService implements SessionService {
   int interruptCallCount = 0;
   String? interruptedSessionId;
   String? interruptedTurnOverride;
+  int steerActiveTurnCallCount = 0;
+  String? lastSteerSessionId;
+  String? lastSteerRawInput;
+  String? lastSteerExpectedTurnId;
   int respondUserInputCallCount = 0;
   Object? lastRespondUserInputRequestId;
   Map<String, dynamic>? lastRespondUserInputAnswers;
   CodexReviewTarget? lastReviewTarget;
   Duration runInputDelay = Duration.zero;
   Future<void> Function()? onRunInputBeforeComplete;
+  Future<void> Function(String sessionId)? onSetActiveSessionBeforeComplete;
 
   @override
   Stream<SessionRuntimeEvent> get events => _eventsController.stream;
@@ -115,6 +120,10 @@ class _FakeSessionService implements SessionService {
     required String expectedTurnId,
     List<Map<String, dynamic>> extraInputItems = const <Map<String, dynamic>>[],
   }) async {
+    steerActiveTurnCallCount += 1;
+    lastSteerSessionId = sessionId;
+    lastSteerRawInput = rawInput;
+    lastSteerExpectedTurnId = expectedTurnId;
     return expectedTurnId;
   }
 
@@ -282,6 +291,9 @@ class _FakeSessionService implements SessionService {
     if (existing == null) {
       throw StateError('session not found');
     }
+    if (onSetActiveSessionBeforeComplete != null) {
+      await onSetActiveSessionBeforeComplete!.call(sessionId);
+    }
     return existing;
   }
 
@@ -313,7 +325,24 @@ class _FakeSessionService implements SessionService {
     int? tokensOut,
     double? costUsd,
     String? turnId,
-  }) async {}
+  }) async {
+    final existing = _persistedMessages[sessionId] ?? const <ChatMessage>[];
+    _persistedMessages[sessionId] = List<ChatMessage>.unmodifiable([
+      ...existing,
+      ChatMessage(
+        chatId: sessionId,
+        seq: existing.length,
+        role: role,
+        text: text,
+        toolCallsJson: toolCallsJson,
+        tokensIn: tokensIn,
+        tokensOut: tokensOut,
+        costUsd: costUsd,
+        turnId: turnId,
+        createdAt: DateTime.now().toUtc(),
+      ),
+    ]);
+  }
 
   List<ChatMessage> persistedMessagesFor(String chatId) =>
       _persistedMessages[chatId] ?? const <ChatMessage>[];
@@ -557,6 +586,17 @@ void main() {
       expect(fakeService.lastRunInputReasoningEffort, 'high');
       expect(controller.state.activeSessionId, isNotNull);
       expect(controller.state.activeSession, isNotNull);
+      expect(
+        fakeService.persistedMessagesFor(controller.state.activeSessionId!),
+        hasLength(1),
+      );
+      expect(
+        fakeService
+            .persistedMessagesFor(controller.state.activeSessionId!)
+            .single
+            .text,
+        'Hello from first prompt',
+      );
       expect(
         controller.state.connectionState,
         AppServerConnectionState.connected,
@@ -2979,6 +3019,536 @@ void main() {
         expect(controller.state.activeTurnId, 'turn-live');
       },
     );
+
+    test('switching chats preserves each chat pending queue', () async {
+      final fakeService = _FakeSessionService();
+      final fakeSettings = _FakeSettingsService('gpt-5.3-codex', 'high', true);
+      final controller = SessionController(
+        sessionService: fakeService,
+        projectService: _FakeProjectService(),
+        settingsService: fakeSettings,
+      );
+      addTearDown(() async {
+        controller.dispose();
+        await fakeService.shutdown();
+      });
+
+      await controller.bootstrap();
+
+      final now = DateTime.utc(2026, 5, 1, 20);
+      final project = Project(
+        id: 'project-queue',
+        name: 'alera',
+        repoPath: '/repo',
+        createdAt: now,
+        updatedAt: now,
+      );
+      final chatA = AleraSession(
+        id: 'chat-a',
+        request: SessionCreateRequest(
+          projectPath: project.repoPath,
+          firstPrompt: '',
+          model: 'gpt-5.3-codex',
+          projectId: project.id,
+        ),
+        workspacePath: project.repoPath,
+        createdAt: now,
+        updatedAt: now,
+        title: 'chat a',
+        model: 'gpt-5.3-codex',
+        threadId: 'thread-a',
+        projectId: project.id,
+      );
+      final chatB = AleraSession(
+        id: 'chat-b',
+        request: SessionCreateRequest(
+          projectPath: project.repoPath,
+          firstPrompt: '',
+          model: 'gpt-5.3-codex',
+          projectId: project.id,
+        ),
+        workspacePath: project.repoPath,
+        createdAt: now,
+        updatedAt: now,
+        title: 'chat b',
+        model: 'gpt-5.3-codex',
+        threadId: 'thread-b',
+        projectId: project.id,
+      );
+      fakeService.adoptPersistedSession(chatA);
+      fakeService.adoptPersistedSession(chatB);
+
+      await controller.activateChat(
+        chat: ChatSummary(
+          id: chatA.id,
+          projectId: project.id,
+          title: chatA.title,
+          model: chatA.model,
+          threadId: chatA.threadId,
+          createdAt: now,
+          updatedAt: now,
+        ),
+        project: project,
+      );
+      fakeService.emitNotification('turn/started', <String, dynamic>{
+        'turn': <String, dynamic>{
+          'id': 'turn-a',
+          'threadId': 'thread-a',
+          'status': 'inProgress',
+        },
+      });
+      await Future<void>.delayed(Duration.zero);
+      await controller.sendInput('queued for chat a');
+      expect(controller.state.pendingMessages.single.text, 'queued for chat a');
+
+      await controller.activateChat(
+        chat: ChatSummary(
+          id: chatB.id,
+          projectId: project.id,
+          title: chatB.title,
+          model: chatB.model,
+          threadId: chatB.threadId,
+          createdAt: now,
+          updatedAt: now,
+        ),
+        project: project,
+      );
+      expect(controller.state.pendingMessages, isEmpty);
+      fakeService.emitNotification('turn/started', <String, dynamic>{
+        'turn': <String, dynamic>{
+          'id': 'turn-b',
+          'threadId': 'thread-b',
+          'status': 'inProgress',
+        },
+      });
+      await Future<void>.delayed(Duration.zero);
+      await controller.sendInput('queued for chat b');
+      expect(controller.state.pendingMessages.single.text, 'queued for chat b');
+
+      await controller.activateChat(
+        chat: ChatSummary(
+          id: chatA.id,
+          projectId: project.id,
+          title: chatA.title,
+          model: chatA.model,
+          threadId: chatA.threadId,
+          createdAt: now,
+          updatedAt: now,
+        ),
+        project: project,
+      );
+      expect(controller.state.pendingMessages.single.text, 'queued for chat a');
+      final queuedAId = controller.state.pendingMessages.single.id;
+      await controller.steerQueuedMessage(queuedAId);
+      expect(fakeService.steerActiveTurnCallCount, 1);
+      expect(fakeService.lastSteerSessionId, chatA.id);
+      expect(fakeService.lastSteerExpectedTurnId, 'turn-a');
+      expect(fakeService.lastSteerRawInput, 'queued for chat a');
+      expect(controller.state.pendingMessages, isEmpty);
+
+      await controller.activateChat(
+        chat: ChatSummary(
+          id: chatB.id,
+          projectId: project.id,
+          title: chatB.title,
+          model: chatB.model,
+          threadId: chatB.threadId,
+          createdAt: now,
+          updatedAt: now,
+        ),
+        project: project,
+      );
+      expect(controller.state.pendingMessages.single.text, 'queued for chat b');
+    });
+
+    test(
+      'background chat streaming is restored when returning to the chat',
+      () async {
+        final fakeService = _FakeSessionService();
+        final fakeSettings = _FakeSettingsService(
+          'gpt-5.3-codex',
+          'high',
+          true,
+        );
+        final controller = SessionController(
+          sessionService: fakeService,
+          projectService: _FakeProjectService(),
+          settingsService: fakeSettings,
+        );
+        addTearDown(() async {
+          controller.dispose();
+          await fakeService.shutdown();
+        });
+
+        await controller.bootstrap();
+
+        final now = DateTime.utc(2026, 5, 1, 21);
+        final project = Project(
+          id: 'project-bg',
+          name: 'alera',
+          repoPath: '/repo',
+          createdAt: now,
+          updatedAt: now,
+        );
+        final chatA = AleraSession(
+          id: 'chat-bg-a',
+          request: SessionCreateRequest(
+            projectPath: project.repoPath,
+            firstPrompt: '',
+            model: 'gpt-5.3-codex',
+            projectId: project.id,
+          ),
+          workspacePath: project.repoPath,
+          createdAt: now,
+          updatedAt: now,
+          title: 'chat background a',
+          model: 'gpt-5.3-codex',
+          threadId: 'thread-bg-a',
+          projectId: project.id,
+        );
+        final chatB = AleraSession(
+          id: 'chat-bg-b',
+          request: SessionCreateRequest(
+            projectPath: project.repoPath,
+            firstPrompt: '',
+            model: 'gpt-5.3-codex',
+            projectId: project.id,
+          ),
+          workspacePath: project.repoPath,
+          createdAt: now,
+          updatedAt: now,
+          title: 'chat background b',
+          model: 'gpt-5.3-codex',
+          threadId: 'thread-bg-b',
+          projectId: project.id,
+        );
+        fakeService.adoptPersistedSession(chatA);
+        fakeService.adoptPersistedSession(chatB);
+
+        await controller.activateChat(
+          chat: ChatSummary(
+            id: chatA.id,
+            projectId: project.id,
+            title: chatA.title,
+            model: chatA.model,
+            threadId: chatA.threadId,
+            createdAt: now,
+            updatedAt: now,
+          ),
+          project: project,
+        );
+        fakeService.emitNotification('turn/started', <String, dynamic>{
+          'turn': <String, dynamic>{
+            'id': 'turn-bg-a',
+            'threadId': 'thread-bg-a',
+            'status': 'inProgress',
+          },
+        });
+        await Future<void>.delayed(Duration.zero);
+
+        await controller.activateChat(
+          chat: ChatSummary(
+            id: chatB.id,
+            projectId: project.id,
+            title: chatB.title,
+            model: chatB.model,
+            threadId: chatB.threadId,
+            createdAt: now,
+            updatedAt: now,
+          ),
+          project: project,
+        );
+
+        fakeService.emitNotification('background/event', <String, dynamic>{
+          'kind': 'background_terminal_waiting',
+          'message': 'waiting in background session',
+        });
+        await Future<void>.delayed(Duration.zero);
+        expect(controller.state.statusHeader, isNull);
+
+        fakeService.emitNotification('item/started', <String, dynamic>{
+          'threadId': 'thread-bg-a',
+          'turnId': 'turn-bg-a',
+          'item': <String, dynamic>{
+            'id': 'msg-bg-a',
+            'type': 'agentMessage',
+            'phase': 'final_answer',
+          },
+        });
+        fakeService.emitNotification(
+          'item/agentMessage/delta',
+          <String, dynamic>{
+            'turnId': 'turn-bg-a',
+            'itemId': 'msg-bg-a',
+            'delta': 'background answer\n',
+          },
+        );
+        fakeService.emitNotification('turn/completed', <String, dynamic>{
+          'turn': <String, dynamic>{
+            'id': 'turn-bg-a',
+            'threadId': 'thread-bg-a',
+            'status': 'completed',
+          },
+        });
+        await Future<void>.delayed(Duration.zero);
+
+        expect(controller.state.activeSessionId, chatB.id);
+        expect(
+          controller.state.timelineCells
+              .where((cell) => cell.markdownText == 'background answer')
+              .length,
+          0,
+        );
+
+        await controller.activateChat(
+          chat: ChatSummary(
+            id: chatA.id,
+            projectId: project.id,
+            title: chatA.title,
+            model: chatA.model,
+            threadId: chatA.threadId,
+            createdAt: now,
+            updatedAt: now,
+          ),
+          project: project,
+        );
+
+        expect(controller.state.runningTurnCount, 0);
+        expect(
+          controller.state.timelineCells.any(
+            (cell) =>
+                cell.kind == TimelineCellKind.assistantMessage &&
+                cell.markdownText == 'background answer',
+          ),
+          isTrue,
+        );
+      },
+    );
+
+    test('switching back does not overwrite a saved chat snapshot', () async {
+      final fakeService = _FakeSessionService();
+      final fakeSettings = _FakeSettingsService('gpt-5.3-codex', 'high', true);
+      final controller = SessionController(
+        sessionService: fakeService,
+        projectService: _FakeProjectService(),
+        settingsService: fakeSettings,
+      );
+      addTearDown(() async {
+        controller.dispose();
+        await fakeService.shutdown();
+      });
+
+      await controller.bootstrap();
+
+      final now = DateTime.utc(2026, 5, 1, 21, 30);
+      final project = Project(
+        id: 'project-switch-race',
+        name: 'alera',
+        repoPath: '/repo',
+        createdAt: now,
+        updatedAt: now,
+      );
+      final chatA = AleraSession(
+        id: 'chat-race-a',
+        request: SessionCreateRequest(
+          projectPath: project.repoPath,
+          firstPrompt: '',
+          model: 'gpt-5.3-codex',
+          projectId: project.id,
+        ),
+        workspacePath: project.repoPath,
+        createdAt: now,
+        updatedAt: now,
+        title: 'chat race a',
+        model: 'gpt-5.3-codex',
+        threadId: 'thread-race-a',
+        projectId: project.id,
+      );
+      final chatB = AleraSession(
+        id: 'chat-race-b',
+        request: SessionCreateRequest(
+          projectPath: project.repoPath,
+          firstPrompt: '',
+          model: 'gpt-5.3-codex',
+          projectId: project.id,
+        ),
+        workspacePath: project.repoPath,
+        createdAt: now,
+        updatedAt: now,
+        title: 'chat race b',
+        model: 'gpt-5.3-codex',
+        threadId: 'thread-race-b',
+        projectId: project.id,
+      );
+      fakeService.adoptPersistedSession(chatA);
+      fakeService.adoptPersistedSession(chatB);
+
+      await controller.activateChat(
+        chat: ChatSummary(
+          id: chatA.id,
+          projectId: project.id,
+          title: chatA.title,
+          model: chatA.model,
+          threadId: chatA.threadId,
+          createdAt: now,
+          updatedAt: now,
+        ),
+        project: project,
+      );
+      fakeService.emitNotification('turn/started', <String, dynamic>{
+        'turn': <String, dynamic>{
+          'id': 'turn-race-a',
+          'threadId': 'thread-race-a',
+          'status': 'inProgress',
+        },
+      });
+      fakeService.emitNotification('item/started', <String, dynamic>{
+        'threadId': 'thread-race-a',
+        'turnId': 'turn-race-a',
+        'item': <String, dynamic>{
+          'id': 'msg-race-a',
+          'type': 'agentMessage',
+          'phase': 'final_answer',
+        },
+      });
+      fakeService.emitNotification('item/agentMessage/delta', <String, dynamic>{
+        'turnId': 'turn-race-a',
+        'itemId': 'msg-race-a',
+        'delta': 'preserved answer\n',
+      });
+      await Future<void>.delayed(Duration.zero);
+
+      await controller.activateChat(
+        chat: ChatSummary(
+          id: chatB.id,
+          projectId: project.id,
+          title: chatB.title,
+          model: chatB.model,
+          threadId: chatB.threadId,
+          createdAt: now,
+          updatedAt: now,
+        ),
+        project: project,
+      );
+
+      fakeService.onSetActiveSessionBeforeComplete = (sessionId) async {
+        if (sessionId != chatA.id) {
+          return;
+        }
+        fakeService.emitNotification(
+          'item/agentMessage/delta',
+          <String, dynamic>{
+            'turnId': 'turn-race-a',
+            'itemId': 'msg-race-a',
+            'delta': 'late delta\n',
+          },
+        );
+        await Future<void>.delayed(Duration.zero);
+      };
+
+      await controller.activateChat(
+        chat: ChatSummary(
+          id: chatA.id,
+          projectId: project.id,
+          title: chatA.title,
+          model: chatA.model,
+          threadId: chatA.threadId,
+          createdAt: now,
+          updatedAt: now,
+        ),
+        project: project,
+      );
+
+      final assistantText = controller.state.timelineCells
+          .where((cell) => cell.kind == TimelineCellKind.assistantMessage)
+          .map((cell) => cell.markdownText)
+          .join('\n');
+      expect(assistantText, contains('preserved answer'));
+      expect(assistantText, contains('late delta'));
+    });
+
+    test('background events do not render into a new chat stub', () async {
+      final fakeService = _FakeSessionService();
+      final fakeSettings = _FakeSettingsService('gpt-5.3-codex', 'high', true);
+      final controller = SessionController(
+        sessionService: fakeService,
+        projectService: _FakeProjectService(),
+        settingsService: fakeSettings,
+      );
+      addTearDown(() async {
+        controller.dispose();
+        await fakeService.shutdown();
+      });
+
+      await controller.bootstrap();
+
+      final now = DateTime.utc(2026, 5, 1, 22);
+      final projectA = Project(
+        id: 'project-stub-a',
+        name: 'orca',
+        repoPath: '/repo',
+        createdAt: now,
+        updatedAt: now,
+      );
+      final projectB = Project(
+        id: 'project-stub-b',
+        name: 'other',
+        repoPath: '/other',
+        createdAt: now,
+        updatedAt: now,
+      );
+      final chatA = AleraSession(
+        id: 'chat-stub-a',
+        request: SessionCreateRequest(
+          projectPath: projectA.repoPath,
+          firstPrompt: '',
+          model: 'gpt-5.3-codex',
+          projectId: projectA.id,
+        ),
+        workspacePath: projectA.repoPath,
+        createdAt: now,
+        updatedAt: now,
+        title: 'chat a',
+        model: 'gpt-5.3-codex',
+        threadId: 'thread-stub-a',
+        projectId: projectA.id,
+      );
+      fakeService.adoptPersistedSession(chatA);
+
+      await controller.activateChat(
+        chat: ChatSummary(
+          id: chatA.id,
+          projectId: projectA.id,
+          title: chatA.title,
+          model: chatA.model,
+          threadId: chatA.threadId,
+          createdAt: now,
+          updatedAt: now,
+        ),
+        project: projectA,
+      );
+      fakeService.emitNotification('turn/started', <String, dynamic>{
+        'turn': <String, dynamic>{
+          'id': 'turn-stub-a',
+          'threadId': 'thread-stub-a',
+          'status': 'inProgress',
+        },
+      });
+      await Future<void>.delayed(Duration.zero);
+
+      await controller.activateChatStub(project: projectB);
+      expect(controller.state.activeSessionId, isNull);
+      expect(controller.state.timelineCells, isEmpty);
+
+      fakeService.emitNotification('background/event', <String, dynamic>{
+        'kind': 'background_terminal_waiting',
+        'message': 'waiting in background session',
+      });
+      await Future<void>.delayed(Duration.zero);
+
+      expect(controller.state.timelineCells, isEmpty);
+      expect(controller.state.statusHeader, isNull);
+    });
 
     test('activateChat clears queued messages from a previous chat', () async {
       final fakeService = _FakeSessionService();

@@ -73,6 +73,11 @@ class SessionController extends StateNotifier<SessionState> {
   /// Latest turn id observed for each session while a turn is running. Cleared
   /// when the count for a session reaches 0.
   final Map<String, String> _latestTurnIdBySession = <String, String>{};
+  final Map<String, String> _sessionIdByTurnId = <String, String>{};
+
+  /// Chat-scoped UI state for sessions that are not currently visible. This
+  /// lets a running turn keep streaming while the user works in another chat.
+  final Map<String, SessionState> _sessionSnapshots = <String, SessionState>{};
 
   int _runningTurnCountFor(String sessionId) =>
       _runningTurnsBySession[sessionId] ?? 0;
@@ -87,6 +92,7 @@ class SessionController extends StateNotifier<SessionState> {
   void _resetRunningTurnsFor(String sessionId) {
     _runningTurnsBySession.remove(sessionId);
     _latestTurnIdBySession.remove(sessionId);
+    _sessionIdByTurnId.removeWhere((_, value) => value == sessionId);
   }
 
   /// Clears chat-scoped transient state (composer queue + attachments + draft
@@ -104,6 +110,122 @@ class SessionController extends StateNotifier<SessionState> {
       contextUsage: ContextUsage.empty,
       collabAgents: const <CollabAgentEntry>[],
       pendingApprovals: const <PendingApproval>[],
+    );
+  }
+
+  void _cacheActiveSessionState() {
+    final sessionId = state.activeSessionId;
+    if (sessionId == null || sessionId.isEmpty) {
+      return;
+    }
+    _sessionSnapshots[sessionId] = state;
+  }
+
+  SessionState _baseSnapshotForSession(AleraSession session) {
+    return state.copyWith(
+      activeSessionId: session.id,
+      selectedWorkspacePath: session.workspacePath,
+      preSessionModelId: session.model,
+      preSessionReasoningEffort: closestSupportedReasoningEffort(
+        modelId: session.model,
+        effort: state.activeReasoningEffort,
+      ),
+      preSessionSpeedMode: closestSupportedSpeedMode(
+        modelId: session.model,
+        speedMode: state.activeSpeedMode,
+      ),
+      timelineCells: const <TimelineCell>[],
+      clearActiveStreamingAssistantCellId: true,
+      clearActiveTurnId: true,
+      activityLog: const <String>[],
+      runningTurnCount: _runningTurnCountFor(session.id),
+      isInterrupting: false,
+      clearStatusHeader: true,
+      pendingStatusRestore: false,
+      streamCollector: const MarkdownStreamCollectorState(),
+      streamQueue: const <StreamQueuedLine>[],
+      chunkingPolicy: const AdaptiveChunkingPolicyState(),
+      streamQueueDepth: 0,
+      clearStreamOldestAgeMs: true,
+      clearActiveAgentStreamItemId: true,
+      clearActiveAgentStreamTurnId: true,
+      clearActiveAgentStreamPhase: true,
+      clearActiveAgentStreamLastDeltaAtMs: true,
+      pendingApprovals: const <PendingApproval>[],
+      pendingMessages: const <PendingMessage>[],
+      composerAttachments: const <ComposerAttachment>[],
+      composerDraftItems: const <ComposerDraftItem>[],
+      clearEditingPendingMessageId: true,
+      clearPendingUserInput: true,
+      clearLastTurnDiff: true,
+      contextUsage: ContextUsage.empty,
+      collabAgents: const <CollabAgentEntry>[],
+    );
+  }
+
+  void _restoreSessionSnapshot(
+    AleraSession session, {
+    required int runningTurnCount,
+    required String? activeTurnId,
+  }) {
+    final snapshot = _sessionSnapshots[session.id];
+    if (snapshot == null) {
+      state = state.copyWith(
+        runningTurnCount: runningTurnCount,
+        activeTurnId: activeTurnId,
+        clearActiveTurnId: activeTurnId == null,
+      );
+      return;
+    }
+    state = state.copyWith(
+      timelineCells: snapshot.timelineCells,
+      activeStreamingAssistantCellId: snapshot.activeStreamingAssistantCellId,
+      clearActiveStreamingAssistantCellId:
+          snapshot.activeStreamingAssistantCellId == null,
+      activeTurnId: activeTurnId ?? snapshot.activeTurnId,
+      clearActiveTurnId: activeTurnId == null && snapshot.activeTurnId == null,
+      activityLog: snapshot.activityLog,
+      runningTurnCount: runningTurnCount,
+      isInterrupting: snapshot.isInterrupting,
+      statusHeader: snapshot.statusHeader,
+      clearStatusHeader: snapshot.statusHeader == null,
+      pendingStatusRestore: snapshot.pendingStatusRestore,
+      streamCollector: snapshot.streamCollector,
+      streamQueue: snapshot.streamQueue,
+      chunkingPolicy: snapshot.chunkingPolicy,
+      streamQueueDepth: snapshot.streamQueueDepth,
+      streamOldestAgeMs: snapshot.streamOldestAgeMs,
+      clearStreamOldestAgeMs: snapshot.streamOldestAgeMs == null,
+      activeAgentStreamItemId: snapshot.activeAgentStreamItemId,
+      clearActiveAgentStreamItemId: snapshot.activeAgentStreamItemId == null,
+      activeAgentStreamTurnId: snapshot.activeAgentStreamTurnId,
+      clearActiveAgentStreamTurnId: snapshot.activeAgentStreamTurnId == null,
+      activeAgentStreamPhase: snapshot.activeAgentStreamPhase,
+      clearActiveAgentStreamPhase: snapshot.activeAgentStreamPhase == null,
+      activeAgentStreamLastDeltaAtMs: snapshot.activeAgentStreamLastDeltaAtMs,
+      clearActiveAgentStreamLastDeltaAtMs:
+          snapshot.activeAgentStreamLastDeltaAtMs == null,
+      agentMessagePhaseByItemId: snapshot.agentMessagePhaseByItemId,
+      finalAnswerItemIdByTurn: snapshot.finalAnswerItemIdByTurn,
+      activeExecCellId: snapshot.activeExecCellId,
+      clearActiveExecCellId: snapshot.activeExecCellId == null,
+      activePlanCellId: snapshot.activePlanCellId,
+      clearActivePlanCellId: snapshot.activePlanCellId == null,
+      turnHadWorkActivity: snapshot.turnHadWorkActivity,
+      turnRuntimeMetrics: snapshot.turnRuntimeMetrics,
+      reasoningBufferByItemId: snapshot.reasoningBufferByItemId,
+      composerAttachments: snapshot.composerAttachments,
+      composerDraftItems: snapshot.composerDraftItems,
+      pendingMessages: snapshot.pendingMessages,
+      editingPendingMessageId: snapshot.editingPendingMessageId,
+      clearEditingPendingMessageId: snapshot.editingPendingMessageId == null,
+      lastTurnDiff: snapshot.lastTurnDiff,
+      clearLastTurnDiff: snapshot.lastTurnDiff == null,
+      pendingApprovals: snapshot.pendingApprovals,
+      pendingUserInput: snapshot.pendingUserInput,
+      clearPendingUserInput: snapshot.pendingUserInput == null,
+      contextUsage: snapshot.contextUsage,
+      collabAgents: snapshot.collabAgents,
     );
   }
 
@@ -135,6 +257,7 @@ class SessionController extends StateNotifier<SessionState> {
             (_runningTurnsBySession[session.id] ?? 0) + 1;
         if (turnId != null && turnId.isNotEmpty) {
           _latestTurnIdBySession[session.id] = turnId;
+          _sessionIdByTurnId[turnId] = session.id;
         }
       } else {
         final current = _runningTurnsBySession[session.id] ?? 0;
@@ -330,6 +453,7 @@ class SessionController extends StateNotifier<SessionState> {
   }) async {
     final workspacePath = worktree?.path ?? project.repoPath;
     _persistTimelineSnapshot();
+    _cacheActiveSessionState();
     _clearChatScopedState();
     _pendingProjectId = project.id;
     _pendingWorktreeId = worktree?.id;
@@ -408,7 +532,9 @@ class SessionController extends StateNotifier<SessionState> {
       selectedWorkspacePath: workspacePath,
     );
     await activateSession(chat.id);
-    await _hydrateTimelineFromHistory(chat.id);
+    if (!_sessionSnapshots.containsKey(chat.id)) {
+      await _hydrateTimelineFromHistory(chat.id);
+    }
   }
 
   Future<void> _hydrateTimelineFromHistory(String chatId) async {
@@ -499,6 +625,7 @@ class SessionController extends StateNotifier<SessionState> {
       );
     }
     _resetRunningTurnsFor(chatId);
+    _sessionSnapshots.remove(chatId);
     await _sessionService.deleteSession(chatId);
     state = state.copyWith(sessions: _sessionService.sessions);
   }
@@ -517,6 +644,7 @@ class SessionController extends StateNotifier<SessionState> {
     }
     if (state.activeSessionId != null && state.activeSessionId != sessionId) {
       _persistTimelineSnapshot();
+      _cacheActiveSessionState();
       _clearChatScopedState();
     }
 
@@ -529,7 +657,7 @@ class SessionController extends StateNotifier<SessionState> {
       availableCommands: await _commandRegistry.loadForWorkspace(
         target.workspacePath,
       ),
-      activeSessionId: sessionId,
+      clearActiveSessionId: true,
       selectedWorkspacePath: target.workspacePath,
       timelineCells: const <TimelineCell>[],
       clearActiveStreamingAssistantCellId: true,
@@ -575,6 +703,16 @@ class SessionController extends StateNotifier<SessionState> {
         activeTurnId: restoredActiveTurnId,
         clearActiveTurnId: restoredActiveTurnId == null,
       );
+      _restoreSessionSnapshot(
+        _sessionService.findSessionById(sessionId) ?? target,
+        runningTurnCount: restoredRunningTurns,
+        activeTurnId: restoredActiveTurnId,
+      );
+      if (state.runningTurnCount == 0 &&
+          state.pendingMessages.isNotEmpty &&
+          state.pendingUserInput == null) {
+        unawaited(_processNextQueuedMessage());
+      }
     } catch (error) {
       state = state.copyWith(
         isBusy: false,
@@ -1316,6 +1454,7 @@ class SessionController extends StateNotifier<SessionState> {
 
   void _startNewChat() {
     _persistTimelineSnapshot();
+    _cacheActiveSessionState();
     _clearChatScopedState();
     _stopCommitTicker();
     _resetAssistantStreamTracking();
@@ -1635,12 +1774,10 @@ class SessionController extends StateNotifier<SessionState> {
         await _settingsService.save(_settingsSnapshotFromState());
         session = created;
       }
-      unawaited(
-        _sessionService.persistMessage(
-          sessionId: session.id,
-          role: ChatMessageRole.user,
-          text: text,
-        ),
+      await _sessionService.persistMessage(
+        sessionId: session.id,
+        role: ChatMessageRole.user,
+        text: text,
       );
       _persistTimelineSnapshot();
       final mentionItems = await _buildMentionInputItems(text, workspacePath);
@@ -1924,7 +2061,13 @@ class SessionController extends StateNotifier<SessionState> {
     if (event is SessionNotificationEvent) {
       _updateRunningTurnFromNotification(event);
       final active = state.activeSession;
+      final routed = _sessionForNotification(event);
+      if (active == null && routed != null) {
+        _reduceInactiveSessionNotification(event);
+        return;
+      }
       if (active != null && !_notificationMatchesSession(event, active)) {
+        _reduceInactiveSessionNotification(event);
         return;
       }
 
@@ -1949,6 +2092,7 @@ class SessionController extends StateNotifier<SessionState> {
         runningTurnCount: runningTurnCount,
         isInterrupting: shouldClearInterrupting ? false : ticked.isInterrupting,
       );
+      _cacheActiveSessionState();
       _trackAssistantTerminalSignal(event, at: eventNow);
 
       final completedTurnId = _extractCompletedTurnId(event);
@@ -1982,6 +2126,43 @@ class SessionController extends StateNotifier<SessionState> {
           state.pendingUserInput == null) {
         unawaited(_processNextQueuedMessage());
       }
+    }
+  }
+
+  void _reduceInactiveSessionNotification(SessionNotificationEvent event) {
+    final session = _sessionForNotification(event);
+    if (session == null) {
+      return;
+    }
+    final eventNow = _now();
+    final currentSnapshot =
+        _sessionSnapshots[session.id] ?? _baseSnapshotForSession(session);
+    final reduced = reduceNotification(currentSnapshot, event, now: eventNow);
+    final ticked = reduceCommitTick(reduced, now: eventNow);
+    final runningTurnCount = _computeRunningTurnCount(
+      current: ticked.runningTurnCount,
+      method: event.method,
+    );
+    final shouldClearInterrupting =
+        ticked.isInterrupting &&
+        (event.method == 'turn/completed' || event.method == 'turn/failed');
+    final nextSnapshot = ticked.copyWith(
+      sessions: _sessionService.sessions,
+      runningTurnCount: runningTurnCount,
+      isInterrupting: shouldClearInterrupting ? false : ticked.isInterrupting,
+    );
+    _sessionSnapshots[session.id] = nextSnapshot;
+
+    final completedTurnId = _extractCompletedTurnId(event);
+    if (completedTurnId != null) {
+      _persistAssistantFinalForSnapshot(
+        sessionId: session.id,
+        snapshot: nextSnapshot,
+        turnId: completedTurnId,
+      );
+      _persistTimelineSnapshotFor(session.id, nextSnapshot.timelineCells);
+    } else {
+      _persistTimelineSnapshotFor(session.id, nextSnapshot.timelineCells);
     }
   }
 
@@ -2775,6 +2956,11 @@ class SessionController extends StateNotifier<SessionState> {
     SessionNotificationEvent event,
     AleraSession session,
   ) {
+    final routedSession = _sessionForNotification(event);
+    if (routedSession != null) {
+      return routedSession.id == session.id;
+    }
+
     final params = event.payload['params'];
     if (params is! Map<String, dynamic>) {
       return true;
@@ -2794,6 +2980,77 @@ class SessionController extends StateNotifier<SessionState> {
       return true;
     }
     return session.threadId == turnThreadId;
+  }
+
+  AleraSession? _sessionForNotification(SessionNotificationEvent event) {
+    final params = event.payload['params'];
+    if (params is! Map<String, dynamic>) {
+      return null;
+    }
+
+    final msg = params['msg'];
+    final msgMap = msg is Map<String, dynamic> ? msg : null;
+    final item = params['item'];
+    final itemMap = item is Map<String, dynamic> ? item : null;
+    final turn = params['turn'];
+    final turnMap = turn is Map<String, dynamic> ? turn : null;
+
+    String? threadId =
+        params['threadId']?.toString() ??
+        params['thread_id']?.toString() ??
+        msgMap?['threadId']?.toString() ??
+        msgMap?['thread_id']?.toString() ??
+        itemMap?['threadId']?.toString() ??
+        itemMap?['thread_id']?.toString() ??
+        turnMap?['threadId']?.toString() ??
+        turnMap?['thread_id']?.toString();
+    if (threadId == null || threadId.isEmpty) {
+      threadId = null;
+    }
+    String? turnId =
+        params['turnId']?.toString() ??
+        params['turn_id']?.toString() ??
+        msgMap?['turnId']?.toString() ??
+        msgMap?['turn_id']?.toString() ??
+        itemMap?['turnId']?.toString() ??
+        itemMap?['turn_id']?.toString() ??
+        turnMap?['id']?.toString();
+    if (turnId == null || turnId.isEmpty) {
+      turnId = null;
+    }
+
+    if (threadId == null || threadId.isEmpty) {
+      final sessionId = turnId == null ? null : _sessionIdByTurnId[turnId];
+      if (sessionId != null) {
+        return _sessionService.findSessionById(sessionId);
+      }
+      AleraSession? onlyRunning;
+      for (final entry in _runningTurnsBySession.entries) {
+        if (entry.value <= 0) {
+          continue;
+        }
+        final session = _sessionService.findSessionById(entry.key);
+        if (session == null) {
+          continue;
+        }
+        if (onlyRunning != null) {
+          return null;
+        }
+        onlyRunning = session;
+      }
+      if (onlyRunning != null) {
+        return onlyRunning;
+      }
+    }
+    if (threadId == null || threadId.isEmpty) {
+      return null;
+    }
+    for (final session in _sessionService.sessions) {
+      if (session.threadId == threadId) {
+        return session;
+      }
+    }
+    return null;
   }
 
   Timer? _snapshotDebounceTimer;
@@ -2825,6 +3082,18 @@ class SessionController extends StateNotifier<SessionState> {
     );
   }
 
+  void _persistTimelineSnapshotFor(String sessionId, List<TimelineCell> cells) {
+    final snapshotCells = cells
+        .map((cell) => cell.copyWith(isStreaming: false))
+        .toList(growable: false);
+    unawaited(
+      _sessionService.persistTimelineCells(
+        sessionId: sessionId,
+        cells: snapshotCells,
+      ),
+    );
+  }
+
   void _persistAssistantFinalForTurn(String turnId) {
     final activeSessionId = state.activeSessionId;
     if (activeSessionId == null) {
@@ -2849,6 +3118,37 @@ class SessionController extends StateNotifier<SessionState> {
     unawaited(
       _sessionService.persistMessage(
         sessionId: activeSessionId,
+        role: ChatMessageRole.assistant,
+        text: text,
+        turnId: turnId,
+      ),
+    );
+  }
+
+  void _persistAssistantFinalForSnapshot({
+    required String sessionId,
+    required SessionState snapshot,
+    required String turnId,
+  }) {
+    final cells = snapshot.timelineCells
+        .where(
+          (cell) =>
+              cell.turnId == turnId &&
+              cell.kind == TimelineCellKind.assistantMessage &&
+              cell.markdownText != null &&
+              cell.markdownText!.trim().isNotEmpty,
+        )
+        .toList(growable: false);
+    if (cells.isEmpty) {
+      return;
+    }
+    final text = cells.map((c) => c.markdownText!).join('\n\n').trim();
+    if (text.isEmpty) {
+      return;
+    }
+    unawaited(
+      _sessionService.persistMessage(
+        sessionId: sessionId,
         role: ChatMessageRole.assistant,
         text: text,
         turnId: turnId,
