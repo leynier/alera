@@ -7,11 +7,13 @@ class AleraTopBar extends StatelessWidget {
     required this.workspaceName,
     required this.sessionTitle,
     required this.isBusy,
+    this.onOpenAcpPlayground,
   });
 
   final String? workspaceName;
   final String? sessionTitle;
   final bool isBusy;
+  final VoidCallback? onOpenAcpPlayground;
 
   @override
   Widget build(BuildContext context) {
@@ -42,6 +44,20 @@ class AleraTopBar extends StatelessWidget {
               ),
             ),
           ),
+          if (onOpenAcpPlayground != null) ...<Widget>[
+            const SizedBox(width: AleraTokens.space8),
+            IconButton(
+              onPressed: onOpenAcpPlayground,
+              tooltip: 'ACP playground (experimental)',
+              iconSize: 16,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+              icon: const Icon(
+                Icons.science_outlined,
+                color: AleraTokens.foregroundMuted,
+              ),
+            ),
+          ],
           const SizedBox(width: AleraTokens.space8),
         ],
       ),

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/features/agents/acp/presentation/acp_playground_page.dart';
 import 'package:alera/src/features/projects/presentation/add_project_dialog.dart';
 import 'package:alera/src/features/projects/presentation/project_sidebar.dart';
 import 'package:alera/src/features/session/application/session_controller.dart';
@@ -160,6 +161,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                   workspaceName: _workspaceName(workspacePath),
                   sessionTitle: activeSessionTitle,
                   isBusy: isBusy,
+                  onOpenAcpPlayground: () => _openAcpPlayground(context),
                 ),
                 Expanded(
                   child: Consumer(
@@ -337,6 +339,12 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
       }
       _showError(error.toString());
     }
+  }
+
+  void _openAcpPlayground(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const AcpPlaygroundPage()),
+    );
   }
 
   String? _workspaceName(String? workspacePath) {
