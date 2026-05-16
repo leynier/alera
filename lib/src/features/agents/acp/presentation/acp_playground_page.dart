@@ -97,7 +97,10 @@ class _AcpPlaygroundPageState extends ConsumerState<AcpPlaygroundPage> {
       _logLocal('Failed to start session: $error');
     } finally {
       if (mounted) {
-        setState(() => _starting = false);
+        setState(() {
+          _starting = false;
+          _booting = false;
+        });
       }
     }
   }
@@ -224,9 +227,7 @@ class _AcpPlaygroundPageState extends ConsumerState<AcpPlaygroundPage> {
   }
 
   void _logEvent(String method, Map<String, dynamic> payload) {
-    setState(
-      () => _entries.add(_AcpEntry(method: method, payload: payload)),
-    );
+    setState(() => _entries.add(_AcpEntry(method: method, payload: payload)));
     _scrollToEnd();
   }
 
@@ -349,7 +350,7 @@ class _AcpPlaygroundPageState extends ConsumerState<AcpPlaygroundPage> {
               for (final option in approval.options)
                 FilledButton(
                   onPressed: () => _approve(approval, option),
-                  child: Text(option),
+                  child: Text(_approvalOptionLabel(option)),
                 ),
               FilledButton(
                 onPressed: () => _decline(approval),
@@ -386,7 +387,7 @@ class _AcpPlaygroundPageState extends ConsumerState<AcpPlaygroundPage> {
           : ListView.separated(
               controller: _scrollController,
               itemCount: _entries.length,
-              separatorBuilder: (_, __) =>
+              separatorBuilder: (context, index) =>
                   const SizedBox(height: AleraTokens.space4),
               itemBuilder: (context, index) {
                 final entry = _entries[index];
@@ -479,6 +480,14 @@ class _AcpPlaygroundPageState extends ConsumerState<AcpPlaygroundPage> {
       return id;
     }
     return '${id.substring(0, 8)}…';
+  }
+
+  String _approvalOptionLabel(String optionId) {
+    final words = optionId.replaceAll('_', ' ').trim();
+    if (words.isEmpty) {
+      return optionId;
+    }
+    return words[0].toUpperCase() + words.substring(1);
   }
 }
 
