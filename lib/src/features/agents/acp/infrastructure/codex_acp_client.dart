@@ -275,12 +275,12 @@ class CodexAcpClient {
     final lineCount = lines.length;
     var start = 0;
     if (lineParam is int) {
-      if (lineParam < 0) {
+      if (lineParam <= 1) {
         start = 0;
       } else if (lineParam > lineCount) {
         start = lineCount;
       } else {
-        start = lineParam;
+        start = lineParam - 1;
       }
     }
     var end = lineCount;

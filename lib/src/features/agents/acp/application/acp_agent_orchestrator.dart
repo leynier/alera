@@ -167,6 +167,7 @@ class AcpAgentOrchestrator {
           method: request.method,
           description: _describePermission(request.params),
           threadId: _optionalString(request.params['sessionId']),
+          options: _permissionOptions(request.params['options']),
         ),
       );
       return;
@@ -205,6 +206,32 @@ class AcpAgentOrchestrator {
       return 'Approve action (${options.length} options)';
     }
     return 'Approve action';
+  }
+
+  List<AgentApprovalOption> _permissionOptions(Object? options) {
+    if (options is! List) {
+      return const <AgentApprovalOption>[];
+    }
+    return <AgentApprovalOption>[
+      for (final option in options)
+        if (option is Map)
+          if (_optionalString(option['optionId']) case final optionId?)
+            AgentApprovalOption(
+              optionId: optionId,
+              name:
+                  _optionalString(option['name']) ??
+                  _sentenceCaseOptionId(optionId),
+              kind: _optionalString(option['kind']),
+            ),
+    ];
+  }
+
+  String _sentenceCaseOptionId(String optionId) {
+    final words = optionId.replaceAll(RegExp(r'[_-]+'), ' ').trim();
+    if (words.isEmpty) {
+      return optionId;
+    }
+    return words[0].toUpperCase() + words.substring(1);
   }
 
   String? _optionalString(Object? value) {

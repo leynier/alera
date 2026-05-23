@@ -15,12 +15,26 @@ class AgentApprovalRequestEvent extends AgentOrchestratorEvent {
     required this.method,
     required this.description,
     this.threadId,
+    this.options = const <AgentApprovalOption>[],
   });
 
   final Object requestId;
   final String method;
   final String description;
   final String? threadId;
+  final List<AgentApprovalOption> options;
+}
+
+class AgentApprovalOption {
+  const AgentApprovalOption({
+    required this.optionId,
+    required this.name,
+    this.kind,
+  });
+
+  final String optionId;
+  final String name;
+  final String? kind;
 }
 
 class AgentToolCallRequestEvent extends AgentOrchestratorEvent {

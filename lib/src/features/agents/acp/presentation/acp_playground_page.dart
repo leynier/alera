@@ -188,16 +188,23 @@ class _AcpPlaygroundPageState extends ConsumerState<AcpPlaygroundPage> {
       case AgentNotificationEvent():
         _logEvent(event.method, event.payload);
       case AgentApprovalRequestEvent():
-        // ACP options come embedded in the request params, which we lose by
-        // the time we hit AgentApprovalRequestEvent (it carries only the
-        // description). MVP shows two canonical choices; real wiring can pass
-        // them through when we extract a richer event type.
+        if (event.options.isEmpty) {
+          unawaited(_orchestrator?.declineRequest(event.requestId));
+          _logLocal(
+            'Cancelled permission request with no valid approval options: ${event.description}',
+          );
+          _logEvent(event.method, <String, dynamic>{
+            'description': event.description,
+            'requestId': event.requestId.toString(),
+          });
+          return;
+        }
         setState(() {
           _approvals.add(
             _PendingApproval(
               requestId: event.requestId,
               description: event.description,
-              options: const <String>['allow', 'allow_always'],
+              options: event.options,
             ),
           );
         });
@@ -349,8 +356,8 @@ class _AcpPlaygroundPageState extends ConsumerState<AcpPlaygroundPage> {
             children: <Widget>[
               for (final option in approval.options)
                 FilledButton(
-                  onPressed: () => _approve(approval, option),
-                  child: Text(_approvalOptionLabel(option)),
+                  onPressed: () => _approve(approval, option.optionId),
+                  child: Text(option.name),
                 ),
               FilledButton(
                 onPressed: () => _decline(approval),
@@ -481,14 +488,6 @@ class _AcpPlaygroundPageState extends ConsumerState<AcpPlaygroundPage> {
     }
     return '${id.substring(0, 8)}…';
   }
-
-  String _approvalOptionLabel(String optionId) {
-    final words = optionId.replaceAll('_', ' ').trim();
-    if (words.isEmpty) {
-      return optionId;
-    }
-    return words[0].toUpperCase() + words.substring(1);
-  }
 }
 
 class _AcpEntry {
@@ -507,5 +506,5 @@ class _PendingApproval {
 
   final Object requestId;
   final String description;
-  final List<String> options;
+  final List<AgentApprovalOption> options;
 }
