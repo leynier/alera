@@ -1,26 +1,36 @@
 import 'dart:async';
 
+import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/projects/application/projects_service.dart';
 import 'package:alera/src/features/projects/application/projects_state.dart';
 import 'package:alera/src/features/projects/domain/chat_summary.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/projects/domain/sidebar_prefs.dart';
 import 'package:alera/src/features/projects/domain/worktree.dart';
+import 'package:alera/src/features/projects/infra/sembast_sidebar_prefs_repository.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
 class ProjectsController extends StateNotifier<ProjectsState> {
-  ProjectsController({required ProjectsService projectsService})
-    : _service = projectsService,
-      super(const ProjectsState());
+  ProjectsController({
+    required ProjectsService projectsService,
+    SembastSidebarPrefsRepository? sidebarPrefsRepository,
+  }) : _service = projectsService,
+       _sidebarPrefsRepository = sidebarPrefsRepository,
+       super(const ProjectsState());
 
   final ProjectsService _service;
+  final SembastSidebarPrefsRepository? _sidebarPrefsRepository;
 
   StreamSubscription<List<Project>>? _projectsSub;
   final Map<String, StreamSubscription<List<ChatSummary>>> _chatsSubs =
       <String, StreamSubscription<List<ChatSummary>>>{};
   final Map<String, StreamSubscription<List<Worktree>>> _worktreesSubs =
       <String, StreamSubscription<List<Worktree>>>{};
+  final Set<String> _loadedChatProjectIds = <String>{};
 
   bool _bootstrapStarted = false;
+  Timer? _savePrefsTimer;
+  static const Duration _savePrefsDebounce = Duration(milliseconds: 200);
 
   Future<void> bootstrap() async {
     if (_bootstrapStarted) {
@@ -28,6 +38,20 @@ class ProjectsController extends StateNotifier<ProjectsState> {
     }
     _bootstrapStarted = true;
     try {
+      final sidebarPrefsRepository = _sidebarPrefsRepository;
+      if (sidebarPrefsRepository != null) {
+        try {
+          final prefs = await sidebarPrefsRepository.load();
+          state = state.copyWith(
+            pinnedChatIds: prefs.pinnedChatIds,
+            pinnedChatOrder: prefs.pinnedChatOrder,
+            collapsed: prefs.collapsed,
+            sidebarWidth: prefs.width,
+          );
+        } catch (_) {
+          // Defaults already in state; ignore prefs load failure.
+        }
+      }
       _projectsSub = _service.projectRepository.watchAll().listen(
         _onProjectsChanged,
       );
@@ -93,21 +117,57 @@ class ProjectsController extends StateNotifier<ProjectsState> {
     for (final id in removed) {
       _chatsSubs.remove(id)?.cancel();
       _worktreesSubs.remove(id)?.cancel();
+      _loadedChatProjectIds.remove(id);
     }
   }
 
   void _onChatsChanged(String projectId, List<ChatSummary> chats) {
     final next = Map<String, List<ChatSummary>>.from(state.chatsByProject);
     next[projectId] = chats;
+    _loadedChatProjectIds.add(projectId);
     final activeChatId = state.activeChatId;
+    var pinnedChatIds = state.pinnedChatIds;
+    var pinnedChatOrder = state.pinnedChatOrder;
+
+    // Drop pinned ids only after every current project has emitted at least
+    // once. During startup, missing project streams are not evidence that their
+    // persisted pins are stale.
+    final allProjectChatsLoaded = state.projects.every(
+      (project) => _loadedChatProjectIds.contains(project.id),
+    );
+    if (pinnedChatIds.isNotEmpty && allProjectChatsLoaded) {
+      final liveIds = <String>{
+        for (final list in next.values)
+          for (final chat in list) chat.id,
+      };
+      final filteredIds = pinnedChatIds.where(liveIds.contains).toSet();
+      if (filteredIds.length != pinnedChatIds.length) {
+        pinnedChatIds = filteredIds;
+        pinnedChatOrder = <String>[
+          for (final id in pinnedChatOrder)
+            if (filteredIds.contains(id)) id,
+        ];
+        _persistSidebarPrefs();
+      }
+    }
+
     if (activeChatId != null) {
       final stillExists = chats.any((c) => c.id == activeChatId);
       if (!stillExists && state.activeProjectId == projectId) {
-        state = state.copyWith(chatsByProject: next, clearActiveChatId: true);
+        state = state.copyWith(
+          chatsByProject: next,
+          clearActiveChatId: true,
+          pinnedChatIds: pinnedChatIds,
+          pinnedChatOrder: pinnedChatOrder,
+        );
         return;
       }
     }
-    state = state.copyWith(chatsByProject: next);
+    state = state.copyWith(
+      chatsByProject: next,
+      pinnedChatIds: pinnedChatIds,
+      pinnedChatOrder: pinnedChatOrder,
+    );
   }
 
   void _onWorktreesChanged(String projectId, List<Worktree> wts) {
@@ -131,6 +191,88 @@ class ProjectsController extends StateNotifier<ProjectsState> {
       activeChatId: chatId,
       clearActiveChatId: chatId == null,
     );
+  }
+
+  void setSearchQuery(String query) {
+    if (state.searchQuery == query) {
+      return;
+    }
+    state = state.copyWith(searchQuery: query);
+  }
+
+  void togglePinned(String chatId) {
+    final ids = Set<String>.from(state.pinnedChatIds);
+    final order = List<String>.from(state.pinnedChatOrder);
+    if (ids.contains(chatId)) {
+      ids.remove(chatId);
+      order.remove(chatId);
+    } else {
+      ids.add(chatId);
+      if (!order.contains(chatId)) {
+        order.add(chatId);
+      }
+    }
+    state = state.copyWith(pinnedChatIds: ids, pinnedChatOrder: order);
+    _persistSidebarPrefs();
+  }
+
+  void reorderPinned(int oldIndex, int newIndex) {
+    final order = List<String>.from(state.pinnedChatOrder);
+    if (oldIndex < 0 || oldIndex >= order.length) {
+      return;
+    }
+    var target = newIndex;
+    if (target > oldIndex) {
+      target -= 1;
+    }
+    if (target < 0) {
+      target = 0;
+    }
+    if (target > order.length - 1) {
+      target = order.length - 1;
+    }
+    final id = order.removeAt(oldIndex);
+    order.insert(target, id);
+    state = state.copyWith(pinnedChatOrder: order);
+    _persistSidebarPrefs();
+  }
+
+  void setCollapsed(bool value) {
+    if (state.collapsed == value) {
+      return;
+    }
+    state = state.copyWith(collapsed: value);
+    _persistSidebarPrefs();
+  }
+
+  void setSidebarWidth(double value) {
+    final clamped = value.clamp(
+      AleraTokens.sidebarMinWidth,
+      AleraTokens.sidebarMaxWidth,
+    );
+    if ((state.sidebarWidth - clamped).abs() < 0.5) {
+      return;
+    }
+    state = state.copyWith(sidebarWidth: clamped);
+    _persistSidebarPrefs();
+  }
+
+  void _persistSidebarPrefs() {
+    final repo = _sidebarPrefsRepository;
+    if (repo == null) {
+      return;
+    }
+    _savePrefsTimer?.cancel();
+    _savePrefsTimer = Timer(_savePrefsDebounce, () {
+      final snapshot = SidebarPrefs(
+        pinnedChatIds: state.pinnedChatIds,
+        pinnedChatOrder: state.pinnedChatOrder,
+        collapsed: state.collapsed,
+        width: state.sidebarWidth,
+      );
+      // Fire and forget; failures should not crash the UI.
+      repo.save(snapshot);
+    });
   }
 
   Future<Project> addProject({required String repoPath, String? name}) async {
@@ -204,10 +346,20 @@ class ProjectsController extends StateNotifier<ProjectsState> {
         worktree: worktree,
         removeWorktree: removeWorktree,
       );
+      // Drop the chat from pinned state if it was pinned.
+      var ids = state.pinnedChatIds;
+      var order = state.pinnedChatOrder;
+      if (ids.contains(chatId)) {
+        ids = Set<String>.from(ids)..remove(chatId);
+        order = List<String>.from(order)..remove(chatId);
+      }
       state = state.copyWith(
         clearError: true,
         clearActiveChatId: state.activeChatId == chatId,
+        pinnedChatIds: ids,
+        pinnedChatOrder: order,
       );
+      _persistSidebarPrefs();
     } catch (error) {
       state = state.copyWith(error: error.toString());
       rethrow;
@@ -216,6 +368,7 @@ class ProjectsController extends StateNotifier<ProjectsState> {
 
   @override
   void dispose() {
+    _savePrefsTimer?.cancel();
     _projectsSub?.cancel();
     for (final sub in _chatsSubs.values) {
       sub.cancel();

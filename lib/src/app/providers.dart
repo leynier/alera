@@ -9,6 +9,7 @@ import 'package:alera/src/features/projects/application/projects_state.dart';
 import 'package:alera/src/features/projects/application/worktree_service.dart';
 import 'package:alera/src/features/projects/infra/sembast_chat_repository.dart';
 import 'package:alera/src/features/projects/infra/sembast_project_repository.dart';
+import 'package:alera/src/features/projects/infra/sembast_sidebar_prefs_repository.dart';
 import 'package:alera/src/features/session/application/session_controller.dart';
 import 'package:alera/src/features/session/application/session_service.dart';
 import 'package:alera/src/features/session/application/session_state.dart';
@@ -68,6 +69,13 @@ final chatRepositoryProvider = Provider<ChatRepository>((ref) {
   return SembastChatRepository(db);
 });
 
+final sidebarPrefsRepositoryProvider =
+    Provider<SembastSidebarPrefsRepository>((ref) {
+  final dbAsync = ref.watch(aleraDatabaseProvider);
+  final db = dbAsync.requireValue;
+  return SembastSidebarPrefsRepository(db);
+});
+
 final worktreeServiceProvider = Provider<WorktreeService>((ref) {
   return WorktreeService(
     projectRepository: ref.watch(projectRepositoryProvider),
@@ -88,6 +96,7 @@ final projectsControllerProvider =
     StateNotifierProvider<ProjectsController, ProjectsState>((ref) {
       return ProjectsController(
         projectsService: ref.watch(projectsServiceProvider),
+        sidebarPrefsRepository: ref.watch(sidebarPrefsRepositoryProvider),
       );
     });
 

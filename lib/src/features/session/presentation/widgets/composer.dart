@@ -15,6 +15,7 @@ import 'package:alera/src/features/session/presentation/widgets/composer_draft_i
 import 'package:alera/src/features/session/presentation/widgets/context_usage_indicator.dart';
 import 'package:alera/src/features/session/presentation/widgets/mention_file_list.dart';
 import 'package:alera/src/features/session/presentation/widgets/slash_command_list.dart';
+import 'package:alera/src/shared/presentation/dropdown_entry.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pasteboard/pasteboard.dart';
@@ -914,65 +915,6 @@ class ComposerChip extends StatelessWidget {
               color: AleraTokens.foregroundFaint,
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class DropdownEntry<T> extends PopupMenuEntry<T> {
-  const DropdownEntry({
-    super.key,
-    required this.value,
-    required this.label,
-    this.selected = false,
-  });
-
-  final T value;
-  final String label;
-  final bool selected;
-
-  @override
-  double get height => 36;
-
-  @override
-  bool represents(T? value) => this.value == value;
-
-  @override
-  State<DropdownEntry<T>> createState() => _DropdownEntryState<T>();
-}
-
-class _DropdownEntryState<T> extends State<DropdownEntry<T>> {
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 1),
-      child: InkWell(
-        autofocus: widget.selected,
-        onTap: () => Navigator.of(context).pop(widget.value),
-        mouseCursor: SystemMouseCursors.click,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AleraTokens.space8,
-            vertical: AleraTokens.space4,
-          ),
-          child: Row(
-            children: <Widget>[
-              Expanded(
-                child: Text(
-                  widget.label,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ),
-              if (widget.selected)
-                const Icon(
-                  Icons.check,
-                  size: 16,
-                  color: AleraTokens.foreground,
-                ),
-            ],
-          ),
         ),
       ),
     );
