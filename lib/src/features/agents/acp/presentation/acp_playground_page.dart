@@ -23,6 +23,8 @@ class AcpPlaygroundPage extends ConsumerStatefulWidget {
 }
 
 class _AcpPlaygroundPageState extends ConsumerState<AcpPlaygroundPage> {
+  static const int _maxEntries = 500;
+
   final TextEditingController _promptController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final List<_AcpEntry> _entries = <_AcpEntry>[];
@@ -81,7 +83,10 @@ class _AcpPlaygroundPageState extends ConsumerState<AcpPlaygroundPage> {
           await orchestrator.close();
           return;
         }
-        _sub = orchestrator.events.listen(_onEvent);
+        _sub = orchestrator.events.listen(
+          _onEvent,
+          onError: (Object error) => _logLocal('Event stream error: $error'),
+        );
         setState(() {
           _orchestrator = orchestrator;
           _booting = false;
@@ -120,9 +125,10 @@ class _AcpPlaygroundPageState extends ConsumerState<AcpPlaygroundPage> {
         input: <Map<String, dynamic>>[
           <String, dynamic>{'type': 'text', 'text': text},
         ],
-        cwd: _workspacePath,
       );
-      _promptController.clear();
+      if (mounted) {
+        _promptController.clear();
+      }
     } catch (error) {
       _logLocal('Prompt failed: $error');
     } finally {
@@ -151,15 +157,18 @@ class _AcpPlaygroundPageState extends ConsumerState<AcpPlaygroundPage> {
     if (orchestrator == null) {
       return;
     }
+    // Optimistic-remove BEFORE the await so the user can't double-click
+    // another option while the response is in flight.
+    if (mounted && _approvals.contains(approval)) {
+      setState(() => _approvals.remove(approval));
+    } else {
+      return;
+    }
     try {
       await orchestrator.approveRequest(approval.requestId, optionId: optionId);
       _logLocal('Approved $optionId for: ${approval.description}');
     } catch (error) {
       _logLocal('Approve failed: $error');
-    } finally {
-      if (mounted) {
-        setState(() => _approvals.remove(approval));
-      }
     }
   }
 
@@ -168,15 +177,16 @@ class _AcpPlaygroundPageState extends ConsumerState<AcpPlaygroundPage> {
     if (orchestrator == null) {
       return;
     }
+    if (mounted && _approvals.contains(approval)) {
+      setState(() => _approvals.remove(approval));
+    } else {
+      return;
+    }
     try {
       await orchestrator.declineRequest(approval.requestId);
       _logLocal('Declined: ${approval.description}');
     } catch (error) {
       _logLocal('Decline failed: $error');
-    } finally {
-      if (mounted) {
-        setState(() => _approvals.remove(approval));
-      }
     }
   }
 
@@ -222,27 +232,45 @@ class _AcpPlaygroundPageState extends ConsumerState<AcpPlaygroundPage> {
   }
 
   void _logLocal(String message) {
-    setState(
-      () => _entries.add(
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _entries.add(
         _AcpEntry(
           method: 'local',
           payload: <String, dynamic>{'message': message},
         ),
-      ),
-    );
+      );
+      _trimEntries();
+    });
     _scrollToEnd();
   }
 
   void _logEvent(String method, Map<String, dynamic> payload) {
-    setState(() => _entries.add(_AcpEntry(method: method, payload: payload)));
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _entries.add(_AcpEntry(method: method, payload: payload));
+      _trimEntries();
+    });
     _scrollToEnd();
+  }
+
+  void _trimEntries() {
+    if (_entries.length <= _maxEntries) {
+      return;
+    }
+    _entries.removeRange(0, _entries.length - _maxEntries);
   }
 
   void _scrollToEnd() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      if (!mounted || !_scrollController.hasClients) {
+        return;
       }
+      _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
     });
   }
 

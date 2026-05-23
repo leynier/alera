@@ -57,6 +57,10 @@ class CodexAppServerClient {
     return ws.incomingRequests;
   }
 
+  /// Spawns the app-server process and connects the WebSocket transport. Does
+  /// NOT perform the protocol handshake — callers must call
+  /// [completeHandshake] separately so they can subscribe to [events] /
+  /// [requests] before the agent emits its first message.
   Future<void> start() async {
     _process = await _processRunner.start(
       _executable,
@@ -69,7 +73,12 @@ class CodexAppServerClient {
 
     _wsClient = JsonRpcWebSocketClient(Uri.parse('ws://127.0.0.1:$port'));
     await _wsClient!.connect();
+  }
 
+  /// Performs the `initialize` request and the `initialized` notification.
+  /// Must be called after [start] and after callers have attached their
+  /// subscribers to [events] / [requests].
+  Future<void> completeHandshake() async {
     await initialize();
     await _wsClient!.notify('initialized');
   }

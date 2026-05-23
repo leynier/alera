@@ -4,16 +4,37 @@ import 'dart:io';
 import 'package:alera/src/shared/infra/json_rpc/json_rpc_client.dart';
 import 'package:alera/src/shared/infra/json_rpc/json_rpc_error_codes.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
+import 'package:path/path.dart' as p;
 
 /// Thin client over the Agent Client Protocol (ACP) — speaks newline-delimited
 /// JSON-RPC 2.0 over the spawned agent's stdio. Built on top of the shared
 /// [JsonRpcClient] so all framing, request/response correlation, and stderr
 /// forwarding behave the same as the existing Codex app-server transport.
 ///
-/// Mirrors the public surface of `CodexAppServerClient` where ACP has a direct
-/// equivalent (initialize, session/new, session/load, session/prompt,
-/// session/cancel) and stubs the rest as `UnsupportedError` so callers fail
-/// loudly when a Codex-only feature is requested through the ACP path.
+/// ## Lifecycle (two-phase)
+///
+/// Construction does not spawn anything. Callers must explicitly call
+/// [start] (spawns the process, attaches the internal `fs/*` handler) and
+/// then [initialize] (performs the `initialize` handshake). Splitting these
+/// lets the [AcpAgentOrchestrator] attach its event subscribers between the
+/// two so notifications emitted during the handshake are not dropped by
+/// Dart broadcast-stream-no-buffer semantics. Both methods are idempotent.
+///
+/// ## Filesystem sandbox
+///
+/// `fs/read_text_file` and `fs/write_text_file` requests from the agent are
+/// served against [dart:io] but constrained to the session's working
+/// directory (set by [newSession]/[loadSession]). Absolute paths outside
+/// the cwd, relative paths, and requests received before any session is
+/// established are rejected with `invalidParams`. Symlink-based escapes
+/// are not blocked (closed-beta acceptable limitation).
+///
+/// ## Protocol version
+///
+/// [initialize] emits a synthetic `alera.protocolVersionMismatch`
+/// notification when the agent's returned `protocolVersion` differs from
+/// the requested one, so the UI can surface a warning instead of silently
+/// proceeding with an incompatible contract.
 class CodexAcpClient {
   CodexAcpClient({
     required ProcessRunner processRunner,
@@ -38,6 +59,9 @@ class CodexAcpClient {
 
   StreamSubscription<JsonRpcServerRequest>? _fsSub;
   Map<String, dynamic>? _agentCapabilities;
+  String? _cwd;
+  var _started = false;
+  var _initialized = false;
 
   /// All notifications coming from the agent (mostly `session/update` plus the
   /// synthetic `alera.stderr` log entries forwarded by [JsonRpcClient]).
@@ -51,13 +75,46 @@ class CodexAcpClient {
   /// handshake completes.
   Map<String, dynamic>? get agentCapabilities => _agentCapabilities;
 
+  /// Spawns the agent process and attaches the internal `fs/*` handler. Does
+  /// NOT perform the protocol handshake — callers must call [initialize]
+  /// separately, so they can subscribe to [events] / [requests] before the
+  /// agent emits its first message.
   Future<void> start() async {
-    await _rpc.start();
-    _fsSub = _rpc.incomingRequests.listen(_maybeHandleFs);
-    await initialize();
+    if (_started) {
+      return;
+    }
+    try {
+      await _rpc.start();
+      _fsSub = _rpc.incomingRequests.listen(
+        _maybeHandleFs,
+        onError: (Object error, StackTrace stackTrace) {
+          _rpc.emitSyntheticNotification(
+            'alera.fsHandlerError',
+            params: <String, dynamic>{
+              'error': error.toString(),
+              'stackTrace': stackTrace.toString(),
+            },
+          );
+        },
+      );
+      _started = true;
+    } catch (error) {
+      // Best-effort cleanup so a half-started client does not leak the
+      // spawned process or its broadcast subscription.
+      await _fsSub?.cancel();
+      _fsSub = null;
+      await _rpc.close();
+      rethrow;
+    }
   }
 
+  /// Performs the ACP `initialize` handshake. Idempotent. Emits a synthetic
+  /// `alera.protocolVersionMismatch` notification when the agent's returned
+  /// `protocolVersion` differs from the requested one.
   Future<Map<String, dynamic>> initialize() async {
+    if (_initialized) {
+      return <String, dynamic>{};
+    }
     final response = await _rpc.request(
       'initialize',
       params: <String, dynamic>{
@@ -71,10 +128,23 @@ class CodexAcpClient {
     final result = (response['result'] as Map?)?.cast<String, dynamic>();
     _agentCapabilities = (result?['agentCapabilities'] as Map?)
         ?.cast<String, dynamic>();
+    final negotiated = result?['protocolVersion'];
+    if (negotiated is num && negotiated.toInt() != _protocolVersion) {
+      _rpc.emitSyntheticNotification(
+        'alera.protocolVersionMismatch',
+        params: <String, dynamic>{
+          'requested': _protocolVersion,
+          'agentReported': negotiated.toInt(),
+        },
+      );
+    }
+    _initialized = true;
     return response;
   }
 
-  /// Starts a new ACP session and returns its `sessionId`.
+  /// Starts a new ACP session and returns its `sessionId`. Stores the
+  /// resolved absolute cwd on the client so [fs/read_text_file] and
+  /// [fs/write_text_file] can enforce containment.
   Future<String> newSession({required String cwd}) async {
     final response = await _rpc.request(
       'session/new',
@@ -84,16 +154,17 @@ class CodexAcpClient {
       },
     );
     final result = (response['result'] as Map?)?.cast<String, dynamic>();
-    final sessionId = result?['sessionId'] as String?;
+    final sessionId = _stringOrNull(result?['sessionId']);
     if (sessionId == null || sessionId.isEmpty) {
       throw StateError('session/new returned no sessionId');
     }
+    _cwd = p.normalize(p.absolute(cwd));
     return sessionId;
   }
 
   /// Resumes a previously created ACP session. Many agents (including current
   /// `codex-acp` builds) do not implement this; callers should fall back to
-  /// [newSession] on failure.
+  /// [newSession] on failure (the orchestrator does so on `StateError`).
   Future<String> loadSession({
     required String sessionId,
     required String cwd,
@@ -107,7 +178,12 @@ class CodexAcpClient {
       },
     );
     final result = (response['result'] as Map?)?.cast<String, dynamic>();
-    return (result?['sessionId'] as String?) ?? sessionId;
+    final resolved = _stringOrNull(result?['sessionId']);
+    if (resolved == null || resolved.isEmpty) {
+      throw StateError('session/load returned no sessionId');
+    }
+    _cwd = p.normalize(p.absolute(cwd));
+    return resolved;
   }
 
   /// Sends a user prompt. Resolves with the agent's `stopReason` once the turn
@@ -122,7 +198,18 @@ class CodexAcpClient {
       params: <String, dynamic>{'sessionId': sessionId, 'prompt': content},
     );
     final result = (response['result'] as Map?)?.cast<String, dynamic>();
-    return (result?['stopReason'] as String?) ?? 'end_turn';
+    return _stringOrNull(result?['stopReason']) ?? 'end_turn';
+  }
+
+  /// Coerces an `Object?` to a non-empty `String`, returning `null` for any
+  /// non-`String` value (including numbers, booleans, maps). Avoids
+  /// `value as String?` which throws `TypeError` on non-null, non-String
+  /// values.
+  static String? _stringOrNull(Object? value) {
+    if (value is! String) {
+      return null;
+    }
+    return value.isEmpty ? null : value;
   }
 
   /// ACP `session/cancel` is a notification (no response expected).
@@ -175,14 +262,16 @@ class CodexAcpClient {
 
   /// Handles the `fs/*` server-initiated requests directly via `dart:io` so
   /// the agent can read/write files when its capability negotiation allows it.
-  /// Returns silently for any other method (orchestrator handles those).
+  /// Unknown `fs/*` and `terminal/*` methods are rejected with
+  /// `methodNotFound` so the agent never deadlocks on an unanswered request.
   void _maybeHandleFs(JsonRpcServerRequest request) {
-    switch (request.method) {
+    final method = request.method;
+    switch (method) {
       case 'fs/read_text_file':
-        unawaited(_handleFsRead(request));
+        unawaited(_safeFsHandle(_handleFsRead, request));
         return;
       case 'fs/write_text_file':
-        unawaited(_handleFsWrite(request));
+        unawaited(_safeFsHandle(_handleFsWrite, request));
         return;
       case 'terminal/create':
       case 'terminal/output':
@@ -190,27 +279,97 @@ class CodexAcpClient {
       case 'terminal/kill':
       case 'terminal/release':
         unawaited(
-          respondError(
-            requestId: request.id,
+          _safeRespondError(
+            request,
             code: jsonRpcMethodNotFound,
             message: 'Terminal capability not enabled in this client',
           ),
         );
         return;
     }
+    if (method.startsWith('fs/')) {
+      unawaited(
+        _safeRespondError(
+          request,
+          code: jsonRpcMethodNotFound,
+          message: 'fs method not supported by client: $method',
+        ),
+      );
+    }
+  }
+
+  Future<void> _safeFsHandle(
+    Future<void> Function(JsonRpcServerRequest) handler,
+    JsonRpcServerRequest request,
+  ) async {
+    try {
+      await handler(request);
+    } catch (error, stackTrace) {
+      // Any leak past the handler's own try/catch (e.g. respondError itself
+      // throws because the client closed mid-flight) is logged via the
+      // synthetic notification channel instead of being silently discarded
+      // by `unawaited`.
+      _rpc.emitSyntheticNotification(
+        'alera.fsHandlerError',
+        params: <String, dynamic>{
+          'method': request.method,
+          'error': error.toString(),
+          'stackTrace': stackTrace.toString(),
+        },
+      );
+    }
+  }
+
+  Future<void> _safeRespondError(
+    JsonRpcServerRequest request, {
+    required int code,
+    required String message,
+  }) async {
+    try {
+      await respondError(requestId: request.id, code: code, message: message);
+    } catch (error) {
+      _rpc.emitSyntheticNotification(
+        'alera.fsHandlerError',
+        params: <String, dynamic>{
+          'method': request.method,
+          'error': error.toString(),
+        },
+      );
+    }
   }
 
   Future<void> _handleFsRead(JsonRpcServerRequest request) async {
+    final path = request.params['path'];
+    if (path is! String || path.isEmpty) {
+      await respondError(
+        requestId: request.id,
+        code: jsonRpcInvalidParams,
+        message: 'fs/read_text_file requires a non-empty "path"',
+      );
+      return;
+    }
+    final containmentError = _containmentError(path);
+    if (containmentError != null) {
+      await respondError(
+        requestId: request.id,
+        code: jsonRpcInvalidParams,
+        message: containmentError,
+      );
+      return;
+    }
+    final sliceError = _validateSliceParams(
+      request.params['line'],
+      request.params['limit'],
+    );
+    if (sliceError != null) {
+      await respondError(
+        requestId: request.id,
+        code: jsonRpcInvalidParams,
+        message: sliceError,
+      );
+      return;
+    }
     try {
-      final path = request.params['path'];
-      if (path is! String || path.isEmpty) {
-        await respondError(
-          requestId: request.id,
-          code: jsonRpcInvalidParams,
-          message: 'fs/read_text_file requires a non-empty "path"',
-        );
-        return;
-      }
       final content = await File(path).readAsString();
       final sliced = _sliceByLines(
         content,
@@ -231,25 +390,34 @@ class CodexAcpClient {
   }
 
   Future<void> _handleFsWrite(JsonRpcServerRequest request) async {
+    final path = request.params['path'];
+    final content = request.params['content'];
+    if (path is! String || path.isEmpty) {
+      await respondError(
+        requestId: request.id,
+        code: jsonRpcInvalidParams,
+        message: 'fs/write_text_file requires a non-empty "path"',
+      );
+      return;
+    }
+    if (content is! String) {
+      await respondError(
+        requestId: request.id,
+        code: jsonRpcInvalidParams,
+        message: 'fs/write_text_file requires a string "content"',
+      );
+      return;
+    }
+    final containmentError = _containmentError(path);
+    if (containmentError != null) {
+      await respondError(
+        requestId: request.id,
+        code: jsonRpcInvalidParams,
+        message: containmentError,
+      );
+      return;
+    }
     try {
-      final path = request.params['path'];
-      final content = request.params['content'];
-      if (path is! String || path.isEmpty) {
-        await respondError(
-          requestId: request.id,
-          code: jsonRpcInvalidParams,
-          message: 'fs/write_text_file requires a non-empty "path"',
-        );
-        return;
-      }
-      if (content is! String) {
-        await respondError(
-          requestId: request.id,
-          code: jsonRpcInvalidParams,
-          message: 'fs/write_text_file requires a string "content"',
-        );
-        return;
-      }
       final file = File(path);
       await file.parent.create(recursive: true);
       await file.writeAsString(content);
@@ -263,25 +431,73 @@ class CodexAcpClient {
     }
   }
 
+  /// Returns a human-readable error message when `requested` does not point
+  /// inside the active session cwd, otherwise `null`. Rejects relative paths,
+  /// non-absolute paths, and anything that lexically escapes the cwd.
+  /// Symlink-based escapes are not blocked (documented limitation).
+  String? _containmentError(String requested) {
+    final cwd = _cwd;
+    if (cwd == null) {
+      return 'fs request received before a session was established';
+    }
+    if (!p.isAbsolute(requested)) {
+      return 'fs path must be absolute: $requested';
+    }
+    final normalized = p.normalize(requested);
+    if (p.equals(normalized, cwd) || p.isWithin(cwd, normalized)) {
+      return null;
+    }
+    return 'fs path outside session workspace ($cwd): $normalized';
+  }
+
+  /// Validates `line`/`limit` params for fs/read_text_file. Accepts any
+  /// `num` (so JSON-decoded `1.0` works) but rejects fractional, NaN,
+  /// non-positive line numbers, and negative limits.
+  String? _validateSliceParams(Object? lineParam, Object? limitParam) {
+    if (lineParam != null) {
+      if (lineParam is! num) {
+        return 'fs/read_text_file "line" must be a number';
+      }
+      if (!lineParam.isFinite || lineParam != lineParam.truncate()) {
+        return 'fs/read_text_file "line" must be a whole number';
+      }
+      if (lineParam.toInt() <= 0) {
+        return 'fs/read_text_file "line" must be >= 1';
+      }
+    }
+    if (limitParam != null) {
+      if (limitParam is! num) {
+        return 'fs/read_text_file "limit" must be a number';
+      }
+      if (!limitParam.isFinite || limitParam != limitParam.truncate()) {
+        return 'fs/read_text_file "limit" must be a whole number';
+      }
+      if (limitParam.toInt() < 0) {
+        return 'fs/read_text_file "limit" must be >= 0';
+      }
+    }
+    return null;
+  }
+
   String _sliceByLines(String content, Object? lineParam, Object? limitParam) {
-    if (lineParam is! int && limitParam is! int) {
+    if (lineParam is! num && limitParam is! num) {
       return content;
     }
     final lines = content.split('\n');
     final lineCount = lines.length;
     var start = 0;
-    if (lineParam is int) {
-      if (lineParam <= 1) {
-        start = 0;
-      } else if (lineParam > lineCount) {
+    if (lineParam is num) {
+      final line = lineParam.toInt();
+      if (line > lineCount) {
         start = lineCount;
       } else {
-        start = lineParam - 1;
+        start = line - 1;
       }
     }
     var end = lineCount;
-    if (limitParam is int && limitParam >= 0) {
-      final upper = start + limitParam;
+    if (limitParam is num) {
+      final limit = limitParam.toInt();
+      final upper = start + limit;
       end = upper > lineCount ? lineCount : upper;
     }
     return lines.sublist(start, end).join('\n');

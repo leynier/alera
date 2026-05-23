@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera/src/features/agents/acp/infrastructure/codex_acp_client.dart';
 import 'package:alera/src/features/agents/application/agent_orchestrator_event.dart';
 import 'package:alera/src/shared/infra/json_rpc/json_rpc_client.dart';
+import 'package:alera/src/shared/infra/json_rpc/json_rpc_error_codes.dart';
 import 'package:uuid/uuid.dart';
 
 /// ACP-flavored counterpart of `AgentOrchestrator`. Mirrors its public surface
@@ -10,8 +11,37 @@ import 'package:uuid/uuid.dart';
 /// and emits the same `AgentOrchestratorEvent` types so a future unification
 /// can swap implementations without touching consumers.
 ///
-/// "Thread" terminology is preserved on the API for parity with the Codex
-/// path; internally a thread maps 1:1 to an ACP `sessionId`.
+/// ## Thread / session terminology
+///
+/// "Thread" is preserved on the API for parity with the Codex path; an ACP
+/// `sessionId` maps 1:1 onto it.
+///
+/// ## Turn lifecycle parity
+///
+/// [runTurn] awaits the underlying `session/prompt` request and emits three
+/// synthetic Codex-shape notifications so downstream consumers
+/// (`SessionService`, `SessionTimelineReducer`) can process ACP and Codex
+/// turns uniformly:
+///
+/// ```
+/// {params: {turn: {id, threadId, status: 'started'|'completed'|'failed',
+///                  stopReason?, error?}}}
+/// ```
+///
+/// A failed prompt rejects the returned Future AND emits `turn/failed`, so
+/// callers see errors synchronously instead of having to subscribe to the
+/// events stream just to know whether a prompt was accepted.
+///
+/// ## ACP gaps
+///
+/// `startReview`, `compactThread`, `setThreadName`, and `steerTurn` are
+/// preserved on the surface but throw `UnsupportedError` because ACP has no
+/// equivalent. They are marked `async` so the throw produces a rejected
+/// Future for `.catchError` consumers.
+///
+/// `interrupt` accepts a `threadId` only; ACP `session/cancel` is
+/// session-scoped fire-and-forget, so per-turn cancellation is not
+/// representable.
 class AcpAgentOrchestrator {
   AcpAgentOrchestrator(this._client);
 
@@ -23,20 +53,43 @@ class AcpAgentOrchestrator {
 
   StreamSubscription<Map<String, dynamic>>? _notificationSub;
   StreamSubscription<JsonRpcServerRequest>? _requestSub;
+  var _booted = false;
   var _closed = false;
 
   Stream<AgentOrchestratorEvent> get events => _eventsController.stream;
 
+  /// Spawns the agent, subscribes to its event streams BEFORE the
+  /// `initialize` handshake, then performs the handshake. The pre-handshake
+  /// subscription guarantees notifications emitted during initialize
+  /// (e.g. stderr banners, early `session/update` events) are not dropped
+  /// by Dart's broadcast-stream-no-buffer semantics.
   Future<void> boot() async {
+    if (_booted || _closed) {
+      return;
+    }
     await _client.start();
 
-    _notificationSub = _client.events.listen(_handleNotification);
-    _requestSub = _client.requests.listen(_handleIncomingRequest);
+    _notificationSub = _client.events.listen(
+      _handleNotification,
+      onError: _forwardError,
+    );
+    _requestSub = _client.requests.listen(
+      _handleIncomingRequest,
+      onError: _forwardError,
+    );
+
+    await _client.initialize();
+    _booted = true;
   }
 
   /// ACP gives no native session resume in the current `codex-acp` build, so
   /// `existingThreadId` is honored only as a best-effort `session/load` and
-  /// silently falls back to `session/new` when the agent rejects it.
+  /// falls back to `session/new` when the agent rejects it.
+  ///
+  /// Only `StateError` is treated as recoverable (that is the exception type
+  /// `JsonRpcClient` raises for protocol-level rejections and closed
+  /// transports). Anything else — e.g. `TypeError` from a malformed agent
+  /// response, programming bugs — propagates to the caller.
   Future<String> ensureThread({String? existingThreadId, String? cwd}) async {
     final workspace = cwd ?? '.';
     if (existingThreadId != null && existingThreadId.isNotEmpty) {
@@ -45,66 +98,90 @@ class AcpAgentOrchestrator {
           sessionId: existingThreadId,
           cwd: workspace,
         );
-      } catch (_) {
+      } on StateError {
         // Fall through to new session.
       }
     }
     return _client.newSession(cwd: workspace);
   }
 
-  /// Sends a user prompt as a `session/prompt` request, returning a synthetic
-  /// turn id immediately. Streaming agent output arrives on [events] as
-  /// `AgentNotificationEvent`s with `method == 'session/update'`. A final
-  /// `turn/completed` (or `turn/failed`) notification is emitted when the
-  /// underlying request settles.
+  /// Sends a user prompt as a `session/prompt` request. Resolves with the
+  /// synthetic turn id when the agent's response settles. Streaming agent
+  /// output arrives on [events] as `AgentNotificationEvent`s with
+  /// `method == 'session/update'`.
+  ///
+  /// Three lifecycle notifications are emitted in Codex shape
+  /// (`{params: {turn: {id, threadId, status, stopReason?, error?}}}`):
+  /// `turn/started` immediately before the request is sent,
+  /// `turn/completed` on a successful agent response, and `turn/failed` on
+  /// error. Failures also reject the returned Future so synchronous callers
+  /// see them.
   Future<String> runTurn({
     required String threadId,
     required List<Map<String, dynamic>> input,
-    String? cwd,
   }) async {
     final turnId = _uuid.v4();
-
-    unawaited(
-      _client
-          .prompt(sessionId: threadId, content: input)
-          .then(
-            (stopReason) {
-              _emit(
-                AgentNotificationEvent(
-                  method: 'turn/completed',
-                  payload: <String, dynamic>{
-                    'method': 'turn/completed',
-                    'params': <String, dynamic>{
-                      'sessionId': threadId,
-                      'turnId': turnId,
-                      'stopReason': stopReason,
-                    },
-                  },
-                ),
-              );
-            },
-            onError: (Object error) {
-              _emit(
-                AgentNotificationEvent(
-                  method: 'turn/failed',
-                  payload: <String, dynamic>{
-                    'method': 'turn/failed',
-                    'params': <String, dynamic>{
-                      'sessionId': threadId,
-                      'turnId': turnId,
-                      'error': error.toString(),
-                    },
-                  },
-                ),
-              );
-            },
-          ),
+    _emitTurnLifecycle(
+      method: 'turn/started',
+      threadId: threadId,
+      turnId: turnId,
+      status: 'started',
     );
 
-    return turnId;
+    try {
+      final stopReason = await _client.prompt(
+        sessionId: threadId,
+        content: input,
+      );
+      _emitTurnLifecycle(
+        method: 'turn/completed',
+        threadId: threadId,
+        turnId: turnId,
+        status: 'completed',
+        stopReason: stopReason,
+      );
+      return turnId;
+    } catch (error) {
+      _emitTurnLifecycle(
+        method: 'turn/failed',
+        threadId: threadId,
+        turnId: turnId,
+        status: 'failed',
+        error: error.toString(),
+      );
+      rethrow;
+    }
   }
 
-  Future<void> interrupt({required String threadId, String? turnId}) {
+  void _emitTurnLifecycle({
+    required String method,
+    required String threadId,
+    required String turnId,
+    required String status,
+    String? stopReason,
+    String? error,
+  }) {
+    final turn = <String, dynamic>{
+      'id': turnId,
+      'threadId': threadId,
+      'status': status,
+      'stopReason': ?stopReason,
+      'error': ?error,
+    };
+    _emit(
+      AgentNotificationEvent(
+        method: method,
+        payload: <String, dynamic>{
+          'method': method,
+          'params': <String, dynamic>{'turn': turn},
+        },
+      ),
+    );
+  }
+
+  /// ACP `session/cancel` is session-scoped and fire-and-forget — there is no
+  /// per-turn cancellation, so [interrupt] takes no `turnId`.
+  Future<void> interrupt({required String threadId}) {
     return _client.cancel(sessionId: threadId);
   }
 
@@ -131,25 +208,26 @@ class AcpAgentOrchestrator {
     }
   }
 
-  // ACP gaps — preserved for surface parity with AgentOrchestrator. Calls land
-  // here as loud failures rather than silent no-ops.
-  Future<Never> startReview() {
+  // ACP gaps — preserved for surface parity with AgentOrchestrator. Marked
+  // `async` so the throws produce rejected Futures (instead of synchronous
+  // throws that bypass Future-style `.catchError`).
+  Future<Never> startReview() async {
     throw UnsupportedError(
       'review/start has no ACP equivalent. Use a "/review" prompt instead.',
     );
   }
 
-  Future<Never> compactThread() {
+  Future<Never> compactThread() async {
     throw UnsupportedError(
       'thread/compact/start has no ACP equivalent. Use a "/compact" prompt instead.',
     );
   }
 
-  Future<Never> setThreadName() {
+  Future<Never> setThreadName() async {
     throw UnsupportedError('thread/name/set is not part of ACP.');
   }
 
-  Future<Never> steerTurn() {
+  Future<Never> steerTurn() async {
     throw UnsupportedError(
       'turn/steer has no ACP equivalent. Cancel and send a new prompt.',
     );
@@ -165,13 +243,14 @@ class AcpAgentOrchestrator {
 
   void _handleIncomingRequest(JsonRpcServerRequest request) {
     if (request.method == 'session/request_permission') {
+      final options = _permissionOptions(request.params['options']);
       _emit(
         AgentApprovalRequestEvent(
           requestId: request.id,
           method: request.method,
-          description: _describePermission(request.params),
+          description: _describePermission(request.params, options),
           threadId: _optionalString(request.params['sessionId']),
-          options: _permissionOptions(request.params['options']),
+          options: options,
         ),
       );
       return;
@@ -183,7 +262,9 @@ class AcpAgentOrchestrator {
       return;
     }
 
-    // Anything else surfaces as a generic notification so the UI can log it.
+    // Anything else: surface as a notification so the UI can log it, AND
+    // respond with methodNotFound so the agent doesn't deadlock on the
+    // pending request id.
     _emit(
       AgentNotificationEvent(
         method: request.method,
@@ -192,6 +273,13 @@ class AcpAgentOrchestrator {
           'params': request.params,
           'id': request.id,
         },
+      ),
+    );
+    unawaited(
+      _client.respondError(
+        requestId: request.id,
+        code: jsonRpcMethodNotFound,
+        message: 'Method not supported by client: ${request.method}',
       ),
     );
   }
@@ -203,17 +291,29 @@ class AcpAgentOrchestrator {
     _eventsController.add(event);
   }
 
-  String _describePermission(Map<String, dynamic> params) {
+  void _forwardError(Object error, StackTrace stackTrace) {
+    if (_closed || _eventsController.isClosed) {
+      return;
+    }
+    _eventsController.addError(error, stackTrace);
+  }
+
+  String _describePermission(
+    Map<String, dynamic> params,
+    List<AgentApprovalOption> options,
+  ) {
     final toolCall = params['toolCall'];
     if (toolCall is Map) {
       final cast = toolCall.cast<String, dynamic>();
-      final title = cast['title'] ?? cast['kind'] ?? cast['name'];
-      if (title is String && title.isNotEmpty) {
-        return title;
+      final label =
+          _optionalDisplayString(cast['title']) ??
+          _optionalDisplayString(cast['kind']) ??
+          _optionalDisplayString(cast['name']);
+      if (label != null) {
+        return label;
       }
     }
-    final options = params['options'];
-    if (options is List && options.isNotEmpty) {
+    if (options.isNotEmpty) {
       return 'Approve action (${options.length} options)';
     }
     return 'Approve action';
@@ -230,9 +330,9 @@ class AcpAgentOrchestrator {
             AgentApprovalOption(
               optionId: optionId,
               name:
-                  _optionalString(option['name']) ??
+                  _optionalDisplayString(option['name']) ??
                   _sentenceCaseOptionId(optionId),
-              kind: _optionalString(option['kind']),
+              kind: _optionalDisplayString(option['kind']),
             ),
     ];
   }
@@ -245,7 +345,19 @@ class AcpAgentOrchestrator {
     return words[0].toUpperCase() + words.substring(1);
   }
 
+  /// Coerces an opaque protocol identifier (sessionId, optionId, threadId, ...)
+  /// to a non-empty `String`. Does NOT trim — these values must be returned to
+  /// the agent byte-for-byte.
   String? _optionalString(Object? value) {
+    if (value is! String) {
+      return null;
+    }
+    return value.isEmpty ? null : value;
+  }
+
+  /// Coerces a human-readable string (name, kind, title, ...) to a non-empty
+  /// trimmed `String`. Surrounding whitespace is stripped.
+  String? _optionalDisplayString(Object? value) {
     if (value is! String) {
       return null;
     }

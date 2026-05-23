@@ -16,6 +16,7 @@ Future<CodexAppServerClient> _startFakeClient() async {
     arguments: <String>[script],
   );
   await client.start().timeout(const Duration(seconds: 5));
+  await client.completeHandshake().timeout(const Duration(seconds: 5));
   return client;
 }
 

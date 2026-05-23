@@ -17,23 +17,50 @@ class AgentOrchestrator {
 
   StreamSubscription<Map<String, dynamic>>? _notificationSub;
   StreamSubscription<JsonRpcServerRequest>? _requestSub;
+  var _booted = false;
 
   Stream<AgentOrchestratorEvent> get events => _eventsController.stream;
 
+  /// Spawns the agent transport, subscribes to its event streams BEFORE the
+  /// protocol handshake, then completes the handshake. The pre-handshake
+  /// subscription guarantees notifications emitted during initialize are not
+  /// dropped by Dart's broadcast-stream-no-buffer semantics.
   Future<void> boot() async {
+    if (_booted) {
+      return;
+    }
     await _client.start();
 
-    _notificationSub = _client.events.listen((payload) {
-      final method = payload['method'];
-      if (method is! String) {
-        return;
-      }
-      _eventsController.add(
-        AgentNotificationEvent(method: method, payload: payload),
-      );
-    });
+    _notificationSub = _client.events.listen(
+      (payload) {
+        final method = payload['method'];
+        if (method is! String) {
+          return;
+        }
+        if (_eventsController.isClosed) {
+          return;
+        }
+        _eventsController.add(
+          AgentNotificationEvent(method: method, payload: payload),
+        );
+      },
+      onError: _forwardError,
+    );
 
-    _requestSub = _client.requests.listen(_handleIncomingRequest);
+    _requestSub = _client.requests.listen(
+      _handleIncomingRequest,
+      onError: _forwardError,
+    );
+
+    await _client.completeHandshake();
+    _booted = true;
+  }
+
+  void _forwardError(Object error, StackTrace stackTrace) {
+    if (_eventsController.isClosed) {
+      return;
+    }
+    _eventsController.addError(error, stackTrace);
   }
 
   Future<String> ensureThread({String? existingThreadId, String? cwd}) async {

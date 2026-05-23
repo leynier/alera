@@ -124,6 +124,23 @@ class JsonRpcClient {
     _write(payload);
   }
 
+  /// Emits a synthetic notification on the [notifications] stream without
+  /// touching the underlying process. Used for client-side diagnostics
+  /// (mirrors the internal `alera.stderr` forwarding pattern).
+  void emitSyntheticNotification(
+    String method, {
+    Map<String, dynamic>? params,
+  }) {
+    if (_notificationsController.isClosed) {
+      return;
+    }
+    _notificationsController.add(<String, dynamic>{
+      'jsonrpc': '2.0',
+      'method': method,
+      'params': params ?? <String, dynamic>{},
+    });
+  }
+
   Future<void> respondSuccess(Object id, {Map<String, dynamic>? result}) async {
     _ensureOpen();
     final payload = <String, dynamic>{
