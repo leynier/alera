@@ -109,10 +109,7 @@ class AcpAgentOrchestrator {
   }
 
   Future<void> approveRequest(Object requestId, {String optionId = 'allow'}) {
-    return _client.respondPermission(
-      requestId: requestId,
-      optionId: optionId,
-    );
+    return _client.respondPermission(requestId: requestId, optionId: optionId);
   }
 
   Future<void> declineRequest(Object requestId) {

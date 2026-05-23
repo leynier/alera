@@ -342,9 +342,9 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
   }
 
   void _openAcpPlayground(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const AcpPlaygroundPage()),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const AcpPlaygroundPage()));
   }
 
   String? _workspaceName(String? workspacePath) {

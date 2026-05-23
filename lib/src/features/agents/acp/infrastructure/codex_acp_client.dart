@@ -63,10 +63,7 @@ class CodexAcpClient {
       params: <String, dynamic>{
         'protocolVersion': _protocolVersion,
         'clientCapabilities': <String, dynamic>{
-          'fs': <String, dynamic>{
-            'readTextFile': true,
-            'writeTextFile': true,
-          },
+          'fs': <String, dynamic>{'readTextFile': true, 'writeTextFile': true},
           'terminal': false,
         },
       },
@@ -122,10 +119,7 @@ class CodexAcpClient {
   }) async {
     final response = await _rpc.request(
       'session/prompt',
-      params: <String, dynamic>{
-        'sessionId': sessionId,
-        'prompt': content,
-      },
+      params: <String, dynamic>{'sessionId': sessionId, 'prompt': content},
     );
     final result = (response['result'] as Map?)?.cast<String, dynamic>();
     return (result?['stopReason'] as String?) ?? 'end_turn';
