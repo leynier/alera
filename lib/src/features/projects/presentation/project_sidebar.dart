@@ -817,7 +817,10 @@ class _PinnedSection extends StatelessWidget {
       buildDefaultDragHandles: false,
       padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space8),
       itemCount: chats.length,
-      onReorder: controller.reorderPinned,
+      onReorderItem: (oldIndex, newIndex) {
+        final legacyNewIndex = newIndex > oldIndex ? newIndex + 1 : newIndex;
+        controller.reorderPinned(oldIndex, legacyNewIndex);
+      },
       proxyDecorator: (child, _, _) {
         return Material(
           color: Colors.transparent,

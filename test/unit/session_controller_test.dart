@@ -452,12 +452,10 @@ class _FakeSettingsService implements SettingsService {
     this._selectedModel,
     this._selectedReasoningEffort,
     this._markdownEnabled, {
-    String selectedSpeedMode = 'normal',
-    bool planModeEnabled = false,
-    PermissionMode permissionMode = PermissionMode.defaultMode,
-  }) : _selectedSpeedMode = selectedSpeedMode,
-       _planModeEnabled = planModeEnabled,
-       _permissionMode = permissionMode;
+    this._selectedSpeedMode = 'normal',
+    this._planModeEnabled = false,
+    this._permissionMode = PermissionMode.defaultMode,
+  });
 
   String _selectedModel;
   String _selectedReasoningEffort;

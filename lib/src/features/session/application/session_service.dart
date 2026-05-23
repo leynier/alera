@@ -13,12 +13,10 @@ import 'package:uuid/uuid.dart';
 
 class SessionService {
   SessionService({
-    required AgentOrchestrator orchestrator,
-    required ProjectService projectService,
-    ChatRepository? chatRepository,
-  }) : _orchestrator = orchestrator,
-       _projectService = projectService,
-       _chatRepository = chatRepository;
+    required this._orchestrator,
+    required this._projectService,
+    this._chatRepository,
+  });
 
   final AgentOrchestrator _orchestrator;
   final ProjectService _projectService;

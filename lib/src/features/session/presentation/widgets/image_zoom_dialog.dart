@@ -10,9 +10,8 @@ void showImageZoomDialog(BuildContext context, String path) {
   showDialog<void>(
     context: context,
     barrierColor: AleraTokens.barrierDark,
-    builder: (context) => _ImageZoomOverlay(
-      imageProvider: FileImage(File(path)),
-    ),
+    builder: (context) =>
+        _ImageZoomOverlay(imageProvider: FileImage(File(path))),
   );
 }
 
@@ -33,18 +32,13 @@ void showImageZoomDialogForUri(BuildContext context, Uri uri) {
   showDialog<void>(
     context: context,
     barrierColor: AleraTokens.barrierDark,
-    builder: (context) => _ImageZoomOverlay(
-      imageProvider: provider,
-      externalUrl: externalUrl,
-    ),
+    builder: (context) =>
+        _ImageZoomOverlay(imageProvider: provider, externalUrl: externalUrl),
   );
 }
 
 class _ImageZoomOverlay extends StatelessWidget {
-  const _ImageZoomOverlay({
-    required this.imageProvider,
-    this.externalUrl,
-  });
+  const _ImageZoomOverlay({required this.imageProvider, this.externalUrl});
 
   final ImageProvider imageProvider;
   final Uri? externalUrl;
@@ -87,17 +81,16 @@ class _ImageZoomOverlay extends StatelessWidget {
               children: <Widget>[
                 if (externalUrl != null)
                   Padding(
-                    padding: const EdgeInsets.only(
-                      right: AleraTokens.space8,
-                    ),
+                    padding: const EdgeInsets.only(right: AleraTokens.space8),
                     child: IconButton(
                       onPressed: () => launchUrl(
                         externalUrl!,
                         mode: LaunchMode.externalApplication,
                       ),
                       style: IconButton.styleFrom(
-                        backgroundColor:
-                            AleraTokens.surface.withValues(alpha: 0.6),
+                        backgroundColor: AleraTokens.surface.withValues(
+                          alpha: 0.6,
+                        ),
                         shape: const CircleBorder(),
                       ),
                       icon: const Icon(
@@ -110,8 +103,7 @@ class _ImageZoomOverlay extends StatelessWidget {
                 IconButton(
                   onPressed: () => Navigator.of(context).pop(),
                   style: IconButton.styleFrom(
-                    backgroundColor:
-                        AleraTokens.surface.withValues(alpha: 0.6),
+                    backgroundColor: AleraTokens.surface.withValues(alpha: 0.6),
                     shape: const CircleBorder(),
                   ),
                   icon: const Icon(

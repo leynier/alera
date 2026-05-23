@@ -79,9 +79,7 @@ MarkdownStyleSheet _buildStyleSheet(TextStyle? baseStyle) {
     a: base.copyWith(color: AleraTokens.info),
     tableBorder: TableBorder.all(color: AleraTokens.border),
     horizontalRuleDecoration: BoxDecoration(
-      border: Border(
-        top: BorderSide(color: AleraTokens.border),
-      ),
+      border: Border(top: BorderSide(color: AleraTokens.border)),
     ),
     blockSpacing: AleraTokens.space8,
   );
@@ -98,9 +96,7 @@ final _blockLinePattern = RegExp(
   r'^(?:[-*] |> |#{1,6} |\d+\. |\[[ x]\] |\([ x]\) |```|---+|\|)',
 );
 
-final _listItemStart = RegExp(
-  r'^(?:[-*] |\d+\. |\[[ x]\] |\([ x]\) )',
-);
+final _listItemStart = RegExp(r'^(?:[-*] |\d+\. |\[[ x]\] |\([ x]\) )');
 
 final _tableRowStart = RegExp(r'^\|');
 
@@ -120,35 +116,40 @@ String normalizeMarkdownNewlines(String text) {
   final unclosedFence = work.indexOf('```');
   if (unclosedFence != -1) {
     placeholders.add(work.substring(unclosedFence));
-    work = '${work.substring(0, unclosedFence)}\x00CB${placeholders.length - 1}\x00';
+    work =
+        '${work.substring(0, unclosedFence)}\x00CB${placeholders.length - 1}\x00';
   }
   final paragraphs = work.split('\n\n');
-  final processed = paragraphs.map((paragraph) {
-    final lines = paragraph.split('\n');
-    if (lines.length <= 1) return paragraph;
-    final buf = StringBuffer(lines[0]);
-    for (var i = 1; i < lines.length; i++) {
-      final cur = lines[i].trimLeft();
-      final prev = lines[i - 1].trimLeft();
-      final isTableCur = _tableRowStart.hasMatch(cur);
-      final isBlockCur = _blockLinePattern.hasMatch(cur);
-      final isBlockPrev = _blockLinePattern.hasMatch(prev);
-      final isListPrev = _listItemStart.hasMatch(prev);
-      final isTablePrev = _tableRowStart.hasMatch(prev);
-      if (isTableCur && isTablePrev &&
-          !lines[i - 1].trimRight().endsWith('|')) {
-        buf.write(' ');
-      } else if (isBlockCur) {
-        buf.write('\n');
-      } else if (isBlockPrev && !isListPrev) {
-        buf.write('\n');
-      } else if (!lines[i - 1].endsWith(' ')) {
-        buf.write(' ');
-      }
-      buf.write(lines[i]);
-    }
-    return buf.toString();
-  }).where((p) => p.isNotEmpty).toList();
+  final processed = paragraphs
+      .map((paragraph) {
+        final lines = paragraph.split('\n');
+        if (lines.length <= 1) return paragraph;
+        final buf = StringBuffer(lines[0]);
+        for (var i = 1; i < lines.length; i++) {
+          final cur = lines[i].trimLeft();
+          final prev = lines[i - 1].trimLeft();
+          final isTableCur = _tableRowStart.hasMatch(cur);
+          final isBlockCur = _blockLinePattern.hasMatch(cur);
+          final isBlockPrev = _blockLinePattern.hasMatch(prev);
+          final isListPrev = _listItemStart.hasMatch(prev);
+          final isTablePrev = _tableRowStart.hasMatch(prev);
+          if (isTableCur &&
+              isTablePrev &&
+              !lines[i - 1].trimRight().endsWith('|')) {
+            buf.write(' ');
+          } else if (isBlockCur) {
+            buf.write('\n');
+          } else if (isBlockPrev && !isListPrev) {
+            buf.write('\n');
+          } else if (!lines[i - 1].endsWith(' ')) {
+            buf.write(' ');
+          }
+          buf.write(lines[i]);
+        }
+        return buf.toString();
+      })
+      .where((p) => p.isNotEmpty)
+      .toList();
   final joined = StringBuffer();
   for (var i = 0; i < processed.length; i++) {
     if (i > 0) {
@@ -258,7 +259,9 @@ class MessageCopyButton extends StatelessWidget {
     final bool effectivelyActive = !mouseIsConnected() || active;
     return InkWell(
       onTap: effectivelyActive ? () => _copy(context) : null,
-      mouseCursor: effectivelyActive ? SystemMouseCursors.click : SystemMouseCursors.basic,
+      mouseCursor: effectivelyActive
+          ? SystemMouseCursors.click
+          : SystemMouseCursors.basic,
       borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
       child: Padding(
         padding: const EdgeInsets.symmetric(
@@ -268,7 +271,9 @@ class MessageCopyButton extends StatelessWidget {
         child: Icon(
           Icons.content_copy,
           size: 12,
-          color: effectivelyActive ? AleraTokens.foregroundFaint : Colors.transparent,
+          color: effectivelyActive
+              ? AleraTokens.foregroundFaint
+              : Colors.transparent,
         ),
       ),
     );
@@ -380,8 +385,7 @@ class _MarkdownImageState extends State<_MarkdownImage> {
   bool get _isNetwork =>
       widget.uri.scheme == 'http' || widget.uri.scheme == 'https';
 
-  bool get _isFile =>
-      widget.uri.scheme == '' || widget.uri.scheme == 'file';
+  bool get _isFile => widget.uri.scheme == '' || widget.uri.scheme == 'file';
 
   @override
   Widget build(BuildContext context) {
@@ -413,12 +417,14 @@ class _MarkdownImageState extends State<_MarkdownImage> {
       child: GestureDetector(
         onTap: () => showImageZoomDialogForUri(context, widget.uri),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: AleraTokens.imageMaxWidth, maxHeight: AleraTokens.imageMaxHeight),
+          constraints: const BoxConstraints(
+            maxWidth: AleraTokens.imageMaxWidth,
+            maxHeight: AleraTokens.imageMaxHeight,
+          ),
           child: Stack(
             children: <Widget>[
               ClipRRect(
-                borderRadius:
-                    BorderRadius.circular(AleraTokens.radiusMd),
+                borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
                 child: image,
               ),
               if (_isHovered && _isNetwork)
@@ -435,8 +441,9 @@ class _MarkdownImageState extends State<_MarkdownImage> {
                         mode: LaunchMode.externalApplication,
                       ),
                       style: IconButton.styleFrom(
-                        backgroundColor:
-                            AleraTokens.surface.withValues(alpha: 0.6),
+                        backgroundColor: AleraTokens.surface.withValues(
+                          alpha: 0.6,
+                        ),
                         shape: const CircleBorder(),
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
@@ -506,7 +513,9 @@ class MessageMarkdownToggleButton extends StatelessWidget {
     final bool effectivelyActive = !mouseIsConnected() || active;
     return InkWell(
       onTap: effectivelyActive ? () => onChanged(!markdownEnabled) : null,
-      mouseCursor: effectivelyActive ? SystemMouseCursors.click : SystemMouseCursors.basic,
+      mouseCursor: effectivelyActive
+          ? SystemMouseCursors.click
+          : SystemMouseCursors.basic,
       borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
       child: Padding(
         padding: const EdgeInsets.symmetric(
@@ -516,7 +525,9 @@ class MessageMarkdownToggleButton extends StatelessWidget {
         child: Icon(
           Icons.code,
           size: 13,
-          color: effectivelyActive ? AleraTokens.foregroundFaint : Colors.transparent,
+          color: effectivelyActive
+              ? AleraTokens.foregroundFaint
+              : Colors.transparent,
         ),
       ),
     );

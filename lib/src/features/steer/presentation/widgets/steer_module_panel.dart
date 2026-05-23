@@ -312,7 +312,9 @@ class _RuleItem extends StatelessWidget {
             child: Text(
               rule.label,
               style: theme.textTheme.bodySmall?.copyWith(
-                color: rule.active ? AleraTokens.foreground : AleraTokens.foregroundFaint,
+                color: rule.active
+                    ? AleraTokens.foreground
+                    : AleraTokens.foregroundFaint,
                 decoration: rule.active ? null : TextDecoration.lineThrough,
               ),
               maxLines: 2,

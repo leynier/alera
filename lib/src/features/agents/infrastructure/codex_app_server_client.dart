@@ -12,20 +12,16 @@ final _wsListenRegex = RegExp(r'ws://127\.0\.0\.1:(\d+)');
 
 class CodexAppServerClient {
   CodexAppServerClient({
-    required ProcessRunner processRunner,
-    String executable = 'codex',
-    List<String> arguments = const <String>[
+    required this._processRunner,
+    this._executable = 'codex',
+    this._arguments = const <String>[
       'app-server',
       '--listen',
       'ws://127.0.0.1:0',
     ],
-    String? workingDirectory,
-    Map<String, String>? environment,
-  }) : _processRunner = processRunner,
-       _executable = executable,
-       _arguments = arguments,
-       _workingDirectory = workingDirectory,
-       _environment = environment;
+    this._workingDirectory,
+    this._environment,
+  });
 
   final ProcessRunner _processRunner;
   final String _executable;

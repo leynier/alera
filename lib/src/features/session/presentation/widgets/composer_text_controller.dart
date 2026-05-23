@@ -3,8 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 class ComposerTextController extends TextEditingController {
-  ComposerTextController({String? workspacePath})
-    : _workspacePath = workspacePath;
+  ComposerTextController({this._workspacePath});
 
   String? _workspacePath;
 

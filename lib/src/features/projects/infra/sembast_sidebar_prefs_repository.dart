@@ -22,8 +22,6 @@ class SembastSidebarPrefsRepository {
   }
 
   Future<void> save(SidebarPrefs prefs) async {
-    await AleraStores.sidebarPrefs
-        .record(_recordKey)
-        .put(_db, prefs.toJson());
+    await AleraStores.sidebarPrefs.record(_recordKey).put(_db, prefs.toJson());
   }
 }

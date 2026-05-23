@@ -14,9 +14,7 @@ class SteerState {
 
   // Get only active rules sorted by order.
   List<SteerRule> get activeRules {
-    return rules
-        .where((r) => r.active)
-        .toList(growable: false)
+    return rules.where((r) => r.active).toList(growable: false)
       ..sort((a, b) => a.order.compareTo(b.order));
   }
 

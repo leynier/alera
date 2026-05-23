@@ -53,11 +53,7 @@ class CodeBlockBuilder extends MarkdownElementBuilder {
     return cls.substring('language-'.length);
   }
 
-  static void _buildSpans(
-    Node node,
-    List<TextSpan> out,
-    String? parentClass,
-  ) {
+  static void _buildSpans(Node node, List<TextSpan> out, String? parentClass) {
     final cls = node.className ?? parentClass;
     if (node.value != null) {
       out.add(TextSpan(text: node.value, style: _styleFor(cls)));
@@ -151,18 +147,18 @@ class _CodeBlockWithCopyState extends State<_CodeBlockWithCopy> {
       child: Stack(
         children: <Widget>[
           _ScrollControllerBuilder(
-            builder: (BuildContext ctx, ScrollController controller,
-                Widget? child) {
-              return Scrollbar(
-                controller: controller,
-                child: SingleChildScrollView(
-                  controller: controller,
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.all(AleraTokens.space12),
-                  child: child,
-                ),
-              );
-            },
+            builder:
+                (BuildContext ctx, ScrollController controller, Widget? child) {
+                  return Scrollbar(
+                    controller: controller,
+                    child: SingleChildScrollView(
+                      controller: controller,
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.all(AleraTokens.space12),
+                      child: child,
+                    ),
+                  );
+                },
             child: Text.rich(
               TextSpan(style: AleraTokens.monoStyle, children: widget.spans),
             ),

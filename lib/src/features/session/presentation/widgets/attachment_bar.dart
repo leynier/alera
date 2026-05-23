@@ -69,9 +69,9 @@ class _AttachmentChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space6),
       child: Text(
         attachment.displayName,
-        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-          color: AleraTokens.foregroundMuted,
-        ),
+        style: Theme.of(
+          context,
+        ).textTheme.labelMedium?.copyWith(color: AleraTokens.foregroundMuted),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),

@@ -1180,10 +1180,7 @@ void main() {
         expect(progress, hasLength(1));
         expect(progress.first.markdownText, 'Voy a revisar el README');
         expect(assistant, hasLength(1));
-        expect(
-          assistant.first.markdownText,
-          'El readme.md está en español.',
-        );
+        expect(assistant.first.markdownText, 'El readme.md está en español.');
       },
     );
 

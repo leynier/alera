@@ -9,9 +9,8 @@ import 'package:flutter_riverpod/legacy.dart';
 import 'package:uuid/uuid.dart';
 
 class SteerController extends StateNotifier<SteerState> {
-  SteerController({required StringStore preferencesStore})
-      : _preferencesStore = preferencesStore,
-        super(const SteerState()) {
+  SteerController({required this._preferencesStore})
+    : super(const SteerState()) {
     _loadState();
   }
 
@@ -75,19 +74,23 @@ class SteerController extends StateNotifier<SteerState> {
 
   // Remove a steer rule by id.
   void removeRule(String id) {
-    final updated = state.rules.where((r) => r.id != id).toList(growable: false);
+    final updated = state.rules
+        .where((r) => r.id != id)
+        .toList(growable: false);
     state = state.copyWith(rules: updated);
     unawaited(_saveState());
   }
 
   // Toggle a rule's active state.
   void toggleRule(String id) {
-    final updated = state.rules.map((r) {
-      if (r.id == id) {
-        return r.copyWith(active: !r.active);
-      }
-      return r;
-    }).toList(growable: false);
+    final updated = state.rules
+        .map((r) {
+          if (r.id == id) {
+            return r.copyWith(active: !r.active);
+          }
+          return r;
+        })
+        .toList(growable: false);
     state = state.copyWith(rules: updated);
     unawaited(_saveState());
   }
@@ -105,12 +108,14 @@ class SteerController extends StateNotifier<SteerState> {
     if (exists) {
       return;
     }
-    final updated = state.rules.map((r) {
-      if (r.id == id) {
-        return r.copyWith(label: trimmed);
-      }
-      return r;
-    }).toList(growable: false);
+    final updated = state.rules
+        .map((r) {
+          if (r.id == id) {
+            return r.copyWith(label: trimmed);
+          }
+          return r;
+        })
+        .toList(growable: false);
     state = state.copyWith(rules: updated);
     unawaited(_saveState());
   }
