@@ -16,3 +16,6 @@
 [submodule "reference_projects/superset"]
 	path = reference_projects/superset
 	url = https://github.com/superset-sh/superset
+[submodule "reference_projects/orca"]
+	path = reference_projects/orca
+	url = https://github.com/stablyai/orca
