@@ -1,8 +1,11 @@
 import 'dart:async';
 
 import 'package:alera/src/app/providers.dart';
+import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/projects/application/project_service.dart';
 import 'package:alera/src/features/projects/domain/chat_message.dart';
+import 'package:alera/src/features/projects/presentation/widgets/sidebar_brand_row.dart';
+import 'package:alera/src/features/projects/presentation/widgets/sidebar_search_bar.dart';
 import 'package:sembast/sembast_memory.dart';
 import 'package:alera/src/features/session/application/session_controller.dart';
 import 'package:alera/src/features/session/application/session_runtime_event.dart';
@@ -318,6 +321,68 @@ void main() {
   Future<Database> openMemoryDb() {
     return databaseFactoryMemory.openDatabase('test.db');
   }
+
+  testWidgets('sidebar brand row aligns with top bar height', (tester) async {
+    final (controller, fakeService) = await buildController();
+    addTearDown(() async {
+      await fakeService.shutdown();
+    });
+    await tester.binding.setSurfaceSize(const Size(1600, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await controller.selectWorkspaceFromPath('/repo');
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          aleraDatabaseProvider.overrideWith(
+            (ref) async => await openMemoryDb(),
+          ),
+          sessionControllerProvider.overrideWith((ref) => controller),
+        ],
+        child: const MaterialApp(home: AleraShellPage()),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final topBarRect = tester.getRect(find.byType(AleraTopBar));
+    final sidebarBrandRect = tester.getRect(find.byType(SidebarBrandRow));
+
+    expect(sidebarBrandRect.height, AleraTokens.topBarHeight);
+    expect((sidebarBrandRect.top - topBarRect.top).abs(), lessThan(1.0));
+    expect((sidebarBrandRect.bottom - topBarRect.bottom).abs(), lessThan(1.0));
+  });
+
+  testWidgets('expanded sidebar omits primary new chat action', (tester) async {
+    final (controller, fakeService) = await buildController();
+    addTearDown(() async {
+      await fakeService.shutdown();
+    });
+
+    await controller.selectWorkspaceFromPath('/repo');
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          aleraDatabaseProvider.overrideWith(
+            (ref) async => await openMemoryDb(),
+          ),
+          sessionControllerProvider.overrideWith((ref) => controller),
+        ],
+        child: const MaterialApp(home: AleraShellPage()),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final sidebarBrandRect = tester.getRect(find.byType(SidebarBrandRow));
+    final searchRect = tester.getRect(find.byType(SidebarSearchBar));
+
+    expect(find.text('New chat'), findsNothing);
+    expect(find.byTooltip('Add project'), findsOneWidget);
+    expect((searchRect.top - (sidebarBrandRect.bottom + 1)).abs(), lessThan(1));
+  });
 
   testWidgets(
     'shell renders SessionWorkspaceView when workspace is selected and no active session',
