@@ -78,7 +78,12 @@ class _AcpPlaygroundPageState extends ConsumerState<AcpPlaygroundPage> {
         final processRunner = ref.read(processRunnerProvider);
         final client = CodexAcpClient(processRunner: processRunner);
         orchestrator = AcpAgentOrchestrator(client);
-        await orchestrator.boot();
+        try {
+          await orchestrator.boot();
+        } catch (_) {
+          await orchestrator.close();
+          rethrow;
+        }
         if (!mounted) {
           await orchestrator.close();
           return;

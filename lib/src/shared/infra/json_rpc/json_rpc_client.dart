@@ -65,6 +65,9 @@ class JsonRpcClient {
 
     _stdoutSub = _process!.stdout.listen(_onStdoutChunk, onError: _onIoError);
     _stderrSub = _process!.stderr.listen((data) {
+      if (_closed || _notificationsController.isClosed) {
+        return;
+      }
       _notificationsController.add(<String, dynamic>{
         'jsonrpc': '2.0',
         'method': 'alera.stderr',
@@ -176,8 +179,10 @@ class JsonRpcClient {
     }
     _closed = true;
 
-    await _stdoutSub?.cancel();
-    await _stderrSub?.cancel();
+    final stdoutSub = _stdoutSub;
+    final stderrSub = _stderrSub;
+    _stdoutSub = null;
+    _stderrSub = null;
     _process?.kill();
 
     for (final completer in _pendingRequests.values) {
@@ -187,18 +192,27 @@ class JsonRpcClient {
     }
     _pendingRequests.clear();
 
+    // close() can be called while a stdout callback is settling a failed
+    // request; awaiting that same subscription cancel can deadlock cleanup.
+    unawaited(stdoutSub?.cancel());
+    unawaited(stderrSub?.cancel());
     await _notificationsController.close();
     await _incomingRequestsController.close();
   }
 
   void _onStdoutChunk(List<int> chunk) {
+    if (_closed) {
+      return;
+    }
     try {
       final messages = _framer.addChunk(chunk);
       for (final message in messages) {
         _dispatchMessage(message);
       }
     } catch (error, stackTrace) {
-      _notificationsController.addError(error, stackTrace);
+      if (!_notificationsController.isClosed) {
+        _notificationsController.addError(error, stackTrace);
+      }
     }
   }
 

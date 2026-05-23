@@ -24,10 +24,10 @@ import 'package:path/path.dart' as p;
 ///
 /// `fs/read_text_file` and `fs/write_text_file` requests from the agent are
 /// served against [dart:io] but constrained to the session's working
-/// directory (set by [newSession]/[loadSession]). Absolute paths outside
-/// the cwd, relative paths, and requests received before any session is
-/// established are rejected with `invalidParams`. Symlink-based escapes
-/// are not blocked (closed-beta acceptable limitation).
+/// directory for the request's `sessionId` (set by [newSession]/[loadSession]).
+/// Absolute paths outside the session cwd, relative paths, unknown sessions,
+/// and requests with no `sessionId` are rejected with `invalidParams`.
+/// Symlink-based escapes are not blocked (closed-beta acceptable limitation).
 ///
 /// ## Protocol version
 ///
@@ -59,7 +59,7 @@ class CodexAcpClient {
 
   StreamSubscription<JsonRpcServerRequest>? _fsSub;
   Map<String, dynamic>? _agentCapabilities;
-  String? _cwd;
+  final Map<String, String> _cwdBySessionId = <String, String>{};
   var _started = false;
   var _initialized = false;
 
@@ -142,9 +142,9 @@ class CodexAcpClient {
     return response;
   }
 
-  /// Starts a new ACP session and returns its `sessionId`. Stores the
-  /// resolved absolute cwd on the client so [fs/read_text_file] and
-  /// [fs/write_text_file] can enforce containment.
+  /// Starts a new ACP session and returns its `sessionId`. Stores the resolved
+  /// absolute cwd by session id so delayed [fs/read_text_file] and
+  /// [fs/write_text_file] requests are authorized against their own session.
   Future<String> newSession({required String cwd}) async {
     final response = await _rpc.request(
       'session/new',
@@ -158,7 +158,7 @@ class CodexAcpClient {
     if (sessionId == null || sessionId.isEmpty) {
       throw StateError('session/new returned no sessionId');
     }
-    _cwd = p.normalize(p.absolute(cwd));
+    _cwdBySessionId[sessionId] = p.normalize(p.absolute(cwd));
     return sessionId;
   }
 
@@ -182,7 +182,7 @@ class CodexAcpClient {
     if (resolved == null || resolved.isEmpty) {
       throw StateError('session/load returned no sessionId');
     }
-    _cwd = p.normalize(p.absolute(cwd));
+    _cwdBySessionId[resolved] = p.normalize(p.absolute(cwd));
     return resolved;
   }
 
@@ -348,7 +348,7 @@ class CodexAcpClient {
       );
       return;
     }
-    final containmentError = _containmentError(path);
+    final containmentError = _containmentError(request, path);
     if (containmentError != null) {
       await respondError(
         requestId: request.id,
@@ -408,7 +408,7 @@ class CodexAcpClient {
       );
       return;
     }
-    final containmentError = _containmentError(path);
+    final containmentError = _containmentError(request, path);
     if (containmentError != null) {
       await respondError(
         requestId: request.id,
@@ -432,13 +432,18 @@ class CodexAcpClient {
   }
 
   /// Returns a human-readable error message when `requested` does not point
-  /// inside the active session cwd, otherwise `null`. Rejects relative paths,
-  /// non-absolute paths, and anything that lexically escapes the cwd.
+  /// inside the request's session cwd, otherwise `null`. Rejects relative paths,
+  /// non-absolute paths, unknown sessions, and anything that lexically escapes
+  /// the cwd.
   /// Symlink-based escapes are not blocked (documented limitation).
-  String? _containmentError(String requested) {
-    final cwd = _cwd;
+  String? _containmentError(JsonRpcServerRequest request, String requested) {
+    final sessionId = _stringOrNull(request.params['sessionId']);
+    if (sessionId == null) {
+      return 'fs request requires a non-empty "sessionId"';
+    }
+    final cwd = _cwdBySessionId[sessionId];
     if (cwd == null) {
-      return 'fs request received before a session was established';
+      return 'fs request received for unknown session: $sessionId';
     }
     if (!p.isAbsolute(requested)) {
       return 'fs path must be absolute: $requested';

@@ -50,27 +50,29 @@ void main() {
       expect(event.options.last.name, 'Use custom approval');
     });
 
-    test('falls back to sentence-case labels for options without names',
-        () async {
-      final harness = await _bootedHarness();
+    test(
+      'falls back to sentence-case labels for options without names',
+      () async {
+        final harness = await _bootedHarness();
 
-      final eventFuture = _firstApprovalEvent(harness.orchestrator);
-      harness.process.sendServerRequest(<String, dynamic>{
-        'jsonrpc': '2.0',
-        'id': 2,
-        'method': 'session/request_permission',
-        'params': <String, dynamic>{
-          'options': <Map<String, dynamic>>[
-            <String, dynamic>{'optionId': 'allow_always'},
-          ],
-        },
-      });
+        final eventFuture = _firstApprovalEvent(harness.orchestrator);
+        harness.process.sendServerRequest(<String, dynamic>{
+          'jsonrpc': '2.0',
+          'id': 2,
+          'method': 'session/request_permission',
+          'params': <String, dynamic>{
+            'options': <Map<String, dynamic>>[
+              <String, dynamic>{'optionId': 'allow_always'},
+            ],
+          },
+        });
 
-      final event = await eventFuture.timeout(const Duration(seconds: 1));
+        final event = await eventFuture.timeout(const Duration(seconds: 1));
 
-      expect(event.options.single.optionId, 'allow_always');
-      expect(event.options.single.name, 'Allow always');
-    });
+        expect(event.options.single.optionId, 'allow_always');
+        expect(event.options.single.name, 'Allow always');
+      },
+    );
 
     test('preserves opaque identifiers byte-for-byte (no trimming)', () async {
       final harness = await _bootedHarness();
@@ -94,12 +96,21 @@ void main() {
 
       final event = await eventFuture.timeout(const Duration(seconds: 1));
 
-      expect(event.threadId, '  s-with-padding  ',
-          reason: 'sessionId is opaque and must not be trimmed');
-      expect(event.options.single.optionId, '  allow  ',
-          reason: 'optionId is opaque and must not be trimmed');
-      expect(event.options.single.name, 'Allow this once',
-          reason: 'name is human-readable and is trimmed');
+      expect(
+        event.threadId,
+        '  s-with-padding  ',
+        reason: 'sessionId is opaque and must not be trimmed',
+      );
+      expect(
+        event.options.single.optionId,
+        '  allow  ',
+        reason: 'optionId is opaque and must not be trimmed',
+      );
+      expect(
+        event.options.single.name,
+        'Allow this once',
+        reason: 'name is human-readable and is trimmed',
+      );
       expect(event.options.single.kind, 'allow_once');
     });
 
@@ -132,24 +143,26 @@ void main() {
   });
 
   group('AcpAgentOrchestrator request routing', () {
-    test('responds methodNotFound for unknown server-initiated requests',
-        () async {
-      final harness = await _bootedHarness();
+    test(
+      'responds methodNotFound for unknown server-initiated requests',
+      () async {
+        final harness = await _bootedHarness();
 
-      harness.process.sendServerRequest(<String, dynamic>{
-        'jsonrpc': '2.0',
-        'id': 'unknown-1',
-        'method': 'session/totally_new',
-        'params': <String, dynamic>{},
-      });
+        harness.process.sendServerRequest(<String, dynamic>{
+          'jsonrpc': '2.0',
+          'id': 'unknown-1',
+          'method': 'session/totally_new',
+          'params': <String, dynamic>{},
+        });
 
-      final response = await harness.process
-          .responseFor('unknown-1')
-          .timeout(const Duration(seconds: 1));
+        final response = await harness.process
+            .responseFor('unknown-1')
+            .timeout(const Duration(seconds: 1));
 
-      expect(response['error'], isA<Map>());
-      expect((response['error'] as Map)['code'], jsonRpcMethodNotFound);
-    });
+        expect(response['error'], isA<Map>());
+        expect((response['error'] as Map)['code'], jsonRpcMethodNotFound);
+      },
+    );
 
     test('responds methodNotFound for unknown fs/* subcommands', () async {
       final harness = await _bootedHarness();
@@ -168,56 +181,60 @@ void main() {
       expect((response['error'] as Map)['code'], jsonRpcMethodNotFound);
     });
 
-    test('subscriptions receive events emitted before initialize completes',
-        () async {
-      final processRunner = _FakeAcpProcessRunner();
-      final client =
-          CodexAcpClient(processRunner: processRunner, executable: 'codex-acp');
-      final orchestrator = AcpAgentOrchestrator(client);
-      addTearDown(orchestrator.close);
+    test(
+      'subscriptions receive events emitted before initialize completes',
+      () async {
+        final processRunner = _FakeAcpProcessRunner();
+        final client = CodexAcpClient(
+          processRunner: processRunner,
+          executable: 'codex-acp',
+        );
+        final orchestrator = AcpAgentOrchestrator(client);
+        addTearDown(orchestrator.close);
 
-      // Make initialize block until we explicitly release it, AND emit a
-      // server-initiated notification in the meantime.
-      processRunner.process.holdInitialize = true;
+        // Make initialize block until we explicitly release it, AND emit a
+        // server-initiated notification in the meantime.
+        processRunner.process.holdInitialize = true;
 
-      final bootFuture = orchestrator.boot();
+        final bootFuture = orchestrator.boot();
 
-      // Allow the orchestrator's listeners to attach. (boot subscribes
-      // BEFORE calling initialize.)
-      await Future<void>.delayed(Duration.zero);
+        // Allow the orchestrator's listeners to attach. (boot subscribes
+        // BEFORE calling initialize.)
+        await Future<void>.delayed(Duration.zero);
 
-      processRunner.process.sendServerRequest(<String, dynamic>{
-        'jsonrpc': '2.0',
-        'method': 'session/update',
-        'params': <String, dynamic>{'sessionId': 'session-9'},
-      });
+        processRunner.process.sendServerRequest(<String, dynamic>{
+          'jsonrpc': '2.0',
+          'method': 'session/update',
+          'params': <String, dynamic>{'sessionId': 'session-9'},
+        });
 
-      // Allow the notification to be delivered before initialize completes.
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+        // Allow the notification to be delivered before initialize completes.
+        await Future<void>.delayed(const Duration(milliseconds: 10));
 
-      processRunner.process.releaseInitialize();
-      await bootFuture.timeout(const Duration(seconds: 1));
+        processRunner.process.releaseInitialize();
+        await bootFuture.timeout(const Duration(seconds: 1));
 
-      // The orchestrator's events stream is broadcast; subscribe now and
-      // verify the buffered notification was emitted. We re-emit a second
-      // event after subscribing and ensure both shapes work.
-      final received = <String>[];
-      final sub = orchestrator.events.listen((event) {
-        if (event is AgentNotificationEvent) {
-          received.add(event.method);
-        }
-      });
-      addTearDown(sub.cancel);
+        // The orchestrator's events stream is broadcast; subscribe now and
+        // verify the buffered notification was emitted. We re-emit a second
+        // event after subscribing and ensure both shapes work.
+        final received = <String>[];
+        final sub = orchestrator.events.listen((event) {
+          if (event is AgentNotificationEvent) {
+            received.add(event.method);
+          }
+        });
+        addTearDown(sub.cancel);
 
-      processRunner.process.sendServerRequest(<String, dynamic>{
-        'jsonrpc': '2.0',
-        'method': 'session/update',
-        'params': <String, dynamic>{'sessionId': 'session-9', 'after': true},
-      });
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+        processRunner.process.sendServerRequest(<String, dynamic>{
+          'jsonrpc': '2.0',
+          'method': 'session/update',
+          'params': <String, dynamic>{'sessionId': 'session-9', 'after': true},
+        });
+        await Future<void>.delayed(const Duration(milliseconds: 10));
 
-      expect(received, contains('session/update'));
-    });
+        expect(received, contains('session/update'));
+      },
+    );
   });
 
   group('AcpAgentOrchestrator boot lifecycle', () {
@@ -227,8 +244,11 @@ void main() {
       // Tracking the number of `initialize` messages the fake observed.
       final initialCount = harness.process.initializeCount;
       await harness.orchestrator.boot();
-      expect(harness.process.initializeCount, initialCount,
-          reason: 'second boot must not re-send initialize');
+      expect(
+        harness.process.initializeCount,
+        initialCount,
+        reason: 'second boot must not re-send initialize',
+      );
     });
 
     test('boot reattaches no subscriptions on second call', () async {
@@ -250,118 +270,157 @@ void main() {
 
       // Give it a chance to incorrectly fire a second response.
       await Future<void>.delayed(const Duration(milliseconds: 30));
-      expect(harness.process.respondedToIds['idempotent-1'], 1,
-          reason: 'duplicate listeners would write two responses');
+      expect(
+        harness.process.respondedToIds['idempotent-1'],
+        1,
+        reason: 'duplicate listeners would write two responses',
+      );
+    });
+
+    test('close kills process after initialize failure', () async {
+      final processRunner = _FakeAcpProcessRunner();
+      processRunner.process.initializeError = <String, dynamic>{
+        'code': -32000,
+        'message': 'initialize failed',
+      };
+      final client = CodexAcpClient(
+        processRunner: processRunner,
+        executable: 'codex-acp',
+      );
+      final orchestrator = AcpAgentOrchestrator(client);
+
+      await expectLater(orchestrator.boot(), throwsA(isA<StateError>()));
+      await orchestrator.close();
+
+      expect(processRunner.process.killCount, 1);
     });
   });
 
   group('AcpAgentOrchestrator unsupported gaps', () {
-    test('startReview returns a rejected Future, not a synchronous throw',
-        () async {
-      final processRunner = _FakeAcpProcessRunner();
-      final client =
-          CodexAcpClient(processRunner: processRunner, executable: 'codex-acp');
-      final orchestrator = AcpAgentOrchestrator(client);
-      addTearDown(orchestrator.close);
+    test(
+      'startReview returns a rejected Future, not a synchronous throw',
+      () async {
+        final processRunner = _FakeAcpProcessRunner();
+        final client = CodexAcpClient(
+          processRunner: processRunner,
+          executable: 'codex-acp',
+        );
+        final orchestrator = AcpAgentOrchestrator(client);
+        addTearDown(orchestrator.close);
 
-      await expectLater(
-        orchestrator.startReview(),
-        throwsA(isA<UnsupportedError>()),
-      );
-      await expectLater(
-        orchestrator.compactThread(),
-        throwsA(isA<UnsupportedError>()),
-      );
-      await expectLater(
-        orchestrator.setThreadName(),
-        throwsA(isA<UnsupportedError>()),
-      );
-      await expectLater(
-        orchestrator.steerTurn(),
-        throwsA(isA<UnsupportedError>()),
-      );
-    });
+        await expectLater(
+          orchestrator.startReview(),
+          throwsA(isA<UnsupportedError>()),
+        );
+        await expectLater(
+          orchestrator.compactThread(),
+          throwsA(isA<UnsupportedError>()),
+        );
+        await expectLater(
+          orchestrator.setThreadName(),
+          throwsA(isA<UnsupportedError>()),
+        );
+        await expectLater(
+          orchestrator.steerTurn(),
+          throwsA(isA<UnsupportedError>()),
+        );
+      },
+    );
   });
 
   group('AcpAgentOrchestrator runTurn', () {
-    test('emits Codex-shape turn/started + turn/completed and awaits the prompt',
-        () async {
-      final harness = await _bootedHarness();
-      harness.process.promptStopReason = 'tool_use_limit';
+    test(
+      'emits Codex-shape turn/started + turn/completed and awaits the prompt',
+      () async {
+        final harness = await _bootedHarness();
+        harness.process.promptStopReason = 'tool_use_limit';
 
-      final completedFuture = harness.orchestrator.events
-          .where((e) =>
-              e is AgentNotificationEvent && e.method == 'turn/completed')
-          .cast<AgentNotificationEvent>()
-          .first;
-      final startedFuture = harness.orchestrator.events
-          .where(
-              (e) => e is AgentNotificationEvent && e.method == 'turn/started')
-          .cast<AgentNotificationEvent>()
-          .first;
+        final completedFuture = harness.orchestrator.events
+            .where(
+              (e) =>
+                  e is AgentNotificationEvent && e.method == 'turn/completed',
+            )
+            .cast<AgentNotificationEvent>()
+            .first;
+        final startedFuture = harness.orchestrator.events
+            .where(
+              (e) => e is AgentNotificationEvent && e.method == 'turn/started',
+            )
+            .cast<AgentNotificationEvent>()
+            .first;
 
-      final turnId = await harness.orchestrator.runTurn(
-        threadId: 'thread-x',
-        input: const <Map<String, dynamic>>[
-          <String, dynamic>{'type': 'text', 'text': 'hello'},
-        ],
-      );
-
-      final started = await startedFuture.timeout(const Duration(seconds: 1));
-      final completed =
-          await completedFuture.timeout(const Duration(seconds: 1));
-
-      final startedTurn = (started.payload['params']
-          as Map<String, dynamic>)['turn'] as Map<String, dynamic>;
-      expect(startedTurn['id'], turnId);
-      expect(startedTurn['threadId'], 'thread-x');
-      expect(startedTurn['status'], 'started');
-
-      final completedTurn = (completed.payload['params']
-          as Map<String, dynamic>)['turn'] as Map<String, dynamic>;
-      expect(completedTurn['id'], turnId);
-      expect(completedTurn['threadId'], 'thread-x');
-      expect(completedTurn['status'], 'completed');
-      expect(completedTurn['stopReason'], 'tool_use_limit');
-    });
-
-    test('runTurn rethrows when session/prompt fails, AND emits turn/failed',
-        () async {
-      final harness = await _bootedHarness();
-      harness.process.promptError = <String, dynamic>{
-        'code': -32000,
-        'message': 'agent rejected the prompt',
-      };
-
-      final failedFuture = harness.orchestrator.events
-          .where(
-              (e) => e is AgentNotificationEvent && e.method == 'turn/failed')
-          .cast<AgentNotificationEvent>()
-          .first;
-
-      await expectLater(
-        harness.orchestrator.runTurn(
-          threadId: 'thread-fail',
+        final turnId = await harness.orchestrator.runTurn(
+          threadId: 'thread-x',
           input: const <Map<String, dynamic>>[
-            <String, dynamic>{'type': 'text', 'text': 'boom'},
+            <String, dynamic>{'type': 'text', 'text': 'hello'},
           ],
-        ),
-        throwsA(isA<Object>()),
-      );
+        );
 
-      final failed = await failedFuture.timeout(const Duration(seconds: 1));
-      final turn = (failed.payload['params'] as Map<String, dynamic>)['turn']
-          as Map<String, dynamic>;
-      expect(turn['status'], 'failed');
-      expect(turn['error'], contains('agent rejected the prompt'));
-    });
+        final started = await startedFuture.timeout(const Duration(seconds: 1));
+        final completed = await completedFuture.timeout(
+          const Duration(seconds: 1),
+        );
+
+        final startedTurn =
+            (started.payload['params'] as Map<String, dynamic>)['turn']
+                as Map<String, dynamic>;
+        expect(startedTurn['id'], turnId);
+        expect(startedTurn['threadId'], 'thread-x');
+        expect(startedTurn['status'], 'started');
+
+        final completedTurn =
+            (completed.payload['params'] as Map<String, dynamic>)['turn']
+                as Map<String, dynamic>;
+        expect(completedTurn['id'], turnId);
+        expect(completedTurn['threadId'], 'thread-x');
+        expect(completedTurn['status'], 'completed');
+        expect(completedTurn['stopReason'], 'tool_use_limit');
+      },
+    );
+
+    test(
+      'runTurn rethrows when session/prompt fails, AND emits turn/failed',
+      () async {
+        final harness = await _bootedHarness();
+        harness.process.promptError = <String, dynamic>{
+          'code': -32000,
+          'message': 'agent rejected the prompt',
+        };
+
+        final failedFuture = harness.orchestrator.events
+            .where(
+              (e) => e is AgentNotificationEvent && e.method == 'turn/failed',
+            )
+            .cast<AgentNotificationEvent>()
+            .first;
+
+        await expectLater(
+          harness.orchestrator.runTurn(
+            threadId: 'thread-fail',
+            input: const <Map<String, dynamic>>[
+              <String, dynamic>{'type': 'text', 'text': 'boom'},
+            ],
+          ),
+          throwsA(isA<Object>()),
+        );
+
+        final failed = await failedFuture.timeout(const Duration(seconds: 1));
+        final turn =
+            (failed.payload['params'] as Map<String, dynamic>)['turn']
+                as Map<String, dynamic>;
+        expect(turn['status'], 'failed');
+        expect(turn['error'], contains('agent rejected the prompt'));
+      },
+    );
   });
 
   group('CodexAcpClient response coercion', () {
     test('non-String sessionId from session/new throws StateError', () async {
       final processRunner = _FakeAcpProcessRunner();
-      final client =
-          CodexAcpClient(processRunner: processRunner, executable: 'codex-acp');
+      final client = CodexAcpClient(
+        processRunner: processRunner,
+        executable: 'codex-acp',
+      );
       addTearDown(client.close);
 
       processRunner.process.sessionIdForNew = 12345; // numeric, not string
@@ -376,8 +435,10 @@ void main() {
 
     test('loadSession throws when agent returns no sessionId', () async {
       final processRunner = _FakeAcpProcessRunner();
-      final client =
-          CodexAcpClient(processRunner: processRunner, executable: 'codex-acp');
+      final client = CodexAcpClient(
+        processRunner: processRunner,
+        executable: 'codex-acp',
+      );
       addTearDown(client.close);
 
       processRunner.process.omitSessionIdForLoad = true;
@@ -385,10 +446,7 @@ void main() {
       await client.initialize();
 
       await expectLater(
-        client.loadSession(
-          sessionId: 'old',
-          cwd: Directory.systemTemp.path,
-        ),
+        client.loadSession(sessionId: 'old', cwd: Directory.systemTemp.path),
         throwsA(isA<StateError>()),
       );
     });
@@ -407,8 +465,10 @@ void main() {
         await client.start();
         await client.initialize();
 
-        final stopReason =
-            await client.prompt(sessionId: 's', content: <Map<String, dynamic>>[]);
+        final stopReason = await client.prompt(
+          sessionId: 's',
+          content: <Map<String, dynamic>>[],
+        );
         expect(stopReason, 'end_turn');
       },
     );
@@ -436,6 +496,7 @@ void main() {
         'id': 'fs-escape',
         'method': 'fs/write_text_file',
         'params': <String, dynamic>{
+          'sessionId': 'session-1',
           'path': '/etc/escape-test.txt',
           'content': 'nope',
         },
@@ -466,7 +527,10 @@ void main() {
         'jsonrpc': '2.0',
         'id': 'fs-relative',
         'method': 'fs/read_text_file',
-        'params': <String, dynamic>{'path': 'relative.txt'},
+        'params': <String, dynamic>{
+          'sessionId': 'session-1',
+          'path': 'relative.txt',
+        },
       });
       final response = await processRunner.process
           .responseFor('fs-relative')
@@ -490,7 +554,10 @@ void main() {
         'jsonrpc': '2.0',
         'id': 'fs-no-session',
         'method': 'fs/read_text_file',
-        'params': <String, dynamic>{'path': '/tmp/file.txt'},
+        'params': <String, dynamic>{
+          'sessionId': 'session-1',
+          'path': '/tmp/file.txt',
+        },
       });
       final response = await processRunner.process
           .responseFor('fs-no-session')
@@ -520,13 +587,81 @@ void main() {
         'jsonrpc': '2.0',
         'id': 'fs-inside',
         'method': 'fs/read_text_file',
-        'params': <String, dynamic>{'path': file.path},
+        'params': <String, dynamic>{
+          'sessionId': 'session-1',
+          'path': file.path,
+        },
       });
       final response = await processRunner.process
           .responseFor('fs-inside')
           .timeout(const Duration(seconds: 1));
 
       expect(response['result'], <String, dynamic>{'content': 'hello\nworld'});
+    });
+
+    test('authorizes fs requests against their own session cwd', () async {
+      final firstDir = await Directory.systemTemp.createTemp(
+        'alera_acp_first_',
+      );
+      final secondDir = await Directory.systemTemp.createTemp(
+        'alera_acp_second_',
+      );
+      addTearDown(() => firstDir.delete(recursive: true));
+      addTearDown(() => secondDir.delete(recursive: true));
+      final firstFile = File('${firstDir.path}/first.txt');
+      final secondFile = File('${secondDir.path}/second.txt');
+      await firstFile.writeAsString('first');
+      await secondFile.writeAsString('second');
+
+      final processRunner = _FakeAcpProcessRunner();
+      final client = CodexAcpClient(
+        processRunner: processRunner,
+        executable: 'codex-acp',
+      );
+      addTearDown(client.close);
+
+      await client.start();
+      await client.initialize();
+      processRunner.process.sessionIdForNew = 'session-1';
+      await client.newSession(cwd: firstDir.path);
+      processRunner.process.sessionIdForNew = 'session-2';
+      await client.newSession(cwd: secondDir.path);
+
+      processRunner.process.sendServerRequest(<String, dynamic>{
+        'jsonrpc': '2.0',
+        'id': 'session-1-read',
+        'method': 'fs/read_text_file',
+        'params': <String, dynamic>{
+          'sessionId': 'session-1',
+          'path': firstFile.path,
+        },
+      });
+      var response = await processRunner.process.responseFor('session-1-read');
+      expect(response['result'], <String, dynamic>{'content': 'first'});
+
+      processRunner.process.sendServerRequest(<String, dynamic>{
+        'jsonrpc': '2.0',
+        'id': 'session-1-escape',
+        'method': 'fs/read_text_file',
+        'params': <String, dynamic>{
+          'sessionId': 'session-1',
+          'path': secondFile.path,
+        },
+      });
+      response = await processRunner.process.responseFor('session-1-escape');
+      expect((response['error'] as Map)['code'], jsonRpcInvalidParams);
+
+      processRunner.process.sendServerRequest(<String, dynamic>{
+        'jsonrpc': '2.0',
+        'id': 'session-2-read',
+        'method': 'fs/read_text_file',
+        'params': <String, dynamic>{
+          'sessionId': 'session-2',
+          'path': secondFile.path,
+        },
+      });
+      response = await processRunner.process.responseFor('session-2-read');
+      expect(response['result'], <String, dynamic>{'content': 'second'});
     });
   });
 
@@ -552,7 +687,12 @@ void main() {
         'jsonrpc': '2.0',
         'id': 3,
         'method': 'fs/read_text_file',
-        'params': <String, dynamic>{'path': file.path, 'line': 1, 'limit': 1},
+        'params': <String, dynamic>{
+          'sessionId': 'session-1',
+          'path': file.path,
+          'line': 1,
+          'limit': 1,
+        },
       });
       var response = await processRunner.process.responseFor(3);
       expect(response['result'], <String, dynamic>{'content': 'one'});
@@ -561,7 +701,12 @@ void main() {
         'jsonrpc': '2.0',
         'id': 4,
         'method': 'fs/read_text_file',
-        'params': <String, dynamic>{'path': file.path, 'line': 2, 'limit': 2},
+        'params': <String, dynamic>{
+          'sessionId': 'session-1',
+          'path': file.path,
+          'line': 2,
+          'limit': 2,
+        },
       });
       response = await processRunner.process.responseFor(4);
       expect(response['result'], <String, dynamic>{'content': 'two\nthree'});
@@ -589,6 +734,7 @@ void main() {
         'id': 'double-line',
         'method': 'fs/read_text_file',
         'params': <String, dynamic>{
+          'sessionId': 'session-1',
           'path': file.path,
           'line': 2.0,
           'limit': 2.0,
@@ -619,7 +765,11 @@ void main() {
         'jsonrpc': '2.0',
         'id': 'bad-line',
         'method': 'fs/read_text_file',
-        'params': <String, dynamic>{'path': file.path, 'line': 0},
+        'params': <String, dynamic>{
+          'sessionId': 'session-1',
+          'path': file.path,
+          'line': 0,
+        },
       });
       final response = await processRunner.process.responseFor('bad-line');
       expect((response['error'] as Map)['code'], jsonRpcInvalidParams);
@@ -646,7 +796,11 @@ void main() {
         'jsonrpc': '2.0',
         'id': 'bad-limit',
         'method': 'fs/read_text_file',
-        'params': <String, dynamic>{'path': file.path, 'limit': -1},
+        'params': <String, dynamic>{
+          'sessionId': 'session-1',
+          'path': file.path,
+          'limit': -1,
+        },
       });
       final response = await processRunner.process.responseFor('bad-limit');
       expect((response['error'] as Map)['code'], jsonRpcInvalidParams);
@@ -673,7 +827,11 @@ void main() {
         'jsonrpc': '2.0',
         'id': 5,
         'method': 'fs/read_text_file',
-        'params': <String, dynamic>{'path': file.path, 'limit': 2},
+        'params': <String, dynamic>{
+          'sessionId': 'session-1',
+          'path': file.path,
+          'limit': 2,
+        },
       });
       final response = await processRunner.process.responseFor(5);
       expect(response['result'], <String, dynamic>{'content': 'one\ntwo'});
@@ -692,8 +850,10 @@ class _Harness {
 
 Future<_Harness> _bootedHarness() async {
   final processRunner = _FakeAcpProcessRunner();
-  final client =
-      CodexAcpClient(processRunner: processRunner, executable: 'codex-acp');
+  final client = CodexAcpClient(
+    processRunner: processRunner,
+    executable: 'codex-acp',
+  );
   final orchestrator = AcpAgentOrchestrator(client);
   addTearDown(orchestrator.close);
   await orchestrator.boot();
@@ -750,10 +910,12 @@ class _FakeAcpProcess {
 
   /// Counts initialize requests received.
   int initializeCount = 0;
+  int killCount = 0;
 
   /// If true, hold the initialize response until [releaseInitialize] is
   /// called. Useful to verify subscriptions are attached before initialize.
   bool holdInitialize = false;
+  Map<String, dynamic>? initializeError;
   Map<String, dynamic>? _pendingInitialize;
 
   /// Customizable behavior for the session/prompt response.
@@ -768,20 +930,21 @@ class _FakeAcpProcess {
   String _stdinBuffer = '';
 
   StartedProcess get startedProcess => StartedProcess(
-        stdinWrite: _stdinWrite,
-        stdout: _stdout.stream,
-        stderr: _stderr.stream,
-        pid: 1001,
-        exitCode: _exitCode.future,
-        kill: ([signal]) {
-          if (!_exitCode.isCompleted) {
-            _exitCode.complete(0);
-          }
-          unawaited(_stdout.close());
-          unawaited(_stderr.close());
-          return true;
-        },
-      );
+    stdinWrite: _stdinWrite,
+    stdout: _stdout.stream,
+    stderr: _stderr.stream,
+    pid: 1001,
+    exitCode: _exitCode.future,
+    kill: ([signal]) {
+      killCount++;
+      if (!_exitCode.isCompleted) {
+        _exitCode.complete(0);
+      }
+      unawaited(_stdout.close());
+      unawaited(_stderr.close());
+      return true;
+    },
+  );
 
   Future<Map<String, dynamic>> responseFor(Object id) {
     final completer = _responseWaiters.putIfAbsent(
@@ -824,6 +987,15 @@ class _FakeAcpProcess {
 
     if (method == 'initialize') {
       initializeCount++;
+      final error = initializeError;
+      if (error != null) {
+        sendServerRequest(<String, dynamic>{
+          'jsonrpc': '2.0',
+          'id': id,
+          'error': error,
+        });
+        return;
+      }
       final response = <String, dynamic>{
         'jsonrpc': '2.0',
         'id': id,
