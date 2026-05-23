@@ -144,12 +144,48 @@ class _AcpPlaygroundPageState extends ConsumerState<AcpPlaygroundPage> {
     if (orchestrator == null || sessionId == null) {
       return;
     }
+    final cancelledApprovals = await _cancelPendingApprovals(orchestrator);
     try {
       await orchestrator.interrupt(threadId: sessionId);
-      _logLocal('Cancel requested.');
+      if (cancelledApprovals == 0) {
+        _logLocal('Cancel requested.');
+      } else {
+        final requestLabel = cancelledApprovals == 1 ? 'request' : 'requests';
+        _logLocal(
+          'Cancel requested. Cancelled $cancelledApprovals pending permission $requestLabel.',
+        );
+      }
     } catch (error) {
       _logLocal('Cancel failed: $error');
     }
+  }
+
+  Future<int> _cancelPendingApprovals(AcpAgentOrchestrator orchestrator) async {
+    final pending = List<_PendingApproval>.of(_approvals);
+    if (pending.isEmpty) {
+      return 0;
+    }
+    if (mounted) {
+      setState(() => _approvals.clear());
+    }
+
+    final failed = <_PendingApproval>[];
+    for (final approval in pending) {
+      try {
+        await orchestrator.declineRequest(approval.requestId);
+      } catch (error) {
+        failed.add(approval);
+        _logLocal(
+          'Failed to cancel permission request for ${approval.description}: $error',
+        );
+      }
+    }
+
+    if (mounted && failed.isNotEmpty) {
+      setState(() => _approvals.addAll(failed));
+    }
+
+    return pending.length - failed.length;
   }
 
   Future<void> _approve(_PendingApproval approval, String optionId) async {
