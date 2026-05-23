@@ -23,6 +23,7 @@ class AcpAgentOrchestrator {
 
   StreamSubscription<Map<String, dynamic>>? _notificationSub;
   StreamSubscription<JsonRpcServerRequest>? _requestSub;
+  var _closed = false;
 
   Stream<AgentOrchestratorEvent> get events => _eventsController.stream;
 
@@ -68,7 +69,7 @@ class AcpAgentOrchestrator {
           .prompt(sessionId: threadId, content: input)
           .then(
             (stopReason) {
-              _eventsController.add(
+              _emit(
                 AgentNotificationEvent(
                   method: 'turn/completed',
                   payload: <String, dynamic>{
@@ -83,7 +84,7 @@ class AcpAgentOrchestrator {
               );
             },
             onError: (Object error) {
-              _eventsController.add(
+              _emit(
                 AgentNotificationEvent(
                   method: 'turn/failed',
                   payload: <String, dynamic>{
@@ -119,10 +120,18 @@ class AcpAgentOrchestrator {
   }
 
   Future<void> close() async {
+    if (_closed) {
+      return;
+    }
+    _closed = true;
+
     await _notificationSub?.cancel();
     await _requestSub?.cancel();
-    await _eventsController.close();
-    await _client.close();
+    try {
+      await _client.close();
+    } finally {
+      await _eventsController.close();
+    }
   }
 
   // ACP gaps — preserved for surface parity with AgentOrchestrator. Calls land
@@ -154,14 +163,12 @@ class AcpAgentOrchestrator {
     if (method is! String) {
       return;
     }
-    _eventsController.add(
-      AgentNotificationEvent(method: method, payload: payload),
-    );
+    _emit(AgentNotificationEvent(method: method, payload: payload));
   }
 
   void _handleIncomingRequest(JsonRpcServerRequest request) {
     if (request.method == 'session/request_permission') {
-      _eventsController.add(
+      _emit(
         AgentApprovalRequestEvent(
           requestId: request.id,
           method: request.method,
@@ -180,7 +187,7 @@ class AcpAgentOrchestrator {
     }
 
     // Anything else surfaces as a generic notification so the UI can log it.
-    _eventsController.add(
+    _emit(
       AgentNotificationEvent(
         method: request.method,
         payload: <String, dynamic>{
@@ -190,6 +197,13 @@ class AcpAgentOrchestrator {
         },
       ),
     );
+  }
+
+  void _emit(AgentOrchestratorEvent event) {
+    if (_closed || _eventsController.isClosed) {
+      return;
+    }
+    _eventsController.add(event);
   }
 
   String _describePermission(Map<String, dynamic> params) {

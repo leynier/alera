@@ -29,6 +29,8 @@ class CodexAcpClient {
          workingDirectory: workingDirectory,
          environment: environment,
        ),
+       // Keep the public parameter name instead of exposing a private named arg.
+       // ignore: prefer_initializing_formals
        _protocolVersion = protocolVersion;
 
   final JsonRpcClient _rpc;

@@ -90,6 +90,37 @@ void main() {
         await orchestrator.close();
       },
     );
+
+    test(
+      'does not emit turn completion after close cancels pending prompt',
+      () async {
+        final processRunner = _FakeAcpProcessRunner();
+        final client = CodexAcpClient(processRunner: processRunner);
+        final orchestrator = AcpAgentOrchestrator(client);
+        final events = <AgentOrchestratorEvent>[];
+
+        await orchestrator.boot();
+
+        final subscription = orchestrator.events.listen(events.add);
+        await orchestrator.runTurn(
+          threadId: 'session-1',
+          input: const <Map<String, dynamic>>[
+            <String, dynamic>{'type': 'text', 'text': 'hello'},
+          ],
+        );
+
+        await orchestrator.close();
+        await Future<void>.delayed(Duration.zero);
+        await subscription.cancel();
+
+        expect(
+          events.whereType<AgentNotificationEvent>().map(
+            (event) => event.method,
+          ),
+          isNot(contains('turn/failed')),
+        );
+      },
+    );
   });
 
   group('CodexAcpClient fs/read_text_file', () {
