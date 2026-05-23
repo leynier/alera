@@ -57,9 +57,7 @@ class DiffViewerDialog extends StatelessWidget {
           children: <Widget>[
             _DiffHeader(diff: diff),
             const Divider(height: 1, color: AleraTokens.border),
-            Expanded(
-              child: _DiffBody(lines: lines),
-            ),
+            Expanded(child: _DiffBody(lines: lines)),
           ],
         ),
       ),

@@ -245,13 +245,10 @@ class _ShellFakeSettingsService implements SettingsService {
   _ShellFakeSettingsService(
     this._selectedModel,
     this._selectedReasoningEffort,
-    this._markdownEnabled, {
-    String selectedSpeedMode = 'normal',
-    bool planModeEnabled = false,
-    PermissionMode permissionMode = PermissionMode.defaultMode,
-  }) : _selectedSpeedMode = selectedSpeedMode,
-       _planModeEnabled = planModeEnabled,
-       _permissionMode = permissionMode;
+    this._markdownEnabled,
+  ) : _planModeEnabled = false,
+      _selectedSpeedMode = 'normal',
+      _permissionMode = PermissionMode.defaultMode;
 
   String _selectedModel;
   String _selectedReasoningEffort;
@@ -408,8 +405,13 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
+      final composerTextField = find.descendant(
+        of: find.byType(SessionWorkspaceView),
+        matching: find.byType(TextField),
+      );
+
       expect(find.byType(SessionWorkspaceView), findsOneWidget);
-      expect(find.byType(TextField), findsOneWidget);
+      expect(composerTextField, findsOneWidget);
       expect(find.text('Pick a chat'), findsNothing);
     },
   );
@@ -442,8 +444,12 @@ void main() {
 
       final workspaceRect = tester.getRect(find.byType(SessionWorkspaceView));
       final scaffoldRect = tester.getRect(find.byType(Scaffold));
-      final textFieldRect = tester.getRect(find.byType(TextField));
-      const sidebarWidth = 264.0;
+      final composerTextField = find.descendant(
+        of: find.byType(SessionWorkspaceView),
+        matching: find.byType(TextField),
+      );
+      final textFieldRect = tester.getRect(composerTextField);
+      const sidebarWidth = AleraTokens.sidebarDefaultWidth;
 
       expect(
         (workspaceRect.width - (scaffoldRect.width - sidebarWidth)).abs(),
@@ -483,7 +489,7 @@ void main() {
     final scaffoldRect = tester.getRect(find.byType(Scaffold));
     final topBarRect = tester.getRect(find.byType(AleraTopBar));
     final statusBarRect = tester.getRect(find.byType(AleraStatusBar));
-    const sidebarWidth = 264.0;
+    const sidebarWidth = AleraTokens.sidebarDefaultWidth;
 
     expect(
       (topBarRect.width - (scaffoldRect.width - sidebarWidth)).abs(),

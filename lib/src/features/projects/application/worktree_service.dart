@@ -26,7 +26,7 @@ class WorktreeException implements Exception {
 /// Resolves the on-disk root for Alera-managed worktrees. Defaults to
 /// `~/.alera/worktrees`. Set [override] in tests.
 class WorktreeRoot {
-  WorktreeRoot({String? override}) : _override = override;
+  WorktreeRoot({this._override});
 
   final String? _override;
 
@@ -45,14 +45,12 @@ class WorktreeRoot {
 
 class WorktreeService {
   WorktreeService({
-    required ProjectRepository projectRepository,
-    required ProcessRunner processRunner,
+    required this._projectRepository,
+    required this._processRunner,
     WorktreeRoot? worktreeRoot,
     Uuid? uuid,
     DateTime Function()? now,
-  }) : _projectRepository = projectRepository,
-       _processRunner = processRunner,
-       _worktreeRoot = worktreeRoot ?? WorktreeRoot(),
+  }) : _worktreeRoot = worktreeRoot ?? WorktreeRoot(),
        _uuid = uuid ?? const Uuid(),
        _now = now ?? _defaultNow;
 

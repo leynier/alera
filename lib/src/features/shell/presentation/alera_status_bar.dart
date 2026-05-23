@@ -55,10 +55,7 @@ class AleraStatusBar extends StatelessWidget {
           ],
           if (header != null && header.trim().isNotEmpty) ...<Widget>[
             _separator(),
-            _StatusChip(
-              label: header,
-              color: AleraTokens.foregroundMuted,
-            ),
+            _StatusChip(label: header, color: AleraTokens.foregroundMuted),
           ],
           const Spacer(),
           if (diff != null) ...<Widget>[

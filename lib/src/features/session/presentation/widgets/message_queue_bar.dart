@@ -150,11 +150,7 @@ class _QueueItem extends StatelessWidget {
             mouseCursor: SystemMouseCursors.click,
             child: const Padding(
               padding: EdgeInsets.all(AleraTokens.space2),
-              child: Icon(
-                Icons.edit,
-                size: 13,
-                color: AleraTokens.accent,
-              ),
+              child: Icon(Icons.edit, size: 13, color: AleraTokens.accent),
             ),
           ),
           const SizedBox(width: AleraTokens.space4),
@@ -164,11 +160,7 @@ class _QueueItem extends StatelessWidget {
             mouseCursor: SystemMouseCursors.click,
             child: const Padding(
               padding: EdgeInsets.all(AleraTokens.space2),
-              child: Icon(
-                Icons.close,
-                size: 13,
-                color: AleraTokens.error,
-              ),
+              child: Icon(Icons.close, size: 13, color: AleraTokens.error),
             ),
           ),
         ],

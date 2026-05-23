@@ -47,9 +47,7 @@ void main() {
 
     test('preserves content inside code blocks', () {
       expect(
-        normalizeMarkdownNewlines(
-          'Before.\n```\nline1\nline2\n```\nAfter.',
-        ),
+        normalizeMarkdownNewlines('Before.\n```\nline1\nline2\n```\nAfter.'),
         'Before. ```\nline1\nline2\n``` After.',
       );
     });
@@ -80,7 +78,8 @@ void main() {
     });
 
     test('normalizes real LLM output with mixed content', () {
-      final input = 'Aquí tienes un texto pequeño con listas:\n\n'
+      final input =
+          'Aquí tienes un texto pequeño con listas:\n\n'
           'Mi rutina de la mañana es simple y ordenada.\n'
           'Primero preparo lo necesario para empezar bien el día:\n\n'
           '- Agua\n- Café\n- Fruta\n\n'
@@ -89,7 +88,8 @@ void main() {
           '2. Descansar después de comer\n\n'
           'Si quieres, puedo escribir otro más formal,\n'
           'más creativo o más largo.';
-      final expected = 'Aquí tienes un texto pequeño con listas:\n\n'
+      final expected =
+          'Aquí tienes un texto pequeño con listas:\n\n'
           'Mi rutina de la mañana es simple y ordenada. '
           'Primero preparo lo necesario para empezar bien el día:\n\n'
           '- Agua\n- Café\n- Fruta\n\n'
@@ -123,26 +123,37 @@ void main() {
       );
     });
 
-    test('does not produce double spaces when line ends with trailing space', () {
-      expect(
-        normalizeMarkdownNewlines('conviene preparar varios \naspectos con anticipación.'),
-        'conviene preparar varios aspectos con anticipación.',
-      );
-    });
+    test(
+      'does not produce double spaces when line ends with trailing space',
+      () {
+        expect(
+          normalizeMarkdownNewlines(
+            'conviene preparar varios \naspectos con anticipación.',
+          ),
+          'conviene preparar varios aspectos con anticipación.',
+        );
+      },
+    );
 
-    test('collapses paragraph breaks between consecutive ordered list items', () {
-      expect(
-        normalizeMarkdownNewlines('1. First\n\n2. Second\n\n3. Third'),
-        '1. First\n2. Second\n3. Third',
-      );
-    });
+    test(
+      'collapses paragraph breaks between consecutive ordered list items',
+      () {
+        expect(
+          normalizeMarkdownNewlines('1. First\n\n2. Second\n\n3. Third'),
+          '1. First\n2. Second\n3. Third',
+        );
+      },
+    );
 
-    test('collapses paragraph breaks between consecutive unordered list items', () {
-      expect(
-        normalizeMarkdownNewlines('- Alpha\n\n- Beta\n\n- Gamma'),
-        '- Alpha\n- Beta\n- Gamma',
-      );
-    });
+    test(
+      'collapses paragraph breaks between consecutive unordered list items',
+      () {
+        expect(
+          normalizeMarkdownNewlines('- Alpha\n\n- Beta\n\n- Gamma'),
+          '- Alpha\n- Beta\n- Gamma',
+        );
+      },
+    );
 
     test('preserves paragraph break between list and non-list text', () {
       expect(
@@ -191,7 +202,8 @@ void main() {
     });
 
     test('normalizes real LLM table output with headers and separators', () {
-      final input = '## Informe breve de proyecto\n\n'
+      final input =
+          '## Informe breve de proyecto\n\n'
           'El proyecto **Aurora** avanza de forma estable.\n\n'
           '### Resumen general\n\n'
           '| Área | Estado | Comentario |\n'
@@ -207,7 +219,8 @@ void main() {
           '1. Finalizar el módulo.\n'
           '2. Corregir el error.\n\n'
           'Texto final.';
-      final expected = '## Informe breve de proyecto\n\n'
+      final expected =
+          '## Informe breve de proyecto\n\n'
           'El proyecto **Aurora** avanza de forma estable.\n\n'
           '### Resumen general\n\n'
           '| Área | Estado | Comentario |\n'
@@ -247,14 +260,12 @@ void main() {
     });
 
     test('handles unclosed code fence with no content after fence marker', () {
-      expect(
-        normalizeMarkdownNewlines('Some intro.\n```'),
-        'Some intro. ```',
-      );
+      expect(normalizeMarkdownNewlines('Some intro.\n```'), 'Some intro. ```');
     });
 
     test('collapses loose list items from LLM output', () {
-      final input = 'Lista numerada de pasos a seguir:\n\n'
+      final input =
+          'Lista numerada de pasos a seguir:\n\n'
           '1. Confirmar la disponibilidad del espacio.\n\n'
           '2. Enviar las invitaciones.\n\n'
           '3. Coordinar la comida y la bebida.\n\n'
@@ -262,7 +273,8 @@ void main() {
           '5. Realizar una última verificación el día\n'
           'anterior.\n\n'
           'Si quieres, también puedo generarlo.';
-      final expected = 'Lista numerada de pasos a seguir:\n\n'
+      final expected =
+          'Lista numerada de pasos a seguir:\n\n'
           '1. Confirmar la disponibilidad del espacio.\n'
           '2. Enviar las invitaciones.\n'
           '3. Coordinar la comida y la bebida.\n'

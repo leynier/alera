@@ -62,10 +62,12 @@ void main() {
         updatedAt: DateTime(2026, 4, 1, 10),
       );
 
-      final groups = groupChatsByRecency(
-        <ChatSummary>[today, yesterday, thisWeek, older],
-        now: now,
-      );
+      final groups = groupChatsByRecency(<ChatSummary>[
+        today,
+        yesterday,
+        thisWeek,
+        older,
+      ], now: now);
 
       expect(groups.map((g) => g.bucket).toList(), <ChatRecencyBucket>[
         ChatRecencyBucket.today,
@@ -107,10 +109,11 @@ void main() {
         updatedAt: DateTime(2026, 5, 13, 8),
       );
       final groups = groupChatsByRecency(<ChatSummary>[a, b, c], now: now);
-      expect(
-        groups.single.chats.map((c) => c.id).toList(),
-        <String>['a', 'b', 'c'],
-      );
+      expect(groups.single.chats.map((c) => c.id).toList(), <String>[
+        'a',
+        'b',
+        'c',
+      ]);
     });
 
     test('labels are sentence case', () {

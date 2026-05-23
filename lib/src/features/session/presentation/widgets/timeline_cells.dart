@@ -135,102 +135,108 @@ class _UserMessageCellState extends State<UserMessageCell> {
             child: Stack(
               clipBehavior: Clip.none,
               children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.only(bottom: 18),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    if (attachments.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(
-                          bottom: AleraTokens.space6,
-                        ),
-                        child: Wrap(
-                          alignment: WrapAlignment.end,
-                          spacing: AleraTokens.space6,
-                          runSpacing: AleraTokens.space6,
-                          children: attachments
-                              .map((att) {
-                                final kind = att['kind']?.toString();
-                                final path = att['path']?.toString() ?? '';
-                                final displayName =
-                                    att['displayName']?.toString() ?? path;
-                                if (kind == AttachmentKind.image.name) {
-                                  return _AttachmentThumbnail(
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      if (attachments.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(
+                            bottom: AleraTokens.space6,
+                          ),
+                          child: Wrap(
+                            alignment: WrapAlignment.end,
+                            spacing: AleraTokens.space6,
+                            runSpacing: AleraTokens.space6,
+                            children: attachments
+                                .map((att) {
+                                  final kind = att['kind']?.toString();
+                                  final path = att['path']?.toString() ?? '';
+                                  final displayName =
+                                      att['displayName']?.toString() ?? path;
+                                  if (kind == AttachmentKind.image.name) {
+                                    return _AttachmentThumbnail(
+                                      path: path,
+                                      displayName: displayName,
+                                    );
+                                  }
+                                  return _AttachmentChip(
                                     path: path,
                                     displayName: displayName,
                                   );
-                                }
-                                return _AttachmentChip(
-                                  path: path,
-                                  displayName: displayName,
-                                );
-                              })
-                              .toList(growable: false),
-                        ),
-                      ),
-                    if (messageText.trim().isNotEmpty)
-                      Container(
-                        key: ValueKey<String>('user-bubble-${widget.cell.id}'),
-                        padding: const EdgeInsets.all(AleraTokens.space12),
-                        decoration: BoxDecoration(
-                          color: AleraTokens.accentSubtle,
-                          borderRadius: BorderRadius.circular(
-                            AleraTokens.radiusLg,
-                          ),
-                          border: isSteering
-                              ? Border.all(
-                                  color: AleraTokens.accent.withValues(
-                                    alpha: 0.3,
-                                  ),
-                                )
-                              : null,
-                        ),
-                        child: UserBubbleContent(
-                          markdownText: messageText,
-                          markdownEnabled: widget.markdownEnabled,
-                        ),
-                      ),
-                    if (isSteering)
-                      Padding(
-                        padding: const EdgeInsets.only(top: AleraTokens.space4),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: <Widget>[
-                            SizedBox(
-                              width: 10,
-                              height: 10,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 1.5,
-                                color: AleraTokens.foregroundFaint,
-                              ),
-                            ),
-                            const SizedBox(width: AleraTokens.space4),
-                            const Text(
-                              'Steering...',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: AleraTokens.foregroundFaint,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    if (wasSteered)
-                      Padding(
-                        padding: const EdgeInsets.only(top: AleraTokens.space4),
-                        child: const Text(
-                          'Steered',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: AleraTokens.foregroundFaint,
+                                })
+                                .toList(growable: false),
                           ),
                         ),
-                      ),
-                  ],
+                      if (messageText.trim().isNotEmpty)
+                        Container(
+                          key: ValueKey<String>(
+                            'user-bubble-${widget.cell.id}',
+                          ),
+                          padding: const EdgeInsets.all(AleraTokens.space12),
+                          decoration: BoxDecoration(
+                            color: AleraTokens.accentSubtle,
+                            borderRadius: BorderRadius.circular(
+                              AleraTokens.radiusLg,
+                            ),
+                            border: isSteering
+                                ? Border.all(
+                                    color: AleraTokens.accent.withValues(
+                                      alpha: 0.3,
+                                    ),
+                                  )
+                                : null,
+                          ),
+                          child: UserBubbleContent(
+                            markdownText: messageText,
+                            markdownEnabled: widget.markdownEnabled,
+                          ),
+                        ),
+                      if (isSteering)
+                        Padding(
+                          padding: const EdgeInsets.only(
+                            top: AleraTokens.space4,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              SizedBox(
+                                width: 10,
+                                height: 10,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 1.5,
+                                  color: AleraTokens.foregroundFaint,
+                                ),
+                              ),
+                              const SizedBox(width: AleraTokens.space4),
+                              const Text(
+                                'Steering...',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: AleraTokens.foregroundFaint,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (wasSteered)
+                        Padding(
+                          padding: const EdgeInsets.only(
+                            top: AleraTokens.space4,
+                          ),
+                          child: const Text(
+                            'Steered',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AleraTokens.foregroundFaint,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
                 Positioned(
                   right: 0,
                   bottom: 0,
@@ -303,17 +309,19 @@ class _AssistantMessageCellState extends State<AssistantMessageCell> {
               child: Stack(
                 clipBehavior: Clip.none,
                 children: <Widget>[
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 18),
-                  child: Container(
-                    key: ValueKey<String>('assistant-bubble-${widget.cell.id}'),
-                    child: AssistantBubbleMarkdown(
-                      markdownText: rawText,
-                      isStreaming: widget.cell.isStreaming,
-                      markdownEnabled: widget.markdownEnabled,
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 18),
+                    child: Container(
+                      key: ValueKey<String>(
+                        'assistant-bubble-${widget.cell.id}',
+                      ),
+                      child: AssistantBubbleMarkdown(
+                        markdownText: rawText,
+                        isStreaming: widget.cell.isStreaming,
+                        markdownEnabled: widget.markdownEnabled,
+                      ),
                     ),
                   ),
-                ),
                   Positioned(
                     left: 0,
                     bottom: 0,
@@ -513,7 +521,8 @@ class _ReasoningCellState extends State<ReasoningCell> {
   Widget build(BuildContext context) {
     final text = widget.cell.markdownText ?? '';
     final thinkingColor = AleraTokens.foregroundMuted;
-    final isExpandable = text.trim().isNotEmpty ||
+    final isExpandable =
+        text.trim().isNotEmpty ||
         widget.cell.status == TimelineCellStatus.inProgress;
     return Padding(
       padding: EdgeInsets.zero,
@@ -806,12 +815,12 @@ class _ToolCallCellState extends State<ToolCallCell> {
       'webSearch' => _WebSearchDetail(cell: widget.cell),
       'mcpToolCall' => _McpToolDetail(cell: widget.cell),
       _ => SelectableText(
-          _prettyDetails(widget.cell.detailsText ?? ''),
-          style: AleraTokens.monoStyle.copyWith(
-            color: AleraTokens.foregroundMuted,
-            fontSize: 11,
-          ),
+        _prettyDetails(widget.cell.detailsText ?? ''),
+        style: AleraTokens.monoStyle.copyWith(
+          color: AleraTokens.foregroundMuted,
+          fontSize: 11,
         ),
+      ),
     };
   }
 }
@@ -861,7 +870,10 @@ class _KeyValueRow extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(label, style: style.copyWith(color: AleraTokens.foregroundFaint)),
+          Text(
+            label,
+            style: style.copyWith(color: AleraTokens.foregroundFaint),
+          ),
           const SizedBox(height: AleraTokens.space2),
           SelectableText(
             value,
@@ -1007,8 +1019,7 @@ class _McpToolDetail extends StatelessWidget {
           const _SectionHeader(label: 'Arguments'),
           ..._buildMapRows(arguments as Map<String, dynamic>),
         ],
-        if (hasArgs && hasResult)
-          const SizedBox(height: AleraTokens.space8),
+        if (hasArgs && hasResult) const SizedBox(height: AleraTokens.space8),
         if (hasResult) ...<Widget>[
           const _SectionHeader(label: 'Result'),
           SelectableText(_prettyDetails(result), style: monoStyle),
@@ -1213,16 +1224,22 @@ class _SubAgentDetailContent extends StatelessWidget {
       if (arguments is Map<String, dynamic>) {
         for (var i = 0; i < arguments.entries.length; i++) {
           if (i > 0) sections.add(const SizedBox(height: AleraTokens.space4));
-          sections.add(_KeyValueRow(
-            label: arguments.entries.elementAt(i).key,
-            value: _formatValue(arguments.entries.elementAt(i).value),
-          ));
+          sections.add(
+            _KeyValueRow(
+              label: arguments.entries.elementAt(i).key,
+              value: _formatValue(arguments.entries.elementAt(i).value),
+            ),
+          );
         }
       } else {
-        sections.add(SelectableText(
-          _prettyDetails(const JsonEncoder.withIndent('  ').convert(arguments)),
-          style: monoStyle,
-        ));
+        sections.add(
+          SelectableText(
+            _prettyDetails(
+              const JsonEncoder.withIndent('  ').convert(arguments),
+            ),
+            style: monoStyle,
+          ),
+        );
       }
     }
     if (hasOutput) {
@@ -1240,16 +1257,20 @@ class _SubAgentDetailContent extends StatelessWidget {
       if (result is Map<String, dynamic>) {
         for (var i = 0; i < result.entries.length; i++) {
           if (i > 0) sections.add(const SizedBox(height: AleraTokens.space4));
-          sections.add(_KeyValueRow(
-            label: result.entries.elementAt(i).key,
-            value: _formatValue(result.entries.elementAt(i).value),
-          ));
+          sections.add(
+            _KeyValueRow(
+              label: result.entries.elementAt(i).key,
+              value: _formatValue(result.entries.elementAt(i).value),
+            ),
+          );
         }
       } else {
-        sections.add(SelectableText(
-          _prettyDetails(_formatValue(result)),
-          style: monoStyle,
-        ));
+        sections.add(
+          SelectableText(
+            _prettyDetails(_formatValue(result)),
+            style: monoStyle,
+          ),
+        );
       }
     }
     if (hasDetails) {
@@ -1257,10 +1278,9 @@ class _SubAgentDetailContent extends StatelessWidget {
         sections.add(const SizedBox(height: AleraTokens.space8));
       }
       sections.add(const _SectionHeader(label: 'Details'));
-      sections.add(SelectableText(
-        _prettyDetails(detailsText),
-        style: monoStyle,
-      ));
+      sections.add(
+        SelectableText(_prettyDetails(detailsText), style: monoStyle),
+      );
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

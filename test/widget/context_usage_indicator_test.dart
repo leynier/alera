@@ -15,10 +15,7 @@ Future<void> _pumpIndicator(
       home: Material(
         child: Align(
           alignment: Alignment.topLeft,
-          child: ContextUsageIndicator(
-            contextUsage: usage,
-            onCompact: () {},
-          ),
+          child: ContextUsageIndicator(contextUsage: usage, onCompact: () {}),
         ),
       ),
     ),

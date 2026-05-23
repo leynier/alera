@@ -60,11 +60,9 @@ class MarkdownStreamSoftFlushResult {
 
 MarkdownStreamPushResult pushMarkdownDelta(
   MarkdownStreamCollectorState state,
-  String delta,
-  {
+  String delta, {
   required DateTime now,
-}
-) {
+}) {
   if (delta.isEmpty) {
     return MarkdownStreamPushResult(state: state, completedLines: const []);
   }

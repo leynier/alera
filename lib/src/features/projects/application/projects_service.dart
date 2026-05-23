@@ -10,17 +10,13 @@ import 'package:uuid/uuid.dart';
 
 class ProjectsService {
   ProjectsService({
-    required ProjectService projectService,
-    required ProjectRepository projectRepository,
-    required ChatRepository chatRepository,
-    required WorktreeService worktreeService,
+    required this._projectService,
+    required this._projectRepository,
+    required this._chatRepository,
+    required this._worktreeService,
     Uuid? uuid,
     DateTime Function()? now,
-  }) : _projectService = projectService,
-       _projectRepository = projectRepository,
-       _chatRepository = chatRepository,
-       _worktreeService = worktreeService,
-       _uuid = uuid ?? const Uuid(),
+  }) : _uuid = uuid ?? const Uuid(),
        _now = now ?? _defaultNow;
 
   final ProjectService _projectService;

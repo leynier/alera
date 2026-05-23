@@ -18,16 +18,12 @@ class JsonRpcServerRequest {
 
 class JsonRpcClient {
   JsonRpcClient({
-    required ProcessRunner processRunner,
-    required String executable,
-    required List<String> arguments,
-    String? workingDirectory,
-    Map<String, String>? environment,
-  }) : _processRunner = processRunner,
-       _executable = executable,
-       _arguments = arguments,
-       _workingDirectory = workingDirectory,
-       _environment = environment;
+    required this._processRunner,
+    required this._executable,
+    required this._arguments,
+    this._workingDirectory,
+    this._environment,
+  });
 
   final ProcessRunner _processRunner;
   final String _executable;

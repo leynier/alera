@@ -69,8 +69,9 @@ final chatRepositoryProvider = Provider<ChatRepository>((ref) {
   return SembastChatRepository(db);
 });
 
-final sidebarPrefsRepositoryProvider =
-    Provider<SembastSidebarPrefsRepository>((ref) {
+final sidebarPrefsRepositoryProvider = Provider<SembastSidebarPrefsRepository>((
+  ref,
+) {
   final dbAsync = ref.watch(aleraDatabaseProvider);
   final db = dbAsync.requireValue;
   return SembastSidebarPrefsRepository(db);

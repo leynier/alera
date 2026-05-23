@@ -29,29 +29,30 @@ Future<void> _pumpStatusBar(
 }
 
 void main() {
-  testWidgets('status bar does not render context chip even with token metrics', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: AleraStatusBar(
-            connectionState: AppServerConnectionState.connected,
-            runningTurnCount: 0,
-            workspacePath: '/repo',
-            rawLogExpanded: false,
-            onToggleRawLog: () {},
-            onCopyRawLog: () {},
-            canCopyRawLog: true,
+  testWidgets(
+    'status bar does not render context chip even with token metrics',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AleraStatusBar(
+              connectionState: AppServerConnectionState.connected,
+              runningTurnCount: 0,
+              workspacePath: '/repo',
+              rawLogExpanded: false,
+              onToggleRawLog: () {},
+              onCopyRawLog: () {},
+              canCopyRawLog: true,
+            ),
           ),
         ),
-      ),
-    );
-    await tester.pump();
+      );
+      await tester.pump();
 
-    expect(find.textContaining('ctx'), findsNothing);
-    expect(find.byType(LinearProgressIndicator), findsNothing);
-  });
+      expect(find.textContaining('ctx'), findsNothing);
+      expect(find.byType(LinearProgressIndicator), findsNothing);
+    },
+  );
 
   testWidgets('copy raw log button is tappable when enabled', (tester) async {
     var copyCalls = 0;

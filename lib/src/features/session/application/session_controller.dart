@@ -34,16 +34,12 @@ import 'package:path/path.dart' as p;
 
 class SessionController extends StateNotifier<SessionState> {
   SessionController({
-    required SessionService sessionService,
-    required ProjectService projectService,
-    required SettingsService settingsService,
+    required this._sessionService,
+    required this._projectService,
+    required this._settingsService,
     DateTime Function()? now,
-    Duration assistantStreamWarningGrace = const Duration(seconds: 5),
-  }) : _sessionService = sessionService,
-       _projectService = projectService,
-       _settingsService = settingsService,
-       _now = now ?? _defaultNow,
-       _assistantStreamWarningGrace = assistantStreamWarningGrace,
+    this._assistantStreamWarningGrace = const Duration(seconds: 5),
+  }) : _now = now ?? _defaultNow,
        super(const SessionState()) {
     _eventsSub = _sessionService.events.listen(_onSessionEvent);
   }

@@ -29,8 +29,7 @@ class ComposerDraftItemBar extends StatelessWidget {
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           itemCount: items.length,
-          separatorBuilder: (_, _) =>
-              const SizedBox(width: AleraTokens.space4),
+          separatorBuilder: (_, _) => const SizedBox(width: AleraTokens.space4),
           itemBuilder: (context, index) {
             final item = items[index];
             return _DraftItemChip(
@@ -79,11 +78,7 @@ class _DraftItemChip extends StatelessWidget {
         children: <Widget>[
           Padding(
             padding: const EdgeInsets.only(left: AleraTokens.space8),
-            child: Icon(
-              _icon,
-              size: 14,
-              color: AleraTokens.foregroundMuted,
-            ),
+            child: Icon(_icon, size: 14, color: AleraTokens.foregroundMuted),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space6),

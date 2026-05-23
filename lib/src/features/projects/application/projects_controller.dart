@@ -13,9 +13,8 @@ import 'package:flutter_riverpod/legacy.dart';
 class ProjectsController extends StateNotifier<ProjectsState> {
   ProjectsController({
     required ProjectsService projectsService,
-    SembastSidebarPrefsRepository? sidebarPrefsRepository,
+    this._sidebarPrefsRepository,
   }) : _service = projectsService,
-       _sidebarPrefsRepository = sidebarPrefsRepository,
        super(const ProjectsState());
 
   final ProjectsService _service;
