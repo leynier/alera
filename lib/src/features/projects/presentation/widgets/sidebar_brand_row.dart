@@ -6,34 +6,29 @@ class SidebarBrandRow extends StatelessWidget {
     super.key,
     required this.collapsed,
     required this.onToggleCollapsed,
+    this.onAddProject,
   });
 
   final bool collapsed;
   final VoidCallback onToggleCollapsed;
+  final VoidCallback? onAddProject;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final toggle = IconButton(
+    final toggle = _HeaderIconButton(
       tooltip: collapsed ? 'Expand sidebar' : 'Collapse sidebar',
       onPressed: onToggleCollapsed,
-      icon: Icon(
-        collapsed ? Icons.view_sidebar : Icons.view_sidebar_outlined,
-        size: 16,
-        color: AleraTokens.foregroundMuted,
-      ),
-      visualDensity: VisualDensity.compact,
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+      icon: collapsed ? Icons.view_sidebar : Icons.view_sidebar_outlined,
     );
     if (collapsed) {
       return SizedBox(
-        height: 48,
+        height: AleraTokens.topBarHeight,
         child: Center(child: toggle),
       );
     }
     return Container(
-      height: 48,
+      height: AleraTokens.topBarHeight,
       padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space12),
       child: Row(
         children: <Widget>[
@@ -46,8 +41,45 @@ class SidebarBrandRow extends StatelessWidget {
               ),
             ),
           ),
+          if (onAddProject != null) ...<Widget>[
+            _HeaderIconButton(
+              tooltip: 'Add project',
+              onPressed: onAddProject!,
+              icon: Icons.create_new_folder_outlined,
+            ),
+            const SizedBox(width: AleraTokens.space4),
+          ],
           toggle,
         ],
+      ),
+    );
+  }
+}
+
+class _HeaderIconButton extends StatelessWidget {
+  const _HeaderIconButton({
+    required this.tooltip,
+    required this.onPressed,
+    required this.icon,
+  });
+
+  final String tooltip;
+  final VoidCallback onPressed;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      tooltip: tooltip,
+      onPressed: onPressed,
+      icon: Icon(icon, size: 16, color: AleraTokens.foregroundMuted),
+      visualDensity: VisualDensity.compact,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+      style: IconButton.styleFrom(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+        ),
       ),
     );
   }

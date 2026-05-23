@@ -1,5 +1,4 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
-import 'package:alera/src/features/projects/domain/chat_summary.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:flutter/material.dart';
 
@@ -9,18 +8,14 @@ class SidebarCollapsedRail extends StatelessWidget {
     required this.projects,
     required this.activeProjectId,
     required this.chatCountByProject,
-    required this.canStartNewChat,
     required this.onSelectProject,
-    required this.onNewChat,
     required this.onAddProject,
   });
 
   final List<Project> projects;
   final String? activeProjectId;
   final Map<String, int> chatCountByProject;
-  final bool canStartNewChat;
   final ValueChanged<Project> onSelectProject;
-  final VoidCallback onNewChat;
   final VoidCallback onAddProject;
 
   @override
@@ -29,15 +24,6 @@ class SidebarCollapsedRail extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: AleraTokens.space8),
       child: Column(
         children: <Widget>[
-          Tooltip(
-            message: canStartNewChat ? 'New chat' : 'Add a project first',
-            child: _RailIconButton(
-              icon: Icons.add,
-              onPressed: canStartNewChat ? onNewChat : null,
-              emphasized: true,
-            ),
-          ),
-          const SizedBox(height: AleraTokens.space8),
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.symmetric(vertical: AleraTokens.space4),
@@ -106,6 +92,7 @@ class _RailProjectAvatarState extends State<_RailProjectAvatar> {
             onExit: (_) => setState(() => _hovered = false),
             child: InkWell(
               borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+              mouseCursor: SystemMouseCursors.click,
               onTap: widget.onTap,
               child: AnimatedContainer(
                 duration: AleraTokens.durationFast,
@@ -114,9 +101,7 @@ class _RailProjectAvatarState extends State<_RailProjectAvatar> {
                 decoration: BoxDecoration(
                   color: widget.active
                       ? AleraTokens.surfaceElevated
-                      : (_hovered
-                            ? AleraTokens.surface
-                            : Colors.transparent),
+                      : (_hovered ? AleraTokens.surface : Colors.transparent),
                   borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
                   border: Border.all(
                     color: widget.active
@@ -145,28 +130,17 @@ class _RailProjectAvatarState extends State<_RailProjectAvatar> {
 }
 
 class _RailIconButton extends StatelessWidget {
-  const _RailIconButton({
-    required this.icon,
-    required this.onPressed,
-    this.emphasized = false,
-  });
+  const _RailIconButton({required this.icon, required this.onPressed});
 
   final IconData icon;
   final VoidCallback? onPressed;
-  final bool emphasized;
 
   @override
   Widget build(BuildContext context) {
     return Center(
       child: IconButton(
         onPressed: onPressed,
-        icon: Icon(
-          icon,
-          size: 14,
-          color: emphasized
-              ? AleraTokens.foreground
-              : AleraTokens.foregroundMuted,
-        ),
+        icon: Icon(icon, size: 14, color: AleraTokens.foregroundMuted),
         style: IconButton.styleFrom(
           minimumSize: const Size(30, 30),
           shape: RoundedRectangleBorder(

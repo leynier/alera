@@ -1,5 +1,6 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/shared/presentation/dropdown_entry.dart';
 import 'package:flutter/material.dart';
 
 class ProjectTile extends StatefulWidget {
@@ -35,16 +36,17 @@ class _ProjectTileState extends State<ProjectTile> {
       onExit: (_) => setState(() => _hovered = false),
       child: InkWell(
         onTap: widget.onToggle,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+        mouseCursor: SystemMouseCursors.click,
+        borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
         child: AnimatedContainer(
           duration: AleraTokens.durationFast,
           decoration: BoxDecoration(
             color: _hovered ? AleraTokens.surface : Colors.transparent,
-            borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+            borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
           ),
           padding: const EdgeInsets.symmetric(
             horizontal: AleraTokens.space8,
-            vertical: AleraTokens.space6,
+            vertical: AleraTokens.space4,
           ),
           child: Row(
             children: <Widget>[
@@ -84,38 +86,103 @@ class _ProjectTileState extends State<ProjectTile> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
-                    IconButton(
+                    _ProjectHoverIconButton(
                       tooltip: 'New chat in this project',
                       onPressed: widget.onNewChat,
-                      icon: const Icon(Icons.add, size: 14),
-                      visualDensity: VisualDensity.compact,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(
-                        minWidth: 24,
-                        minHeight: 24,
-                      ),
+                      icon: Icons.add,
                     ),
-                    PopupMenuButton<String>(
-                      tooltip: 'Project options',
-                      icon: const Icon(Icons.more_horiz, size: 14),
-                      padding: EdgeInsets.zero,
-                      iconSize: 14,
-                      onSelected: (value) {
-                        if (value == 'remove') {
-                          widget.onRemoveProject();
-                        }
-                      },
-                      itemBuilder: (_) => const <PopupMenuEntry<String>>[
-                        PopupMenuItem<String>(
-                          value: 'remove',
-                          child: Text('Remove project'),
-                        ),
-                      ],
+                    _ProjectOptionsButton(
+                      onRemoveProject: widget.onRemoveProject,
                     ),
                   ],
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProjectHoverIconButton extends StatelessWidget {
+  const _ProjectHoverIconButton({
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onPressed,
+        mouseCursor: SystemMouseCursors.click,
+        borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+        child: SizedBox(
+          width: 24,
+          height: 24,
+          child: Icon(icon, size: 14, color: AleraTokens.foregroundMuted),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProjectOptionsButton extends StatelessWidget {
+  const _ProjectOptionsButton({required this.onRemoveProject});
+
+  final VoidCallback onRemoveProject;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: Tooltip(
+        message: 'Project options',
+        child: InkWell(
+          onTap: () async {
+            final button = context.findRenderObject()! as RenderBox;
+            final overlay =
+                Navigator.of(context).overlay!.context.findRenderObject()!
+                    as RenderBox;
+            final topLeft = button.localToGlobal(
+              Offset.zero,
+              ancestor: overlay,
+            );
+            final bottomRight = button.localToGlobal(
+              button.size.bottomRight(Offset.zero),
+              ancestor: overlay,
+            );
+            final selected = await showMenu<String>(
+              context: context,
+              position: RelativeRect.fromRect(
+                Rect.fromPoints(topLeft, bottomRight),
+                Offset.zero & overlay.size,
+              ),
+              items: const <PopupMenuEntry<String>>[
+                DropdownEntry<String>(value: 'remove', label: 'Remove project'),
+              ],
+            );
+            if (selected == 'remove') {
+              onRemoveProject();
+            }
+          },
+          mouseCursor: SystemMouseCursors.click,
+          borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+          child: const SizedBox(
+            width: 24,
+            height: 24,
+            child: Icon(
+              Icons.more_horiz,
+              size: 14,
+              color: AleraTokens.foregroundMuted,
+            ),
           ),
         ),
       ),

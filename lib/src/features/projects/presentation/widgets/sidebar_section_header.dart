@@ -7,22 +7,26 @@ class SidebarSectionHeader extends StatelessWidget {
     required this.label,
     this.leadingIcon,
     this.trailing,
+    this.padding,
   });
 
   final String label;
   final IconData? leadingIcon;
   final Widget? trailing;
+  final EdgeInsetsGeometry? padding;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.only(
-        left: AleraTokens.space12,
-        right: AleraTokens.space8,
-        top: AleraTokens.space8,
-        bottom: AleraTokens.space4,
-      ),
+      padding:
+          padding ??
+          const EdgeInsets.only(
+            left: AleraTokens.space12,
+            right: AleraTokens.space8,
+            top: AleraTokens.space8,
+            bottom: AleraTokens.space4,
+          ),
       child: Row(
         children: <Widget>[
           if (leadingIcon != null) ...<Widget>[
@@ -39,7 +43,7 @@ class SidebarSectionHeader extends StatelessWidget {
               ),
             ),
           ),
-          if (trailing != null) trailing!,
+          ?trailing,
         ],
       ),
     );

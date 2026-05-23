@@ -13,7 +13,6 @@ import 'package:alera/src/features/projects/presentation/widgets/chat_row.dart';
 import 'package:alera/src/features/projects/presentation/widgets/project_tile.dart';
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_brand_row.dart';
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_collapsed_rail.dart';
-import 'package:alera/src/features/projects/presentation/widgets/sidebar_primary_actions.dart';
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_resize_handle.dart';
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_search_bar.dart';
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_section_header.dart';
@@ -51,10 +50,6 @@ class _ProjectSidebarState extends ConsumerState<ProjectSidebar> {
         state: state,
         controller: controller,
         onAddProject: _addProject,
-        onNewChat: () async {
-          controller.setCollapsed(false);
-          await _startNewChatForActiveProject(state);
-        },
       );
     }
 
@@ -111,16 +106,9 @@ class _ProjectSidebarState extends ConsumerState<ProjectSidebar> {
                         collapsed: false,
                         onToggleCollapsed: () =>
                             controller.setCollapsed(!state.collapsed),
-                      ),
-                      const Divider(
-                        height: 1,
-                        color: AleraTokens.borderSubtle,
-                      ),
-                      SidebarPrimaryActions(
-                        canStartNewChat: state.projects.isNotEmpty,
-                        onNewChat: () => _startNewChatForActiveProject(state),
                         onAddProject: _addProject,
                       ),
+                      const Divider(height: 1, color: AleraTokens.borderSubtle),
                       SidebarSearchBar(
                         initialQuery: state.searchQuery,
                         focusNode: _searchFocus,
@@ -178,8 +166,7 @@ class _ProjectSidebarState extends ConsumerState<ProjectSidebar> {
       context: context,
       builder: (_) => NewChatDialog(
         project: project,
-        existingWorktreeNames:
-            activeWorktrees.map((w) => w.name).toSet(),
+        existingWorktreeNames: activeWorktrees.map((w) => w.name).toSet(),
       ),
     );
     if (result == null || !mounted) {
@@ -259,9 +246,7 @@ class _ProjectSidebarState extends ConsumerState<ProjectSidebar> {
       builder: (_) =>
           DeleteChatDialog(chatTitle: chat.title, worktree: worktree),
     );
-    if (action == null ||
-        action == DeleteChatAction.cancel ||
-        !mounted) {
+    if (action == null || action == DeleteChatAction.cancel || !mounted) {
       return;
     }
     final removeWorktree = action == DeleteChatAction.deleteWorktree;
@@ -385,14 +370,12 @@ class _CollapsedSidebar extends StatelessWidget {
     required this.state,
     required this.controller,
     required this.onAddProject,
-    required this.onNewChat,
   });
 
   final double width;
   final ProjectsState state;
   final ProjectsController controller;
   final VoidCallback onAddProject;
-  final VoidCallback onNewChat;
 
   @override
   Widget build(BuildContext context) {
@@ -411,7 +394,8 @@ class _CollapsedSidebar extends StatelessWidget {
           children: <Widget>[
             SidebarBrandRow(
               collapsed: true,
-              onToggleCollapsed: () => controller.setCollapsed(!state.collapsed),
+              onToggleCollapsed: () =>
+                  controller.setCollapsed(!state.collapsed),
             ),
             const Divider(height: 1, color: AleraTokens.borderSubtle),
             Expanded(
@@ -419,7 +403,6 @@ class _CollapsedSidebar extends StatelessWidget {
                 projects: state.projects,
                 activeProjectId: state.activeProjectId,
                 chatCountByProject: chatCounts,
-                canStartNewChat: state.projects.isNotEmpty,
                 onSelectProject: (project) {
                   controller.setActiveSelection(projectId: project.id);
                   controller.setCollapsed(false);
@@ -427,7 +410,6 @@ class _CollapsedSidebar extends StatelessWidget {
                     controller.toggleExpanded(project.id);
                   }
                 },
-                onNewChat: onNewChat,
                 onAddProject: () {
                   controller.setCollapsed(false);
                   onAddProject();
@@ -504,14 +486,16 @@ class _SidebarBody extends StatelessWidget {
     Project project,
     List<Worktree> worktrees,
     ChatSummary chat,
-  ) onSelectChat;
+  )
+  onSelectChat;
   final Future<void> Function(
     Project project,
     List<Worktree> worktrees,
     ChatSummary chat,
-  ) onDeleteChat;
+  )
+  onDeleteChat;
   final Future<void> Function(Project project, List<Worktree> worktrees)
-      onNewChatForProject;
+  onNewChatForProject;
   final Future<void> Function(Project project) onRemoveProject;
 
   @override
@@ -550,12 +534,14 @@ class _SearchResults extends StatelessWidget {
     Project project,
     List<Worktree> worktrees,
     ChatSummary chat,
-  ) onSelectChat;
+  )
+  onSelectChat;
   final Future<void> Function(
     Project project,
     List<Worktree> worktrees,
     ChatSummary chat,
-  ) onDeleteChat;
+  )
+  onDeleteChat;
 
   @override
   Widget build(BuildContext context) {
@@ -626,19 +612,20 @@ class _ProjectsBrowser extends StatelessWidget {
     Project project,
     List<Worktree> worktrees,
     ChatSummary chat,
-  ) onSelectChat;
+  )
+  onSelectChat;
   final Future<void> Function(
     Project project,
     List<Worktree> worktrees,
     ChatSummary chat,
-  ) onDeleteChat;
+  )
+  onDeleteChat;
   final Future<void> Function(Project project, List<Worktree> worktrees)
-      onNewChatForProject;
+  onNewChatForProject;
   final Future<void> Function(Project project) onRemoveProject;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final children = <Widget>[];
 
     final pinnedChats = state.pinnedChats();
@@ -665,7 +652,10 @@ class _ProjectsBrowser extends StatelessWidget {
       };
       children.add(
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space8),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AleraTokens.space8,
+            vertical: AleraTokens.space2,
+          ),
           child: ProjectTile(
             project: project,
             expanded: expanded,
@@ -688,22 +678,8 @@ class _ProjectsBrowser extends StatelessWidget {
               top: AleraTokens.space2,
               bottom: AleraTokens.space4,
             ),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: () => onNewChatForProject(project, worktrees),
-                icon: const Icon(Icons.add, size: 14),
-                label: const Text('Start the first chat'),
-                style: TextButton.styleFrom(
-                  foregroundColor: AleraTokens.foregroundMuted,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AleraTokens.space8,
-                    vertical: AleraTokens.space4,
-                  ),
-                  textStyle: theme.textTheme.bodySmall,
-                  minimumSize: const Size(0, 28),
-                ),
-              ),
+            child: _StartFirstChatRow(
+              onTap: () => onNewChatForProject(project, worktrees),
             ),
           ),
         );
@@ -717,6 +693,12 @@ class _ProjectsBrowser extends StatelessWidget {
             padding: const EdgeInsets.only(left: AleraTokens.space16),
             child: SidebarSectionHeader(
               label: chatRecencyBucketLabel(group.bucket),
+              padding: const EdgeInsets.only(
+                left: AleraTokens.space12,
+                right: AleraTokens.space8,
+                top: AleraTokens.space2,
+                bottom: AleraTokens.space2,
+              ),
             ),
           ),
         );
@@ -755,6 +737,44 @@ class _ProjectsBrowser extends StatelessWidget {
   }
 }
 
+class _StartFirstChatRow extends StatelessWidget {
+  const _StartFirstChatRow({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      onTap: onTap,
+      mouseCursor: SystemMouseCursors.click,
+      borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AleraTokens.space8,
+          vertical: AleraTokens.space4,
+        ),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+        ),
+        child: Row(
+          children: <Widget>[
+            const Icon(Icons.add, size: 14, color: AleraTokens.foregroundMuted),
+            const SizedBox(width: AleraTokens.space8),
+            Text(
+              'Start the first chat',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: AleraTokens.foregroundMuted,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _PinnedSection extends StatelessWidget {
   const _PinnedSection({
     required this.chats,
@@ -771,12 +791,14 @@ class _PinnedSection extends StatelessWidget {
     Project project,
     List<Worktree> worktrees,
     ChatSummary chat,
-  ) onSelectChat;
+  )
+  onSelectChat;
   final Future<void> Function(
     Project project,
     List<Worktree> worktrees,
     ChatSummary chat,
-  ) onDeleteChat;
+  )
+  onDeleteChat;
 
   Project? _projectFor(String projectId) {
     for (final p in state.projects) {
@@ -796,7 +818,7 @@ class _PinnedSection extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space8),
       itemCount: chats.length,
       onReorder: controller.reorderPinned,
-      proxyDecorator: (child, _, __) {
+      proxyDecorator: (child, _, _) {
         return Material(
           color: Colors.transparent,
           child: Opacity(opacity: 0.9, child: child),
@@ -823,9 +845,7 @@ class _PinnedSection extends StatelessWidget {
               ReorderableDragStartListener(
                 index: index,
                 child: const Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: AleraTokens.space2,
-                  ),
+                  padding: EdgeInsets.symmetric(horizontal: AleraTokens.space2),
                   child: Icon(
                     Icons.drag_indicator,
                     size: 12,

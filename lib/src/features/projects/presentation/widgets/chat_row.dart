@@ -42,6 +42,7 @@ class _ChatRowState extends State<ChatRow> {
       color: isActive ? AleraTokens.foreground : AleraTokens.foregroundMuted,
       fontWeight: isActive ? FontWeight.w500 : FontWeight.w400,
     );
+    final actionsVisible = _hovered || isActive;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
@@ -60,6 +61,7 @@ class _ChatRowState extends State<ChatRow> {
               ),
               child: InkWell(
                 onTap: widget.onTap,
+                mouseCursor: SystemMouseCursors.click,
                 borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
                 child: Padding(
                   padding: EdgeInsets.symmetric(
@@ -72,7 +74,8 @@ class _ChatRowState extends State<ChatRow> {
                     children: <Widget>[
                       SizedBox(
                         width: 16,
-                        child: widget.leading ??
+                        child:
+                            widget.leading ??
                             Icon(
                               Icons.chat_bubble_outline,
                               size: 12,
@@ -92,33 +95,37 @@ class _ChatRowState extends State<ChatRow> {
                           style: titleStyle,
                         ),
                       ),
-                      if (widget.worktree case final Worktree worktree) ...<Widget>[
+                      if (widget.worktree
+                          case final Worktree worktree) ...<Widget>[
                         const SizedBox(width: AleraTokens.space6),
                         _BranchChip(name: worktree.name),
                       ],
                       // Reserve width for hover actions so the row width is
                       // stable; they fade in on hover/active.
-                      AnimatedOpacity(
-                        opacity: (_hovered || isActive) ? 1 : 0,
-                        duration: AleraTokens.durationFast,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: <Widget>[
-                            const SizedBox(width: AleraTokens.space4),
-                            _HoverIconButton(
-                              tooltip: widget.isPinned ? 'Unpin' : 'Pin chat',
-                              icon: widget.isPinned
-                                  ? Icons.push_pin
-                                  : Icons.push_pin_outlined,
-                              onPressed: widget.onTogglePin,
-                              active: widget.isPinned,
-                            ),
-                            _HoverIconButton(
-                              tooltip: 'Delete chat',
-                              icon: Icons.close,
-                              onPressed: widget.onDelete,
-                            ),
-                          ],
+                      IgnorePointer(
+                        ignoring: !actionsVisible,
+                        child: AnimatedOpacity(
+                          opacity: actionsVisible ? 1 : 0,
+                          duration: AleraTokens.durationFast,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              const SizedBox(width: AleraTokens.space4),
+                              _HoverIconButton(
+                                tooltip: widget.isPinned ? 'Unpin' : 'Pin chat',
+                                icon: widget.isPinned
+                                    ? Icons.push_pin
+                                    : Icons.push_pin_outlined,
+                                onPressed: widget.onTogglePin,
+                                active: widget.isPinned,
+                              ),
+                              _HoverIconButton(
+                                tooltip: 'Delete chat',
+                                icon: Icons.close,
+                                onPressed: widget.onDelete,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
@@ -214,9 +221,7 @@ class _HoverIconButton extends StatelessWidget {
       icon: Icon(
         icon,
         size: 12,
-        color: active
-            ? AleraTokens.foreground
-            : AleraTokens.foregroundMuted,
+        color: active ? AleraTokens.foreground : AleraTokens.foregroundMuted,
       ),
       visualDensity: VisualDensity.compact,
       padding: EdgeInsets.zero,

@@ -55,7 +55,8 @@ class _SidebarSearchBarState extends State<SidebarSearchBar> {
   }
 
   KeyEventResult _handleKey(FocusNode node, KeyEvent event) {
-    if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.escape) {
+    if (event is KeyDownEvent &&
+        event.logicalKey == LogicalKeyboardKey.escape) {
       if (_controller.text.isNotEmpty) {
         _controller.clear();
         widget.onChanged('');
@@ -80,73 +81,76 @@ class _SidebarSearchBarState extends State<SidebarSearchBar> {
       ),
       child: Focus(
         onKeyEvent: _handleKey,
-        child: TextField(
-          controller: _controller,
-          focusNode: widget.focusNode,
-          onChanged: _handleChange,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: AleraTokens.foreground,
-          ),
-          cursorColor: AleraTokens.foreground,
-          decoration: InputDecoration(
-            isDense: true,
-            filled: true,
-            fillColor: AleraTokens.surface,
-            hintText: 'Search chats',
-            hintStyle: theme.textTheme.bodySmall?.copyWith(
-              color: AleraTokens.foregroundFaint,
+        child: SizedBox(
+          height: AleraTokens.space32 + AleraTokens.space8,
+          child: TextField(
+            controller: _controller,
+            focusNode: widget.focusNode,
+            onChanged: _handleChange,
+            textAlignVertical: TextAlignVertical.center,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: AleraTokens.foreground,
             ),
-            prefixIcon: const Padding(
-              padding: EdgeInsets.only(left: AleraTokens.space8, right: 4),
-              child: Icon(
-                Icons.search,
-                size: 14,
+            cursorColor: AleraTokens.foreground,
+            decoration: InputDecoration(
+              isDense: true,
+              filled: true,
+              fillColor: AleraTokens.surface,
+              hintText: 'Search chats',
+              hintStyle: theme.textTheme.bodySmall?.copyWith(
                 color: AleraTokens.foregroundFaint,
               ),
-            ),
-            prefixIconConstraints: const BoxConstraints(
-              minWidth: 24,
-              minHeight: 24,
-            ),
-            suffixIcon: hasText
-                ? IconButton(
-                    tooltip: 'Clear',
-                    icon: const Icon(
-                      Icons.close,
-                      size: 12,
-                      color: AleraTokens.foregroundFaint,
-                    ),
-                    onPressed: () {
-                      _controller.clear();
-                      widget.onChanged('');
-                    },
-                    visualDensity: VisualDensity.compact,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(
-                      minWidth: 24,
-                      minHeight: 24,
-                    ),
-                  )
-                : null,
-            suffixIconConstraints: const BoxConstraints(
-              minWidth: 24,
-              minHeight: 24,
-            ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: AleraTokens.space8,
-              vertical: AleraTokens.space6,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-              borderSide: const BorderSide(color: AleraTokens.borderSubtle),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-              borderSide: const BorderSide(color: AleraTokens.borderSubtle),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-              borderSide: const BorderSide(color: AleraTokens.border),
+              prefixIcon: const Padding(
+                padding: EdgeInsets.only(left: AleraTokens.space8, right: 4),
+                child: Icon(
+                  Icons.search,
+                  size: 14,
+                  color: AleraTokens.foregroundFaint,
+                ),
+              ),
+              prefixIconConstraints: const BoxConstraints(
+                minWidth: 24,
+                minHeight: AleraTokens.space32 + AleraTokens.space8,
+              ),
+              suffixIcon: hasText
+                  ? IconButton(
+                      tooltip: 'Clear',
+                      icon: const Icon(
+                        Icons.close,
+                        size: 12,
+                        color: AleraTokens.foregroundFaint,
+                      ),
+                      onPressed: () {
+                        _controller.clear();
+                        widget.onChanged('');
+                      },
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 24,
+                        minHeight: AleraTokens.space32 + AleraTokens.space8,
+                      ),
+                    )
+                  : null,
+              suffixIconConstraints: const BoxConstraints(
+                minWidth: 24,
+                minHeight: AleraTokens.space32 + AleraTokens.space8,
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: AleraTokens.space8,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+                borderSide: const BorderSide(color: AleraTokens.borderSubtle),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+                borderSide: const BorderSide(color: AleraTokens.borderSubtle),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+                borderSide: const BorderSide(color: AleraTokens.border),
+              ),
             ),
           ),
         ),

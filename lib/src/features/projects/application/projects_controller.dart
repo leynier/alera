@@ -26,6 +26,7 @@ class ProjectsController extends StateNotifier<ProjectsState> {
       <String, StreamSubscription<List<ChatSummary>>>{};
   final Map<String, StreamSubscription<List<Worktree>>> _worktreesSubs =
       <String, StreamSubscription<List<Worktree>>>{};
+  final Set<String> _loadedChatProjectIds = <String>{};
 
   bool _bootstrapStarted = false;
   Timer? _savePrefsTimer;
@@ -37,9 +38,10 @@ class ProjectsController extends StateNotifier<ProjectsState> {
     }
     _bootstrapStarted = true;
     try {
-      if (_sidebarPrefsRepository != null) {
+      final sidebarPrefsRepository = _sidebarPrefsRepository;
+      if (sidebarPrefsRepository != null) {
         try {
-          final prefs = await _sidebarPrefsRepository!.load();
+          final prefs = await sidebarPrefsRepository.load();
           state = state.copyWith(
             pinnedChatIds: prefs.pinnedChatIds,
             pinnedChatOrder: prefs.pinnedChatOrder,
@@ -115,18 +117,25 @@ class ProjectsController extends StateNotifier<ProjectsState> {
     for (final id in removed) {
       _chatsSubs.remove(id)?.cancel();
       _worktreesSubs.remove(id)?.cancel();
+      _loadedChatProjectIds.remove(id);
     }
   }
 
   void _onChatsChanged(String projectId, List<ChatSummary> chats) {
     final next = Map<String, List<ChatSummary>>.from(state.chatsByProject);
     next[projectId] = chats;
+    _loadedChatProjectIds.add(projectId);
     final activeChatId = state.activeChatId;
     var pinnedChatIds = state.pinnedChatIds;
     var pinnedChatOrder = state.pinnedChatOrder;
 
-    // Drop pinned ids whose chats no longer exist anywhere.
-    if (pinnedChatIds.isNotEmpty) {
+    // Drop pinned ids only after every current project has emitted at least
+    // once. During startup, missing project streams are not evidence that their
+    // persisted pins are stale.
+    final allProjectChatsLoaded = state.projects.every(
+      (project) => _loadedChatProjectIds.contains(project.id),
+    );
+    if (pinnedChatIds.isNotEmpty && allProjectChatsLoaded) {
       final liveIds = <String>{
         for (final list in next.values)
           for (final chat in list) chat.id,
