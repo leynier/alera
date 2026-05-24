@@ -21,6 +21,10 @@ dependencies:
   ffi: ^2.2.0
   portable_pty: ^0.0.5
   xterm: ^4.0.0
+  desktop_updater: ^1.4.0
+  http: ^1.6.0
+  package_info_plus: ^10.1.0
+  url_launcher: ^6.3.2
 dev_dependencies:
   flutter_launcher_icons: ^0.14.4
   flutter_lints: ^6.0.0
@@ -35,6 +39,10 @@ dependency_overrides:
     path: third_party/xterm
 
 flutter_launcher_icons:
+  windows:
+    generate: true
+    image_path: "assets/logo/alera-logo.png"
+    icon_size: 256
   macos:
     generate: true
     image_path: "assets/logo/alera-logo.png"

@@ -8,6 +8,10 @@ import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/infra/github_star_service.dart';
 import 'package:alera/src/features/settings/infra/sembast_settings_repository.dart';
 import 'package:alera/src/features/settings/infra/system_font_service.dart';
+import 'package:alera/src/features/updater/application/update_controller.dart';
+import 'package:alera/src/features/updater/application/update_service.dart';
+import 'package:alera/src/features/updater/domain/alera_update.dart';
+import 'package:alera/src/features/updater/infra/desktop_update_service.dart';
 import 'package:alera/src/features/workbench/application/terminal_tab_service.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
@@ -22,6 +26,7 @@ import 'package:alera/src/shared/infra/process/process_runner.dart';
 import 'package:alera/src/shared/infra/storage/sembast_database.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:http/http.dart' as http;
 import 'package:sembast/sembast.dart';
 
 final processRunnerProvider = Provider<ProcessRunner>((ref) {
@@ -97,6 +102,25 @@ final gitHubStarServiceProvider = Provider<GitHubStarService>((ref) {
 final systemFontServiceProvider = Provider<SystemFontService>((ref) {
   return IoSystemFontService(ref.watch(processRunnerProvider));
 });
+
+final updateHttpClientProvider = Provider<http.Client>((ref) {
+  final client = http.Client();
+  ref.onDispose(client.close);
+  return client;
+});
+
+final updateServiceProvider = Provider<AleraUpdateService>((ref) {
+  final service = DesktopAleraUpdateService(
+    client: ref.watch(updateHttpClientProvider),
+  );
+  ref.onDispose(service.dispose);
+  return service;
+});
+
+final updateControllerProvider =
+    StateNotifierProvider<AleraUpdateController, AleraUpdateState>((ref) {
+      return AleraUpdateController(ref.watch(updateServiceProvider));
+    });
 
 final gitHubStarControllerProvider =
     StateNotifierProvider<GitHubStarController, GitHubStarState>((ref) {

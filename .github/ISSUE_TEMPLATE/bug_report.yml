@@ -1,0 +1,50 @@
+name: Bug report
+description: Report a problem with Alera
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form for Alera bugs. Include enough detail for someone else to reproduce the issue.
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Windows
+        - Linux
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: alera_version
+    attributes:
+      label: Alera version
+      description: Include the exact Alera version or commit if you can.
+      placeholder: v0.1.0
+    validations:
+      required: false
+
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: Describe the bug, reproduction steps, expected behavior, and actual behavior.
+      placeholder: |
+        Short summary:
+
+        What happened?
+
+        How can we reproduce it?
+        1. ...
+        2. ...
+        3. ...
+
+        Anything else that might help:
+    validations:
+      required: true

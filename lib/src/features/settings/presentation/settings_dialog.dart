@@ -5,6 +5,7 @@ import 'package:alera/src/features/settings/application/github_star_controller.d
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
 import 'package:alera/src/features/settings/infra/system_font_service.dart';
+import 'package:alera/src/features/updater/presentation/update_settings_section.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -206,6 +207,11 @@ const List<_SettingsSearchEntry> _generalSearchEntries = <_SettingsSearchEntry>[
     title: 'Workspace directory',
     description: 'Where new linked workspaces are created on disk.',
     keywords: <String>['worktree', 'folder', 'location', 'path'],
+  ),
+  _SettingsSearchEntry(
+    title: 'Updates',
+    description: 'Check desktop releases for this platform.',
+    keywords: <String>['release', 'download', 'version'],
   ),
   _SettingsSearchEntry(
     title: 'Star Alera on GitHub',
@@ -546,6 +552,8 @@ class _GeneralSettingsPane extends ConsumerWidget {
             ),
           ],
         ),
+        const SizedBox(height: AleraTokens.space24),
+        const UpdateSettingsSection(),
         if (starState != GitHubStarState.hidden) ...<Widget>[
           const SizedBox(height: AleraTokens.space24),
           _SupportAleraSection(state: starState),

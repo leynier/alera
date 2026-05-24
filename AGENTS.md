@@ -2,197 +2,161 @@
 
 ## Scope
 
-This file applies to the entire repository and defines contributor rules plus a design-system-first policy for Flutter UI work.
+This file applies to the entire repository. Nested `AGENTS.md` files may add rules for a subdirectory; when they do, follow both the root file and the nested file.
 
-All guidance in this document is mandatory for active UI code. Existing UI outliers MUST be converged to this system during this initiative.
+This document defines contributor and agent governance only. It does not change runtime APIs, schemas, or protocol types.
 
-This document defines governance only. It does not change runtime APIs, schemas, or protocol types.
+## Core Operating Principles
 
-## Global Contribution Rules
+- Prefer clear, traceable work over implicit progress. Keep the user informed about what is being done, what remains, and any relevant blockers.
+- Use these instructions by default. If a specific task requires a different approach, explain the reason clearly before deviating.
+- Keep plans and outputs portable across agent runtimes unless the user asks for behavior tied to a specific tool.
+- Avoid unnecessary complexity. Choose the simplest approach that satisfies the user's stated goal and preserves correctness.
 
-- Commits and pull requests MUST be written in English unless the user explicitly requests another language.
-- Commit and pull request titles MUST be lowercase and MUST follow Conventional Commits.
+## Task Tracking
+
+- Agents MUST use the available task-tracking tool whenever the work has multiple steps, meaningful uncertainty, or a non-trivial implementation path.
+- Track tasks as pending, in progress, and completed so the current state of the work stays explicit.
+- Update the task list as work progresses, not only at the end.
+- Keep task entries concrete and outcome-oriented. Each task should describe a verifiable unit of work.
+- When new work is discovered, add it to the tracker instead of relying on memory.
+- When a task becomes irrelevant, mark or explain it rather than silently dropping it.
+- Before finishing, reconcile the tracker with the actual work completed and call out anything intentionally left undone.
+
+## Spec-Driven Planning
+
+When planning is needed, use a spec-driven development flow. Do not jump straight from a vague request to implementation if important product or technical decisions are still undefined.
+
+### Spec Discovery
+
+- First clarify the desired behavior, success criteria, audience, inputs, outputs, constraints, and non-goals.
+- Prefer discovering facts from the repository, environment, or existing documentation before asking the user.
+- Ask targeted questions only for decisions that cannot be safely inferred.
+- Convert ambiguous requests into explicit requirements before designing a solution.
+
+### Design
+
+- Define the implementation approach after the spec is stable.
+- Identify affected interfaces, data flow, dependencies, storage, permissions, error handling, and compatibility constraints when relevant.
+- Surface meaningful tradeoffs and choose a default when one option is clearly safer or simpler.
+- Keep the design aligned with existing project conventions.
+
+### Tasking
+
+- Break the design into ordered, concrete tasks that can be implemented and verified.
+- Include validation steps as first-class tasks, not as an afterthought.
+- Present plans using the structure: spec, design, tasks, tests, and assumptions.
+- Make the plan decision complete: another engineer or agent should be able to execute it without inventing missing requirements.
+
+## Clipboard Usage
+
+- Use the clipboard when it helps transfer commands, snippets, paths, reports, or other information to the user efficiently.
+- Prefer native clipboard commands for the user's operating system:
+  - macOS: `pbcopy` and `pbpaste`.
+  - Windows PowerShell: `Set-Clipboard` and `Get-Clipboard`.
+  - Linux Wayland: `wl-copy` and `wl-paste`.
+  - Linux X11: `xclip` or `xsel`.
+  - WSL: `clip.exe` when copying content into the Windows clipboard is appropriate.
+- Tell the user what was copied, especially when the clipboard content is long or operationally important.
+- Avoid placing secrets, tokens, credentials, personal data, or destructive commands on the clipboard unless the user explicitly asks for it or the task clearly requires it.
+- If clipboard tooling is unavailable or unsafe in the current environment, provide the exact command or content for the user to copy manually.
+
+## Git And Pull Requests
+
+- Use Conventional Commit style for commit messages.
+- Write commit messages and pull request titles in English unless the user explicitly requests another language.
+- Commit messages and pull request titles MUST be lowercase.
+- Prefer concise commit subjects that clearly describe the change, such as `fix: handle empty clipboard input`, `docs: update agent workflow rules`, or `chore: add repository instructions`.
+- Keep pull request descriptions short and useful. Include a brief summary, validation performed, and any important risks or notes when relevant.
+- Never add the agent as a coauthor, assisted-by, generated-by, or equivalent attribution in commits, pull requests, pull request descriptions, or related metadata unless the user explicitly asks for it.
+- Keep changes scoped to the user request. Do not fold unrelated refactors into implementation work.
 - This document SHALL remain organized with non-numbered section headers.
 
-## Design System Source of Truth
+## Communication Expectations
+
+- Be direct and specific. Explain decisions, blockers, and verification results in practical terms.
+- Do not hide uncertainty. If something is assumed, say so.
+- Keep progress updates short but useful during longer work.
+- When implementation is complete, summarize what changed, how it was verified, and any remaining risk or follow-up.
+
+## Worktree Safety
+
+- Always read and edit files from the active working directory.
+- Never follow absolute paths copied from another agent or another worktree unless they are revalidated in the current checkout.
+- Before mutating git state, check for existing local changes and preserve user work.
+- If `.git/index.lock` exists, confirm no git process is active before removing it.
+
+## Code Comments
+
+- Add comments only when they explain a non-obvious reason: safety, platform behavior, compatibility, release constraints, or a design-system rule.
+- Keep comments brief. Do not narrate what the code already says.
+
+## Markdown Style
+
+- Do not hard-wrap Markdown prose. Keep each paragraph or list item on one line unless the line break is semantically meaningful.
+- Preserve explicit line breaks in tables, code fences, lists, and generated templates where Markdown syntax requires them.
+
+## Naming
+
+- Do not create vague modules named `helpers`, `utils`, `common`, `misc`, or similar dumping grounds.
+- Name files and types after the domain concept they model, such as `workspace_folder_opener.dart` or `update_archive.dart`.
+- If a file name starts feeling generic, split responsibilities before adding more code.
+
+## Flutter UI Rules
 
 - Flutter UI values MUST come from `AleraTokens` and `ThemeData`.
-- New UI code MUST NOT introduce ad-hoc visual literals (color, spacing, radius, duration, typography) when an existing token/theme value already exists.
+- New UI code MUST NOT introduce ad-hoc visual literals for color, spacing, radius, duration, or typography when an existing token/theme value covers the role.
 - `Colors.transparent` MAY be used only for explicit transparent states.
-- Visible UI copy (texts, labels, tooltips, placeholders, and messages) MUST use sentence case.
-- The active theme strategy SHALL remain dark-mode-only in this version.
+- Visible UI copy MUST use sentence case.
+- The active app theme strategy SHALL remain dark-mode-only in this version.
 - Typography MUST remain fixed to Inter for general text and JetBrains Mono for monospaced text.
+- The canonical design-system reference is `docs/ui-styleguide.md`.
 
-## Tokens Baseline
+## Cross-Platform Desktop Rules
 
-The following baseline values are authoritative for new UI code.
+- Alera targets macOS, Windows, and Linux.
+- Use `Platform` checks or framework abstractions for platform-specific behavior; do not assume POSIX paths or commands.
+- Use `path` package utilities for filesystem paths.
+- Keep terminal, process, workspace, updater, and release code explicit about platform support.
+- UI shortcut labels must match the actual shortcut behavior for the current platform.
 
-### Spacing Scale
+## Flutter Performance
 
-| Token | Value |
-| --- | --- |
-| `space2` | `2.0` |
-| `space4` | `4.0` |
-| `space6` | `6.0` |
-| `space8` | `8.0` |
-| `space12` | `12.0` |
-| `space16` | `16.0` |
-| `space20` | `20.0` |
-| `space24` | `24.0` |
-| `space32` | `32.0` |
-| `space48` | `48.0` |
+- Performance is a product requirement. UI changes must keep the Flutter frame pipeline responsive and avoid unnecessary rebuilds, layout churn, blocking I/O, and heavy synchronous work.
+- Do not run expensive parsing, filesystem traversal, process output processing, hashing, serialization, or other CPU-heavy work on the main isolate when it can reasonably run in another isolate.
+- Prefer isolate-backed workers, `compute`, streamed processing, or incremental batching for work that can grow with repository size, terminal output size, release artifact size, or user data size.
+- Keep main-isolate work limited to UI state coordination and small transformations needed for rendering.
+- When a main-isolate implementation is intentionally kept, document the reason in code or PR notes if the workload could plausibly become large.
 
-### Radius Scale
+## Process And Terminal Safety
 
-| Token | Value |
-| --- | --- |
-| `radiusSm` | `4.0` |
-| `radiusMd` | `6.0` |
-| `radiusLg` | `10.0` |
-| `radiusXl` | `12.0` |
-| `radiusPill` | `20.0` |
+- Treat shell and terminal behavior as user-visible product behavior.
+- Do not assume a local shell exists when the code path could later support remote or constrained environments.
+- Keep command execution behind `ProcessRunner` or a similarly injectable boundary.
+- Tests for command construction should verify Windows, Linux, and macOS variants when behavior differs.
 
-### Core Color Tokens
+## Release And Update Rules
 
-| Token | Hex |
-| --- | --- |
-| `bg` | `#101010` |
-| `surface` | `#181818` |
-| `surfaceVariant` | `#202020` |
-| `surfaceElevated` | `#242424` |
-| `border` | `#323232` |
-| `borderSubtle` | `#272727` |
-| `accent` | `#E0E0E0` |
-| `accentSubtle` | `#1AE0E0E0` |
-| `onAccent` | `#101010` |
-| `foreground` | `#F5F5F5` |
-| `foregroundMuted` | `#A1A1A1` |
-| `foregroundFaint` | `#606060` |
-| `success` | `#22C55E` |
-| `error` | `#F87171` |
-| `onError` | `#2C0D0D` |
-| `warning` | `#F59E0B` |
-| `shadowSoft` | `#14000000` |
-
-### Motion Durations
-
-| Token | Value |
-| --- | --- |
-| `durationFast` | `100ms` |
-| `durationMid` | `180ms` |
-| `durationSlow` | `280ms` |
-
-### Theme Button Baseline
-
-- The default Material button shape SHALL use `radiusLg`.
-- The default Material button minimum height SHALL be `34`.
-
-## Button Model (Primary, Secondary, Destructive, Inline)
-
-- Primary actions MUST use `FilledButton`, `FilledButton.icon`, or `FilledButton.tonalIcon`.
-- Secondary actions MUST use `TextButton` or `OutlinedButton`.
-- Destructive primary actions MUST use a filled style with `AleraTokens.error` as background and `AleraTokens.onError` as foreground.
-- Inline micro-actions MAY use `IconButton` or `InkWell` when compact interaction is required.
-- There is no hard cap on the number of primary actions per surface in this version.
-
-## Radius and Surface Model
-
-- `radiusSm` SHOULD be used for compact controls, tags, and inline chips.
-- `radiusMd` SHOULD be used for standard controls and form elements.
-- `radiusLg` SHOULD be used for cards, list panels, and grouped containers.
-- `radiusXl` SHOULD be used for large containers and dialogs.
-- `radiusPill` SHOULD be reserved for pill-like badges/dividers.
-- Surface layering SHOULD follow `bg` -> `surface` -> `surfaceVariant` -> `surfaceElevated`.
-- Container borders SHOULD use `border` or `borderSubtle` based on emphasis.
-
-## Color Role Model
-
-- The system SHALL keep a grayscale-first palette with neutral accent emphasis.
-- `accent` SHALL represent active emphasis and key neutral-highlight states.
-- `foreground`, `foregroundMuted`, and `foregroundFaint` SHALL represent strong, medium, and low text emphasis.
-- `success`, `error`, and `warning` SHALL represent status semantics.
-- Destructive UI patterns SHALL use `error` and `onError` as the canonical pair.
-
-## Design System Pattern Catalog (Section 7 Replacement)
-
-This catalog is the implementation target for new UI work.
-
-### Table A: Action Type -> Widget Pattern -> Visual Recipe
-
-| Action Type | Approved Widget Pattern | Default Visual Recipe |
-| --- | --- | --- |
-| Primary | `FilledButton*` variants | Theme shape `radiusLg`, min height `34`, token-driven colors |
-| Secondary | `TextButton` or `OutlinedButton` | Theme shape `radiusLg`, token-driven foreground/border |
-| Destructive Primary | `FilledButton` (destructive style) | `bg=error`, `fg=onError`, token-only colors |
-| Inline Micro | `IconButton` or `InkWell` | Compact hit area, token-based radius and colors |
-
-### Table B: Radius Token -> Intended Usage
-
-| Radius Token | Intended Usage |
-| --- | --- |
-| `radiusSm` | Small chips, inline toggles, compact controls |
-| `radiusMd` | Standard button/input/control shapes |
-| `radiusLg` | Cards, panels, timeline groups |
-| `radiusXl` | Dialogs and larger elevated containers |
-| `radiusPill` | Pills and rounded badge-like separators |
-
-### Table C: Color Token -> Semantic Usage
-
-| Color Token | Semantic Usage |
-| --- | --- |
-| `bg` | Global background |
-| `surface` | Base container surfaces |
-| `surfaceVariant` | Emphasized neutral container surfaces |
-| `surfaceElevated` | Hover/elevated neutral surfaces |
-| `border` | Standard control/container border |
-| `borderSubtle` | Subtle separators and low-emphasis border |
-| `accent` | Active emphasis and neutral highlight |
-| `onAccent` | Foreground on accent backgrounds |
-| `foreground` | High-emphasis text/icons |
-| `foregroundMuted` | Medium-emphasis text/icons |
-| `foregroundFaint` | Low-emphasis text/icons |
-| `success` | Positive status |
-| `warning` | Warning status |
-| `error` | Error and destructive emphasis |
-| `onError` | Foreground on error backgrounds |
-| `shadowSoft` | Soft menu/list overlays and subtle elevated shadow |
-
-### Table D: Current Reference Paths (Not Exhaustive)
-
-| Area | Reference Paths |
-| --- | --- |
-| Tokens and theme baseline | `lib/src/app/theme/alera_tokens.dart`, `lib/src/app/theme/alera_dark_theme.dart` |
-| Primary/secondary button examples | `lib/src/features/shell/presentation/alera_shell_page.dart`, `lib/src/features/workbench/presentation/project_workbench_sidebar.dart`, `lib/src/features/workbench/presentation/create_workspace_dialog.dart` |
-| Inline micro-actions | `lib/src/features/workbench/presentation/project_workbench_sidebar.dart`, `lib/src/features/workbench/presentation/workspace_workbench_view.dart`, `lib/src/features/projects/presentation/widgets/sidebar_icon_button.dart` |
-| Status and semantic color usage | `lib/src/features/workbench/presentation/workbench_status_bar.dart`, `lib/src/features/workbench/presentation/widgets/status_dot.dart`, `lib/src/features/workbench/presentation/terminal_surface.dart` |
-
-### Conformance Scenarios
-
-- Scenario: An agent adds a new destructive button.
-  Expected: Uses `FilledButton` with `AleraTokens.error` and `AleraTokens.onError`.
-- Scenario: An agent adds a secondary dismiss/cancel action.
-  Expected: Uses `TextButton` or `OutlinedButton`, not a custom filled primary.
-- Scenario: An agent adds a new card-like surface.
-  Expected: Uses tokenized radii (typically `radiusLg` or `radiusMd`) and avoids ad-hoc radius values.
-- Scenario: An existing widget contains an outlier color.
-  Expected: MUST be migrated to token equivalents in this initiative.
-- Scenario: A PR title is `Feat: Update UI`.
-  Expected: Non-compliant because titles must be lowercase Conventional Commits.
-- Scenario: New UI code introduces inline literal color when a token exists.
-  Expected: Non-compliant with source-of-truth rules.
+- GitHub Actions work must follow `.github/AGENTS.md`.
+- Release script work must follow `tool/release/AGENTS.md`.
+- Stable auto-update MUST remain disabled until release builds are signed and notarized/trusted for the relevant platform.
+- Release automation must publish drafts first, verify all required assets and update manifests, and only then publish public releases.
 
 ## Reference Projects
 
-- Reference projects available in `reference_projects/` serve as agentic development and orchestration references (non-Flutter) and SHOULD be consulted as inspiration or templates when implementing new agentic capabilities or infrastructure.
-- The `orca` repository is the primary reference for ADE-style workspace orchestration patterns. Other retained reference projects MAY be consulted when their specific workflows are relevant.
+- `reference_projects/` contains non-runtime references for agentic development and orchestration patterns.
+- `reference_projects/orca` is the primary reference for ADE-style collaboration, contribution workflow, release gates, and agent-facing project guidance.
+- Reference projects MUST NOT become runtime dependencies of Alera.
 
-## Legacy Outliers (Convergence Required)
+## Documentation Maintenance
 
-- Current outliers (for example direct orange/red/black-alpha literals) MUST be migrated to tokens in this initiative.
-- Outliers are not deferred in this phase.
-- New code and touched existing code MUST NOT copy or preserve non-token outlier patterns when equivalent tokenized patterns exist.
+- After every feature, refactor, fix, or infrastructure change, explicitly consider whether `AGENTS.md`, nested `AGENTS.md` files, `readme.md`, `docs/`, `.github/CONTRIBUTING.md`, `SECURITY.md`, or release documentation need updates.
+- If documentation does not need updates, mention that decision in the final summary or PR notes when the change is user-visible, architectural, process-related, release-related, or contributor-facing.
+- Keep documentation aligned with implemented behavior. Do not document planned behavior as active behavior.
 
 ## Nested Instructions
 
-- The landing page project in `landing/` has its own `AGENTS.md` with additional Astro, Bun, Tailwind, and static-site rules.
-- Agents working under `landing/` MUST follow both this repository-level file and `landing/AGENTS.md`.
+- `landing/AGENTS.md` applies under `landing/`.
+- `test/AGENTS.md` applies under `test/`.
+- `.github/AGENTS.md` applies under `.github/`.
+- `tool/release/AGENTS.md` applies under `tool/release/`.

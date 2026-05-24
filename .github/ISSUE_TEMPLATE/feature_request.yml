@@ -1,0 +1,31 @@
+name: Feature request
+description: Suggest an improvement for Alera
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: What are you trying to do, and what is missing today?
+      placeholder: It is hard to manage related agent work across multiple workspaces.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the change you want to see.
+      placeholder: Add a workspace grouping view that keeps related branches together.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives or additional context
+      description: Workarounds, related tools, mockups, or anything else that helps.
+    validations:
+      required: false

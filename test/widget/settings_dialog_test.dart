@@ -6,6 +6,8 @@ import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
 import 'package:alera/src/features/settings/infra/system_font_service.dart';
 import 'package:alera/src/features/settings/presentation/settings_dialog.dart';
+import 'package:alera/src/features/updater/application/update_service.dart';
+import 'package:alera/src/features/updater/domain/alera_update.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -27,6 +29,7 @@ void main() {
             'SF Mono',
           ]),
         ),
+        updateServiceProvider.overrideWithValue(_FakeUpdateService()),
       ],
     );
     addTearDown(container.dispose);
@@ -58,6 +61,9 @@ void main() {
     tester,
   ) async {
     await pumpSettingsDialog(tester);
+
+    expect(find.text('Updates'), findsOneWidget);
+
     await selectTerminalSection(tester);
 
     expect(find.text('Terminal'), findsWidgets);
@@ -158,6 +164,37 @@ void main() {
       TerminalSettings.defaults.themeName,
     );
   });
+}
+
+class _FakeUpdateService implements AleraUpdateService {
+  @override
+  final AleraUpdateConfig config = AleraUpdateConfig(
+    archiveUrl: Uri.parse('https://example.com/app-archive.json'),
+    releasePageUrl: Uri.parse('https://github.com/leynier/alera'),
+    channel: AleraUpdateChannel.stable,
+    autoInstallEnabled: false,
+    signedRelease: false,
+  );
+
+  @override
+  Future<AleraUpdateCheckResult> checkForUpdates() async {
+    return const AleraUpdateCheckResult(message: 'Alera is up to date.');
+  }
+
+  @override
+  Future<void> installUpdate(
+    AleraUpdateInfo update, {
+    void Function(double progress)? onProgress,
+  }) async {}
+
+  @override
+  Future<void> openDownloadPage(AleraUpdateInfo? update) async {}
+
+  @override
+  Future<void> restartApp() async {}
+
+  @override
+  void dispose() {}
 }
 
 class _FakeSettingsRepository implements SettingsRepository {

@@ -1,0 +1,108 @@
+# Alera UI Style Guide
+
+## Source Of Truth
+
+Flutter UI values come from:
+
+- `lib/src/app/theme/alera_tokens.dart`
+- `lib/src/app/theme/alera_dark_theme.dart`
+- `ThemeData` and Material component themes derived from those tokens
+
+Do not hardcode colors, spacing, radii, durations, typography, shadows, or component shapes when an existing token/theme value covers the role.
+
+## Visual Direction
+
+Alera is a terminal-first desktop ADE. The UI should stay quiet, dense, and work-focused so terminals, workspaces, and agent processes remain the primary surface.
+
+- Keep the palette grayscale-first with neutral accent emphasis.
+- Use status colors only for actual status semantics.
+- Keep dark mode as the only active app theme in this version.
+- Use Inter for general UI text and JetBrains Mono for terminal/code-adjacent text.
+
+## Token Baseline
+
+Spacing:
+
+| Token | Value |
+| --- | --- |
+| `space2` | `2.0` |
+| `space4` | `4.0` |
+| `space6` | `6.0` |
+| `space8` | `8.0` |
+| `space12` | `12.0` |
+| `space16` | `16.0` |
+| `space20` | `20.0` |
+| `space24` | `24.0` |
+| `space32` | `32.0` |
+| `space48` | `48.0` |
+
+Radius:
+
+| Token | Value | Intended usage |
+| --- | --- | --- |
+| `radiusSm` | `4.0` | Small chips, inline toggles, compact controls |
+| `radiusMd` | `6.0` | Standard inputs and controls |
+| `radiusLg` | `10.0` | Cards, panels, grouped containers |
+| `radiusXl` | `12.0` | Dialogs and large elevated containers |
+| `radiusPill` | `20.0` | Pills and badge-like separators |
+
+Core colors:
+
+| Token | Semantic usage |
+| --- | --- |
+| `bg` | Global background |
+| `surface` | Base container surfaces |
+| `surfaceVariant` | Emphasized neutral containers |
+| `surfaceElevated` | Hover/elevated neutral surfaces |
+| `border` | Standard control/container border |
+| `borderSubtle` | Subtle separators and low-emphasis borders |
+| `accent` | Active emphasis and neutral highlight |
+| `onAccent` | Foreground on accent backgrounds |
+| `foreground` | High-emphasis text/icons |
+| `foregroundMuted` | Medium-emphasis text/icons |
+| `foregroundFaint` | Low-emphasis text/icons |
+| `success` | Positive status |
+| `warning` | Warning status |
+| `error` | Error and destructive emphasis |
+| `onError` | Foreground on error backgrounds |
+| `shadowSoft` | Soft menu/list overlays and subtle elevated shadows |
+
+Motion:
+
+| Token | Value |
+| --- | --- |
+| `durationFast` | `100ms` |
+| `durationMid` | `180ms` |
+| `durationSlow` | `280ms` |
+
+## Component Rules
+
+- Primary actions use `FilledButton`, `FilledButton.icon`, or `FilledButton.tonalIcon`.
+- Secondary actions use `TextButton` or `OutlinedButton`.
+- Destructive primary actions use a filled style with `AleraTokens.error` and `AleraTokens.onError`.
+- Inline micro-actions may use `IconButton` or tokenized `InkWell` patterns.
+- Default Material button shape uses `radiusLg`.
+- Default Material button minimum height is `34`.
+
+## Surface Model
+
+- Surface layering should follow `bg` -> `surface` -> `surfaceVariant` -> `surfaceElevated`.
+- Container borders should use `border` or `borderSubtle` based on emphasis.
+- Card-like surfaces should use tokenized radii, typically `radiusLg` or `radiusMd`.
+- New or touched UI must migrate nearby non-token outliers when an equivalent token exists.
+
+## Copy And State
+
+- Visible UI copy must use sentence case.
+- UI copy must not overclaim. Do not imply an action succeeded, skipped, verified, deleted, or protected something unless code has the result state.
+- For long-running actions, reserve control width up front when labels/icons can change.
+- Prefer disabled state for short work and stage labels/progress for multi-step work.
+
+## Reference Paths
+
+| Area | Reference paths |
+| --- | --- |
+| Tokens and theme | `lib/src/app/theme/alera_tokens.dart`, `lib/src/app/theme/alera_dark_theme.dart` |
+| Primary/secondary buttons | `lib/src/features/shell/presentation/alera_shell_page.dart`, `lib/src/features/workbench/presentation/project_workbench_sidebar.dart`, `lib/src/features/workbench/presentation/create_workspace_dialog.dart` |
+| Inline micro-actions | `lib/src/features/workbench/presentation/project_workbench_sidebar.dart`, `lib/src/features/workbench/presentation/workspace_workbench_view.dart`, `lib/src/features/projects/presentation/widgets/sidebar_icon_button.dart` |
+| Status colors | `lib/src/features/workbench/presentation/widgets/status_dot.dart`, `lib/src/features/workbench/presentation/terminal_surface.dart` |

@@ -28,9 +28,7 @@ class SettingsController extends StateNotifier<AleraSettings> {
 
   Future<void> updateWorkspaceDirectory(String? path) async {
     await _save(
-      state.copyWith(
-        general: state.general.copyWith(workspaceDirectory: path),
-      ),
+      state.copyWith(general: state.general.copyWith(workspaceDirectory: path)),
     );
   }
 

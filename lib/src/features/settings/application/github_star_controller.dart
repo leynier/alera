@@ -27,8 +27,7 @@ class GitHubStarController extends StateNotifier<GitHubStarState> {
   }
 
   Future<void> star() async {
-    if (state != GitHubStarState.notStarred &&
-        state != GitHubStarState.error) {
+    if (state != GitHubStarState.notStarred && state != GitHubStarState.error) {
       return;
     }
     state = GitHubStarState.starring;
