@@ -5,11 +5,11 @@ import 'package:alera/src/features/projects/application/project_repository.dart'
 import 'package:alera/src/features/projects/application/project_service.dart';
 import 'package:alera/src/features/projects/application/projects_service.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
-import 'package:alera/src/features/workbench/application/terminal_tab_service.dart';
+import 'package:alera/src/features/workbench/application/workspace_tab_service.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
 import 'package:alera/src/features/workbench/application/workspace_service.dart';
-import 'package:alera/src/features/workbench/domain/terminal_tab_record.dart';
+import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
@@ -46,7 +46,7 @@ void main() {
               .map((tab) => tab.title),
           <String>['Terminal 1'],
         );
-        expect(controller.state.activeTerminalTab?.title, 'Terminal 1');
+        expect(controller.state.activeWorkspaceTab?.title, 'Terminal 1');
       },
     );
 
@@ -57,20 +57,20 @@ void main() {
         await _flush();
 
         final workspace = controller.state.activeWorkspace!;
-        final firstTab = controller.state.activeTerminalTab!;
+        final firstTab = controller.state.activeWorkspaceTab!;
         final secondTab = await controller.createTerminalTab(workspace);
 
-        expect(controller.state.activeTerminalTab?.id, secondTab.id);
+        expect(controller.state.activeWorkspaceTab?.id, secondTab.id);
 
-        await controller.closeTerminalTab(
+        await controller.closeWorkspaceTab(
           workspace: workspace,
           tabId: secondTab.id,
         );
         await _flush();
 
-        expect(controller.state.activeTerminalTab?.id, firstTab.id);
+        expect(controller.state.activeWorkspaceTab?.id, firstTab.id);
 
-        await controller.closeTerminalTab(
+        await controller.closeWorkspaceTab(
           workspace: workspace,
           tabId: firstTab.id,
         );
@@ -78,8 +78,8 @@ void main() {
 
         final tabs = controller.state.tabsFor(workspace.id);
         expect(tabs, hasLength(1));
-        expect(controller.state.activeTerminalTab?.id, tabs.single.id);
-        expect(controller.state.activeTerminalTab?.title, 'Terminal 1');
+        expect(controller.state.activeWorkspaceTab?.id, tabs.single.id);
+        expect(controller.state.activeWorkspaceTab?.title, 'Terminal 1');
       },
     );
 
@@ -166,10 +166,10 @@ void main() {
       await controller.bootstrap();
       await _flush();
       final workspace = controller.state.activeWorkspace!;
-      final firstTab = controller.state.activeTerminalTab!;
+      final firstTab = controller.state.activeWorkspaceTab!;
       final groupId = controller.state.layoutFor(workspace.id)!.activeGroupId;
 
-      final secondTab = await controller.splitWorkbenchGroup(
+      final secondTab = await controller.splitWorkbenchGroupWithTerminal(
         workspace: workspace,
         groupId: groupId,
         zone: WorkbenchDropZone.right,
@@ -185,7 +185,7 @@ void main() {
       ]);
       expect(layout.groupIdForTab(firstTab.id), groupId);
       expect(layout.groupIdForTab(secondTab.id), isNot(groupId));
-      expect(controller.state.activeTerminalTab?.id, secondTab.id);
+      expect(controller.state.activeWorkspaceTab?.id, secondTab.id);
     });
 
     test(
@@ -197,7 +197,7 @@ void main() {
         final firstGroupId = controller.state
             .layoutFor(workspace.id)!
             .activeGroupId;
-        final movedTab = await controller.splitWorkbenchGroup(
+        final movedTab = await controller.splitWorkbenchGroupWithTerminal(
           workspace: workspace,
           groupId: firstGroupId,
           zone: WorkbenchDropZone.down,
@@ -206,7 +206,7 @@ void main() {
         final splitLayout = controller.state.layoutFor(workspace.id)!;
         expect(splitLayout.paneGroupIds, hasLength(2));
 
-        await controller.moveWorkbenchTab(
+        await controller.moveWorkspaceTab(
           workspaceId: workspace.id,
           tabId: movedTab.id,
           targetGroupId: firstGroupId,
@@ -217,7 +217,7 @@ void main() {
         final layout = controller.state.layoutFor(workspace.id)!;
         expect(layout.paneGroupIds, <String>[firstGroupId]);
         expect(layout.groups[firstGroupId]?.tabIds, contains(movedTab.id));
-        expect(controller.state.activeTerminalTab?.id, movedTab.id);
+        expect(controller.state.activeWorkspaceTab?.id, movedTab.id);
       },
     );
 
@@ -226,7 +226,7 @@ void main() {
       await _flush();
       final workspace = controller.state.activeWorkspace!;
       final groupId = controller.state.layoutFor(workspace.id)!.activeGroupId;
-      await controller.splitWorkbenchGroup(
+      await controller.splitWorkbenchGroupWithTerminal(
         workspace: workspace,
         groupId: groupId,
         zone: WorkbenchDropZone.right,
@@ -266,14 +266,14 @@ void main() {
         kind: WorkspaceKind.main,
         status: WorkspaceStatus.active,
       );
-      final firstTab = TerminalTabRecord(
+      final firstTab = WorkspaceTabRecord(
         id: 'tab-1',
         workspaceId: workspace.id,
         title: 'Terminal 1',
         createdAt: DateTime.utc(2026, 5, 22),
         updatedAt: DateTime.utc(2026, 5, 22),
       );
-      final secondTab = TerminalTabRecord(
+      final secondTab = WorkspaceTabRecord(
         id: 'tab-2',
         workspaceId: workspace.id,
         title: 'Terminal 2',
@@ -294,8 +294,8 @@ void main() {
             ),
           );
       await harness.workbenchRepository.upsertWorkspace(workspace);
-      await harness.workbenchRepository.upsertWorkbenchTab(firstTab);
-      await harness.workbenchRepository.upsertWorkbenchTab(secondTab);
+      await harness.workbenchRepository.upsertWorkspaceTab(firstTab);
+      await harness.workbenchRepository.upsertWorkspaceTab(secondTab);
       await harness.workbenchRepository.upsertWorkbenchLayout(savedLayout);
 
       await controller.selectWorkspace(
@@ -334,14 +334,14 @@ void main() {
           kind: WorkspaceKind.main,
           status: WorkspaceStatus.active,
         );
-        final firstTab = TerminalTabRecord(
+        final firstTab = WorkspaceTabRecord(
           id: 'tab-1',
           workspaceId: workspace.id,
           title: 'Terminal 1',
           createdAt: DateTime.utc(2026, 5, 22),
           updatedAt: DateTime.utc(2026, 5, 22),
         );
-        final secondTab = TerminalTabRecord(
+        final secondTab = WorkspaceTabRecord(
           id: 'tab-2',
           workspaceId: workspace.id,
           title: 'Terminal 2',
@@ -366,8 +366,8 @@ void main() {
           layoutRead.future,
         );
         await harness.workbenchRepository.upsertWorkspace(workspace);
-        await harness.workbenchRepository.upsertWorkbenchTab(firstTab);
-        await harness.workbenchRepository.upsertWorkbenchTab(secondTab);
+        await harness.workbenchRepository.upsertWorkspaceTab(firstTab);
+        await harness.workbenchRepository.upsertWorkspaceTab(secondTab);
         await harness.workbenchRepository.upsertWorkbenchLayout(savedLayout);
 
         await controller.bootstrap();
@@ -457,7 +457,7 @@ class _WorkbenchHarness {
       ),
       now: () => DateTime.utc(2026, 5, 22, 1),
     );
-    final terminalTabService = TerminalTabService(
+    final workspaceTabService = WorkspaceTabService(
       repository: workbenchRepository,
       now: () => DateTime.utc(2026, 5, 22, 1),
     );
@@ -465,7 +465,7 @@ class _WorkbenchHarness {
       projectsService: projectsService,
       repository: workbenchRepository,
       workspaceService: workspaceService,
-      terminalTabService: terminalTabService,
+      workspaceTabService: workspaceTabService,
     );
   }
 
@@ -527,14 +527,14 @@ class _FakeProjectRepository implements ProjectRepository {
 class _FakeWorkbenchRepository implements WorkbenchRepository {
   final Map<String, List<Workspace>> _workspacesByProject =
       <String, List<Workspace>>{};
-  final Map<String, List<TerminalTabRecord>> _tabsByWorkspace =
-      <String, List<TerminalTabRecord>>{};
+  final Map<String, List<WorkspaceTabRecord>> _tabsByWorkspace =
+      <String, List<WorkspaceTabRecord>>{};
   final Map<String, WorkbenchLayout> _layoutsByWorkspace =
       <String, WorkbenchLayout>{};
   final Map<String, StreamController<List<Workspace>>> _workspaceControllers =
       <String, StreamController<List<Workspace>>>{};
-  final Map<String, StreamController<List<TerminalTabRecord>>> _tabControllers =
-      <String, StreamController<List<TerminalTabRecord>>>{};
+  final Map<String, StreamController<List<WorkspaceTabRecord>>>
+  _tabControllers = <String, StreamController<List<WorkspaceTabRecord>>>{};
   Future<WorkbenchLayout?>? _findWorkbenchLayoutOverride;
 
   @override
@@ -611,7 +611,7 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
       );
     }
     if (cascadeTabs) {
-      await removeTerminalTabsForWorkspace(workspaceId);
+      await removeWorkspaceTabsForWorkspace(workspaceId);
     }
     await removeWorkbenchLayout(workspaceId);
   }
@@ -622,40 +622,30 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
         _workspacesByProject.remove(projectId) ?? const <Workspace>[];
     _workspaceControllers[projectId]?.add(const <Workspace>[]);
     for (final workspace in workspaces) {
-      await removeTerminalTabsForWorkspace(workspace.id);
+      await removeWorkspaceTabsForWorkspace(workspace.id);
       await removeWorkbenchLayout(workspace.id);
     }
   }
 
   @override
-  Future<List<TerminalTabRecord>> listTerminalTabs(String workspaceId) async {
-    return List<TerminalTabRecord>.from(
-      _tabsByWorkspace[workspaceId] ?? const <TerminalTabRecord>[],
+  Future<List<WorkspaceTabRecord>> listWorkspaceTabs(String workspaceId) async {
+    return List<WorkspaceTabRecord>.from(
+      _tabsByWorkspace[workspaceId] ?? const <WorkspaceTabRecord>[],
     );
   }
 
   @override
-  Future<List<TerminalTabRecord>> listWorkbenchTabs(String workspaceId) {
-    return listTerminalTabs(workspaceId);
-  }
-
-  @override
-  Stream<List<TerminalTabRecord>> watchTerminalTabs(String workspaceId) {
+  Stream<List<WorkspaceTabRecord>> watchWorkspaceTabs(String workspaceId) {
     return _tabControllers
         .putIfAbsent(
           workspaceId,
-          () => StreamController<List<TerminalTabRecord>>.broadcast(),
+          () => StreamController<List<WorkspaceTabRecord>>.broadcast(),
         )
         .stream;
   }
 
   @override
-  Stream<List<TerminalTabRecord>> watchWorkbenchTabs(String workspaceId) {
-    return watchTerminalTabs(workspaceId);
-  }
-
-  @override
-  Future<TerminalTabRecord?> findTerminalTabById(String tabId) async {
+  Future<WorkspaceTabRecord?> findWorkspaceTabById(String tabId) async {
     for (final tabs in _tabsByWorkspace.values) {
       for (final tab in tabs) {
         if (tab.id == tabId) {
@@ -664,11 +654,6 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
       }
     }
     return null;
-  }
-
-  @override
-  Future<TerminalTabRecord?> findWorkbenchTabById(String tabId) {
-    return findTerminalTabById(tabId);
   }
 
   @override
@@ -681,9 +666,9 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
   }
 
   @override
-  Future<TerminalTabRecord> upsertTerminalTab(TerminalTabRecord tab) async {
-    final current = List<TerminalTabRecord>.from(
-      _tabsByWorkspace[tab.workspaceId] ?? const <TerminalTabRecord>[],
+  Future<WorkspaceTabRecord> upsertWorkspaceTab(WorkspaceTabRecord tab) async {
+    final current = List<WorkspaceTabRecord>.from(
+      _tabsByWorkspace[tab.workspaceId] ?? const <WorkspaceTabRecord>[],
     );
     final index = current.indexWhere((entry) => entry.id == tab.id);
     if (index == -1) {
@@ -694,14 +679,9 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
     current.sort((left, right) => left.createdAt.compareTo(right.createdAt));
     _tabsByWorkspace[tab.workspaceId] = current;
     _tabControllers[tab.workspaceId]?.add(
-      List<TerminalTabRecord>.from(current),
+      List<WorkspaceTabRecord>.from(current),
     );
     return tab;
-  }
-
-  @override
-  Future<TerminalTabRecord> upsertWorkbenchTab(TerminalTabRecord tab) {
-    return upsertTerminalTab(tab);
   }
 
   @override
@@ -729,20 +709,20 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
 
   void emitTabs(String workspaceId) {
     _tabControllers[workspaceId]?.add(
-      List<TerminalTabRecord>.from(
-        _tabsByWorkspace[workspaceId] ?? const <TerminalTabRecord>[],
+      List<WorkspaceTabRecord>.from(
+        _tabsByWorkspace[workspaceId] ?? const <WorkspaceTabRecord>[],
       ),
     );
   }
 
   @override
-  Future<void> removeTerminalTab(String tabId) async {
+  Future<void> removeWorkspaceTab(String tabId) async {
     for (final entry in _tabsByWorkspace.entries) {
       final previousLength = entry.value.length;
       entry.value.removeWhere((tab) => tab.id == tabId);
       if (entry.value.length != previousLength) {
         _tabControllers[entry.key]?.add(
-          List<TerminalTabRecord>.from(entry.value),
+          List<WorkspaceTabRecord>.from(entry.value),
         );
         return;
       }
@@ -750,19 +730,9 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
   }
 
   @override
-  Future<void> removeWorkbenchTab(String tabId) {
-    return removeTerminalTab(tabId);
-  }
-
-  @override
-  Future<void> removeTerminalTabsForWorkspace(String workspaceId) async {
+  Future<void> removeWorkspaceTabsForWorkspace(String workspaceId) async {
     _tabsByWorkspace.remove(workspaceId);
-    _tabControllers[workspaceId]?.add(const <TerminalTabRecord>[]);
-  }
-
-  @override
-  Future<void> removeWorkbenchTabsForWorkspace(String workspaceId) {
-    return removeTerminalTabsForWorkspace(workspaceId);
+    _tabControllers[workspaceId]?.add(const <WorkspaceTabRecord>[]);
   }
 
   @override

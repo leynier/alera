@@ -8,7 +8,7 @@ import 'dart:isolate';
 
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
-import 'package:alera/src/features/workbench/domain/terminal_tab_record.dart';
+import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
@@ -45,7 +45,7 @@ abstract class TerminalSessionHandle extends ChangeNotifier {
 abstract interface class TerminalRuntime {
   TerminalSessionHandle sessionFor({
     required Workspace workspace,
-    required TerminalTabRecord tab,
+    required WorkspaceTabRecord tab,
   });
 
   void closeTab(String tabId);
@@ -349,7 +349,7 @@ class XtermTerminalRuntime implements TerminalRuntime {
   @override
   TerminalSessionHandle sessionFor({
     required Workspace workspace,
-    required TerminalTabRecord tab,
+    required WorkspaceTabRecord tab,
   }) {
     return _sessions
         .putIfAbsent(tab.id, () {
@@ -391,7 +391,7 @@ class XtermTerminalRuntime implements TerminalRuntime {
 class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   _XtermTerminalSessionHandle({
     required Workspace workspace,
-    required TerminalTabRecord tab,
+    required WorkspaceTabRecord tab,
     required TerminalPtySessionFactory ptySessionFactory,
     required TerminalSettings settings,
   }) : _workspace = workspace,
@@ -405,7 +405,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   }
 
   Workspace _workspace;
-  TerminalTabRecord _tab;
+  WorkspaceTabRecord _tab;
   final TerminalPtySessionFactory _ptySessionFactory;
   TerminalSettings _settings;
   late xterm.Terminal _terminal;
@@ -453,7 +453,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
 
   _XtermTerminalSessionHandle sync({
     required Workspace workspace,
-    required TerminalTabRecord tab,
+    required WorkspaceTabRecord tab,
   }) {
     final metadataChanged =
         _workspace.id != workspace.id ||

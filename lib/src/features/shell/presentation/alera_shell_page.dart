@@ -161,7 +161,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
         );
       },
       onSelectTab: ({required groupId, required tabId}) {
-        controller.setActiveWorkbenchTab(
+        controller.setActiveWorkspaceTab(
           workspaceId: workspace.id,
           groupId: groupId,
           tabId: tabId,
@@ -169,11 +169,11 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
       },
       onCloseTab: (tabId) async {
         terminalRuntime.closeTab(tabId);
-        await controller.closeTerminalTab(workspace: workspace, tabId: tabId);
+        await controller.closeWorkspaceTab(workspace: workspace, tabId: tabId);
       },
       onMoveTab:
           ({required tabId, required targetGroupId, required zone}) async {
-            await controller.moveWorkbenchTab(
+            await controller.moveWorkspaceTab(
               workspaceId: workspace.id,
               tabId: tabId,
               targetGroupId: targetGroupId,
@@ -181,7 +181,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
             );
           },
       onSplitGroup: ({required groupId, required zone}) async {
-        await controller.splitWorkbenchGroup(
+        await controller.splitWorkbenchGroupWithTerminal(
           workspace: workspace,
           groupId: groupId,
           zone: zone,

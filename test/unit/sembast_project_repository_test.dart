@@ -1,7 +1,7 @@
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/infra/sembast_project_repository.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
-import 'package:alera/src/features/workbench/domain/workbench_tab_record.dart';
+import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/shared/infra/storage/sembast_database.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,7 +10,7 @@ import 'package:sembast/sembast_memory.dart';
 void main() {
   group('SembastProjectRepository', () {
     test(
-      'remove cascades workbench tabs and layouts for project workspaces',
+      'remove cascades workspace tabs and layouts for project workspaces',
       () async {
         final db = await openAleraDb(
           factory: databaseFactoryMemory,
@@ -52,11 +52,11 @@ void main() {
         await AleraStores.workbenchWorkspaces
             .record(otherWorkspace.id)
             .put(db, otherWorkspace.toJson());
-        await AleraStores.workbenchTabs.record(tab.id).put(db, tab.toJson());
-        await AleraStores.terminalTabs
+        await AleraStores.workspaceTabs.record(tab.id).put(db, tab.toJson());
+        await AleraStores.legacyTerminalTabs
             .record(legacyTab.id)
             .put(db, legacyTab.toJson());
-        await AleraStores.workbenchTabs
+        await AleraStores.workspaceTabs
             .record(otherTab.id)
             .put(db, otherTab.toJson());
         await AleraStores.workbenchLayouts
@@ -85,9 +85,9 @@ void main() {
           await AleraStores.workbenchWorkspaces.record(workspace.id).get(db),
           isNull,
         );
-        expect(await AleraStores.workbenchTabs.record(tab.id).get(db), isNull);
+        expect(await AleraStores.workspaceTabs.record(tab.id).get(db), isNull);
         expect(
-          await AleraStores.terminalTabs.record(legacyTab.id).get(db),
+          await AleraStores.legacyTerminalTabs.record(legacyTab.id).get(db),
           isNull,
         );
         expect(
@@ -105,7 +105,7 @@ void main() {
           isNotNull,
         );
         expect(
-          await AleraStores.workbenchTabs.record(otherTab.id).get(db),
+          await AleraStores.workspaceTabs.record(otherTab.id).get(db),
           isNotNull,
         );
         expect(
@@ -145,12 +145,12 @@ Workspace _workspace({
   );
 }
 
-WorkbenchTabRecord _tab({
+WorkspaceTabRecord _tab({
   required String id,
   required String workspaceId,
   required DateTime now,
 }) {
-  return WorkbenchTabRecord(
+  return WorkspaceTabRecord(
     id: id,
     workspaceId: workspaceId,
     title: id,

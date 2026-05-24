@@ -68,20 +68,20 @@ class SembastProjectRepository implements ProjectRepository {
     await AleraStores.workbenchWorkspaces.record(workspaceId).delete(txn);
     await AleraStores.workbenchLayouts.record(workspaceId).delete(txn);
 
-    final tabRecords = await AleraStores.terminalTabs.find(
+    final tabRecords = await AleraStores.legacyTerminalTabs.find(
       txn,
       finder: Finder(filter: Filter.equals('workspaceId', workspaceId)),
     );
     for (final tabRecord in tabRecords) {
-      await AleraStores.terminalTabs.record(tabRecord.key).delete(txn);
+      await AleraStores.legacyTerminalTabs.record(tabRecord.key).delete(txn);
     }
 
-    final workbenchTabRecords = await AleraStores.workbenchTabs.find(
+    final workspaceTabRecords = await AleraStores.workspaceTabs.find(
       txn,
       finder: Finder(filter: Filter.equals('workspaceId', workspaceId)),
     );
-    for (final tabRecord in workbenchTabRecords) {
-      await AleraStores.workbenchTabs.record(tabRecord.key).delete(txn);
+    for (final tabRecord in workspaceTabRecords) {
+      await AleraStores.workspaceTabs.record(tabRecord.key).delete(txn);
     }
   }
 }

@@ -1,11 +1,11 @@
 // ignore_for_file: prefer_initializing_formals
 
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
-import 'package:alera/src/features/workbench/domain/terminal_tab_record.dart';
+import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:uuid/uuid.dart';
 
-class TerminalTabService {
-  TerminalTabService({
+class WorkspaceTabService {
+  WorkspaceTabService({
     required WorkbenchRepository repository,
     Uuid? uuid,
     DateTime Function()? now,
@@ -19,36 +19,38 @@ class TerminalTabService {
 
   static DateTime _defaultNow() => DateTime.now().toUtc();
 
-  Future<List<TerminalTabRecord>> listTabs(String workspaceId) {
-    return _repository.listTerminalTabs(workspaceId);
+  Future<List<WorkspaceTabRecord>> listTabs(String workspaceId) {
+    return _repository.listWorkspaceTabs(workspaceId);
   }
 
-  Future<TerminalTabRecord> ensureInitialTab(String workspaceId) async {
-    final tabs = await _repository.listTerminalTabs(workspaceId);
+  Future<WorkspaceTabRecord> ensureInitialTerminalTab(
+    String workspaceId,
+  ) async {
+    final tabs = await _repository.listWorkspaceTabs(workspaceId);
     if (tabs.isNotEmpty) {
       return tabs.first;
     }
-    return createTab(workspaceId);
+    return createTerminalTab(workspaceId);
   }
 
-  Future<TerminalTabRecord> createTab(String workspaceId) async {
-    final existing = await _repository.listTerminalTabs(workspaceId);
-    final tab = TerminalTabRecord(
+  Future<WorkspaceTabRecord> createTerminalTab(String workspaceId) async {
+    final existing = await _repository.listWorkspaceTabs(workspaceId);
+    final tab = WorkspaceTabRecord(
       id: _uuid.v4(),
       workspaceId: workspaceId,
       title: 'Terminal ${_nextOrdinal(existing)}',
       createdAt: _now(),
       updatedAt: _now(),
     );
-    await _repository.upsertTerminalTab(tab);
+    await _repository.upsertWorkspaceTab(tab);
     return tab;
   }
 
   Future<void> closeTab(String tabId) {
-    return _repository.removeTerminalTab(tabId);
+    return _repository.removeWorkspaceTab(tabId);
   }
 
-  int _nextOrdinal(List<TerminalTabRecord> tabs) {
+  int _nextOrdinal(List<WorkspaceTabRecord> tabs) {
     final used = <int>{};
     for (final tab in tabs) {
       final match = RegExp(r'^Terminal (\d+)$').firstMatch(tab.title);

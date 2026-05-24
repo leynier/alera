@@ -1,6 +1,6 @@
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
-import 'package:alera/src/features/workbench/domain/terminal_tab_record.dart';
+import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 
@@ -43,15 +43,15 @@ class WorkbenchWorkspaceRow extends WorkbenchSidebarRow {
   final int indent;
 }
 
-class WorkbenchTerminalRow extends WorkbenchSidebarRow {
-  const WorkbenchTerminalRow({
+class SidebarTerminalTabRow extends WorkbenchSidebarRow {
+  const SidebarTerminalTabRow({
     required this.workspace,
     required this.tab,
     required this.indent,
   });
 
   final Workspace workspace;
-  final TerminalTabRecord tab;
+  final WorkspaceTabRecord tab;
   final int indent;
 }
 
@@ -125,7 +125,7 @@ List<WorkbenchSidebarRow> buildSidebarRows(WorkbenchState state) {
     return sorted;
   }
 
-  void appendTerminalRows(
+  void appendSidebarTerminalTabRows(
     List<WorkbenchSidebarRow> rows,
     Workspace workspace,
     int indent,
@@ -135,8 +135,11 @@ List<WorkbenchSidebarRow> buildSidebarRows(WorkbenchState state) {
     }
     final tabs = state.tabsFor(workspace.id);
     for (final tab in tabs) {
+      if (tab.kind != WorkspaceTabKind.terminal) {
+        continue;
+      }
       rows.add(
-        WorkbenchTerminalRow(workspace: workspace, tab: tab, indent: indent),
+        SidebarTerminalTabRow(workspace: workspace, tab: tab, indent: indent),
       );
     }
   }
@@ -178,7 +181,7 @@ List<WorkbenchSidebarRow> buildSidebarRows(WorkbenchState state) {
               expanded: prefs.expandedWorkspaceIds.contains(workspace.id),
             ),
           );
-          appendTerminalRows(rows, workspace, 2);
+          appendSidebarTerminalTabRows(rows, workspace, 2);
         }
       }
     case WorkbenchGroupBy.none:
@@ -216,7 +219,7 @@ List<WorkbenchSidebarRow> buildSidebarRows(WorkbenchState state) {
             expanded: prefs.expandedWorkspaceIds.contains(entry.workspace.id),
           ),
         );
-        appendTerminalRows(rows, entry.workspace, 1);
+        appendSidebarTerminalTabRows(rows, entry.workspace, 1);
       }
   }
 

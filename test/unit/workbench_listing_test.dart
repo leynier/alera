@@ -1,7 +1,7 @@
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_listing.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
-import 'package:alera/src/features/workbench/domain/terminal_tab_record.dart';
+import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -39,10 +39,16 @@ Workspace _workspace(
   );
 }
 
-TerminalTabRecord _tab(String id, String workspaceId, String title) {
-  return TerminalTabRecord(
+WorkspaceTabRecord _tab(
+  String id,
+  String workspaceId,
+  String title, {
+  WorkspaceTabKind kind = WorkspaceTabKind.terminal,
+}) {
+  return WorkspaceTabRecord(
     id: id,
     workspaceId: workspaceId,
+    kind: kind,
     title: title,
     createdAt: _t0,
     updatedAt: _t0,
@@ -58,7 +64,7 @@ WorkbenchState _fixtureState({
       prefs ??
       WorkbenchViewPrefs.defaults.copyWith(
         // Default behaviour mirrors the controller: activating a workspace
-        // also expands it so its terminals are visible.
+        // also expands it so its terminal tabs are visible.
         expandedWorkspaceIds: <String>{?activeWorkspaceId},
       );
   final alera = _project('p-alera', 'alera', recencyOffset: 2);
@@ -92,10 +98,11 @@ WorkbenchState _fixtureState({
       alera.id: <Workspace>[aleraMain, aleraFeature],
       orca.id: <Workspace>[orcaMain],
     },
-    tabsByWorkspace: <String, List<TerminalTabRecord>>{
-      aleraMain.id: <TerminalTabRecord>[
+    tabsByWorkspace: <String, List<WorkspaceTabRecord>>{
+      aleraMain.id: <WorkspaceTabRecord>[
         _tab('t-1', aleraMain.id, 'Terminal 1'),
         _tab('t-2', aleraMain.id, 'Terminal 2'),
+        _tab('e-1', aleraMain.id, 'Editor 1', kind: WorkspaceTabKind.editor),
       ],
     },
     viewPrefs: resolvedPrefs,
@@ -108,17 +115,17 @@ WorkbenchState _fixtureState({
 
 void main() {
   group('buildSidebarRows · group by project', () {
-    test('emits project headers, workspace rows and terminal rows', () {
+    test('emits project headers, workspace rows and terminal-tab rows', () {
       final rows = buildSidebarRows(_fixtureState());
-      // alera header → Main + 2 terminals + feature, orca header → Main
+      // alera header → Main + 2 terminal tabs + feature, orca header → Main
       expect(rows, hasLength(7));
       expect(rows[0], isA<WorkbenchProjectHeaderRow>());
       expect((rows[0] as WorkbenchProjectHeaderRow).project.name, 'alera');
       expect(rows[1], isA<WorkbenchWorkspaceRow>());
       expect((rows[1] as WorkbenchWorkspaceRow).workspace.name, 'Main');
       expect((rows[1] as WorkbenchWorkspaceRow).showProjectChip, isFalse);
-      expect(rows[2], isA<WorkbenchTerminalRow>());
-      expect(rows[3], isA<WorkbenchTerminalRow>());
+      expect(rows[2], isA<SidebarTerminalTabRow>());
+      expect(rows[3], isA<SidebarTerminalTabRow>());
       expect(rows[4], isA<WorkbenchWorkspaceRow>());
       expect((rows[4] as WorkbenchWorkspaceRow).workspace.name, 'feature');
       expect(rows[5], isA<WorkbenchProjectHeaderRow>());
@@ -195,23 +202,36 @@ void main() {
       expect(rows.whereType<WorkbenchProjectHeaderRow>(), isEmpty);
     });
 
-    test('terminals appear when the workspace is in the expansion set', () {
+    test('terminal tabs appear when the workspace is in the expansion set', () {
       final prefs = WorkbenchViewPrefs.defaults.copyWith(
         groupBy: WorkbenchGroupBy.none,
         expandedWorkspaceIds: <String>{'w-alera-main'},
       );
       final rows = buildSidebarRows(_fixtureState(prefs: prefs));
-      expect(rows.whereType<WorkbenchTerminalRow>(), hasLength(2));
+      expect(rows.whereType<SidebarTerminalTabRow>(), hasLength(2));
     });
 
-    test('workspace without an expansion entry shows no terminals', () {
+    test('non-terminal workspace tabs stay out of the sidebar', () {
+      final prefs = WorkbenchViewPrefs.defaults.copyWith(
+        groupBy: WorkbenchGroupBy.none,
+        expandedWorkspaceIds: <String>{'w-alera-main'},
+      );
+      final rows = buildSidebarRows(_fixtureState(prefs: prefs));
+      final sidebarTabs = rows.whereType<SidebarTerminalTabRow>().toList();
+      expect(
+        sidebarTabs.map((row) => row.tab.kind),
+        everyElement(WorkspaceTabKind.terminal),
+      );
+    });
+
+    test('workspace without an expansion entry shows no terminal tabs', () {
       final prefs = WorkbenchViewPrefs.defaults.copyWith(
         groupBy: WorkbenchGroupBy.none,
         // expandedWorkspaceIds is empty — no workspace should reveal its
-        // terminals even though one is active in the state fixture.
+        // terminal tabs even though one is active in the state fixture.
       );
       final rows = buildSidebarRows(_fixtureState(prefs: prefs));
-      expect(rows.whereType<WorkbenchTerminalRow>(), isEmpty);
+      expect(rows.whereType<SidebarTerminalTabRow>(), isEmpty);
     });
 
     test('recent sort orders workspaces by updatedAt desc', () {

@@ -1,4 +1,4 @@
-import 'package:alera/src/features/workbench/domain/workbench_tab_record.dart';
+import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 
 const double workbenchMinSplitRatio = 0.15;
 const double workbenchMaxSplitRatio = 0.85;
@@ -275,7 +275,7 @@ class WorkbenchLayout {
     return null;
   }
 
-  WorkbenchLayout sanitize(List<WorkbenchTabRecord> tabs) {
+  WorkbenchLayout sanitize(List<WorkspaceTabRecord> tabs) {
     final validTabIds = <String>{for (final tab in tabs) tab.id};
     final nextGroups = <String, WorkbenchPaneGroup>{};
     final assignedTabIds = <String>{};

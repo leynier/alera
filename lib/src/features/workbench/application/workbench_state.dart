@@ -1,6 +1,6 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
-import 'package:alera/src/features/workbench/domain/terminal_tab_record.dart';
+import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
@@ -9,7 +9,7 @@ class WorkbenchState {
   const WorkbenchState({
     this.projects = const <Project>[],
     this.workspacesByProject = const <String, List<Workspace>>{},
-    this.tabsByWorkspace = const <String, List<TerminalTabRecord>>{},
+    this.tabsByWorkspace = const <String, List<WorkspaceTabRecord>>{},
     this.layoutByWorkspace = const <String, WorkbenchLayout>{},
     this.viewPrefs = WorkbenchViewPrefs.defaults,
     this.activeProjectId,
@@ -24,7 +24,7 @@ class WorkbenchState {
 
   final List<Project> projects;
   final Map<String, List<Workspace>> workspacesByProject;
-  final Map<String, List<TerminalTabRecord>> tabsByWorkspace;
+  final Map<String, List<WorkspaceTabRecord>> tabsByWorkspace;
   final Map<String, WorkbenchLayout> layoutByWorkspace;
   final WorkbenchViewPrefs viewPrefs;
   final String? activeProjectId;
@@ -76,7 +76,7 @@ class WorkbenchState {
     return null;
   }
 
-  TerminalTabRecord? get activeTerminalTab {
+  WorkspaceTabRecord? get activeWorkspaceTab {
     final workspace = activeWorkspace;
     if (workspace == null) {
       return null;
@@ -99,8 +99,8 @@ class WorkbenchState {
     return workspacesByProject[projectId] ?? const <Workspace>[];
   }
 
-  List<TerminalTabRecord> tabsFor(String workspaceId) {
-    return tabsByWorkspace[workspaceId] ?? const <TerminalTabRecord>[];
+  List<WorkspaceTabRecord> tabsFor(String workspaceId) {
+    return tabsByWorkspace[workspaceId] ?? const <WorkspaceTabRecord>[];
   }
 
   WorkbenchLayout? layoutFor(String workspaceId) {
@@ -115,18 +115,18 @@ class WorkbenchState {
     return layoutByWorkspace[workspace.id];
   }
 
-  List<TerminalTabRecord> tabsForGroup(String workspaceId, String groupId) {
+  List<WorkspaceTabRecord> tabsForGroup(String workspaceId, String groupId) {
     final layout = layoutFor(workspaceId);
     final group = layout?.groups[groupId];
     if (group == null) {
-      return const <TerminalTabRecord>[];
+      return const <WorkspaceTabRecord>[];
     }
-    final tabsById = <String, TerminalTabRecord>{
+    final tabsById = <String, WorkspaceTabRecord>{
       for (final tab in tabsFor(workspaceId)) tab.id: tab,
     };
-    return <TerminalTabRecord>[
+    return <WorkspaceTabRecord>[
       for (final tabId in group.tabIds)
-        if (tabsById[tabId] case final TerminalTabRecord tab) tab,
+        if (tabsById[tabId] case final WorkspaceTabRecord tab) tab,
     ];
   }
 
@@ -164,7 +164,7 @@ class WorkbenchState {
   WorkbenchState copyWith({
     List<Project>? projects,
     Map<String, List<Workspace>>? workspacesByProject,
-    Map<String, List<TerminalTabRecord>>? tabsByWorkspace,
+    Map<String, List<WorkspaceTabRecord>>? tabsByWorkspace,
     Map<String, WorkbenchLayout>? layoutByWorkspace,
     WorkbenchViewPrefs? viewPrefs,
     String? activeProjectId,

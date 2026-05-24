@@ -6,13 +6,13 @@ import 'package:alera/src/features/projects/application/project_service.dart';
 import 'package:alera/src/features/projects/application/projects_service.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/shell/presentation/alera_shell_page.dart';
-import 'package:alera/src/features/workbench/application/terminal_tab_service.dart';
+import 'package:alera/src/features/workbench/application/workspace_tab_service.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/application/workspace_folder_opener.dart';
 import 'package:alera/src/features/workbench/application/workspace_service.dart';
-import 'package:alera/src/features/workbench/domain/terminal_tab_record.dart';
+import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
@@ -221,14 +221,14 @@ WorkbenchState _stackedWorkbenchState() {
     kind: WorkspaceKind.main,
     status: WorkspaceStatus.active,
   );
-  final firstTab = TerminalTabRecord(
+  final firstTab = WorkspaceTabRecord(
     id: 'tab-1',
     workspaceId: workspace.id,
     title: 'Terminal 1',
     createdAt: now,
     updatedAt: now,
   );
-  final secondTab = TerminalTabRecord(
+  final secondTab = WorkspaceTabRecord(
     id: 'tab-2',
     workspaceId: workspace.id,
     title: 'Terminal 2',
@@ -240,8 +240,8 @@ WorkbenchState _stackedWorkbenchState() {
     workspacesByProject: <String, List<Workspace>>{
       project.id: <Workspace>[workspace],
     },
-    tabsByWorkspace: <String, List<TerminalTabRecord>>{
-      workspace.id: <TerminalTabRecord>[firstTab, secondTab],
+    tabsByWorkspace: <String, List<WorkspaceTabRecord>>{
+      workspace.id: <WorkspaceTabRecord>[firstTab, secondTab],
     },
     layoutByWorkspace: <String, WorkbenchLayout>{
       workspace.id: WorkbenchLayout.single(
@@ -276,7 +276,7 @@ WorkbenchState _populatedWorkbenchState() {
     kind: WorkspaceKind.main,
     status: WorkspaceStatus.active,
   );
-  final tab = TerminalTabRecord(
+  final tab = WorkspaceTabRecord(
     id: 'tab-1',
     workspaceId: workspace.id,
     title: 'Terminal 1',
@@ -288,8 +288,8 @@ WorkbenchState _populatedWorkbenchState() {
     workspacesByProject: <String, List<Workspace>>{
       project.id: <Workspace>[workspace],
     },
-    tabsByWorkspace: <String, List<TerminalTabRecord>>{
-      workspace.id: <TerminalTabRecord>[tab],
+    tabsByWorkspace: <String, List<WorkspaceTabRecord>>{
+      workspace.id: <WorkspaceTabRecord>[tab],
     },
     activeProjectId: project.id,
     activeWorkspaceId: workspace.id,
@@ -324,14 +324,14 @@ WorkbenchState _splitWorkbenchState() {
     kind: WorkspaceKind.main,
     status: WorkspaceStatus.active,
   );
-  final firstTab = TerminalTabRecord(
+  final firstTab = WorkspaceTabRecord(
     id: 'tab-1',
     workspaceId: workspace.id,
     title: 'Terminal 1',
     createdAt: now,
     updatedAt: now,
   );
-  final secondTab = TerminalTabRecord(
+  final secondTab = WorkspaceTabRecord(
     id: 'tab-2',
     workspaceId: workspace.id,
     title: 'Terminal 2',
@@ -356,8 +356,8 @@ WorkbenchState _splitWorkbenchState() {
     workspacesByProject: <String, List<Workspace>>{
       project.id: <Workspace>[workspace],
     },
-    tabsByWorkspace: <String, List<TerminalTabRecord>>{
-      workspace.id: <TerminalTabRecord>[firstTab, secondTab],
+    tabsByWorkspace: <String, List<WorkspaceTabRecord>>{
+      workspace.id: <WorkspaceTabRecord>[firstTab, secondTab],
     },
     layoutByWorkspace: <String, WorkbenchLayout>{workspace.id: layout},
     activeProjectId: project.id,
@@ -380,7 +380,7 @@ class _ShellTestWorkbenchController extends WorkbenchController {
           projectService: ProjectService(_NoopProcessRunner()),
           processRunner: _NoopProcessRunner(),
         ),
-        terminalTabService: TerminalTabService(
+        workspaceTabService: WorkspaceTabService(
           repository: _NoopWorkbenchRepository(),
         ),
       );
@@ -401,7 +401,7 @@ class _FakeTerminalRuntime implements TerminalRuntime {
   @override
   TerminalSessionHandle sessionFor({
     required Workspace workspace,
-    required TerminalTabRecord tab,
+    required WorkspaceTabRecord tab,
   }) {
     return _sessions.putIfAbsent(
       tab.id,
@@ -439,7 +439,7 @@ class _FakeTerminalSessionHandle extends TerminalSessionHandle {
   _FakeTerminalSessionHandle({required this.workspace, required this.tab});
 
   final Workspace workspace;
-  final TerminalTabRecord tab;
+  final WorkspaceTabRecord tab;
   bool _started = false;
 
   @override
@@ -487,12 +487,7 @@ class _NoopWorkbenchRepository implements WorkbenchRepository {
   Future<Workspace?> findWorkspaceById(String workspaceId) async => null;
 
   @override
-  Future<TerminalTabRecord?> findTerminalTabById(String tabId) async => null;
-
-  @override
-  Future<TerminalTabRecord?> findWorkbenchTabById(String tabId) {
-    return findTerminalTabById(tabId);
-  }
+  Future<WorkspaceTabRecord?> findWorkspaceTabById(String tabId) async => null;
 
   @override
   Future<WorkbenchLayout?> findWorkbenchLayout(String workspaceId) async {
@@ -500,33 +495,19 @@ class _NoopWorkbenchRepository implements WorkbenchRepository {
   }
 
   @override
-  Future<List<TerminalTabRecord>> listTerminalTabs(String workspaceId) async =>
-      const <TerminalTabRecord>[];
-
-  @override
-  Future<List<TerminalTabRecord>> listWorkbenchTabs(String workspaceId) {
-    return listTerminalTabs(workspaceId);
-  }
+  Future<List<WorkspaceTabRecord>> listWorkspaceTabs(
+    String workspaceId,
+  ) async => const <WorkspaceTabRecord>[];
 
   @override
   Future<List<Workspace>> listWorkspaces(String projectId) async =>
       const <Workspace>[];
 
   @override
-  Future<void> removeTerminalTab(String tabId) async {}
+  Future<void> removeWorkspaceTab(String tabId) async {}
 
   @override
-  Future<void> removeWorkbenchTab(String tabId) {
-    return removeTerminalTab(tabId);
-  }
-
-  @override
-  Future<void> removeTerminalTabsForWorkspace(String workspaceId) async {}
-
-  @override
-  Future<void> removeWorkbenchTabsForWorkspace(String workspaceId) {
-    return removeTerminalTabsForWorkspace(workspaceId);
-  }
+  Future<void> removeWorkspaceTabsForWorkspace(String workspaceId) async {}
 
   @override
   Future<void> removeWorkspace(
@@ -543,13 +524,8 @@ class _NoopWorkbenchRepository implements WorkbenchRepository {
   }
 
   @override
-  Future<TerminalTabRecord> upsertTerminalTab(TerminalTabRecord tab) async =>
+  Future<WorkspaceTabRecord> upsertWorkspaceTab(WorkspaceTabRecord tab) async =>
       tab;
-
-  @override
-  Future<TerminalTabRecord> upsertWorkbenchTab(TerminalTabRecord tab) {
-    return upsertTerminalTab(tab);
-  }
 
   @override
   Future<WorkbenchLayout> upsertWorkbenchLayout(WorkbenchLayout layout) async {
@@ -561,13 +537,8 @@ class _NoopWorkbenchRepository implements WorkbenchRepository {
   Future<Workspace> upsertWorkspace(Workspace workspace) async => workspace;
 
   @override
-  Stream<List<TerminalTabRecord>> watchTerminalTabs(String workspaceId) =>
-      const Stream<List<TerminalTabRecord>>.empty();
-
-  @override
-  Stream<List<TerminalTabRecord>> watchWorkbenchTabs(String workspaceId) {
-    return watchTerminalTabs(workspaceId);
-  }
+  Stream<List<WorkspaceTabRecord>> watchWorkspaceTabs(String workspaceId) =>
+      const Stream<List<WorkspaceTabRecord>>.empty();
 
   @override
   Stream<List<Workspace>> watchWorkspaces(String projectId) =>

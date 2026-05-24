@@ -1,5 +1,5 @@
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
-import 'package:alera/src/features/workbench/domain/workbench_tab_record.dart';
+import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -46,7 +46,7 @@ void main() {
               ),
             );
 
-        final sanitized = layout.sanitize(<WorkbenchTabRecord>[
+        final sanitized = layout.sanitize(<WorkspaceTabRecord>[
           _tab('tab-1'),
           _tab('tab-2'),
         ]);
@@ -168,8 +168,8 @@ void main() {
   });
 }
 
-WorkbenchTabRecord _tab(String id) {
-  return WorkbenchTabRecord(
+WorkspaceTabRecord _tab(String id) {
+  return WorkspaceTabRecord(
     id: id,
     workspaceId: 'workspace-1',
     title: id,

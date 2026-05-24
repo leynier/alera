@@ -46,13 +46,16 @@ class AleraStores {
   static final StoreRef<String, Map<String, Object?>> workbenchWorkspaces =
       stringMapStoreFactory.store('workbench_workspaces');
 
-  static final StoreRef<String, Map<String, Object?>> workbenchTabs =
+  // Store name kept as `workbench_tabs` for existing local database
+  // compatibility; the domain model is `WorkspaceTabRecord`.
+  static final StoreRef<String, Map<String, Object?>> workspaceTabs =
       stringMapStoreFactory.store('workbench_tabs');
 
   static final StoreRef<String, Map<String, Object?>> workbenchLayouts =
       stringMapStoreFactory.store('workbench_layouts');
 
-  static final StoreRef<String, Map<String, Object?>> terminalTabs =
+  // Legacy pre-WorkspaceTab store. Read only for migration and cleanup.
+  static final StoreRef<String, Map<String, Object?>> legacyTerminalTabs =
       stringMapStoreFactory.store('terminal_tabs');
 
   static final StoreRef<String, Map<String, Object?>> workbenchViewPrefs =

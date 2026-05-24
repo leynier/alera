@@ -1,7 +1,6 @@
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
-import 'package:alera/src/features/workbench/domain/terminal_tab_record.dart';
+import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
-import 'package:alera/src/features/workbench/domain/workbench_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/shared/infra/storage/sembast_database.dart';
 import 'package:sembast/sembast.dart';
@@ -78,19 +77,19 @@ class SembastWorkbenchRepository implements WorkbenchRepository {
       if (!cascadeTabs) {
         return;
       }
-      final tabs = await AleraStores.terminalTabs.find(
+      final tabs = await AleraStores.legacyTerminalTabs.find(
         txn,
         finder: Finder(filter: Filter.equals('workspaceId', workspaceId)),
       );
       for (final tab in tabs) {
-        await AleraStores.terminalTabs.record(tab.key).delete(txn);
+        await AleraStores.legacyTerminalTabs.record(tab.key).delete(txn);
       }
-      final workbenchTabs = await AleraStores.workbenchTabs.find(
+      final workspaceTabs = await AleraStores.workspaceTabs.find(
         txn,
         finder: Finder(filter: Filter.equals('workspaceId', workspaceId)),
       );
-      for (final tab in workbenchTabs) {
-        await AleraStores.workbenchTabs.record(tab.key).delete(txn);
+      for (final tab in workspaceTabs) {
+        await AleraStores.workspaceTabs.record(tab.key).delete(txn);
       }
     });
   }
@@ -105,19 +104,19 @@ class SembastWorkbenchRepository implements WorkbenchRepository {
       for (final workspace in workspaces) {
         final workspaceId = workspace.key;
         await AleraStores.workbenchWorkspaces.record(workspaceId).delete(txn);
-        final tabs = await AleraStores.terminalTabs.find(
+        final tabs = await AleraStores.legacyTerminalTabs.find(
           txn,
           finder: Finder(filter: Filter.equals('workspaceId', workspaceId)),
         );
         for (final tab in tabs) {
-          await AleraStores.terminalTabs.record(tab.key).delete(txn);
+          await AleraStores.legacyTerminalTabs.record(tab.key).delete(txn);
         }
-        final workbenchTabs = await AleraStores.workbenchTabs.find(
+        final workspaceTabs = await AleraStores.workspaceTabs.find(
           txn,
           finder: Finder(filter: Filter.equals('workspaceId', workspaceId)),
         );
-        for (final tab in workbenchTabs) {
-          await AleraStores.workbenchTabs.record(tab.key).delete(txn);
+        for (final tab in workspaceTabs) {
+          await AleraStores.workspaceTabs.record(tab.key).delete(txn);
         }
         await AleraStores.workbenchLayouts.record(workspaceId).delete(txn);
       }
@@ -125,8 +124,8 @@ class SembastWorkbenchRepository implements WorkbenchRepository {
   }
 
   @override
-  Future<List<WorkbenchTabRecord>> listWorkbenchTabs(String workspaceId) async {
-    final records = await AleraStores.workbenchTabs.find(
+  Future<List<WorkspaceTabRecord>> listWorkspaceTabs(String workspaceId) async {
+    final records = await AleraStores.workspaceTabs.find(
       _db,
       finder: Finder(
         filter: Filter.equals('workspaceId', workspaceId),
@@ -135,15 +134,15 @@ class SembastWorkbenchRepository implements WorkbenchRepository {
     );
     if (records.isNotEmpty) {
       return records
-          .map((record) => WorkbenchTabRecord.fromJson(record.value))
+          .map((record) => WorkspaceTabRecord.fromJson(record.value))
           .toList(growable: false);
     }
     return _migrateLegacyTerminalTabs(workspaceId);
   }
 
   @override
-  Stream<List<WorkbenchTabRecord>> watchWorkbenchTabs(String workspaceId) {
-    return AleraStores.workbenchTabs
+  Stream<List<WorkspaceTabRecord>> watchWorkspaceTabs(String workspaceId) {
+    return AleraStores.workspaceTabs
         .query(
           finder: Finder(
             filter: Filter.equals('workspaceId', workspaceId),
@@ -153,58 +152,58 @@ class SembastWorkbenchRepository implements WorkbenchRepository {
         .onSnapshots(_db)
         .map(
           (records) => records
-              .map((record) => WorkbenchTabRecord.fromJson(record.value))
+              .map((record) => WorkspaceTabRecord.fromJson(record.value))
               .toList(growable: false),
         );
   }
 
   @override
-  Future<WorkbenchTabRecord?> findWorkbenchTabById(String tabId) async {
-    final record = await AleraStores.workbenchTabs.record(tabId).get(_db);
+  Future<WorkspaceTabRecord?> findWorkspaceTabById(String tabId) async {
+    final record = await AleraStores.workspaceTabs.record(tabId).get(_db);
     if (record == null) {
-      final legacyRecord = await AleraStores.terminalTabs
+      final legacyRecord = await AleraStores.legacyTerminalTabs
           .record(tabId)
           .get(_db);
       if (legacyRecord == null) {
         return null;
       }
-      final migrated = WorkbenchTabRecord.fromJson(legacyRecord);
-      await upsertWorkbenchTab(migrated);
+      final migrated = WorkspaceTabRecord.fromJson(legacyRecord);
+      await upsertWorkspaceTab(migrated);
       return migrated;
     }
-    return WorkbenchTabRecord.fromJson(record);
+    return WorkspaceTabRecord.fromJson(record);
   }
 
   @override
-  Future<WorkbenchTabRecord> upsertWorkbenchTab(WorkbenchTabRecord tab) async {
-    await AleraStores.workbenchTabs.record(tab.id).put(_db, tab.toJson());
+  Future<WorkspaceTabRecord> upsertWorkspaceTab(WorkspaceTabRecord tab) async {
+    await AleraStores.workspaceTabs.record(tab.id).put(_db, tab.toJson());
     return tab;
   }
 
   @override
-  Future<void> removeWorkbenchTab(String tabId) async {
+  Future<void> removeWorkspaceTab(String tabId) async {
     await _db.transaction((txn) async {
-      await AleraStores.workbenchTabs.record(tabId).delete(txn);
-      await AleraStores.terminalTabs.record(tabId).delete(txn);
+      await AleraStores.workspaceTabs.record(tabId).delete(txn);
+      await AleraStores.legacyTerminalTabs.record(tabId).delete(txn);
     });
   }
 
   @override
-  Future<void> removeWorkbenchTabsForWorkspace(String workspaceId) async {
+  Future<void> removeWorkspaceTabsForWorkspace(String workspaceId) async {
     await _db.transaction((txn) async {
-      final workbenchTabs = await AleraStores.workbenchTabs.find(
+      final workspaceTabs = await AleraStores.workspaceTabs.find(
         txn,
         finder: Finder(filter: Filter.equals('workspaceId', workspaceId)),
       );
-      for (final tab in workbenchTabs) {
-        await AleraStores.workbenchTabs.record(tab.key).delete(txn);
+      for (final tab in workspaceTabs) {
+        await AleraStores.workspaceTabs.record(tab.key).delete(txn);
       }
-      final tabs = await AleraStores.terminalTabs.find(
+      final tabs = await AleraStores.legacyTerminalTabs.find(
         txn,
         finder: Finder(filter: Filter.equals('workspaceId', workspaceId)),
       );
       for (final tab in tabs) {
-        await AleraStores.terminalTabs.record(tab.key).delete(txn);
+        await AleraStores.legacyTerminalTabs.record(tab.key).delete(txn);
       }
     });
   }
@@ -233,40 +232,10 @@ class SembastWorkbenchRepository implements WorkbenchRepository {
     await AleraStores.workbenchLayouts.record(workspaceId).delete(_db);
   }
 
-  @override
-  Future<List<TerminalTabRecord>> listTerminalTabs(String workspaceId) {
-    return listWorkbenchTabs(workspaceId);
-  }
-
-  @override
-  Stream<List<TerminalTabRecord>> watchTerminalTabs(String workspaceId) {
-    return watchWorkbenchTabs(workspaceId);
-  }
-
-  @override
-  Future<TerminalTabRecord?> findTerminalTabById(String tabId) {
-    return findWorkbenchTabById(tabId);
-  }
-
-  @override
-  Future<TerminalTabRecord> upsertTerminalTab(TerminalTabRecord tab) {
-    return upsertWorkbenchTab(tab);
-  }
-
-  @override
-  Future<void> removeTerminalTab(String tabId) {
-    return removeWorkbenchTab(tabId);
-  }
-
-  @override
-  Future<void> removeTerminalTabsForWorkspace(String workspaceId) {
-    return removeWorkbenchTabsForWorkspace(workspaceId);
-  }
-
-  Future<List<WorkbenchTabRecord>> _migrateLegacyTerminalTabs(
+  Future<List<WorkspaceTabRecord>> _migrateLegacyTerminalTabs(
     String workspaceId,
   ) async {
-    final legacyRecords = await AleraStores.terminalTabs.find(
+    final legacyRecords = await AleraStores.legacyTerminalTabs.find(
       _db,
       finder: Finder(
         filter: Filter.equals('workspaceId', workspaceId),
@@ -274,14 +243,14 @@ class SembastWorkbenchRepository implements WorkbenchRepository {
       ),
     );
     if (legacyRecords.isEmpty) {
-      return const <WorkbenchTabRecord>[];
+      return const <WorkspaceTabRecord>[];
     }
     final migrated = legacyRecords
-        .map((record) => WorkbenchTabRecord.fromJson(record.value))
+        .map((record) => WorkspaceTabRecord.fromJson(record.value))
         .toList(growable: false);
     await _db.transaction((txn) async {
       for (final tab in migrated) {
-        await AleraStores.workbenchTabs.record(tab.id).put(txn, tab.toJson());
+        await AleraStores.workspaceTabs.record(tab.id).put(txn, tab.toJson());
       }
     });
     return migrated;

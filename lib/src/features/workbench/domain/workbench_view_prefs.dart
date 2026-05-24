@@ -54,9 +54,9 @@ class WorkbenchViewPrefs {
   final Set<String> selectedProjectIds;
   final Set<String> collapsedProjectIds;
 
-  /// Workspaces whose terminal list is currently expanded in the sidebar.
-  /// Activating a workspace adds it to this set so its terminals are visible
-  /// by default; the per-row chevron lets the user toggle membership without
+  /// Workspaces whose sidebar terminal-tab list is currently expanded.
+  /// Activating a workspace adds it to this set so terminal tabs are visible by
+  /// default; the per-row chevron lets the user toggle membership without
   /// changing the active selection.
   final Set<String> expandedWorkspaceIds;
 

@@ -292,7 +292,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                   border: Border.all(color: AleraTokens.borderSubtle),
                 ),
                 child: Text(
-                  'Alera will create a new git worktree from the selected source branch and open it as a workspace with its own terminal tabs.',
+                  'Alera will create a new git worktree from the selected source branch and open it as a workspace with an initial terminal tab.',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: AleraTokens.foregroundMuted,
                   ),

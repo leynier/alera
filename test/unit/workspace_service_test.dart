@@ -5,7 +5,7 @@ import 'package:alera/src/features/projects/application/project_service.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
 import 'package:alera/src/features/workbench/application/workspace_service.dart';
-import 'package:alera/src/features/workbench/domain/terminal_tab_record.dart';
+import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
@@ -151,7 +151,7 @@ void main() {
     );
 
     test(
-      'removeWorkspace deletes the workspace and cascades its terminal tabs',
+      'removeWorkspace deletes the workspace and cascades its workspace tabs',
       () async {
         processRunner.sourceBranches = <String>['main'];
         final linkedWorkspace = await service.createLinkedWorkspace(
@@ -159,8 +159,8 @@ void main() {
           sourceBranch: 'main',
           newBranchName: 'feature/with-tabs',
         );
-        await repository.upsertTerminalTab(
-          TerminalTabRecord(
+        await repository.upsertWorkspaceTab(
+          WorkspaceTabRecord(
             id: 'tab-1',
             workspaceId: linkedWorkspace.id,
             title: 'Terminal 1',
@@ -181,7 +181,7 @@ void main() {
           ),
           isFalse,
         );
-        expect(await repository.listTerminalTabs(linkedWorkspace.id), isEmpty);
+        expect(await repository.listWorkspaceTabs(linkedWorkspace.id), isEmpty);
       },
     );
   });
@@ -189,7 +189,7 @@ void main() {
 
 class _FakeWorkbenchRepository implements WorkbenchRepository {
   final List<Workspace> workspaces = <Workspace>[];
-  final List<TerminalTabRecord> tabs = <TerminalTabRecord>[];
+  final List<WorkspaceTabRecord> tabs = <WorkspaceTabRecord>[];
   final Map<String, WorkbenchLayout> layouts = <String, WorkbenchLayout>{};
 
   @override
@@ -203,7 +203,7 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
   }
 
   @override
-  Future<TerminalTabRecord?> findTerminalTabById(String tabId) async {
+  Future<WorkspaceTabRecord?> findWorkspaceTabById(String tabId) async {
     for (final tab in tabs) {
       if (tab.id == tabId) {
         return tab;
@@ -213,25 +213,16 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
   }
 
   @override
-  Future<TerminalTabRecord?> findWorkbenchTabById(String tabId) {
-    return findTerminalTabById(tabId);
-  }
-
-  @override
   Future<WorkbenchLayout?> findWorkbenchLayout(String workspaceId) async {
     return layouts[workspaceId];
   }
 
   @override
-  Future<List<TerminalTabRecord>> listTerminalTabs(String workspaceId) async =>
-      tabs
-          .where((tab) => tab.workspaceId == workspaceId)
-          .toList(growable: false);
-
-  @override
-  Future<List<TerminalTabRecord>> listWorkbenchTabs(String workspaceId) {
-    return listTerminalTabs(workspaceId);
-  }
+  Future<List<WorkspaceTabRecord>> listWorkspaceTabs(
+    String workspaceId,
+  ) async => tabs
+      .where((tab) => tab.workspaceId == workspaceId)
+      .toList(growable: false);
 
   @override
   Future<List<Workspace>> listWorkspaces(String projectId) async {
@@ -248,23 +239,13 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
   }
 
   @override
-  Future<void> removeTerminalTab(String tabId) async {
+  Future<void> removeWorkspaceTab(String tabId) async {
     tabs.removeWhere((tab) => tab.id == tabId);
   }
 
   @override
-  Future<void> removeWorkbenchTab(String tabId) {
-    return removeTerminalTab(tabId);
-  }
-
-  @override
-  Future<void> removeTerminalTabsForWorkspace(String workspaceId) async {
+  Future<void> removeWorkspaceTabsForWorkspace(String workspaceId) async {
     tabs.removeWhere((tab) => tab.workspaceId == workspaceId);
-  }
-
-  @override
-  Future<void> removeWorkbenchTabsForWorkspace(String workspaceId) {
-    return removeTerminalTabsForWorkspace(workspaceId);
   }
 
   @override
@@ -274,7 +255,7 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
   }) async {
     workspaces.removeWhere((workspace) => workspace.id == workspaceId);
     if (cascadeTabs) {
-      await removeTerminalTabsForWorkspace(workspaceId);
+      await removeWorkspaceTabsForWorkspace(workspaceId);
     }
     await removeWorkbenchLayout(workspaceId);
   }
@@ -296,7 +277,7 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
   }
 
   @override
-  Future<TerminalTabRecord> upsertTerminalTab(TerminalTabRecord tab) async {
+  Future<WorkspaceTabRecord> upsertWorkspaceTab(WorkspaceTabRecord tab) async {
     final index = tabs.indexWhere((entry) => entry.id == tab.id);
     if (index == -1) {
       tabs.add(tab);
@@ -304,11 +285,6 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
       tabs[index] = tab;
     }
     return tab;
-  }
-
-  @override
-  Future<TerminalTabRecord> upsertWorkbenchTab(TerminalTabRecord tab) {
-    return upsertTerminalTab(tab);
   }
 
   @override
@@ -329,13 +305,8 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
   }
 
   @override
-  Stream<List<TerminalTabRecord>> watchTerminalTabs(String workspaceId) =>
-      const Stream<List<TerminalTabRecord>>.empty();
-
-  @override
-  Stream<List<TerminalTabRecord>> watchWorkbenchTabs(String workspaceId) {
-    return watchTerminalTabs(workspaceId);
-  }
+  Stream<List<WorkspaceTabRecord>> watchWorkspaceTabs(String workspaceId) =>
+      const Stream<List<WorkspaceTabRecord>>.empty();
 
   @override
   Stream<List<Workspace>> watchWorkspaces(String projectId) =>

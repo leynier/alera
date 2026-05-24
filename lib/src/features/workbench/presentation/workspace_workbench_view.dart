@@ -3,9 +3,8 @@ import 'dart:math' as math;
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
-import 'package:alera/src/features/workbench/domain/terminal_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
-import 'package:alera/src/features/workbench/domain/workbench_tab_record.dart';
+import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_surface.dart';
@@ -13,9 +12,9 @@ import 'package:flutter/material.dart';
 
 typedef CreateTerminalTabCallback =
     Future<void> Function({String? targetGroupId});
-typedef SelectWorkbenchTabCallback =
+typedef SelectWorkspaceTabCallback =
     void Function({required String groupId, required String tabId});
-typedef MoveWorkbenchTabCallback =
+typedef MoveWorkspaceTabCallback =
     Future<void> Function({
       required String tabId,
       required String targetGroupId,
@@ -50,13 +49,13 @@ class WorkspaceWorkbenchView extends StatelessWidget {
 
   final Project project;
   final Workspace workspace;
-  final List<TerminalTabRecord> tabs;
+  final List<WorkspaceTabRecord> tabs;
   final WorkbenchLayout? layout;
   final TerminalRuntime terminalRuntime;
   final CreateTerminalTabCallback onCreateTab;
-  final SelectWorkbenchTabCallback onSelectTab;
+  final SelectWorkspaceTabCallback onSelectTab;
   final ValueChanged<String> onCloseTab;
-  final MoveWorkbenchTabCallback onMoveTab;
+  final MoveWorkspaceTabCallback onMoveTab;
   final SplitWorkbenchGroupCallback onSplitGroup;
   final MergeWorkbenchGroupCallback onMergeGroup;
   final UpdateWorkbenchSplitRatioCallback onUpdateSplitRatio;
@@ -105,15 +104,15 @@ class _WorkbenchLayoutView extends StatelessWidget {
   });
 
   final Workspace workspace;
-  final List<TerminalTabRecord> tabs;
+  final List<WorkspaceTabRecord> tabs;
   final WorkbenchLayout layout;
   final WorkbenchLayoutNode node;
   final List<int> nodePath;
   final TerminalRuntime terminalRuntime;
   final CreateTerminalTabCallback onCreateTab;
-  final SelectWorkbenchTabCallback onSelectTab;
+  final SelectWorkspaceTabCallback onSelectTab;
   final ValueChanged<String> onCloseTab;
-  final MoveWorkbenchTabCallback onMoveTab;
+  final MoveWorkspaceTabCallback onMoveTab;
   final SplitWorkbenchGroupCallback onSplitGroup;
   final MergeWorkbenchGroupCallback onMergeGroup;
   final UpdateWorkbenchSplitRatioCallback onUpdateSplitRatio;
@@ -172,15 +171,15 @@ class _WorkbenchSplitView extends StatelessWidget {
   });
 
   final Workspace workspace;
-  final List<TerminalTabRecord> tabs;
+  final List<WorkspaceTabRecord> tabs;
   final WorkbenchLayout layout;
   final WorkbenchLayoutNode node;
   final List<int> nodePath;
   final TerminalRuntime terminalRuntime;
   final CreateTerminalTabCallback onCreateTab;
-  final SelectWorkbenchTabCallback onSelectTab;
+  final SelectWorkspaceTabCallback onSelectTab;
   final ValueChanged<String> onCloseTab;
-  final MoveWorkbenchTabCallback onMoveTab;
+  final MoveWorkspaceTabCallback onMoveTab;
   final SplitWorkbenchGroupCallback onSplitGroup;
   final MergeWorkbenchGroupCallback onMergeGroup;
   final UpdateWorkbenchSplitRatioCallback onUpdateSplitRatio;
@@ -283,26 +282,26 @@ class _WorkbenchPane extends StatelessWidget {
   });
 
   final Workspace workspace;
-  final List<TerminalTabRecord> tabs;
+  final List<WorkspaceTabRecord> tabs;
   final WorkbenchLayout layout;
   final String groupId;
   final TerminalRuntime terminalRuntime;
   final CreateTerminalTabCallback onCreateTab;
-  final SelectWorkbenchTabCallback onSelectTab;
+  final SelectWorkspaceTabCallback onSelectTab;
   final ValueChanged<String> onCloseTab;
-  final MoveWorkbenchTabCallback onMoveTab;
+  final MoveWorkspaceTabCallback onMoveTab;
   final SplitWorkbenchGroupCallback onSplitGroup;
   final MergeWorkbenchGroupCallback onMergeGroup;
 
   @override
   Widget build(BuildContext context) {
     final group = layout.groups[groupId];
-    final tabsById = <String, TerminalTabRecord>{
+    final tabsById = <String, WorkspaceTabRecord>{
       for (final tab in tabs) tab.id: tab,
     };
-    final groupTabs = <TerminalTabRecord>[
+    final groupTabs = <WorkspaceTabRecord>[
       for (final tabId in group?.tabIds ?? const <String>[])
-        if (tabsById[tabId] case final TerminalTabRecord tab) tab,
+        if (tabsById[tabId] case final WorkspaceTabRecord tab) tab,
     ];
     final activeTab = _activeTab(group, groupTabs);
     return _PaneDropTarget(
@@ -321,7 +320,7 @@ class _WorkbenchPane extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            _TerminalTabStrip(
+            _WorkspaceTabStrip(
               workspace: workspace,
               groupId: groupId,
               tabs: groupTabs,
@@ -340,7 +339,7 @@ class _WorkbenchPane extends StatelessWidget {
             Expanded(
               child: activeTab == null
                   ? const Center(child: CircularProgressIndicator())
-                  : _WorkbenchTabContent(
+                  : _WorkspaceTabContent(
                       workspace: workspace,
                       tab: activeTab,
                       autofocus: layout.activeGroupId == groupId,
@@ -456,8 +455,8 @@ Rect _centerDropRect(Size paneSize) {
   );
 }
 
-class _WorkbenchTabContent extends StatelessWidget {
-  const _WorkbenchTabContent({
+class _WorkspaceTabContent extends StatelessWidget {
+  const _WorkspaceTabContent({
     required this.workspace,
     required this.tab,
     required this.autofocus,
@@ -465,18 +464,18 @@ class _WorkbenchTabContent extends StatelessWidget {
   });
 
   final Workspace workspace;
-  final TerminalTabRecord tab;
+  final WorkspaceTabRecord tab;
   final bool autofocus;
   final TerminalRuntime terminalRuntime;
 
   @override
   Widget build(BuildContext context) {
     return switch (tab.kind) {
-      WorkbenchTabKind.terminal => TerminalSurface(
+      WorkspaceTabKind.terminal => TerminalSurface(
         session: terminalRuntime.sessionFor(workspace: workspace, tab: tab),
         autofocus: autofocus,
       ),
-      WorkbenchTabKind.editor || WorkbenchTabKind.browser => const Center(
+      WorkspaceTabKind.editor || WorkspaceTabKind.browser => const Center(
         child: CircularProgressIndicator(),
       ),
     };
@@ -495,7 +494,7 @@ class _PaneDropTarget extends StatefulWidget {
   final String workspaceId;
   final String groupId;
   final int tabCount;
-  final MoveWorkbenchTabCallback onMoveTab;
+  final MoveWorkspaceTabCallback onMoveTab;
   final Widget child;
 
   @override
@@ -507,7 +506,7 @@ class _PaneDropTargetState extends State<_PaneDropTarget> {
 
   @override
   Widget build(BuildContext context) {
-    return DragTarget<_WorkbenchTabDragData>(
+    return DragTarget<_WorkspaceTabDragData>(
       onWillAcceptWithDetails: (details) {
         final data = details.data;
         if (data.workspaceId != widget.workspaceId) {
@@ -550,7 +549,7 @@ class _PaneDropTargetState extends State<_PaneDropTarget> {
   }
 
   WorkbenchDropZone? _dropActionZoneForOffset(
-    _WorkbenchTabDragData data,
+    _WorkspaceTabDragData data,
     Offset globalOffset,
   ) {
     final zone = _zoneForOffset(globalOffset);
@@ -615,8 +614,8 @@ class _DropZoneOverlay extends StatelessWidget {
   }
 }
 
-class _TerminalTabStrip extends StatefulWidget {
-  const _TerminalTabStrip({
+class _WorkspaceTabStrip extends StatefulWidget {
+  const _WorkspaceTabStrip({
     required this.workspace,
     required this.groupId,
     required this.tabs,
@@ -632,7 +631,7 @@ class _TerminalTabStrip extends StatefulWidget {
 
   final Workspace workspace;
   final String groupId;
-  final List<TerminalTabRecord> tabs;
+  final List<WorkspaceTabRecord> tabs;
   final String? activeTabId;
   final bool canCloseSplit;
   final TerminalRuntime terminalRuntime;
@@ -643,10 +642,10 @@ class _TerminalTabStrip extends StatefulWidget {
   final VoidCallback onMergeGroup;
 
   @override
-  State<_TerminalTabStrip> createState() => _TerminalTabStripState();
+  State<_WorkspaceTabStrip> createState() => _WorkspaceTabStripState();
 }
 
-class _TerminalTabStripState extends State<_TerminalTabStrip> {
+class _WorkspaceTabStripState extends State<_WorkspaceTabStrip> {
   final ScrollController _scrollController = ScrollController();
   bool _hasOverflow = false;
 
@@ -688,46 +687,14 @@ class _TerminalTabStripState extends State<_TerminalTabStrip> {
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
                     for (final tab in widget.tabs)
-                      Padding(
-                        padding: const EdgeInsets.only(
-                          right: AleraTokens.space8,
-                        ),
-                        child: Draggable<_WorkbenchTabDragData>(
-                          data: _WorkbenchTabDragData(
-                            workspaceId: widget.workspace.id,
-                            sourceGroupId: widget.groupId,
-                            tabId: tab.id,
-                          ),
-                          feedback: _DraggedTabFeedback(
-                            title: widget.terminalRuntime
-                                .sessionFor(
-                                  workspace: widget.workspace,
-                                  tab: tab,
-                                )
-                                .displayTitle,
-                          ),
-                          childWhenDragging: Opacity(
-                            opacity: 0.45,
-                            child: _TerminalTabChip(
-                              session: widget.terminalRuntime.sessionFor(
-                                workspace: widget.workspace,
-                                tab: tab,
-                              ),
-                              active: tab.id == widget.activeTabId,
-                              onTap: () => widget.onSelectTab(tab.id),
-                              onClose: () => widget.onCloseTab(tab.id),
-                            ),
-                          ),
-                          child: _TerminalTabChip(
-                            session: widget.terminalRuntime.sessionFor(
-                              workspace: widget.workspace,
-                              tab: tab,
-                            ),
-                            active: tab.id == widget.activeTabId,
-                            onTap: () => widget.onSelectTab(tab.id),
-                            onClose: () => widget.onCloseTab(tab.id),
-                          ),
-                        ),
+                      _DraggableWorkspaceTabChip(
+                        workspace: widget.workspace,
+                        groupId: widget.groupId,
+                        tab: tab,
+                        active: tab.id == widget.activeTabId,
+                        terminalRuntime: widget.terminalRuntime,
+                        onSelect: () => widget.onSelectTab(tab.id),
+                        onClose: () => widget.onCloseTab(tab.id),
                       ),
                     if (!_hasOverflow) addButton,
                   ],
@@ -942,89 +909,162 @@ class _NewTerminalButton extends StatelessWidget {
   }
 }
 
-class _TerminalTabChip extends StatelessWidget {
-  const _TerminalTabChip({
-    required this.session,
+class _DraggableWorkspaceTabChip extends StatelessWidget {
+  const _DraggableWorkspaceTabChip({
+    required this.workspace,
+    required this.groupId,
+    required this.tab,
+    required this.active,
+    required this.terminalRuntime,
+    required this.onSelect,
+    required this.onClose,
+  });
+
+  final Workspace workspace;
+  final String groupId;
+  final WorkspaceTabRecord tab;
+  final bool active;
+  final TerminalRuntime terminalRuntime;
+  final VoidCallback onSelect;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final session = tab.kind == WorkspaceTabKind.terminal
+        ? terminalRuntime.sessionFor(workspace: workspace, tab: tab)
+        : null;
+    return Padding(
+      padding: const EdgeInsets.only(right: AleraTokens.space8),
+      child: Draggable<_WorkspaceTabDragData>(
+        data: _WorkspaceTabDragData(
+          workspaceId: workspace.id,
+          sourceGroupId: groupId,
+          tabId: tab.id,
+        ),
+        feedback: _DraggedTabFeedback(
+          title: session?.displayTitle ?? tab.title,
+        ),
+        childWhenDragging: Opacity(
+          opacity: 0.45,
+          child: _WorkspaceTabChip(
+            tab: tab,
+            terminalSession: session,
+            active: active,
+            onTap: onSelect,
+            onClose: onClose,
+          ),
+        ),
+        child: _WorkspaceTabChip(
+          tab: tab,
+          terminalSession: session,
+          active: active,
+          onTap: onSelect,
+          onClose: onClose,
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkspaceTabChip extends StatelessWidget {
+  const _WorkspaceTabChip({
+    required this.tab,
+    required this.terminalSession,
     required this.active,
     required this.onTap,
     required this.onClose,
   });
 
-  final TerminalSessionHandle session;
+  final WorkspaceTabRecord tab;
+  final TerminalSessionHandle? terminalSession;
   final bool active;
   final VoidCallback onTap;
   final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
+    final session = terminalSession;
+    if (session == null) {
+      return _buildChip(context, tab.title);
+    }
     return AnimatedBuilder(
       animation: session,
-      builder: (context, _) {
-        return Material(
-          color: active ? AleraTokens.surfaceElevated : AleraTokens.surface,
-          borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-          child: InkWell(
-            onTap: onTap,
-            mouseCursor: SystemMouseCursors.click,
+      builder: (context, _) => _buildChip(context, session.displayTitle),
+    );
+  }
+
+  Widget _buildChip(BuildContext context, String title) {
+    return Material(
+      color: active ? AleraTokens.surfaceElevated : AleraTokens.surface,
+      borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+      child: InkWell(
+        onTap: onTap,
+        mouseCursor: SystemMouseCursors.click,
+        borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AleraTokens.space6,
+            vertical: AleraTokens.space6,
+          ),
+          decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AleraTokens.space6,
-                vertical: AleraTokens.space6,
+            border: Border.all(
+              color: active ? AleraTokens.border : AleraTokens.borderSubtle,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Icon(
+                _iconForWorkspaceTabKind(tab.kind),
+                size: 12,
+                color: active
+                    ? AleraTokens.foreground
+                    : AleraTokens.foregroundMuted,
               ),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-                border: Border.all(
-                  color: active ? AleraTokens.border : AleraTokens.borderSubtle,
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Icon(
-                    Icons.terminal,
-                    size: 12,
+              const SizedBox(width: AleraTokens.space4),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 72),
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  softWrap: false,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: active
                         ? AleraTokens.foreground
                         : AleraTokens.foregroundMuted,
                   ),
-                  const SizedBox(width: AleraTokens.space4),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 72),
-                    child: Text(
-                      session.displayTitle,
-                      maxLines: 1,
-                      softWrap: false,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: active
-                            ? AleraTokens.foreground
-                            : AleraTokens.foregroundMuted,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: AleraTokens.space4),
-                  InkWell(
-                    onTap: onClose,
-                    mouseCursor: SystemMouseCursors.click,
-                    borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
-                    child: const Padding(
-                      padding: EdgeInsets.all(2),
-                      child: Icon(
-                        Icons.close,
-                        size: 12,
-                        color: AleraTokens.foregroundMuted,
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
+              const SizedBox(width: AleraTokens.space4),
+              InkWell(
+                onTap: onClose,
+                mouseCursor: SystemMouseCursors.click,
+                borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+                child: const Padding(
+                  padding: EdgeInsets.all(2),
+                  child: Icon(
+                    Icons.close,
+                    size: 12,
+                    color: AleraTokens.foregroundMuted,
+                  ),
+                ),
+              ),
+            ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
+}
+
+IconData _iconForWorkspaceTabKind(WorkspaceTabKind kind) {
+  return switch (kind) {
+    WorkspaceTabKind.terminal => Icons.terminal,
+    WorkspaceTabKind.editor => Icons.description_outlined,
+    WorkspaceTabKind.browser => Icons.public,
+  };
 }
 
 class _DraggedTabFeedback extends StatelessWidget {
@@ -1135,8 +1175,8 @@ class _SplitResizeHandleState extends State<_SplitResizeHandle> {
   }
 }
 
-class _WorkbenchTabDragData {
-  const _WorkbenchTabDragData({
+class _WorkspaceTabDragData {
+  const _WorkspaceTabDragData({
     required this.workspaceId,
     required this.sourceGroupId,
     required this.tabId,
@@ -1149,9 +1189,9 @@ class _WorkbenchTabDragData {
 
 enum _PaneMenuAction { splitRight, splitDown, splitLeft, splitUp, closeSplit }
 
-TerminalTabRecord? _activeTab(
+WorkspaceTabRecord? _activeTab(
   WorkbenchPaneGroup? group,
-  List<TerminalTabRecord> tabs,
+  List<WorkspaceTabRecord> tabs,
 ) {
   if (group == null || tabs.isEmpty) {
     return null;

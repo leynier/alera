@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
-import 'package:alera/src/features/workbench/domain/terminal_tab_record.dart';
+import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_surface.dart';
@@ -95,7 +95,7 @@ void main() {
     (tester) async {
       final runtime = XtermTerminalRuntime();
       addTearDown(runtime.dispose);
-      final tab = TerminalTabRecord(
+      final tab = WorkspaceTabRecord(
         id: 'tab-1',
         workspaceId: 'ws-1',
         title: 'Terminal 1',
@@ -233,8 +233,8 @@ void main() {
   });
 }
 
-TerminalTabRecord _tab() {
-  return TerminalTabRecord(
+WorkspaceTabRecord _tab() {
+  return WorkspaceTabRecord(
     id: 'tab-1',
     workspaceId: 'ws-1',
     title: 'Terminal 1',

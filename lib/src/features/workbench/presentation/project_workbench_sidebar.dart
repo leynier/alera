@@ -13,7 +13,7 @@ import 'package:alera/src/features/settings/presentation/settings_dialog.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_listing.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
-import 'package:alera/src/features/workbench/domain/terminal_tab_record.dart';
+import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/create_workspace_dialog.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
@@ -27,7 +27,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 
-typedef _TerminalCallback = void Function(Workspace workspace, String tabId);
+typedef _TerminalTabCallback = void Function(Workspace workspace, String tabId);
 
 class ProjectWorkbenchSidebar extends ConsumerStatefulWidget {
   const ProjectWorkbenchSidebar({super.key});
@@ -398,7 +398,7 @@ class _ProjectWorkbenchSidebarState
       }
     }
     controller.setActiveTab(workspaceId: workspace.id, tabId: tabId);
-    TerminalTabRecord? tabRecord;
+    WorkspaceTabRecord? tabRecord;
     for (final tab
         in ref.read(workbenchControllerProvider).tabsFor(workspace.id)) {
       if (tab.id == tabId) {
@@ -420,7 +420,7 @@ class _ProjectWorkbenchSidebarState
     try {
       await ref
           .read(workbenchControllerProvider.notifier)
-          .closeTerminalTab(workspace: workspace, tabId: tabId);
+          .closeWorkspaceTab(workspace: workspace, tabId: tabId);
     } catch (error) {
       if (!mounted) {
         return;
@@ -519,8 +519,8 @@ class _SidebarBody extends StatelessWidget {
   onDeleteWorkspace;
   final Future<void> Function(Project project) onRemoveProject;
   final String fileManagerLabel;
-  final _TerminalCallback onSelectTerminal;
-  final _TerminalCallback onCloseTerminal;
+  final _TerminalTabCallback onSelectTerminal;
+  final _TerminalTabCallback onCloseTerminal;
 
   @override
   Widget build(BuildContext context) {
@@ -567,7 +567,10 @@ class _SidebarBody extends StatelessWidget {
         child: _WorkspaceRow(
           project: row.project,
           workspace: row.workspace,
-          terminalCount: state.tabsFor(row.workspace.id).length,
+          terminalTabCount: state
+              .tabsFor(row.workspace.id)
+              .where((tab) => tab.kind == WorkspaceTabKind.terminal)
+              .length,
           isActive: row.workspace.id == state.activeWorkspaceId,
           showProjectChip: row.showProjectChip,
           expanded: row.expanded,
@@ -584,7 +587,7 @@ class _SidebarBody extends StatelessWidget {
         ),
       );
     }
-    if (row is WorkbenchTerminalRow) {
+    if (row is SidebarTerminalTabRow) {
       final leftPadding = row.indent <= 1
           ? AleraTokens.space20
           : AleraTokens.space32;
@@ -763,7 +766,7 @@ class _WorkspaceRow extends StatefulWidget {
   const _WorkspaceRow({
     required this.project,
     required this.workspace,
-    required this.terminalCount,
+    required this.terminalTabCount,
     required this.isActive,
     required this.showProjectChip,
     required this.expanded,
@@ -778,7 +781,7 @@ class _WorkspaceRow extends StatefulWidget {
 
   final Project project;
   final Workspace workspace;
-  final int terminalCount;
+  final int terminalTabCount;
   final bool isActive;
   final bool showProjectChip;
   final bool expanded;
@@ -857,11 +860,11 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
     if (!widget.workspace.isMain && source != null && source.isNotEmpty) {
       parts.add('base: $source');
     }
-    if (widget.terminalCount > 0) {
+    if (widget.terminalTabCount > 0) {
       parts.add(
-        widget.terminalCount == 1
-            ? '1 terminal'
-            : '${widget.terminalCount} terminals',
+        widget.terminalTabCount == 1
+            ? '1 terminal tab'
+            : '${widget.terminalTabCount} terminal tabs',
       );
     }
     return parts.join(' · ');
@@ -957,8 +960,8 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                     ),
                     SidebarIconButton(
                       tooltip: widget.expanded
-                          ? 'Hide terminals'
-                          : 'Show terminals',
+                          ? 'Hide terminal tabs'
+                          : 'Show terminal tabs',
                       onPressed: widget.onToggleExpanded,
                       icon: widget.expanded
                           ? Icons.keyboard_arrow_up
@@ -1072,7 +1075,7 @@ class _TerminalRow extends StatefulWidget {
   });
 
   final Workspace workspace;
-  final TerminalTabRecord tab;
+  final WorkspaceTabRecord tab;
   final TerminalRuntime terminalRuntime;
   final bool isActive;
   final VoidCallback onTap;
@@ -1216,7 +1219,7 @@ class _EmptyProjectsView extends StatelessWidget {
           ),
           const SizedBox(height: AleraTokens.space8),
           Text(
-            'Add a git repository to create workspaces and terminal tabs.',
+            'Add a git repository to create workspaces with terminal tabs.',
             textAlign: TextAlign.center,
             style: theme.textTheme.bodySmall?.copyWith(
               color: AleraTokens.foregroundFaint,

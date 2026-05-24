@@ -15,7 +15,7 @@ abstract final class AleraTokens {
 
   static const double topBarHeight = 52.0;
 
-  /// Height of the sidebar brand row, the workbench terminal tab strip and
+  /// Height of the sidebar brand row, the workbench tab strip and
   /// any other "header" band along the top of a major shell column. Keeping
   /// them all at the same height makes the divider line up horizontally.
   static const double sidebarHeaderHeight = 44.0;

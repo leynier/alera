@@ -1,0 +1,138 @@
+import 'package:alera/src/features/workbench/application/workspace_tab_service.dart';
+import 'package:alera/src/features/workbench/application/workbench_repository.dart';
+import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
+import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
+import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  group('WorkspaceTabService', () {
+    test(
+      'ensureInitialTerminalTab creates the first terminal workspace tab when none exist',
+      () async {
+        final repository = _FakeWorkbenchRepository();
+        final service = WorkspaceTabService(
+          repository: repository,
+          now: () => DateTime.utc(2026, 5, 21),
+        );
+
+        final tab = await service.ensureInitialTerminalTab('workspace-1');
+
+        expect(tab.title, 'Terminal 1');
+        expect(repository.tabs.single.title, 'Terminal 1');
+      },
+    );
+
+    test(
+      'createTerminalTab picks the next available terminal ordinal',
+      () async {
+        final repository = _FakeWorkbenchRepository()
+          ..tabs.addAll(<WorkspaceTabRecord>[
+            WorkspaceTabRecord(
+              id: 'tab-1',
+              workspaceId: 'workspace-1',
+              title: 'Terminal 1',
+              createdAt: DateTime.utc(2026, 5, 21),
+              updatedAt: DateTime.utc(2026, 5, 21),
+            ),
+            WorkspaceTabRecord(
+              id: 'tab-3',
+              workspaceId: 'workspace-1',
+              title: 'Terminal 3',
+              createdAt: DateTime.utc(2026, 5, 21),
+              updatedAt: DateTime.utc(2026, 5, 21),
+            ),
+          ]);
+        final service = WorkspaceTabService(
+          repository: repository,
+          now: () => DateTime.utc(2026, 5, 21, 1),
+        );
+
+        final tab = await service.createTerminalTab('workspace-1');
+
+        expect(tab.title, 'Terminal 2');
+        expect(
+          repository.tabs.map((record) => record.title),
+          contains('Terminal 2'),
+        );
+      },
+    );
+  });
+}
+
+class _FakeWorkbenchRepository implements WorkbenchRepository {
+  final List<WorkspaceTabRecord> tabs = <WorkspaceTabRecord>[];
+  final Map<String, WorkbenchLayout> layouts = <String, WorkbenchLayout>{};
+
+  @override
+  Future<Workspace?> findWorkspaceById(String workspaceId) async => null;
+
+  @override
+  Future<WorkspaceTabRecord?> findWorkspaceTabById(String tabId) async => null;
+
+  @override
+  Future<WorkbenchLayout?> findWorkbenchLayout(String workspaceId) async {
+    return layouts[workspaceId];
+  }
+
+  @override
+  Future<List<WorkspaceTabRecord>> listWorkspaceTabs(String workspaceId) async {
+    return tabs
+        .where((tab) => tab.workspaceId == workspaceId)
+        .toList(growable: false);
+  }
+
+  @override
+  Future<List<Workspace>> listWorkspaces(String projectId) async =>
+      const <Workspace>[];
+
+  @override
+  Future<void> removeWorkspaceTab(String tabId) async {
+    tabs.removeWhere((tab) => tab.id == tabId);
+  }
+
+  @override
+  Future<void> removeWorkspaceTabsForWorkspace(String workspaceId) async {}
+
+  @override
+  Future<void> removeWorkspace(
+    String workspaceId, {
+    bool cascadeTabs = true,
+  }) async {}
+
+  @override
+  Future<void> removeWorkspacesForProject(String projectId) async {}
+
+  @override
+  Future<void> removeWorkbenchLayout(String workspaceId) async {
+    layouts.remove(workspaceId);
+  }
+
+  @override
+  Future<WorkspaceTabRecord> upsertWorkspaceTab(WorkspaceTabRecord tab) async {
+    final index = tabs.indexWhere((record) => record.id == tab.id);
+    if (index == -1) {
+      tabs.add(tab);
+    } else {
+      tabs[index] = tab;
+    }
+    return tab;
+  }
+
+  @override
+  Future<WorkbenchLayout> upsertWorkbenchLayout(WorkbenchLayout layout) async {
+    layouts[layout.workspaceId] = layout;
+    return layout;
+  }
+
+  @override
+  Future<Workspace> upsertWorkspace(Workspace workspace) async => workspace;
+
+  @override
+  Stream<List<WorkspaceTabRecord>> watchWorkspaceTabs(String workspaceId) =>
+      const Stream<List<WorkspaceTabRecord>>.empty();
+
+  @override
+  Stream<List<Workspace>> watchWorkspaces(String projectId) =>
+      const Stream<List<Workspace>>.empty();
+}

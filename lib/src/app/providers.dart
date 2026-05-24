@@ -12,7 +12,7 @@ import 'package:alera/src/features/updater/application/update_controller.dart';
 import 'package:alera/src/features/updater/application/update_service.dart';
 import 'package:alera/src/features/updater/domain/alera_update.dart';
 import 'package:alera/src/features/updater/infra/desktop_update_service.dart';
-import 'package:alera/src/features/workbench/application/terminal_tab_service.dart';
+import 'package:alera/src/features/workbench/application/workspace_tab_service.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
@@ -91,8 +91,10 @@ final workspaceServiceProvider = Provider<WorkspaceService>((ref) {
   );
 });
 
-final terminalTabServiceProvider = Provider<TerminalTabService>((ref) {
-  return TerminalTabService(repository: ref.watch(workbenchRepositoryProvider));
+final workspaceTabServiceProvider = Provider<WorkspaceTabService>((ref) {
+  return WorkspaceTabService(
+    repository: ref.watch(workbenchRepositoryProvider),
+  );
 });
 
 final gitHubStarServiceProvider = Provider<GitHubStarService>((ref) {
@@ -140,7 +142,7 @@ final workbenchControllerProvider =
         projectsService: ref.watch(projectsServiceProvider),
         repository: ref.watch(workbenchRepositoryProvider),
         workspaceService: ref.watch(workspaceServiceProvider),
-        terminalTabService: ref.watch(terminalTabServiceProvider),
+        workspaceTabService: ref.watch(workspaceTabServiceProvider),
         viewPrefsRepository: ref.watch(workbenchViewPrefsRepositoryProvider),
       );
     });

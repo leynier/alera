@@ -4,7 +4,7 @@ TODO: Add project badges for supported platforms, release status, and repository
 
 Alera is a terminal-first Agentic Development Environment built with Flutter for performance, developer velocity, and true cross-platform desktop support.
 
-It helps you organize local repositories, create isolated Git worktree workspaces, and run your preferred CLI coding agents in persistent split terminals.
+It helps you organize local repositories, create isolated Git worktree workspaces, and run your preferred CLI coding agents in persistent terminal sessions.
 
 ## What is Alera?
 
@@ -18,7 +18,7 @@ Instead of embedding a specific chat backend, Alera stays terminal-first: your a
 - **Flutter desktop performance** — Built with Flutter to pursue a fast, native-feeling, maintainable, cross-platform desktop experience.
 - **Worktree-native workflows** — Keep tasks, branches, and agent runs isolated with Git worktrees.
 - **Project and workspace organization** — Manage local repositories and their workspaces from one app.
-- **Persistent split terminals** — Keep agent sessions, tabs, panes, and layouts organized.
+- **Persistent workspace tabs** — Keep agent sessions, terminal tabs, panes, and layouts organized.
 - **Cross-platform** — Designed for macOS, Windows, and Linux.
 
 ## Features
@@ -35,9 +35,9 @@ Create linked workspaces backed by Git worktrees so each branch, task, or agent 
 
 Run CLI agents directly in Alera-managed terminals without an adapter-specific chat backend.
 
-### Split terminal workbench
+### Workspace workbench
 
-Use persistent terminal tabs, panes, and layouts for parallel agent workflows.
+Use persistent workspace tabs, terminal sessions, panes, and layouts for parallel agent workflows.
 
 ### Native Flutter desktop app
 
@@ -83,10 +83,10 @@ Alera currently includes:
 
 - Local project registry.
 - Git worktree-backed workspace management.
-- Split terminal workbench.
-- Persistent terminal tabs and layouts.
+- Split workspace workbench.
+- Persistent workspace tabs and layouts.
 - Native terminal runtime using `ghostty_vte_flutter`, `portable_pty`, and `xterm` fallback infrastructure.
-- Local Sembast persistence for projects, workspaces, terminal tabs, layouts, and view preferences.
+- Local Sembast persistence for projects, workspaces, workspace tabs, layouts, and view preferences.
 - Dark-mode Flutter UI using Alera design tokens and theme.
 - Desktop release checking.
 
@@ -113,7 +113,8 @@ TODO: Add links to each project and verify exact dependency/inspiration wording.
 - `lib/src/shared`: shared infrastructure such as process and storage helpers.
 - `lib/src/features/projects`: project registry and project sidebar UI.
 - `lib/src/features/updater`: update archive parsing, update controller, and desktop updater integration.
-- `lib/src/features/workbench`: workspaces, terminal tabs, split layouts, and terminal runtime.
+- `lib/src/features/workbench`: workspaces, workspace tabs, split layouts, and terminal runtime.
+- `docs/architecture.md`: current architecture glossary and naming rules.
 - `lib/src/features/shell`: top-level application shell.
 - `test/unit` and `test/widget`: focused unit and widget coverage for the active ADE surface.
 
