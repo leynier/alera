@@ -22,6 +22,7 @@ import 'package:alera/src/features/workbench/application/workbench_repository.da
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/application/workspace_service.dart';
 import 'package:alera/src/features/workbench/infra/sembast_workbench_repository.dart';
+import 'package:alera/src/features/workbench/infra/sembast_workbench_view_prefs_repository.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/shared/infra/process/io_process_runner.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
@@ -90,6 +91,13 @@ final workbenchRepositoryProvider = Provider<WorkbenchRepository>((ref) {
   return SembastWorkbenchRepository(db);
 });
 
+final workbenchViewPrefsRepositoryProvider =
+    Provider<SembastWorkbenchViewPrefsRepository>((ref) {
+      final dbAsync = ref.watch(aleraDatabaseProvider);
+      final db = dbAsync.requireValue;
+      return SembastWorkbenchViewPrefsRepository(db);
+    });
+
 final worktreeServiceProvider = Provider<WorktreeService>((ref) {
   return WorktreeService(
     projectRepository: ref.watch(projectRepositoryProvider),
@@ -133,6 +141,7 @@ final workbenchControllerProvider =
         repository: ref.watch(workbenchRepositoryProvider),
         workspaceService: ref.watch(workspaceServiceProvider),
         terminalTabService: ref.watch(terminalTabServiceProvider),
+        viewPrefsRepository: ref.watch(workbenchViewPrefsRepositoryProvider),
       );
     });
 

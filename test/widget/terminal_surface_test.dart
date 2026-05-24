@@ -314,4 +314,7 @@ class _ImmediateNotifySessionHandle extends TerminalSessionHandle {
   Widget buildView({Key? key, bool autofocus = false}) {
     return SizedBox.expand(key: ValueKey<String>('terminal-$tabId'));
   }
+
+  @override
+  void requestFocus() {}
 }

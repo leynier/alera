@@ -673,7 +673,7 @@ class _TerminalTabStripState extends State<_TerminalTabStrip> {
     return ColoredBox(
       color: AleraTokens.surface,
       child: SizedBox(
-        height: 44,
+        height: AleraTokens.sidebarHeaderHeight,
         child: Row(
           children: <Widget>[
             Expanded(

@@ -198,7 +198,6 @@ WorkbenchState _stackedWorkbenchState() {
         tabIds: <String>[firstTab.id, secondTab.id],
       ),
     },
-    expandedProjectIds: <String>{project.id},
     activeProjectId: project.id,
     activeWorkspaceId: workspace.id,
     activeTabIdByWorkspace: <String, String>{workspace.id: secondTab.id},
@@ -241,7 +240,6 @@ WorkbenchState _populatedWorkbenchState() {
     tabsByWorkspace: <String, List<TerminalTabRecord>>{
       workspace.id: <TerminalTabRecord>[tab],
     },
-    expandedProjectIds: <String>{project.id},
     activeProjectId: project.id,
     activeWorkspaceId: workspace.id,
     activeTabIdByWorkspace: <String, String>{workspace.id: tab.id},
@@ -311,7 +309,6 @@ WorkbenchState _splitWorkbenchState() {
       workspace.id: <TerminalTabRecord>[firstTab, secondTab],
     },
     layoutByWorkspace: <String, WorkbenchLayout>{workspace.id: layout},
-    expandedProjectIds: <String>{project.id},
     activeProjectId: project.id,
     activeWorkspaceId: workspace.id,
     activeTabIdByWorkspace: <String, String>{workspace.id: secondTab.id},
@@ -430,6 +427,9 @@ class _FakeTerminalSessionHandle extends TerminalSessionHandle {
       child: Text('Terminal ${tab.title}'),
     );
   }
+
+  @override
+  void requestFocus() {}
 }
 
 class _NoopWorkbenchRepository implements WorkbenchRepository {

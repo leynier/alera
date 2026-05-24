@@ -35,6 +35,10 @@ abstract class TerminalSessionHandle extends ChangeNotifier {
   Future<void> restart();
 
   Widget buildView({Key? key, bool autofocus = false});
+
+  /// Moves keyboard focus to this terminal's text input so subsequent
+  /// keypresses are routed to its PTY instead of any sidebar control.
+  void requestFocus();
 }
 
 abstract interface class TerminalRuntime {
@@ -391,6 +395,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   late xterm.Terminal _terminal;
   final xterm.TerminalController _terminalController =
       xterm.TerminalController();
+  final FocusNode _focusNode = FocusNode(debugLabel: 'TerminalSession');
   final StreamController<List<int>> _ptyOutputController =
       StreamController<List<int>>();
   late final StreamSubscription<String> _decodedOutputSub;
@@ -494,6 +499,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
       _terminal,
       key: key,
       controller: _terminalController,
+      focusNode: _focusNode,
       autofocus: autofocus,
       theme: _aleraXtermTheme,
       textStyle: xterm.TerminalStyle(
@@ -636,12 +642,27 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   }
 
   @override
+  void requestFocus() {
+    // Defer to the next frame so the terminal view is mounted (e.g. after
+    // switching workspaces) before we ask the FocusNode to claim focus.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_disposed) {
+        return;
+      }
+      if (_focusNode.canRequestFocus) {
+        _focusNode.requestFocus();
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _disposed = true;
     _detachTerminal(_terminal);
     unawaited(_stopPtySession());
     unawaited(_decodedOutputSub.cancel());
     unawaited(_ptyOutputController.close());
+    _focusNode.dispose();
     super.dispose();
   }
 }

@@ -2,6 +2,7 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/domain/terminal_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
+import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 
 class WorkbenchState {
@@ -10,7 +11,7 @@ class WorkbenchState {
     this.workspacesByProject = const <String, List<Workspace>>{},
     this.tabsByWorkspace = const <String, List<TerminalTabRecord>>{},
     this.layoutByWorkspace = const <String, WorkbenchLayout>{},
-    this.expandedProjectIds = const <String>{},
+    this.viewPrefs = WorkbenchViewPrefs.defaults,
     this.activeProjectId,
     this.activeWorkspaceId,
     this.activeTabIdByWorkspace = const <String, String>{},
@@ -25,7 +26,7 @@ class WorkbenchState {
   final Map<String, List<Workspace>> workspacesByProject;
   final Map<String, List<TerminalTabRecord>> tabsByWorkspace;
   final Map<String, WorkbenchLayout> layoutByWorkspace;
-  final Set<String> expandedProjectIds;
+  final WorkbenchViewPrefs viewPrefs;
   final String? activeProjectId;
   final String? activeWorkspaceId;
   final Map<String, String> activeTabIdByWorkspace;
@@ -34,6 +35,18 @@ class WorkbenchState {
   final String searchQuery;
   final bool collapsed;
   final double sidebarWidth;
+
+  /// Project ids that are visually expanded in the sidebar. Computed as the
+  /// inverse of [WorkbenchViewPrefs.collapsedProjectIds] over the currently
+  /// known projects so transient collapse state for removed projects is not
+  /// surfaced to the UI.
+  Set<String> get expandedProjectIds {
+    final collapsed = viewPrefs.collapsedProjectIds;
+    return <String>{
+      for (final project in projects)
+        if (!collapsed.contains(project.id)) project.id,
+    };
+  }
 
   Project? get activeProject {
     final projectId = activeProjectId;
@@ -153,7 +166,7 @@ class WorkbenchState {
     Map<String, List<Workspace>>? workspacesByProject,
     Map<String, List<TerminalTabRecord>>? tabsByWorkspace,
     Map<String, WorkbenchLayout>? layoutByWorkspace,
-    Set<String>? expandedProjectIds,
+    WorkbenchViewPrefs? viewPrefs,
     String? activeProjectId,
     bool clearActiveProjectId = false,
     String? activeWorkspaceId,
@@ -171,7 +184,7 @@ class WorkbenchState {
       workspacesByProject: workspacesByProject ?? this.workspacesByProject,
       tabsByWorkspace: tabsByWorkspace ?? this.tabsByWorkspace,
       layoutByWorkspace: layoutByWorkspace ?? this.layoutByWorkspace,
-      expandedProjectIds: expandedProjectIds ?? this.expandedProjectIds,
+      viewPrefs: viewPrefs ?? this.viewPrefs,
       activeProjectId: clearActiveProjectId
           ? null
           : (activeProjectId ?? this.activeProjectId),

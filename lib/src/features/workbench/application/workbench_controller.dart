@@ -11,7 +11,9 @@ import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/application/workspace_service.dart';
 import 'package:alera/src/features/workbench/domain/terminal_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
+import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/features/workbench/infra/sembast_workbench_view_prefs_repository.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:uuid/uuid.dart';
 
@@ -21,11 +23,13 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
     required WorkbenchRepository repository,
     required WorkspaceService workspaceService,
     required TerminalTabService terminalTabService,
+    SembastWorkbenchViewPrefsRepository? viewPrefsRepository,
     Uuid? uuid,
   }) : _projectsService = projectsService,
        _repository = repository,
        _workspaceService = workspaceService,
        _terminalTabService = terminalTabService,
+       _viewPrefsRepository = viewPrefsRepository,
        _uuid = uuid ?? const Uuid(),
        super(const WorkbenchState());
 
@@ -33,6 +37,7 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
   final WorkbenchRepository _repository;
   final WorkspaceService _workspaceService;
   final TerminalTabService _terminalTabService;
+  final SembastWorkbenchViewPrefsRepository? _viewPrefsRepository;
   final Uuid _uuid;
 
   StreamSubscription<List<Project>>? _projectsSub;
@@ -55,6 +60,15 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
     }
     _bootstrapStarted = true;
     try {
+      final repo = _viewPrefsRepository;
+      if (repo != null) {
+        try {
+          final prefs = await repo.load();
+          state = state.copyWith(viewPrefs: prefs);
+        } catch (_) {
+          // Fall back to defaults if loading fails; never block bootstrap.
+        }
+      }
       _projectsSub = _projectsService.projectRepository.watchAll().listen(
         _onProjectsChanged,
       );
@@ -84,12 +98,25 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
         name: name,
       );
       await _ensureMainWorkspaceForProject(project);
+      // Expand the project (remove from collapsed set if a stale id lingered).
+      // Selection set is a positive filter — leave it untouched so we don't
+      // accidentally start showing this brand-new project alone.
+      final prefs = state.viewPrefs;
+      final nextCollapsed = Set<String>.from(prefs.collapsedProjectIds)
+        ..remove(project.id);
+      final changedPrefs =
+          nextCollapsed.length != prefs.collapsedProjectIds.length;
+      final nextViewPrefs = changedPrefs
+          ? prefs.copyWith(collapsedProjectIds: nextCollapsed)
+          : prefs;
       state = state.copyWith(
-        expandedProjectIds: Set<String>.from(state.expandedProjectIds)
-          ..add(project.id),
+        viewPrefs: nextViewPrefs,
         activeProjectId: project.id,
         clearError: true,
       );
+      if (changedPrefs) {
+        unawaited(_persistViewPrefs());
+      }
       final workspace = await _firstSelectableWorkspace(project.id);
       if (workspace != null) {
         await selectWorkspace(project: project, workspace: workspace);
@@ -155,11 +182,27 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
     required Project project,
     required Workspace workspace,
   }) async {
+    // Selecting a workspace also reveals its terminal list so the user can
+    // jump into a tab right away. Subsequent toggles via the chevron can hide
+    // it back independently of the active selection.
+    final prefs = state.viewPrefs;
+    final nextPrefs = prefs.expandedWorkspaceIds.contains(workspace.id)
+        ? prefs
+        : prefs.copyWith(
+            expandedWorkspaceIds: <String>{
+              ...prefs.expandedWorkspaceIds,
+              workspace.id,
+            },
+          );
     state = state.copyWith(
       activeProjectId: project.id,
       activeWorkspaceId: workspace.id,
+      viewPrefs: nextPrefs,
       clearError: true,
     );
+    if (!identical(nextPrefs, prefs)) {
+      unawaited(_persistViewPrefs());
+    }
     await _terminalTabService.ensureInitialTab(workspace.id);
     final tabs = await _terminalTabService.listTabs(workspace.id);
     final layout = await _ensureWorkbenchLayout(workspace.id, tabs);
@@ -352,11 +395,170 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
   }
 
   void toggleExpanded(String projectId) {
-    final next = Set<String>.from(state.expandedProjectIds);
+    toggleProjectCollapsed(projectId);
+  }
+
+  void toggleProjectCollapsed(String projectId) {
+    final next = Set<String>.from(state.viewPrefs.collapsedProjectIds);
     if (!next.add(projectId)) {
       next.remove(projectId);
     }
-    state = state.copyWith(expandedProjectIds: next);
+    _updateViewPrefs(
+      state.viewPrefs.copyWith(collapsedProjectIds: next),
+    );
+  }
+
+  void setGroupBy(WorkbenchGroupBy groupBy) {
+    if (state.viewPrefs.groupBy == groupBy) {
+      return;
+    }
+    _updateViewPrefs(state.viewPrefs.copyWith(groupBy: groupBy));
+  }
+
+  void setProjectSort(WorkbenchSortBy sort) {
+    if (state.viewPrefs.projectSort == sort) {
+      return;
+    }
+    _updateViewPrefs(state.viewPrefs.copyWith(projectSort: sort));
+  }
+
+  void setWorkspaceSort(WorkbenchSortBy sort) {
+    if (state.viewPrefs.workspaceSort == sort) {
+      return;
+    }
+    _updateViewPrefs(state.viewPrefs.copyWith(workspaceSort: sort));
+  }
+
+  void toggleProjectFilter(String projectId) {
+    final next = Set<String>.from(state.viewPrefs.selectedProjectIds);
+    if (!next.add(projectId)) {
+      next.remove(projectId);
+    }
+    _updateViewPrefs(state.viewPrefs.copyWith(selectedProjectIds: next));
+  }
+
+  void addProjectFilter(String projectId) {
+    final current = state.viewPrefs.selectedProjectIds;
+    if (current.contains(projectId)) {
+      return;
+    }
+    _updateViewPrefs(
+      state.viewPrefs.copyWith(
+        selectedProjectIds: <String>{...current, projectId},
+      ),
+    );
+  }
+
+  void removeProjectFilter(String projectId) {
+    final current = state.viewPrefs.selectedProjectIds;
+    if (!current.contains(projectId)) {
+      return;
+    }
+    _updateViewPrefs(
+      state.viewPrefs.copyWith(
+        selectedProjectIds: current.where((id) => id != projectId).toSet(),
+      ),
+    );
+  }
+
+  void clearProjectFilters() {
+    if (state.viewPrefs.selectedProjectIds.isEmpty) {
+      return;
+    }
+    _updateViewPrefs(
+      state.viewPrefs.copyWith(selectedProjectIds: const <String>{}),
+    );
+  }
+
+  /// Collapses or expands the appropriate items depending on the active group
+  /// mode. In [WorkbenchGroupBy.project] this toggles every visible project
+  /// group; in [WorkbenchGroupBy.none] it toggles the terminal list of the
+  /// active workspace.
+  void toggleCollapseAll() {
+    final prefs = state.viewPrefs;
+    if (prefs.groupBy == WorkbenchGroupBy.project) {
+      final selected = prefs.selectedProjectIds;
+      final visibleProjectIds = <String>[
+        for (final project in state.projects)
+          if (selected.isEmpty || selected.contains(project.id)) project.id,
+      ];
+      if (visibleProjectIds.isEmpty) {
+        return;
+      }
+      final allCollapsed = visibleProjectIds.every(
+        prefs.collapsedProjectIds.contains,
+      );
+      final next = Set<String>.from(prefs.collapsedProjectIds);
+      if (allCollapsed) {
+        next.removeAll(visibleProjectIds);
+      } else {
+        next.addAll(visibleProjectIds);
+      }
+      _updateViewPrefs(prefs.copyWith(collapsedProjectIds: next));
+      return;
+    }
+    // Flat mode: toggle the expansion of every visible workspace.
+    final allWorkspaceIds = <String>[
+      for (final entry in state.workspacesByProject.entries)
+        for (final workspace in entry.value) workspace.id,
+    ];
+    if (allWorkspaceIds.isEmpty) {
+      return;
+    }
+    final anyExpanded = allWorkspaceIds.any(
+      prefs.expandedWorkspaceIds.contains,
+    );
+    final next = Set<String>.from(prefs.expandedWorkspaceIds);
+    if (anyExpanded) {
+      next.removeAll(allWorkspaceIds);
+    } else {
+      next.addAll(allWorkspaceIds);
+    }
+    _updateViewPrefs(prefs.copyWith(expandedWorkspaceIds: next));
+  }
+
+  void toggleWorkspaceExpanded(String workspaceId) {
+    final next = Set<String>.from(state.viewPrefs.expandedWorkspaceIds);
+    if (!next.add(workspaceId)) {
+      next.remove(workspaceId);
+    }
+    _updateViewPrefs(
+      state.viewPrefs.copyWith(expandedWorkspaceIds: next),
+    );
+  }
+
+  void setWorkspaceExpanded(String workspaceId, bool expanded) {
+    final current = state.viewPrefs.expandedWorkspaceIds;
+    final isExpanded = current.contains(workspaceId);
+    if (expanded == isExpanded) {
+      return;
+    }
+    final next = Set<String>.from(current);
+    if (expanded) {
+      next.add(workspaceId);
+    } else {
+      next.remove(workspaceId);
+    }
+    _updateViewPrefs(
+      state.viewPrefs.copyWith(expandedWorkspaceIds: next),
+    );
+  }
+
+  void _updateViewPrefs(WorkbenchViewPrefs prefs) {
+    state = state.copyWith(viewPrefs: prefs);
+    unawaited(_persistViewPrefs());
+  }
+
+  Future<void> _persistViewPrefs() async {
+    final repo = _viewPrefsRepository;
+    if (repo == null) {
+      return;
+    }
+    try {
+      await repo.save(state.viewPrefs);
+    } catch (_) {
+      // Persistence is best-effort; never surface an error from the UI path.
+    }
   }
 
   void setSearchQuery(String query) {
@@ -388,17 +590,25 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
     final validProjectIds = <String>{
       for (final project in projects) project.id,
     };
-    final knownProjectIds = <String>{
-      for (final project in state.projects) project.id,
-    };
-    // Auto-expand only newly added projects; preserve the user's collapse state
-    // for projects we already knew about.
-    final newProjectIds = validProjectIds.where(
-      (projectId) => !knownProjectIds.contains(projectId),
-    );
-    final updatedExpanded =
-        state.expandedProjectIds.where(validProjectIds.contains).toSet()
-          ..addAll(newProjectIds);
+    // Prune collapse/selection ids that point at removed projects. New
+    // projects are not added to either set so they show up expanded and (when
+    // there is no active selection) visible by default.
+    final prefs = state.viewPrefs;
+    final prunedCollapsed = prefs.collapsedProjectIds
+        .where(validProjectIds.contains)
+        .toSet();
+    final prunedSelected = prefs.selectedProjectIds
+        .where(validProjectIds.contains)
+        .toSet();
+    final prefsChanged =
+        prunedCollapsed.length != prefs.collapsedProjectIds.length ||
+            prunedSelected.length != prefs.selectedProjectIds.length;
+    final nextViewPrefs = prefsChanged
+        ? prefs.copyWith(
+            collapsedProjectIds: prunedCollapsed,
+            selectedProjectIds: prunedSelected,
+          )
+        : prefs;
     final updatedWorkspaces = <String, List<Workspace>>{
       for (final entry in state.workspacesByProject.entries)
         if (validProjectIds.contains(entry.key)) entry.key: entry.value,
@@ -436,7 +646,7 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
       projects: projects,
       workspacesByProject: updatedWorkspaces,
       tabsByWorkspace: updatedTabs,
-      expandedProjectIds: updatedExpanded,
+      viewPrefs: nextViewPrefs,
       activeProjectId: activeProjectId,
       clearActiveProjectId: activeProjectId == null,
       activeWorkspaceId: activeWorkspaceId,
@@ -444,6 +654,9 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
       activeTabIdByWorkspace: updatedActiveTabs,
       layoutByWorkspace: updatedLayouts,
     );
+    if (prefsChanged) {
+      unawaited(_persistViewPrefs());
+    }
 
     for (final project in projects) {
       if (_workspaceSubs.containsKey(project.id)) {
@@ -517,14 +730,31 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
       workspacesByProject: nextWorkspaces,
       preferredWorkspaceId: state.activeWorkspaceId,
     );
+    // Drop any expansion entries that pointed at workspaces that no longer
+    // exist so the set stays tight.
+    final viewPrefs = state.viewPrefs;
+    final prunedExpanded = viewPrefs.expandedWorkspaceIds
+        .where((id) =>
+            !removedWorkspaceIds.contains(id) ||
+            liveWorkspaceIds.contains(id))
+        .toSet();
+    final expansionChanged =
+        prunedExpanded.length != viewPrefs.expandedWorkspaceIds.length;
+    final nextViewPrefs = expansionChanged
+        ? viewPrefs.copyWith(expandedWorkspaceIds: prunedExpanded)
+        : viewPrefs;
     state = state.copyWith(
       workspacesByProject: nextWorkspaces,
+      viewPrefs: nextViewPrefs,
       activeProjectId: candidateProjectId,
       clearActiveProjectId: candidateProjectId == null,
       activeWorkspaceId: activeWorkspaceId,
       clearActiveWorkspaceId: activeWorkspaceId == null,
       layoutByWorkspace: nextLayouts,
     );
+    if (expansionChanged) {
+      unawaited(_persistViewPrefs());
+    }
     _ensureSelectionHasTab();
   }
 
