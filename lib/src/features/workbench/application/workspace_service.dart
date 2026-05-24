@@ -5,7 +5,6 @@ import 'dart:io';
 import 'dart:convert';
 
 import 'package:alera/src/features/projects/application/project_service.dart';
-import 'package:alera/src/features/projects/application/worktree_service.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
@@ -29,25 +28,46 @@ class WorkspaceException implements Exception {
   }
 }
 
+/// Resolves the on-disk root for Alera-managed workspaces. Linked workspaces
+/// are implemented as Git worktrees under this root.
+class WorkspaceRoot {
+  WorkspaceRoot({this.override});
+
+  final String? override;
+
+  String resolve() {
+    final explicit = override;
+    if (explicit != null) {
+      return explicit;
+    }
+    final home =
+        Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
+    if (home == null || home.isEmpty) {
+      throw WorkspaceException('Cannot locate user home directory');
+    }
+    return p.join(home, '.alera', 'workspaces');
+  }
+}
+
 class WorkspaceService {
   WorkspaceService({
     required WorkbenchRepository repository,
     required ProjectService projectService,
     required ProcessRunner processRunner,
-    WorktreeRoot? worktreeRoot,
+    WorkspaceRoot? workspaceRoot,
     Uuid? uuid,
     DateTime Function()? now,
   }) : _repository = repository,
        _projectService = projectService,
        _processRunner = processRunner,
-       _worktreeRoot = worktreeRoot ?? WorktreeRoot(),
+       _workspaceRoot = workspaceRoot ?? WorkspaceRoot(),
        _uuid = uuid ?? const Uuid(),
        _now = now ?? _defaultNow;
 
   final WorkbenchRepository _repository;
   final ProjectService _projectService;
   final ProcessRunner _processRunner;
-  final WorktreeRoot _worktreeRoot;
+  final WorkspaceRoot _workspaceRoot;
   final Uuid _uuid;
   final DateTime Function() _now;
 
@@ -68,27 +88,28 @@ class WorkspaceService {
         break;
       }
     }
-    final next = (mainWorkspace ??
-            Workspace(
-              id: _uuid.v4(),
-              projectId: project.id,
+    final next =
+        (mainWorkspace ??
+                Workspace(
+                  id: _uuid.v4(),
+                  projectId: project.id,
+                  name: 'Main',
+                  branch: branch,
+                  path: project.repoPath,
+                  createdAt: now,
+                  updatedAt: now,
+                  kind: WorkspaceKind.main,
+                  status: WorkspaceStatus.active,
+                ))
+            .copyWith(
               name: 'Main',
               branch: branch,
               path: project.repoPath,
-              createdAt: now,
               updatedAt: now,
               kind: WorkspaceKind.main,
               status: WorkspaceStatus.active,
-            ))
-        .copyWith(
-          name: 'Main',
-          branch: branch,
-          path: project.repoPath,
-          updatedAt: now,
-          kind: WorkspaceKind.main,
-          status: WorkspaceStatus.active,
-          clearSourceBranch: true,
-        );
+              clearSourceBranch: true,
+            );
     await _repository.upsertWorkspace(next);
     return next;
   }
@@ -114,8 +135,7 @@ class WorkspaceService {
 
     final workspaces = await _repository.listWorkspaces(project.id);
     if (workspaces.any(
-      (workspace) =>
-          workspace.isActive && workspace.branch == normalizedBranch,
+      (workspace) => workspace.isActive && workspace.branch == normalizedBranch,
     )) {
       throw WorkspaceException(
         'A workspace for branch "$normalizedBranch" already exists',
@@ -346,11 +366,7 @@ class WorkspaceService {
 
   String _resolveWorkspacePath(Project project, String slug) {
     final projectSlug = _slugifyPathSegment(p.basename(project.repoPath));
-    return p.join(
-      _worktreeRoot.resolve(),
-      '$projectSlug-${project.id}',
-      slug,
-    );
+    return p.join(_workspaceRoot.resolve(), '$projectSlug-${project.id}', slug);
   }
 
   String _slugifyPathSegment(String input) {
@@ -362,9 +378,7 @@ class WorkspaceService {
         .replaceAll(RegExp(r'-+'), '-')
         .replaceAll(RegExp(r'^-|-$'), '');
     if (normalized.isEmpty) {
-      throw WorkspaceException(
-        'Workspace name must contain a letter or digit',
-      );
+      throw WorkspaceException('Workspace name must contain a letter or digit');
     }
     return normalized;
   }

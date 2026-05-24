@@ -1,6 +1,3 @@
-[submodule "reference_projects/codex"]
-	path = reference_projects/codex
-	url = https://github.com/openai/codex
 [submodule "reference_projects/jean"]
 	path = reference_projects/jean
 	url = https://github.com/coollabsio/jean

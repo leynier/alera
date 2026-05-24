@@ -43,18 +43,6 @@ class AleraStores {
   static final StoreRef<String, Map<String, Object?>> projects =
       stringMapStoreFactory.store('projects');
 
-  static final StoreRef<String, Map<String, Object?>> worktrees =
-      stringMapStoreFactory.store('worktrees');
-
-  static final StoreRef<String, Map<String, Object?>> chats =
-      stringMapStoreFactory.store('chats');
-
-  static final StoreRef<String, Map<String, Object?>> chatMessages =
-      stringMapStoreFactory.store('chat_messages');
-
-  static final StoreRef<String, Map<String, Object?>> chatCells =
-      stringMapStoreFactory.store('chat_cells');
-
   static final StoreRef<String, Map<String, Object?>> workbenchWorkspaces =
       stringMapStoreFactory.store('workbench_workspaces');
 
@@ -67,37 +55,12 @@ class AleraStores {
   static final StoreRef<String, Map<String, Object?>> terminalTabs =
       stringMapStoreFactory.store('terminal_tabs');
 
-  static final StoreRef<String, Map<String, Object?>> sidebarPrefs =
-      stringMapStoreFactory.store('sidebar_prefs');
-
   static final StoreRef<String, Map<String, Object?>> workbenchViewPrefs =
       stringMapStoreFactory.store('workbench_view_prefs');
 
   static final StoreRef<String, Object?> meta = StoreRef<String, Object?>(
     'meta',
   );
-}
-
-/// Build a deterministic compound id for a chat message record.
-String chatMessageRecordId({required String chatId, required int seq}) {
-  if (chatId.isEmpty) {
-    throw ArgumentError.value(chatId, 'chatId', 'must not be empty');
-  }
-  if (seq < 0) {
-    throw ArgumentError.value(seq, 'seq', 'must be non-negative');
-  }
-  return '$chatId/${seq.toString().padLeft(10, '0')}';
-}
-
-/// Build a deterministic compound id for a timeline cell snapshot record.
-String chatCellRecordId({required String chatId, required int seq}) {
-  if (chatId.isEmpty) {
-    throw ArgumentError.value(chatId, 'chatId', 'must not be empty');
-  }
-  if (seq < 0) {
-    throw ArgumentError.value(seq, 'seq', 'must be non-negative');
-  }
-  return '$chatId/${seq.toString().padLeft(10, '0')}';
 }
 
 bool isWindowsPlatform() => Platform.isWindows;

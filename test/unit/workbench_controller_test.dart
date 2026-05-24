@@ -1,16 +1,10 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:alera/src/features/projects/application/chat_repository.dart';
 import 'package:alera/src/features/projects/application/project_repository.dart';
 import 'package:alera/src/features/projects/application/project_service.dart';
 import 'package:alera/src/features/projects/application/projects_service.dart';
-import 'package:alera/src/features/projects/application/worktree_service.dart';
-import 'package:alera/src/features/projects/domain/chat_message.dart';
-import 'package:alera/src/features/projects/domain/chat_summary.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
-import 'package:alera/src/features/projects/domain/worktree.dart';
-import 'package:alera/src/features/session/domain/chat_timeline.dart';
 import 'package:alera/src/features/workbench/application/terminal_tab_service.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
@@ -453,17 +447,14 @@ class _WorkbenchHarness {
     final projectsService = ProjectsService(
       projectService: ProjectService(processRunner),
       projectRepository: projectRepository,
-      chatRepository: _FakeChatRepository(),
-      worktreeService: WorktreeService(
-        projectRepository: projectRepository,
-        processRunner: processRunner,
-      ),
     );
     final workspaceService = WorkspaceService(
       repository: workbenchRepository,
       projectService: ProjectService(processRunner),
       processRunner: processRunner,
-      worktreeRoot: WorktreeRoot(override: p.join(tempDir.path, 'workspaces')),
+      workspaceRoot: WorkspaceRoot(
+        override: p.join(tempDir.path, 'workspaces'),
+      ),
       now: () => DateTime.utc(2026, 5, 22, 1),
     );
     final terminalTabService = TerminalTabService(
@@ -531,25 +522,6 @@ class _FakeProjectRepository implements ProjectRepository {
     _projects.removeWhere((project) => project.id == projectId);
     _projectsController.add(List<Project>.from(_projects));
   }
-
-  @override
-  Future<List<Worktree>> listWorktrees(String projectId) async =>
-      const <Worktree>[];
-
-  @override
-  Stream<List<Worktree>> watchWorktrees(String projectId) =>
-      const Stream<List<Worktree>>.empty();
-
-  @override
-  Future<Worktree> addWorktree(Worktree worktree) => throw UnimplementedError();
-
-  @override
-  Future<Worktree> updateWorktree(Worktree worktree) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Worktree?> findWorktreeById(String worktreeId) =>
-      throw UnimplementedError();
 }
 
 class _FakeWorkbenchRepository implements WorkbenchRepository {
@@ -806,43 +778,6 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
       await controller.close();
     }
   }
-}
-
-class _FakeChatRepository implements ChatRepository {
-  @override
-  Future<ChatMessage> appendMessage(ChatMessage message) =>
-      throw UnimplementedError();
-
-  @override
-  Future<ChatSummary?> findById(String chatId) => throw UnimplementedError();
-
-  @override
-  Future<List<ChatSummary>> listByProject(String projectId) async =>
-      const <ChatSummary>[];
-
-  @override
-  Future<List<TimelineCell>> loadCells(String chatId) async =>
-      const <TimelineCell>[];
-
-  @override
-  Future<List<ChatMessage>> loadMessages(String chatId) async =>
-      const <ChatMessage>[];
-
-  @override
-  Future<int> nextSeq(String chatId) => throw UnimplementedError();
-
-  @override
-  Future<void> remove(String chatId, {bool cascadeMessages = true}) async {}
-
-  @override
-  Future<void> replaceCells(String chatId, List<TimelineCell> cells) async {}
-
-  @override
-  Future<ChatSummary> upsert(ChatSummary chat) => throw UnimplementedError();
-
-  @override
-  Stream<List<ChatSummary>> watchByProject(String projectId) =>
-      const Stream<List<ChatSummary>>.empty();
 }
 
 class _FakeProcessRunner implements ProcessRunner {

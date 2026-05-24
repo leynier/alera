@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:alera/src/features/projects/application/project_service.dart';
-import 'package:alera/src/features/projects/application/worktree_service.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
 import 'package:alera/src/features/workbench/application/workspace_service.dart';
@@ -29,7 +28,7 @@ void main() {
         repository: repository,
         projectService: ProjectService(processRunner),
         processRunner: processRunner,
-        worktreeRoot: WorktreeRoot(
+        workspaceRoot: WorkspaceRoot(
           override: p.join(tempDir.path, 'workspaces'),
         ),
         now: () => DateTime.utc(2026, 5, 20, 12),

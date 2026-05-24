@@ -793,10 +793,7 @@ class _PaneMenuButton extends StatelessWidget {
         ),
         const PopupMenuItem<_PaneMenuAction>(
           value: _PaneMenuAction.splitUp,
-          child: _SplitMenuRow(
-            zone: WorkbenchDropZone.up,
-            label: 'Split Up',
-          ),
+          child: _SplitMenuRow(zone: WorkbenchDropZone.up, label: 'Split Up'),
         ),
         if (canCloseSplit) const PopupMenuDivider(height: AleraTokens.space8),
         if (canCloseSplit)
@@ -901,10 +898,7 @@ class _SplitDirectionPainter extends CustomPainter {
       canvas
         ..save()
         ..clipRRect(outerRRect)
-        ..drawRect(
-          fillRect,
-          Paint()..color = AleraTokens.foreground,
-        )
+        ..drawRect(fillRect, Paint()..color = AleraTokens.foreground)
         ..restore();
     }
 

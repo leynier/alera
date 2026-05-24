@@ -184,7 +184,8 @@ class _ProjectWorkbenchSidebarState
 
     final result = await showDialog<CreateWorkspaceResult>(
       context: context,
-      builder: (_) => CreateWorkspaceDialog(project: project, branches: branches),
+      builder: (_) =>
+          CreateWorkspaceDialog(project: project, branches: branches),
     );
     if (result == null || !mounted) {
       return;
@@ -252,10 +253,9 @@ class _ProjectWorkbenchSidebarState
       return;
     }
     try {
-      await ref.read(workbenchControllerProvider.notifier).deleteWorkspace(
-        project: project,
-        workspace: workspace,
-      );
+      await ref
+          .read(workbenchControllerProvider.notifier)
+          .deleteWorkspace(project: project, workspace: workspace);
       // Only dispose the live terminal sessions once the worktree was actually
       // removed, so a failed git removal doesn't orphan a still-valid workspace.
       ref.read(terminalRuntimeProvider).closeWorkspace(workspace.id);
@@ -307,16 +307,16 @@ class _ProjectWorkbenchSidebarState
       return;
     }
     final runtime = ref.read(terminalRuntimeProvider);
-    final workspaces = ref.read(workbenchControllerProvider).workspacesFor(
-      project.id,
-    );
+    final workspaces = ref
+        .read(workbenchControllerProvider)
+        .workspacesFor(project.id);
     for (final workspace in workspaces) {
       runtime.closeWorkspace(workspace.id);
     }
     try {
-      await ref.read(workbenchControllerProvider.notifier).removeProject(
-        project.id,
-      );
+      await ref
+          .read(workbenchControllerProvider.notifier)
+          .removeProject(project.id);
       if (!mounted) {
         return;
       }
@@ -357,9 +357,8 @@ class _ProjectWorkbenchSidebarState
     }
     controller.setActiveTab(workspaceId: workspace.id, tabId: tabId);
     TerminalTabRecord? tabRecord;
-    for (final tab in ref
-        .read(workbenchControllerProvider)
-        .tabsFor(workspace.id)) {
+    for (final tab
+        in ref.read(workbenchControllerProvider).tabsFor(workspace.id)) {
       if (tab.id == tabId) {
         tabRecord = tab;
         break;
@@ -429,7 +428,7 @@ class _CollapsedSidebar extends StatelessWidget {
               child: SidebarCollapsedRail(
                 projects: state.projects,
                 activeProjectId: state.activeProjectId,
-                chatCountByProject: workspaceCounts,
+                workspaceCountByProject: workspaceCounts,
                 onSelectProject: (project) {
                   controller.setCollapsed(false);
                   unawaited(controller.activateProject(project));
@@ -512,10 +511,7 @@ class _SidebarBody extends StatelessWidget {
           ? AleraTokens.space8
           : AleraTokens.space20;
       return Padding(
-        padding: EdgeInsets.only(
-          left: leftPadding,
-          right: AleraTokens.space8,
-        ),
+        padding: EdgeInsets.only(left: leftPadding, right: AleraTokens.space8),
         child: _WorkspaceRow(
           project: row.project,
           workspace: row.workspace,
@@ -537,10 +533,7 @@ class _SidebarBody extends StatelessWidget {
           ? AleraTokens.space20
           : AleraTokens.space32;
       return Padding(
-        padding: EdgeInsets.only(
-          left: leftPadding,
-          right: AleraTokens.space8,
-        ),
+        padding: EdgeInsets.only(left: leftPadding, right: AleraTokens.space8),
         child: _TerminalRow(
           workspace: row.workspace,
           tab: row.tab,
@@ -549,7 +542,8 @@ class _SidebarBody extends StatelessWidget {
           // currently selected workspace AND the tab is the active one for
           // that workspace. Otherwise an inactive workspace's last-active tab
           // would keep its highlight even though it is not really focused.
-          isActive: row.workspace.id == state.activeWorkspaceId &&
+          isActive:
+              row.workspace.id == state.activeWorkspaceId &&
               state.activeTabIdByWorkspace[row.workspace.id] == row.tab.id,
           onTap: () => onSelectTerminal(row.workspace, row.tab.id),
           onClose: () => onCloseTerminal(row.workspace, row.tab.id),
@@ -611,7 +605,10 @@ class _ProjectHeaderTile extends StatefulWidget {
 class _ProjectHeaderTileState extends State<_ProjectHeaderTile> {
   bool _hovered = false;
 
-  Future<void> _showContextMenu(BuildContext context, Offset globalPosition) async {
+  Future<void> _showContextMenu(
+    BuildContext context,
+    Offset globalPosition,
+  ) async {
     final overlay =
         Navigator.of(context).overlay!.context.findRenderObject()! as RenderBox;
     final selected = await showMenu<String>(
@@ -744,7 +741,9 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
     }
     if (widget.terminalCount > 0) {
       parts.add(
-        widget.terminalCount == 1 ? '1 terminal' : '${widget.terminalCount} terminals',
+        widget.terminalCount == 1
+            ? '1 terminal'
+            : '${widget.terminalCount} terminals',
       );
     }
     return parts.join(' · ');
@@ -768,109 +767,107 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                 : (_hovered ? AleraTokens.surface : Colors.transparent),
             borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
           ),
-              child: InkWell(
-                onTap: widget.onTap,
-                mouseCursor: SystemMouseCursors.click,
-                borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AleraTokens.space12,
-                    vertical: AleraTokens.space8,
+          child: InkWell(
+            onTap: widget.onTap,
+            mouseCursor: SystemMouseCursors.click,
+            borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AleraTokens.space12,
+                vertical: AleraTokens.space8,
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: StatusDot(active: isActive),
                   ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Padding(
-                        padding: const EdgeInsets.only(top: 6),
-                        child: StatusDot(active: isActive),
-                      ),
-                      const SizedBox(width: AleraTokens.space8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
+                  const SizedBox(width: AleraTokens.space8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Row(
                           children: <Widget>[
-                            Row(
-                              children: <Widget>[
-                                Flexible(
-                                  child: Text(
-                                    widget.workspace.name,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                      color: AleraTokens.foreground,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
+                            Flexible(
+                              child: Text(
+                                widget.workspace.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: AleraTokens.foreground,
+                                  fontWeight: FontWeight.w600,
                                 ),
-                                if (widget.workspace.isMain) ...<Widget>[
-                                  const SizedBox(width: AleraTokens.space6),
-                                  const PrimaryBadge(),
-                                ],
-                              ],
+                              ),
                             ),
-                            const SizedBox(height: AleraTokens.space4),
-                            Row(
-                              children: <Widget>[
-                                if (widget.showProjectChip) ...<Widget>[
-                                  Flexible(
-                                    child: ProjectChip(
-                                      label: widget.project.name,
-                                    ),
-                                  ),
-                                  const SizedBox(width: AleraTokens.space6),
-                                ],
-                                Flexible(
-                                  child: Text(
-                                    _buildSecondaryLine(),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: theme.textTheme.labelSmall?.copyWith(
-                                      color: AleraTokens.foregroundFaint,
-                                    ),
-                                  ),
+                            if (widget.workspace.isMain) ...<Widget>[
+                              const SizedBox(width: AleraTokens.space6),
+                              const PrimaryBadge(),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: AleraTokens.space4),
+                        Row(
+                          children: <Widget>[
+                            if (widget.showProjectChip) ...<Widget>[
+                              Flexible(
+                                child: ProjectChip(label: widget.project.name),
+                              ),
+                              const SizedBox(width: AleraTokens.space6),
+                            ],
+                            Flexible(
+                              child: Text(
+                                _buildSecondaryLine(),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: AleraTokens.foregroundFaint,
                                 ),
-                              ],
+                              ),
                             ),
                           ],
                         ),
-                      ),
-                      SidebarIconButton(
-                        tooltip: widget.expanded
-                            ? 'Hide terminals'
-                            : 'Show terminals',
-                        onPressed: widget.onToggleExpanded,
-                        icon: widget.expanded
-                            ? Icons.keyboard_arrow_up
-                            : Icons.keyboard_arrow_down,
-                        iconSize: 14,
-                        minSize: 24,
-                      ),
-                      if (widget.onDelete != null)
-                        IgnorePointer(
-                          ignoring: !actionsVisible,
-                          child: AnimatedOpacity(
-                            opacity: actionsVisible ? 1 : 0,
-                            duration: AleraTokens.durationFast,
-                            child: Padding(
-                              padding: const EdgeInsets.only(
-                                left: AleraTokens.space2,
-                              ),
-                              child: SidebarIconButton(
-                                tooltip: 'Remove workspace',
-                                onPressed: widget.onDelete!,
-                                icon: Icons.delete_outline,
-                                iconSize: 14,
-                                minSize: 24,
-                              ),
-                            ),
+                      ],
+                    ),
+                  ),
+                  SidebarIconButton(
+                    tooltip: widget.expanded
+                        ? 'Hide terminals'
+                        : 'Show terminals',
+                    onPressed: widget.onToggleExpanded,
+                    icon: widget.expanded
+                        ? Icons.keyboard_arrow_up
+                        : Icons.keyboard_arrow_down,
+                    iconSize: 14,
+                    minSize: 24,
+                  ),
+                  if (widget.onDelete != null)
+                    IgnorePointer(
+                      ignoring: !actionsVisible,
+                      child: AnimatedOpacity(
+                        opacity: actionsVisible ? 1 : 0,
+                        duration: AleraTokens.durationFast,
+                        child: Padding(
+                          padding: const EdgeInsets.only(
+                            left: AleraTokens.space2,
+                          ),
+                          child: SidebarIconButton(
+                            tooltip: 'Remove workspace',
+                            onPressed: widget.onDelete!,
+                            icon: Icons.delete_outline,
+                            iconSize: 14,
+                            minSize: 24,
                           ),
                         ),
-                    ],
-                  ),
-                ),
+                      ),
+                    ),
+                ],
               ),
             ),
+          ),
+        ),
       ),
     );
   }
@@ -1067,9 +1064,7 @@ class _SidebarFooter extends StatelessWidget {
     return SizedBox(
       height: AleraTokens.statusBarHeight,
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AleraTokens.space8,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space8),
         child: Row(
           children: <Widget>[
             MouseRegion(

@@ -19,9 +19,9 @@ class PrimaryBadge extends StatelessWidget {
       ),
       child: Text(
         'primary',
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: AleraTokens.foregroundMuted,
-        ),
+        style: Theme.of(
+          context,
+        ).textTheme.labelSmall?.copyWith(color: AleraTokens.foregroundMuted),
       ),
     );
   }

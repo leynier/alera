@@ -59,9 +59,7 @@ class _TerminalSurfaceState extends State<TerminalSurface> {
             Positioned.fill(
               child: DecoratedBox(
                 decoration: const BoxDecoration(color: AleraTokens.bg),
-                child: widget.session.buildView(
-                  autofocus: widget.autofocus,
-                ),
+                child: widget.session.buildView(autofocus: widget.autofocus),
               ),
             ),
             if (widget.session.isStarting)
@@ -104,7 +102,10 @@ class _TerminalErrorState extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text('Terminal failed to start', style: theme.textTheme.titleMedium),
+              Text(
+                'Terminal failed to start',
+                style: theme.textTheme.titleMedium,
+              ),
               const SizedBox(height: AleraTokens.space8),
               Text(
                 message,

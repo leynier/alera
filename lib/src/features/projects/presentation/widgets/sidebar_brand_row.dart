@@ -13,8 +13,8 @@ class SidebarBrandRow extends StatelessWidget {
   final bool collapsed;
   final VoidCallback onToggleCollapsed;
 
-  /// Optional add-project handler. The workbench sidebar moves this action to
-  /// the footer, but the chat-project sidebar still wires it here.
+  /// Optional add-project handler. The expanded workbench sidebar moves this
+  /// action to the footer, while older callers can still wire it here.
   final VoidCallback? onAddProject;
 
   @override

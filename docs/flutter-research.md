@@ -2,6 +2,14 @@
 
 This report evaluates the feasibility of migrating Orca (an AI Orchestrator for parallel development) from Electron, Node.js, and React to a unified **Flutter (Dart)** application. It provides an architectural mapping, feature-by-feature implementation analysis, package research (stability and maintenance), and highlights the easy vs. complicated parts of the migration.
 
+Current Alera note: this is historical research and a source of implementation
+ideas, not the current dependency contract. The active app is intentionally
+terminal-first and currently ships the project registry, Git-worktree-backed
+workspaces, split terminal workbench, and local Sembast persistence. Features
+listed below such as Markdown previews, Drift, browser automation, SSH, tray
+menus, and notifications are research candidates until they are explicitly
+added to the active app.
+
 ---
 
 ## 1. Architectural Stack Mapping

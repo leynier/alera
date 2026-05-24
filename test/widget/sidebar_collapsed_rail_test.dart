@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('collapsed rail omits new chat and keeps add project', (
+  testWidgets('collapsed rail keeps project navigation and add project', (
     tester,
   ) async {
     var addProjectTaps = 0;
@@ -14,14 +14,13 @@ void main() {
         child: SidebarCollapsedRail(
           projects: <Project>[_project()],
           activeProjectId: null,
-          chatCountByProject: const <String, int>{},
+          workspaceCountByProject: const <String, int>{},
           onSelectProject: (_) {},
           onAddProject: () => addProjectTaps++,
         ),
       ),
     );
 
-    expect(find.byTooltip('New chat'), findsNothing);
     expect(find.byTooltip('Add a project first'), findsNothing);
     expect(find.byTooltip('Add project'), findsOneWidget);
     expect(

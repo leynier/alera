@@ -10,7 +10,7 @@ class SidebarSearchBar extends StatefulWidget {
     required this.initialQuery,
     required this.onChanged,
     required this.focusNode,
-    this.hintText = 'Search chats',
+    this.hintText = 'Search projects',
   });
 
   final String initialQuery;

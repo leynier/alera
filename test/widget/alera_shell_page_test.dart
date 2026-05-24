@@ -1,18 +1,11 @@
 import 'dart:async';
 
 import 'package:alera/src/app/providers.dart';
-import 'package:alera/src/features/projects/application/chat_repository.dart';
 import 'package:alera/src/features/projects/application/project_repository.dart';
 import 'package:alera/src/features/projects/application/project_service.dart';
 import 'package:alera/src/features/projects/application/projects_service.dart';
-import 'package:alera/src/features/projects/application/worktree_service.dart';
-import 'package:alera/src/features/projects/domain/chat_message.dart';
-import 'package:alera/src/features/projects/domain/chat_summary.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
-import 'package:alera/src/features/projects/domain/worktree.dart';
-import 'package:alera/src/features/session/domain/chat_timeline.dart';
 import 'package:alera/src/features/shell/presentation/alera_shell_page.dart';
-import 'package:alera/src/features/shell/presentation/alera_top_bar.dart';
 import 'package:alera/src/features/workbench/application/terminal_tab_service.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
@@ -56,15 +49,6 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
   }
-
-  testWidgets('shell does not render the global top bar', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(1600, 900));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-
-    await pumpShell(tester, state: _populatedWorkbenchState());
-
-    expect(find.byType(AleraTopBar), findsNothing);
-  });
 
   testWidgets('shell renders the terminal workbench for the active workspace', (
     tester,
@@ -322,11 +306,6 @@ class _ShellTestWorkbenchController extends WorkbenchController {
         projectsService: ProjectsService(
           projectService: ProjectService(_NoopProcessRunner()),
           projectRepository: _NoopProjectRepository(),
-          chatRepository: _NoopChatRepository(),
-          worktreeService: WorktreeService(
-            projectRepository: _NoopProjectRepository(),
-            processRunner: _NoopProcessRunner(),
-          ),
         ),
         repository: _NoopWorkbenchRepository(),
         workspaceService: WorkspaceService(
@@ -531,17 +510,7 @@ class _NoopProjectRepository implements ProjectRepository {
   Future<Project> add(Project project) async => project;
 
   @override
-  Future<Worktree> addWorktree(Worktree worktree) => throw UnimplementedError();
-
-  @override
-  Future<Worktree?> findWorktreeById(String worktreeId) async => null;
-
-  @override
   Future<List<Project>> listAll() async => const <Project>[];
-
-  @override
-  Future<List<Worktree>> listWorktrees(String projectId) async =>
-      const <Worktree>[];
 
   @override
   Future<void> remove(String projectId) async {}
@@ -550,52 +519,7 @@ class _NoopProjectRepository implements ProjectRepository {
   Future<Project> update(Project project) async => project;
 
   @override
-  Future<Worktree> updateWorktree(Worktree worktree) =>
-      throw UnimplementedError();
-
-  @override
   Stream<List<Project>> watchAll() => const Stream<List<Project>>.empty();
-
-  @override
-  Stream<List<Worktree>> watchWorktrees(String projectId) =>
-      const Stream<List<Worktree>>.empty();
-}
-
-class _NoopChatRepository implements ChatRepository {
-  @override
-  Future<ChatMessage> appendMessage(ChatMessage message) =>
-      throw UnimplementedError();
-
-  @override
-  Future<ChatSummary?> findById(String chatId) async => null;
-
-  @override
-  Future<List<ChatSummary>> listByProject(String projectId) async =>
-      const <ChatSummary>[];
-
-  @override
-  Future<List<TimelineCell>> loadCells(String chatId) async =>
-      const <TimelineCell>[];
-
-  @override
-  Future<List<ChatMessage>> loadMessages(String chatId) async =>
-      const <ChatMessage>[];
-
-  @override
-  Future<int> nextSeq(String chatId) => throw UnimplementedError();
-
-  @override
-  Future<void> remove(String chatId, {bool cascadeMessages = true}) async {}
-
-  @override
-  Future<void> replaceCells(String chatId, List<TimelineCell> cells) async {}
-
-  @override
-  Future<ChatSummary> upsert(ChatSummary chat) => throw UnimplementedError();
-
-  @override
-  Stream<List<ChatSummary>> watchByProject(String projectId) =>
-      const Stream<List<ChatSummary>>.empty();
 }
 
 class _NoopProcessRunner implements ProcessRunner {

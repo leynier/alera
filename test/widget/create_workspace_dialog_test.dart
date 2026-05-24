@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('submits the selected source branch and branch name', (tester) async {
+  testWidgets('submits the selected source branch and branch name', (
+    tester,
+  ) async {
     CreateWorkspaceResult? result;
     final project = _project();
 
@@ -53,38 +55,41 @@ void main() {
     expect(result!.name, 'Terminal tabs');
   });
 
-  testWidgets('requires source branch and new branch when no branch list is provided', (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: Builder(
-            builder: (context) {
-              return FilledButton(
-                onPressed: () {
-                  showDialog<CreateWorkspaceResult>(
-                    context: context,
-                    builder: (_) => CreateWorkspaceDialog(
-                      project: _project(),
-                      branches: const <String>[],
-                    ),
-                  );
-                },
-                child: const Text('Open'),
-              );
-            },
+  testWidgets(
+    'requires source branch and new branch when no branch list is provided',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) {
+                return FilledButton(
+                  onPressed: () {
+                    showDialog<CreateWorkspaceResult>(
+                      context: context,
+                      builder: (_) => CreateWorkspaceDialog(
+                        project: _project(),
+                        branches: const <String>[],
+                      ),
+                    );
+                  },
+                  child: const Text('Open'),
+                );
+              },
+            ),
           ),
         ),
-      ),
-    );
+      );
 
-    await tester.tap(find.text('Open'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Create workspace'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Create workspace'));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Source branch is required'), findsOneWidget);
-    expect(find.text('New branch name is required'), findsOneWidget);
-  });
+      expect(find.text('Source branch is required'), findsOneWidget);
+      expect(find.text('New branch name is required'), findsOneWidget);
+    },
+  );
 }
 
 Project _project() {

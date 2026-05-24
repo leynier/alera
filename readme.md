@@ -1,33 +1,42 @@
 # Alera
 
-Alera is a Flutter desktop orchestrator for `codex app-server`, currently configured for macOS.
+Alera is a Flutter desktop Agentic Development Environment focused on projects,
+workspaces, and terminal-first agent workflows. Agents are expected to run
+through their own CLI tools inside Alera-managed terminals instead of through an
+embedded adapter-specific chat backend.
 
-## Current Scope (v1 foundation)
-- `codex app-server` bridge over JSON-RPC (`stdio`) with framed message parsing.
-- Feature-first app architecture under `lib/src/features/*`.
-- Session lifecycle with repository/worktree modes.
-- Plan mode vs normal mode execution handling.
-- Approval engine with allowlist precedence: `session > project > global`.
-- Dual model selection (`planner` and `executor`) in session requests.
-- MCP service abstraction through app-server methods.
-- Native slash command layer with built-ins such as `/new`, `/compact`, `/review`, `/plan`, `/skills`, and `/apps`.
-- Custom prompt commands discovered from `<workspace>/.codex/prompts/*.md` and `$CODEX_HOME/prompts/*.md`.
-- Embedded terminal with `xterm` + `flutter_pty` and automatic fallback to process pipes.
-- Desktop-safe persistence baseline (`drift`, secure storage, shared prefs fallback).
+## Current Scope
+
+- Project registry for local Git repositories.
+- Workspace management backed by Git worktrees for linked branches.
+- Split terminal workbench with persistent tabs and layouts.
+- Native terminal runtime using `ghostty_vte_flutter`, `portable_pty`, and
+  `xterm` fallback infrastructure.
+- Local Sembast persistence for projects, workspaces, terminal tabs, layouts,
+  and view preferences.
+- Dark-mode-only Flutter UI using the Alera design tokens and theme.
 
 ## Project Layout
-- `lib/src/app`: bootstrap, routing, dependency providers.
-- `lib/src/shared`: infra/services shared across features.
-- `lib/src/features/*`: feature modules (`session`, `worktree`, `terminal`, `approvals`, `commands`, `mcp`, etc.).
-- `test/unit`: unit tests for parser, approvals, commands, worktree, and branch naming.
+
+- `lib/src/app`: bootstrap, dependency providers, and theme setup.
+- `lib/src/shared`: shared infrastructure such as process and storage helpers.
+- `lib/src/features/projects`: project registry and project sidebar UI.
+- `lib/src/features/workbench`: workspaces, terminal tabs, split layouts, and
+  terminal runtime.
+- `lib/src/features/shell`: top-level application shell.
+- `test/unit` and `test/widget`: focused unit and widget coverage for the
+  active ADE surface.
 
 ## Desktop Targets
+
 Configured targets:
+
 - macOS
 
 Bundle/application org is set to `dev.leynier`.
 
 ## Run Locally
+
 ```bash
 flutter pub get
 flutter analyze
@@ -35,6 +44,9 @@ flutter test
 flutter run -d macos
 ```
 
-## Notes
-- This repository expects `codex` CLI with `codex app-server` available in `PATH`.
-- Auto-installer for Codex CLI is intentionally out of scope for this phase.
+## Reference Projects
+
+Reference projects live under `reference_projects/`. They are non-Flutter
+agentic development and orchestration references used for product and
+infrastructure inspiration. Alera should remain terminal-first and should not
+depend on any reference project at runtime.

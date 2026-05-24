@@ -54,13 +54,12 @@ WorkbenchState _fixtureState({
   String? activeWorkspaceId = 'w-alera-main',
   String searchQuery = '',
 }) {
-  final resolvedPrefs = prefs ??
+  final resolvedPrefs =
+      prefs ??
       WorkbenchViewPrefs.defaults.copyWith(
         // Default behaviour mirrors the controller: activating a workspace
         // also expands it so its terminals are visible.
-        expandedWorkspaceIds: <String>{
-          ?activeWorkspaceId,
-        },
+        expandedWorkspaceIds: <String>{?activeWorkspaceId},
       );
   final alera = _project('p-alera', 'alera', recencyOffset: 2);
   final orca = _project('p-orca', 'orca', recencyOffset: 5);
@@ -145,8 +144,8 @@ void main() {
       final rows = buildSidebarRows(_fixtureState(prefs: prefs));
       expect(
         rows.whereType<WorkbenchWorkspaceRow>().any(
-              (r) => r.project.id == 'p-alera',
-            ),
+          (r) => r.project.id == 'p-alera',
+        ),
         isFalse,
       );
       // orca header + orca workspace still render.
@@ -232,9 +231,7 @@ void main() {
 
   group('buildSidebarRows · search', () {
     test('matches against workspace name, branch and source branch', () {
-      final rows = buildSidebarRows(
-        _fixtureState(searchQuery: 'feature'),
-      );
+      final rows = buildSidebarRows(_fixtureState(searchQuery: 'feature'));
       final workspaces = rows.whereType<WorkbenchWorkspaceRow>().toList();
       expect(workspaces, hasLength(1));
       expect(workspaces.single.workspace.id, 'w-alera-feature');
@@ -263,10 +260,7 @@ void main() {
     });
 
     test('respects search', () {
-      expect(
-        countVisibleWorkspaces(_fixtureState(searchQuery: 'feature')),
-        1,
-      );
+      expect(countVisibleWorkspaces(_fixtureState(searchQuery: 'feature')), 1);
     });
   });
 }

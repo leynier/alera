@@ -20,7 +20,8 @@ class WorkbenchViewOptionsButton extends ConsumerWidget {
     final prefs = ref.watch(
       workbenchControllerProvider.select((state) => state.viewPrefs),
     );
-    final hasFilters = prefs.selectedProjectIds.isNotEmpty ||
+    final hasFilters =
+        prefs.selectedProjectIds.isNotEmpty ||
         prefs.groupBy != WorkbenchViewPrefs.defaults.groupBy ||
         prefs.projectSort != WorkbenchViewPrefs.defaults.projectSort ||
         prefs.workspaceSort != WorkbenchViewPrefs.defaults.workspaceSort;
@@ -32,12 +33,7 @@ class WorkbenchViewOptionsButton extends ConsumerWidget {
           onPressed: () => _showOptions(context),
           icon: Icons.tune,
         ),
-        if (hasFilters)
-          const Positioned(
-            right: 6,
-            top: 6,
-            child: _ActiveDot(),
-          ),
+        if (hasFilters) const Positioned(right: 6, top: 6, child: _ActiveDot()),
       ],
     );
   }
@@ -142,7 +138,8 @@ class _WorkbenchViewOptionsPanelState
     final availableProjects = state.projects
         .where((p) => !prefs.selectedProjectIds.contains(p.id))
         .where(
-          (p) => _projectQuery.isEmpty ||
+          (p) =>
+              _projectQuery.isEmpty ||
               p.name.toLowerCase().contains(_projectQuery),
         )
         .toList(growable: false);
@@ -349,27 +346,28 @@ class _GroupBySegmented extends StatelessWidget {
       selected: <WorkbenchGroupBy>{value},
       onSelectionChanged: (selection) => onChanged(selection.first),
       showSelectedIcon: false,
-      style: SegmentedButton.styleFrom(
-        backgroundColor: AleraTokens.surface,
-        foregroundColor: AleraTokens.foregroundMuted,
-        selectedBackgroundColor: AleraTokens.accentSubtle,
-        selectedForegroundColor: AleraTokens.foreground,
-        side: const BorderSide(color: AleraTokens.borderSubtle),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-        ),
-        textStyle: Theme.of(context).textTheme.labelSmall,
-        padding: const EdgeInsets.symmetric(
-          horizontal: AleraTokens.space12,
-          vertical: AleraTokens.space4,
-        ),
-        minimumSize: const Size(0, 30),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      ).copyWith(
-        mouseCursor: const WidgetStatePropertyAll<MouseCursor>(
-          SystemMouseCursors.click,
-        ),
-      ),
+      style:
+          SegmentedButton.styleFrom(
+            backgroundColor: AleraTokens.surface,
+            foregroundColor: AleraTokens.foregroundMuted,
+            selectedBackgroundColor: AleraTokens.accentSubtle,
+            selectedForegroundColor: AleraTokens.foreground,
+            side: const BorderSide(color: AleraTokens.borderSubtle),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+            ),
+            textStyle: Theme.of(context).textTheme.labelSmall,
+            padding: const EdgeInsets.symmetric(
+              horizontal: AleraTokens.space12,
+              vertical: AleraTokens.space4,
+            ),
+            minimumSize: const Size(0, 30),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ).copyWith(
+            mouseCursor: const WidgetStatePropertyAll<MouseCursor>(
+              SystemMouseCursors.click,
+            ),
+          ),
     );
   }
 }

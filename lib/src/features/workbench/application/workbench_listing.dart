@@ -213,8 +213,7 @@ List<WorkbenchSidebarRow> buildSidebarRows(WorkbenchState state) {
             workspace: entry.workspace,
             showProjectChip: true,
             indent: 0,
-            expanded:
-                prefs.expandedWorkspaceIds.contains(entry.workspace.id),
+            expanded: prefs.expandedWorkspaceIds.contains(entry.workspace.id),
           ),
         );
         appendTerminalRows(rows, entry.workspace, 1);
@@ -241,7 +240,8 @@ int countVisibleWorkspaces(WorkbenchState state) {
         continue;
       }
       final projectMatches = project.name.toLowerCase().contains(query);
-      final workspaceMatches = workspace.name.toLowerCase().contains(query) ||
+      final workspaceMatches =
+          workspace.name.toLowerCase().contains(query) ||
           workspace.branch.toLowerCase().contains(query) ||
           (workspace.sourceBranch?.toLowerCase().contains(query) ?? false);
       if (projectMatches || workspaceMatches) {

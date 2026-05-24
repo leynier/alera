@@ -39,17 +39,18 @@ class WorkbenchSidebarToolbar extends ConsumerWidget {
     );
     final allCollapsed = isProjectMode
         ? visibleProjects.isNotEmpty &&
-            visibleProjects.every(
-              (p) => prefs.collapsedProjectIds.contains(p.id),
-            )
+              visibleProjects.every(
+                (p) => prefs.collapsedProjectIds.contains(p.id),
+              )
         : !anyExpanded;
     final canCollapse = isProjectMode
         ? visibleProjects.isNotEmpty
         : allWorkspaceIds.isNotEmpty;
     final hasActiveProject = state.activeProjectId != null;
 
-    final title =
-        prefs.groupBy == WorkbenchGroupBy.project ? 'Projects' : 'Workspaces';
+    final title = prefs.groupBy == WorkbenchGroupBy.project
+        ? 'Projects'
+        : 'Workspaces';
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AleraTokens.space12,
@@ -93,4 +94,3 @@ class WorkbenchSidebarToolbar extends ConsumerWidget {
     );
   }
 }
-

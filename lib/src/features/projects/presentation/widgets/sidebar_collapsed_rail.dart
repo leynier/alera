@@ -7,14 +7,14 @@ class SidebarCollapsedRail extends StatelessWidget {
     super.key,
     required this.projects,
     required this.activeProjectId,
-    required this.chatCountByProject,
+    required this.workspaceCountByProject,
     required this.onSelectProject,
     required this.onAddProject,
   });
 
   final List<Project> projects;
   final String? activeProjectId;
-  final Map<String, int> chatCountByProject;
+  final Map<String, int> workspaceCountByProject;
   final ValueChanged<Project> onSelectProject;
   final VoidCallback onAddProject;
 
@@ -31,11 +31,11 @@ class SidebarCollapsedRail extends StatelessWidget {
               itemBuilder: (_, index) {
                 final project = projects[index];
                 final isActive = project.id == activeProjectId;
-                final count = chatCountByProject[project.id] ?? 0;
+                final count = workspaceCountByProject[project.id] ?? 0;
                 return _RailProjectAvatar(
                   project: project,
                   active: isActive,
-                  chatCount: count,
+                  workspaceCount: count,
                   onTap: () => onSelectProject(project),
                 );
               },
@@ -58,13 +58,13 @@ class _RailProjectAvatar extends StatefulWidget {
   const _RailProjectAvatar({
     required this.project,
     required this.active,
-    required this.chatCount,
+    required this.workspaceCount,
     required this.onTap,
   });
 
   final Project project;
   final bool active;
-  final int chatCount;
+  final int workspaceCount;
   final VoidCallback onTap;
 
   @override

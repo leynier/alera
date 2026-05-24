@@ -162,9 +162,9 @@ This catalog is the implementation target for new UI work.
 | Area | Reference Paths |
 | --- | --- |
 | Tokens and theme baseline | `lib/src/app/theme/alera_tokens.dart`, `lib/src/app/theme/alera_dark_theme.dart` |
-| Primary/secondary button examples | `lib/src/features/shell/presentation/alera_top_bar.dart`, `lib/src/features/shell/presentation/alera_shell_page.dart`, `lib/src/features/session/presentation/widgets/user_input_card.dart` |
-| Inline micro-actions | `lib/src/features/session/presentation/widgets/composer.dart`, `lib/src/features/session/presentation/session_workspace_view.dart`, `lib/src/features/session/presentation/widgets/approval_card.dart` |
-| Status and semantic color usage | `lib/src/features/shell/presentation/alera_status_bar.dart`, `lib/src/features/session/presentation/widgets/status_color.dart` |
+| Primary/secondary button examples | `lib/src/features/shell/presentation/alera_shell_page.dart`, `lib/src/features/workbench/presentation/project_workbench_sidebar.dart`, `lib/src/features/workbench/presentation/create_workspace_dialog.dart` |
+| Inline micro-actions | `lib/src/features/workbench/presentation/project_workbench_sidebar.dart`, `lib/src/features/workbench/presentation/workspace_workbench_view.dart`, `lib/src/features/projects/presentation/widgets/sidebar_icon_button.dart` |
+| Status and semantic color usage | `lib/src/features/workbench/presentation/workbench_status_bar.dart`, `lib/src/features/workbench/presentation/widgets/status_dot.dart`, `lib/src/features/workbench/presentation/terminal_surface.dart` |
 
 ### Conformance Scenarios
 
@@ -183,8 +183,8 @@ This catalog is the implementation target for new UI work.
 
 ## Reference Projects
 
-- Reference projects available in `reference_projects/` serve as agent orchestrators (non-Flutter) and SHOULD be consulted as inspiration or templates when implementing new agentic capabilities or infrastructure.
-- The `codex` repository is a critical reference of primary importance, containing authoritative documentation and implementation details for the CLI, `app-server`, protocol, and core orchestration logic.
+- Reference projects available in `reference_projects/` serve as agentic development and orchestration references (non-Flutter) and SHOULD be consulted as inspiration or templates when implementing new agentic capabilities or infrastructure.
+- The `orca` repository is the primary reference for ADE-style workspace orchestration patterns. Other retained reference projects MAY be consulted when their specific workflows are relevant.
 
 ## Legacy Outliers (Convergence Required)
 

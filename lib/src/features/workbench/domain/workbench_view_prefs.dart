@@ -111,10 +111,7 @@ class WorkbenchViewPrefs {
         : const <String>{};
     return WorkbenchViewPrefs(
       groupBy: _groupByFromWire(json['groupBy']),
-      projectSort: _sortByFromWire(
-        json['projectSort'],
-        WorkbenchSortBy.name,
-      ),
+      projectSort: _sortByFromWire(json['projectSort'], WorkbenchSortBy.name),
       workspaceSort: _sortByFromWire(
         json['workspaceSort'],
         WorkbenchSortBy.name,

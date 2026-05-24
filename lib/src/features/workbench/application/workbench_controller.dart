@@ -403,9 +403,7 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
     if (!next.add(projectId)) {
       next.remove(projectId);
     }
-    _updateViewPrefs(
-      state.viewPrefs.copyWith(collapsedProjectIds: next),
-    );
+    _updateViewPrefs(state.viewPrefs.copyWith(collapsedProjectIds: next));
   }
 
   void setGroupBy(WorkbenchGroupBy groupBy) {
@@ -522,9 +520,7 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
     if (!next.add(workspaceId)) {
       next.remove(workspaceId);
     }
-    _updateViewPrefs(
-      state.viewPrefs.copyWith(expandedWorkspaceIds: next),
-    );
+    _updateViewPrefs(state.viewPrefs.copyWith(expandedWorkspaceIds: next));
   }
 
   void setWorkspaceExpanded(String workspaceId, bool expanded) {
@@ -539,9 +535,7 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
     } else {
       next.remove(workspaceId);
     }
-    _updateViewPrefs(
-      state.viewPrefs.copyWith(expandedWorkspaceIds: next),
-    );
+    _updateViewPrefs(state.viewPrefs.copyWith(expandedWorkspaceIds: next));
   }
 
   void _updateViewPrefs(WorkbenchViewPrefs prefs) {
@@ -602,7 +596,7 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
         .toSet();
     final prefsChanged =
         prunedCollapsed.length != prefs.collapsedProjectIds.length ||
-            prunedSelected.length != prefs.selectedProjectIds.length;
+        prunedSelected.length != prefs.selectedProjectIds.length;
     final nextViewPrefs = prefsChanged
         ? prefs.copyWith(
             collapsedProjectIds: prunedCollapsed,
@@ -734,9 +728,11 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
     // exist so the set stays tight.
     final viewPrefs = state.viewPrefs;
     final prunedExpanded = viewPrefs.expandedWorkspaceIds
-        .where((id) =>
-            !removedWorkspaceIds.contains(id) ||
-            liveWorkspaceIds.contains(id))
+        .where(
+          (id) =>
+              !removedWorkspaceIds.contains(id) ||
+              liveWorkspaceIds.contains(id),
+        )
         .toSet();
     final expansionChanged =
         prunedExpanded.length != viewPrefs.expandedWorkspaceIds.length;
