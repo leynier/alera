@@ -772,25 +772,37 @@ class _PaneMenuButton extends StatelessWidget {
       itemBuilder: (context) => <PopupMenuEntry<_PaneMenuAction>>[
         const PopupMenuItem<_PaneMenuAction>(
           value: _PaneMenuAction.splitRight,
-          child: Text('Split right'),
+          child: _SplitMenuRow(
+            zone: WorkbenchDropZone.right,
+            label: 'Split Right',
+          ),
         ),
         const PopupMenuItem<_PaneMenuAction>(
           value: _PaneMenuAction.splitDown,
-          child: Text('Split down'),
+          child: _SplitMenuRow(
+            zone: WorkbenchDropZone.down,
+            label: 'Split Down',
+          ),
         ),
         const PopupMenuItem<_PaneMenuAction>(
           value: _PaneMenuAction.splitLeft,
-          child: Text('Split left'),
+          child: _SplitMenuRow(
+            zone: WorkbenchDropZone.left,
+            label: 'Split Left',
+          ),
         ),
         const PopupMenuItem<_PaneMenuAction>(
           value: _PaneMenuAction.splitUp,
-          child: Text('Split up'),
+          child: _SplitMenuRow(
+            zone: WorkbenchDropZone.up,
+            label: 'Split Up',
+          ),
         ),
         if (canCloseSplit) const PopupMenuDivider(height: AleraTokens.space8),
         if (canCloseSplit)
           const PopupMenuItem<_PaneMenuAction>(
             value: _PaneMenuAction.closeSplit,
-            child: Text('Close split'),
+            child: Text('Close Split'),
           ),
       ],
       onSelected: (value) {
@@ -809,6 +821,105 @@ class _PaneMenuButton extends StatelessWidget {
       },
     );
   }
+}
+
+class _SplitMenuRow extends StatelessWidget {
+  const _SplitMenuRow({required this.zone, required this.label});
+
+  final WorkbenchDropZone zone;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _SplitDirectionGlyph(zone: zone),
+        const SizedBox(width: AleraTokens.space8),
+        Text(label),
+      ],
+    );
+  }
+}
+
+class _SplitDirectionGlyph extends StatelessWidget {
+  const _SplitDirectionGlyph({required this.zone});
+
+  final WorkbenchDropZone zone;
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      size: const Size.square(14),
+      painter: _SplitDirectionPainter(zone: zone),
+    );
+  }
+}
+
+class _SplitDirectionPainter extends CustomPainter {
+  const _SplitDirectionPainter({required this.zone});
+
+  final WorkbenchDropZone zone;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final outerRect = Rect.fromLTWH(0.5, 0.5, size.width - 1, size.height - 1);
+    final outerRRect = RRect.fromRectAndRadius(
+      outerRect,
+      const Radius.circular(AleraTokens.radiusSm),
+    );
+
+    final fillRect = switch (zone) {
+      WorkbenchDropZone.right => Rect.fromLTWH(
+        size.width * 0.6,
+        0,
+        size.width * 0.4,
+        size.height,
+      ),
+      WorkbenchDropZone.left => Rect.fromLTWH(
+        0,
+        0,
+        size.width * 0.4,
+        size.height,
+      ),
+      WorkbenchDropZone.down => Rect.fromLTWH(
+        0,
+        size.height * 0.6,
+        size.width,
+        size.height * 0.4,
+      ),
+      WorkbenchDropZone.up => Rect.fromLTWH(
+        0,
+        0,
+        size.width,
+        size.height * 0.4,
+      ),
+      WorkbenchDropZone.center => Rect.zero,
+    };
+
+    if (!fillRect.isEmpty) {
+      canvas
+        ..save()
+        ..clipRRect(outerRRect)
+        ..drawRect(
+          fillRect,
+          Paint()..color = AleraTokens.foreground,
+        )
+        ..restore();
+    }
+
+    canvas.drawRRect(
+      outerRRect,
+      Paint()
+        ..color = AleraTokens.foregroundMuted
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _SplitDirectionPainter oldDelegate) =>
+      oldDelegate.zone != zone;
 }
 
 class _NewTerminalButton extends StatelessWidget {
