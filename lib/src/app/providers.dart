@@ -6,6 +6,7 @@ import 'package:alera/src/features/workbench/application/terminal_tab_service.da
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
+import 'package:alera/src/features/workbench/application/workspace_folder_opener.dart';
 import 'package:alera/src/features/workbench/application/workspace_service.dart';
 import 'package:alera/src/features/workbench/infra/sembast_workbench_repository.dart';
 import 'package:alera/src/features/workbench/infra/sembast_workbench_view_prefs_repository.dart';
@@ -19,6 +20,10 @@ import 'package:sembast/sembast.dart';
 
 final processRunnerProvider = Provider<ProcessRunner>((ref) {
   return const IoProcessRunner();
+});
+
+final workspaceFolderOpenerProvider = Provider<WorkspaceFolderOpener>((ref) {
+  return WorkspaceFolderOpener(processRunner: ref.watch(processRunnerProvider));
 });
 
 final projectServiceProvider = Provider<ProjectService>((ref) {

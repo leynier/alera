@@ -1,0 +1,133 @@
+import 'package:alera/src/features/workbench/application/workspace_folder_opener.dart';
+import 'package:alera/src/shared/infra/process/process_runner.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  test('uses open on macOS', () async {
+    final processRunner = _FakeProcessRunner();
+    final opener = WorkspaceFolderOpener(
+      processRunner: processRunner,
+      platform: WorkspaceFolderPlatform.macos,
+      directoryExists: (_) async => true,
+    );
+
+    final result = await opener.open('/repo/alera');
+
+    expect(result.ok, isTrue);
+    expect(processRunner.calls, <_ProcessCall>[
+      const _ProcessCall('open', <String>['/repo/alera']),
+    ]);
+    expect(opener.fileManagerLabel, 'Finder');
+  });
+
+  test('uses explorer on Windows', () async {
+    final processRunner = _FakeProcessRunner();
+    final opener = WorkspaceFolderOpener(
+      processRunner: processRunner,
+      platform: WorkspaceFolderPlatform.windows,
+      directoryExists: (_) async => true,
+    );
+
+    final result = await opener.open(r'C:\repo\alera');
+
+    expect(result.ok, isTrue);
+    expect(processRunner.calls, <_ProcessCall>[
+      const _ProcessCall('explorer.exe', <String>[r'C:\repo\alera']),
+    ]);
+    expect(opener.fileManagerLabel, 'File Explorer');
+  });
+
+  test('falls back to gio on Linux when xdg-open fails', () async {
+    final processRunner = _FakeProcessRunner(exitCodes: <int>[1, 0]);
+    final opener = WorkspaceFolderOpener(
+      processRunner: processRunner,
+      platform: WorkspaceFolderPlatform.linux,
+      directoryExists: (_) async => true,
+    );
+
+    final result = await opener.open('/repo/alera');
+
+    expect(result.ok, isTrue);
+    expect(processRunner.calls, <_ProcessCall>[
+      const _ProcessCall('xdg-open', <String>['/repo/alera']),
+      const _ProcessCall('gio', <String>['open', '/repo/alera']),
+    ]);
+    expect(opener.fileManagerLabel, 'File Manager');
+  });
+
+  test('does not launch when the workspace folder is missing', () async {
+    final processRunner = _FakeProcessRunner();
+    final opener = WorkspaceFolderOpener(
+      processRunner: processRunner,
+      platform: WorkspaceFolderPlatform.linux,
+      directoryExists: (_) async => false,
+    );
+
+    final result = await opener.open('/repo/missing');
+
+    expect(result.ok, isFalse);
+    expect(result.message, 'Workspace folder was not found.');
+    expect(processRunner.calls, isEmpty);
+  });
+}
+
+class _FakeProcessRunner implements ProcessRunner {
+  _FakeProcessRunner({List<int>? exitCodes})
+    : _exitCodes = exitCodes ?? <int>[0];
+
+  final List<int> _exitCodes;
+  final List<_ProcessCall> calls = <_ProcessCall>[];
+
+  @override
+  Future<ProcessRunOutput> run(
+    String executable,
+    List<String> arguments, {
+    String? workingDirectory,
+    Map<String, String>? environment,
+  }) async {
+    calls.add(_ProcessCall(executable, arguments));
+    final exitCode = calls.length <= _exitCodes.length
+        ? _exitCodes[calls.length - 1]
+        : _exitCodes.last;
+    return ProcessRunOutput(exitCode: exitCode, stdout: '', stderr: '');
+  }
+
+  @override
+  Future<StartedProcess> start(
+    String executable,
+    List<String> arguments, {
+    String? workingDirectory,
+    Map<String, String>? environment,
+  }) {
+    throw UnimplementedError();
+  }
+}
+
+class _ProcessCall {
+  const _ProcessCall(this.executable, this.arguments);
+
+  final String executable;
+  final List<String> arguments;
+
+  @override
+  bool operator ==(Object other) {
+    return other is _ProcessCall &&
+        other.executable == executable &&
+        _listEquals(other.arguments, arguments);
+  }
+
+  @override
+  int get hashCode => Object.hash(executable, Object.hashAll(arguments));
+}
+
+bool _listEquals(List<String> left, List<String> right) {
+  if (left.length != right.length) {
+    return false;
+  }
+  for (var index = 0; index < left.length; index += 1) {
+    if (left[index] != right[index]) {
+      return false;
+    }
+  }
+  return true;
+}

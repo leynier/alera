@@ -10,6 +10,7 @@ import 'package:alera/src/features/workbench/application/terminal_tab_service.da
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
+import 'package:alera/src/features/workbench/application/workspace_folder_opener.dart';
 import 'package:alera/src/features/workbench/application/workspace_service.dart';
 import 'package:alera/src/features/workbench/domain/terminal_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
@@ -17,6 +18,7 @@ import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_status_bar.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -30,9 +32,11 @@ void main() {
   Future<void> pumpShell(
     WidgetTester tester, {
     required WorkbenchState state,
+    _FakeTerminalRuntime? terminalRuntime,
+    WorkspaceFolderOpener? workspaceFolderOpener,
   }) async {
     final controller = _ShellTestWorkbenchController(state);
-    final terminalRuntime = _FakeTerminalRuntime();
+    final runtime = terminalRuntime ?? _FakeTerminalRuntime();
 
     await tester.pumpWidget(
       ProviderScope(
@@ -41,7 +45,11 @@ void main() {
             (ref) async => await openMemoryDb(),
           ),
           workbenchControllerProvider.overrideWith((ref) => controller),
-          terminalRuntimeProvider.overrideWith((ref) => terminalRuntime),
+          terminalRuntimeProvider.overrideWith((ref) => runtime),
+          if (workspaceFolderOpener != null)
+            workspaceFolderOpenerProvider.overrideWith(
+              (ref) => workspaceFolderOpener,
+            ),
         ],
         child: const MaterialApp(home: AleraShellPage()),
       ),
@@ -131,6 +139,64 @@ void main() {
 
     expect(find.text('Pick a workspace'), findsOneWidget);
     expect(find.text('Add project'), findsOneWidget);
+  });
+
+  testWidgets('workspace context menu shows supported workspace actions', (
+    tester,
+  ) async {
+    final opener = WorkspaceFolderOpener(
+      processRunner: _NoopProcessRunner(),
+      platform: WorkspaceFolderPlatform.macos,
+      directoryExists: (_) async => true,
+    );
+    await pumpShell(
+      tester,
+      state: _populatedWorkbenchState(),
+      workspaceFolderOpener: opener,
+    );
+
+    await tester.tapAt(
+      tester.getCenter(find.text('Main').first),
+      buttons: kSecondaryMouseButton,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Open in Finder'), findsOneWidget);
+    expect(find.text('Copy path'), findsOneWidget);
+    expect(find.text('Sleep workspace'), findsOneWidget);
+    expect(find.text('Remove workspace'), findsOneWidget);
+
+    await tester.tap(find.text('Remove workspace'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Remove workspace?'), findsNothing);
+  });
+
+  testWidgets('workspace context menu sleep closes live sessions only', (
+    tester,
+  ) async {
+    final runtime = _FakeTerminalRuntime();
+    await pumpShell(
+      tester,
+      state: _populatedWorkbenchState(),
+      terminalRuntime: runtime,
+      workspaceFolderOpener: WorkspaceFolderOpener(
+        processRunner: _NoopProcessRunner(),
+        platform: WorkspaceFolderPlatform.macos,
+        directoryExists: (_) async => true,
+      ),
+    );
+
+    await tester.tapAt(
+      tester.getCenter(find.text('Main').first),
+      buttons: kSecondaryMouseButton,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sleep workspace'));
+    await tester.pumpAndSettle();
+
+    expect(runtime.closedWorkspaceIds, <String>['workspace-1']);
+    expect(find.text('Terminal 1'), findsAtLeastNWidgets(1));
   });
 }
 
@@ -329,6 +395,7 @@ class _ShellTestWorkbenchController extends WorkbenchController {
 class _FakeTerminalRuntime implements TerminalRuntime {
   final Map<String, _FakeTerminalSessionHandle> _sessions =
       <String, _FakeTerminalSessionHandle>{};
+  final List<String> closedWorkspaceIds = <String>[];
 
   @override
   TerminalSessionHandle sessionFor({
@@ -348,6 +415,7 @@ class _FakeTerminalRuntime implements TerminalRuntime {
 
   @override
   void closeWorkspace(String workspaceId) {
+    closedWorkspaceIds.add(workspaceId);
     final removed = _sessions.entries
         .where((entry) => entry.value.workspaceId == workspaceId)
         .map((entry) => entry.key)
