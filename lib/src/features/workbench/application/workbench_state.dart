@@ -1,6 +1,7 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/domain/terminal_tab_record.dart';
+import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 
 class WorkbenchState {
@@ -8,6 +9,7 @@ class WorkbenchState {
     this.projects = const <Project>[],
     this.workspacesByProject = const <String, List<Workspace>>{},
     this.tabsByWorkspace = const <String, List<TerminalTabRecord>>{},
+    this.layoutByWorkspace = const <String, WorkbenchLayout>{},
     this.expandedProjectIds = const <String>{},
     this.activeProjectId,
     this.activeWorkspaceId,
@@ -22,6 +24,7 @@ class WorkbenchState {
   final List<Project> projects;
   final Map<String, List<Workspace>> workspacesByProject;
   final Map<String, List<TerminalTabRecord>> tabsByWorkspace;
+  final Map<String, WorkbenchLayout> layoutByWorkspace;
   final Set<String> expandedProjectIds;
   final String? activeProjectId;
   final String? activeWorkspaceId;
@@ -65,7 +68,9 @@ class WorkbenchState {
     if (workspace == null) {
       return null;
     }
-    final tabId = activeTabIdByWorkspace[workspace.id];
+    final tabId =
+        layoutByWorkspace[workspace.id]?.activeTabId ??
+        activeTabIdByWorkspace[workspace.id];
     if (tabId == null) {
       return null;
     }
@@ -83,6 +88,33 @@ class WorkbenchState {
 
   List<TerminalTabRecord> tabsFor(String workspaceId) {
     return tabsByWorkspace[workspaceId] ?? const <TerminalTabRecord>[];
+  }
+
+  WorkbenchLayout? layoutFor(String workspaceId) {
+    return layoutByWorkspace[workspaceId];
+  }
+
+  WorkbenchLayout? get activeLayout {
+    final workspace = activeWorkspace;
+    if (workspace == null) {
+      return null;
+    }
+    return layoutByWorkspace[workspace.id];
+  }
+
+  List<TerminalTabRecord> tabsForGroup(String workspaceId, String groupId) {
+    final layout = layoutFor(workspaceId);
+    final group = layout?.groups[groupId];
+    if (group == null) {
+      return const <TerminalTabRecord>[];
+    }
+    final tabsById = <String, TerminalTabRecord>{
+      for (final tab in tabsFor(workspaceId)) tab.id: tab,
+    };
+    return <TerminalTabRecord>[
+      for (final tabId in group.tabIds)
+        if (tabsById[tabId] case final TerminalTabRecord tab) tab,
+    ];
   }
 
   bool hasSearchQuery() => searchQuery.trim().isNotEmpty;
@@ -120,6 +152,7 @@ class WorkbenchState {
     List<Project>? projects,
     Map<String, List<Workspace>>? workspacesByProject,
     Map<String, List<TerminalTabRecord>>? tabsByWorkspace,
+    Map<String, WorkbenchLayout>? layoutByWorkspace,
     Set<String>? expandedProjectIds,
     String? activeProjectId,
     bool clearActiveProjectId = false,
@@ -137,6 +170,7 @@ class WorkbenchState {
       projects: projects ?? this.projects,
       workspacesByProject: workspacesByProject ?? this.workspacesByProject,
       tabsByWorkspace: tabsByWorkspace ?? this.tabsByWorkspace,
+      layoutByWorkspace: layoutByWorkspace ?? this.layoutByWorkspace,
       expandedProjectIds: expandedProjectIds ?? this.expandedProjectIds,
       activeProjectId: clearActiveProjectId
           ? null

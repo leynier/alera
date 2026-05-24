@@ -7,6 +7,7 @@ import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
 import 'package:alera/src/features/workbench/application/workspace_service.dart';
 import 'package:alera/src/features/workbench/domain/terminal_tab_record.dart';
+import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -28,7 +29,9 @@ void main() {
         repository: repository,
         projectService: ProjectService(processRunner),
         processRunner: processRunner,
-        worktreeRoot: WorktreeRoot(override: p.join(tempDir.path, 'workspaces')),
+        worktreeRoot: WorktreeRoot(
+          override: p.join(tempDir.path, 'workspaces'),
+        ),
         now: () => DateTime.utc(2026, 5, 20, 12),
       );
       project = Project(
@@ -47,126 +50,148 @@ void main() {
       }
     });
 
-    test('ensureMainWorkspace stores the main checkout as an active workspace', () async {
-      processRunner.currentBranch = 'main';
+    test(
+      'ensureMainWorkspace stores the main checkout as an active workspace',
+      () async {
+        processRunner.currentBranch = 'main';
 
-      final workspace = await service.ensureMainWorkspace(project);
+        final workspace = await service.ensureMainWorkspace(project);
 
-      expect(workspace.projectId, project.id);
-      expect(workspace.name, 'Main');
-      expect(workspace.branch, 'main');
-      expect(workspace.path, project.repoPath);
-      expect(workspace.kind, WorkspaceKind.main);
-      expect(workspace.status, WorkspaceStatus.active);
-      expect(repository.workspaces.single, workspace);
-    });
+        expect(workspace.projectId, project.id);
+        expect(workspace.name, 'Main');
+        expect(workspace.branch, 'main');
+        expect(workspace.path, project.repoPath);
+        expect(workspace.kind, WorkspaceKind.main);
+        expect(workspace.status, WorkspaceStatus.active);
+        expect(repository.workspaces.single, workspace);
+      },
+    );
 
-    test('createLinkedWorkspace creates a new worktree from the requested source branch', () async {
-      processRunner.sourceBranches = <String>['main', 'origin/main'];
+    test(
+      'createLinkedWorkspace creates a new worktree from the requested source branch',
+      () async {
+        processRunner.sourceBranches = <String>['main', 'origin/main'];
 
-      final workspace = await service.createLinkedWorkspace(
-        project: project,
-        sourceBranch: 'origin/main',
-        newBranchName: 'feature/terminal-tabs',
-      );
+        final workspace = await service.createLinkedWorkspace(
+          project: project,
+          sourceBranch: 'origin/main',
+          newBranchName: 'feature/terminal-tabs',
+        );
 
-      expect(workspace.kind, WorkspaceKind.linked);
-      expect(workspace.sourceBranch, 'origin/main');
-      expect(workspace.branch, 'feature/terminal-tabs');
-      expect(workspace.name, 'feature/terminal-tabs');
-      expect(workspace.path, contains('project-1'));
-      expect(processRunner.calls.last.arguments, <String>[
-        'worktree',
-        'add',
-        '-b',
-        'feature/terminal-tabs',
-        workspace.path,
-        'origin/main',
-      ]);
-    });
+        expect(workspace.kind, WorkspaceKind.linked);
+        expect(workspace.sourceBranch, 'origin/main');
+        expect(workspace.branch, 'feature/terminal-tabs');
+        expect(workspace.name, 'feature/terminal-tabs');
+        expect(workspace.path, contains('project-1'));
+        expect(processRunner.calls.last.arguments, <String>[
+          'worktree',
+          'add',
+          '-b',
+          'feature/terminal-tabs',
+          workspace.path,
+          'origin/main',
+        ]);
+      },
+    );
 
-    test('reconcile keeps the main workspace and removes missing linked ones', () async {
-      processRunner.currentBranch = 'main';
-      processRunner.sourceBranches = <String>['main'];
-      final mainWorkspace = await service.ensureMainWorkspace(project);
-      final linkedWorkspace = await service.createLinkedWorkspace(
-        project: project,
-        sourceBranch: 'main',
-        newBranchName: 'feature/remove-me',
-      );
-      processRunner.liveBranchByPath = <String, String>{
-        project.repoPath: 'main',
-      };
+    test(
+      'reconcile keeps the main workspace and removes missing linked ones',
+      () async {
+        processRunner.currentBranch = 'main';
+        processRunner.sourceBranches = <String>['main'];
+        final mainWorkspace = await service.ensureMainWorkspace(project);
+        final linkedWorkspace = await service.createLinkedWorkspace(
+          project: project,
+          sourceBranch: 'main',
+          newBranchName: 'feature/remove-me',
+        );
+        processRunner.liveBranchByPath = <String, String>{
+          project.repoPath: 'main',
+        };
 
-      final workspaces = await service.reconcile(project);
+        final workspaces = await service.reconcile(project);
 
-      expect(workspaces.map((workspace) => workspace.id), <String>[
-        mainWorkspace.id,
-      ]);
-      expect(
-        workspaces.singleWhere((workspace) => workspace.id == mainWorkspace.id).status,
-        WorkspaceStatus.active,
-      );
-      expect(
-        repository.workspaces.any((workspace) => workspace.id == linkedWorkspace.id),
-        isFalse,
-      );
-    });
+        expect(workspaces.map((workspace) => workspace.id), <String>[
+          mainWorkspace.id,
+        ]);
+        expect(
+          workspaces
+              .singleWhere((workspace) => workspace.id == mainWorkspace.id)
+              .status,
+          WorkspaceStatus.active,
+        );
+        expect(
+          repository.workspaces.any(
+            (workspace) => workspace.id == linkedWorkspace.id,
+          ),
+          isFalse,
+        );
+      },
+    );
 
-    test('reconcile keeps linked workspaces when git worktree list fails', () async {
-      processRunner.currentBranch = 'main';
-      processRunner.sourceBranches = <String>['main'];
-      final mainWorkspace = await service.ensureMainWorkspace(project);
-      final linkedWorkspace = await service.createLinkedWorkspace(
-        project: project,
-        sourceBranch: 'main',
-        newBranchName: 'feature/keep-me',
-      );
-      processRunner.worktreeListFails = true;
+    test(
+      'reconcile keeps linked workspaces when git worktree list fails',
+      () async {
+        processRunner.currentBranch = 'main';
+        processRunner.sourceBranches = <String>['main'];
+        final mainWorkspace = await service.ensureMainWorkspace(project);
+        final linkedWorkspace = await service.createLinkedWorkspace(
+          project: project,
+          sourceBranch: 'main',
+          newBranchName: 'feature/keep-me',
+        );
+        processRunner.worktreeListFails = true;
 
-      final workspaces = await service.reconcile(project);
+        final workspaces = await service.reconcile(project);
 
-      expect(
-        workspaces.map((workspace) => workspace.id),
-        containsAll(<String>[mainWorkspace.id, linkedWorkspace.id]),
-      );
-    });
+        expect(
+          workspaces.map((workspace) => workspace.id),
+          containsAll(<String>[mainWorkspace.id, linkedWorkspace.id]),
+        );
+      },
+    );
 
-    test('removeWorkspace deletes the workspace and cascades its terminal tabs', () async {
-      processRunner.sourceBranches = <String>['main'];
-      final linkedWorkspace = await service.createLinkedWorkspace(
-        project: project,
-        sourceBranch: 'main',
-        newBranchName: 'feature/with-tabs',
-      );
-      await repository.upsertTerminalTab(
-        TerminalTabRecord(
-          id: 'tab-1',
-          workspaceId: linkedWorkspace.id,
-          title: 'Terminal 1',
-          createdAt: DateTime.utc(2026, 5, 20),
-          updatedAt: DateTime.utc(2026, 5, 20),
-        ),
-      );
+    test(
+      'removeWorkspace deletes the workspace and cascades its terminal tabs',
+      () async {
+        processRunner.sourceBranches = <String>['main'];
+        final linkedWorkspace = await service.createLinkedWorkspace(
+          project: project,
+          sourceBranch: 'main',
+          newBranchName: 'feature/with-tabs',
+        );
+        await repository.upsertTerminalTab(
+          TerminalTabRecord(
+            id: 'tab-1',
+            workspaceId: linkedWorkspace.id,
+            title: 'Terminal 1',
+            createdAt: DateTime.utc(2026, 5, 20),
+            updatedAt: DateTime.utc(2026, 5, 20),
+          ),
+        );
 
-      await service.removeWorkspace(
-        project: project,
-        workspace: linkedWorkspace,
-        deleteBranch: true,
-      );
+        await service.removeWorkspace(
+          project: project,
+          workspace: linkedWorkspace,
+          deleteBranch: true,
+        );
 
-      expect(
-        repository.workspaces.any((workspace) => workspace.id == linkedWorkspace.id),
-        isFalse,
-      );
-      expect(await repository.listTerminalTabs(linkedWorkspace.id), isEmpty);
-    });
+        expect(
+          repository.workspaces.any(
+            (workspace) => workspace.id == linkedWorkspace.id,
+          ),
+          isFalse,
+        );
+        expect(await repository.listTerminalTabs(linkedWorkspace.id), isEmpty);
+      },
+    );
   });
 }
 
 class _FakeWorkbenchRepository implements WorkbenchRepository {
   final List<Workspace> workspaces = <Workspace>[];
   final List<TerminalTabRecord> tabs = <TerminalTabRecord>[];
+  final Map<String, WorkbenchLayout> layouts = <String, WorkbenchLayout>{};
 
   @override
   Future<Workspace?> findWorkspaceById(String workspaceId) async {
@@ -189,10 +214,25 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
   }
 
   @override
+  Future<TerminalTabRecord?> findWorkbenchTabById(String tabId) {
+    return findTerminalTabById(tabId);
+  }
+
+  @override
+  Future<WorkbenchLayout?> findWorkbenchLayout(String workspaceId) async {
+    return layouts[workspaceId];
+  }
+
+  @override
   Future<List<TerminalTabRecord>> listTerminalTabs(String workspaceId) async =>
       tabs
           .where((tab) => tab.workspaceId == workspaceId)
           .toList(growable: false);
+
+  @override
+  Future<List<TerminalTabRecord>> listWorkbenchTabs(String workspaceId) {
+    return listTerminalTabs(workspaceId);
+  }
 
   @override
   Future<List<Workspace>> listWorkspaces(String projectId) async {
@@ -214,21 +254,46 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
   }
 
   @override
+  Future<void> removeWorkbenchTab(String tabId) {
+    return removeTerminalTab(tabId);
+  }
+
+  @override
   Future<void> removeTerminalTabsForWorkspace(String workspaceId) async {
     tabs.removeWhere((tab) => tab.workspaceId == workspaceId);
   }
 
   @override
-  Future<void> removeWorkspace(String workspaceId, {bool cascadeTabs = true}) async {
+  Future<void> removeWorkbenchTabsForWorkspace(String workspaceId) {
+    return removeTerminalTabsForWorkspace(workspaceId);
+  }
+
+  @override
+  Future<void> removeWorkspace(
+    String workspaceId, {
+    bool cascadeTabs = true,
+  }) async {
     workspaces.removeWhere((workspace) => workspace.id == workspaceId);
     if (cascadeTabs) {
       await removeTerminalTabsForWorkspace(workspaceId);
     }
+    await removeWorkbenchLayout(workspaceId);
   }
 
   @override
   Future<void> removeWorkspacesForProject(String projectId) async {
+    final removed = workspaces
+        .where((workspace) => workspace.projectId == projectId)
+        .toList(growable: false);
     workspaces.removeWhere((workspace) => workspace.projectId == projectId);
+    for (final workspace in removed) {
+      await removeWorkbenchLayout(workspace.id);
+    }
+  }
+
+  @override
+  Future<void> removeWorkbenchLayout(String workspaceId) async {
+    layouts.remove(workspaceId);
   }
 
   @override
@@ -240,6 +305,17 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
       tabs[index] = tab;
     }
     return tab;
+  }
+
+  @override
+  Future<TerminalTabRecord> upsertWorkbenchTab(TerminalTabRecord tab) {
+    return upsertTerminalTab(tab);
+  }
+
+  @override
+  Future<WorkbenchLayout> upsertWorkbenchLayout(WorkbenchLayout layout) async {
+    layouts[layout.workspaceId] = layout;
+    return layout;
   }
 
   @override
@@ -256,6 +332,11 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
   @override
   Stream<List<TerminalTabRecord>> watchTerminalTabs(String workspaceId) =>
       const Stream<List<TerminalTabRecord>>.empty();
+
+  @override
+  Stream<List<TerminalTabRecord>> watchWorkbenchTabs(String workspaceId) {
+    return watchTerminalTabs(workspaceId);
+  }
 
   @override
   Stream<List<Workspace>> watchWorkspaces(String projectId) =>
@@ -287,7 +368,11 @@ class _FakeProcessRunner implements ProcessRunner {
     if (arguments.length >= 2 &&
         arguments[0] == 'branch' &&
         arguments[1] == '--show-current') {
-      return ProcessRunOutput(exitCode: 0, stdout: '$currentBranch\n', stderr: '');
+      return ProcessRunOutput(
+        exitCode: 0,
+        stdout: '$currentBranch\n',
+        stderr: '',
+      );
     }
 
     if (arguments.contains('for-each-ref')) {
@@ -333,7 +418,11 @@ class _FakeProcessRunner implements ProcessRunner {
           ..writeln('branch refs/heads/${entry.value}')
           ..writeln();
       }
-      return ProcessRunOutput(exitCode: 0, stdout: buffer.toString(), stderr: '');
+      return ProcessRunOutput(
+        exitCode: 0,
+        stdout: buffer.toString(),
+        stderr: '',
+      );
     }
 
     return const ProcessRunOutput(exitCode: 0, stdout: '', stderr: '');

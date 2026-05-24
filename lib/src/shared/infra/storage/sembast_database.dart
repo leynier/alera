@@ -58,6 +58,12 @@ class AleraStores {
   static final StoreRef<String, Map<String, Object?>> workbenchWorkspaces =
       stringMapStoreFactory.store('workbench_workspaces');
 
+  static final StoreRef<String, Map<String, Object?>> workbenchTabs =
+      stringMapStoreFactory.store('workbench_tabs');
+
+  static final StoreRef<String, Map<String, Object?>> workbenchLayouts =
+      stringMapStoreFactory.store('workbench_layouts');
+
   static final StoreRef<String, Map<String, Object?>> terminalTabs =
       stringMapStoreFactory.store('terminal_tabs');
 

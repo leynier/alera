@@ -167,16 +167,53 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
       project: project,
       workspace: workspace,
       tabs: tabs,
-      activeTab: state.activeTerminalTab,
+      layout: state.layoutFor(workspace.id),
       terminalRuntime: terminalRuntime,
-      onCreateTab: () async {
-        await controller.createTerminalTab(workspace);
+      onCreateTab: ({targetGroupId}) async {
+        await controller.createTerminalTab(
+          workspace,
+          targetGroupId: targetGroupId,
+        );
       },
-      onSelectTab: (tabId) =>
-          controller.setActiveTab(workspaceId: workspace.id, tabId: tabId),
+      onSelectTab: ({required groupId, required tabId}) {
+        controller.setActiveWorkbenchTab(
+          workspaceId: workspace.id,
+          groupId: groupId,
+          tabId: tabId,
+        );
+      },
       onCloseTab: (tabId) async {
         terminalRuntime.closeTab(tabId);
         await controller.closeTerminalTab(workspace: workspace, tabId: tabId);
+      },
+      onMoveTab:
+          ({required tabId, required targetGroupId, required zone}) async {
+            await controller.moveWorkbenchTab(
+              workspaceId: workspace.id,
+              tabId: tabId,
+              targetGroupId: targetGroupId,
+              zone: zone,
+            );
+          },
+      onSplitGroup: ({required groupId, required zone}) async {
+        await controller.splitWorkbenchGroup(
+          workspace: workspace,
+          groupId: groupId,
+          zone: zone,
+        );
+      },
+      onMergeGroup: ({required groupId}) async {
+        await controller.mergeWorkbenchGroupIntoSibling(
+          workspaceId: workspace.id,
+          groupId: groupId,
+        );
+      },
+      onUpdateSplitRatio: ({required nodePath, required ratio}) {
+        controller.updateWorkbenchSplitRatio(
+          workspaceId: workspace.id,
+          nodePath: nodePath,
+          ratio: ratio,
+        );
       },
     );
   }

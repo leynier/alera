@@ -89,20 +89,33 @@ class SembastProjectRepository implements ProjectRepository {
         finder: Finder(filter: Filter.equals('projectId', projectId)),
       );
       for (final workspaceRecord in workspaceRecords) {
-        await AleraStores.workbenchWorkspaces.record(workspaceRecord.key).delete(
-          txn,
-        );
-        final tabRecords = await AleraStores.terminalTabs.find(
-          txn,
-          finder: Finder(
-            filter: Filter.equals('workspaceId', workspaceRecord.key),
-          ),
-        );
-        for (final tabRecord in tabRecords) {
-          await AleraStores.terminalTabs.record(tabRecord.key).delete(txn);
-        }
+        await _deleteWorkspaceRecords(txn, workspaceRecord.key);
       }
     });
+  }
+
+  Future<void> _deleteWorkspaceRecords(
+    Transaction txn,
+    String workspaceId,
+  ) async {
+    await AleraStores.workbenchWorkspaces.record(workspaceId).delete(txn);
+    await AleraStores.workbenchLayouts.record(workspaceId).delete(txn);
+
+    final tabRecords = await AleraStores.terminalTabs.find(
+      txn,
+      finder: Finder(filter: Filter.equals('workspaceId', workspaceId)),
+    );
+    for (final tabRecord in tabRecords) {
+      await AleraStores.terminalTabs.record(tabRecord.key).delete(txn);
+    }
+
+    final workbenchTabRecords = await AleraStores.workbenchTabs.find(
+      txn,
+      finder: Finder(filter: Filter.equals('workspaceId', workspaceId)),
+    );
+    for (final tabRecord in workbenchTabRecords) {
+      await AleraStores.workbenchTabs.record(tabRecord.key).delete(txn);
+    }
   }
 
   @override

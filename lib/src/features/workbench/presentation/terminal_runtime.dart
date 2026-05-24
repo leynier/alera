@@ -2,18 +2,14 @@
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:ffi' as ffi;
-import 'dart:isolate';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/workbench/domain/terminal_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
-import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:portable_pty/portable_pty.dart';
 import 'package:xterm/xterm.dart' as xterm;
 
 abstract class TerminalSessionHandle extends ChangeNotifier {
@@ -49,7 +45,149 @@ abstract interface class TerminalRuntime {
   void dispose();
 }
 
+abstract interface class TerminalPtySessionFactory {
+  TerminalPtySession create();
+}
+
+abstract interface class TerminalPtySession {
+  Stream<TerminalPtySessionEvent> get events;
+
+  Future<void> start({
+    required GhosttyTerminalShellLaunch launch,
+    required int cols,
+    required int rows,
+  });
+
+  bool writeBytes(List<int> bytes);
+
+  void resize(int cols, int rows, int cellWidthPx, int cellHeightPx);
+
+  void dispose();
+}
+
+sealed class TerminalPtySessionEvent {
+  const TerminalPtySessionEvent();
+}
+
+final class TerminalPtyOutputEvent extends TerminalPtySessionEvent {
+  const TerminalPtyOutputEvent(this.data);
+
+  final Uint8List data;
+}
+
+final class TerminalPtyExitEvent extends TerminalPtySessionEvent {
+  const TerminalPtyExitEvent(this.exitCode);
+
+  final int exitCode;
+}
+
+final class TerminalPtyErrorEvent extends TerminalPtySessionEvent {
+  const TerminalPtyErrorEvent(this.error);
+
+  final Object error;
+}
+
+class GhosttyTerminalPtySessionFactory implements TerminalPtySessionFactory {
+  const GhosttyTerminalPtySessionFactory();
+
+  @override
+  TerminalPtySession create() {
+    return _GhosttyTerminalPtySessionAdapter();
+  }
+}
+
+class _GhosttyTerminalPtySessionAdapter implements TerminalPtySession {
+  final StreamController<TerminalPtySessionEvent> _events =
+      StreamController<TerminalPtySessionEvent>.broadcast();
+  GhosttyTerminalPtySession? _session;
+  StreamSubscription<GhosttyTerminalPtySessionEvent>? _sessionSub;
+  bool _disposed = false;
+
+  @override
+  Stream<TerminalPtySessionEvent> get events => _events.stream;
+
+  @override
+  Future<void> start({
+    required GhosttyTerminalShellLaunch launch,
+    required int cols,
+    required int rows,
+  }) async {
+    if (_disposed) {
+      throw StateError('PTY session is disposed.');
+    }
+    final session = GhosttyTerminalPtySession(
+      config: GhosttyTerminalPtySessionConfig(rows: rows, cols: cols),
+    );
+    _session = session;
+    _sessionSub = session.events.listen(_handleGhosttyEvent);
+    try {
+      session.spawn(
+        launch.shell,
+        args: launch.arguments,
+        environment: launch.environment,
+      );
+    } catch (_) {
+      unawaited(_sessionSub?.cancel());
+      _sessionSub = null;
+      _session = null;
+      session.close();
+      rethrow;
+    }
+  }
+
+  void _handleGhosttyEvent(GhosttyTerminalPtySessionEvent event) {
+    if (_disposed) {
+      return;
+    }
+    switch (event) {
+      case GhosttyTerminalPtyOutputEvent(:final data):
+        _events.add(TerminalPtyOutputEvent(data));
+      case GhosttyTerminalPtyExitEvent(:final exitCode):
+        _events.add(TerminalPtyExitEvent(exitCode));
+      case GhosttyTerminalPtyErrorEvent(:final error):
+        _events.add(TerminalPtyErrorEvent(error));
+      case GhosttyTerminalPtyStateChangeEvent():
+        break;
+    }
+  }
+
+  @override
+  bool writeBytes(List<int> bytes) {
+    final session = _session;
+    if (_disposed || session == null || bytes.isEmpty) {
+      return false;
+    }
+    return session.writeBytes(Uint8List.fromList(bytes)) > 0;
+  }
+
+  @override
+  void resize(int cols, int rows, int cellWidthPx, int cellHeightPx) {
+    if (_disposed) {
+      return;
+    }
+    _session?.resize(rows: rows, cols: cols);
+  }
+
+  @override
+  void dispose() {
+    if (_disposed) {
+      return;
+    }
+    _disposed = true;
+    unawaited(_sessionSub?.cancel());
+    _sessionSub = null;
+    _session?.close();
+    _session = null;
+    unawaited(_events.close());
+  }
+}
+
 class XtermTerminalRuntime implements TerminalRuntime {
+  XtermTerminalRuntime({TerminalPtySessionFactory? ptySessionFactory})
+    : _ptySessionFactory =
+          ptySessionFactory ?? const GhosttyTerminalPtySessionFactory();
+
+  final TerminalPtySessionFactory _ptySessionFactory;
   final Map<String, _XtermTerminalSessionHandle> _sessions =
       <String, _XtermTerminalSessionHandle>{};
 
@@ -60,7 +198,11 @@ class XtermTerminalRuntime implements TerminalRuntime {
   }) {
     return _sessions
         .putIfAbsent(tab.id, () {
-          return _XtermTerminalSessionHandle(workspace: workspace, tab: tab);
+          return _XtermTerminalSessionHandle(
+            workspace: workspace,
+            tab: tab,
+            ptySessionFactory: _ptySessionFactory,
+          );
         })
         .sync(workspace: workspace, tab: tab);
   }
@@ -94,8 +236,10 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   _XtermTerminalSessionHandle({
     required Workspace workspace,
     required TerminalTabRecord tab,
+    required TerminalPtySessionFactory ptySessionFactory,
   }) : _workspace = workspace,
-       _tab = tab {
+       _tab = tab,
+       _ptySessionFactory = ptySessionFactory {
     _terminal = _createTerminal();
     _decodedOutputSub = _ptyOutputController.stream
         .transform(const Utf8Decoder(allowMalformed: true))
@@ -104,13 +248,15 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
 
   Workspace _workspace;
   TerminalTabRecord _tab;
+  final TerminalPtySessionFactory _ptySessionFactory;
   late xterm.Terminal _terminal;
   final xterm.TerminalController _terminalController =
       xterm.TerminalController();
   final StreamController<List<int>> _ptyOutputController =
       StreamController<List<int>>();
   late final StreamSubscription<String> _decodedOutputSub;
-  _MacOsPtySession? _macOsPtySession;
+  TerminalPtySession? _ptySession;
+  StreamSubscription<TerminalPtySessionEvent>? _ptySessionSub;
   Timer? _pendingPtyResizeTimer;
   _TerminalPtySize? _pendingPtySize;
 
@@ -177,18 +323,13 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     _errorMessage = null;
     notifyListeners();
     try {
-      if (kIsWeb || defaultTargetPlatform != TargetPlatform.macOS) {
-        throw UnsupportedError('Terminal sessions require the macOS PTY path.');
+      if (!_isSupportedNativeDesktopTerminalPlatform) {
+        throw UnsupportedError(
+          'Terminal sessions require a native desktop PTY path.',
+        );
       }
-      await _startMacOsPtySession();
+      await _startPtySession();
       _started = true;
-      await Future<void>.delayed(const Duration(milliseconds: 120));
-      final command = _changeDirectoryCommand(_workspace.path);
-      if (command.isNotEmpty) {
-        _macOsPtySession?.writeBytes(utf8.encode(command));
-      }
-      await Future<void>.delayed(const Duration(milliseconds: 50));
-      _macOsPtySession?.writeBytes(utf8.encode('clear\n'));
     } catch (error) {
       _errorMessage = error.toString();
     } finally {
@@ -204,7 +345,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     _starting = false;
     _running = false;
     notifyListeners();
-    await _stopMacOsPtySession();
+    await _stopPtySession();
     await ensureStarted();
   }
 
@@ -234,7 +375,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   }
 
   void _handleTerminalInput(String data) {
-    _macOsPtySession?.writeBytes(utf8.encode(data));
+    _ptySession?.writeBytes(utf8.encode(data));
   }
 
   void _handleTerminalResize(
@@ -259,35 +400,31 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     _pendingPtyResizeTimer = null;
     final size = _pendingPtySize;
     _pendingPtySize = null;
-    final session = _macOsPtySession;
+    final session = _ptySession;
     if (_disposed || size == null || session == null) {
       return;
     }
     session.resize(size.cols, size.rows, size.cellWidthPx, size.cellHeightPx);
   }
 
-  Future<void> _startMacOsPtySession() async {
+  Future<void> _startPtySession() async {
     final launches = _terminalShellLaunches();
     Object? lastError;
     for (final launch in launches) {
-      final session = _MacOsPtySession(
-        onOutput: _ptyOutputController.add,
-        onExit: (exitCode) {
-          _running = false;
-          _writeToTerminal('\n[process exited: $exitCode]\n');
-          notifyListeners();
-        },
-        onError: (error) {
-          _writeToTerminal('\n[terminal error: $error]\n');
-        },
-      );
+      final session = _ptySessionFactory.create();
+      final sub = session.events.listen(_handlePtySessionEvent);
       try {
+        final workspaceLaunch = _launchInWorkingDirectory(
+          launch,
+          _workspace.path,
+        );
         await session.start(
-          launch: launch,
+          launch: workspaceLaunch,
           cols: _terminal.viewWidth,
           rows: _terminal.viewHeight,
         );
-        _macOsPtySession = session;
+        _ptySession = session;
+        _ptySessionSub = sub;
         _running = true;
         notifyListeners();
         final setupCommand = launch.setupCommand;
@@ -299,10 +436,24 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
         return;
       } catch (error) {
         lastError = error;
+        unawaited(sub.cancel());
         session.dispose();
       }
     }
-    throw StateError('No macOS PTY shell could be started: $lastError');
+    throw StateError('No desktop PTY shell could be started: $lastError');
+  }
+
+  void _handlePtySessionEvent(TerminalPtySessionEvent event) {
+    switch (event) {
+      case TerminalPtyOutputEvent(:final data):
+        _ptyOutputController.add(data);
+      case TerminalPtyExitEvent(:final exitCode):
+        _running = false;
+        _writeToTerminal('\n[process exited: $exitCode]\n');
+        notifyListeners();
+      case TerminalPtyErrorEvent(:final error):
+        _writeToTerminal('\n[terminal error: $error]\n');
+    }
   }
 
   xterm.Terminal _createTerminal() {
@@ -333,28 +484,23 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     _terminal.write(data);
   }
 
-  Future<void> _stopMacOsPtySession() async {
+  Future<void> _stopPtySession() async {
     _pendingPtyResizeTimer?.cancel();
     _pendingPtyResizeTimer = null;
     _pendingPtySize = null;
-    final session = _macOsPtySession;
-    _macOsPtySession = null;
+    final sub = _ptySessionSub;
+    _ptySessionSub = null;
+    await sub?.cancel();
+    final session = _ptySession;
+    _ptySession = null;
     session?.dispose();
-  }
-
-  String _changeDirectoryCommand(String path) {
-    if (path.trim().isEmpty) {
-      return '';
-    }
-    final escaped = path.replaceAll("'", r"'\''");
-    return "cd '$escaped'\n";
   }
 
   @override
   void dispose() {
     _disposed = true;
     _detachTerminal(_terminal);
-    unawaited(_stopMacOsPtySession());
+    unawaited(_stopPtySession());
     unawaited(_decodedOutputSub.cancel());
     unawaited(_ptyOutputController.close());
     super.dispose();
@@ -406,6 +552,83 @@ List<GhosttyTerminalShellLaunch> _terminalShellLaunches() {
         return seen.add(key);
       })
       .toList(growable: false);
+}
+
+GhosttyTerminalShellLaunch _launchInWorkingDirectory(
+  GhosttyTerminalShellLaunch launch,
+  String workingDirectory,
+) {
+  if (workingDirectory.trim().isEmpty) {
+    return launch;
+  }
+  if (_isWindowsCommandPromptLaunch(launch)) {
+    return GhosttyTerminalShellLaunch(
+      label: launch.label,
+      shell: launch.shell,
+      arguments: <String>[
+        ...launch.arguments,
+        '/d',
+        '/s',
+        '/k',
+        'cd /d ${_cmdQuote(workingDirectory)}',
+      ],
+      environment: launch.environment,
+      setupCommand: launch.setupCommand,
+    );
+  }
+  final execCommand = StringBuffer(
+    'cd ${_shQuote(workingDirectory)} || true; exec ',
+  )..write(_shQuote(launch.shell));
+  for (final argument in launch.arguments) {
+    execCommand
+      ..write(' ')
+      ..write(_shQuote(argument));
+  }
+  return GhosttyTerminalShellLaunch(
+    label: launch.label,
+    shell: '/bin/sh',
+    arguments: <String>['-c', execCommand.toString()],
+    environment: launch.environment,
+    setupCommand: launch.setupCommand,
+  );
+}
+
+@visibleForTesting
+GhosttyTerminalShellLaunch launchInWorkingDirectoryForTesting(
+  GhosttyTerminalShellLaunch launch,
+  String workingDirectory,
+) {
+  return _launchInWorkingDirectory(launch, workingDirectory);
+}
+
+bool _isWindowsCommandPromptLaunch(GhosttyTerminalShellLaunch launch) {
+  final executable = launch.shell.replaceAll(r'\', '/').split('/').last;
+  return executable.toLowerCase() == 'cmd.exe';
+}
+
+String _cmdQuote(String value) {
+  return '"${value.replaceAll('"', '""')}"';
+}
+
+String _shQuote(String value) {
+  if (value.isEmpty) {
+    return "''";
+  }
+  return "'${value.replaceAll("'", "'\"'\"'")}'";
+}
+
+bool get _isSupportedNativeDesktopTerminalPlatform {
+  if (kIsWeb) {
+    return false;
+  }
+  return switch (defaultTargetPlatform) {
+    TargetPlatform.linux ||
+    TargetPlatform.macOS ||
+    TargetPlatform.windows => true,
+    TargetPlatform.android ||
+    TargetPlatform.iOS ||
+    TargetPlatform.fuchsia => false,
+  };
 }
 
 final xterm.TerminalTargetPlatform _xtermTargetPlatform =
@@ -463,6 +686,11 @@ const xterm.TerminalTheme _aleraXtermTheme = xterm.TerminalTheme(
 );
 
 class GhosttyTerminalRuntime implements TerminalRuntime {
+  GhosttyTerminalRuntime({TerminalPtySessionFactory? ptySessionFactory})
+    : _ptySessionFactory =
+          ptySessionFactory ?? const GhosttyTerminalPtySessionFactory();
+
+  final TerminalPtySessionFactory _ptySessionFactory;
   final Map<String, _GhosttyTerminalSessionHandle> _sessions =
       <String, _GhosttyTerminalSessionHandle>{};
 
@@ -473,7 +701,11 @@ class GhosttyTerminalRuntime implements TerminalRuntime {
   }) {
     return _sessions
         .putIfAbsent(tab.id, () {
-          return _GhosttyTerminalSessionHandle(workspace: workspace, tab: tab);
+          return _GhosttyTerminalSessionHandle(
+            workspace: workspace,
+            tab: tab,
+            ptySessionFactory: _ptySessionFactory,
+          );
         })
         .sync(workspace: workspace, tab: tab);
   }
@@ -507,15 +739,19 @@ class _GhosttyTerminalSessionHandle extends TerminalSessionHandle {
   _GhosttyTerminalSessionHandle({
     required Workspace workspace,
     required TerminalTabRecord tab,
+    required TerminalPtySessionFactory ptySessionFactory,
   }) : _workspace = workspace,
-       _tab = tab {
+       _tab = tab,
+       _ptySessionFactory = ptySessionFactory {
     _controller.onTitleChangedData = _handleTitleChanged;
   }
 
   Workspace _workspace;
   TerminalTabRecord _tab;
+  final TerminalPtySessionFactory _ptySessionFactory;
   final GhosttyTerminalController _controller = GhosttyTerminalController();
-  _MacOsPtySession? _macOsPtySession;
+  TerminalPtySession? _ptySession;
+  StreamSubscription<TerminalPtySessionEvent>? _ptySessionSub;
 
   bool _starting = false;
   bool _started = false;
@@ -582,31 +818,14 @@ class _GhosttyTerminalSessionHandle extends TerminalSessionHandle {
     try {
       if (kIsWeb) {
         await _controller.start();
-      } else if (defaultTargetPlatform == TargetPlatform.macOS) {
-        await _startMacOsPtySession();
+      } else if (_isSupportedNativeDesktopTerminalPlatform) {
+        await _startPtySession();
       } else {
-        final launch = await _controller.startShellProfile(
-          profile: GhosttyTerminalShellProfile.auto,
-          platformEnvironment: _terminalPlatformEnvironment(),
+        throw UnsupportedError(
+          'Terminal sessions require a native desktop PTY path.',
         );
-        if (launch == null) {
-          await _controller.start(
-            environment: ghosttyTerminalShellEnvironment(
-              platformEnvironment: _terminalPlatformEnvironment(),
-            ),
-          );
-        }
       }
       _started = true;
-      await Future<void>.delayed(const Duration(milliseconds: 120));
-      final command = _changeDirectoryCommand(_workspace.path);
-      if (command.isNotEmpty) {
-        _controller.write(command);
-      }
-      if (!_isWindows) {
-        await Future<void>.delayed(const Duration(milliseconds: 50));
-        _controller.write('clear\n');
-      }
     } catch (error) {
       _errorMessage = error.toString();
     } finally {
@@ -622,7 +841,7 @@ class _GhosttyTerminalSessionHandle extends TerminalSessionHandle {
     _starting = false;
     notifyListeners();
     await _controller.stop();
-    await _stopMacOsPtySession();
+    await _stopPtySession();
     await ensureStarted();
   }
 
@@ -654,31 +873,28 @@ class _GhosttyTerminalSessionHandle extends TerminalSessionHandle {
     notifyListeners();
   }
 
-  Future<void> _startMacOsPtySession() async {
+  Future<void> _startPtySession() async {
     final launches = _terminalShellLaunches();
     Object? lastError;
     for (final launch in launches) {
-      final session = _MacOsPtySession(
-        onOutput: _controller.appendOutputBytes,
-        onExit: (exitCode) {
-          _controller.setSessionRunning(false);
-          _controller.appendDebugOutput('\n[process exited: $exitCode]\n');
-        },
-        onError: (error) {
-          _controller.appendDebugOutput('\n[terminal error: $error]\n');
-        },
-      );
+      final session = _ptySessionFactory.create();
+      final sub = session.events.listen(_handlePtySessionEvent);
       try {
+        final workspaceLaunch = _launchInWorkingDirectory(
+          launch,
+          _workspace.path,
+        );
         await session.start(
-          launch: launch,
+          launch: workspaceLaunch,
           cols: _controller.cols,
           rows: _controller.rows,
         );
-        _macOsPtySession = session;
+        _ptySession = session;
+        _ptySessionSub = sub;
         _controller.attachExternalTransport(
           writeBytes: session.writeBytes,
           onResize: session.resize,
-          launch: launch,
+          launch: workspaceLaunch,
         );
         final setupCommand = launch.setupCommand;
         if (setupCommand != null && setupCommand.isNotEmpty) {
@@ -689,217 +905,43 @@ class _GhosttyTerminalSessionHandle extends TerminalSessionHandle {
         return;
       } catch (error) {
         lastError = error;
+        unawaited(sub.cancel());
         session.dispose();
       }
     }
-    throw StateError('No macOS PTY shell could be started: $lastError');
+    throw StateError('No desktop PTY shell could be started: $lastError');
   }
 
-  Future<void> _stopMacOsPtySession() async {
-    final session = _macOsPtySession;
-    _macOsPtySession = null;
+  void _handlePtySessionEvent(TerminalPtySessionEvent event) {
+    switch (event) {
+      case TerminalPtyOutputEvent(:final data):
+        _controller.appendOutputBytes(data);
+      case TerminalPtyExitEvent(:final exitCode):
+        _controller.setSessionRunning(false);
+        _controller.appendDebugOutput('\n[process exited: $exitCode]\n');
+        notifyListeners();
+      case TerminalPtyErrorEvent(:final error):
+        _controller.appendDebugOutput('\n[terminal error: $error]\n');
+        notifyListeners();
+    }
+  }
+
+  Future<void> _stopPtySession() async {
     _controller.detachExternalTransport();
+    final sub = _ptySessionSub;
+    _ptySessionSub = null;
+    await sub?.cancel();
+    final session = _ptySession;
+    _ptySession = null;
     session?.dispose();
   }
-
-  String _changeDirectoryCommand(String path) {
-    if (path.trim().isEmpty) {
-      return '';
-    }
-    if (_isWindows) {
-      return 'cd /d "${path.replaceAll('"', '""')}"\r\n';
-    }
-    final escaped = path.replaceAll("'", r"'\''");
-    return "cd '$escaped'\n";
-  }
-
-  bool get _isWindows =>
-      !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
 
   @override
   void dispose() {
     _disposed = true;
     _controller.onTitleChangedData = null;
-    unawaited(_stopMacOsPtySession());
+    unawaited(_stopPtySession());
     _controller.dispose();
     super.dispose();
-  }
-}
-
-typedef _ReadNative =
-    ffi.IntPtr Function(
-      ffi.Int32 fd,
-      ffi.Pointer<ffi.Uint8> buf,
-      ffi.UintPtr nbyte,
-    );
-typedef _ReadDart = int Function(int fd, ffi.Pointer<ffi.Uint8> buf, int nbyte);
-final ffi.DynamicLibrary _libc = ffi.DynamicLibrary.process();
-final _ReadDart _posixRead = _libc.lookupFunction<_ReadNative, _ReadDart>(
-  'read',
-);
-
-// macOS exposes errno through `int* __error(void)`.
-typedef _ErrnoLocationNative = ffi.Pointer<ffi.Int32> Function();
-typedef _ErrnoLocationDart = ffi.Pointer<ffi.Int32> Function();
-final _ErrnoLocationDart _errnoLocation = _libc
-    .lookupFunction<_ErrnoLocationNative, _ErrnoLocationDart>('__error');
-
-int _currentErrno() => _errnoLocation().value;
-
-/// `EINTR` (interrupted system call) on macOS.
-const int _eintr = 4;
-
-const int _readChunkSize = 4096;
-
-class _MacOsPtySession {
-  _MacOsPtySession({
-    required this.onOutput,
-    required this.onExit,
-    required this.onError,
-  });
-
-  final void Function(Uint8List data) onOutput;
-  final void Function(int exitCode) onExit;
-  final void Function(Object error) onError;
-
-  PortablePty? _pty;
-  ReceivePort? _readPort;
-  StreamSubscription<Object?>? _readSub;
-  Isolate? _readIsolate;
-  bool _closed = false;
-
-  Future<void> start({
-    required GhosttyTerminalShellLaunch launch,
-    required int cols,
-    required int rows,
-  }) async {
-    final pty = PortablePty.open(rows: rows, cols: cols);
-    _pty = pty;
-    try {
-      pty.spawn(
-        launch.shell,
-        args: launch.arguments,
-        environment: launch.environment,
-      );
-      _readPort = ReceivePort();
-      _readSub = _readPort!.listen(_handleReadMessage);
-      _readIsolate = await Isolate.spawn<List<Object?>>(
-        _macOsPtyReadIsolate,
-        <Object?>[pty.masterFd, _readPort!.sendPort],
-        debugName: 'alera-macos-pty-reader',
-      );
-    } catch (_) {
-      dispose();
-      rethrow;
-    }
-  }
-
-  bool writeBytes(List<int> bytes) {
-    final pty = _pty;
-    if (_closed || pty == null || bytes.isEmpty) {
-      return false;
-    }
-    try {
-      return pty.writeBytes(Uint8List.fromList(bytes)) > 0;
-    } catch (error) {
-      onError(error);
-      return false;
-    }
-  }
-
-  void resize(int cols, int rows, int cellWidthPx, int cellHeightPx) {
-    final pty = _pty;
-    if (_closed || pty == null) {
-      return;
-    }
-    try {
-      pty.resize(rows: rows, cols: cols);
-    } catch (error) {
-      onError(error);
-    }
-  }
-
-  void _handleReadMessage(Object? message) {
-    if (_closed) {
-      return;
-    }
-    if (message is Uint8List) {
-      onOutput(message);
-      return;
-    }
-    if (message is Map<Object?, Object?>) {
-      final type = message['type'];
-      if (type == 'error') {
-        onError(message['error'] ?? 'Unknown PTY read error');
-      }
-      if (type == 'done' || type == 'error') {
-        final pty = _pty;
-        _handleExit(pty?.tryWait() ?? 0);
-      }
-    }
-  }
-
-  void _handleExit(int exitCode) {
-    if (_closed) {
-      return;
-    }
-    onExit(exitCode);
-    dispose();
-  }
-
-  void dispose() {
-    if (_closed) {
-      return;
-    }
-    _closed = true;
-    _readSub?.cancel();
-    _readSub = null;
-    _readPort?.close();
-    _readPort = null;
-    _readIsolate?.kill(priority: Isolate.immediate);
-    _readIsolate = null;
-    final pty = _pty;
-    _pty = null;
-    if (pty == null) {
-      return;
-    }
-    try {
-      if (pty.tryWait() == null) {
-        pty.kill();
-      }
-    } catch (_) {
-      // The child can exit between tryWait and kill.
-    } finally {
-      pty.close();
-    }
-  }
-}
-
-void _macOsPtyReadIsolate(List<Object?> args) {
-  final fd = args[0]! as int;
-  final sendPort = args[1]! as SendPort;
-  final buffer = calloc<ffi.Uint8>(_readChunkSize);
-  try {
-    while (true) {
-      final byteCount = _posixRead(fd, buffer, _readChunkSize);
-      if (byteCount > 0) {
-        sendPort.send(Uint8List.fromList(buffer.asTypedList(byteCount)));
-        continue;
-      }
-      if (byteCount < 0 && _currentErrno() == _eintr) {
-        // Interrupted by a signal; the child is still alive, keep reading
-        // instead of tearing the session down.
-        continue;
-      }
-      sendPort.send(const <Object?, Object?>{'type': 'done'});
-      break;
-    }
-  } catch (error) {
-    sendPort.send(<Object?, Object?>{
-      'type': 'error',
-      'error': error.toString(),
-    });
-  } finally {
-    calloc.free(buffer);
   }
 }

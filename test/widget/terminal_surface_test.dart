@@ -1,11 +1,92 @@
+import 'dart:async';
+
 import 'package:alera/src/features/workbench/domain/terminal_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_surface.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
 
 void main() {
+  test('working directory launch keeps the shell usable if cd fails', () {
+    const launch = GhosttyTerminalShellLaunch(
+      label: 'zsh',
+      shell: '/bin/zsh',
+      arguments: <String>['-l'],
+      environment: <String, String>{'TERM': 'xterm-256color'},
+      setupCommand: 'echo ready\n',
+    );
+
+    final wrapped = launchInWorkingDirectoryForTesting(
+      launch,
+      "/missing/workspace's path",
+    );
+
+    expect(wrapped.shell, '/bin/sh');
+    expect(wrapped.arguments, hasLength(2));
+    expect(wrapped.arguments.first, '-c');
+    expect(
+      wrapped.arguments.last,
+      "cd '/missing/workspace'\"'\"'s path' || true; exec '/bin/zsh' '-l'",
+    );
+    expect(wrapped.environment, launch.environment);
+    expect(wrapped.setupCommand, launch.setupCommand);
+  });
+
+  test('working directory launch preserves Windows command prompt', () {
+    const launch = GhosttyTerminalShellLaunch(
+      label: 'cmd.exe',
+      shell: r'C:\Windows\System32\cmd.exe',
+      environment: <String, String>{'TERM': 'xterm-256color'},
+    );
+
+    final wrapped = launchInWorkingDirectoryForTesting(
+      launch,
+      r'C:\Users\alera\workspace',
+    );
+
+    expect(wrapped.shell, launch.shell);
+    expect(wrapped.arguments, <String>[
+      '/d',
+      '/s',
+      '/k',
+      r'cd /d "C:\Users\alera\workspace"',
+    ]);
+    expect(wrapped.environment, launch.environment);
+    expect(wrapped.setupCommand, launch.setupCommand);
+  });
+
+  testWidgets('xterm runtime starts with injected PTY on Linux desktop', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    try {
+      final factory = _FakeTerminalPtySessionFactory();
+      final runtime = XtermTerminalRuntime(ptySessionFactory: factory);
+      addTearDown(runtime.dispose);
+
+      final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
+
+      await session.ensureStarted();
+
+      expect(session.errorMessage, isNull);
+      expect(session.isRunning, isTrue);
+      expect(factory.sessions, hasLength(1));
+      expect(factory.sessions.single.startedLaunch, isNotNull);
+      expect(factory.sessions.single.startedCols, greaterThan(0));
+      expect(factory.sessions.single.startedRows, greaterThan(0));
+
+      factory.sessions.single.emitExit(7);
+      await tester.pump();
+
+      expect(session.isRunning, isFalse);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
   testWidgets(
     'changing workspace metadata during build does not notify synchronously',
     (tester) async {
@@ -65,7 +146,6 @@ void main() {
     },
   );
 
-
   testWidgets('defers startup notifications until after the first frame', (
     tester,
   ) async {
@@ -81,7 +161,10 @@ void main() {
     await tester.pump();
 
     expect(session.ensureStartedCallCount, 1);
-    expect(find.byKey(const ValueKey<String>('terminal-tab-1')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('terminal-tab-1')),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -111,9 +194,86 @@ void main() {
 
     expect(first.ensureStartedCallCount, 1);
     expect(second.ensureStartedCallCount, 1);
-    expect(find.byKey(const ValueKey<String>('terminal-tab-2')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('terminal-tab-2')),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
+}
+
+TerminalTabRecord _tab() {
+  return TerminalTabRecord(
+    id: 'tab-1',
+    workspaceId: 'ws-1',
+    title: 'Terminal 1',
+    createdAt: DateTime.utc(2026),
+    updatedAt: DateTime.utc(2026),
+  );
+}
+
+Workspace _workspace({String path = '/tmp/alera'}) {
+  return Workspace(
+    id: 'ws-1',
+    projectId: 'p-1',
+    name: 'Main',
+    branch: 'main',
+    path: path,
+    createdAt: DateTime.utc(2026),
+    updatedAt: DateTime.utc(2026),
+    kind: WorkspaceKind.main,
+    status: WorkspaceStatus.active,
+  );
+}
+
+class _FakeTerminalPtySessionFactory implements TerminalPtySessionFactory {
+  final List<_FakeTerminalPtySession> sessions = <_FakeTerminalPtySession>[];
+
+  @override
+  TerminalPtySession create() {
+    final session = _FakeTerminalPtySession();
+    sessions.add(session);
+    return session;
+  }
+}
+
+class _FakeTerminalPtySession implements TerminalPtySession {
+  final StreamController<TerminalPtySessionEvent> _events =
+      StreamController<TerminalPtySessionEvent>.broadcast();
+  GhosttyTerminalShellLaunch? startedLaunch;
+  int? startedCols;
+  int? startedRows;
+  bool disposed = false;
+
+  @override
+  Stream<TerminalPtySessionEvent> get events => _events.stream;
+
+  @override
+  Future<void> start({
+    required GhosttyTerminalShellLaunch launch,
+    required int cols,
+    required int rows,
+  }) async {
+    startedLaunch = launch;
+    startedCols = cols;
+    startedRows = rows;
+  }
+
+  @override
+  bool writeBytes(List<int> bytes) => bytes.isNotEmpty;
+
+  @override
+  void resize(int cols, int rows, int cellWidthPx, int cellHeightPx) {}
+
+  void emitExit(int exitCode) {
+    _events.add(TerminalPtyExitEvent(exitCode));
+  }
+
+  @override
+  void dispose() {
+    disposed = true;
+    unawaited(_events.close());
+  }
 }
 
 class _ImmediateNotifySessionHandle extends TerminalSessionHandle {
