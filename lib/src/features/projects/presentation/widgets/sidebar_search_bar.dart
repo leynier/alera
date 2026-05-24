@@ -10,11 +10,13 @@ class SidebarSearchBar extends StatefulWidget {
     required this.initialQuery,
     required this.onChanged,
     required this.focusNode,
+    this.hintText = 'Search chats',
   });
 
   final String initialQuery;
   final ValueChanged<String> onChanged;
   final FocusNode focusNode;
+  final String hintText;
 
   @override
   State<SidebarSearchBar> createState() => _SidebarSearchBarState();
@@ -96,7 +98,7 @@ class _SidebarSearchBarState extends State<SidebarSearchBar> {
               isDense: true,
               filled: true,
               fillColor: AleraTokens.surface,
-              hintText: 'Search chats',
+              hintText: widget.hintText,
               hintStyle: theme.textTheme.bodySmall?.copyWith(
                 color: AleraTokens.foregroundFaint,
               ),

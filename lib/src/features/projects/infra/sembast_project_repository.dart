@@ -84,6 +84,24 @@ class SembastProjectRepository implements ProjectRepository {
           await AleraStores.chatCells.record(c.key).delete(txn);
         }
       }
+      final workspaceRecords = await AleraStores.workbenchWorkspaces.find(
+        txn,
+        finder: Finder(filter: Filter.equals('projectId', projectId)),
+      );
+      for (final workspaceRecord in workspaceRecords) {
+        await AleraStores.workbenchWorkspaces.record(workspaceRecord.key).delete(
+          txn,
+        );
+        final tabRecords = await AleraStores.terminalTabs.find(
+          txn,
+          finder: Finder(
+            filter: Filter.equals('workspaceId', workspaceRecord.key),
+          ),
+        );
+        for (final tabRecord in tabRecords) {
+          await AleraStores.terminalTabs.record(tabRecord.key).delete(txn);
+        }
+      }
     });
   }
 

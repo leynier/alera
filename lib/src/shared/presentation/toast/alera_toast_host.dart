@@ -110,7 +110,7 @@ class _AleraToastHostState extends State<AleraToastHost> {
         alignment: Alignment.topRight,
         child: Padding(
           padding: const EdgeInsets.only(
-            top: AleraTokens.topBarHeight + AleraTokens.space16,
+            top: AleraTokens.space16,
             right: AleraTokens.space16,
           ),
           child: Column(

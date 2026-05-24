@@ -1,23 +1,15 @@
-import 'dart:io';
-
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/presentation/add_project_dialog.dart';
-import 'package:alera/src/features/projects/presentation/project_sidebar.dart';
-import 'package:alera/src/features/session/application/session_controller.dart';
-import 'package:alera/src/features/session/application/session_state.dart';
-import 'package:alera/src/features/session/domain/codex_model_catalog.dart';
-import 'package:alera/src/features/session/domain/composer_attachment.dart';
-import 'package:alera/src/features/session/presentation/session_workspace_view.dart';
-import 'package:alera/src/features/shell/presentation/alera_status_bar.dart';
-import 'package:alera/src/features/shell/presentation/alera_top_bar.dart';
+import 'package:alera/src/features/workbench/application/workbench_state.dart';
+import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/features/workbench/presentation/project_workbench_sidebar.dart';
+import 'package:alera/src/features/workbench/presentation/workbench_status_bar.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_workbench_view.dart';
 import 'package:alera/src/shared/presentation/toast/alera_toast.dart';
-import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
-import 'package:uuid/uuid.dart';
 
 class AleraShellPage extends ConsumerWidget {
   const AleraShellPage({super.key});
@@ -93,22 +85,19 @@ class _AleraShellPageBody extends ConsumerStatefulWidget {
 
 class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
   String? _lastErrorMessage;
-  bool _rawLogExpanded = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await ref.read(sessionControllerProvider.notifier).bootstrap();
-      await ref.read(projectsControllerProvider.notifier).bootstrap();
+      await ref.read(workbenchControllerProvider.notifier).bootstrap();
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final controller = ref.read(sessionControllerProvider.notifier);
-    final error = ref.watch(sessionControllerProvider.select((s) => s.error));
-
+    final state = ref.watch(workbenchControllerProvider);
+    final error = state.error;
     if (error != null && error != _lastErrorMessage) {
       _lastErrorMessage = error;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -119,71 +108,31 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
       });
     }
 
-    final workspacePath = ref.watch(
-      sessionControllerProvider.select((s) => s.selectedWorkspacePath),
-    );
-    final statusBarWorkspacePath = ref.watch(
-      sessionControllerProvider.select(
-        (s) => s.activeSession?.workspacePath ?? s.selectedWorkspacePath,
-      ),
-    );
-    final activeSessionTitle = ref.watch(
-      sessionControllerProvider.select((s) => s.activeSession?.title),
-    );
-    final isBusy = ref.watch(sessionControllerProvider.select((s) => s.isBusy));
-    final activityLogEmpty = ref.watch(
-      sessionControllerProvider.select((s) => s.activityLog.isEmpty),
-    );
-
-    final connectionState = ref.watch(
-      sessionControllerProvider.select((s) => s.connectionState),
-    );
-    final runningTurnCount = ref.watch(
-      sessionControllerProvider.select((s) => s.runningTurnCount),
-    );
-    final statusHeader = ref.watch(
-      sessionControllerProvider.select((s) => s.statusHeader),
-    );
-    final lastTurnDiff = ref.watch(
-      sessionControllerProvider.select((s) => s.lastTurnDiff),
-    );
+    final project = state.activeProject;
+    final workspace = state.activeWorkspace;
+    final activeTab = state.activeTerminalTab;
 
     return Scaffold(
       body: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          const ProjectSidebar(),
+          const ProjectWorkbenchSidebar(),
           Expanded(
             child: Column(
               children: <Widget>[
-                AleraTopBar(
-                  workspaceName: _workspaceName(workspacePath),
-                  sessionTitle: activeSessionTitle,
-                  isBusy: isBusy,
-                ),
                 Expanded(
-                  child: Consumer(
-                    builder: (context, ref, child) {
-                      final state = ref.watch(sessionControllerProvider);
-                      return _buildContent(
-                        state: state,
-                        controller: controller,
-                      );
-                    },
+                  child: _buildContent(
+                    state: state,
+                    project: project,
+                    workspace: workspace,
                   ),
                 ),
-                AleraStatusBar(
-                  connectionState: connectionState,
-                  runningTurnCount: runningTurnCount,
-                  statusHeader: statusHeader,
-                  lastTurnDiff: lastTurnDiff,
-                  workspacePath: statusBarWorkspacePath,
-                  rawLogExpanded: _rawLogExpanded,
-                  onToggleRawLog: () =>
-                      setState(() => _rawLogExpanded = !_rawLogExpanded),
-                  onCopyRawLog: () =>
-                      _copyRawLog(ref.read(sessionControllerProvider)),
-                  canCopyRawLog: !activityLogEmpty,
+                WorkbenchStatusBar(
+                  workspace: workspace,
+                  activeTab: activeTab,
+                  tabCount: workspace == null
+                      ? 0
+                      : state.tabsFor(workspace.id).length,
                 ),
               ],
             ),
@@ -194,128 +143,45 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
   }
 
   Widget _buildContent({
-    required SessionState state,
-    required SessionController controller,
+    required WorkbenchState state,
+    required Project? project,
+    required Workspace? workspace,
   }) {
-    final workspacePath = state.selectedWorkspacePath;
-    if (workspacePath == null || workspacePath.isEmpty) {
+    if (!state.bootstrapped && state.projects.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (project == null || workspace == null) {
       return _EmptyState(
-        icon: Icons.workspaces_outline,
-        title: 'Pick a chat',
+        icon: Icons.terminal,
+        title: 'Pick a workspace',
         message:
-            'Select an existing chat from the sidebar, or add a project and start a new chat.',
+            'Select an existing workspace from the sidebar, or add a project to create the main workspace.',
         actionLabel: 'Add project',
-        onAction: () => _addProject(context),
-        statusHeader: state.statusHeader,
+        onAction: _addProject,
       );
     }
-    return SessionWorkspaceView(
-      state: state,
-      onSendInput: controller.sendInput,
-      onInterruptTurn: controller.interruptActiveTurn,
-      isTurnRunning: state.runningTurnCount > 0,
-      isInterrupting: state.isInterrupting,
-      onModelChanged: controller.updateActiveSessionModel,
-      activeReasoningEffort: state.activeReasoningEffort,
-      supportedReasoningEfforts: supportedReasoningEffortsForModel(
-        state.activeModelId,
-      ),
-      onReasoningEffortChanged: controller.updateReasoningEffort,
-      activeSpeedMode: state.activeSpeedMode,
-      onSpeedModeChanged: controller.updateSpeedMode,
-      isMarkdownEnabled: state.activeMarkdownEnabled,
-      onMarkdownModeChanged: controller.updateMarkdownEnabled,
-      rawLogExpanded: _rawLogExpanded,
-      onAddAttachment: () => _addAttachment(controller),
-      onPasteImage: (file) => _pasteImage(controller, file),
-      onRemoveAttachment: controller.removeAttachment,
-      onRemoveFromQueue: controller.removeFromQueue,
-      onSteerQueuedMessage: controller.steerQueuedMessage,
-      onStartEditingPendingMessage: controller.startEditingPendingMessage,
-      onUpdatePendingMessage: controller.updatePendingMessage,
-      onDeletePendingMessage: controller.removeFromQueue,
-      onFinishEditingPendingMessage: controller.finishEditingPendingMessage,
-      onPlanModeToggled: controller.togglePlanMode,
-      onImplementPlanPressed: controller.implementPlanFromChatAction,
-      onPermissionModeToggled: controller.togglePermissionMode,
-      onPermissionModeSelected: controller.setPermissionMode,
-      onApproveRequest: controller.approveRequest,
-      onDeclineRequest: controller.declineRequest,
-      onSubmitUserInput: controller.submitUserInput,
-      onDismissUserInput: controller.dismissUserInput,
-      onListSkills: controller.listAvailableSkills,
-      onListApps: controller.listAvailableApps,
-      onListReviewBranches: controller.listReviewBranches,
-      onAddDraftItem: controller.addComposerDraftItem,
-      onRemoveDraftItem: controller.removeComposerDraftItem,
-      onStartReviewFromPreset: controller.startReviewFromPreset,
-      onCompact: controller.compactContext,
+    final tabs = state.tabsFor(workspace.id);
+    final controller = ref.read(workbenchControllerProvider.notifier);
+    final terminalRuntime = ref.read(terminalRuntimeProvider);
+    return WorkspaceWorkbenchView(
+      project: project,
+      workspace: workspace,
+      tabs: tabs,
+      activeTab: state.activeTerminalTab,
+      terminalRuntime: terminalRuntime,
+      onCreateTab: () async {
+        await controller.createTerminalTab(workspace);
+      },
+      onSelectTab: (tabId) =>
+          controller.setActiveTab(workspaceId: workspace.id, tabId: tabId),
+      onCloseTab: (tabId) async {
+        terminalRuntime.closeTab(tabId);
+        await controller.closeTerminalTab(workspace: workspace, tabId: tabId);
+      },
     );
   }
 
-  Future<void> _addAttachment(SessionController controller) async {
-    final XFile? file;
-    try {
-      file = await openFile(
-        acceptedTypeGroups: <XTypeGroup>[const XTypeGroup(label: 'All files')],
-      );
-    } catch (_) {
-      return;
-    }
-    if (file == null) {
-      return;
-    }
-    final kind = _attachmentKindFromPath(file.path);
-    final mimeType = kind == AttachmentKind.image
-        ? _imageMimeType(file.path)
-        : null;
-    controller.addAttachment(
-      ComposerAttachment(
-        id: const Uuid().v4(),
-        kind: kind,
-        path: file.path,
-        displayName: file.name,
-        mimeType: mimeType,
-      ),
-    );
-  }
-
-  void _pasteImage(SessionController controller, File file) {
-    controller.addAttachment(
-      ComposerAttachment(
-        id: const Uuid().v4(),
-        kind: AttachmentKind.image,
-        path: file.path,
-        displayName: p.basename(file.path),
-        mimeType: 'image/png',
-      ),
-    );
-  }
-
-  AttachmentKind _attachmentKindFromPath(String path) {
-    final ext = p.extension(path).toLowerCase().replaceFirst('.', '');
-    if (const <String>{'jpg', 'jpeg', 'png', 'gif', 'webp'}.contains(ext)) {
-      return AttachmentKind.image;
-    }
-    return AttachmentKind.file;
-  }
-
-  String _imageMimeType(String path) {
-    final ext = p.extension(path).toLowerCase().replaceFirst('.', '');
-    switch (ext) {
-      case 'jpg':
-      case 'jpeg':
-        return 'image/jpeg';
-      case 'gif':
-        return 'image/gif';
-      case 'webp':
-        return 'image/webp';
-      default:
-        return 'image/png';
-    }
-  }
-
-  Future<void> _addProject(BuildContext context) async {
+  Future<void> _addProject() async {
     final result = await showDialog<AddProjectResult>(
       context: context,
       builder: (_) => const AddProjectDialog(),
@@ -325,7 +191,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
     }
     try {
       await ref
-          .read(projectsControllerProvider.notifier)
+          .read(workbenchControllerProvider.notifier)
           .addProject(repoPath: result.repoPath, name: result.name);
       if (!mounted) {
         return;
@@ -339,17 +205,6 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
     }
   }
 
-  String? _workspaceName(String? workspacePath) {
-    if (workspacePath == null || workspacePath.isEmpty) {
-      return null;
-    }
-    final name = p.basename(workspacePath);
-    if (name.isEmpty) {
-      return workspacePath;
-    }
-    return name;
-  }
-
   void _showSuccess(String message) {
     AleraToast.show(context, message: message, tone: AleraToastTone.success);
   }
@@ -357,46 +212,6 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
   void _showError(String message) {
     AleraToast.show(context, message: message, tone: AleraToastTone.error);
   }
-
-  Future<void> _copyRawLog(SessionState state) async {
-    if (state.activityLog.isEmpty) {
-      if (!mounted) {
-        return;
-      }
-      AleraToast.show(
-        context,
-        message: 'No logs to copy',
-        tone: AleraToastTone.error,
-      );
-      return;
-    }
-
-    final text = buildRawLogClipboardText(state.activityLog);
-    try {
-      await Clipboard.setData(ClipboardData(text: text));
-      if (!mounted) {
-        return;
-      }
-      AleraToast.show(
-        context,
-        message: 'Raw logs copied',
-        tone: AleraToastTone.success,
-      );
-    } catch (_) {
-      if (!mounted) {
-        return;
-      }
-      AleraToast.show(
-        context,
-        message: 'Failed to copy raw logs',
-        tone: AleraToastTone.error,
-      );
-    }
-  }
-}
-
-String buildRawLogClipboardText(List<String> logs) {
-  return logs.join('\n');
 }
 
 class _EmptyState extends StatelessWidget {
@@ -406,7 +221,6 @@ class _EmptyState extends StatelessWidget {
     required this.message,
     this.actionLabel,
     this.onAction,
-    this.statusHeader,
   });
 
   final IconData icon;
@@ -414,14 +228,13 @@ class _EmptyState extends StatelessWidget {
   final String message;
   final String? actionLabel;
   final VoidCallback? onAction;
-  final String? statusHeader;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 480),
+        constraints: const BoxConstraints(maxWidth: 520),
         child: Padding(
           padding: const EdgeInsets.all(AleraTokens.space24),
           child: Column(
@@ -466,4 +279,8 @@ class _EmptyState extends StatelessWidget {
       ),
     );
   }
+}
+
+String buildRawLogClipboardText(List<String> logs) {
+  return logs.join('\n');
 }

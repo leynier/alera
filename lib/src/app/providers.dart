@@ -16,6 +16,13 @@ import 'package:alera/src/features/session/application/session_state.dart';
 import 'package:alera/src/features/settings/application/settings_service.dart';
 import 'package:alera/src/features/steer/application/steer_controller.dart';
 import 'package:alera/src/features/steer/domain/steer_state.dart';
+import 'package:alera/src/features/workbench/application/terminal_tab_service.dart';
+import 'package:alera/src/features/workbench/application/workbench_controller.dart';
+import 'package:alera/src/features/workbench/application/workbench_repository.dart';
+import 'package:alera/src/features/workbench/application/workbench_state.dart';
+import 'package:alera/src/features/workbench/application/workspace_service.dart';
+import 'package:alera/src/features/workbench/infra/sembast_workbench_repository.dart';
+import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/shared/infra/process/io_process_runner.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 import 'package:alera/src/shared/infra/storage/preferences_store.dart';
@@ -77,11 +84,29 @@ final sidebarPrefsRepositoryProvider = Provider<SembastSidebarPrefsRepository>((
   return SembastSidebarPrefsRepository(db);
 });
 
+final workbenchRepositoryProvider = Provider<WorkbenchRepository>((ref) {
+  final dbAsync = ref.watch(aleraDatabaseProvider);
+  final db = dbAsync.requireValue;
+  return SembastWorkbenchRepository(db);
+});
+
 final worktreeServiceProvider = Provider<WorktreeService>((ref) {
   return WorktreeService(
     projectRepository: ref.watch(projectRepositoryProvider),
     processRunner: ref.watch(processRunnerProvider),
   );
+});
+
+final workspaceServiceProvider = Provider<WorkspaceService>((ref) {
+  return WorkspaceService(
+    repository: ref.watch(workbenchRepositoryProvider),
+    projectService: ref.watch(projectServiceProvider),
+    processRunner: ref.watch(processRunnerProvider),
+  );
+});
+
+final terminalTabServiceProvider = Provider<TerminalTabService>((ref) {
+  return TerminalTabService(repository: ref.watch(workbenchRepositoryProvider));
 });
 
 final projectsServiceProvider = Provider<ProjectsService>((ref) {
@@ -100,6 +125,22 @@ final projectsControllerProvider =
         sidebarPrefsRepository: ref.watch(sidebarPrefsRepositoryProvider),
       );
     });
+
+final workbenchControllerProvider =
+    StateNotifierProvider<WorkbenchController, WorkbenchState>((ref) {
+      return WorkbenchController(
+        projectsService: ref.watch(projectsServiceProvider),
+        repository: ref.watch(workbenchRepositoryProvider),
+        workspaceService: ref.watch(workspaceServiceProvider),
+        terminalTabService: ref.watch(terminalTabServiceProvider),
+      );
+    });
+
+final terminalRuntimeProvider = Provider<TerminalRuntime>((ref) {
+  final runtime = XtermTerminalRuntime();
+  ref.onDispose(runtime.dispose);
+  return runtime;
+});
 
 final settingsServiceProvider = Provider<SettingsService>((ref) {
   return SettingsService(ref.watch(preferencesStoreProvider));
