@@ -9,6 +9,7 @@ import 'package:alera/src/features/projects/presentation/widgets/sidebar_collaps
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_icon_button.dart';
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_resize_handle.dart';
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_search_bar.dart';
+import 'package:alera/src/features/settings/presentation/settings_dialog.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_listing.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
@@ -57,6 +58,7 @@ class _ProjectWorkbenchSidebarState
         state: state,
         controller: controller,
         onAddProject: _addProject,
+        onOpenSettings: () => unawaited(_openSettings()),
       );
     }
     return SizedBox(
@@ -110,7 +112,10 @@ class _ProjectWorkbenchSidebarState
                         ),
                 ),
                 const Divider(height: 1, color: AleraTokens.borderSubtle),
-                _SidebarFooter(onAddProject: _addProject),
+                _SidebarFooter(
+                  onAddProject: _addProject,
+                  onOpenSettings: () => unawaited(_openSettings()),
+                ),
               ],
             ),
           ),
@@ -166,6 +171,13 @@ class _ProjectWorkbenchSidebarState
         tone: AleraToastTone.error,
       );
     }
+  }
+
+  Future<void> _openSettings() {
+    return showDialog<void>(
+      context: context,
+      builder: (_) => const SettingsDialog(),
+    );
   }
 
   Future<void> _createWorkspace(Project? initialProject) async {
@@ -427,11 +439,13 @@ class _CollapsedSidebar extends StatelessWidget {
     required this.state,
     required this.controller,
     required this.onAddProject,
+    required this.onOpenSettings,
   });
 
   final WorkbenchState state;
   final WorkbenchController controller;
   final VoidCallback onAddProject;
+  final VoidCallback onOpenSettings;
 
   @override
   Widget build(BuildContext context) {
@@ -467,7 +481,7 @@ class _CollapsedSidebar extends StatelessWidget {
               ),
             ),
             const Divider(height: 1, color: AleraTokens.borderSubtle),
-            const _CollapsedSidebarFooter(),
+            _CollapsedSidebarFooter(onOpenSettings: onOpenSettings),
           ],
         ),
       ),
@@ -815,12 +829,12 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
         const _WorkspaceMenuEntry(
           value: _sleepAction,
           icon: Icons.bedtime_outlined,
-          label: 'Sleep workspace',
+          label: 'Sleep',
         ),
         _WorkspaceMenuEntry(
           value: _removeAction,
           icon: Icons.delete_outline,
-          label: 'Remove workspace',
+          label: 'Remove',
           enabled: widget.onDelete != null,
         ),
       ],
@@ -1221,52 +1235,50 @@ class _EmptyProjectsView extends StatelessWidget {
 }
 
 class _SidebarFooter extends StatelessWidget {
-  const _SidebarFooter({required this.onAddProject});
+  const _SidebarFooter({
+    required this.onAddProject,
+    required this.onOpenSettings,
+  });
 
   final VoidCallback onAddProject;
-
-  void _showPlaceholder(BuildContext context, String label) {
-    AleraToast.show(
-      context,
-      message: '$label coming soon',
-      tone: AleraToastTone.info,
-    );
-  }
+  final VoidCallback onOpenSettings;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: AleraTokens.statusBarHeight,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space8),
-        child: Row(
-          children: <Widget>[
-            MouseRegion(
-              cursor: SystemMouseCursors.click,
-              child: TextButton.icon(
+      height: AleraTokens.sidebarHeaderHeight,
+      child: DecoratedBox(
+        decoration: const BoxDecoration(color: AleraTokens.surface),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AleraTokens.space8,
+            vertical: AleraTokens.space6,
+          ),
+          child: Row(
+            children: <Widget>[
+              OutlinedButton.icon(
                 onPressed: onAddProject,
-                icon: const Icon(Icons.add, size: 14),
-                label: const Text('Add Project'),
-                style: TextButton.styleFrom(
+                icon: const Icon(Icons.add, size: 15),
+                label: const Text('Add project'),
+                style: OutlinedButton.styleFrom(
                   foregroundColor: AleraTokens.foregroundMuted,
                   padding: const EdgeInsets.symmetric(
-                    horizontal: AleraTokens.space6,
+                    horizontal: AleraTokens.space8,
                   ),
-                  minimumSize: const Size(0, 24),
+                  minimumSize: const Size(0, 30),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  textStyle: Theme.of(context).textTheme.labelSmall,
+                  textStyle: Theme.of(context).textTheme.labelMedium,
+                  side: const BorderSide(color: AleraTokens.borderSubtle),
                 ),
               ),
-            ),
-            const Spacer(),
-            SidebarIconButton(
-              tooltip: 'Settings',
-              onPressed: () => _showPlaceholder(context, 'Settings'),
-              icon: Icons.settings_outlined,
-              iconSize: 14,
-              minSize: 24,
-            ),
-          ],
+              const Spacer(),
+              _FooterIconButton(
+                tooltip: 'Settings',
+                onPressed: onOpenSettings,
+                icon: Icons.settings_outlined,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1274,25 +1286,57 @@ class _SidebarFooter extends StatelessWidget {
 }
 
 class _CollapsedSidebarFooter extends StatelessWidget {
-  const _CollapsedSidebarFooter();
+  const _CollapsedSidebarFooter({required this.onOpenSettings});
 
-  void _showPlaceholder(BuildContext context, String label) {
-    AleraToast.show(
-      context,
-      message: '$label coming soon',
-      tone: AleraToastTone.info,
-    );
-  }
+  final VoidCallback onOpenSettings;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AleraTokens.space6),
-      child: SidebarIconButton(
-        tooltip: 'Settings',
-        onPressed: () => _showPlaceholder(context, 'Settings'),
-        icon: Icons.settings_outlined,
-        minSize: 28,
+    return SizedBox(
+      height: AleraTokens.sidebarHeaderHeight,
+      child: DecoratedBox(
+        decoration: const BoxDecoration(color: AleraTokens.surface),
+        child: Center(
+          child: _FooterIconButton(
+            tooltip: 'Settings',
+            onPressed: onOpenSettings,
+            icon: Icons.settings_outlined,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FooterIconButton extends StatelessWidget {
+  const _FooterIconButton({
+    required this.tooltip,
+    required this.onPressed,
+    required this.icon,
+  });
+
+  final String tooltip;
+  final VoidCallback onPressed;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      tooltip: tooltip,
+      onPressed: onPressed,
+      icon: Icon(icon, size: 15, color: AleraTokens.foregroundMuted),
+      visualDensity: VisualDensity.compact,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+      style: IconButton.styleFrom(
+        backgroundColor: AleraTokens.surfaceVariant,
+        minimumSize: const Size(30, 30),
+        maximumSize: const Size(30, 30),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+          side: const BorderSide(color: AleraTokens.borderSubtle),
+        ),
       ),
     );
   }

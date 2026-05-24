@@ -5,7 +5,6 @@ import 'package:alera/src/features/projects/presentation/add_project_dialog.dart
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/project_workbench_sidebar.dart';
-import 'package:alera/src/features/workbench/presentation/workbench_status_bar.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_workbench_view.dart';
 import 'package:alera/src/shared/presentation/toast/alera_toast.dart';
 import 'package:flutter/material.dart';
@@ -110,7 +109,6 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
 
     final project = state.activeProject;
     final workspace = state.activeWorkspace;
-    final activeTab = state.activeTerminalTab;
 
     return Scaffold(
       body: Row(
@@ -118,23 +116,10 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
         children: <Widget>[
           const ProjectWorkbenchSidebar(),
           Expanded(
-            child: Column(
-              children: <Widget>[
-                Expanded(
-                  child: _buildContent(
-                    state: state,
-                    project: project,
-                    workspace: workspace,
-                  ),
-                ),
-                WorkbenchStatusBar(
-                  workspace: workspace,
-                  activeTab: activeTab,
-                  tabCount: workspace == null
-                      ? 0
-                      : state.tabsFor(workspace.id).length,
-                ),
-              ],
+            child: _buildContent(
+              state: state,
+              project: project,
+              workspace: workspace,
             ),
           ),
         ],

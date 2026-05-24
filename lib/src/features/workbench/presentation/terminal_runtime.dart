@@ -6,7 +6,8 @@ import 'dart:ffi' as ffi;
 import 'dart:io' show Platform;
 import 'dart:isolate';
 
-import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/features/settings/domain/alera_settings.dart';
+import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
 import 'package:alera/src/features/workbench/domain/terminal_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:ffi/ffi.dart';
@@ -326,13 +327,24 @@ class _GhosttyTerminalPtySessionAdapter implements TerminalPtySession {
 }
 
 class XtermTerminalRuntime implements TerminalRuntime {
-  XtermTerminalRuntime({TerminalPtySessionFactory? ptySessionFactory})
-    : _ptySessionFactory =
-          ptySessionFactory ?? const DefaultTerminalPtySessionFactory();
+  XtermTerminalRuntime({
+    TerminalPtySessionFactory? ptySessionFactory,
+    TerminalSettings? initialSettings,
+  }) : _settings = initialSettings ?? TerminalSettings.defaults,
+       _ptySessionFactory =
+           ptySessionFactory ?? const DefaultTerminalPtySessionFactory();
 
   final TerminalPtySessionFactory _ptySessionFactory;
+  TerminalSettings _settings;
   final Map<String, _XtermTerminalSessionHandle> _sessions =
       <String, _XtermTerminalSessionHandle>{};
+
+  void updateSettings(TerminalSettings settings) {
+    _settings = settings;
+    for (final session in _sessions.values) {
+      session.applySettings(settings);
+    }
+  }
 
   @override
   TerminalSessionHandle sessionFor({
@@ -345,6 +357,7 @@ class XtermTerminalRuntime implements TerminalRuntime {
             workspace: workspace,
             tab: tab,
             ptySessionFactory: _ptySessionFactory,
+            settings: _settings,
           );
         })
         .sync(workspace: workspace, tab: tab);
@@ -380,9 +393,11 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     required Workspace workspace,
     required TerminalTabRecord tab,
     required TerminalPtySessionFactory ptySessionFactory,
+    required TerminalSettings settings,
   }) : _workspace = workspace,
        _tab = tab,
-       _ptySessionFactory = ptySessionFactory {
+       _ptySessionFactory = ptySessionFactory,
+       _settings = settings {
     _terminal = _createTerminal();
     _decodedOutputSub = _ptyOutputController.stream
         .transform(const Utf8Decoder(allowMalformed: true))
@@ -392,6 +407,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   Workspace _workspace;
   TerminalTabRecord _tab;
   final TerminalPtySessionFactory _ptySessionFactory;
+  TerminalSettings _settings;
   late xterm.Terminal _terminal;
   final xterm.TerminalController _terminalController =
       xterm.TerminalController();
@@ -458,6 +474,11 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     return this;
   }
 
+  void applySettings(TerminalSettings settings) {
+    _settings = settings;
+    notifyListeners();
+  }
+
   @override
   Future<void> ensureStarted() async {
     if (_started || _starting) {
@@ -501,16 +522,23 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
       controller: _terminalController,
       focusNode: _focusNode,
       autofocus: autofocus,
-      theme: _aleraXtermTheme,
+      theme: _resolveXtermTheme(_settings),
       textStyle: xterm.TerminalStyle(
-        fontSize: 13,
-        height: 1.3,
-        fontFamily: GoogleFonts.jetBrainsMono().fontFamily ?? 'monospace',
+        fontSize: _settings.fontSize,
+        fontWeight: _settings.fontWeight,
+        height: _settings.lineHeight,
+        fontFamily: _resolveTerminalFontFamily(_settings.fontFamily),
         fontFamilyFallback: _terminalFontFallback,
       ),
-      padding: const EdgeInsets.all(AleraTokens.space12),
-      cursorType: xterm.TerminalCursorType.block,
-      backgroundOpacity: 1,
+      padding: EdgeInsets.fromLTRB(
+        _settings.paddingX,
+        _settings.paddingY,
+        _settings.paddingX,
+        _settings.paddingY,
+      ),
+      cursorType: _settings.cursorShape.toXtermCursorType(),
+      cursorBlink: _settings.cursorBlink,
+      backgroundOpacity: _settings.backgroundOpacity,
     );
   }
 
@@ -603,8 +631,9 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
 
   xterm.Terminal _createTerminal() {
     final terminal = xterm.Terminal(
-      maxLines: 10000,
+      maxLines: _settings.scrollbackLines,
       platform: _xtermTargetPlatform,
+      wordSeparators: _wordSeparatorsFromSettings(_settings.wordSeparators),
     );
     terminal.onTitleChange = _handleTitleChanged;
     terminal.onOutput = _handleTerminalInput;
@@ -801,6 +830,31 @@ final xterm.TerminalTargetPlatform _xtermTargetPlatform =
       TargetPlatform.windows => xterm.TerminalTargetPlatform.windows,
     };
 
+String _resolveTerminalFontFamily(String fontFamily) {
+  if (fontFamily.trim().toLowerCase() == 'jetbrains mono') {
+    return GoogleFonts.jetBrainsMono().fontFamily ?? fontFamily;
+  }
+  return fontFamily.trim().isEmpty ? 'monospace' : fontFamily.trim();
+}
+
+Set<int>? _wordSeparatorsFromSettings(String? value) {
+  final separators = value?.trim();
+  if (separators == null || separators.isEmpty) {
+    return null;
+  }
+  return separators.runes.toSet();
+}
+
+extension on TerminalCursorShape {
+  xterm.TerminalCursorType toXtermCursorType() {
+    return switch (this) {
+      TerminalCursorShape.block => xterm.TerminalCursorType.block,
+      TerminalCursorShape.bar => xterm.TerminalCursorType.verticalBar,
+      TerminalCursorShape.underline => xterm.TerminalCursorType.underline,
+    };
+  }
+}
+
 const List<String> _terminalFontFallback = <String>[
   'SF Mono',
   'Menlo',
@@ -819,31 +873,46 @@ const List<String> _terminalFontFallback = <String>[
   'monospace',
 ];
 
-const xterm.TerminalTheme _aleraXtermTheme = xterm.TerminalTheme(
-  cursor: AleraTokens.accent,
-  selection: AleraTokens.accentSubtle,
-  foreground: AleraTokens.foreground,
-  background: AleraTokens.bg,
-  black: AleraTokens.foregroundFaint,
-  red: AleraTokens.error,
-  green: AleraTokens.success,
-  yellow: AleraTokens.warning,
-  blue: AleraTokens.info,
-  magenta: AleraTokens.accent,
-  cyan: AleraTokens.info,
-  white: AleraTokens.foreground,
-  brightBlack: AleraTokens.foregroundMuted,
-  brightRed: AleraTokens.error,
-  brightGreen: AleraTokens.success,
-  brightYellow: AleraTokens.warning,
-  brightBlue: AleraTokens.info,
-  brightMagenta: AleraTokens.accent,
-  brightCyan: AleraTokens.info,
-  brightWhite: AleraTokens.foreground,
-  searchHitBackground: AleraTokens.surfaceElevated,
-  searchHitBackgroundCurrent: AleraTokens.accentSubtle,
-  searchHitForeground: AleraTokens.foreground,
-);
+Color? _colorFromHex(String? value) {
+  final normalized = normalizeTerminalHexColor(value);
+  if (normalized == null) {
+    return null;
+  }
+  return Color(0xFF000000 | int.parse(normalized.substring(1), radix: 16));
+}
+
+xterm.TerminalTheme _resolveXtermTheme(TerminalSettings settings) {
+  final base = terminalThemeForName(settings.themeName);
+  final overrides = settings.colorOverrides;
+  final cursor = (_colorFromHex(overrides.cursor) ?? base.cursor).withValues(
+    alpha: settings.cursorOpacity,
+  );
+  return xterm.TerminalTheme(
+    cursor: cursor,
+    selection: _colorFromHex(overrides.selection) ?? base.selection,
+    foreground: _colorFromHex(overrides.foreground) ?? base.foreground,
+    background: _colorFromHex(overrides.background) ?? base.background,
+    black: base.black,
+    red: base.red,
+    green: base.green,
+    yellow: base.yellow,
+    blue: base.blue,
+    magenta: base.magenta,
+    cyan: base.cyan,
+    white: base.white,
+    brightBlack: base.brightBlack,
+    brightRed: base.brightRed,
+    brightGreen: base.brightGreen,
+    brightYellow: base.brightYellow,
+    brightBlue: base.brightBlue,
+    brightMagenta: base.brightMagenta,
+    brightCyan: base.brightCyan,
+    brightWhite: base.brightWhite,
+    searchHitBackground: base.searchHitBackground,
+    searchHitBackgroundCurrent: base.searchHitBackgroundCurrent,
+    searchHitForeground: base.searchHitForeground,
+  );
+}
 
 typedef _ReadNative =
     ffi.IntPtr Function(

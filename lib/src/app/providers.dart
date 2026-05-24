@@ -2,6 +2,12 @@ import 'package:alera/src/features/projects/application/project_repository.dart'
 import 'package:alera/src/features/projects/application/project_service.dart';
 import 'package:alera/src/features/projects/application/projects_service.dart';
 import 'package:alera/src/features/projects/infra/sembast_project_repository.dart';
+import 'package:alera/src/features/settings/application/github_star_controller.dart';
+import 'package:alera/src/features/settings/application/settings_controller.dart';
+import 'package:alera/src/features/settings/domain/alera_settings.dart';
+import 'package:alera/src/features/settings/infra/github_star_service.dart';
+import 'package:alera/src/features/settings/infra/sembast_settings_repository.dart';
+import 'package:alera/src/features/settings/infra/system_font_service.dart';
 import 'package:alera/src/features/workbench/application/terminal_tab_service.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
@@ -57,17 +63,45 @@ final workbenchViewPrefsRepositoryProvider =
       return SembastWorkbenchViewPrefsRepository(db);
     });
 
+final settingsRepositoryProvider = Provider<SembastSettingsRepository>((ref) {
+  final dbAsync = ref.watch(aleraDatabaseProvider);
+  final db = dbAsync.requireValue;
+  return SembastSettingsRepository(db);
+});
+
+final settingsControllerProvider =
+    StateNotifierProvider<SettingsController, AleraSettings>((ref) {
+      return SettingsController(ref.watch(settingsRepositoryProvider));
+    });
+
 final workspaceServiceProvider = Provider<WorkspaceService>((ref) {
+  final override = ref.watch(
+    settingsControllerProvider.select((s) => s.general.workspaceDirectory),
+  );
   return WorkspaceService(
     repository: ref.watch(workbenchRepositoryProvider),
     projectService: ref.watch(projectServiceProvider),
     processRunner: ref.watch(processRunnerProvider),
+    workspaceRoot: WorkspaceRoot(override: override),
   );
 });
 
 final terminalTabServiceProvider = Provider<TerminalTabService>((ref) {
   return TerminalTabService(repository: ref.watch(workbenchRepositoryProvider));
 });
+
+final gitHubStarServiceProvider = Provider<GitHubStarService>((ref) {
+  return GitHubStarService(ref.watch(processRunnerProvider));
+});
+
+final systemFontServiceProvider = Provider<SystemFontService>((ref) {
+  return IoSystemFontService(ref.watch(processRunnerProvider));
+});
+
+final gitHubStarControllerProvider =
+    StateNotifierProvider<GitHubStarController, GitHubStarState>((ref) {
+      return GitHubStarController(ref.watch(gitHubStarServiceProvider));
+    });
 
 final projectsServiceProvider = Provider<ProjectsService>((ref) {
   return ProjectsService(
@@ -88,7 +122,13 @@ final workbenchControllerProvider =
     });
 
 final terminalRuntimeProvider = Provider<TerminalRuntime>((ref) {
-  final runtime = XtermTerminalRuntime();
+  final runtime = XtermTerminalRuntime(
+    initialSettings: ref.read(settingsControllerProvider).terminal,
+  );
+  ref.listen<TerminalSettings>(
+    settingsControllerProvider.select((settings) => settings.terminal),
+    (_, next) => runtime.updateSettings(next),
+  );
   ref.onDispose(runtime.dispose);
   return runtime;
 });

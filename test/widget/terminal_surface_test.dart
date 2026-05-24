@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:alera/src/features/settings/domain/alera_settings.dart';
+import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
 import 'package:alera/src/features/workbench/domain/terminal_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
@@ -8,6 +10,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
+import 'package:xterm/xterm.dart' as xterm;
 
 void main() {
   test('working directory launch keeps the shell usable if cd fails', () {
@@ -145,6 +148,34 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  test('runtime applies visual settings to existing sessions', () {
+    final initialSettings = TerminalSettings.defaults.copyWith(
+      fontFamily: 'monospace',
+    );
+    final runtime = XtermTerminalRuntime(initialSettings: initialSettings);
+    addTearDown(runtime.dispose);
+    final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
+    var notifications = 0;
+    session.addListener(() => notifications++);
+
+    runtime.updateSettings(
+      initialSettings.copyWith(
+        fontSize: 18,
+        fontWeight: 500,
+        cursorBlink: true,
+        themeName: 'Tokyo Night',
+      ),
+    );
+
+    final view = session.buildView() as xterm.TerminalView;
+    final expectedTheme = terminalThemeForName('Tokyo Night');
+    expect(notifications, 1);
+    expect(view.textStyle.fontSize, 18);
+    expect(view.textStyle.fontWeight, 500);
+    expect(view.cursorBlink, isTrue);
+    expect(view.theme.background, expectedTheme.background);
+  });
 
   testWidgets('defers startup notifications until after the first frame', (
     tester,

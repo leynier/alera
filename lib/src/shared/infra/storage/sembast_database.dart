@@ -58,6 +58,9 @@ class AleraStores {
   static final StoreRef<String, Map<String, Object?>> workbenchViewPrefs =
       stringMapStoreFactory.store('workbench_view_prefs');
 
+  static final StoreRef<String, Map<String, Object?>> settings =
+      stringMapStoreFactory.store('settings');
+
   static final StoreRef<String, Object?> meta = StoreRef<String, Object?>(
     'meta',
   );

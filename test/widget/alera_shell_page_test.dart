@@ -16,7 +16,6 @@ import 'package:alera/src/features/workbench/domain/terminal_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
-import 'package:alera/src/features/workbench/presentation/workbench_status_bar.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -71,12 +70,14 @@ void main() {
     );
     expect(find.text('Pick a workspace'), findsNothing);
     expect(
-      find.descendant(
-        of: find.byType(WorkbenchStatusBar),
-        matching: find.text('/repo/alera'),
+      find.byWidgetPredicate(
+        (widget) => widget.runtimeType.toString() == 'WorkbenchStatusBar',
       ),
-      findsOneWidget,
+      findsNothing,
     );
+    expect(find.text('/repo/alera'), findsNothing);
+    expect(find.widgetWithText(OutlinedButton, 'Add project'), findsOneWidget);
+    expect(find.byTooltip('Settings'), findsOneWidget);
   });
 
   testWidgets('shell renders split terminal panes for one workspace', (
@@ -138,7 +139,7 @@ void main() {
     await pumpShell(tester, state: const WorkbenchState(bootstrapped: true));
 
     expect(find.text('Pick a workspace'), findsOneWidget);
-    expect(find.text('Add project'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Add project'), findsOneWidget);
   });
 
   testWidgets('workspace context menu shows supported workspace actions', (
@@ -163,10 +164,10 @@ void main() {
 
     expect(find.text('Open in Finder'), findsOneWidget);
     expect(find.text('Copy path'), findsOneWidget);
-    expect(find.text('Sleep workspace'), findsOneWidget);
-    expect(find.text('Remove workspace'), findsOneWidget);
+    expect(find.text('Sleep'), findsOneWidget);
+    expect(find.text('Remove'), findsOneWidget);
 
-    await tester.tap(find.text('Remove workspace'));
+    await tester.tap(find.text('Remove'));
     await tester.pumpAndSettle();
 
     expect(find.text('Remove workspace?'), findsNothing);
@@ -192,7 +193,7 @@ void main() {
       buttons: kSecondaryMouseButton,
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Sleep workspace'));
+    await tester.tap(find.text('Sleep'));
     await tester.pumpAndSettle();
 
     expect(runtime.closedWorkspaceIds, <String>['workspace-1']);

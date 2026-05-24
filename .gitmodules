@@ -10,9 +10,6 @@
 [submodule "reference_projects/1Code"]
 	path = reference_projects/1Code
 	url = https://github.com/21st-dev/1Code
-[submodule "reference_projects/superset"]
-	path = reference_projects/superset
-	url = https://github.com/superset-sh/superset
 [submodule "reference_projects/orca"]
 	path = reference_projects/orca
 	url = https://github.com/stablyai/orca
