@@ -130,11 +130,10 @@ class _ProjectWorkbenchSidebarState
 
   Future<void> _createWorkspaceForActiveProject() async {
     final state = ref.read(workbenchControllerProvider);
-    final project = state.activeProject;
-    if (project == null) {
+    if (state.projects.isEmpty) {
       return;
     }
-    await _createWorkspace(project);
+    await _createWorkspace(state.activeProject);
   }
 
   Future<void> _addProject() async {
@@ -169,37 +168,27 @@ class _ProjectWorkbenchSidebarState
     }
   }
 
-  Future<void> _createWorkspace(Project project) async {
+  Future<void> _createWorkspace(Project? initialProject) async {
     final controller = ref.read(workbenchControllerProvider.notifier);
-    List<String> branches;
-    try {
-      branches = await controller.listSourceBranches(project);
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      AleraToast.show(
-        context,
-        message: error.toString(),
-        tone: AleraToastTone.error,
-      );
-      return;
-    }
-    if (!mounted) {
+    final projects = ref.read(workbenchControllerProvider).projects;
+    if (projects.isEmpty) {
       return;
     }
 
     final result = await showDialog<CreateWorkspaceResult>(
       context: context,
-      builder: (_) =>
-          CreateWorkspaceDialog(project: project, branches: branches),
+      builder: (_) => CreateWorkspaceDialog(
+        projects: projects,
+        initialProject: initialProject,
+        loadBranches: controller.listSourceBranches,
+      ),
     );
     if (result == null || !mounted) {
       return;
     }
     try {
       await controller.createWorkspace(
-        project: project,
+        project: result.project,
         sourceBranch: result.sourceBranch,
         newBranchName: result.newBranchName,
         name: result.name,

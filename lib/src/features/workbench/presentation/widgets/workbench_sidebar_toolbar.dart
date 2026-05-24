@@ -46,7 +46,7 @@ class WorkbenchSidebarToolbar extends ConsumerWidget {
     final canCollapse = isProjectMode
         ? visibleProjects.isNotEmpty
         : allWorkspaceIds.isNotEmpty;
-    final hasActiveProject = state.activeProjectId != null;
+    final hasProjects = state.projects.isNotEmpty;
 
     final title = prefs.groupBy == WorkbenchGroupBy.project
         ? 'Projects'
@@ -83,10 +83,8 @@ class WorkbenchSidebarToolbar extends ConsumerWidget {
           ),
           const SizedBox(width: AleraTokens.space2),
           SidebarIconButton(
-            tooltip: hasActiveProject
-                ? 'New workspace'
-                : 'Select or add a project first',
-            onPressed: hasActiveProject ? onAddWorkspace : () {},
+            tooltip: hasProjects ? 'New workspace' : 'Add a project first',
+            onPressed: hasProjects ? onAddWorkspace : () {},
             icon: Icons.add,
           ),
         ],
