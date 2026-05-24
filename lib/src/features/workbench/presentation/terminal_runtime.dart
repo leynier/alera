@@ -2,14 +2,19 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ffi' as ffi;
+import 'dart:io' show Platform;
+import 'dart:isolate';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/workbench/domain/terminal_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:portable_pty/portable_pty.dart';
 import 'package:xterm/xterm.dart' as xterm;
 
 abstract class TerminalSessionHandle extends ChangeNotifier {
@@ -87,12 +92,146 @@ final class TerminalPtyErrorEvent extends TerminalPtySessionEvent {
   final Object error;
 }
 
-class GhosttyTerminalPtySessionFactory implements TerminalPtySessionFactory {
-  const GhosttyTerminalPtySessionFactory();
+class DefaultTerminalPtySessionFactory implements TerminalPtySessionFactory {
+  const DefaultTerminalPtySessionFactory();
 
   @override
   TerminalPtySession create() {
+    if (!kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.macOS ||
+            defaultTargetPlatform == TargetPlatform.linux)) {
+      return _PosixPortablePtySessionAdapter();
+    }
     return _GhosttyTerminalPtySessionAdapter();
+  }
+}
+
+class _PosixPortablePtySessionAdapter implements TerminalPtySession {
+  final StreamController<TerminalPtySessionEvent> _events =
+      StreamController<TerminalPtySessionEvent>.broadcast();
+  PortablePty? _pty;
+  ReceivePort? _readPort;
+  StreamSubscription<Object?>? _readSub;
+  Isolate? _readIsolate;
+  bool _disposed = false;
+
+  @override
+  Stream<TerminalPtySessionEvent> get events => _events.stream;
+
+  @override
+  Future<void> start({
+    required GhosttyTerminalShellLaunch launch,
+    required int cols,
+    required int rows,
+  }) async {
+    if (_disposed) {
+      throw StateError('PTY session is disposed.');
+    }
+    final pty = PortablePty.open(rows: rows, cols: cols);
+    _pty = pty;
+    try {
+      pty.spawn(
+        launch.shell,
+        args: launch.arguments,
+        environment: launch.environment,
+      );
+      _readPort = ReceivePort();
+      _readSub = _readPort!.listen(_handleReadMessage);
+      _readIsolate = await Isolate.spawn<List<Object?>>(
+        _posixPtyReadIsolate,
+        <Object?>[pty.masterFd, _readPort!.sendPort],
+        debugName: 'alera-posix-pty-reader',
+      );
+    } catch (_) {
+      dispose();
+      rethrow;
+    }
+  }
+
+  @override
+  bool writeBytes(List<int> bytes) {
+    final pty = _pty;
+    if (_disposed || pty == null || bytes.isEmpty) {
+      return false;
+    }
+    try {
+      return pty.writeBytes(Uint8List.fromList(bytes)) > 0;
+    } catch (error) {
+      _events.add(TerminalPtyErrorEvent(error));
+      return false;
+    }
+  }
+
+  @override
+  void resize(int cols, int rows, int cellWidthPx, int cellHeightPx) {
+    final pty = _pty;
+    if (_disposed || pty == null) {
+      return;
+    }
+    try {
+      pty.resize(rows: rows, cols: cols);
+    } catch (error) {
+      _events.add(TerminalPtyErrorEvent(error));
+    }
+  }
+
+  void _handleReadMessage(Object? message) {
+    if (_disposed) {
+      return;
+    }
+    if (message is Uint8List) {
+      _events.add(TerminalPtyOutputEvent(message));
+      return;
+    }
+    if (message is Map<Object?, Object?>) {
+      final type = message['type'];
+      if (type == 'error') {
+        _events.add(
+          TerminalPtyErrorEvent(message['error'] ?? 'Unknown PTY read error'),
+        );
+      }
+      if (type == 'done' || type == 'error') {
+        _handleExit(_pty?.tryWait() ?? 0);
+      }
+    }
+  }
+
+  void _handleExit(int exitCode) {
+    if (_disposed) {
+      return;
+    }
+    _events.add(TerminalPtyExitEvent(exitCode));
+    dispose();
+  }
+
+  @override
+  void dispose() {
+    if (_disposed) {
+      return;
+    }
+    _disposed = true;
+    unawaited(_readSub?.cancel());
+    _readSub = null;
+    _readPort?.close();
+    _readPort = null;
+    _readIsolate?.kill(priority: Isolate.immediate);
+    _readIsolate = null;
+    final pty = _pty;
+    _pty = null;
+    if (pty != null) {
+      try {
+        if (pty.tryWait() == null) {
+          try {
+            pty.kill();
+          } catch (_) {
+            // The child can exit between tryWait and kill.
+          }
+        }
+      } finally {
+        pty.close();
+      }
+    }
+    unawaited(_events.close());
   }
 }
 
@@ -185,7 +324,7 @@ class _GhosttyTerminalPtySessionAdapter implements TerminalPtySession {
 class XtermTerminalRuntime implements TerminalRuntime {
   XtermTerminalRuntime({TerminalPtySessionFactory? ptySessionFactory})
     : _ptySessionFactory =
-          ptySessionFactory ?? const GhosttyTerminalPtySessionFactory();
+          ptySessionFactory ?? const DefaultTerminalPtySessionFactory();
 
   final TerminalPtySessionFactory _ptySessionFactory;
   final Map<String, _XtermTerminalSessionHandle> _sessions =
@@ -684,3 +823,65 @@ const xterm.TerminalTheme _aleraXtermTheme = xterm.TerminalTheme(
   searchHitBackgroundCurrent: AleraTokens.accentSubtle,
   searchHitForeground: AleraTokens.foreground,
 );
+
+typedef _ReadNative =
+    ffi.IntPtr Function(
+      ffi.Int32 fd,
+      ffi.Pointer<ffi.Uint8> buf,
+      ffi.UintPtr nbyte,
+    );
+typedef _ReadDart = int Function(int fd, ffi.Pointer<ffi.Uint8> buf, int nbyte);
+
+typedef _ErrnoLocationNative = ffi.Pointer<ffi.Int32> Function();
+typedef _ErrnoLocationDart = ffi.Pointer<ffi.Int32> Function();
+
+final ffi.DynamicLibrary _libc = ffi.DynamicLibrary.process();
+final _ReadDart _posixRead = _libc.lookupFunction<_ReadNative, _ReadDart>(
+  'read',
+);
+
+int _currentErrno() {
+  final symbol = (Platform.isMacOS || Platform.isIOS)
+      ? '__error'
+      : '__errno_location';
+  return _libc
+      .lookupFunction<_ErrnoLocationNative, _ErrnoLocationDart>(symbol)()
+      .value;
+}
+
+const int _eintr = 4;
+const int _readChunkSize = 4096;
+
+void _posixPtyReadIsolate(List<Object?> args) {
+  final fd = args[0]! as int;
+  final sendPort = args[1]! as SendPort;
+  if (fd < 0) {
+    sendPort.send(const <Object?, Object?>{
+      'type': 'error',
+      'error': 'PTY master file descriptor is unavailable.',
+    });
+    return;
+  }
+  final buffer = calloc<ffi.Uint8>(_readChunkSize);
+  try {
+    while (true) {
+      final byteCount = _posixRead(fd, buffer, _readChunkSize);
+      if (byteCount > 0) {
+        sendPort.send(Uint8List.fromList(buffer.asTypedList(byteCount)));
+        continue;
+      }
+      if (byteCount < 0 && _currentErrno() == _eintr) {
+        continue;
+      }
+      sendPort.send(const <Object?, Object?>{'type': 'done'});
+      break;
+    }
+  } catch (error) {
+    sendPort.send(<Object?, Object?>{
+      'type': 'error',
+      'error': error.toString(),
+    });
+  } finally {
+    calloc.free(buffer);
+  }
+}
