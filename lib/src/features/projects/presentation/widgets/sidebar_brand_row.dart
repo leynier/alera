@@ -1,4 +1,5 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/features/projects/presentation/widgets/sidebar_icon_button.dart';
 import 'package:flutter/material.dart';
 
 class SidebarBrandRow extends StatelessWidget {
@@ -11,24 +12,27 @@ class SidebarBrandRow extends StatelessWidget {
 
   final bool collapsed;
   final VoidCallback onToggleCollapsed;
+
+  /// Optional add-project handler. The workbench sidebar moves this action to
+  /// the footer, but the chat-project sidebar still wires it here.
   final VoidCallback? onAddProject;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final toggle = _HeaderIconButton(
+    final toggle = SidebarIconButton(
       tooltip: collapsed ? 'Expand sidebar' : 'Collapse sidebar',
       onPressed: onToggleCollapsed,
       icon: collapsed ? Icons.view_sidebar : Icons.view_sidebar_outlined,
     );
     if (collapsed) {
       return SizedBox(
-        height: AleraTokens.topBarHeight,
+        height: AleraTokens.sidebarHeaderHeight,
         child: Center(child: toggle),
       );
     }
     return Container(
-      height: AleraTokens.topBarHeight,
+      height: AleraTokens.sidebarHeaderHeight,
       padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space12),
       child: Row(
         children: <Widget>[
@@ -42,7 +46,7 @@ class SidebarBrandRow extends StatelessWidget {
             ),
           ),
           if (onAddProject != null) ...<Widget>[
-            _HeaderIconButton(
+            SidebarIconButton(
               tooltip: 'Add project',
               onPressed: onAddProject!,
               icon: Icons.create_new_folder_outlined,
@@ -51,35 +55,6 @@ class SidebarBrandRow extends StatelessWidget {
           ],
           toggle,
         ],
-      ),
-    );
-  }
-}
-
-class _HeaderIconButton extends StatelessWidget {
-  const _HeaderIconButton({
-    required this.tooltip,
-    required this.onPressed,
-    required this.icon,
-  });
-
-  final String tooltip;
-  final VoidCallback onPressed;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return IconButton(
-      tooltip: tooltip,
-      onPressed: onPressed,
-      icon: Icon(icon, size: 16, color: AleraTokens.foregroundMuted),
-      visualDensity: VisualDensity.compact,
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
-      style: IconButton.styleFrom(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-        ),
       ),
     );
   }
