@@ -863,9 +863,8 @@ class _TerminalTabChip extends StatelessWidget {
             mouseCursor: SystemMouseCursors.click,
             borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
             child: Container(
-              constraints: const BoxConstraints(minWidth: 140, maxWidth: 220),
               padding: const EdgeInsets.symmetric(
-                horizontal: AleraTokens.space8,
+                horizontal: AleraTokens.space6,
                 vertical: AleraTokens.space6,
               ),
               decoration: BoxDecoration(
@@ -884,11 +883,13 @@ class _TerminalTabChip extends StatelessWidget {
                         ? AleraTokens.foreground
                         : AleraTokens.foregroundMuted,
                   ),
-                  const SizedBox(width: AleraTokens.space8),
-                  Expanded(
+                  const SizedBox(width: AleraTokens.space4),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 72),
                     child: Text(
                       session.displayTitle,
                       maxLines: 1,
+                      softWrap: false,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: active
