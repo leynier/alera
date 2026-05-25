@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 /// Compact icon button used across the sidebar header, search bar and
 /// secondary toolbars. Honors the design system tokens (radius, foreground,
 /// hit area) so callers don't sprinkle layout literals at each call site.
-class SidebarIconButton extends StatelessWidget {
-  const SidebarIconButton({
+class AleraIconButton extends StatelessWidget {
+  const AleraIconButton({
     super.key,
     required this.tooltip,
     required this.onPressed,

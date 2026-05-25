@@ -6,7 +6,12 @@ import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/presentation/add_project_dialog.dart';
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_brand_row.dart';
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_collapsed_rail.dart';
-import 'package:alera/src/features/projects/presentation/widgets/sidebar_icon_button.dart';
+import 'package:alera/src/design_system/badges/alera_badge.dart';
+import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
+import 'package:alera/src/design_system/chips/alera_chip.dart';
+import 'package:alera/src/design_system/feedback/alera_status_dot.dart';
+import 'package:alera/src/design_system/feedback/alera_toast.dart';
+import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_resize_handle.dart';
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_search_bar.dart';
 import 'package:alera/src/features/settings/presentation/settings_dialog.dart';
@@ -17,12 +22,7 @@ import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/create_workspace_dialog.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
-import 'package:alera/src/features/workbench/presentation/widgets/primary_badge.dart';
-import 'package:alera/src/features/workbench/presentation/widgets/project_chip.dart';
-import 'package:alera/src/features/workbench/presentation/widgets/status_dot.dart';
 import 'package:alera/src/features/workbench/presentation/widgets/workbench_sidebar_toolbar.dart';
-import 'package:alera/src/shared/presentation/dropdown_entry.dart';
-import 'package:alera/src/shared/presentation/toast/alera_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
@@ -677,7 +677,7 @@ class _ProjectHeaderTileState extends State<_ProjectHeaderTile> {
         Offset.zero & overlay.size,
       ),
       items: const <PopupMenuEntry<String>>[
-        DropdownEntry<String>(value: 'remove', label: 'Remove project'),
+        AleraDropdownEntry<String>(value: 'remove', label: 'Remove project'),
       ],
     );
     if (selected == 'remove') {
@@ -746,7 +746,7 @@ class _ProjectHeaderTileState extends State<_ProjectHeaderTile> {
                   color: AleraTokens.foregroundMuted,
                 ),
                 const SizedBox(width: AleraTokens.space2),
-                SidebarIconButton(
+                AleraIconButton(
                   tooltip: 'New workspace in this project',
                   onPressed: widget.onCreateWorkspace,
                   icon: Icons.add,
@@ -905,7 +905,7 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                   children: <Widget>[
                     Padding(
                       padding: const EdgeInsets.only(top: 6),
-                      child: StatusDot(active: isActive),
+                      child: AleraStatusDot(active: isActive),
                     ),
                     const SizedBox(width: AleraTokens.space8),
                     Expanded(
@@ -928,7 +928,7 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                               ),
                               if (widget.workspace.isMain) ...<Widget>[
                                 const SizedBox(width: AleraTokens.space6),
-                                const PrimaryBadge(),
+                                const AleraBadge(label: 'primary'),
                               ],
                             ],
                           ),
@@ -937,9 +937,7 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                             children: <Widget>[
                               if (widget.showProjectChip) ...<Widget>[
                                 Flexible(
-                                  child: ProjectChip(
-                                    label: widget.project.name,
-                                  ),
+                                  child: AleraChip(label: widget.project.name),
                                 ),
                                 const SizedBox(width: AleraTokens.space6),
                               ],
@@ -958,7 +956,7 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                         ],
                       ),
                     ),
-                    SidebarIconButton(
+                    AleraIconButton(
                       tooltip: widget.expanded
                           ? 'Hide terminal tabs'
                           : 'Show terminal tabs',
@@ -979,7 +977,7 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                             padding: const EdgeInsets.only(
                               left: AleraTokens.space2,
                             ),
-                            child: SidebarIconButton(
+                            child: AleraIconButton(
                               tooltip: 'Remove workspace',
                               onPressed: widget.onDelete!,
                               icon: Icons.delete_outline,

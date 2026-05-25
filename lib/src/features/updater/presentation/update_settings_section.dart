@@ -1,5 +1,6 @@
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/feedback/alera_status_indicator.dart';
 import 'package:alera/src/features/updater/domain/alera_update.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -41,7 +42,10 @@ class UpdateSettingsSection extends ConsumerWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  _StatusIndicator(status: state.status),
+                  AleraStatusIndicator(
+                    icon: _iconForStatus(state.status),
+                    color: _colorForStatus(state.status),
+                  ),
                   const SizedBox(width: AleraTokens.space12),
                   Expanded(child: _UpdateStatusCopy(state: state)),
                 ],
@@ -148,46 +152,26 @@ class _UpdateStatusCopy extends StatelessWidget {
   }
 }
 
-class _StatusIndicator extends StatelessWidget {
-  const _StatusIndicator({required this.status});
+Color _colorForStatus(AleraUpdateStatus status) {
+  return switch (status) {
+    AleraUpdateStatus.error => AleraTokens.error,
+    AleraUpdateStatus.downloaded => AleraTokens.success,
+    AleraUpdateStatus.available ||
+    AleraUpdateStatus.manualDownloadRequired ||
+    AleraUpdateStatus.downloading => AleraTokens.info,
+    _ => AleraTokens.foregroundMuted,
+  };
+}
 
-  final AleraUpdateStatus status;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 28,
-      height: 28,
-      decoration: BoxDecoration(
-        color: _color.withAlpha(36),
-        borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-        border: Border.all(color: _color.withAlpha(115)),
-      ),
-      child: Icon(_icon, size: 16, color: _color),
-    );
-  }
-
-  Color get _color {
-    return switch (status) {
-      AleraUpdateStatus.error => AleraTokens.error,
-      AleraUpdateStatus.downloaded => AleraTokens.success,
-      AleraUpdateStatus.available ||
-      AleraUpdateStatus.manualDownloadRequired ||
-      AleraUpdateStatus.downloading => AleraTokens.info,
-      _ => AleraTokens.foregroundMuted,
-    };
-  }
-
-  IconData get _icon {
-    return switch (status) {
-      AleraUpdateStatus.checking => Icons.sync,
-      AleraUpdateStatus.notAvailable => Icons.check,
-      AleraUpdateStatus.manualDownloadRequired => Icons.download_for_offline,
-      AleraUpdateStatus.available => Icons.system_update_alt,
-      AleraUpdateStatus.downloading => Icons.downloading,
-      AleraUpdateStatus.downloaded => Icons.restart_alt,
-      AleraUpdateStatus.error => Icons.error_outline,
-      AleraUpdateStatus.idle => Icons.info_outline,
-    };
-  }
+IconData _iconForStatus(AleraUpdateStatus status) {
+  return switch (status) {
+    AleraUpdateStatus.checking => Icons.sync,
+    AleraUpdateStatus.notAvailable => Icons.check,
+    AleraUpdateStatus.manualDownloadRequired => Icons.download_for_offline,
+    AleraUpdateStatus.available => Icons.system_update_alt,
+    AleraUpdateStatus.downloading => Icons.downloading,
+    AleraUpdateStatus.downloaded => Icons.restart_alt,
+    AleraUpdateStatus.error => Icons.error_outline,
+    AleraUpdateStatus.idle => Icons.info_outline,
+  };
 }

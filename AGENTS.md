@@ -111,6 +111,9 @@ When planning is needed, use a spec-driven development flow. Do not jump straigh
 - The active app theme strategy SHALL remain dark-mode-only in this version.
 - Typography MUST remain fixed to Inter for general text and JetBrains Mono for monospaced text.
 - The canonical design-system reference is `docs/ui-styleguide.md`.
+- Shared, reusable UI components live in `lib/src/design_system/`, grouped by role and prefixed `Alera`. New screens MUST reuse these before introducing ad-hoc widgets; a genuinely new shared component belongs here, with a co-located `*.preview.dart`.
+- Design-system components MUST be presentational: data and callbacks in via parameters, no Riverpod reads and no native (`dart:io`/`dart:ffi`) code, so they stay previewable. Wire providers in a thin feature-level wrapper instead.
+- Preview functions MUST use the `@AleraPreview` annotation (not the bare `@Preview`). Launch with `flutter widget-preview start`.
 
 ## Cross-Platform Desktop Rules
 

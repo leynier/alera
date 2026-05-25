@@ -1,11 +1,12 @@
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
+import 'package:alera/src/design_system/chips/alera_chip.dart';
+import 'package:alera/src/design_system/forms/alera_text_field.dart';
+import 'package:alera/src/design_system/layout/alera_dialog_header.dart';
+import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
-import 'package:alera/src/features/projects/presentation/widgets/sidebar_icon_button.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
-import 'package:alera/src/features/workbench/presentation/widgets/add_project_field.dart';
-import 'package:alera/src/features/workbench/presentation/widgets/selected_project_chip.dart';
-import 'package:alera/src/shared/presentation/dropdown_entry.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -28,7 +29,7 @@ class WorkbenchViewOptionsButton extends ConsumerWidget {
     return Stack(
       clipBehavior: Clip.none,
       children: <Widget>[
-        SidebarIconButton(
+        AleraIconButton(
           tooltip: 'View options',
           onPressed: () => _showOptions(context),
           icon: Icons.tune,
@@ -155,7 +156,7 @@ class _WorkbenchViewOptionsPanelState
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          _ModalHeader(onDismiss: widget.onDismiss),
+          AleraDialogHeader(title: 'View options', onClose: widget.onDismiss),
           const SizedBox(height: AleraTokens.space12),
           _SectionLabel(text: 'Group by'),
           const SizedBox(height: AleraTokens.space6),
@@ -199,7 +200,7 @@ class _WorkbenchViewOptionsPanelState
               runSpacing: AleraTokens.space6,
               children: <Widget>[
                 for (final project in selectedProjects)
-                  SelectedProjectChip(
+                  AleraChip(
                     label: project.name,
                     onRemove: () => controller.removeProjectFilter(project.id),
                   ),
@@ -207,9 +208,12 @@ class _WorkbenchViewOptionsPanelState
             ),
           ],
           const SizedBox(height: AleraTokens.space8),
-          AddProjectField(
+          AleraTextField(
+            dense: true,
+            prefixIcon: Icons.add,
+            hintText: 'Add project…',
             controller: _searchController,
-            onSubmit: (_) => _addFirstMatch(availableProjects),
+            onSubmitted: (_) => _addFirstMatch(availableProjects),
           ),
           const SizedBox(height: AleraTokens.space8),
           _AvailableProjectsList(
@@ -224,36 +228,6 @@ class _WorkbenchViewOptionsPanelState
           ),
         ],
       ),
-    );
-  }
-}
-
-class _ModalHeader extends StatelessWidget {
-  const _ModalHeader({required this.onDismiss});
-
-  final VoidCallback onDismiss;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Row(
-      children: <Widget>[
-        Expanded(
-          child: Text(
-            'View options',
-            style: theme.textTheme.titleSmall?.copyWith(
-              color: AleraTokens.foreground,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        SidebarIconButton(
-          tooltip: 'Close',
-          onPressed: onDismiss,
-          icon: Icons.close,
-          minSize: 28,
-        ),
-      ],
     );
   }
 }
@@ -439,7 +413,7 @@ class _SortPopupButton extends StatelessWidget {
       constraints: const BoxConstraints(minWidth: 160),
       items: <PopupMenuEntry<WorkbenchSortBy>>[
         for (final option in WorkbenchSortBy.values)
-          DropdownEntry<WorkbenchSortBy>(
+          AleraDropdownEntry<WorkbenchSortBy>(
             value: option,
             label: labels[option] ?? option.name,
             selected: option == value,

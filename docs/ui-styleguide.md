@@ -104,5 +104,30 @@ Motion:
 | --- | --- |
 | Tokens and theme | `lib/src/app/theme/alera_tokens.dart`, `lib/src/app/theme/alera_dark_theme.dart` |
 | Primary/secondary buttons | `lib/src/features/shell/presentation/alera_shell_page.dart`, `lib/src/features/workbench/presentation/project_workbench_sidebar.dart`, `lib/src/features/workbench/presentation/create_workspace_dialog.dart` |
-| Inline micro-actions | `lib/src/features/workbench/presentation/project_workbench_sidebar.dart`, `lib/src/features/workbench/presentation/workspace_workbench_view.dart`, `lib/src/features/projects/presentation/widgets/sidebar_icon_button.dart` |
-| Status colors | `lib/src/features/workbench/presentation/widgets/status_dot.dart`, `lib/src/features/workbench/presentation/terminal_surface.dart` |
+| Inline micro-actions | `lib/src/design_system/buttons/alera_icon_button.dart`, `lib/src/features/workbench/presentation/project_workbench_sidebar.dart` |
+| Status colors | `lib/src/design_system/feedback/alera_status_dot.dart`, `lib/src/features/workbench/presentation/terminal_surface.dart` |
+| Component library | `lib/src/design_system/` |
+
+## Component Library
+
+Shared, reusable UI lives in `lib/src/design_system/`, grouped by role and prefixed `Alera`. Build new screens by composing these before writing ad-hoc widgets; only add a new component when no existing one fits, and add it here with a preview.
+
+Components are **presentational**: they take data and callbacks as parameters and must not read Riverpod providers or touch native (`dart:io`/`dart:ffi`) code. When a feature widget needs provider state, keep the design-system component pure and wire the provider in a thin wrapper inside the feature.
+
+| Role | Components |
+| --- | --- |
+| Buttons | `AleraIconButton`, `AleraSegmentedButton` |
+| Badges & chips | `AleraBadge`, `AleraChip` |
+| Surfaces | `AleraPanel`, `HoverContainer` |
+| Feedback | `AleraStatusDot`, `AleraStatusIndicator`, `AleraColorSwatch`, `AleraEmptyState`, `AleraToast` |
+| Forms | `AleraTextField`, `AleraSearchField`, `AleraNumberField`, `AleraSettingRow` |
+| Layout | `AleraSectionHeader`, `AleraDialog`, `AleraDialogHeader` |
+| Menus | `AleraDropdownEntry`, `AleraMenuItem` |
+
+## Widget Previews
+
+Every component ships a co-located `*.preview.dart` file so it can be developed and reviewed in isolation, plus an aggregate view in `lib/src/design_system/gallery/`.
+
+- Annotate preview functions with `@AleraPreview` (from `lib/src/design_system/alera_preview.dart`), which applies the Alera dark theme and ambient scaffolding automatically. Do not use the bare `@Preview`.
+- A preview function must be public and return a `Widget` or `WidgetBuilder`; its arguments and callbacks must be `const`/static.
+- Launch the previewer from the repo root with `flutter widget-preview start` (requires Chrome). Previews render on Flutter Web, so they cover UI only — terminal runtime, updater, and other native code paths are not previewable and stay out of the design system.

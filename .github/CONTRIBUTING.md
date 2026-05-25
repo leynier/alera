@@ -19,6 +19,14 @@ flutter test
 flutter run -d macos
 ```
 
+To develop or review shared UI in isolation, launch the widget previewer (requires Chrome):
+
+```bash
+flutter widget-preview start
+```
+
+Shared components live in `lib/src/design_system/` (prefixed `Alera`) with co-located `*.preview.dart` files and an aggregate gallery in `lib/src/design_system/gallery/`. See `docs/ui-styleguide.md`.
+
 For landing page work:
 
 ```bash

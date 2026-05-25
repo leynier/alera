@@ -8,10 +8,22 @@ ThemeData buildAleraDarkTheme() {
     brightness: Brightness.dark,
     primary: AleraTokens.accent,
     onPrimary: AleraTokens.onAccent,
+    // Neutralize the remaining Material baseline roles (purple/teal) so widgets
+    // that read container/tertiary roles — Switch, SegmentedButton, Chips —
+    // stay on Alera's grayscale palette.
+    primaryContainer: AleraTokens.surfaceElevated,
+    onPrimaryContainer: AleraTokens.foreground,
     secondary: AleraTokens.accent,
     onSecondary: AleraTokens.onAccent,
+    secondaryContainer: AleraTokens.surfaceElevated,
+    onSecondaryContainer: AleraTokens.foreground,
+    tertiary: AleraTokens.accent,
+    onTertiary: AleraTokens.onAccent,
+    tertiaryContainer: AleraTokens.surfaceElevated,
+    onTertiaryContainer: AleraTokens.foreground,
     surface: AleraTokens.surface,
     onSurface: AleraTokens.foreground,
+    surfaceContainerHighest: AleraTokens.surfaceVariant,
     error: AleraTokens.error,
     onError: AleraTokens.onError,
     outline: AleraTokens.border,
@@ -212,6 +224,53 @@ ThemeData buildAleraDarkTheme() {
       ),
       menuPadding: const EdgeInsets.all(AleraTokens.space12),
       textStyle: textTheme.bodyMedium,
+    ),
+    switchTheme: SwitchThemeData(
+      mouseCursor: clickableCursor,
+      thumbColor: WidgetStateProperty.resolveWith<Color>((states) {
+        if (states.contains(WidgetState.selected)) {
+          return AleraTokens.onAccent;
+        }
+        return AleraTokens.foregroundMuted;
+      }),
+      trackColor: WidgetStateProperty.resolveWith<Color>((states) {
+        if (states.contains(WidgetState.selected)) {
+          return AleraTokens.accent;
+        }
+        return AleraTokens.surfaceVariant;
+      }),
+      trackOutlineColor: WidgetStateProperty.resolveWith<Color>((states) {
+        if (states.contains(WidgetState.selected)) {
+          return AleraTokens.accent;
+        }
+        return AleraTokens.border;
+      }),
+    ),
+    segmentedButtonTheme: SegmentedButtonThemeData(
+      style: ButtonStyle(
+        mouseCursor: clickableCursor,
+        backgroundColor: WidgetStateProperty.resolveWith<Color>((states) {
+          if (states.contains(WidgetState.selected)) {
+            return AleraTokens.surfaceElevated;
+          }
+          return Colors.transparent;
+        }),
+        foregroundColor: WidgetStateProperty.resolveWith<Color>((states) {
+          if (states.contains(WidgetState.selected)) {
+            return AleraTokens.foreground;
+          }
+          return AleraTokens.foregroundMuted;
+        }),
+        iconColor: WidgetStateProperty.resolveWith<Color>((states) {
+          if (states.contains(WidgetState.selected)) {
+            return AleraTokens.foreground;
+          }
+          return AleraTokens.foregroundMuted;
+        }),
+        side: WidgetStateProperty.all(
+          const BorderSide(color: AleraTokens.border),
+        ),
+      ),
     ),
   );
 }

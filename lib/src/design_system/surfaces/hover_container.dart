@@ -1,6 +1,9 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:flutter/material.dart';
 
+/// Animates a child's background between [baseColor] and [hoverColor] on
+/// pointer hover, with a tokenized radius and fade. Use for tappable rows and
+/// cells that should reveal an elevated surface under the cursor.
 class HoverContainer extends StatefulWidget {
   const HoverContainer({
     super.key,

@@ -6,7 +6,7 @@ import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/project_workbench_sidebar.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_workbench_view.dart';
-import 'package:alera/src/shared/presentation/toast/alera_toast.dart';
+import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

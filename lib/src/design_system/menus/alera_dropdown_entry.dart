@@ -1,8 +1,10 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:flutter/material.dart';
 
-class DropdownEntry<T> extends PopupMenuEntry<T> {
-  const DropdownEntry({
+/// [PopupMenuEntry] styled for Alera popovers: tokenized radius/padding, a
+/// trailing check for the [selected] value, and pop-on-tap semantics.
+class AleraDropdownEntry<T> extends PopupMenuEntry<T> {
+  const AleraDropdownEntry({
     super.key,
     required this.value,
     required this.label,
@@ -20,10 +22,10 @@ class DropdownEntry<T> extends PopupMenuEntry<T> {
   bool represents(T? value) => this.value == value;
 
   @override
-  State<DropdownEntry<T>> createState() => _DropdownEntryState<T>();
+  State<AleraDropdownEntry<T>> createState() => _AleraDropdownEntryState<T>();
 }
 
-class _DropdownEntryState<T> extends State<DropdownEntry<T>> {
+class _AleraDropdownEntryState<T> extends State<AleraDropdownEntry<T>> {
   @override
   Widget build(BuildContext context) {
     return Padding(

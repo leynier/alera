@@ -13,6 +13,7 @@ This document records the current product and code naming used by Alera. It is i
 - `TerminalSession`: the runtime process/PTY state attached to a terminal workspace tab. It is not the persisted tab record.
 - `SidebarTerminalTabRow`: the sidebar projection for terminal workspace tabs. The sidebar does not render every workspace tab type by default.
 - `AgentRun`: reserved product language for a future agent execution tracked inside a terminal or another workspace tab. It is not a current storage model.
+- `Design system`: the shared, presentational widget library in `lib/src/design_system/`, prefixed `Alera`, with co-located widget previews. See `docs/ui-styleguide.md`.
 
 ## Naming Rules
 

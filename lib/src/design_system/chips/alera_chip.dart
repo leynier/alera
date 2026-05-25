@@ -1,27 +1,50 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:flutter/material.dart';
 
-/// Removable chip rendered in the view-options modal to represent a project
-/// the user has added to the visibility filter.
-class SelectedProjectChip extends StatefulWidget {
-  const SelectedProjectChip({
-    super.key,
-    required this.label,
-    required this.onRemove,
-  });
+/// Compact label chip.
+///
+/// - Without [onRemove]: a flat, square, low-emphasis tag (e.g. the project
+///   name in front of a workspace row).
+/// - With [onRemove]: a removable pill with a hover state and a close button
+///   (e.g. a project added to a visibility filter).
+class AleraChip extends StatefulWidget {
+  const AleraChip({super.key, required this.label, this.onRemove});
 
   final String label;
-  final VoidCallback onRemove;
+  final VoidCallback? onRemove;
 
   @override
-  State<SelectedProjectChip> createState() => _SelectedProjectChipState();
+  State<AleraChip> createState() => _AleraChipState();
 }
 
-class _SelectedProjectChipState extends State<SelectedProjectChip> {
+class _AleraChipState extends State<AleraChip> {
   bool _hovered = false;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    if (widget.onRemove == null) {
+      return Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AleraTokens.space6,
+          vertical: AleraTokens.space2,
+        ),
+        decoration: BoxDecoration(
+          color: AleraTokens.accentSubtle,
+          borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+        ),
+        child: Text(
+          widget.label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: AleraTokens.foregroundMuted,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      );
+    }
+
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
@@ -46,7 +69,7 @@ class _SelectedProjectChipState extends State<SelectedProjectChip> {
           children: <Widget>[
             Text(
               widget.label,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              style: theme.textTheme.labelSmall?.copyWith(
                 color: AleraTokens.foreground,
                 fontWeight: FontWeight.w500,
               ),

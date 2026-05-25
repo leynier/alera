@@ -1,6 +1,13 @@
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
-import 'package:alera/src/features/projects/presentation/widgets/sidebar_icon_button.dart';
+import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
+import 'package:alera/src/design_system/buttons/alera_segmented_button.dart';
+import 'package:alera/src/design_system/feedback/alera_color_swatch.dart';
+import 'package:alera/src/design_system/forms/alera_number_field.dart';
+import 'package:alera/src/design_system/forms/alera_search_field.dart';
+import 'package:alera/src/design_system/forms/alera_setting_row.dart';
+import 'package:alera/src/design_system/menus/alera_menu_item.dart';
+import 'package:alera/src/design_system/surfaces/alera_panel.dart';
 import 'package:alera/src/features/settings/application/github_star_controller.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
@@ -14,14 +21,9 @@ import 'package:flutter/services.dart';
 const double _kDialogMaxWidth = 920;
 const double _kDialogMaxHeight = 680;
 const double _kSidebarWidth = 260;
-const double _kSettingRowControlWidth = 220;
 const double _kSidebarIconSize = 16;
 const double _kSectionIconSize = 18;
-const double _kStepperIconSize = 14;
-const double _kStepperWidth = 26;
-const double _kStepperGroupHeight = 36;
 const double _kSupportControlHeight = 34;
-const double _kColorSwatchSize = 30;
 const double _kPickerMenuMaxHeight = 220;
 
 class SettingsDialog extends ConsumerStatefulWidget {
@@ -374,12 +376,9 @@ class _SettingsSidebar extends StatelessWidget {
             const Divider(height: 1, color: AleraTokens.borderSubtle),
             Padding(
               padding: const EdgeInsets.all(AleraTokens.space12),
-              child: TextField(
+              child: AleraSearchField(
                 controller: queryController,
-                decoration: const InputDecoration(
-                  prefixIcon: Icon(Icons.search, size: _kSidebarIconSize),
-                  hintText: 'Search settings',
-                ),
+                hintText: 'Search settings',
               ),
             ),
             const Divider(height: 1, color: AleraTokens.borderSubtle),
@@ -507,7 +506,7 @@ class _SettingsContent extends StatelessWidget {
                   ),
                 ],
                 const SizedBox(width: AleraTokens.space4),
-                SidebarIconButton(
+                AleraIconButton(
                   tooltip: 'Close',
                   onPressed: onClose,
                   icon: Icons.close,
@@ -542,7 +541,7 @@ class _GeneralSettingsPane extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        _SettingsPanel(
+        AleraPanel(
           children: <Widget>[
             _WorkspaceDirectoryRow(
               value: general.workspaceDirectory,
@@ -587,9 +586,9 @@ class _SupportAleraSection extends ConsumerWidget {
             ),
           ),
         ),
-        _SettingsPanel(
+        AleraPanel(
           children: <Widget>[
-            _SettingRow(
+            AleraSettingRow(
               title: 'Star Alera on GitHub',
               description: null,
               child: _StarControl(
@@ -1111,85 +1110,8 @@ class _SettingsGroup extends StatelessWidget {
             ],
           ),
         ),
-        _SettingsPanel(children: children),
+        AleraPanel(children: children),
       ],
-    );
-  }
-}
-
-class _SettingsPanel extends StatelessWidget {
-  const _SettingsPanel({required this.children});
-
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AleraTokens.surfaceVariant,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
-        border: Border.all(color: AleraTokens.borderSubtle),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          for (var i = 0; i < children.length; i++) ...<Widget>[
-            if (i > 0)
-              const Divider(height: 1, color: AleraTokens.borderSubtle),
-            children[i],
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _SettingRow extends StatelessWidget {
-  const _SettingRow({
-    required this.title,
-    required this.description,
-    required this.child,
-  });
-
-  final String title;
-  final String? description;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.all(AleraTokens.space16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: <Widget>[
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  title,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: AleraTokens.foreground,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                if (description != null) ...<Widget>[
-                  const SizedBox(height: AleraTokens.space4),
-                  Text(
-                    description!,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: AleraTokens.foregroundMuted,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(width: AleraTokens.space16),
-          SizedBox(width: _kSettingRowControlWidth, child: child),
-        ],
-      ),
     );
   }
 }
@@ -1253,7 +1175,7 @@ class _TextSettingRowState extends State<_TextSettingRow> {
 
   @override
   Widget build(BuildContext context) {
-    return _SettingRow(
+    return AleraSettingRow(
       title: widget.title,
       description: widget.description,
       child: TextField(
@@ -1417,7 +1339,7 @@ class _FontAutocompleteSettingRowState
   @override
   Widget build(BuildContext context) {
     final suggestions = _filteredSuggestions;
-    return _SettingRow(
+    return AleraSettingRow(
       title: widget.title,
       description: widget.description,
       child: Focus(
@@ -1484,7 +1406,7 @@ class _FontAutocompleteSettingRowState
                   final font = suggestions[index];
                   final active = index == _highlightedIndex;
                   final selected = font == widget.value;
-                  return _PickerMenuItem(
+                  return AleraMenuItem(
                     label: font,
                     active: active,
                     selected: selected,
@@ -1553,75 +1475,6 @@ class _AutocompleteMenu extends StatelessWidget {
   }
 }
 
-class _PickerMenuItem extends StatelessWidget {
-  const _PickerMenuItem({
-    required this.label,
-    required this.active,
-    required this.selected,
-    required this.onHover,
-    required this.onTap,
-    this.leading,
-  });
-
-  final String label;
-  final bool active;
-  final bool selected;
-  final VoidCallback onHover;
-  final VoidCallback onTap;
-  final Widget? leading;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return MouseRegion(
-      onEnter: (_) => onHover(),
-      child: Material(
-        color: active
-            ? AleraTokens.surfaceElevated
-            : selected
-            ? AleraTokens.accentSubtle
-            : Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          mouseCursor: SystemMouseCursors.click,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AleraTokens.space8,
-              vertical: AleraTokens.space6,
-            ),
-            child: Row(
-              children: <Widget>[
-                SizedBox(
-                  width: 18,
-                  child:
-                      leading ??
-                      (selected
-                          ? const Icon(Icons.check, size: 14)
-                          : const SizedBox.shrink()),
-                ),
-                const SizedBox(width: AleraTokens.space6),
-                Expanded(
-                  child: Text(
-                    label,
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: selected
-                          ? AleraTokens.foreground
-                          : AleraTokens.foregroundMuted,
-                      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _NumberSettingRow extends StatelessWidget {
   const _NumberSettingRow({
     required this.title,
@@ -1645,10 +1498,10 @@ class _NumberSettingRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _SettingRow(
+    return AleraSettingRow(
       title: title,
       description: description,
-      child: _NumberField(
+      child: AleraNumberField(
         value: value,
         min: min,
         max: max,
@@ -1681,10 +1534,10 @@ class _IntegerSettingRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _SettingRow(
+    return AleraSettingRow(
       title: title,
       description: description,
-      child: _NumberField(
+      child: AleraNumberField(
         value: value.toDouble(),
         min: min.toDouble(),
         max: max.toDouble(),
@@ -1710,7 +1563,7 @@ class _SwitchSettingRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _SettingRow(
+    return AleraSettingRow(
       title: title,
       description: description,
       child: Align(
@@ -1924,7 +1777,7 @@ class _ThemeSearchList extends StatelessWidget {
                         itemCount: themes.length,
                         itemBuilder: (context, index) {
                           final entry = themes[index];
-                          return _PickerMenuItem(
+                          return AleraMenuItem(
                             label: entry.name,
                             active: index == highlightedIndex,
                             selected: entry.name == selectedName,
@@ -2147,12 +2000,14 @@ class _HexColorSettingRowState extends State<_HexColorSettingRow> {
 
   @override
   Widget build(BuildContext context) {
-    return _SettingRow(
+    return AleraSettingRow(
       title: widget.title,
       description: widget.description,
       child: Row(
         children: <Widget>[
-          _ColorSwatch(color: _colorFromHex(widget.value ?? widget.fallback)),
+          AleraColorSwatch(
+            color: _colorFromHex(widget.value ?? widget.fallback),
+          ),
           const SizedBox(width: AleraTokens.space8),
           Expanded(
             child: TextField(
@@ -2168,200 +2023,6 @@ class _HexColorSettingRowState extends State<_HexColorSettingRow> {
   }
 }
 
-class _ColorSwatch extends StatelessWidget {
-  const _ColorSwatch({required this.color});
-
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: _kColorSwatchSize,
-      height: _kColorSwatchSize,
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
-        border: Border.all(color: AleraTokens.border),
-      ),
-    );
-  }
-}
-
-class _NumberField extends StatefulWidget {
-  const _NumberField({
-    required this.value,
-    required this.min,
-    required this.max,
-    required this.step,
-    required this.onChanged,
-    this.suffix,
-  });
-
-  final double value;
-  final double min;
-  final double max;
-  final double step;
-  final String? suffix;
-  final ValueChanged<double> onChanged;
-
-  @override
-  State<_NumberField> createState() => _NumberFieldState();
-}
-
-class _NumberFieldState extends State<_NumberField> {
-  late final TextEditingController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(text: _format(widget.value));
-  }
-
-  @override
-  void didUpdateWidget(_NumberField oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.value != oldWidget.value) {
-      _controller.text = _format(widget.value);
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  String _format(double value) {
-    if (value == value.roundToDouble()) {
-      return value.round().toString();
-    }
-    if (widget.step < 0.1) {
-      return value.toStringAsFixed(2);
-    }
-    return value.toStringAsFixed(1);
-  }
-
-  void _commit() {
-    final parsed = double.tryParse(_controller.text.trim());
-    if (parsed == null || !parsed.isFinite) {
-      _controller.text = _format(widget.value);
-      return;
-    }
-    final clamped = parsed.clamp(widget.min, widget.max).toDouble();
-    _controller.text = _format(clamped);
-    if (clamped != widget.value) {
-      widget.onChanged(clamped);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: <Widget>[
-        Expanded(
-          child: TextField(
-            controller: _controller,
-            keyboardType: TextInputType.number,
-            onSubmitted: (_) => _commit(),
-            onEditingComplete: _commit,
-            decoration: InputDecoration(suffixText: widget.suffix),
-          ),
-        ),
-        const SizedBox(width: AleraTokens.space8),
-        SizedBox(
-          width: _kStepperWidth,
-          height: _kStepperGroupHeight,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Expanded(
-                child: _StepperButton(
-                  icon: Icons.keyboard_arrow_up,
-                  position: _StepperPosition.top,
-                  onPressed: () => widget.onChanged(
-                    (widget.value + widget.step)
-                        .clamp(widget.min, widget.max)
-                        .toDouble(),
-                  ),
-                ),
-              ),
-              Expanded(
-                child: _StepperButton(
-                  icon: Icons.keyboard_arrow_down,
-                  position: _StepperPosition.bottom,
-                  onPressed: () => widget.onChanged(
-                    (widget.value - widget.step)
-                        .clamp(widget.min, widget.max)
-                        .toDouble(),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-enum _StepperPosition { top, bottom }
-
-class _StepperButton extends StatelessWidget {
-  const _StepperButton({
-    required this.icon,
-    required this.position,
-    required this.onPressed,
-  });
-
-  final IconData icon;
-  final _StepperPosition position;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final radius = position == _StepperPosition.top
-        ? const BorderRadius.only(
-            topLeft: Radius.circular(AleraTokens.radiusSm),
-            topRight: Radius.circular(AleraTokens.radiusSm),
-          )
-        : const BorderRadius.only(
-            bottomLeft: Radius.circular(AleraTokens.radiusSm),
-            bottomRight: Radius.circular(AleraTokens.radiusSm),
-          );
-    final border = position == _StepperPosition.top
-        ? const Border(
-            top: BorderSide(color: AleraTokens.borderSubtle),
-            left: BorderSide(color: AleraTokens.borderSubtle),
-            right: BorderSide(color: AleraTokens.borderSubtle),
-            bottom: BorderSide(color: AleraTokens.borderSubtle, width: 0.5),
-          )
-        : const Border(
-            top: BorderSide(color: AleraTokens.borderSubtle, width: 0.5),
-            left: BorderSide(color: AleraTokens.borderSubtle),
-            right: BorderSide(color: AleraTokens.borderSubtle),
-            bottom: BorderSide(color: AleraTokens.borderSubtle),
-          );
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: radius,
-        mouseCursor: SystemMouseCursors.click,
-        child: Container(
-          decoration: BoxDecoration(borderRadius: radius, border: border),
-          alignment: Alignment.center,
-          child: Icon(
-            icon,
-            size: _kStepperIconSize,
-            color: AleraTokens.foregroundMuted,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _CursorShapeRow extends StatelessWidget {
   const _CursorShapeRow({required this.value, required this.onChanged});
 
@@ -2370,18 +2031,12 @@ class _CursorShapeRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _SettingRow(
+    return AleraSettingRow(
       title: 'Cursor shape',
       description: 'Cursor style for new terminal sessions.',
-      child: SegmentedButton<TerminalCursorShape>(
-        showSelectedIcon: false,
-        style: SegmentedButton.styleFrom(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-          ),
-          enabledMouseCursor: SystemMouseCursors.click,
-          disabledMouseCursor: SystemMouseCursors.basic,
-        ),
+      child: AleraSegmentedButton<TerminalCursorShape>(
+        selected: value,
+        onSelectionChanged: onChanged,
         segments: const <ButtonSegment<TerminalCursorShape>>[
           ButtonSegment<TerminalCursorShape>(
             value: TerminalCursorShape.block,
@@ -2399,8 +2054,6 @@ class _CursorShapeRow extends StatelessWidget {
             icon: _CursorGlyph(shape: TerminalCursorShape.underline),
           ),
         ],
-        selected: <TerminalCursorShape>{value},
-        onSelectionChanged: (selection) => onChanged(selection.first),
       ),
     );
   }
@@ -2476,7 +2129,7 @@ class _NoSettingsResults extends StatelessWidget {
         Positioned(
           top: AleraTokens.space16,
           right: AleraTokens.space16,
-          child: SidebarIconButton(
+          child: AleraIconButton(
             tooltip: 'Close',
             onPressed: onClose,
             icon: Icons.close,

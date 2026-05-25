@@ -1,10 +1,10 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:flutter/material.dart';
 
-/// Small circular indicator shown at the left of a workspace row. Green when
-/// the workspace is the currently active one; muted gray otherwise.
-class StatusDot extends StatelessWidget {
-  const StatusDot({super.key, required this.active, this.size = 8});
+/// Small circular indicator. Green when [active]; muted gray otherwise. Used at
+/// the left of workspace/terminal rows to signal the currently active one.
+class AleraStatusDot extends StatelessWidget {
+  const AleraStatusDot({super.key, required this.active, this.size = 8});
 
   final bool active;
   final double size;

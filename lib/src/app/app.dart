@@ -1,6 +1,6 @@
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/features/shell/presentation/alera_shell_page.dart';
-import 'package:alera/src/shared/presentation/toast/alera_toast_host.dart';
+import 'package:alera/src/design_system/feedback/alera_toast_host.dart';
 import 'package:flutter/material.dart';
 
 class AleraApp extends StatelessWidget {
