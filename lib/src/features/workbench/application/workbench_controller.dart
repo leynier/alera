@@ -2,43 +2,48 @@
 
 import 'dart:async';
 
+import 'package:alera/src/app/dependencies.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/projects/application/projects_service.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/workbench/application/workspace_tab_service.dart';
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
+import 'package:alera/src/features/workbench/application/workbench_view_prefs_repository.dart';
 import 'package:alera/src/features/workbench/application/workspace_service.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
-import 'package:alera/src/features/workbench/infra/sembast_workbench_view_prefs_repository.dart';
-import 'package:flutter_riverpod/legacy.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:uuid/uuid.dart';
 
-class WorkbenchController extends StateNotifier<WorkbenchState> {
-  WorkbenchController({
-    required ProjectsService projectsService,
-    required WorkbenchRepository repository,
-    required WorkspaceService workspaceService,
-    required WorkspaceTabService workspaceTabService,
-    SembastWorkbenchViewPrefsRepository? viewPrefsRepository,
-    Uuid? uuid,
-  }) : _projectsService = projectsService,
-       _repository = repository,
-       _workspaceService = workspaceService,
-       _workspaceTabService = workspaceTabService,
-       _viewPrefsRepository = viewPrefsRepository,
-       _uuid = uuid ?? const Uuid(),
-       super(const WorkbenchState());
+part 'workbench_controller.g.dart';
 
-  final ProjectsService _projectsService;
-  final WorkbenchRepository _repository;
-  final WorkspaceService _workspaceService;
-  final WorkspaceTabService _workspaceTabService;
-  final SembastWorkbenchViewPrefsRepository? _viewPrefsRepository;
-  final Uuid _uuid;
+@Riverpod(keepAlive: true)
+class WorkbenchController extends _$WorkbenchController {
+  final Uuid _uuid = const Uuid();
+  bool _disposed = false;
+
+  ProjectsService get _projectsService => ref.read(projectsServiceProvider);
+
+  WorkbenchRepository get _repository => ref.read(workbenchRepositoryProvider);
+
+  WorkspaceService get _workspaceService => WorkspaceService(
+    repository: ref.read(workbenchRepositoryProvider),
+    projectService: ref.read(projectServiceProvider),
+    processRunner: ref.read(processRunnerProvider),
+    workspaceRoot: WorkspaceRoot(
+      override: ref.read(settingsControllerProvider).general.workspaceDirectory,
+    ),
+  );
+
+  WorkspaceTabService get _workspaceTabService =>
+      ref.read(workspaceTabServiceProvider);
+
+  WorkbenchViewPrefsRepository? get _viewPrefsRepository =>
+      ref.read(workbenchViewPrefsRepositoryProvider);
 
   StreamSubscription<List<Project>>? _projectsSub;
   final Map<String, StreamSubscription<List<Workspace>>> _workspaceSubs =
@@ -53,6 +58,22 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
   final Set<String> _closingTabWorkspaceIds = <String>{};
 
   bool _bootstrapStarted = false;
+
+  @override
+  WorkbenchState build() {
+    _disposed = false;
+    ref.onDispose(() {
+      _disposed = true;
+      unawaited(_projectsSub?.cancel());
+      for (final subscription in _workspaceSubs.values) {
+        unawaited(subscription.cancel());
+      }
+      for (final subscription in _tabSubs.values) {
+        unawaited(subscription.cancel());
+      }
+    });
+    return const WorkbenchState();
+  }
 
   Future<void> bootstrap() async {
     if (_bootstrapStarted) {
@@ -78,7 +99,7 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
       await Future.wait<void>(
         initialProjects.map(_ensureMainWorkspaceForProject),
       );
-      state = state.copyWith(bootstrapped: true, clearError: true);
+      state = state.copyWith(bootstrapped: true, error: null);
     } catch (error) {
       state = state.copyWith(
         bootstrapped: true,
@@ -141,7 +162,7 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
         for (final candidate in state.projects)
           if (candidate.id == project.id) project else candidate,
       ];
-      state = state.copyWith(projects: projects, clearError: true);
+      state = state.copyWith(projects: projects, error: null);
     } catch (error) {
       state = state.copyWith(error: error.toString());
       rethrow;
@@ -151,7 +172,7 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
   Future<void> removeProject(String projectId) async {
     try {
       await _projectsService.removeProject(projectId);
-      state = state.copyWith(clearError: true);
+      state = state.copyWith(error: null);
     } catch (error) {
       state = state.copyWith(error: error.toString());
       rethrow;
@@ -172,7 +193,7 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
         name: name,
       );
       await selectWorkspace(project: project, workspace: workspace);
-      state = state.copyWith(clearError: true);
+      state = state.copyWith(error: null);
       return workspace;
     } catch (error) {
       state = state.copyWith(error: error.toString());
@@ -191,7 +212,7 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
         workspace: workspace,
         deleteBranch: deleteBranch,
       );
-      state = state.copyWith(clearError: true);
+      state = state.copyWith(error: null);
     } catch (error) {
       state = state.copyWith(error: error.toString());
       rethrow;
@@ -215,10 +236,7 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
             if (candidate.id == workspace.id) workspace else candidate,
         ],
       };
-      state = state.copyWith(
-        workspacesByProject: nextWorkspaces,
-        clearError: true,
-      );
+      state = state.copyWith(workspacesByProject: nextWorkspaces, error: null);
     } catch (error) {
       state = state.copyWith(error: error.toString());
       rethrow;
@@ -245,7 +263,7 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
       activeProjectId: project.id,
       activeWorkspaceId: workspace.id,
       viewPrefs: nextPrefs,
-      clearError: true,
+      error: null,
     );
     if (!identical(nextPrefs, prefs)) {
       unawaited(_persistViewPrefs());
@@ -259,8 +277,8 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
   Future<void> activateProject(Project project) async {
     state = state.copyWith(
       activeProjectId: project.id,
-      clearActiveWorkspaceId: true,
-      clearError: true,
+      activeWorkspaceId: null,
+      error: null,
     );
   }
 
@@ -277,7 +295,7 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
       final groupId = targetGroupId ?? layout.activeGroupId;
       final nextLayout = layout.addTabToGroup(groupId: groupId, tabId: tab.id);
       await _applyLayout(nextLayout.sanitize(tabs), persist: true);
-      state = state.copyWith(clearError: true);
+      state = state.copyWith(error: null);
       return tab;
     } catch (error) {
       state = state.copyWith(error: error.toString());
@@ -326,9 +344,11 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
         await _applyLayout(layout, persist: true);
       }
       state = state.copyWith(
-        clearActiveWorkspaceId:
-            remaining.isEmpty && state.activeWorkspaceId == workspace.id,
-        clearError: true,
+        activeWorkspaceId:
+            remaining.isEmpty && state.activeWorkspaceId == workspace.id
+            ? null
+            : state.activeWorkspaceId,
+        error: null,
       );
     } catch (error) {
       state = state.copyWith(error: error.toString());
@@ -352,7 +372,7 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
           if (candidate.id == tab.id) tab else candidate,
       ];
       _setTabsForWorkspace(tab.workspaceId, tabs);
-      state = state.copyWith(clearError: true);
+      state = state.copyWith(error: null);
     } catch (error) {
       state = state.copyWith(error: error.toString());
       rethrow;
@@ -401,7 +421,7 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
           )
           .sanitize(tabs);
       await _applyLayout(nextLayout, persist: true);
-      state = state.copyWith(clearError: true);
+      state = state.copyWith(error: null);
     } catch (error) {
       state = state.copyWith(error: error.toString());
       rethrow;
@@ -431,7 +451,7 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
           )
           .sanitize(tabs);
       await _applyLayout(nextLayout, persist: true);
-      state = state.copyWith(clearError: true);
+      state = state.copyWith(error: null);
       return tab;
     } catch (error) {
       state = state.copyWith(error: error.toString());
@@ -450,7 +470,7 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
         tabs,
       ).mergeGroupIntoSibling(groupId).sanitize(tabs);
       await _applyLayout(layout, persist: true);
-      state = state.copyWith(clearError: true);
+      state = state.copyWith(error: null);
     } catch (error) {
       state = state.copyWith(error: error.toString());
       rethrow;
@@ -718,9 +738,7 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
       tabsByWorkspace: updatedTabs,
       viewPrefs: nextViewPrefs,
       activeProjectId: activeProjectId,
-      clearActiveProjectId: activeProjectId == null,
       activeWorkspaceId: activeWorkspaceId,
-      clearActiveWorkspaceId: activeWorkspaceId == null,
       activeTabIdByWorkspace: updatedActiveTabs,
       layoutByWorkspace: updatedLayouts,
     );
@@ -819,9 +837,7 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
       workspacesByProject: nextWorkspaces,
       viewPrefs: nextViewPrefs,
       activeProjectId: candidateProjectId,
-      clearActiveProjectId: candidateProjectId == null,
       activeWorkspaceId: activeWorkspaceId,
-      clearActiveWorkspaceId: activeWorkspaceId == null,
       layoutByWorkspace: nextLayouts,
     );
     if (expansionChanged) {
@@ -866,7 +882,7 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
       await _workspaceService.ensureMainWorkspace(project);
       await _workspaceService.reconcile(project);
     } catch (error) {
-      if (mounted) {
+      if (!_disposed) {
         state = state.copyWith(
           error: 'Failed to prepare workspace for "${project.name}": $error',
         );
@@ -892,8 +908,8 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
     state = state.copyWith(
       viewPrefs: nextViewPrefs,
       activeProjectId: project.id,
-      clearActiveWorkspaceId: true,
-      clearError: true,
+      activeWorkspaceId: null,
+      error: null,
     );
     if (changedPrefs) {
       unawaited(_persistViewPrefs());
@@ -952,7 +968,7 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
       final layout = await _ensureWorkbenchLayout(workspaceId, tabs);
       await _applyLayout(layout, persist: true);
     } catch (error) {
-      if (mounted) {
+      if (!_disposed) {
         state = state.copyWith(error: error.toString());
       }
     } finally {
@@ -1042,17 +1058,5 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
     final next = Map<String, String>.from(state.activeTabIdByWorkspace)
       ..[workspaceId] = tabId;
     state = state.copyWith(activeTabIdByWorkspace: next);
-  }
-
-  @override
-  void dispose() {
-    _projectsSub?.cancel();
-    for (final subscription in _workspaceSubs.values) {
-      subscription.cancel();
-    }
-    for (final subscription in _tabSubs.values) {
-      subscription.cancel();
-    }
-    super.dispose();
   }
 }

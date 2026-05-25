@@ -23,8 +23,8 @@ This document records the current product and code naming used by Alera. It is i
 - Avoid introducing `TerminalTab` as a domain model. A terminal tab is currently a `WorkspaceTabRecord` with `kind == WorkspaceTabKind.terminal`.
 - Avoid using `Workspace` and `Worktree` interchangeably. A workspace is product state; a worktree is a Git checkout implementation detail.
 
-## Persistence Compatibility
+## Persistence
 
-The current workspace tab store remains named `workbench_tabs` on disk so existing local Sembast databases continue to load. The code-level store alias is `AleraStores.workspaceTabs`.
+Alera persists projects, workspaces, workspace tabs, workbench layouts, settings, and view preferences in the Drift/SQLite schema defined in `lib/src/shared/infra/storage/drift_database.dart`.
 
-Older builds used `terminal_tabs`. That store is treated as legacy migration input and cleanup data only through `AleraStores.legacyTerminalTabs`.
+Legacy pre-Drift stores are no longer read or migrated.

@@ -1,6 +1,8 @@
+import 'package:alera/src/app/dependencies.dart';
 import 'package:alera/src/features/updater/application/update_controller.dart';
 import 'package:alera/src/features/updater/application/update_service.dart';
 import 'package:alera/src/features/updater/domain/alera_update.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -9,13 +11,22 @@ void main() {
       final service = _FakeUpdateService(
         result: const AleraUpdateCheckResult(message: 'No update.'),
       );
-      final controller = AleraUpdateController(service);
-      addTearDown(controller.dispose);
+      final container = ProviderContainer(
+        overrides: [updateServiceProvider.overrideWithValue(service)],
+      );
+      addTearDown(container.dispose);
+      final controller = container.read(aleraUpdateControllerProvider.notifier);
 
       await controller.checkForUpdates();
 
-      expect(controller.state.status, AleraUpdateStatus.notAvailable);
-      expect(controller.state.message, 'No update.');
+      expect(
+        container.read(aleraUpdateControllerProvider).status,
+        AleraUpdateStatus.notAvailable,
+      );
+      expect(
+        container.read(aleraUpdateControllerProvider).message,
+        'No update.',
+      );
     });
 
     test('marks unsigned stable updates as manual downloads', () async {
@@ -29,13 +40,19 @@ void main() {
         ),
         result: AleraUpdateCheckResult(latest: _update),
       );
-      final controller = AleraUpdateController(service);
-      addTearDown(controller.dispose);
+      final container = ProviderContainer(
+        overrides: [updateServiceProvider.overrideWithValue(service)],
+      );
+      addTearDown(container.dispose);
+      final controller = container.read(aleraUpdateControllerProvider.notifier);
 
       await controller.checkForUpdates();
 
-      expect(controller.state.status, AleraUpdateStatus.manualDownloadRequired);
-      expect(controller.state.latest, _update);
+      expect(
+        container.read(aleraUpdateControllerProvider).status,
+        AleraUpdateStatus.manualDownloadRequired,
+      );
+      expect(container.read(aleraUpdateControllerProvider).latest, _update);
     });
 
     test('marks auto-installable updates as available', () async {
@@ -52,20 +69,29 @@ void main() {
           autoInstallAllowed: true,
         ),
       );
-      final controller = AleraUpdateController(service);
-      addTearDown(controller.dispose);
+      final container = ProviderContainer(
+        overrides: [updateServiceProvider.overrideWithValue(service)],
+      );
+      addTearDown(container.dispose);
+      final controller = container.read(aleraUpdateControllerProvider.notifier);
 
       await controller.checkForUpdates();
 
-      expect(controller.state.status, AleraUpdateStatus.available);
+      expect(
+        container.read(aleraUpdateControllerProvider).status,
+        AleraUpdateStatus.available,
+      );
     });
 
     test('opens the manual download page', () async {
       final service = _FakeUpdateService(
         result: AleraUpdateCheckResult(latest: _update),
       );
-      final controller = AleraUpdateController(service);
-      addTearDown(controller.dispose);
+      final container = ProviderContainer(
+        overrides: [updateServiceProvider.overrideWithValue(service)],
+      );
+      addTearDown(container.dispose);
+      final controller = container.read(aleraUpdateControllerProvider.notifier);
 
       await controller.checkForUpdates();
       await controller.openDownloadPage();
@@ -89,14 +115,22 @@ void main() {
             autoInstallAllowed: true,
           ),
         );
-        final controller = AleraUpdateController(service);
-        addTearDown(controller.dispose);
+        final container = ProviderContainer(
+          overrides: [updateServiceProvider.overrideWithValue(service)],
+        );
+        addTearDown(container.dispose);
+        final controller = container.read(
+          aleraUpdateControllerProvider.notifier,
+        );
 
         await controller.checkForUpdates();
         await controller.installLatest();
 
-        expect(controller.state.status, AleraUpdateStatus.downloaded);
-        expect(controller.state.progress, 1);
+        expect(
+          container.read(aleraUpdateControllerProvider).status,
+          AleraUpdateStatus.downloaded,
+        );
+        expect(container.read(aleraUpdateControllerProvider).progress, 1);
         expect(service.installedUpdate, _update);
       },
     );

@@ -1,12 +1,25 @@
+import 'package:alera/src/app/dependencies.dart';
 import 'package:alera/src/features/updater/application/update_service.dart';
 import 'package:alera/src/features/updater/domain/alera_update.dart';
-import 'package:flutter_riverpod/legacy.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-class AleraUpdateController extends StateNotifier<AleraUpdateState> {
-  AleraUpdateController(this._service)
-    : super(AleraUpdateState.idle(_service.config));
+part 'update_controller.g.dart';
 
-  final AleraUpdateService _service;
+@Riverpod(keepAlive: true)
+class AleraUpdateController extends _$AleraUpdateController {
+  bool _disposed = false;
+
+  AleraUpdateService get _service => ref.read(updateServiceProvider);
+
+  @override
+  AleraUpdateState build() {
+    _disposed = false;
+    ref.onDispose(() {
+      _disposed = true;
+    });
+    final service = ref.read(updateServiceProvider);
+    return AleraUpdateState.idle(service.config);
+  }
 
   Future<void> checkForUpdates() async {
     if (state.isBusy) {
@@ -16,12 +29,12 @@ class AleraUpdateController extends StateNotifier<AleraUpdateState> {
       status: AleraUpdateStatus.checking,
       progress: 0,
       message: 'Checking for updates.',
-      clearLatest: true,
+      latest: null,
     );
 
     try {
       final result = await _service.checkForUpdates();
-      if (!mounted) {
+      if (_disposed) {
         return;
       }
       final latest = result.latest;
@@ -29,7 +42,7 @@ class AleraUpdateController extends StateNotifier<AleraUpdateState> {
         state = state.copyWith(
           status: AleraUpdateStatus.notAvailable,
           message: result.message ?? 'Alera is up to date.',
-          clearLatest: true,
+          latest: null,
           progress: 0,
         );
         return;
@@ -48,7 +61,7 @@ class AleraUpdateController extends StateNotifier<AleraUpdateState> {
         progress: 0,
       );
     } catch (error) {
-      if (!mounted) {
+      if (_disposed) {
         return;
       }
       state = state.copyWith(
@@ -79,13 +92,13 @@ class AleraUpdateController extends StateNotifier<AleraUpdateState> {
       await _service.installUpdate(
         latest,
         onProgress: (progress) {
-          if (!mounted) {
+          if (_disposed) {
             return;
           }
           state = state.copyWith(progress: progress.clamp(0, 1).toDouble());
         },
       );
-      if (!mounted) {
+      if (_disposed) {
         return;
       }
       state = state.copyWith(
@@ -94,7 +107,7 @@ class AleraUpdateController extends StateNotifier<AleraUpdateState> {
         progress: 1,
       );
     } catch (error) {
-      if (!mounted) {
+      if (_disposed) {
         return;
       }
       state = state.copyWith(

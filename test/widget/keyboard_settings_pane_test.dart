@@ -2,7 +2,6 @@ import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
 import 'package:alera/src/features/keyboard/presentation/keyboard_settings_pane.dart';
-import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/settings/application/settings_repository.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:flutter/material.dart';
@@ -16,12 +15,7 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final container = ProviderContainer(
       overrides: [
-        settingsControllerProvider.overrideWith(
-          (ref) => SettingsController(
-            _FakeSettingsRepository(),
-            loadOnCreate: false,
-          ),
-        ),
+        settingsRepositoryProvider.overrideWithValue(_FakeSettingsRepository()),
       ],
     );
     addTearDown(container.dispose);

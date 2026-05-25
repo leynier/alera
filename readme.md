@@ -86,7 +86,7 @@ Alera currently includes:
 - Split workspace workbench.
 - Persistent workspace tabs and layouts.
 - Native terminal runtime using `ghostty_vte_flutter`, `portable_pty`, and `xterm` fallback infrastructure.
-- Local Sembast persistence for projects, workspaces, workspace tabs, layouts, and view preferences.
+- Local Drift/SQLite persistence for projects, workspaces, workspace tabs, layouts, settings, and view preferences.
 - Dark-mode Flutter UI using Alera design tokens and theme.
 - Desktop release checking.
 
@@ -100,7 +100,7 @@ Special thanks to:
 - **Ghostty** — Inspiration for fast, high-quality terminal experiences.
 - **xterm.js** — Inspiration and ecosystem reference for terminal rendering and compatibility.
 - **Flutter** — The foundation that makes Alera's cross-platform desktop UI possible.
-- **Sembast** — Used for local persistence.
+- **Drift** — Used for local persistence.
 - **desktop_updater** — Used behind Alera's desktop update boundary.
 
 TODO: Add links to each project and verify exact dependency/inspiration wording.

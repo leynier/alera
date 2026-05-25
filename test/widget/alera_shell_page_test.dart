@@ -1,35 +1,27 @@
 import 'dart:async';
 
 import 'package:alera/src/app/providers.dart';
-import 'package:alera/src/features/projects/application/project_repository.dart';
-import 'package:alera/src/features/projects/application/project_service.dart';
-import 'package:alera/src/features/projects/application/projects_service.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
-import 'package:alera/src/features/settings/application/settings_controller.dart';
-import 'package:alera/src/features/settings/application/settings_repository.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/shell/presentation/alera_shell_page.dart';
-import 'package:alera/src/features/workbench/application/workspace_tab_service.dart';
-import 'package:alera/src/features/workbench/application/workbench_controller.dart';
-import 'package:alera/src/features/workbench/application/workbench_repository.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/application/workspace_folder_opener.dart';
-import 'package:alera/src/features/workbench/application/workspace_service.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
+import 'package:alera/src/shared/infra/storage/drift_database.dart';
+import 'package:drift/native.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sembast/sembast_memory.dart';
 
 void main() {
-  Future<Database> openMemoryDb() {
-    return databaseFactoryMemory.openDatabase('test.db');
+  Future<AleraDatabase> openMemoryDb() async {
+    return AleraDatabase(executor: NativeDatabase.memory());
   }
 
   Future<_ShellPumpHarness> pumpShell(
@@ -40,21 +32,16 @@ void main() {
   }) async {
     final controller = _ShellTestWorkbenchController(state);
     final runtime = terminalRuntime ?? _FakeTerminalRuntime();
+    final db = await openMemoryDb();
+    addTearDown(db.close);
 
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          aleraDatabaseProvider.overrideWith(
-            (ref) async => await openMemoryDb(),
-          ),
-          workbenchControllerProvider.overrideWith((ref) => controller),
+          aleraDatabaseProvider.overrideWith((ref) async => db),
+          workbenchControllerProvider.overrideWith(() => controller),
           terminalRuntimeProvider.overrideWith((ref) => runtime),
-          settingsControllerProvider.overrideWith(
-            (ref) => SettingsController(
-              _FakeSettingsRepository(),
-              loadOnCreate: false,
-            ),
-          ),
+          settingsControllerProvider.overrideWithValue(AleraSettings.defaults),
           if (workspaceFolderOpener != null)
             workspaceFolderOpenerProvider.overrideWith(
               (ref) => workspaceFolderOpener,
@@ -189,7 +176,7 @@ void main() {
   ) async {
     await pumpShell(
       tester,
-      state: _populatedWorkbenchState().copyWith(clearActiveWorkspaceId: true),
+      state: _populatedWorkbenchState().copyWith(activeWorkspaceId: null),
     );
 
     expect(find.text('Welcome to Alera'), findsOneWidget);
@@ -246,7 +233,7 @@ void main() {
   ) async {
     final harness = await pumpShell(
       tester,
-      state: _populatedWorkbenchState().copyWith(clearActiveWorkspaceId: true),
+      state: _populatedWorkbenchState().copyWith(activeWorkspaceId: null),
     );
 
     harness.runtime.emitExit(workspaceId: 'workspace-1', tabId: 'tab-1');
@@ -533,24 +520,12 @@ WorkbenchState _splitWorkbenchState() {
 }
 
 class _ShellTestWorkbenchController extends WorkbenchController {
-  _ShellTestWorkbenchController(this._bootstrapState)
-    : super(
-        projectsService: ProjectsService(
-          projectService: ProjectService(_NoopProcessRunner()),
-          projectRepository: _NoopProjectRepository(),
-        ),
-        repository: _NoopWorkbenchRepository(),
-        workspaceService: WorkspaceService(
-          repository: _NoopWorkbenchRepository(),
-          projectService: ProjectService(_NoopProcessRunner()),
-          processRunner: _NoopProcessRunner(),
-        ),
-        workspaceTabService: WorkspaceTabService(
-          repository: _NoopWorkbenchRepository(),
-        ),
-      );
+  _ShellTestWorkbenchController(this._bootstrapState);
 
   final WorkbenchState _bootstrapState;
+
+  @override
+  WorkbenchState build() => const WorkbenchState();
 
   @override
   Future<void> bootstrap() async {
@@ -690,100 +665,6 @@ class _FakeTerminalSessionHandle extends TerminalSessionHandle {
   @override
   void requestFocus() {
     requestFocusCalls += 1;
-  }
-}
-
-class _NoopWorkbenchRepository implements WorkbenchRepository {
-  final Map<String, WorkbenchLayout> layouts = <String, WorkbenchLayout>{};
-
-  @override
-  Future<Workspace?> findWorkspaceById(String workspaceId) async => null;
-
-  @override
-  Future<WorkspaceTabRecord?> findWorkspaceTabById(String tabId) async => null;
-
-  @override
-  Future<WorkbenchLayout?> findWorkbenchLayout(String workspaceId) async {
-    return layouts[workspaceId];
-  }
-
-  @override
-  Future<List<WorkspaceTabRecord>> listWorkspaceTabs(
-    String workspaceId,
-  ) async => const <WorkspaceTabRecord>[];
-
-  @override
-  Future<List<Workspace>> listWorkspaces(String projectId) async =>
-      const <Workspace>[];
-
-  @override
-  Future<void> removeWorkspaceTab(String tabId) async {}
-
-  @override
-  Future<void> removeWorkspaceTabsForWorkspace(String workspaceId) async {}
-
-  @override
-  Future<void> removeWorkspace(
-    String workspaceId, {
-    bool cascadeTabs = true,
-  }) async {}
-
-  @override
-  Future<void> removeWorkspacesForProject(String projectId) async {}
-
-  @override
-  Future<void> removeWorkbenchLayout(String workspaceId) async {
-    layouts.remove(workspaceId);
-  }
-
-  @override
-  Future<WorkspaceTabRecord> upsertWorkspaceTab(WorkspaceTabRecord tab) async =>
-      tab;
-
-  @override
-  Future<WorkbenchLayout> upsertWorkbenchLayout(WorkbenchLayout layout) async {
-    layouts[layout.workspaceId] = layout;
-    return layout;
-  }
-
-  @override
-  Future<Workspace> upsertWorkspace(Workspace workspace) async => workspace;
-
-  @override
-  Stream<List<WorkspaceTabRecord>> watchWorkspaceTabs(String workspaceId) =>
-      const Stream<List<WorkspaceTabRecord>>.empty();
-
-  @override
-  Stream<List<Workspace>> watchWorkspaces(String projectId) =>
-      const Stream<List<Workspace>>.empty();
-}
-
-class _NoopProjectRepository implements ProjectRepository {
-  @override
-  Future<Project> add(Project project) async => project;
-
-  @override
-  Future<List<Project>> listAll() async => const <Project>[];
-
-  @override
-  Future<void> remove(String projectId) async {}
-
-  @override
-  Future<Project> update(Project project) async => project;
-
-  @override
-  Stream<List<Project>> watchAll() => const Stream<List<Project>>.empty();
-}
-
-class _FakeSettingsRepository implements SettingsRepository {
-  AleraSettings settings = AleraSettings.defaults;
-
-  @override
-  Future<AleraSettings> load() async => settings;
-
-  @override
-  Future<void> save(AleraSettings settings) async {
-    this.settings = settings;
   }
 }
 

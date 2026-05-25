@@ -2,6 +2,7 @@ import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_shortcut_settings.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
+import 'package:dart_mappable/dart_mappable.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -67,7 +68,9 @@ void main() {
         ),
       );
 
-      final restored = AleraSettings.fromJson(settings.toJson());
+      final restored = AleraSettings.fromJson(
+        Map<String, Object?>.from(settings.toMap()),
+      );
 
       expect(restored.general.confirmProjectRemoval, isFalse);
       expect(restored.general.confirmWorkspaceRemoval, isFalse);
@@ -93,114 +96,86 @@ void main() {
       ]);
     });
 
-    test('fromJson falls back for invalid general confirmation fields', () {
-      final restored = AleraSettings.fromJson(<String, Object?>{
-        'general': <String, Object?>{
-          'confirmProjectRemoval': 'yes',
-          'confirmWorkspaceRemoval': 0,
-        },
-      });
-
-      expect(restored.general.confirmProjectRemoval, isTrue);
-      expect(restored.general.confirmWorkspaceRemoval, isTrue);
-    });
-
-    test('fromJson falls back for invalid terminal fields', () {
-      final restored = AleraSettings.fromJson(<String, Object?>{
-        'terminal': <String, Object?>{
-          'fontFamily': '',
-          'fontSize': 'large',
-          'fontWeight': 'heavy',
-          'lineHeight': double.nan,
-          'padding': null,
-          'cursorShape': 'beam',
-          'cursorOpacity': 'opaque',
-          'themeName': '',
-          'themePreset': 'unknown',
-          'backgroundOpacity': <Object?>[],
-          'wordSeparators': '',
-          'colorOverrides': <String, Object?>{
-            'foreground': 'bad',
-            'background': '#111111',
+    test('fromJson requires the current top-level schema', () {
+      expect(
+        () => AleraSettings.fromJson(<String, Object?>{
+          'general': <String, Object?>{
+            'confirmProjectRemoval': false,
+            'confirmWorkspaceRemoval': false,
           },
-          'scrollbackLines': 'many',
-        },
-      });
-
-      expect(restored.terminal, isNotNull);
-      expect(
-        restored.terminal.fontFamily,
-        TerminalSettings.defaults.fontFamily,
-      );
-      expect(restored.terminal.fontSize, TerminalSettings.defaults.fontSize);
-      expect(
-        restored.terminal.fontWeight,
-        TerminalSettings.defaults.fontWeight,
-      );
-      expect(
-        restored.terminal.lineHeight,
-        TerminalSettings.defaults.lineHeight,
-      );
-      expect(restored.terminal.padding, TerminalSettings.defaults.padding);
-      expect(
-        restored.terminal.cursorShape,
-        TerminalSettings.defaults.cursorShape,
-      );
-      expect(
-        restored.terminal.cursorOpacity,
-        TerminalSettings.defaults.cursorOpacity,
-      );
-      expect(restored.terminal.themeName, TerminalSettings.defaults.themeName);
-      expect(
-        restored.terminal.backgroundOpacity,
-        TerminalSettings.defaults.backgroundOpacity,
-      );
-      expect(restored.terminal.wordSeparators, isNull);
-      expect(restored.terminal.colorOverrides.foreground, isNull);
-      expect(restored.terminal.colorOverrides.background, '#111111');
-      expect(
-        restored.terminal.scrollbackLines,
-        TerminalSettings.defaults.scrollbackLines,
+        }),
+        throwsA(isA<MapperException>()),
       );
     });
 
-    test('fromJson clamps numeric terminal values', () {
-      final restored = TerminalSettings.fromJson(<String, Object?>{
-        'fontSize': 100,
-        'fontWeight': 950,
-        'lineHeight': 0.1,
-        'paddingX': 100,
-        'paddingY': -4,
-        'cursorOpacity': 2,
-        'backgroundOpacity': -1,
-        'scrollbackLines': 10,
-      });
-
-      expect(restored.fontSize, 32);
-      expect(restored.fontWeight, 900);
-      expect(restored.lineHeight, 0.8);
-      expect(restored.paddingX, 64);
-      expect(restored.paddingY, 0);
-      expect(restored.cursorOpacity, 1);
-      expect(restored.backgroundOpacity, 0);
-      expect(restored.scrollbackLines, 100);
+    test('fromJson rejects invalid terminal field types', () {
+      expect(
+        () => AleraSettings.fromJson(<String, Object?>{
+          'general': <String, Object?>{
+            'confirmProjectRemoval': true,
+            'confirmWorkspaceRemoval': true,
+            'starClicked': false,
+          },
+          'terminal': <String, Object?>{
+            'fontFamily': 'JetBrains Mono',
+            'fontSize': 'large',
+            'fontWeight': 400,
+            'lineHeight': 1.3,
+            'paddingX': 12,
+            'paddingY': 12,
+            'cursorShape': 'block',
+            'cursorBlink': false,
+            'cursorOpacity': 1,
+            'themeName': TerminalThemeNames.aleraDark,
+            'backgroundOpacity': 1,
+            'colorOverrides': <String, Object?>{},
+            'scrollbackLines': 10000,
+          },
+          'keyboard': <String, Object?>{
+            'terminalPolicy': 'appFirst',
+            'overrides': <String, Object?>{},
+          },
+        }),
+        throwsA(isA<MapperException>()),
+      );
     });
 
-    test('fromJson migrates legacy padding to both axes', () {
+    test('terminal parsing preserves current-schema values', () {
       final restored = TerminalSettings.fromJson(<String, Object?>{
-        'padding': 9,
+        'fontFamily': 'SF Mono',
+        'fontSize': 18,
+        'fontWeight': 600,
+        'lineHeight': 1.5,
+        'paddingX': 6,
+        'paddingY': 10,
+        'cursorShape': 'underline',
+        'cursorBlink': true,
+        'cursorOpacity': 0.6,
+        'themeName': TerminalThemeNames.dracula,
+        'backgroundOpacity': 0.85,
+        'wordSeparators': ' /',
+        'colorOverrides': <String, Object?>{'cursor': '#abcdef'},
+        'scrollbackLines': 15000,
       });
 
-      expect(restored.paddingX, 9);
-      expect(restored.paddingY, 9);
+      expect(restored.fontSize, 18);
+      expect(restored.fontWeight, 600);
+      expect(restored.paddingX, 6);
+      expect(restored.paddingY, 10);
+      expect(restored.cursorShape, TerminalCursorShape.underline);
+      expect(restored.wordSeparators, ' /');
+      expect(restored.colorOverrides.cursor, '#abcdef');
+      expect(restored.scrollbackLines, 15000);
     });
 
-    test('fromJson migrates legacy terminal theme presets', () {
-      final restored = TerminalSettings.fromJson(<String, Object?>{
-        'themePreset': 'dracula',
-      });
-
-      expect(restored.themeName, TerminalThemeNames.dracula);
+    test('terminal parsing rejects missing required fields', () {
+      expect(
+        () => TerminalSettings.fromJson(<String, Object?>{
+          'fontFamily': 'JetBrains Mono',
+          'fontSize': 13,
+        }),
+        throwsA(isA<MapperException>()),
+      );
     });
   });
 
@@ -220,7 +195,9 @@ void main() {
         },
       );
 
-      final restored = KeyboardShortcutSettings.fromJson(settings.toJson());
+      final restored = KeyboardShortcutSettings.fromJson(
+        Map<String, Object?>.from(settings.toMap()),
+      );
 
       expect(restored.terminalPolicy, TerminalShortcutPolicy.terminalFirst);
       expect(restored.overrides[KeyboardActionId.newTerminalTab], <String>[
@@ -229,25 +206,17 @@ void main() {
       expect(restored.isDisabled(KeyboardActionId.closeTab), isTrue);
     });
 
-    test('fromJson drops unknown actions and unparsable chords', () {
-      final restored = KeyboardShortcutSettings.fromJson(<String, Object?>{
-        'terminalPolicy': 'nonsense',
-        'overrides': <String, Object?>{
-          'newTerminalTab': <Object?>['Mod+T', 'not a chord', 42],
-          'thisActionDoesNotExist': <Object?>['Mod+Z'],
-          'closeTab': 'not a list',
-        },
-      });
-
-      expect(restored.terminalPolicy, TerminalShortcutPolicy.appFirst);
-      expect(restored.overrides[KeyboardActionId.newTerminalTab], <String>[
-        'Mod+T',
-      ]);
+    test('fromJson rejects unknown actions and invalid policy values', () {
       expect(
-        restored.overrides.containsKey(KeyboardActionId.closeTab),
-        isFalse,
+        () => KeyboardShortcutSettings.fromJson(<String, Object?>{
+          'terminalPolicy': 'nonsense',
+          'overrides': <String, Object?>{
+            'newTerminalTab': <String>['Mod+T'],
+            'thisActionDoesNotExist': <String>['Mod+Z'],
+          },
+        }),
+        throwsA(isA<MapperException>()),
       );
-      expect(restored.overrides.length, 1);
     });
 
     test('copyWithOverride restores the default when given null', () {

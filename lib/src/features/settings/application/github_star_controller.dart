@@ -1,24 +1,37 @@
 import 'dart:async';
 
+import 'package:alera/src/app/dependencies.dart';
 import 'package:alera/src/features/settings/infra/github_star_service.dart';
-import 'package:flutter_riverpod/legacy.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+
+part 'github_star_controller.g.dart';
 
 enum GitHubStarState { loading, notStarred, starring, starred, error, hidden }
 
-class GitHubStarController extends StateNotifier<GitHubStarState> {
-  GitHubStarController(this._service, {bool refreshOnCreate = true})
-    : super(GitHubStarState.loading) {
-    if (refreshOnCreate) {
+@Riverpod(keepAlive: true)
+class GitHubStarController extends _$GitHubStarController {
+  bool _disposed = false;
+  bool _refreshStarted = false;
+
+  GitHubStarService get _service => ref.read(gitHubStarServiceProvider);
+
+  @override
+  GitHubStarState build() {
+    _disposed = false;
+    ref.onDispose(() {
+      _disposed = true;
+    });
+    if (!_refreshStarted) {
+      _refreshStarted = true;
       unawaited(refresh());
     }
+    return GitHubStarState.loading;
   }
-
-  final GitHubStarService _service;
 
   Future<void> refresh() async {
     state = GitHubStarState.loading;
     final result = await _service.checkStarred();
-    if (!mounted) return;
+    if (_disposed) return;
     if (result == null) {
       state = GitHubStarState.hidden;
     } else {
@@ -32,7 +45,7 @@ class GitHubStarController extends StateNotifier<GitHubStarState> {
     }
     state = GitHubStarState.starring;
     final ok = await _service.star();
-    if (!mounted) return;
+    if (_disposed) return;
     state = ok ? GitHubStarState.starred : GitHubStarState.error;
   }
 }

@@ -1,19 +1,27 @@
 import 'dart:async';
 
+import 'package:alera/src/app/dependencies.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
-import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/application/settings_repository.dart';
-import 'package:flutter_riverpod/legacy.dart';
+import 'package:alera/src/features/settings/domain/alera_settings.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-class SettingsController extends StateNotifier<AleraSettings> {
-  SettingsController(this._repository, {bool loadOnCreate = true})
-    : super(AleraSettings.defaults) {
-    if (loadOnCreate) {
+part 'settings_controller.g.dart';
+
+@Riverpod(keepAlive: true)
+class SettingsController extends _$SettingsController {
+  bool _loadStarted = false;
+
+  SettingsRepository get _repository => ref.read(settingsRepositoryProvider);
+
+  @override
+  AleraSettings build() {
+    if (!_loadStarted) {
+      _loadStarted = true;
       unawaited(load());
     }
+    return AleraSettings.defaults;
   }
-
-  final SettingsRepository _repository;
 
   Future<void> load() async {
     state = await _repository.load();

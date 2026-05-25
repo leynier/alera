@@ -112,7 +112,7 @@ class WorkspaceService {
               updatedAt: now,
               kind: WorkspaceKind.main,
               status: WorkspaceStatus.active,
-              clearSourceBranch: true,
+              sourceBranch: null,
             );
     await _repository.upsertWorkspace(next);
     return next;

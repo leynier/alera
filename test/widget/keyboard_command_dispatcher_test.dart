@@ -3,20 +3,11 @@ import 'dart:async';
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/features/keyboard/application/keyboard_command_dispatcher.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
-import 'package:alera/src/features/projects/application/project_repository.dart';
-import 'package:alera/src/features/projects/application/project_service.dart';
-import 'package:alera/src/features/projects/application/projects_service.dart';
-import 'package:alera/src/features/projects/domain/project.dart';
-import 'package:alera/src/features/workbench/application/workbench_controller.dart';
-import 'package:alera/src/features/workbench/application/workbench_repository.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
-import 'package:alera/src/features/workbench/application/workspace_service.dart';
-import 'package:alera/src/features/workbench/application/workspace_tab_service.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
-import 'package:alera/src/shared/infra/process/process_runner.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -29,7 +20,7 @@ void main() {
     final initialTab = _tab(id: 'tab-1');
     final splitTab = _tab(id: 'tab-2');
     final controller = _DispatcherTestWorkbenchController(
-      seed: WorkbenchState(
+      WorkbenchState(
         workspacesByProject: <String, List<Workspace>>{
           workspace.projectId: <Workspace>[workspace],
         },
@@ -48,7 +39,7 @@ void main() {
     final runtime = _FakeTerminalRuntime();
     final container = ProviderContainer(
       overrides: [
-        workbenchControllerProvider.overrideWith((ref) => controller),
+        workbenchControllerProvider.overrideWith(() => controller),
         terminalRuntimeProvider.overrideWith((ref) => runtime),
       ],
     );
@@ -123,27 +114,15 @@ WorkspaceTabRecord _tab({required String id}) {
 }
 
 class _DispatcherTestWorkbenchController extends WorkbenchController {
-  _DispatcherTestWorkbenchController({required WorkbenchState seed})
-    : _splitCompleter = Completer<WorkspaceTabRecord>(),
-      super(
-        projectsService: ProjectsService(
-          projectService: ProjectService(_NoopProcessRunner()),
-          projectRepository: _NoopProjectRepository(),
-        ),
-        repository: _NoopWorkbenchRepository(),
-        workspaceService: WorkspaceService(
-          repository: _NoopWorkbenchRepository(),
-          projectService: ProjectService(_NoopProcessRunner()),
-          processRunner: _NoopProcessRunner(),
-        ),
-        workspaceTabService: WorkspaceTabService(
-          repository: _NoopWorkbenchRepository(),
-        ),
-      ) {
-    state = seed;
-  }
+  _DispatcherTestWorkbenchController(this._seed)
+    : _splitCompleter = Completer<WorkspaceTabRecord>();
+
+  final WorkbenchState _seed;
 
   final Completer<WorkspaceTabRecord> _splitCompleter;
+
+  @override
+  WorkbenchState build() => _seed;
 
   @override
   Future<void> bootstrap() async {}
@@ -258,102 +237,5 @@ class _FakeTerminalSessionHandle extends TerminalSessionHandle {
   @override
   void requestFocus() {
     requestFocusCalls += 1;
-  }
-}
-
-class _NoopWorkbenchRepository implements WorkbenchRepository {
-  @override
-  Future<Workspace?> findWorkspaceById(String workspaceId) async => null;
-
-  @override
-  Future<WorkspaceTabRecord?> findWorkspaceTabById(String tabId) async => null;
-
-  @override
-  Future<WorkbenchLayout?> findWorkbenchLayout(String workspaceId) async =>
-      null;
-
-  @override
-  Future<List<WorkspaceTabRecord>> listWorkspaceTabs(
-    String workspaceId,
-  ) async => const <WorkspaceTabRecord>[];
-
-  @override
-  Future<List<Workspace>> listWorkspaces(String projectId) async =>
-      const <Workspace>[];
-
-  @override
-  Future<void> removeWorkspaceTab(String tabId) async {}
-
-  @override
-  Future<void> removeWorkspaceTabsForWorkspace(String workspaceId) async {}
-
-  @override
-  Future<void> removeWorkspace(
-    String workspaceId, {
-    bool cascadeTabs = true,
-  }) async {}
-
-  @override
-  Future<void> removeWorkspacesForProject(String projectId) async {}
-
-  @override
-  Future<void> removeWorkbenchLayout(String workspaceId) async {}
-
-  @override
-  Future<WorkspaceTabRecord> upsertWorkspaceTab(WorkspaceTabRecord tab) async =>
-      tab;
-
-  @override
-  Future<WorkbenchLayout> upsertWorkbenchLayout(WorkbenchLayout layout) async =>
-      layout;
-
-  @override
-  Future<Workspace> upsertWorkspace(Workspace workspace) async => workspace;
-
-  @override
-  Stream<List<WorkspaceTabRecord>> watchWorkspaceTabs(String workspaceId) =>
-      const Stream<List<WorkspaceTabRecord>>.empty();
-
-  @override
-  Stream<List<Workspace>> watchWorkspaces(String projectId) =>
-      const Stream<List<Workspace>>.empty();
-}
-
-class _NoopProjectRepository implements ProjectRepository {
-  @override
-  Future<Project> add(Project project) async => project;
-
-  @override
-  Future<List<Project>> listAll() async => const <Project>[];
-
-  @override
-  Future<void> remove(String projectId) async {}
-
-  @override
-  Future<Project> update(Project project) async => project;
-
-  @override
-  Stream<List<Project>> watchAll() => const Stream<List<Project>>.empty();
-}
-
-class _NoopProcessRunner implements ProcessRunner {
-  @override
-  Future<ProcessRunOutput> run(
-    String executable,
-    List<String> arguments, {
-    String? workingDirectory,
-    Map<String, String>? environment,
-  }) async {
-    return const ProcessRunOutput(exitCode: 0, stdout: '', stderr: '');
-  }
-
-  @override
-  Future<StartedProcess> start(
-    String executable,
-    List<String> arguments, {
-    String? workingDirectory,
-    Map<String, String>? environment,
-  }) {
-    throw UnimplementedError();
   }
 }

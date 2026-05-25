@@ -19,7 +19,9 @@ void main() {
             ),
           );
 
-      final restored = WorkbenchLayout.fromJson(layout.toJson());
+      final restored = WorkbenchLayout.fromJson(
+        Map<String, Object?>.from(layout.toMap()),
+      );
 
       expect(restored.workspaceId, 'workspace-1');
       expect(restored.paneGroupIds, <String>[

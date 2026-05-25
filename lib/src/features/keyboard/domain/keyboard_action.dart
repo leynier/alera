@@ -1,6 +1,10 @@
+import 'package:dart_mappable/dart_mappable.dart';
 import 'package:flutter/foundation.dart';
 
+part 'keyboard_action.mapper.dart';
+
 /// Decides who wins a key event while a terminal is focused.
+@MappableEnum()
 enum TerminalShortcutPolicy {
   /// Alera shortcuts intercept before the terminal sees the key.
   appFirst,
@@ -40,6 +44,7 @@ enum KeyboardActionGroup {
 }
 
 /// Every shortcut-able action. The string [name] is the stable persistence key.
+@MappableEnum()
 enum KeyboardActionId {
   openSettings,
   addProject,

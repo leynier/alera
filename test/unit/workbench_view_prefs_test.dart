@@ -1,3 +1,4 @@
+import 'package:dart_mappable/dart_mappable.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -21,7 +22,9 @@ void main() {
         collapsedProjectIds: <String>{'p3'},
         expandedWorkspaceIds: <String>{'w1'},
       );
-      final restored = WorkbenchViewPrefs.fromJson(prefs.toJson());
+      final restored = WorkbenchViewPrefs.fromJson(
+        Map<String, Object?>.from(prefs.toMap()),
+      );
       expect(restored.groupBy, WorkbenchGroupBy.none);
       expect(restored.projectSort, WorkbenchSortBy.recent);
       expect(restored.workspaceSort, WorkbenchSortBy.recent);
@@ -30,64 +33,40 @@ void main() {
       expect(restored.expandedWorkspaceIds, <String>{'w1'});
     });
 
-    test('fromJson falls back to defaults on empty input', () {
-      final restored = WorkbenchViewPrefs.fromJson(<String, Object?>{});
-      expect(restored.groupBy, WorkbenchGroupBy.project);
-      expect(restored.projectSort, WorkbenchSortBy.name);
-      expect(restored.workspaceSort, WorkbenchSortBy.name);
-      expect(restored.selectedProjectIds, isEmpty);
-      expect(restored.collapsedProjectIds, isEmpty);
-      expect(restored.expandedWorkspaceIds, isEmpty);
+    test('fromJson requires the current schema', () {
+      expect(
+        () => WorkbenchViewPrefs.fromJson(<String, Object?>{}),
+        throwsA(isA<MapperException>()),
+      );
     });
 
-    test('fromJson ignores unknown enum names', () {
-      final restored = WorkbenchViewPrefs.fromJson(<String, Object?>{
-        'groupBy': 'unknown',
-        'projectSort': 'also-unknown',
-        'workspaceSort': 'recent',
-      });
-      expect(restored.groupBy, WorkbenchGroupBy.project);
-      expect(restored.projectSort, WorkbenchSortBy.name);
-      expect(restored.workspaceSort, WorkbenchSortBy.recent);
+    test('fromJson rejects unknown enum names', () {
+      expect(
+        () => WorkbenchViewPrefs.fromJson(<String, Object?>{
+          'groupBy': 'unknown',
+          'projectSort': 'also-unknown',
+          'workspaceSort': 'recent',
+          'selectedProjectIds': <String>[],
+          'collapsedProjectIds': <String>[],
+          'expandedWorkspaceIds': <String>[],
+        }),
+        throwsA(isA<MapperException>()),
+      );
     });
 
-    test('fromJson skips non-string entries in id lists', () {
+    test('fromJson applies mapper conversions inside id collections', () {
       final restored = WorkbenchViewPrefs.fromJson(<String, Object?>{
         'groupBy': 'project',
         'projectSort': 'name',
         'workspaceSort': 'name',
-        'selectedProjectIds': <Object?>['p1', 42, '', null, 'p2'],
-        'collapsedProjectIds': <Object?>['p3'],
-        'expandedWorkspaceIds': <Object?>['w1', null, 0, 'w2'],
+        'selectedProjectIds': <Object?>['p1', 42],
+        'collapsedProjectIds': <String>['p3'],
+        'expandedWorkspaceIds': <String>['w1'],
       });
-      expect(restored.selectedProjectIds, <String>{'p1', 'p2'});
+
+      expect(restored.selectedProjectIds, <String>{'p1', '42'});
       expect(restored.collapsedProjectIds, <String>{'p3'});
-      expect(restored.expandedWorkspaceIds, <String>{'w1', 'w2'});
-    });
-
-    test('fromJson discards legacy hiddenProjectIds (semantics inverted)', () {
-      // Older builds stored a negative filter under "hiddenProjectIds". Loading
-      // that as a positive filter would silently hide unrelated projects, so
-      // we drop it and reset to the default "all visible" view.
-      final restored = WorkbenchViewPrefs.fromJson(<String, Object?>{
-        'groupBy': 'project',
-        'projectSort': 'name',
-        'workspaceSort': 'name',
-        'hiddenProjectIds': <Object?>['p-legacy-1', 'p-legacy-2'],
-      });
-      expect(restored.selectedProjectIds, isEmpty);
-    });
-
-    test('fromJson discards legacy terminalsCollapsedWorkspaceIds', () {
-      // Older builds tracked "which workspace terminals are hidden". The new
-      // model is the inverse, so legacy values are ignored on load.
-      final restored = WorkbenchViewPrefs.fromJson(<String, Object?>{
-        'groupBy': 'project',
-        'projectSort': 'name',
-        'workspaceSort': 'name',
-        'terminalsCollapsedWorkspaceIds': <Object?>['w-legacy'],
-      });
-      expect(restored.expandedWorkspaceIds, isEmpty);
+      expect(restored.expandedWorkspaceIds, <String>{'w1'});
     });
 
     test('copyWith updates individual fields', () {

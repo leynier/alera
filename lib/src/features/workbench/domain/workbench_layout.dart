@@ -1,105 +1,60 @@
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
+import 'package:dart_mappable/dart_mappable.dart';
+
+part 'workbench_layout.mapper.dart';
 
 const double workbenchMinSplitRatio = 0.15;
 const double workbenchMaxSplitRatio = 0.85;
 
-enum WorkbenchSplitAxis {
-  horizontal('horizontal'),
-  vertical('vertical');
-
-  const WorkbenchSplitAxis(this.key);
-
-  final String key;
-
-  static WorkbenchSplitAxis fromJson(Object? value) {
-    if (value is! String) {
-      throw StateError('Workbench layout node missing split axis');
-    }
-    for (final axis in WorkbenchSplitAxis.values) {
-      if (axis.key == value) {
-        return axis;
-      }
-    }
-    throw StateError('Workbench layout node has unknown split axis "$value"');
-  }
-}
+@MappableEnum()
+enum WorkbenchSplitAxis { horizontal, vertical }
 
 enum WorkbenchDropZone { center, left, right, up, down }
 
-class WorkbenchPaneGroup {
+@MappableClass()
+class WorkbenchPaneGroup with WorkbenchPaneGroupMappable {
   WorkbenchPaneGroup({
     required this.id,
     required List<String> tabIds,
     required this.activeTabId,
-  }) : tabIds = List<String>.unmodifiable(tabIds);
+  }) : tabIds = List<String>.unmodifiable(tabIds) {
+    if (id.isEmpty) {
+      throw ArgumentError.value(
+        id,
+        'id',
+        'Workbench pane group id must not be empty.',
+      );
+    }
+  }
 
   final String id;
   final List<String> tabIds;
   final String? activeTabId;
 
-  WorkbenchPaneGroup copyWith({
-    List<String>? tabIds,
-    String? activeTabId,
-    bool clearActiveTabId = false,
-  }) {
-    return WorkbenchPaneGroup(
-      id: id,
-      tabIds: tabIds ?? this.tabIds,
-      activeTabId: clearActiveTabId ? null : (activeTabId ?? this.activeTabId),
-    );
-  }
-
-  Map<String, Object?> toJson() {
-    return <String, Object?>{
-      'id': id,
-      'tabIds': tabIds,
-      'activeTabId': activeTabId,
-    };
-  }
-
-  factory WorkbenchPaneGroup.fromJson(Map<String, Object?> json) {
-    final id = json['id'];
-    if (id is! String || id.isEmpty) {
-      throw StateError('Workbench pane group missing id');
-    }
-    final tabIds = json['tabIds'];
-    if (tabIds is! List) {
-      throw StateError('Workbench pane group missing tabIds');
-    }
-    final activeTabId = json['activeTabId'];
-    if (activeTabId != null && activeTabId is! String) {
-      throw StateError('Workbench pane group has invalid activeTabId');
-    }
-    return WorkbenchPaneGroup(
-      id: id,
-      tabIds: tabIds.whereType<String>().toList(growable: false),
-      activeTabId: activeTabId as String?,
-    );
-  }
+  factory WorkbenchPaneGroup.fromJson(Map<String, Object?> json) =>
+      WorkbenchPaneGroupMapper.fromMap(Map<String, dynamic>.from(json));
 }
 
-class WorkbenchLayoutNode {
-  const WorkbenchLayoutNode.leaf(this.groupId)
-    : axis = null,
-      first = null,
-      second = null,
-      ratio = null;
+@MappableClass(discriminatorKey: 'type')
+abstract class WorkbenchLayoutNode with WorkbenchLayoutNodeMappable {
+  const WorkbenchLayoutNode();
 
-  const WorkbenchLayoutNode.split({
-    required this.axis,
-    required this.first,
-    required this.second,
+  factory WorkbenchLayoutNode.leaf(String groupId) = WorkbenchLeafLayoutNode;
+  factory WorkbenchLayoutNode.split({
+    required WorkbenchSplitAxis axis,
+    required WorkbenchLayoutNode first,
+    required WorkbenchLayoutNode second,
     required double ratio,
-  }) : groupId = null,
-       ratio = ratio < workbenchMinSplitRatio
-           ? workbenchMinSplitRatio
-           : (ratio > workbenchMaxSplitRatio ? workbenchMaxSplitRatio : ratio);
+  }) = WorkbenchSplitLayoutNode;
 
-  final String? groupId;
-  final WorkbenchSplitAxis? axis;
-  final WorkbenchLayoutNode? first;
-  final WorkbenchLayoutNode? second;
-  final double? ratio;
+  factory WorkbenchLayoutNode.fromJson(Map<String, Object?> json) =>
+      WorkbenchLayoutNodeMapper.fromMap(Map<String, dynamic>.from(json));
+
+  String? get groupId => null;
+  WorkbenchSplitAxis? get axis => null;
+  WorkbenchLayoutNode? get first => null;
+  WorkbenchLayoutNode? get second => null;
+  double? get ratio => null;
 
   bool get isLeaf => groupId != null;
 
@@ -183,55 +138,71 @@ class WorkbenchLayoutNode {
       ratio: ratio!,
     );
   }
-
-  Map<String, Object?> toJson() {
-    final groupId = this.groupId;
-    if (groupId != null) {
-      return <String, Object?>{'type': 'leaf', 'groupId': groupId};
-    }
-    return <String, Object?>{
-      'type': 'split',
-      'axis': axis!.key,
-      'first': first!.toJson(),
-      'second': second!.toJson(),
-      'ratio': ratio,
-    };
-  }
-
-  factory WorkbenchLayoutNode.fromJson(Map<String, Object?> json) {
-    final type = json['type'];
-    if (type == 'leaf') {
-      final groupId = json['groupId'];
-      if (groupId is! String || groupId.isEmpty) {
-        throw StateError('Workbench layout leaf missing groupId');
-      }
-      return WorkbenchLayoutNode.leaf(groupId);
-    }
-    if (type == 'split') {
-      final first = json['first'];
-      final second = json['second'];
-      final ratio = json['ratio'];
-      if (first is! Map<String, Object?> || second is! Map<String, Object?>) {
-        throw StateError('Workbench layout split missing children');
-      }
-      return WorkbenchLayoutNode.split(
-        axis: WorkbenchSplitAxis.fromJson(json['axis']),
-        first: WorkbenchLayoutNode.fromJson(first),
-        second: WorkbenchLayoutNode.fromJson(second),
-        ratio: ratio is num ? ratio.toDouble() : 0.5,
-      );
-    }
-    throw StateError('Workbench layout node has unknown type "$type"');
-  }
 }
 
-class WorkbenchLayout {
+@MappableClass(discriminatorValue: 'leaf')
+class WorkbenchLeafLayoutNode extends WorkbenchLayoutNode
+    with WorkbenchLeafLayoutNodeMappable {
+  WorkbenchLeafLayoutNode(this.groupId) {
+    if (groupId.isEmpty) {
+      throw ArgumentError.value(
+        groupId,
+        'groupId',
+        'Workbench layout leaf group id must not be empty.',
+      );
+    }
+  }
+
+  @override
+  final String groupId;
+}
+
+@MappableClass(discriminatorValue: 'split')
+class WorkbenchSplitLayoutNode extends WorkbenchLayoutNode
+    with WorkbenchSplitLayoutNodeMappable {
+  WorkbenchSplitLayoutNode({
+    required this.axis,
+    required this.first,
+    required this.second,
+    required double ratio,
+  }) : ratio = _clampWorkbenchSplitRatio(ratio);
+
+  @override
+  final WorkbenchSplitAxis axis;
+
+  @override
+  final WorkbenchLayoutNode first;
+
+  @override
+  final WorkbenchLayoutNode second;
+
+  @override
+  final double ratio;
+}
+
+@MappableClass()
+class WorkbenchLayout with WorkbenchLayoutMappable {
   WorkbenchLayout({
     required this.workspaceId,
     required this.root,
     required Map<String, WorkbenchPaneGroup> groups,
     required this.activeGroupId,
-  }) : groups = Map<String, WorkbenchPaneGroup>.unmodifiable(groups);
+  }) : groups = Map<String, WorkbenchPaneGroup>.unmodifiable(groups) {
+    if (workspaceId.isEmpty) {
+      throw ArgumentError.value(
+        workspaceId,
+        'workspaceId',
+        'Workbench layout workspace id must not be empty.',
+      );
+    }
+    if (activeGroupId.isEmpty) {
+      throw ArgumentError.value(
+        activeGroupId,
+        'activeGroupId',
+        'Workbench layout active group id must not be empty.',
+      );
+    }
+  }
 
   final String workspaceId;
   final WorkbenchLayoutNode root;
@@ -259,6 +230,9 @@ class WorkbenchLayout {
       activeGroupId: resolvedGroupId,
     );
   }
+
+  factory WorkbenchLayout.fromJson(Map<String, Object?> json) =>
+      WorkbenchLayoutMapper.fromMap(Map<String, dynamic>.from(json));
 
   WorkbenchPaneGroup? get activeGroup => groups[activeGroupId];
 
@@ -346,7 +320,7 @@ class WorkbenchLayout {
     if (group == null || !group.tabIds.contains(tabId)) {
       return this;
     }
-    return _copyWith(
+    return copyWith(
       groups: <String, WorkbenchPaneGroup>{
         ...groups,
         groupId: group.copyWith(activeTabId: tabId),
@@ -369,7 +343,7 @@ class WorkbenchLayout {
         ? tabIds.length
         : index.clamp(0, tabIds.length);
     tabIds.insert(insertIndex, tabId);
-    return _copyWith(
+    return copyWith(
       groups: <String, WorkbenchPaneGroup>{
         ...groups,
         groupId: group.copyWith(tabIds: tabIds, activeTabId: tabId),
@@ -444,7 +418,7 @@ class WorkbenchLayout {
             second: newLeaf,
             ratio: 0.5,
           );
-    return _copyWith(
+    return copyWith(
       root: root.replaceLeaf(targetGroupId, replacement),
       groups: <String, WorkbenchPaneGroup>{...groups, newGroup.id: newGroup},
       activeGroupId: newGroup.id,
@@ -526,62 +500,7 @@ class WorkbenchLayout {
   }
 
   WorkbenchLayout updateSplitRatio(List<int> path, double ratio) {
-    return _copyWith(root: root.updateSplitRatio(path, ratio));
-  }
-
-  WorkbenchLayout _copyWith({
-    WorkbenchLayoutNode? root,
-    Map<String, WorkbenchPaneGroup>? groups,
-    String? activeGroupId,
-  }) {
-    return WorkbenchLayout(
-      workspaceId: workspaceId,
-      root: root ?? this.root,
-      groups: groups ?? this.groups,
-      activeGroupId: activeGroupId ?? this.activeGroupId,
-    );
-  }
-
-  Map<String, Object?> toJson() {
-    return <String, Object?>{
-      'workspaceId': workspaceId,
-      'root': root.toJson(),
-      'groups': <String, Object?>{
-        for (final entry in groups.entries) entry.key: entry.value.toJson(),
-      },
-      'activeGroupId': activeGroupId,
-    };
-  }
-
-  factory WorkbenchLayout.fromJson(Map<String, Object?> json) {
-    final workspaceId = json['workspaceId'];
-    final root = json['root'];
-    final groups = json['groups'];
-    final activeGroupId = json['activeGroupId'];
-    if (workspaceId is! String || workspaceId.isEmpty) {
-      throw StateError('Workbench layout missing workspaceId');
-    }
-    if (root is! Map<String, Object?>) {
-      throw StateError('Workbench layout missing root');
-    }
-    if (groups is! Map) {
-      throw StateError('Workbench layout missing groups');
-    }
-    if (activeGroupId is! String || activeGroupId.isEmpty) {
-      throw StateError('Workbench layout missing activeGroupId');
-    }
-    return WorkbenchLayout(
-      workspaceId: workspaceId,
-      root: WorkbenchLayoutNode.fromJson(root),
-      groups: <String, WorkbenchPaneGroup>{
-        for (final entry in groups.entries)
-          if (entry.key is String && entry.value is Map<String, Object?>)
-            entry.key as String: WorkbenchPaneGroup.fromJson(
-              entry.value as Map<String, Object?>,
-            ),
-      },
-      activeGroupId: activeGroupId,
-    );
+    return copyWith(root: root.updateSplitRatio(path, ratio));
   }
 }
 
@@ -593,6 +512,16 @@ WorkbenchSplitAxis? _axisForZone(WorkbenchDropZone zone) {
     WorkbenchDropZone.down => WorkbenchSplitAxis.vertical,
     WorkbenchDropZone.center => null,
   };
+}
+
+double _clampWorkbenchSplitRatio(double ratio) {
+  if (ratio < workbenchMinSplitRatio) {
+    return workbenchMinSplitRatio;
+  }
+  if (ratio > workbenchMaxSplitRatio) {
+    return workbenchMaxSplitRatio;
+  }
+  return ratio;
 }
 
 String? _firstSiblingGroupId(WorkbenchLayoutNode node, String groupId) {

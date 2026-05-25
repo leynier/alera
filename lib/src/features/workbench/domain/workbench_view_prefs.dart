@@ -1,40 +1,15 @@
+import 'package:dart_mappable/dart_mappable.dart';
+
+part 'workbench_view_prefs.mapper.dart';
+
+@MappableEnum()
 enum WorkbenchGroupBy { none, project }
 
+@MappableEnum()
 enum WorkbenchSortBy { name, recent }
 
-WorkbenchGroupBy _groupByFromWire(Object? value) {
-  if (value is String) {
-    for (final option in WorkbenchGroupBy.values) {
-      if (option.name == value) {
-        return option;
-      }
-    }
-  }
-  return WorkbenchGroupBy.project;
-}
-
-WorkbenchSortBy _sortByFromWire(Object? value, WorkbenchSortBy fallback) {
-  if (value is String) {
-    for (final option in WorkbenchSortBy.values) {
-      if (option.name == value) {
-        return option;
-      }
-    }
-  }
-  return fallback;
-}
-
-Set<String> _idsFromWire(Object? value) {
-  if (value is! List) {
-    return const <String>{};
-  }
-  return <String>{
-    for (final entry in value)
-      if (entry is String && entry.isNotEmpty) entry,
-  };
-}
-
-class WorkbenchViewPrefs {
+@MappableClass()
+class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
   const WorkbenchViewPrefs({
     required this.groupBy,
     required this.projectSort,
@@ -69,56 +44,6 @@ class WorkbenchViewPrefs {
     expandedWorkspaceIds: <String>{},
   );
 
-  WorkbenchViewPrefs copyWith({
-    WorkbenchGroupBy? groupBy,
-    WorkbenchSortBy? projectSort,
-    WorkbenchSortBy? workspaceSort,
-    Set<String>? selectedProjectIds,
-    Set<String>? collapsedProjectIds,
-    Set<String>? expandedWorkspaceIds,
-  }) {
-    return WorkbenchViewPrefs(
-      groupBy: groupBy ?? this.groupBy,
-      projectSort: projectSort ?? this.projectSort,
-      workspaceSort: workspaceSort ?? this.workspaceSort,
-      selectedProjectIds: selectedProjectIds ?? this.selectedProjectIds,
-      collapsedProjectIds: collapsedProjectIds ?? this.collapsedProjectIds,
-      expandedWorkspaceIds: expandedWorkspaceIds ?? this.expandedWorkspaceIds,
-    );
-  }
-
-  Map<String, Object?> toJson() {
-    return <String, Object?>{
-      'groupBy': groupBy.name,
-      'projectSort': projectSort.name,
-      'workspaceSort': workspaceSort.name,
-      'selectedProjectIds': selectedProjectIds.toList(growable: false),
-      'collapsedProjectIds': collapsedProjectIds.toList(growable: false),
-      'expandedWorkspaceIds': expandedWorkspaceIds.toList(growable: false),
-    };
-  }
-
-  factory WorkbenchViewPrefs.fromJson(Map<String, Object?> json) {
-    // Back-compat: earlier builds stored "hiddenProjectIds" (negative
-    // selection) and "terminalsCollapsedWorkspaceIds" (inverse of the current
-    // expansion semantics). Discard both silently so users land on a sane
-    // default view rather than inheriting state with inverted meaning.
-    final selected = json.containsKey('selectedProjectIds')
-        ? _idsFromWire(json['selectedProjectIds'])
-        : const <String>{};
-    final expanded = json.containsKey('expandedWorkspaceIds')
-        ? _idsFromWire(json['expandedWorkspaceIds'])
-        : const <String>{};
-    return WorkbenchViewPrefs(
-      groupBy: _groupByFromWire(json['groupBy']),
-      projectSort: _sortByFromWire(json['projectSort'], WorkbenchSortBy.name),
-      workspaceSort: _sortByFromWire(
-        json['workspaceSort'],
-        WorkbenchSortBy.name,
-      ),
-      selectedProjectIds: selected,
-      collapsedProjectIds: _idsFromWire(json['collapsedProjectIds']),
-      expandedWorkspaceIds: expanded,
-    );
-  }
+  factory WorkbenchViewPrefs.fromJson(Map<String, Object?> json) =>
+      WorkbenchViewPrefsMapper.fromMap(Map<String, dynamic>.from(json));
 }

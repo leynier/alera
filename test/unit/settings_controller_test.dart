@@ -1,22 +1,24 @@
+import 'package:alera/src/app/dependencies.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
-import 'package:alera/src/features/settings/infra/sembast_settings_repository.dart';
-import 'package:alera/src/shared/infra/storage/sembast_database.dart';
+import 'package:alera/src/features/settings/infra/drift_settings_repository.dart';
+import 'package:alera/src/shared/infra/storage/drift_database.dart';
+import 'package:drift/native.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sembast/sembast_memory.dart';
 
 void main() {
   group('SettingsController', () {
     test('autosaves terminal updates', () async {
-      final db = await openAleraDb(
-        factory: databaseFactoryMemory,
-        path: 'settings-controller-save.db',
-      );
+      final db = AleraDatabase(executor: NativeDatabase.memory());
       addTearDown(db.close);
-      final repository = SembastSettingsRepository(db);
-      final controller = SettingsController(repository);
-      addTearDown(controller.dispose);
+      final repository = DriftSettingsRepository(db);
+      final container = ProviderContainer(
+        overrides: [settingsRepositoryProvider.overrideWithValue(repository)],
+      );
+      addTearDown(container.dispose);
+      final controller = container.read(settingsControllerProvider.notifier);
       await controller.load();
 
       await controller.updateTerminal(
@@ -24,19 +26,19 @@ void main() {
       );
       final restored = await repository.load();
 
-      expect(controller.state.terminal.fontSize, 18);
+      expect(container.read(settingsControllerProvider).terminal.fontSize, 18);
       expect(restored.terminal.fontSize, 18);
     });
 
     test('resets terminal settings to defaults', () async {
-      final db = await openAleraDb(
-        factory: databaseFactoryMemory,
-        path: 'settings-controller-reset.db',
-      );
+      final db = AleraDatabase(executor: NativeDatabase.memory());
       addTearDown(db.close);
-      final repository = SembastSettingsRepository(db);
-      final controller = SettingsController(repository);
-      addTearDown(controller.dispose);
+      final repository = DriftSettingsRepository(db);
+      final container = ProviderContainer(
+        overrides: [settingsRepositoryProvider.overrideWithValue(repository)],
+      );
+      addTearDown(container.dispose);
+      final controller = container.read(settingsControllerProvider.notifier);
       await controller.load();
 
       await controller.updateTerminal(
@@ -47,20 +49,26 @@ void main() {
       );
       await controller.resetTerminalSettings();
 
-      expect(controller.state.terminal.fontFamily, 'JetBrains Mono');
-      expect(controller.state.terminal.cursorShape, TerminalCursorShape.block);
+      expect(
+        container.read(settingsControllerProvider).terminal.fontFamily,
+        'JetBrains Mono',
+      );
+      expect(
+        container.read(settingsControllerProvider).terminal.cursorShape,
+        TerminalCursorShape.block,
+      );
       expect((await repository.load()).terminal.fontFamily, 'JetBrains Mono');
     });
 
     test('persists keyboard binding changes and reset', () async {
-      final db = await openAleraDb(
-        factory: databaseFactoryMemory,
-        path: 'settings-controller-keyboard.db',
-      );
+      final db = AleraDatabase(executor: NativeDatabase.memory());
       addTearDown(db.close);
-      final repository = SembastSettingsRepository(db);
-      final controller = SettingsController(repository);
-      addTearDown(controller.dispose);
+      final repository = DriftSettingsRepository(db);
+      final container = ProviderContainer(
+        overrides: [settingsRepositoryProvider.overrideWithValue(repository)],
+      );
+      addTearDown(container.dispose);
+      final controller = container.read(settingsControllerProvider.notifier);
       await controller.load();
 
       await controller.setActionBindings(
@@ -92,35 +100,47 @@ void main() {
     });
 
     test('persists destructive confirmation preferences', () async {
-      final db = await openAleraDb(
-        factory: databaseFactoryMemory,
-        path: 'settings-controller-confirmations.db',
-      );
+      final db = AleraDatabase(executor: NativeDatabase.memory());
       addTearDown(db.close);
-      final repository = SembastSettingsRepository(db);
-      final controller = SettingsController(repository);
-      addTearDown(controller.dispose);
+      final repository = DriftSettingsRepository(db);
+      final container = ProviderContainer(
+        overrides: [settingsRepositoryProvider.overrideWithValue(repository)],
+      );
+      addTearDown(container.dispose);
+      final controller = container.read(settingsControllerProvider.notifier);
       await controller.load();
 
       await controller.setConfirmProjectRemoval(false);
       await controller.setConfirmWorkspaceRemoval(false);
 
       final restored = await repository.load();
-      expect(controller.state.general.confirmProjectRemoval, isFalse);
-      expect(controller.state.general.confirmWorkspaceRemoval, isFalse);
+      expect(
+        container
+            .read(settingsControllerProvider)
+            .general
+            .confirmProjectRemoval,
+        isFalse,
+      );
+      expect(
+        container
+            .read(settingsControllerProvider)
+            .general
+            .confirmWorkspaceRemoval,
+        isFalse,
+      );
       expect(restored.general.confirmProjectRemoval, isFalse);
       expect(restored.general.confirmWorkspaceRemoval, isFalse);
     });
 
     test('applyBindingChanges reassigns a chord atomically', () async {
-      final db = await openAleraDb(
-        factory: databaseFactoryMemory,
-        path: 'settings-controller-reassign.db',
-      );
+      final db = AleraDatabase(executor: NativeDatabase.memory());
       addTearDown(db.close);
-      final repository = SembastSettingsRepository(db);
-      final controller = SettingsController(repository);
-      addTearDown(controller.dispose);
+      final repository = DriftSettingsRepository(db);
+      final container = ProviderContainer(
+        overrides: [settingsRepositoryProvider.overrideWithValue(repository)],
+      );
+      addTearDown(container.dispose);
+      final controller = container.read(settingsControllerProvider.notifier);
       await controller.load();
 
       await controller.applyBindingChanges(<KeyboardActionId, List<String>?>{

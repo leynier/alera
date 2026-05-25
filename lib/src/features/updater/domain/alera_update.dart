@@ -1,3 +1,8 @@
+import 'package:dart_mappable/dart_mappable.dart';
+
+part 'alera_update.mapper.dart';
+
+@MappableEnum()
 enum AleraUpdateChannel {
   stable,
   rc;
@@ -12,7 +17,28 @@ enum AleraUpdateChannel {
   }
 }
 
-class AleraUpdateConfig {
+class _UriStringHook extends MappingHook {
+  const _UriStringHook();
+
+  @override
+  Object? beforeDecode(Object? value) {
+    if (value is String) {
+      return Uri.parse(value);
+    }
+    return value;
+  }
+
+  @override
+  Object? beforeEncode(Object? value) {
+    if (value is Uri) {
+      return value.toString();
+    }
+    return value;
+  }
+}
+
+@MappableClass()
+class AleraUpdateConfig with AleraUpdateConfigMappable {
   const AleraUpdateConfig({
     required this.archiveUrl,
     required this.releasePageUrl,
@@ -28,7 +54,9 @@ class AleraUpdateConfig {
     'https://github.com/leynier/alera/releases',
   );
 
+  @MappableField(hook: _UriStringHook())
   final Uri archiveUrl;
+  @MappableField(hook: _UriStringHook())
   final Uri releasePageUrl;
   final AleraUpdateChannel channel;
   final bool autoInstallEnabled;
@@ -67,8 +95,12 @@ class AleraUpdateConfig {
       signedRelease: const bool.fromEnvironment('ALERA_SIGNED_RELEASE'),
     );
   }
+
+  factory AleraUpdateConfig.fromJson(Map<String, Object?> json) =>
+      AleraUpdateConfigMapper.fromMap(Map<String, dynamic>.from(json));
 }
 
+@MappableEnum()
 enum AleraUpdateStatus {
   idle,
   checking,
@@ -80,7 +112,8 @@ enum AleraUpdateStatus {
   error,
 }
 
-class AleraUpdateInfo {
+@MappableClass()
+class AleraUpdateInfo with AleraUpdateInfoMappable {
   const AleraUpdateInfo({
     required this.version,
     required this.shortVersion,
@@ -95,14 +128,19 @@ class AleraUpdateInfo {
   final int shortVersion;
   final String date;
   final bool mandatory;
+  @MappableField(hook: _UriStringHook())
   final Uri url;
   final String platform;
   final List<String> changes;
 
   bool get isPrerelease => version.contains('-');
+
+  factory AleraUpdateInfo.fromJson(Map<String, Object?> json) =>
+      AleraUpdateInfoMapper.fromMap(Map<String, dynamic>.from(json));
 }
 
-class AleraUpdateState {
+@MappableClass()
+class AleraUpdateState with AleraUpdateStateMappable {
   const AleraUpdateState({
     required this.status,
     required this.config,
@@ -115,6 +153,9 @@ class AleraUpdateState {
     return AleraUpdateState(status: AleraUpdateStatus.idle, config: config);
   }
 
+  factory AleraUpdateState.fromJson(Map<String, Object?> json) =>
+      AleraUpdateStateMapper.fromMap(Map<String, dynamic>.from(json));
+
   final AleraUpdateStatus status;
   final AleraUpdateConfig config;
   final AleraUpdateInfo? latest;
@@ -124,23 +165,5 @@ class AleraUpdateState {
   bool get isBusy {
     return status == AleraUpdateStatus.checking ||
         status == AleraUpdateStatus.downloading;
-  }
-
-  AleraUpdateState copyWith({
-    AleraUpdateStatus? status,
-    AleraUpdateConfig? config,
-    AleraUpdateInfo? latest,
-    String? message,
-    double? progress,
-    bool clearLatest = false,
-    bool clearMessage = false,
-  }) {
-    return AleraUpdateState(
-      status: status ?? this.status,
-      config: config ?? this.config,
-      latest: clearLatest ? null : latest ?? this.latest,
-      message: clearMessage ? null : message ?? this.message,
-      progress: progress ?? this.progress,
-    );
   }
 }

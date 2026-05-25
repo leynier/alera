@@ -1,21 +1,21 @@
+import 'dart:convert';
+
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_shortcut_settings.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
-import 'package:alera/src/features/settings/infra/sembast_settings_repository.dart';
-import 'package:alera/src/shared/infra/storage/sembast_database.dart';
+import 'package:alera/src/features/settings/infra/drift_settings_repository.dart';
+import 'package:alera/src/shared/infra/storage/drift_database.dart';
+import 'package:drift/drift.dart' show Value;
+import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sembast/sembast_memory.dart';
 
 void main() {
-  group('SembastSettingsRepository', () {
+  group('DriftSettingsRepository', () {
     test('loads defaults when no settings are stored', () async {
-      final db = await openAleraDb(
-        factory: databaseFactoryMemory,
-        path: 'settings-empty.db',
-      );
+      final db = AleraDatabase(executor: NativeDatabase.memory());
       addTearDown(db.close);
-      final repository = SembastSettingsRepository(db);
+      final repository = DriftSettingsRepository(db);
 
       final settings = await repository.load();
 
@@ -23,14 +23,11 @@ void main() {
     });
 
     test('saves and loads settings', () async {
-      final db = await openAleraDb(
-        factory: databaseFactoryMemory,
-        path: 'settings-save.db',
-      );
+      final db = AleraDatabase(executor: NativeDatabase.memory());
       addTearDown(db.close);
-      final repository = SembastSettingsRepository(db);
+      final repository = DriftSettingsRepository(db);
       const settings = AleraSettings(
-        general: GeneralSettings(workspaceDirectory: '/tmp/alera-test'),
+        general: GeneralSettings(workspaceDirectory: '/workspace/alera-test'),
         terminal: TerminalSettings(
           fontFamily: 'Menlo',
           fontSize: 16,
@@ -79,15 +76,19 @@ void main() {
     });
 
     test('falls back to defaults for corrupt records', () async {
-      final db = await openAleraDb(
-        factory: databaseFactoryMemory,
-        path: 'settings-corrupt.db',
-      );
+      final db = AleraDatabase(executor: NativeDatabase.memory());
       addTearDown(db.close);
-      await AleraStores.settings.record('settings').put(db, <String, Object?>{
-        'terminal': <String, Object?>{'fontSize': <Object?>[]},
-      });
-      final repository = SembastSettingsRepository(db);
+      await db
+          .into(db.appSettingsTable)
+          .insert(
+            AppSettingsTableCompanion.insert(
+              id: const Value(1),
+              dataJson: jsonEncode(<String, Object?>{
+                'terminal': <String, Object?>{'fontSize': <Object?>[]},
+              }),
+            ),
+          );
+      final repository = DriftSettingsRepository(db);
 
       final restored = await repository.load();
 

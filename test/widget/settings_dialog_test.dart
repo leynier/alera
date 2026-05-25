@@ -1,6 +1,5 @@
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
-import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/settings/application/settings_repository.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
@@ -21,9 +20,7 @@ void main() {
     final repository = _FakeSettingsRepository();
     final container = ProviderContainer(
       overrides: [
-        settingsControllerProvider.overrideWith(
-          (ref) => SettingsController(repository, loadOnCreate: false),
-        ),
+        settingsRepositoryProvider.overrideWithValue(repository),
         systemFontServiceProvider.overrideWithValue(
           const _FakeSystemFontService(<String>[
             'Fira Code',

@@ -4,8 +4,12 @@ import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:dart_mappable/dart_mappable.dart';
 
-class WorkbenchState {
+part 'workbench_state.mapper.dart';
+
+@MappableClass()
+class WorkbenchState with WorkbenchStateMappable {
   const WorkbenchState({
     this.projects = const <Project>[],
     this.workspacesByProject = const <String, List<Workspace>>{},
@@ -159,45 +163,5 @@ class WorkbenchState {
       }
     }
     return results;
-  }
-
-  WorkbenchState copyWith({
-    List<Project>? projects,
-    Map<String, List<Workspace>>? workspacesByProject,
-    Map<String, List<WorkspaceTabRecord>>? tabsByWorkspace,
-    Map<String, WorkbenchLayout>? layoutByWorkspace,
-    WorkbenchViewPrefs? viewPrefs,
-    String? activeProjectId,
-    bool clearActiveProjectId = false,
-    String? activeWorkspaceId,
-    bool clearActiveWorkspaceId = false,
-    Map<String, String>? activeTabIdByWorkspace,
-    bool? bootstrapped,
-    String? error,
-    bool clearError = false,
-    String? searchQuery,
-    bool? collapsed,
-    double? sidebarWidth,
-  }) {
-    return WorkbenchState(
-      projects: projects ?? this.projects,
-      workspacesByProject: workspacesByProject ?? this.workspacesByProject,
-      tabsByWorkspace: tabsByWorkspace ?? this.tabsByWorkspace,
-      layoutByWorkspace: layoutByWorkspace ?? this.layoutByWorkspace,
-      viewPrefs: viewPrefs ?? this.viewPrefs,
-      activeProjectId: clearActiveProjectId
-          ? null
-          : (activeProjectId ?? this.activeProjectId),
-      activeWorkspaceId: clearActiveWorkspaceId
-          ? null
-          : (activeWorkspaceId ?? this.activeWorkspaceId),
-      activeTabIdByWorkspace:
-          activeTabIdByWorkspace ?? this.activeTabIdByWorkspace,
-      bootstrapped: bootstrapped ?? this.bootstrapped,
-      error: clearError ? null : (error ?? this.error),
-      searchQuery: searchQuery ?? this.searchQuery,
-      collapsed: collapsed ?? this.collapsed,
-      sidebarWidth: sidebarWidth ?? this.sidebarWidth,
-    );
   }
 }

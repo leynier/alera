@@ -23,6 +23,15 @@ This document defines contributor and agent governance only. It does not change 
 - When a task becomes irrelevant, mark or explain it rather than silently dropping it.
 - Before finishing, reconcile the tracker with the actual work completed and call out anything intentionally left undone.
 
+## Code Generation Workflow
+
+- When a task may touch Riverpod, Drift, or `dart_mappable` generated code, agents MUST ensure a single repo-scoped `build_runner` watcher is active before editing generated surfaces.
+- The standard watcher command for this repository is `flutter pub run build_runner watch -d`.
+- Agents MUST use the repo-scoped PID/log convention under `.dart_tool/copilot/`: `build_runner_watch.pid` for the active watcher PID and `build_runner_watch.log` for output.
+- Before starting a watcher, agents MUST check whether the PID file exists and whether `ps -p <pid>` confirms that process is still alive. If it is alive, reuse that watcher. If it is stale, delete the PID file and start a new watcher.
+- Agents MUST NOT start a second watcher for the same repository while a live PID is already recorded.
+- If the watcher exits unexpectedly, agents should restart it, refresh the PID file, and continue using the same repo-scoped convention.
+
 ## Spec-Driven Planning
 
 When planning is needed, use a spec-driven development flow. Do not jump straight from a vague request to implementation if important product or technical decisions are still undefined.

@@ -1,17 +1,22 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:alera/src/app/dependencies.dart';
 import 'package:alera/src/features/projects/application/project_repository.dart';
 import 'package:alera/src/features/projects/application/project_service.dart';
 import 'package:alera/src/features/projects/application/projects_service.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/settings/application/settings_controller.dart';
+import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/application/workspace_tab_service.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
-import 'package:alera/src/features/workbench/application/workspace_service.dart';
+import 'package:alera/src/features/workbench/application/workbench_view_prefs_repository.dart';
+import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
@@ -23,11 +28,10 @@ void main() {
 
     setUp(() {
       harness = _WorkbenchHarness();
-      controller = harness.buildController();
+      controller = harness.controller;
     });
 
     tearDown(() async {
-      controller.dispose();
       await harness.dispose();
     });
 
@@ -556,6 +560,36 @@ class _WorkbenchHarness {
     projectRepository = _FakeProjectRepository(<Project>[project]);
     workbenchRepository = _FakeWorkbenchRepository();
     processRunner = _FakeProcessRunner();
+    viewPrefsRepository = _FakeWorkbenchViewPrefsRepository();
+    final projectService = ProjectService(processRunner);
+    final projectsService = ProjectsService(
+      projectService: projectService,
+      projectRepository: projectRepository,
+    );
+    final workspaceTabService = WorkspaceTabService(
+      repository: workbenchRepository,
+      now: () => DateTime.utc(2026, 5, 22, 1),
+    );
+    final settings = AleraSettings.defaults.copyWith(
+      general: AleraSettings.defaults.general.copyWith(
+        workspaceDirectory: p.join(tempDir.path, 'workspaces'),
+      ),
+    );
+    container = ProviderContainer(
+      overrides: [
+        processRunnerProvider.overrideWithValue(processRunner),
+        projectRepositoryProvider.overrideWithValue(projectRepository),
+        workbenchRepositoryProvider.overrideWithValue(workbenchRepository),
+        projectServiceProvider.overrideWithValue(projectService),
+        projectsServiceProvider.overrideWithValue(projectsService),
+        workspaceTabServiceProvider.overrideWithValue(workspaceTabService),
+        workbenchViewPrefsRepositoryProvider.overrideWithValue(
+          viewPrefsRepository,
+        ),
+        settingsControllerProvider.overrideWithValue(settings),
+      ],
+    );
+    controller = container.read(workbenchControllerProvider.notifier);
   }
 
   late final Directory tempDir;
@@ -563,32 +597,9 @@ class _WorkbenchHarness {
   late final _FakeProjectRepository projectRepository;
   late final _FakeWorkbenchRepository workbenchRepository;
   late final _FakeProcessRunner processRunner;
-
-  WorkbenchController buildController() {
-    final projectsService = ProjectsService(
-      projectService: ProjectService(processRunner),
-      projectRepository: projectRepository,
-    );
-    final workspaceService = WorkspaceService(
-      repository: workbenchRepository,
-      projectService: ProjectService(processRunner),
-      processRunner: processRunner,
-      workspaceRoot: WorkspaceRoot(
-        override: p.join(tempDir.path, 'workspaces'),
-      ),
-      now: () => DateTime.utc(2026, 5, 22, 1),
-    );
-    final workspaceTabService = WorkspaceTabService(
-      repository: workbenchRepository,
-      now: () => DateTime.utc(2026, 5, 22, 1),
-    );
-    return WorkbenchController(
-      projectsService: projectsService,
-      repository: workbenchRepository,
-      workspaceService: workspaceService,
-      workspaceTabService: workspaceTabService,
-    );
-  }
+  late final _FakeWorkbenchViewPrefsRepository viewPrefsRepository;
+  late final ProviderContainer container;
+  late final WorkbenchController controller;
 
   Future<Project> addProject(String id, String name) async {
     final repoPath = p.join(tempDir.path, id);
@@ -605,11 +616,25 @@ class _WorkbenchHarness {
   }
 
   Future<void> dispose() async {
+    container.dispose();
     await projectRepository.dispose();
     await workbenchRepository.dispose();
     if (tempDir.existsSync()) {
       tempDir.deleteSync(recursive: true);
     }
+  }
+}
+
+class _FakeWorkbenchViewPrefsRepository
+    implements WorkbenchViewPrefsRepository {
+  WorkbenchViewPrefs prefs = WorkbenchViewPrefs.defaults;
+
+  @override
+  Future<WorkbenchViewPrefs> load() async => prefs;
+
+  @override
+  Future<void> save(WorkbenchViewPrefs prefs) async {
+    this.prefs = prefs;
   }
 }
 

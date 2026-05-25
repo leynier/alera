@@ -8,13 +8,13 @@ import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
-import 'package:alera/src/shared/infra/storage/sembast_database.dart';
+import 'package:alera/src/shared/infra/storage/drift_database.dart';
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:path/path.dart' as p;
-import 'package:sembast/sembast_memory.dart' show databaseFactoryMemory;
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -32,10 +32,7 @@ void main() {
       ..createSync(recursive: true);
     Directory(p.join(projectDir.path, '.git')).createSync();
 
-    final db = await openAleraDb(
-      factory: databaseFactoryMemory,
-      path: 'alera-e2e-${DateTime.now().microsecondsSinceEpoch}.db',
-    );
+    final db = AleraDatabase(executor: NativeDatabase.memory());
     var dbClosed = false;
     Future<void> closeDb() async {
       if (dbClosed) {
