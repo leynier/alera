@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
+import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
@@ -730,78 +732,79 @@ class _PaneMenuButton extends StatelessWidget {
   final ValueChanged<WorkbenchDropZone> onSplitGroup;
   final VoidCallback onMergeGroup;
 
-  @override
-  Widget build(BuildContext context) {
-    return PopupMenuButton<_PaneMenuAction>(
-      tooltip: 'Pane actions',
-      icon: const Icon(Icons.more_horiz, size: 16),
-      color: AleraTokens.surfaceElevated,
-      itemBuilder: (context) => <PopupMenuEntry<_PaneMenuAction>>[
-        const PopupMenuItem<_PaneMenuAction>(
+  Future<void> _openMenu(BuildContext context) async {
+    final button = context.findRenderObject()! as RenderBox;
+    final overlay =
+        Navigator.of(context).overlay!.context.findRenderObject()! as RenderBox;
+    final topLeft = button.localToGlobal(
+      button.size.bottomLeft(Offset.zero),
+      ancestor: overlay,
+    );
+    final bottomRight = button.localToGlobal(
+      button.size.bottomRight(Offset.zero),
+      ancestor: overlay,
+    );
+    final selected = await showMenu<_PaneMenuAction>(
+      context: context,
+      position: RelativeRect.fromRect(
+        Rect.fromPoints(topLeft, bottomRight),
+        Offset.zero & overlay.size,
+      ),
+      items: <PopupMenuEntry<_PaneMenuAction>>[
+        const AleraDropdownEntry<_PaneMenuAction>(
           value: _PaneMenuAction.splitRight,
-          child: _SplitMenuRow(
-            zone: WorkbenchDropZone.right,
-            label: 'Split Right',
-          ),
+          label: 'Split right',
+          leading: _SplitDirectionGlyph(zone: WorkbenchDropZone.right),
         ),
-        const PopupMenuItem<_PaneMenuAction>(
+        const AleraDropdownEntry<_PaneMenuAction>(
           value: _PaneMenuAction.splitDown,
-          child: _SplitMenuRow(
-            zone: WorkbenchDropZone.down,
-            label: 'Split Down',
-          ),
+          label: 'Split down',
+          leading: _SplitDirectionGlyph(zone: WorkbenchDropZone.down),
         ),
-        const PopupMenuItem<_PaneMenuAction>(
+        const AleraDropdownEntry<_PaneMenuAction>(
           value: _PaneMenuAction.splitLeft,
-          child: _SplitMenuRow(
-            zone: WorkbenchDropZone.left,
-            label: 'Split Left',
-          ),
+          label: 'Split left',
+          leading: _SplitDirectionGlyph(zone: WorkbenchDropZone.left),
         ),
-        const PopupMenuItem<_PaneMenuAction>(
+        const AleraDropdownEntry<_PaneMenuAction>(
           value: _PaneMenuAction.splitUp,
-          child: _SplitMenuRow(zone: WorkbenchDropZone.up, label: 'Split Up'),
+          label: 'Split up',
+          leading: _SplitDirectionGlyph(zone: WorkbenchDropZone.up),
         ),
         if (canCloseSplit) const PopupMenuDivider(height: AleraTokens.space8),
         if (canCloseSplit)
-          const PopupMenuItem<_PaneMenuAction>(
+          const AleraDropdownEntry<_PaneMenuAction>(
             value: _PaneMenuAction.closeSplit,
-            child: Text('Close Split'),
+            label: 'Close split',
           ),
       ],
-      onSelected: (value) {
-        switch (value) {
-          case _PaneMenuAction.splitRight:
-            onSplitGroup(WorkbenchDropZone.right);
-          case _PaneMenuAction.splitDown:
-            onSplitGroup(WorkbenchDropZone.down);
-          case _PaneMenuAction.splitLeft:
-            onSplitGroup(WorkbenchDropZone.left);
-          case _PaneMenuAction.splitUp:
-            onSplitGroup(WorkbenchDropZone.up);
-          case _PaneMenuAction.closeSplit:
-            onMergeGroup();
-        }
-      },
     );
+
+    if (selected == null) {
+      return;
+    }
+
+    switch (selected) {
+      case _PaneMenuAction.splitRight:
+        onSplitGroup(WorkbenchDropZone.right);
+      case _PaneMenuAction.splitDown:
+        onSplitGroup(WorkbenchDropZone.down);
+      case _PaneMenuAction.splitLeft:
+        onSplitGroup(WorkbenchDropZone.left);
+      case _PaneMenuAction.splitUp:
+        onSplitGroup(WorkbenchDropZone.up);
+      case _PaneMenuAction.closeSplit:
+        onMergeGroup();
+    }
   }
-}
-
-class _SplitMenuRow extends StatelessWidget {
-  const _SplitMenuRow({required this.zone, required this.label});
-
-  final WorkbenchDropZone zone;
-  final String label;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _SplitDirectionGlyph(zone: zone),
-        const SizedBox(width: AleraTokens.space8),
-        Text(label),
-      ],
+    return AleraIconButton(
+      tooltip: 'Pane actions',
+      onPressed: () => unawaited(_openMenu(context)),
+      icon: Icons.more_horiz,
+      minSize: 28,
     );
   }
 }

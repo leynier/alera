@@ -2,17 +2,20 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:flutter/material.dart';
 
 /// [PopupMenuEntry] styled for Alera popovers: tokenized radius/padding, a
-/// trailing check for the [selected] value, and pop-on-tap semantics.
+/// trailing check for the [selected] value, optional leading content, and
+/// pop-on-tap semantics.
 class AleraDropdownEntry<T> extends PopupMenuEntry<T> {
   const AleraDropdownEntry({
     super.key,
     required this.value,
     required this.label,
+    this.leading,
     this.selected = false,
   });
 
   final T value;
   final String label;
+  final Widget? leading;
   final bool selected;
 
   @override
@@ -42,6 +45,10 @@ class _AleraDropdownEntryState<T> extends State<AleraDropdownEntry<T>> {
           ),
           child: Row(
             children: <Widget>[
+              if (widget.leading != null) ...<Widget>[
+                widget.leading!,
+                const SizedBox(width: AleraTokens.space8),
+              ],
               Expanded(
                 child: Text(
                   widget.label,
