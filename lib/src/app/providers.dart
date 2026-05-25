@@ -27,6 +27,7 @@ import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart'
 import 'package:alera/src/shared/infra/process/io_process_runner.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 import 'package:alera/src/shared/infra/storage/sembast_database.dart';
+import 'package:alera/src/shared/infra/uri/external_uri_launcher.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:http/http.dart' as http;
@@ -114,6 +115,10 @@ final updateHttpClientProvider = Provider<http.Client>((ref) {
   return client;
 });
 
+final externalUriLauncherProvider = Provider<ExternalUriLauncher>((ref) {
+  return UrlLauncherExternalUriLauncher();
+});
+
 final updateServiceProvider = Provider<AleraUpdateService>((ref) {
   final service = DesktopAleraUpdateService(
     client: ref.watch(updateHttpClientProvider),
@@ -153,6 +158,7 @@ final workbenchControllerProvider =
 final terminalRuntimeProvider = Provider<TerminalRuntime>((ref) {
   final runtime = XtermTerminalRuntime(
     initialSettings: ref.read(settingsControllerProvider).terminal,
+    externalUriLauncher: ref.watch(externalUriLauncherProvider),
   );
   ref.listen<TerminalSettings>(
     settingsControllerProvider.select((settings) => settings.terminal),

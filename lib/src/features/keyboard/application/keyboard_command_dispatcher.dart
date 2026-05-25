@@ -68,14 +68,11 @@ class KeyboardCommandDispatcher {
     if (workspace == null) {
       return;
     }
+    final controller = ref.read(workbenchControllerProvider.notifier);
+    final runtime = ref.read(terminalRuntimeProvider);
     unawaited(() async {
-      final tab = await ref
-          .read(workbenchControllerProvider.notifier)
-          .createTerminalTab(workspace);
-      ref
-          .read(terminalRuntimeProvider)
-          .sessionFor(workspace: workspace, tab: tab)
-          .requestFocus();
+      final tab = await controller.createTerminalTab(workspace);
+      runtime.sessionFor(workspace: workspace, tab: tab).requestFocus();
     }());
   }
 
@@ -158,18 +155,15 @@ class KeyboardCommandDispatcher {
     if (workspace == null || layout == null) {
       return;
     }
+    final controller = ref.read(workbenchControllerProvider.notifier);
+    final runtime = ref.read(terminalRuntimeProvider);
     unawaited(() async {
-      final tab = await ref
-          .read(workbenchControllerProvider.notifier)
-          .splitWorkbenchGroupWithTerminal(
-            workspace: workspace,
-            groupId: layout.activeGroupId,
-            zone: zone,
-          );
-      ref
-          .read(terminalRuntimeProvider)
-          .sessionFor(workspace: workspace, tab: tab)
-          .requestFocus();
+      final tab = await controller.splitWorkbenchGroupWithTerminal(
+        workspace: workspace,
+        groupId: layout.activeGroupId,
+        zone: zone,
+      );
+      runtime.sessionFor(workspace: workspace, tab: tab).requestFocus();
     }());
   }
 

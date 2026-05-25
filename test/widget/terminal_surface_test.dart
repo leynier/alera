@@ -1,14 +1,17 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:alera/src/shared/infra/uri/external_uri_launcher.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_surface.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
 import 'package:xterm/xterm.dart' as xterm;
@@ -187,7 +190,9 @@ void main() {
     },
   );
 
-  test('runtime applies visual settings to existing sessions', () {
+  testWidgets('runtime applies visual settings to existing sessions', (
+    tester,
+  ) async {
     final initialSettings = TerminalSettings.defaults.copyWith(
       fontFamily: 'monospace',
     );
@@ -206,13 +211,185 @@ void main() {
       ),
     );
 
-    final view = session.buildView() as xterm.TerminalView;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: SizedBox.expand(child: session.buildView())),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 200));
+
+    final view = tester.widget<xterm.TerminalView>(
+      find.byType(xterm.TerminalView),
+    );
     final expectedTheme = terminalThemeForName('Tokyo Night');
     expect(notifications, 1);
     expect(view.textStyle.fontSize, 18);
     expect(view.textStyle.fontWeight, 500);
     expect(view.cursorBlink, isTrue);
     expect(view.theme.background, expectedTheme.background);
+  });
+
+  testWidgets('cmd-click opens visible terminal urls on macOS', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    try {
+      final factory = _FakeTerminalPtySessionFactory();
+      final launcher = _FakeExternalUriLauncher();
+      final runtime = XtermTerminalRuntime(
+        ptySessionFactory: factory,
+        externalUriLauncher: launcher,
+      );
+      addTearDown(runtime.dispose);
+      final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
+
+      await _pumpTerminalSurface(tester, session);
+      factory.sessions.single.emitOutput(utf8.encode('https://example.com'));
+      await tester.pump();
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+      await tester.pump();
+      await tester.tapAt(_cellCenter(tester, const xterm.CellOffset(1, 0)));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+
+      expect(launcher.openedUris, <Uri>[Uri.parse('https://example.com')]);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  testWidgets('plain clicks do not open visible terminal urls', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    try {
+      final factory = _FakeTerminalPtySessionFactory();
+      final launcher = _FakeExternalUriLauncher();
+      final runtime = XtermTerminalRuntime(
+        ptySessionFactory: factory,
+        externalUriLauncher: launcher,
+      );
+      addTearDown(runtime.dispose);
+      final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
+
+      await _pumpTerminalSurface(tester, session);
+      factory.sessions.single.emitOutput(utf8.encode('https://example.com'));
+      await tester.pump();
+
+      await tester.tapAt(_cellCenter(tester, const xterm.CellOffset(1, 0)));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(launcher.openedUris, isEmpty);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  testWidgets('hover only activates the link cursor on the link row', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    try {
+      final factory = _FakeTerminalPtySessionFactory();
+      final runtime = XtermTerminalRuntime(ptySessionFactory: factory);
+      addTearDown(runtime.dispose);
+      final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
+
+      await _pumpTerminalSurface(tester, session);
+      factory.sessions.single.emitOutput(
+        utf8.encode('not a link\r\nhttps://example.com'),
+      );
+      await tester.pump();
+
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      addTearDown(() => mouse.removePointer());
+      await mouse.addPointer();
+      await mouse.moveTo(_cellCenter(tester, const xterm.CellOffset(1, 0)));
+      await tester.pump();
+
+      expect(
+        tester
+            .widget<xterm.TerminalView>(find.byType(xterm.TerminalView))
+            .mouseCursor,
+        SystemMouseCursors.text,
+      );
+
+      await mouse.moveTo(_cellCenter(tester, const xterm.CellOffset(1, 1)));
+      await tester.pump();
+
+      expect(
+        tester
+            .widget<xterm.TerminalView>(find.byType(xterm.TerminalView))
+            .mouseCursor,
+        SystemMouseCursors.click,
+      );
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  testWidgets('ctrl-click opens visible terminal urls on Windows', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+    try {
+      final factory = _FakeTerminalPtySessionFactory();
+      final launcher = _FakeExternalUriLauncher();
+      final runtime = XtermTerminalRuntime(
+        ptySessionFactory: factory,
+        externalUriLauncher: launcher,
+      );
+      addTearDown(runtime.dispose);
+      final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
+
+      await _pumpTerminalSurface(tester, session);
+      factory.sessions.single.emitOutput(utf8.encode('https://example.com'));
+      await tester.pump();
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pump();
+      await tester.tapAt(_cellCenter(tester, const xterm.CellOffset(1, 0)));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+
+      expect(launcher.openedUris, <Uri>[Uri.parse('https://example.com')]);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  testWidgets('shows a snackbar when opening a terminal url fails', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    try {
+      final factory = _FakeTerminalPtySessionFactory();
+      final launcher = _FakeExternalUriLauncher(error: StateError('boom'));
+      final runtime = XtermTerminalRuntime(
+        ptySessionFactory: factory,
+        externalUriLauncher: launcher,
+      );
+      addTearDown(runtime.dispose);
+      final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
+
+      await _pumpTerminalSurface(tester, session);
+      factory.sessions.single.emitOutput(utf8.encode('https://example.com'));
+      await tester.pump();
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+      await tester.pump();
+      await tester.tapAt(_cellCenter(tester, const xterm.CellOffset(1, 0)));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+
+      expect(
+        find.text('Could not open link: https://example.com'),
+        findsOneWidget,
+      );
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
   });
 
   testWidgets('manual tab title takes precedence over runtime title', (
@@ -330,6 +507,35 @@ Workspace _workspace({String path = '/tmp/alera'}) {
   );
 }
 
+Future<void> _pumpTerminalSurface(
+  WidgetTester tester,
+  TerminalSessionHandle session,
+) async {
+  await tester.pumpWidget(
+    MaterialApp(
+      home: Scaffold(
+        body: SizedBox.expand(child: TerminalSurface(session: session)),
+      ),
+    ),
+  );
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 200));
+}
+
+Offset _cellCenter(WidgetTester tester, xterm.CellOffset offset) {
+  final terminalViewState = tester.state<xterm.TerminalViewState>(
+    find.byType(xterm.TerminalView),
+  );
+  final renderTerminal = terminalViewState.renderTerminal;
+  final localOffset =
+      renderTerminal.getOffset(offset) +
+      Offset(
+        renderTerminal.cellSize.width / 2,
+        renderTerminal.cellSize.height / 2,
+      );
+  return renderTerminal.localToGlobal(localOffset);
+}
+
 class _FakeTerminalPtySessionFactory implements TerminalPtySessionFactory {
   final List<_FakeTerminalPtySession> sessions = <_FakeTerminalPtySession>[];
 
@@ -442,4 +648,19 @@ class _ImmediateNotifySessionHandle extends TerminalSessionHandle {
 
   @override
   void requestFocus() {}
+}
+
+class _FakeExternalUriLauncher implements ExternalUriLauncher {
+  _FakeExternalUriLauncher({this.error});
+
+  final Object? error;
+  final List<Uri> openedUris = <Uri>[];
+
+  @override
+  Future<void> open(Uri uri) async {
+    if (error case final Object error) {
+      throw error;
+    }
+    openedUris.add(uri);
+  }
 }

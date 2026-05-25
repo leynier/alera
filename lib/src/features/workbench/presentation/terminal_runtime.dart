@@ -7,12 +7,15 @@ import 'dart:io' show Platform;
 import 'dart:isolate';
 
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
+import 'package:alera/src/features/workbench/presentation/terminal_link_resolver.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/shared/infra/uri/external_uri_launcher.dart';
 import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:portable_pty/portable_pty.dart';
@@ -348,11 +351,15 @@ class XtermTerminalRuntime implements TerminalRuntime {
   XtermTerminalRuntime({
     TerminalPtySessionFactory? ptySessionFactory,
     TerminalSettings? initialSettings,
+    ExternalUriLauncher? externalUriLauncher,
   }) : _settings = initialSettings ?? TerminalSettings.defaults,
+       _externalUriLauncher =
+           externalUriLauncher ?? UrlLauncherExternalUriLauncher(),
        _ptySessionFactory =
            ptySessionFactory ?? const DefaultTerminalPtySessionFactory();
 
   final TerminalPtySessionFactory _ptySessionFactory;
+  final ExternalUriLauncher _externalUriLauncher;
   TerminalSettings _settings;
   final StreamController<TerminalRuntimeExitEvent> _exitController =
       StreamController<TerminalRuntimeExitEvent>.broadcast();
@@ -381,6 +388,7 @@ class XtermTerminalRuntime implements TerminalRuntime {
             tab: tab,
             ptySessionFactory: _ptySessionFactory,
             settings: _settings,
+            externalUriLauncher: _externalUriLauncher,
             onExit: _handleSessionExit,
           );
         })
@@ -425,13 +433,17 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     required WorkspaceTabRecord tab,
     required TerminalPtySessionFactory ptySessionFactory,
     required TerminalSettings settings,
+    required ExternalUriLauncher externalUriLauncher,
     required void Function(TerminalRuntimeExitEvent event) onExit,
   }) : _workspace = workspace,
        _tab = tab,
        _ptySessionFactory = ptySessionFactory,
        _settings = settings,
+       _externalUriLauncher = externalUriLauncher,
        _onExit = onExit {
     _terminal = _createTerminal();
+    _osc8LinkTracker = Osc8TerminalLinkTracker(terminal: _terminal);
+    _attachTerminal(_terminal);
     _decodedOutputSub = _ptyOutputController.stream
         .transform(const Utf8Decoder(allowMalformed: true))
         .listen(_handleTerminalOutput);
@@ -440,9 +452,13 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   Workspace _workspace;
   WorkspaceTabRecord _tab;
   final TerminalPtySessionFactory _ptySessionFactory;
+  final ExternalUriLauncher _externalUriLauncher;
   final void Function(TerminalRuntimeExitEvent event) _onExit;
   TerminalSettings _settings;
   late xterm.Terminal _terminal;
+  late final Osc8TerminalLinkTracker _osc8LinkTracker;
+  final GlobalKey<xterm.TerminalViewState> _terminalViewKey =
+      GlobalKey<xterm.TerminalViewState>();
   final xterm.TerminalController _terminalController =
       xterm.TerminalController();
   final FocusNode _focusNode = FocusNode(debugLabel: 'TerminalSession');
@@ -562,13 +578,29 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     bool autofocus = false,
     FocusOnKeyEventCallback? onKeyEvent,
   }) {
+    return _InteractiveTerminalView(
+      key: key,
+      session: this,
+      autofocus: autofocus,
+      onKeyEvent: onKeyEvent,
+    );
+  }
+
+  xterm.TerminalView _buildTerminalView({
+    required bool autofocus,
+    FocusOnKeyEventCallback? onKeyEvent,
+    required MouseCursor mouseCursor,
+    void Function(TapUpDetails details, xterm.CellOffset offset)? onTapUp,
+  }) {
     return xterm.TerminalView(
       _terminal,
-      key: key,
+      key: _terminalViewKey,
       controller: _terminalController,
       focusNode: _focusNode,
       autofocus: autofocus,
+      onTapUp: onTapUp,
       onKeyEvent: onKeyEvent,
+      mouseCursor: mouseCursor,
       theme: _resolveXtermTheme(_settings),
       textStyle: xterm.TerminalStyle(
         fontSize: _settings.fontSize,
@@ -587,6 +619,18 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
       cursorBlink: _settings.cursorBlink,
       backgroundOpacity: _settings.backgroundOpacity,
     );
+  }
+
+  TerminalLinkRange? _linkAt(xterm.CellOffset offset) {
+    return resolveTerminalLinkAt(
+      terminal: _terminal,
+      offset: offset,
+      osc8Tracker: _osc8LinkTracker,
+    );
+  }
+
+  Future<void> _openLink(Uri uri) {
+    return _externalUriLauncher.open(uri);
   }
 
   void _handleTitleChanged(String title) {
@@ -712,22 +756,30 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     unawaited(_stopPtySession(suppressExit: true));
   }
 
+  void _handlePrivateOsc(String code, List<String> args) {
+    _osc8LinkTracker.handlePrivateOsc(code, args);
+  }
+
   xterm.Terminal _createTerminal() {
-    final terminal = xterm.Terminal(
+    return xterm.Terminal(
       maxLines: _settings.scrollbackLines,
       platform: _xtermTargetPlatform,
       wordSeparators: _wordSeparatorsFromSettings(_settings.wordSeparators),
     );
+  }
+
+  void _attachTerminal(xterm.Terminal terminal) {
     terminal.onTitleChange = _handleTitleChanged;
     terminal.onOutput = _handleTerminalInput;
     terminal.onResize = _handleTerminalResize;
-    return terminal;
+    terminal.onPrivateOSC = _handlePrivateOsc;
   }
 
   void _detachTerminal(xterm.Terminal terminal) {
     terminal.onTitleChange = null;
     terminal.onOutput = null;
     terminal.onResize = null;
+    terminal.onPrivateOSC = null;
   }
 
   void _handleTerminalOutput(String data) {
@@ -786,12 +838,103 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   @override
   void dispose() {
     _disposed = true;
+    _osc8LinkTracker.dispose();
     _detachTerminal(_terminal);
     unawaited(_stopPtySession(suppressExit: true));
     unawaited(_decodedOutputSub.cancel());
     unawaited(_ptyOutputController.close());
     _focusNode.dispose();
     super.dispose();
+  }
+}
+
+class _InteractiveTerminalView extends StatefulWidget {
+  const _InteractiveTerminalView({
+    super.key,
+    required this.session,
+    required this.autofocus,
+    this.onKeyEvent,
+  });
+
+  final _XtermTerminalSessionHandle session;
+  final bool autofocus;
+  final FocusOnKeyEventCallback? onKeyEvent;
+
+  @override
+  State<_InteractiveTerminalView> createState() =>
+      _InteractiveTerminalViewState();
+}
+
+class _InteractiveTerminalViewState extends State<_InteractiveTerminalView> {
+  TerminalLinkRange? _hoveredLink;
+
+  @override
+  void didUpdateWidget(covariant _InteractiveTerminalView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.session != widget.session && _hoveredLink != null) {
+      _hoveredLink = null;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onExit: (_) => _setHoveredLink(null),
+      onHover: _handleHover,
+      child: widget.session._buildTerminalView(
+        autofocus: widget.autofocus,
+        onKeyEvent: widget.onKeyEvent,
+        mouseCursor: _hoveredLink == null
+            ? SystemMouseCursors.text
+            : SystemMouseCursors.click,
+        onTapUp: _handleTapUp,
+      ),
+    );
+  }
+
+  void _handleHover(PointerHoverEvent event) {
+    final viewState = widget.session._terminalViewKey.currentState;
+    if (viewState == null) {
+      return;
+    }
+    final localPosition = viewState.renderTerminal.globalToLocal(
+      event.position,
+    );
+    final offset = viewState.renderTerminal.getCellOffset(localPosition);
+    _setHoveredLink(widget.session._linkAt(offset));
+  }
+
+  void _handleTapUp(TapUpDetails _, xterm.CellOffset offset) {
+    if (!isTerminalLinkActivation()) {
+      return;
+    }
+    final link = widget.session._linkAt(offset);
+    if (link == null) {
+      return;
+    }
+    unawaited(_openLink(link.uri));
+  }
+
+  Future<void> _openLink(Uri uri) async {
+    try {
+      await widget.session._openLink(uri);
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not open link: $uri')));
+    }
+  }
+
+  void _setHoveredLink(TerminalLinkRange? link) {
+    if (_hoveredLink == link) {
+      return;
+    }
+    setState(() {
+      _hoveredLink = link;
+    });
   }
 }
 
