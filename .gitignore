@@ -25,3 +25,6 @@ windows/flutter/ephemeral/
 
 # Agy workspace
 .antigravitycli/
+
+# MacOS
+.DS_Store
