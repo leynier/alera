@@ -29,8 +29,8 @@ class _SidebarResizeHandleState extends State<SidebarResizeHandle> {
       child: GestureDetector(
         behavior: HitTestBehavior.translucent,
         onHorizontalDragStart: (_) => setState(() => _dragging = true),
-        onHorizontalDragEnd: (_) => setState(() => _dragging = false),
-        onHorizontalDragCancel: () => setState(() => _dragging = false),
+        onHorizontalDragEnd: (_) => _stopDragging(),
+        onHorizontalDragCancel: _stopDragging,
         onHorizontalDragUpdate: (details) {
           final next = widget.currentWidth + details.delta.dx;
           widget.onResize(next);
@@ -51,5 +51,9 @@ class _SidebarResizeHandleState extends State<SidebarResizeHandle> {
         ),
       ),
     );
+  }
+
+  void _stopDragging() {
+    setState(() => _dragging = false);
   }
 }

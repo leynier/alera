@@ -42,6 +42,13 @@ void main() {
 
     expect(resizedWidths, <double>[264]);
 
+    final cancelledDrag = await tester.startGesture(
+      tester.getCenter(find.byType(SidebarResizeHandle)),
+    );
+    await tester.pump();
+    await cancelledDrag.cancel();
+    await tester.pumpAndSettle();
+
     await mouse.moveTo(const Offset(400, 400));
     await tester.pumpAndSettle();
     expect(tester.getSize(animated).width, 1);

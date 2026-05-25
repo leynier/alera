@@ -7,6 +7,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:plugin_platform_interface/plugin_platform_interface.dart';
+import 'package:url_launcher_platform_interface/link.dart';
+import 'package:url_launcher_platform_interface/url_launcher_platform_interface.dart';
 
 void main() {
   group('DesktopAleraUpdateService', () {
@@ -308,6 +311,30 @@ void main() {
         expect(updater.restartCalls, 1);
       },
     );
+
+    test('openDownloadPage uses the default url_launcher delegate', () async {
+      final previousPlatform = UrlLauncherPlatform.instance;
+      final fakePlatform = _FakeUrlLauncherPlatform();
+      UrlLauncherPlatform.instance = fakePlatform;
+      addTearDown(() => UrlLauncherPlatform.instance = previousPlatform);
+      final service = DesktopAleraUpdateService(
+        config: AleraUpdateConfig(
+          archiveUrl: Uri.parse('https://example.com/archive.json'),
+          releasePageUrl: Uri.parse('https://example.com/releases'),
+          channel: AleraUpdateChannel.stable,
+          autoInstallEnabled: false,
+          signedRelease: false,
+        ),
+        platform: 'macos',
+      );
+      addTearDown(service.dispose);
+
+      await service.openDownloadPage(null);
+
+      expect(fakePlatform.launchedUrls, <String>[
+        'https://example.com/releases',
+      ]);
+    });
   });
 }
 
@@ -368,6 +395,32 @@ class _FakeDesktopUpdater extends DesktopUpdater {
   @override
   Future<void> restartApp() async {
     restartCalls += 1;
+  }
+}
+
+class _FakeUrlLauncherPlatform extends UrlLauncherPlatform
+    with MockPlatformInterfaceMixin {
+  final List<String> launchedUrls = <String>[];
+
+  @override
+  LinkDelegate? get linkDelegate => null;
+
+  @override
+  Future<bool> canLaunch(String url) async => true;
+
+  @override
+  Future<bool> launch(
+    String url, {
+    required bool useSafariVC,
+    required bool useWebView,
+    required bool enableJavaScript,
+    required bool enableDomStorage,
+    required bool universalLinksOnly,
+    required Map<String, String> headers,
+    String? webOnlyWindowName,
+  }) async {
+    launchedUrls.add(url);
+    return true;
   }
 }
 

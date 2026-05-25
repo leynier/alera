@@ -26,5 +26,5 @@ abstract class AleraUpdateService {
 
   Future<void> restartApp();
 
-  void dispose() {}
+  void dispose();
 }

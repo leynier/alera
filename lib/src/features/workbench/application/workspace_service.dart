@@ -31,17 +31,18 @@ class WorkspaceException implements Exception {
 /// Resolves the on-disk root for Alera-managed workspaces. Linked workspaces
 /// are implemented as Git worktrees under this root.
 class WorkspaceRoot {
-  WorkspaceRoot({this.override});
+  WorkspaceRoot({this.override, Map<String, String>? environment})
+    : _environment = environment ?? Platform.environment;
 
   final String? override;
+  final Map<String, String> _environment;
 
   String resolve() {
     final explicit = override;
     if (explicit != null) {
       return explicit;
     }
-    final home =
-        Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
+    final home = _environment['HOME'] ?? _environment['USERPROFILE'];
     if (home == null || home.isEmpty) {
       throw WorkspaceException('Cannot locate user home directory');
     }

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ffi' as ffi;
 import 'dart:io';
 import 'dart:isolate';
 import 'package:flutter/gestures.dart';
@@ -8,6 +9,7 @@ import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/shared/infra/uri/external_uri_launcher.dart';
+import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -210,6 +212,74 @@ void main() {
       });
       expect(currentErrnoForTesting(), isA<int>());
     });
+
+    test('posix read isolate sends done when the stream reaches eof', () async {
+      final receivePort = ReceivePort();
+      addTearDown(receivePort.close);
+      final path = '/dev/null'.toNativeUtf8();
+      late final int fd;
+
+      try {
+        fd = _openForTesting(path, _oRdOnly);
+      } finally {
+        calloc.free(path);
+      }
+      expect(fd, isNonNegative);
+      addTearDown(() => _closeForTesting(fd));
+
+      posixPtyReadIsolateForTesting(<Object?>[fd, receivePort.sendPort]);
+
+      expect(await receivePort.first, const <Object?, Object?>{'type': 'done'});
+    });
+
+    test(
+      'posix read isolate reports reader failures through the send port',
+      () async {
+        final receivePort = ReceivePort();
+        addTearDown(receivePort.close);
+
+        runPosixPtyReadIsolateForTesting(
+          fd: 1,
+          sendPort: receivePort.sendPort,
+          read: (_, __, ___) => throw StateError('boom'),
+        );
+
+        expect(await receivePort.first, <Object?, Object?>{
+          'type': 'error',
+          'error': 'Bad state: boom',
+        });
+      },
+    );
+
+    test(
+      'pty write and resize helpers convert thrown errors to events',
+      () async {
+        final events = StreamController<TerminalPtySessionEvent>.broadcast();
+        addTearDown(events.close);
+        final emitted = <TerminalPtySessionEvent>[];
+        final sub = events.stream.listen(emitted.add);
+        addTearDown(sub.cancel);
+
+        expect(
+          writePtyBytesForTesting(
+            bytes: const <int>[1],
+            write: (_) => throw StateError('write failed'),
+            events: events,
+          ),
+          isFalse,
+        );
+        resizePtyForTesting(
+          rows: 24,
+          cols: 80,
+          resize: ({required rows, required cols}) =>
+              throw StateError('resize failed'),
+          events: events,
+        );
+        await Future<void>.delayed(Duration.zero);
+
+        expect(emitted.whereType<TerminalPtyErrorEvent>(), hasLength(2));
+      },
+    );
   });
 
   group('DefaultTerminalPtySessionFactory', () {
@@ -793,6 +863,7 @@ void main() {
           final focusNode = terminalFocusNodeForTesting(session);
           expect(focusNode.hasFocus, isFalse);
           expect(focusNode.canRequestFocus, isTrue);
+          requestTerminalFocusNowForTesting(session);
           session.requestFocus();
           await tester.pump();
           await tester.pump();
@@ -894,6 +965,9 @@ void main() {
           findsOneWidget,
         );
 
+        await mouse.moveTo(const Offset(-10, -10));
+        await tester.pumpAndSettle();
+
         await tester.pumpWidget(
           MaterialApp(
             home: Scaffold(
@@ -904,9 +978,6 @@ void main() {
           ),
         );
         await tester.pump();
-
-        await mouse.moveTo(const Offset(500, 500));
-        await tester.pumpAndSettle();
       } finally {
         runtime.dispose();
         await tester.pumpWidget(const SizedBox.shrink());
@@ -1038,10 +1109,17 @@ class _FakeTerminalPtySessionFactory implements TerminalPtySessionFactory {
 }
 
 class _FakeTerminalPtySession implements TerminalPtySession {
-  _FakeTerminalPtySession({this.startError, this.startCompleter});
+  _FakeTerminalPtySession({
+    this.startError,
+    this.startCompleter,
+    this.writeError,
+    this.resizeError,
+  });
 
   final Object? startError;
   final Completer<void>? startCompleter;
+  final Object? writeError;
+  final Object? resizeError;
   final StreamController<TerminalPtySessionEvent> _events =
       StreamController<TerminalPtySessionEvent>.broadcast();
   final List<List<int>> writes = <List<int>>[];
@@ -1073,12 +1151,18 @@ class _FakeTerminalPtySession implements TerminalPtySession {
 
   @override
   bool writeBytes(List<int> bytes) {
+    if (writeError case final Object error) {
+      throw error;
+    }
     writes.add(List<int>.from(bytes));
     return bytes.isNotEmpty;
   }
 
   @override
   void resize(int cols, int rows, int cellWidthPx, int cellHeightPx) {
+    if (resizeError case final Object error) {
+      throw error;
+    }
     resizeCalls.add(
       _ResizeCall(
         cols: cols,
@@ -1160,3 +1244,16 @@ class _ResizeCall {
   @override
   int get hashCode => Object.hash(cols, rows, cellWidthPx, cellHeightPx);
 }
+
+const int _oRdOnly = 0;
+
+final ffi.DynamicLibrary _libcForTesting = ffi.DynamicLibrary.process();
+final int Function(ffi.Pointer<Utf8>, int) _openForTesting = _libcForTesting
+    .lookupFunction<_OpenNative, _OpenDart>('open');
+final int Function(int) _closeForTesting = _libcForTesting
+    .lookupFunction<_CloseNative, _CloseDart>('close');
+
+typedef _OpenNative = ffi.Int32 Function(ffi.Pointer<Utf8>, ffi.Int32);
+typedef _OpenDart = int Function(ffi.Pointer<Utf8>, int);
+typedef _CloseNative = ffi.Int32 Function(ffi.Int32);
+typedef _CloseDart = int Function(int);

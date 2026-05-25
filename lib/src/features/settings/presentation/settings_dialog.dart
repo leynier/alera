@@ -17,6 +17,7 @@ import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
 import 'package:alera/src/features/settings/infra/system_font_service.dart';
 import 'package:alera/src/features/updater/presentation/update_settings_section.dart';
 import 'package:file_selector/file_selector.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
@@ -676,33 +677,41 @@ class _StarControl extends StatelessWidget {
   }
 
   Widget _buildChild() {
-    switch (state) {
-      case GitHubStarState.loading:
-        return const _StarSkeleton(key: ValueKey<String>('loading'));
-      case GitHubStarState.notStarred:
-        return _StarButton(
-          key: const ValueKey<String>('not-starred'),
-          label: 'Star',
-          onPressed: onStar,
-        );
-      case GitHubStarState.starring:
-        return const _StarButton(
-          key: ValueKey<String>('starring'),
-          label: 'Starring…',
-          busy: true,
-        );
-      case GitHubStarState.starred:
-        return const _StarThanks(key: ValueKey<String>('starred'));
-      case GitHubStarState.error:
-        return _StarButton(
-          key: const ValueKey<String>('error'),
-          label: 'Try again',
-          onPressed: onStar,
-        );
-      case GitHubStarState.hidden:
-        return const SizedBox.shrink(key: ValueKey<String>('hidden'));
-    }
+    return switch (state) {
+      GitHubStarState.loading => const _StarSkeleton(
+        key: ValueKey<String>('loading'),
+      ),
+      GitHubStarState.notStarred => _StarButton(
+        key: const ValueKey<String>('not-starred'),
+        label: 'Star',
+        onPressed: onStar,
+      ),
+      GitHubStarState.starring => const _StarButton(
+        key: ValueKey<String>('starring'),
+        label: 'Starring…',
+        busy: true,
+      ),
+      GitHubStarState.starred => const _StarThanks(
+        key: ValueKey<String>('starred'),
+      ),
+      GitHubStarState.error => _StarButton(
+        key: const ValueKey<String>('error'),
+        label: 'Try again',
+        onPressed: onStar,
+      ),
+      GitHubStarState.hidden => const SizedBox.shrink(
+        key: ValueKey<String>('hidden'),
+      ),
+    };
   }
+}
+
+@visibleForTesting
+Widget buildStarControlForTesting({
+  required GitHubStarState state,
+  required VoidCallback onStar,
+}) {
+  return _StarControl(state: state, onStar: onStar);
 }
 
 class _StarButton extends StatelessWidget {
@@ -1601,6 +1610,14 @@ class _ThemePickerSetting extends StatefulWidget {
 
   @override
   State<_ThemePickerSetting> createState() => _ThemePickerSettingState();
+}
+
+@visibleForTesting
+Widget buildThemePickerSettingForTesting({
+  required String value,
+  required ValueChanged<String> onChanged,
+}) {
+  return _ThemePickerSetting(value: value, onChanged: onChanged);
 }
 
 class _ThemePickerSettingState extends State<_ThemePickerSetting> {

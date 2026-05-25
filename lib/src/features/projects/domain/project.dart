@@ -23,8 +23,6 @@ class Project with ProjectMappable {
   final DateTime updatedAt;
   final ProjectKind kind;
 
-  String get path => repoPath;
-
   bool get isGitRepository => kind == ProjectKind.gitRepository;
 
   bool get isFolder => kind == ProjectKind.folder;

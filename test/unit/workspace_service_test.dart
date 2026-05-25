@@ -49,6 +49,13 @@ void main() {
       }
     });
 
+    test('workspace root throws when no home directory is available', () {
+      expect(
+        () => WorkspaceRoot(environment: const <String, String>{}).resolve(),
+        throwsA(isA<WorkspaceException>()),
+      );
+    });
+
     test(
       'ensureMainWorkspace stores the main checkout as an active workspace',
       () async {
@@ -643,7 +650,10 @@ void main() {
     test('WorkspaceException includes stderr only when present', () {
       expect(WorkspaceException('Could not open').toString(), 'Could not open');
       expect(
-        WorkspaceException('Could not open', stderr: 'fatal error\n').toString(),
+        WorkspaceException(
+          'Could not open',
+          stderr: 'fatal error\n',
+        ).toString(),
         'Could not open: fatal error',
       );
     });
@@ -661,7 +671,9 @@ void main() {
         projectService: ProjectService(processRunner),
         processRunner: processRunner,
       );
-      final before = DateTime.now().toUtc().subtract(const Duration(seconds: 1));
+      final before = DateTime.now().toUtc().subtract(
+        const Duration(seconds: 1),
+      );
 
       final workspace = await defaultService.ensureMainWorkspace(project);
 

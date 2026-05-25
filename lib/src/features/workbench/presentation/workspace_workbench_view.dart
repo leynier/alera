@@ -11,6 +11,7 @@ import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_surface.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_dialog_launchers.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 typedef CreateTerminalTabCallback =
@@ -34,6 +35,91 @@ typedef UpdateWorkbenchSplitRatioCallback =
     void Function({required List<int> nodePath, required double ratio});
 typedef RenameWorkspaceTabCallback =
     Future<void> Function({required String tabId, required String title});
+
+@visibleForTesting
+int splitRatioFlexForTesting(double ratio) =>
+    (ratio * 1000).round().clamp(1, 1000).toInt();
+
+@visibleForTesting
+Rect splitDirectionFillRectForTesting(WorkbenchDropZone zone, Size size) {
+  return switch (zone) {
+    WorkbenchDropZone.right => Rect.fromLTWH(
+      size.width * 0.6,
+      0,
+      size.width * 0.4,
+      size.height,
+    ),
+    WorkbenchDropZone.left => Rect.fromLTWH(
+      0,
+      0,
+      size.width * 0.4,
+      size.height,
+    ),
+    WorkbenchDropZone.down => Rect.fromLTWH(
+      0,
+      size.height * 0.6,
+      size.width,
+      size.height * 0.4,
+    ),
+    WorkbenchDropZone.up => Rect.fromLTWH(0, 0, size.width, size.height * 0.4),
+    WorkbenchDropZone.center => Rect.zero,
+  };
+}
+
+@visibleForTesting
+bool splitDirectionShouldRepaintForTesting(
+  WorkbenchDropZone previousZone,
+  WorkbenchDropZone nextZone,
+) => previousZone != nextZone;
+
+@visibleForTesting
+Widget buildFallbackSplitViewForTesting({
+  required WorkbenchSplitAxis axis,
+  required double ratio,
+  required Widget first,
+  required Widget second,
+}) {
+  return Flex(
+    direction: axis == WorkbenchSplitAxis.horizontal
+        ? Axis.horizontal
+        : Axis.vertical,
+    children: <Widget>[
+      Expanded(flex: splitRatioFlexForTesting(ratio), child: first),
+      _SplitResizeHandle(axis: axis, onRatioDelta: (_) {}),
+      Expanded(flex: splitRatioFlexForTesting(1 - ratio), child: second),
+    ],
+  );
+}
+
+@visibleForTesting
+Widget buildSplitViewForAvailableSizeForTesting({
+  required double available,
+  required WorkbenchSplitAxis axis,
+  required double ratio,
+  required Widget first,
+  required Widget second,
+  required Widget Function() buildRegularView,
+}) {
+  if (!available.isFinite || available <= AleraTokens.space16) {
+    return buildFallbackSplitViewForTesting(
+      axis: axis,
+      ratio: ratio,
+      first: first,
+      second: second,
+    );
+  }
+  return buildRegularView();
+}
+
+@visibleForTesting
+bool splitDirectionPainterShouldRepaintForTesting(
+  WorkbenchDropZone previousZone,
+  WorkbenchDropZone nextZone,
+) {
+  return _SplitDirectionPainter(
+    zone: nextZone,
+  ).shouldRepaint(_SplitDirectionPainter(zone: previousZone));
+}
 
 class WorkspaceWorkbenchView extends StatelessWidget {
   const WorkspaceWorkbenchView({
@@ -250,43 +336,42 @@ class _WorkbenchSplitView extends StatelessWidget {
         final available = horizontal
             ? constraints.maxWidth
             : constraints.maxHeight;
-        if (!available.isFinite || available <= AleraTokens.space16) {
-          return Flex(
-            direction: horizontal ? Axis.horizontal : Axis.vertical,
-            children: <Widget>[
-              Expanded(flex: _ratioFlex(node.ratio!), child: first),
-              _SplitResizeHandle(axis: axis, onRatioDelta: (_) {}),
-              Expanded(flex: _ratioFlex(1 - node.ratio!), child: second),
-            ],
-          );
-        }
-        final handleExtent = AleraTokens.space6;
-        final contentExtent = available - handleExtent;
-        final firstExtent = contentExtent * node.ratio!;
-        final secondExtent = contentExtent - firstExtent;
-        return Flex(
-          direction: horizontal ? Axis.horizontal : Axis.vertical,
-          children: <Widget>[
-            SizedBox(
-              width: horizontal ? firstExtent : null,
-              height: horizontal ? null : firstExtent,
-              child: first,
-            ),
-            _SplitResizeHandle(
-              axis: axis,
-              onRatioDelta: (delta) {
-                onUpdateSplitRatio(
-                  nodePath: nodePath,
-                  ratio: node.ratio! + (delta / contentExtent),
-                );
-              },
-            ),
-            SizedBox(
-              width: horizontal ? secondExtent : null,
-              height: horizontal ? null : secondExtent,
-              child: second,
-            ),
-          ],
+        return buildSplitViewForAvailableSizeForTesting(
+          available: available,
+          axis: axis,
+          ratio: node.ratio!,
+          first: first,
+          second: second,
+          buildRegularView: () {
+            final handleExtent = AleraTokens.space6;
+            final contentExtent = available - handleExtent;
+            final firstExtent = contentExtent * node.ratio!;
+            final secondExtent = contentExtent - firstExtent;
+            return Flex(
+              direction: horizontal ? Axis.horizontal : Axis.vertical,
+              children: <Widget>[
+                SizedBox(
+                  width: horizontal ? firstExtent : null,
+                  height: horizontal ? null : firstExtent,
+                  child: first,
+                ),
+                _SplitResizeHandle(
+                  axis: axis,
+                  onRatioDelta: (delta) {
+                    onUpdateSplitRatio(
+                      nodePath: nodePath,
+                      ratio: node.ratio! + (delta / contentExtent),
+                    );
+                  },
+                ),
+                SizedBox(
+                  width: horizontal ? secondExtent : null,
+                  height: horizontal ? null : secondExtent,
+                  child: second,
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -876,33 +961,7 @@ class _SplitDirectionPainter extends CustomPainter {
       const Radius.circular(AleraTokens.radiusSm),
     );
 
-    final fillRect = switch (zone) {
-      WorkbenchDropZone.right => Rect.fromLTWH(
-        size.width * 0.6,
-        0,
-        size.width * 0.4,
-        size.height,
-      ),
-      WorkbenchDropZone.left => Rect.fromLTWH(
-        0,
-        0,
-        size.width * 0.4,
-        size.height,
-      ),
-      WorkbenchDropZone.down => Rect.fromLTWH(
-        0,
-        size.height * 0.6,
-        size.width,
-        size.height * 0.4,
-      ),
-      WorkbenchDropZone.up => Rect.fromLTWH(
-        0,
-        0,
-        size.width,
-        size.height * 0.4,
-      ),
-      WorkbenchDropZone.center => Rect.zero,
-    };
+    final fillRect = splitDirectionFillRectForTesting(zone, size);
 
     if (!fillRect.isEmpty) {
       canvas
@@ -922,8 +981,9 @@ class _SplitDirectionPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _SplitDirectionPainter oldDelegate) =>
-      oldDelegate.zone != zone;
+  bool shouldRepaint(covariant _SplitDirectionPainter oldDelegate) {
+    return splitDirectionShouldRepaintForTesting(oldDelegate.zone, zone);
+  }
 }
 
 class _NewTerminalButton extends StatelessWidget {
@@ -1338,8 +1398,8 @@ class _SplitResizeHandleState extends State<_SplitResizeHandle> {
         onPanUpdate: (details) {
           widget.onRatioDelta(horizontal ? details.delta.dx : details.delta.dy);
         },
-        onPanEnd: (_) => setState(() => _dragging = false),
-        onPanCancel: () => setState(() => _dragging = false),
+        onPanEnd: (_) => _stopDragging(),
+        onPanCancel: _stopDragging,
         child: SizedBox(
           width: horizontal ? AleraTokens.space6 : null,
           height: horizontal ? null : AleraTokens.space6,
@@ -1362,6 +1422,10 @@ class _SplitResizeHandleState extends State<_SplitResizeHandle> {
         ),
       ),
     );
+  }
+
+  void _stopDragging() {
+    setState(() => _dragging = false);
   }
 }
 
@@ -1393,5 +1457,3 @@ WorkspaceTabRecord? _activeTab(
   }
   return tabs.first;
 }
-
-int _ratioFlex(double ratio) => (ratio * 1000).round().clamp(1, 1000).toInt();

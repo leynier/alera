@@ -94,6 +94,16 @@ void main() {
         throwsStateError,
       );
     });
+
+    test('rejects renaming a tab that does not exist', () async {
+      final repository = _FakeWorkbenchRepository();
+      final service = WorkspaceTabService(repository: repository);
+
+      await expectLater(
+        service.renameTab(tabId: 'missing-tab', title: 'API'),
+        throwsStateError,
+      );
+    });
   });
 }
 

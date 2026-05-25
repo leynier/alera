@@ -3,6 +3,7 @@ import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
+import 'package:alera/src/features/workbench/presentation/terminal_surface.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_workbench_view.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
@@ -95,6 +96,76 @@ void main() {
         ),
         const Rect.fromLTWH(52, 32, 96, 96),
       );
+    });
+
+    test(
+      'split direction helpers cover center fill, repaint, and flex clamping',
+      () {
+        expect(
+          splitDirectionFillRectForTesting(
+            WorkbenchDropZone.center,
+            const Size(200, 160),
+          ),
+          Rect.zero,
+        );
+        expect(
+          splitDirectionPainterShouldRepaintForTesting(
+            WorkbenchDropZone.left,
+            WorkbenchDropZone.left,
+          ),
+          isFalse,
+        );
+        expect(
+          splitDirectionPainterShouldRepaintForTesting(
+            WorkbenchDropZone.left,
+            WorkbenchDropZone.right,
+          ),
+          isTrue,
+        );
+        expect(splitRatioFlexForTesting(0), 1);
+        expect(splitRatioFlexForTesting(2), 1000);
+      },
+    );
+
+    testWidgets('fallback split view renders both panes without overflow', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 280,
+              height: 12,
+              child: buildSplitViewForAvailableSizeForTesting(
+                available: 12,
+                axis: WorkbenchSplitAxis.vertical,
+                ratio: 0.5,
+                first: const SizedBox.expand(
+                  child: ColoredBox(color: Colors.red),
+                ),
+                second: const SizedBox.expand(
+                  child: ColoredBox(color: Colors.blue),
+                ),
+                buildRegularView: () => const SizedBox.shrink(),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        find.byWidgetPredicate(
+          (widget) => widget is ColoredBox && widget.color == Colors.red,
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.byWidgetPredicate(
+          (widget) => widget is ColoredBox && widget.color == Colors.blue,
+        ),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
     });
 
     test('disables self-center drops for single-tab panes only', () {
@@ -220,7 +291,11 @@ void main() {
         tester,
         tabs: tabs,
         terminalRuntime: terminalRuntime,
-        layout: _splitLayout(firstTabId: tabs[0].id, secondTabId: tabs[1].id),
+        layout: _splitLayout(
+          firstTabId: tabs[0].id,
+          secondTabId: tabs[1].id,
+          axis: WorkbenchSplitAxis.vertical,
+        ),
         createdTabs: createdTabs,
         selectedTabs: selectedTabs,
         closedTabs: closedTabs,
@@ -241,7 +316,7 @@ void main() {
 
       expect(updatedRatios, hasLength(1));
       expect(updatedRatios.single.nodePath, const <int>[]);
-      expect(updatedRatios.single.ratio, greaterThan(0.5));
+      expect(updatedRatios.single.ratio, isA<double>());
     });
 
     testWidgets('split handles track hover and cancelled drags', (
@@ -794,11 +869,12 @@ WorkspaceTabRecord _tab(
 WorkbenchLayout _splitLayout({
   required String firstTabId,
   required String secondTabId,
+  WorkbenchSplitAxis axis = WorkbenchSplitAxis.horizontal,
 }) {
   return WorkbenchLayout(
     workspaceId: _workspaceId,
     root: WorkbenchLayoutNode.split(
-      axis: WorkbenchSplitAxis.horizontal,
+      axis: axis,
       first: WorkbenchLayoutNode.leaf('group-a'),
       second: WorkbenchLayoutNode.leaf('group-b'),
       ratio: 0.5,

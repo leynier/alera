@@ -483,14 +483,11 @@ class WorkbenchLayout with WorkbenchLayoutMappable {
         tabIds: mergedTabIds,
         activeTabId: source.activeTabId ?? target.activeTabId,
       );
-    final prunedRoot = root.pruneGroups(nextGroups.keys.toSet());
-    if (prunedRoot == null) {
-      return WorkbenchLayout.single(
-        workspaceId: workspaceId,
-        tabIds: mergedTabIds,
-        groupId: siblingGroupId,
-      );
-    }
+    final prunedRoot = _resolvedMergedRoot(
+      root,
+      nextGroups.keys.toSet(),
+      siblingGroupId,
+    );
     return WorkbenchLayout(
       workspaceId: workspaceId,
       root: prunedRoot,
@@ -513,6 +510,12 @@ WorkbenchSplitAxis? _axisForZone(WorkbenchDropZone zone) {
     WorkbenchDropZone.center => null,
   };
 }
+
+WorkbenchLayoutNode _resolvedMergedRoot(
+  WorkbenchLayoutNode root,
+  Set<String> groupIds,
+  String siblingGroupId,
+) => root.pruneGroups(groupIds) ?? WorkbenchLayoutNode.leaf(siblingGroupId);
 
 double _clampWorkbenchSplitRatio(double ratio) {
   if (ratio < workbenchMinSplitRatio) {

@@ -37,15 +37,53 @@ void main() {
       expect(restored, _config);
       expect(restored.canAutoInstall, isFalse);
     });
+
+    test('resolves environment uris with defaults when values are null', () {
+      expect(
+        resolveUpdateConfigUriForTesting(
+          null,
+          AleraUpdateConfig.defaultArchiveUrl,
+        ),
+        AleraUpdateConfig.defaultArchiveUrl,
+      );
+      expect(
+        resolveUpdateConfigUriForTesting(
+          Uri.parse('https://example.com/archive.json'),
+          AleraUpdateConfig.defaultArchiveUrl,
+        ),
+        Uri.parse('https://example.com/archive.json'),
+      );
+      expect(
+        resolveUpdateConfigUriForTesting(
+          null,
+          AleraUpdateConfig.defaultReleasePageUrl,
+        ),
+        AleraUpdateConfig.defaultReleasePageUrl,
+      );
+    });
   });
 
   group('AleraUpdateState', () {
+    test('exposes all status values in order', () {
+      expect(AleraUpdateStatus.values, <AleraUpdateStatus>[
+        AleraUpdateStatus.idle,
+        AleraUpdateStatus.checking,
+        AleraUpdateStatus.notAvailable,
+        AleraUpdateStatus.manualDownloadRequired,
+        AleraUpdateStatus.available,
+        AleraUpdateStatus.downloading,
+        AleraUpdateStatus.downloaded,
+        AleraUpdateStatus.error,
+      ]);
+    });
+
     test('update info round-trips through json and detects prereleases', () {
       final restored = AleraUpdateInfo.fromJson(
         Map<String, Object?>.from(_update.toMap()),
       );
 
       expect(restored, _update);
+      expect(restored.platform, 'macos');
       expect(restored.isPrerelease, isFalse);
       expect(
         AleraUpdateInfo.fromJson(
@@ -80,6 +118,17 @@ void main() {
       expect(updated.progress, 0);
     });
 
+    test('idle state starts non-busy and keeps the provided config', () {
+      final state = AleraUpdateState.idle(_config);
+
+      expect(state.status, AleraUpdateStatus.idle);
+      expect(state.config, _config);
+      expect(state.latest, isNull);
+      expect(state.message, isNull);
+      expect(state.progress, 0);
+      expect(state.isBusy, isFalse);
+    });
+
     test('round-trips through json', () {
       final state = AleraUpdateState(
         status: AleraUpdateStatus.manualDownloadRequired,
@@ -95,6 +144,23 @@ void main() {
 
       expect(restored, state);
       expect(restored.latest, _update);
+    });
+
+    test('isBusy is true while checking or downloading', () {
+      expect(
+        AleraUpdateState(
+          status: AleraUpdateStatus.checking,
+          config: _config,
+        ).isBusy,
+        isTrue,
+      );
+      expect(
+        AleraUpdateState(
+          status: AleraUpdateStatus.downloading,
+          config: _config,
+        ).isBusy,
+        isTrue,
+      );
     });
   });
 }

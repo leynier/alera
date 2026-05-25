@@ -181,6 +181,32 @@ void main() {
     );
   });
 
+  testWidgets('theme picker stacks preview below the list on narrow widths', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildAleraDarkTheme(),
+        home: Scaffold(
+          body: SizedBox(
+            width: 540,
+            child: buildThemePickerSettingForTesting(
+              value: TerminalThemeNames.aleraDark,
+              onChanged: (_) {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey<String>('terminal-theme-search-field')),
+      findsOneWidget,
+    );
+    expect(find.text('Theme preset'), findsOneWidget);
+  });
+
   testWidgets('edits destructive confirmation settings', (tester) async {
     final container = await pumpSettingsDialog(tester);
 
@@ -382,6 +408,21 @@ void main() {
 
     expect(find.text('Support Alera'), findsNothing);
     expect(find.byKey(const ValueKey<String>('hidden')), findsNothing);
+  });
+
+  testWidgets('hidden star control shrinks away', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: buildStarControlForTesting(
+            state: GitHubStarState.hidden,
+            onStar: () {},
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byKey(const ValueKey<String>('hidden')), findsOneWidget);
   });
 
   testWidgets('edits additional terminal numeric and color overrides', (

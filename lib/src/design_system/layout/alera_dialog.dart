@@ -23,15 +23,16 @@ class AleraDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final constrained = (maxWidth != null || maxHeight != null)
-        ? ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: maxWidth ?? double.infinity,
-              maxHeight: maxHeight ?? double.infinity,
-            ),
-            child: child,
-          )
-        : child;
+    var constrained = child;
+    if (maxWidth != null || maxHeight != null) {
+      constrained = ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: maxWidth ?? double.infinity,
+          maxHeight: maxHeight ?? double.infinity,
+        ),
+        child: child,
+      );
+    }
     return Dialog(
       backgroundColor: backgroundColor ?? AleraTokens.surface,
       elevation: elevation,

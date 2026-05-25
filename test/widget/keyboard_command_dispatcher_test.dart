@@ -232,7 +232,60 @@ void main() {
     );
   });
 
-  testWidgets('dialog-oriented commands reuse the shared launchers', (tester) async {
+  testWidgets('splitDown dispatches the matching workbench zone', (
+    tester,
+  ) async {
+    final workspace = _workspace();
+    final firstTab = _tab(id: 'tab-1');
+    final splitTab = _tab(id: 'tab-2');
+    final controller = _DispatcherTestWorkbenchController(
+      WorkbenchState(
+        workspacesByProject: <String, List<Workspace>>{
+          workspace.projectId: <Workspace>[workspace],
+        },
+        tabsByWorkspace: <String, List<WorkspaceTabRecord>>{
+          workspace.id: <WorkspaceTabRecord>[firstTab],
+        },
+        layoutByWorkspace: <String, WorkbenchLayout>{
+          workspace.id: WorkbenchLayout.single(
+            workspaceId: workspace.id,
+            tabIds: <String>[firstTab.id],
+          ),
+        },
+        activeWorkspaceId: workspace.id,
+      ),
+    );
+    final runtime = _FakeTerminalRuntime();
+    final harness = await _pumpDispatcherHarness(
+      tester,
+      controller: controller,
+      runtime: runtime,
+    );
+
+    KeyboardCommandDispatcher(
+      ref: harness.ref,
+      context: harness.context,
+    ).dispatch(KeyboardActionId.splitDown);
+    await tester.pump();
+
+    controller.completeSplit(splitTab);
+    await tester.pump();
+
+    expect(
+      controller.splitRequests,
+      <({String workspaceId, String groupId, WorkbenchDropZone zone})>[
+        (
+          workspaceId: workspace.id,
+          groupId: WorkbenchLayout.defaultGroupId(workspace.id),
+          zone: WorkbenchDropZone.down,
+        ),
+      ],
+    );
+  });
+
+  testWidgets('dialog-oriented commands reuse the shared launchers', (
+    tester,
+  ) async {
     final project = _project();
     final workspace = _workspace();
     final controller = _DispatcherTestWorkbenchController(
@@ -273,7 +326,10 @@ void main() {
 
     dispatcher.dispatch(KeyboardActionId.createWorkspace);
     await tester.pumpAndSettle();
-    expect(find.widgetWithText(FilledButton, 'Create workspace'), findsOneWidget);
+    expect(
+      find.widgetWithText(FilledButton, 'Create workspace'),
+      findsOneWidget,
+    );
   });
 }
 
@@ -323,6 +379,9 @@ class _DispatcherTestWorkbenchController extends WorkbenchController {
   final List<String> createdTerminalWorkspaceIds = <String>[];
   final List<String> closedTabIds = <String>[];
   final List<String> selectedTabIds = <String>[];
+  final List<({String workspaceId, String groupId, WorkbenchDropZone zone})>
+  splitRequests =
+      <({String workspaceId, String groupId, WorkbenchDropZone zone})>[];
   final List<({String workspaceId, String groupId})> mergedSplits =
       <({String workspaceId, String groupId})>[];
 
@@ -343,6 +402,11 @@ class _DispatcherTestWorkbenchController extends WorkbenchController {
     required String groupId,
     required WorkbenchDropZone zone,
   }) {
+    splitRequests.add((
+      workspaceId: workspace.id,
+      groupId: groupId,
+      zone: zone,
+    ));
     return _splitCompleter.future;
   }
 

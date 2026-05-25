@@ -86,6 +86,49 @@ void main() {
     });
 
     test(
+      'falls back to the explicit active tab id when layout has no active tab',
+      () {
+        final projectA = project('project-a', 'Alera');
+        final workspaceA = workspace(
+          id: 'workspace-a',
+          projectId: projectA.id,
+          name: 'Main',
+        );
+        final firstTab = tab('tab-1', workspaceA.id);
+        final secondTab = tab('tab-2', workspaceA.id);
+        final groupId = WorkbenchLayout.defaultGroupId(workspaceA.id);
+        final layout =
+            WorkbenchLayout.single(
+              workspaceId: workspaceA.id,
+              tabIds: <String>[firstTab.id, secondTab.id],
+            ).copyWith(
+              groups: <String, WorkbenchPaneGroup>{
+                groupId: WorkbenchPaneGroup(
+                  id: groupId,
+                  tabIds: <String>[firstTab.id, secondTab.id],
+                  activeTabId: null,
+                ),
+              },
+            );
+        final state = WorkbenchState(
+          projects: <Project>[projectA],
+          workspacesByProject: <String, List<Workspace>>{
+            projectA.id: <Workspace>[workspaceA],
+          },
+          tabsByWorkspace: <String, List<WorkspaceTabRecord>>{
+            workspaceA.id: <WorkspaceTabRecord>[firstTab, secondTab],
+          },
+          layoutByWorkspace: <String, WorkbenchLayout>{workspaceA.id: layout},
+          activeProjectId: projectA.id,
+          activeWorkspaceId: workspaceA.id,
+          activeTabIdByWorkspace: <String, String>{workspaceA.id: firstTab.id},
+        );
+
+        expect(state.activeWorkspaceTab, firstTab);
+      },
+    );
+
+    test(
       'returns expanded projects and ordered tabs for an existing group',
       () {
         final projectA = project('project-a', 'Alera');

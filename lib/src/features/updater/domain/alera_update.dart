@@ -1,4 +1,5 @@
 import 'package:dart_mappable/dart_mappable.dart';
+import 'package:meta/meta.dart';
 
 part 'alera_update.mapper.dart';
 
@@ -62,6 +63,28 @@ class AleraUpdateConfig with AleraUpdateConfigMappable {
   final bool autoInstallEnabled;
   final bool signedRelease;
 
+  static AleraUpdateConfig _resolvedEnvironmentConfig({
+    required Uri? archiveUrl,
+    required Uri? releasePageUrl,
+    required AleraUpdateChannel channel,
+    required bool autoInstallEnabled,
+    required bool signedRelease,
+  }) {
+    return AleraUpdateConfig(
+      archiveUrl: resolveUpdateConfigUriForTesting(
+        archiveUrl,
+        defaultArchiveUrl,
+      ),
+      releasePageUrl: resolveUpdateConfigUriForTesting(
+        releasePageUrl,
+        defaultReleasePageUrl,
+      ),
+      channel: channel,
+      autoInstallEnabled: autoInstallEnabled,
+      signedRelease: signedRelease,
+    );
+  }
+
   bool get canAutoInstall {
     return autoInstallEnabled &&
         (signedRelease || channel == AleraUpdateChannel.rc);
@@ -80,9 +103,9 @@ class AleraUpdateConfig with AleraUpdateConfigMappable {
         defaultValue: 'https://github.com/leynier/alera/releases',
       ),
     );
-    return AleraUpdateConfig(
-      archiveUrl: archiveUrl ?? defaultArchiveUrl,
-      releasePageUrl: releasePageUrl ?? defaultReleasePageUrl,
+    return _resolvedEnvironmentConfig(
+      archiveUrl: archiveUrl,
+      releasePageUrl: releasePageUrl,
       channel: AleraUpdateChannel.parse(
         const String.fromEnvironment(
           'ALERA_UPDATE_CHANNEL',
@@ -99,6 +122,10 @@ class AleraUpdateConfig with AleraUpdateConfigMappable {
   factory AleraUpdateConfig.fromJson(Map<String, Object?> json) =>
       AleraUpdateConfigMapper.fromMap(Map<String, dynamic>.from(json));
 }
+
+@visibleForTesting
+Uri resolveUpdateConfigUriForTesting(Uri? value, Uri fallback) =>
+    value ?? fallback;
 
 @MappableEnum()
 enum AleraUpdateStatus {

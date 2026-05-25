@@ -180,12 +180,7 @@ class _PosixPortablePtySessionAdapter implements TerminalPtySession {
     if (_disposed || pty == null || bytes.isEmpty) {
       return false;
     }
-    try {
-      return pty.writeBytes(Uint8List.fromList(bytes)) > 0;
-    } catch (error) {
-      _events.add(TerminalPtyErrorEvent(error));
-      return false;
-    }
+    return _writePtyBytes(bytes: bytes, write: pty.writeBytes, events: _events);
   }
 
   @override
@@ -194,11 +189,13 @@ class _PosixPortablePtySessionAdapter implements TerminalPtySession {
     if (_disposed || pty == null) {
       return;
     }
-    try {
-      pty.resize(rows: rows, cols: cols);
-    } catch (error) {
-      _events.add(TerminalPtyErrorEvent(error));
-    }
+    _resizePty(
+      rows: rows,
+      cols: cols,
+      resize: ({required rows, required cols}) =>
+          pty.resize(rows: rows, cols: cols),
+      events: _events,
+    );
   }
 
   void _handleReadMessage(Object? message) {
@@ -858,14 +855,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   void requestFocus() {
     // Defer to the next frame so the terminal view is mounted (e.g. after
     // switching workspaces) before we ask the FocusNode to claim focus.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_disposed) {
-        return;
-      }
-      if (_focusNode.canRequestFocus) {
-        _focusNode.requestFocus();
-      }
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _requestFocusNow());
   }
 
   @override
@@ -878,6 +868,13 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     unawaited(_ptyOutputController.close());
     _focusNode.dispose();
     super.dispose();
+  }
+
+  void _requestFocusNow() {
+    if (_disposed || !_focusNode.canRequestFocus) {
+      return;
+    }
+    _focusNode.requestFocus();
   }
 }
 
@@ -904,7 +901,7 @@ class _InteractiveTerminalViewState extends State<_InteractiveTerminalView> {
   @override
   void didUpdateWidget(covariant _InteractiveTerminalView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.session != widget.session && _hoveredLink != null) {
+    if (oldWidget.session != widget.session) {
       _hoveredLink = null;
     }
   }
@@ -1269,6 +1266,14 @@ const int _readChunkSize = 4096;
 void _posixPtyReadIsolate(List<Object?> args) {
   final fd = args[0]! as int;
   final sendPort = args[1]! as SendPort;
+  _runPosixPtyReadIsolate(fd: fd, sendPort: sendPort, read: _posixRead);
+}
+
+void _runPosixPtyReadIsolate({
+  required int fd,
+  required SendPort sendPort,
+  required int Function(int, ffi.Pointer<ffi.Uint8>, int) read,
+}) {
   if (fd < 0) {
     sendPort.send(const <Object?, Object?>{
       'type': 'error',
@@ -1278,18 +1283,7 @@ void _posixPtyReadIsolate(List<Object?> args) {
   }
   final buffer = calloc<ffi.Uint8>(_readChunkSize);
   try {
-    while (true) {
-      final byteCount = _posixRead(fd, buffer, _readChunkSize);
-      if (byteCount > 0) {
-        sendPort.send(Uint8List.fromList(buffer.asTypedList(byteCount)));
-        continue;
-      }
-      if (byteCount < 0 && _currentErrno() == _eintr) {
-        continue;
-      }
-      sendPort.send(const <Object?, Object?>{'type': 'done'});
-      break;
-    }
+    _readPosixPtyLoop(fd: fd, sendPort: sendPort, buffer: buffer, read: read);
   } catch (error) {
     sendPort.send(<Object?, Object?>{
       'type': 'error',
@@ -1298,6 +1292,80 @@ void _posixPtyReadIsolate(List<Object?> args) {
   } finally {
     calloc.free(buffer);
   }
+}
+
+void _readPosixPtyLoop({
+  required int fd,
+  required SendPort sendPort,
+  required ffi.Pointer<ffi.Uint8> buffer,
+  required int Function(int, ffi.Pointer<ffi.Uint8>, int) read,
+}) {
+  while (true) {
+    final byteCount = read(fd, buffer, _readChunkSize);
+    if (byteCount > 0) {
+      sendPort.send(Uint8List.fromList(buffer.asTypedList(byteCount)));
+      continue;
+    }
+    if (byteCount < 0 && _currentErrno() == _eintr) {
+      continue;
+    }
+    sendPort.send(const <Object?, Object?>{'type': 'done'});
+    break;
+  }
+}
+
+@visibleForTesting
+void runPosixPtyReadIsolateForTesting({
+  required int fd,
+  required SendPort sendPort,
+  required int Function(int, ffi.Pointer<ffi.Uint8>, int) read,
+}) {
+  _runPosixPtyReadIsolate(fd: fd, sendPort: sendPort, read: read);
+}
+
+bool _writePtyBytes({
+  required List<int> bytes,
+  required int Function(Uint8List bytes) write,
+  required StreamController<TerminalPtySessionEvent> events,
+}) {
+  try {
+    return write(Uint8List.fromList(bytes)) > 0;
+  } catch (error) {
+    events.add(TerminalPtyErrorEvent(error));
+    return false;
+  }
+}
+
+void _resizePty({
+  required int rows,
+  required int cols,
+  required void Function({required int rows, required int cols}) resize,
+  required StreamController<TerminalPtySessionEvent> events,
+}) {
+  try {
+    resize(rows: rows, cols: cols);
+  } catch (error) {
+    events.add(TerminalPtyErrorEvent(error));
+  }
+}
+
+@visibleForTesting
+bool writePtyBytesForTesting({
+  required List<int> bytes,
+  required int Function(Uint8List bytes) write,
+  required StreamController<TerminalPtySessionEvent> events,
+}) {
+  return _writePtyBytes(bytes: bytes, write: write, events: events);
+}
+
+@visibleForTesting
+void resizePtyForTesting({
+  required int rows,
+  required int cols,
+  required void Function({required int rows, required int cols}) resize,
+  required StreamController<TerminalPtySessionEvent> events,
+}) {
+  _resizePty(rows: rows, cols: cols, resize: resize, events: events);
 }
 
 @visibleForTesting
@@ -1396,8 +1464,6 @@ FocusNode terminalFocusNodeForTesting(TerminalSessionHandle session) {
 }
 
 @visibleForTesting
-GlobalKey<xterm.TerminalViewState> terminalViewKeyForTesting(
-  TerminalSessionHandle session,
-) {
-  return (session as _XtermTerminalSessionHandle)._terminalViewKey;
+void requestTerminalFocusNowForTesting(TerminalSessionHandle session) {
+  (session as _XtermTerminalSessionHandle)._requestFocusNow();
 }
