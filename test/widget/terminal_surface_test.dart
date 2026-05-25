@@ -284,6 +284,23 @@ void main() {
     }
   });
 
+  testWidgets('ensureStarted reports unsupported platforms without a PTY', (
+    tester,
+  ) async {
+    final factory = _FakeTerminalPtySessionFactory();
+    final runtime = XtermTerminalRuntime(ptySessionFactory: factory);
+    addTearDown(runtime.dispose);
+    final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
+
+    await session.ensureStarted();
+    await tester.pump();
+
+    expect(session.isRunning, isFalse);
+    expect(session.isStarting, isFalse);
+    expect(session.errorMessage, contains('native desktop PTY path'));
+    expect(factory.sessions, isEmpty);
+  });
+
   testWidgets('hover only activates the link cursor on the link row', (
     tester,
   ) async {
@@ -427,6 +444,116 @@ void main() {
     }
   });
 
+  testWidgets('shows the terminal error state and retries on demand', (
+    tester,
+  ) async {
+    final session = _ErrorSessionHandle(
+      tabId: 'tab-1',
+      message: 'boom',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox.expand(child: TerminalSurface(session: session)),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Terminal failed to start'), findsOneWidget);
+    expect(find.text('boom'), findsOneWidget);
+
+    await tester.tap(find.text('Retry'));
+    await tester.pump();
+
+    expect(session.restartCallCount, 1);
+  });
+
+  testWidgets('shows a startup progress indicator while starting', (tester) async {
+    final session = _StartingSessionHandle(tabId: 'tab-1');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox.expand(child: TerminalSurface(session: session)),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byKey(const ValueKey<String>('terminal-tab-1')), findsOneWidget);
+  });
+
+  testWidgets(
+    'closeWorkspace drops only the target workspace sessions',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      try {
+        final factory = _FakeTerminalPtySessionFactory();
+        final runtime = XtermTerminalRuntime(ptySessionFactory: factory);
+        addTearDown(runtime.dispose);
+        final exits = <TerminalRuntimeExitEvent>[];
+        final exitSub = runtime.exits.listen(exits.add);
+        addTearDown(exitSub.cancel);
+
+        final firstSession = runtime.sessionFor(
+          workspace: _workspace(),
+          tab: _tab(),
+        );
+        final secondSession = runtime.sessionFor(
+          workspace: _workspace(),
+          tab: _tab(id: 'tab-2', title: 'Terminal 2'),
+        );
+        final thirdSession = runtime.sessionFor(
+          workspace: _workspace(id: 'ws-2', path: '/tmp/other'),
+          tab: _tab(id: 'tab-3', workspaceId: 'ws-2', title: 'Terminal 3'),
+        );
+
+        await firstSession.ensureStarted();
+        await secondSession.ensureStarted();
+        await thirdSession.ensureStarted();
+
+        runtime.closeWorkspace('ws-1');
+        await tester.pump();
+
+        expect(exits, isEmpty);
+
+        final reopenedFirst = runtime.sessionFor(
+          workspace: _workspace(),
+          tab: _tab(),
+        );
+        final reopenedSecond = runtime.sessionFor(
+          workspace: _workspace(),
+          tab: _tab(id: 'tab-2', title: 'Terminal 2'),
+        );
+        final persistedThird = runtime.sessionFor(
+          workspace: _workspace(id: 'ws-2', path: '/tmp/other'),
+          tab: _tab(id: 'tab-3', workspaceId: 'ws-2', title: 'Terminal 3'),
+        );
+
+        expect(identical(reopenedFirst, firstSession), isFalse);
+        expect(identical(reopenedSecond, secondSession), isFalse);
+        expect(identical(persistedThird, thirdSession), isTrue);
+
+        await reopenedFirst.ensureStarted();
+        await reopenedSecond.ensureStarted();
+        expect(factory.sessions, hasLength(5));
+
+        factory.sessions[2].emitExit(5);
+        await tester.pump();
+
+        expect(exits, hasLength(1));
+        expect(exits.single.workspaceId, 'ws-2');
+        expect(exits.single.tabId, 'tab-3');
+        expect(exits.single.exitCode, 5);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    },
+  );
+
   testWidgets('defers startup notifications until after the first frame', (
     tester,
   ) async {
@@ -483,19 +610,23 @@ void main() {
   });
 }
 
-WorkspaceTabRecord _tab() {
+WorkspaceTabRecord _tab({
+  String id = 'tab-1',
+  String workspaceId = 'ws-1',
+  String title = 'Terminal 1',
+}) {
   return WorkspaceTabRecord(
-    id: 'tab-1',
-    workspaceId: 'ws-1',
-    title: 'Terminal 1',
+    id: id,
+    workspaceId: workspaceId,
+    title: title,
     createdAt: DateTime.utc(2026),
     updatedAt: DateTime.utc(2026),
   );
 }
 
-Workspace _workspace({String path = '/tmp/alera'}) {
+Workspace _workspace({String id = 'ws-1', String path = '/tmp/alera'}) {
   return Workspace(
-    id: 'ws-1',
+    id: id,
     projectId: 'p-1',
     name: 'Main',
     branch: 'main',
@@ -636,6 +767,91 @@ class _ImmediateNotifySessionHandle extends TerminalSessionHandle {
 
   @override
   Future<void> restart() => ensureStarted();
+
+  @override
+  Widget buildView({
+    Key? key,
+    bool autofocus = false,
+    FocusOnKeyEventCallback? onKeyEvent,
+  }) {
+    return SizedBox.expand(key: ValueKey<String>('terminal-$tabId'));
+  }
+
+  @override
+  void requestFocus() {}
+}
+
+class _ErrorSessionHandle extends TerminalSessionHandle {
+  _ErrorSessionHandle({required this.tabId, required this.message});
+
+  @override
+  final String tabId;
+
+  final String message;
+  int restartCallCount = 0;
+
+  @override
+  String get workspaceId => 'workspace-1';
+
+  @override
+  String get displayTitle => 'Terminal';
+
+  @override
+  bool get isRunning => false;
+
+  @override
+  bool get isStarting => false;
+
+  @override
+  String? get errorMessage => message;
+
+  @override
+  Future<void> ensureStarted() async {}
+
+  @override
+  Future<void> restart() async {
+    restartCallCount += 1;
+  }
+
+  @override
+  Widget buildView({
+    Key? key,
+    bool autofocus = false,
+    FocusOnKeyEventCallback? onKeyEvent,
+  }) {
+    return SizedBox.expand(key: ValueKey<String>('terminal-$tabId'));
+  }
+
+  @override
+  void requestFocus() {}
+}
+
+class _StartingSessionHandle extends TerminalSessionHandle {
+  _StartingSessionHandle({required this.tabId});
+
+  @override
+  final String tabId;
+
+  @override
+  String get workspaceId => 'workspace-1';
+
+  @override
+  String get displayTitle => 'Terminal';
+
+  @override
+  bool get isRunning => false;
+
+  @override
+  bool get isStarting => true;
+
+  @override
+  String? get errorMessage => null;
+
+  @override
+  Future<void> ensureStarted() async {}
+
+  @override
+  Future<void> restart() async {}
 
   @override
   Widget buildView({

@@ -128,7 +128,9 @@ List<CoverageRecord> _readLcov(File file) {
     if (file == null) {
       return;
     }
-    records.add(CoverageRecord(file: file, found: found, hit: hit));
+    if (_includeInCoverage(file)) {
+      records.add(CoverageRecord(file: file, found: found, hit: hit));
+    }
     currentFile = null;
     found = 0;
     hit = 0;
@@ -153,6 +155,10 @@ List<CoverageRecord> _readLcov(File file) {
   }
   flush();
   return records;
+}
+
+bool _includeInCoverage(String file) {
+  return !(file.endsWith('.g.dart') || file.endsWith('.mapper.dart'));
 }
 
 Map<String, CoverageRecord> _areaRecords(List<CoverageRecord> records) {

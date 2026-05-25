@@ -49,7 +49,7 @@ Use `-d linux` or `-d windows` on those platforms. The checked-in E2E flow must 
 
 ## Coverage
 
-`tool/quality/coverage_report.dart` reads `coverage/lcov.info`, prints total line coverage, groups coverage by area, and lists the files with the most missed lines. The PR gate starts at 65% line coverage so the current suite has a useful floor without blocking incremental test expansion.
+`tool/quality/coverage_report.dart` reads `coverage/lcov.info`, ignores generated `*.g.dart` and `*.mapper.dart` files, prints total line coverage, groups coverage by area, and lists the files with the most missed lines. The PR gate starts at 65% line coverage so the current suite has a useful floor without blocking incremental test expansion.
 
 When coverage drops, use the "worst files by missed lines" section to decide whether to add focused unit tests, widget tests, or an E2E path. Do not chase coverage by snapshotting implementation details; cover behavior that would catch a real regression.
 

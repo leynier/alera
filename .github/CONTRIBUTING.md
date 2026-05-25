@@ -58,6 +58,8 @@ flutter test --coverage --exclude-tags golden
 dart run tool/quality/coverage_report.dart --input coverage/lcov.info --min-lines 65 --worst 25
 ```
 
+The coverage report excludes generated `*.g.dart` and `*.mapper.dart` files so the gate reflects maintained source code instead of build output.
+
 For visual UI changes, run the golden suite and update snapshots only when the visual diff is intentional:
 
 ```bash

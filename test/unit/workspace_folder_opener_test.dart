@@ -69,6 +69,43 @@ void main() {
     expect(result.message, 'Workspace folder was not found.');
     expect(processRunner.calls, isEmpty);
   });
+
+  test('rejects blank workspace paths before probing the filesystem', () async {
+    final processRunner = _FakeProcessRunner();
+    final opener = WorkspaceFolderOpener(
+      processRunner: processRunner,
+      platform: WorkspaceFolderPlatform.linux,
+      directoryExists: (_) async => true,
+    );
+
+    final result = await opener.open('   ');
+
+    expect(result.ok, isFalse);
+    expect(result.message, 'Workspace path is empty.');
+    expect(processRunner.calls, isEmpty);
+  });
+
+  test('reports a clean failure on other platforms when opening fails', () async {
+    final processRunner = _FakeProcessRunner(exitCodes: <int>[1]);
+    final opener = WorkspaceFolderOpener(
+      processRunner: processRunner,
+      platform: WorkspaceFolderPlatform.other,
+      directoryExists: (_) async => true,
+    );
+
+    final result = await opener.open('/repo/alera');
+
+    expect(result.ok, isFalse);
+    expect(result.message, 'Could not open workspace folder in File Manager.');
+    expect(processRunner.calls, <_ProcessCall>[
+      const _ProcessCall('xdg-open', <String>['/repo/alera']),
+    ]);
+    expect(opener.fileManagerLabel, 'File Manager');
+  });
+
+  test('detects the current workspace-folder platform for this environment', () {
+    expect(currentWorkspaceFolderPlatform(), WorkspaceFolderPlatform.macos);
+  });
 }
 
 class _FakeProcessRunner implements ProcessRunner {

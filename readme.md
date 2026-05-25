@@ -125,6 +125,8 @@ TODO: Add links to each project and verify exact dependency/inspiration wording.
 flutter analyze
 flutter test --coverage --exclude-tags golden
 dart run tool/quality/coverage_report.dart --input coverage/lcov.info --min-lines 65 --worst 25
+
+The coverage report ignores generated `*.g.dart` and `*.mapper.dart` files so the percentage tracks maintained application code.
 ```
 
 Use `flutter test --tags golden` for visual regression tests and `flutter test integration_test -d macos` for local desktop E2E smoke coverage. See `docs/testing.md`.

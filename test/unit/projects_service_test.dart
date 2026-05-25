@@ -57,6 +57,45 @@ void main() {
       expect(processRunner.calls, isEmpty);
     });
 
+    test('rejects blank local project paths', () async {
+      await expectLater(
+        service.addLocalProject(path: '   '),
+        throwsStateError,
+      );
+    });
+
+    test('surfaces invalid local project path messages', () async {
+      await expectLater(
+        service.addLocalProject(path: p.join(tempDir.path, 'missing-folder')),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains('does not exist'),
+          ),
+        ),
+      );
+    });
+
+    test('returns an already-registered local project for the same path', () async {
+      final repo = Directory(p.join(tempDir.path, 'repo'))
+        ..createSync(recursive: true);
+      Directory(p.join(repo.path, '.git')).createSync();
+      final existing = Project(
+        id: 'project-1',
+        name: 'Existing',
+        repoPath: repo.path,
+        createdAt: DateTime.utc(2026, 5, 24),
+        updatedAt: DateTime.utc(2026, 5, 24),
+      );
+      await repository.add(existing);
+
+      final project = await service.addLocalProject(path: repo.path);
+
+      expect(project, same(existing));
+      expect(repository.projects, hasLength(1));
+    });
+
     test('clones and registers a Git repository project', () async {
       final destination = p.join(tempDir.path, 'cloned-repo');
 
@@ -91,6 +130,35 @@ void main() {
       expect(repository.projects, isEmpty);
     });
 
+    test('rejects blank clone destinations', () async {
+      await expectLater(
+        service.cloneProject(
+          gitUrl: 'https://example.com/acme/repo.git',
+          destinationPath: '   ',
+        ),
+        throwsStateError,
+      );
+    });
+
+    test('rejects clone destinations that are already registered', () async {
+      final existing = Project(
+        id: 'project-1',
+        name: 'Existing',
+        repoPath: p.join(tempDir.path, 'repo'),
+        createdAt: DateTime.utc(2026, 5, 24),
+        updatedAt: DateTime.utc(2026, 5, 24),
+      );
+      await repository.add(existing);
+
+      await expectLater(
+        service.cloneProject(
+          gitUrl: 'https://example.com/acme/repo.git',
+          destinationPath: existing.repoPath,
+        ),
+        throwsStateError,
+      );
+    });
+
     test('renames a project with a trimmed non-empty name', () async {
       final project = Project(
         id: 'project-1',
@@ -116,6 +184,39 @@ void main() {
         service.renameProject(projectId: 'project-1', name: '   '),
         throwsStateError,
       );
+    });
+
+    test('addProject delegates to addLocalProject', () async {
+      final repo = Directory(p.join(tempDir.path, 'repo-wrapper'))
+        ..createSync(recursive: true);
+      Directory(p.join(repo.path, '.git')).createSync();
+
+      final project = await service.addProject(repoPath: repo.path, name: 'Wrapper');
+
+      expect(project.repoPath, repo.path);
+      expect(project.name, 'Wrapper');
+    });
+
+    test('renameProject rejects missing ids', () async {
+      await expectLater(
+        service.renameProject(projectId: 'missing-project', name: 'Renamed'),
+        throwsStateError,
+      );
+    });
+
+    test('removeProject delegates to the repository', () async {
+      final project = Project(
+        id: 'project-1',
+        name: 'Existing',
+        repoPath: p.join(tempDir.path, 'repo'),
+        createdAt: DateTime.utc(2026, 5, 24),
+        updatedAt: DateTime.utc(2026, 5, 24),
+      );
+      await repository.add(project);
+
+      await service.removeProject(project.id);
+
+      expect(repository.projects, isEmpty);
     });
 
     test('legacy project JSON without kind remains Git-backed', () {

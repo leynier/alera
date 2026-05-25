@@ -105,6 +105,18 @@ void main() {
       },
     );
 
+    test(
+      'ensureMainWorkspace falls back to HEAD when git cannot resolve a branch',
+      () async {
+        processRunner.currentBranch = '';
+        processRunner.currentBranchExitCode = 1;
+
+        final workspace = await service.ensureMainWorkspace(project);
+
+        expect(workspace.branch, 'HEAD');
+      },
+    );
+
     test('renames a workspace with a trimmed non-empty name', () async {
       final workspace = Workspace(
         id: 'workspace-1',
@@ -136,6 +148,22 @@ void main() {
       );
     });
 
+    test('rejects renaming a workspace that does not exist', () async {
+      await expectLater(
+        service.renameWorkspace(workspaceId: 'missing-workspace', name: 'Main'),
+        throwsA(isA<WorkspaceException>()),
+      );
+    });
+
+    test('listSourceBranches skips folder projects', () async {
+      final branches = await service.listSourceBranches(
+        project.copyWith(kind: ProjectKind.folder),
+      );
+
+      expect(branches, isEmpty);
+      expect(processRunner.calls, isEmpty);
+    });
+
     test(
       'createLinkedWorkspace creates a new worktree from the requested source branch',
       () async {
@@ -160,6 +188,153 @@ void main() {
           workspace.path,
           'origin/main',
         ]);
+      },
+    );
+
+    test('createLinkedWorkspace rejects a blank source branch', () async {
+      await expectLater(
+        service.createLinkedWorkspace(
+          project: project,
+          sourceBranch: '   ',
+          newBranchName: 'feature/blank-source',
+        ),
+        throwsA(isA<WorkspaceException>()),
+      );
+
+      expect(processRunner.calls, isEmpty);
+    });
+
+    test('createLinkedWorkspace rejects a blank new branch name', () async {
+      await expectLater(
+        service.createLinkedWorkspace(
+          project: project,
+          sourceBranch: 'main',
+          newBranchName: '   ',
+        ),
+        throwsA(isA<WorkspaceException>()),
+      );
+
+      expect(processRunner.calls, isEmpty);
+    });
+
+    test('createLinkedWorkspace rejects invalid git branch names', () async {
+      processRunner.invalidBranchNames.add('bad branch');
+
+      await expectLater(
+        service.createLinkedWorkspace(
+          project: project,
+          sourceBranch: 'main',
+          newBranchName: 'bad branch',
+        ),
+        throwsA(isA<WorkspaceException>()),
+      );
+    });
+
+    test(
+      'createLinkedWorkspace rejects missing sources and existing target branches',
+      () async {
+        processRunner.sourceBranches = <String>['develop'];
+
+        await expectLater(
+          service.createLinkedWorkspace(
+            project: project,
+            sourceBranch: 'main',
+            newBranchName: 'feature/missing-source',
+          ),
+          throwsA(isA<WorkspaceException>()),
+        );
+
+        processRunner.sourceBranches = <String>['main', 'feature/existing'];
+
+        await expectLater(
+          service.createLinkedWorkspace(
+            project: project,
+            sourceBranch: 'main',
+            newBranchName: 'feature/existing',
+          ),
+          throwsA(isA<WorkspaceException>()),
+        );
+      },
+    );
+
+    test('createLinkedWorkspace surfaces git worktree add failures', () async {
+      processRunner.sourceBranches = <String>['main'];
+      processRunner.failingWorktreeAddBranches.add('feature/add-failure');
+
+      await expectLater(
+        service.createLinkedWorkspace(
+          project: project,
+          sourceBranch: 'main',
+          newBranchName: 'feature/add-failure',
+        ),
+        throwsA(isA<WorkspaceException>()),
+      );
+    });
+
+    test(
+      'createLinkedWorkspace rejects duplicate branches, paths, and invalid slugs',
+      () async {
+        processRunner.sourceBranches = <String>['main'];
+        await repository.upsertWorkspace(
+          Workspace(
+            id: 'workspace-existing-branch',
+            projectId: project.id,
+            name: 'Existing branch',
+            branch: 'feature/duplicate',
+            path: p.join(tempDir.path, 'duplicate-branch'),
+            createdAt: DateTime.utc(2026, 5, 19),
+            updatedAt: DateTime.utc(2026, 5, 19),
+            kind: WorkspaceKind.linked,
+            status: WorkspaceStatus.active,
+          ),
+        );
+
+        await expectLater(
+          service.createLinkedWorkspace(
+            project: project,
+            sourceBranch: 'main',
+            newBranchName: 'feature/duplicate',
+          ),
+          throwsA(isA<WorkspaceException>()),
+        );
+
+        await repository.upsertWorkspace(
+          Workspace(
+            id: 'workspace-existing-path',
+            projectId: project.id,
+            name: 'Existing path',
+            branch: 'feature/other',
+            path: p.join(
+              tempDir.path,
+              'workspaces',
+              'repo-project-1',
+              'feature-path-dup',
+            ),
+            createdAt: DateTime.utc(2026, 5, 19),
+            updatedAt: DateTime.utc(2026, 5, 19),
+            kind: WorkspaceKind.linked,
+            status: WorkspaceStatus.active,
+          ),
+        );
+
+        await expectLater(
+          service.createLinkedWorkspace(
+            project: project,
+            sourceBranch: 'main',
+            newBranchName: 'feature/path-dup',
+          ),
+          throwsA(isA<WorkspaceException>()),
+        );
+
+        await expectLater(
+          service.createLinkedWorkspace(
+            project: project,
+            sourceBranch: 'main',
+            newBranchName: 'feature/slug',
+            name: '!!!',
+          ),
+          throwsA(isA<WorkspaceException>()),
+        );
       },
     );
 
@@ -216,6 +391,57 @@ void main() {
         expect(
           workspaces.map((workspace) => workspace.id),
           containsAll(<String>[mainWorkspace.id, linkedWorkspace.id]),
+        );
+      },
+    );
+
+    test(
+      'reconcile updates linked workspace metadata from live worktrees',
+      () async {
+        processRunner.currentBranch = 'main';
+        processRunner.sourceBranches = <String>['main'];
+        await service.ensureMainWorkspace(project);
+        final linkedWorkspace = await service.createLinkedWorkspace(
+          project: project,
+          sourceBranch: 'main',
+          newBranchName: 'feature/live-rename',
+        );
+        processRunner.liveBranchByPath = <String, String>{
+          project.repoPath: 'main',
+          linkedWorkspace.path: 'feature/live-updated',
+        };
+
+        final workspaces = await service.reconcile(project);
+
+        expect(
+          workspaces
+              .singleWhere((workspace) => workspace.id == linkedWorkspace.id)
+              .branch,
+          'feature/live-updated',
+        );
+      },
+    );
+
+    test(
+      'reconcile skips pruning when the live list does not include the main workspace',
+      () async {
+        processRunner.currentBranch = 'main';
+        processRunner.sourceBranches = <String>['main'];
+        await service.ensureMainWorkspace(project);
+        final linkedWorkspace = await service.createLinkedWorkspace(
+          project: project,
+          sourceBranch: 'main',
+          newBranchName: 'feature/cannot-prune',
+        );
+        processRunner.liveBranchByPath = <String, String>{
+          linkedWorkspace.path: 'feature/cannot-prune',
+        };
+
+        final workspaces = await service.reconcile(project);
+
+        expect(
+          workspaces.map((workspace) => workspace.id),
+          contains(linkedWorkspace.id),
         );
       },
     );
@@ -304,6 +530,146 @@ void main() {
         expect(await repository.listWorkspaceTabs(linkedWorkspace.id), isEmpty);
       },
     );
+
+    test('removeWorkspace rejects removing the main workspace', () async {
+      final mainWorkspace = await service.ensureMainWorkspace(project);
+
+      await expectLater(
+        service.removeWorkspace(
+          project: project,
+          workspace: mainWorkspace,
+          deleteBranch: true,
+        ),
+        throwsA(isA<WorkspaceException>()),
+      );
+    });
+
+    test(
+      'removeWorkspace keeps the branch when deleteBranch is false',
+      () async {
+        processRunner.sourceBranches = <String>['main'];
+        final linkedWorkspace = await service.createLinkedWorkspace(
+          project: project,
+          sourceBranch: 'main',
+          newBranchName: 'feature/keep-branch',
+        );
+
+        await service.removeWorkspace(
+          project: project,
+          workspace: linkedWorkspace,
+          deleteBranch: false,
+        );
+
+        expect(
+          processRunner.calls.any(
+            (call) =>
+                call.arguments.length >= 3 &&
+                call.arguments[0] == 'branch' &&
+                call.arguments[1] == '-D' &&
+                call.arguments[2] == 'feature/keep-branch',
+          ),
+          isFalse,
+        );
+        expect(
+          repository.workspaces.any(
+            (workspace) => workspace.id == linkedWorkspace.id,
+          ),
+          isFalse,
+        );
+      },
+    );
+
+    test('removeWorkspace surfaces git worktree removal failures', () async {
+      processRunner.sourceBranches = <String>['main'];
+      final linkedWorkspace = await service.createLinkedWorkspace(
+        project: project,
+        sourceBranch: 'main',
+        newBranchName: 'feature/remove-failure',
+      );
+      processRunner.failingWorktreeRemovePaths.add(linkedWorkspace.path);
+
+      await expectLater(
+        service.removeWorkspace(
+          project: project,
+          workspace: linkedWorkspace,
+          deleteBranch: true,
+        ),
+        throwsA(isA<WorkspaceException>()),
+      );
+    });
+
+    test('removeWorkspace surfaces git branch deletion failures', () async {
+      processRunner.sourceBranches = <String>['main'];
+      final linkedWorkspace = await service.createLinkedWorkspace(
+        project: project,
+        sourceBranch: 'main',
+        newBranchName: 'feature/branch-failure',
+      );
+      processRunner.failingBranchDeletes.add('feature/branch-failure');
+
+      await expectLater(
+        service.removeWorkspace(
+          project: project,
+          workspace: linkedWorkspace,
+          deleteBranch: true,
+        ),
+        throwsA(isA<WorkspaceException>()),
+      );
+    });
+
+    test('removeWorkspace requires a branch when deleting it', () async {
+      final branchlessWorkspace = Workspace(
+        id: 'workspace-branchless',
+        projectId: project.id,
+        name: 'Detached',
+        branch: '',
+        path: p.join(tempDir.path, 'detached'),
+        createdAt: DateTime.utc(2026, 5, 20),
+        updatedAt: DateTime.utc(2026, 5, 20),
+        kind: WorkspaceKind.linked,
+        status: WorkspaceStatus.active,
+      );
+
+      await expectLater(
+        service.removeWorkspace(
+          project: project,
+          workspace: branchlessWorkspace,
+          deleteBranch: true,
+        ),
+        throwsA(isA<WorkspaceException>()),
+      );
+    });
+
+    test('WorkspaceException includes stderr only when present', () {
+      expect(WorkspaceException('Could not open').toString(), 'Could not open');
+      expect(
+        WorkspaceException('Could not open', stderr: 'fatal error\n').toString(),
+        'Could not open: fatal error',
+      );
+    });
+
+    test('WorkspaceRoot resolves the default HOME-based path', () {
+      final resolved = WorkspaceRoot().resolve();
+
+      expect(resolved, endsWith('.alera/workspaces'));
+      expect(resolved, contains(Platform.environment['HOME']!));
+    });
+
+    test('WorkspaceService defaults timestamps to current utc time', () async {
+      final defaultService = WorkspaceService(
+        repository: repository,
+        projectService: ProjectService(processRunner),
+        processRunner: processRunner,
+      );
+      final before = DateTime.now().toUtc().subtract(const Duration(seconds: 1));
+
+      final workspace = await defaultService.ensureMainWorkspace(project);
+
+      final after = DateTime.now().toUtc().add(const Duration(seconds: 1));
+      expect(workspace.updatedAt.isUtc, isTrue);
+      expect(workspace.updatedAt.isAfter(before), isTrue);
+      expect(workspace.updatedAt.isBefore(after), isTrue);
+    });
   });
 }
 
@@ -436,9 +802,14 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
 class _FakeProcessRunner implements ProcessRunner {
   final List<_ProcessCall> calls = <_ProcessCall>[];
   String currentBranch = 'main';
+  int currentBranchExitCode = 0;
   List<String> sourceBranches = <String>['main'];
   Map<String, String> liveBranchByPath = <String, String>{};
   bool worktreeListFails = false;
+  final Set<String> invalidBranchNames = <String>{};
+  final Set<String> failingWorktreeAddBranches = <String>{};
+  final Set<String> failingWorktreeRemovePaths = <String>{};
+  final Set<String> failingBranchDeletes = <String>{};
 
   @override
   Future<ProcessRunOutput> run(
@@ -459,7 +830,7 @@ class _FakeProcessRunner implements ProcessRunner {
         arguments[0] == 'branch' &&
         arguments[1] == '--show-current') {
       return ProcessRunOutput(
-        exitCode: 0,
+        exitCode: currentBranchExitCode,
         stdout: '$currentBranch\n',
         stderr: '',
       );
@@ -476,6 +847,14 @@ class _FakeProcessRunner implements ProcessRunner {
     if (arguments.length >= 3 &&
         arguments[0] == 'check-ref-format' &&
         arguments[1] == '--branch') {
+      final branchName = arguments[2];
+      if (invalidBranchNames.contains(branchName)) {
+        return const ProcessRunOutput(
+          exitCode: 1,
+          stdout: '',
+          stderr: 'invalid branch',
+        );
+      }
       return const ProcessRunOutput(exitCode: 0, stdout: '', stderr: '');
     }
 
@@ -513,6 +892,48 @@ class _FakeProcessRunner implements ProcessRunner {
         stdout: buffer.toString(),
         stderr: '',
       );
+    }
+
+    if (arguments.length >= 4 &&
+        arguments[0] == 'worktree' &&
+        arguments[1] == 'add') {
+      final branchName = arguments[3];
+      if (failingWorktreeAddBranches.contains(branchName)) {
+        return const ProcessRunOutput(
+          exitCode: 1,
+          stdout: '',
+          stderr: 'add failed',
+        );
+      }
+      return const ProcessRunOutput(exitCode: 0, stdout: '', stderr: '');
+    }
+
+    if (arguments.length >= 4 &&
+        arguments[0] == 'worktree' &&
+        arguments[1] == 'remove') {
+      final workspacePath = arguments.last;
+      if (failingWorktreeRemovePaths.contains(workspacePath)) {
+        return const ProcessRunOutput(
+          exitCode: 1,
+          stdout: '',
+          stderr: 'remove failed',
+        );
+      }
+      return const ProcessRunOutput(exitCode: 0, stdout: '', stderr: '');
+    }
+
+    if (arguments.length >= 3 &&
+        arguments[0] == 'branch' &&
+        arguments[1] == '-D') {
+      final branchName = arguments[2];
+      if (failingBranchDeletes.contains(branchName)) {
+        return const ProcessRunOutput(
+          exitCode: 1,
+          stdout: '',
+          stderr: 'delete failed',
+        );
+      }
+      return const ProcessRunOutput(exitCode: 0, stdout: '', stderr: '');
     }
 
     return const ProcessRunOutput(exitCode: 0, stdout: '', stderr: '');

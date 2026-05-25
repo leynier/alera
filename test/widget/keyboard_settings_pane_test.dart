@@ -10,12 +10,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  Future<ProviderContainer> pumpPane(WidgetTester tester) async {
+  Future<ProviderContainer> pumpPane(
+    WidgetTester tester, {
+    AleraSettings initialSettings = AleraSettings.defaults,
+  }) async {
     await tester.binding.setSurfaceSize(const Size(1100, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final container = ProviderContainer(
       overrides: [
-        settingsRepositoryProvider.overrideWithValue(_FakeSettingsRepository()),
+        settingsRepositoryProvider.overrideWithValue(
+          _FakeSettingsRepository(initialSettings),
+        ),
       ],
     );
     addTearDown(container.dispose);
@@ -130,6 +135,99 @@ void main() {
       isEmpty,
     );
   });
+
+  testWidgets('recording can toggle off, cancel with escape, and show parse errors', (
+    tester,
+  ) async {
+    await pumpPane(tester);
+
+    final row = find.ancestor(
+      of: find.text('New terminal tab'),
+      matching: find.byType(Row),
+    );
+
+    Future<void> startRecording() async {
+      await tester.tap(
+        find.descendant(
+          of: row.first,
+          matching: find.byTooltip('Change shortcut'),
+        ),
+      );
+      await tester.pump();
+    }
+
+    await startRecording();
+    expect(find.text('Press keys… (Esc to cancel)'), findsOneWidget);
+
+    await tester.tap(
+      find.descendant(of: row.first, matching: find.byTooltip('Stop recording')),
+    );
+    await tester.pump();
+    expect(find.text('Press keys… (Esc to cancel)'), findsNothing);
+
+    await startRecording();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.escape);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(find.text('Press keys… (Esc to cancel)'), findsNothing);
+
+    await startRecording();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.keyA);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.keyA);
+    await tester.pump();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.escape);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+
+    expect(
+      find.text('Include at least one modifier key.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('reset and disable actions persist shortcut changes', (
+    tester,
+  ) async {
+    final initialSettings = AleraSettings.defaults.copyWith(
+      keyboard: AleraSettings.defaults.keyboard.copyWithOverride(
+        KeyboardActionId.newTerminalTab,
+        <String>['Mod+Shift+K'],
+      ),
+    );
+    final container = await pumpPane(tester, initialSettings: initialSettings);
+
+    final newTabRow = find.ancestor(
+      of: find.text('New terminal tab'),
+      matching: find.byType(Row),
+    );
+    await tester.tap(
+      find.descendant(
+        of: newTabRow.first,
+        matching: find.byTooltip('Reset to default'),
+      ),
+    );
+    await tester.pump();
+
+    expect(keyboardOf(container).overrideFor(KeyboardActionId.newTerminalTab), isNull);
+
+    final closeTabRow = find.ancestor(
+      of: find.text('Close tab'),
+      matching: find.byType(Row),
+    );
+    await tester.tap(
+      find.descendant(
+        of: closeTabRow.first,
+        matching: find.byTooltip('Disable shortcut'),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      keyboardOf(container).overrideFor(KeyboardActionId.closeTab),
+      isEmpty,
+    );
+    expect(find.text('Disabled'), findsOneWidget);
+  });
 }
 
 /// Thin reader over the container's keyboard settings for assertions.
@@ -146,7 +244,10 @@ class KeyboardShortcutSettingsReader {
 }
 
 class _FakeSettingsRepository implements SettingsRepository {
-  AleraSettings _settings = AleraSettings.defaults;
+  _FakeSettingsRepository([AleraSettings? initialSettings])
+    : _settings = initialSettings ?? AleraSettings.defaults;
+
+  AleraSettings _settings;
 
   @override
   Future<AleraSettings> load() async => _settings;
