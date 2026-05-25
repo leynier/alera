@@ -32,54 +32,97 @@ void main() {
     });
 
     test(
-      'bootstrap selects the main workspace and seeds the first terminal tab',
+      'bootstrap prepares the main workspace without selecting it',
       () async {
         await controller.bootstrap();
-        await _flush();
+        await _flushUntil(
+          () => controller.state.workspacesFor(harness.project.id).isNotEmpty,
+        );
 
         expect(controller.state.activeProjectId, harness.project.id);
-        expect(controller.state.activeWorkspace, isNotNull);
-        expect(controller.state.activeWorkspace!.isMain, isTrue);
+        expect(controller.state.activeWorkspace, isNull);
+        final workspaces = controller.state.workspacesFor(harness.project.id);
+        expect(workspaces.single.isMain, isTrue);
+        expect(controller.state.tabsFor(workspaces.single.id), isEmpty);
+        expect(controller.state.activeWorkspaceTab, isNull);
+      },
+    );
+
+    test(
+      'selecting a workspace with no tabs seeds the first terminal tab',
+      () async {
+        await controller.bootstrap();
+        final workspace = await _selectMainWorkspace(controller, harness);
+
+        expect(controller.state.activeWorkspaceId, workspace.id);
         expect(
-          controller.state
-              .tabsFor(controller.state.activeWorkspace!.id)
-              .map((tab) => tab.title),
+          controller.state.tabsFor(workspace.id).map((tab) => tab.title),
           <String>['Terminal 1'],
         );
         expect(controller.state.activeWorkspaceTab?.title, 'Terminal 1');
       },
     );
 
+    test('closing the last active tab deselects the workspace', () async {
+      await controller.bootstrap();
+      final workspace = await _selectMainWorkspace(controller, harness);
+
+      final firstTab = controller.state.activeWorkspaceTab!;
+      final secondTab = await controller.createTerminalTab(workspace);
+
+      expect(controller.state.activeWorkspaceTab?.id, secondTab.id);
+
+      await controller.closeWorkspaceTab(
+        workspace: workspace,
+        tabId: secondTab.id,
+      );
+      await _flush();
+
+      expect(controller.state.activeWorkspaceTab?.id, firstTab.id);
+
+      await controller.closeWorkspaceTab(
+        workspace: workspace,
+        tabId: firstTab.id,
+      );
+      await _flush();
+
+      final tabs = controller.state.tabsFor(workspace.id);
+      expect(tabs, isEmpty);
+      expect(controller.state.activeWorkspace, isNull);
+      expect(controller.state.activeWorkspaceTab, isNull);
+      expect(controller.state.activeTabIdByWorkspace[workspace.id], isNull);
+      expect(controller.state.layoutFor(workspace.id)?.activeTabId, isNull);
+    });
+
     test(
-      'closing the active tab creates a replacement for the active workspace',
+      'closing the last tab of an inactive workspace keeps the active workspace',
       () async {
         await controller.bootstrap();
+        final mainWorkspace = await _selectMainWorkspace(controller, harness);
+
+        final linked = await controller.createWorkspace(
+          project: harness.project,
+          sourceBranch: 'main',
+          newBranchName: 'feature/inactive-close',
+        );
         await _flush();
+        final linkedTab = controller.state.activeWorkspaceTab!;
 
-        final workspace = controller.state.activeWorkspace!;
-        final firstTab = controller.state.activeWorkspaceTab!;
-        final secondTab = await controller.createTerminalTab(workspace);
-
-        expect(controller.state.activeWorkspaceTab?.id, secondTab.id);
+        await controller.selectWorkspace(
+          project: harness.project,
+          workspace: mainWorkspace,
+        );
+        await _flush();
+        expect(controller.state.activeWorkspaceId, mainWorkspace.id);
 
         await controller.closeWorkspaceTab(
-          workspace: workspace,
-          tabId: secondTab.id,
+          workspace: linked,
+          tabId: linkedTab.id,
         );
         await _flush();
 
-        expect(controller.state.activeWorkspaceTab?.id, firstTab.id);
-
-        await controller.closeWorkspaceTab(
-          workspace: workspace,
-          tabId: firstTab.id,
-        );
-        await _flush();
-
-        final tabs = controller.state.tabsFor(workspace.id);
-        expect(tabs, hasLength(1));
-        expect(controller.state.activeWorkspaceTab?.id, tabs.single.id);
-        expect(controller.state.activeWorkspaceTab?.title, 'Terminal 1');
+        expect(controller.state.tabsFor(linked.id), isEmpty);
+        expect(controller.state.activeWorkspaceId, mainWorkspace.id);
       },
     );
 
@@ -87,8 +130,12 @@ void main() {
       'deleting a workspace removes it from state without lingering',
       () async {
         await controller.bootstrap();
-        await _flush();
-        final mainWorkspace = controller.state.activeWorkspace!;
+        await _flushUntil(
+          () => controller.state.workspacesFor(harness.project.id).isNotEmpty,
+        );
+        final mainWorkspace = controller.state
+            .workspacesFor(harness.project.id)
+            .single;
 
         final linked = await controller.createWorkspace(
           project: harness.project,
@@ -115,11 +162,12 @@ void main() {
     );
 
     test(
-      'deleting the active workspace falls back within the same project',
+      'deleting the active workspace clears the workspace selection',
       () async {
         await controller.bootstrap();
-        await _flush();
-        final mainWorkspace = controller.state.activeWorkspace!;
+        await _flushUntil(
+          () => controller.state.workspacesFor(harness.project.id).isNotEmpty,
+        );
 
         final linked = await controller.createWorkspace(
           project: harness.project,
@@ -137,7 +185,7 @@ void main() {
         await _flush();
 
         expect(controller.state.activeProjectId, harness.project.id);
-        expect(controller.state.activeWorkspace?.id, mainWorkspace.id);
+        expect(controller.state.activeWorkspace, isNull);
       },
     );
 
@@ -164,8 +212,7 @@ void main() {
 
     test('splits a workspace group and preserves terminal tab ids', () async {
       await controller.bootstrap();
-      await _flush();
-      final workspace = controller.state.activeWorkspace!;
+      final workspace = await _selectMainWorkspace(controller, harness);
       final firstTab = controller.state.activeWorkspaceTab!;
       final groupId = controller.state.layoutFor(workspace.id)!.activeGroupId;
 
@@ -192,8 +239,7 @@ void main() {
       'moves a tab into another stack and collapses the empty source pane',
       () async {
         await controller.bootstrap();
-        await _flush();
-        final workspace = controller.state.activeWorkspace!;
+        final workspace = await _selectMainWorkspace(controller, harness);
         final firstGroupId = controller.state
             .layoutFor(workspace.id)!
             .activeGroupId;
@@ -223,8 +269,7 @@ void main() {
 
     test('updates and persists split ratios', () async {
       await controller.bootstrap();
-      await _flush();
-      final workspace = controller.state.activeWorkspace!;
+      final workspace = await _selectMainWorkspace(controller, harness);
       final groupId = controller.state.layoutFor(workspace.id)!.activeGroupId;
       await controller.splitWorkbenchGroupWithTerminal(
         workspace: workspace,
@@ -407,6 +452,22 @@ void main() {
 }
 
 Future<void> _flush() => Future<void>.delayed(Duration.zero);
+
+Future<Workspace> _selectMainWorkspace(
+  WorkbenchController controller,
+  _WorkbenchHarness harness,
+) async {
+  await _flushUntil(
+    () => controller.state.workspacesFor(harness.project.id).isNotEmpty,
+  );
+  final workspace = controller.state.workspacesFor(harness.project.id).single;
+  await controller.selectWorkspace(
+    project: harness.project,
+    workspace: workspace,
+  );
+  await _flush();
+  return workspace;
+}
 
 Future<void> _flushUntil(bool Function() condition, {int attempts = 20}) async {
   for (var i = 0; i < attempts; i += 1) {

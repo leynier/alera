@@ -9,5 +9,6 @@ Widget aleraEmptyStatePreview() =>
 @AleraPreview(name: 'With icon', group: 'Empty state')
 Widget aleraEmptyStateIconPreview() => const AleraEmptyState(
   icon: Icons.search_off,
-  message: 'No matching results.',
+  title: 'No matching results',
+  message: 'Adjust the filters and try again.',
 );

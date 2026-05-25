@@ -24,6 +24,7 @@ abstract final class AleraTokens {
   static const double sidebarMaxWidth = 460.0;
   static const double sidebarDefaultWidth = 300.0;
   static const double sidebarCollapsedWidth = 52.0;
+  static const double emptyStateMaxWidth = 520.0;
   static const double activityLogHeight = 160.0;
   static const double imageMaxWidth = 400.0;
   static const double imageMaxHeight = 300.0;

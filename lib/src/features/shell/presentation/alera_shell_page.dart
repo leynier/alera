@@ -1,12 +1,13 @@
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
+import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/presentation/add_project_dialog.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/project_workbench_sidebar.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_workbench_view.dart';
-import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -135,14 +136,24 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
     if (!state.bootstrapped && state.projects.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
+    if (state.projects.isEmpty) {
+      return AleraEmptyState(
+        icon: Icons.folder_open,
+        title: 'No projects yet',
+        message: 'Add a project to create its main workspace.',
+        action: FilledButton.icon(
+          onPressed: _addProject,
+          icon: const Icon(Icons.folder_open, size: 16),
+          label: const Text('Add project'),
+        ),
+      );
+    }
     if (project == null || workspace == null) {
-      return _EmptyState(
+      return const AleraEmptyState(
         icon: Icons.terminal,
-        title: 'Pick a workspace',
+        title: 'No workspace selected',
         message:
-            'Select an existing workspace from the sidebar, or add a project to create the main workspace.',
-        actionLabel: 'Add project',
-        onAction: _addProject,
+            'Select a workspace from the sidebar to open its terminal tabs.',
       );
     }
     final tabs = state.tabsFor(workspace.id);
@@ -233,73 +244,6 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
 
   void _showError(String message) {
     AleraToast.show(context, message: message, tone: AleraToastTone.error);
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  const _EmptyState({
-    required this.icon,
-    required this.title,
-    required this.message,
-    this.actionLabel,
-    this.onAction,
-  });
-
-  final IconData icon;
-  final String title;
-  final String message;
-  final String? actionLabel;
-  final VoidCallback? onAction;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 520),
-        child: Padding(
-          padding: const EdgeInsets.all(AleraTokens.space24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  color: AleraTokens.surfaceVariant,
-                  borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
-                  border: Border.all(color: AleraTokens.border),
-                ),
-                child: Icon(icon, size: 28, color: AleraTokens.foregroundMuted),
-              ),
-              const SizedBox(height: AleraTokens.space20),
-              Text(title, style: theme.textTheme.titleLarge),
-              const SizedBox(height: AleraTokens.space8),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: AleraTokens.foregroundMuted,
-                ),
-              ),
-              if (actionLabel != null &&
-                  actionLabel!.trim().isNotEmpty &&
-                  onAction != null) ...<Widget>[
-                const SizedBox(height: AleraTokens.space24),
-                FilledButton.icon(
-                  onPressed: onAction,
-                  icon: const Icon(Icons.folder_open, size: 16),
-                  label: Text(actionLabel!),
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size(170, 34),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }
 

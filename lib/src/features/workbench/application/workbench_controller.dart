@@ -112,14 +112,11 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
       state = state.copyWith(
         viewPrefs: nextViewPrefs,
         activeProjectId: project.id,
+        clearActiveWorkspaceId: true,
         clearError: true,
       );
       if (changedPrefs) {
         unawaited(_persistViewPrefs());
-      }
-      final workspace = await _firstSelectableWorkspace(project.id);
-      if (workspace != null) {
-        await selectWorkspace(project: project, workspace: workspace);
       }
       return project;
     } catch (error) {
@@ -210,13 +207,11 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
   }
 
   Future<void> activateProject(Project project) async {
-    state = state.copyWith(activeProjectId: project.id, clearError: true);
-    final workspace = await _firstSelectableWorkspace(project.id);
-    if (workspace == null) {
-      state = state.copyWith(clearActiveWorkspaceId: true);
-      return;
-    }
-    await selectWorkspace(project: project, workspace: workspace);
+    state = state.copyWith(
+      activeProjectId: project.id,
+      clearActiveWorkspaceId: true,
+      clearError: true,
+    );
   }
 
   Future<WorkspaceTabRecord> createTerminalTab(
@@ -251,17 +246,7 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
           .tabsFor(workspace.id)
           .where((tab) => tab.id != tabId)
           .toList(growable: false);
-      if (remaining.isEmpty && state.activeWorkspaceId == workspace.id) {
-        final replacement = await _workspaceTabService.createTerminalTab(
-          workspace.id,
-        );
-        _setTabsForWorkspace(workspace.id, <WorkspaceTabRecord>[replacement]);
-        final nextLayout = WorkbenchLayout.single(
-          workspaceId: workspace.id,
-          tabIds: <String>[replacement.id],
-        );
-        await _applyLayout(nextLayout, persist: true);
-      } else if (remaining.isNotEmpty) {
+      if (remaining.isNotEmpty) {
         _setTabsForWorkspace(workspace.id, remaining);
         final layout = _layoutForMutation(
           workspace.id,
@@ -276,7 +261,11 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
         );
         await _applyLayout(layout, persist: true);
       }
-      state = state.copyWith(clearError: true);
+      state = state.copyWith(
+        clearActiveWorkspaceId:
+            remaining.isEmpty && state.activeWorkspaceId == workspace.id,
+        clearError: true,
+      );
     } catch (error) {
       state = state.copyWith(error: error.toString());
       rethrow;
@@ -802,18 +791,6 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
     }
   }
 
-  Future<Workspace?> _firstSelectableWorkspace(String projectId) async {
-    final current = state.workspacesFor(projectId);
-    if (current.isNotEmpty) {
-      return current.first;
-    }
-    final fresh = await _repository.listWorkspaces(projectId);
-    if (fresh.isEmpty) {
-      return null;
-    }
-    return fresh.first;
-  }
-
   String? _resolveActiveWorkspaceId({
     required String? activeProjectId,
     required Map<String, List<Workspace>> workspacesByProject,
@@ -822,17 +799,15 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
     if (activeProjectId != null) {
       final workspaces =
           workspacesByProject[activeProjectId] ?? const <Workspace>[];
-      // Keep the current selection only when it still belongs to the active
-      // project; otherwise fall back to that project's first workspace. Never
-      // resolve to a workspace from a different project.
+      // Keep an explicit selection only while it still belongs to the active
+      // project. Missing or stale selections intentionally stay empty.
       if (preferredWorkspaceId != null &&
           workspaces.any((workspace) => workspace.id == preferredWorkspaceId)) {
         return preferredWorkspaceId;
       }
-      return workspaces.isEmpty ? null : workspaces.first.id;
+      return null;
     }
-    // No active project: honor a still-valid selection, else pick the first
-    // workspace anywhere.
+    // No active project: honor a still-valid explicit selection only.
     if (preferredWorkspaceId != null) {
       for (final workspaces in workspacesByProject.values) {
         if (workspaces.any(
@@ -840,11 +815,6 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
         )) {
           return preferredWorkspaceId;
         }
-      }
-    }
-    for (final workspaces in workspacesByProject.values) {
-      if (workspaces.isNotEmpty) {
-        return workspaces.first.id;
       }
     }
     return null;
@@ -858,11 +828,8 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
     if (_closingTabWorkspaceIds.contains(workspace.id)) {
       return;
     }
-    if (state.tabsFor(workspace.id).isEmpty) {
-      unawaited(_workspaceTabService.ensureInitialTerminalTab(workspace.id));
-      return;
-    }
-    if (state.layoutFor(workspace.id) == null) {
+    if (state.tabsFor(workspace.id).isNotEmpty &&
+        state.layoutFor(workspace.id) == null) {
       unawaited(_loadLayoutForWorkspace(workspace.id));
     }
   }

@@ -68,7 +68,7 @@ void main() {
       find.byKey(const ValueKey<String>('fake-terminal-tab-1')),
       findsOneWidget,
     );
-    expect(find.text('Pick a workspace'), findsNothing);
+    expect(find.text('No workspace selected'), findsNothing);
     expect(
       find.byWidgetPredicate(
         (widget) => widget.runtimeType.toString() == 'WorkbenchStatusBar',
@@ -133,13 +133,31 @@ void main() {
     );
   });
 
-  testWidgets('shell shows the empty state when no workspace is selected', (
+  testWidgets('shell shows the empty state when there are no projects', (
     tester,
   ) async {
     await pumpShell(tester, state: const WorkbenchState(bootstrapped: true));
 
-    expect(find.text('Pick a workspace'), findsOneWidget);
+    expect(find.text('No projects yet'), findsAtLeastNWidgets(1));
     expect(find.widgetWithText(FilledButton, 'Add project'), findsOneWidget);
+  });
+
+  testWidgets('shell shows the empty state when no workspace is selected', (
+    tester,
+  ) async {
+    await pumpShell(
+      tester,
+      state: _populatedWorkbenchState().copyWith(clearActiveWorkspaceId: true),
+    );
+
+    expect(find.text('No workspace selected'), findsOneWidget);
+    expect(
+      find.text(
+        'Select a workspace from the sidebar to open its terminal tabs.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.byTooltip('New terminal'), findsNothing);
   });
 
   testWidgets('workspace context menu shows supported workspace actions', (
