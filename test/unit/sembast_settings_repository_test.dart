@@ -1,3 +1,5 @@
+import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
+import 'package:alera/src/features/keyboard/domain/keyboard_shortcut_settings.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
 import 'package:alera/src/features/settings/infra/sembast_settings_repository.dart';
@@ -44,6 +46,12 @@ void main() {
           colorOverrides: TerminalColorOverrides(cursor: '#abcdef'),
           scrollbackLines: 25000,
         ),
+        keyboard: KeyboardShortcutSettings(
+          terminalPolicy: TerminalShortcutPolicy.terminalFirst,
+          overrides: <KeyboardActionId, List<String>>{
+            KeyboardActionId.newTerminalTab: <String>['Mod+Shift+T'],
+          },
+        ),
       );
 
       await repository.save(settings);
@@ -60,6 +68,14 @@ void main() {
       expect(restored.terminal.backgroundOpacity, 0.95);
       expect(restored.terminal.colorOverrides.cursor, '#abcdef');
       expect(restored.terminal.scrollbackLines, 25000);
+      expect(
+        restored.keyboard.terminalPolicy,
+        TerminalShortcutPolicy.terminalFirst,
+      );
+      expect(
+        restored.keyboard.overrides[KeyboardActionId.newTerminalTab],
+        <String>['Mod+Shift+T'],
+      );
     });
 
     test('falls back to defaults for corrupt records', () async {

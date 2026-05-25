@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
-import 'package:alera/src/features/projects/presentation/add_project_dialog.dart';
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_brand_row.dart';
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_collapsed_rail.dart';
 import 'package:alera/src/design_system/badges/alera_badge.dart';
@@ -14,14 +13,13 @@ import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_resize_handle.dart';
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_search_bar.dart';
-import 'package:alera/src/features/settings/presentation/settings_dialog.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_listing.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
-import 'package:alera/src/features/workbench/presentation/create_workspace_dialog.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
+import 'package:alera/src/features/workbench/presentation/workbench_dialog_launchers.dart';
 import 'package:alera/src/features/workbench/presentation/widgets/workbench_sidebar_toolbar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -144,145 +142,12 @@ class _ProjectWorkbenchSidebarState
     );
   }
 
-  Future<void> _addProject() async {
-    final result = await showDialog<AddProjectResult>(
-      context: context,
-      builder: (_) => const AddProjectDialog(),
-    );
-    if (result == null || !mounted) {
-      return;
-    }
-    final controller = ref.read(workbenchControllerProvider.notifier);
-    try {
-      switch (result) {
-        case AddLocalProjectResult():
-          await controller.addLocalProject(
-            path: result.path,
-            name: result.name,
-          );
-          if (!mounted) {
-            return;
-          }
-          AleraToast.show(
-            context,
-            message: 'Project added',
-            tone: AleraToastTone.success,
-          );
-        case CloneProjectResult():
-          await _runWithProgress(
-            message: 'Cloning repository…',
-            action: () => controller.cloneProject(
-              gitUrl: result.gitUrl,
-              destinationPath: result.destinationPath,
-              name: result.name,
-            ),
-          );
-          if (!mounted) {
-            return;
-          }
-          AleraToast.show(
-            context,
-            message: 'Project cloned',
-            tone: AleraToastTone.success,
-          );
-      }
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      AleraToast.show(
-        context,
-        message: error.toString(),
-        tone: AleraToastTone.error,
-      );
-    }
-  }
+  Future<void> _addProject() => showAddProjectFlow(context, ref);
 
-  Future<T> _runWithProgress<T>({
-    required String message,
-    required Future<T> Function() action,
-  }) async {
-    var progressOpen = true;
-    unawaited(
-      showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => AddProjectProgressDialog(message: message),
-      ).whenComplete(() => progressOpen = false),
-    );
-    await Future<void>.delayed(Duration.zero);
-    try {
-      return await action();
-    } finally {
-      if (mounted && progressOpen) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
-    }
-  }
+  Future<void> _openSettings() => openSettingsDialog(context);
 
-  Future<void> _openSettings() {
-    return showDialog<void>(
-      context: context,
-      builder: (_) => const SettingsDialog(),
-    );
-  }
-
-  Future<void> _createWorkspace(Project? initialProject) async {
-    final controller = ref.read(workbenchControllerProvider.notifier);
-    final projects = ref
-        .read(workbenchControllerProvider)
-        .projects
-        .where((project) => project.supportsLinkedWorkspaces)
-        .toList(growable: false);
-    if (projects.isEmpty) {
-      AleraToast.show(
-        context,
-        message: 'Linked workspaces require a Git project.',
-        tone: AleraToastTone.info,
-      );
-      return;
-    }
-    final resolvedInitialProject =
-        initialProject?.supportsLinkedWorkspaces == true
-        ? initialProject
-        : null;
-
-    final result = await showDialog<CreateWorkspaceResult>(
-      context: context,
-      builder: (_) => CreateWorkspaceDialog(
-        projects: projects,
-        initialProject: resolvedInitialProject,
-        loadBranches: controller.listSourceBranches,
-      ),
-    );
-    if (result == null || !mounted) {
-      return;
-    }
-    try {
-      await controller.createWorkspace(
-        project: result.project,
-        sourceBranch: result.sourceBranch,
-        newBranchName: result.newBranchName,
-        name: result.name,
-      );
-      if (!mounted) {
-        return;
-      }
-      AleraToast.show(
-        context,
-        message: 'Workspace created',
-        tone: AleraToastTone.success,
-      );
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      AleraToast.show(
-        context,
-        message: error.toString(),
-        tone: AleraToastTone.error,
-      );
-    }
+  Future<void> _createWorkspace(Project? initialProject) {
+    return showCreateWorkspaceFlow(context, ref, initialProject: initialProject);
   }
 
   Future<void> _openWorkspace(Project project, Workspace workspace) async {

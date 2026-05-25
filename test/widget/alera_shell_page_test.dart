@@ -577,7 +577,11 @@ class _FakeTerminalSessionHandle extends TerminalSessionHandle {
   Future<void> restart() => ensureStarted();
 
   @override
-  Widget buildView({Key? key, bool autofocus = false}) {
+  Widget buildView({
+    Key? key,
+    bool autofocus = false,
+    FocusOnKeyEventCallback? onKeyEvent,
+  }) {
     return Center(
       key: ValueKey<String>('fake-terminal-${tab.id}'),
       child: Text('Terminal ${tab.title}'),

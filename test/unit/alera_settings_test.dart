@@ -1,3 +1,5 @@
+import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
+import 'package:alera/src/features/keyboard/domain/keyboard_shortcut_settings.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -48,6 +50,11 @@ void main() {
           ),
           scrollbackLines: 50000,
         ),
+        keyboard: KeyboardShortcutSettings(
+          overrides: <KeyboardActionId, List<String>>{
+            KeyboardActionId.closeTab: <String>['Mod+Shift+W'],
+          },
+        ),
       );
 
       final restored = AleraSettings.fromJson(settings.toJson());
@@ -69,6 +76,10 @@ void main() {
       expect(restored.terminal.colorOverrides.cursor, '#ff00ff');
       expect(restored.terminal.colorOverrides.selection, '#333333');
       expect(restored.terminal.scrollbackLines, 50000);
+      expect(
+        restored.keyboard.overrides[KeyboardActionId.closeTab],
+        <String>['Mod+Shift+W'],
+      );
     });
 
     test('fromJson falls back for invalid terminal fields', () {
@@ -167,6 +178,63 @@ void main() {
       });
 
       expect(restored.themeName, TerminalThemeNames.dracula);
+    });
+  });
+
+  group('KeyboardShortcutSettings', () {
+    test('defaults are app-first with no overrides', () {
+      const settings = KeyboardShortcutSettings.defaults;
+      expect(settings.terminalPolicy, TerminalShortcutPolicy.appFirst);
+      expect(settings.overrides, isEmpty);
+    });
+
+    test('round-trips overrides and policy through json', () {
+      const settings = KeyboardShortcutSettings(
+        terminalPolicy: TerminalShortcutPolicy.terminalFirst,
+        overrides: <KeyboardActionId, List<String>>{
+          KeyboardActionId.newTerminalTab: <String>['Mod+Shift+T'],
+          KeyboardActionId.closeTab: <String>[],
+        },
+      );
+
+      final restored =
+          KeyboardShortcutSettings.fromJson(settings.toJson());
+
+      expect(restored.terminalPolicy, TerminalShortcutPolicy.terminalFirst);
+      expect(
+        restored.overrides[KeyboardActionId.newTerminalTab],
+        <String>['Mod+Shift+T'],
+      );
+      expect(restored.isDisabled(KeyboardActionId.closeTab), isTrue);
+    });
+
+    test('fromJson drops unknown actions and unparsable chords', () {
+      final restored = KeyboardShortcutSettings.fromJson(<String, Object?>{
+        'terminalPolicy': 'nonsense',
+        'overrides': <String, Object?>{
+          'newTerminalTab': <Object?>['Mod+T', 'not a chord', 42],
+          'thisActionDoesNotExist': <Object?>['Mod+Z'],
+          'closeTab': 'not a list',
+        },
+      });
+
+      expect(restored.terminalPolicy, TerminalShortcutPolicy.appFirst);
+      expect(
+        restored.overrides[KeyboardActionId.newTerminalTab],
+        <String>['Mod+T'],
+      );
+      expect(restored.overrides.containsKey(KeyboardActionId.closeTab), isFalse);
+      expect(restored.overrides.length, 1);
+    });
+
+    test('copyWithOverride restores the default when given null', () {
+      const settings = KeyboardShortcutSettings(
+        overrides: <KeyboardActionId, List<String>>{
+          KeyboardActionId.closeTab: <String>['Mod+Q'],
+        },
+      );
+      final next = settings.copyWithOverride(KeyboardActionId.closeTab, null);
+      expect(next.hasOverride(KeyboardActionId.closeTab), isFalse);
     });
   });
 }

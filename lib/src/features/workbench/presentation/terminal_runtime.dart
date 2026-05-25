@@ -35,7 +35,11 @@ abstract class TerminalSessionHandle extends ChangeNotifier {
 
   Future<void> restart();
 
-  Widget buildView({Key? key, bool autofocus = false});
+  Widget buildView({
+    Key? key,
+    bool autofocus = false,
+    FocusOnKeyEventCallback? onKeyEvent,
+  });
 
   /// Moves keyboard focus to this terminal's text input so subsequent
   /// keypresses are routed to its PTY instead of any sidebar control.
@@ -549,13 +553,18 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   }
 
   @override
-  Widget buildView({Key? key, bool autofocus = false}) {
+  Widget buildView({
+    Key? key,
+    bool autofocus = false,
+    FocusOnKeyEventCallback? onKeyEvent,
+  }) {
     return xterm.TerminalView(
       _terminal,
       key: key,
       controller: _terminalController,
       focusNode: _focusNode,
       autofocus: autofocus,
+      onKeyEvent: onKeyEvent,
       theme: _resolveXtermTheme(_settings),
       textStyle: xterm.TerminalStyle(
         fontSize: _settings.fontSize,

@@ -1,4 +1,5 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/features/keyboard/domain/keyboard_shortcut_settings.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
 
 enum TerminalCursorShape { block, bar, underline }
@@ -346,23 +347,31 @@ class GeneralSettings {
 const Object _unset = Object();
 
 class AleraSettings {
-  const AleraSettings({required this.general, required this.terminal});
+  const AleraSettings({
+    required this.general,
+    required this.terminal,
+    required this.keyboard,
+  });
 
   final GeneralSettings general;
   final TerminalSettings terminal;
+  final KeyboardShortcutSettings keyboard;
 
   static const AleraSettings defaults = AleraSettings(
     general: GeneralSettings.defaults,
     terminal: TerminalSettings.defaults,
+    keyboard: KeyboardShortcutSettings.defaults,
   );
 
   AleraSettings copyWith({
     GeneralSettings? general,
     TerminalSettings? terminal,
+    KeyboardShortcutSettings? keyboard,
   }) {
     return AleraSettings(
       general: general ?? this.general,
       terminal: terminal ?? this.terminal,
+      keyboard: keyboard ?? this.keyboard,
     );
   }
 
@@ -370,12 +379,14 @@ class AleraSettings {
     return <String, Object?>{
       'general': general.toJson(),
       'terminal': terminal.toJson(),
+      'keyboard': keyboard.toJson(),
     };
   }
 
   factory AleraSettings.fromJson(Map<String, Object?> json) {
     final generalJson = json['general'];
     final terminalJson = json['terminal'];
+    final keyboardJson = json['keyboard'];
     return AleraSettings(
       general: generalJson is Map
           ? GeneralSettings.fromJson(Map<String, Object?>.from(generalJson))
@@ -383,6 +394,11 @@ class AleraSettings {
       terminal: terminalJson is Map
           ? TerminalSettings.fromJson(Map<String, Object?>.from(terminalJson))
           : TerminalSettings.defaults,
+      keyboard: keyboardJson is Map
+          ? KeyboardShortcutSettings.fromJson(
+              Map<String, Object?>.from(keyboardJson),
+            )
+          : KeyboardShortcutSettings.defaults,
     );
   }
 }

@@ -389,7 +389,11 @@ class _ImmediateNotifySessionHandle extends TerminalSessionHandle {
   Future<void> restart() => ensureStarted();
 
   @override
-  Widget buildView({Key? key, bool autofocus = false}) {
+  Widget buildView({
+    Key? key,
+    bool autofocus = false,
+    FocusOnKeyEventCallback? onKeyEvent,
+  }) {
     return SizedBox.expand(key: ValueKey<String>('terminal-$tabId'));
   }
 

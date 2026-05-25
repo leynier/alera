@@ -1,10 +1,17 @@
 import 'dart:async';
 
+import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/features/keyboard/application/keybinding_resolver.dart';
+import 'package:alera/src/features/keyboard/application/keyboard_command_dispatcher.dart';
+import 'package:alera/src/features/keyboard/domain/key_chord.dart';
+import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class TerminalSurface extends StatefulWidget {
+class TerminalSurface extends ConsumerStatefulWidget {
   const TerminalSurface({
     super.key,
     required this.session,
@@ -15,10 +22,10 @@ class TerminalSurface extends StatefulWidget {
   final bool autofocus;
 
   @override
-  State<TerminalSurface> createState() => _TerminalSurfaceState();
+  ConsumerState<TerminalSurface> createState() => _TerminalSurfaceState();
 }
 
-class _TerminalSurfaceState extends State<TerminalSurface> {
+class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
   @override
   void initState() {
     super.initState();
@@ -42,6 +49,29 @@ class _TerminalSurfaceState extends State<TerminalSurface> {
     });
   }
 
+  /// Intercepts Alera shortcuts before the key reaches the PTY. Returning
+  /// `handled` swallows the key; `ignored` lets the terminal/shell receive it.
+  KeyEventResult _handleTerminalKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) {
+      return KeyEventResult.ignored;
+    }
+    final keyboard = ref.read(settingsControllerProvider).keyboard;
+    final resolver = KeybindingResolver(settings: keyboard);
+    final modifiers = KeyModifierState.fromKeyboard(HardwareKeyboard.instance);
+    final resolved = resolver.resolveAction(event, modifiers);
+    if (resolved == null) {
+      return KeyEventResult.ignored;
+    }
+    // Under terminal-first, defer everything except bindings explicitly marked
+    // as safe to intercept while a terminal is focused.
+    if (keyboard.terminalPolicy == TerminalShortcutPolicy.terminalFirst &&
+        !resolved.allowInTerminal) {
+      return KeyEventResult.ignored;
+    }
+    KeyboardCommandDispatcher(ref: ref, context: context).dispatch(resolved.id);
+    return KeyEventResult.handled;
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -59,7 +89,10 @@ class _TerminalSurfaceState extends State<TerminalSurface> {
             Positioned.fill(
               child: DecoratedBox(
                 decoration: const BoxDecoration(color: AleraTokens.bg),
-                child: widget.session.buildView(autofocus: widget.autofocus),
+                child: widget.session.buildView(
+                  autofocus: widget.autofocus,
+                  onKeyEvent: _handleTerminalKey,
+                ),
               ),
             ),
             if (widget.session.isStarting)

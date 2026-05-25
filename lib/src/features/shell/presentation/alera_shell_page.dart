@@ -4,6 +4,7 @@ import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
+import 'package:alera/src/features/keyboard/presentation/keyboard_shortcuts_scope.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/presentation/add_project_dialog.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
@@ -115,18 +116,20 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
     final workspace = state.activeWorkspace;
 
     return Scaffold(
-      body: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          const ProjectWorkbenchSidebar(),
-          Expanded(
-            child: _buildContent(
-              state: state,
-              project: project,
-              workspace: workspace,
+      body: KeyboardShortcutsScope(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            const ProjectWorkbenchSidebar(),
+            Expanded(
+              child: _buildContent(
+                state: state,
+                project: project,
+                workspace: workspace,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

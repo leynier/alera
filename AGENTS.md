@@ -115,6 +115,14 @@ When planning is needed, use a spec-driven development flow. Do not jump straigh
 - Design-system components MUST be presentational: data and callbacks in via parameters, no Riverpod reads and no native (`dart:io`/`dart:ffi`) code, so they stay previewable. Wire providers in a thin feature-level wrapper instead.
 - Preview functions MUST use the `@AleraPreview` annotation (not the bare `@Preview`). Launch with `flutter widget-preview start`.
 
+## Keyboard Shortcuts
+
+- Shortcut-able actions live in `lib/src/features/keyboard/domain/keyboard_action.dart` as the single source of truth (id, label, group, per-platform defaults, allow-in-terminal flag). New shortcut-able actions MUST be added to that registry rather than wired through ad-hoc `Shortcuts`/`CallbackShortcuts` widgets.
+- Behavior is dispatched from one place: `KeyboardCommandDispatcher`. Reuse existing controller methods and the shared dialog launchers in `workbench_dialog_launchers.dart`; do not duplicate dialog flows.
+- Matching is centralized in `KeybindingResolver` and consumed by exactly two call sites: the global `KeyboardShortcutsScope` (shell-mounted) and the `TerminalSurface` `onKeyEvent` hook (terminal-focused interception). Do not add a third matcher or a global `HardwareKeyboard` handler.
+- The `Mod` modifier is platform-neutral (⌘ on macOS, Ctrl elsewhere). Use the canonical token form (`Mod+Shift+BracketRight`) in defaults; symbol aliases (`,`, `[`) are accepted at parse time.
+- Respect the `TerminalShortcutPolicy` setting: under `terminalFirst`, only bindings with `allowInTerminal: true` may intercept while a terminal is focused.
+
 ## Cross-Platform Desktop Rules
 
 - Alera targets macOS, Windows, and Linux.

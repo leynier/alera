@@ -8,6 +8,7 @@ import 'package:alera/src/design_system/forms/alera_search_field.dart';
 import 'package:alera/src/design_system/forms/alera_setting_row.dart';
 import 'package:alera/src/design_system/menus/alera_menu_item.dart';
 import 'package:alera/src/design_system/surfaces/alera_panel.dart';
+import 'package:alera/src/features/keyboard/presentation/keyboard_settings_pane.dart';
 import 'package:alera/src/features/settings/application/github_star_controller.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
@@ -93,6 +94,15 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
           fontSuggestions: _fontSuggestions,
           onChanged: (terminal) => controller.updateTerminal(terminal),
         ),
+      ),
+      _SettingsSectionData(
+        id: 'keyboard',
+        title: 'Keyboard',
+        description: 'Shortcuts and key bindings.',
+        icon: Icons.keyboard,
+        entries: _keyboardSearchEntries,
+        onReset: controller.resetKeyboardShortcuts,
+        builder: (_) => const KeyboardSettingsPane(),
       ),
     ];
 
@@ -221,6 +231,27 @@ const List<_SettingsSearchEntry> _generalSearchEntries = <_SettingsSearchEntry>[
     keywords: <String>['support', 'github', 'star'],
   ),
 ];
+
+const List<_SettingsSearchEntry> _keyboardSearchEntries =
+    <_SettingsSearchEntry>[
+      _SettingsSearchEntry(
+        title: 'Keyboard shortcuts',
+        description: 'View and remap app-wide key bindings.',
+        keywords: <String>[
+          'shortcut',
+          'hotkey',
+          'keybinding',
+          'binding',
+          'keymap',
+        ],
+      ),
+      _SettingsSearchEntry(
+        title: 'Terminal shortcut behavior',
+        description: 'Choose whether app shortcuts win while a terminal is '
+            'focused.',
+        keywords: <String>['app first', 'terminal first', 'policy'],
+      ),
+    ];
 
 const List<_SettingsSearchEntry> _terminalSearchEntries =
     <_SettingsSearchEntry>[
