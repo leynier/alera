@@ -59,9 +59,20 @@ abstract final class AleraTokens {
   static const Duration durationMid = Duration(milliseconds: 180);
   static const Duration durationSlow = Duration(milliseconds: 280);
 
-  static TextStyle get monoStyle => GoogleFonts.jetBrainsMono(
-    fontSize: 12,
-    fontWeight: FontWeight.w400,
-    color: foregroundMuted,
-  );
+  static TextStyle get monoStyle {
+    const fallback = TextStyle(
+      fontFamily: 'JetBrains Mono',
+      fontSize: 12,
+      fontWeight: FontWeight.w400,
+      color: foregroundMuted,
+    );
+    if (!GoogleFonts.config.allowRuntimeFetching) {
+      return fallback;
+    }
+    return GoogleFonts.jetBrainsMono(
+      fontSize: 12,
+      fontWeight: FontWeight.w400,
+      color: foregroundMuted,
+    );
+  }
 }

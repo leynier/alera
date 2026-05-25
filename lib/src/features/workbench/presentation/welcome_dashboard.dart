@@ -7,6 +7,7 @@ import 'package:alera/src/design_system/surfaces/hover_container.dart';
 import 'package:alera/src/features/keyboard/application/keybinding_resolver.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_dialog_launchers.dart';
 import 'package:flutter/material.dart';
@@ -33,20 +34,14 @@ class WelcomeDashboard extends ConsumerWidget {
                   final isWide = constraints.maxWidth >= 760;
                   final content = [
                     if (isWide) ...[
-                      Expanded(
-                        flex: 11,
-                        child: _LeftColumn(state: state),
-                      ),
+                      Expanded(flex: 11, child: _LeftColumn(state: state)),
                       const SizedBox(width: AleraTokens.space32),
-                      Expanded(
-                        flex: 13,
-                        child: _RightColumn(state: state),
-                      ),
+                      Expanded(flex: 13, child: _RightColumn(state: state)),
                     ] else ...[
                       _LeftColumn(state: state),
                       const SizedBox(height: AleraTokens.space32),
                       _RightColumn(state: state),
-                    ]
+                    ],
                   ];
 
                   return Column(
@@ -102,24 +97,28 @@ class _Header extends StatelessWidget {
               ),
             ),
             const SizedBox(width: AleraTokens.space16),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Welcome to Alera',
-                  style: theme.textTheme.headlineMedium?.copyWith(
-                    color: AleraTokens.foreground,
-                    fontWeight: FontWeight.bold,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Welcome to Alera',
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                      color: AleraTokens.foreground,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                const SizedBox(height: AleraTokens.space4),
-                Text(
-                  'A terminal-first agentic developer environment',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: AleraTokens.foregroundMuted,
+                  const SizedBox(height: AleraTokens.space4),
+                  Text(
+                    'A terminal-first agentic developer environment',
+                    softWrap: true,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: AleraTokens.foregroundMuted,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),
@@ -133,11 +132,13 @@ class _Header extends StatelessWidget {
 class _LeftColumn extends ConsumerWidget {
   const _LeftColumn({required this.state});
 
-  final dynamic state; // WorkbenchState
+  final WorkbenchState state;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final hasGitProjects = state.projects.any((Project p) => p.supportsLinkedWorkspaces);
+    final hasGitProjects = state.projects.any(
+      (Project p) => p.supportsLinkedWorkspaces,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -183,7 +184,7 @@ class _LeftColumn extends ConsumerWidget {
 class _RightColumn extends ConsumerWidget {
   const _RightColumn({required this.state});
 
-  final dynamic state; // WorkbenchState
+  final WorkbenchState state;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -209,21 +210,21 @@ class _RightColumn extends ConsumerWidget {
                       const SizedBox(height: AleraTokens.space16),
                       Text(
                         'No projects registered yet',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              color: AleraTokens.foregroundMuted,
-                            ),
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(color: AleraTokens.foregroundMuted),
                       ),
                       const SizedBox(height: AleraTokens.space8),
                       Text(
                         'Add a local folder or clone a repository to get started.',
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AleraTokens.foregroundFaint,
-                            ),
+                          color: AleraTokens.foregroundFaint,
+                        ),
                       ),
                       const SizedBox(height: AleraTokens.space16),
                       FilledButton.icon(
-                        onPressed: () => unawaited(showAddProjectFlow(context, ref)),
+                        onPressed: () =>
+                            unawaited(showAddProjectFlow(context, ref)),
                         icon: const Icon(Icons.add, size: 16),
                         label: const Text('Add project'),
                       ),
@@ -256,9 +257,7 @@ class _RightColumn extends ConsumerWidget {
                               Expanded(
                                 child: Text(
                                   project.name,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleSmall
+                                  style: Theme.of(context).textTheme.titleSmall
                                       ?.copyWith(
                                         color: AleraTokens.foreground,
                                         fontWeight: FontWeight.bold,
@@ -276,9 +275,7 @@ class _RightColumn extends ConsumerWidget {
                               ),
                               child: Text(
                                 'No workspaces for this project',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
+                                style: Theme.of(context).textTheme.bodySmall
                                     ?.copyWith(
                                       color: AleraTokens.foregroundFaint,
                                       fontStyle: FontStyle.italic,
@@ -297,8 +294,10 @@ class _RightColumn extends ConsumerWidget {
                                       borderRadius: AleraTokens.radiusMd,
                                       onTap: () async {
                                         await ref
-                                            .read(workbenchControllerProvider
-                                                .notifier)
+                                            .read(
+                                              workbenchControllerProvider
+                                                  .notifier,
+                                            )
                                             .selectWorkspace(
                                               project: project,
                                               workspace: ws,
@@ -317,15 +316,20 @@ class _RightColumn extends ConsumerWidget {
                                               children: [
                                                 Row(
                                                   children: [
-                                                    Text(
-                                                      ws.name,
-                                                      style: Theme.of(context)
-                                                          .textTheme
-                                                          .bodyMedium
-                                                          ?.copyWith(
-                                                            color: AleraTokens
-                                                                .foreground,
-                                                          ),
+                                                    Flexible(
+                                                      child: Text(
+                                                        ws.name,
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                        style: Theme.of(context)
+                                                            .textTheme
+                                                            .bodyMedium
+                                                            ?.copyWith(
+                                                              color: AleraTokens
+                                                                  .foreground,
+                                                            ),
+                                                      ),
                                                     ),
                                                     if (ws.branch
                                                         case final branch?
@@ -333,23 +337,30 @@ class _RightColumn extends ConsumerWidget {
                                                             .trim()
                                                             .isNotEmpty) ...[
                                                       const SizedBox(
-                                                          width: AleraTokens
-                                                              .space8),
-                                                      Text(
-                                                        '($branch)',
-                                                        style: Theme.of(context)
-                                                            .textTheme
-                                                            .bodySmall
-                                                            ?.copyWith(
-                                                              color: AleraTokens
-                                                                  .foregroundFaint,
-                                                            ),
+                                                        width:
+                                                            AleraTokens.space8,
+                                                      ),
+                                                      Flexible(
+                                                        child: Text(
+                                                          '($branch)',
+                                                          maxLines: 1,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                          style: Theme.of(context)
+                                                              .textTheme
+                                                              .bodySmall
+                                                              ?.copyWith(
+                                                                color: AleraTokens
+                                                                    .foregroundFaint,
+                                                              ),
+                                                        ),
                                                       ),
                                                     ],
                                                   ],
                                                 ),
                                                 const SizedBox(
-                                                    height: AleraTokens.space2),
+                                                  height: AleraTokens.space2,
+                                                ),
                                                 Text(
                                                   ws.path,
                                                   maxLines: 1,
@@ -368,7 +379,8 @@ class _RightColumn extends ConsumerWidget {
                                           ),
                                           if (ws.isMain) ...[
                                             const SizedBox(
-                                                width: AleraTokens.space8),
+                                              width: AleraTokens.space8,
+                                            ),
                                             const AleraBadge(label: 'primary'),
                                           ],
                                         ],
@@ -398,9 +410,9 @@ class _SectionTitle extends StatelessWidget {
     return Text(
       title,
       style: Theme.of(context).textTheme.titleSmall?.copyWith(
-            color: AleraTokens.foregroundMuted,
-            fontWeight: FontWeight.bold,
-          ),
+        color: AleraTokens.foregroundMuted,
+        fontWeight: FontWeight.bold,
+      ),
     );
   }
 }
@@ -444,7 +456,7 @@ class _ActionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return HoverContainer(
-      borderRadius: 0, // handeled by DashboardCard clip
+      borderRadius: 0, // Handled by DashboardCard clip.
       onTap: enabled ? onTap : null,
       padding: const EdgeInsets.all(AleraTokens.space16),
       child: Opacity(
@@ -460,16 +472,16 @@ class _ActionRow extends StatelessWidget {
                   Text(
                     title,
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          color: AleraTokens.foreground,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      color: AleraTokens.foreground,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const SizedBox(height: AleraTokens.space2),
                   Text(
                     description,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AleraTokens.foregroundMuted,
-                        ),
+                      color: AleraTokens.foregroundMuted,
+                    ),
                   ),
                 ],
               ),
@@ -516,17 +528,29 @@ class _ShortcutsCard extends ConsumerWidget {
                   child: Divider(height: 1, color: AleraTokens.borderSubtle),
                 ),
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    shortcuts[i].$2,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AleraTokens.foregroundMuted,
-                        ),
+                  Expanded(
+                    child: Text(
+                      shortcuts[i].$2,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AleraTokens.foregroundMuted,
+                      ),
+                    ),
                   ),
-                  _KeybindingBadge(
-                    resolver: resolver,
-                    actionId: shortcuts[i].$1,
+                  const SizedBox(width: AleraTokens.space12),
+                  Flexible(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: _KeybindingBadge(
+                          resolver: resolver,
+                          actionId: shortcuts[i].$1,
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -539,10 +563,7 @@ class _ShortcutsCard extends ConsumerWidget {
 }
 
 class _KeybindingBadge extends StatelessWidget {
-  const _KeybindingBadge({
-    required this.resolver,
-    required this.actionId,
-  });
+  const _KeybindingBadge({required this.resolver, required this.actionId});
 
   final KeybindingResolver resolver;
   final KeyboardActionId actionId;

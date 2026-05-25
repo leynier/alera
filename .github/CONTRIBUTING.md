@@ -52,9 +52,23 @@ Avoid vague names like `misc`, `changes`, or `test`.
 Run the relevant checks:
 
 ```bash
-dart format --set-exit-if-changed lib test tool
+dart format --set-exit-if-changed lib test integration_test tool
 flutter analyze
-flutter test
+flutter test --coverage --exclude-tags golden
+dart run tool/quality/coverage_report.dart --input coverage/lcov.info --min-lines 65 --worst 25
+```
+
+For visual UI changes, run the golden suite and update snapshots only when the visual diff is intentional:
+
+```bash
+flutter test --tags golden
+flutter test --update-goldens test/golden
+```
+
+For app-shell flows that cross dialogs, persistence, workspaces, or terminal tabs, run the desktop E2E suite on the platform you touched:
+
+```bash
+flutter test integration_test -d macos
 ```
 
 If your change touches a desktop platform or release behavior, run the relevant build:
@@ -80,6 +94,7 @@ Each pull request should:
 - stay focused on one topic when possible
 - include screenshots or screen recordings for UI changes
 - include tests for behavior changes and bug fixes
+- include golden updates for intentional visual changes
 - include platform-specific notes when behavior differs by OS
 - include an AI review summary and a basic security audit when an AI agent helped with the change
 

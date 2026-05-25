@@ -27,9 +27,12 @@ dependencies:
   url_launcher: ^6.3.2
   flutter_colorpicker: ^1.1.0
 dev_dependencies:
+  alchemist: ^0.14.0
   flutter_launcher_icons: ^0.14.4
   flutter_lints: ^6.0.0
   flutter_test:
+    sdk: flutter
+  integration_test:
     sdk: flutter
 
 dependency_overrides:

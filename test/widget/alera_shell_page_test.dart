@@ -5,6 +5,9 @@ import 'package:alera/src/features/projects/application/project_repository.dart'
 import 'package:alera/src/features/projects/application/project_service.dart';
 import 'package:alera/src/features/projects/application/projects_service.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/settings/application/settings_controller.dart';
+import 'package:alera/src/features/settings/application/settings_repository.dart';
+import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/shell/presentation/alera_shell_page.dart';
 import 'package:alera/src/features/workbench/application/workspace_tab_service.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
@@ -46,6 +49,12 @@ void main() {
           ),
           workbenchControllerProvider.overrideWith((ref) => controller),
           terminalRuntimeProvider.overrideWith((ref) => runtime),
+          settingsControllerProvider.overrideWith(
+            (ref) => SettingsController(
+              _FakeSettingsRepository(),
+              loadOnCreate: false,
+            ),
+          ),
           if (workspaceFolderOpener != null)
             workspaceFolderOpenerProvider.overrideWith(
               (ref) => workspaceFolderOpener,
@@ -183,13 +192,9 @@ void main() {
       state: _populatedWorkbenchState().copyWith(clearActiveWorkspaceId: true),
     );
 
-    expect(find.text('No workspace selected'), findsOneWidget);
-    expect(
-      find.text(
-        'Select a workspace from the sidebar to open its terminal tabs.',
-      ),
-      findsOneWidget,
-    );
+    expect(find.text('Welcome to Alera'), findsOneWidget);
+    expect(find.text('Projects & workspaces'), findsOneWidget);
+    expect(find.text('Main'), findsAtLeastNWidgets(1));
     expect(find.byTooltip('New terminal'), findsNothing);
   });
 
@@ -229,7 +234,7 @@ void main() {
     expect(harness.runtime.closedTabIds, <String>['tab-1']);
     expect(harness.controller.state.tabsFor('workspace-1'), isEmpty);
     expect(harness.controller.state.activeWorkspace, isNull);
-    expect(find.text('No workspace selected'), findsOneWidget);
+    expect(find.text('Welcome to Alera'), findsOneWidget);
     expect(
       find.byKey(const ValueKey<String>('fake-terminal-tab-1')),
       findsNothing,
@@ -250,7 +255,7 @@ void main() {
     expect(harness.runtime.closedTabIds, <String>['tab-1']);
     expect(harness.controller.state.tabsFor('workspace-1'), isEmpty);
     expect(harness.controller.state.activeWorkspace, isNull);
-    expect(find.text('No workspace selected'), findsOneWidget);
+    expect(find.text('Welcome to Alera'), findsOneWidget);
   });
 
   testWidgets('clicking new-terminal button focuses the new session', (
@@ -768,6 +773,18 @@ class _NoopProjectRepository implements ProjectRepository {
 
   @override
   Stream<List<Project>> watchAll() => const Stream<List<Project>>.empty();
+}
+
+class _FakeSettingsRepository implements SettingsRepository {
+  AleraSettings settings = AleraSettings.defaults;
+
+  @override
+  Future<AleraSettings> load() async => settings;
+
+  @override
+  Future<void> save(AleraSettings settings) async {
+    this.settings = settings;
+  }
 }
 
 class _NoopProcessRunner implements ProcessRunner {

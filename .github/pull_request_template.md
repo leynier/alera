@@ -9,9 +9,12 @@ Describe the user-visible change.
 
 ## Testing
 
-- [ ] `dart format --set-exit-if-changed lib test tool`
+- [ ] `dart format --set-exit-if-changed lib test integration_test tool`
 - [ ] `flutter analyze`
-- [ ] `flutter test`
+- [ ] `flutter test --coverage --exclude-tags golden`
+- [ ] `dart run tool/quality/coverage_report.dart --input coverage/lcov.info --min-lines 65 --worst 25`
+- [ ] Golden tests, if UI changed: `flutter test --tags golden`
+- [ ] Desktop E2E, if app-shell flow changed: `flutter test integration_test -d macos`
 - [ ] Relevant desktop build: `flutter build macos`, `flutter build windows`, or `flutter build linux`
 - [ ] Landing build, if applicable: `cd landing && bun run build`
 - [ ] Added or updated tests that would catch regressions, or explained why tests were not needed

@@ -115,6 +115,7 @@ TODO: Add links to each project and verify exact dependency/inspiration wording.
 - `lib/src/features/updater`: update archive parsing, update controller, and desktop updater integration.
 - `lib/src/features/workbench`: workspaces, workspace tabs, split layouts, and terminal runtime.
 - `docs/architecture.md`: current architecture glossary and naming rules.
+- `docs/testing.md`: unit, widget, golden, E2E, and coverage workflow.
 - `lib/src/features/shell`: top-level application shell.
 - `test/unit` and `test/widget`: focused unit and widget coverage for the active ADE surface.
 
@@ -122,8 +123,11 @@ TODO: Add links to each project and verify exact dependency/inspiration wording.
 
 ```bash
 flutter analyze
-flutter test
+flutter test --coverage --exclude-tags golden
+dart run tool/quality/coverage_report.dart --input coverage/lcov.info --min-lines 65 --worst 25
 ```
+
+Use `flutter test --tags golden` for visual regression tests and `flutter test integration_test -d macos` for local desktop E2E smoke coverage. See `docs/testing.md`.
 
 ## Desktop targets
 

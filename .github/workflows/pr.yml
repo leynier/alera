@@ -31,10 +31,72 @@ jobs:
         run: flutter pub get
 
       - name: Format
-        run: dart format --set-exit-if-changed lib test tool
+        run: dart format --set-exit-if-changed lib test integration_test tool
 
       - name: Analyze
         run: flutter analyze
 
       - name: Test
-        run: flutter test
+        run: flutter test --coverage --exclude-tags golden
+
+      - name: Coverage report
+        run: dart run tool/quality/coverage_report.dart --input coverage/lcov.info --min-lines 65 --worst 25
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-coverage
+          path: coverage/lcov.info
+          if-no-files-found: ignore
+
+  golden:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install Linux Flutter dependencies
+        run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Golden tests
+        run: flutter test --tags golden
+
+  desktop-e2e-linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install Linux Flutter dependencies
+        run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev xvfb
+
+      - name: Enable Linux desktop
+        run: flutter config --enable-linux-desktop
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Desktop E2E
+        run: xvfb-run -a flutter test integration_test -d linux -r github
