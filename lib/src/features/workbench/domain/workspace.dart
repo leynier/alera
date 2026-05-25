@@ -2,6 +2,8 @@ enum WorkspaceKind { main, linked }
 
 enum WorkspaceStatus { active, removed }
 
+const Object _unset = Object();
+
 WorkspaceKind _workspaceKindFromWire(String value) {
   for (final kind in WorkspaceKind.values) {
     if (kind.name == value) {
@@ -25,19 +27,19 @@ class Workspace {
     required this.id,
     required this.projectId,
     required this.name,
-    required this.branch,
     required this.path,
     required this.createdAt,
     required this.updatedAt,
     required this.kind,
     required this.status,
+    this.branch,
     this.sourceBranch,
   });
 
   final String id;
   final String projectId;
   final String name;
-  final String branch;
+  final String? branch;
   final String path;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -51,7 +53,7 @@ class Workspace {
 
   Workspace copyWith({
     String? name,
-    String? branch,
+    Object? branch = _unset,
     String? path,
     DateTime? updatedAt,
     WorkspaceKind? kind,
@@ -63,7 +65,7 @@ class Workspace {
       id: id,
       projectId: projectId,
       name: name ?? this.name,
-      branch: branch ?? this.branch,
+      branch: identical(branch, _unset) ? this.branch : branch as String?,
       path: path ?? this.path,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -109,8 +111,8 @@ class Workspace {
     if (name is! String || name.isEmpty) {
       throw StateError('Workspace record missing name');
     }
-    if (branch is! String || branch.isEmpty) {
-      throw StateError('Workspace record missing branch');
+    if (branch != null && branch is! String) {
+      throw StateError('Workspace record has invalid branch');
     }
     if (path is! String || path.isEmpty) {
       throw StateError('Workspace record missing path');
@@ -132,7 +134,7 @@ class Workspace {
       id: id,
       projectId: projectId,
       name: name,
-      branch: branch,
+      branch: branch is String && branch.isNotEmpty ? branch : null,
       path: path,
       createdAt: DateTime.parse(createdAt).toUtc(),
       updatedAt: DateTime.parse(updatedAt).toUtc(),

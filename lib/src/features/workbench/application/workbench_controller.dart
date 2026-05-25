@@ -91,38 +91,41 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
     return _workspaceService.listSourceBranches(project);
   }
 
-  Future<Project> addProject({required String repoPath, String? name}) async {
+  Future<Project> addLocalProject({required String path, String? name}) async {
     try {
-      final project = await _projectsService.addProject(
-        repoPath: repoPath,
+      final project = await _projectsService.addLocalProject(
+        path: path,
         name: name,
       );
-      await _ensureMainWorkspaceForProject(project);
-      // Expand the project (remove from collapsed set if a stale id lingered).
-      // Selection set is a positive filter — leave it untouched so we don't
-      // accidentally start showing this brand-new project alone.
-      final prefs = state.viewPrefs;
-      final nextCollapsed = Set<String>.from(prefs.collapsedProjectIds)
-        ..remove(project.id);
-      final changedPrefs =
-          nextCollapsed.length != prefs.collapsedProjectIds.length;
-      final nextViewPrefs = changedPrefs
-          ? prefs.copyWith(collapsedProjectIds: nextCollapsed)
-          : prefs;
-      state = state.copyWith(
-        viewPrefs: nextViewPrefs,
-        activeProjectId: project.id,
-        clearActiveWorkspaceId: true,
-        clearError: true,
-      );
-      if (changedPrefs) {
-        unawaited(_persistViewPrefs());
-      }
+      await _activateAddedProject(project);
       return project;
     } catch (error) {
       state = state.copyWith(error: error.toString());
       rethrow;
     }
+  }
+
+  Future<Project> cloneProject({
+    required String gitUrl,
+    required String destinationPath,
+    String? name,
+  }) async {
+    try {
+      final project = await _projectsService.cloneProject(
+        gitUrl: gitUrl,
+        destinationPath: destinationPath,
+        name: name,
+      );
+      await _activateAddedProject(project);
+      return project;
+    } catch (error) {
+      state = state.copyWith(error: error.toString());
+      rethrow;
+    }
+  }
+
+  Future<Project> addProject({required String repoPath, String? name}) {
+    return addLocalProject(path: repoPath, name: name);
   }
 
   Future<void> removeProject(String projectId) async {
@@ -788,6 +791,30 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
       }
     } finally {
       _ensuringMainWorkspaceProjectIds.remove(project.id);
+    }
+  }
+
+  Future<void> _activateAddedProject(Project project) async {
+    await _ensureMainWorkspaceForProject(project);
+    // Expand the project (remove from collapsed set if a stale id lingered).
+    // Selection set is a positive filter — leave it untouched so we don't
+    // accidentally start showing this brand-new project alone.
+    final prefs = state.viewPrefs;
+    final nextCollapsed = Set<String>.from(prefs.collapsedProjectIds)
+      ..remove(project.id);
+    final changedPrefs =
+        nextCollapsed.length != prefs.collapsedProjectIds.length;
+    final nextViewPrefs = changedPrefs
+        ? prefs.copyWith(collapsedProjectIds: nextCollapsed)
+        : prefs;
+    state = state.copyWith(
+      viewPrefs: nextViewPrefs,
+      activeProjectId: project.id,
+      clearActiveWorkspaceId: true,
+      clearError: true,
+    );
+    if (changedPrefs) {
+      unawaited(_persistViewPrefs());
     }
   }
 

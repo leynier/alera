@@ -138,7 +138,10 @@ class _ProjectWorkbenchSidebarState
     if (state.projects.isEmpty) {
       return;
     }
-    await _createWorkspace(state.activeProject);
+    final activeProject = state.activeProject;
+    await _createWorkspace(
+      activeProject?.supportsLinkedWorkspaces == true ? activeProject : null,
+    );
   }
 
   Future<void> _addProject() async {
@@ -149,18 +152,40 @@ class _ProjectWorkbenchSidebarState
     if (result == null || !mounted) {
       return;
     }
+    final controller = ref.read(workbenchControllerProvider.notifier);
     try {
-      await ref
-          .read(workbenchControllerProvider.notifier)
-          .addProject(repoPath: result.repoPath, name: result.name);
-      if (!mounted) {
-        return;
+      switch (result) {
+        case AddLocalProjectResult():
+          await controller.addLocalProject(
+            path: result.path,
+            name: result.name,
+          );
+          if (!mounted) {
+            return;
+          }
+          AleraToast.show(
+            context,
+            message: 'Project added',
+            tone: AleraToastTone.success,
+          );
+        case CloneProjectResult():
+          await _runWithProgress(
+            message: 'Cloning repository…',
+            action: () => controller.cloneProject(
+              gitUrl: result.gitUrl,
+              destinationPath: result.destinationPath,
+              name: result.name,
+            ),
+          );
+          if (!mounted) {
+            return;
+          }
+          AleraToast.show(
+            context,
+            message: 'Project cloned',
+            tone: AleraToastTone.success,
+          );
       }
-      AleraToast.show(
-        context,
-        message: 'Project added',
-        tone: AleraToastTone.success,
-      );
     } catch (error) {
       if (!mounted) {
         return;
@@ -173,6 +198,28 @@ class _ProjectWorkbenchSidebarState
     }
   }
 
+  Future<T> _runWithProgress<T>({
+    required String message,
+    required Future<T> Function() action,
+  }) async {
+    var progressOpen = true;
+    unawaited(
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => AddProjectProgressDialog(message: message),
+      ).whenComplete(() => progressOpen = false),
+    );
+    await Future<void>.delayed(Duration.zero);
+    try {
+      return await action();
+    } finally {
+      if (mounted && progressOpen) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+    }
+  }
+
   Future<void> _openSettings() {
     return showDialog<void>(
       context: context,
@@ -182,16 +229,29 @@ class _ProjectWorkbenchSidebarState
 
   Future<void> _createWorkspace(Project? initialProject) async {
     final controller = ref.read(workbenchControllerProvider.notifier);
-    final projects = ref.read(workbenchControllerProvider).projects;
+    final projects = ref
+        .read(workbenchControllerProvider)
+        .projects
+        .where((project) => project.supportsLinkedWorkspaces)
+        .toList(growable: false);
     if (projects.isEmpty) {
+      AleraToast.show(
+        context,
+        message: 'Linked workspaces require a Git project.',
+        tone: AleraToastTone.info,
+      );
       return;
     }
+    final resolvedInitialProject =
+        initialProject?.supportsLinkedWorkspaces == true
+        ? initialProject
+        : null;
 
     final result = await showDialog<CreateWorkspaceResult>(
       context: context,
       builder: (_) => CreateWorkspaceDialog(
         projects: projects,
-        initialProject: initialProject,
+        initialProject: resolvedInitialProject,
         loadBranches: controller.listSourceBranches,
       ),
     );
@@ -268,12 +328,15 @@ class _ProjectWorkbenchSidebarState
     if (workspace.isMain) {
       return;
     }
+    final branch = workspace.branch;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Remove workspace?'),
         content: Text(
-          'This removes the worktree for "${workspace.name}" and deletes branch "${workspace.branch}".',
+          branch == null || branch.isEmpty
+              ? 'This removes the worktree for "${workspace.name}".'
+              : 'This removes the worktree for "${workspace.name}" and deletes branch "$branch".',
         ),
         actions: <Widget>[
           TextButton(
@@ -553,7 +616,9 @@ class _SidebarBody extends StatelessWidget {
           expanded: !row.collapsed,
           workspaceCount: row.workspaceCount,
           onToggle: () => controller.toggleProjectCollapsed(row.project.id),
-          onCreateWorkspace: () => onCreateWorkspace(row.project),
+          onCreateWorkspace: row.project.supportsLinkedWorkspaces
+              ? () => onCreateWorkspace(row.project)
+              : null,
           onRemoveProject: () => onRemoveProject(row.project),
         ),
       );
@@ -654,7 +719,7 @@ class _ProjectHeaderTile extends StatefulWidget {
   final bool expanded;
   final int workspaceCount;
   final VoidCallback onToggle;
-  final VoidCallback onCreateWorkspace;
+  final VoidCallback? onCreateWorkspace;
   final VoidCallback onRemoveProject;
 
   @override
@@ -745,14 +810,16 @@ class _ProjectHeaderTileState extends State<_ProjectHeaderTile> {
                   size: 14,
                   color: AleraTokens.foregroundMuted,
                 ),
-                const SizedBox(width: AleraTokens.space2),
-                AleraIconButton(
-                  tooltip: 'New workspace in this project',
-                  onPressed: widget.onCreateWorkspace,
-                  icon: Icons.add,
-                  iconSize: 14,
-                  minSize: 24,
-                ),
+                if (widget.onCreateWorkspace != null) ...<Widget>[
+                  const SizedBox(width: AleraTokens.space2),
+                  AleraIconButton(
+                    tooltip: 'New workspace in this project',
+                    onPressed: widget.onCreateWorkspace!,
+                    icon: Icons.add,
+                    iconSize: 14,
+                    minSize: 24,
+                  ),
+                ],
               ],
             ),
           ),
@@ -855,7 +922,15 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
   }
 
   String _buildSecondaryLine() {
-    final parts = <String>[widget.workspace.branch];
+    final branch = widget.workspace.branch;
+    final parts = <String>[
+      if (branch != null && branch.isNotEmpty)
+        branch
+      else if (widget.project.isFolder)
+        'Local folder'
+      else
+        'Git repository',
+    ];
     final source = widget.workspace.sourceBranch;
     if (!widget.workspace.isMain && source != null && source.isNotEmpty) {
       parts.add('base: $source');

@@ -74,12 +74,17 @@ class WorkspaceService {
   static DateTime _defaultNow() => DateTime.now().toUtc();
 
   Future<List<String>> listSourceBranches(Project project) {
+    if (!project.supportsLinkedWorkspaces) {
+      return Future<List<String>>.value(const <String>[]);
+    }
     return _projectService.listGitBranches(project.repoPath);
   }
 
   Future<Workspace> ensureMainWorkspace(Project project) async {
     final existing = await _repository.listWorkspaces(project.id);
-    final branch = await _currentBranch(project.repoPath);
+    final branch = project.isGitRepository
+        ? await _currentBranch(project.repoPath)
+        : null;
     final now = _now();
     Workspace? mainWorkspace;
     for (final workspace in existing) {
@@ -120,6 +125,11 @@ class WorkspaceService {
     required String newBranchName,
     String? name,
   }) async {
+    if (!project.supportsLinkedWorkspaces) {
+      throw WorkspaceException(
+        'Linked workspaces require a Git repository project',
+      );
+    }
     final normalizedSource = sourceBranch.trim();
     final normalizedBranch = newBranchName.trim();
     if (normalizedSource.isEmpty) {
@@ -211,14 +221,18 @@ class WorkspaceService {
       );
     }
     if (deleteBranch) {
+      final branch = workspace.branch;
+      if (branch == null || branch.isEmpty) {
+        throw WorkspaceException('Workspace branch is required');
+      }
       final branchResult = await _processRunner.run('git', <String>[
         'branch',
         '-D',
-        workspace.branch,
+        branch,
       ], workingDirectory: project.repoPath);
       if (branchResult.exitCode != 0) {
         throw WorkspaceException(
-          'git branch -D ${workspace.branch} failed',
+          'git branch -D $branch failed',
           stderr: branchResult.stderr,
         );
       }
@@ -228,6 +242,16 @@ class WorkspaceService {
 
   Future<List<Workspace>> reconcile(Project project) async {
     final mainWorkspace = await ensureMainWorkspace(project);
+    if (!project.supportsLinkedWorkspaces) {
+      final workspaces = await _repository.listWorkspaces(project.id);
+      for (final workspace in workspaces) {
+        if (workspace.id == mainWorkspace.id) {
+          continue;
+        }
+        await _repository.removeWorkspace(workspace.id, cascadeTabs: true);
+      }
+      return _repository.listWorkspaces(project.id);
+    }
     final liveWorktrees = await _listLiveWorktrees(project.repoPath);
     final workspaces = await _repository.listWorkspaces(project.id);
     // When `git worktree list` fails (null) or doesn't even report the main

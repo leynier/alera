@@ -138,7 +138,7 @@ class WorkbenchState {
       return true;
     }
     return workspace.name.toLowerCase().contains(query) ||
-        workspace.branch.toLowerCase().contains(query) ||
+        (workspace.branch?.toLowerCase().contains(query) ?? false) ||
         (workspace.sourceBranch?.toLowerCase().contains(query) ?? false);
   }
 

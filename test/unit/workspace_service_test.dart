@@ -66,6 +66,20 @@ void main() {
       },
     );
 
+    test('ensureMainWorkspace stores a folder project without Git', () async {
+      final folderProject = project.copyWith(kind: ProjectKind.folder);
+
+      final workspace = await service.ensureMainWorkspace(folderProject);
+
+      expect(workspace.projectId, folderProject.id);
+      expect(workspace.name, 'Main');
+      expect(workspace.branch, isNull);
+      expect(workspace.path, folderProject.repoPath);
+      expect(workspace.kind, WorkspaceKind.main);
+      expect(workspace.status, WorkspaceStatus.active);
+      expect(processRunner.calls, isEmpty);
+    });
+
     test(
       'createLinkedWorkspace creates a new worktree from the requested source branch',
       () async {
@@ -147,6 +161,56 @@ void main() {
           workspaces.map((workspace) => workspace.id),
           containsAll(<String>[mainWorkspace.id, linkedWorkspace.id]),
         );
+      },
+    );
+
+    test(
+      'reconcile keeps only the primary workspace for folder projects',
+      () async {
+        final folderProject = project.copyWith(kind: ProjectKind.folder);
+        final linkedWorkspace = Workspace(
+          id: 'linked-folder-workspace',
+          projectId: folderProject.id,
+          name: 'Linked',
+          branch: 'feature/remove-me',
+          path: p.join(tempDir.path, 'linked-folder-workspace'),
+          createdAt: DateTime.utc(2026, 5, 20),
+          updatedAt: DateTime.utc(2026, 5, 20),
+          kind: WorkspaceKind.linked,
+          status: WorkspaceStatus.active,
+        );
+        await repository.upsertWorkspace(linkedWorkspace);
+
+        final workspaces = await service.reconcile(folderProject);
+
+        expect(workspaces, hasLength(1));
+        expect(workspaces.single.isMain, isTrue);
+        expect(workspaces.single.branch, isNull);
+        expect(
+          repository.workspaces.any(
+            (workspace) => workspace.id == linkedWorkspace.id,
+          ),
+          isFalse,
+        );
+        expect(processRunner.calls, isEmpty);
+      },
+    );
+
+    test(
+      'createLinkedWorkspace rejects folder projects before Git calls',
+      () async {
+        final folderProject = project.copyWith(kind: ProjectKind.folder);
+
+        await expectLater(
+          service.createLinkedWorkspace(
+            project: folderProject,
+            sourceBranch: 'main',
+            newBranchName: 'feature/not-allowed',
+          ),
+          throwsA(isA<WorkspaceException>()),
+        );
+
+        expect(processRunner.calls, isEmpty);
       },
     );
 

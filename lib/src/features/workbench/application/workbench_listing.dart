@@ -80,7 +80,7 @@ List<WorkbenchSidebarRow> buildSidebarRows(WorkbenchState state) {
     if (workspace.name.toLowerCase().contains(query)) {
       return true;
     }
-    if (workspace.branch.toLowerCase().contains(query)) {
+    if (workspace.branch?.toLowerCase().contains(query) ?? false) {
       return true;
     }
     final source = workspace.sourceBranch;
@@ -245,7 +245,7 @@ int countVisibleWorkspaces(WorkbenchState state) {
       final projectMatches = project.name.toLowerCase().contains(query);
       final workspaceMatches =
           workspace.name.toLowerCase().contains(query) ||
-          workspace.branch.toLowerCase().contains(query) ||
+          (workspace.branch?.toLowerCase().contains(query) ?? false) ||
           (workspace.sourceBranch?.toLowerCase().contains(query) ?? false);
       if (projectMatches || workspaceMatches) {
         count++;

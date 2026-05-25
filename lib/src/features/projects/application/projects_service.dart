@@ -22,17 +22,20 @@ class ProjectsService {
 
   ProjectRepository get projectRepository => _projectRepository;
 
-  /// Validates that [repoPath] is a git repository and persists it as a new
-  /// [Project]. The optional [name] defaults to the directory basename.
-  Future<Project> addProject({required String repoPath, String? name}) async {
-    final normalized = p.normalize(repoPath.trim());
-    if (normalized.isEmpty) {
+  /// Adds an existing local folder as a project. Git repositories are detected
+  /// automatically; non-Git folders are registered as folder-only projects.
+  Future<Project> addLocalProject({required String path, String? name}) async {
+    final trimmed = path.trim();
+    final normalized = p.normalize(trimmed);
+    if (trimmed.isEmpty) {
       throw StateError('Project path must not be empty');
     }
-    final validation = await _projectService.validateGitRepository(normalized);
-    if (!validation.isValidGitRepository) {
+    final inspection = await _projectService.inspectLocalProjectPath(
+      normalized,
+    );
+    if (!inspection.isValid) {
       throw StateError(
-        validation.message ?? 'Selected folder is not a git repository',
+        inspection.message ?? 'Selected folder cannot be used as a project',
       );
     }
 
@@ -43,17 +46,72 @@ class ProjectsService {
       }
     }
 
+    final project = _newProject(
+      path: normalized,
+      kind: inspection.kind!,
+      name: name,
+    );
+    await _projectRepository.add(project);
+    return project;
+  }
+
+  /// Clones a Git repository into [destinationPath] and registers the cloned
+  /// checkout as a Git-backed project.
+  Future<Project> cloneProject({
+    required String gitUrl,
+    required String destinationPath,
+    String? name,
+  }) async {
+    final trimmedDestination = destinationPath.trim();
+    final normalizedDestination = p.normalize(trimmedDestination);
+    if (trimmedDestination.isEmpty) {
+      throw StateError('Destination path must not be empty');
+    }
+    final existing = await _projectRepository.listAll();
+    for (final candidate in existing) {
+      if (p.equals(candidate.repoPath, normalizedDestination)) {
+        throw StateError(
+          'Project already registered at: $normalizedDestination',
+        );
+      }
+    }
+
+    await _projectService.cloneGitRepository(
+      url: gitUrl,
+      destinationPath: normalizedDestination,
+    );
+    final project = _newProject(
+      path: normalizedDestination,
+      kind: ProjectKind.gitRepository,
+      name: name,
+    );
+    await _projectRepository.add(project);
+    return project;
+  }
+
+  /// Backwards-compatible wrapper for existing callers. New UI should call
+  /// [addLocalProject] or [cloneProject] to make the project origin explicit.
+  Future<Project> addProject({required String repoPath, String? name}) async {
+    return addLocalProject(path: repoPath, name: name);
+  }
+
+  Project _newProject({
+    required String path,
+    required ProjectKind kind,
+    String? name,
+  }) {
     final resolvedName = (name ?? '').trim().isEmpty
-        ? p.basename(normalized)
+        ? p.basename(path)
         : name!.trim();
+    final now = _now();
     final project = Project(
       id: _uuid.v4(),
       name: resolvedName,
-      repoPath: normalized,
-      createdAt: _now(),
-      updatedAt: _now(),
+      repoPath: path,
+      createdAt: now,
+      updatedAt: now,
+      kind: kind,
     );
-    await _projectRepository.add(project);
     return project;
   }
 

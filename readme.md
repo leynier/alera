@@ -4,7 +4,7 @@ TODO: Add project badges for supported platforms, release status, and repository
 
 Alera is a terminal-first Agentic Development Environment built with Flutter for performance, developer velocity, and true cross-platform desktop support.
 
-It helps you organize local repositories, create isolated Git worktree workspaces, and run your preferred CLI coding agents in persistent terminal sessions.
+It helps you organize local project folders, clone Git repositories, create isolated Git worktree workspaces when Git is available, and run your preferred CLI coding agents in persistent terminal sessions.
 
 ## What is Alera?
 
@@ -16,8 +16,8 @@ Instead of embedding a specific chat backend, Alera stays terminal-first: your a
 
 - **Terminal-first by design** — Bring your own CLI agents instead of being locked into one AI backend.
 - **Flutter desktop performance** — Built with Flutter to pursue a fast, native-feeling, maintainable, cross-platform desktop experience.
-- **Worktree-native workflows** — Keep tasks, branches, and agent runs isolated with Git worktrees.
-- **Project and workspace organization** — Manage local repositories and their workspaces from one app.
+- **Worktree-native workflows** — Keep tasks, branches, and agent runs isolated with Git worktrees for Git-backed projects.
+- **Project and workspace organization** — Manage local folders, cloned repositories, and their workspaces from one app.
 - **Persistent workspace tabs** — Keep agent sessions, terminal tabs, panes, and layouts organized.
 - **Cross-platform** — Designed for macOS, Windows, and Linux.
 
@@ -25,11 +25,11 @@ Instead of embedding a specific chat backend, Alera stays terminal-first: your a
 
 ### Project registry
 
-Add and manage local Git repositories from one place.
+Add existing local folders or clone Git repositories from one place. Non-Git folders get a primary workspace, while Git-backed projects can also create linked workspaces.
 
 ### Worktree-backed workspaces
 
-Create linked workspaces backed by Git worktrees so each branch, task, or agent run can stay isolated.
+Create linked workspaces backed by Git worktrees for Git-backed projects so each branch, task, or agent run can stay isolated.
 
 ### Terminal-first agent workflows
 
@@ -81,8 +81,8 @@ TODO: Add Windows and Linux local run notes if extra setup is required.
 
 Alera currently includes:
 
-- Local project registry.
-- Git worktree-backed workspace management.
+- Local project registry for folders and cloned Git repositories.
+- Git worktree-backed workspace management for Git-backed projects.
 - Split workspace workbench.
 - Persistent workspace tabs and layouts.
 - Native terminal runtime using `ghostty_vte_flutter`, `portable_pty`, and `xterm` fallback infrastructure.

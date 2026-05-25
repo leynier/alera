@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
@@ -222,19 +224,59 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
     if (result == null || !mounted) {
       return;
     }
+    final controller = ref.read(workbenchControllerProvider.notifier);
     try {
-      await ref
-          .read(workbenchControllerProvider.notifier)
-          .addProject(repoPath: result.repoPath, name: result.name);
-      if (!mounted) {
-        return;
+      switch (result) {
+        case AddLocalProjectResult():
+          await controller.addLocalProject(
+            path: result.path,
+            name: result.name,
+          );
+          if (!mounted) {
+            return;
+          }
+          _showSuccess('Project added');
+        case CloneProjectResult():
+          await _runWithProgress(
+            message: 'Cloning repository…',
+            action: () => controller.cloneProject(
+              gitUrl: result.gitUrl,
+              destinationPath: result.destinationPath,
+              name: result.name,
+            ),
+          );
+          if (!mounted) {
+            return;
+          }
+          _showSuccess('Project cloned');
       }
-      _showSuccess('Project added');
     } catch (error) {
       if (!mounted) {
         return;
       }
       _showError(error.toString());
+    }
+  }
+
+  Future<T> _runWithProgress<T>({
+    required String message,
+    required Future<T> Function() action,
+  }) async {
+    var progressOpen = true;
+    unawaited(
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => AddProjectProgressDialog(message: message),
+      ).whenComplete(() => progressOpen = false),
+    );
+    await Future<void>.delayed(Duration.zero);
+    try {
+      return await action();
+    } finally {
+      if (mounted && progressOpen) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
     }
   }
 
