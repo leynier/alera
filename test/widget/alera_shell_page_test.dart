@@ -19,6 +19,7 @@ import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart'
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sembast/sembast_memory.dart';
@@ -219,6 +220,54 @@ void main() {
     expect(harness.controller.state.tabsFor('workspace-1'), isEmpty);
     expect(harness.controller.state.activeWorkspace, isNull);
     expect(find.text('No workspace selected'), findsOneWidget);
+  });
+
+  testWidgets('clicking new-terminal button focuses the new session', (
+    tester,
+  ) async {
+    final harness = await pumpShell(tester, state: _populatedWorkbenchState());
+
+    await tester.tap(find.byTooltip('New terminal'));
+    // First pump runs the await chain; the second pump runs the
+    // post-frame callback that requestFocus() defers to.
+    await tester.pump();
+    await tester.pump();
+
+    expect(harness.runtime.totalFocusRequests, 1);
+  });
+
+  testWidgets('new-terminal shortcut focuses the new session', (tester) async {
+    final harness = await pumpShell(tester, state: _populatedWorkbenchState());
+
+    // Focus a descendant so key events bubble up to the global scope.
+    await tester.tap(find.byType(TextField).first);
+    await tester.pumpAndSettle();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.keyT);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.keyT);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pumpAndSettle();
+
+    expect(harness.runtime.totalFocusRequests, 1);
+  });
+
+  testWidgets('split shortcut focuses the new pane terminal', (tester) async {
+    final harness = await pumpShell(tester, state: _populatedWorkbenchState());
+
+    await tester.tap(find.byType(TextField).first);
+    await tester.pumpAndSettle();
+
+    // Ctrl+Shift+D is the split-right default off macOS.
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.keyD);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.keyD);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pumpAndSettle();
+
+    expect(harness.runtime.totalFocusRequests, 1);
   });
 
   testWidgets('workspace context menu shows supported workspace actions', (
@@ -507,6 +556,17 @@ class _FakeTerminalRuntime implements TerminalRuntime {
     _sessions.remove(tabId)?.dispose();
   }
 
+  /// Total `requestFocus()` calls across every session this runtime created.
+  int get totalFocusRequests => _sessions.values.fold<int>(
+        0,
+        (sum, session) => sum + session.requestFocusCalls,
+      );
+
+  /// Tab ids that received at least one `requestFocus()` call.
+  Iterable<String> get focusedTabIds => _sessions.entries
+      .where((entry) => entry.value.requestFocusCalls > 0)
+      .map((entry) => entry.key);
+
   void emitExit({
     required String workspaceId,
     required String tabId,
@@ -588,8 +648,12 @@ class _FakeTerminalSessionHandle extends TerminalSessionHandle {
     );
   }
 
+  int requestFocusCalls = 0;
+
   @override
-  void requestFocus() {}
+  void requestFocus() {
+    requestFocusCalls += 1;
+  }
 }
 
 class _NoopWorkbenchRepository implements WorkbenchRepository {

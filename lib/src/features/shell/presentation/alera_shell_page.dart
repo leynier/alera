@@ -172,10 +172,13 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
       layout: state.layoutFor(workspace.id),
       terminalRuntime: terminalRuntime,
       onCreateTab: ({targetGroupId}) async {
-        await controller.createTerminalTab(
+        final tab = await controller.createTerminalTab(
           workspace,
           targetGroupId: targetGroupId,
         );
+        terminalRuntime
+            .sessionFor(workspace: workspace, tab: tab)
+            .requestFocus();
       },
       onSelectTab: ({required groupId, required tabId}) {
         controller.setActiveWorkspaceTab(
@@ -198,11 +201,14 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
             );
           },
       onSplitGroup: ({required groupId, required zone}) async {
-        await controller.splitWorkbenchGroupWithTerminal(
+        final tab = await controller.splitWorkbenchGroupWithTerminal(
           workspace: workspace,
           groupId: groupId,
           zone: zone,
         );
+        terminalRuntime
+            .sessionFor(workspace: workspace, tab: tab)
+            .requestFocus();
       },
       onMergeGroup: ({required groupId}) async {
         await controller.mergeWorkbenchGroupIntoSibling(

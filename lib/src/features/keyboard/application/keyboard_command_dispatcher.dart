@@ -68,9 +68,15 @@ class KeyboardCommandDispatcher {
     if (workspace == null) {
       return;
     }
-    unawaited(
-      ref.read(workbenchControllerProvider.notifier).createTerminalTab(workspace),
-    );
+    unawaited(() async {
+      final tab = await ref
+          .read(workbenchControllerProvider.notifier)
+          .createTerminalTab(workspace);
+      ref
+          .read(terminalRuntimeProvider)
+          .sessionFor(workspace: workspace, tab: tab)
+          .requestFocus();
+    }());
   }
 
   void _closeActiveTab() {
@@ -145,13 +151,19 @@ class KeyboardCommandDispatcher {
     if (workspace == null || layout == null) {
       return;
     }
-    unawaited(
-      ref.read(workbenchControllerProvider.notifier).splitWorkbenchGroupWithTerminal(
+    unawaited(() async {
+      final tab = await ref
+          .read(workbenchControllerProvider.notifier)
+          .splitWorkbenchGroupWithTerminal(
             workspace: workspace,
             groupId: layout.activeGroupId,
             zone: zone,
-          ),
-    );
+          );
+      ref
+          .read(terminalRuntimeProvider)
+          .sessionFor(workspace: workspace, tab: tab)
+          .requestFocus();
+    }());
   }
 
   void _closeSplit() {
