@@ -244,7 +244,6 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                         selectedBranch: _selectedSourceBranch,
                         query: _branchQuery,
                         controller: _branchSearchController,
-                        errorText: _sourceBranchError,
                         onQueryChanged: (value) {
                           setState(() => _branchQuery = value);
                         },
@@ -428,7 +427,6 @@ class _SourceBranchPicker extends StatelessWidget {
     required this.selectedBranch,
     required this.query,
     required this.controller,
-    required this.errorText,
     required this.onQueryChanged,
     required this.onSelectBranch,
   });
@@ -437,7 +435,6 @@ class _SourceBranchPicker extends StatelessWidget {
   final String? selectedBranch;
   final String query;
   final TextEditingController controller;
-  final String? errorText;
   final ValueChanged<String> onQueryChanged;
   final ValueChanged<String> onSelectBranch;
 
@@ -458,9 +455,7 @@ class _SourceBranchPicker extends StatelessWidget {
         Text(
           'Source branch',
           style: theme.textTheme.labelMedium?.copyWith(
-            color: errorText == null
-                ? AleraTokens.foregroundMuted
-                : AleraTokens.error,
+            color: AleraTokens.foregroundMuted,
           ),
         ),
         const SizedBox(height: AleraTokens.space8),
@@ -500,15 +495,6 @@ class _SourceBranchPicker extends StatelessWidget {
                   ),
           ],
         ),
-        if (errorText != null) ...<Widget>[
-          const SizedBox(height: AleraTokens.space6),
-          Text(
-            errorText!,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: AleraTokens.error,
-            ),
-          ),
-        ],
       ],
     );
   }

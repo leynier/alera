@@ -54,6 +54,71 @@ void main() {
 
       expect(latest, isNull);
     });
+
+    test('parses numeric strings and rejects invalid required fields', () {
+      final parsed = AleraUpdateArchive.fromJson(<String, Object?>{
+        'items': <Object?>[
+          <String, Object?>{
+            'version': '1.0.0',
+            'shortVersion': '5',
+            'date': '2026-05-25',
+            'mandatory': false,
+            'url': 'https://example.com/updates/1.0.0',
+            'platform': 'macos',
+          },
+        ],
+      });
+
+      expect(parsed.items.single.shortVersion, 5);
+
+      expect(
+        () => AleraUpdateArchive.fromJson(<String, Object?>{
+          'items': <Object?>[
+            <String, Object?>{
+              'version': '   ',
+              'shortVersion': 5,
+              'date': '2026-05-25',
+              'mandatory': false,
+              'url': 'https://example.com/updates/1.0.0',
+              'platform': 'macos',
+            },
+          ],
+        }),
+        throwsFormatException,
+      );
+
+      expect(
+        () => AleraUpdateArchive.fromJson(<String, Object?>{
+          'items': <Object?>[
+            <String, Object?>{
+              'version': '1.0.0',
+              'shortVersion': 'oops',
+              'date': '2026-05-25',
+              'mandatory': false,
+              'url': 'https://example.com/updates/1.0.0',
+              'platform': 'macos',
+            },
+          ],
+        }),
+        throwsFormatException,
+      );
+
+      expect(
+        () => AleraUpdateArchive.fromJson(<String, Object?>{
+          'items': <Object?>[
+            <String, Object?>{
+              'version': '1.0.0',
+              'shortVersion': 5,
+              'date': '2026-05-25',
+              'mandatory': 'yes',
+              'url': 'https://example.com/updates/1.0.0',
+              'platform': 'macos',
+            },
+          ],
+        }),
+        throwsFormatException,
+      );
+    });
   });
 }
 

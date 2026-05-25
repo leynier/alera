@@ -1,9 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:alera/src/app/providers.dart';
+import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
 import 'package:alera/src/shared/infra/uri/external_uri_launcher.dart';
+import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
+import 'package:alera/src/features/workbench/application/workbench_controller.dart';
+import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
@@ -13,6 +18,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
 import 'package:xterm/xterm.dart' as xterm;
 
@@ -447,10 +453,7 @@ void main() {
   testWidgets('shows the terminal error state and retries on demand', (
     tester,
   ) async {
-    final session = _ErrorSessionHandle(
-      tabId: 'tab-1',
-      message: 'boom',
-    );
+    final session = _ErrorSessionHandle(tabId: 'tab-1', message: 'boom');
 
     await tester.pumpWidget(
       MaterialApp(
@@ -470,7 +473,9 @@ void main() {
     expect(session.restartCallCount, 1);
   });
 
-  testWidgets('shows a startup progress indicator while starting', (tester) async {
+  testWidgets('shows a startup progress indicator while starting', (
+    tester,
+  ) async {
     final session = _StartingSessionHandle(tabId: 'tab-1');
 
     await tester.pumpWidget(
@@ -483,76 +488,78 @@ void main() {
     await tester.pump();
 
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
-    expect(find.byKey(const ValueKey<String>('terminal-tab-1')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('terminal-tab-1')),
+      findsOneWidget,
+    );
   });
 
-  testWidgets(
-    'closeWorkspace drops only the target workspace sessions',
-    (tester) async {
-      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
-      try {
-        final factory = _FakeTerminalPtySessionFactory();
-        final runtime = XtermTerminalRuntime(ptySessionFactory: factory);
-        addTearDown(runtime.dispose);
-        final exits = <TerminalRuntimeExitEvent>[];
-        final exitSub = runtime.exits.listen(exits.add);
-        addTearDown(exitSub.cancel);
+  testWidgets('closeWorkspace drops only the target workspace sessions', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    try {
+      final factory = _FakeTerminalPtySessionFactory();
+      final runtime = XtermTerminalRuntime(ptySessionFactory: factory);
+      addTearDown(runtime.dispose);
+      final exits = <TerminalRuntimeExitEvent>[];
+      final exitSub = runtime.exits.listen(exits.add);
+      addTearDown(exitSub.cancel);
 
-        final firstSession = runtime.sessionFor(
-          workspace: _workspace(),
-          tab: _tab(),
-        );
-        final secondSession = runtime.sessionFor(
-          workspace: _workspace(),
-          tab: _tab(id: 'tab-2', title: 'Terminal 2'),
-        );
-        final thirdSession = runtime.sessionFor(
-          workspace: _workspace(id: 'ws-2', path: '/tmp/other'),
-          tab: _tab(id: 'tab-3', workspaceId: 'ws-2', title: 'Terminal 3'),
-        );
+      final firstSession = runtime.sessionFor(
+        workspace: _workspace(),
+        tab: _tab(),
+      );
+      final secondSession = runtime.sessionFor(
+        workspace: _workspace(),
+        tab: _tab(id: 'tab-2', title: 'Terminal 2'),
+      );
+      final thirdSession = runtime.sessionFor(
+        workspace: _workspace(id: 'ws-2', path: '/tmp/other'),
+        tab: _tab(id: 'tab-3', workspaceId: 'ws-2', title: 'Terminal 3'),
+      );
 
-        await firstSession.ensureStarted();
-        await secondSession.ensureStarted();
-        await thirdSession.ensureStarted();
+      await firstSession.ensureStarted();
+      await secondSession.ensureStarted();
+      await thirdSession.ensureStarted();
 
-        runtime.closeWorkspace('ws-1');
-        await tester.pump();
+      runtime.closeWorkspace('ws-1');
+      await tester.pump();
 
-        expect(exits, isEmpty);
+      expect(exits, isEmpty);
 
-        final reopenedFirst = runtime.sessionFor(
-          workspace: _workspace(),
-          tab: _tab(),
-        );
-        final reopenedSecond = runtime.sessionFor(
-          workspace: _workspace(),
-          tab: _tab(id: 'tab-2', title: 'Terminal 2'),
-        );
-        final persistedThird = runtime.sessionFor(
-          workspace: _workspace(id: 'ws-2', path: '/tmp/other'),
-          tab: _tab(id: 'tab-3', workspaceId: 'ws-2', title: 'Terminal 3'),
-        );
+      final reopenedFirst = runtime.sessionFor(
+        workspace: _workspace(),
+        tab: _tab(),
+      );
+      final reopenedSecond = runtime.sessionFor(
+        workspace: _workspace(),
+        tab: _tab(id: 'tab-2', title: 'Terminal 2'),
+      );
+      final persistedThird = runtime.sessionFor(
+        workspace: _workspace(id: 'ws-2', path: '/tmp/other'),
+        tab: _tab(id: 'tab-3', workspaceId: 'ws-2', title: 'Terminal 3'),
+      );
 
-        expect(identical(reopenedFirst, firstSession), isFalse);
-        expect(identical(reopenedSecond, secondSession), isFalse);
-        expect(identical(persistedThird, thirdSession), isTrue);
+      expect(identical(reopenedFirst, firstSession), isFalse);
+      expect(identical(reopenedSecond, secondSession), isFalse);
+      expect(identical(persistedThird, thirdSession), isTrue);
 
-        await reopenedFirst.ensureStarted();
-        await reopenedSecond.ensureStarted();
-        expect(factory.sessions, hasLength(5));
+      await reopenedFirst.ensureStarted();
+      await reopenedSecond.ensureStarted();
+      expect(factory.sessions, hasLength(5));
 
-        factory.sessions[2].emitExit(5);
-        await tester.pump();
+      factory.sessions[2].emitExit(5);
+      await tester.pump();
 
-        expect(exits, hasLength(1));
-        expect(exits.single.workspaceId, 'ws-2');
-        expect(exits.single.tabId, 'tab-3');
-        expect(exits.single.exitCode, 5);
-      } finally {
-        debugDefaultTargetPlatformOverride = null;
-      }
-    },
-  );
+      expect(exits, hasLength(1));
+      expect(exits.single.workspaceId, 'ws-2');
+      expect(exits.single.tabId, 'tab-3');
+      expect(exits.single.exitCode, 5);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
 
   testWidgets('defers startup notifications until after the first frame', (
     tester,
@@ -608,6 +615,111 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'terminal shortcuts handle allowed actions and respect terminal-first policy',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      try {
+        final focusNode = FocusNode();
+        addTearDown(focusNode.dispose);
+
+        Future<ProviderContainer> pumpShortcutSurface({
+          required AleraSettings settings,
+          required _ShortcutCaptureSessionHandle session,
+          required _FakeWorkbenchController controller,
+        }) async {
+          final container = ProviderContainer(
+            overrides: [
+              settingsControllerProvider.overrideWith(
+                () => _FakeSettingsController(settings),
+              ),
+              workbenchControllerProvider.overrideWith(() => controller),
+            ],
+          );
+          addTearDown(container.dispose);
+          await tester.pumpWidget(
+            UncontrolledProviderScope(
+              container: container,
+              child: MaterialApp(
+                home: Scaffold(
+                  body: SizedBox.expand(
+                    child: TerminalSurface(session: session),
+                  ),
+                ),
+              ),
+            ),
+          );
+          await tester.pump();
+          await tester.pumpAndSettle();
+          return container;
+        }
+
+        final allowedSession = _ShortcutCaptureSessionHandle(tabId: 'tab-1');
+        final allowedController = _FakeWorkbenchController();
+        await pumpShortcutSurface(
+          settings: AleraSettings.defaults,
+          session: allowedSession,
+          controller: allowedController,
+        );
+
+        expect(
+          allowedSession.onKeyEvent?.call(
+            focusNode,
+            const KeyUpEvent(
+              timeStamp: Duration.zero,
+              physicalKey: PhysicalKeyboardKey.keyB,
+              logicalKey: LogicalKeyboardKey.keyB,
+            ),
+          ),
+          KeyEventResult.ignored,
+        );
+
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+        final allowedResult = allowedSession.onKeyEvent!.call(
+          focusNode,
+          const KeyDownEvent(
+            timeStamp: Duration.zero,
+            physicalKey: PhysicalKeyboardKey.keyB,
+            logicalKey: LogicalKeyboardKey.keyB,
+          ),
+        );
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+        await tester.pump();
+
+        expect(allowedResult, KeyEventResult.handled);
+        expect(allowedController.collapsedValues, <bool>[true]);
+
+        final blockedSession = _ShortcutCaptureSessionHandle(tabId: 'tab-2');
+        final blockedController = _FakeWorkbenchController();
+        await pumpShortcutSurface(
+          settings: AleraSettings.defaults.copyWith(
+            keyboard: AleraSettings.defaults.keyboard.copyWithPolicy(
+              TerminalShortcutPolicy.terminalFirst,
+            ),
+          ),
+          session: blockedSession,
+          controller: blockedController,
+        );
+
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+        final blockedResult = blockedSession.onKeyEvent!.call(
+          focusNode,
+          const KeyDownEvent(
+            timeStamp: Duration.zero,
+            physicalKey: PhysicalKeyboardKey.keyT,
+            logicalKey: LogicalKeyboardKey.keyT,
+          ),
+        );
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+
+        expect(blockedResult, KeyEventResult.ignored);
+        expect(blockedController.collapsedValues, isEmpty);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    },
+  );
 }
 
 WorkspaceTabRecord _tab({
@@ -779,6 +891,71 @@ class _ImmediateNotifySessionHandle extends TerminalSessionHandle {
 
   @override
   void requestFocus() {}
+}
+
+class _ShortcutCaptureSessionHandle extends TerminalSessionHandle {
+  _ShortcutCaptureSessionHandle({required this.tabId});
+
+  @override
+  final String tabId;
+
+  FocusOnKeyEventCallback? onKeyEvent;
+
+  @override
+  String get workspaceId => 'workspace-1';
+
+  @override
+  String get displayTitle => 'Terminal';
+
+  @override
+  bool get isRunning => true;
+
+  @override
+  bool get isStarting => false;
+
+  @override
+  String? get errorMessage => null;
+
+  @override
+  Future<void> ensureStarted() async {}
+
+  @override
+  Future<void> restart() async {}
+
+  @override
+  Widget buildView({
+    Key? key,
+    bool autofocus = false,
+    FocusOnKeyEventCallback? onKeyEvent,
+  }) {
+    this.onKeyEvent = onKeyEvent;
+    return Container(key: ValueKey<String>('terminal-$tabId'));
+  }
+
+  @override
+  void requestFocus() {}
+}
+
+class _FakeWorkbenchController extends WorkbenchController {
+  final List<bool> collapsedValues = <bool>[];
+
+  @override
+  WorkbenchState build() => const WorkbenchState();
+
+  @override
+  void setCollapsed(bool value) {
+    collapsedValues.add(value);
+    state = state.copyWith(collapsed: value);
+  }
+}
+
+class _FakeSettingsController extends SettingsController {
+  _FakeSettingsController(this.settings);
+
+  AleraSettings settings;
+
+  @override
+  AleraSettings build() => settings;
 }
 
 class _ErrorSessionHandle extends TerminalSessionHandle {

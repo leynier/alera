@@ -122,26 +122,37 @@ void main() {
       },
     );
 
-    test('default lazy connection creates a missing application support directory', () async {
-      final tempDir = Directory.systemTemp.createTempSync('alera-drift-root-');
-      final supportPath = p.join(tempDir.path, 'nested', 'support');
-      addTearDown(() {
-        if (tempDir.existsSync()) {
-          tempDir.deleteSync(recursive: true);
-        }
-      });
-      final previousPlatform = PathProviderPlatform.instance;
-      PathProviderPlatform.instance = _FakePathProviderPlatform(supportPath);
-      addTearDown(() => PathProviderPlatform.instance = previousPlatform);
+    test(
+      'default lazy connection creates a missing application support directory',
+      () async {
+        final tempDir = Directory.systemTemp.createTempSync(
+          'alera-drift-root-',
+        );
+        final supportPath = p.join(tempDir.path, 'nested', 'support');
+        addTearDown(() {
+          if (tempDir.existsSync()) {
+            tempDir.deleteSync(recursive: true);
+          }
+        });
+        final previousPlatform = PathProviderPlatform.instance;
+        PathProviderPlatform.instance = _FakePathProviderPlatform(supportPath);
+        addTearDown(() => PathProviderPlatform.instance = previousPlatform);
 
-      final db = AleraDatabase();
-      addTearDown(db.close);
+        final db = AleraDatabase();
+        addTearDown(db.close);
 
-      expect(Directory(supportPath).existsSync(), isFalse);
-      expect(await db.customSelect('SELECT 1 AS value').getSingle(), isA<QueryRow>());
-      expect(Directory(supportPath).existsSync(), isTrue);
-      expect(File(p.join(supportPath, aleraDatabaseFileName)).existsSync(), isTrue);
-    });
+        expect(Directory(supportPath).existsSync(), isFalse);
+        expect(
+          await db.customSelect('SELECT 1 AS value').getSingle(),
+          isA<QueryRow>(),
+        );
+        expect(Directory(supportPath).existsSync(), isTrue);
+        expect(
+          File(p.join(supportPath, aleraDatabaseFileName)).existsSync(),
+          isTrue,
+        );
+      },
+    );
   });
 }
 

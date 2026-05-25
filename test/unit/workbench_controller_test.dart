@@ -365,6 +365,25 @@ void main() {
       );
     });
 
+    test(
+      'setActiveTab falls back to direct workspace selection when the layout has no group for the tab',
+      () async {
+        await controller.bootstrap();
+        final workspace = await _selectMainWorkspace(controller, harness);
+
+        controller.setActiveTab(
+          workspaceId: workspace.id,
+          tabId: 'missing-tab',
+        );
+        await _flush();
+
+        expect(
+          controller.state.activeTabIdByWorkspace[workspace.id],
+          'missing-tab',
+        );
+      },
+    );
+
     test('selecting a workspace preserves the saved active tab', () async {
       final workspace = Workspace(
         id: 'workspace-1',
@@ -610,7 +629,9 @@ void main() {
     });
 
     test('bootstrap surfaces project repository failures', () async {
-      harness.projectRepository.listAllError = StateError('cannot list projects');
+      harness.projectRepository.listAllError = StateError(
+        'cannot list projects',
+      );
 
       await controller.bootstrap();
       await _flush();
@@ -618,7 +639,9 @@ void main() {
       expect(controller.state.bootstrapped, isTrue);
       expect(
         controller.state.error,
-        contains('Failed to bootstrap workbench: Bad state: cannot list projects'),
+        contains(
+          'Failed to bootstrap workbench: Bad state: cannot list projects',
+        ),
       );
     });
 
@@ -839,8 +862,14 @@ void main() {
 
         controller.setActiveTab(workspaceId: workspace.id, tabId: firstTab.id);
         expect(controller.state.activeWorkspaceId, workspace.id);
-        expect(controller.state.activeTabIdByWorkspace[workspace.id], firstTab.id);
-        expect(controller.state.layoutFor(workspace.id)?.activeTabId, firstTab.id);
+        expect(
+          controller.state.activeTabIdByWorkspace[workspace.id],
+          firstTab.id,
+        );
+        expect(
+          controller.state.layoutFor(workspace.id)?.activeTabId,
+          firstTab.id,
+        );
 
         final groupId = controller.state
             .layoutFor(workspace.id)!
@@ -907,14 +936,19 @@ void main() {
         name: 'Added repo',
       );
       await _flushUntil(
-        () => controller.state.projects.any((project) => project.id == localProject.id),
+        () => controller.state.projects.any(
+          (project) => project.id == localProject.id,
+        ),
       );
       await _flushUntil(
         () => controller.state.workspacesFor(localProject.id).isNotEmpty,
       );
 
       expect(controller.state.activeProjectId, localProject.id);
-      expect(controller.state.workspacesFor(localProject.id).single.isMain, isTrue);
+      expect(
+        controller.state.workspacesFor(localProject.id).single.isMain,
+        isTrue,
+      );
 
       harness.processRunner.createGitClone = true;
       final cloneDestination = p.join(harness.tempDir.path, 'repo-cloned');
@@ -924,97 +958,114 @@ void main() {
         name: 'Cloned repo',
       );
       await _flushUntil(
-        () => controller.state.projects.any((project) => project.id == clonedProject.id),
+        () => controller.state.projects.any(
+          (project) => project.id == clonedProject.id,
+        ),
       );
       await _flushUntil(
         () => controller.state.workspacesFor(clonedProject.id).isNotEmpty,
       );
 
       expect(controller.state.activeProjectId, clonedProject.id);
-      expect(controller.state.workspacesFor(clonedProject.id).single.isMain, isTrue);
-    });
-
-    test('project and workspace toggle helpers cover removal branches', () async {
-      await controller.bootstrap();
-      final workspace = await _selectMainWorkspace(controller, harness);
-
-      controller.toggleProjectCollapsed(harness.project.id);
       expect(
-        controller.state.viewPrefs.collapsedProjectIds,
-        contains(harness.project.id),
-      );
-      controller.toggleProjectCollapsed(harness.project.id);
-      expect(
-        controller.state.viewPrefs.collapsedProjectIds,
-        isNot(contains(harness.project.id)),
-      );
-
-      controller.toggleProjectFilter(harness.project.id);
-      expect(
-        controller.state.viewPrefs.selectedProjectIds,
-        contains(harness.project.id),
-      );
-      controller.removeProjectFilter(harness.project.id);
-      expect(controller.state.viewPrefs.selectedProjectIds, isEmpty);
-
-      controller.setWorkspaceExpanded(workspace.id, false);
-      expect(
-        controller.state.viewPrefs.expandedWorkspaceIds,
-        isNot(contains(workspace.id)),
-      );
-      controller.setWorkspaceExpanded(workspace.id, true);
-      expect(
-        controller.state.viewPrefs.expandedWorkspaceIds,
-        contains(workspace.id),
-      );
-      controller.toggleWorkspaceExpanded(workspace.id);
-      expect(
-        controller.state.viewPrefs.expandedWorkspaceIds,
-        isNot(contains(workspace.id)),
-      );
-    });
-
-    test('removing a project prunes its workspaces, tabs, and selections', () async {
-      await controller.bootstrap();
-      final secondProject = await harness.addProject('project-2', 'Beta');
-      await _flushUntil(
-        () => controller.state.workspacesFor(secondProject.id).isNotEmpty,
-      );
-
-      final secondWorkspace = controller.state.workspacesFor(secondProject.id).single;
-      await controller.selectWorkspace(
-        project: secondProject,
-        workspace: secondWorkspace,
-      );
-      await _flush();
-
-      expect(controller.state.tabsFor(secondWorkspace.id), isNotEmpty);
-      expect(
-        controller.state.activeTabIdByWorkspace.containsKey(secondWorkspace.id),
+        controller.state.workspacesFor(clonedProject.id).single.isMain,
         isTrue,
       );
-
-      await controller.removeProject(secondProject.id);
-      await _flush();
-
-      expect(
-        controller.state.projects.map((project) => project.id),
-        isNot(contains(secondProject.id)),
-      );
-      expect(
-        controller.state.workspacesByProject.containsKey(secondProject.id),
-        isFalse,
-      );
-      expect(
-        controller.state.tabsByWorkspace.containsKey(secondWorkspace.id),
-        isFalse,
-      );
-      expect(
-        controller.state.activeTabIdByWorkspace.containsKey(secondWorkspace.id),
-        isFalse,
-      );
-      expect(controller.state.error, isNull);
     });
+
+    test(
+      'project and workspace toggle helpers cover removal branches',
+      () async {
+        await controller.bootstrap();
+        final workspace = await _selectMainWorkspace(controller, harness);
+
+        controller.toggleProjectCollapsed(harness.project.id);
+        expect(
+          controller.state.viewPrefs.collapsedProjectIds,
+          contains(harness.project.id),
+        );
+        controller.toggleProjectCollapsed(harness.project.id);
+        expect(
+          controller.state.viewPrefs.collapsedProjectIds,
+          isNot(contains(harness.project.id)),
+        );
+
+        controller.toggleProjectFilter(harness.project.id);
+        expect(
+          controller.state.viewPrefs.selectedProjectIds,
+          contains(harness.project.id),
+        );
+        controller.removeProjectFilter(harness.project.id);
+        expect(controller.state.viewPrefs.selectedProjectIds, isEmpty);
+
+        controller.setWorkspaceExpanded(workspace.id, false);
+        expect(
+          controller.state.viewPrefs.expandedWorkspaceIds,
+          isNot(contains(workspace.id)),
+        );
+        controller.setWorkspaceExpanded(workspace.id, true);
+        expect(
+          controller.state.viewPrefs.expandedWorkspaceIds,
+          contains(workspace.id),
+        );
+        controller.toggleWorkspaceExpanded(workspace.id);
+        expect(
+          controller.state.viewPrefs.expandedWorkspaceIds,
+          isNot(contains(workspace.id)),
+        );
+      },
+    );
+
+    test(
+      'removing a project prunes its workspaces, tabs, and selections',
+      () async {
+        await controller.bootstrap();
+        final secondProject = await harness.addProject('project-2', 'Beta');
+        await _flushUntil(
+          () => controller.state.workspacesFor(secondProject.id).isNotEmpty,
+        );
+
+        final secondWorkspace = controller.state
+            .workspacesFor(secondProject.id)
+            .single;
+        await controller.selectWorkspace(
+          project: secondProject,
+          workspace: secondWorkspace,
+        );
+        await _flush();
+
+        expect(controller.state.tabsFor(secondWorkspace.id), isNotEmpty);
+        expect(
+          controller.state.activeTabIdByWorkspace.containsKey(
+            secondWorkspace.id,
+          ),
+          isTrue,
+        );
+
+        await controller.removeProject(secondProject.id);
+        await _flush();
+
+        expect(
+          controller.state.projects.map((project) => project.id),
+          isNot(contains(secondProject.id)),
+        );
+        expect(
+          controller.state.workspacesByProject.containsKey(secondProject.id),
+          isFalse,
+        );
+        expect(
+          controller.state.tabsByWorkspace.containsKey(secondWorkspace.id),
+          isFalse,
+        );
+        expect(
+          controller.state.activeTabIdByWorkspace.containsKey(
+            secondWorkspace.id,
+          ),
+          isFalse,
+        );
+        expect(controller.state.error, isNull);
+      },
+    );
 
     test('bootstrap surfaces workspace preparation failures', () async {
       harness.workbenchRepository.upsertWorkspaceError = StateError(
@@ -1030,79 +1081,91 @@ void main() {
       );
     });
 
-    test('reactivating an existing project clears stale collapsed prefs', () async {
-      await controller.bootstrap();
-      final secondProject = await harness.addProject('project-2', 'Beta');
-      await _flushUntil(
-        () => controller.state.projects.any((project) => project.id == secondProject.id),
-      );
+    test(
+      'reactivating an existing project clears stale collapsed prefs',
+      () async {
+        await controller.bootstrap();
+        final secondProject = await harness.addProject('project-2', 'Beta');
+        await _flushUntil(
+          () => controller.state.projects.any(
+            (project) => project.id == secondProject.id,
+          ),
+        );
 
-      controller.state = controller.state.copyWith(
-        viewPrefs: controller.state.viewPrefs.copyWith(
-          collapsedProjectIds: <String>{secondProject.id},
-        ),
-      );
+        controller.state = controller.state.copyWith(
+          viewPrefs: controller.state.viewPrefs.copyWith(
+            collapsedProjectIds: <String>{secondProject.id},
+          ),
+        );
 
-      final project = await controller.addProject(repoPath: secondProject.repoPath);
-      await _flush();
+        final project = await controller.addProject(
+          repoPath: secondProject.repoPath,
+        );
+        await _flush();
 
-      expect(project.id, secondProject.id);
-      expect(
-        controller.state.viewPrefs.collapsedProjectIds,
-        isNot(contains(secondProject.id)),
-      );
-      expect(
-        harness.viewPrefsRepository.prefs.collapsedProjectIds,
-        isNot(contains(secondProject.id)),
-      );
-    });
+        expect(project.id, secondProject.id);
+        expect(
+          controller.state.viewPrefs.collapsedProjectIds,
+          isNot(contains(secondProject.id)),
+        );
+        expect(
+          harness.viewPrefsRepository.prefs.collapsedProjectIds,
+          isNot(contains(secondProject.id)),
+        );
+      },
+    );
 
-    test('workspace watchers recover invalid selections and surface layout load failures', () async {
-      await controller.bootstrap();
-      final workspace = await _selectMainWorkspace(controller, harness);
-      final secondProject = await harness.addProject('project-2', 'Beta');
-      await _flushUntil(
-        () => controller.state.workspacesFor(secondProject.id).isNotEmpty,
-      );
-      final secondWorkspace = controller.state.workspacesFor(secondProject.id).single;
+    test(
+      'workspace watchers recover invalid selections and surface layout load failures',
+      () async {
+        await controller.bootstrap();
+        final workspace = await _selectMainWorkspace(controller, harness);
+        final secondProject = await harness.addProject('project-2', 'Beta');
+        await _flushUntil(
+          () => controller.state.workspacesFor(secondProject.id).isNotEmpty,
+        );
+        final secondWorkspace = controller.state
+            .workspacesFor(secondProject.id)
+            .single;
 
-      controller.state = controller.state.copyWith(
-        activeProjectId: 'missing-project',
-        activeWorkspaceId: secondWorkspace.id,
-      );
-      await harness.workbenchRepository.upsertWorkspace(
-        secondWorkspace.copyWith(updatedAt: DateTime.utc(2026, 5, 23)),
-      );
-      await _flush();
+        controller.state = controller.state.copyWith(
+          activeProjectId: 'missing-project',
+          activeWorkspaceId: secondWorkspace.id,
+        );
+        await harness.workbenchRepository.upsertWorkspace(
+          secondWorkspace.copyWith(updatedAt: DateTime.utc(2026, 5, 23)),
+        );
+        await _flush();
 
-      expect(controller.state.activeProjectId, secondProject.id);
+        expect(controller.state.activeProjectId, secondProject.id);
 
-      controller.state = controller.state.copyWith(
-        activeProjectId: null,
-        activeWorkspaceId: secondWorkspace.id,
-      );
-      await harness.workbenchRepository.upsertWorkspace(
-        secondWorkspace.copyWith(updatedAt: DateTime.utc(2026, 5, 24)),
-      );
-      await _flush();
+        controller.state = controller.state.copyWith(
+          activeProjectId: null,
+          activeWorkspaceId: secondWorkspace.id,
+        );
+        await harness.workbenchRepository.upsertWorkspace(
+          secondWorkspace.copyWith(updatedAt: DateTime.utc(2026, 5, 24)),
+        );
+        await _flush();
 
-      expect(controller.state.activeWorkspaceId, secondWorkspace.id);
+        expect(controller.state.activeWorkspaceId, secondWorkspace.id);
 
-      controller.state = controller.state.copyWith(
-        activeProjectId: workspace.projectId,
-        activeWorkspaceId: workspace.id,
-        layoutByWorkspace: <String, WorkbenchLayout>{},
-      );
-      harness.workbenchRepository.upsertWorkbenchLayoutError = StateError(
-        'bad layout',
-      );
-      harness.workbenchRepository.emitTabs(workspace.id);
-      await _flushUntil(() => controller.state.error != null);
-      harness.workbenchRepository.upsertWorkbenchLayoutError = null;
+        controller.state = controller.state.copyWith(
+          activeProjectId: workspace.projectId,
+          activeWorkspaceId: workspace.id,
+          layoutByWorkspace: <String, WorkbenchLayout>{},
+        );
+        harness.workbenchRepository.upsertWorkbenchLayoutError = StateError(
+          'bad layout',
+        );
+        harness.workbenchRepository.emitTabs(workspace.id);
+        await _flushUntil(() => controller.state.error != null);
+        harness.workbenchRepository.upsertWorkbenchLayoutError = null;
 
-      expect(controller.state.error, contains('bad layout'));
-      expect(controller.state.activeWorkspaceId, workspace.id);
-    });
+        expect(controller.state.error, contains('bad layout'));
+        expect(controller.state.activeWorkspaceId, workspace.id);
+      },
+    );
 
     test('tab operations fall back when no layout exists', () async {
       await controller.bootstrap();

@@ -244,6 +244,46 @@ void main() {
       expect(updatedRatios.single.ratio, greaterThan(0.5));
     });
 
+    testWidgets('split handles track hover and cancelled drags', (
+      tester,
+    ) async {
+      final tabs = <WorkspaceTabRecord>[
+        _tab('tab-1', title: 'Terminal 1'),
+        _tab('tab-2', title: 'Terminal 2'),
+      ];
+
+      await _pumpWorkbenchView(
+        tester,
+        tabs: tabs,
+        terminalRuntime: terminalRuntime,
+        layout: _splitLayout(firstTabId: tabs[0].id, secondTabId: tabs[1].id),
+        createdTabs: createdTabs,
+        selectedTabs: selectedTabs,
+        closedTabs: closedTabs,
+        closedTabGroups: closedTabGroups,
+        renamedTabs: renamedTabs,
+        movedTabs: movedTabs,
+        splitGroups: splitGroups,
+        mergedGroups: mergedGroups,
+        updatedRatios: updatedRatios,
+      );
+
+      final handlePoint = tester.getCenter(find.byType(WorkspaceWorkbenchView));
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      addTearDown(mouse.removePointer);
+      await mouse.addPointer(location: handlePoint);
+      await tester.pump();
+      await mouse.moveTo(const Offset(1, 1));
+      await tester.pump();
+
+      final drag = await tester.startGesture(handlePoint);
+      await tester.pump();
+      await drag.cancel();
+      await tester.pump();
+
+      expect(updatedRatios, isEmpty);
+    });
+
     testWidgets('dragging a tab across panes invokes the move callback', (
       tester,
     ) async {
@@ -269,7 +309,9 @@ void main() {
         size: const Size(620, 320),
       );
 
-      final draggableTabs = find.byWidgetPredicate((widget) => widget is Draggable);
+      final draggableTabs = find.byWidgetPredicate(
+        (widget) => widget is Draggable,
+      );
       final dragStart =
           tester.getTopLeft(draggableTabs.at(1)) + const Offset(24, 16);
       final leftPaneRect = tester.getRect(
@@ -554,7 +596,9 @@ void main() {
       expect(closedTabs, <String>['tab-2']);
     });
 
-    testWidgets('active-tab fallback picks the first available tab', (tester) async {
+    testWidgets('active-tab fallback picks the first available tab', (
+      tester,
+    ) async {
       final tabs = <WorkspaceTabRecord>[
         _tab('tab-1', title: 'Terminal 1'),
         _tab('tab-2', title: 'Terminal 2'),
@@ -587,12 +631,21 @@ void main() {
         updatedRatios: updatedRatios,
       );
 
-      expect(find.byKey(const ValueKey<String>('terminal-tab-1')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('terminal-tab-1')),
+        findsOneWidget,
+      );
       expect(terminalRuntime.requestedTabIds, contains('tab-1'));
     });
 
-    testWidgets('browser tabs use the browser icon in the chip', (tester) async {
-      final tab = _tab('tab-1', title: 'Browser', kind: WorkspaceTabKind.browser);
+    testWidgets('browser tabs use the browser icon in the chip', (
+      tester,
+    ) async {
+      final tab = _tab(
+        'tab-1',
+        title: 'Browser',
+        kind: WorkspaceTabKind.browser,
+      );
 
       await _pumpWorkbenchView(
         tester,
@@ -765,7 +818,6 @@ WorkbenchLayout _splitLayout({
     activeGroupId: 'group-a',
   );
 }
-
 
 class _FakeTerminalRuntime implements TerminalRuntime {
   final Map<String, _FakeTerminalSessionHandle> _sessions =

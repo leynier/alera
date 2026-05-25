@@ -102,6 +102,27 @@ void main() {
       },
     );
 
+    test('removes one workspace and its tabs by default', () async {
+      final db = AleraDatabase(executor: NativeDatabase.memory());
+      addTearDown(db.close);
+      final repository = DriftWorkbenchRepository(db);
+      final now = DateTime.utc(2026, 5, 25, 12);
+      final workspace = _workspace(
+        id: 'workspace-1',
+        projectId: 'project-1',
+        now: now,
+      );
+      final tab = _tab(id: 'tab-1', workspaceId: workspace.id, now: now);
+
+      await repository.upsertWorkspace(workspace);
+      await repository.upsertWorkspaceTab(tab);
+
+      await repository.removeWorkspace(workspace.id);
+
+      expect(await repository.findWorkspaceById(workspace.id), isNull);
+      expect(await repository.findWorkspaceTabById(tab.id), isNull);
+    });
+
     test(
       'round-trips workspace tabs and normalizes invalid payload json',
       () async {
@@ -274,6 +295,36 @@ void main() {
       expect(
         await repository.findWorkbenchLayout(otherWorkspace.id),
         isNotNull,
+      );
+    });
+
+    test('sorts linked workspaces by name when createdAt ties', () async {
+      final db = AleraDatabase(executor: NativeDatabase.memory());
+      addTearDown(db.close);
+      final repository = DriftWorkbenchRepository(db);
+      final now = DateTime.utc(2026, 5, 25, 12);
+      final zebra = _workspace(
+        id: 'workspace-zebra',
+        projectId: 'project-1',
+        now: now,
+        kind: WorkspaceKind.linked,
+        branch: 'feature/zebra',
+      ).copyWith(name: 'zebra');
+      final alpha = _workspace(
+        id: 'workspace-alpha',
+        projectId: 'project-1',
+        now: now,
+        kind: WorkspaceKind.linked,
+        branch: 'feature/alpha',
+      ).copyWith(name: 'alpha');
+
+      await repository.upsertWorkspace(zebra);
+      await repository.upsertWorkspace(alpha);
+
+      expect(
+        (await repository.listWorkspaces('project-1'))
+            .map((workspace) => workspace.name),
+        <String>['alpha', 'zebra'],
       );
     });
   });

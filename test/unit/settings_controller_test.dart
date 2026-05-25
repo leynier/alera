@@ -157,5 +157,25 @@ void main() {
         isTrue,
       );
     });
+
+    test('markStarClicked persists once and becomes a no-op afterward', () async {
+      final db = AleraDatabase(executor: NativeDatabase.memory());
+      addTearDown(db.close);
+      final repository = DriftSettingsRepository(db);
+      final container = ProviderContainer(
+        overrides: [settingsRepositoryProvider.overrideWithValue(repository)],
+      );
+      addTearDown(container.dispose);
+      final controller = container.read(settingsControllerProvider.notifier);
+      await controller.load();
+
+      await controller.markStarClicked();
+      final firstRestore = await repository.load();
+      expect(firstRestore.general.starClicked, isTrue);
+
+      await controller.markStarClicked();
+      final secondRestore = await repository.load();
+      expect(secondRestore.general.starClicked, isTrue);
+    });
   });
 }

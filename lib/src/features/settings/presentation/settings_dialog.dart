@@ -340,11 +340,7 @@ List<String> _mergeFontSuggestions(List<String> fonts) {
     ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
 }
 
-List<String> _filterOrdered(
-  Iterable<String> values,
-  String query, {
-  int? limit,
-}) {
+List<String> _filterOrdered(Iterable<String> values, String query) {
   final normalized = query.trim().toLowerCase();
   final matches = normalized.isEmpty
       ? values.toList(growable: false)
@@ -357,10 +353,7 @@ List<String> _filterOrdered(
             return !lower.startsWith(normalized) && lower.contains(normalized);
           }),
         ];
-  if (limit == null || matches.length <= limit) {
-    return matches;
-  }
-  return matches.take(limit).toList(growable: false);
+  return matches;
 }
 
 class _SettingsSidebar extends StatelessWidget {
@@ -1101,7 +1094,6 @@ class _TerminalSettingsPane extends StatelessWidget {
               title: 'Word separators',
               description: 'Characters that break double-click word selection.',
               value: settings.wordSeparators ?? '',
-              allowEmpty: true,
               trimValue: false,
               hintText: " ()[]{},\"'`",
               onChanged: (value) => onChanged(
@@ -1169,7 +1161,6 @@ class _TextSettingRow extends StatefulWidget {
     required this.description,
     required this.value,
     required this.onChanged,
-    this.allowEmpty = false,
     this.hintText,
     this.trimValue = true,
   });
@@ -1178,7 +1169,6 @@ class _TextSettingRow extends StatefulWidget {
   final String description;
   final String value;
   final ValueChanged<String> onChanged;
-  final bool allowEmpty;
   final String? hintText;
   final bool trimValue;
 
@@ -1211,10 +1201,6 @@ class _TextSettingRowState extends State<_TextSettingRow> {
 
   void _commit() {
     final value = widget.trimValue ? _controller.text.trim() : _controller.text;
-    if (value.isEmpty && !widget.allowEmpty) {
-      _controller.text = widget.value;
-      return;
-    }
     if (value != widget.value) {
       widget.onChanged(value);
     }
@@ -1628,11 +1614,7 @@ class _ThemePickerSettingState extends State<_ThemePickerSetting> {
   }
 
   List<TerminalThemeEntry> get _filteredThemes {
-    final names = _filterOrdered(
-      terminalThemeNames,
-      _controller.text,
-      limit: terminalThemeNames.length,
-    );
+    final names = _filterOrdered(terminalThemeNames, _controller.text);
     return names
         .map(terminalThemeEntryForName)
         .whereType<TerminalThemeEntry>()

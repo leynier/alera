@@ -18,113 +18,168 @@ import 'package:alera/src/shared/infra/uri/external_uri_launcher.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
+import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 void main() {
   group('app providers', () {
-    test('workspaceServiceProvider uses the configured workspace root override', () async {
-      final processRunner = _FakeProcessRunner();
-      final repository = _FakeWorkbenchRepository();
-      final repoDir = Directory.systemTemp.createTempSync('alera-provider-repo');
-      final repoPath = repoDir.path;
-      addTearDown(() => repoDir.deleteSync(recursive: true));
+    test(
+      'workspaceServiceProvider uses the configured workspace root override',
+      () async {
+        final processRunner = _FakeProcessRunner();
+        final repository = _FakeWorkbenchRepository();
+        final repoDir = Directory.systemTemp.createTempSync(
+          'alera-provider-repo',
+        );
+        final repoPath = repoDir.path;
+        addTearDown(() => repoDir.deleteSync(recursive: true));
 
-      final project = _project(id: 'project-1', path: repoPath);
-      final workspaceRoot = Directory.systemTemp.createTempSync('alera-provider-root').path;
-      addTearDown(() => Directory(workspaceRoot).deleteSync(recursive: true));
+        final project = _project(id: 'project-1', path: repoPath);
+        final workspaceRoot = Directory.systemTemp
+            .createTempSync('alera-provider-root')
+            .path;
+        addTearDown(() => Directory(workspaceRoot).deleteSync(recursive: true));
 
-      final container = ProviderContainer(
-        overrides: [
-          settingsControllerProvider.overrideWithValue(
-            AleraSettings.defaults.copyWith(
-              general: AleraSettings.defaults.general.copyWith(
-                workspaceDirectory: workspaceRoot,
+        final container = ProviderContainer(
+          overrides: [
+            settingsControllerProvider.overrideWithValue(
+              AleraSettings.defaults.copyWith(
+                general: AleraSettings.defaults.general.copyWith(
+                  workspaceDirectory: workspaceRoot,
+                ),
               ),
             ),
+            workbenchRepositoryProvider.overrideWithValue(repository),
+            processRunnerProvider.overrideWithValue(processRunner),
+            projectServiceProvider.overrideWithValue(
+              ProjectService(processRunner),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        final service = container.read(workspaceServiceProvider);
+        final workspace = await service.createLinkedWorkspace(
+          project: project,
+          sourceBranch: 'main',
+          newBranchName: 'feature/coverage',
+        );
+
+        expect(
+          workspace.path,
+          p.join(
+            workspaceRoot,
+            '${_slugSegment(p.basename(repoPath))}-project-1',
+            'feature-coverage',
           ),
-          workbenchRepositoryProvider.overrideWithValue(repository),
-          processRunnerProvider.overrideWithValue(processRunner),
-          projectServiceProvider.overrideWithValue(ProjectService(processRunner)),
-        ],
-      );
-      addTearDown(container.dispose);
+        );
+        expect(repository.workspaces.single.path, workspace.path);
+        expect(
+          processRunner.calls.any(
+            (call) =>
+                call.workingDirectory == repoPath &&
+                call.arguments.length >= 5 &&
+                call.arguments[0] == 'worktree' &&
+                call.arguments[1] == 'add' &&
+                call.arguments[4] == workspace.path,
+          ),
+          isTrue,
+        );
+      },
+    );
 
-      final service = container.read(workspaceServiceProvider);
-      final workspace = await service.createLinkedWorkspace(
-        project: project,
-        sourceBranch: 'main',
-        newBranchName: 'feature/coverage',
-      );
+    test(
+      'terminalRuntimeProvider listens to terminal settings changes',
+      () async {
+        final settingsController = _TestSettingsController(
+          AleraSettings.defaults,
+        );
+        final container = ProviderContainer(
+          overrides: [
+            settingsControllerProvider.overrideWith(() => settingsController),
+            externalUriLauncherProvider.overrideWithValue(
+              _FakeExternalUriLauncher(),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
 
-      expect(
-        workspace.path,
-        p.join(
-          workspaceRoot,
-          '${_slugSegment(p.basename(repoPath))}-project-1',
-          'feature-coverage',
-        ),
-      );
-      expect(repository.workspaces.single.path, workspace.path);
-      expect(
-        processRunner.calls.any(
-          (call) =>
-              call.workingDirectory == repoPath &&
-              call.arguments.length >= 5 &&
-              call.arguments[0] == 'worktree' &&
-              call.arguments[1] == 'add' &&
-              call.arguments[4] == workspace.path,
-        ),
-        isTrue,
-      );
-    });
+        final runtime = container.read(terminalRuntimeProvider);
+        final updatedTerminal = settingsController.state.terminal.copyWith(
+          fontSize: settingsController.state.terminal.fontSize + 1,
+        );
 
-    test('terminalRuntimeProvider listens to terminal settings changes', () async {
-      final settingsController = _TestSettingsController(AleraSettings.defaults);
-      final container = ProviderContainer(
-        overrides: [
-          settingsControllerProvider.overrideWith(() => settingsController),
-          externalUriLauncherProvider.overrideWithValue(_FakeExternalUriLauncher()),
-        ],
-      );
-      addTearDown(container.dispose);
+        settingsController.setState(
+          settingsController.state.copyWith(terminal: updatedTerminal),
+        );
+        await Future<void>.delayed(Duration.zero);
 
-      final runtime = container.read(terminalRuntimeProvider);
-      final updatedTerminal = settingsController.state.terminal.copyWith(
-        fontSize: settingsController.state.terminal.fontSize + 1,
-      );
+        expect(container.read(terminalRuntimeProvider), same(runtime));
+      },
+    );
 
-      settingsController.setState(
-        settingsController.state.copyWith(terminal: updatedTerminal),
-      );
-      await Future<void>.delayed(Duration.zero);
+    test(
+      'exit coordinator closes runtime tabs when the workspace is missing',
+      () async {
+        final runtime = _FakeTerminalRuntime();
+        final container = ProviderContainer(
+          overrides: [
+            terminalRuntimeProvider.overrideWith((ref) => runtime),
+            workbenchControllerProvider.overrideWithValue(
+              const WorkbenchState(),
+            ),
+          ],
+        );
+        addTearDown(() {
+          runtime.dispose();
+          container.dispose();
+        });
 
-      expect(container.read(terminalRuntimeProvider), same(runtime));
-    });
+        container.read(terminalRuntimeExitCoordinatorProvider);
+        runtime.emitExit(
+          const TerminalRuntimeExitEvent(
+            workspaceId: 'workspace-missing',
+            tabId: 'tab-1',
+            exitCode: 0,
+          ),
+        );
+        await Future<void>.delayed(Duration.zero);
 
-    test('exit coordinator closes runtime tabs when the workspace is missing', () async {
-      final runtime = _FakeTerminalRuntime();
-      final container = ProviderContainer(
-        overrides: [
-          terminalRuntimeProvider.overrideWith((ref) => runtime),
-          workbenchControllerProvider.overrideWithValue(const WorkbenchState()),
-        ],
-      );
-      addTearDown(() {
-        runtime.dispose();
+        expect(runtime.closedTabIds, <String>['tab-1']);
+      },
+    );
+
+    test(
+      'database and launcher providers create disposable concrete implementations',
+      () async {
+        final tempDir = await Directory.systemTemp.createTemp(
+          'alera-app-providers-',
+        );
+        addTearDown(() async {
+          if (await tempDir.exists()) {
+            await tempDir.delete(recursive: true);
+          }
+        });
+        final previousPlatform = PathProviderPlatform.instance;
+        PathProviderPlatform.instance = _FakePathProviderPlatform(tempDir.path);
+        addTearDown(() => PathProviderPlatform.instance = previousPlatform);
+
+        final container = ProviderContainer();
+        final db = await container.read(aleraDatabaseProvider.future);
+
+        expect(
+          container.read(externalUriLauncherProvider),
+          isA<UrlLauncherExternalUriLauncher>(),
+        );
+        expect(
+          await db.customSelect('SELECT 1 AS value').getSingle(),
+          isNotNull,
+        );
+
         container.dispose();
-      });
-
-      container.read(terminalRuntimeExitCoordinatorProvider);
-      runtime.emitExit(
-        const TerminalRuntimeExitEvent(
-          workspaceId: 'workspace-missing',
-          tabId: 'tab-1',
-          exitCode: 0,
-        ),
-      );
-      await Future<void>.delayed(Duration.zero);
-
-      expect(runtime.closedTabIds, <String>['tab-1']);
-    });
+        await Future<void>.delayed(Duration.zero);
+      },
+    );
   });
 }
 
@@ -195,7 +250,9 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
 
   @override
   Future<List<WorkspaceTabRecord>> listWorkspaceTabs(String workspaceId) async {
-    return tabs.where((tab) => tab.workspaceId == workspaceId).toList(growable: false);
+    return tabs
+        .where((tab) => tab.workspaceId == workspaceId)
+        .toList(growable: false);
   }
 
   @override
@@ -216,7 +273,10 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
   }
 
   @override
-  Future<void> removeWorkspace(String workspaceId, {bool cascadeTabs = true}) async {
+  Future<void> removeWorkspace(
+    String workspaceId, {
+    bool cascadeTabs = true,
+  }) async {
     workspaces.removeWhere((workspace) => workspace.id == workspaceId);
     if (cascadeTabs) {
       await removeWorkspaceTabsForWorkspace(workspaceId);
@@ -386,4 +446,14 @@ class _FakeTerminalRuntime implements TerminalRuntime {
   }) {
     throw UnimplementedError();
   }
+}
+
+class _FakePathProviderPlatform extends PathProviderPlatform
+    with MockPlatformInterfaceMixin {
+  _FakePathProviderPlatform(this.applicationSupportPath);
+
+  final String applicationSupportPath;
+
+  @override
+  Future<String?> getApplicationSupportPath() async => applicationSupportPath;
 }

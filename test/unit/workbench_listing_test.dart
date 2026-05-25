@@ -25,6 +25,7 @@ Workspace _workspace(
   String branch, {
   WorkspaceKind kind = WorkspaceKind.linked,
   int recencyOffset = 0,
+  String? sourceBranch,
 }) {
   return Workspace(
     id: id,
@@ -36,6 +37,7 @@ Workspace _workspace(
     updatedAt: _t0.add(Duration(days: recencyOffset)),
     kind: kind,
     status: WorkspaceStatus.active,
+    sourceBranch: sourceBranch,
   );
 }
 
@@ -83,6 +85,7 @@ WorkbenchState _fixtureState({
     'feature',
     'feature/x',
     recencyOffset: 4,
+    sourceBranch: 'main',
   );
   final orcaMain = _workspace(
     'w-orca-main',
@@ -187,6 +190,83 @@ void main() {
       expect(headers.first.project.name, 'orca');
       expect(headers.last.project.name, 'alera');
     });
+
+    test('search can match a workspace source branch', () {
+      final rows = buildSidebarRows(_fixtureState(searchQuery: 'main'));
+      final workspaces = rows.whereType<WorkbenchWorkspaceRow>().toList();
+
+      expect(
+        workspaces.any((row) => row.workspace.id == 'w-alera-feature'),
+        isTrue,
+      );
+    });
+
+    test('name sort compares linked workspaces alphabetically', () {
+      final project = _project('p-alpha', 'alpha');
+      final zebra = _workspace('w-zebra', project.id, 'zebra', 'z');
+      final beta = _workspace('w-beta', project.id, 'beta', 'b');
+      final state = WorkbenchState(
+        projects: <Project>[project],
+        workspacesByProject: <String, List<Workspace>>{
+          project.id: <Workspace>[zebra, beta],
+        },
+        viewPrefs: WorkbenchViewPrefs.defaults,
+        bootstrapped: true,
+      );
+
+      final rows = buildSidebarRows(state);
+      final names = rows
+          .whereType<WorkbenchWorkspaceRow>()
+          .map((row) => row.workspace.name)
+          .toList();
+
+      expect(names, <String>['beta', 'zebra']);
+    });
+
+    test('recent workspace sort keeps main pinned and sorts linked workspaces', () {
+      final prefs = WorkbenchViewPrefs.defaults.copyWith(
+        workspaceSort: WorkbenchSortBy.recent,
+      );
+      final project = _project('p-alpha', 'alpha');
+      final main = _workspace(
+        'w-main',
+        project.id,
+        'Main',
+        'main',
+        kind: WorkspaceKind.main,
+        recencyOffset: 0,
+      );
+      final stale = _workspace(
+        'w-stale',
+        project.id,
+        'stale',
+        'feature/stale',
+        recencyOffset: 1,
+      );
+      final fresh = _workspace(
+        'w-fresh',
+        project.id,
+        'fresh',
+        'feature/fresh',
+        recencyOffset: 3,
+      );
+      final state = WorkbenchState(
+        projects: <Project>[project],
+        workspacesByProject: <String, List<Workspace>>{
+          project.id: <Workspace>[main, stale, fresh],
+        },
+        viewPrefs: prefs,
+        bootstrapped: true,
+      );
+
+      final rows = buildSidebarRows(state);
+      final ids = rows
+          .whereType<WorkbenchWorkspaceRow>()
+          .map((row) => row.workspace.id)
+          .toList();
+
+      expect(ids, <String>['w-main', 'w-fresh', 'w-stale']);
+    });
   });
 
   group('buildSidebarRows · group by none', () {
@@ -281,6 +361,10 @@ void main() {
 
     test('respects search', () {
       expect(countVisibleWorkspaces(_fixtureState(searchQuery: 'feature')), 1);
+    });
+
+    test('search also counts source-branch matches', () {
+      expect(countVisibleWorkspaces(_fixtureState(searchQuery: 'main')), 3);
     });
   });
 }

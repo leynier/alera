@@ -97,16 +97,18 @@ class WorkspaceFolderOpener {
 }
 
 WorkspaceFolderPlatform currentWorkspaceFolderPlatform() {
-  if (Platform.isMacOS) {
-    return WorkspaceFolderPlatform.macos;
-  }
-  if (Platform.isWindows) {
-    return WorkspaceFolderPlatform.windows;
-  }
-  if (Platform.isLinux) {
-    return WorkspaceFolderPlatform.linux;
-  }
-  return WorkspaceFolderPlatform.other;
+  return workspaceFolderPlatformForOperatingSystem(Platform.operatingSystem);
+}
+
+WorkspaceFolderPlatform workspaceFolderPlatformForOperatingSystem(
+  String operatingSystem,
+) {
+  return switch (operatingSystem) {
+    'macos' => WorkspaceFolderPlatform.macos,
+    'windows' => WorkspaceFolderPlatform.windows,
+    'linux' => WorkspaceFolderPlatform.linux,
+    _ => WorkspaceFolderPlatform.other,
+  };
 }
 
 class _WorkspaceFolderOpenCommand {

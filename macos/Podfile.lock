@@ -1,21 +1,45 @@
 PODS:
   - cryptography_flutter_plus (0.2.0):
     - FlutterMacOS
+  - desktop_updater (0.0.1):
+    - FlutterMacOS
+  - file_selector_macos (0.0.1):
+    - FlutterMacOS
   - FlutterMacOS (1.0.0)
+  - package_info_plus (0.0.1):
+    - FlutterMacOS
+  - url_launcher_macos (0.0.1):
+    - FlutterMacOS
 
 DEPENDENCIES:
   - cryptography_flutter_plus (from `Flutter/ephemeral/.symlinks/plugins/cryptography_flutter_plus/macos`)
+  - desktop_updater (from `Flutter/ephemeral/.symlinks/plugins/desktop_updater/macos`)
+  - file_selector_macos (from `Flutter/ephemeral/.symlinks/plugins/file_selector_macos/macos`)
   - FlutterMacOS (from `Flutter/ephemeral`)
+  - package_info_plus (from `Flutter/ephemeral/.symlinks/plugins/package_info_plus/macos`)
+  - url_launcher_macos (from `Flutter/ephemeral/.symlinks/plugins/url_launcher_macos/macos`)
 
 EXTERNAL SOURCES:
   cryptography_flutter_plus:
     :path: Flutter/ephemeral/.symlinks/plugins/cryptography_flutter_plus/macos
+  desktop_updater:
+    :path: Flutter/ephemeral/.symlinks/plugins/desktop_updater/macos
+  file_selector_macos:
+    :path: Flutter/ephemeral/.symlinks/plugins/file_selector_macos/macos
   FlutterMacOS:
     :path: Flutter/ephemeral
+  package_info_plus:
+    :path: Flutter/ephemeral/.symlinks/plugins/package_info_plus/macos
+  url_launcher_macos:
+    :path: Flutter/ephemeral/.symlinks/plugins/url_launcher_macos/macos
 
 SPEC CHECKSUMS:
   cryptography_flutter_plus: b790cf76f050be15566d4ae320574b35cff72d1e
+  desktop_updater: c6cadea9a19511e0b0630183a58e949ad8f99031
+  file_selector_macos: 3e56eaea051180007b900eacb006686fd54da150
   FlutterMacOS: d0db08ddef1a9af05a5ec4b724367152bb0500b1
+  package_info_plus: 12f1c5c2cfe8727ca46cbd0b26677728972d9a5b
+  url_launcher_macos: 175a54c831f4375a6cf895875f716ee5af3888ce
 
 PODFILE CHECKSUM: 54d867c82ac51cbd61b565781b9fada492027009
 

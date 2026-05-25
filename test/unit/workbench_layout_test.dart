@@ -191,6 +191,30 @@ void main() {
       },
     );
 
+    test(
+      'removeTab falls back to the first tab when the active tab becomes stale',
+      () {
+        final groupId = WorkbenchLayout.defaultGroupId('workspace-1');
+        final layout = WorkbenchLayout(
+          workspaceId: 'workspace-1',
+          root: WorkbenchLayoutNode.leaf(groupId),
+          groups: <String, WorkbenchPaneGroup>{
+            groupId: WorkbenchPaneGroup(
+              id: groupId,
+              tabIds: const <String>['tab-1', 'tab-2'],
+              activeTabId: 'missing-tab',
+            ),
+          },
+          activeGroupId: groupId,
+        );
+
+        final removed = layout.removeTab('tab-2');
+
+        expect(removed.groups[groupId]?.tabIds, <String>['tab-1']);
+        expect(removed.activeTabId, 'tab-1');
+      },
+    );
+
     test('merges a nested group into its immediate sibling', () {
       final firstGroupId = WorkbenchLayout.defaultGroupId('workspace-1');
       final layout =

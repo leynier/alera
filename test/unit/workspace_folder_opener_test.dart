@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:alera/src/features/workbench/application/workspace_folder_opener.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -18,6 +20,29 @@ void main() {
       const _ProcessCall('open', <String>['/repo/alera']),
     ]);
     expect(opener.fileManagerLabel, 'Finder');
+  });
+
+  test('uses the default directory probe when none is injected', () async {
+    final processRunner = _FakeProcessRunner();
+    final directory = await Directory.systemTemp.createTemp(
+      'alera-open-folder-',
+    );
+    addTearDown(() async {
+      if (await directory.exists()) {
+        await directory.delete(recursive: true);
+      }
+    });
+    final opener = WorkspaceFolderOpener(
+      processRunner: processRunner,
+      platform: WorkspaceFolderPlatform.macos,
+    );
+
+    final result = await opener.open(directory.path);
+
+    expect(result.ok, isTrue);
+    expect(processRunner.calls, <_ProcessCall>[
+      _ProcessCall('open', <String>[directory.path]),
+    ]);
   });
 
   test('uses explorer on Windows', () async {
@@ -85,26 +110,50 @@ void main() {
     expect(processRunner.calls, isEmpty);
   });
 
-  test('reports a clean failure on other platforms when opening fails', () async {
-    final processRunner = _FakeProcessRunner(exitCodes: <int>[1]);
-    final opener = WorkspaceFolderOpener(
-      processRunner: processRunner,
-      platform: WorkspaceFolderPlatform.other,
-      directoryExists: (_) async => true,
+  test(
+    'reports a clean failure on other platforms when opening fails',
+    () async {
+      final processRunner = _FakeProcessRunner(exitCodes: <int>[1]);
+      final opener = WorkspaceFolderOpener(
+        processRunner: processRunner,
+        platform: WorkspaceFolderPlatform.other,
+        directoryExists: (_) async => true,
+      );
+
+      final result = await opener.open('/repo/alera');
+
+      expect(result.ok, isFalse);
+      expect(
+        result.message,
+        'Could not open workspace folder in File Manager.',
+      );
+      expect(processRunner.calls, <_ProcessCall>[
+        const _ProcessCall('xdg-open', <String>['/repo/alera']),
+      ]);
+      expect(opener.fileManagerLabel, 'File Manager');
+    },
+  );
+
+  test(
+    'detects the current workspace-folder platform for this environment',
+    () {
+      expect(currentWorkspaceFolderPlatform(), WorkspaceFolderPlatform.macos);
+    },
+  );
+
+  test('maps operating-system strings to folder platforms', () {
+    expect(
+      workspaceFolderPlatformForOperatingSystem('windows'),
+      WorkspaceFolderPlatform.windows,
     );
-
-    final result = await opener.open('/repo/alera');
-
-    expect(result.ok, isFalse);
-    expect(result.message, 'Could not open workspace folder in File Manager.');
-    expect(processRunner.calls, <_ProcessCall>[
-      const _ProcessCall('xdg-open', <String>['/repo/alera']),
-    ]);
-    expect(opener.fileManagerLabel, 'File Manager');
-  });
-
-  test('detects the current workspace-folder platform for this environment', () {
-    expect(currentWorkspaceFolderPlatform(), WorkspaceFolderPlatform.macos);
+    expect(
+      workspaceFolderPlatformForOperatingSystem('linux'),
+      WorkspaceFolderPlatform.linux,
+    );
+    expect(
+      workspaceFolderPlatformForOperatingSystem('plan9'),
+      WorkspaceFolderPlatform.other,
+    );
   });
 }
 

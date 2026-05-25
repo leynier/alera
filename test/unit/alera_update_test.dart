@@ -2,7 +2,33 @@ import 'package:alera/src/features/updater/domain/alera_update.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  group('AleraUpdateChannel', () {
+    test('parses release-candidate aliases and stable fallbacks', () {
+      expect(AleraUpdateChannel.parse('rc'), AleraUpdateChannel.rc);
+      expect(
+        AleraUpdateChannel.parse('release-candidate'),
+        AleraUpdateChannel.rc,
+      );
+      expect(AleraUpdateChannel.parse('stable'), AleraUpdateChannel.stable);
+    });
+  });
+
   group('AleraUpdateConfig', () {
+    test('exposes the canonical default URLs and environment defaults', () {
+      expect(
+        AleraUpdateConfig.defaultArchiveUrl,
+        Uri.parse('https://leynier.github.io/alera/app-archive.json'),
+      );
+      expect(
+        AleraUpdateConfig.defaultReleasePageUrl,
+        Uri.parse('https://github.com/leynier/alera/releases'),
+      );
+
+      final config = AleraUpdateConfig.fromEnvironment();
+      expect(config.archiveUrl, AleraUpdateConfig.defaultArchiveUrl);
+      expect(config.releasePageUrl, AleraUpdateConfig.defaultReleasePageUrl);
+    });
+
     test('round-trips through json', () {
       final restored = AleraUpdateConfig.fromJson(
         Map<String, Object?>.from(_config.toMap()),
@@ -14,6 +40,23 @@ void main() {
   });
 
   group('AleraUpdateState', () {
+    test('update info round-trips through json and detects prereleases', () {
+      final restored = AleraUpdateInfo.fromJson(
+        Map<String, Object?>.from(_update.toMap()),
+      );
+
+      expect(restored, _update);
+      expect(restored.isPrerelease, isFalse);
+      expect(
+        AleraUpdateInfo.fromJson(
+          Map<String, Object?>.from(
+            _update.copyWith(version: '0.1.2-rc.1').toMap(),
+          ),
+        ).isPrerelease,
+        isTrue,
+      );
+    });
+
     test('copyWith updates and clears nullable fields', () {
       final state = AleraUpdateState(
         status: AleraUpdateStatus.available,

@@ -347,19 +347,48 @@ class _GhosttyTerminalPtySessionAdapter implements TerminalPtySession {
   }
 }
 
+@visibleForTesting
+TerminalPtySession createPosixPtySessionForTesting() {
+  return _PosixPortablePtySessionAdapter();
+}
+
+@visibleForTesting
+TerminalPtySession createGhosttyPtySessionForTesting() {
+  return _GhosttyTerminalPtySessionAdapter();
+}
+
+@visibleForTesting
+void handlePosixReadMessageForTesting(
+  TerminalPtySession session,
+  Object? message,
+) {
+  (session as _PosixPortablePtySessionAdapter)._handleReadMessage(message);
+}
+
+@visibleForTesting
+void handleGhosttyEventForTesting(
+  TerminalPtySession session,
+  GhosttyTerminalPtySessionEvent event,
+) {
+  (session as _GhosttyTerminalPtySessionAdapter)._handleGhosttyEvent(event);
+}
+
 class XtermTerminalRuntime implements TerminalRuntime {
   XtermTerminalRuntime({
     TerminalPtySessionFactory? ptySessionFactory,
     TerminalSettings? initialSettings,
     ExternalUriLauncher? externalUriLauncher,
+    List<GhosttyTerminalShellLaunch> Function()? shellLaunchesBuilder,
   }) : _settings = initialSettings ?? TerminalSettings.defaults,
        _externalUriLauncher =
            externalUriLauncher ?? UrlLauncherExternalUriLauncher(),
        _ptySessionFactory =
-           ptySessionFactory ?? const DefaultTerminalPtySessionFactory();
+           ptySessionFactory ?? const DefaultTerminalPtySessionFactory(),
+       _shellLaunchesBuilder = shellLaunchesBuilder ?? _terminalShellLaunches;
 
   final TerminalPtySessionFactory _ptySessionFactory;
   final ExternalUriLauncher _externalUriLauncher;
+  final List<GhosttyTerminalShellLaunch> Function() _shellLaunchesBuilder;
   TerminalSettings _settings;
   final StreamController<TerminalRuntimeExitEvent> _exitController =
       StreamController<TerminalRuntimeExitEvent>.broadcast();
@@ -389,6 +418,7 @@ class XtermTerminalRuntime implements TerminalRuntime {
             ptySessionFactory: _ptySessionFactory,
             settings: _settings,
             externalUriLauncher: _externalUriLauncher,
+            shellLaunchesBuilder: _shellLaunchesBuilder,
             onExit: _handleSessionExit,
           );
         })
@@ -434,12 +464,14 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     required TerminalPtySessionFactory ptySessionFactory,
     required TerminalSettings settings,
     required ExternalUriLauncher externalUriLauncher,
+    required List<GhosttyTerminalShellLaunch> Function() shellLaunchesBuilder,
     required void Function(TerminalRuntimeExitEvent event) onExit,
   }) : _workspace = workspace,
        _tab = tab,
        _ptySessionFactory = ptySessionFactory,
        _settings = settings,
        _externalUriLauncher = externalUriLauncher,
+       _shellLaunchesBuilder = shellLaunchesBuilder,
        _onExit = onExit {
     _terminal = _createTerminal();
     _osc8LinkTracker = Osc8TerminalLinkTracker(terminal: _terminal);
@@ -453,6 +485,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   WorkspaceTabRecord _tab;
   final TerminalPtySessionFactory _ptySessionFactory;
   final ExternalUriLauncher _externalUriLauncher;
+  final List<GhosttyTerminalShellLaunch> Function() _shellLaunchesBuilder;
   final void Function(TerminalRuntimeExitEvent event) _onExit;
   TerminalSettings _settings;
   late xterm.Terminal _terminal;
@@ -672,7 +705,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   }
 
   Future<void> _startPtySession() async {
-    final launches = _terminalShellLaunches();
+    final launches = _shellLaunchesBuilder();
     Object? lastError;
     for (final launch in launches) {
       final session = _ptySessionFactory.create();
@@ -1032,6 +1065,16 @@ GhosttyTerminalShellLaunch launchInWorkingDirectoryForTesting(
   return _launchInWorkingDirectory(launch, workingDirectory);
 }
 
+@visibleForTesting
+Map<String, String> terminalPlatformEnvironmentForTesting() {
+  return _terminalPlatformEnvironment();
+}
+
+@visibleForTesting
+List<GhosttyTerminalShellLaunch> terminalShellLaunchesForTesting() {
+  return _terminalShellLaunches();
+}
+
 bool _isWindowsCommandPromptLaunch(GhosttyTerminalShellLaunch launch) {
   final executable = launch.shell.replaceAll(r'\', '/').split('/').last;
   return executable.toLowerCase() == 'cmd.exe';
@@ -1041,6 +1084,11 @@ String _cmdQuote(String value) {
   return '"${value.replaceAll('"', '""')}"';
 }
 
+@visibleForTesting
+String cmdQuoteForTesting(String value) {
+  return _cmdQuote(value);
+}
+
 String _shQuote(String value) {
   if (value.isEmpty) {
     return "''";
@@ -1048,11 +1096,34 @@ String _shQuote(String value) {
   return "'${value.replaceAll("'", "'\"'\"'")}'";
 }
 
+@visibleForTesting
+String shQuoteForTesting(String value) {
+  return _shQuote(value);
+}
+
 bool get _isSupportedNativeDesktopTerminalPlatform {
-  if (kIsWeb) {
+  return _isSupportedNativeDesktopTerminalPlatformFor(
+    defaultTargetPlatform,
+    isWeb: kIsWeb,
+  );
+}
+
+final xterm.TerminalTargetPlatform _xtermTargetPlatform =
+    _xtermTargetPlatformFor(defaultTargetPlatform);
+
+@visibleForTesting
+xterm.TerminalTargetPlatform defaultXtermTargetPlatformForTesting() {
+  return _xtermTargetPlatform;
+}
+
+bool _isSupportedNativeDesktopTerminalPlatformFor(
+  TargetPlatform platform, {
+  required bool isWeb,
+}) {
+  if (isWeb) {
     return false;
   }
-  return switch (defaultTargetPlatform) {
+  return switch (platform) {
     TargetPlatform.linux ||
     TargetPlatform.macOS ||
     TargetPlatform.windows => true,
@@ -1062,15 +1133,16 @@ bool get _isSupportedNativeDesktopTerminalPlatform {
   };
 }
 
-final xterm.TerminalTargetPlatform _xtermTargetPlatform =
-    switch (defaultTargetPlatform) {
-      TargetPlatform.android => xterm.TerminalTargetPlatform.android,
-      TargetPlatform.iOS => xterm.TerminalTargetPlatform.ios,
-      TargetPlatform.fuchsia => xterm.TerminalTargetPlatform.fuchsia,
-      TargetPlatform.linux => xterm.TerminalTargetPlatform.linux,
-      TargetPlatform.macOS => xterm.TerminalTargetPlatform.macos,
-      TargetPlatform.windows => xterm.TerminalTargetPlatform.windows,
-    };
+xterm.TerminalTargetPlatform _xtermTargetPlatformFor(TargetPlatform platform) {
+  return switch (platform) {
+    TargetPlatform.android => xterm.TerminalTargetPlatform.android,
+    TargetPlatform.iOS => xterm.TerminalTargetPlatform.ios,
+    TargetPlatform.fuchsia => xterm.TerminalTargetPlatform.fuchsia,
+    TargetPlatform.linux => xterm.TerminalTargetPlatform.linux,
+    TargetPlatform.macOS => xterm.TerminalTargetPlatform.macos,
+    TargetPlatform.windows => xterm.TerminalTargetPlatform.windows,
+  };
+}
 
 String _resolveTerminalFontFamily(String fontFamily) {
   if (fontFamily.trim().toLowerCase() == 'jetbrains mono') {
@@ -1114,6 +1186,11 @@ const List<String> _terminalFontFallback = <String>[
   'Noto Sans Symbols',
   'monospace',
 ];
+
+@visibleForTesting
+List<String> terminalFontFallbackForTesting() {
+  return _terminalFontFallback;
+}
 
 Color? _colorFromHex(String? value) {
   final normalized = normalizeTerminalHexColor(value);
@@ -1181,6 +1258,11 @@ int _currentErrno() {
       .value;
 }
 
+@visibleForTesting
+int currentErrnoForTesting() {
+  return _currentErrno();
+}
+
 const int _eintr = 4;
 const int _readChunkSize = 4096;
 
@@ -1216,4 +1298,106 @@ void _posixPtyReadIsolate(List<Object?> args) {
   } finally {
     calloc.free(buffer);
   }
+}
+
+@visibleForTesting
+void posixPtyReadIsolateForTesting(List<Object?> args) {
+  _posixPtyReadIsolate(args);
+}
+
+@visibleForTesting
+bool isSupportedNativeDesktopTerminalPlatformForTesting(
+  TargetPlatform platform, {
+  bool isWeb = false,
+}) {
+  return _isSupportedNativeDesktopTerminalPlatformFor(platform, isWeb: isWeb);
+}
+
+@visibleForTesting
+xterm.TerminalTargetPlatform xtermTargetPlatformForTesting(
+  TargetPlatform platform,
+) {
+  return _xtermTargetPlatformFor(platform);
+}
+
+@visibleForTesting
+String resolveTerminalFontFamilyForTesting(String fontFamily) {
+  return _resolveTerminalFontFamily(fontFamily);
+}
+
+@visibleForTesting
+Set<int>? wordSeparatorsFromSettingsForTesting(String? value) {
+  return _wordSeparatorsFromSettings(value);
+}
+
+@visibleForTesting
+xterm.TerminalCursorType xtermCursorTypeForTesting(TerminalCursorShape shape) {
+  return shape.toXtermCursorType();
+}
+
+@visibleForTesting
+Color? colorFromHexForTesting(String? value) {
+  return _colorFromHex(value);
+}
+
+@visibleForTesting
+xterm.TerminalTheme resolveXtermThemeForTesting(TerminalSettings settings) {
+  return _resolveXtermTheme(settings);
+}
+
+@visibleForTesting
+void feedTerminalInputForTesting(TerminalSessionHandle session, String data) {
+  (session as _XtermTerminalSessionHandle)._handleTerminalInput(data);
+}
+
+@visibleForTesting
+void writeTerminalOutputForTesting(TerminalSessionHandle session, String data) {
+  (session as _XtermTerminalSessionHandle)._handleTerminalOutput(data);
+}
+
+@visibleForTesting
+void setTerminalTitleForTesting(TerminalSessionHandle session, String title) {
+  (session as _XtermTerminalSessionHandle)._handleTitleChanged(title);
+}
+
+@visibleForTesting
+void handleTerminalResizeForTesting(
+  TerminalSessionHandle session,
+  int width,
+  int height,
+  int pixelWidth,
+  int pixelHeight,
+) {
+  (session as _XtermTerminalSessionHandle)._handleTerminalResize(
+    width,
+    height,
+    pixelWidth,
+    pixelHeight,
+  );
+}
+
+@visibleForTesting
+void flushPendingPtyResizeForTesting(TerminalSessionHandle session) {
+  (session as _XtermTerminalSessionHandle)._flushPendingPtyResize();
+}
+
+@visibleForTesting
+void handlePrivateOscForTesting(
+  TerminalSessionHandle session,
+  String code,
+  List<String> args,
+) {
+  (session as _XtermTerminalSessionHandle)._handlePrivateOsc(code, args);
+}
+
+@visibleForTesting
+FocusNode terminalFocusNodeForTesting(TerminalSessionHandle session) {
+  return (session as _XtermTerminalSessionHandle)._focusNode;
+}
+
+@visibleForTesting
+GlobalKey<xterm.TerminalViewState> terminalViewKeyForTesting(
+  TerminalSessionHandle session,
+) {
+  return (session as _XtermTerminalSessionHandle)._terminalViewKey;
 }

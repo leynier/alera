@@ -52,6 +52,13 @@ void main() {
       expect(KeyChord.parse('Mod+Ctrl+P'), isA<KeyChordParseFailure>());
     });
 
+    test('rejects unsupported trigger tokens', () {
+      final result = KeyChord.parse('Mod+LaunchRocket');
+
+      expect(result, isA<KeyChordParseFailure>());
+      expect((result as KeyChordParseFailure).message, 'Unsupported key: LaunchRocket.');
+    });
+
     test('rejects two trigger keys', () {
       expect(KeyChord.parse('Mod+P+Q'), isA<KeyChordParseFailure>());
     });
@@ -205,6 +212,16 @@ void main() {
       expect(_parse('Mod+Shift+P'), _parse('Mod+Shift+P'));
       expect(_parse('Mod+Shift+P').hashCode, _parse('Mod+Shift+P').hashCode);
       expect(_parse('Mod+Shift+P'), isNot(_parse('Mod+P')));
+    });
+
+    test('toString and fallback display labels stay readable', () {
+      final chord = KeyChord(
+        trigger: LogicalKeyboardKey.audioVolumeUp,
+        control: true,
+      );
+
+      expect(chord.toString(), 'KeyChord(Ctrl+Audio Volume Up)');
+      expect(chord.format(isMacOS: false), 'Ctrl+Audio Volume Up');
     });
   });
 }

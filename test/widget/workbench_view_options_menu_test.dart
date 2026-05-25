@@ -1,9 +1,11 @@
 import 'package:alera/src/app/providers.dart';
+import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/presentation/widgets/workbench_view_options_menu.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -82,7 +84,9 @@ void main() {
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
 
-      expect(controller.state.viewPrefs.selectedProjectIds, <String>{'project-2'});
+      expect(controller.state.viewPrefs.selectedProjectIds, <String>{
+        'project-2',
+      });
       expect(tester.widget<TextField>(field).controller?.text, isEmpty);
 
       await tester.tap(find.byIcon(Icons.close).last);
@@ -94,7 +98,9 @@ void main() {
     testWidgets('shows empty project states and can dismiss the dialog', (
       tester,
     ) async {
-      final emptyController = _ViewOptionsTestController(const WorkbenchState());
+      final emptyController = _ViewOptionsTestController(
+        const WorkbenchState(),
+      );
       await _pumpButton(tester, emptyController);
 
       await tester.tap(_viewOptionsButton());
@@ -106,9 +112,7 @@ void main() {
       expect(find.text('View options'), findsNothing);
 
       final filteredController = _ViewOptionsTestController(
-        WorkbenchState(
-          projects: <Project>[_project('project-1', 'Alera')],
-        ),
+        WorkbenchState(projects: <Project>[_project('project-1', 'Alera')]),
       );
       await _pumpButton(tester, filteredController);
 
@@ -118,6 +122,46 @@ void main() {
       await tester.enterText(find.byType(TextField).last, 'missing');
       await tester.pumpAndSettle();
       expect(find.text('No projects match "missing"'), findsOneWidget);
+    });
+
+    testWidgets('available project rows animate their hover state', (
+      tester,
+    ) async {
+      final controller = _ViewOptionsTestController(
+        WorkbenchState(
+          projects: <Project>[
+            _project('project-1', 'Alera'),
+            _project('project-2', 'Orca'),
+          ],
+        ),
+      );
+
+      await _pumpButton(tester, controller);
+      await tester.tap(_viewOptionsButton());
+      await tester.pumpAndSettle();
+
+      final rowContainer = find.ancestor(
+        of: find.text('Orca').last,
+        matching: find.byType(AnimatedContainer),
+      );
+      BoxDecoration decorationOf() =>
+          tester.widget<AnimatedContainer>(rowContainer.first).decoration!
+              as BoxDecoration;
+
+      expect(decorationOf().color, Colors.transparent);
+
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      addTearDown(mouse.removePointer);
+      await mouse.addPointer(location: Offset.zero);
+      await tester.pump();
+
+      await mouse.moveTo(tester.getCenter(find.text('Orca').last));
+      await tester.pumpAndSettle();
+      expect(decorationOf().color, AleraTokens.surface);
+
+      await mouse.moveTo(const Offset(1, 1));
+      await tester.pumpAndSettle();
+      expect(decorationOf().color, Colors.transparent);
     });
   });
 }

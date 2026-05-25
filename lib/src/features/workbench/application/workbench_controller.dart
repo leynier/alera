@@ -932,16 +932,6 @@ class WorkbenchController extends _$WorkbenchController {
       }
       return null;
     }
-    // No active project: honor a still-valid explicit selection only.
-    if (preferredWorkspaceId != null) {
-      for (final workspaces in workspacesByProject.values) {
-        if (workspaces.any(
-          (workspace) => workspace.id == preferredWorkspaceId,
-        )) {
-          return preferredWorkspaceId;
-        }
-      }
-    }
     return null;
   }
 

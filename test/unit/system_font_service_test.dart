@@ -64,6 +64,36 @@ JetBrains Mono
       expect(second, same(first));
       expect(runner.calls, hasLength(1));
     });
+
+    test(
+      'falls back when a platform command returns no font families',
+      () async {
+        final runner = _FakeProcessRunner(stdout: '\n');
+        final service = IoSystemFontService(runner, platform: 'linux');
+
+        final fonts = await service.listFontFamilies();
+
+        expect(fonts, fallbackTerminalFontFamilies('linux'));
+        expect(runner.calls.single.executable, 'fc-list');
+      },
+    );
+
+    test('parses Windows font families from powershell output', () async {
+      final runner = _FakeProcessRunner(
+        stdout: '''
+Consolas
+JetBrains Mono
+Consolas
+
+''',
+      );
+      final service = IoSystemFontService(runner, platform: 'windows');
+
+      final fonts = await service.listFontFamilies();
+
+      expect(fonts, <String>['Consolas', 'JetBrains Mono']);
+      expect(runner.calls.single.executable, 'powershell.exe');
+    });
   });
 }
 

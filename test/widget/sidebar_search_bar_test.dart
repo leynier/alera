@@ -49,4 +49,38 @@ void main() {
       AleraTokens.space32 + AleraTokens.space8,
     );
   });
+
+  testWidgets('updated initial query syncs the controller text and selection', (
+    tester,
+  ) async {
+    final focusNode = FocusNode();
+    addTearDown(focusNode.dispose);
+
+    Widget buildBar(String initialQuery) {
+      return MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 300,
+            child: SidebarSearchBar(
+              initialQuery: initialQuery,
+              focusNode: focusNode,
+              onChanged: (_) {},
+            ),
+          ),
+        ),
+      );
+    }
+
+    await tester.pumpWidget(buildBar('alpha'));
+    await tester.pump();
+    await tester.pumpWidget(buildBar('beta'));
+    await tester.pump();
+
+    final textField = tester.widget<TextField>(find.byType(TextField));
+    final controller = textField.controller!;
+
+    expect(controller.text, 'beta');
+    expect(controller.selection.baseOffset, 4);
+    expect(controller.selection.extentOffset, 4);
+  });
 }

@@ -34,6 +34,24 @@ void main() {
       expect(general.confirmWorkspaceRemoval, isTrue);
     });
 
+    test('small settings fragments round-trip through json', () {
+      final overrides = TerminalColorOverrides.fromJson(<String, Object?>{
+        'foreground': '#ffffff',
+        'selection': '#123456',
+      });
+      final general = GeneralSettings.fromJson(<String, Object?>{
+        'workspaceDirectory': '/tmp/workspaces',
+        'starClicked': true,
+        'confirmProjectRemoval': false,
+        'confirmWorkspaceRemoval': true,
+      });
+
+      expect(overrides.foreground, '#ffffff');
+      expect(overrides.selection, '#123456');
+      expect(general.workspaceDirectory, '/tmp/workspaces');
+      expect(general.starClicked, isTrue);
+    });
+
     test('round-trips through json', () {
       const settings = AleraSettings(
         general: GeneralSettings(
@@ -176,6 +194,13 @@ void main() {
         }),
         throwsA(isA<MapperException>()),
       );
+    });
+
+    test('normalizes terminal hex colors only for valid current-schema values', () {
+      expect(normalizeTerminalHexColor('#ABCDEF'), '#abcdef');
+      expect(normalizeTerminalHexColor('123456'), '#123456');
+      expect(normalizeTerminalHexColor(''), isNull);
+      expect(normalizeTerminalHexColor(42), isNull);
     });
   });
 

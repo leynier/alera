@@ -114,6 +114,31 @@ void main() {
       },
     );
 
+    test(
+      'validateGitRepository accepts git work trees without a .git entry',
+      () async {
+        final dir = Directory.systemTemp.createTempSync(
+          'alera-project-service-',
+        );
+        addTearDown(() {
+          if (dir.existsSync()) {
+            dir.deleteSync(recursive: true);
+          }
+        });
+
+        processRunner.revParseResult = const ProcessRunOutput(
+          exitCode: 0,
+          stdout: 'true\n',
+          stderr: '',
+        );
+
+        final result = await service.validateGitRepository(dir.path);
+
+        expect(result.isValidGitRepository, isTrue);
+        expect(result.message, isNull);
+      },
+    );
+
     test('cloneGitRepository validates inputs and destination state', () async {
       await expectLater(
         service.cloneGitRepository(url: '   ', destinationPath: '/tmp/repo'),
@@ -200,6 +225,39 @@ void main() {
             destinationPath: invalidDestination,
           ),
           throwsStateError,
+        );
+      },
+    );
+
+    test(
+      'cloneGitRepository uses a generic error when git emits no stderr',
+      () async {
+        final destination = Directory.systemTemp.createTempSync(
+          'alera-project-clone-empty-stderr-',
+        );
+        addTearDown(() {
+          if (destination.existsSync()) {
+            destination.deleteSync(recursive: true);
+          }
+        });
+        processRunner.cloneResult = const ProcessRunOutput(
+          exitCode: 128,
+          stdout: '',
+          stderr: '',
+        );
+
+        await expectLater(
+          service.cloneGitRepository(
+            url: 'https://example.com/repo.git',
+            destinationPath: destination.path,
+          ),
+          throwsA(
+            isA<StateError>().having(
+              (error) => error.message,
+              'message',
+              'git clone failed (exit 128)',
+            ),
+          ),
         );
       },
     );

@@ -79,6 +79,31 @@ void main() {
     );
 
     test(
+      'manual checks describe downloadable updates when auto-install is off',
+      () async {
+        final service = DesktopAleraUpdateService(
+          config: AleraUpdateConfig(
+            archiveUrl: Uri.parse('https://example.com/archive.json'),
+            releasePageUrl: Uri.parse('https://example.com/releases'),
+            channel: AleraUpdateChannel.stable,
+            autoInstallEnabled: false,
+            signedRelease: false,
+          ),
+          client: MockClient((_) async => http.Response(_archiveJson, 200)),
+          loadPackageInfo: () async => _packageInfo(buildNumber: '1'),
+          platform: 'macos',
+        );
+
+        final result = await service.checkForUpdates();
+
+        expect(
+          result.message,
+          'Update 0.1.2 is available for manual download.',
+        );
+      },
+    );
+
+    test(
       'returns friendly manual-update messages for 404 and no newer build',
       () async {
         final notPublished = DesktopAleraUpdateService(
@@ -214,6 +239,45 @@ void main() {
         ),
         throwsA(isA<StateError>()),
       );
+    });
+
+    test(
+      'installUpdate throws when the updater has no available item',
+      () async {
+        final service = DesktopAleraUpdateService(
+          config: AleraUpdateConfig(
+            archiveUrl: Uri.parse('https://example.com/archive.json'),
+            releasePageUrl: Uri.parse('https://example.com/releases'),
+            channel: AleraUpdateChannel.rc,
+            autoInstallEnabled: true,
+            signedRelease: false,
+          ),
+          desktopUpdater: _FakeDesktopUpdater(),
+          platform: 'macos',
+        );
+
+        await expectLater(
+          service.installUpdate(
+            AleraUpdateInfo(
+              version: '0.1.4-rc.0',
+              shortVersion: 4,
+              date: '2026-05-25',
+              mandatory: false,
+              url: Uri.parse('https://example.com/updates/0.1.4+4-macos'),
+              platform: 'macos',
+              changes: <String>['Preview'],
+            ),
+          ),
+          throwsStateError,
+        );
+      },
+    );
+
+    test('dispose closes owned clients without throwing', () {
+      final service = DesktopAleraUpdateService(platform: 'macos');
+
+      expect(service.dispose, returnsNormally);
+      service.dispose();
     });
 
     test(

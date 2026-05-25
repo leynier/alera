@@ -136,54 +136,55 @@ void main() {
     );
   });
 
-  testWidgets('recording can toggle off, cancel with escape, and show parse errors', (
-    tester,
-  ) async {
-    await pumpPane(tester);
+  testWidgets(
+    'recording can toggle off, cancel with escape, and show parse errors',
+    (tester) async {
+      await pumpPane(tester);
 
-    final row = find.ancestor(
-      of: find.text('New terminal tab'),
-      matching: find.byType(Row),
-    );
+      final row = find.ancestor(
+        of: find.text('New terminal tab'),
+        matching: find.byType(Row),
+      );
 
-    Future<void> startRecording() async {
+      Future<void> startRecording() async {
+        await tester.tap(
+          find.descendant(
+            of: row.first,
+            matching: find.byTooltip('Change shortcut'),
+          ),
+        );
+        await tester.pump();
+      }
+
+      await startRecording();
+      expect(find.text('Press keys… (Esc to cancel)'), findsOneWidget);
+
       await tester.tap(
         find.descendant(
           of: row.first,
-          matching: find.byTooltip('Change shortcut'),
+          matching: find.byTooltip('Stop recording'),
         ),
       );
       await tester.pump();
-    }
+      expect(find.text('Press keys… (Esc to cancel)'), findsNothing);
 
-    await startRecording();
-    expect(find.text('Press keys… (Esc to cancel)'), findsOneWidget);
+      await startRecording();
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.escape);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.escape);
+      await tester.pump();
+      expect(find.text('Press keys… (Esc to cancel)'), findsNothing);
 
-    await tester.tap(
-      find.descendant(of: row.first, matching: find.byTooltip('Stop recording')),
-    );
-    await tester.pump();
-    expect(find.text('Press keys… (Esc to cancel)'), findsNothing);
+      await startRecording();
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.keyA);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.keyA);
+      await tester.pump();
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.escape);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.escape);
+      await tester.pump();
 
-    await startRecording();
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.escape);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.escape);
-    await tester.pump();
-    expect(find.text('Press keys… (Esc to cancel)'), findsNothing);
-
-    await startRecording();
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.keyA);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.keyA);
-    await tester.pump();
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.escape);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.escape);
-    await tester.pump();
-
-    expect(
-      find.text('Include at least one modifier key.'),
-      findsOneWidget,
-    );
-  });
+      expect(find.text('Include at least one modifier key.'), findsOneWidget);
+    },
+  );
 
   testWidgets('reset and disable actions persist shortcut changes', (
     tester,
@@ -208,7 +209,10 @@ void main() {
     );
     await tester.pump();
 
-    expect(keyboardOf(container).overrideFor(KeyboardActionId.newTerminalTab), isNull);
+    expect(
+      keyboardOf(container).overrideFor(KeyboardActionId.newTerminalTab),
+      isNull,
+    );
 
     final closeTabRow = find.ancestor(
       of: find.text('Close tab'),
@@ -227,6 +231,21 @@ void main() {
       isEmpty,
     );
     expect(find.text('Disabled'), findsOneWidget);
+  });
+
+  testWidgets('invalid shortcut overrides render as unassigned', (
+    tester,
+  ) async {
+    final initialSettings = AleraSettings.defaults.copyWith(
+      keyboard: AleraSettings.defaults.keyboard.copyWithOverride(
+        KeyboardActionId.newTerminalTab,
+        <String>['definitely not a shortcut'],
+      ),
+    );
+
+    await pumpPane(tester, initialSettings: initialSettings);
+
+    expect(find.text('Unassigned'), findsOneWidget);
   });
 }
 

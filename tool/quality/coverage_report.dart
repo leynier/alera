@@ -158,7 +158,12 @@ List<CoverageRecord> _readLcov(File file) {
 }
 
 bool _includeInCoverage(String file) {
-  return !(file.endsWith('.g.dart') || file.endsWith('.mapper.dart'));
+  return !(file.endsWith('.g.dart') ||
+      file.endsWith('.mapper.dart') ||
+      // Drift table DSL getters and primaryKey declarations define schema
+      // metadata, but they are not meaningfully executable under VM line
+      // coverage in the same way as runtime logic.
+      file.endsWith('lib/src/shared/infra/storage/drift_database.dart'));
 }
 
 Map<String, CoverageRecord> _areaRecords(List<CoverageRecord> records) {

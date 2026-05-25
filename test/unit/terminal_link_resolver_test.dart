@@ -133,4 +133,49 @@ void main() {
 
     expect(tracker.linkAt(const xterm.CellOffset(0, 0)), isNull);
   });
+
+  test('keeps visible url spans aligned after wide characters', () {
+    final terminal = xterm.Terminal();
+    terminal.resize(80, 24);
+    terminal.write('中 https://example.com');
+
+    final link = resolveVisibleHttpLinkAt(
+      terminal: terminal,
+      offset: const xterm.CellOffset(4, 0),
+    );
+
+    expect(link, isNotNull);
+    expect(link!.uri, Uri.parse('https://example.com'));
+  });
+
+  test('treats skipped blank cells as spaces when resolving visible links', () {
+    final terminal = xterm.Terminal();
+    terminal.resize(80, 24);
+    terminal.write('\x1b[2Chttps://example.com');
+
+    final link = resolveVisibleHttpLinkAt(
+      terminal: terminal,
+      offset: const xterm.CellOffset(4, 0),
+    );
+
+    expect(link, isNotNull);
+    expect(link!.start, const xterm.CellOffset(2, 0));
+    expect(link.uri, Uri.parse('https://example.com'));
+  });
+
+  test('prunes detached osc8 anchors after scrolling them away', () {
+    final terminal = xterm.Terminal(maxLines: 64);
+    terminal.resize(8, 4);
+    final tracker = Osc8TerminalLinkTracker(terminal: terminal);
+    addTearDown(tracker.dispose);
+
+    tracker.handlePrivateOsc('8', <String>['', 'https://example.com']);
+    terminal.write('link');
+    tracker.handlePrivateOsc('8', const <String>['', '']);
+    for (var index = 0; index < 100; index += 1) {
+      terminal.write('\r\nline $index');
+    }
+
+    expect(tracker.linkAt(const xterm.CellOffset(0, 0)), isNull);
+  });
 }

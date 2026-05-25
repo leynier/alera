@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/features/settings/application/github_star_controller.dart';
@@ -25,6 +27,7 @@ void main() {
     _FakeGitHubStarController? starController,
     AleraSettings initialSettings = AleraSettings.defaults,
     Size surfaceSize = const Size(1200, 900),
+    SystemFontService? fontService,
   }) async {
     await tester.binding.setSurfaceSize(surfaceSize);
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -33,11 +36,12 @@ void main() {
       overrides: [
         settingsRepositoryProvider.overrideWithValue(repository),
         systemFontServiceProvider.overrideWithValue(
-          const _FakeSystemFontService(<String>[
-            'Fira Code',
-            'Menlo',
-            'SF Mono',
-          ]),
+          fontService ??
+              const _FakeSystemFontService(<String>[
+                'Fira Code',
+                'Menlo',
+                'SF Mono',
+              ]),
         ),
         updateServiceProvider.overrideWithValue(_FakeUpdateService()),
         if (starController != null)
@@ -549,111 +553,134 @@ void main() {
     expect(find.byType(SettingsDialog), findsNothing);
   });
 
-  testWidgets('word separators commits, clears, and resets from parent updates', (
-    tester,
-  ) async {
-    final container = await pumpSettingsDialog(tester);
-    await selectTerminalSection(tester);
+  testWidgets(
+    'word separators commits, clears, and resets from parent updates',
+    (tester) async {
+      final container = await pumpSettingsDialog(tester);
+      await selectTerminalSection(tester);
 
-    final field = find.byWidgetPredicate(
-      (widget) =>
-          widget is TextField &&
-          widget.decoration?.hintText == " ()[]{},\"'`",
-    );
+      final field = find.byWidgetPredicate(
+        (widget) =>
+            widget is TextField &&
+            widget.decoration?.hintText == " ()[]{},\"'`",
+      );
 
-    await tester.enterText(field, '.,');
-    await tester.testTextInput.receiveAction(TextInputAction.done);
-    await tester.pump(const Duration(milliseconds: 50));
-    expect(container.read(settingsControllerProvider).terminal.wordSeparators, '.,');
+      await tester.enterText(field, '.,');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(
+        container.read(settingsControllerProvider).terminal.wordSeparators,
+        '.,',
+      );
 
-    await tester.enterText(field, '');
-    await tester.testTextInput.receiveAction(TextInputAction.done);
-    await tester.pump(const Duration(milliseconds: 50));
-    expect(container.read(settingsControllerProvider).terminal.wordSeparators, isNull);
+      await tester.enterText(field, '');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(
+        container.read(settingsControllerProvider).terminal.wordSeparators,
+        isNull,
+      );
 
-    await tester.enterText(field, 'abc');
-    await tester.testTextInput.receiveAction(TextInputAction.done);
-    await tester.pump(const Duration(milliseconds: 50));
-    expect(container.read(settingsControllerProvider).terminal.wordSeparators, 'abc');
+      await tester.enterText(field, 'abc');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(
+        container.read(settingsControllerProvider).terminal.wordSeparators,
+        'abc',
+      );
 
-    await container.read(settingsControllerProvider.notifier).resetTerminalSettings();
-    await tester.pump(const Duration(milliseconds: 50));
+      await container
+          .read(settingsControllerProvider.notifier)
+          .resetTerminalSettings();
+      await tester.pump(const Duration(milliseconds: 50));
 
-    expect(container.read(settingsControllerProvider).terminal.wordSeparators, isNull);
-    expect(tester.widget<TextField>(field).controller?.text, isEmpty);
-  });
+      expect(
+        container.read(settingsControllerProvider).terminal.wordSeparators,
+        isNull,
+      );
+      expect(tester.widget<TextField>(field).controller?.text, isEmpty);
+    },
+  );
 
-  testWidgets('font autocomplete covers closed-menu commits and hover selection', (
-    tester,
-  ) async {
-    final container = await pumpSettingsDialog(tester);
-    await selectTerminalSection(tester);
+  testWidgets(
+    'font autocomplete covers closed-menu commits and hover selection',
+    (tester) async {
+      final container = await pumpSettingsDialog(tester);
+      await selectTerminalSection(tester);
 
-    final field = find.byKey(
-      const ValueKey<String>('terminal-font-family-field'),
-    );
+      final field = find.byKey(
+        const ValueKey<String>('terminal-font-family-field'),
+      );
 
-    await tester.enterText(field, 'Custom Mono');
-    await tester.testTextInput.receiveAction(TextInputAction.done);
-    await tester.pump(const Duration(milliseconds: 50));
+      await tester.enterText(field, 'Custom Mono');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump(const Duration(milliseconds: 50));
 
-    await tester.tap(field);
-    await tester.pump();
-    await tester.enterText(field, 'sf');
-    await tester.pump();
-    await tester.tap(find.byTooltip('Fonts'));
-    await tester.pump();
+      await tester.tap(field);
+      await tester.pump();
+      await tester.enterText(field, 'sf');
+      await tester.pump();
+      await tester.tap(find.byTooltip('Fonts'));
+      await tester.pump();
 
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.arrowUp);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.arrowUp);
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.numpadEnter);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.numpadEnter);
-    await tester.pump(const Duration(milliseconds: 50));
-    expect(container.read(settingsControllerProvider).terminal.fontFamily, 'SF Mono');
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.arrowUp);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.arrowUp);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.numpadEnter);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.numpadEnter);
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(
+        container.read(settingsControllerProvider).terminal.fontFamily,
+        'SF Mono',
+      );
 
-    await tester.tap(field);
-    await tester.pump();
-    await tester.enterText(field, 'Menlo Custom');
-    await tester.pump();
-    await tester.tap(find.byTooltip('Fonts'));
-    await tester.pump();
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.enter);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.enter);
-    await tester.pump(const Duration(milliseconds: 50));
-    expect(
-      container.read(settingsControllerProvider).terminal.fontFamily,
-      'Menlo Custom',
-    );
+      await tester.tap(field);
+      await tester.pump();
+      await tester.enterText(field, 'Menlo Custom');
+      await tester.pump();
+      await tester.tap(find.byTooltip('Fonts'));
+      await tester.pump();
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.enter);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.enter);
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(
+        container.read(settingsControllerProvider).terminal.fontFamily,
+        'Menlo Custom',
+      );
 
-    await tester.tap(field);
-    await tester.pump();
-    await tester.enterText(field, 'm');
-    await tester.pump();
+      await tester.tap(field);
+      await tester.pump();
+      await tester.enterText(field, 'm');
+      await tester.pump();
 
-    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
-    addTearDown(mouse.removePointer);
-    await mouse.addPointer();
-    await mouse.moveTo(tester.getCenter(find.text('Menlo')));
-    await tester.pump();
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.enter);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.enter);
-    await tester.pump(const Duration(milliseconds: 50));
-    expect(container.read(settingsControllerProvider).terminal.fontFamily, 'Menlo');
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      addTearDown(mouse.removePointer);
+      await mouse.addPointer();
+      await mouse.moveTo(tester.getCenter(find.text('Menlo')));
+      await tester.pump();
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.enter);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.enter);
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(
+        container.read(settingsControllerProvider).terminal.fontFamily,
+        'Menlo',
+      );
 
-    await tester.tap(field);
-    await tester.pump();
-    await tester.tap(find.byTooltip('Clear'));
-    await tester.pump();
-    await tester.testTextInput.receiveAction(TextInputAction.done);
-    await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(field);
+      await tester.pump();
+      await tester.tap(find.byTooltip('Clear'));
+      await tester.pump();
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump(const Duration(milliseconds: 50));
 
-    expect(container.read(settingsControllerProvider).terminal.fontFamily, 'Menlo');
-    expect(tester.widget<AleraTextField>(field).controller?.text, 'Menlo');
-  });
+      expect(
+        container.read(settingsControllerProvider).terminal.fontFamily,
+        'Menlo',
+      );
+      expect(tester.widget<AleraTextField>(field).controller?.text, 'Menlo');
+    },
+  );
 
-  testWidgets('theme picker falls back and tracks hover state', (
-    tester,
-  ) async {
+  testWidgets('theme picker falls back and tracks hover state', (tester) async {
     final container = await pumpSettingsDialog(
       tester,
       initialSettings: AleraSettings.defaults.copyWith(
@@ -689,87 +716,131 @@ void main() {
     );
   });
 
-  testWidgets('workspace browse falls back to the stored directory when the field is empty', (
-    tester,
-  ) async {
-    final previousPlatform = FileSelectorPlatform.instance;
-    final fakePlatform = _FakeFileSelectorPlatform(<Object?>[
-      '/tmp/fallback-picked-workspaces',
-    ]);
-    FileSelectorPlatform.instance = fakePlatform;
-    addTearDown(() => FileSelectorPlatform.instance = previousPlatform);
+  testWidgets(
+    'workspace browse falls back to the stored directory when the field is empty',
+    (tester) async {
+      final previousPlatform = FileSelectorPlatform.instance;
+      final fakePlatform = _FakeFileSelectorPlatform(<Object?>[
+        '/tmp/fallback-picked-workspaces',
+      ]);
+      FileSelectorPlatform.instance = fakePlatform;
+      addTearDown(() => FileSelectorPlatform.instance = previousPlatform);
 
-    final container = await pumpSettingsDialog(
-      tester,
-      initialSettings: AleraSettings.defaults.copyWith(
-        general: AleraSettings.defaults.general.copyWith(
-          workspaceDirectory: '/tmp/existing-workspaces',
+      final container = await pumpSettingsDialog(
+        tester,
+        initialSettings: AleraSettings.defaults.copyWith(
+          general: AleraSettings.defaults.general.copyWith(
+            workspaceDirectory: '/tmp/existing-workspaces',
+          ),
         ),
-      ),
-    );
-    final field = find.byType(TextField).at(1);
+      );
+      final field = find.byType(TextField).at(1);
 
-    await tester.enterText(field, '');
-    await tester.pump();
-    await tester.tap(find.widgetWithText(OutlinedButton, 'Browse'));
-    await tester.pumpAndSettle();
+      await tester.enterText(field, '');
+      await tester.pump();
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Browse'));
+      await tester.pumpAndSettle();
 
-    expect(
-      fakePlatform.requests.single.initialDirectory,
-      '/tmp/existing-workspaces',
-    );
-    expect(
-      container.read(settingsControllerProvider).general.workspaceDirectory,
-      '/tmp/fallback-picked-workspaces',
-    );
-  });
+      expect(
+        fakePlatform.requests.single.initialDirectory,
+        '/tmp/existing-workspaces',
+      );
+      expect(
+        container.read(settingsControllerProvider).general.workspaceDirectory,
+        '/tmp/fallback-picked-workspaces',
+      );
+    },
+  );
 
-  testWidgets('hex color fields commit, clear invalid input, and reset on updates', (
-    tester,
-  ) async {
-    final container = await pumpSettingsDialog(tester);
-    await selectTerminalSection(tester);
+  testWidgets(
+    'font autocomplete refreshes suggestions when async fonts arrive',
+    (tester) async {
+      final fontsCompleter = Completer<List<String>>();
+      await pumpSettingsDialog(
+        tester,
+        fontService: _DelayedSystemFontService(fontsCompleter.future),
+      );
+      await selectTerminalSection(tester);
 
-    final field = find.byWidgetPredicate(
-      (widget) => widget is AleraTextField && widget.hintText == '#101010',
-    );
-    await tester.ensureVisible(field);
-    await tester.pump();
+      final field = find.byKey(
+        const ValueKey<String>('terminal-font-family-field'),
+      );
+      await tester.tap(field);
+      await tester.pump();
+      await tester.enterText(field, 'alera');
+      await tester.pump();
 
-    await tester.enterText(field, '#123456');
-    await tester.testTextInput.receiveAction(TextInputAction.done);
-    await tester.pump(const Duration(milliseconds: 50));
-    expect(
-      container.read(settingsControllerProvider).terminal.colorOverrides.background,
-      '#123456',
-    );
+      expect(find.text('Alera Mono'), findsNothing);
 
-    await tester.enterText(field, '');
-    await tester.testTextInput.receiveAction(TextInputAction.done);
-    await tester.pump(const Duration(milliseconds: 50));
-    expect(
-      container.read(settingsControllerProvider).terminal.colorOverrides.background,
-      isNull,
-    );
+      fontsCompleter.complete(<String>['Alera Mono']);
+      await tester.pump();
+      await tester.pump();
 
-    await tester.enterText(field, 'bad');
-    await tester.testTextInput.receiveAction(TextInputAction.done);
-    await tester.pump(const Duration(milliseconds: 50));
-    expect(tester.widget<AleraTextField>(field).controller?.text, isEmpty);
+      expect(find.text('Alera Mono'), findsWidgets);
+    },
+  );
 
-    await tester.enterText(field, '#abcdef');
-    await tester.testTextInput.receiveAction(TextInputAction.done);
-    await tester.pump(const Duration(milliseconds: 50));
+  testWidgets(
+    'hex color fields commit, clear invalid input, and reset on updates',
+    (tester) async {
+      final container = await pumpSettingsDialog(tester);
+      await selectTerminalSection(tester);
 
-    await container.read(settingsControllerProvider.notifier).resetTerminalSettings();
-    await tester.pump(const Duration(milliseconds: 50));
+      final field = find.byWidgetPredicate(
+        (widget) => widget is AleraTextField && widget.hintText == '#101010',
+      );
+      await tester.ensureVisible(field);
+      await tester.pump();
 
-    expect(
-      container.read(settingsControllerProvider).terminal.colorOverrides.background,
-      isNull,
-    );
-    expect(tester.widget<AleraTextField>(field).controller?.text, isEmpty);
-  });
+      await tester.enterText(field, '#123456');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(
+        container
+            .read(settingsControllerProvider)
+            .terminal
+            .colorOverrides
+            .background,
+        '#123456',
+      );
+
+      await tester.enterText(field, '');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(
+        container
+            .read(settingsControllerProvider)
+            .terminal
+            .colorOverrides
+            .background,
+        isNull,
+      );
+
+      await tester.enterText(field, 'bad');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(tester.widget<AleraTextField>(field).controller?.text, isEmpty);
+
+      await tester.enterText(field, '#abcdef');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump(const Duration(milliseconds: 50));
+
+      await container
+          .read(settingsControllerProvider.notifier)
+          .resetTerminalSettings();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(
+        container
+            .read(settingsControllerProvider)
+            .terminal
+            .colorOverrides
+            .background,
+        isNull,
+      );
+      expect(tester.widget<AleraTextField>(field).controller?.text, isEmpty);
+    },
+  );
 }
 
 class _FakeUpdateService implements AleraUpdateService {
@@ -825,6 +896,15 @@ class _FakeSystemFontService implements SystemFontService {
 
   @override
   Future<List<String>> listFontFamilies() async => fonts;
+}
+
+class _DelayedSystemFontService implements SystemFontService {
+  _DelayedSystemFontService(this.futureFonts);
+
+  final Future<List<String>> futureFonts;
+
+  @override
+  Future<List<String>> listFontFamilies() => futureFonts;
 }
 
 class _FakeGitHubStarController extends GitHubStarController {

@@ -12,6 +12,33 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('DriftProjectRepository', () {
+    test('add, list, watch, and update round-trip projects', () async {
+      final db = AleraDatabase(executor: NativeDatabase.memory());
+      addTearDown(db.close);
+      final repository = DriftProjectRepository(db);
+      final now = DateTime.utc(2026, 5, 23);
+      final early = _project('project-1', now);
+      final late = _project('project-2', now.add(const Duration(days: 1)));
+
+      await repository.add(early);
+      await repository.add(late);
+
+      expect(
+        (await repository.listAll()).map((project) => project.id),
+        <String>[late.id, early.id],
+      );
+      expect(
+        (await repository.watchAll().first).map((project) => project.id),
+        <String>[late.id, early.id],
+      );
+
+      final updated = late.copyWith(name: 'project-2-renamed');
+      final returned = await repository.update(updated);
+
+      expect(returned, updated);
+      expect((await _projectRow(db, updated.id))?.name, 'project-2-renamed');
+    });
+
     test(
       'remove cascades workspace tabs and layouts for project workspaces',
       () async {
