@@ -135,6 +135,37 @@ void main() {
     );
   });
 
+  testWidgets('tab context menu exposes split, close, and title actions', (
+    tester,
+  ) async {
+    final harness = await pumpShell(tester, state: _stackedWorkbenchState());
+
+    final tabs = find.byWidgetPredicate((widget) => widget is Draggable);
+    await tester.tapAt(
+      tester.getCenter(tabs.first),
+      buttons: kSecondaryMouseButton,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Split up'), findsOneWidget);
+    expect(find.text('Split down'), findsOneWidget);
+    expect(find.text('Split left'), findsOneWidget);
+    expect(find.text('Split right'), findsOneWidget);
+    expect(find.text('Close'), findsOneWidget);
+    expect(find.text('Close others'), findsOneWidget);
+    expect(find.text('Close tabs to the right'), findsOneWidget);
+    expect(find.text('Change title'), findsOneWidget);
+
+    await tester.tap(find.text('Close tabs to the right'));
+    await tester.pumpAndSettle();
+
+    expect(harness.runtime.closedTabIds, <String>['tab-2']);
+    expect(
+      harness.controller.state.tabsFor('workspace-1').map((tab) => tab.id),
+      <String>['tab-1'],
+    );
+  });
+
   testWidgets('shell shows the empty state when there are no projects', (
     tester,
   ) async {
@@ -290,6 +321,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    expect(find.text('Rename'), findsOneWidget);
     expect(find.text('Open in Finder'), findsOneWidget);
     expect(find.text('Copy path'), findsOneWidget);
     expect(find.text('Sleep'), findsOneWidget);
@@ -558,9 +590,9 @@ class _FakeTerminalRuntime implements TerminalRuntime {
 
   /// Total `requestFocus()` calls across every session this runtime created.
   int get totalFocusRequests => _sessions.values.fold<int>(
-        0,
-        (sum, session) => sum + session.requestFocusCalls,
-      );
+    0,
+    (sum, session) => sum + session.requestFocusCalls,
+  );
 
   /// Tab ids that received at least one `requestFocus()` call.
   Iterable<String> get focusedTabIds => _sessions.entries

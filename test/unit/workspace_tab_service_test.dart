@@ -57,6 +57,43 @@ void main() {
         );
       },
     );
+
+    test('renames a tab and marks its title as manual', () async {
+      final repository = _FakeWorkbenchRepository()
+        ..tabs.add(
+          WorkspaceTabRecord(
+            id: 'tab-1',
+            workspaceId: 'workspace-1',
+            title: 'Terminal 1',
+            createdAt: DateTime.utc(2026, 5, 21),
+            updatedAt: DateTime.utc(2026, 5, 21),
+            payload: const <String, Object?>{'source': 'test'},
+          ),
+        );
+      final service = WorkspaceTabService(
+        repository: repository,
+        now: () => DateTime.utc(2026, 5, 21, 1),
+      );
+
+      final tab = await service.renameTab(tabId: 'tab-1', title: '  API  ');
+
+      expect(tab.title, 'API');
+      expect(tab.updatedAt, DateTime.utc(2026, 5, 21, 1));
+      expect(tab.hasManualTitle, isTrue);
+      expect(tab.payload['source'], 'test');
+      expect(repository.tabs.single.title, 'API');
+      expect(repository.tabs.single.hasManualTitle, isTrue);
+    });
+
+    test('rejects a blank tab title when renaming', () async {
+      final repository = _FakeWorkbenchRepository();
+      final service = WorkspaceTabService(repository: repository);
+
+      await expectLater(
+        service.renameTab(tabId: 'tab-1', title: '   '),
+        throwsStateError,
+      );
+    });
   });
 }
 
@@ -68,7 +105,14 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
   Future<Workspace?> findWorkspaceById(String workspaceId) async => null;
 
   @override
-  Future<WorkspaceTabRecord?> findWorkspaceTabById(String tabId) async => null;
+  Future<WorkspaceTabRecord?> findWorkspaceTabById(String tabId) async {
+    for (final tab in tabs) {
+      if (tab.id == tabId) {
+        return tab;
+      }
+    }
+    return null;
+  }
 
   @override
   Future<WorkbenchLayout?> findWorkbenchLayout(String workspaceId) async {

@@ -128,6 +128,26 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
     return addLocalProject(path: repoPath, name: name);
   }
 
+  Future<void> renameProject({
+    required String projectId,
+    required String name,
+  }) async {
+    try {
+      final project = await _projectsService.renameProject(
+        projectId: projectId,
+        name: name,
+      );
+      final projects = <Project>[
+        for (final candidate in state.projects)
+          if (candidate.id == project.id) project else candidate,
+      ];
+      state = state.copyWith(projects: projects, clearError: true);
+    } catch (error) {
+      state = state.copyWith(error: error.toString());
+      rethrow;
+    }
+  }
+
   Future<void> removeProject(String projectId) async {
     try {
       await _projectsService.removeProject(projectId);
@@ -172,6 +192,33 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
         deleteBranch: deleteBranch,
       );
       state = state.copyWith(clearError: true);
+    } catch (error) {
+      state = state.copyWith(error: error.toString());
+      rethrow;
+    }
+  }
+
+  Future<void> renameWorkspace({
+    required String workspaceId,
+    required String name,
+  }) async {
+    try {
+      final workspace = await _workspaceService.renameWorkspace(
+        workspaceId: workspaceId,
+        name: name,
+      );
+      final current = state.workspacesFor(workspace.projectId);
+      final nextWorkspaces = <String, List<Workspace>>{
+        ...state.workspacesByProject,
+        workspace.projectId: <Workspace>[
+          for (final candidate in current)
+            if (candidate.id == workspace.id) workspace else candidate,
+        ],
+      };
+      state = state.copyWith(
+        workspacesByProject: nextWorkspaces,
+        clearError: true,
+      );
     } catch (error) {
       state = state.copyWith(error: error.toString());
       rethrow;
@@ -242,19 +289,33 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
     required Workspace workspace,
     required String tabId,
   }) async {
+    await closeWorkspaceTabs(workspace: workspace, tabIds: <String>[tabId]);
+  }
+
+  Future<void> closeWorkspaceTabs({
+    required Workspace workspace,
+    required List<String> tabIds,
+  }) async {
+    final ids = <String>{...tabIds};
+    if (ids.isEmpty) {
+      return;
+    }
     try {
       _closingTabWorkspaceIds.add(workspace.id);
-      await _workspaceTabService.closeTab(tabId);
+      for (final tabId in ids) {
+        await _workspaceTabService.closeTab(tabId);
+      }
       final remaining = state
           .tabsFor(workspace.id)
-          .where((tab) => tab.id != tabId)
+          .where((tab) => !ids.contains(tab.id))
           .toList(growable: false);
       if (remaining.isNotEmpty) {
         _setTabsForWorkspace(workspace.id, remaining);
-        final layout = _layoutForMutation(
-          workspace.id,
-          state.tabsFor(workspace.id),
-        ).removeTab(tabId).sanitize(remaining);
+        var layout = _layoutForMutation(workspace.id, remaining);
+        for (final tabId in ids) {
+          layout = layout.removeTab(tabId);
+        }
+        layout = layout.sanitize(remaining);
         await _applyLayout(layout, persist: true);
       } else {
         _setTabsForWorkspace(workspace.id, const <WorkspaceTabRecord>[]);
@@ -274,6 +335,27 @@ class WorkbenchController extends StateNotifier<WorkbenchState> {
       rethrow;
     } finally {
       _closingTabWorkspaceIds.remove(workspace.id);
+    }
+  }
+
+  Future<void> renameWorkspaceTab({
+    required String tabId,
+    required String title,
+  }) async {
+    try {
+      final tab = await _workspaceTabService.renameTab(
+        tabId: tabId,
+        title: title,
+      );
+      final tabs = <WorkspaceTabRecord>[
+        for (final candidate in state.tabsFor(tab.workspaceId))
+          if (candidate.id == tab.id) tab else candidate,
+      ];
+      _setTabsForWorkspace(tab.workspaceId, tabs);
+      state = state.copyWith(clearError: true);
+    } catch (error) {
+      state = state.copyWith(error: error.toString());
+      rethrow;
     }
   }
 

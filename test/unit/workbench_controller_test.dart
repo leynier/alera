@@ -126,6 +126,66 @@ void main() {
       },
     );
 
+    test('closing several tabs keeps the remaining tab active', () async {
+      await controller.bootstrap();
+      final workspace = await _selectMainWorkspace(controller, harness);
+      final firstTab = controller.state.activeWorkspaceTab!;
+      final secondTab = await controller.createTerminalTab(workspace);
+      final thirdTab = await controller.createTerminalTab(workspace);
+      await _flush();
+
+      await controller.closeWorkspaceTabs(
+        workspace: workspace,
+        tabIds: <String>[secondTab.id, thirdTab.id],
+      );
+      await _flush();
+
+      expect(
+        controller.state.tabsFor(workspace.id).map((tab) => tab.id),
+        <String>[firstTab.id],
+      );
+      expect(controller.state.activeWorkspaceId, workspace.id);
+      expect(controller.state.activeWorkspaceTab?.id, firstTab.id);
+      expect(
+        controller.state.layoutFor(workspace.id)?.activeTabId,
+        firstTab.id,
+      );
+    });
+
+    test('renames project, workspace, and terminal tab in state', () async {
+      await controller.bootstrap();
+      await _flushUntil(
+        () => controller.state.workspacesFor(harness.project.id).isNotEmpty,
+      );
+
+      await controller.renameProject(
+        projectId: harness.project.id,
+        name: '  Renamed project  ',
+      );
+      await _flush();
+      expect(controller.state.projects.single.name, 'Renamed project');
+
+      final workspace = await _selectMainWorkspace(controller, harness);
+      await controller.renameWorkspace(
+        workspaceId: workspace.id,
+        name: '  Primary workspace  ',
+      );
+      await _flush();
+      expect(
+        controller.state.workspacesFor(harness.project.id).single.name,
+        'Primary workspace',
+      );
+
+      final tab = controller.state.activeWorkspaceTab!;
+      await controller.renameWorkspaceTab(
+        tabId: tab.id,
+        title: '  API server  ',
+      );
+      await _flush();
+      expect(controller.state.activeWorkspaceTab?.title, 'API server');
+      expect(controller.state.activeWorkspaceTab?.hasManualTitle, isTrue);
+    });
+
     test(
       'deleting a workspace removes it from state without lingering',
       () async {
@@ -576,7 +636,16 @@ class _FakeProjectRepository implements ProjectRepository {
   }
 
   @override
-  Future<Project> update(Project project) async => project;
+  Future<Project> update(Project project) async {
+    final index = _projects.indexWhere((entry) => entry.id == project.id);
+    if (index == -1) {
+      _projects.add(project);
+    } else {
+      _projects[index] = project;
+    }
+    _projectsController.add(List<Project>.from(_projects));
+    return project;
+  }
 
   @override
   Future<void> remove(String projectId) async {

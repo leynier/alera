@@ -211,6 +211,16 @@ const List<_SettingsSearchEntry> _generalSearchEntries = <_SettingsSearchEntry>[
     keywords: <String>['worktree', 'folder', 'location', 'path'],
   ),
   _SettingsSearchEntry(
+    title: 'Confirm project removal',
+    description: 'Ask before unregistering a project.',
+    keywords: <String>['safety', 'destructive', 'remove', 'delete'],
+  ),
+  _SettingsSearchEntry(
+    title: 'Confirm workspace removal',
+    description: 'Ask before removing a workspace worktree.',
+    keywords: <String>['safety', 'destructive', 'remove', 'delete'],
+  ),
+  _SettingsSearchEntry(
     title: 'Updates',
     description: 'Check desktop releases for this platform.',
     keywords: <String>['release', 'download', 'version'],
@@ -562,6 +572,32 @@ class _GeneralSettingsPane extends ConsumerWidget {
               onChanged: (next) => ref
                   .read(settingsControllerProvider.notifier)
                   .updateWorkspaceDirectory(next),
+            ),
+          ],
+        ),
+        const SizedBox(height: AleraTokens.space16),
+        _SettingsGroup(
+          title: 'Safety',
+          description:
+              'Confirmation prompts for destructive workspace actions.',
+          children: <Widget>[
+            _SwitchSettingRow(
+              title: 'Confirm project removal',
+              description:
+                  'Ask before unregistering a project and deleting its workspace metadata.',
+              value: general.confirmProjectRemoval,
+              onChanged: (value) => ref
+                  .read(settingsControllerProvider.notifier)
+                  .setConfirmProjectRemoval(value),
+            ),
+            _SwitchSettingRow(
+              title: 'Confirm workspace removal',
+              description:
+                  'Ask before removing a linked workspace and deleting its branch.',
+              value: general.confirmWorkspaceRemoval,
+              onChanged: (value) => ref
+                  .read(settingsControllerProvider.notifier)
+                  .setConfirmWorkspaceRemoval(value),
             ),
           ],
         ),

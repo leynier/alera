@@ -473,6 +473,9 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
 
   @override
   String get displayTitle {
+    if (_tab.hasManualTitle) {
+      return _tab.title;
+    }
     final runtimeTitle = _title.trim();
     if (runtimeTitle.isEmpty || runtimeTitle == 'Terminal') {
       return _tab.title;
@@ -497,7 +500,8 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
         _workspace.id != workspace.id ||
         _workspace.path != workspace.path ||
         _tab.id != tab.id ||
-        _tab.title != tab.title;
+        _tab.title != tab.title ||
+        _tab.hasManualTitle != tab.hasManualTitle;
     _workspace = workspace;
     _tab = tab;
     if (metadataChanged) {

@@ -26,9 +26,19 @@ void main() {
       expect(terminal.scrollbackLines, 10000);
     });
 
+    test('general destructive confirmations default on', () {
+      const general = GeneralSettings.defaults;
+
+      expect(general.confirmProjectRemoval, isTrue);
+      expect(general.confirmWorkspaceRemoval, isTrue);
+    });
+
     test('round-trips through json', () {
       const settings = AleraSettings(
-        general: GeneralSettings.defaults,
+        general: GeneralSettings(
+          confirmProjectRemoval: false,
+          confirmWorkspaceRemoval: false,
+        ),
         terminal: TerminalSettings(
           fontFamily: 'SF Mono',
           fontSize: 15,
@@ -59,6 +69,8 @@ void main() {
 
       final restored = AleraSettings.fromJson(settings.toJson());
 
+      expect(restored.general.confirmProjectRemoval, isFalse);
+      expect(restored.general.confirmWorkspaceRemoval, isFalse);
       expect(restored.terminal.fontFamily, 'SF Mono');
       expect(restored.terminal.fontSize, 15);
       expect(restored.terminal.fontWeight, 500);
@@ -76,10 +88,21 @@ void main() {
       expect(restored.terminal.colorOverrides.cursor, '#ff00ff');
       expect(restored.terminal.colorOverrides.selection, '#333333');
       expect(restored.terminal.scrollbackLines, 50000);
-      expect(
-        restored.keyboard.overrides[KeyboardActionId.closeTab],
-        <String>['Mod+Shift+W'],
-      );
+      expect(restored.keyboard.overrides[KeyboardActionId.closeTab], <String>[
+        'Mod+Shift+W',
+      ]);
+    });
+
+    test('fromJson falls back for invalid general confirmation fields', () {
+      final restored = AleraSettings.fromJson(<String, Object?>{
+        'general': <String, Object?>{
+          'confirmProjectRemoval': 'yes',
+          'confirmWorkspaceRemoval': 0,
+        },
+      });
+
+      expect(restored.general.confirmProjectRemoval, isTrue);
+      expect(restored.general.confirmWorkspaceRemoval, isTrue);
     });
 
     test('fromJson falls back for invalid terminal fields', () {
@@ -197,14 +220,12 @@ void main() {
         },
       );
 
-      final restored =
-          KeyboardShortcutSettings.fromJson(settings.toJson());
+      final restored = KeyboardShortcutSettings.fromJson(settings.toJson());
 
       expect(restored.terminalPolicy, TerminalShortcutPolicy.terminalFirst);
-      expect(
-        restored.overrides[KeyboardActionId.newTerminalTab],
-        <String>['Mod+Shift+T'],
-      );
+      expect(restored.overrides[KeyboardActionId.newTerminalTab], <String>[
+        'Mod+Shift+T',
+      ]);
       expect(restored.isDisabled(KeyboardActionId.closeTab), isTrue);
     });
 
@@ -219,11 +240,13 @@ void main() {
       });
 
       expect(restored.terminalPolicy, TerminalShortcutPolicy.appFirst);
+      expect(restored.overrides[KeyboardActionId.newTerminalTab], <String>[
+        'Mod+T',
+      ]);
       expect(
-        restored.overrides[KeyboardActionId.newTerminalTab],
-        <String>['Mod+T'],
+        restored.overrides.containsKey(KeyboardActionId.closeTab),
+        isFalse,
       );
-      expect(restored.overrides.containsKey(KeyboardActionId.closeTab), isFalse);
       expect(restored.overrides.length, 1);
     });
 

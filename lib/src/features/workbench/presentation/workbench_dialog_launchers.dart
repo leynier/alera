@@ -1,7 +1,10 @@
 import 'dart:async';
 
 import 'package:alera/src/app/providers.dart';
+import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
+import 'package:alera/src/design_system/forms/alera_text_field.dart';
+import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/presentation/add_project_dialog.dart';
 import 'package:alera/src/features/settings/presentation/settings_dialog.dart';
@@ -18,6 +21,24 @@ Future<void> openSettingsDialog(BuildContext context) {
   return showDialog<void>(
     context: context,
     builder: (_) => const SettingsDialog(),
+  );
+}
+
+Future<String?> showRenameDialog(
+  BuildContext context, {
+  required String title,
+  required String labelText,
+  required String initialValue,
+  required String confirmLabel,
+}) {
+  return showDialog<String>(
+    context: context,
+    builder: (_) => _RenameDialog(
+      title: title,
+      labelText: labelText,
+      initialValue: initialValue,
+      confirmLabel: confirmLabel,
+    ),
   );
 }
 
@@ -70,6 +91,99 @@ Future<void> showAddProjectFlow(BuildContext context, WidgetRef ref) async {
       context,
       message: error.toString(),
       tone: AleraToastTone.error,
+    );
+  }
+}
+
+class _RenameDialog extends StatefulWidget {
+  const _RenameDialog({
+    required this.title,
+    required this.labelText,
+    required this.initialValue,
+    required this.confirmLabel,
+  });
+
+  final String title;
+  final String labelText;
+  final String initialValue;
+  final String confirmLabel;
+
+  @override
+  State<_RenameDialog> createState() => _RenameDialogState();
+}
+
+class _RenameDialogState extends State<_RenameDialog> {
+  late final TextEditingController _controller;
+  String? _errorText;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialValue)
+      ..selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: widget.initialValue.length,
+      );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final value = _controller.text.trim();
+    if (value.isEmpty) {
+      setState(() => _errorText = '${widget.labelText} is required');
+      return;
+    }
+    Navigator.of(context).pop(value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return AleraDialog(
+      maxWidth: 420,
+      child: Padding(
+        padding: const EdgeInsets.all(AleraTokens.space20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(widget.title, style: theme.textTheme.titleMedium),
+            const SizedBox(height: AleraTokens.space16),
+            AleraTextField(
+              controller: _controller,
+              autofocus: true,
+              labelText: widget.labelText,
+              errorText: _errorText,
+              onChanged: (_) {
+                if (_errorText != null) {
+                  setState(() => _errorText = null);
+                }
+              },
+              onSubmitted: (_) => _submit(),
+            ),
+            const SizedBox(height: AleraTokens.space20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancel'),
+                ),
+                const SizedBox(width: AleraTokens.space8),
+                FilledButton(
+                  onPressed: _submit,
+                  child: Text(widget.confirmLabel),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -50,6 +50,30 @@ class WorkspaceTabService {
     return _repository.removeWorkspaceTab(tabId);
   }
 
+  Future<WorkspaceTabRecord> renameTab({
+    required String tabId,
+    required String title,
+  }) async {
+    final trimmedTitle = title.trim();
+    if (trimmedTitle.isEmpty) {
+      throw StateError('Terminal title must not be empty');
+    }
+    final tab = await _repository.findWorkspaceTabById(tabId);
+    if (tab == null) {
+      throw StateError('Workspace tab not found: $tabId');
+    }
+    final next = tab.copyWith(
+      title: trimmedTitle,
+      updatedAt: _now(),
+      payload: <String, Object?>{
+        ...tab.payload,
+        workspaceTabManualTitlePayloadKey: true,
+      },
+    );
+    await _repository.upsertWorkspaceTab(next);
+    return next;
+  }
+
   int _nextOrdinal(List<WorkspaceTabRecord> tabs) {
     final used = <int>{};
     for (final tab in tabs) {

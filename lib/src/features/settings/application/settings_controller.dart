@@ -33,6 +33,28 @@ class SettingsController extends StateNotifier<AleraSettings> {
     );
   }
 
+  Future<void> setConfirmProjectRemoval(bool value) async {
+    if (state.general.confirmProjectRemoval == value) {
+      return;
+    }
+    await _save(
+      state.copyWith(
+        general: state.general.copyWith(confirmProjectRemoval: value),
+      ),
+    );
+  }
+
+  Future<void> setConfirmWorkspaceRemoval(bool value) async {
+    if (state.general.confirmWorkspaceRemoval == value) {
+      return;
+    }
+    await _save(
+      state.copyWith(
+        general: state.general.copyWith(confirmWorkspaceRemoval: value),
+      ),
+    );
+  }
+
   /// Sets the bindings for [id]. A null [chords] restores the default; an empty
   /// list disables the action.
   Future<void> setActionBindings(
@@ -61,7 +83,9 @@ class SettingsController extends StateNotifier<AleraSettings> {
     if (state.keyboard.terminalPolicy == policy) {
       return;
     }
-    await _save(state.copyWith(keyboard: state.keyboard.copyWithPolicy(policy)));
+    await _save(
+      state.copyWith(keyboard: state.keyboard.copyWithPolicy(policy)),
+    );
   }
 
   Future<void> resetKeyboardShortcuts() async {

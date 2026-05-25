@@ -191,6 +191,18 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
         terminalRuntime.closeTab(tabId);
         await controller.closeWorkspaceTab(workspace: workspace, tabId: tabId);
       },
+      onCloseTabs: (tabIds) async {
+        for (final tabId in tabIds) {
+          terminalRuntime.closeTab(tabId);
+        }
+        await controller.closeWorkspaceTabs(
+          workspace: workspace,
+          tabIds: tabIds,
+        );
+      },
+      onRenameTab: ({required tabId, required title}) async {
+        await controller.renameWorkspaceTab(tabId: tabId, title: title);
+      },
       onMoveTab:
           ({required tabId, required targetGroupId, required zone}) async {
             await controller.moveWorkspaceTab(

@@ -23,6 +23,8 @@ enum WorkspaceTabKind {
   }
 }
 
+const String workspaceTabManualTitlePayloadKey = 'manualTitle';
+
 class WorkspaceTabRecord {
   WorkspaceTabRecord({
     required this.id,
@@ -41,6 +43,8 @@ class WorkspaceTabRecord {
   final DateTime createdAt;
   final DateTime updatedAt;
   final Map<String, Object?> payload;
+
+  bool get hasManualTitle => payload[workspaceTabManualTitlePayloadKey] == true;
 
   WorkspaceTabRecord copyWith({
     WorkspaceTabKind? kind,

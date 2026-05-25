@@ -104,7 +104,9 @@ class _ProjectWorkbenchSidebarState
                           onSleepWorkspace: _sleepWorkspace,
                           onCreateWorkspace: _createWorkspace,
                           onDeleteWorkspace: _deleteWorkspace,
+                          onRenameProject: _renameProject,
                           onRemoveProject: _removeProject,
+                          onRenameWorkspace: _renameWorkspace,
                           fileManagerLabel:
                               workspaceFolderOpener.fileManagerLabel,
                           onSelectTerminal: _selectTerminal,
@@ -195,23 +197,99 @@ class _ProjectWorkbenchSidebarState
     );
   }
 
+  Future<void> _renameProject(Project project) async {
+    final name = await showRenameDialog(
+      context,
+      title: 'Rename project',
+      labelText: 'Project name',
+      initialValue: project.name,
+      confirmLabel: 'Rename',
+    );
+    if (name == null || !mounted) {
+      return;
+    }
+    try {
+      await ref
+          .read(workbenchControllerProvider.notifier)
+          .renameProject(projectId: project.id, name: name);
+      if (!mounted) {
+        return;
+      }
+      AleraToast.show(
+        context,
+        message: 'Project renamed',
+        tone: AleraToastTone.success,
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      AleraToast.show(
+        context,
+        message: error.toString(),
+        tone: AleraToastTone.error,
+      );
+    }
+  }
+
+  Future<void> _renameWorkspace(Workspace workspace) async {
+    final name = await showRenameDialog(
+      context,
+      title: 'Rename workspace',
+      labelText: 'Workspace name',
+      initialValue: workspace.name,
+      confirmLabel: 'Rename',
+    );
+    if (name == null || !mounted) {
+      return;
+    }
+    try {
+      await ref
+          .read(workbenchControllerProvider.notifier)
+          .renameWorkspace(workspaceId: workspace.id, name: name);
+      if (!mounted) {
+        return;
+      }
+      AleraToast.show(
+        context,
+        message: 'Workspace renamed',
+        tone: AleraToastTone.success,
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      AleraToast.show(
+        context,
+        message: error.toString(),
+        tone: AleraToastTone.error,
+      );
+    }
+  }
+
   Future<void> _deleteWorkspace(Project project, Workspace workspace) async {
     if (workspace.isMain) {
       return;
     }
     final branch = workspace.branch;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (_) => AleraConfirmDialog(
-        title: 'Remove workspace?',
-        message: branch == null || branch.isEmpty
-            ? 'This removes the worktree for "${workspace.name}".'
-            : 'This removes the worktree for "${workspace.name}" and deletes '
-                  'branch "$branch".',
-        confirmLabel: 'Remove',
-        destructive: true,
-      ),
-    );
+    final shouldConfirm = ref
+        .read(settingsControllerProvider)
+        .general
+        .confirmWorkspaceRemoval;
+    final confirmed = shouldConfirm
+        ? await showDialog<bool>(
+            context: context,
+            builder: (_) => AleraConfirmDialog(
+              title: 'Remove workspace?',
+              message: branch == null || branch.isEmpty
+                  ? 'This removes the worktree for "${workspace.name}".'
+                  : 'This removes the worktree for "${workspace.name}" and deletes '
+                        'branch "$branch".',
+              confirmLabel: 'Remove',
+              destructive: true,
+            ),
+          )
+        : true;
     if (confirmed != true || !mounted) {
       return;
     }
@@ -243,17 +321,23 @@ class _ProjectWorkbenchSidebarState
   }
 
   Future<void> _removeProject(Project project) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (_) => AleraConfirmDialog(
-        title: 'Remove project?',
-        message:
-            'This unregisters "${project.name}" and deletes its workspace '
-            'metadata. Repository files on disk are not deleted.',
-        confirmLabel: 'Remove',
-        destructive: true,
-      ),
-    );
+    final shouldConfirm = ref
+        .read(settingsControllerProvider)
+        .general
+        .confirmProjectRemoval;
+    final confirmed = shouldConfirm
+        ? await showDialog<bool>(
+            context: context,
+            builder: (_) => AleraConfirmDialog(
+              title: 'Remove project?',
+              message:
+                  'This unregisters "${project.name}" and deletes its workspace '
+                  'metadata. Repository files on disk are not deleted.',
+              confirmLabel: 'Remove',
+              destructive: true,
+            ),
+          )
+        : true;
     if (confirmed != true || !mounted) {
       return;
     }
@@ -409,7 +493,9 @@ class _SidebarBody extends StatelessWidget {
     required this.onSleepWorkspace,
     required this.onCreateWorkspace,
     required this.onDeleteWorkspace,
+    required this.onRenameProject,
     required this.onRemoveProject,
+    required this.onRenameWorkspace,
     required this.fileManagerLabel,
     required this.onSelectTerminal,
     required this.onCloseTerminal,
@@ -426,7 +512,9 @@ class _SidebarBody extends StatelessWidget {
   final Future<void> Function(Project project) onCreateWorkspace;
   final Future<void> Function(Project project, Workspace workspace)
   onDeleteWorkspace;
+  final Future<void> Function(Project project) onRenameProject;
   final Future<void> Function(Project project) onRemoveProject;
+  final Future<void> Function(Workspace workspace) onRenameWorkspace;
   final String fileManagerLabel;
   final _TerminalTabCallback onSelectTerminal;
   final _TerminalTabCallback onCloseTerminal;
@@ -465,6 +553,7 @@ class _SidebarBody extends StatelessWidget {
           onCreateWorkspace: row.project.supportsLinkedWorkspaces
               ? () => onCreateWorkspace(row.project)
               : null,
+          onRenameProject: () => onRenameProject(row.project),
           onRemoveProject: () => onRemoveProject(row.project),
         ),
       );
@@ -492,6 +581,7 @@ class _SidebarBody extends StatelessWidget {
           onToggleExpanded: () =>
               controller.toggleWorkspaceExpanded(row.workspace.id),
           fileManagerLabel: fileManagerLabel,
+          onRename: () => onRenameWorkspace(row.workspace),
           onDelete: row.workspace.isMain
               ? null
               : () => onDeleteWorkspace(row.project, row.workspace),
@@ -546,6 +636,7 @@ class _ProjectHeaderTile extends StatefulWidget {
     required this.workspaceCount,
     required this.onToggle,
     required this.onCreateWorkspace,
+    required this.onRenameProject,
     required this.onRemoveProject,
   });
 
@@ -554,6 +645,7 @@ class _ProjectHeaderTile extends StatefulWidget {
   final int workspaceCount;
   final VoidCallback onToggle;
   final VoidCallback? onCreateWorkspace;
+  final VoidCallback onRenameProject;
   final VoidCallback onRemoveProject;
 
   @override
@@ -575,11 +667,37 @@ class _ProjectHeaderTileState extends State<_ProjectHeaderTile> {
         Rect.fromPoints(globalPosition, globalPosition),
         Offset.zero & overlay.size,
       ),
-      items: const <PopupMenuEntry<String>>[
-        AleraDropdownEntry<String>(value: 'remove', label: 'Remove project'),
+      items: <PopupMenuEntry<String>>[
+        const AleraDropdownEntry<String>(
+          value: 'rename',
+          leading: Icon(Icons.edit_outlined, size: 16),
+          label: 'Rename',
+        ),
+        AleraDropdownEntry<String>(
+          value: 'new-workspace',
+          leading: Icon(
+            Icons.add,
+            size: 16,
+            color: widget.onCreateWorkspace == null
+                ? AleraTokens.foregroundFaint
+                : AleraTokens.foreground,
+          ),
+          label: 'New workspace',
+          enabled: widget.onCreateWorkspace != null,
+        ),
+        const PopupMenuDivider(height: AleraTokens.space8),
+        const AleraDropdownEntry<String>(
+          value: 'remove',
+          leading: Icon(Icons.delete_outline, size: 16),
+          label: 'Remove project',
+        ),
       ],
     );
-    if (selected == 'remove') {
+    if (selected == 'rename') {
+      widget.onRenameProject();
+    } else if (selected == 'new-workspace') {
+      widget.onCreateWorkspace?.call();
+    } else if (selected == 'remove') {
       widget.onRemoveProject();
     }
   }
@@ -677,6 +795,7 @@ class _WorkspaceRow extends StatefulWidget {
     required this.onSleep,
     required this.onToggleExpanded,
     required this.fileManagerLabel,
+    required this.onRename,
     this.onDelete,
   });
 
@@ -692,6 +811,7 @@ class _WorkspaceRow extends StatefulWidget {
   final VoidCallback onSleep;
   final VoidCallback onToggleExpanded;
   final String fileManagerLabel;
+  final VoidCallback onRename;
   final VoidCallback? onDelete;
 
   @override
@@ -699,6 +819,7 @@ class _WorkspaceRow extends StatefulWidget {
 }
 
 class _WorkspaceRowState extends State<_WorkspaceRow> {
+  static const String _renameAction = 'rename';
   static const String _openFolderAction = 'open-folder';
   static const String _copyPathAction = 'copy-path';
   static const String _sleepAction = 'sleep';
@@ -719,6 +840,12 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
         Offset.zero & overlay.size,
       ),
       items: <PopupMenuEntry<String>>[
+        const AleraDropdownEntry<String>(
+          value: _renameAction,
+          leading: Icon(Icons.edit_outlined, size: 16),
+          label: 'Rename',
+        ),
+        const PopupMenuDivider(height: AleraTokens.space8),
         AleraDropdownEntry<String>(
           value: _openFolderAction,
           leading: const Icon(
@@ -758,7 +885,9 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
       ],
     );
 
-    if (selected == _openFolderAction) {
+    if (selected == _renameAction) {
+      widget.onRename();
+    } else if (selected == _openFolderAction) {
       widget.onOpenFolder();
     } else if (selected == _copyPathAction) {
       widget.onCopyPath();

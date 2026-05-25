@@ -121,7 +121,7 @@ Components are **presentational**: they take data and callbacks as parameters an
 | Surfaces | `AleraPanel`, `HoverContainer` |
 | Feedback | `AleraStatusDot`, `AleraStatusIndicator`, `AleraColorSwatch`, `AleraEmptyState`, `AleraToast` |
 | Forms | `AleraTextField`, `AleraSearchField`, `AleraNumberField`, `AleraSettingRow` |
-| Layout | `AleraSectionHeader`, `AleraDialog`, `AleraDialogHeader` |
+| Layout | `AleraSectionHeader`, `AleraDialog`, `AleraDialogHeader`, `AleraConfirmDialog` |
 | Menus | `AleraDropdownEntry`, `AleraMenuItem` |
 
 ## Widget Previews

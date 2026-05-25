@@ -107,7 +107,6 @@ class WorkspaceService {
                   status: WorkspaceStatus.active,
                 ))
             .copyWith(
-              name: 'Main',
               branch: branch,
               path: project.repoPath,
               updatedAt: now,
@@ -115,6 +114,23 @@ class WorkspaceService {
               status: WorkspaceStatus.active,
               clearSourceBranch: true,
             );
+    await _repository.upsertWorkspace(next);
+    return next;
+  }
+
+  Future<Workspace> renameWorkspace({
+    required String workspaceId,
+    required String name,
+  }) async {
+    final trimmedName = name.trim();
+    if (trimmedName.isEmpty) {
+      throw WorkspaceException('Workspace name must not be empty');
+    }
+    final workspace = await _repository.findWorkspaceById(workspaceId);
+    if (workspace == null) {
+      throw WorkspaceException('Workspace not found: $workspaceId');
+    }
+    final next = workspace.copyWith(name: trimmedName, updatedAt: _now());
     await _repository.upsertWorkspace(next);
     return next;
   }

@@ -91,6 +91,27 @@ void main() {
       );
     });
 
+    test('persists destructive confirmation preferences', () async {
+      final db = await openAleraDb(
+        factory: databaseFactoryMemory,
+        path: 'settings-controller-confirmations.db',
+      );
+      addTearDown(db.close);
+      final repository = SembastSettingsRepository(db);
+      final controller = SettingsController(repository);
+      addTearDown(controller.dispose);
+      await controller.load();
+
+      await controller.setConfirmProjectRemoval(false);
+      await controller.setConfirmWorkspaceRemoval(false);
+
+      final restored = await repository.load();
+      expect(controller.state.general.confirmProjectRemoval, isFalse);
+      expect(controller.state.general.confirmWorkspaceRemoval, isFalse);
+      expect(restored.general.confirmProjectRemoval, isFalse);
+      expect(restored.general.confirmWorkspaceRemoval, isFalse);
+    });
+
     test('applyBindingChanges reassigns a chord atomically', () async {
       final db = await openAleraDb(
         factory: databaseFactoryMemory,
@@ -108,12 +129,13 @@ void main() {
       });
 
       final restored = await repository.load();
+      expect(restored.keyboard.overrides[KeyboardActionId.closeTab], <String>[
+        'Mod+T',
+      ]);
       expect(
-        restored.keyboard.overrides[KeyboardActionId.closeTab],
-        <String>['Mod+T'],
+        restored.keyboard.isDisabled(KeyboardActionId.newTerminalTab),
+        isTrue,
       );
-      expect(restored.keyboard.isDisabled(KeyboardActionId.newTerminalTab),
-          isTrue);
     });
   });
 }

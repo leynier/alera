@@ -81,6 +81,62 @@ void main() {
     });
 
     test(
+      'ensureMainWorkspace preserves a custom main workspace name',
+      () async {
+        final existing = Workspace(
+          id: 'workspace-1',
+          projectId: project.id,
+          name: 'Production checkout',
+          branch: 'old-main',
+          path: '/old/path',
+          createdAt: DateTime.utc(2026, 5, 19),
+          updatedAt: DateTime.utc(2026, 5, 19),
+          kind: WorkspaceKind.main,
+          status: WorkspaceStatus.active,
+        );
+        await repository.upsertWorkspace(existing);
+        processRunner.currentBranch = 'main';
+
+        final workspace = await service.ensureMainWorkspace(project);
+
+        expect(workspace.name, 'Production checkout');
+        expect(workspace.branch, 'main');
+        expect(workspace.path, project.repoPath);
+      },
+    );
+
+    test('renames a workspace with a trimmed non-empty name', () async {
+      final workspace = Workspace(
+        id: 'workspace-1',
+        projectId: project.id,
+        name: 'Old name',
+        branch: 'main',
+        path: project.repoPath,
+        createdAt: DateTime.utc(2026, 5, 19),
+        updatedAt: DateTime.utc(2026, 5, 19),
+        kind: WorkspaceKind.main,
+        status: WorkspaceStatus.active,
+      );
+      await repository.upsertWorkspace(workspace);
+
+      final renamed = await service.renameWorkspace(
+        workspaceId: workspace.id,
+        name: '  New name  ',
+      );
+
+      expect(renamed.name, 'New name');
+      expect(renamed.updatedAt, DateTime.utc(2026, 5, 20, 12));
+      expect(repository.workspaces.single.name, 'New name');
+    });
+
+    test('rejects a blank workspace name when renaming', () async {
+      await expectLater(
+        service.renameWorkspace(workspaceId: 'workspace-1', name: '   '),
+        throwsA(isA<WorkspaceException>()),
+      );
+    });
+
+    test(
       'createLinkedWorkspace creates a new worktree from the requested source branch',
       () async {
         processRunner.sourceBranches = <String>['main', 'origin/main'];

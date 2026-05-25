@@ -164,6 +164,39 @@ void main() {
       TerminalSettings.defaults.themeName,
     );
   });
+
+  testWidgets('edits destructive confirmation settings', (tester) async {
+    final container = await pumpSettingsDialog(tester);
+
+    expect(find.text('Safety'), findsOneWidget);
+    expect(find.text('Confirm project removal'), findsOneWidget);
+    expect(find.text('Confirm workspace removal'), findsOneWidget);
+
+    await tester.tap(find.byType(Switch).at(0));
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(
+      container.read(settingsControllerProvider).general.confirmProjectRemoval,
+      isFalse,
+    );
+
+    await tester.tap(find.byType(Switch).at(1));
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(
+      container
+          .read(settingsControllerProvider)
+          .general
+          .confirmWorkspaceRemoval,
+      isFalse,
+    );
+
+    await tester.enterText(find.byType(TextField).first, 'destructive');
+    await tester.pump();
+
+    expect(find.text('Confirm project removal'), findsOneWidget);
+    expect(find.text('Confirm workspace removal'), findsOneWidget);
+  });
 }
 
 class _FakeUpdateService implements AleraUpdateService {

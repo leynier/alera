@@ -115,10 +115,14 @@ class ProjectsService {
     return project;
   }
 
-  Future<void> renameProject({
+  Future<Project> renameProject({
     required String projectId,
     required String name,
   }) async {
+    final trimmedName = name.trim();
+    if (trimmedName.isEmpty) {
+      throw StateError('Project name must not be empty');
+    }
     final projects = await _projectRepository.listAll();
     Project? project;
     for (final candidate in projects) {
@@ -130,8 +134,9 @@ class ProjectsService {
     if (project == null) {
       throw StateError('project not found: $projectId');
     }
-    final next = project.copyWith(name: name.trim(), updatedAt: _now());
+    final next = project.copyWith(name: trimmedName, updatedAt: _now());
     await _projectRepository.update(next);
+    return next;
   }
 
   Future<void> removeProject(String projectId) async {

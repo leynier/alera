@@ -91,6 +91,33 @@ void main() {
       expect(repository.projects, isEmpty);
     });
 
+    test('renames a project with a trimmed non-empty name', () async {
+      final project = Project(
+        id: 'project-1',
+        name: 'Old name',
+        repoPath: tempDir.path,
+        createdAt: DateTime.utc(2026, 5, 24),
+        updatedAt: DateTime.utc(2026, 5, 24),
+      );
+      await repository.add(project);
+
+      final renamed = await service.renameProject(
+        projectId: project.id,
+        name: '  New name  ',
+      );
+
+      expect(renamed.name, 'New name');
+      expect(renamed.updatedAt, DateTime.utc(2026, 5, 25, 12));
+      expect(repository.projects.single.name, 'New name');
+    });
+
+    test('rejects a blank project name when renaming', () async {
+      await expectLater(
+        service.renameProject(projectId: 'project-1', name: '   '),
+        throwsStateError,
+      );
+    });
+
     test('legacy project JSON without kind remains Git-backed', () {
       final now = DateTime.utc(2026, 5, 25);
 

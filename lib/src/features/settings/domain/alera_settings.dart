@@ -304,7 +304,12 @@ class TerminalSettings {
 }
 
 class GeneralSettings {
-  const GeneralSettings({this.workspaceDirectory, this.starClicked = false});
+  const GeneralSettings({
+    this.workspaceDirectory,
+    this.starClicked = false,
+    this.confirmProjectRemoval = true,
+    this.confirmWorkspaceRemoval = true,
+  });
 
   /// User-configured root directory where new linked workspaces are created.
   /// `null` falls back to the platform default (`~/.alera/workspaces`).
@@ -315,17 +320,29 @@ class GeneralSettings {
   /// the live `gh` check.
   final bool starClicked;
 
+  /// Ask before unregistering a project and deleting its workspace metadata.
+  final bool confirmProjectRemoval;
+
+  /// Ask before removing a linked workspace and its Git worktree.
+  final bool confirmWorkspaceRemoval;
+
   static const GeneralSettings defaults = GeneralSettings();
 
   GeneralSettings copyWith({
     Object? workspaceDirectory = _unset,
     bool? starClicked,
+    bool? confirmProjectRemoval,
+    bool? confirmWorkspaceRemoval,
   }) {
     return GeneralSettings(
       workspaceDirectory: identical(workspaceDirectory, _unset)
           ? this.workspaceDirectory
           : workspaceDirectory as String?,
       starClicked: starClicked ?? this.starClicked,
+      confirmProjectRemoval:
+          confirmProjectRemoval ?? this.confirmProjectRemoval,
+      confirmWorkspaceRemoval:
+          confirmWorkspaceRemoval ?? this.confirmWorkspaceRemoval,
     );
   }
 
@@ -333,6 +350,8 @@ class GeneralSettings {
     return <String, Object?>{
       if (workspaceDirectory != null) 'workspaceDirectory': workspaceDirectory,
       'starClicked': starClicked,
+      'confirmProjectRemoval': confirmProjectRemoval,
+      'confirmWorkspaceRemoval': confirmWorkspaceRemoval,
     };
   }
 
@@ -340,7 +359,16 @@ class GeneralSettings {
     final raw = json['workspaceDirectory'];
     final dir = raw is String && raw.trim().isNotEmpty ? raw.trim() : null;
     final starClicked = json['starClicked'] == true;
-    return GeneralSettings(workspaceDirectory: dir, starClicked: starClicked);
+    return GeneralSettings(
+      workspaceDirectory: dir,
+      starClicked: starClicked,
+      confirmProjectRemoval: json['confirmProjectRemoval'] is bool
+          ? json['confirmProjectRemoval'] as bool
+          : GeneralSettings.defaults.confirmProjectRemoval,
+      confirmWorkspaceRemoval: json['confirmWorkspaceRemoval'] is bool
+          ? json['confirmWorkspaceRemoval'] as bool
+          : GeneralSettings.defaults.confirmWorkspaceRemoval,
+    );
   }
 }
 

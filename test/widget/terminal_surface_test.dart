@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
@@ -214,6 +215,41 @@ void main() {
     expect(view.theme.background, expectedTheme.background);
   });
 
+  testWidgets('manual tab title takes precedence over runtime title', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    try {
+      final factory = _FakeTerminalPtySessionFactory();
+      final runtime = XtermTerminalRuntime(ptySessionFactory: factory);
+      addTearDown(runtime.dispose);
+      final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
+
+      await session.ensureStarted();
+      factory.sessions.single.emitOutput(
+        utf8.encode('\x1b]0;Runtime title\x07'),
+      );
+      await tester.pump();
+
+      expect(session.displayTitle, 'Runtime title');
+
+      runtime.sessionFor(
+        workspace: _workspace(),
+        tab: _tab().copyWith(
+          title: 'Pinned title',
+          payload: const <String, Object?>{
+            workspaceTabManualTitlePayloadKey: true,
+          },
+        ),
+      );
+      await tester.pump();
+
+      expect(session.displayTitle, 'Pinned title');
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
   testWidgets('defers startup notifications until after the first frame', (
     tester,
   ) async {
@@ -339,6 +375,13 @@ class _FakeTerminalPtySession implements TerminalPtySession {
       return;
     }
     _events.add(TerminalPtyExitEvent(exitCode));
+  }
+
+  void emitOutput(List<int> data) {
+    if (_events.isClosed) {
+      return;
+    }
+    _events.add(TerminalPtyOutputEvent(Uint8List.fromList(data)));
   }
 
   @override
