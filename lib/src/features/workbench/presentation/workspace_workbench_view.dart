@@ -893,21 +893,14 @@ class _NewTerminalButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IconButton(
-      onPressed: onPressed,
-      icon: const Icon(Icons.add),
-      iconSize: 16,
+    return AleraIconButton(
       tooltip: 'New terminal',
-      style: IconButton.styleFrom(
-        padding: EdgeInsets.zero,
-        minimumSize: const Size.square(28),
-        maximumSize: const Size.square(28),
-        foregroundColor: AleraTokens.foregroundMuted,
-        hoverColor: AleraTokens.surfaceElevated,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
-        ),
-      ),
+      icon: Icons.add,
+      iconSize: 16,
+      minSize: 28,
+      hoverColor: AleraTokens.surfaceElevated,
+      borderRadius: AleraTokens.radiusSm,
+      onPressed: onPressed,
     );
   }
 }

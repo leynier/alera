@@ -1,5 +1,9 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
+import 'package:alera/src/design_system/buttons/alera_segmented_button.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
+import 'package:alera/src/design_system/forms/alera_text_field.dart';
+import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
@@ -203,86 +207,101 @@ class _AddProjectDialogState extends State<AddProjectDialog> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return AlertDialog(
-      title: Row(
-        children: <Widget>[
-          const Icon(
-            Icons.folder_special_outlined,
-            size: 18,
-            color: AleraTokens.accent,
-          ),
-          const SizedBox(width: AleraTokens.space8),
-          Text('Add project', style: theme.textTheme.titleLarge),
-        ],
-      ),
-      content: SizedBox(
-        width: 600,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(
-                'Choose an existing local folder or clone a Git repository from a URL.',
-                style: theme.textTheme.bodySmall,
-              ),
-              const SizedBox(height: AleraTokens.space16),
-              SegmentedButton<_AddProjectMode>(
-                segments: const <ButtonSegment<_AddProjectMode>>[
-                  ButtonSegment<_AddProjectMode>(
-                    value: _AddProjectMode.localFolder,
-                    icon: Icon(Icons.folder_open, size: 16),
-                    label: Text('Local folder'),
-                  ),
-                  ButtonSegment<_AddProjectMode>(
-                    value: _AddProjectMode.cloneFromUrl,
-                    icon: Icon(Icons.cloud_download_outlined, size: 16),
-                    label: Text('Clone from URL'),
-                  ),
-                ],
-                selected: <_AddProjectMode>{_mode},
-                onSelectionChanged: (selection) =>
-                    _selectMode(selection.single),
-              ),
-              const SizedBox(height: AleraTokens.space16),
-              switch (_mode) {
-                _AddProjectMode.localFolder => _LocalFolderFields(
-                  pathController: _localPathController,
-                  nameController: _nameController,
-                  onBrowse: _browseLocalFolder,
-                  onPathChanged: _onLocalPathChanged,
-                  onNameChanged: () => _nameTouched = true,
-                  onSubmitted: _submit,
+    return AleraDialog(
+      maxWidth: 600,
+      maxHeight: 640,
+      child: Padding(
+        padding: const EdgeInsets.all(AleraTokens.space20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                const Icon(
+                  Icons.folder_special_outlined,
+                  size: 18,
+                  color: AleraTokens.accent,
                 ),
-                _AddProjectMode.cloneFromUrl => _CloneFromUrlFields(
-                  urlController: _cloneUrlController,
-                  destinationController: _cloneDestinationController,
-                  nameController: _nameController,
-                  onBrowseParent: _browseCloneParentFolder,
-                  onUrlChanged: _onCloneUrlChanged,
-                  onDestinationChanged: () {
-                    _cloneDestinationTouched = true;
-                    _cloneParentDirectory = null;
-                    setState(() {});
-                  },
-                  onNameChanged: () => _nameTouched = true,
-                  onSubmitted: _submit,
+                const SizedBox(width: AleraTokens.space8),
+                Text('Add project', style: theme.textTheme.titleLarge),
+              ],
+            ),
+            const SizedBox(height: AleraTokens.space16),
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      'Choose an existing local folder or clone a Git repository from a URL.',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: AleraTokens.space16),
+                    AleraSegmentedButton<_AddProjectMode>(
+                      selected: _mode,
+                      onSelectionChanged: _selectMode,
+                      segments: const <ButtonSegment<_AddProjectMode>>[
+                        ButtonSegment<_AddProjectMode>(
+                          value: _AddProjectMode.localFolder,
+                          icon: Icon(Icons.folder_open, size: 16),
+                          label: Text('Local folder'),
+                        ),
+                        ButtonSegment<_AddProjectMode>(
+                          value: _AddProjectMode.cloneFromUrl,
+                          icon: Icon(Icons.cloud_download_outlined, size: 16),
+                          label: Text('Clone from URL'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AleraTokens.space16),
+                    switch (_mode) {
+                      _AddProjectMode.localFolder => _LocalFolderFields(
+                        pathController: _localPathController,
+                        nameController: _nameController,
+                        onBrowse: _browseLocalFolder,
+                        onPathChanged: _onLocalPathChanged,
+                        onNameChanged: () => _nameTouched = true,
+                        onSubmitted: _submit,
+                      ),
+                      _AddProjectMode.cloneFromUrl => _CloneFromUrlFields(
+                        urlController: _cloneUrlController,
+                        destinationController: _cloneDestinationController,
+                        nameController: _nameController,
+                        onBrowseParent: _browseCloneParentFolder,
+                        onUrlChanged: _onCloneUrlChanged,
+                        onDestinationChanged: () {
+                          _cloneDestinationTouched = true;
+                          _cloneParentDirectory = null;
+                          setState(() {});
+                        },
+                        onNameChanged: () => _nameTouched = true,
+                        onSubmitted: _submit,
+                      ),
+                    },
+                  ],
                 ),
-              },
-            ],
-          ),
+              ),
+            ),
+            const SizedBox(height: AleraTokens.space16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancel'),
+                ),
+                const SizedBox(width: AleraTokens.space8),
+                FilledButton(
+                  onPressed: _canSubmit ? _submit : null,
+                  child: const Text('Add project'),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
-      actions: <Widget>[
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: _canSubmit ? _submit : null,
-          child: const Text('Add project'),
-        ),
-      ],
     );
   }
 }
@@ -317,20 +336,16 @@ class _LocalFolderFields extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AleraTokens.space12),
-        TextField(
+        AleraTextField(
           controller: pathController,
           autofocus: true,
-          decoration: InputDecoration(
-            labelText: 'Project path',
-            hintText: '/path/to/project',
-            suffixIcon: Tooltip(
-              message: 'Browse',
-              child: IconButton(
-                onPressed: onBrowse,
-                mouseCursor: SystemMouseCursors.click,
-                icon: const Icon(Icons.folder_open, size: 18),
-              ),
-            ),
+          labelText: 'Project path',
+          hintText: '/path/to/project',
+          suffix: AleraIconButton(
+            tooltip: 'Browse',
+            icon: Icons.folder_open,
+            iconSize: 18,
+            onPressed: onBrowse,
           ),
           onChanged: onPathChanged,
           onSubmitted: (_) => onSubmitted(),
@@ -380,30 +395,24 @@ class _CloneFromUrlFields extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AleraTokens.space12),
-        TextField(
+        AleraTextField(
           controller: urlController,
           autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Git URL',
-            hintText: 'https://github.com/owner/repository.git',
-          ),
+          labelText: 'Git URL',
+          hintText: 'https://github.com/owner/repository.git',
           onChanged: onUrlChanged,
           onSubmitted: (_) => onSubmitted(),
         ),
         const SizedBox(height: AleraTokens.space12),
-        TextField(
+        AleraTextField(
           controller: destinationController,
-          decoration: InputDecoration(
-            labelText: 'Destination folder',
-            hintText: '/path/to/repository',
-            suffixIcon: Tooltip(
-              message: 'Choose parent folder',
-              child: IconButton(
-                onPressed: onBrowseParent,
-                mouseCursor: SystemMouseCursors.click,
-                icon: const Icon(Icons.create_new_folder_outlined, size: 18),
-              ),
-            ),
+          labelText: 'Destination folder',
+          hintText: '/path/to/repository',
+          suffix: AleraIconButton(
+            tooltip: 'Choose parent folder',
+            icon: Icons.create_new_folder_outlined,
+            iconSize: 18,
+            onPressed: onBrowseParent,
           ),
           onChanged: (_) => onDestinationChanged(),
           onSubmitted: (_) => onSubmitted(),
@@ -432,9 +441,9 @@ class _DisplayNameField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
+    return AleraTextField(
       controller: controller,
-      decoration: const InputDecoration(labelText: 'Display name (optional)'),
+      labelText: 'Display name (optional)',
       onChanged: (_) => onChanged(),
       onSubmitted: (_) => onSubmitted(),
     );
@@ -449,18 +458,22 @@ class AddProjectProgressDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return AlertDialog(
-      content: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          const SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-          const SizedBox(width: AleraTokens.space12),
-          Flexible(child: Text(message, style: theme.textTheme.bodyMedium)),
-        ],
+    return AleraDialog(
+      maxWidth: 360,
+      child: Padding(
+        padding: const EdgeInsets.all(AleraTokens.space20),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            const SizedBox(width: AleraTokens.space12),
+            Flexible(child: Text(message, style: theme.textTheme.bodyMedium)),
+          ],
+        ),
       ),
     );
   }

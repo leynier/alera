@@ -11,6 +11,7 @@ class AleraDialog extends StatelessWidget {
     this.maxHeight,
     this.backgroundColor,
     this.insetPadding,
+    this.elevation,
   });
 
   final Widget child;
@@ -18,6 +19,7 @@ class AleraDialog extends StatelessWidget {
   final double? maxHeight;
   final Color? backgroundColor;
   final EdgeInsets? insetPadding;
+  final double? elevation;
 
   @override
   Widget build(BuildContext context) {
@@ -32,6 +34,7 @@ class AleraDialog extends StatelessWidget {
         : child;
     return Dialog(
       backgroundColor: backgroundColor ?? AleraTokens.surface,
+      elevation: elevation,
       insetPadding:
           insetPadding ??
           const EdgeInsets.symmetric(

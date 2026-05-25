@@ -11,18 +11,20 @@ class AleraDropdownEntry<T> extends PopupMenuEntry<T> {
     required this.label,
     this.leading,
     this.selected = false,
+    this.enabled = true,
   });
 
   final T value;
   final String label;
   final Widget? leading;
   final bool selected;
+  final bool enabled;
 
   @override
   double get height => 36;
 
   @override
-  bool represents(T? value) => this.value == value;
+  bool represents(T? value) => enabled && this.value == value;
 
   @override
   State<AleraDropdownEntry<T>> createState() => _AleraDropdownEntryState<T>();
@@ -31,12 +33,19 @@ class AleraDropdownEntry<T> extends PopupMenuEntry<T> {
 class _AleraDropdownEntryState<T> extends State<AleraDropdownEntry<T>> {
   @override
   Widget build(BuildContext context) {
+    final color = widget.enabled
+        ? AleraTokens.foreground
+        : AleraTokens.foregroundFaint;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 1),
       child: InkWell(
         autofocus: widget.selected,
-        onTap: () => Navigator.of(context).pop(widget.value),
-        mouseCursor: SystemMouseCursors.click,
+        onTap: widget.enabled
+            ? () => Navigator.of(context).pop(widget.value)
+            : null,
+        mouseCursor: widget.enabled
+            ? SystemMouseCursors.click
+            : SystemMouseCursors.basic,
         borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
         child: Padding(
           padding: const EdgeInsets.symmetric(
@@ -52,7 +61,9 @@ class _AleraDropdownEntryState<T> extends State<AleraDropdownEntry<T>> {
               Expanded(
                 child: Text(
                   widget.label,
-                  style: Theme.of(context).textTheme.bodyMedium,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: color),
                 ),
               ),
               if (widget.selected)

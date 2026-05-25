@@ -1,5 +1,6 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 /// Styled text input.
 ///
@@ -13,24 +14,40 @@ class AleraTextField extends StatelessWidget {
     super.key,
     this.controller,
     this.focusNode,
+    this.labelText,
     this.hintText,
+    this.errorText,
     this.prefixIcon,
     this.suffix,
+    this.keyboardType,
+    this.inputFormatters,
     this.onChanged,
     this.onSubmitted,
+    this.onEditingComplete,
+    this.onTap,
     this.autofocus = false,
     this.dense = false,
+    this.readOnly = false,
+    this.enabled,
   });
 
   final TextEditingController? controller;
   final FocusNode? focusNode;
+  final String? labelText;
   final String? hintText;
+  final String? errorText;
   final IconData? prefixIcon;
   final Widget? suffix;
+  final TextInputType? keyboardType;
+  final List<TextInputFormatter>? inputFormatters;
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
+  final VoidCallback? onEditingComplete;
+  final VoidCallback? onTap;
   final bool autofocus;
   final bool dense;
+  final bool readOnly;
+  final bool? enabled;
 
   /// Fixed height of the dense variant: `space32 + space8`.
   static const double denseHeight = AleraTokens.space32 + AleraTokens.space8;
@@ -43,10 +60,18 @@ class AleraTextField extends StatelessWidget {
         controller: controller,
         focusNode: focusNode,
         autofocus: autofocus,
+        keyboardType: keyboardType,
+        inputFormatters: inputFormatters,
         onChanged: onChanged,
         onSubmitted: onSubmitted,
+        onEditingComplete: onEditingComplete,
+        onTap: onTap,
+        readOnly: readOnly,
+        enabled: enabled,
         decoration: InputDecoration(
+          labelText: labelText,
           hintText: hintText,
+          errorText: errorText,
           prefixIcon: prefixIcon == null ? null : Icon(prefixIcon, size: 16),
           suffixIcon: suffix,
         ),
@@ -59,8 +84,14 @@ class AleraTextField extends StatelessWidget {
         controller: controller,
         focusNode: focusNode,
         autofocus: autofocus,
+        keyboardType: keyboardType,
+        inputFormatters: inputFormatters,
         onChanged: onChanged,
         onSubmitted: onSubmitted,
+        onEditingComplete: onEditingComplete,
+        onTap: onTap,
+        readOnly: readOnly,
+        enabled: enabled,
         textAlignVertical: TextAlignVertical.center,
         style: theme.textTheme.bodySmall?.copyWith(
           color: AleraTokens.foreground,
@@ -70,7 +101,9 @@ class AleraTextField extends StatelessWidget {
           isDense: true,
           filled: true,
           fillColor: AleraTokens.surface,
+          labelText: labelText,
           hintText: hintText,
+          errorText: errorText,
           hintStyle: theme.textTheme.bodySmall?.copyWith(
             color: AleraTokens.foregroundFaint,
           ),

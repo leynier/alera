@@ -4,20 +4,43 @@ import 'package:flutter/material.dart';
 /// Grouped container that stacks [children] separated by hairline dividers,
 /// on an emphasized neutral surface. Used for settings groups and any list of
 /// related rows that should read as one card.
+///
+/// Defaults to the elevated [AleraTokens.surfaceVariant] background and the
+/// subtle border. Callers can pass [backgroundColor] / [borderColor] for the
+/// flatter "result panel" variant used inside search popovers.
 class AleraPanel extends StatelessWidget {
-  const AleraPanel({super.key, required this.children});
+  const AleraPanel({
+    super.key,
+    required this.children,
+    this.backgroundColor,
+    this.borderColor,
+    this.borderRadius,
+    this.clipBehavior = Clip.none,
+    this.maxHeight,
+  });
 
   final List<Widget> children;
+  final Color? backgroundColor;
+  final Color? borderColor;
+  final double? borderRadius;
+  final Clip clipBehavior;
+  final double? maxHeight;
 
   @override
   Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(borderRadius ?? AleraTokens.radiusLg);
     return Container(
+      clipBehavior: clipBehavior,
+      constraints: maxHeight == null
+          ? null
+          : BoxConstraints(maxHeight: maxHeight!),
       decoration: BoxDecoration(
-        color: AleraTokens.surfaceVariant,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
-        border: Border.all(color: AleraTokens.borderSubtle),
+        color: backgroundColor ?? AleraTokens.surfaceVariant,
+        borderRadius: radius,
+        border: Border.all(color: borderColor ?? AleraTokens.borderSubtle),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           for (var i = 0; i < children.length; i++) ...<Widget>[

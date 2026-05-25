@@ -1,4 +1,5 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:flutter/material.dart';
 
@@ -41,10 +42,12 @@ class SidebarCollapsedRail extends StatelessWidget {
               },
             ),
           ),
-          Tooltip(
-            message: 'Add project',
-            child: _RailIconButton(
+          Center(
+            child: AleraIconButton(
+              tooltip: 'Add project',
               icon: Icons.create_new_folder_outlined,
+              iconSize: 14,
+              borderColor: AleraTokens.borderSubtle,
               onPressed: onAddProject,
             ),
           ),
@@ -122,30 +125,6 @@ class _RailProjectAvatarState extends State<_RailProjectAvatar> {
                 ),
               ),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _RailIconButton extends StatelessWidget {
-  const _RailIconButton({required this.icon, required this.onPressed});
-
-  final IconData icon;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: IconButton(
-        onPressed: onPressed,
-        icon: Icon(icon, size: 14, color: AleraTokens.foregroundMuted),
-        style: IconButton.styleFrom(
-          minimumSize: const Size(30, 30),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-            side: const BorderSide(color: AleraTokens.borderSubtle),
           ),
         ),
       ),

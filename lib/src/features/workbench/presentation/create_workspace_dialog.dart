@@ -1,4 +1,10 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
+import 'package:alera/src/design_system/forms/alera_search_field.dart';
+import 'package:alera/src/design_system/forms/alera_text_field.dart';
+import 'package:alera/src/design_system/layout/alera_dialog.dart';
+import 'package:alera/src/design_system/menus/alera_menu_item.dart';
+import 'package:alera/src/design_system/surfaces/alera_panel.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:flutter/material.dart';
 
@@ -193,127 +199,142 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final selectedProject = _selectedProject;
-    return AlertDialog(
-      title: Row(
-        children: <Widget>[
-          const Icon(Icons.account_tree_outlined, color: AleraTokens.accent),
-          const SizedBox(width: AleraTokens.space8),
-          Text('New workspace', style: theme.textTheme.titleLarge),
-        ],
-      ),
-      content: SizedBox(
-        width: 680,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              _ProjectPicker(
-                projects: widget.projects,
-                selectedProject: selectedProject,
-                query: _projectQuery,
-                controller: _projectSearchController,
-                onQueryChanged: (value) {
-                  setState(() => _projectQuery = value);
-                },
-                onSelectProject: _selectProject,
-              ),
-              const SizedBox(height: AleraTokens.space16),
-              if (_loadingBranches)
-                const _LoadingBranches()
-              else if (_branches.isNotEmpty)
-                _SourceBranchPicker(
-                  branches: _branches,
-                  selectedBranch: _selectedSourceBranch,
-                  query: _branchQuery,
-                  controller: _branchSearchController,
-                  errorText: _sourceBranchError,
-                  onQueryChanged: (value) {
-                    setState(() => _branchQuery = value);
-                  },
-                  onSelectBranch: _selectSourceBranch,
-                )
-              else ...<Widget>[
-                if (_branchesError != null) ...<Widget>[
-                  Text(
-                    _branchesError!,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: AleraTokens.error,
+    return AleraDialog(
+      maxWidth: 680,
+      maxHeight: 720,
+      child: Padding(
+        padding: const EdgeInsets.all(AleraTokens.space20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                const Icon(
+                  Icons.account_tree_outlined,
+                  color: AleraTokens.accent,
+                ),
+                const SizedBox(width: AleraTokens.space8),
+                Text('New workspace', style: theme.textTheme.titleLarge),
+              ],
+            ),
+            const SizedBox(height: AleraTokens.space20),
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    _ProjectPicker(
+                      projects: widget.projects,
+                      selectedProject: selectedProject,
+                      query: _projectQuery,
+                      controller: _projectSearchController,
+                      onQueryChanged: (value) {
+                        setState(() => _projectQuery = value);
+                      },
+                      onSelectProject: _selectProject,
                     ),
-                  ),
-                  const SizedBox(height: AleraTokens.space8),
-                ],
-                TextField(
-                  controller: _sourceBranchController,
-                  autofocus: true,
-                  decoration: InputDecoration(
-                    labelText: 'Source branch',
-                    hintText: 'e.g. main',
-                    errorText: _sourceBranchError,
-                  ),
-                  onChanged: (_) {
-                    setState(() => _sourceBranchError = null);
-                  },
-                  onSubmitted: (_) => _submit(),
+                    const SizedBox(height: AleraTokens.space16),
+                    if (_loadingBranches)
+                      const _LoadingBranches()
+                    else if (_branches.isNotEmpty)
+                      _SourceBranchPicker(
+                        branches: _branches,
+                        selectedBranch: _selectedSourceBranch,
+                        query: _branchQuery,
+                        controller: _branchSearchController,
+                        errorText: _sourceBranchError,
+                        onQueryChanged: (value) {
+                          setState(() => _branchQuery = value);
+                        },
+                        onSelectBranch: _selectSourceBranch,
+                      )
+                    else ...<Widget>[
+                      if (_branchesError != null) ...<Widget>[
+                        Text(
+                          _branchesError!,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: AleraTokens.error,
+                          ),
+                        ),
+                        const SizedBox(height: AleraTokens.space8),
+                      ],
+                      AleraTextField(
+                        controller: _sourceBranchController,
+                        autofocus: true,
+                        labelText: 'Source branch',
+                        hintText: 'e.g. main',
+                        errorText: _sourceBranchError,
+                        onChanged: (_) {
+                          setState(() => _sourceBranchError = null);
+                        },
+                        onSubmitted: (_) => _submit(),
+                      ),
+                    ],
+                    const SizedBox(height: AleraTokens.space12),
+                    AleraTextField(
+                      controller: _newBranchController,
+                      autofocus: _branches.isNotEmpty,
+                      labelText: 'New branch name',
+                      hintText: 'e.g. feature/terminal-tabs',
+                      errorText: _newBranchError,
+                      onChanged: (value) {
+                        if (!_nameTouched) {
+                          _nameController.text = value.trim();
+                        }
+                        setState(() => _newBranchError = null);
+                      },
+                      onSubmitted: (_) => _submit(),
+                    ),
+                    const SizedBox(height: AleraTokens.space12),
+                    AleraTextField(
+                      controller: _nameController,
+                      labelText: 'Workspace name (optional)',
+                      onChanged: (_) => _nameTouched = true,
+                      onSubmitted: (_) => _submit(),
+                    ),
+                    const SizedBox(height: AleraTokens.space12),
+                    AleraPanel(
+                      borderRadius: AleraTokens.radiusMd,
+                      children: <Widget>[
+                        Padding(
+                          padding: const EdgeInsets.all(AleraTokens.space12),
+                          child: Text(
+                            'Alera will create a new git worktree from the '
+                            'selected source branch and open it as a workspace '
+                            'with an initial terminal tab.',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: AleraTokens.foregroundMuted,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: AleraTokens.space16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancel'),
+                ),
+                const SizedBox(width: AleraTokens.space8),
+                FilledButton(
+                  onPressed: selectedProject == null || _loadingBranches
+                      ? null
+                      : _submit,
+                  child: const Text('Create workspace'),
                 ),
               ],
-              const SizedBox(height: AleraTokens.space12),
-              TextField(
-                controller: _newBranchController,
-                autofocus: _branches.isNotEmpty,
-                decoration: InputDecoration(
-                  labelText: 'New branch name',
-                  hintText: 'e.g. feature/terminal-tabs',
-                  errorText: _newBranchError,
-                ),
-                onChanged: (value) {
-                  if (!_nameTouched) {
-                    _nameController.text = value.trim();
-                  }
-                  setState(() => _newBranchError = null);
-                },
-                onSubmitted: (_) => _submit(),
-              ),
-              const SizedBox(height: AleraTokens.space12),
-              TextField(
-                controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Workspace name (optional)',
-                ),
-                onChanged: (_) => _nameTouched = true,
-                onSubmitted: (_) => _submit(),
-              ),
-              const SizedBox(height: AleraTokens.space12),
-              Container(
-                padding: const EdgeInsets.all(AleraTokens.space12),
-                decoration: BoxDecoration(
-                  color: AleraTokens.surfaceVariant,
-                  borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-                  border: Border.all(color: AleraTokens.borderSubtle),
-                ),
-                child: Text(
-                  'Alera will create a new git worktree from the selected source branch and open it as a workspace with an initial terminal tab.',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: AleraTokens.foregroundMuted,
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
-      actions: <Widget>[
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: selectedProject == null || _loadingBranches
-              ? null
-              : _submit,
-          child: const Text('Create workspace'),
-        ),
-      ],
     );
   }
 }
@@ -357,28 +378,44 @@ class _ProjectPicker extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AleraTokens.space8),
-        _SearchField(
+        AleraSearchField(
           controller: controller,
           hintText: 'Search projects',
           onChanged: onQueryChanged,
         ),
         const SizedBox(height: AleraTokens.space8),
-        _PickerPanel(
-          child: filtered.isEmpty
-              ? _EmptyPickerMessage(message: 'No projects match "$query"')
-              : ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: filtered.length,
-                  itemBuilder: (context, index) {
-                    final project = filtered[index];
-                    final selected = project.id == selectedProject?.id;
-                    return _ProjectOption(
-                      project: project,
-                      selected: selected,
-                      onTap: () => onSelectProject(project),
-                    );
-                  },
-                ),
+        AleraPanel(
+          backgroundColor: AleraTokens.surfaceVariant,
+          borderRadius: AleraTokens.radiusMd,
+          clipBehavior: Clip.antiAlias,
+          maxHeight: 128,
+          children: <Widget>[
+            filtered.isEmpty
+                ? AleraEmptyState(message: 'No projects match "$query"')
+                : ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: filtered.length,
+                    itemBuilder: (context, index) {
+                      final project = filtered[index];
+                      final selected = project.id == selectedProject?.id;
+                      return AleraMenuItem(
+                        label: project.name,
+                        subtitle: project.repoPath,
+                        selected: selected,
+                        leading: Icon(
+                          selected
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_off,
+                          size: 16,
+                          color: selected
+                              ? AleraTokens.accent
+                              : AleraTokens.foregroundFaint,
+                        ),
+                        onTap: () => onSelectProject(project),
+                      );
+                    },
+                  ),
+          ],
         ),
       ],
     );
@@ -427,30 +464,41 @@ class _SourceBranchPicker extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AleraTokens.space8),
-        _SearchField(
+        AleraSearchField(
           controller: controller,
           hintText: 'Search source branches',
           onChanged: onQueryChanged,
         ),
         const SizedBox(height: AleraTokens.space8),
-        _PickerPanel(
+        AleraPanel(
+          backgroundColor: AleraTokens.surfaceVariant,
+          borderRadius: AleraTokens.radiusMd,
+          clipBehavior: Clip.antiAlias,
           maxHeight: 144,
-          child: filtered.isEmpty
-              ? _EmptyPickerMessage(
-                  message: 'No source branches match "$query"',
-                )
-              : ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: filtered.length,
-                  itemBuilder: (context, index) {
-                    final branch = filtered[index];
-                    return _BranchOption(
-                      branch: branch,
-                      selected: branch == selectedBranch,
-                      onTap: () => onSelectBranch(branch),
-                    );
-                  },
-                ),
+          children: <Widget>[
+            filtered.isEmpty
+                ? AleraEmptyState(message: 'No source branches match "$query"')
+                : ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: filtered.length,
+                    itemBuilder: (context, index) {
+                      final branch = filtered[index];
+                      final selected = branch == selectedBranch;
+                      return AleraMenuItem(
+                        label: branch,
+                        selected: selected,
+                        leading: Icon(
+                          selected ? Icons.check_circle : Icons.circle_outlined,
+                          size: 16,
+                          color: selected
+                              ? AleraTokens.accent
+                              : AleraTokens.foregroundFaint,
+                        ),
+                        onTap: () => onSelectBranch(branch),
+                      );
+                    },
+                  ),
+          ],
         ),
         if (errorText != null) ...<Widget>[
           const SizedBox(height: AleraTokens.space6),
@@ -466,233 +514,37 @@ class _SourceBranchPicker extends StatelessWidget {
   }
 }
 
-class _SearchField extends StatelessWidget {
-  const _SearchField({
-    required this.controller,
-    required this.hintText,
-    required this.onChanged,
-  });
-
-  final TextEditingController controller;
-  final String hintText;
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 40,
-      child: TextField(
-        controller: controller,
-        onChanged: onChanged,
-        textAlignVertical: TextAlignVertical.center,
-        decoration: InputDecoration(
-          hintText: hintText,
-          prefixIcon: const Icon(
-            Icons.search,
-            size: 16,
-            color: AleraTokens.foregroundFaint,
-          ),
-          suffixIcon: controller.text.isEmpty
-              ? null
-              : IconButton(
-                  tooltip: 'Clear',
-                  icon: const Icon(Icons.close, size: 14),
-                  onPressed: () {
-                    controller.clear();
-                    onChanged('');
-                  },
-                ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PickerPanel extends StatelessWidget {
-  const _PickerPanel({required this.child, this.maxHeight = 128});
-
-  final Widget child;
-  final double maxHeight;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      constraints: BoxConstraints(maxHeight: maxHeight),
-      decoration: BoxDecoration(
-        color: AleraTokens.surfaceVariant,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-        border: Border.all(color: AleraTokens.borderSubtle),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: child,
-    );
-  }
-}
-
-class _ProjectOption extends StatelessWidget {
-  const _ProjectOption({
-    required this.project,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final Project project;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        color: selected ? AleraTokens.accentSubtle : Colors.transparent,
-        padding: const EdgeInsets.symmetric(
-          horizontal: AleraTokens.space12,
-          vertical: AleraTokens.space8,
-        ),
-        child: Row(
-          children: <Widget>[
-            Icon(
-              selected ? Icons.radio_button_checked : Icons.radio_button_off,
-              size: 16,
-              color: selected
-                  ? AleraTokens.accent
-                  : AleraTokens.foregroundFaint,
-            ),
-            const SizedBox(width: AleraTokens.space8),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    project.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: AleraTokens.foreground,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: AleraTokens.space2),
-                  Text(
-                    project.repoPath,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: AleraTokens.foregroundFaint,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _BranchOption extends StatelessWidget {
-  const _BranchOption({
-    required this.branch,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String branch;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        color: selected ? AleraTokens.accentSubtle : Colors.transparent,
-        padding: const EdgeInsets.symmetric(
-          horizontal: AleraTokens.space12,
-          vertical: AleraTokens.space8,
-        ),
-        child: Row(
-          children: <Widget>[
-            Icon(
-              selected ? Icons.check_circle : Icons.circle_outlined,
-              size: 16,
-              color: selected
-                  ? AleraTokens.accent
-                  : AleraTokens.foregroundFaint,
-            ),
-            const SizedBox(width: AleraTokens.space8),
-            Expanded(
-              child: Text(
-                branch,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: AleraTokens.foreground,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _LoadingBranches extends StatelessWidget {
   const _LoadingBranches();
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
-      height: 72,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: AleraTokens.surfaceVariant,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-        border: Border.all(color: AleraTokens.borderSubtle),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          const SizedBox(
-            width: 14,
-            height: 14,
-            child: CircularProgressIndicator(strokeWidth: 2),
+    return AleraPanel(
+      borderRadius: AleraTokens.radiusMd,
+      children: <Widget>[
+        Container(
+          height: 72,
+          alignment: Alignment.center,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              const SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              const SizedBox(width: AleraTokens.space8),
+              Text(
+                'Loading source branches',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: AleraTokens.foregroundMuted,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: AleraTokens.space8),
-          Text(
-            'Loading source branches',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: AleraTokens.foregroundMuted,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _EmptyPickerMessage extends StatelessWidget {
-  const _EmptyPickerMessage({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(AleraTokens.space12),
-      child: Text(
-        message,
-        textAlign: TextAlign.center,
-        style: Theme.of(
-          context,
-        ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundFaint),
-      ),
+        ),
+      ],
     );
   }
 }

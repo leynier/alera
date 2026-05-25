@@ -4,6 +4,7 @@ import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/buttons/alera_segmented_button.dart';
 import 'package:alera/src/design_system/chips/alera_chip.dart';
 import 'package:alera/src/design_system/forms/alera_setting_row.dart';
+import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/design_system/surfaces/alera_panel.dart';
 import 'package:alera/src/features/keyboard/application/keybinding_resolver.dart';
 import 'package:alera/src/features/keyboard/domain/key_chord.dart';
@@ -73,10 +74,7 @@ class _KeyboardSettingsPaneState extends ConsumerState<KeyboardSettingsPane> {
     return KeyEventResult.handled;
   }
 
-  Future<void> _applyCapturedChord(
-    KeyboardActionId id,
-    KeyChord chord,
-  ) async {
+  Future<void> _applyCapturedChord(KeyboardActionId id, KeyChord chord) async {
     setState(() {
       _recordingId = null;
       _errors.remove(id);
@@ -116,26 +114,13 @@ class _KeyboardSettingsPaneState extends ConsumerState<KeyboardSettingsPane> {
     final targetLabel = keybindingDefinitionsById[target]?.label ?? '';
     final result = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: AleraTokens.surface,
-          title: const Text('Shortcut already in use'),
-          content: Text(
+      builder: (_) => AleraConfirmDialog(
+        title: 'Shortcut already in use',
+        message:
             '${chord.format(isMacOS: _isMacOS)} is assigned to '
             '"$conflictLabel". Reassign it to "$targetLabel"?',
-          ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('Reassign'),
-            ),
-          ],
-        );
-      },
+        confirmLabel: 'Reassign',
+      ),
     );
     return result ?? false;
   }

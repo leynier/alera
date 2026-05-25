@@ -1,8 +1,12 @@
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/badges/alera_badge.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
+import 'package:alera/src/design_system/buttons/alera_segmented_button.dart';
 import 'package:alera/src/design_system/chips/alera_chip.dart';
+import 'package:alera/src/design_system/feedback/alera_status_dot.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
+import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/design_system/layout/alera_dialog_header.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
@@ -44,22 +48,16 @@ class WorkbenchViewOptionsButton extends ConsumerWidget {
       context: context,
       barrierColor: const Color(0xCC000000),
       builder: (dialogContext) {
-        return Dialog(
+        return AleraDialog(
           backgroundColor: AleraTokens.surfaceElevated,
           elevation: 0,
+          maxWidth: 460,
           insetPadding: const EdgeInsets.symmetric(
             horizontal: AleraTokens.space24,
             vertical: AleraTokens.space32,
           ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AleraTokens.radiusXl),
-            side: const BorderSide(color: AleraTokens.borderSubtle),
-          ),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 460),
-            child: _WorkbenchViewOptionsPanel(
-              onDismiss: () => Navigator.of(dialogContext).pop(),
-            ),
+          child: _WorkbenchViewOptionsPanel(
+            onDismiss: () => Navigator.of(dialogContext).pop(),
           ),
         );
       },
@@ -245,24 +243,7 @@ class _ProjectsHeader extends StatelessWidget {
       children: <Widget>[
         _SectionLabel(text: 'Projects'),
         const SizedBox(width: AleraTokens.space6),
-        if (count > 0)
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AleraTokens.space6,
-              vertical: AleraTokens.space2,
-            ),
-            decoration: BoxDecoration(
-              color: AleraTokens.accentSubtle,
-              borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
-            ),
-            child: Text(
-              count.toString(),
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: AleraTokens.foregroundMuted,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
+        if (count > 0) AleraBadge(label: count.toString()),
         const Spacer(),
         MouseRegion(
           cursor: onClear == null
@@ -312,36 +293,20 @@ class _GroupBySegmented extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SegmentedButton<WorkbenchGroupBy>(
+    return AleraSegmentedButton<WorkbenchGroupBy>(
+      dense: true,
+      backgroundColor: AleraTokens.surface,
+      foregroundColor: AleraTokens.foregroundMuted,
+      selectedBackgroundColor: AleraTokens.accentSubtle,
+      selectedForegroundColor: AleraTokens.foreground,
+      borderColor: AleraTokens.borderSubtle,
+      textStyle: Theme.of(context).textTheme.labelSmall,
+      selected: value,
+      onSelectionChanged: onChanged,
       segments: const <ButtonSegment<WorkbenchGroupBy>>[
         ButtonSegment(value: WorkbenchGroupBy.none, label: Text('None')),
         ButtonSegment(value: WorkbenchGroupBy.project, label: Text('Project')),
       ],
-      selected: <WorkbenchGroupBy>{value},
-      onSelectionChanged: (selection) => onChanged(selection.first),
-      showSelectedIcon: false,
-      style:
-          SegmentedButton.styleFrom(
-            backgroundColor: AleraTokens.surface,
-            foregroundColor: AleraTokens.foregroundMuted,
-            selectedBackgroundColor: AleraTokens.accentSubtle,
-            selectedForegroundColor: AleraTokens.foreground,
-            side: const BorderSide(color: AleraTokens.borderSubtle),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-            ),
-            textStyle: Theme.of(context).textTheme.labelSmall,
-            padding: const EdgeInsets.symmetric(
-              horizontal: AleraTokens.space12,
-              vertical: AleraTokens.space4,
-            ),
-            minimumSize: const Size(0, 30),
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ).copyWith(
-            mouseCursor: const WidgetStatePropertyAll<MouseCursor>(
-              SystemMouseCursors.click,
-            ),
-          ),
     );
   }
 }
@@ -550,14 +515,7 @@ class _AvailableProjectRowState extends State<_AvailableProjectRow> {
           ),
           child: Row(
             children: <Widget>[
-              Container(
-                width: 6,
-                height: 6,
-                decoration: const BoxDecoration(
-                  color: AleraTokens.foregroundFaint,
-                  shape: BoxShape.circle,
-                ),
-              ),
+              const AleraStatusDot(active: false, size: 6),
               const SizedBox(width: AleraTokens.space8),
               Expanded(
                 child: Text(

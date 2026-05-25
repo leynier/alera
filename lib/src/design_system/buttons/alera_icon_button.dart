@@ -7,34 +7,49 @@ import 'package:flutter/material.dart';
 class AleraIconButton extends StatelessWidget {
   const AleraIconButton({
     super.key,
-    required this.tooltip,
+    this.tooltip,
     required this.onPressed,
     required this.icon,
     this.iconSize = 16,
     this.minSize = 30,
+    this.iconColor = AleraTokens.foregroundMuted,
+    this.backgroundColor,
+    this.hoverColor,
+    this.borderColor,
+    this.borderRadius = AleraTokens.radiusMd,
   });
 
-  final String tooltip;
-  final VoidCallback onPressed;
+  final String? tooltip;
+  final VoidCallback? onPressed;
   final IconData icon;
   final double iconSize;
   final double minSize;
+  final Color iconColor;
+  final Color? backgroundColor;
+  final Color? hoverColor;
+  final Color? borderColor;
+  final double borderRadius;
 
   @override
   Widget build(BuildContext context) {
     return IconButton(
       tooltip: tooltip,
       onPressed: onPressed,
-      icon: Icon(icon, size: iconSize, color: AleraTokens.foregroundMuted),
+      icon: Icon(icon, size: iconSize, color: iconColor),
       visualDensity: VisualDensity.compact,
       padding: EdgeInsets.zero,
       constraints: BoxConstraints(minWidth: minSize, minHeight: minSize),
       style: IconButton.styleFrom(
+        backgroundColor: backgroundColor,
+        hoverColor: hoverColor,
         minimumSize: Size(minSize, minSize),
         maximumSize: Size(minSize, minSize),
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+          borderRadius: BorderRadius.circular(borderRadius),
+          side: borderColor == null
+              ? BorderSide.none
+              : BorderSide(color: borderColor!),
         ),
       ),
     );

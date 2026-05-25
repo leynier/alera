@@ -3,9 +3,12 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/buttons/alera_segmented_button.dart';
 import 'package:alera/src/design_system/feedback/alera_color_swatch.dart';
+import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/forms/alera_number_field.dart';
 import 'package:alera/src/design_system/forms/alera_search_field.dart';
 import 'package:alera/src/design_system/forms/alera_setting_row.dart';
+import 'package:alera/src/design_system/forms/alera_text_field.dart';
+import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/design_system/menus/alera_menu_item.dart';
 import 'package:alera/src/design_system/surfaces/alera_panel.dart';
 import 'package:alera/src/features/keyboard/presentation/keyboard_settings_pane.dart';
@@ -117,43 +120,30 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
             orElse: () => visibleSections.first,
           );
 
-    return Dialog(
-      backgroundColor: AleraTokens.surface,
-      insetPadding: const EdgeInsets.symmetric(
-        horizontal: AleraTokens.space32,
-        vertical: AleraTokens.space32,
-      ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AleraTokens.radiusXl),
-        side: const BorderSide(color: AleraTokens.borderSubtle),
-      ),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          maxWidth: _kDialogMaxWidth,
-          maxHeight: _kDialogMaxHeight,
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            _SettingsSidebar(
-              queryController: _searchController,
-              visibleSections: visibleSections,
-              activeSectionId: activeSection?.id,
-              onSelect: (id) => setState(() => _activeSectionId = id),
-            ),
-            const VerticalDivider(width: 1, color: AleraTokens.borderSubtle),
-            Expanded(
-              child: activeSection != null
-                  ? _SettingsContent(
-                      section: activeSection,
-                      onClose: () => Navigator.of(context).pop(),
-                    )
-                  : _NoSettingsResults(
-                      onClose: () => Navigator.of(context).pop(),
-                    ),
-            ),
-          ],
-        ),
+    return AleraDialog(
+      maxWidth: _kDialogMaxWidth,
+      maxHeight: _kDialogMaxHeight,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          _SettingsSidebar(
+            queryController: _searchController,
+            visibleSections: visibleSections,
+            activeSectionId: activeSection?.id,
+            onSelect: (id) => setState(() => _activeSectionId = id),
+          ),
+          const VerticalDivider(width: 1, color: AleraTokens.borderSubtle),
+          Expanded(
+            child: activeSection != null
+                ? _SettingsContent(
+                    section: activeSection,
+                    onClose: () => Navigator.of(context).pop(),
+                  )
+                : _NoSettingsResults(
+                    onClose: () => Navigator.of(context).pop(),
+                  ),
+          ),
+        ],
       ),
     );
   }
@@ -247,7 +237,8 @@ const List<_SettingsSearchEntry> _keyboardSearchEntries =
       ),
       _SettingsSearchEntry(
         title: 'Terminal shortcut behavior',
-        description: 'Choose whether app shortcuts win while a terminal is '
+        description:
+            'Choose whether app shortcuts win while a terminal is '
             'focused.',
         keywords: <String>['app first', 'terminal first', 'policy'],
       ),
@@ -415,15 +406,7 @@ class _SettingsSidebar extends StatelessWidget {
             const Divider(height: 1, color: AleraTokens.borderSubtle),
             Expanded(
               child: visibleSections.isEmpty
-                  ? Padding(
-                      padding: const EdgeInsets.all(AleraTokens.space12),
-                      child: Text(
-                        'No matching settings.',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: AleraTokens.foregroundMuted,
-                        ),
-                      ),
-                    )
+                  ? const AleraEmptyState(message: 'No matching settings.')
                   : ListView.separated(
                       padding: const EdgeInsets.all(AleraTokens.space8),
                       itemCount: visibleSections.length,
@@ -864,13 +847,11 @@ class _WorkspaceDirectoryRowState extends State<_WorkspaceDirectoryRow> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
               Expanded(
-                child: TextField(
+                child: AleraTextField(
                   controller: _controller,
                   onSubmitted: (_) => _commit(),
                   onEditingComplete: _commit,
-                  decoration: const InputDecoration(
-                    hintText: '~/.alera/workspaces',
-                  ),
+                  hintText: '~/.alera/workspaces',
                 ),
               ),
               const SizedBox(width: AleraTokens.space8),
@@ -1209,11 +1190,11 @@ class _TextSettingRowState extends State<_TextSettingRow> {
     return AleraSettingRow(
       title: widget.title,
       description: widget.description,
-      child: TextField(
+      child: AleraTextField(
         controller: _controller,
         onSubmitted: (_) => _commit(),
         onEditingComplete: _commit,
-        decoration: InputDecoration(hintText: widget.hintText),
+        hintText: widget.hintText,
       ),
     );
   }
@@ -1378,7 +1359,7 @@ class _FontAutocompleteSettingRowState
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            TextField(
+            AleraTextField(
               key: const ValueKey<String>('terminal-font-family-field'),
               controller: _controller,
               focusNode: _focusNode,
@@ -1391,41 +1372,36 @@ class _FontAutocompleteSettingRowState
               },
               onSubmitted: _commitValue,
               onEditingComplete: () => _commitValue(_controller.text),
-              decoration: InputDecoration(
-                hintText: 'SF Mono',
-                suffixIconConstraints: const BoxConstraints(
-                  minWidth: 58,
-                  minHeight: 32,
-                ),
-                suffixIcon: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    if (_controller.text.isNotEmpty)
-                      IconButton(
-                        tooltip: 'Clear',
-                        icon: const Icon(Icons.cancel_outlined, size: 16),
-                        onPressed: () {
-                          _controller.clear();
-                          _openMenu();
-                          _focusNode.requestFocus();
-                        },
-                      ),
-                    IconButton(
-                      tooltip: 'Fonts',
-                      icon: Icon(
-                        _open ? Icons.expand_less : Icons.expand_more,
-                        size: 18,
-                      ),
+              hintText: 'SF Mono',
+              suffix: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  if (_controller.text.isNotEmpty)
+                    AleraIconButton(
+                      tooltip: 'Clear',
+                      icon: Icons.cancel_outlined,
+                      iconSize: 16,
+                      minSize: 28,
                       onPressed: () {
-                        setState(() {
-                          _open = !_open;
-                          _syncHighlightedIndex();
-                        });
+                        _controller.clear();
+                        _openMenu();
                         _focusNode.requestFocus();
                       },
                     ),
-                  ],
-                ),
+                  AleraIconButton(
+                    tooltip: 'Fonts',
+                    icon: _open ? Icons.expand_less : Icons.expand_more,
+                    iconSize: 18,
+                    minSize: 28,
+                    onPressed: () {
+                      setState(() {
+                        _open = !_open;
+                        _syncHighlightedIndex();
+                      });
+                      _focusNode.requestFocus();
+                    },
+                  ),
+                ],
               ),
             ),
             if (_open) ...<Widget>[
@@ -1467,7 +1443,6 @@ class _AutocompleteMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Container(
       decoration: BoxDecoration(
         color: AleraTokens.surface,
@@ -1484,15 +1459,7 @@ class _AutocompleteMenu extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxHeight: _kPickerMenuMaxHeight),
         child: itemCount == 0
-            ? Padding(
-                padding: const EdgeInsets.all(AleraTokens.space12),
-                child: Text(
-                  emptyText,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: AleraTokens.foregroundMuted,
-                  ),
-                ),
-              )
+            ? AleraEmptyState(message: emptyText)
             : ListView.builder(
                 shrinkWrap: true,
                 padding: const EdgeInsets.symmetric(
@@ -1739,88 +1706,70 @@ class _ThemeSearchList extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        TextField(
+        AleraSearchField(
           key: const ValueKey<String>('terminal-theme-search-field'),
           controller: controller,
+          hintText: 'Search built-in themes',
           onChanged: onQueryChanged,
-          decoration: const InputDecoration(
-            prefixIcon: Icon(Icons.search, size: _kSidebarIconSize),
-            hintText: 'Search built-in themes',
-          ),
         ),
         const SizedBox(height: AleraTokens.space8),
-        Container(
-          decoration: BoxDecoration(
-            color: AleraTokens.surface,
-            borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-            border: Border.all(color: AleraTokens.borderSubtle),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AleraTokens.space12,
-                  vertical: AleraTokens.space8,
-                ),
-                child: Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: Text(
-                        'Selected: $selectedName',
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: AleraTokens.foregroundMuted,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: AleraTokens.space8),
-                    Text(
-                      'Showing ${themes.length} of ${terminalThemeCatalog.length}',
+        AleraPanel(
+          backgroundColor: AleraTokens.surface,
+          borderRadius: AleraTokens.radiusMd,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AleraTokens.space12,
+                vertical: AleraTokens.space8,
+              ),
+              child: Row(
+                children: <Widget>[
+                  Expanded(
+                    child: Text(
+                      'Selected: $selectedName',
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: AleraTokens.foregroundMuted,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: AleraTokens.space8),
+                  Text(
+                    'Showing ${themes.length} of ${terminalThemeCatalog.length}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: AleraTokens.foregroundMuted,
+                    ),
+                  ),
+                ],
               ),
-              const Divider(height: 1, color: AleraTokens.borderSubtle),
-              ConstrainedBox(
-                constraints: const BoxConstraints(
-                  maxHeight: _kPickerMenuMaxHeight,
-                ),
-                child: themes.isEmpty
-                    ? Padding(
-                        padding: const EdgeInsets.all(AleraTokens.space12),
-                        child: Text(
-                          'No themes found.',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: AleraTokens.foregroundMuted,
-                          ),
-                        ),
-                      )
-                    : ListView.builder(
-                        shrinkWrap: true,
-                        padding: const EdgeInsets.symmetric(
-                          vertical: AleraTokens.space4,
-                        ),
-                        itemCount: themes.length,
-                        itemBuilder: (context, index) {
-                          final entry = themes[index];
-                          return AleraMenuItem(
-                            label: entry.name,
-                            active: index == highlightedIndex,
-                            selected: entry.name == selectedName,
-                            leading: _ThemeColorDots(entry: entry),
-                            onHover: () => onHoverTheme(index),
-                            onTap: () => onSelectTheme(entry),
-                          );
-                        },
+            ),
+            ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxHeight: _kPickerMenuMaxHeight,
+              ),
+              child: themes.isEmpty
+                  ? const AleraEmptyState(message: 'No themes found.')
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AleraTokens.space4,
                       ),
-              ),
-            ],
-          ),
+                      itemCount: themes.length,
+                      itemBuilder: (context, index) {
+                        final entry = themes[index];
+                        return AleraMenuItem(
+                          label: entry.name,
+                          active: index == highlightedIndex,
+                          selected: entry.name == selectedName,
+                          leading: _ThemeColorDots(entry: entry),
+                          onHover: () => onHoverTheme(index),
+                          onTap: () => onSelectTheme(entry),
+                        );
+                      },
+                    ),
+            ),
+          ],
         ),
       ],
     );
@@ -2041,11 +1990,11 @@ class _HexColorSettingRowState extends State<_HexColorSettingRow> {
           ),
           const SizedBox(width: AleraTokens.space8),
           Expanded(
-            child: TextField(
+            child: AleraTextField(
               controller: _controller,
               onSubmitted: (_) => _commit(),
               onEditingComplete: _commit,
-              decoration: InputDecoration(hintText: widget.fallback),
+              hintText: widget.fallback,
             ),
           ),
         ],
@@ -2146,16 +2095,10 @@ class _NoSettingsResults extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Stack(
       children: <Widget>[
-        Center(
-          child: Text(
-            'No settings found.',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: AleraTokens.foregroundMuted,
-            ),
-          ),
+        const Positioned.fill(
+          child: AleraEmptyState(message: 'No settings found.'),
         ),
         Positioned(
           top: AleraTokens.space16,

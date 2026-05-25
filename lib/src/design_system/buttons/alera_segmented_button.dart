@@ -10,20 +10,48 @@ class AleraSegmentedButton<T> extends StatelessWidget {
     required this.segments,
     required this.selected,
     required this.onSelectionChanged,
+    this.dense = false,
+    this.backgroundColor,
+    this.foregroundColor,
+    this.selectedBackgroundColor,
+    this.selectedForegroundColor,
+    this.borderColor,
+    this.textStyle,
   });
 
   final List<ButtonSegment<T>> segments;
   final T selected;
   final ValueChanged<T> onSelectionChanged;
+  final bool dense;
+  final Color? backgroundColor;
+  final Color? foregroundColor;
+  final Color? selectedBackgroundColor;
+  final Color? selectedForegroundColor;
+  final Color? borderColor;
+  final TextStyle? textStyle;
 
   @override
   Widget build(BuildContext context) {
     return SegmentedButton<T>(
       showSelectedIcon: false,
       style: SegmentedButton.styleFrom(
+        backgroundColor: backgroundColor,
+        foregroundColor: foregroundColor,
+        selectedBackgroundColor: selectedBackgroundColor,
+        selectedForegroundColor: selectedForegroundColor,
+        side: borderColor == null ? null : BorderSide(color: borderColor!),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
         ),
+        padding: dense
+            ? const EdgeInsets.symmetric(
+                horizontal: AleraTokens.space12,
+                vertical: AleraTokens.space4,
+              )
+            : null,
+        minimumSize: dense ? const Size(0, 30) : null,
+        tapTargetSize: dense ? MaterialTapTargetSize.shrinkWrap : null,
+        textStyle: textStyle,
         enabledMouseCursor: SystemMouseCursors.click,
         disabledMouseCursor: SystemMouseCursors.basic,
       ),

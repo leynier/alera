@@ -8,8 +8,10 @@ import 'package:alera/src/features/projects/presentation/widgets/sidebar_collaps
 import 'package:alera/src/design_system/badges/alera_badge.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/chips/alera_chip.dart';
+import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/feedback/alera_status_dot.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
+import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_resize_handle.dart';
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_search_bar.dart';
@@ -147,7 +149,11 @@ class _ProjectWorkbenchSidebarState
   Future<void> _openSettings() => openSettingsDialog(context);
 
   Future<void> _createWorkspace(Project? initialProject) {
-    return showCreateWorkspaceFlow(context, ref, initialProject: initialProject);
+    return showCreateWorkspaceFlow(
+      context,
+      ref,
+      initialProject: initialProject,
+    );
   }
 
   Future<void> _openWorkspace(Project project, Workspace workspace) async {
@@ -196,27 +202,14 @@ class _ProjectWorkbenchSidebarState
     final branch = workspace.branch;
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Remove workspace?'),
-        content: Text(
-          branch == null || branch.isEmpty
-              ? 'This removes the worktree for "${workspace.name}".'
-              : 'This removes the worktree for "${workspace.name}" and deletes branch "$branch".',
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: FilledButton.styleFrom(
-              backgroundColor: AleraTokens.error,
-              foregroundColor: AleraTokens.onError,
-            ),
-            child: const Text('Remove'),
-          ),
-        ],
+      builder: (_) => AleraConfirmDialog(
+        title: 'Remove workspace?',
+        message: branch == null || branch.isEmpty
+            ? 'This removes the worktree for "${workspace.name}".'
+            : 'This removes the worktree for "${workspace.name}" and deletes '
+                  'branch "$branch".',
+        confirmLabel: 'Remove',
+        destructive: true,
       ),
     );
     if (confirmed != true || !mounted) {
@@ -252,25 +245,13 @@ class _ProjectWorkbenchSidebarState
   Future<void> _removeProject(Project project) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Remove project?'),
-        content: Text(
-          'This unregisters "${project.name}" and deletes its workspace metadata. Repository files on disk are not deleted.',
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: FilledButton.styleFrom(
-              backgroundColor: AleraTokens.error,
-              foregroundColor: AleraTokens.onError,
-            ),
-            child: const Text('Remove'),
-          ),
-        ],
+      builder: (_) => AleraConfirmDialog(
+        title: 'Remove project?',
+        message:
+            'This unregisters "${project.name}" and deletes its workspace '
+            'metadata. Repository files on disk are not deleted.',
+        confirmLabel: 'Remove',
+        destructive: true,
       ),
     );
     if (confirmed != true || !mounted) {
@@ -550,23 +531,11 @@ class _EmptyResultsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final trimmed = query.trim();
     final message = trimmed.isEmpty
         ? 'No workspaces match the current filters'
         : 'No workspaces match "$trimmed"';
-    return Padding(
-      padding: const EdgeInsets.all(AleraTokens.space20),
-      child: Center(
-        child: Text(
-          message,
-          textAlign: TextAlign.center,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: AleraTokens.foregroundFaint,
-          ),
-        ),
-      ),
-    );
+    return AleraEmptyState(message: message);
   }
 }
 
@@ -750,25 +719,39 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
         Offset.zero & overlay.size,
       ),
       items: <PopupMenuEntry<String>>[
-        _WorkspaceMenuEntry(
+        AleraDropdownEntry<String>(
           value: _openFolderAction,
-          icon: Icons.folder_open,
+          leading: const Icon(
+            Icons.folder_open,
+            size: 16,
+            color: AleraTokens.foreground,
+          ),
           label: 'Open in ${widget.fileManagerLabel}',
         ),
-        const _WorkspaceMenuEntry(
+        const AleraDropdownEntry<String>(
           value: _copyPathAction,
-          icon: Icons.copy,
+          leading: Icon(Icons.copy, size: 16, color: AleraTokens.foreground),
           label: 'Copy path',
         ),
         const PopupMenuDivider(height: AleraTokens.space8),
-        const _WorkspaceMenuEntry(
+        const AleraDropdownEntry<String>(
           value: _sleepAction,
-          icon: Icons.bedtime_outlined,
+          leading: Icon(
+            Icons.bedtime_outlined,
+            size: 16,
+            color: AleraTokens.foreground,
+          ),
           label: 'Sleep',
         ),
-        _WorkspaceMenuEntry(
+        AleraDropdownEntry<String>(
           value: _removeAction,
-          icon: Icons.delete_outline,
+          leading: Icon(
+            Icons.delete_outline,
+            size: 16,
+            color: widget.onDelete != null
+                ? AleraTokens.foreground
+                : AleraTokens.foregroundFaint,
+          ),
           label: 'Remove',
           enabled: widget.onDelete != null,
         ),
@@ -938,70 +921,6 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
   }
 }
 
-class _WorkspaceMenuEntry extends PopupMenuEntry<String> {
-  const _WorkspaceMenuEntry({
-    required this.value,
-    required this.icon,
-    required this.label,
-    this.enabled = true,
-  });
-
-  final String value;
-  final IconData icon;
-  final String label;
-  final bool enabled;
-
-  @override
-  double get height => 36;
-
-  @override
-  bool represents(String? value) => this.value == value;
-
-  @override
-  State<_WorkspaceMenuEntry> createState() => _WorkspaceMenuEntryState();
-}
-
-class _WorkspaceMenuEntryState extends State<_WorkspaceMenuEntry> {
-  @override
-  Widget build(BuildContext context) {
-    final color = widget.enabled
-        ? AleraTokens.foreground
-        : AleraTokens.foregroundFaint;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 1),
-      child: InkWell(
-        onTap: widget.enabled
-            ? () => Navigator.of(context).pop(widget.value)
-            : null,
-        mouseCursor: widget.enabled
-            ? SystemMouseCursors.click
-            : SystemMouseCursors.basic,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AleraTokens.space8,
-            vertical: AleraTokens.space4,
-          ),
-          child: Row(
-            children: <Widget>[
-              Icon(widget.icon, size: 16, color: color),
-              const SizedBox(width: AleraTokens.space8),
-              Expanded(
-                child: Text(
-                  widget.label,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyMedium?.copyWith(color: color),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _TerminalRow extends StatefulWidget {
   const _TerminalRow({
     required this.workspace,
@@ -1135,41 +1054,14 @@ class _EmptyProjectsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.all(AleraTokens.space20),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          const Icon(
-            Icons.folder_outlined,
-            color: AleraTokens.foregroundFaint,
-            size: 36,
-          ),
-          const SizedBox(height: AleraTokens.space12),
-          Text(
-            'No projects yet',
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: AleraTokens.foregroundMuted,
-            ),
-          ),
-          const SizedBox(height: AleraTokens.space8),
-          Text(
-            'Add a git repository to create workspaces with terminal tabs.',
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: AleraTokens.foregroundFaint,
-            ),
-          ),
-          const SizedBox(height: AleraTokens.space16),
-          FilledButton.icon(
-            onPressed: onAddProject,
-            icon: const Icon(Icons.add, size: 16),
-            label: const Text('Add your first project'),
-          ),
-        ],
+    return AleraEmptyState(
+      icon: Icons.folder_outlined,
+      title: 'No projects yet',
+      message: 'Add a git repository to create workspaces with terminal tabs.',
+      action: FilledButton.icon(
+        onPressed: onAddProject,
+        icon: const Icon(Icons.add, size: 16),
+        label: const Text('Add your first project'),
       ),
     );
   }
@@ -1252,23 +1144,13 @@ class _FooterIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IconButton(
+    return AleraIconButton(
       tooltip: tooltip,
       onPressed: onPressed,
-      icon: Icon(icon, size: 15, color: AleraTokens.foregroundMuted),
-      visualDensity: VisualDensity.compact,
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
-      style: IconButton.styleFrom(
-        backgroundColor: AleraTokens.surfaceVariant,
-        minimumSize: const Size(30, 30),
-        maximumSize: const Size(30, 30),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-          side: const BorderSide(color: AleraTokens.borderSubtle),
-        ),
-      ),
+      icon: icon,
+      iconSize: 15,
+      backgroundColor: AleraTokens.surfaceVariant,
+      borderColor: AleraTokens.borderSubtle,
     );
   }
 }
