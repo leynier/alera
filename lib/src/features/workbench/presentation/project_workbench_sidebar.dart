@@ -1193,24 +1193,14 @@ class _SidebarFooter extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: AleraTokens.space8,
-            vertical: AleraTokens.space6,
+            vertical: AleraTokens.space4,
           ),
           child: Row(
             children: <Widget>[
               OutlinedButton.icon(
                 onPressed: onAddProject,
-                icon: const Icon(Icons.add, size: 15),
+                icon: const Icon(Icons.create_new_folder_outlined),
                 label: const Text('Add project'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AleraTokens.foregroundMuted,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AleraTokens.space8,
-                  ),
-                  minimumSize: const Size(0, 30),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  textStyle: Theme.of(context).textTheme.labelMedium,
-                  side: const BorderSide(color: AleraTokens.borderSubtle),
-                ),
               ),
               const Spacer(),
               _FooterIconButton(
