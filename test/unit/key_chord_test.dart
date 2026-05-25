@@ -28,7 +28,10 @@ void main() {
 
     test('normalizes symbol aliases to canonical tokens', () {
       expect(_parse('Mod+,').toCanonicalString(), 'Mod+Comma');
-      expect(_parse('Mod+Shift+]').toCanonicalString(), 'Mod+Shift+BracketRight');
+      expect(
+        _parse('Mod+Shift+]').toCanonicalString(),
+        'Mod+Shift+BracketRight',
+      );
       expect(_parse('Mod+[').toCanonicalString(), 'Mod+BracketLeft');
     });
 
@@ -68,8 +71,10 @@ void main() {
     test('uses words on other platforms', () {
       expect(_parse('Mod+Shift+P').format(isMacOS: false), 'Ctrl+Shift+P');
       expect(_parse('Mod+Comma').format(isMacOS: false), 'Ctrl+,');
-      expect(_parse('Mod+Shift+BracketRight').format(isMacOS: false),
-          'Ctrl+Shift+]');
+      expect(
+        _parse('Mod+Shift+BracketRight').format(isMacOS: false),
+        'Ctrl+Shift+]',
+      );
     });
   });
 
@@ -155,16 +160,20 @@ void main() {
         const KeyModifierState(meta: true),
         isMacOS: true,
       );
-      expect((macResult as KeyChordParseSuccess).chord.toCanonicalString(),
-          'Mod+T');
+      expect(
+        (macResult as KeyChordParseSuccess).chord.toCanonicalString(),
+        'Mod+T',
+      );
 
       final linuxResult = KeyChord.fromKeyEvent(
         down(LogicalKeyboardKey.keyT),
         const KeyModifierState(control: true),
         isMacOS: false,
       );
-      expect((linuxResult as KeyChordParseSuccess).chord.toCanonicalString(),
-          'Mod+T');
+      expect(
+        (linuxResult as KeyChordParseSuccess).chord.toCanonicalString(),
+        'Mod+T',
+      );
     });
 
     test('rejects a lone modifier press', () {

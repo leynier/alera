@@ -111,7 +111,9 @@ class KeyboardCommandDispatcher {
     final base = currentIndex < 0 ? 0 : currentIndex;
     final nextIndex = (base + delta) % tabIds.length;
     final wrapped = nextIndex < 0 ? nextIndex + tabIds.length : nextIndex;
-    ref.read(workbenchControllerProvider.notifier).setActiveWorkspaceTab(
+    ref
+        .read(workbenchControllerProvider.notifier)
+        .setActiveWorkspaceTab(
           workspaceId: workspace.id,
           groupId: layout.activeGroupId,
           tabId: tabIds[wrapped],
@@ -129,7 +131,9 @@ class KeyboardCommandDispatcher {
     if (index < 0 || index >= group.tabIds.length) {
       return;
     }
-    ref.read(workbenchControllerProvider.notifier).setActiveWorkspaceTab(
+    ref
+        .read(workbenchControllerProvider.notifier)
+        .setActiveWorkspaceTab(
           workspaceId: workspace.id,
           groupId: layout.activeGroupId,
           tabId: group.tabIds[index],
@@ -137,7 +141,10 @@ class KeyboardCommandDispatcher {
   }
 
   void _goToLastTab() {
-    final group = ref.read(workbenchControllerProvider).activeLayout?.activeGroup;
+    final group = ref
+        .read(workbenchControllerProvider)
+        .activeLayout
+        ?.activeGroup;
     if (group == null || group.tabIds.isEmpty) {
       return;
     }
@@ -174,7 +181,9 @@ class KeyboardCommandDispatcher {
       return;
     }
     unawaited(
-      ref.read(workbenchControllerProvider.notifier).mergeWorkbenchGroupIntoSibling(
+      ref
+          .read(workbenchControllerProvider.notifier)
+          .mergeWorkbenchGroupIntoSibling(
             workspaceId: workspace.id,
             groupId: layout.activeGroupId,
           ),

@@ -21,8 +21,7 @@ class KeyboardShortcutSettings {
 
   bool hasOverride(KeyboardActionId id) => overrides.containsKey(id);
 
-  bool isDisabled(KeyboardActionId id) =>
-      overrides[id]?.isEmpty ?? false;
+  bool isDisabled(KeyboardActionId id) => overrides[id]?.isEmpty ?? false;
 
   /// Returns a copy with [chords] applied to [id]. A null [chords] removes the
   /// override (restoring the default); an empty list disables the action.

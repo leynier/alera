@@ -16,10 +16,8 @@ class ResolvedShortcut {
 /// Holds no listeners or mutable state; construct one per resolution with the
 /// current settings and platform.
 class KeybindingResolver {
-  KeybindingResolver({
-    required this.settings,
-    KeyboardPlatform? platform,
-  }) : platform = platform ?? KeyboardPlatform.current;
+  KeybindingResolver({required this.settings, KeyboardPlatform? platform})
+    : platform = platform ?? KeyboardPlatform.current;
 
   final KeyboardShortcutSettings settings;
   final KeyboardPlatform platform;

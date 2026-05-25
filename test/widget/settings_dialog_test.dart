@@ -8,6 +8,8 @@ import 'package:alera/src/features/settings/infra/system_font_service.dart';
 import 'package:alera/src/features/settings/presentation/settings_dialog.dart';
 import 'package:alera/src/features/updater/application/update_service.dart';
 import 'package:alera/src/features/updater/domain/alera_update.dart';
+import 'package:alera/src/design_system/feedback/alera_color_swatch.dart';
+import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -196,6 +198,58 @@ void main() {
 
     expect(find.text('Confirm project removal'), findsOneWidget);
     expect(find.text('Confirm workspace removal'), findsOneWidget);
+  });
+
+  testWidgets('edits terminal color override via color picker dialog', (
+    tester,
+  ) async {
+    final container = await pumpSettingsDialog(tester);
+    await selectTerminalSection(tester);
+
+    // Verify initial state: no foreground color override
+    expect(
+      container
+          .read(settingsControllerProvider)
+          .terminal
+          .colorOverrides
+          .foreground,
+      isNull,
+    );
+
+    // Find the first color swatch (Foreground color swatch)
+    final swatchFinder = find.byType(AleraColorSwatch).first;
+    expect(swatchFinder, findsOneWidget);
+
+    // Ensure the color swatch is visible
+    await tester.ensureVisible(swatchFinder);
+    await tester.pumpAndSettle();
+
+    // Tap it to open the color picker dialog
+    await tester.tap(swatchFinder);
+    await tester.pumpAndSettle();
+
+    // Verify the dialog has opened
+    expect(find.text('Foreground color'), findsWidgets); // dialog title
+    expect(find.byType(ColorPicker), findsOneWidget);
+
+    // Simulate changing color in the picker to #112233
+    final ColorPicker pickerWidget = tester.widget(find.byType(ColorPicker));
+    pickerWidget.onColorChanged(const Color(0xFF112233));
+    await tester.pump();
+
+    // Tap Select
+    await tester.tap(find.text('Select'));
+    await tester.pumpAndSettle();
+
+    // Verify color override is updated to #112233
+    expect(
+      container
+          .read(settingsControllerProvider)
+          .terminal
+          .colorOverrides
+          .foreground,
+      '#112233',
+    );
   });
 }
 

@@ -79,8 +79,7 @@ class KeyChord {
   bool get hasModifier => useMod || meta || control || alt;
 
   /// Resolved meta requirement for [isMacOS].
-  bool _metaRequired({required bool isMacOS}) =>
-      meta || (useMod && isMacOS);
+  bool _metaRequired({required bool isMacOS}) => meta || (useMod && isMacOS);
 
   /// Resolved control requirement for [isMacOS].
   bool _controlRequired({required bool isMacOS}) =>
@@ -265,8 +264,7 @@ class KeyChord {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(useMod, meta, control, alt, shift, trigger);
+  int get hashCode => Object.hash(useMod, meta, control, alt, shift, trigger);
 
   @override
   String toString() => 'KeyChord(${toCanonicalString()})';
@@ -347,7 +345,8 @@ final Set<LogicalKeyboardKey> _functionKeys = <LogicalKeyboardKey>{
 /// Lowercased token -> logical key, for parsing canonical strings.
 final Map<String, LogicalKeyboardKey> _tokenToKey =
     <String, LogicalKeyboardKey>{
-      for (final entry in _keyToToken.entries) entry.value.toLowerCase(): entry.key,
+      for (final entry in _keyToToken.entries)
+        entry.value.toLowerCase(): entry.key,
     };
 
 /// Logical key -> canonical token. Drives serialization and reverse lookup.

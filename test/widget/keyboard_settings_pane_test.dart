@@ -64,10 +64,7 @@ void main() {
     await tester.tap(find.text('Terminal first'));
     await tester.pump();
 
-    expect(
-      keyboardOf(container).policy,
-      TerminalShortcutPolicy.terminalFirst,
-    );
+    expect(keyboardOf(container).policy, TerminalShortcutPolicy.terminalFirst);
   });
 
   testWidgets('recording a free chord saves an override', (tester) async {
@@ -79,7 +76,10 @@ void main() {
       matching: find.byType(Row),
     );
     await tester.tap(
-      find.descendant(of: row.first, matching: find.byTooltip('Change shortcut')),
+      find.descendant(
+        of: row.first,
+        matching: find.byTooltip('Change shortcut'),
+      ),
     );
     await tester.pump();
 
@@ -108,7 +108,10 @@ void main() {
       matching: find.byType(Row),
     );
     await tester.tap(
-      find.descendant(of: row.first, matching: find.byTooltip('Change shortcut')),
+      find.descendant(
+        of: row.first,
+        matching: find.byTooltip('Change shortcut'),
+      ),
     );
     await tester.pump();
 

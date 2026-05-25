@@ -11,6 +11,7 @@ import 'package:alera/src/design_system/feedback/alera_status_indicator.dart';
 import 'package:alera/src/design_system/forms/alera_number_field.dart';
 import 'package:alera/src/design_system/forms/alera_search_field.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
+import 'package:alera/src/design_system/forms/alera_color_picker.dart';
 import 'package:alera/src/design_system/layout/alera_section_header.dart';
 import 'package:alera/src/design_system/menus/alera_menu_item.dart';
 import 'package:alera/src/design_system/surfaces/alera_panel.dart';
@@ -127,5 +128,13 @@ Widget galleryMenu() => Material(
         ),
       ],
     ),
+  ),
+);
+
+@AleraPreview(name: 'Color picker', group: 'Gallery', size: Size(300, 285))
+Widget galleryColorPicker() => Center(
+  child: AleraColorPicker(
+    pickerColor: AleraTokens.info,
+    onColorChanged: (_) {},
   ),
 );

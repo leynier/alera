@@ -2023,6 +2023,16 @@ class _HexColorSettingRowState extends State<_HexColorSettingRow> {
         children: <Widget>[
           AleraColorSwatch(
             color: _colorFromHex(widget.value ?? widget.fallback),
+            pickerTitle: widget.title,
+            onColorChanged: (selectedColor) {
+              if (!mounted) return;
+              final r = (selectedColor.r * 255).round().toRadixString(16).padLeft(2, '0');
+              final g = (selectedColor.g * 255).round().toRadixString(16).padLeft(2, '0');
+              final b = (selectedColor.b * 255).round().toRadixString(16).padLeft(2, '0');
+              final hex = '#$r$g$b';
+              _controller.text = hex;
+              _commit();
+            },
           ),
           const SizedBox(width: AleraTokens.space8),
           Expanded(
