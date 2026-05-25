@@ -22,3 +22,6 @@ windows/flutter/ephemeral/
 
 # Conductor workspace
 .context/
+
+# Agy workspace
+.antigravitycli/
