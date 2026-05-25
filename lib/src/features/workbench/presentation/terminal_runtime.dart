@@ -43,6 +43,8 @@ abstract class TerminalSessionHandle extends ChangeNotifier {
 }
 
 abstract interface class TerminalRuntime {
+  Stream<TerminalRuntimeExitEvent> get exits;
+
   TerminalSessionHandle sessionFor({
     required Workspace workspace,
     required WorkspaceTabRecord tab,
@@ -53,6 +55,18 @@ abstract interface class TerminalRuntime {
   void closeWorkspace(String workspaceId);
 
   void dispose();
+}
+
+final class TerminalRuntimeExitEvent {
+  const TerminalRuntimeExitEvent({
+    required this.workspaceId,
+    required this.tabId,
+    required this.exitCode,
+  });
+
+  final String workspaceId;
+  final String tabId;
+  final int exitCode;
 }
 
 abstract interface class TerminalPtySessionFactory {
@@ -336,8 +350,13 @@ class XtermTerminalRuntime implements TerminalRuntime {
 
   final TerminalPtySessionFactory _ptySessionFactory;
   TerminalSettings _settings;
+  final StreamController<TerminalRuntimeExitEvent> _exitController =
+      StreamController<TerminalRuntimeExitEvent>.broadcast();
   final Map<String, _XtermTerminalSessionHandle> _sessions =
       <String, _XtermTerminalSessionHandle>{};
+
+  @override
+  Stream<TerminalRuntimeExitEvent> get exits => _exitController.stream;
 
   void updateSettings(TerminalSettings settings) {
     _settings = settings;
@@ -358,9 +377,16 @@ class XtermTerminalRuntime implements TerminalRuntime {
             tab: tab,
             ptySessionFactory: _ptySessionFactory,
             settings: _settings,
+            onExit: _handleSessionExit,
           );
         })
         .sync(workspace: workspace, tab: tab);
+  }
+
+  void _handleSessionExit(TerminalRuntimeExitEvent event) {
+    if (!_exitController.isClosed) {
+      _exitController.add(event);
+    }
   }
 
   @override
@@ -385,6 +411,7 @@ class XtermTerminalRuntime implements TerminalRuntime {
       session.dispose();
     }
     _sessions.clear();
+    unawaited(_exitController.close());
   }
 }
 
@@ -394,10 +421,12 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     required WorkspaceTabRecord tab,
     required TerminalPtySessionFactory ptySessionFactory,
     required TerminalSettings settings,
+    required void Function(TerminalRuntimeExitEvent event) onExit,
   }) : _workspace = workspace,
        _tab = tab,
        _ptySessionFactory = ptySessionFactory,
-       _settings = settings {
+       _settings = settings,
+       _onExit = onExit {
     _terminal = _createTerminal();
     _decodedOutputSub = _ptyOutputController.stream
         .transform(const Utf8Decoder(allowMalformed: true))
@@ -407,6 +436,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   Workspace _workspace;
   WorkspaceTabRecord _tab;
   final TerminalPtySessionFactory _ptySessionFactory;
+  final void Function(TerminalRuntimeExitEvent event) _onExit;
   TerminalSettings _settings;
   late xterm.Terminal _terminal;
   final xterm.TerminalController _terminalController =
@@ -419,6 +449,10 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   StreamSubscription<TerminalPtySessionEvent>? _ptySessionSub;
   Timer? _pendingPtyResizeTimer;
   _TerminalPtySize? _pendingPtySize;
+  int _ptyGeneration = 0;
+  int? _activePtyGeneration;
+  final Set<int> _exitedPtyGenerations = <int>{};
+  final Set<int> _suppressedExitPtyGenerations = <int>{};
 
   bool _starting = false;
   bool _started = false;
@@ -510,7 +544,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     _starting = false;
     _running = false;
     notifyListeners();
-    await _stopPtySession();
+    await _stopPtySession(suppressExit: true);
     await ensureStarted();
   }
 
@@ -585,7 +619,13 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     Object? lastError;
     for (final launch in launches) {
       final session = _ptySessionFactory.create();
-      final sub = session.events.listen(_handlePtySessionEvent);
+      final generation = ++_ptyGeneration;
+      final sub = session.events.listen(
+        (event) => _handlePtySessionEvent(event, generation),
+      );
+      _ptySession = session;
+      _ptySessionSub = sub;
+      _activePtyGeneration = generation;
       try {
         final workspaceLaunch = _launchInWorkingDirectory(
           launch,
@@ -596,9 +636,8 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
           cols: _terminal.viewWidth,
           rows: _terminal.viewHeight,
         );
-        _ptySession = session;
-        _ptySessionSub = sub;
         _running = true;
+        _prunePtyGenerationState();
         notifyListeners();
         final setupCommand = launch.setupCommand;
         if (setupCommand != null && setupCommand.isNotEmpty) {
@@ -609,24 +648,55 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
         return;
       } catch (error) {
         lastError = error;
+        _suppressedExitPtyGenerations.add(generation);
+        if (_activePtyGeneration == generation) {
+          _activePtyGeneration = null;
+        }
+        if (identical(_ptySession, session)) {
+          _ptySession = null;
+        }
+        if (identical(_ptySessionSub, sub)) {
+          _ptySessionSub = null;
+        }
         unawaited(sub.cancel());
         session.dispose();
+        _prunePtyGenerationState();
       }
     }
     throw StateError('No desktop PTY shell could be started: $lastError');
   }
 
-  void _handlePtySessionEvent(TerminalPtySessionEvent event) {
+  void _handlePtySessionEvent(TerminalPtySessionEvent event, int generation) {
+    if (_disposed || generation != _activePtyGeneration) {
+      return;
+    }
     switch (event) {
       case TerminalPtyOutputEvent(:final data):
         _ptyOutputController.add(data);
       case TerminalPtyExitEvent(:final exitCode):
-        _running = false;
-        _writeToTerminal('\n[process exited: $exitCode]\n');
-        notifyListeners();
+        _handlePtyExit(exitCode: exitCode, generation: generation);
       case TerminalPtyErrorEvent(:final error):
         _writeToTerminal('\n[terminal error: $error]\n');
     }
+  }
+
+  void _handlePtyExit({required int exitCode, required int generation}) {
+    if (!_exitedPtyGenerations.add(generation)) {
+      return;
+    }
+    _running = false;
+    _writeToTerminal('\n[process exited: $exitCode]\n');
+    notifyListeners();
+    if (!_suppressedExitPtyGenerations.contains(generation)) {
+      _onExit(
+        TerminalRuntimeExitEvent(
+          workspaceId: workspaceId,
+          tabId: tabId,
+          exitCode: exitCode,
+        ),
+      );
+    }
+    unawaited(_stopPtySession(suppressExit: true));
   }
 
   xterm.Terminal _createTerminal() {
@@ -658,16 +728,32 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     _terminal.write(data);
   }
 
-  Future<void> _stopPtySession() async {
+  Future<void> _stopPtySession({required bool suppressExit}) async {
     _pendingPtyResizeTimer?.cancel();
     _pendingPtyResizeTimer = null;
     _pendingPtySize = null;
+    final generation = _activePtyGeneration;
+    if (suppressExit && generation != null) {
+      _suppressedExitPtyGenerations.add(generation);
+    }
+    if (_activePtyGeneration == generation) {
+      _activePtyGeneration = null;
+    }
     final sub = _ptySessionSub;
     _ptySessionSub = null;
     await sub?.cancel();
     final session = _ptySession;
     _ptySession = null;
     session?.dispose();
+    _prunePtyGenerationState();
+  }
+
+  void _prunePtyGenerationState() {
+    final active = _activePtyGeneration;
+    _exitedPtyGenerations.removeWhere((generation) => generation != active);
+    _suppressedExitPtyGenerations.removeWhere(
+      (generation) => generation != active,
+    );
   }
 
   @override
@@ -688,7 +774,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   void dispose() {
     _disposed = true;
     _detachTerminal(_terminal);
-    unawaited(_stopPtySession());
+    unawaited(_stopPtySession(suppressExit: true));
     unawaited(_decodedOutputSub.cancel());
     unawaited(_ptyOutputController.close());
     _focusNode.dispose();

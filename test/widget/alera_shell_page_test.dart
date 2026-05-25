@@ -28,7 +28,7 @@ void main() {
     return databaseFactoryMemory.openDatabase('test.db');
   }
 
-  Future<void> pumpShell(
+  Future<_ShellPumpHarness> pumpShell(
     WidgetTester tester, {
     required WorkbenchState state,
     _FakeTerminalRuntime? terminalRuntime,
@@ -55,6 +55,7 @@ void main() {
     );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
+    return _ShellPumpHarness(controller: controller, runtime: runtime);
   }
 
   testWidgets('shell renders the terminal workbench for the active workspace', (
@@ -158,6 +159,66 @@ void main() {
       findsOneWidget,
     );
     expect(find.byTooltip('New terminal'), findsNothing);
+  });
+
+  testWidgets('terminal exit closes its tab and activates the remaining tab', (
+    tester,
+  ) async {
+    final harness = await pumpShell(tester, state: _stackedWorkbenchState());
+
+    harness.runtime.emitExit(workspaceId: 'workspace-1', tabId: 'tab-2');
+    await tester.pumpAndSettle();
+
+    expect(harness.runtime.closedTabIds, <String>['tab-2']);
+    expect(
+      harness.controller.state.tabsFor('workspace-1').map((tab) => tab.id),
+      <String>['tab-1'],
+    );
+    expect(harness.controller.state.activeWorkspaceId, 'workspace-1');
+    expect(harness.controller.state.activeWorkspaceTab?.id, 'tab-1');
+    expect(
+      find.byKey(const ValueKey<String>('fake-terminal-tab-2')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('fake-terminal-tab-1')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('terminal exit closes the last tab and deselects the workspace', (
+    tester,
+  ) async {
+    final harness = await pumpShell(tester, state: _populatedWorkbenchState());
+
+    harness.runtime.emitExit(workspaceId: 'workspace-1', tabId: 'tab-1');
+    await tester.pumpAndSettle();
+
+    expect(harness.runtime.closedTabIds, <String>['tab-1']);
+    expect(harness.controller.state.tabsFor('workspace-1'), isEmpty);
+    expect(harness.controller.state.activeWorkspace, isNull);
+    expect(find.text('No workspace selected'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('fake-terminal-tab-1')),
+      findsNothing,
+    );
+  });
+
+  testWidgets('terminal exit closes tabs even when no workspace is selected', (
+    tester,
+  ) async {
+    final harness = await pumpShell(
+      tester,
+      state: _populatedWorkbenchState().copyWith(clearActiveWorkspaceId: true),
+    );
+
+    harness.runtime.emitExit(workspaceId: 'workspace-1', tabId: 'tab-1');
+    await tester.pumpAndSettle();
+
+    expect(harness.runtime.closedTabIds, <String>['tab-1']);
+    expect(harness.controller.state.tabsFor('workspace-1'), isEmpty);
+    expect(harness.controller.state.activeWorkspace, isNull);
+    expect(find.text('No workspace selected'), findsOneWidget);
   });
 
   testWidgets('workspace context menu shows supported workspace actions', (
@@ -411,10 +472,23 @@ class _ShellTestWorkbenchController extends WorkbenchController {
   }
 }
 
+class _ShellPumpHarness {
+  const _ShellPumpHarness({required this.controller, required this.runtime});
+
+  final _ShellTestWorkbenchController controller;
+  final _FakeTerminalRuntime runtime;
+}
+
 class _FakeTerminalRuntime implements TerminalRuntime {
   final Map<String, _FakeTerminalSessionHandle> _sessions =
       <String, _FakeTerminalSessionHandle>{};
+  final StreamController<TerminalRuntimeExitEvent> _exitController =
+      StreamController<TerminalRuntimeExitEvent>.broadcast();
   final List<String> closedWorkspaceIds = <String>[];
+  final List<String> closedTabIds = <String>[];
+
+  @override
+  Stream<TerminalRuntimeExitEvent> get exits => _exitController.stream;
 
   @override
   TerminalSessionHandle sessionFor({
@@ -429,7 +503,22 @@ class _FakeTerminalRuntime implements TerminalRuntime {
 
   @override
   void closeTab(String tabId) {
+    closedTabIds.add(tabId);
     _sessions.remove(tabId)?.dispose();
+  }
+
+  void emitExit({
+    required String workspaceId,
+    required String tabId,
+    int exitCode = 0,
+  }) {
+    _exitController.add(
+      TerminalRuntimeExitEvent(
+        workspaceId: workspaceId,
+        tabId: tabId,
+        exitCode: exitCode,
+      ),
+    );
   }
 
   @override
@@ -450,6 +539,7 @@ class _FakeTerminalRuntime implements TerminalRuntime {
       session.dispose();
     }
     _sessions.clear();
+    unawaited(_exitController.close());
   }
 }
 

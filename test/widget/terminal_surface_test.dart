@@ -69,6 +69,9 @@ void main() {
       final factory = _FakeTerminalPtySessionFactory();
       final runtime = XtermTerminalRuntime(ptySessionFactory: factory);
       addTearDown(runtime.dispose);
+      final exits = <TerminalRuntimeExitEvent>[];
+      final exitSub = runtime.exits.listen(exits.add);
+      addTearDown(exitSub.cancel);
 
       final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
 
@@ -82,9 +85,43 @@ void main() {
       expect(factory.sessions.single.startedRows, greaterThan(0));
 
       factory.sessions.single.emitExit(7);
+      factory.sessions.single.emitExit(9);
       await tester.pump();
 
       expect(session.isRunning, isFalse);
+      expect(exits, hasLength(1));
+      expect(exits.single.workspaceId, 'ws-1');
+      expect(exits.single.tabId, 'tab-1');
+      expect(exits.single.exitCode, 7);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  testWidgets('xterm runtime suppresses exits from intentional tab closes', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    try {
+      final factory = _FakeTerminalPtySessionFactory();
+      final runtime = XtermTerminalRuntime(ptySessionFactory: factory);
+      addTearDown(runtime.dispose);
+      final exits = <TerminalRuntimeExitEvent>[];
+      final exitSub = runtime.exits.listen(exits.add);
+      addTearDown(exitSub.cancel);
+
+      final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
+
+      await session.ensureStarted();
+      factory.sessions.single.exitCodeOnDispose = 0;
+
+      runtime.closeTab('tab-1');
+      await tester.pump();
+      await tester.pump();
+      factory.sessions.single.emitExit(0);
+      await tester.pump();
+
+      expect(exits, isEmpty);
     } finally {
       debugDefaultTargetPlatformOverride = null;
     }
@@ -275,6 +312,7 @@ class _FakeTerminalPtySession implements TerminalPtySession {
   int? startedCols;
   int? startedRows;
   bool disposed = false;
+  int? exitCodeOnDispose;
 
   @override
   Stream<TerminalPtySessionEvent> get events => _events.stream;
@@ -297,12 +335,21 @@ class _FakeTerminalPtySession implements TerminalPtySession {
   void resize(int cols, int rows, int cellWidthPx, int cellHeightPx) {}
 
   void emitExit(int exitCode) {
+    if (_events.isClosed) {
+      return;
+    }
     _events.add(TerminalPtyExitEvent(exitCode));
   }
 
   @override
   void dispose() {
+    if (disposed) {
+      return;
+    }
     disposed = true;
+    if (exitCodeOnDispose case final exitCode?) {
+      _events.add(TerminalPtyExitEvent(exitCode));
+    }
     unawaited(_events.close());
   }
 }

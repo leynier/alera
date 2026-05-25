@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:alera/src/features/projects/application/project_repository.dart';
 import 'package:alera/src/features/projects/application/project_service.dart';
 import 'package:alera/src/features/projects/application/projects_service.dart';
@@ -18,6 +20,7 @@ import 'package:alera/src/features/workbench/application/workbench_repository.da
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/application/workspace_folder_opener.dart';
 import 'package:alera/src/features/workbench/application/workspace_service.dart';
+import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/infra/sembast_workbench_repository.dart';
 import 'package:alera/src/features/workbench/infra/sembast_workbench_view_prefs_repository.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
@@ -158,3 +161,58 @@ final terminalRuntimeProvider = Provider<TerminalRuntime>((ref) {
   ref.onDispose(runtime.dispose);
   return runtime;
 });
+
+final terminalRuntimeExitCoordinatorProvider = Provider<void>((ref) {
+  final runtime = ref.watch(terminalRuntimeProvider);
+  final closingTabIds = <String>{};
+  var disposed = false;
+
+  Future<void> closeExitedTerminalTab(TerminalRuntimeExitEvent event) async {
+    try {
+      if (disposed) {
+        return;
+      }
+      final state = ref.read(workbenchControllerProvider);
+      final workspace = _findWorkspaceById(state, event.workspaceId);
+      final tabStillExists = state
+          .tabsFor(event.workspaceId)
+          .any((tab) => tab.id == event.tabId);
+      if (workspace == null || !tabStillExists) {
+        runtime.closeTab(event.tabId);
+        return;
+      }
+      await ref
+          .read(workbenchControllerProvider.notifier)
+          .closeWorkspaceTab(workspace: workspace, tabId: event.tabId);
+      runtime.closeTab(event.tabId);
+    } catch (_) {
+      // WorkbenchController records close failures in state; keep the tab so
+      // the user is not left with a silently removed terminal on persistence errors.
+    } finally {
+      closingTabIds.remove(event.tabId);
+    }
+  }
+
+  final subscription = runtime.exits.listen((event) {
+    if (disposed || !closingTabIds.add(event.tabId)) {
+      return;
+    }
+    unawaited(closeExitedTerminalTab(event));
+  });
+
+  ref.onDispose(() {
+    disposed = true;
+    unawaited(subscription.cancel());
+  });
+});
+
+Workspace? _findWorkspaceById(WorkbenchState state, String workspaceId) {
+  for (final workspaces in state.workspacesByProject.values) {
+    for (final workspace in workspaces) {
+      if (workspace.id == workspaceId) {
+        return workspace;
+      }
+    }
+  }
+  return null;
+}
