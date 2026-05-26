@@ -106,7 +106,7 @@ void main() {
       expect(sink.events.single.payload['prompt'], 'ship it');
     });
 
-    test('accepts OpenCode and Pi hook routes', () async {
+    test('accepts OpenCode, Pi, and Amp hook routes', () async {
       final openCodeResponse = await _post(
         receiver.endpoint!.port,
         path: '/hook/opencode',
@@ -134,12 +134,29 @@ void main() {
         }),
         contentType: ContentType.json,
       );
+      final ampResponse = await _post(
+        receiver.endpoint!.port,
+        path: '/hook/amp',
+        token: 'token-1',
+        body: jsonEncode(<String, Object?>{
+          'terminalSessionId': 'session-3',
+          'workspaceId': 'workspace-1',
+          'tabId': 'tab-3',
+          'payload': <String, Object?>{
+            'hook_event_name': 'agent.start',
+            'message': 'ship amp',
+          },
+        }),
+        contentType: ContentType.json,
+      );
 
       expect(openCodeResponse.statusCode, HttpStatus.noContent);
       expect(piResponse.statusCode, HttpStatus.noContent);
+      expect(ampResponse.statusCode, HttpStatus.noContent);
       expect(sink.events.map((event) => event.agentType), <AgentType>[
         AgentType.opencode,
         AgentType.pi,
+        AgentType.amp,
       ]);
     });
 

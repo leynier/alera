@@ -41,6 +41,7 @@ void main() {
       expect(general.agentStatusHooks.agy, isFalse);
       expect(general.agentStatusHooks.opencode, isFalse);
       expect(general.agentStatusHooks.pi, isFalse);
+      expect(general.agentStatusHooks.amp, isFalse);
       expect(general.agentStatusHooks.anyEnabled, isFalse);
       expect(general.agentStatusNotificationsEnabled, isFalse);
     });
@@ -59,6 +60,7 @@ void main() {
           'codex': true,
           'copilot': true,
           'opencode': true,
+          'amp': true,
         },
         'agentStatusNotificationsEnabled': true,
       });
@@ -73,6 +75,7 @@ void main() {
       expect(general.agentStatusHooks.agy, isFalse);
       expect(general.agentStatusHooks.opencode, isTrue);
       expect(general.agentStatusHooks.pi, isFalse);
+      expect(general.agentStatusHooks.amp, isTrue);
       expect(general.agentStatusNotificationsEnabled, isTrue);
     });
 
@@ -86,6 +89,7 @@ void main() {
             claude: true,
             agy: true,
             pi: true,
+            amp: true,
           ),
           agentStatusNotificationsEnabled: true,
         ),
@@ -132,6 +136,7 @@ void main() {
       expect(restored.general.agentStatusHooks.agy, isTrue);
       expect(restored.general.agentStatusHooks.opencode, isFalse);
       expect(restored.general.agentStatusHooks.pi, isTrue);
+      expect(restored.general.agentStatusHooks.amp, isTrue);
       expect(restored.general.agentStatusNotificationsEnabled, isTrue);
       expect(restored.terminal.fontFamily, 'SF Mono');
       expect(restored.terminal.fontSize, 15);

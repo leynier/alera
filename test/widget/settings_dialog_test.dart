@@ -251,6 +251,7 @@ void main() {
     expect(find.text('Antigravity hooks'), findsOneWidget);
     expect(find.text('OpenCode hooks'), findsOneWidget);
     expect(find.text('Pi hooks'), findsOneWidget);
+    expect(find.text('Amp hooks'), findsOneWidget);
     expect(find.text('Agent status notifications'), findsOneWidget);
 
     await tester.ensureVisible(find.text('Codex hooks'));
@@ -259,7 +260,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
     await tester.ensureVisible(find.text('Agent status notifications'));
     await tester.pump();
-    await tester.tap(find.byType(Switch).at(8));
+    await tester.tap(find.byType(Switch).at(9));
     await tester.pump(const Duration(milliseconds: 50));
 
     expect(

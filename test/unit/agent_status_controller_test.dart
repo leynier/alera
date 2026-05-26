@@ -241,6 +241,53 @@ void main() {
       expect(entry.lastAssistantMessage, 'Done.');
     });
 
+    test('normalizes Amp prompt, tool, assistant, and cancelled states', () {
+      final controller = container.read(agentStatusControllerProvider.notifier);
+
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.amp,
+          hookEventName: 'agent.start',
+          payload: <String, Object?>{'message': 'update docs'},
+        ),
+      );
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.amp,
+          hookEventName: 'tool.call',
+          payload: <String, Object?>{
+            'tool': 'bash',
+            'input': <String, Object?>{'command': 'dart format .'},
+          },
+        ),
+      );
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.amp,
+          hookEventName: 'agent.end',
+          payload: <String, Object?>{
+            'status': 'cancelled',
+            'messages': <Object?>[
+              <String, Object?>{
+                'role': 'assistant',
+                'content': <Object?>[
+                  <String, Object?>{'type': 'text', 'text': 'All set.'},
+                ],
+              },
+            ],
+          },
+        ),
+      );
+
+      final entry = container.read(agentStatusControllerProvider)['session-1']!;
+      expect(entry.state, AgentStatusState.done);
+      expect(entry.prompt, 'update docs');
+      expect(entry.toolName, 'bash');
+      expect(entry.toolInput, 'dart format .');
+      expect(entry.lastAssistantMessage, 'All set.');
+      expect(entry.interrupted, isTrue);
+    });
+
     test('marks active terminal exits as inferred done', () {
       final controller = container.read(agentStatusControllerProvider.notifier);
       controller.applyHookEvent(

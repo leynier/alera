@@ -395,6 +395,7 @@ List<AgentType> _enabledAgentStatusHookTypes(AgentStatusHookSettings settings) {
     if (settings.agy) AgentType.agy,
     if (settings.opencode) AgentType.opencode,
     if (settings.pi) AgentType.pi,
+    if (settings.amp) AgentType.amp,
   ];
 }
 
@@ -409,6 +410,7 @@ bool _isAgentStatusHookEnabled(
     AgentType.agy => settings.agy,
     AgentType.opencode => settings.opencode,
     AgentType.pi => settings.pi,
+    AgentType.amp => settings.amp,
   };
 }
 

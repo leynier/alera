@@ -72,6 +72,13 @@ void main() {
           prompt: 'Approve command',
         ),
       );
+      final ampDone = composeAgentStatusNotification(
+        entry: _entry(
+          AgentStatusState.done,
+          agentType: AgentType.amp,
+          prompt: 'Ship plugin',
+        ),
+      );
 
       expect(waiting, isNotNull);
       expect(waiting!.title, 'Codex needs attention');
@@ -84,6 +91,7 @@ void main() {
       expect(done.body, 'Claude');
       expect(openCodeDone!.title, 'OpenCode finished');
       expect(piWaiting!.title, 'Pi needs attention');
+      expect(ampDone!.title, 'Amp finished');
       expect(working, isNull);
     });
 

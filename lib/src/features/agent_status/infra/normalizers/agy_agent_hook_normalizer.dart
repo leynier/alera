@@ -1,0 +1,45 @@
+part of '../agent_hook_event_normalizer.dart';
+
+AgentStatusState? _normalizeAgyState(String eventName, String? toolName) {
+  if (eventName == 'PreToolUse' && _isAgyFeedbackTool(toolName)) {
+    return AgentStatusState.waiting;
+  }
+  return switch (eventName) {
+    'PreInvocation' ||
+    'PostInvocation' ||
+    'PreToolUse' ||
+    'PostToolUse' => AgentStatusState.working,
+    'Stop' => AgentStatusState.done,
+    _ => null,
+  };
+}
+
+bool _isAgyNewTurn(String eventName) {
+  return eventName == 'PreInvocation';
+}
+
+String? _agyPromptForEvent(AgentHookEvent event) {
+  return _readLastUserPromptFromTranscript(
+    event.payload['transcriptPath'] ?? event.payload['transcript_path'],
+  );
+}
+
+_NestedToolCall _readAgyToolCall(Map<String, Object?> payload) {
+  final toolCall = payload['toolCall'];
+  if (toolCall is! Map) {
+    return const _NestedToolCall();
+  }
+  final record = Map<String, Object?>.from(toolCall);
+  return _NestedToolCall(
+    toolName: _readFirstString(record, const <String>[
+      'name',
+      'toolName',
+      'tool_name',
+    ]),
+    toolInputSource: record['args'],
+  );
+}
+
+bool _isAgyFeedbackTool(String? toolName) {
+  return toolName == 'ask_question' || toolName == 'ask_permission';
+}

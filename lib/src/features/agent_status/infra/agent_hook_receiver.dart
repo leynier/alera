@@ -162,6 +162,10 @@ class AgentHookReceiver {
       ..post(
         '/hook/pi',
         (shelf.Request request) => _handleHookRequest(request, AgentType.pi),
+      )
+      ..post(
+        '/hook/amp',
+        (shelf.Request request) => _handleHookRequest(request, AgentType.amp),
       );
     return router.call;
   }

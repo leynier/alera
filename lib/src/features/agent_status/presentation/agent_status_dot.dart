@@ -47,6 +47,7 @@ String agentStatusTooltip(AgentStatusEntry entry) {
     AgentType.agy => 'Antigravity',
     AgentType.opencode => 'OpenCode',
     AgentType.pi => 'Pi',
+    AgentType.amp => 'Amp',
   };
   final state = switch (entry.state) {
     AgentStatusState.working => 'working',

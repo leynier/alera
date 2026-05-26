@@ -3,6 +3,14 @@ import 'dart:io';
 
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 
+part 'normalizers/agy_agent_hook_normalizer.dart';
+part 'normalizers/amp_agent_hook_normalizer.dart';
+part 'normalizers/claude_agent_hook_normalizer.dart';
+part 'normalizers/codex_agent_hook_normalizer.dart';
+part 'normalizers/copilot_agent_hook_normalizer.dart';
+part 'normalizers/opencode_agent_hook_normalizer.dart';
+part 'normalizers/pi_agent_hook_normalizer.dart';
+
 class NormalizedAgentStatus {
   const NormalizedAgentStatus({
     required this.state,
@@ -41,6 +49,7 @@ NormalizedAgentStatus? normalizeAgentHookEvent(
     AgentType.agy => _normalizeAgyState(eventName, toolSnapshot.toolName),
     AgentType.opencode => _normalizeOpenCodeState(eventName),
     AgentType.pi => _normalizePiState(eventName),
+    AgentType.amp => _normalizeAmpState(eventName),
   };
   if (state == null) {
     return null;
@@ -66,101 +75,6 @@ NormalizedAgentStatus? normalizeAgentHookEvent(
   );
 }
 
-AgentStatusState? _normalizeCodexState(String eventName) {
-  return switch (eventName) {
-    'SessionStart' ||
-    'UserPromptSubmit' ||
-    'PreToolUse' ||
-    'PostToolUse' => AgentStatusState.working,
-    'PermissionRequest' => AgentStatusState.waiting,
-    'Stop' => AgentStatusState.done,
-    _ => null,
-  };
-}
-
-AgentStatusState? _normalizeClaudeState(String eventName) {
-  return switch (eventName) {
-    'UserPromptSubmit' ||
-    'PreToolUse' ||
-    'PostToolUse' ||
-    'PostToolUseFailure' => AgentStatusState.working,
-    'PermissionRequest' => AgentStatusState.waiting,
-    'Stop' => AgentStatusState.done,
-    _ => null,
-  };
-}
-
-AgentStatusState? _normalizeCopilotState(
-  String eventName,
-  Map<String, Object?> payload,
-  String? toolName,
-) {
-  final notificationType = _readFirstString(payload, const <String>[
-    'notification_type',
-    'notificationType',
-  ]);
-  final isBlockingNotification =
-      eventName == 'Notification' &&
-      (notificationType == 'permission_prompt' ||
-          notificationType == 'elicitation_dialog');
-  final isAskUserTool =
-      (eventName == 'PreToolUse' || eventName == 'PermissionRequest') &&
-      _isAskUserTool(toolName);
-  if (isBlockingNotification || isAskUserTool) {
-    return AgentStatusState.blocked;
-  }
-  return switch (eventName) {
-    'SessionStart' ||
-    'UserPromptSubmit' ||
-    'PreToolUse' ||
-    'PostToolUse' ||
-    'PostToolUseFailure' ||
-    'PermissionRequest' => AgentStatusState.working,
-    'Stop' || 'SessionEnd' => AgentStatusState.done,
-    'ErrorOccurred' =>
-      payload['recoverable'] == true
-          ? AgentStatusState.working
-          : AgentStatusState.done,
-    _ => null,
-  };
-}
-
-AgentStatusState? _normalizeAgyState(String eventName, String? toolName) {
-  if (eventName == 'PreToolUse' && _isAgyFeedbackTool(toolName)) {
-    return AgentStatusState.waiting;
-  }
-  return switch (eventName) {
-    'PreInvocation' ||
-    'PostInvocation' ||
-    'PreToolUse' ||
-    'PostToolUse' => AgentStatusState.working,
-    'Stop' => AgentStatusState.done,
-    _ => null,
-  };
-}
-
-AgentStatusState? _normalizeOpenCodeState(String eventName) {
-  return switch (eventName) {
-    'SessionBusy' || 'MessagePart' => AgentStatusState.working,
-    'PermissionRequest' || 'AskUserQuestion' => AgentStatusState.waiting,
-    'SessionIdle' => AgentStatusState.done,
-    _ => null,
-  };
-}
-
-AgentStatusState? _normalizePiState(String eventName) {
-  return switch (eventName) {
-    'before_agent_start' ||
-    'agent_start' ||
-    'tool_call' ||
-    'tool_execution_start' ||
-    'tool_execution_end' ||
-    'message_end' => AgentStatusState.working,
-    'agent_end' || 'session_shutdown' => AgentStatusState.done,
-    _ => null,
-  };
-}
-
 String? _hookEventName(AgentHookEvent event) {
   final explicit = _readFirstString(
     <String, Object?>{'hookEventName': event.hookEventName},
@@ -184,14 +98,13 @@ String? _hookEventName(AgentHookEvent event) {
 
 bool _isNewTurn(AgentType agentType, String eventName) {
   return switch (agentType) {
-    AgentType.codex =>
-      eventName == 'SessionStart' || eventName == 'UserPromptSubmit',
-    AgentType.claude => eventName == 'UserPromptSubmit',
-    AgentType.copilot =>
-      eventName == 'SessionStart' || eventName == 'UserPromptSubmit',
-    AgentType.agy => eventName == 'PreInvocation',
-    AgentType.opencode => false,
-    AgentType.pi => eventName == 'before_agent_start',
+    AgentType.codex => _isCodexNewTurn(eventName),
+    AgentType.claude => _isClaudeNewTurn(eventName),
+    AgentType.copilot => _isCopilotNewTurn(eventName),
+    AgentType.agy => _isAgyNewTurn(eventName),
+    AgentType.opencode => _isOpenCodeNewTurn(eventName),
+    AgentType.pi => _isPiNewTurn(eventName),
+    AgentType.amp => _isAmpNewTurn(eventName),
   };
 }
 
@@ -199,20 +112,18 @@ String _extractPromptForEvent(AgentHookEvent event, String eventName) {
   if (event.agentType == AgentType.copilot && eventName == 'Notification') {
     return '';
   }
-  if (event.agentType == AgentType.opencode &&
-      eventName == 'MessagePart' &&
-      event.payload['role'] == 'user') {
-    return _readFirstString(event.payload, const <String>['text']) ?? '';
+  if (event.agentType == AgentType.opencode) {
+    final prompt = _openCodePromptForEvent(event, eventName);
+    if (prompt != null) {
+      return prompt;
+    }
   }
   final direct = _extractPrompt(event.payload);
   if (direct.isNotEmpty) {
     return direct;
   }
   if (event.agentType == AgentType.agy) {
-    return _readLastUserPromptFromTranscript(
-          event.payload['transcriptPath'] ?? event.payload['transcript_path'],
-        ) ??
-        '';
+    return _agyPromptForEvent(event) ?? '';
   }
   return '';
 }
@@ -243,7 +154,9 @@ _ToolSnapshot _extractToolSnapshot(
       eventName == 'PermissionRequest' ||
       eventName == 'tool_call' ||
       eventName == 'tool_execution_start' ||
-      eventName == 'tool_execution_end';
+      eventName == 'tool_execution_end' ||
+      eventName == 'tool.call' ||
+      eventName == 'tool.result';
   String? toolName;
   String? toolInput;
   var hasToolInput = false;
@@ -258,6 +171,7 @@ _ToolSnapshot _extractToolSnapshot(
           'tool_name',
           'toolName',
           'name',
+          'tool',
         ]) ??
         nestedToolCall.toolName;
     for (final key in const <String>[
@@ -319,136 +233,15 @@ _ToolSnapshot _extractToolSnapshot(
 }
 
 String? _assistantTextFromHookEvent(AgentHookEvent event, String eventName) {
-  final isAssistantMessagePart =
-      event.agentType == AgentType.opencode &&
-      eventName == 'MessagePart' &&
-      event.payload['role'] == 'assistant';
-  final isPiAssistantMessage =
-      event.agentType == AgentType.pi &&
-      eventName == 'message_end' &&
-      event.payload['role'] == 'assistant';
-  if (!isAssistantMessagePart && !isPiAssistantMessage) {
-    return null;
-  }
-  final value = event.payload['text'];
-  if (value is String && value.trim().isNotEmpty) {
-    return _normalizeMultiline(value, 8000);
-  }
-  return null;
-}
-
-String? _normalizeCopilotEventName(String? eventName) {
-  if (eventName == null) {
-    return null;
-  }
-  return const <String, String>{
-        'sessionStart': 'SessionStart',
-        'sessionEnd': 'SessionEnd',
-        'userPromptSubmitted': 'UserPromptSubmit',
-        'userPromptSubmit': 'UserPromptSubmit',
-        'preToolUse': 'PreToolUse',
-        'postToolUse': 'PostToolUse',
-        'postToolUseFailure': 'PostToolUseFailure',
-        'subagentStart': 'SubagentStart',
-        'subagentStop': 'SubagentStop',
-        'preCompact': 'PreCompact',
-        'agentStop': 'Stop',
-        'stop': 'Stop',
-        'errorOccurred': 'ErrorOccurred',
-        'permissionRequest': 'PermissionRequest',
-        'notification': 'Notification',
-      }[eventName] ??
-      eventName;
-}
-
-String? _inferCopilotEventName(Map<String, Object?> payload) {
-  if (_readFirstString(payload, const <String>[
-        'initial_prompt',
-        'initialPrompt',
-      ]) !=
-      null) {
-    return 'SessionStart';
-  }
-  if (_readFirstString(payload, const <String>['prompt']) != null) {
-    return 'UserPromptSubmit';
-  }
-  if (_readFirstString(payload, const <String>[
-        'notification_type',
-        'notificationType',
-      ]) !=
-      null) {
-    return 'Notification';
-  }
-  if (_readFirstString(payload, const <String>[
-        'transcript_path',
-        'transcriptPath',
-        'stop_reason',
-        'stopReason',
-      ]) !=
-      null) {
-    return 'Stop';
-  }
-  if (payload['error'] != null ||
-      _readFirstString(payload, const <String>[
-            'error_context',
-            'errorContext',
-          ]) !=
-          null) {
-    return 'ErrorOccurred';
-  }
-  if (payload['toolCalls'] is List ||
-      _readFirstString(payload, const <String>[
-            'tool_name',
-            'toolName',
-            'name',
-          ]) !=
-          null) {
-    if (payload['tool_result'] != null ||
-        payload['toolResult'] != null ||
-        payload['tool_response'] != null ||
-        payload['toolResponse'] != null) {
-      return 'PostToolUse';
-    }
-    return 'PreToolUse';
-  }
-  return null;
-}
-
-_NestedToolCall _readAgyToolCall(Map<String, Object?> payload) {
-  final toolCall = payload['toolCall'];
-  if (toolCall is! Map) {
-    return const _NestedToolCall();
-  }
-  final record = Map<String, Object?>.from(toolCall);
-  return _NestedToolCall(
-    toolName: _readFirstString(record, const <String>[
-      'name',
-      'toolName',
-      'tool_name',
-    ]),
-    toolInputSource: record['args'],
-  );
-}
-
-_NestedToolCall _readCopilotToolCall(Map<String, Object?> payload) {
-  final toolCalls = payload['toolCalls'];
-  if (toolCalls is! List || toolCalls.isEmpty || toolCalls.first is! Map) {
-    return const _NestedToolCall();
-  }
-  final record = Map<String, Object?>.from(toolCalls.first as Map);
-  final args =
-      _parseJsonObjectString(record['args']) ??
-      record['args'] ??
-      _parseJsonObjectString(record['arguments']) ??
-      record['arguments'];
-  return _NestedToolCall(
-    toolName: _readFirstString(record, const <String>[
-      'name',
-      'toolName',
-      'tool_name',
-    ]),
-    toolInputSource: args,
-  );
+  return switch (event.agentType) {
+    AgentType.opencode => _openCodeAssistantTextForEvent(event, eventName),
+    AgentType.pi => _piAssistantTextForEvent(event, eventName),
+    AgentType.amp => _ampAssistantTextForEvent(event, eventName),
+    AgentType.codex ||
+    AgentType.claude ||
+    AgentType.copilot ||
+    AgentType.agy => null,
+  };
 }
 
 Map<String, Object?>? _parseJsonObjectString(Object? value) {
@@ -462,18 +255,6 @@ Map<String, Object?>? _parseJsonObjectString(Object? value) {
     }
   } catch (_) {}
   return null;
-}
-
-bool _isAskUserTool(String? toolName) {
-  if (toolName == null) {
-    return false;
-  }
-  return toolName.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toLowerCase() ==
-      'askuser';
-}
-
-bool _isAgyFeedbackTool(String? toolName) {
-  return toolName == 'ask_question' || toolName == 'ask_permission';
 }
 
 String? _deriveToolInputPreview(String? toolName, Object? input) {
@@ -658,6 +439,18 @@ String? _userPromptTextFromLine(String line) {
 }
 
 bool _isInterrupted(AgentHookEvent event) {
+  return switch (event.agentType) {
+    AgentType.amp => _isAmpInterrupted(event),
+    AgentType.codex ||
+    AgentType.claude ||
+    AgentType.copilot ||
+    AgentType.agy ||
+    AgentType.opencode ||
+    AgentType.pi => _isGenericInterrupted(event),
+  };
+}
+
+bool _isGenericInterrupted(AgentHookEvent event) {
   final value = event.payload['is_interrupt'] ?? event.payload['interrupted'];
   return value == true;
 }

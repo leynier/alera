@@ -76,6 +76,7 @@ class SettingsController extends _$SettingsController {
       AgentType.agy => current.copyWith(agy: value),
       AgentType.opencode => current.copyWith(opencode: value),
       AgentType.pi => current.copyWith(pi: value),
+      AgentType.amp => current.copyWith(amp: value),
     };
     if (current == next) {
       return;

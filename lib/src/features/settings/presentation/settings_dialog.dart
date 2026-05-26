@@ -251,6 +251,11 @@ const List<_SettingsSearchEntry> _generalSearchEntries = <_SettingsSearchEntry>[
     keywords: <String>['pi', 'agent', 'status', 'hooks', 'extension'],
   ),
   _SettingsSearchEntry(
+    title: 'Amp hooks',
+    description: 'Install managed Amp status plugin.',
+    keywords: <String>['amp', 'agent', 'status', 'hooks', 'plugin'],
+  ),
+  _SettingsSearchEntry(
     title: 'Agent status notifications',
     description: 'Show native notifications when agents need attention.',
     keywords: <String>[
@@ -261,6 +266,7 @@ const List<_SettingsSearchEntry> _generalSearchEntries = <_SettingsSearchEntry>[
       'agy',
       'opencode',
       'pi',
+      'amp',
       'agent',
       'status',
       'notification',
@@ -715,6 +721,15 @@ class _GeneralSettingsPane extends ConsumerWidget {
               onChanged: (value) => ref
                   .read(settingsControllerProvider.notifier)
                   .setAgentStatusHookEnabled(AgentType.pi, value),
+            ),
+            _SwitchSettingRow(
+              title: 'Amp hooks',
+              description:
+                  'Install Alera-managed Amp status plugin. Disable to remove only Alera-managed files.',
+              value: general.agentStatusHooks.amp,
+              onChanged: (value) => ref
+                  .read(settingsControllerProvider.notifier)
+                  .setAgentStatusHookEnabled(AgentType.amp, value),
             ),
             _SwitchSettingRow(
               title: 'Agent status notifications',

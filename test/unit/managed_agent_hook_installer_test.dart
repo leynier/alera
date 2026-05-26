@@ -308,6 +308,37 @@ void main() {
       expect(source, contains('ALERA_AGENT_HOOK_ENDPOINT'));
     });
 
+    test('installs and removes the managed Amp system plugin', () {
+      final pluginPath = p.join(
+        home.path,
+        '.config',
+        'amp',
+        'plugins',
+        'alera-agent-status.ts',
+      );
+
+      expect(
+        service.status(AgentType.amp).state,
+        ManagedAgentHookInstallState.notInstalled,
+      );
+      expect(
+        service.install(AgentType.amp).state,
+        ManagedAgentHookInstallState.installed,
+      );
+
+      final source = File(pluginPath).readAsStringSync();
+      expect(source, contains('ALERA_AGENT_STATUS_MANAGED_FILE'));
+      expect(source, contains("amp.on('agent.start'"));
+      expect(source, contains("amp.on('tool.call'"));
+      expect(source, contains("return { action: 'allow' }"));
+      expect(source, contains('/hook/amp'));
+      expect(source, contains('ALERA_AGENT_HOOK_ENDPOINT'));
+
+      final removed = service.remove(AgentType.amp);
+      expect(removed.state, ManagedAgentHookInstallState.notInstalled);
+      expect(File(pluginPath).existsSync(), isFalse);
+    });
+
     test('refuses to overwrite unmanaged OpenCode plugin files', () {
       final pluginPath = p.join(
         home.path,
@@ -328,6 +359,29 @@ void main() {
       expect(
         File(pluginPath).readAsStringSync(),
         'export const userPlugin = true;\n',
+      );
+    });
+
+    test('refuses to overwrite unmanaged Amp plugin files', () {
+      final pluginPath = p.join(
+        home.path,
+        '.config',
+        'amp',
+        'plugins',
+        'alera-agent-status.ts',
+      );
+      File(pluginPath)
+        ..createSync(recursive: true)
+        ..writeAsStringSync('export default function userPlugin() {}\n');
+
+      final install = service.install(AgentType.amp);
+      final remove = service.remove(AgentType.amp);
+
+      expect(install.state, ManagedAgentHookInstallState.error);
+      expect(remove.state, ManagedAgentHookInstallState.error);
+      expect(
+        File(pluginPath).readAsStringSync(),
+        'export default function userPlugin() {}\n',
       );
     });
   });

@@ -1,0 +1,27 @@
+part of '../managed_agent_hook_installer.dart';
+
+extension _CodexManagedAgentHook on ManagedAgentHookInstallService {
+  _AgentHookDescriptor _codexDescriptor({
+    required String scriptFileName,
+    required String scriptPath,
+  }) {
+    return _AgentHookDescriptor(
+      agentType: AgentType.codex,
+      configPath: p.join(_homeDirectory, '.codex', 'hooks.json'),
+      configLabel: 'Codex hooks.json',
+      scriptFileName: scriptFileName,
+      scriptPath: scriptPath,
+      eventEnvVar: 'ALERA_AGENT_HOOK_EVENT',
+      configShape: _AgentHookConfigShape.hooks,
+      definitionShape: _ManagedHookDefinitionShape.nestedCommand,
+      events: const <_ManagedHookEvent>[
+        _ManagedHookEvent('SessionStart'),
+        _ManagedHookEvent('UserPromptSubmit'),
+        _ManagedHookEvent('PreToolUse'),
+        _ManagedHookEvent('PostToolUse'),
+        _ManagedHookEvent('PermissionRequest'),
+        _ManagedHookEvent('Stop'),
+      ],
+    );
+  }
+}
