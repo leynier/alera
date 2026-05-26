@@ -39,6 +39,8 @@ void main() {
       expect(general.agentStatusHooks.claude, isFalse);
       expect(general.agentStatusHooks.copilot, isFalse);
       expect(general.agentStatusHooks.agy, isFalse);
+      expect(general.agentStatusHooks.opencode, isFalse);
+      expect(general.agentStatusHooks.pi, isFalse);
       expect(general.agentStatusHooks.anyEnabled, isFalse);
       expect(general.agentStatusNotificationsEnabled, isFalse);
     });
@@ -53,7 +55,11 @@ void main() {
         'starClicked': true,
         'confirmProjectRemoval': false,
         'confirmWorkspaceRemoval': true,
-        'agentStatusHooks': <String, Object?>{'codex': true, 'copilot': true},
+        'agentStatusHooks': <String, Object?>{
+          'codex': true,
+          'copilot': true,
+          'opencode': true,
+        },
         'agentStatusNotificationsEnabled': true,
       });
 
@@ -65,6 +71,8 @@ void main() {
       expect(general.agentStatusHooks.claude, isFalse);
       expect(general.agentStatusHooks.copilot, isTrue);
       expect(general.agentStatusHooks.agy, isFalse);
+      expect(general.agentStatusHooks.opencode, isTrue);
+      expect(general.agentStatusHooks.pi, isFalse);
       expect(general.agentStatusNotificationsEnabled, isTrue);
     });
 
@@ -77,6 +85,7 @@ void main() {
             codex: true,
             claude: true,
             agy: true,
+            pi: true,
           ),
           agentStatusNotificationsEnabled: true,
         ),
@@ -121,6 +130,8 @@ void main() {
       expect(restored.general.agentStatusHooks.claude, isTrue);
       expect(restored.general.agentStatusHooks.copilot, isFalse);
       expect(restored.general.agentStatusHooks.agy, isTrue);
+      expect(restored.general.agentStatusHooks.opencode, isFalse);
+      expect(restored.general.agentStatusHooks.pi, isTrue);
       expect(restored.general.agentStatusNotificationsEnabled, isTrue);
       expect(restored.terminal.fontFamily, 'SF Mono');
       expect(restored.terminal.fontSize, 15);

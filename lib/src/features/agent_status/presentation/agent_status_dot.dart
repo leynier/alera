@@ -45,6 +45,8 @@ String agentStatusTooltip(AgentStatusEntry entry) {
     AgentType.claude => 'Claude Code',
     AgentType.copilot => 'GitHub Copilot',
     AgentType.agy => 'Antigravity',
+    AgentType.opencode => 'OpenCode',
+    AgentType.pi => 'Pi',
   };
   final state = switch (entry.state) {
     AgentStatusState.working => 'working',

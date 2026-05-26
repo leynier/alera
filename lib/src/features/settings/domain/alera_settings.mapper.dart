@@ -644,6 +644,20 @@ class AgentStatusHookSettingsMapper
     opt: true,
     def: false,
   );
+  static bool _$opencode(AgentStatusHookSettings v) => v.opencode;
+  static const Field<AgentStatusHookSettings, bool> _f$opencode = Field(
+    'opencode',
+    _$opencode,
+    opt: true,
+    def: false,
+  );
+  static bool _$pi(AgentStatusHookSettings v) => v.pi;
+  static const Field<AgentStatusHookSettings, bool> _f$pi = Field(
+    'pi',
+    _$pi,
+    opt: true,
+    def: false,
+  );
 
   @override
   final MappableFields<AgentStatusHookSettings> fields = const {
@@ -651,6 +665,8 @@ class AgentStatusHookSettingsMapper
     #claude: _f$claude,
     #copilot: _f$copilot,
     #agy: _f$agy,
+    #opencode: _f$opencode,
+    #pi: _f$pi,
   };
 
   static AgentStatusHookSettings _instantiate(DecodingData data) {
@@ -659,6 +675,8 @@ class AgentStatusHookSettingsMapper
       claude: data.dec(_f$claude),
       copilot: data.dec(_f$copilot),
       agy: data.dec(_f$agy),
+      opencode: data.dec(_f$opencode),
+      pi: data.dec(_f$pi),
     );
   }
 
@@ -732,7 +750,14 @@ abstract class AgentStatusHookSettingsCopyWith<
   $Out
 >
     implements ClassCopyWith<$R, $In, $Out> {
-  $R call({bool? codex, bool? claude, bool? copilot, bool? agy});
+  $R call({
+    bool? codex,
+    bool? claude,
+    bool? copilot,
+    bool? agy,
+    bool? opencode,
+    bool? pi,
+  });
   AgentStatusHookSettingsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
   );
@@ -748,12 +773,21 @@ class _AgentStatusHookSettingsCopyWithImpl<$R, $Out>
   late final ClassMapperBase<AgentStatusHookSettings> $mapper =
       AgentStatusHookSettingsMapper.ensureInitialized();
   @override
-  $R call({bool? codex, bool? claude, bool? copilot, bool? agy}) => $apply(
+  $R call({
+    bool? codex,
+    bool? claude,
+    bool? copilot,
+    bool? agy,
+    bool? opencode,
+    bool? pi,
+  }) => $apply(
     FieldCopyWithData({
       if (codex != null) #codex: codex,
       if (claude != null) #claude: claude,
       if (copilot != null) #copilot: copilot,
       if (agy != null) #agy: agy,
+      if (opencode != null) #opencode: opencode,
+      if (pi != null) #pi: pi,
     }),
   );
   @override
@@ -762,6 +796,8 @@ class _AgentStatusHookSettingsCopyWithImpl<$R, $Out>
     claude: data.get(#claude, or: $value.claude),
     copilot: data.get(#copilot, or: $value.copilot),
     agy: data.get(#agy, or: $value.agy),
+    opencode: data.get(#opencode, or: $value.opencode),
+    pi: data.get(#pi, or: $value.pi),
   );
 
   @override

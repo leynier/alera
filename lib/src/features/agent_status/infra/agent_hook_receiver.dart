@@ -153,6 +153,15 @@ class AgentHookReceiver {
       ..post(
         '/hook/agy',
         (shelf.Request request) => _handleHookRequest(request, AgentType.agy),
+      )
+      ..post(
+        '/hook/opencode',
+        (shelf.Request request) =>
+            _handleHookRequest(request, AgentType.opencode),
+      )
+      ..post(
+        '/hook/pi',
+        (shelf.Request request) => _handleHookRequest(request, AgentType.pi),
       );
     return router.call;
   }

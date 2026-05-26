@@ -39,6 +39,8 @@ NormalizedAgentStatus? normalizeAgentHookEvent(
       toolSnapshot.toolName,
     ),
     AgentType.agy => _normalizeAgyState(eventName, toolSnapshot.toolName),
+    AgentType.opencode => _normalizeOpenCodeState(eventName),
+    AgentType.pi => _normalizePiState(eventName),
   };
   if (state == null) {
     return null;
@@ -137,6 +139,28 @@ AgentStatusState? _normalizeAgyState(String eventName, String? toolName) {
   };
 }
 
+AgentStatusState? _normalizeOpenCodeState(String eventName) {
+  return switch (eventName) {
+    'SessionBusy' || 'MessagePart' => AgentStatusState.working,
+    'PermissionRequest' || 'AskUserQuestion' => AgentStatusState.waiting,
+    'SessionIdle' => AgentStatusState.done,
+    _ => null,
+  };
+}
+
+AgentStatusState? _normalizePiState(String eventName) {
+  return switch (eventName) {
+    'before_agent_start' ||
+    'agent_start' ||
+    'tool_call' ||
+    'tool_execution_start' ||
+    'tool_execution_end' ||
+    'message_end' => AgentStatusState.working,
+    'agent_end' || 'session_shutdown' => AgentStatusState.done,
+    _ => null,
+  };
+}
+
 String? _hookEventName(AgentHookEvent event) {
   final explicit = _readFirstString(
     <String, Object?>{'hookEventName': event.hookEventName},
@@ -166,12 +190,19 @@ bool _isNewTurn(AgentType agentType, String eventName) {
     AgentType.copilot =>
       eventName == 'SessionStart' || eventName == 'UserPromptSubmit',
     AgentType.agy => eventName == 'PreInvocation',
+    AgentType.opencode => false,
+    AgentType.pi => eventName == 'before_agent_start',
   };
 }
 
 String _extractPromptForEvent(AgentHookEvent event, String eventName) {
   if (event.agentType == AgentType.copilot && eventName == 'Notification') {
     return '';
+  }
+  if (event.agentType == AgentType.opencode &&
+      eventName == 'MessagePart' &&
+      event.payload['role'] == 'user') {
+    return _readFirstString(event.payload, const <String>['text']) ?? '';
   }
   final direct = _extractPrompt(event.payload);
   if (direct.isNotEmpty) {
@@ -209,7 +240,10 @@ _ToolSnapshot _extractToolSnapshot(
       eventName == 'PreToolUse' ||
       eventName == 'PostToolUse' ||
       eventName == 'PostToolUseFailure' ||
-      eventName == 'PermissionRequest';
+      eventName == 'PermissionRequest' ||
+      eventName == 'tool_call' ||
+      eventName == 'tool_execution_start' ||
+      eventName == 'tool_execution_end';
   String? toolName;
   String? toolInput;
   var hasToolInput = false;
@@ -251,6 +285,7 @@ _ToolSnapshot _extractToolSnapshot(
   }
 
   final lastAssistantMessage =
+      _assistantTextFromHookEvent(event, eventName) ??
       _readFirstString(payload, const <String>[
         'last_assistant_message',
         'lastAssistantMessage',
@@ -281,6 +316,25 @@ _ToolSnapshot _extractToolSnapshot(
     hasToolUpdate: hasToolEvent,
     hasToolInput: hasToolInput,
   );
+}
+
+String? _assistantTextFromHookEvent(AgentHookEvent event, String eventName) {
+  final isAssistantMessagePart =
+      event.agentType == AgentType.opencode &&
+      eventName == 'MessagePart' &&
+      event.payload['role'] == 'assistant';
+  final isPiAssistantMessage =
+      event.agentType == AgentType.pi &&
+      eventName == 'message_end' &&
+      event.payload['role'] == 'assistant';
+  if (!isAssistantMessagePart && !isPiAssistantMessage) {
+    return null;
+  }
+  final value = event.payload['text'];
+  if (value is String && value.trim().isNotEmpty) {
+    return _normalizeMultiline(value, 8000);
+  }
+  return null;
 }
 
 String? _normalizeCopilotEventName(String? eventName) {
@@ -658,6 +712,8 @@ const Map<String, List<String>> _toolInputKeysByTool = <String, List<String>>{
   'ask_question': <String>['Prompt', 'question'],
   'ask_permission': <String>['Action', 'Target', 'Reason'],
   'bash': <String>['command'],
+  'read': <String>['file_path', 'filePath', 'path'],
+  'write': <String>['file_path', 'filePath', 'path'],
   'edit': <String>['file_path', 'filePath', 'path'],
 };
 

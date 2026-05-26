@@ -156,6 +156,91 @@ void main() {
       expect(entry.toolInput, 'Which file?');
     });
 
+    test('normalizes OpenCode message, waiting, and idle states', () {
+      final controller = container.read(agentStatusControllerProvider.notifier);
+
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.opencode,
+          hookEventName: 'MessagePart',
+          payload: <String, Object?>{'role': 'user', 'text': 'ship status'},
+        ),
+      );
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.opencode,
+          hookEventName: 'MessagePart',
+          payload: <String, Object?>{
+            'role': 'assistant',
+            'text': 'Working on it.',
+          },
+        ),
+      );
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.opencode,
+          hookEventName: 'AskUserQuestion',
+          payload: <String, Object?>{},
+        ),
+      );
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.opencode,
+          hookEventName: 'SessionIdle',
+          payload: <String, Object?>{},
+        ),
+      );
+
+      final entry = container.read(agentStatusControllerProvider)['session-1']!;
+      expect(entry.state, AgentStatusState.done);
+      expect(entry.prompt, 'ship status');
+      expect(entry.lastAssistantMessage, 'Working on it.');
+      expect(entry.stateStartedAt, times[3]);
+    });
+
+    test('normalizes Pi prompt, tool, assistant, and done states', () {
+      final controller = container.read(agentStatusControllerProvider.notifier);
+
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.pi,
+          hookEventName: 'before_agent_start',
+          payload: <String, Object?>{'prompt': 'rename helper'},
+        ),
+      );
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.pi,
+          hookEventName: 'tool_call',
+          payload: <String, Object?>{
+            'tool_name': 'bash',
+            'tool_input': <String, Object?>{'command': 'flutter test'},
+          },
+        ),
+      );
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.pi,
+          hookEventName: 'message_end',
+          payload: <String, Object?>{'role': 'assistant', 'text': 'Done.'},
+        ),
+      );
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.pi,
+          hookEventName: 'agent_end',
+          payload: <String, Object?>{},
+        ),
+      );
+
+      final entry = container.read(agentStatusControllerProvider)['session-1']!;
+      expect(entry.state, AgentStatusState.done);
+      expect(entry.prompt, 'rename helper');
+      expect(entry.toolName, 'bash');
+      expect(entry.toolInput, 'flutter test');
+      expect(entry.lastAssistantMessage, 'Done.');
+    });
+
     test('marks active terminal exits as inferred done', () {
       final controller = container.read(agentStatusControllerProvider.notifier);
       controller.applyHookEvent(

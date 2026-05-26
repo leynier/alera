@@ -393,6 +393,8 @@ List<AgentType> _enabledAgentStatusHookTypes(AgentStatusHookSettings settings) {
     if (settings.claude) AgentType.claude,
     if (settings.copilot) AgentType.copilot,
     if (settings.agy) AgentType.agy,
+    if (settings.opencode) AgentType.opencode,
+    if (settings.pi) AgentType.pi,
   ];
 }
 
@@ -405,6 +407,8 @@ bool _isAgentStatusHookEnabled(
     AgentType.claude => settings.claude,
     AgentType.copilot => settings.copilot,
     AgentType.agy => settings.agy,
+    AgentType.opencode => settings.opencode,
+    AgentType.pi => settings.pi,
   };
 }
 

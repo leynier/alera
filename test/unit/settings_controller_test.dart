@@ -117,6 +117,8 @@ void main() {
         await controller.setConfirmWorkspaceRemoval(false);
         await controller.setAgentStatusHookEnabled(AgentType.codex, true);
         await controller.setAgentStatusHookEnabled(AgentType.agy, true);
+        await controller.setAgentStatusHookEnabled(AgentType.opencode, true);
+        await controller.setAgentStatusHookEnabled(AgentType.pi, true);
         await controller.setAgentStatusNotificationsEnabled(true);
 
         final restored = await repository.load();
@@ -140,6 +142,8 @@ void main() {
         expect(restored.general.agentStatusHooks.claude, isFalse);
         expect(restored.general.agentStatusHooks.copilot, isFalse);
         expect(restored.general.agentStatusHooks.agy, isTrue);
+        expect(restored.general.agentStatusHooks.opencode, isTrue);
+        expect(restored.general.agentStatusHooks.pi, isTrue);
         expect(restored.general.agentStatusNotificationsEnabled, isTrue);
       },
     );

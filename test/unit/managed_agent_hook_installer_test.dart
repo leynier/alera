@@ -16,6 +16,7 @@ void main() {
       service = ManagedAgentHookInstallService(
         homeDirectory: home.path,
         platform: ManagedAgentHookPlatform.posix,
+        environment: <String, String>{'HOME': home.path},
       );
     });
 
@@ -246,6 +247,88 @@ void main() {
       expect(status.state, ManagedAgentHookInstallState.notInstalled);
       expect(_commandsFor(nextBundle, 'PreInvocation'), <String>['echo user']);
       expect(nextBundle['Stop'], isNull);
+    });
+
+    test('installs and removes the managed OpenCode status plugin', () {
+      final pluginPath = p.join(
+        home.path,
+        '.config',
+        'opencode',
+        'plugins',
+        'alera-agent-status.js',
+      );
+
+      expect(
+        service.status(AgentType.opencode).state,
+        ManagedAgentHookInstallState.notInstalled,
+      );
+      expect(
+        service.install(AgentType.opencode).state,
+        ManagedAgentHookInstallState.installed,
+      );
+      expect(
+        service.install(AgentType.opencode).state,
+        ManagedAgentHookInstallState.installed,
+      );
+
+      final source = File(pluginPath).readAsStringSync();
+      expect(source, contains('ALERA_AGENT_STATUS_MANAGED_FILE'));
+      expect(source, contains('AleraOpenCodeStatusPlugin'));
+      expect(source, contains('/hook/opencode'));
+      expect(source, contains('ALERA_AGENT_HOOK_ENDPOINT'));
+
+      final removed = service.remove(AgentType.opencode);
+      expect(removed.state, ManagedAgentHookInstallState.notInstalled);
+      expect(File(pluginPath).existsSync(), isFalse);
+    });
+
+    test('installs the managed Pi extension under PI_CODING_AGENT_DIR', () {
+      final piRoot = p.join(home.path, 'custom-pi');
+      final piService = ManagedAgentHookInstallService(
+        homeDirectory: home.path,
+        platform: ManagedAgentHookPlatform.posix,
+        environment: <String, String>{
+          'HOME': home.path,
+          'PI_CODING_AGENT_DIR': piRoot,
+        },
+      );
+      final extensionPath = p.join(
+        piRoot,
+        'extensions',
+        'alera-agent-status.ts',
+      );
+
+      final status = piService.install(AgentType.pi);
+
+      expect(status.state, ManagedAgentHookInstallState.installed);
+      final source = File(extensionPath).readAsStringSync();
+      expect(source, contains('ALERA_AGENT_STATUS_MANAGED_FILE'));
+      expect(source, contains("pi.on('before_agent_start'"));
+      expect(source, contains('/hook/pi'));
+      expect(source, contains('ALERA_AGENT_HOOK_ENDPOINT'));
+    });
+
+    test('refuses to overwrite unmanaged OpenCode plugin files', () {
+      final pluginPath = p.join(
+        home.path,
+        '.config',
+        'opencode',
+        'plugins',
+        'alera-agent-status.js',
+      );
+      File(pluginPath)
+        ..createSync(recursive: true)
+        ..writeAsStringSync('export const userPlugin = true;\n');
+
+      final install = service.install(AgentType.opencode);
+      final remove = service.remove(AgentType.opencode);
+
+      expect(install.state, ManagedAgentHookInstallState.error);
+      expect(remove.state, ManagedAgentHookInstallState.error);
+      expect(
+        File(pluginPath).readAsStringSync(),
+        'export const userPlugin = true;\n',
+      );
     });
   });
 }

@@ -241,6 +241,16 @@ const List<_SettingsSearchEntry> _generalSearchEntries = <_SettingsSearchEntry>[
     keywords: <String>['antigravity', 'agy', 'agent', 'status', 'hooks'],
   ),
   _SettingsSearchEntry(
+    title: 'OpenCode hooks',
+    description: 'Install managed OpenCode status plugin.',
+    keywords: <String>['opencode', 'agent', 'status', 'hooks', 'plugin'],
+  ),
+  _SettingsSearchEntry(
+    title: 'Pi hooks',
+    description: 'Install managed Pi status extension.',
+    keywords: <String>['pi', 'agent', 'status', 'hooks', 'extension'],
+  ),
+  _SettingsSearchEntry(
     title: 'Agent status notifications',
     description: 'Show native notifications when agents need attention.',
     keywords: <String>[
@@ -249,6 +259,8 @@ const List<_SettingsSearchEntry> _generalSearchEntries = <_SettingsSearchEntry>[
       'copilot',
       'antigravity',
       'agy',
+      'opencode',
+      'pi',
       'agent',
       'status',
       'notification',
@@ -648,8 +660,7 @@ class _GeneralSettingsPane extends ConsumerWidget {
         const SizedBox(height: AleraTokens.space16),
         _SettingsGroup(
           title: 'Agent status',
-          description:
-              'Managed local hooks let terminal tabs show agent state.',
+          description: 'Managed hooks let terminal tabs show agent state.',
           children: <Widget>[
             _SwitchSettingRow(
               title: 'Codex hooks',
@@ -686,6 +697,24 @@ class _GeneralSettingsPane extends ConsumerWidget {
               onChanged: (value) => ref
                   .read(settingsControllerProvider.notifier)
                   .setAgentStatusHookEnabled(AgentType.agy, value),
+            ),
+            _SwitchSettingRow(
+              title: 'OpenCode hooks',
+              description:
+                  'Install Alera-managed OpenCode status plugin. Disable to remove only Alera-managed files.',
+              value: general.agentStatusHooks.opencode,
+              onChanged: (value) => ref
+                  .read(settingsControllerProvider.notifier)
+                  .setAgentStatusHookEnabled(AgentType.opencode, value),
+            ),
+            _SwitchSettingRow(
+              title: 'Pi hooks',
+              description:
+                  'Install Alera-managed Pi status extension. Disable to remove only Alera-managed files.',
+              value: general.agentStatusHooks.pi,
+              onChanged: (value) => ref
+                  .read(settingsControllerProvider.notifier)
+                  .setAgentStatusHookEnabled(AgentType.pi, value),
             ),
             _SwitchSettingRow(
               title: 'Agent status notifications',

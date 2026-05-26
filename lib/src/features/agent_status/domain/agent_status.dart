@@ -13,7 +13,9 @@ enum AgentType {
   codex('codex'),
   claude('claude'),
   copilot('copilot'),
-  agy('agy');
+  agy('agy'),
+  opencode('opencode'),
+  pi('pi');
 
   const AgentType(this.key);
 

@@ -58,6 +58,20 @@ void main() {
       final working = composeAgentStatusNotification(
         entry: _entry(AgentStatusState.working),
       );
+      final openCodeDone = composeAgentStatusNotification(
+        entry: _entry(
+          AgentStatusState.done,
+          agentType: AgentType.opencode,
+          prompt: 'Finish plugin',
+        ),
+      );
+      final piWaiting = composeAgentStatusNotification(
+        entry: _entry(
+          AgentStatusState.waiting,
+          agentType: AgentType.pi,
+          prompt: 'Approve command',
+        ),
+      );
 
       expect(waiting, isNotNull);
       expect(waiting!.title, 'Codex needs attention');
@@ -68,6 +82,8 @@ void main() {
       expect(done, isNotNull);
       expect(done!.title, 'Antigravity finished');
       expect(done.body, 'Claude');
+      expect(openCodeDone!.title, 'OpenCode finished');
+      expect(piWaiting!.title, 'Pi needs attention');
       expect(working, isNull);
     });
 

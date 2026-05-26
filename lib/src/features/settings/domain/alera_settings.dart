@@ -118,14 +118,18 @@ class AgentStatusHookSettings with AgentStatusHookSettingsMappable {
     this.claude = false,
     this.copilot = false,
     this.agy = false,
+    this.opencode = false,
+    this.pi = false,
   });
 
   final bool codex;
   final bool claude;
   final bool copilot;
   final bool agy;
+  final bool opencode;
+  final bool pi;
 
-  bool get anyEnabled => codex || claude || copilot || agy;
+  bool get anyEnabled => codex || claude || copilot || agy || opencode || pi;
 
   static const AgentStatusHookSettings defaults = AgentStatusHookSettings();
 
@@ -159,8 +163,8 @@ class GeneralSettings with GeneralSettingsMappable {
   /// Ask before removing a linked workspace and its Git worktree.
   final bool confirmWorkspaceRemoval;
 
-  /// Install managed local agent hooks for terminal status. Each agent is
-  /// default-off because enabling it edits that agent's user config files.
+  /// Install managed agent hooks for terminal status. Each agent is
+  /// default-off because enabling it writes into that agent's user config area.
   final AgentStatusHookSettings agentStatusHooks;
 
   /// Show native desktop notifications for local agent status events.

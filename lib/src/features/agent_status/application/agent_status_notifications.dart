@@ -127,6 +127,8 @@ AgentStatusNotification? composeAgentStatusNotification({
     AgentType.claude => 'Claude',
     AgentType.copilot => 'GitHub Copilot',
     AgentType.agy => 'Antigravity',
+    AgentType.opencode => 'OpenCode',
+    AgentType.pi => 'Pi',
   };
   final title = switch (entry.state) {
     AgentStatusState.waiting ||

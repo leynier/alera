@@ -106,6 +106,43 @@ void main() {
       expect(sink.events.single.payload['prompt'], 'ship it');
     });
 
+    test('accepts OpenCode and Pi hook routes', () async {
+      final openCodeResponse = await _post(
+        receiver.endpoint!.port,
+        path: '/hook/opencode',
+        token: 'token-1',
+        body: jsonEncode(<String, Object?>{
+          'terminalSessionId': 'session-1',
+          'workspaceId': 'workspace-1',
+          'tabId': 'tab-1',
+          'payload': <String, Object?>{'hook_event_name': 'SessionBusy'},
+        }),
+        contentType: ContentType.json,
+      );
+      final piResponse = await _post(
+        receiver.endpoint!.port,
+        path: '/hook/pi',
+        token: 'token-1',
+        body: jsonEncode(<String, Object?>{
+          'terminalSessionId': 'session-2',
+          'workspaceId': 'workspace-1',
+          'tabId': 'tab-2',
+          'payload': <String, Object?>{
+            'hook_event_name': 'before_agent_start',
+            'prompt': 'run tests',
+          },
+        }),
+        contentType: ContentType.json,
+      );
+
+      expect(openCodeResponse.statusCode, HttpStatus.noContent);
+      expect(piResponse.statusCode, HttpStatus.noContent);
+      expect(sink.events.map((event) => event.agentType), <AgentType>[
+        AgentType.opencode,
+        AgentType.pi,
+      ]);
+    });
+
     test('ignores disabled agents with 204', () async {
       await receiver.dispose();
       sink = _FakeStatusSink();
