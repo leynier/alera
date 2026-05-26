@@ -383,38 +383,28 @@ class _ProjectPicker extends StatelessWidget {
           onChanged: onQueryChanged,
         ),
         const SizedBox(height: AleraTokens.space8),
-        AleraPanel(
-          backgroundColor: AleraTokens.surfaceVariant,
-          borderRadius: AleraTokens.radiusMd,
-          clipBehavior: Clip.antiAlias,
+        _PickerPanel(
           maxHeight: 128,
-          children: <Widget>[
-            filtered.isEmpty
-                ? AleraEmptyState(message: 'No projects match "$query"')
-                : ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: filtered.length,
-                    itemBuilder: (context, index) {
-                      final project = filtered[index];
-                      final selected = project.id == selectedProject?.id;
-                      return AleraMenuItem(
-                        label: project.name,
-                        subtitle: project.repoPath,
-                        selected: selected,
-                        leading: Icon(
-                          selected
-                              ? Icons.radio_button_checked
-                              : Icons.radio_button_off,
-                          size: 16,
-                          color: selected
-                              ? AleraTokens.accent
-                              : AleraTokens.foregroundFaint,
-                        ),
-                        onTap: () => onSelectProject(project),
-                      );
-                    },
-                  ),
-          ],
+          isEmpty: filtered.isEmpty,
+          emptyMessage: 'No projects match "$query"',
+          itemCount: filtered.length,
+          itemBuilder: (context, index) {
+            final project = filtered[index];
+            final selected = project.id == selectedProject?.id;
+            return AleraMenuItem(
+              label: project.name,
+              subtitle: project.repoPath,
+              selected: selected,
+              leading: Icon(
+                selected ? Icons.radio_button_checked : Icons.radio_button_off,
+                size: 16,
+                color: selected
+                    ? AleraTokens.accent
+                    : AleraTokens.foregroundFaint,
+              ),
+              onTap: () => onSelectProject(project),
+            );
+          },
         ),
       ],
     );
@@ -465,37 +455,67 @@ class _SourceBranchPicker extends StatelessWidget {
           onChanged: onQueryChanged,
         ),
         const SizedBox(height: AleraTokens.space8),
-        AleraPanel(
-          backgroundColor: AleraTokens.surfaceVariant,
-          borderRadius: AleraTokens.radiusMd,
-          clipBehavior: Clip.antiAlias,
+        _PickerPanel(
           maxHeight: 144,
-          children: <Widget>[
-            filtered.isEmpty
-                ? AleraEmptyState(message: 'No source branches match "$query"')
-                : ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: filtered.length,
-                    itemBuilder: (context, index) {
-                      final branch = filtered[index];
-                      final selected = branch == selectedBranch;
-                      return AleraMenuItem(
-                        label: branch,
-                        selected: selected,
-                        leading: Icon(
-                          selected ? Icons.check_circle : Icons.circle_outlined,
-                          size: 16,
-                          color: selected
-                              ? AleraTokens.accent
-                              : AleraTokens.foregroundFaint,
-                        ),
-                        onTap: () => onSelectBranch(branch),
-                      );
-                    },
-                  ),
-          ],
+          isEmpty: filtered.isEmpty,
+          emptyMessage: 'No source branches match "$query"',
+          itemCount: filtered.length,
+          itemBuilder: (context, index) {
+            final branch = filtered[index];
+            final selected = branch == selectedBranch;
+            return AleraMenuItem(
+              label: branch,
+              selected: selected,
+              leading: Icon(
+                selected ? Icons.check_circle : Icons.circle_outlined,
+                size: 16,
+                color: selected
+                    ? AleraTokens.accent
+                    : AleraTokens.foregroundFaint,
+              ),
+              onTap: () => onSelectBranch(branch),
+            );
+          },
         ),
       ],
+    );
+  }
+}
+
+class _PickerPanel extends StatelessWidget {
+  const _PickerPanel({
+    required this.maxHeight,
+    required this.isEmpty,
+    required this.emptyMessage,
+    required this.itemCount,
+    required this.itemBuilder,
+  });
+
+  final double maxHeight;
+  final bool isEmpty;
+  final String emptyMessage;
+  final int itemCount;
+  final NullableIndexedWidgetBuilder itemBuilder;
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(AleraTokens.radiusMd);
+    return Container(
+      constraints: BoxConstraints(maxHeight: maxHeight),
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: AleraTokens.surfaceVariant,
+        borderRadius: radius,
+        border: Border.all(color: AleraTokens.borderSubtle),
+      ),
+      child: isEmpty
+          ? AleraEmptyState(message: emptyMessage)
+          : ListView.builder(
+              padding: EdgeInsets.zero,
+              shrinkWrap: true,
+              itemCount: itemCount,
+              itemBuilder: itemBuilder,
+            ),
     );
   }
 }

@@ -175,6 +175,35 @@ void main() {
     expect(find.text('No source branches match "missing"'), findsOneWidget);
   });
 
+  testWidgets('keeps branch picker scrollable on compact desktop heights', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1224, 768));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await _pumpDialogLauncher(
+      tester,
+      projects: <Project>[_project()],
+      loadBranches: (_) async => const <String>[
+        'dev',
+        'main',
+        'origin',
+        'origin/claude/integrate-vercel-analytics-01KxPescNmVV1Rr4T2RVutVg',
+        'origin/dev',
+        'origin/main',
+        'origin/v0/leynier-24f7f479',
+        'origin/v0/leynier-aac72b82',
+      ],
+      onResult: (_) {},
+    );
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Create workspace'), findsOneWidget);
+  });
+
   testWidgets('shows branch load errors and can cancel the dialog', (
     tester,
   ) async {
@@ -198,44 +227,45 @@ void main() {
     expect(result, isNull);
   });
 
-  testWidgets('manual source branch input clears errors and can submit from the source field', (
-    tester,
-  ) async {
-    CreateWorkspaceResult? result;
+  testWidgets(
+    'manual source branch input clears errors and can submit from the source field',
+    (tester) async {
+      CreateWorkspaceResult? result;
 
-    await _pumpDialogLauncher(
-      tester,
-      projects: <Project>[_project()],
-      loadBranches: (_) async => const <String>[],
-      onResult: (value) => result = value,
-    );
+      await _pumpDialogLauncher(
+        tester,
+        projects: <Project>[_project()],
+        loadBranches: (_) async => const <String>[],
+        onResult: (value) => result = value,
+      );
 
-    await tester.tap(find.text('Open'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Create workspace'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Create workspace'));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Source branch is required'), findsOneWidget);
-    expect(find.text('New branch name is required'), findsOneWidget);
+      expect(find.text('Source branch is required'), findsOneWidget);
+      expect(find.text('New branch name is required'), findsOneWidget);
 
-    final sourceField = find.widgetWithText(TextField, 'Source branch');
-    await tester.enterText(sourceField, 'release/manual');
-    await tester.pumpAndSettle();
-    expect(find.text('Source branch is required'), findsNothing);
+      final sourceField = find.widgetWithText(TextField, 'Source branch');
+      await tester.enterText(sourceField, 'release/manual');
+      await tester.pumpAndSettle();
+      expect(find.text('Source branch is required'), findsNothing);
 
-    await tester.enterText(
-      find.widgetWithText(TextField, 'New branch name'),
-      'feature/manual-source-submit',
-    );
-    await tester.tap(sourceField);
-    await tester.pump();
-    await tester.testTextInput.receiveAction(TextInputAction.done);
-    await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextField, 'New branch name'),
+        'feature/manual-source-submit',
+      );
+      await tester.tap(sourceField);
+      await tester.pump();
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
 
-    expect(result, isNotNull);
-    expect(result!.sourceBranch, 'release/manual');
-    expect(result!.newBranchName, 'feature/manual-source-submit');
-  });
+      expect(result, isNotNull);
+      expect(result!.sourceBranch, 'release/manual');
+      expect(result!.newBranchName, 'feature/manual-source-submit');
+    },
+  );
 
   testWidgets('submits from the new-branch and name fields', (tester) async {
     final results = <CreateWorkspaceResult?>[];
@@ -274,7 +304,10 @@ void main() {
       find.widgetWithText(TextField, 'New branch name'),
       'feature/name-submit',
     );
-    final nameField = find.widgetWithText(TextField, 'Workspace name (optional)');
+    final nameField = find.widgetWithText(
+      TextField,
+      'Workspace name (optional)',
+    );
     await tester.enterText(nameField, 'Named workspace');
     await tester.tap(nameField);
     await tester.pump();
