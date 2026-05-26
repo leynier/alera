@@ -55,6 +55,13 @@ void main() {
         workspaceName: 'Alera',
         tabTitle: 'Claude',
       );
+      final cursorDone = composeAgentStatusNotification(
+        entry: _entry(
+          AgentStatusState.done,
+          agentType: AgentType.cursor,
+          prompt: 'Ship Cursor',
+        ),
+      );
       final working = composeAgentStatusNotification(
         entry: _entry(AgentStatusState.working),
       );
@@ -89,6 +96,7 @@ void main() {
       expect(done, isNotNull);
       expect(done!.title, 'Antigravity finished');
       expect(done.body, 'Claude');
+      expect(cursorDone!.title, 'Cursor finished');
       expect(openCodeDone!.title, 'OpenCode finished');
       expect(piWaiting!.title, 'Pi needs attention');
       expect(ampDone!.title, 'Amp finished');

@@ -126,6 +126,7 @@ AgentStatusNotification? composeAgentStatusNotification({
     AgentType.codex => 'Codex',
     AgentType.claude => 'Claude',
     AgentType.copilot => 'GitHub Copilot',
+    AgentType.cursor => 'Cursor',
     AgentType.agy => 'Antigravity',
     AgentType.opencode => 'OpenCode',
     AgentType.pi => 'Pi',

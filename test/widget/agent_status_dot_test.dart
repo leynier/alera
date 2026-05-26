@@ -31,15 +31,24 @@ void main() {
       AleraTokens.success,
     ]);
     expect(find.byType(Tooltip), findsNWidgets(3));
+    expect(
+      agentStatusTooltip(
+        _entry(AgentStatusState.working, agentType: AgentType.cursor),
+      ),
+      'Cursor working',
+    );
   });
 }
 
-AgentStatusEntry _entry(AgentStatusState state) {
+AgentStatusEntry _entry(
+  AgentStatusState state, {
+  AgentType agentType = AgentType.codex,
+}) {
   return AgentStatusEntry(
     terminalSessionId: 'session-$state',
     workspaceId: 'workspace-1',
     tabId: 'tab-1',
-    agentType: AgentType.codex,
+    agentType: agentType,
     state: state,
     prompt: '',
     updatedAt: DateTime.utc(2026, 5, 26),

@@ -236,6 +236,11 @@ const List<_SettingsSearchEntry> _generalSearchEntries = <_SettingsSearchEntry>[
     keywords: <String>['copilot', 'github', 'agent', 'status', 'hooks'],
   ),
   _SettingsSearchEntry(
+    title: 'Cursor hooks',
+    description: 'Install managed Cursor CLI hooks.',
+    keywords: <String>['cursor', 'agent', 'status', 'hooks', 'cli'],
+  ),
+  _SettingsSearchEntry(
     title: 'Antigravity hooks',
     description: 'Install managed Antigravity hooks for the agy CLI.',
     keywords: <String>['antigravity', 'agy', 'agent', 'status', 'hooks'],
@@ -262,6 +267,7 @@ const List<_SettingsSearchEntry> _generalSearchEntries = <_SettingsSearchEntry>[
       'codex',
       'claude',
       'copilot',
+      'cursor',
       'antigravity',
       'agy',
       'opencode',
@@ -694,6 +700,15 @@ class _GeneralSettingsPane extends ConsumerWidget {
               onChanged: (value) => ref
                   .read(settingsControllerProvider.notifier)
                   .setAgentStatusHookEnabled(AgentType.copilot, value),
+            ),
+            _SwitchSettingRow(
+              title: 'Cursor hooks',
+              description:
+                  'Install Alera-managed Cursor CLI hooks. Disable to remove only Alera-managed hook entries.',
+              value: general.agentStatusHooks.cursor,
+              onChanged: (value) => ref
+                  .read(settingsControllerProvider.notifier)
+                  .setAgentStatusHookEnabled(AgentType.cursor, value),
             ),
             _SwitchSettingRow(
               title: 'Antigravity hooks',

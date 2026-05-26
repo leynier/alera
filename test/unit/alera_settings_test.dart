@@ -38,6 +38,7 @@ void main() {
       expect(general.agentStatusHooks.codex, isFalse);
       expect(general.agentStatusHooks.claude, isFalse);
       expect(general.agentStatusHooks.copilot, isFalse);
+      expect(general.agentStatusHooks.cursor, isFalse);
       expect(general.agentStatusHooks.agy, isFalse);
       expect(general.agentStatusHooks.opencode, isFalse);
       expect(general.agentStatusHooks.pi, isFalse);
@@ -59,6 +60,7 @@ void main() {
         'agentStatusHooks': <String, Object?>{
           'codex': true,
           'copilot': true,
+          'cursor': true,
           'opencode': true,
           'amp': true,
         },
@@ -72,6 +74,7 @@ void main() {
       expect(general.agentStatusHooks.codex, isTrue);
       expect(general.agentStatusHooks.claude, isFalse);
       expect(general.agentStatusHooks.copilot, isTrue);
+      expect(general.agentStatusHooks.cursor, isTrue);
       expect(general.agentStatusHooks.agy, isFalse);
       expect(general.agentStatusHooks.opencode, isTrue);
       expect(general.agentStatusHooks.pi, isFalse);
@@ -87,6 +90,7 @@ void main() {
           agentStatusHooks: AgentStatusHookSettings(
             codex: true,
             claude: true,
+            cursor: true,
             agy: true,
             pi: true,
             amp: true,
@@ -133,6 +137,7 @@ void main() {
       expect(restored.general.agentStatusHooks.codex, isTrue);
       expect(restored.general.agentStatusHooks.claude, isTrue);
       expect(restored.general.agentStatusHooks.copilot, isFalse);
+      expect(restored.general.agentStatusHooks.cursor, isTrue);
       expect(restored.general.agentStatusHooks.agy, isTrue);
       expect(restored.general.agentStatusHooks.opencode, isFalse);
       expect(restored.general.agentStatusHooks.pi, isTrue);

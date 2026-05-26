@@ -13,6 +13,7 @@ enum AgentType {
   codex('codex'),
   claude('claude'),
   copilot('copilot'),
+  cursor('cursor'),
   agy('agy'),
   opencode('opencode'),
   pi('pi'),

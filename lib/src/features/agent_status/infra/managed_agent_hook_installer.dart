@@ -10,6 +10,7 @@ part 'managed_hooks/amp_managed_agent_hook.dart';
 part 'managed_hooks/claude_managed_agent_hook.dart';
 part 'managed_hooks/codex_managed_agent_hook.dart';
 part 'managed_hooks/copilot_managed_agent_hook.dart';
+part 'managed_hooks/cursor_managed_agent_hook.dart';
 part 'managed_hooks/opencode_managed_agent_hook.dart';
 part 'managed_hooks/pi_managed_agent_hook.dart';
 
@@ -22,6 +23,7 @@ enum _AgentHookConfigShape { hooks, agyBundle }
 enum _ManagedHookDefinitionShape {
   nestedCommand,
   directCommand,
+  topLevelCommand,
   agyToolCommand,
 }
 
@@ -187,6 +189,9 @@ class ManagedAgentHookInstallService {
       config['version'] = 1;
       config.remove('disableAllHooks');
     }
+    if (descriptor.agentType == AgentType.cursor) {
+      config['version'] ??= 1;
+    }
     _writeManagedScript(
       descriptor.scriptPath,
       _managedScript(descriptor: descriptor),
@@ -286,6 +291,10 @@ class ManagedAgentHookInstallService {
         scriptFileName: scriptFileName,
         scriptPath: scriptPath,
       ),
+      AgentType.cursor => _cursorDescriptor(
+        scriptFileName: scriptFileName,
+        scriptPath: scriptPath,
+      ),
       AgentType.agy => _agyDescriptor(
         scriptFileName: scriptFileName,
         scriptPath: scriptPath,
@@ -308,6 +317,7 @@ class ManagedAgentHookInstallService {
       AgentType.codex ||
       AgentType.claude ||
       AgentType.copilot ||
+      AgentType.cursor ||
       AgentType.agy => null,
     };
   }
@@ -512,6 +522,9 @@ class ManagedAgentHookInstallService {
         else
           'bash': command,
         'timeoutSec': 5,
+      },
+      _ManagedHookDefinitionShape.topLevelCommand => <String, Object?>{
+        'command': command,
       },
       _ManagedHookDefinitionShape.agyToolCommand => <String, Object?>{
         if (event.matcher != null) 'matcher': event.matcher,

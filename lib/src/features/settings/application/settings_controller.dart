@@ -73,6 +73,7 @@ class SettingsController extends _$SettingsController {
       AgentType.codex => current.copyWith(codex: value),
       AgentType.claude => current.copyWith(claude: value),
       AgentType.copilot => current.copyWith(copilot: value),
+      AgentType.cursor => current.copyWith(cursor: value),
       AgentType.agy => current.copyWith(agy: value),
       AgentType.opencode => current.copyWith(opencode: value),
       AgentType.pi => current.copyWith(pi: value),

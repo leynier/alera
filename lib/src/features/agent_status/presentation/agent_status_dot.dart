@@ -44,6 +44,7 @@ String agentStatusTooltip(AgentStatusEntry entry) {
     AgentType.codex => 'Codex',
     AgentType.claude => 'Claude Code',
     AgentType.copilot => 'GitHub Copilot',
+    AgentType.cursor => 'Cursor',
     AgentType.agy => 'Antigravity',
     AgentType.opencode => 'OpenCode',
     AgentType.pi => 'Pi',

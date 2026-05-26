@@ -116,6 +116,7 @@ void main() {
         await controller.setConfirmProjectRemoval(false);
         await controller.setConfirmWorkspaceRemoval(false);
         await controller.setAgentStatusHookEnabled(AgentType.codex, true);
+        await controller.setAgentStatusHookEnabled(AgentType.cursor, true);
         await controller.setAgentStatusHookEnabled(AgentType.agy, true);
         await controller.setAgentStatusHookEnabled(AgentType.opencode, true);
         await controller.setAgentStatusHookEnabled(AgentType.pi, true);
@@ -142,6 +143,7 @@ void main() {
         expect(restored.general.agentStatusHooks.codex, isTrue);
         expect(restored.general.agentStatusHooks.claude, isFalse);
         expect(restored.general.agentStatusHooks.copilot, isFalse);
+        expect(restored.general.agentStatusHooks.cursor, isTrue);
         expect(restored.general.agentStatusHooks.agy, isTrue);
         expect(restored.general.agentStatusHooks.opencode, isTrue);
         expect(restored.general.agentStatusHooks.pi, isTrue);

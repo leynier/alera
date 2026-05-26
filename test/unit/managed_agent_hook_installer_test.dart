@@ -166,6 +166,90 @@ void main() {
       expect(nextHooks['SessionStart'], isNull);
     });
 
+    test('installs Cursor hooks with top-level commands', () {
+      final status = service.install(AgentType.cursor);
+      final configPath = p.join(home.path, '.cursor', 'hooks.json');
+      final config = _readJson(configPath);
+      final hooks = Map<String, Object?>.from(config['hooks'] as Map);
+
+      expect(status.state, ManagedAgentHookInstallState.installed);
+      expect(config['version'], 1);
+      expect(
+        hooks.keys,
+        containsAll(<String>[
+          'beforeSubmitPrompt',
+          'preToolUse',
+          'postToolUse',
+          'postToolUseFailure',
+          'beforeShellExecution',
+          'beforeMCPExecution',
+          'afterAgentResponse',
+          'stop',
+        ]),
+      );
+      final promptDefinitions =
+          hooks['beforeSubmitPrompt'] as List? ?? const <Object?>[];
+      expect(promptDefinitions.single, isA<Map>());
+      expect((promptDefinitions.single as Map)['bash'], isNull);
+      expect((promptDefinitions.single as Map)['powershell'], isNull);
+      expect(
+        _directCommandsFor(hooks, 'beforeSubmitPrompt').single,
+        contains('ALERA_CURSOR_HOOK_EVENT'),
+      );
+      expect(
+        File(
+          p.join(home.path, '.alera', 'agent-hooks', 'alera-cursor-hook.sh'),
+        ).readAsStringSync(),
+        allOf(contains('/hook/cursor'), contains(r'payload=$(cat)')),
+      );
+    });
+
+    test('installs Cursor hooks with cmd scripts on Windows', () {
+      final windowsService = ManagedAgentHookInstallService(
+        homeDirectory: home.path,
+        platform: ManagedAgentHookPlatform.windows,
+        environment: <String, String>{'USERPROFILE': home.path},
+      );
+
+      final status = windowsService.install(AgentType.cursor);
+      final configPath = p.join(home.path, '.cursor', 'hooks.json');
+      final hooks = _hooks(configPath);
+      final command = _directCommandsFor(hooks, 'beforeSubmitPrompt').single;
+
+      expect(status.state, ManagedAgentHookInstallState.installed);
+      expect(command, contains('ALERA_CURSOR_HOOK_EVENT'));
+      expect(command, contains('alera-cursor-hook.cmd'));
+      expect(command, isNot(contains('bash')));
+      expect(
+        File(
+          p.join(home.path, '.alera', 'agent-hooks', 'alera-cursor-hook.cmd'),
+        ).readAsStringSync(),
+        allOf(contains('/hook/cursor'), contains('ALERA_AGENT_HOOK_ENDPOINT')),
+      );
+    });
+
+    test('removes only Alera-managed Cursor hooks', () {
+      service.install(AgentType.cursor);
+      final configPath = p.join(home.path, '.cursor', 'hooks.json');
+      final config = _readJson(configPath);
+      final hooks = Map<String, Object?>.from(config['hooks'] as Map);
+      hooks['preToolUse'] = <Object?>[
+        <String, Object?>{'command': 'echo user cursor hook'},
+        ...(hooks['preToolUse'] as List),
+      ];
+      config['hooks'] = hooks;
+      _writeJson(configPath, config);
+
+      final status = service.remove(AgentType.cursor);
+      final nextHooks = _hooks(configPath);
+
+      expect(status.state, ManagedAgentHookInstallState.notInstalled);
+      expect(_directCommandsFor(nextHooks, 'preToolUse'), <String>[
+        'echo user cursor hook',
+      ]);
+      expect(nextHooks['beforeSubmitPrompt'], isNull);
+    });
+
     test('installs AGY hooks in the Gemini global hooks bundle', () {
       final configPath = p.join(home.path, '.gemini', 'config', 'hooks.json');
       _writeJson(configPath, <String, Object?>{

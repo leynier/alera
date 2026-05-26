@@ -151,6 +151,11 @@ class AgentHookReceiver {
             _handleHookRequest(request, AgentType.copilot),
       )
       ..post(
+        '/hook/cursor',
+        (shelf.Request request) =>
+            _handleHookRequest(request, AgentType.cursor),
+      )
+      ..post(
         '/hook/agy',
         (shelf.Request request) => _handleHookRequest(request, AgentType.agy),
       )

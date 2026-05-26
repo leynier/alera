@@ -8,6 +8,7 @@ part 'normalizers/amp_agent_hook_normalizer.dart';
 part 'normalizers/claude_agent_hook_normalizer.dart';
 part 'normalizers/codex_agent_hook_normalizer.dart';
 part 'normalizers/copilot_agent_hook_normalizer.dart';
+part 'normalizers/cursor_agent_hook_normalizer.dart';
 part 'normalizers/opencode_agent_hook_normalizer.dart';
 part 'normalizers/pi_agent_hook_normalizer.dart';
 
@@ -46,6 +47,7 @@ NormalizedAgentStatus? normalizeAgentHookEvent(
       event.payload,
       toolSnapshot.toolName,
     ),
+    AgentType.cursor => _normalizeCursorState(eventName, previous),
     AgentType.agy => _normalizeAgyState(eventName, toolSnapshot.toolName),
     AgentType.opencode => _normalizeOpenCodeState(eventName),
     AgentType.pi => _normalizePiState(eventName),
@@ -57,6 +59,13 @@ NormalizedAgentStatus? normalizeAgentHookEvent(
 
   final isNewTurn = _isNewTurn(event.agentType, eventName);
   final prompt = _extractPromptForEvent(event, eventName);
+  final interrupted = state == AgentStatusState.done && _isInterrupted(event)
+      ? true
+      : event.agentType == AgentType.cursor &&
+            eventName == 'afterAgentResponse' &&
+            previous?.state == AgentStatusState.done
+      ? previous?.interrupted
+      : null;
   return NormalizedAgentStatus(
     state: state,
     prompt: prompt.isNotEmpty
@@ -69,9 +78,7 @@ NormalizedAgentStatus? normalizeAgentHookEvent(
               (toolSnapshot.hasToolUpdate ? null : previous?.toolInput),
     lastAssistantMessage:
         toolSnapshot.lastAssistantMessage ?? previous?.lastAssistantMessage,
-    interrupted: state == AgentStatusState.done && _isInterrupted(event)
-        ? true
-        : null,
+    interrupted: interrupted,
   );
 }
 
@@ -101,6 +108,7 @@ bool _isNewTurn(AgentType agentType, String eventName) {
     AgentType.codex => _isCodexNewTurn(eventName),
     AgentType.claude => _isClaudeNewTurn(eventName),
     AgentType.copilot => _isCopilotNewTurn(eventName),
+    AgentType.cursor => _isCursorNewTurn(eventName),
     AgentType.agy => _isAgyNewTurn(eventName),
     AgentType.opencode => _isOpenCodeNewTurn(eventName),
     AgentType.pi => _isPiNewTurn(eventName),
@@ -146,6 +154,9 @@ _ToolSnapshot _extractToolSnapshot(
   AgentHookEvent event, {
   required String eventName,
 }) {
+  if (event.agentType == AgentType.cursor) {
+    return _extractCursorToolSnapshot(event, eventName);
+  }
   final payload = event.payload;
   final hasToolEvent =
       eventName == 'PreToolUse' ||
@@ -240,6 +251,7 @@ String? _assistantTextFromHookEvent(AgentHookEvent event, String eventName) {
     AgentType.codex ||
     AgentType.claude ||
     AgentType.copilot ||
+    AgentType.cursor ||
     AgentType.agy => null,
   };
 }
@@ -441,6 +453,7 @@ String? _userPromptTextFromLine(String line) {
 bool _isInterrupted(AgentHookEvent event) {
   return switch (event.agentType) {
     AgentType.amp => _isAmpInterrupted(event),
+    AgentType.cursor => _isCursorInterrupted(event),
     AgentType.codex ||
     AgentType.claude ||
     AgentType.copilot ||

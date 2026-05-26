@@ -15,6 +15,8 @@ void main() {
         DateTime.utc(2026, 5, 26, 1, 2),
         DateTime.utc(2026, 5, 26, 1, 3),
         DateTime.utc(2026, 5, 26, 1, 4),
+        DateTime.utc(2026, 5, 26, 1, 5),
+        DateTime.utc(2026, 5, 26, 1, 6),
       ];
       var index = 0;
       container = ProviderContainer(
@@ -154,6 +156,65 @@ void main() {
       expect(entry.prompt, 'fix test');
       expect(entry.toolName, 'ask_question');
       expect(entry.toolInput, 'Which file?');
+    });
+
+    test('normalizes Cursor tool, waiting, done, and response states', () {
+      final controller = container.read(agentStatusControllerProvider.notifier);
+
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.cursor,
+          hookEventName: 'beforeSubmitPrompt',
+          payload: <String, Object?>{'prompt': 'ship cursor'},
+        ),
+      );
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.cursor,
+          hookEventName: 'preToolUse',
+          payload: <String, Object?>{
+            'tool_name': 'Edit',
+            'tool_input': <String, Object?>{'file_path': 'lib/main.dart'},
+          },
+        ),
+      );
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.cursor,
+          hookEventName: 'postToolUseFailure',
+          payload: <String, Object?>{'error_message': 'Patch failed.'},
+        ),
+      );
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.cursor,
+          hookEventName: 'beforeMCPExecution',
+          payload: <String, Object?>{'url': 'https://example.test/mcp'},
+        ),
+      );
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.cursor,
+          hookEventName: 'stop',
+          payload: <String, Object?>{'status': 'interrupted'},
+        ),
+      );
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.cursor,
+          hookEventName: 'afterAgentResponse',
+          payload: <String, Object?>{'text': 'Final response.'},
+        ),
+      );
+
+      final entry = container.read(agentStatusControllerProvider)['session-1']!;
+      expect(entry.state, AgentStatusState.done);
+      expect(entry.prompt, 'ship cursor');
+      expect(entry.toolName, 'MCP');
+      expect(entry.toolInput, 'https://example.test/mcp');
+      expect(entry.lastAssistantMessage, 'Final response.');
+      expect(entry.interrupted, isTrue);
+      expect(entry.stateStartedAt, times[4]);
     });
 
     test('normalizes OpenCode message, waiting, and idle states', () {

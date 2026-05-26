@@ -637,6 +637,13 @@ class AgentStatusHookSettingsMapper
     opt: true,
     def: false,
   );
+  static bool _$cursor(AgentStatusHookSettings v) => v.cursor;
+  static const Field<AgentStatusHookSettings, bool> _f$cursor = Field(
+    'cursor',
+    _$cursor,
+    opt: true,
+    def: false,
+  );
   static bool _$agy(AgentStatusHookSettings v) => v.agy;
   static const Field<AgentStatusHookSettings, bool> _f$agy = Field(
     'agy',
@@ -671,6 +678,7 @@ class AgentStatusHookSettingsMapper
     #codex: _f$codex,
     #claude: _f$claude,
     #copilot: _f$copilot,
+    #cursor: _f$cursor,
     #agy: _f$agy,
     #opencode: _f$opencode,
     #pi: _f$pi,
@@ -682,6 +690,7 @@ class AgentStatusHookSettingsMapper
       codex: data.dec(_f$codex),
       claude: data.dec(_f$claude),
       copilot: data.dec(_f$copilot),
+      cursor: data.dec(_f$cursor),
       agy: data.dec(_f$agy),
       opencode: data.dec(_f$opencode),
       pi: data.dec(_f$pi),
@@ -763,6 +772,7 @@ abstract class AgentStatusHookSettingsCopyWith<
     bool? codex,
     bool? claude,
     bool? copilot,
+    bool? cursor,
     bool? agy,
     bool? opencode,
     bool? pi,
@@ -787,6 +797,7 @@ class _AgentStatusHookSettingsCopyWithImpl<$R, $Out>
     bool? codex,
     bool? claude,
     bool? copilot,
+    bool? cursor,
     bool? agy,
     bool? opencode,
     bool? pi,
@@ -796,6 +807,7 @@ class _AgentStatusHookSettingsCopyWithImpl<$R, $Out>
       if (codex != null) #codex: codex,
       if (claude != null) #claude: claude,
       if (copilot != null) #copilot: copilot,
+      if (cursor != null) #cursor: cursor,
       if (agy != null) #agy: agy,
       if (opencode != null) #opencode: opencode,
       if (pi != null) #pi: pi,
@@ -807,6 +819,7 @@ class _AgentStatusHookSettingsCopyWithImpl<$R, $Out>
     codex: data.get(#codex, or: $value.codex),
     claude: data.get(#claude, or: $value.claude),
     copilot: data.get(#copilot, or: $value.copilot),
+    cursor: data.get(#cursor, or: $value.cursor),
     agy: data.get(#agy, or: $value.agy),
     opencode: data.get(#opencode, or: $value.opencode),
     pi: data.get(#pi, or: $value.pi),
