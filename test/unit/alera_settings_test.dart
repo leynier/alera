@@ -30,11 +30,12 @@ void main() {
       expect(terminal.hostScrollbackBytes, 10 * 1000 * 1000);
     });
 
-    test('general destructive confirmations default on', () {
+    test('general safety and hook defaults are conservative', () {
       const general = GeneralSettings.defaults;
 
       expect(general.confirmProjectRemoval, isTrue);
       expect(general.confirmWorkspaceRemoval, isTrue);
+      expect(general.agentStatusHooksEnabled, isFalse);
     });
 
     test('small settings fragments round-trip through json', () {
@@ -47,12 +48,14 @@ void main() {
         'starClicked': true,
         'confirmProjectRemoval': false,
         'confirmWorkspaceRemoval': true,
+        'agentStatusHooksEnabled': true,
       });
 
       expect(overrides.foreground, '#ffffff');
       expect(overrides.selection, '#123456');
       expect(general.workspaceDirectory, '/tmp/workspaces');
       expect(general.starClicked, isTrue);
+      expect(general.agentStatusHooksEnabled, isTrue);
     });
 
     test('round-trips through json', () {
@@ -60,6 +63,7 @@ void main() {
         general: GeneralSettings(
           confirmProjectRemoval: false,
           confirmWorkspaceRemoval: false,
+          agentStatusHooksEnabled: true,
         ),
         terminal: TerminalSettings(
           fontFamily: 'SF Mono',

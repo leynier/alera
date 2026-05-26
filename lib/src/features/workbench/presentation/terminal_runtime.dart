@@ -64,6 +64,13 @@ abstract interface class TerminalRuntime {
   void dispose();
 }
 
+typedef TerminalLaunchEnvironmentBuilder =
+    FutureOr<Map<String, String>?> Function({
+      required String terminalSessionId,
+      required String workspaceId,
+      required String tabId,
+    });
+
 final class TerminalRuntimeExitEvent {
   const TerminalRuntimeExitEvent({
     required this.workspaceId,
@@ -412,16 +419,19 @@ class XtermTerminalRuntime implements TerminalRuntime {
     TerminalSettings? initialSettings,
     ExternalUriLauncher? externalUriLauncher,
     List<GhosttyTerminalShellLaunch> Function()? shellLaunchesBuilder,
+    TerminalLaunchEnvironmentBuilder? agentHookEnvironmentBuilder,
   }) : _settings = initialSettings ?? TerminalSettings.defaults,
        _externalUriLauncher =
            externalUriLauncher ?? UrlLauncherExternalUriLauncher(),
        _ptySessionFactory =
            ptySessionFactory ?? const DefaultTerminalPtySessionFactory(),
-       _shellLaunchesBuilder = shellLaunchesBuilder ?? _terminalShellLaunches;
+       _shellLaunchesBuilder = shellLaunchesBuilder ?? _terminalShellLaunches,
+       _agentHookEnvironmentBuilder = agentHookEnvironmentBuilder;
 
   final TerminalPtySessionFactory _ptySessionFactory;
   final ExternalUriLauncher _externalUriLauncher;
   final List<GhosttyTerminalShellLaunch> Function() _shellLaunchesBuilder;
+  final TerminalLaunchEnvironmentBuilder? _agentHookEnvironmentBuilder;
   TerminalSettings _settings;
   final StreamController<TerminalRuntimeExitEvent> _exitController =
       StreamController<TerminalRuntimeExitEvent>.broadcast();
@@ -452,6 +462,7 @@ class XtermTerminalRuntime implements TerminalRuntime {
             settings: _settings,
             externalUriLauncher: _externalUriLauncher,
             shellLaunchesBuilder: _shellLaunchesBuilder,
+            agentHookEnvironmentBuilder: _agentHookEnvironmentBuilder,
             onExit: _handleSessionExit,
           );
         })
@@ -498,6 +509,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     required TerminalSettings settings,
     required ExternalUriLauncher externalUriLauncher,
     required List<GhosttyTerminalShellLaunch> Function() shellLaunchesBuilder,
+    required TerminalLaunchEnvironmentBuilder? agentHookEnvironmentBuilder,
     required void Function(TerminalRuntimeExitEvent event) onExit,
   }) : _workspace = workspace,
        _tab = tab,
@@ -505,6 +517,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
        _settings = settings,
        _externalUriLauncher = externalUriLauncher,
        _shellLaunchesBuilder = shellLaunchesBuilder,
+       _agentHookEnvironmentBuilder = agentHookEnvironmentBuilder,
        _onExit = onExit {
     _terminal = _createTerminal();
     _osc8LinkTracker = Osc8TerminalLinkTracker(terminal: _terminal);
@@ -519,6 +532,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   final TerminalPtySessionFactory _ptySessionFactory;
   final ExternalUriLauncher _externalUriLauncher;
   final List<GhosttyTerminalShellLaunch> Function() _shellLaunchesBuilder;
+  final TerminalLaunchEnvironmentBuilder? _agentHookEnvironmentBuilder;
   final void Function(TerminalRuntimeExitEvent event) _onExit;
   TerminalSettings _settings;
   late xterm.Terminal _terminal;
@@ -739,6 +753,11 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
 
   Future<void> _startPtySession() async {
     final launches = _shellLaunchesBuilder();
+    final agentHookEnvironment = await _agentHookEnvironmentBuilder?.call(
+      terminalSessionId: _tab.terminalSessionId,
+      workspaceId: _workspace.id,
+      tabId: _tab.id,
+    );
     Object? lastError;
     for (final launch in launches) {
       final session = _ptySessionFactory.create(
@@ -755,7 +774,10 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
       _activePtyGeneration = generation;
       try {
         final workspaceLaunch = _launchInWorkingDirectory(
-          launch,
+          _launchWithSanitizedAgentHookEnvironment(
+            launch,
+            agentHookEnvironment,
+          ),
           _workspace.path,
         );
         await session.start(
@@ -1081,6 +1103,24 @@ List<GhosttyTerminalShellLaunch> _terminalShellLaunches() {
       .toList(growable: false);
 }
 
+GhosttyTerminalShellLaunch _launchWithSanitizedAgentHookEnvironment(
+  GhosttyTerminalShellLaunch launch,
+  Map<String, String>? agentHookEnvironment,
+) {
+  final environment = <String, String>{...?launch.environment}
+    ..removeWhere(_isAleraAgentHookEnvironmentKey);
+  if (agentHookEnvironment != null) {
+    environment.addAll(agentHookEnvironment);
+  }
+  return GhosttyTerminalShellLaunch(
+    label: launch.label,
+    shell: launch.shell,
+    arguments: launch.arguments,
+    environment: environment.isEmpty ? null : environment,
+    setupCommand: launch.setupCommand,
+  );
+}
+
 GhosttyTerminalShellLaunch _launchInWorkingDirectory(
   GhosttyTerminalShellLaunch launch,
   String workingDirectory,
@@ -1136,6 +1176,21 @@ Map<String, String> terminalPlatformEnvironmentForTesting() {
 @visibleForTesting
 List<GhosttyTerminalShellLaunch> terminalShellLaunchesForTesting() {
   return _terminalShellLaunches();
+}
+
+@visibleForTesting
+GhosttyTerminalShellLaunch launchWithSanitizedAgentHookEnvironmentForTesting(
+  GhosttyTerminalShellLaunch launch,
+  Map<String, String>? agentHookEnvironment,
+) {
+  return _launchWithSanitizedAgentHookEnvironment(launch, agentHookEnvironment);
+}
+
+bool _isAleraAgentHookEnvironmentKey(String key, String _) {
+  return key.startsWith('ALERA_AGENT_HOOK_') ||
+      key == 'ALERA_TERMINAL_SESSION_ID' ||
+      key == 'ALERA_WORKSPACE_ID' ||
+      key == 'ALERA_TAB_ID';
 }
 
 bool _isWindowsCommandPromptLaunch(GhosttyTerminalShellLaunch launch) {

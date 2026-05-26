@@ -1,6 +1,9 @@
 import 'dart:async';
 
 import 'package:alera/src/app/dependencies.dart';
+import 'package:alera/src/features/agent_status/application/agent_status_controller.dart';
+import 'package:alera/src/features/agent_status/infra/agent_hook_receiver.dart';
+import 'package:alera/src/features/agent_status/infra/managed_agent_hook_installer.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/updater/application/update_controller.dart';
@@ -15,6 +18,11 @@ import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart'
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 export 'package:alera/src/app/dependencies.dart';
+export 'package:alera/src/features/agent_status/application/agent_status_controller.dart'
+    show
+        AgentStatusController,
+        agentStatusControllerProvider,
+        agentStatusByTerminalSessionProvider;
 export 'package:alera/src/features/settings/application/github_star_controller.dart'
     show GitHubStarController, GitHubStarState, gitHubStarControllerProvider;
 export 'package:alera/src/features/settings/application/settings_controller.dart'
@@ -68,14 +76,77 @@ final terminalHostWarmupProvider = Provider<void>((ref) {
   );
 });
 
+final agentHookReceiverProvider = Provider<AgentHookReceiver>((ref) {
+  final receiver = AgentHookReceiver(
+    statusSink: ref.read(agentStatusControllerProvider.notifier),
+  );
+  ref.onDispose(() {
+    unawaited(receiver.dispose());
+  });
+  return receiver;
+});
+
+final managedAgentHookInstallServiceProvider =
+    Provider<ManagedAgentHookInstallService>((ref) {
+      return ManagedAgentHookInstallService();
+    });
+
+final agentHookReceiverLifecycleProvider = Provider<void>((ref) {
+  final enabled = ref.watch(
+    settingsControllerProvider.select(
+      (settings) => settings.general.agentStatusHooksEnabled,
+    ),
+  );
+  final receiver = ref.watch(agentHookReceiverProvider);
+  if (enabled) {
+    unawaited(receiver.start().catchError(_ignoreProviderAsyncError));
+  } else {
+    unawaited(receiver.stop().catchError(_ignoreProviderAsyncError));
+  }
+});
+
+final agentHookInstallerCoordinatorProvider = Provider<void>((ref) {
+  final service = ref.watch(managedAgentHookInstallServiceProvider);
+  ref.listen<bool>(
+    settingsControllerProvider.select(
+      (settings) => settings.general.agentStatusHooksEnabled,
+    ),
+    (previous, next) {
+      if (previous == null || previous == next) {
+        return;
+      }
+      final operation = next ? service.installAll() : service.removeAll();
+      unawaited(
+        operation.then<void>((_) {}).catchError(_ignoreProviderAsyncError),
+      );
+    },
+  );
+});
+
 final terminalRuntimeProvider = Provider<TerminalRuntime>((ref) {
   final terminalHostClient = ref.watch(terminalHostClientProvider);
+  final agentHookReceiver = ref.watch(agentHookReceiverProvider);
   final runtime = XtermTerminalRuntime(
     ptySessionFactory: TerminalHostPtySessionFactory(
       client: terminalHostClient,
     ),
     initialSettings: ref.read(settingsControllerProvider).terminal,
     externalUriLauncher: ref.watch(externalUriLauncherProvider),
+    agentHookEnvironmentBuilder:
+        ({required terminalSessionId, required workspaceId, required tabId}) {
+          final enabled = ref
+              .read(settingsControllerProvider)
+              .general
+              .agentStatusHooksEnabled;
+          if (!enabled) {
+            return null;
+          }
+          return agentHookReceiver.launchEnvironmentFor(
+            terminalSessionId: terminalSessionId,
+            workspaceId: workspaceId,
+            tabId: tabId,
+          );
+        },
   );
   ref.listen<TerminalSettings>(
     settingsControllerProvider.select((settings) => settings.terminal),
@@ -122,6 +193,13 @@ final terminalRuntimeExitCoordinatorProvider = Provider<void>((ref) {
     if (disposed || !closingTabIds.add(event.tabId)) {
       return;
     }
+    ref
+        .read(agentStatusControllerProvider.notifier)
+        .markTerminalExited(
+          workspaceId: event.workspaceId,
+          tabId: event.tabId,
+          exitCode: event.exitCode,
+        );
     unawaited(closeExitedTerminalTab(event));
   });
 

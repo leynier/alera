@@ -220,6 +220,11 @@ const List<_SettingsSearchEntry> _generalSearchEntries = <_SettingsSearchEntry>[
     keywords: <String>['safety', 'destructive', 'remove', 'delete'],
   ),
   _SettingsSearchEntry(
+    title: 'Agent status hooks',
+    description: 'Install managed Codex and Claude Code hooks.',
+    keywords: <String>['codex', 'claude', 'agent', 'status', 'hooks'],
+  ),
+  _SettingsSearchEntry(
     title: 'Updates',
     description: 'Check desktop releases for this platform.',
     keywords: <String>['release', 'download', 'version'],
@@ -607,6 +612,23 @@ class _GeneralSettingsPane extends ConsumerWidget {
               onChanged: (value) => ref
                   .read(settingsControllerProvider.notifier)
                   .setConfirmWorkspaceRemoval(value),
+            ),
+          ],
+        ),
+        const SizedBox(height: AleraTokens.space16),
+        _SettingsGroup(
+          title: 'Agent status',
+          description:
+              'Managed local hooks let terminal tabs show Codex and Claude Code state.',
+          children: <Widget>[
+            _SwitchSettingRow(
+              title: 'Agent status hooks',
+              description:
+                  'Install Alera-managed Codex and Claude Code hooks. Disable to remove only Alera-managed hook entries.',
+              value: general.agentStatusHooksEnabled,
+              onChanged: (value) => ref
+                  .read(settingsControllerProvider.notifier)
+                  .setAgentStatusHooksEnabled(value),
             ),
           ],
         ),

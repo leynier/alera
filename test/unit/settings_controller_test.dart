@@ -99,38 +99,43 @@ void main() {
       );
     });
 
-    test('persists destructive confirmation preferences', () async {
-      final db = AleraDatabase(executor: NativeDatabase.memory());
-      addTearDown(db.close);
-      final repository = DriftSettingsRepository(db);
-      final container = ProviderContainer(
-        overrides: [settingsRepositoryProvider.overrideWithValue(repository)],
-      );
-      addTearDown(container.dispose);
-      final controller = container.read(settingsControllerProvider.notifier);
-      await controller.load();
+    test(
+      'persists destructive confirmation and agent hook preferences',
+      () async {
+        final db = AleraDatabase(executor: NativeDatabase.memory());
+        addTearDown(db.close);
+        final repository = DriftSettingsRepository(db);
+        final container = ProviderContainer(
+          overrides: [settingsRepositoryProvider.overrideWithValue(repository)],
+        );
+        addTearDown(container.dispose);
+        final controller = container.read(settingsControllerProvider.notifier);
+        await controller.load();
 
-      await controller.setConfirmProjectRemoval(false);
-      await controller.setConfirmWorkspaceRemoval(false);
+        await controller.setConfirmProjectRemoval(false);
+        await controller.setConfirmWorkspaceRemoval(false);
+        await controller.setAgentStatusHooksEnabled(true);
 
-      final restored = await repository.load();
-      expect(
-        container
-            .read(settingsControllerProvider)
-            .general
-            .confirmProjectRemoval,
-        isFalse,
-      );
-      expect(
-        container
-            .read(settingsControllerProvider)
-            .general
-            .confirmWorkspaceRemoval,
-        isFalse,
-      );
-      expect(restored.general.confirmProjectRemoval, isFalse);
-      expect(restored.general.confirmWorkspaceRemoval, isFalse);
-    });
+        final restored = await repository.load();
+        expect(
+          container
+              .read(settingsControllerProvider)
+              .general
+              .confirmProjectRemoval,
+          isFalse,
+        );
+        expect(
+          container
+              .read(settingsControllerProvider)
+              .general
+              .confirmWorkspaceRemoval,
+          isFalse,
+        );
+        expect(restored.general.confirmProjectRemoval, isFalse);
+        expect(restored.general.confirmWorkspaceRemoval, isFalse);
+        expect(restored.general.agentStatusHooksEnabled, isTrue);
+      },
+    );
 
     test('applyBindingChanges reassigns a chord atomically', () async {
       final db = AleraDatabase(executor: NativeDatabase.memory());
@@ -158,24 +163,27 @@ void main() {
       );
     });
 
-    test('markStarClicked persists once and becomes a no-op afterward', () async {
-      final db = AleraDatabase(executor: NativeDatabase.memory());
-      addTearDown(db.close);
-      final repository = DriftSettingsRepository(db);
-      final container = ProviderContainer(
-        overrides: [settingsRepositoryProvider.overrideWithValue(repository)],
-      );
-      addTearDown(container.dispose);
-      final controller = container.read(settingsControllerProvider.notifier);
-      await controller.load();
+    test(
+      'markStarClicked persists once and becomes a no-op afterward',
+      () async {
+        final db = AleraDatabase(executor: NativeDatabase.memory());
+        addTearDown(db.close);
+        final repository = DriftSettingsRepository(db);
+        final container = ProviderContainer(
+          overrides: [settingsRepositoryProvider.overrideWithValue(repository)],
+        );
+        addTearDown(container.dispose);
+        final controller = container.read(settingsControllerProvider.notifier);
+        await controller.load();
 
-      await controller.markStarClicked();
-      final firstRestore = await repository.load();
-      expect(firstRestore.general.starClicked, isTrue);
+        await controller.markStarClicked();
+        final firstRestore = await repository.load();
+        expect(firstRestore.general.starClicked, isTrue);
 
-      await controller.markStarClicked();
-      final secondRestore = await repository.load();
-      expect(secondRestore.general.starClicked, isTrue);
-    });
+        await controller.markStarClicked();
+        final secondRestore = await repository.load();
+        expect(secondRestore.general.starClicked, isTrue);
+      },
+    );
   });
 }

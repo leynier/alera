@@ -31,6 +31,8 @@ dependencies:
   drift: ^2.33.0
   meta: ^1.18.0
   sqlite3_flutter_libs: ^0.6.0+eol
+  shelf: ^1.4.2
+  shelf_router: ^1.1.4
 dev_dependencies:
   alchemist: ^0.14.0
   build_runner: ^2.15.0

@@ -63,6 +63,17 @@ class SettingsController extends _$SettingsController {
     );
   }
 
+  Future<void> setAgentStatusHooksEnabled(bool value) async {
+    if (state.general.agentStatusHooksEnabled == value) {
+      return;
+    }
+    await _save(
+      state.copyWith(
+        general: state.general.copyWith(agentStatusHooksEnabled: value),
+      ),
+    );
+  }
+
   /// Sets the bindings for [id]. A null [chords] restores the default; an empty
   /// list disables the action.
   Future<void> setActionBindings(

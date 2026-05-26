@@ -643,6 +643,14 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
     opt: true,
     def: true,
   );
+  static bool _$agentStatusHooksEnabled(GeneralSettings v) =>
+      v.agentStatusHooksEnabled;
+  static const Field<GeneralSettings, bool> _f$agentStatusHooksEnabled = Field(
+    'agentStatusHooksEnabled',
+    _$agentStatusHooksEnabled,
+    opt: true,
+    def: false,
+  );
 
   @override
   final MappableFields<GeneralSettings> fields = const {
@@ -650,6 +658,7 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
     #starClicked: _f$starClicked,
     #confirmProjectRemoval: _f$confirmProjectRemoval,
     #confirmWorkspaceRemoval: _f$confirmWorkspaceRemoval,
+    #agentStatusHooksEnabled: _f$agentStatusHooksEnabled,
   };
 
   static GeneralSettings _instantiate(DecodingData data) {
@@ -658,6 +667,7 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
       starClicked: data.dec(_f$starClicked),
       confirmProjectRemoval: data.dec(_f$confirmProjectRemoval),
       confirmWorkspaceRemoval: data.dec(_f$confirmWorkspaceRemoval),
+      agentStatusHooksEnabled: data.dec(_f$agentStatusHooksEnabled),
     );
   }
 
@@ -728,6 +738,7 @@ abstract class GeneralSettingsCopyWith<$R, $In extends GeneralSettings, $Out>
     bool? starClicked,
     bool? confirmProjectRemoval,
     bool? confirmWorkspaceRemoval,
+    bool? agentStatusHooksEnabled,
   });
   GeneralSettingsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -748,6 +759,7 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
     bool? starClicked,
     bool? confirmProjectRemoval,
     bool? confirmWorkspaceRemoval,
+    bool? agentStatusHooksEnabled,
   }) => $apply(
     FieldCopyWithData({
       if (workspaceDirectory != $none) #workspaceDirectory: workspaceDirectory,
@@ -756,6 +768,8 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
         #confirmProjectRemoval: confirmProjectRemoval,
       if (confirmWorkspaceRemoval != null)
         #confirmWorkspaceRemoval: confirmWorkspaceRemoval,
+      if (agentStatusHooksEnabled != null)
+        #agentStatusHooksEnabled: agentStatusHooksEnabled,
     }),
   );
   @override
@@ -772,6 +786,10 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
     confirmWorkspaceRemoval: data.get(
       #confirmWorkspaceRemoval,
       or: $value.confirmWorkspaceRemoval,
+    ),
+    agentStatusHooksEnabled: data.get(
+      #agentStatusHooksEnabled,
+      or: $value.agentStatusHooksEnabled,
     ),
   );
 

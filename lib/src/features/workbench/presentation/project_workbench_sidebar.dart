@@ -13,6 +13,8 @@ import 'package:alera/src/design_system/feedback/alera_status_dot.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
+import 'package:alera/src/features/agent_status/domain/agent_status.dart';
+import 'package:alera/src/features/agent_status/presentation/agent_status_dot.dart';
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_resize_handle.dart';
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_search_bar.dart';
 import 'package:alera/src/features/workbench/application/workbench_listing.dart';
@@ -49,6 +51,7 @@ class _ProjectWorkbenchSidebarState
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(workbenchControllerProvider);
+    final agentStatuses = ref.watch(agentStatusControllerProvider);
     final controller = ref.read(workbenchControllerProvider.notifier);
     final terminalRuntime = ref.read(terminalRuntimeProvider);
     final workspaceFolderOpener = ref.read(workspaceFolderOpenerProvider);
@@ -97,6 +100,7 @@ class _ProjectWorkbenchSidebarState
                           state: state,
                           controller: controller,
                           terminalRuntime: terminalRuntime,
+                          agentStatuses: agentStatuses,
                           onOpenWorkspace: _openWorkspace,
                           onOpenWorkspaceFolder: _openWorkspaceFolder,
                           onCopyWorkspacePath: _copyWorkspacePath,
@@ -486,6 +490,7 @@ class _SidebarBody extends StatelessWidget {
     required this.state,
     required this.controller,
     required this.terminalRuntime,
+    required this.agentStatuses,
     required this.onOpenWorkspace,
     required this.onOpenWorkspaceFolder,
     required this.onCopyWorkspacePath,
@@ -503,6 +508,7 @@ class _SidebarBody extends StatelessWidget {
   final WorkbenchState state;
   final WorkbenchController controller;
   final TerminalRuntime terminalRuntime;
+  final Map<String, AgentStatusEntry> agentStatuses;
   final Future<void> Function(Project project, Workspace workspace)
   onOpenWorkspace;
   final Future<void> Function(Workspace workspace) onOpenWorkspaceFolder;
@@ -597,6 +603,7 @@ class _SidebarBody extends StatelessWidget {
           workspace: row.workspace,
           tab: row.tab,
           terminalRuntime: terminalRuntime,
+          status: agentStatuses[row.tab.terminalSessionId],
           // A terminal only reads as "active" when both its workspace is the
           // currently selected workspace AND the tab is the active one for
           // that workspace. Otherwise an inactive workspace's last-active tab
@@ -1054,6 +1061,7 @@ class _TerminalRow extends StatefulWidget {
     required this.workspace,
     required this.tab,
     required this.terminalRuntime,
+    required this.status,
     required this.isActive,
     required this.onTap,
     required this.onClose,
@@ -1062,6 +1070,7 @@ class _TerminalRow extends StatefulWidget {
   final Workspace workspace;
   final WorkspaceTabRecord tab;
   final TerminalRuntime terminalRuntime;
+  final AgentStatusEntry? status;
   final bool isActive;
   final VoidCallback onTap;
   final VoidCallback onClose;
@@ -1114,6 +1123,10 @@ class _TerminalRowState extends State<_TerminalRow> {
                         ? AleraTokens.foreground
                         : AleraTokens.foregroundFaint,
                   ),
+                  if (widget.status != null) ...<Widget>[
+                    const SizedBox(width: AleraTokens.space6),
+                    AgentStatusDot(status: widget.status),
+                  ],
                   const SizedBox(width: AleraTokens.space8),
                   Expanded(
                     child: AnimatedBuilder(

@@ -202,6 +202,50 @@ void main() {
       },
     );
 
+    test(
+      'agent hook launch env strips inherited metadata before injection',
+      () {
+        final launch = launchWithSanitizedAgentHookEnvironmentForTesting(
+          _launch(
+            'shell',
+            shell: '/bin/zsh',
+            environment: const <String, String>{
+              'PATH': '/usr/bin',
+              'ALERA_AGENT_HOOK_TOKEN': 'stale',
+              'ALERA_TERMINAL_SESSION_ID': 'old-session',
+            },
+          ),
+          const <String, String>{
+            'ALERA_AGENT_HOOK_TOKEN': 'fresh',
+            'ALERA_TERMINAL_SESSION_ID': 'session-1',
+            'ALERA_WORKSPACE_ID': 'workspace-1',
+            'ALERA_TAB_ID': 'tab-1',
+          },
+        );
+
+        expect(launch.environment, <String, String>{
+          'PATH': '/usr/bin',
+          'ALERA_AGENT_HOOK_TOKEN': 'fresh',
+          'ALERA_TERMINAL_SESSION_ID': 'session-1',
+          'ALERA_WORKSPACE_ID': 'workspace-1',
+          'ALERA_TAB_ID': 'tab-1',
+        });
+
+        final sanitizedOnly = launchWithSanitizedAgentHookEnvironmentForTesting(
+          _launch(
+            'shell',
+            shell: '/bin/zsh',
+            environment: const <String, String>{
+              'ALERA_AGENT_HOOK_PORT': '123',
+              'USER': 'tester',
+            },
+          ),
+          null,
+        );
+        expect(sanitizedOnly.environment, <String, String>{'USER': 'tester'});
+      },
+    );
+
     test('posix read helper covers invalid fds', () async {
       final receivePort = ReceivePort();
       addTearDown(receivePort.close);
@@ -1110,13 +1154,16 @@ GhosttyTerminalShellLaunch _launch(
   String label, {
   required String shell,
   List<String> arguments = const <String>[],
+  Map<String, String> environment = const <String, String>{
+    'TERM': 'xterm-256color',
+  },
   String? setupCommand,
 }) {
   return GhosttyTerminalShellLaunch(
     label: label,
     shell: shell,
     arguments: arguments,
-    environment: const <String, String>{'TERM': 'xterm-256color'},
+    environment: environment,
     setupCommand: setupCommand,
   );
 }
