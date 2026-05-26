@@ -10,9 +10,12 @@ import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 import 'package:alera/src/shared/infra/uri/external_uri_launcher.dart';
+import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
@@ -113,6 +116,40 @@ void main() {
         await Future<void>.delayed(Duration.zero);
 
         expect(container.read(terminalRuntimeProvider), same(runtime));
+      },
+    );
+
+    test(
+      'terminalHostWarmupProvider starts the host with settings config',
+      () async {
+        final client = _FakeTerminalHostClient();
+        final settings = AleraSettings.defaults.copyWith(
+          terminal: AleraSettings.defaults.terminal.copyWith(
+            hostEmptyShutdownDelaySeconds: 7,
+            hostDetachedSessionShutdownDelaySeconds: 14,
+            hostScrollbackBytes: 4096,
+          ),
+        );
+        final container = ProviderContainer(
+          overrides: [
+            settingsControllerProvider.overrideWithValue(settings),
+            terminalHostClientProvider.overrideWithValue(client),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        container.read(terminalHostWarmupProvider);
+        await Future<void>.delayed(Duration.zero);
+
+        expect(client.ensureStartedConfigs, hasLength(1));
+        expect(
+          client.ensureStartedConfigs.single.toJson(),
+          const TerminalHostConfig(
+            emptyShutdownDelaySeconds: 7,
+            detachedSessionShutdownDelaySeconds: 14,
+            scrollbackBytes: 4096,
+          ).toJson(),
+        );
       },
     );
 
@@ -218,6 +255,60 @@ class _TestSettingsController extends SettingsController {
   void setState(AleraSettings next) {
     state = next;
   }
+}
+
+final class _FakeTerminalHostClient implements TerminalHostClient {
+  final List<TerminalHostConfig> ensureStartedConfigs = <TerminalHostConfig>[];
+  final List<TerminalHostConfig> configureConfigs = <TerminalHostConfig>[];
+
+  @override
+  Stream<TerminalHostEvent> get events =>
+      const Stream<TerminalHostEvent>.empty();
+
+  @override
+  Future<void> configure(TerminalHostConfig config) async {
+    configureConfigs.add(config);
+  }
+
+  @override
+  Future<TerminalHostAttachment> createOrAttach({
+    required String sessionId,
+    required String workspaceId,
+    required String tabId,
+    required String workingDirectory,
+    required GhosttyTerminalShellLaunch launch,
+    required int cols,
+    required int rows,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> detach(String sessionId) async {}
+
+  @override
+  void dispose() {}
+
+  @override
+  Future<void> ensureStarted({required TerminalHostConfig config}) async {
+    ensureStartedConfigs.add(config);
+  }
+
+  @override
+  Future<void> resize({
+    required String sessionId,
+    required int cols,
+    required int rows,
+  }) async {}
+
+  @override
+  Future<void> terminate(String sessionId) async {}
+
+  @override
+  Future<void> write({
+    required String sessionId,
+    required List<int> bytes,
+  }) async {}
 }
 
 class _FakeWorkbenchRepository implements WorkbenchRepository {

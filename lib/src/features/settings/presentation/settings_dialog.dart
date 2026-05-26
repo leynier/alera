@@ -253,79 +253,96 @@ const List<_SettingsSearchEntry> _keyboardSearchEntries =
       ),
     ];
 
-const List<_SettingsSearchEntry> _terminalSearchEntries =
-    <_SettingsSearchEntry>[
-      _SettingsSearchEntry(
-        title: 'Font family',
-        description: 'Typeface used in new terminal sessions.',
-        keywords: <String>['monospace', 'jetbrains', 'typeface'],
-      ),
-      _SettingsSearchEntry(
-        title: 'Font size',
-        description: 'Text size used in new terminal sessions.',
-        keywords: <String>['terminal text', 'zoom'],
-      ),
-      _SettingsSearchEntry(
-        title: 'Font weight',
-        description: 'Weight used for terminal text.',
-        keywords: <String>['terminal text', 'bold'],
-      ),
-      _SettingsSearchEntry(
-        title: 'Line height',
-        description: 'Vertical spacing for terminal rows.',
-        keywords: <String>['spacing', 'rows'],
-      ),
-      _SettingsSearchEntry(
-        title: 'Theme preset',
-        description: 'Built-in terminal color theme.',
-        keywords: <String>['color', 'appearance', 'palette'],
-      ),
-      _SettingsSearchEntry(
-        title: 'Background opacity',
-        description: 'Opacity of the terminal background.',
-        keywords: <String>['transparent', 'alpha'],
-      ),
-      _SettingsSearchEntry(
-        title: 'Horizontal padding',
-        description: 'Horizontal spacing around the terminal grid.',
-        keywords: <String>['inset', 'space'],
-      ),
-      _SettingsSearchEntry(
-        title: 'Vertical padding',
-        description: 'Vertical spacing around the terminal grid.',
-        keywords: <String>['inset', 'space'],
-      ),
-      _SettingsSearchEntry(
-        title: 'Cursor shape',
-        description: 'Cursor style for new terminal sessions.',
-        keywords: <String>['caret', 'block', 'bar', 'underline'],
-      ),
-      _SettingsSearchEntry(
-        title: 'Blinking cursor',
-        description: 'Blink the terminal cursor while focused.',
-        keywords: <String>['caret', 'blink'],
-      ),
-      _SettingsSearchEntry(
-        title: 'Cursor opacity',
-        description: 'Opacity of the terminal cursor.',
-        keywords: <String>['caret', 'alpha'],
-      ),
-      _SettingsSearchEntry(
-        title: 'Color overrides',
-        description: 'Override core terminal colors.',
-        keywords: <String>['foreground', 'background', 'selection', 'cursor'],
-      ),
-      _SettingsSearchEntry(
-        title: 'Scrollback lines',
-        description: 'Maximum terminal history retained per session.',
-        keywords: <String>['history', 'buffer'],
-      ),
-      _SettingsSearchEntry(
-        title: 'Word separators',
-        description: 'Characters that break double-click word selection.',
-        keywords: <String>['boundary', 'selection', 'double click'],
-      ),
-    ];
+const List<_SettingsSearchEntry>
+_terminalSearchEntries = <_SettingsSearchEntry>[
+  _SettingsSearchEntry(
+    title: 'Font family',
+    description: 'Typeface used in new terminal sessions.',
+    keywords: <String>['monospace', 'jetbrains', 'typeface'],
+  ),
+  _SettingsSearchEntry(
+    title: 'Font size',
+    description: 'Text size used in new terminal sessions.',
+    keywords: <String>['terminal text', 'zoom'],
+  ),
+  _SettingsSearchEntry(
+    title: 'Font weight',
+    description: 'Weight used for terminal text.',
+    keywords: <String>['terminal text', 'bold'],
+  ),
+  _SettingsSearchEntry(
+    title: 'Line height',
+    description: 'Vertical spacing for terminal rows.',
+    keywords: <String>['spacing', 'rows'],
+  ),
+  _SettingsSearchEntry(
+    title: 'Theme preset',
+    description: 'Built-in terminal color theme.',
+    keywords: <String>['color', 'appearance', 'palette'],
+  ),
+  _SettingsSearchEntry(
+    title: 'Background opacity',
+    description: 'Opacity of the terminal background.',
+    keywords: <String>['transparent', 'alpha'],
+  ),
+  _SettingsSearchEntry(
+    title: 'Horizontal padding',
+    description: 'Horizontal spacing around the terminal grid.',
+    keywords: <String>['inset', 'space'],
+  ),
+  _SettingsSearchEntry(
+    title: 'Vertical padding',
+    description: 'Vertical spacing around the terminal grid.',
+    keywords: <String>['inset', 'space'],
+  ),
+  _SettingsSearchEntry(
+    title: 'Cursor shape',
+    description: 'Cursor style for new terminal sessions.',
+    keywords: <String>['caret', 'block', 'bar', 'underline'],
+  ),
+  _SettingsSearchEntry(
+    title: 'Blinking cursor',
+    description: 'Blink the terminal cursor while focused.',
+    keywords: <String>['caret', 'blink'],
+  ),
+  _SettingsSearchEntry(
+    title: 'Cursor opacity',
+    description: 'Opacity of the terminal cursor.',
+    keywords: <String>['caret', 'alpha'],
+  ),
+  _SettingsSearchEntry(
+    title: 'Color overrides',
+    description: 'Override core terminal colors.',
+    keywords: <String>['foreground', 'background', 'selection', 'cursor'],
+  ),
+  _SettingsSearchEntry(
+    title: 'Scrollback lines',
+    description: 'Maximum terminal history retained per session.',
+    keywords: <String>['history', 'buffer'],
+  ),
+  _SettingsSearchEntry(
+    title: 'Host scrollback size',
+    description: 'Maximum host-side terminal output retained per session.',
+    keywords: <String>['history', 'buffer', 'memory', 'host'],
+  ),
+  _SettingsSearchEntry(
+    title: 'Empty host shutdown',
+    description:
+        'Stop the terminal host after the app closes with no sessions.',
+    keywords: <String>['host', 'sidecar', 'lifetime', 'timeout'],
+  ),
+  _SettingsSearchEntry(
+    title: 'Detached session shutdown',
+    description:
+        'Stop detached running terminal sessions after the app stays closed.',
+    keywords: <String>['host', 'sidecar', 'session', 'timeout'],
+  ),
+  _SettingsSearchEntry(
+    title: 'Word separators',
+    description: 'Characters that break double-click word selection.',
+    keywords: <String>['boundary', 'selection', 'double click'],
+  ),
+];
 
 List<String> _mergeFontSuggestions(List<String> fonts) {
   final byName = <String, String>{};
@@ -1086,7 +1103,8 @@ class _TerminalSettingsPane extends StatelessWidget {
         const SizedBox(height: AleraTokens.space16),
         _SettingsGroup(
           title: 'Advanced',
-          description: 'History and double-click selection behavior.',
+          description:
+              'History, detached host lifetime and double-click selection behavior.',
           children: <Widget>[
             _IntegerSettingRow(
               title: 'Scrollback lines',
@@ -1097,6 +1115,47 @@ class _TerminalSettingsPane extends StatelessWidget {
               step: 100,
               onChanged: (value) =>
                   onChanged(settings.copyWith(scrollbackLines: value)),
+            ),
+            _IntegerSettingRow(
+              title: 'Host scrollback size',
+              description:
+                  'Maximum host-side terminal output retained per session.',
+              value: settings.hostScrollbackBytes ~/ (1000 * 1000),
+              min: 1,
+              max: 256,
+              step: 1,
+              suffix: 'MB',
+              onChanged: (value) => onChanged(
+                settings.copyWith(hostScrollbackBytes: value * 1000 * 1000),
+              ),
+            ),
+            _IntegerSettingRow(
+              title: 'Empty host shutdown',
+              description:
+                  'Seconds to keep the host alive after the app closes with no running sessions.',
+              value: settings.hostEmptyShutdownDelaySeconds,
+              min: 5,
+              max: 3600,
+              step: 5,
+              suffix: 's',
+              onChanged: (value) => onChanged(
+                settings.copyWith(hostEmptyShutdownDelaySeconds: value),
+              ),
+            ),
+            _IntegerSettingRow(
+              title: 'Detached session shutdown',
+              description:
+                  'Seconds to keep detached running sessions alive after the app closes.',
+              value: settings.hostDetachedSessionShutdownDelaySeconds,
+              min: 5,
+              max: 86400,
+              step: 60,
+              suffix: 's',
+              onChanged: (value) => onChanged(
+                settings.copyWith(
+                  hostDetachedSessionShutdownDelaySeconds: value,
+                ),
+              ),
             ),
             _TextSettingRow(
               title: 'Word separators',
@@ -1548,6 +1607,7 @@ class _IntegerSettingRow extends StatelessWidget {
     required this.min,
     required this.max,
     required this.step,
+    this.suffix,
     required this.onChanged,
   });
 
@@ -1557,6 +1617,7 @@ class _IntegerSettingRow extends StatelessWidget {
   final int min;
   final int max;
   final int step;
+  final String? suffix;
   final ValueChanged<int> onChanged;
 
   @override
@@ -1569,6 +1630,7 @@ class _IntegerSettingRow extends StatelessWidget {
         min: min.toDouble(),
         max: max.toDouble(),
         step: step.toDouble(),
+        suffix: suffix,
         onChanged: (value) => onChanged(value.round()),
       ),
     );

@@ -25,6 +25,9 @@ void main() {
       expect(terminal.wordSeparators, isNull);
       expect(terminal.colorOverrides.isEmpty, isTrue);
       expect(terminal.scrollbackLines, 10000);
+      expect(terminal.hostEmptyShutdownDelaySeconds, 30);
+      expect(terminal.hostDetachedSessionShutdownDelaySeconds, 60 * 60);
+      expect(terminal.hostScrollbackBytes, 10 * 1000 * 1000);
     });
 
     test('general destructive confirmations default on', () {
@@ -78,6 +81,9 @@ void main() {
             selection: '#333333',
           ),
           scrollbackLines: 50000,
+          hostEmptyShutdownDelaySeconds: 5,
+          hostDetachedSessionShutdownDelaySeconds: 120,
+          hostScrollbackBytes: 24 * 1000 * 1000,
         ),
         keyboard: KeyboardShortcutSettings(
           overrides: <KeyboardActionId, List<String>>{
@@ -109,6 +115,9 @@ void main() {
       expect(restored.terminal.colorOverrides.cursor, '#ff00ff');
       expect(restored.terminal.colorOverrides.selection, '#333333');
       expect(restored.terminal.scrollbackLines, 50000);
+      expect(restored.terminal.hostEmptyShutdownDelaySeconds, 5);
+      expect(restored.terminal.hostDetachedSessionShutdownDelaySeconds, 120);
+      expect(restored.terminal.hostScrollbackBytes, 24 * 1000 * 1000);
       expect(restored.keyboard.overrides[KeyboardActionId.closeTab], <String>[
         'Mod+Shift+W',
       ]);
@@ -148,6 +157,9 @@ void main() {
             'backgroundOpacity': 1,
             'colorOverrides': <String, Object?>{},
             'scrollbackLines': 10000,
+            'hostEmptyShutdownDelaySeconds': 30,
+            'hostDetachedSessionShutdownDelaySeconds': 60 * 60,
+            'hostScrollbackBytes': 10 * 1000 * 1000,
           },
           'keyboard': <String, Object?>{
             'terminalPolicy': 'appFirst',
@@ -174,6 +186,9 @@ void main() {
         'wordSeparators': ' /',
         'colorOverrides': <String, Object?>{'cursor': '#abcdef'},
         'scrollbackLines': 15000,
+        'hostEmptyShutdownDelaySeconds': 45,
+        'hostDetachedSessionShutdownDelaySeconds': 600,
+        'hostScrollbackBytes': 16 * 1000 * 1000,
       });
 
       expect(restored.fontSize, 18);
@@ -184,6 +199,9 @@ void main() {
       expect(restored.wordSeparators, ' /');
       expect(restored.colorOverrides.cursor, '#abcdef');
       expect(restored.scrollbackLines, 15000);
+      expect(restored.hostEmptyShutdownDelaySeconds, 45);
+      expect(restored.hostDetachedSessionShutdownDelaySeconds, 600);
+      expect(restored.hostScrollbackBytes, 16 * 1000 * 1000);
     });
 
     test('terminal parsing rejects missing required fields', () {
@@ -196,12 +214,15 @@ void main() {
       );
     });
 
-    test('normalizes terminal hex colors only for valid current-schema values', () {
-      expect(normalizeTerminalHexColor('#ABCDEF'), '#abcdef');
-      expect(normalizeTerminalHexColor('123456'), '#123456');
-      expect(normalizeTerminalHexColor(''), isNull);
-      expect(normalizeTerminalHexColor(42), isNull);
-    });
+    test(
+      'normalizes terminal hex colors only for valid current-schema values',
+      () {
+        expect(normalizeTerminalHexColor('#ABCDEF'), '#abcdef');
+        expect(normalizeTerminalHexColor('123456'), '#123456');
+        expect(normalizeTerminalHexColor(''), isNull);
+        expect(normalizeTerminalHexColor(42), isNull);
+      },
+    );
   });
 
   group('KeyboardShortcutSettings', () {

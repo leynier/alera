@@ -96,6 +96,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(terminalHostWarmupProvider);
     ref.watch(terminalRuntimeExitCoordinatorProvider);
     final state = ref.watch(workbenchControllerProvider);
     final error = state.error;

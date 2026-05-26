@@ -42,6 +42,9 @@ void main() {
           backgroundOpacity: 0.95,
           colorOverrides: TerminalColorOverrides(cursor: '#abcdef'),
           scrollbackLines: 25000,
+          hostEmptyShutdownDelaySeconds: 15,
+          hostDetachedSessionShutdownDelaySeconds: 90,
+          hostScrollbackBytes: 32 * 1000 * 1000,
         ),
         keyboard: KeyboardShortcutSettings(
           terminalPolicy: TerminalShortcutPolicy.terminalFirst,
@@ -65,6 +68,9 @@ void main() {
       expect(restored.terminal.backgroundOpacity, 0.95);
       expect(restored.terminal.colorOverrides.cursor, '#abcdef');
       expect(restored.terminal.scrollbackLines, 25000);
+      expect(restored.terminal.hostEmptyShutdownDelaySeconds, 15);
+      expect(restored.terminal.hostDetachedSessionShutdownDelaySeconds, 90);
+      expect(restored.terminal.hostScrollbackBytes, 32 * 1000 * 1000);
       expect(
         restored.keyboard.terminalPolicy,
         TerminalShortcutPolicy.terminalFirst,

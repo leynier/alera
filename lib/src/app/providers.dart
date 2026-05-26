@@ -10,6 +10,7 @@ import 'package:alera/src/features/workbench/application/workspace_service.dart'
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_pty_session.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -35,8 +36,40 @@ final workspaceServiceProvider = Provider<WorkspaceService>((ref) {
   );
 });
 
+final terminalHostClientProvider = Provider<TerminalHostClient>((ref) {
+  final initialConfig = _terminalHostConfigFor(
+    ref.read(settingsControllerProvider).terminal,
+  );
+  final client = SocketTerminalHostClient(initialConfig: initialConfig);
+  ref.listen<TerminalSettings>(
+    settingsControllerProvider.select((settings) => settings.terminal),
+    (_, next) {
+      unawaited(
+        client
+            .configure(_terminalHostConfigFor(next))
+            .catchError(_ignoreProviderAsyncError),
+      );
+    },
+  );
+  ref.onDispose(client.dispose);
+  return client;
+});
+
+final terminalHostWarmupProvider = Provider<void>((ref) {
+  final client = ref.watch(terminalHostClientProvider);
+  unawaited(
+    client
+        .ensureStarted(
+          config: _terminalHostConfigFor(
+            ref.read(settingsControllerProvider).terminal,
+          ),
+        )
+        .catchError(_ignoreProviderAsyncError),
+  );
+});
+
 final terminalRuntimeProvider = Provider<TerminalRuntime>((ref) {
-  final terminalHostClient = SocketTerminalHostClient();
+  final terminalHostClient = ref.watch(terminalHostClientProvider);
   final runtime = XtermTerminalRuntime(
     ptySessionFactory: TerminalHostPtySessionFactory(
       client: terminalHostClient,
@@ -50,7 +83,6 @@ final terminalRuntimeProvider = Provider<TerminalRuntime>((ref) {
   );
   ref.onDispose(() {
     runtime.dispose();
-    terminalHostClient.dispose();
   });
   return runtime;
 });
@@ -111,3 +143,16 @@ Workspace? _findWorkspaceById(WorkbenchState state, String workspaceId) {
   }
   return null;
 }
+
+TerminalHostConfig _terminalHostConfigFor(TerminalSettings settings) {
+  return TerminalHostConfig(
+    emptyShutdownDelaySeconds: settings.hostEmptyShutdownDelaySeconds,
+    detachedSessionShutdownDelaySeconds:
+        settings.hostDetachedSessionShutdownDelaySeconds,
+    scrollbackBytes: settings.hostScrollbackBytes,
+  );
+}
+
+// coverage:ignore-start
+void _ignoreProviderAsyncError(Object error, StackTrace stackTrace) {}
+// coverage:ignore-end

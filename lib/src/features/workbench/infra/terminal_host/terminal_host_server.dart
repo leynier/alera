@@ -1,6 +1,7 @@
 // ignore_for_file: prefer_initializing_formals
 
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
@@ -15,9 +16,11 @@ final class AleraTerminalHostServer {
     required String runtimeDir,
     required String controlFilePath,
     required String token,
+    required TerminalHostConfig config,
   }) : _runtimeDir = Directory(runtimeDir),
        _controlFile = File(controlFilePath),
        _token = token,
+       _config = config,
        _historyDir = Directory(p.join(runtimeDir, 'sessions'));
 
   final Directory _runtimeDir;
@@ -30,6 +33,9 @@ final class AleraTerminalHostServer {
       <_TerminalHostClientConnection>{};
 
   ServerSocket? _server;
+  TerminalHostConfig _config;
+  Timer? _shutdownTimer;
+  bool _disposed = false;
 
   Future<void> run() async {
     if (!await _runtimeDir.exists()) {
@@ -40,12 +46,19 @@ final class AleraTerminalHostServer {
     }
     _server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
     await _writeControlFile(_server!.port);
+    _scheduleShutdownIfIdle();
     await for (final socket in _server!) {
       _accept(socket);
     }
   }
 
   Future<void> dispose() async {
+    if (_disposed) {
+      return;
+    }
+    _disposed = true;
+    _shutdownTimer?.cancel();
+    _shutdownTimer = null;
     final clients = _clients.toList(growable: false);
     for (final client in clients) {
       client.dispose();
@@ -55,6 +68,7 @@ final class AleraTerminalHostServer {
     for (final session in sessions) {
       await session.terminate(removeHistory: false);
     }
+    await _deleteControlFile();
     await _server?.close();
     _server = null;
   }
@@ -93,6 +107,7 @@ final class AleraTerminalHostServer {
       session.detach(client);
     }
     client.dispose();
+    _scheduleShutdownIfIdle();
   }
 
   Future<void> _handleLine(
@@ -142,6 +157,11 @@ final class AleraTerminalHostServer {
           throw StateError('Terminal host authentication failed.');
         }
         client.authenticated = true;
+        _cancelShutdownTimer();
+        return const <String, Object?>{};
+      case 'configure':
+        client.requireAuthenticated();
+        _applyConfig(TerminalHostConfig.fromJson(payload));
         return const <String, Object?>{};
       case 'createOrAttach':
         client.requireAuthenticated();
@@ -166,6 +186,7 @@ final class AleraTerminalHostServer {
         final session = _session(payload);
         await session.terminate(removeHistory: true);
         _sessions.remove(session.id);
+        _scheduleShutdownIfIdle();
         return const <String, Object?>{};
       default:
         throw StateError('Unknown terminal host request: $type');
@@ -196,9 +217,12 @@ final class AleraTerminalHostServer {
       workspaceId: workspaceId,
       tabId: tabId,
       historyFile: _historyFile(sessionId),
+      maxBufferBytes: _config.scrollbackBytes,
+      onLifecycleChanged: _scheduleShutdownIfIdle,
     );
     if (restored != null) {
       _sessions[sessionId] = restored;
+      restored.updateConfig(maxBufferBytes: _config.scrollbackBytes);
       restored.attach(client);
       return restored.attachmentPayload(created: false);
     }
@@ -215,6 +239,8 @@ final class AleraTerminalHostServer {
       cols: (payload['cols'] as int?) ?? 80,
       rows: (payload['rows'] as int?) ?? 24,
       historyFile: _historyFile(sessionId),
+      maxBufferBytes: _config.scrollbackBytes,
+      onLifecycleChanged: _scheduleShutdownIfIdle,
     );
     _sessions[sessionId] = session;
     session.attach(client);
@@ -238,6 +264,49 @@ final class AleraTerminalHostServer {
       p.join(_historyDir.path, '${Uri.encodeComponent(sessionId)}.json'),
     );
   }
+
+  void _applyConfig(TerminalHostConfig config) {
+    _config = config;
+    for (final session in _sessions.values) {
+      session.updateConfig(maxBufferBytes: config.scrollbackBytes);
+    }
+    _scheduleShutdownIfIdle();
+  }
+
+  void _cancelShutdownTimer() {
+    _shutdownTimer?.cancel();
+    _shutdownTimer = null;
+  }
+
+  void _scheduleShutdownIfIdle() {
+    if (_disposed || _hasAuthenticatedClients) {
+      _cancelShutdownTimer();
+      return;
+    }
+    final duration = _hasRunningSessions
+        ? Duration(seconds: _config.detachedSessionShutdownDelaySeconds)
+        : Duration(seconds: _config.emptyShutdownDelaySeconds);
+    _shutdownTimer?.cancel();
+    _shutdownTimer = Timer(duration, () {
+      unawaited(dispose());
+    });
+  }
+
+  bool get _hasAuthenticatedClients {
+    return _clients.any((client) => client.authenticated);
+  }
+
+  bool get _hasRunningSessions {
+    return _sessions.values.any((session) => session.running);
+  }
+
+  Future<void> _deleteControlFile() async {
+    try {
+      if (await _controlFile.exists()) {
+        await _controlFile.delete();
+      }
+    } catch (_) {}
+  }
 }
 
 final class _TerminalHostSession {
@@ -252,12 +321,18 @@ final class _TerminalHostSession {
     required List<int> buffer,
     required int? exitCode,
     required DateTime? endedAt,
+    required int maxBufferBytes,
+    required void Function() onLifecycleChanged,
   }) : _historyFile = historyFile,
        _pty = pty,
        _running = running,
-       _buffer = <int>[...buffer],
+       _buffer = _TerminalHostByteBuffer(
+         maxBytes: maxBufferBytes,
+         initialBuffer: buffer,
+       ),
        _exitCode = exitCode,
-       _endedAt = endedAt;
+       _endedAt = endedAt,
+       _onLifecycleChanged = onLifecycleChanged;
 
   static Future<_TerminalHostSession> start({
     required String id,
@@ -268,6 +343,8 @@ final class _TerminalHostSession {
     required int cols,
     required int rows,
     required File historyFile,
+    required int maxBufferBytes,
+    required void Function() onLifecycleChanged,
   }) async {
     final pty = PortablePty.open(rows: rows, cols: cols);
     try {
@@ -291,6 +368,8 @@ final class _TerminalHostSession {
       buffer: const <int>[],
       exitCode: null,
       endedAt: null,
+      maxBufferBytes: maxBufferBytes,
+      onLifecycleChanged: onLifecycleChanged,
     );
     await session._writeCheckpoint();
     await session._startReader(pty);
@@ -302,6 +381,8 @@ final class _TerminalHostSession {
     required String workspaceId,
     required String tabId,
     required File historyFile,
+    required int maxBufferBytes,
+    required void Function() onLifecycleChanged,
   }) async {
     try {
       if (!await historyFile.exists()) {
@@ -321,6 +402,8 @@ final class _TerminalHostSession {
           buffer: decodeTerminalHostBytes(map['bufferBase64']),
           exitCode: -1,
           endedAt: null,
+          maxBufferBytes: maxBufferBytes,
+          onLifecycleChanged: onLifecycleChanged,
         );
       }
       final endedAt = DateTime.tryParse(map['endedAt'] as String? ?? '');
@@ -335,6 +418,8 @@ final class _TerminalHostSession {
         buffer: decodeTerminalHostBytes(map['bufferBase64']),
         exitCode: (map['exitCode'] as int?) ?? 0,
         endedAt: endedAt,
+        maxBufferBytes: maxBufferBytes,
+        onLifecycleChanged: onLifecycleChanged,
       );
     } catch (_) {
       return null;
@@ -354,12 +439,15 @@ final class _TerminalHostSession {
   ReceivePort? _readerPort;
   StreamSubscription<Object?>? _readerSub;
   Timer? _checkpointTimer;
-  List<int> _buffer;
+  final _TerminalHostByteBuffer _buffer;
+  final void Function() _onLifecycleChanged;
   bool _running;
   int? _exitCode;
   DateTime? _endedAt;
   bool _terminated = false;
   int _checkpointSerial = 0;
+
+  bool get running => _running;
 
   Map<String, Object?> attachmentPayload({required bool created}) {
     return <String, Object?>{
@@ -367,8 +455,13 @@ final class _TerminalHostSession {
       'created': created,
       'running': _running,
       'exitCode': _exitCode,
-      'snapshotBase64': encodeTerminalHostBytes(_buffer),
+      'snapshotBase64': _buffer.toBase64(),
     };
+  }
+
+  void updateConfig({required int maxBufferBytes}) {
+    _buffer.maxBytes = maxBufferBytes;
+    _scheduleCheckpoint(immediate: true);
   }
 
   void attach(_TerminalHostClientConnection client) {
@@ -472,10 +565,7 @@ final class _TerminalHostSession {
   }
 
   void _appendOutput(Uint8List data) {
-    _buffer.addAll(data);
-    if (_buffer.length > _maxTerminalHostBufferBytes) {
-      _buffer = _buffer.sublist(_buffer.length - _maxTerminalHostBufferBytes);
-    }
+    _buffer.append(data);
     _scheduleCheckpoint();
   }
 
@@ -491,6 +581,7 @@ final class _TerminalHostSession {
       'payload': <String, Object?>{'sessionId': id, 'exitCode': exitCode},
     });
     _scheduleCheckpoint(immediate: true, endedAt: _endedAt);
+    _onLifecycleChanged();
   }
 
   void _broadcast(Map<String, Object?> message) {
@@ -531,12 +622,77 @@ final class _TerminalHostSession {
         'running': _running,
         'exitCode': _exitCode,
         'endedAt': _endedAt?.toIso8601String(),
-        'bufferBase64': encodeTerminalHostBytes(_buffer),
+        'bufferBase64': _buffer.toBase64(),
         'updatedAt': DateTime.now().toUtc().toIso8601String(),
       }),
       flush: true,
     );
     await temp.rename(_historyFile.path);
+  }
+}
+
+final class _TerminalHostByteBuffer {
+  _TerminalHostByteBuffer({
+    required int maxBytes,
+    List<int> initialBuffer = const <int>[],
+  }) : _maxBytes = maxBytes {
+    if (initialBuffer.isNotEmpty) {
+      append(Uint8List.fromList(initialBuffer));
+    }
+  }
+
+  final Queue<Uint8List> _chunks = Queue<Uint8List>();
+  int _length = 0;
+  int _maxBytes;
+
+  set maxBytes(int value) {
+    _maxBytes = value;
+    _trimToLimit();
+  }
+
+  void append(Uint8List data) {
+    if (data.isEmpty) {
+      return;
+    }
+    if (data.length >= _maxBytes) {
+      _chunks.clear();
+      _chunks.add(Uint8List.fromList(data.sublist(data.length - _maxBytes)));
+      _length = _maxBytes;
+      return;
+    }
+    _chunks.add(Uint8List.fromList(data));
+    _length += data.length;
+    _trimToLimit();
+  }
+
+  String toBase64() {
+    return encodeTerminalHostBytes(toBytes());
+  }
+
+  Uint8List toBytes() {
+    final output = Uint8List(_length);
+    var offset = 0;
+    for (final chunk in _chunks) {
+      output.setRange(offset, offset + chunk.length, chunk);
+      offset += chunk.length;
+    }
+    return output;
+  }
+
+  void _trimToLimit() {
+    var excess = _length - _maxBytes;
+    while (excess > 0 && _chunks.isNotEmpty) {
+      final first = _chunks.removeFirst();
+      if (first.length <= excess) {
+        _length -= first.length;
+        excess -= first.length;
+        continue;
+      }
+      final remaining = Uint8List.fromList(first.sublist(excess));
+      _chunks.addFirst(remaining);
+      _length -= excess;
+      excess = 0;
+    }
   }
 }
 
@@ -605,5 +761,4 @@ void _terminalHostPtyReader(List<Object?> args) {
 }
 
 const int _terminalHostReadChunkBytes = 8192;
-const int _maxTerminalHostBufferBytes = 1024 * 1024;
-const Duration _terminalHostCheckpointDelay = Duration(seconds: 1);
+const Duration _terminalHostCheckpointDelay = Duration(seconds: 5);

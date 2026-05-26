@@ -63,6 +63,9 @@ class TerminalSettings with TerminalSettingsMappable {
     this.wordSeparators,
     this.colorOverrides = const TerminalColorOverrides(),
     required this.scrollbackLines,
+    this.hostEmptyShutdownDelaySeconds = 30,
+    this.hostDetachedSessionShutdownDelaySeconds = 60 * 60,
+    this.hostScrollbackBytes = 10 * 1000 * 1000,
   });
 
   final String fontFamily;
@@ -79,6 +82,9 @@ class TerminalSettings with TerminalSettingsMappable {
   final String? wordSeparators;
   final TerminalColorOverrides colorOverrides;
   final int scrollbackLines;
+  final int hostEmptyShutdownDelaySeconds;
+  final int hostDetachedSessionShutdownDelaySeconds;
+  final int hostScrollbackBytes;
 
   double get padding =>
       paddingX == paddingY ? paddingX : (paddingX + paddingY) / 2;
@@ -96,6 +102,9 @@ class TerminalSettings with TerminalSettingsMappable {
     themeName: TerminalThemeNames.aleraDark,
     backgroundOpacity: 1,
     scrollbackLines: 10000,
+    hostEmptyShutdownDelaySeconds: 30,
+    hostDetachedSessionShutdownDelaySeconds: 60 * 60,
+    hostScrollbackBytes: 10 * 1000 * 1000,
   );
 
   factory TerminalSettings.fromJson(Map<String, Object?> json) =>

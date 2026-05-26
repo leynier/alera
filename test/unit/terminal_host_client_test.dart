@@ -69,6 +69,10 @@ void main() {
     });
 
     expect(launcher.starts, 1);
+    expect(
+      launcher.configs.single.toJson(),
+      TerminalHostConfig.defaults.toJson(),
+    );
     expect(attachment.sessionId, 'session-1');
     expect(attachment.created, isTrue);
     expect(attachment.running, isTrue);
@@ -100,6 +104,91 @@ void main() {
     client.dispose();
     client.dispose();
   });
+
+  test('ensureStarted launches the host and sends initial config', () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'alera-host-client-warmup-',
+    );
+    addTearDown(() async {
+      if (await tempDir.exists()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+    final server = await _TerminalHostTestServer.start();
+    addTearDown(server.dispose);
+    final launcher = _FakeTerminalHostLauncher(server: server);
+    final client = SocketTerminalHostClient(
+      launcher: launcher,
+      applicationSupportDirectory: () async => tempDir,
+    );
+    addTearDown(client.dispose);
+    const config = TerminalHostConfig(
+      emptyShutdownDelaySeconds: 5,
+      detachedSessionShutdownDelaySeconds: 10,
+      scrollbackBytes: 1024,
+    );
+
+    await client.ensureStarted(config: config);
+
+    expect(launcher.starts, 1);
+    expect(launcher.configs.single.toJson(), config.toJson());
+    expect(server.requestTypes, <String>['hello', 'configure']);
+    expect(server.payloadFor('configure'), config.toJson());
+  });
+
+  test(
+    'configure updates connected hosts but does not start idle ones',
+    () async {
+      final idleTempDir = await Directory.systemTemp.createTemp(
+        'alera-host-client-config-idle-',
+      );
+      final activeTempDir = await Directory.systemTemp.createTemp(
+        'alera-host-client-config-active-',
+      );
+      addTearDown(() async {
+        if (await idleTempDir.exists()) {
+          await idleTempDir.delete(recursive: true);
+        }
+        if (await activeTempDir.exists()) {
+          await activeTempDir.delete(recursive: true);
+        }
+      });
+      final idleLauncher = _NoopTerminalHostLauncher();
+      final idleClient = SocketTerminalHostClient(
+        launcher: idleLauncher,
+        applicationSupportDirectory: () async => idleTempDir,
+      );
+      addTearDown(idleClient.dispose);
+      const config = TerminalHostConfig(
+        emptyShutdownDelaySeconds: 6,
+        detachedSessionShutdownDelaySeconds: 12,
+        scrollbackBytes: 2048,
+      );
+
+      await idleClient.configure(config);
+
+      expect(idleLauncher.starts, 0);
+
+      final server = await _TerminalHostTestServer.start();
+      addTearDown(server.dispose);
+      await _writeControlFile(
+        tempDir: activeTempDir,
+        port: server.port,
+        token: 'existing-token',
+      );
+      final activeClient = SocketTerminalHostClient(
+        launcher: _NoopTerminalHostLauncher(),
+        applicationSupportDirectory: () async => activeTempDir,
+      );
+      addTearDown(activeClient.dispose);
+
+      await activeClient.ensureStarted(config: TerminalHostConfig.defaults);
+      await activeClient.configure(config);
+
+      expect(server.requestTypes, <String>['hello', 'configure', 'configure']);
+      expect(server.payloadFor('configure'), config.toJson());
+    },
+  );
 
   test('reuses an existing control file and surfaces host errors', () async {
     final tempDir = await Directory.systemTemp.createTemp(
@@ -217,6 +306,10 @@ void main() {
       client.write(sessionId: 'session-1', bytes: const <int>[1]),
       throwsA(isA<StateError>()),
     );
+    await expectLater(
+      client.configure(TerminalHostConfig.defaults),
+      throwsA(isA<StateError>()),
+    );
   });
 }
 
@@ -251,14 +344,17 @@ final class _FakeTerminalHostLauncher implements TerminalHostProcessLauncher {
 
   final _TerminalHostTestServer server;
   int starts = 0;
+  final List<TerminalHostConfig> configs = <TerminalHostConfig>[];
 
   @override
   Future<void> start({
     required String runtimeDir,
     required String controlFilePath,
     required String token,
+    required TerminalHostConfig config,
   }) async {
     starts += 1;
+    configs.add(config);
     server.token = token;
     await File(controlFilePath).parent.create(recursive: true);
     await File(controlFilePath).writeAsString(
@@ -272,12 +368,17 @@ final class _FakeTerminalHostLauncher implements TerminalHostProcessLauncher {
 }
 
 final class _NoopTerminalHostLauncher implements TerminalHostProcessLauncher {
+  int starts = 0;
+
   @override
   Future<void> start({
     required String runtimeDir,
     required String controlFilePath,
     required String token,
-  }) async {}
+    required TerminalHostConfig config,
+  }) async {
+    starts += 1;
+  }
 }
 
 final class _TerminalHostTestServer {

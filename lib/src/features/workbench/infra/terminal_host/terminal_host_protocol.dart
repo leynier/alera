@@ -5,6 +5,55 @@ const int aleraTerminalHostProtocolVersion = 1;
 const String aleraCliExecutableName = 'alera';
 const String aleraCliWindowsExecutableName = 'alera.exe';
 const String aleraTerminalHostCommand = 'terminal-host';
+const int defaultTerminalHostEmptyShutdownDelaySeconds = 30;
+const int defaultTerminalHostDetachedSessionShutdownDelaySeconds = 60 * 60;
+const int defaultTerminalHostScrollbackBytes = 10 * 1000 * 1000;
+
+final class TerminalHostConfig {
+  const TerminalHostConfig({
+    this.emptyShutdownDelaySeconds =
+        defaultTerminalHostEmptyShutdownDelaySeconds,
+    this.detachedSessionShutdownDelaySeconds =
+        defaultTerminalHostDetachedSessionShutdownDelaySeconds,
+    this.scrollbackBytes = defaultTerminalHostScrollbackBytes,
+  });
+
+  factory TerminalHostConfig.fromJson(Map<String, Object?> json) {
+    return TerminalHostConfig(
+      emptyShutdownDelaySeconds: _positiveInt(
+        json['emptyShutdownDelaySeconds'],
+        'emptyShutdownDelaySeconds',
+      ),
+      detachedSessionShutdownDelaySeconds: _positiveInt(
+        json['detachedSessionShutdownDelaySeconds'],
+        'detachedSessionShutdownDelaySeconds',
+      ),
+      scrollbackBytes: _positiveInt(json['scrollbackBytes'], 'scrollbackBytes'),
+    );
+  }
+
+  static const defaults = TerminalHostConfig();
+
+  final int emptyShutdownDelaySeconds;
+  final int detachedSessionShutdownDelaySeconds;
+  final int scrollbackBytes;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'emptyShutdownDelaySeconds': emptyShutdownDelaySeconds,
+      'detachedSessionShutdownDelaySeconds':
+          detachedSessionShutdownDelaySeconds,
+      'scrollbackBytes': scrollbackBytes,
+    };
+  }
+}
+
+int _positiveInt(Object? value, String label) {
+  if (value is int && value > 0) {
+    return value;
+  }
+  throw FormatException('$label must be a positive integer.');
+}
 
 final class TerminalHostLaunch {
   const TerminalHostLaunch({

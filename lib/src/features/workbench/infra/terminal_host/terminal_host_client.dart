@@ -15,6 +15,10 @@ import 'package:path_provider/path_provider.dart';
 abstract interface class TerminalHostClient {
   Stream<TerminalHostEvent> get events;
 
+  Future<void> ensureStarted({required TerminalHostConfig config});
+
+  Future<void> configure(TerminalHostConfig config);
+
   Future<TerminalHostAttachment> createOrAttach({
     required String sessionId,
     required String workspaceId,
@@ -95,6 +99,7 @@ abstract interface class TerminalHostProcessLauncher {
     required String runtimeDir,
     required String controlFilePath,
     required String token,
+    required TerminalHostConfig config,
   });
 }
 
@@ -112,6 +117,7 @@ final class DefaultTerminalHostProcessLauncher
     required String runtimeDir,
     required String controlFilePath,
     required String token,
+    required TerminalHostConfig config,
   }) async {
     final command = await _cliResolver.resolve(runtimeDir: runtimeDir);
     await Process.start(
@@ -125,6 +131,12 @@ final class DefaultTerminalHostProcessLauncher
         controlFilePath,
         '--token',
         token,
+        '--empty-shutdown-delay-seconds',
+        config.emptyShutdownDelaySeconds.toString(),
+        '--detached-session-shutdown-delay-seconds',
+        config.detachedSessionShutdownDelaySeconds.toString(),
+        '--scrollback-bytes',
+        config.scrollbackBytes.toString(),
       ],
       workingDirectory: command.workingDirectory,
       mode: ProcessStartMode.detached,
@@ -140,10 +152,12 @@ final class SocketTerminalHostClient implements TerminalHostClient {
         const DefaultTerminalHostProcessLauncher(),
     Future<Directory> Function()? applicationSupportDirectory,
     Duration startupTimeout = const Duration(seconds: 8),
+    TerminalHostConfig initialConfig = TerminalHostConfig.defaults,
   }) : _launcher = launcher,
        _applicationSupportDirectory =
            applicationSupportDirectory ?? getApplicationSupportDirectory,
-       _startupTimeout = startupTimeout;
+       _startupTimeout = startupTimeout,
+       _config = initialConfig;
 
   final TerminalHostProcessLauncher _launcher;
   final Future<Directory> Function() _applicationSupportDirectory;
@@ -158,9 +172,28 @@ final class SocketTerminalHostClient implements TerminalHostClient {
   StreamSubscription<String>? _lineSub;
   int _nextRequestId = 1;
   bool _disposed = false;
+  TerminalHostConfig _config;
 
   @override
   Stream<TerminalHostEvent> get events => _events.stream;
+
+  @override
+  Future<void> ensureStarted({required TerminalHostConfig config}) async {
+    _config = config;
+    await _request('configure', config.toJson());
+  }
+
+  @override
+  Future<void> configure(TerminalHostConfig config) async {
+    if (_disposed) {
+      throw StateError('Terminal host client is disposed.');
+    }
+    _config = config;
+    if (_connection == null && _connectionFuture == null) {
+      return;
+    }
+    await _request('configure', config.toJson());
+  }
 
   @override
   Future<TerminalHostAttachment> createOrAttach({
@@ -274,6 +307,7 @@ final class SocketTerminalHostClient implements TerminalHostClient {
       runtimeDir: runtime.runtimeDir.path,
       controlFilePath: runtime.controlFile.path,
       token: token,
+      config: _config,
     );
     final deadline = DateTime.now().add(_startupTimeout);
     Object? lastError;

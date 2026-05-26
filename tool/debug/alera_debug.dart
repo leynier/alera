@@ -96,6 +96,12 @@ final class _DebugContext {
       paths.controlFile.path,
       '--token',
       _options.debugToken,
+      '--empty-shutdown-delay-seconds',
+      _options.hostEmptyShutdownSeconds,
+      '--detached-session-shutdown-delay-seconds',
+      _options.hostDetachedShutdownSeconds,
+      '--scrollback-bytes',
+      _options.hostScrollbackBytes,
     ];
     return _run(_options.dartExecutable, arguments, forwardStdin: true);
   }
@@ -415,6 +421,9 @@ final class _Options {
     required this.bundleDir,
     required this.debugPort,
     required this.debugToken,
+    required this.hostEmptyShutdownSeconds,
+    required this.hostDetachedShutdownSeconds,
+    required this.hostScrollbackBytes,
     required this.appSupportDir,
   });
 
@@ -457,6 +466,18 @@ final class _Options {
           map['debug-token'] ??
           Platform.environment['ALERA_CLI_DEBUG_TOKEN'] ??
           'dev-token',
+      hostEmptyShutdownSeconds:
+          map['host-empty-shutdown-seconds'] ??
+          Platform.environment['ALERA_HOST_EMPTY_SHUTDOWN_SECONDS'] ??
+          '30',
+      hostDetachedShutdownSeconds:
+          map['host-detached-shutdown-seconds'] ??
+          Platform.environment['ALERA_HOST_DETACHED_SHUTDOWN_SECONDS'] ??
+          '3600',
+      hostScrollbackBytes:
+          map['host-scrollback-bytes'] ??
+          Platform.environment['ALERA_HOST_SCROLLBACK_BYTES'] ??
+          '10000000',
       appSupportDir:
           map['app-support-dir'] ??
           Platform.environment['ALERA_APP_SUPPORT_DIR'],
@@ -470,6 +491,9 @@ final class _Options {
   final String bundleDir;
   final String debugPort;
   final String debugToken;
+  final String hostEmptyShutdownSeconds;
+  final String hostDetachedShutdownSeconds;
+  final String hostScrollbackBytes;
   final String? appSupportDir;
 }
 

@@ -336,6 +336,31 @@ class TerminalSettingsMapper extends ClassMapperBase<TerminalSettings> {
     'scrollbackLines',
     _$scrollbackLines,
   );
+  static int _$hostEmptyShutdownDelaySeconds(TerminalSettings v) =>
+      v.hostEmptyShutdownDelaySeconds;
+  static const Field<TerminalSettings, int> _f$hostEmptyShutdownDelaySeconds =
+      Field(
+        'hostEmptyShutdownDelaySeconds',
+        _$hostEmptyShutdownDelaySeconds,
+        opt: true,
+        def: 30,
+      );
+  static int _$hostDetachedSessionShutdownDelaySeconds(TerminalSettings v) =>
+      v.hostDetachedSessionShutdownDelaySeconds;
+  static const Field<TerminalSettings, int>
+  _f$hostDetachedSessionShutdownDelaySeconds = Field(
+    'hostDetachedSessionShutdownDelaySeconds',
+    _$hostDetachedSessionShutdownDelaySeconds,
+    opt: true,
+    def: 60 * 60,
+  );
+  static int _$hostScrollbackBytes(TerminalSettings v) => v.hostScrollbackBytes;
+  static const Field<TerminalSettings, int> _f$hostScrollbackBytes = Field(
+    'hostScrollbackBytes',
+    _$hostScrollbackBytes,
+    opt: true,
+    def: 10 * 1000 * 1000,
+  );
 
   @override
   final MappableFields<TerminalSettings> fields = const {
@@ -353,6 +378,10 @@ class TerminalSettingsMapper extends ClassMapperBase<TerminalSettings> {
     #wordSeparators: _f$wordSeparators,
     #colorOverrides: _f$colorOverrides,
     #scrollbackLines: _f$scrollbackLines,
+    #hostEmptyShutdownDelaySeconds: _f$hostEmptyShutdownDelaySeconds,
+    #hostDetachedSessionShutdownDelaySeconds:
+        _f$hostDetachedSessionShutdownDelaySeconds,
+    #hostScrollbackBytes: _f$hostScrollbackBytes,
   };
 
   static TerminalSettings _instantiate(DecodingData data) {
@@ -371,6 +400,11 @@ class TerminalSettingsMapper extends ClassMapperBase<TerminalSettings> {
       wordSeparators: data.dec(_f$wordSeparators),
       colorOverrides: data.dec(_f$colorOverrides),
       scrollbackLines: data.dec(_f$scrollbackLines),
+      hostEmptyShutdownDelaySeconds: data.dec(_f$hostEmptyShutdownDelaySeconds),
+      hostDetachedSessionShutdownDelaySeconds: data.dec(
+        _f$hostDetachedSessionShutdownDelaySeconds,
+      ),
+      hostScrollbackBytes: data.dec(_f$hostScrollbackBytes),
     );
   }
 
@@ -457,6 +491,9 @@ abstract class TerminalSettingsCopyWith<$R, $In extends TerminalSettings, $Out>
     String? wordSeparators,
     TerminalColorOverrides? colorOverrides,
     int? scrollbackLines,
+    int? hostEmptyShutdownDelaySeconds,
+    int? hostDetachedSessionShutdownDelaySeconds,
+    int? hostScrollbackBytes,
   });
   TerminalSettingsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -495,6 +532,9 @@ class _TerminalSettingsCopyWithImpl<$R, $Out>
     Object? wordSeparators = $none,
     TerminalColorOverrides? colorOverrides,
     int? scrollbackLines,
+    int? hostEmptyShutdownDelaySeconds,
+    int? hostDetachedSessionShutdownDelaySeconds,
+    int? hostScrollbackBytes,
   }) => $apply(
     FieldCopyWithData({
       if (fontFamily != null) #fontFamily: fontFamily,
@@ -511,6 +551,13 @@ class _TerminalSettingsCopyWithImpl<$R, $Out>
       if (wordSeparators != $none) #wordSeparators: wordSeparators,
       if (colorOverrides != null) #colorOverrides: colorOverrides,
       if (scrollbackLines != null) #scrollbackLines: scrollbackLines,
+      if (hostEmptyShutdownDelaySeconds != null)
+        #hostEmptyShutdownDelaySeconds: hostEmptyShutdownDelaySeconds,
+      if (hostDetachedSessionShutdownDelaySeconds != null)
+        #hostDetachedSessionShutdownDelaySeconds:
+            hostDetachedSessionShutdownDelaySeconds,
+      if (hostScrollbackBytes != null)
+        #hostScrollbackBytes: hostScrollbackBytes,
     }),
   );
   @override
@@ -532,6 +579,18 @@ class _TerminalSettingsCopyWithImpl<$R, $Out>
     wordSeparators: data.get(#wordSeparators, or: $value.wordSeparators),
     colorOverrides: data.get(#colorOverrides, or: $value.colorOverrides),
     scrollbackLines: data.get(#scrollbackLines, or: $value.scrollbackLines),
+    hostEmptyShutdownDelaySeconds: data.get(
+      #hostEmptyShutdownDelaySeconds,
+      or: $value.hostEmptyShutdownDelaySeconds,
+    ),
+    hostDetachedSessionShutdownDelaySeconds: data.get(
+      #hostDetachedSessionShutdownDelaySeconds,
+      or: $value.hostDetachedSessionShutdownDelaySeconds,
+    ),
+    hostScrollbackBytes: data.get(
+      #hostScrollbackBytes,
+      or: $value.hostScrollbackBytes,
+    ),
   );
 
   @override

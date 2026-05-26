@@ -34,6 +34,7 @@ Alera runs as a Flutter desktop app plus a bundled Dart CLI named `alera`. The a
 Use the lowercase repository `makefile` for the standard debug flows. These targets intentionally call Dart tooling instead of inline shell snippets, so the same commands work from PowerShell 7 on Windows and from normal Linux/macOS shells:
 
 ```bash
+make help
 make app-debug
 make cli-build
 make cli-help
@@ -46,7 +47,7 @@ make debug-processes
 
 `make app-debug` runs `flutter run -d macos` with the normal development fallback for the CLI. Override the device with `APP_DEVICE=windows`, `APP_DEVICE=linux`, or another Flutter desktop device id when working off macOS. `make cli-build` compiles the sidecar into `.dart_tool/alera`, and `make app-debug-bundled-cli` runs the app while forcing it to resolve that compiled CLI bundle. Use this when validating behavior closer to a packaged app.
 
-`make host-debug` runs `alera terminal-host` in the foreground using the platform app-support runtime directory so stdout/stderr stay visible. `make host-debug-observe` does the same with a Dart VM service on `127.0.0.1:8181` for debugger attach. If a platform's app-support location differs from the default, set `ALERA_APP_SUPPORT_DIR` before running the target.
+`make help` lists the available repository targets. `make host-debug` runs `alera terminal-host` in the foreground using the platform app-support runtime directory so stdout/stderr stay visible. `make host-debug-observe` does the same with a Dart VM service on `127.0.0.1:8181` for debugger attach. If a platform's app-support location differs from the default, set `ALERA_APP_SUPPORT_DIR` before running the target. Foreground host runs accept `ALERA_HOST_EMPTY_SHUTDOWN_SECONDS`, `ALERA_HOST_DETACHED_SHUTDOWN_SECONDS`, and `ALERA_HOST_SCROLLBACK_BYTES`; these are forwarded to `alera terminal-host` for lifecycle and scrollback debugging.
 
 `make app-debug-host-observe` generates `.dart_tool/alera-debug-host.sh` and runs the Flutter app with `ALERA_CLI_PATH` pointing to that wrapper. Use it when the bug only appears when the app launches the host itself. Avoid `--pause-isolates-on-start` unless you also raise the app startup timeout, because the app waits for the host control file before attaching terminal sessions.
 

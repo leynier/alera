@@ -88,6 +88,10 @@ Keep E2E tests deterministic:
 
 Terminal persistence changes should include focused unit tests for the host client/session boundary and at least one manual or integration smoke on the current desktop platform: start a long-running terminal command, close Alera, reopen it, and confirm the terminal output continues under the same workspace tab. Explicit tab or workspace close must be checked separately because it should terminate the durable session instead of detaching.
 
+Lifecycle changes must cover both host timeout paths. With the app closed and no running sessions, the host should stop after the configured empty-host delay. With the app closed and at least one running session, the host should keep the session alive until the configured detached-session delay, then terminate the PTY, write a final checkpoint, and delete `host.json`. Use small values from Settings during manual smoke tests so the behavior can be observed without waiting for the production defaults.
+
+Scrollback changes must check both rendering and host memory behavior. The terminal row scrollback controls xterm history in the app. The host scrollback size controls how many bytes are retained for detached-session snapshots and checkpoints; tests should prove the buffer is trimmed to the configured byte limit and that checkpoints remain restorable after restart.
+
 For local sidecar smoke tests, build the CLI with Dart's build-hook-aware CLI builder:
 
 ```bash
@@ -96,6 +100,8 @@ dart build cli --target bin/alera.dart --output .dart_tool/alera
 ```
 
 The executable is written to `.dart_tool/alera/bundle/bin/alera` on macOS/Linux and `.dart_tool/alera/bundle/bin/alera.exe` on Windows. Keep the sibling `lib/` directory with it because build hooks may place native dynamic libraries there.
+
+The repository `makefile` exposes cross-platform debug targets around the same flow. `make help` lists available targets. For foreground host debugging, `make host-debug` and `make host-debug-observe` accept `ALERA_HOST_EMPTY_SHUTDOWN_SECONDS`, `ALERA_HOST_DETACHED_SHUTDOWN_SECONDS`, and `ALERA_HOST_SCROLLBACK_BYTES`, which are forwarded to `alera terminal-host`.
 
 ## Mocking
 

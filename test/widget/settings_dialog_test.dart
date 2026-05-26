@@ -446,6 +446,9 @@ void main() {
     await tapStepper(Icons.keyboard_arrow_up, 5);
     await tapStepper(Icons.keyboard_arrow_up, 6);
     await tapStepper(Icons.keyboard_arrow_up, 7);
+    await tapStepper(Icons.keyboard_arrow_up, 8);
+    await tapStepper(Icons.keyboard_arrow_up, 9);
+    await tapStepper(Icons.keyboard_arrow_up, 10);
 
     Future<void> setSwatchColor(int index, Color color) async {
       final swatch = find.byType(AleraColorSwatch).at(index);
@@ -472,6 +475,15 @@ void main() {
     expect(after.paddingX, greaterThan(before.paddingX));
     expect(after.paddingY, greaterThan(before.paddingY));
     expect(after.scrollbackLines, greaterThan(before.scrollbackLines));
+    expect(after.hostScrollbackBytes, greaterThan(before.hostScrollbackBytes));
+    expect(
+      after.hostEmptyShutdownDelaySeconds,
+      greaterThan(before.hostEmptyShutdownDelaySeconds),
+    );
+    expect(
+      after.hostDetachedSessionShutdownDelaySeconds,
+      greaterThan(before.hostDetachedSessionShutdownDelaySeconds),
+    );
     expect(after.colorOverrides.background, '#223344');
     expect(after.colorOverrides.cursor, '#445566');
     expect(after.colorOverrides.selection, '#667788');

@@ -13,6 +13,7 @@ typedef TerminalHostServerRunner =
       required String runtimeDir,
       required String controlFilePath,
       required String token,
+      required TerminalHostConfig config,
     });
 
 Future<int> runAleraCli(
@@ -95,6 +96,27 @@ final class AleraTerminalHostCommand extends Command<int> {
         'token',
         valueHelp: 'token',
         help: 'Shared authentication token expected by the host.',
+      )
+      ..addOption(
+        'empty-shutdown-delay-seconds',
+        valueHelp: 'seconds',
+        defaultsTo: defaultTerminalHostEmptyShutdownDelaySeconds.toString(),
+        help: 'Seconds to keep an empty host alive after the app disconnects.',
+      )
+      ..addOption(
+        'detached-session-shutdown-delay-seconds',
+        valueHelp: 'seconds',
+        defaultsTo: defaultTerminalHostDetachedSessionShutdownDelaySeconds
+            .toString(),
+        help:
+            'Seconds to keep detached running terminal sessions alive after '
+            'the app disconnects.',
+      )
+      ..addOption(
+        'scrollback-bytes',
+        valueHelp: 'bytes',
+        defaultsTo: defaultTerminalHostScrollbackBytes.toString(),
+        help: 'Maximum host-side output bytes retained per terminal session.',
       );
   }
 
@@ -115,10 +137,20 @@ final class AleraTerminalHostCommand extends Command<int> {
     final runtimeDir = _requiredOption('runtime-dir');
     final controlFilePath = _requiredOption('control-file');
     final token = _requiredOption('token');
+    final config = TerminalHostConfig(
+      emptyShutdownDelaySeconds: _positiveIntOption(
+        'empty-shutdown-delay-seconds',
+      ),
+      detachedSessionShutdownDelaySeconds: _positiveIntOption(
+        'detached-session-shutdown-delay-seconds',
+      ),
+      scrollbackBytes: _positiveIntOption('scrollback-bytes'),
+    );
     await _terminalHostServerRunner(
       runtimeDir: runtimeDir,
       controlFilePath: controlFilePath,
       token: token,
+      config: config,
     );
     return 0;
   }
@@ -132,6 +164,14 @@ final class AleraTerminalHostCommand extends Command<int> {
     final value = argResults?.option(name)?.trim();
     if (value == null || value.isEmpty) {
       usageException('Missing required option --$name.');
+    }
+    return value;
+  }
+
+  int _positiveIntOption(String name) {
+    final value = int.tryParse(_requiredOption(name));
+    if (value == null || value <= 0) {
+      usageException('--$name must be a positive integer.');
     }
     return value;
   }

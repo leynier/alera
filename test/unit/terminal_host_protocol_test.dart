@@ -64,4 +64,27 @@ void main() {
       throwsA(isA<FormatException>()),
     );
   });
+
+  group('TerminalHostConfig', () {
+    test('defaults round-trip through json', () {
+      final restored = TerminalHostConfig.fromJson(
+        TerminalHostConfig.defaults.toJson(),
+      );
+
+      expect(restored.emptyShutdownDelaySeconds, 30);
+      expect(restored.detachedSessionShutdownDelaySeconds, 60 * 60);
+      expect(restored.scrollbackBytes, 10 * 1000 * 1000);
+    });
+
+    test('rejects non-positive values', () {
+      expect(
+        () => TerminalHostConfig.fromJson(<String, Object?>{
+          'emptyShutdownDelaySeconds': 0,
+          'detachedSessionShutdownDelaySeconds': 1,
+          'scrollbackBytes': 1,
+        }),
+        throwsA(isA<FormatException>()),
+      );
+    });
+  });
 }

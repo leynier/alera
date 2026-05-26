@@ -51,6 +51,7 @@ void main() {
           aleraDatabaseProvider.overrideWith((ref) async => db),
           workbenchControllerProvider.overrideWith(() => shellController),
           terminalRuntimeProvider.overrideWith((ref) => runtime),
+          terminalHostWarmupProvider.overrideWith((ref) {}),
           settingsControllerProvider.overrideWith(() => settingsController),
           if (workspaceFolderOpener != null)
             workspaceFolderOpenerProvider.overrideWith(
