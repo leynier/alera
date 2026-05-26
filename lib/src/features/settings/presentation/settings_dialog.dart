@@ -11,6 +11,7 @@ import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/design_system/menus/alera_menu_item.dart';
 import 'package:alera/src/design_system/surfaces/alera_panel.dart';
+import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/keyboard/presentation/keyboard_settings_pane.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
@@ -220,14 +221,38 @@ const List<_SettingsSearchEntry> _generalSearchEntries = <_SettingsSearchEntry>[
     keywords: <String>['safety', 'destructive', 'remove', 'delete'],
   ),
   _SettingsSearchEntry(
-    title: 'Agent status hooks',
-    description: 'Install managed Codex and Claude Code hooks.',
-    keywords: <String>['codex', 'claude', 'agent', 'status', 'hooks'],
+    title: 'Codex hooks',
+    description: 'Install managed Codex hooks.',
+    keywords: <String>['codex', 'agent', 'status', 'hooks'],
+  ),
+  _SettingsSearchEntry(
+    title: 'Claude Code hooks',
+    description: 'Install managed Claude Code hooks.',
+    keywords: <String>['claude', 'agent', 'status', 'hooks'],
+  ),
+  _SettingsSearchEntry(
+    title: 'GitHub Copilot hooks',
+    description: 'Install managed GitHub Copilot hooks.',
+    keywords: <String>['copilot', 'github', 'agent', 'status', 'hooks'],
+  ),
+  _SettingsSearchEntry(
+    title: 'Antigravity hooks',
+    description: 'Install managed Antigravity hooks for the agy CLI.',
+    keywords: <String>['antigravity', 'agy', 'agent', 'status', 'hooks'],
   ),
   _SettingsSearchEntry(
     title: 'Agent status notifications',
     description: 'Show native notifications when agents need attention.',
-    keywords: <String>['codex', 'claude', 'agent', 'status', 'notification'],
+    keywords: <String>[
+      'codex',
+      'claude',
+      'copilot',
+      'antigravity',
+      'agy',
+      'agent',
+      'status',
+      'notification',
+    ],
   ),
   _SettingsSearchEntry(
     title: 'Updates',
@@ -624,16 +649,43 @@ class _GeneralSettingsPane extends ConsumerWidget {
         _SettingsGroup(
           title: 'Agent status',
           description:
-              'Managed local hooks let terminal tabs show Codex and Claude Code state.',
+              'Managed local hooks let terminal tabs show agent state.',
           children: <Widget>[
             _SwitchSettingRow(
-              title: 'Agent status hooks',
+              title: 'Codex hooks',
               description:
-                  'Install Alera-managed Codex and Claude Code hooks. Disable to remove only Alera-managed hook entries.',
-              value: general.agentStatusHooksEnabled,
+                  'Install Alera-managed Codex hooks. Disable to remove only Alera-managed hook entries.',
+              value: general.agentStatusHooks.codex,
               onChanged: (value) => ref
                   .read(settingsControllerProvider.notifier)
-                  .setAgentStatusHooksEnabled(value),
+                  .setAgentStatusHookEnabled(AgentType.codex, value),
+            ),
+            _SwitchSettingRow(
+              title: 'Claude Code hooks',
+              description:
+                  'Install Alera-managed Claude Code hooks. Disable to remove only Alera-managed hook entries.',
+              value: general.agentStatusHooks.claude,
+              onChanged: (value) => ref
+                  .read(settingsControllerProvider.notifier)
+                  .setAgentStatusHookEnabled(AgentType.claude, value),
+            ),
+            _SwitchSettingRow(
+              title: 'GitHub Copilot hooks',
+              description:
+                  'Install Alera-managed GitHub Copilot hooks. Disable to remove only Alera-managed hook entries.',
+              value: general.agentStatusHooks.copilot,
+              onChanged: (value) => ref
+                  .read(settingsControllerProvider.notifier)
+                  .setAgentStatusHookEnabled(AgentType.copilot, value),
+            ),
+            _SwitchSettingRow(
+              title: 'Antigravity hooks',
+              description:
+                  'Install Alera-managed Antigravity hooks for the agy CLI. Disable to remove only Alera-managed hook entries.',
+              value: general.agentStatusHooks.agy,
+              onChanged: (value) => ref
+                  .read(settingsControllerProvider.notifier)
+                  .setAgentStatusHookEnabled(AgentType.agy, value),
             ),
             _SwitchSettingRow(
               title: 'Agent status notifications',

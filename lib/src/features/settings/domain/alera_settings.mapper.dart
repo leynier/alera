@@ -599,6 +599,177 @@ class _TerminalSettingsCopyWithImpl<$R, $Out>
   ) => _TerminalSettingsCopyWithImpl<$R2, $Out2>($value, $cast, t);
 }
 
+class AgentStatusHookSettingsMapper
+    extends ClassMapperBase<AgentStatusHookSettings> {
+  AgentStatusHookSettingsMapper._();
+
+  static AgentStatusHookSettingsMapper? _instance;
+  static AgentStatusHookSettingsMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(
+        _instance = AgentStatusHookSettingsMapper._(),
+      );
+    }
+    return _instance!;
+  }
+
+  @override
+  final String id = 'AgentStatusHookSettings';
+
+  static bool _$codex(AgentStatusHookSettings v) => v.codex;
+  static const Field<AgentStatusHookSettings, bool> _f$codex = Field(
+    'codex',
+    _$codex,
+    opt: true,
+    def: false,
+  );
+  static bool _$claude(AgentStatusHookSettings v) => v.claude;
+  static const Field<AgentStatusHookSettings, bool> _f$claude = Field(
+    'claude',
+    _$claude,
+    opt: true,
+    def: false,
+  );
+  static bool _$copilot(AgentStatusHookSettings v) => v.copilot;
+  static const Field<AgentStatusHookSettings, bool> _f$copilot = Field(
+    'copilot',
+    _$copilot,
+    opt: true,
+    def: false,
+  );
+  static bool _$agy(AgentStatusHookSettings v) => v.agy;
+  static const Field<AgentStatusHookSettings, bool> _f$agy = Field(
+    'agy',
+    _$agy,
+    opt: true,
+    def: false,
+  );
+
+  @override
+  final MappableFields<AgentStatusHookSettings> fields = const {
+    #codex: _f$codex,
+    #claude: _f$claude,
+    #copilot: _f$copilot,
+    #agy: _f$agy,
+  };
+
+  static AgentStatusHookSettings _instantiate(DecodingData data) {
+    return AgentStatusHookSettings(
+      codex: data.dec(_f$codex),
+      claude: data.dec(_f$claude),
+      copilot: data.dec(_f$copilot),
+      agy: data.dec(_f$agy),
+    );
+  }
+
+  @override
+  final Function instantiate = _instantiate;
+
+  static AgentStatusHookSettings fromMap(Map<String, dynamic> map) {
+    return ensureInitialized().decodeMap<AgentStatusHookSettings>(map);
+  }
+
+  static AgentStatusHookSettings fromJson(String json) {
+    return ensureInitialized().decodeJson<AgentStatusHookSettings>(json);
+  }
+}
+
+mixin AgentStatusHookSettingsMappable {
+  String toJson() {
+    return AgentStatusHookSettingsMapper.ensureInitialized()
+        .encodeJson<AgentStatusHookSettings>(this as AgentStatusHookSettings);
+  }
+
+  Map<String, dynamic> toMap() {
+    return AgentStatusHookSettingsMapper.ensureInitialized()
+        .encodeMap<AgentStatusHookSettings>(this as AgentStatusHookSettings);
+  }
+
+  AgentStatusHookSettingsCopyWith<
+    AgentStatusHookSettings,
+    AgentStatusHookSettings,
+    AgentStatusHookSettings
+  >
+  get copyWith =>
+      _AgentStatusHookSettingsCopyWithImpl<
+        AgentStatusHookSettings,
+        AgentStatusHookSettings
+      >(this as AgentStatusHookSettings, $identity, $identity);
+  @override
+  String toString() {
+    return AgentStatusHookSettingsMapper.ensureInitialized().stringifyValue(
+      this as AgentStatusHookSettings,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return AgentStatusHookSettingsMapper.ensureInitialized().equalsValue(
+      this as AgentStatusHookSettings,
+      other,
+    );
+  }
+
+  @override
+  int get hashCode {
+    return AgentStatusHookSettingsMapper.ensureInitialized().hashValue(
+      this as AgentStatusHookSettings,
+    );
+  }
+}
+
+extension AgentStatusHookSettingsValueCopy<$R, $Out>
+    on ObjectCopyWith<$R, AgentStatusHookSettings, $Out> {
+  AgentStatusHookSettingsCopyWith<$R, AgentStatusHookSettings, $Out>
+  get $asAgentStatusHookSettings => $base.as(
+    (v, t, t2) => _AgentStatusHookSettingsCopyWithImpl<$R, $Out>(v, t, t2),
+  );
+}
+
+abstract class AgentStatusHookSettingsCopyWith<
+  $R,
+  $In extends AgentStatusHookSettings,
+  $Out
+>
+    implements ClassCopyWith<$R, $In, $Out> {
+  $R call({bool? codex, bool? claude, bool? copilot, bool? agy});
+  AgentStatusHookSettingsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
+    Then<$Out2, $R2> t,
+  );
+}
+
+class _AgentStatusHookSettingsCopyWithImpl<$R, $Out>
+    extends ClassCopyWithBase<$R, AgentStatusHookSettings, $Out>
+    implements
+        AgentStatusHookSettingsCopyWith<$R, AgentStatusHookSettings, $Out> {
+  _AgentStatusHookSettingsCopyWithImpl(super.value, super.then, super.then2);
+
+  @override
+  late final ClassMapperBase<AgentStatusHookSettings> $mapper =
+      AgentStatusHookSettingsMapper.ensureInitialized();
+  @override
+  $R call({bool? codex, bool? claude, bool? copilot, bool? agy}) => $apply(
+    FieldCopyWithData({
+      if (codex != null) #codex: codex,
+      if (claude != null) #claude: claude,
+      if (copilot != null) #copilot: copilot,
+      if (agy != null) #agy: agy,
+    }),
+  );
+  @override
+  AgentStatusHookSettings $make(CopyWithData data) => AgentStatusHookSettings(
+    codex: data.get(#codex, or: $value.codex),
+    claude: data.get(#claude, or: $value.claude),
+    copilot: data.get(#copilot, or: $value.copilot),
+    agy: data.get(#agy, or: $value.agy),
+  );
+
+  @override
+  AgentStatusHookSettingsCopyWith<$R2, AgentStatusHookSettings, $Out2>
+  $chain<$R2, $Out2>(Then<$Out2, $R2> t) =>
+      _AgentStatusHookSettingsCopyWithImpl<$R2, $Out2>($value, $cast, t);
+}
+
 class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
   GeneralSettingsMapper._();
 
@@ -606,6 +777,7 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
   static GeneralSettingsMapper ensureInitialized() {
     if (_instance == null) {
       MapperContainer.globals.use(_instance = GeneralSettingsMapper._());
+      AgentStatusHookSettingsMapper.ensureInitialized();
     }
     return _instance!;
   }
@@ -643,13 +815,14 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
     opt: true,
     def: true,
   );
-  static bool _$agentStatusHooksEnabled(GeneralSettings v) =>
-      v.agentStatusHooksEnabled;
-  static const Field<GeneralSettings, bool> _f$agentStatusHooksEnabled = Field(
-    'agentStatusHooksEnabled',
-    _$agentStatusHooksEnabled,
+  static AgentStatusHookSettings _$agentStatusHooks(GeneralSettings v) =>
+      v.agentStatusHooks;
+  static const Field<GeneralSettings, AgentStatusHookSettings>
+  _f$agentStatusHooks = Field(
+    'agentStatusHooks',
+    _$agentStatusHooks,
     opt: true,
-    def: false,
+    def: AgentStatusHookSettings.defaults,
   );
   static bool _$agentStatusNotificationsEnabled(GeneralSettings v) =>
       v.agentStatusNotificationsEnabled;
@@ -667,7 +840,7 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
     #starClicked: _f$starClicked,
     #confirmProjectRemoval: _f$confirmProjectRemoval,
     #confirmWorkspaceRemoval: _f$confirmWorkspaceRemoval,
-    #agentStatusHooksEnabled: _f$agentStatusHooksEnabled,
+    #agentStatusHooks: _f$agentStatusHooks,
     #agentStatusNotificationsEnabled: _f$agentStatusNotificationsEnabled,
   };
 
@@ -677,7 +850,7 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
       starClicked: data.dec(_f$starClicked),
       confirmProjectRemoval: data.dec(_f$confirmProjectRemoval),
       confirmWorkspaceRemoval: data.dec(_f$confirmWorkspaceRemoval),
-      agentStatusHooksEnabled: data.dec(_f$agentStatusHooksEnabled),
+      agentStatusHooks: data.dec(_f$agentStatusHooks),
       agentStatusNotificationsEnabled: data.dec(
         _f$agentStatusNotificationsEnabled,
       ),
@@ -746,12 +919,18 @@ extension GeneralSettingsValueCopy<$R, $Out>
 
 abstract class GeneralSettingsCopyWith<$R, $In extends GeneralSettings, $Out>
     implements ClassCopyWith<$R, $In, $Out> {
+  AgentStatusHookSettingsCopyWith<
+    $R,
+    AgentStatusHookSettings,
+    AgentStatusHookSettings
+  >
+  get agentStatusHooks;
   $R call({
     String? workspaceDirectory,
     bool? starClicked,
     bool? confirmProjectRemoval,
     bool? confirmWorkspaceRemoval,
-    bool? agentStatusHooksEnabled,
+    AgentStatusHookSettings? agentStatusHooks,
     bool? agentStatusNotificationsEnabled,
   });
   GeneralSettingsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
@@ -768,12 +947,20 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
   late final ClassMapperBase<GeneralSettings> $mapper =
       GeneralSettingsMapper.ensureInitialized();
   @override
+  AgentStatusHookSettingsCopyWith<
+    $R,
+    AgentStatusHookSettings,
+    AgentStatusHookSettings
+  >
+  get agentStatusHooks =>
+      $value.agentStatusHooks.copyWith.$chain((v) => call(agentStatusHooks: v));
+  @override
   $R call({
     Object? workspaceDirectory = $none,
     bool? starClicked,
     bool? confirmProjectRemoval,
     bool? confirmWorkspaceRemoval,
-    bool? agentStatusHooksEnabled,
+    AgentStatusHookSettings? agentStatusHooks,
     bool? agentStatusNotificationsEnabled,
   }) => $apply(
     FieldCopyWithData({
@@ -783,8 +970,7 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
         #confirmProjectRemoval: confirmProjectRemoval,
       if (confirmWorkspaceRemoval != null)
         #confirmWorkspaceRemoval: confirmWorkspaceRemoval,
-      if (agentStatusHooksEnabled != null)
-        #agentStatusHooksEnabled: agentStatusHooksEnabled,
+      if (agentStatusHooks != null) #agentStatusHooks: agentStatusHooks,
       if (agentStatusNotificationsEnabled != null)
         #agentStatusNotificationsEnabled: agentStatusNotificationsEnabled,
     }),
@@ -804,10 +990,7 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
       #confirmWorkspaceRemoval,
       or: $value.confirmWorkspaceRemoval,
     ),
-    agentStatusHooksEnabled: data.get(
-      #agentStatusHooksEnabled,
-      or: $value.agentStatusHooksEnabled,
-    ),
+    agentStatusHooks: data.get(#agentStatusHooks, or: $value.agentStatusHooks),
     agentStatusNotificationsEnabled: data.get(
       #agentStatusNotificationsEnabled,
       or: $value.agentStatusNotificationsEnabled,

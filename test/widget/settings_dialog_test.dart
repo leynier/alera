@@ -245,19 +245,23 @@ void main() {
     await tester.ensureVisible(find.text('Agent status notifications'));
     await tester.pump();
 
-    expect(find.text('Agent status hooks'), findsOneWidget);
+    expect(find.text('Codex hooks'), findsOneWidget);
+    expect(find.text('Claude Code hooks'), findsOneWidget);
+    expect(find.text('GitHub Copilot hooks'), findsOneWidget);
+    expect(find.text('Antigravity hooks'), findsOneWidget);
     expect(find.text('Agent status notifications'), findsOneWidget);
 
+    await tester.ensureVisible(find.text('Codex hooks'));
+    await tester.pump();
     await tester.tap(find.byType(Switch).at(2));
     await tester.pump(const Duration(milliseconds: 50));
-    await tester.tap(find.byType(Switch).at(3));
+    await tester.ensureVisible(find.text('Agent status notifications'));
+    await tester.pump();
+    await tester.tap(find.byType(Switch).at(6));
     await tester.pump(const Duration(milliseconds: 50));
 
     expect(
-      container
-          .read(settingsControllerProvider)
-          .general
-          .agentStatusHooksEnabled,
+      container.read(settingsControllerProvider).general.agentStatusHooks.codex,
       isTrue,
     );
     expect(

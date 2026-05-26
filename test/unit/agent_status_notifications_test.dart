@@ -33,14 +33,25 @@ void main() {
       );
     });
 
-    test('composes waiting and done notifications only', () {
+    test('composes attention and done notifications only', () {
       final waiting = composeAgentStatusNotification(
         entry: _entry(AgentStatusState.waiting, prompt: 'Review command'),
         workspaceName: 'Alera',
         tabTitle: 'Codex',
       );
+      final blocked = composeAgentStatusNotification(
+        entry: _entry(
+          AgentStatusState.blocked,
+          agentType: AgentType.copilot,
+          prompt: 'Choose target',
+        ),
+      );
       final done = composeAgentStatusNotification(
-        entry: _entry(AgentStatusState.done, prompt: ''),
+        entry: _entry(
+          AgentStatusState.done,
+          agentType: AgentType.agy,
+          prompt: '',
+        ),
         workspaceName: 'Alera',
         tabTitle: 'Claude',
       );
@@ -51,8 +62,11 @@ void main() {
       expect(waiting, isNotNull);
       expect(waiting!.title, 'Codex needs attention');
       expect(waiting.body, 'Review command');
+      expect(blocked, isNotNull);
+      expect(blocked!.title, 'GitHub Copilot needs attention');
+      expect(blocked.body, 'Choose target');
       expect(done, isNotNull);
-      expect(done!.title, 'Codex finished');
+      expect(done!.title, 'Antigravity finished');
       expect(done.body, 'Claude');
       expect(working, isNull);
     });
@@ -103,12 +117,16 @@ void main() {
   });
 }
 
-AgentStatusEntry _entry(AgentStatusState state, {String prompt = 'Run tests'}) {
+AgentStatusEntry _entry(
+  AgentStatusState state, {
+  String prompt = 'Run tests',
+  AgentType agentType = AgentType.codex,
+}) {
   return AgentStatusEntry(
     terminalSessionId: 'session-1',
     workspaceId: 'workspace-1',
     tabId: 'tab-1',
-    agentType: AgentType.codex,
+    agentType: agentType,
     state: state,
     prompt: prompt,
     updatedAt: DateTime.utc(2026, 5, 26, 12),

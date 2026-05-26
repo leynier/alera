@@ -11,7 +11,9 @@ enum AgentStatusState {
 
 enum AgentType {
   codex('codex'),
-  claude('claude');
+  claude('claude'),
+  copilot('copilot'),
+  agy('agy');
 
   const AgentType(this.key);
 

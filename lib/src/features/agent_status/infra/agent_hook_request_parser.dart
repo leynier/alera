@@ -46,7 +46,9 @@ AgentHookEvent? parseAgentHookRequest({
     tabId: tabId,
     agentType: agentType,
     payload: payload,
-    hookEventName: _optionalString(record['hookEventName']),
+    hookEventName:
+        _optionalString(record['hookEventName']) ??
+        _optionalString(record['hook_event_name']),
     version: _optionalString(record['version']),
   );
 }

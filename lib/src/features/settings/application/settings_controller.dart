@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:alera/src/app/dependencies.dart';
+import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
 import 'package:alera/src/features/settings/application/settings_repository.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
@@ -63,14 +64,22 @@ class SettingsController extends _$SettingsController {
     );
   }
 
-  Future<void> setAgentStatusHooksEnabled(bool value) async {
-    if (state.general.agentStatusHooksEnabled == value) {
+  Future<void> setAgentStatusHookEnabled(
+    AgentType agentType,
+    bool value,
+  ) async {
+    final current = state.general.agentStatusHooks;
+    final next = switch (agentType) {
+      AgentType.codex => current.copyWith(codex: value),
+      AgentType.claude => current.copyWith(claude: value),
+      AgentType.copilot => current.copyWith(copilot: value),
+      AgentType.agy => current.copyWith(agy: value),
+    };
+    if (current == next) {
       return;
     }
     await _save(
-      state.copyWith(
-        general: state.general.copyWith(agentStatusHooksEnabled: value),
-      ),
+      state.copyWith(general: state.general.copyWith(agentStatusHooks: next)),
     );
   }
 

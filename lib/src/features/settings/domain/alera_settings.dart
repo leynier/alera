@@ -112,13 +112,35 @@ class TerminalSettings with TerminalSettingsMappable {
 }
 
 @MappableClass()
+class AgentStatusHookSettings with AgentStatusHookSettingsMappable {
+  const AgentStatusHookSettings({
+    this.codex = false,
+    this.claude = false,
+    this.copilot = false,
+    this.agy = false,
+  });
+
+  final bool codex;
+  final bool claude;
+  final bool copilot;
+  final bool agy;
+
+  bool get anyEnabled => codex || claude || copilot || agy;
+
+  static const AgentStatusHookSettings defaults = AgentStatusHookSettings();
+
+  factory AgentStatusHookSettings.fromJson(Map<String, Object?> json) =>
+      AgentStatusHookSettingsMapper.fromMap(Map<String, dynamic>.from(json));
+}
+
+@MappableClass()
 class GeneralSettings with GeneralSettingsMappable {
   const GeneralSettings({
     this.workspaceDirectory,
     this.starClicked = false,
     this.confirmProjectRemoval = true,
     this.confirmWorkspaceRemoval = true,
-    this.agentStatusHooksEnabled = false,
+    this.agentStatusHooks = AgentStatusHookSettings.defaults,
     this.agentStatusNotificationsEnabled = false,
   });
 
@@ -137,9 +159,9 @@ class GeneralSettings with GeneralSettingsMappable {
   /// Ask before removing a linked workspace and its Git worktree.
   final bool confirmWorkspaceRemoval;
 
-  /// Install managed Codex and Claude Code hooks for local Alera terminal
-  /// status. Default-off because enabling it edits user agent config files.
-  final bool agentStatusHooksEnabled;
+  /// Install managed local agent hooks for terminal status. Each agent is
+  /// default-off because enabling it edits that agent's user config files.
+  final AgentStatusHookSettings agentStatusHooks;
 
   /// Show native desktop notifications for local agent status events.
   final bool agentStatusNotificationsEnabled;

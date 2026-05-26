@@ -12,17 +12,20 @@ import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_router/shelf_router.dart';
 
 typedef ApplicationSupportDirectoryResolver = Future<Directory> Function();
+typedef AgentHookEnabledPredicate = bool Function(AgentType agentType);
 
 class AgentHookReceiver {
   factory AgentHookReceiver({
     required AgentStatusSink statusSink,
     ApplicationSupportDirectoryResolver? applicationSupportDirectory,
     String? token,
+    AgentHookEnabledPredicate? isAgentEnabled,
   }) {
     return AgentHookReceiver._(
       statusSink,
       applicationSupportDirectory ?? getApplicationSupportDirectory,
       token ?? createAgentHookToken(),
+      isAgentEnabled ?? ((_) => true),
     );
   }
 
@@ -30,11 +33,13 @@ class AgentHookReceiver {
     this._statusSink,
     this._applicationSupportDirectory,
     this._token,
+    this._isAgentEnabled,
   );
 
   final AgentStatusSink _statusSink;
   final ApplicationSupportDirectoryResolver _applicationSupportDirectory;
   final String _token;
+  final AgentHookEnabledPredicate _isAgentEnabled;
 
   HttpServer? _server;
   Future<void>? _starting;
@@ -139,6 +144,15 @@ class AgentHookReceiver {
         '/hook/claude',
         (shelf.Request request) =>
             _handleHookRequest(request, AgentType.claude),
+      )
+      ..post(
+        '/hook/copilot',
+        (shelf.Request request) =>
+            _handleHookRequest(request, AgentType.copilot),
+      )
+      ..post(
+        '/hook/agy',
+        (shelf.Request request) => _handleHookRequest(request, AgentType.agy),
       );
     return router.call;
   }
@@ -150,6 +164,9 @@ class AgentHookReceiver {
     try {
       if (request.headers[aleraAgentHookTokenHeader] != _token) {
         return shelf.Response(HttpStatus.forbidden);
+      }
+      if (!_isAgentEnabled(agentType)) {
+        return shelf.Response(HttpStatus.noContent);
       }
 
       AgentHookEvent? event;

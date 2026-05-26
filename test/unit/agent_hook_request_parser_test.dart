@@ -42,7 +42,7 @@ void main() {
           'terminalSessionId': 'session-2',
           'workspaceId': 'workspace-2',
           'tabId': 'tab-2',
-          'hookEventName': 'PreToolUse',
+          'hook_event_name': 'PreToolUse',
           'payload': jsonEncode(<String, Object?>{
             'tool_name': 'Bash',
             'tool_input': <String, Object?>{'command': 'flutter test'},

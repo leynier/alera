@@ -161,7 +161,7 @@ void main() {
         final presenter = _FakeNotificationPresenter();
         final settings = AleraSettings.defaults.copyWith(
           general: AleraSettings.defaults.general.copyWith(
-            agentStatusHooksEnabled: true,
+            agentStatusHooks: const AgentStatusHookSettings(codex: true),
             agentStatusNotificationsEnabled: true,
           ),
         );

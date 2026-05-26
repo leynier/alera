@@ -35,7 +35,11 @@ void main() {
 
       expect(general.confirmProjectRemoval, isTrue);
       expect(general.confirmWorkspaceRemoval, isTrue);
-      expect(general.agentStatusHooksEnabled, isFalse);
+      expect(general.agentStatusHooks.codex, isFalse);
+      expect(general.agentStatusHooks.claude, isFalse);
+      expect(general.agentStatusHooks.copilot, isFalse);
+      expect(general.agentStatusHooks.agy, isFalse);
+      expect(general.agentStatusHooks.anyEnabled, isFalse);
       expect(general.agentStatusNotificationsEnabled, isFalse);
     });
 
@@ -49,7 +53,7 @@ void main() {
         'starClicked': true,
         'confirmProjectRemoval': false,
         'confirmWorkspaceRemoval': true,
-        'agentStatusHooksEnabled': true,
+        'agentStatusHooks': <String, Object?>{'codex': true, 'copilot': true},
         'agentStatusNotificationsEnabled': true,
       });
 
@@ -57,7 +61,10 @@ void main() {
       expect(overrides.selection, '#123456');
       expect(general.workspaceDirectory, '/tmp/workspaces');
       expect(general.starClicked, isTrue);
-      expect(general.agentStatusHooksEnabled, isTrue);
+      expect(general.agentStatusHooks.codex, isTrue);
+      expect(general.agentStatusHooks.claude, isFalse);
+      expect(general.agentStatusHooks.copilot, isTrue);
+      expect(general.agentStatusHooks.agy, isFalse);
       expect(general.agentStatusNotificationsEnabled, isTrue);
     });
 
@@ -66,7 +73,11 @@ void main() {
         general: GeneralSettings(
           confirmProjectRemoval: false,
           confirmWorkspaceRemoval: false,
-          agentStatusHooksEnabled: true,
+          agentStatusHooks: AgentStatusHookSettings(
+            codex: true,
+            claude: true,
+            agy: true,
+          ),
           agentStatusNotificationsEnabled: true,
         ),
         terminal: TerminalSettings(
@@ -106,7 +117,10 @@ void main() {
 
       expect(restored.general.confirmProjectRemoval, isFalse);
       expect(restored.general.confirmWorkspaceRemoval, isFalse);
-      expect(restored.general.agentStatusHooksEnabled, isTrue);
+      expect(restored.general.agentStatusHooks.codex, isTrue);
+      expect(restored.general.agentStatusHooks.claude, isTrue);
+      expect(restored.general.agentStatusHooks.copilot, isFalse);
+      expect(restored.general.agentStatusHooks.agy, isTrue);
       expect(restored.general.agentStatusNotificationsEnabled, isTrue);
       expect(restored.terminal.fontFamily, 'SF Mono');
       expect(restored.terminal.fontSize, 15);

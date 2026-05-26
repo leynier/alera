@@ -1,4 +1,5 @@
 import 'package:alera/src/app/dependencies.dart';
+import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
@@ -114,7 +115,8 @@ void main() {
 
         await controller.setConfirmProjectRemoval(false);
         await controller.setConfirmWorkspaceRemoval(false);
-        await controller.setAgentStatusHooksEnabled(true);
+        await controller.setAgentStatusHookEnabled(AgentType.codex, true);
+        await controller.setAgentStatusHookEnabled(AgentType.agy, true);
         await controller.setAgentStatusNotificationsEnabled(true);
 
         final restored = await repository.load();
@@ -134,7 +136,10 @@ void main() {
         );
         expect(restored.general.confirmProjectRemoval, isFalse);
         expect(restored.general.confirmWorkspaceRemoval, isFalse);
-        expect(restored.general.agentStatusHooksEnabled, isTrue);
+        expect(restored.general.agentStatusHooks.codex, isTrue);
+        expect(restored.general.agentStatusHooks.claude, isFalse);
+        expect(restored.general.agentStatusHooks.copilot, isFalse);
+        expect(restored.general.agentStatusHooks.agy, isTrue);
         expect(restored.general.agentStatusNotificationsEnabled, isTrue);
       },
     );

@@ -125,11 +125,14 @@ AgentStatusNotification? composeAgentStatusNotification({
   final agent = switch (entry.agentType) {
     AgentType.codex => 'Codex',
     AgentType.claude => 'Claude',
+    AgentType.copilot => 'GitHub Copilot',
+    AgentType.agy => 'Antigravity',
   };
   final title = switch (entry.state) {
-    AgentStatusState.waiting => '$agent needs attention',
+    AgentStatusState.waiting ||
+    AgentStatusState.blocked => '$agent needs attention',
     AgentStatusState.done => '$agent finished',
-    AgentStatusState.working || AgentStatusState.blocked => agent,
+    AgentStatusState.working => agent,
   };
   final body = _firstNonEmpty(<String>[
     entry.prompt,
@@ -152,7 +155,9 @@ AgentStatusNotification? composeAgentStatusNotification({
 }
 
 bool _isNotifiableState(AgentStatusState state) {
-  return state == AgentStatusState.waiting || state == AgentStatusState.done;
+  return state == AgentStatusState.waiting ||
+      state == AgentStatusState.blocked ||
+      state == AgentStatusState.done;
 }
 
 String _notificationKey(AgentStatusEntry entry) {

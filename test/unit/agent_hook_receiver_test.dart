@@ -88,7 +88,38 @@ void main() {
     test('applies valid hook events', () async {
       final response = await _post(
         receiver.endpoint!.port,
-        path: '/hook/claude',
+        path: '/hook/agy',
+        token: 'token-1',
+        body: jsonEncode(<String, Object?>{
+          'terminalSessionId': 'session-1',
+          'workspaceId': 'workspace-1',
+          'tabId': 'tab-1',
+          'hook_event_name': 'PreInvocation',
+          'payload': <String, Object?>{'prompt': 'ship it'},
+        }),
+        contentType: ContentType.json,
+      );
+
+      expect(response.statusCode, HttpStatus.noContent);
+      expect(sink.events, hasLength(1));
+      expect(sink.events.single.agentType, AgentType.agy);
+      expect(sink.events.single.payload['prompt'], 'ship it');
+    });
+
+    test('ignores disabled agents with 204', () async {
+      await receiver.dispose();
+      sink = _FakeStatusSink();
+      receiver = AgentHookReceiver(
+        statusSink: sink,
+        applicationSupportDirectory: () async => tempDir,
+        token: 'token-1',
+        isAgentEnabled: (agentType) => agentType != AgentType.copilot,
+      );
+      await receiver.start();
+
+      final response = await _post(
+        receiver.endpoint!.port,
+        path: '/hook/copilot',
         token: 'token-1',
         body: jsonEncode(<String, Object?>{
           'terminalSessionId': 'session-1',
@@ -101,9 +132,7 @@ void main() {
       );
 
       expect(response.statusCode, HttpStatus.noContent);
-      expect(sink.events, hasLength(1));
-      expect(sink.events.single.agentType, AgentType.claude);
-      expect(sink.events.single.payload['prompt'], 'ship it');
+      expect(sink.events, isEmpty);
     });
   });
 }

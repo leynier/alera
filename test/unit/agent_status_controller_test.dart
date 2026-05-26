@@ -87,6 +87,75 @@ void main() {
       expect(entry.stateStartedAt, times[1]);
     });
 
+    test('normalizes Copilot blocked and done states', () {
+      final controller = container.read(agentStatusControllerProvider.notifier);
+
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.copilot,
+          hookEventName: 'userPromptSubmitted',
+          payload: <String, Object?>{'prompt': 'deploy the app'},
+        ),
+      );
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.copilot,
+          hookEventName: 'Notification',
+          payload: <String, Object?>{
+            'notificationType': 'elicitation_dialog',
+            'message': 'Which environment?',
+          },
+        ),
+      );
+
+      var entry = container.read(agentStatusControllerProvider)['session-1']!;
+      expect(entry.state, AgentStatusState.blocked);
+      expect(entry.prompt, 'deploy the app');
+      expect(entry.lastAssistantMessage, 'Which environment?');
+
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.copilot,
+          hookEventName: 'SessionEnd',
+          payload: <String, Object?>{'lastAssistantMessage': 'Done.'},
+        ),
+      );
+
+      entry = container.read(agentStatusControllerProvider)['session-1']!;
+      expect(entry.state, AgentStatusState.done);
+      expect(entry.lastAssistantMessage, 'Done.');
+    });
+
+    test('normalizes AGY invocation and feedback tool states', () {
+      final controller = container.read(agentStatusControllerProvider.notifier);
+
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.agy,
+          hookEventName: 'PreInvocation',
+          payload: <String, Object?>{'prompt': 'fix test'},
+        ),
+      );
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.agy,
+          hookEventName: 'PreToolUse',
+          payload: <String, Object?>{
+            'toolCall': <String, Object?>{
+              'name': 'ask_question',
+              'args': <String, Object?>{'Prompt': 'Which file?'},
+            },
+          },
+        ),
+      );
+
+      final entry = container.read(agentStatusControllerProvider)['session-1']!;
+      expect(entry.state, AgentStatusState.waiting);
+      expect(entry.prompt, 'fix test');
+      expect(entry.toolName, 'ask_question');
+      expect(entry.toolInput, 'Which file?');
+    });
+
     test('marks active terminal exits as inferred done', () {
       final controller = container.read(agentStatusControllerProvider.notifier);
       controller.applyHookEvent(

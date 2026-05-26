@@ -86,6 +86,10 @@ final terminalHostWarmupProvider = Provider<void>((ref) {
 final agentHookReceiverProvider = Provider<AgentHookReceiver>((ref) {
   final receiver = AgentHookReceiver(
     statusSink: ref.read(agentStatusControllerProvider.notifier),
+    isAgentEnabled: (agentType) => _isAgentStatusHookEnabled(
+      ref.read(settingsControllerProvider).general.agentStatusHooks,
+      agentType,
+    ),
   );
   ref.onDispose(() {
     unawaited(receiver.dispose());
@@ -132,7 +136,7 @@ final agentStatusNotificationActivationServiceProvider =
 final agentHookReceiverLifecycleProvider = Provider<void>((ref) {
   final enabled = ref.watch(
     settingsControllerProvider.select(
-      (settings) => settings.general.agentStatusHooksEnabled,
+      (settings) => settings.general.agentStatusHooks.anyEnabled,
     ),
   );
   final receiver = ref.watch(agentHookReceiverProvider);
@@ -145,15 +149,17 @@ final agentHookReceiverLifecycleProvider = Provider<void>((ref) {
 
 final agentHookInstallerCoordinatorProvider = Provider<void>((ref) {
   final service = ref.watch(managedAgentHookInstallServiceProvider);
-  ref.listen<bool>(
+  ref.listen<AgentStatusHookSettings>(
     settingsControllerProvider.select(
-      (settings) => settings.general.agentStatusHooksEnabled,
+      (settings) => settings.general.agentStatusHooks,
     ),
     (previous, next) {
       if (previous == null || previous == next) {
         return;
       }
-      final operation = next ? service.installAll() : service.removeAll();
+      final operation = service.reconcile(
+        enabledAgentTypes: _enabledAgentStatusHookTypes(next),
+      );
       unawaited(
         operation.then<void>((_) {}).catchError(_ignoreProviderAsyncError),
       );
@@ -164,7 +170,7 @@ final agentHookInstallerCoordinatorProvider = Provider<void>((ref) {
 final agentStatusNotificationCoordinatorProvider = Provider<void>((ref) {
   final hooksEnabled = ref.watch(
     settingsControllerProvider.select(
-      (settings) => settings.general.agentStatusHooksEnabled,
+      (settings) => settings.general.agentStatusHooks.anyEnabled,
     ),
   );
   final notificationsEnabled = ref.watch(
@@ -213,7 +219,14 @@ final agentStatusNotificationCoordinatorProvider = Provider<void>((ref) {
     }
     final pending = tracker.pendingNotifications(
       previous: previous,
-      next: next,
+      next: Map<String, AgentStatusEntry>.fromEntries(
+        next.entries.where(
+          (entry) => _isAgentStatusHookEnabled(
+            ref.read(settingsControllerProvider).general.agentStatusHooks,
+            entry.value.agentType,
+          ),
+        ),
+      ),
     );
     if (pending.isEmpty) {
       return;
@@ -243,7 +256,8 @@ final terminalRuntimeProvider = Provider<TerminalRuntime>((ref) {
           final enabled = ref
               .read(settingsControllerProvider)
               .general
-              .agentStatusHooksEnabled;
+              .agentStatusHooks
+              .anyEnabled;
           if (!enabled) {
             return null;
           }
@@ -371,6 +385,27 @@ TerminalHostConfig _terminalHostConfigFor(TerminalSettings settings) {
         settings.hostDetachedSessionShutdownDelaySeconds,
     scrollbackBytes: settings.hostScrollbackBytes,
   );
+}
+
+List<AgentType> _enabledAgentStatusHookTypes(AgentStatusHookSettings settings) {
+  return <AgentType>[
+    if (settings.codex) AgentType.codex,
+    if (settings.claude) AgentType.claude,
+    if (settings.copilot) AgentType.copilot,
+    if (settings.agy) AgentType.agy,
+  ];
+}
+
+bool _isAgentStatusHookEnabled(
+  AgentStatusHookSettings settings,
+  AgentType agentType,
+) {
+  return switch (agentType) {
+    AgentType.codex => settings.codex,
+    AgentType.claude => settings.claude,
+    AgentType.copilot => settings.copilot,
+    AgentType.agy => settings.agy,
+  };
 }
 
 // coverage:ignore-start
