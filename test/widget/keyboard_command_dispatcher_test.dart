@@ -4,7 +4,6 @@ import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/features/keyboard/application/keyboard_command_dispatcher.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
-import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';

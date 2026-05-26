@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
-import 'package:alera/src/features/settings/application/github_star_controller.dart';
 import 'package:alera/src/features/settings/application/settings_repository.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';

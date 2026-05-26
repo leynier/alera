@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:alera/src/shared/infra/storage/drift_database.dart';
-import 'package:drift/drift.dart' show Migrator, QueryExecutor, QueryRow;
+import 'package:drift/drift.dart' show Migrator, QueryRow;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
@@ -69,8 +69,8 @@ void main() {
 
       expect(db.schemaVersion, aleraSchemaVersion);
 
-      await db.migration.onCreate?.call(Migrator(db));
-      await db.migration.onUpgrade?.call(Migrator(db), 1, 1);
+      await db.migration.onCreate(Migrator(db));
+      await db.migration.onUpgrade(Migrator(db), 1, 1);
 
       final rows = await db
           .customSelect(

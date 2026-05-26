@@ -8,6 +8,8 @@ import 'package:alera/src/features/workbench/application/workbench_controller.da
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/application/workspace_service.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_pty_session.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -34,7 +36,11 @@ final workspaceServiceProvider = Provider<WorkspaceService>((ref) {
 });
 
 final terminalRuntimeProvider = Provider<TerminalRuntime>((ref) {
+  final terminalHostClient = SocketTerminalHostClient();
   final runtime = XtermTerminalRuntime(
+    ptySessionFactory: TerminalHostPtySessionFactory(
+      client: terminalHostClient,
+    ),
     initialSettings: ref.read(settingsControllerProvider).terminal,
     externalUriLauncher: ref.watch(externalUriLauncherProvider),
   );
@@ -42,7 +48,10 @@ final terminalRuntimeProvider = Provider<TerminalRuntime>((ref) {
     settingsControllerProvider.select((settings) => settings.terminal),
     (_, next) => runtime.updateSettings(next),
   );
-  ref.onDispose(runtime.dispose);
+  ref.onDispose(() {
+    runtime.dispose();
+    terminalHostClient.dispose();
+  });
   return runtime;
 });
 

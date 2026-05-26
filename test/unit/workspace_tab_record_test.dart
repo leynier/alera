@@ -8,10 +8,7 @@ void main() {
     });
 
     test('rejects invalid values', () {
-      expect(
-        () => WorkspaceTabKind.fromJson(42),
-        throwsA(isA<StateError>()),
-      );
+      expect(() => WorkspaceTabKind.fromJson(42), throwsA(isA<StateError>()));
       expect(
         () => WorkspaceTabKind.fromJson('unknown'),
         throwsA(isA<StateError>()),
@@ -39,5 +36,29 @@ void main() {
 
     expect(restored, record);
     expect(restored.hasManualTitle, isTrue);
+  });
+
+  test('terminalSessionId uses payload value with tab id fallback', () {
+    final now = DateTime.utc(2026, 5, 25);
+    final legacy = WorkspaceTabRecord(
+      id: 'tab-1',
+      workspaceId: 'workspace-1',
+      title: 'Terminal 1',
+      createdAt: now,
+      updatedAt: now,
+    );
+    final bound = WorkspaceTabRecord(
+      id: 'tab-2',
+      workspaceId: 'workspace-1',
+      title: 'Terminal 2',
+      createdAt: now,
+      updatedAt: now,
+      payload: const <String, Object?>{
+        workspaceTabTerminalSessionIdPayloadKey: 'session-2',
+      },
+    );
+
+    expect(legacy.terminalSessionId, 'tab-1');
+    expect(bound.terminalSessionId, 'session-2');
   });
 }

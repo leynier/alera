@@ -77,14 +77,21 @@ final class TerminalRuntimeExitEvent {
 }
 
 abstract interface class TerminalPtySessionFactory {
-  TerminalPtySession create();
+  TerminalPtySession create({
+    required String sessionId,
+    required String workspaceId,
+    required String tabId,
+  });
 }
 
 abstract interface class TerminalPtySession {
   Stream<TerminalPtySessionEvent> get events;
 
+  bool get startedNewProcess;
+
   Future<void> start({
     required GhosttyTerminalShellLaunch launch,
+    required String workingDirectory,
     required int cols,
     required int rows,
   });
@@ -94,6 +101,8 @@ abstract interface class TerminalPtySession {
   void resize(int cols, int rows, int cellWidthPx, int cellHeightPx);
 
   void dispose();
+
+  void terminate();
 }
 
 sealed class TerminalPtySessionEvent {
@@ -107,9 +116,10 @@ final class TerminalPtyOutputEvent extends TerminalPtySessionEvent {
 }
 
 final class TerminalPtyExitEvent extends TerminalPtySessionEvent {
-  const TerminalPtyExitEvent(this.exitCode);
+  const TerminalPtyExitEvent(this.exitCode, {this.notifyRuntime = true});
 
   final int exitCode;
+  final bool notifyRuntime;
 }
 
 final class TerminalPtyErrorEvent extends TerminalPtySessionEvent {
@@ -122,7 +132,11 @@ class DefaultTerminalPtySessionFactory implements TerminalPtySessionFactory {
   const DefaultTerminalPtySessionFactory();
 
   @override
-  TerminalPtySession create() {
+  TerminalPtySession create({
+    required String sessionId,
+    required String workspaceId,
+    required String tabId,
+  }) {
     if (!kIsWeb &&
         (defaultTargetPlatform == TargetPlatform.macOS ||
             defaultTargetPlatform == TargetPlatform.linux)) {
@@ -140,13 +154,18 @@ class _PosixPortablePtySessionAdapter implements TerminalPtySession {
   StreamSubscription<Object?>? _readSub;
   Isolate? _readIsolate;
   bool _disposed = false;
+  bool _startedNewProcess = false;
 
   @override
   Stream<TerminalPtySessionEvent> get events => _events.stream;
 
   @override
+  bool get startedNewProcess => _startedNewProcess;
+
+  @override
   Future<void> start({
     required GhosttyTerminalShellLaunch launch,
+    required String workingDirectory,
     required int cols,
     required int rows,
   }) async {
@@ -161,6 +180,7 @@ class _PosixPortablePtySessionAdapter implements TerminalPtySession {
         args: launch.arguments,
         environment: launch.environment,
       );
+      _startedNewProcess = true;
       _readPort = ReceivePort();
       _readSub = _readPort!.listen(_handleReadMessage);
       _readIsolate = await Isolate.spawn<List<Object?>>(
@@ -256,6 +276,11 @@ class _PosixPortablePtySessionAdapter implements TerminalPtySession {
     }
     unawaited(_events.close());
   }
+
+  @override
+  void terminate() {
+    dispose();
+  }
 }
 
 class _GhosttyTerminalPtySessionAdapter implements TerminalPtySession {
@@ -264,13 +289,18 @@ class _GhosttyTerminalPtySessionAdapter implements TerminalPtySession {
   GhosttyTerminalPtySession? _session;
   StreamSubscription<GhosttyTerminalPtySessionEvent>? _sessionSub;
   bool _disposed = false;
+  bool _startedNewProcess = false;
 
   @override
   Stream<TerminalPtySessionEvent> get events => _events.stream;
 
   @override
+  bool get startedNewProcess => _startedNewProcess;
+
+  @override
   Future<void> start({
     required GhosttyTerminalShellLaunch launch,
+    required String workingDirectory,
     required int cols,
     required int rows,
   }) async {
@@ -288,6 +318,7 @@ class _GhosttyTerminalPtySessionAdapter implements TerminalPtySession {
         args: launch.arguments,
         environment: launch.environment,
       );
+      _startedNewProcess = true;
     } catch (_) {
       unawaited(_sessionSub?.cancel());
       _sessionSub = null;
@@ -341,6 +372,11 @@ class _GhosttyTerminalPtySessionAdapter implements TerminalPtySession {
     _session?.close();
     _session = null;
     unawaited(_events.close());
+  }
+
+  @override
+  void terminate() {
+    dispose();
   }
 }
 
@@ -430,7 +466,7 @@ class XtermTerminalRuntime implements TerminalRuntime {
 
   @override
   void closeTab(String tabId) {
-    _sessions.remove(tabId)?.dispose();
+    _sessions.remove(tabId)?.dispose(terminatePty: true);
   }
 
   @override
@@ -440,14 +476,14 @@ class XtermTerminalRuntime implements TerminalRuntime {
         .map((entry) => entry.key)
         .toList(growable: false);
     for (final tabId in removed) {
-      _sessions.remove(tabId)?.dispose();
+      _sessions.remove(tabId)?.dispose(terminatePty: true);
     }
   }
 
   @override
   void dispose() {
     for (final session in _sessions.values) {
-      session.dispose();
+      session.dispose(terminatePty: false);
     }
     _sessions.clear();
     unawaited(_exitController.close());
@@ -705,7 +741,11 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     final launches = _shellLaunchesBuilder();
     Object? lastError;
     for (final launch in launches) {
-      final session = _ptySessionFactory.create();
+      final session = _ptySessionFactory.create(
+        sessionId: _tab.terminalSessionId,
+        workspaceId: _workspace.id,
+        tabId: _tab.id,
+      );
       final generation = ++_ptyGeneration;
       final sub = session.events.listen(
         (event) => _handlePtySessionEvent(event, generation),
@@ -720,6 +760,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
         );
         await session.start(
           launch: workspaceLaunch,
+          workingDirectory: _workspace.path,
           cols: _terminal.viewWidth,
           rows: _terminal.viewHeight,
         );
@@ -727,7 +768,9 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
         _prunePtyGenerationState();
         notifyListeners();
         final setupCommand = launch.setupCommand;
-        if (setupCommand != null && setupCommand.isNotEmpty) {
+        if (session.startedNewProcess &&
+            setupCommand != null &&
+            setupCommand.isNotEmpty) {
           await Future<void>.delayed(const Duration(milliseconds: 120));
           session.writeBytes(utf8.encode(setupCommand));
           await Future<void>.delayed(const Duration(milliseconds: 120));
@@ -761,20 +804,28 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
       case TerminalPtyOutputEvent(:final data):
         _ptyOutputController.add(data);
       case TerminalPtyExitEvent(:final exitCode):
-        _handlePtyExit(exitCode: exitCode, generation: generation);
+        _handlePtyExit(
+          exitCode: exitCode,
+          generation: generation,
+          notifyRuntime: event.notifyRuntime,
+        );
       case TerminalPtyErrorEvent(:final error):
         _writeToTerminal('\n[terminal error: $error]\n');
     }
   }
 
-  void _handlePtyExit({required int exitCode, required int generation}) {
+  void _handlePtyExit({
+    required int exitCode,
+    required int generation,
+    required bool notifyRuntime,
+  }) {
     if (!_exitedPtyGenerations.add(generation)) {
       return;
     }
     _running = false;
     _writeToTerminal('\n[process exited: $exitCode]\n');
     notifyListeners();
-    if (!_suppressedExitPtyGenerations.contains(generation)) {
+    if (notifyRuntime && !_suppressedExitPtyGenerations.contains(generation)) {
       _onExit(
         TerminalRuntimeExitEvent(
           workspaceId: workspaceId,
@@ -783,7 +834,9 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
         ),
       );
     }
-    unawaited(_stopPtySession(suppressExit: true));
+    unawaited(
+      _stopPtySessionWithMode(suppressExit: true, terminate: notifyRuntime),
+    );
   }
 
   void _handlePrivateOsc(String code, List<String> args) {
@@ -824,6 +877,13 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   }
 
   Future<void> _stopPtySession({required bool suppressExit}) async {
+    await _stopPtySessionWithMode(suppressExit: suppressExit, terminate: true);
+  }
+
+  Future<void> _stopPtySessionWithMode({
+    required bool suppressExit,
+    required bool terminate,
+  }) async {
     _pendingPtyResizeTimer?.cancel();
     _pendingPtyResizeTimer = null;
     _pendingPtySize = null;
@@ -839,7 +899,11 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     await sub?.cancel();
     final session = _ptySession;
     _ptySession = null;
-    session?.dispose();
+    if (terminate) {
+      session?.terminate();
+    } else {
+      session?.dispose();
+    }
     _prunePtyGenerationState();
   }
 
@@ -859,11 +923,13 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   }
 
   @override
-  void dispose() {
+  void dispose({bool terminatePty = true}) {
     _disposed = true;
     _osc8LinkTracker.dispose();
     _detachTerminal(_terminal);
-    unawaited(_stopPtySession(suppressExit: true));
+    unawaited(
+      _stopPtySessionWithMode(suppressExit: true, terminate: terminatePty),
+    );
     unawaited(_decodedOutputSub.cancel());
     unawaited(_ptyOutputController.close());
     _focusNode.dispose();

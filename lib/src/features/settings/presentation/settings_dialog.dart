@@ -17,7 +17,6 @@ import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
 import 'package:alera/src/features/settings/infra/system_font_service.dart';
 import 'package:alera/src/features/updater/presentation/update_settings_section.dart';
 import 'package:file_selector/file_selector.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';

@@ -3,9 +3,7 @@ import 'dart:async';
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/design_system/feedback/alera_toast_host.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
-import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
-import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_dialog_launchers.dart';
@@ -64,47 +62,46 @@ void main() {
       },
     );
 
-    testWidgets(
-      'showRenameDialog supports Enter submission and cancel',
-      (tester) async {
-        String? submitted;
-        String? cancelled = 'not-null';
+    testWidgets('showRenameDialog supports Enter submission and cancel', (
+      tester,
+    ) async {
+      String? submitted;
+      String? cancelled = 'not-null';
 
-        await _pumpFlowHarness(
-          tester,
-          controller: _DialogLaunchersTestController(const WorkbenchState()),
-          onPressed: (context, _) async {
-            submitted = await showRenameDialog(
-              context,
-              title: 'Rename project',
-              labelText: 'Project name',
-              initialValue: 'Alera',
-              confirmLabel: 'Rename',
-            );
-            cancelled = await showRenameDialog(
-              context,
-              title: 'Rename project',
-              labelText: 'Project name',
-              initialValue: 'Alera',
-              confirmLabel: 'Rename',
-            );
-          },
-        );
+      await _pumpFlowHarness(
+        tester,
+        controller: _DialogLaunchersTestController(const WorkbenchState()),
+        onPressed: (context, _) async {
+          submitted = await showRenameDialog(
+            context,
+            title: 'Rename project',
+            labelText: 'Project name',
+            initialValue: 'Alera',
+            confirmLabel: 'Rename',
+          );
+          cancelled = await showRenameDialog(
+            context,
+            title: 'Rename project',
+            labelText: 'Project name',
+            initialValue: 'Alera',
+            confirmLabel: 'Rename',
+          );
+        },
+      );
 
-        await tester.tap(find.text('Open'));
-        await tester.pumpAndSettle();
-        await tester.enterText(find.byType(TextField), 'From keyboard');
-        await tester.testTextInput.receiveAction(TextInputAction.done);
-        await tester.pumpAndSettle();
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'From keyboard');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
 
-        expect(submitted, 'From keyboard');
+      expect(submitted, 'From keyboard');
 
-        await tester.tap(find.text('Cancel'));
-        await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
 
-        expect(cancelled, isNull);
-      },
-    );
+      expect(cancelled, isNull);
+    });
 
     testWidgets(
       'showAddProjectFlow adds a local project and shows success feedback',
@@ -268,11 +265,12 @@ void main() {
       tester,
     ) async {
       final project = _project('project-1', 'Alera');
-      final controller = _DialogLaunchersTestController(
-        WorkbenchState(projects: <Project>[project]),
-      )
-        ..sourceBranches = <String>['main']
-        ..createWorkspaceError = Exception('Workspace failed');
+      final controller =
+          _DialogLaunchersTestController(
+              WorkbenchState(projects: <Project>[project]),
+            )
+            ..sourceBranches = <String>['main']
+            ..createWorkspaceError = Exception('Workspace failed');
 
       await _pumpFlowHarness(
         tester,

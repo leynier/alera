@@ -1,8 +1,6 @@
 import 'package:alera/src/app/providers.dart';
-import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
-import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/welcome_dashboard.dart';
@@ -14,6 +12,7 @@ void main() {
   Future<void> pumpDashboard(
     WidgetTester tester, {
     required WorkbenchState state,
+    _WelcomeDashboardController? controller,
     Size size = const Size(1200, 900),
   }) async {
     await tester.binding.setSurfaceSize(size);
@@ -23,7 +22,7 @@ void main() {
       ProviderScope(
         overrides: [
           workbenchControllerProvider.overrideWith(
-            () => _WelcomeDashboardController(state),
+            () => controller ?? _WelcomeDashboardController(state),
           ),
           settingsControllerProvider.overrideWith(
             () => _WelcomeDashboardSettingsController(AleraSettings.defaults),
@@ -35,36 +34,37 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('renders the empty dashboard and opens add-project and settings flows', (
-    tester,
-  ) async {
-    await pumpDashboard(
-      tester,
-      state: const WorkbenchState(bootstrapped: true),
-      size: const Size(720, 900),
-    );
+  testWidgets(
+    'renders the empty dashboard and opens add-project and settings flows',
+    (tester) async {
+      await pumpDashboard(
+        tester,
+        state: const WorkbenchState(bootstrapped: true),
+        size: const Size(720, 900),
+      );
 
-    expect(find.text('Welcome to Alera'), findsOneWidget);
-    expect(find.text('No projects registered yet'), findsOneWidget);
+      expect(find.text('Welcome to Alera'), findsOneWidget);
+      expect(find.text('No projects registered yet'), findsOneWidget);
 
-    await tester.tap(find.text('Add project').first);
-    await tester.pumpAndSettle();
-    expect(find.widgetWithText(TextField, 'Project path'), findsOneWidget);
-    await tester.tap(find.text('Cancel').first);
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Add project').first);
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(TextField, 'Project path'), findsOneWidget);
+      await tester.tap(find.text('Cancel').first);
+      await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Add project').last);
-    await tester.tap(find.text('Add project').last);
-    await tester.pumpAndSettle();
-    expect(find.widgetWithText(TextField, 'Project path'), findsOneWidget);
-    await tester.tap(find.text('Cancel').first);
-    await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Add project').last);
+      await tester.tap(find.text('Add project').last);
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(TextField, 'Project path'), findsOneWidget);
+      await tester.tap(find.text('Cancel').first);
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Open settings').first);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('General'), findsWidgets);
-  });
+      await tester.tap(find.text('Open settings').first);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('General'), findsWidgets);
+    },
+  );
 
   testWidgets('renders project content and opens the create-workspace flow', (
     tester,
@@ -96,8 +96,21 @@ void main() {
       status: WorkspaceStatus.active,
     );
 
+    final controller = _WelcomeDashboardController(
+      WorkbenchState(
+        projects: <Project>[project, sideProject],
+        workspacesByProject: <String, List<Workspace>>{
+          project.id: <Workspace>[workspace],
+          sideProject.id: const <Workspace>[],
+        },
+        activeProjectId: project.id,
+        activeWorkspaceId: workspace.id,
+        bootstrapped: true,
+      ),
+    );
     await pumpDashboard(
       tester,
+      controller: controller,
       state: WorkbenchState(
         projects: <Project>[project, sideProject],
         workspacesByProject: <String, List<Workspace>>{
@@ -116,9 +129,16 @@ void main() {
     expect(find.text('Docs'), findsOneWidget);
     expect(find.text('No workspaces for this project'), findsOneWidget);
 
+    await tester.tap(find.text('Main').first);
+    await tester.pumpAndSettle();
+    expect(controller.selectedWorkspaceIds, <String>['workspace-1']);
+
     await tester.tap(find.text('New workspace').first);
     await tester.pumpAndSettle();
-    expect(find.widgetWithText(FilledButton, 'Create workspace'), findsOneWidget);
+    expect(
+      find.widgetWithText(FilledButton, 'Create workspace'),
+      findsOneWidget,
+    );
   });
 }
 
@@ -126,12 +146,21 @@ class _WelcomeDashboardController extends WorkbenchController {
   _WelcomeDashboardController(this._seed);
 
   final WorkbenchState _seed;
+  final List<String> selectedWorkspaceIds = <String>[];
 
   @override
   WorkbenchState build() => _seed;
 
   @override
   Future<void> bootstrap() async {}
+
+  @override
+  Future<void> selectWorkspace({
+    required Project project,
+    required Workspace workspace,
+  }) async {
+    selectedWorkspaceIds.add(workspace.id);
+  }
 
   @override
   Future<List<String>> listSourceBranches(Project project) async {

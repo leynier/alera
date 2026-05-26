@@ -241,7 +241,7 @@ void main() {
         runPosixPtyReadIsolateForTesting(
           fd: 1,
           sendPort: receivePort.sendPort,
-          read: (_, __, ___) => throw StateError('boom'),
+          read: (_, _, _) => throw StateError('boom'),
         );
 
         expect(await receivePort.first, <Object?, Object?>{
@@ -289,12 +289,18 @@ void main() {
       TerminalPtySession? ghostty;
       try {
         debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
-        posix = factory.create();
+        posix = factory.create(
+          sessionId: 'session-1',
+          workspaceId: 'workspace-1',
+          tabId: 'tab-1',
+        );
         expect(posix.runtimeType.toString(), contains('Posix'));
+        expect(posix.startedNewProcess, isFalse);
         posix.dispose();
         await expectLater(
           posix.start(
             launch: _launch('noop', shell: '/bin/sh'),
+            workingDirectory: '/tmp',
             cols: 80,
             rows: 24,
           ),
@@ -302,8 +308,13 @@ void main() {
         );
 
         debugDefaultTargetPlatformOverride = TargetPlatform.windows;
-        ghostty = factory.create();
+        ghostty = factory.create(
+          sessionId: 'session-1',
+          workspaceId: 'workspace-1',
+          tabId: 'tab-1',
+        );
         expect(ghostty.runtimeType.toString(), contains('Ghostty'));
+        expect(ghostty.startedNewProcess, isFalse);
         expect(ghostty.writeBytes(const <int>[]), isFalse);
         ghostty.resize(100, 30, 8, 16);
         ghostty.dispose();
@@ -311,6 +322,7 @@ void main() {
         await expectLater(
           ghostty.start(
             launch: _launch('noop', shell: '/bin/sh'),
+            workingDirectory: '/tmp',
             cols: 80,
             rows: 24,
           ),
@@ -389,10 +401,13 @@ void main() {
 
         posix.dispose();
         ghostty.dispose();
+        posix.terminate();
+        ghostty.terminate();
 
         await expectLater(
           posix.start(
             launch: _launch('noop', shell: '/bin/sh'),
+            workingDirectory: '/tmp',
             cols: 80,
             rows: 24,
           ),
@@ -401,6 +416,7 @@ void main() {
         await expectLater(
           ghostty.start(
             launch: _launch('noop', shell: '/bin/sh'),
+            workingDirectory: '/tmp',
             cols: 80,
             rows: 24,
           ),
@@ -418,6 +434,7 @@ void main() {
       await expectLater(
         posix.start(
           launch: _launch('missing', shell: '/definitely/missing-shell'),
+          workingDirectory: '/tmp',
           cols: 80,
           rows: 24,
         ),
@@ -426,6 +443,7 @@ void main() {
       await expectLater(
         ghostty.start(
           launch: _launch('missing', shell: '/definitely/missing-shell'),
+          workingDirectory: '/tmp',
           cols: 80,
           rows: 24,
         ),
@@ -459,9 +477,11 @@ void main() {
 
       await session.start(
         launch: _launch('shell', shell: '/bin/sh'),
+        workingDirectory: '/tmp',
         cols: 80,
         rows: 24,
       );
+      expect(session.startedNewProcess, isTrue);
 
       session.resize(100, 30, 8, 16);
       expect(
@@ -504,9 +524,11 @@ void main() {
 
       await session.start(
         launch: _launch('shell', shell: '/bin/sh'),
+        workingDirectory: '/tmp',
         cols: 80,
         rows: 24,
       );
+      expect(session.startedNewProcess, isTrue);
 
       session.resize(100, 30, 8, 16);
       expect(
@@ -645,17 +667,20 @@ void main() {
           runtime.closeTab('tab-1');
           await Future<void>.delayed(Duration.zero);
           expect(first.disposed, isTrue);
+          expect(first.terminated, isTrue);
           expect(second.disposed, isFalse);
           expect(third.disposed, isFalse);
 
           runtime.closeWorkspace('workspace-1');
           await Future<void>.delayed(Duration.zero);
           expect(second.disposed, isTrue);
+          expect(second.terminated, isTrue);
           expect(third.disposed, isFalse);
 
           runtime.dispose();
           await Future<void>.delayed(Duration.zero);
           expect(third.disposed, isTrue);
+          expect(third.terminated, isFalse);
         } finally {
           debugDefaultTargetPlatformOverride = null;
         }
@@ -774,6 +799,42 @@ void main() {
         debugDefaultTargetPlatformOverride = null;
       }
     });
+
+    test(
+      'does not replay setup commands when attaching existing sessions',
+      () async {
+        debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+        final attached = _FakeTerminalPtySession()
+          ..startedNewProcessValue = false;
+        final factory = _FakeTerminalPtySessionFactory(
+          sessions: <_FakeTerminalPtySession>[attached],
+        );
+        final runtime = XtermTerminalRuntime(
+          ptySessionFactory: factory,
+          shellLaunchesBuilder: () => <GhosttyTerminalShellLaunch>[
+            _launch('shell', shell: '/bin/sh', setupCommand: 'printf setup\n'),
+          ],
+        );
+        addTearDown(runtime.dispose);
+        try {
+          final session = runtime.sessionFor(
+            workspace: _workspace(),
+            tab: _tab(
+              payload: const <String, Object?>{
+                workspaceTabTerminalSessionIdPayloadKey: 'session-1',
+              },
+            ),
+          );
+
+          await session.ensureStarted();
+
+          expect(attached.startedWorkingDirectory, _workspace().path);
+          expect(attached.writes, isEmpty);
+        } finally {
+          debugDefaultTargetPlatformOverride = null;
+        }
+      },
+    );
 
     test(
       'restart suppresses old generations and emits exits for the active one',
@@ -1101,7 +1162,11 @@ class _FakeTerminalPtySessionFactory implements TerminalPtySessionFactory {
       <_FakeTerminalPtySession>[];
 
   @override
-  TerminalPtySession create() {
+  TerminalPtySession create({
+    required String sessionId,
+    required String workspaceId,
+    required String tabId,
+  }) {
     final session = _availableSessions.removeAt(0);
     createdSessions.add(session);
     return session;
@@ -1109,36 +1174,37 @@ class _FakeTerminalPtySessionFactory implements TerminalPtySessionFactory {
 }
 
 class _FakeTerminalPtySession implements TerminalPtySession {
-  _FakeTerminalPtySession({
-    this.startError,
-    this.startCompleter,
-    this.writeError,
-    this.resizeError,
-  });
+  _FakeTerminalPtySession({this.startError, this.startCompleter});
 
   final Object? startError;
   final Completer<void>? startCompleter;
-  final Object? writeError;
-  final Object? resizeError;
   final StreamController<TerminalPtySessionEvent> _events =
       StreamController<TerminalPtySessionEvent>.broadcast();
   final List<List<int>> writes = <List<int>>[];
   final List<_ResizeCall> resizeCalls = <_ResizeCall>[];
   GhosttyTerminalShellLaunch? startedLaunch;
+  String? startedWorkingDirectory;
   int? startedCols;
   int? startedRows;
   bool disposed = false;
+  bool terminated = false;
+  bool startedNewProcessValue = true;
 
   @override
   Stream<TerminalPtySessionEvent> get events => _events.stream;
 
   @override
+  bool get startedNewProcess => startedNewProcessValue;
+
+  @override
   Future<void> start({
     required GhosttyTerminalShellLaunch launch,
+    required String workingDirectory,
     required int cols,
     required int rows,
   }) async {
     startedLaunch = launch;
+    startedWorkingDirectory = workingDirectory;
     startedCols = cols;
     startedRows = rows;
     if (startError case final Object error) {
@@ -1151,18 +1217,12 @@ class _FakeTerminalPtySession implements TerminalPtySession {
 
   @override
   bool writeBytes(List<int> bytes) {
-    if (writeError case final Object error) {
-      throw error;
-    }
     writes.add(List<int>.from(bytes));
     return bytes.isNotEmpty;
   }
 
   @override
   void resize(int cols, int rows, int cellWidthPx, int cellHeightPx) {
-    if (resizeError case final Object error) {
-      throw error;
-    }
     resizeCalls.add(
       _ResizeCall(
         cols: cols,
@@ -1201,6 +1261,12 @@ class _FakeTerminalPtySession implements TerminalPtySession {
     }
     disposed = true;
     unawaited(_events.close());
+  }
+
+  @override
+  void terminate() {
+    terminated = true;
+    dispose();
   }
 }
 

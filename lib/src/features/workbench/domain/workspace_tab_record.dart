@@ -29,6 +29,7 @@ enum WorkspaceTabKind {
 }
 
 const String workspaceTabManualTitlePayloadKey = 'manualTitle';
+const String workspaceTabTerminalSessionIdPayloadKey = 'terminalSessionId';
 
 @MappableClass()
 class WorkspaceTabRecord with WorkspaceTabRecordMappable {
@@ -51,6 +52,11 @@ class WorkspaceTabRecord with WorkspaceTabRecordMappable {
   final Map<String, Object?> payload;
 
   bool get hasManualTitle => payload[workspaceTabManualTitlePayloadKey] == true;
+
+  String get terminalSessionId {
+    final value = payload[workspaceTabTerminalSessionIdPayloadKey];
+    return value is String && value.trim().isNotEmpty ? value : id;
+  }
 
   factory WorkspaceTabRecord.fromJson(Map<String, Object?> json) =>
       WorkspaceTabRecordMapper.fromMap(Map<String, dynamic>.from(json));

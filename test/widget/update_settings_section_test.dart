@@ -1,6 +1,5 @@
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
-import 'package:alera/src/features/updater/application/update_controller.dart';
 import 'package:alera/src/features/updater/domain/alera_update.dart';
 import 'package:alera/src/features/updater/presentation/update_settings_section.dart';
 import 'package:flutter/material.dart';
@@ -9,94 +8,95 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('UpdateSettingsSection', () {
-    testWidgets('renders copy, status actions, and progress across update states', (
-      tester,
-    ) async {
-      final controller = _FakeUpdateController(_state());
-      await _pumpSection(tester, controller);
+    testWidgets(
+      'renders copy, status actions, and progress across update states',
+      (tester) async {
+        final controller = _FakeUpdateController(_state());
+        await _pumpSection(tester, controller);
 
-      expect(find.text('Update status'), findsOneWidget);
-      expect(find.text('Check for updates'), findsOneWidget);
+        expect(find.text('Update status'), findsOneWidget);
+        expect(find.text('Check for updates'), findsOneWidget);
 
-      controller.setState(
-        _state(
-          status: AleraUpdateStatus.checking,
-          message: 'Checking for updates.',
-        ),
-      );
-      await tester.pump();
-      expect(find.text('Checking for updates'), findsOneWidget);
-      expect(find.text('Checking'), findsOneWidget);
+        controller.setState(
+          _state(
+            status: AleraUpdateStatus.checking,
+            message: 'Checking for updates.',
+          ),
+        );
+        await tester.pump();
+        expect(find.text('Checking for updates'), findsOneWidget);
+        expect(find.text('Checking'), findsOneWidget);
 
-      controller.setState(
-        _state(
-          status: AleraUpdateStatus.notAvailable,
-          latest: _latest(),
-          message: 'Alera is up to date.',
-        ),
-      );
-      await tester.pump();
-      expect(find.text('No update available'), findsOneWidget);
-      expect(find.text('Version 1.2.3 - Build 123'), findsOneWidget);
-      expect(find.text('Alera is up to date.'), findsOneWidget);
+        controller.setState(
+          _state(
+            status: AleraUpdateStatus.notAvailable,
+            latest: _latest(),
+            message: 'Alera is up to date.',
+          ),
+        );
+        await tester.pump();
+        expect(find.text('No update available'), findsOneWidget);
+        expect(find.text('Version 1.2.3 - Build 123'), findsOneWidget);
+        expect(find.text('Alera is up to date.'), findsOneWidget);
 
-      controller.setState(
-        _state(
-          status: AleraUpdateStatus.manualDownloadRequired,
-          latest: _latest(),
-          message: 'Manual download required.',
-        ),
-      );
-      await tester.pump();
-      expect(find.text('Manual update available'), findsOneWidget);
-      expect(find.text('Download manually'), findsOneWidget);
+        controller.setState(
+          _state(
+            status: AleraUpdateStatus.manualDownloadRequired,
+            latest: _latest(),
+            message: 'Manual download required.',
+          ),
+        );
+        await tester.pump();
+        expect(find.text('Manual update available'), findsOneWidget);
+        expect(find.text('Download manually'), findsOneWidget);
 
-      controller.setState(
-        _state(
-          status: AleraUpdateStatus.available,
-          latest: _latest(),
-          message: 'Ready to install.',
-        ),
-      );
-      await tester.pump();
-      expect(find.text('Update available'), findsOneWidget);
-      expect(find.text('Download update'), findsOneWidget);
+        controller.setState(
+          _state(
+            status: AleraUpdateStatus.available,
+            latest: _latest(),
+            message: 'Ready to install.',
+          ),
+        );
+        await tester.pump();
+        expect(find.text('Update available'), findsOneWidget);
+        expect(find.text('Download update'), findsOneWidget);
 
-      controller.setState(
-        _state(
-          status: AleraUpdateStatus.downloading,
-          latest: _latest(),
-          message: 'Downloading update 1.2.3.',
-          progress: 0.4,
-        ),
-      );
-      await tester.pump();
-      expect(find.text('Downloading update'), findsOneWidget);
-      expect(find.byType(LinearProgressIndicator), findsOneWidget);
+        controller.setState(
+          _state(
+            status: AleraUpdateStatus.downloading,
+            latest: _latest(),
+            message: 'Downloading update 1.2.3.',
+            progress: 0.4,
+          ),
+        );
+        await tester.pump();
+        expect(find.text('Downloading update'), findsOneWidget);
+        expect(find.byType(LinearProgressIndicator), findsOneWidget);
 
-      controller.setState(
-        _state(
-          status: AleraUpdateStatus.downloaded,
-          latest: _latest(),
-          message: 'Restart Alera to finish installing.',
-          progress: 1,
-        ),
-      );
-      await tester.pump();
-      expect(find.text('Restart required'), findsOneWidget);
-      expect(find.text('Restart Alera'), findsOneWidget);
+        controller.setState(
+          _state(
+            status: AleraUpdateStatus.downloaded,
+            latest: _latest(),
+            message: 'Restart Alera to finish installing.',
+            progress: 1,
+          ),
+        );
+        await tester.pump();
+        expect(find.text('Restart required'), findsOneWidget);
+        expect(find.text('Restart Alera'), findsOneWidget);
 
-      controller.setState(
-        _state(
-          status: AleraUpdateStatus.error,
-          latest: _latest(),
-          message: 'Update check failed: boom',
-        ),
-      );
-      await tester.pump();
-      expect(find.text('Update check failed'), findsOneWidget);
-      expect(find.text('Update check failed: boom'), findsOneWidget);
-    });
+        controller.setState(
+          _state(
+            status: AleraUpdateStatus.error,
+            latest: _latest(),
+            message: 'Update check failed: boom',
+          ),
+        );
+        await tester.pump();
+        expect(find.text('Update check failed'), findsOneWidget);
+        expect(find.text('Update check failed: boom'), findsOneWidget);
+      },
+    );
 
     testWidgets('dispatches the visible update actions to the controller', (
       tester,

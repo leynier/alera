@@ -52,6 +52,23 @@ add_subdirectory(${FLUTTER_MANAGED_DIR})
 # Application build; see runner/CMakeLists.txt.
 add_subdirectory("runner")
 
+find_program(DART_EXECUTABLE dart)
+if(NOT DART_EXECUTABLE)
+  message(FATAL_ERROR "dart executable is required to build the Alera CLI sidecar")
+endif()
+
+set(ALERA_CLI_OUTPUT_DIR "${CMAKE_BINARY_DIR}/alera_cli")
+set(ALERA_CLI_BUNDLE_DIR "${ALERA_CLI_OUTPUT_DIR}/bundle")
+set(ALERA_CLI_OUTPUT "${ALERA_CLI_BUNDLE_DIR}/bin/alera.exe")
+add_custom_target(alera_cli_sidecar ALL
+  COMMAND "${CMAKE_COMMAND}" -E remove_directory "${ALERA_CLI_OUTPUT_DIR}"
+  COMMAND "${DART_EXECUTABLE}" build cli --target "${CMAKE_CURRENT_SOURCE_DIR}/../bin/alera.dart" --output "${ALERA_CLI_OUTPUT_DIR}"
+  BYPRODUCTS "${ALERA_CLI_OUTPUT}"
+  WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.."
+  COMMENT "Building Alera CLI sidecar"
+  VERBATIM
+)
+add_dependencies(${BINARY_NAME} alera_cli_sidecar)
 
 # Generated plugin build rules, which manage building the plugins and adding
 # them to the application.
@@ -73,6 +90,10 @@ set(INSTALL_BUNDLE_DATA_DIR "${CMAKE_INSTALL_PREFIX}/data")
 set(INSTALL_BUNDLE_LIB_DIR "${CMAKE_INSTALL_PREFIX}")
 
 install(TARGETS ${BINARY_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}"
+  COMPONENT Runtime)
+
+install(DIRECTORY "${ALERA_CLI_BUNDLE_DIR}/"
+  DESTINATION "${CMAKE_INSTALL_PREFIX}/resources/alera"
   COMPONENT Runtime)
 
 install(FILES "${FLUTTER_ICU_DATA_FILE}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"

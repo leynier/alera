@@ -4,10 +4,8 @@ import 'dart:convert';
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
 import 'package:alera/src/shared/infra/uri/external_uri_launcher.dart';
-import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
-import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
@@ -783,7 +781,11 @@ class _FakeTerminalPtySessionFactory implements TerminalPtySessionFactory {
   final List<_FakeTerminalPtySession> sessions = <_FakeTerminalPtySession>[];
 
   @override
-  TerminalPtySession create() {
+  TerminalPtySession create({
+    required String sessionId,
+    required String workspaceId,
+    required String tabId,
+  }) {
     final session = _FakeTerminalPtySession();
     sessions.add(session);
     return session;
@@ -796,19 +798,26 @@ class _FakeTerminalPtySession implements TerminalPtySession {
   GhosttyTerminalShellLaunch? startedLaunch;
   int? startedCols;
   int? startedRows;
+  String? startedWorkingDirectory;
   bool disposed = false;
+  bool terminated = false;
   int? exitCodeOnDispose;
 
   @override
   Stream<TerminalPtySessionEvent> get events => _events.stream;
 
   @override
+  bool get startedNewProcess => true;
+
+  @override
   Future<void> start({
     required GhosttyTerminalShellLaunch launch,
+    required String workingDirectory,
     required int cols,
     required int rows,
   }) async {
     startedLaunch = launch;
+    startedWorkingDirectory = workingDirectory;
     startedCols = cols;
     startedRows = rows;
   }
@@ -843,6 +852,12 @@ class _FakeTerminalPtySession implements TerminalPtySession {
       _events.add(TerminalPtyExitEvent(exitCode));
     }
     unawaited(_events.close());
+  }
+
+  @override
+  void terminate() {
+    terminated = true;
+    dispose();
   }
 }
 

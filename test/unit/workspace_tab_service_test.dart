@@ -19,6 +19,7 @@ void main() {
         final tab = await service.ensureInitialTerminalTab('workspace-1');
 
         expect(tab.title, 'Terminal 1');
+        expect(tab.terminalSessionId, tab.id);
         expect(repository.tabs.single.title, 'Terminal 1');
       },
     );
@@ -51,6 +52,7 @@ void main() {
         final tab = await service.createTerminalTab('workspace-1');
 
         expect(tab.title, 'Terminal 2');
+        expect(tab.payload[workspaceTabTerminalSessionIdPayloadKey], tab.id);
         expect(
           repository.tabs.map((record) => record.title),
           contains('Terminal 2'),

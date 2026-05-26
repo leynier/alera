@@ -35,12 +35,16 @@ class WorkspaceTabService {
 
   Future<WorkspaceTabRecord> createTerminalTab(String workspaceId) async {
     final existing = await _repository.listWorkspaceTabs(workspaceId);
+    final tabId = _uuid.v4();
     final tab = WorkspaceTabRecord(
-      id: _uuid.v4(),
+      id: tabId,
       workspaceId: workspaceId,
       title: 'Terminal ${_nextOrdinal(existing)}',
       createdAt: _now(),
       updatedAt: _now(),
+      payload: <String, Object?>{
+        workspaceTabTerminalSessionIdPayloadKey: tabId,
+      },
     );
     await _repository.upsertWorkspaceTab(tab);
     return tab;

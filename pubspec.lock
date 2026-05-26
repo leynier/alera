@@ -66,7 +66,7 @@ packages:
     source: hosted
     version: "4.0.9"
   args:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: args
       sha256: d0481093c50b1da8910eb0bb301626d4d8eb7284aa739614d2b394ee09e3ea04
@@ -386,7 +386,7 @@ packages:
     source: hosted
     version: "0.9.5"
   file_selector_platform_interface:
-    dependency: transitive
+    dependency: "direct dev"
     description:
       name: file_selector_platform_interface
       sha256: "35e0bd61ebcdb91a3505813b055b09b79dfdc7d0aee9c09a7ba59ae4bb13dc85"
@@ -671,7 +671,7 @@ packages:
     source: hosted
     version: "0.13.0"
   meta:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: meta
       sha256: "1741988757a65eb6b36abe716829688cf01910bbf91c34354ff7ec1c3de2b349"
@@ -791,7 +791,7 @@ packages:
     source: hosted
     version: "2.2.1"
   path_provider_platform_interface:
-    dependency: transitive
+    dependency: "direct dev"
     description:
       name: path_provider_platform_interface
       sha256: "88f5779f72ba699763fa3a3b06aa4bf6de76c8e5de842cf6f29e2e06476c2334"
@@ -823,7 +823,7 @@ packages:
     source: hosted
     version: "3.1.6"
   plugin_platform_interface:
-    dependency: transitive
+    dependency: "direct dev"
     description:
       name: plugin_platform_interface
       sha256: "4820fbfdb9478b1ebae27888254d445073732dae3d6ea81f0b7e06d5dedc3f02"
@@ -1180,7 +1180,7 @@ packages:
     source: hosted
     version: "3.2.5"
   url_launcher_platform_interface:
-    dependency: transitive
+    dependency: "direct dev"
     description:
       name: url_launcher_platform_interface
       sha256: "552f8a1e663569be95a8190206a38187b531910283c3e982193e4f2733f01029"

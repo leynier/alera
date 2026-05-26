@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
@@ -322,8 +320,9 @@ void main() {
       await repository.upsertWorkspace(alpha);
 
       expect(
-        (await repository.listWorkspaces('project-1'))
-            .map((workspace) => workspace.name),
+        (await repository.listWorkspaces(
+          'project-1',
+        )).map((workspace) => workspace.name),
         <String>['alpha', 'zebra'],
       );
     });

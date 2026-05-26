@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class WelcomeDashboard extends ConsumerWidget {
+  // coverage:ignore-line
   const WelcomeDashboard({super.key});
 
   @override

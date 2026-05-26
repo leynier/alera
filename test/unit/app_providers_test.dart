@@ -1,11 +1,9 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:alera/src/app/dependencies.dart';
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/features/projects/application/project_service.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
-import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
@@ -171,6 +169,10 @@ void main() {
           container.read(externalUriLauncherProvider),
           isA<UrlLauncherExternalUriLauncher>(),
         );
+        expect(container.read(projectRepositoryProvider), isNotNull);
+        expect(container.read(workbenchRepositoryProvider), isNotNull);
+        expect(container.read(settingsRepositoryProvider), isNotNull);
+        expect(container.read(projectsServiceProvider), isNotNull);
         expect(
           await db.customSelect('SELECT 1 AS value').getSingle(),
           isNotNull,

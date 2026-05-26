@@ -84,6 +84,19 @@ Keep E2E tests deterministic:
 - Avoid network access.
 - Avoid native file pickers; paste paths directly into dialogs.
 
+## Terminal Host Checks
+
+Terminal persistence changes should include focused unit tests for the host client/session boundary and at least one manual or integration smoke on the current desktop platform: start a long-running terminal command, close Alera, reopen it, and confirm the terminal output continues under the same workspace tab. Explicit tab or workspace close must be checked separately because it should terminate the durable session instead of detaching.
+
+For local sidecar smoke tests, build the CLI with Dart's build-hook-aware CLI builder:
+
+```bash
+rm -rf .dart_tool/alera
+dart build cli --target bin/alera.dart --output .dart_tool/alera
+```
+
+The executable is written to `.dart_tool/alera/bundle/bin/alera` on macOS/Linux and `.dart_tool/alera/bundle/bin/alera.exe` on Windows. Keep the sibling `lib/` directory with it because build hooks may place native dynamic libraries there.
+
 ## Mocking
 
 Alera currently favors small hand-written fakes for repositories, process runners, and terminal runtimes because those boundaries are domain-specific and easy to inspect. `mocktail` is still a good Dart package when a test needs many interaction assertions or when a collaborator has a broad interface that would make a fake noisy. Prefer explicit fakes for durable behavior tests and use mocks sparingly for call verification.

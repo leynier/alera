@@ -244,6 +244,7 @@
 				33CC10EB2044A3C60003C045 /* Resources */,
 				33CC110E2044A8840003C045 /* Bundle Framework */,
 				3399D490228B24CF009A79C7 /* ShellScript */,
+				A17A00000000000000000001 /* Build Alera CLI Sidecar */,
 				4F96BE44017B35926F890442 /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
@@ -387,6 +388,25 @@
 			shellPath = /bin/sh;
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
+		};
+		A17A00000000000000000001 /* Build Alera CLI Sidecar */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Build Alera CLI Sidecar";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -eu\nDART_BIN=\"${FLUTTER_ROOT:-}/bin/cache/dart-sdk/bin/dart\"\nif [ ! -x \"$DART_BIN\" ]; then\n  DART_BIN=\"$(command -v dart || true)\"\nfi\nif [ -z \"$DART_BIN\" ] || [ ! -x \"$DART_BIN\" ]; then\n  echo \"error: dart executable is required to build the Alera CLI sidecar.\" >&2\n  exit 1\nfi\nBUILD_DIR=\"$DERIVED_FILE_DIR/alera_cli\"\nOUTPUT_DIR=\"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/alera\"\nrm -rf \"$BUILD_DIR\" \"$OUTPUT_DIR\"\nmkdir -p \"$OUTPUT_DIR\"\ncd \"$SRCROOT/..\"\n\"$DART_BIN\" build cli --target bin/alera.dart --output \"$BUILD_DIR\"\ncp -R \"$BUILD_DIR/bundle/.\" \"$OUTPUT_DIR/\"\nchmod 755 \"$OUTPUT_DIR/bin/alera\"\n";
 		};
 		B8884D6A98818EFA54DBE94B /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
