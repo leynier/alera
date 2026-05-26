@@ -100,7 +100,7 @@ void main() {
     });
 
     test(
-      'persists destructive confirmation and agent hook preferences',
+      'persists destructive confirmation and agent status preferences',
       () async {
         final db = AleraDatabase(executor: NativeDatabase.memory());
         addTearDown(db.close);
@@ -115,6 +115,7 @@ void main() {
         await controller.setConfirmProjectRemoval(false);
         await controller.setConfirmWorkspaceRemoval(false);
         await controller.setAgentStatusHooksEnabled(true);
+        await controller.setAgentStatusNotificationsEnabled(true);
 
         final restored = await repository.load();
         expect(
@@ -134,6 +135,7 @@ void main() {
         expect(restored.general.confirmProjectRemoval, isFalse);
         expect(restored.general.confirmWorkspaceRemoval, isFalse);
         expect(restored.general.agentStatusHooksEnabled, isTrue);
+        expect(restored.general.agentStatusNotificationsEnabled, isTrue);
       },
     );
 

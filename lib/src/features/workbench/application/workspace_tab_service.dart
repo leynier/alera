@@ -1,17 +1,21 @@
-// ignore_for_file: prefer_initializing_formals
-
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:uuid/uuid.dart';
 
 class WorkspaceTabService {
-  WorkspaceTabService({
+  factory WorkspaceTabService({
     required WorkbenchRepository repository,
     Uuid? uuid,
     DateTime Function()? now,
-  }) : _repository = repository,
-       _uuid = uuid ?? const Uuid(),
-       _now = now ?? _defaultNow;
+  }) {
+    return WorkspaceTabService._(
+      repository,
+      uuid ?? const Uuid(),
+      now ?? _defaultNow,
+    );
+  }
+
+  WorkspaceTabService._(this._repository, this._uuid, this._now);
 
   final WorkbenchRepository _repository;
   final Uuid _uuid;

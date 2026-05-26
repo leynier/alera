@@ -1,5 +1,3 @@
-// ignore_for_file: prefer_initializing_formals
-
 import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
@@ -12,16 +10,28 @@ import 'package:path/path.dart' as p;
 import 'package:portable_pty/portable_pty.dart';
 
 final class AleraTerminalHostServer {
-  AleraTerminalHostServer({
+  factory AleraTerminalHostServer({
     required String runtimeDir,
     required String controlFilePath,
     required String token,
     required TerminalHostConfig config,
-  }) : _runtimeDir = Directory(runtimeDir),
-       _controlFile = File(controlFilePath),
-       _token = token,
-       _config = config,
-       _historyDir = Directory(p.join(runtimeDir, 'sessions'));
+  }) {
+    return AleraTerminalHostServer._(
+      Directory(runtimeDir),
+      File(controlFilePath),
+      token,
+      config,
+      Directory(p.join(runtimeDir, 'sessions')),
+    );
+  }
+
+  AleraTerminalHostServer._(
+    this._runtimeDir,
+    this._controlFile,
+    this._token,
+    this._config,
+    this._historyDir,
+  );
 
   final Directory _runtimeDir;
   final Directory _historyDir;
@@ -310,29 +320,20 @@ final class AleraTerminalHostServer {
 }
 
 final class _TerminalHostSession {
-  _TerminalHostSession._({
-    required this.id,
-    required this.workspaceId,
-    required this.tabId,
-    required this.workingDirectory,
-    required File historyFile,
-    required PortablePty? pty,
-    required bool running,
-    required List<int> buffer,
-    required int? exitCode,
-    required DateTime? endedAt,
-    required int maxBufferBytes,
-    required void Function() onLifecycleChanged,
-  }) : _historyFile = historyFile,
-       _pty = pty,
-       _running = running,
-       _buffer = _TerminalHostByteBuffer(
-         maxBytes: maxBufferBytes,
-         initialBuffer: buffer,
-       ),
-       _exitCode = exitCode,
-       _endedAt = endedAt,
-       _onLifecycleChanged = onLifecycleChanged;
+  _TerminalHostSession._(
+    this.id,
+    this.workspaceId,
+    this.tabId,
+    this.workingDirectory,
+    this._historyFile,
+    this._pty,
+    this._running,
+    List<int> buffer,
+    this._exitCode,
+    this._endedAt,
+    int maxBufferBytes,
+    this._onLifecycleChanged,
+  ) : _buffer = _TerminalHostByteBuffer(maxBufferBytes, buffer);
 
   static Future<_TerminalHostSession> start({
     required String id,
@@ -358,18 +359,18 @@ final class _TerminalHostSession {
       rethrow;
     }
     final session = _TerminalHostSession._(
-      id: id,
-      workspaceId: workspaceId,
-      tabId: tabId,
-      workingDirectory: workingDirectory,
-      historyFile: historyFile,
-      pty: pty,
-      running: true,
-      buffer: const <int>[],
-      exitCode: null,
-      endedAt: null,
-      maxBufferBytes: maxBufferBytes,
-      onLifecycleChanged: onLifecycleChanged,
+      id,
+      workspaceId,
+      tabId,
+      workingDirectory,
+      historyFile,
+      pty,
+      true,
+      const <int>[],
+      null,
+      null,
+      maxBufferBytes,
+      onLifecycleChanged,
     );
     await session._writeCheckpoint();
     await session._startReader(pty);
@@ -392,34 +393,34 @@ final class _TerminalHostSession {
       final map = asTerminalHostMap(decoded, 'terminal host history');
       if (map['endedAt'] == null) {
         return _TerminalHostSession._(
-          id: sessionId,
-          workspaceId: workspaceId,
-          tabId: tabId,
-          workingDirectory: (map['workingDirectory'] as String?) ?? '',
-          historyFile: historyFile,
-          pty: null,
-          running: false,
-          buffer: decodeTerminalHostBytes(map['bufferBase64']),
-          exitCode: -1,
-          endedAt: null,
-          maxBufferBytes: maxBufferBytes,
-          onLifecycleChanged: onLifecycleChanged,
+          sessionId,
+          workspaceId,
+          tabId,
+          (map['workingDirectory'] as String?) ?? '',
+          historyFile,
+          null,
+          false,
+          decodeTerminalHostBytes(map['bufferBase64']),
+          -1,
+          null,
+          maxBufferBytes,
+          onLifecycleChanged,
         );
       }
       final endedAt = DateTime.tryParse(map['endedAt'] as String? ?? '');
       return _TerminalHostSession._(
-        id: sessionId,
-        workspaceId: workspaceId,
-        tabId: tabId,
-        workingDirectory: (map['workingDirectory'] as String?) ?? '',
-        historyFile: historyFile,
-        pty: null,
-        running: false,
-        buffer: decodeTerminalHostBytes(map['bufferBase64']),
-        exitCode: (map['exitCode'] as int?) ?? 0,
-        endedAt: endedAt,
-        maxBufferBytes: maxBufferBytes,
-        onLifecycleChanged: onLifecycleChanged,
+        sessionId,
+        workspaceId,
+        tabId,
+        (map['workingDirectory'] as String?) ?? '',
+        historyFile,
+        null,
+        false,
+        decodeTerminalHostBytes(map['bufferBase64']),
+        (map['exitCode'] as int?) ?? 0,
+        endedAt,
+        maxBufferBytes,
+        onLifecycleChanged,
       );
     } catch (_) {
       return null;
@@ -632,10 +633,10 @@ final class _TerminalHostSession {
 }
 
 final class _TerminalHostByteBuffer {
-  _TerminalHostByteBuffer({
-    required int maxBytes,
+  _TerminalHostByteBuffer(
+    this._maxBytes, [
     List<int> initialBuffer = const <int>[],
-  }) : _maxBytes = maxBytes {
+  ]) {
     if (initialBuffer.isNotEmpty) {
       append(Uint8List.fromList(initialBuffer));
     }

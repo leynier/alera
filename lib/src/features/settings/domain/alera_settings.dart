@@ -119,6 +119,7 @@ class GeneralSettings with GeneralSettingsMappable {
     this.confirmProjectRemoval = true,
     this.confirmWorkspaceRemoval = true,
     this.agentStatusHooksEnabled = false,
+    this.agentStatusNotificationsEnabled = false,
   });
 
   /// User-configured root directory where new linked workspaces are created.
@@ -139,6 +140,9 @@ class GeneralSettings with GeneralSettingsMappable {
   /// Install managed Codex and Claude Code hooks for local Alera terminal
   /// status. Default-off because enabling it edits user agent config files.
   final bool agentStatusHooksEnabled;
+
+  /// Show native desktop notifications for local agent status events.
+  final bool agentStatusNotificationsEnabled;
 
   static const GeneralSettings defaults = GeneralSettings();
 

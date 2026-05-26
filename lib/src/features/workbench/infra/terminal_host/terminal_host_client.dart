@@ -1,5 +1,3 @@
-// ignore_for_file: prefer_initializing_formals
-
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -106,9 +104,13 @@ abstract interface class TerminalHostProcessLauncher {
 // coverage:ignore-start
 final class DefaultTerminalHostProcessLauncher
     implements TerminalHostProcessLauncher {
-  const DefaultTerminalHostProcessLauncher({
-    AleraCliResolver cliResolver = const DefaultAleraCliResolver(),
-  }) : _cliResolver = cliResolver;
+  factory DefaultTerminalHostProcessLauncher({AleraCliResolver? cliResolver}) {
+    return DefaultTerminalHostProcessLauncher._(
+      cliResolver ?? DefaultAleraCliResolver(),
+    );
+  }
+
+  DefaultTerminalHostProcessLauncher._(this._cliResolver);
 
   final AleraCliResolver _cliResolver;
 
@@ -147,17 +149,26 @@ final class DefaultTerminalHostProcessLauncher
 // coverage:ignore-end
 
 final class SocketTerminalHostClient implements TerminalHostClient {
-  SocketTerminalHostClient({
-    TerminalHostProcessLauncher launcher =
-        const DefaultTerminalHostProcessLauncher(),
+  factory SocketTerminalHostClient({
+    TerminalHostProcessLauncher? launcher,
     Future<Directory> Function()? applicationSupportDirectory,
     Duration startupTimeout = const Duration(seconds: 8),
     TerminalHostConfig initialConfig = TerminalHostConfig.defaults,
-  }) : _launcher = launcher,
-       _applicationSupportDirectory =
-           applicationSupportDirectory ?? getApplicationSupportDirectory,
-       _startupTimeout = startupTimeout,
-       _config = initialConfig;
+  }) {
+    return SocketTerminalHostClient._(
+      launcher ?? DefaultTerminalHostProcessLauncher(),
+      applicationSupportDirectory ?? getApplicationSupportDirectory,
+      startupTimeout,
+      initialConfig,
+    );
+  }
+
+  SocketTerminalHostClient._(
+    this._launcher,
+    this._applicationSupportDirectory,
+    this._startupTimeout,
+    this._config,
+  );
 
   final TerminalHostProcessLauncher _launcher;
   final Future<Directory> Function() _applicationSupportDirectory;

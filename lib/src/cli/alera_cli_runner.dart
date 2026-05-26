@@ -1,5 +1,3 @@
-// ignore_for_file: prefer_initializing_formals
-
 import 'dart:async';
 import 'dart:io' as io;
 
@@ -42,14 +40,20 @@ Future<int> runAleraCli(
 }
 
 final class AleraCliCommandRunner extends CommandRunner<int> {
-  AleraCliCommandRunner({
+  factory AleraCliCommandRunner({
     required StringSink stdout,
     required TerminalHostServerRunner terminalHostServerRunner,
-  }) : _stdout = stdout,
-       super('alera', 'Alera command line tools.') {
+  }) {
+    return AleraCliCommandRunner._(stdout, terminalHostServerRunner);
+  }
+
+  AleraCliCommandRunner._(
+    this._stdout,
+    TerminalHostServerRunner terminalHostServerRunner,
+  ) : super('alera', 'Alera command line tools.') {
     addCommand(
       AleraTerminalHostCommand(
-        stdout: stdout,
+        stdout: _stdout,
         terminalHostServerRunner: terminalHostServerRunner,
       ),
     );
@@ -76,11 +80,14 @@ final class AleraCliCommandRunner extends CommandRunner<int> {
 }
 
 final class AleraTerminalHostCommand extends Command<int> {
-  AleraTerminalHostCommand({
+  factory AleraTerminalHostCommand({
     required StringSink stdout,
     required TerminalHostServerRunner terminalHostServerRunner,
-  }) : _stdout = stdout,
-       _terminalHostServerRunner = terminalHostServerRunner {
+  }) {
+    return AleraTerminalHostCommand._(stdout, terminalHostServerRunner);
+  }
+
+  AleraTerminalHostCommand._(this._stdout, this._terminalHostServerRunner) {
     argParser
       ..addOption(
         'runtime-dir',

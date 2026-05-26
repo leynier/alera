@@ -1,5 +1,3 @@
-// ignore_for_file: prefer_initializing_formals
-
 import 'dart:io';
 
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
@@ -22,20 +20,27 @@ abstract interface class AleraCliResolver {
 }
 
 final class DefaultAleraCliResolver implements AleraCliResolver {
-  const DefaultAleraCliResolver({
+  DefaultAleraCliResolver({
     Map<String, String>? environment,
     String? operatingSystem,
     String? resolvedExecutable,
     String? currentDirectoryPath,
-  }) : _environment = environment,
-       _operatingSystem = operatingSystem,
-       _resolvedExecutable = resolvedExecutable,
-       _currentDirectoryPath = currentDirectoryPath;
+  }) : _options = _DefaultAleraCliResolverOptions(
+         environment: environment,
+         operatingSystem: operatingSystem,
+         resolvedExecutable: resolvedExecutable,
+         currentDirectoryPath: currentDirectoryPath,
+       );
 
-  final Map<String, String>? _environment;
-  final String? _operatingSystem;
-  final String? _resolvedExecutable;
-  final String? _currentDirectoryPath;
+  final _DefaultAleraCliResolverOptions _options;
+
+  Map<String, String>? get _environment => _options.environment;
+
+  String? get _operatingSystem => _options.operatingSystem;
+
+  String? get _resolvedExecutable => _options.resolvedExecutable;
+
+  String? get _currentDirectoryPath => _options.currentDirectoryPath;
 
   @override
   Future<AleraCliCommand> resolve({required String runtimeDir}) async {
@@ -199,4 +204,18 @@ String? _nonBlank(String? value) {
     return null;
   }
   return trimmed;
+}
+
+final class _DefaultAleraCliResolverOptions {
+  const _DefaultAleraCliResolverOptions({
+    required this.environment,
+    required this.operatingSystem,
+    required this.resolvedExecutable,
+    required this.currentDirectoryPath,
+  });
+
+  final Map<String, String>? environment;
+  final String? operatingSystem;
+  final String? resolvedExecutable;
+  final String? currentDirectoryPath;
 }

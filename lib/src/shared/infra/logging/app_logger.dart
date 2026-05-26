@@ -1,3 +1,5 @@
+import 'dart:io' as io;
+
 import 'package:logging/logging.dart';
 
 class AppLogger {
@@ -13,8 +15,9 @@ class AppLogger {
     Logger.root.level = level;
     Logger.root.onRecord.listen((record) {
       // Keep log format plain so it is easy to ingest in desktop log files.
-      // ignore: avoid_print
-      print('[${record.level.name}] ${record.loggerName}: ${record.message}');
+      io.stdout.writeln(
+        '[${record.level.name}] ${record.loggerName}: ${record.message}',
+      );
     });
   }
 }

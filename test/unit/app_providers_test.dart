@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:alera/src/app/providers.dart';
+import 'package:alera/src/features/agent_status/application/agent_status_notifications.dart';
+import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/projects/application/project_service.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
@@ -150,6 +152,49 @@ void main() {
             scrollbackBytes: 4096,
           ).toJson(),
         );
+      },
+    );
+
+    test(
+      'notification coordinator emits native notifications for done states',
+      () async {
+        final presenter = _FakeNotificationPresenter();
+        final settings = AleraSettings.defaults.copyWith(
+          general: AleraSettings.defaults.general.copyWith(
+            agentStatusHooksEnabled: true,
+            agentStatusNotificationsEnabled: true,
+          ),
+        );
+        final container = ProviderContainer(
+          overrides: [
+            settingsControllerProvider.overrideWithValue(settings),
+            agentStatusNotificationPresenterProvider.overrideWithValue(
+              presenter,
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        container.read(agentStatusNotificationCoordinatorProvider);
+        container
+            .read(agentStatusControllerProvider.notifier)
+            .applyHookEvent(
+              const AgentHookEvent(
+                terminalSessionId: 'session-1',
+                workspaceId: 'workspace-1',
+                tabId: 'tab-1',
+                agentType: AgentType.codex,
+                hookEventName: 'Stop',
+                payload: <String, Object?>{'prompt': 'Run tests'},
+              ),
+            );
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
+
+        expect(presenter.initializeCalls, 1);
+        expect(presenter.notifications, hasLength(1));
+        expect(presenter.notifications.single.title, 'Codex finished');
+        expect(presenter.notifications.single.body, 'Run tests');
       },
     );
 
@@ -505,6 +550,26 @@ class _ProcessCall {
 class _FakeExternalUriLauncher implements ExternalUriLauncher {
   @override
   Future<void> open(Uri uri) async {}
+}
+
+class _FakeNotificationPresenter implements AgentStatusNotificationPresenter {
+  int initializeCalls = 0;
+  final List<AgentStatusNotification> notifications =
+      <AgentStatusNotification>[];
+  AgentStatusNotificationSelectionHandler? onSelected;
+
+  @override
+  Future<void> initialize({
+    required AgentStatusNotificationSelectionHandler onSelected,
+  }) async {
+    initializeCalls++;
+    this.onSelected = onSelected;
+  }
+
+  @override
+  Future<void> show(AgentStatusNotification notification) async {
+    notifications.add(notification);
+  }
 }
 
 class _FakeTerminalRuntime implements TerminalRuntime {

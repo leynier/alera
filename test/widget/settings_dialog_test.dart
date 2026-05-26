@@ -239,6 +239,41 @@ void main() {
     expect(find.text('Confirm workspace removal'), findsOneWidget);
   });
 
+  testWidgets('edits agent status notification settings', (tester) async {
+    final container = await pumpSettingsDialog(tester);
+
+    await tester.ensureVisible(find.text('Agent status notifications'));
+    await tester.pump();
+
+    expect(find.text('Agent status hooks'), findsOneWidget);
+    expect(find.text('Agent status notifications'), findsOneWidget);
+
+    await tester.tap(find.byType(Switch).at(2));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.byType(Switch).at(3));
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(
+      container
+          .read(settingsControllerProvider)
+          .general
+          .agentStatusHooksEnabled,
+      isTrue,
+    );
+    expect(
+      container
+          .read(settingsControllerProvider)
+          .general
+          .agentStatusNotificationsEnabled,
+      isTrue,
+    );
+
+    await tester.enterText(find.byType(TextField).first, 'notification');
+    await tester.pump();
+
+    expect(find.text('Agent status notifications'), findsOneWidget);
+  });
+
   testWidgets('edits terminal color override via color picker dialog', (
     tester,
   ) async {

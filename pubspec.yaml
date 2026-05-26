@@ -33,6 +33,8 @@ dependencies:
   sqlite3_flutter_libs: ^0.6.0+eol
   shelf: ^1.4.2
   shelf_router: ^1.1.4
+  flutter_local_notifications: ^21.0.0
+  window_manager: ^0.5.1
 dev_dependencies:
   alchemist: ^0.14.0
   build_runner: ^2.15.0

@@ -225,6 +225,11 @@ const List<_SettingsSearchEntry> _generalSearchEntries = <_SettingsSearchEntry>[
     keywords: <String>['codex', 'claude', 'agent', 'status', 'hooks'],
   ),
   _SettingsSearchEntry(
+    title: 'Agent status notifications',
+    description: 'Show native notifications when agents need attention.',
+    keywords: <String>['codex', 'claude', 'agent', 'status', 'notification'],
+  ),
+  _SettingsSearchEntry(
     title: 'Updates',
     description: 'Check desktop releases for this platform.',
     keywords: <String>['release', 'download', 'version'],
@@ -629,6 +634,15 @@ class _GeneralSettingsPane extends ConsumerWidget {
               onChanged: (value) => ref
                   .read(settingsControllerProvider.notifier)
                   .setAgentStatusHooksEnabled(value),
+            ),
+            _SwitchSettingRow(
+              title: 'Agent status notifications',
+              description:
+                  'Show native notifications when an agent needs attention or finishes.',
+              value: general.agentStatusNotificationsEnabled,
+              onChanged: (value) => ref
+                  .read(settingsControllerProvider.notifier)
+                  .setAgentStatusNotificationsEnabled(value),
             ),
           ],
         ),

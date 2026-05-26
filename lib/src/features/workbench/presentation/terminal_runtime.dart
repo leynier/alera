@@ -1,5 +1,3 @@
-// ignore_for_file: prefer_initializing_formals
-
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi' as ffi;
@@ -414,19 +412,29 @@ void handleGhosttyEventForTesting(
 }
 
 class XtermTerminalRuntime implements TerminalRuntime {
-  XtermTerminalRuntime({
+  factory XtermTerminalRuntime({
     TerminalPtySessionFactory? ptySessionFactory,
     TerminalSettings? initialSettings,
     ExternalUriLauncher? externalUriLauncher,
     List<GhosttyTerminalShellLaunch> Function()? shellLaunchesBuilder,
     TerminalLaunchEnvironmentBuilder? agentHookEnvironmentBuilder,
-  }) : _settings = initialSettings ?? TerminalSettings.defaults,
-       _externalUriLauncher =
-           externalUriLauncher ?? UrlLauncherExternalUriLauncher(),
-       _ptySessionFactory =
-           ptySessionFactory ?? const DefaultTerminalPtySessionFactory(),
-       _shellLaunchesBuilder = shellLaunchesBuilder ?? _terminalShellLaunches,
-       _agentHookEnvironmentBuilder = agentHookEnvironmentBuilder;
+  }) {
+    return XtermTerminalRuntime._(
+      ptySessionFactory ?? const DefaultTerminalPtySessionFactory(),
+      initialSettings ?? TerminalSettings.defaults,
+      externalUriLauncher ?? UrlLauncherExternalUriLauncher(),
+      shellLaunchesBuilder ?? _terminalShellLaunches,
+      agentHookEnvironmentBuilder,
+    );
+  }
+
+  XtermTerminalRuntime._(
+    this._ptySessionFactory,
+    this._settings,
+    this._externalUriLauncher,
+    this._shellLaunchesBuilder,
+    this._agentHookEnvironmentBuilder,
+  );
 
   final TerminalPtySessionFactory _ptySessionFactory;
   final ExternalUriLauncher _externalUriLauncher;
@@ -456,14 +464,14 @@ class XtermTerminalRuntime implements TerminalRuntime {
     return _sessions
         .putIfAbsent(tab.id, () {
           return _XtermTerminalSessionHandle(
-            workspace: workspace,
-            tab: tab,
-            ptySessionFactory: _ptySessionFactory,
-            settings: _settings,
-            externalUriLauncher: _externalUriLauncher,
-            shellLaunchesBuilder: _shellLaunchesBuilder,
-            agentHookEnvironmentBuilder: _agentHookEnvironmentBuilder,
-            onExit: _handleSessionExit,
+            workspace,
+            tab,
+            _ptySessionFactory,
+            _settings,
+            _externalUriLauncher,
+            _shellLaunchesBuilder,
+            _agentHookEnvironmentBuilder,
+            _handleSessionExit,
           );
         })
         .sync(workspace: workspace, tab: tab);
@@ -502,23 +510,16 @@ class XtermTerminalRuntime implements TerminalRuntime {
 }
 
 class _XtermTerminalSessionHandle extends TerminalSessionHandle {
-  _XtermTerminalSessionHandle({
-    required Workspace workspace,
-    required WorkspaceTabRecord tab,
-    required TerminalPtySessionFactory ptySessionFactory,
-    required TerminalSettings settings,
-    required ExternalUriLauncher externalUriLauncher,
-    required List<GhosttyTerminalShellLaunch> Function() shellLaunchesBuilder,
-    required TerminalLaunchEnvironmentBuilder? agentHookEnvironmentBuilder,
-    required void Function(TerminalRuntimeExitEvent event) onExit,
-  }) : _workspace = workspace,
-       _tab = tab,
-       _ptySessionFactory = ptySessionFactory,
-       _settings = settings,
-       _externalUriLauncher = externalUriLauncher,
-       _shellLaunchesBuilder = shellLaunchesBuilder,
-       _agentHookEnvironmentBuilder = agentHookEnvironmentBuilder,
-       _onExit = onExit {
+  _XtermTerminalSessionHandle(
+    this._workspace,
+    this._tab,
+    this._ptySessionFactory,
+    this._settings,
+    this._externalUriLauncher,
+    this._shellLaunchesBuilder,
+    this._agentHookEnvironmentBuilder,
+    this._onExit,
+  ) {
     _terminal = _createTerminal();
     _osc8LinkTracker = Osc8TerminalLinkTracker(terminal: _terminal);
     _attachTerminal(_terminal);

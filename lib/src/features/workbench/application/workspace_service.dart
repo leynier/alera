@@ -1,5 +1,3 @@
-// ignore_for_file: prefer_initializing_formals
-
 import 'dart:io';
 
 import 'dart:convert';
@@ -31,8 +29,11 @@ class WorkspaceException implements Exception {
 /// Resolves the on-disk root for Alera-managed workspaces. Linked workspaces
 /// are implemented as Git worktrees under this root.
 class WorkspaceRoot {
-  WorkspaceRoot({this.override, Map<String, String>? environment})
-    : _environment = environment ?? Platform.environment;
+  factory WorkspaceRoot({String? override, Map<String, String>? environment}) {
+    return WorkspaceRoot._(override, environment ?? Platform.environment);
+  }
+
+  WorkspaceRoot._(this.override, this._environment);
 
   final String? override;
   final Map<String, String> _environment;
@@ -51,19 +52,32 @@ class WorkspaceRoot {
 }
 
 class WorkspaceService {
-  WorkspaceService({
+  factory WorkspaceService({
     required WorkbenchRepository repository,
     required ProjectService projectService,
     required ProcessRunner processRunner,
     WorkspaceRoot? workspaceRoot,
     Uuid? uuid,
     DateTime Function()? now,
-  }) : _repository = repository,
-       _projectService = projectService,
-       _processRunner = processRunner,
-       _workspaceRoot = workspaceRoot ?? WorkspaceRoot(),
-       _uuid = uuid ?? const Uuid(),
-       _now = now ?? _defaultNow;
+  }) {
+    return WorkspaceService._(
+      repository,
+      projectService,
+      processRunner,
+      workspaceRoot ?? WorkspaceRoot(),
+      uuid ?? const Uuid(),
+      now ?? _defaultNow,
+    );
+  }
+
+  WorkspaceService._(
+    this._repository,
+    this._projectService,
+    this._processRunner,
+    this._workspaceRoot,
+    this._uuid,
+    this._now,
+  );
 
   final WorkbenchRepository _repository;
   final ProjectService _projectService;

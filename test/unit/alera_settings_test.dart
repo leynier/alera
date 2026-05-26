@@ -36,6 +36,7 @@ void main() {
       expect(general.confirmProjectRemoval, isTrue);
       expect(general.confirmWorkspaceRemoval, isTrue);
       expect(general.agentStatusHooksEnabled, isFalse);
+      expect(general.agentStatusNotificationsEnabled, isFalse);
     });
 
     test('small settings fragments round-trip through json', () {
@@ -49,6 +50,7 @@ void main() {
         'confirmProjectRemoval': false,
         'confirmWorkspaceRemoval': true,
         'agentStatusHooksEnabled': true,
+        'agentStatusNotificationsEnabled': true,
       });
 
       expect(overrides.foreground, '#ffffff');
@@ -56,6 +58,7 @@ void main() {
       expect(general.workspaceDirectory, '/tmp/workspaces');
       expect(general.starClicked, isTrue);
       expect(general.agentStatusHooksEnabled, isTrue);
+      expect(general.agentStatusNotificationsEnabled, isTrue);
     });
 
     test('round-trips through json', () {
@@ -64,6 +67,7 @@ void main() {
           confirmProjectRemoval: false,
           confirmWorkspaceRemoval: false,
           agentStatusHooksEnabled: true,
+          agentStatusNotificationsEnabled: true,
         ),
         terminal: TerminalSettings(
           fontFamily: 'SF Mono',
@@ -102,6 +106,8 @@ void main() {
 
       expect(restored.general.confirmProjectRemoval, isFalse);
       expect(restored.general.confirmWorkspaceRemoval, isFalse);
+      expect(restored.general.agentStatusHooksEnabled, isTrue);
+      expect(restored.general.agentStatusNotificationsEnabled, isTrue);
       expect(restored.terminal.fontFamily, 'SF Mono');
       expect(restored.terminal.fontSize, 15);
       expect(restored.terminal.fontWeight, 500);

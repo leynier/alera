@@ -1,5 +1,3 @@
-// ignore_for_file: prefer_initializing_formals
-
 import 'dart:async';
 
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client.dart';
@@ -7,8 +5,11 @@ import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart'
 import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
 
 final class TerminalHostPtySessionFactory implements TerminalPtySessionFactory {
-  const TerminalHostPtySessionFactory({required TerminalHostClient client})
-    : _client = client;
+  factory TerminalHostPtySessionFactory({required TerminalHostClient client}) {
+    return TerminalHostPtySessionFactory._(client);
+  }
+
+  TerminalHostPtySessionFactory._(this._client);
 
   final TerminalHostClient _client;
 
@@ -28,15 +29,21 @@ final class TerminalHostPtySessionFactory implements TerminalPtySessionFactory {
 }
 
 final class TerminalHostPtySession implements TerminalPtySession {
-  TerminalHostPtySession({
+  factory TerminalHostPtySession({
     required TerminalHostClient client,
     required String sessionId,
     required String workspaceId,
     required String tabId,
-  }) : _client = client,
-       _sessionId = sessionId,
-       _workspaceId = workspaceId,
-       _tabId = tabId;
+  }) {
+    return TerminalHostPtySession._(client, sessionId, workspaceId, tabId);
+  }
+
+  TerminalHostPtySession._(
+    this._client,
+    this._sessionId,
+    this._workspaceId,
+    this._tabId,
+  );
 
   final TerminalHostClient _client;
   final String _sessionId;

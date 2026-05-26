@@ -14,15 +14,23 @@ import 'package:shelf_router/shelf_router.dart';
 typedef ApplicationSupportDirectoryResolver = Future<Directory> Function();
 
 class AgentHookReceiver {
-  AgentHookReceiver({
+  factory AgentHookReceiver({
     required AgentStatusSink statusSink,
     ApplicationSupportDirectoryResolver? applicationSupportDirectory,
     String? token,
-    // ignore: prefer_initializing_formals
-  }) : _statusSink = statusSink,
-       _applicationSupportDirectory =
-           applicationSupportDirectory ?? getApplicationSupportDirectory,
-       _token = token ?? createAgentHookToken();
+  }) {
+    return AgentHookReceiver._(
+      statusSink,
+      applicationSupportDirectory ?? getApplicationSupportDirectory,
+      token ?? createAgentHookToken(),
+    );
+  }
+
+  AgentHookReceiver._(
+    this._statusSink,
+    this._applicationSupportDirectory,
+    this._token,
+  );
 
   final AgentStatusSink _statusSink;
   final ApplicationSupportDirectoryResolver _applicationSupportDirectory;
