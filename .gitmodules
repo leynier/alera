@@ -16,8 +16,8 @@
 [submodule "third_party/xterm"]
 	path = third_party/xterm
 	url = https://github.com/leynier/xterm.dart.git
-	branch = fix/scroll-region-buffer-line-move
+	branch = next
 [submodule "third_party/dart_terminal"]
 	path = third_party/dart_terminal
 	url = https://github.com/leynier/dart_terminal.git
-	branch = fix/puro-pub-cache-detection
+	branch = next
