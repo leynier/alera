@@ -2,20 +2,26 @@ PODS:
   - cryptography_flutter_plus (0.2.0):
     - FlutterMacOS
   - FlutterMacOS (1.0.0)
+  - screen_retriever_macos (0.0.1):
+    - FlutterMacOS
 
 DEPENDENCIES:
   - cryptography_flutter_plus (from `Flutter/ephemeral/.symlinks/plugins/cryptography_flutter_plus/macos`)
   - FlutterMacOS (from `Flutter/ephemeral`)
+  - screen_retriever_macos (from `Flutter/ephemeral/.symlinks/plugins/screen_retriever_macos/macos`)
 
 EXTERNAL SOURCES:
   cryptography_flutter_plus:
     :path: Flutter/ephemeral/.symlinks/plugins/cryptography_flutter_plus/macos
   FlutterMacOS:
     :path: Flutter/ephemeral
+  screen_retriever_macos:
+    :path: Flutter/ephemeral/.symlinks/plugins/screen_retriever_macos/macos
 
 SPEC CHECKSUMS:
   cryptography_flutter_plus: b790cf76f050be15566d4ae320574b35cff72d1e
   FlutterMacOS: d0db08ddef1a9af05a5ec4b724367152bb0500b1
+  screen_retriever_macos: 776e0fa5d42c6163d2bf772d22478df4b302b161
 
 PODFILE CHECKSUM: 54d867c82ac51cbd61b565781b9fada492027009
 
