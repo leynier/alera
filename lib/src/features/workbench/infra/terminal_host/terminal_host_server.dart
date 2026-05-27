@@ -145,12 +145,19 @@ final class AleraTerminalHostServer {
         client.write(<String, Object?>{
           'id': requestId,
           'ok': false,
-          'error': error.toString(),
+          'error': _terminalHostErrorMessage(error),
         });
       } else {
         client.dispose();
       }
     }
+  }
+
+  String _terminalHostErrorMessage(Object error) {
+    if (error is StateError) {
+      return error.message;
+    }
+    return error.toString();
   }
 
   Future<Map<String, Object?>> _handleRequest(

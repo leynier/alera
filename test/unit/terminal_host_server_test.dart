@@ -238,7 +238,10 @@ void main() {
         'dataBase64': '',
       });
       expect(missingSession['ok'], isFalse);
-      expect(missingSession['error'], contains('not attached'));
+      expect(
+        missingSession['error'],
+        'Terminal session is not attached: missing',
+      );
 
       final unknown = await client.request(
         'unknown',

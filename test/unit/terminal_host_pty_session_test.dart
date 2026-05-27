@@ -132,6 +132,180 @@ void main() {
   );
 
   test(
+    'host PTY session reattaches and retries writes after stale host state',
+    () async {
+      final client = _FakeTerminalHostClient(
+        attachment: TerminalHostAttachment(
+          sessionId: 'session-1',
+          created: true,
+          running: true,
+          snapshot: Uint8List(0),
+        ),
+        attachments: <TerminalHostAttachment>[
+          TerminalHostAttachment(
+            sessionId: 'session-1',
+            created: true,
+            running: true,
+            snapshot: Uint8List(0),
+          ),
+          TerminalHostAttachment(
+            sessionId: 'session-1',
+            created: true,
+            running: true,
+            snapshot: Uint8List(0),
+          ),
+        ],
+      );
+      client.writeErrors.add(
+        StateError('Terminal session is not attached: session-1'),
+      );
+      final session = TerminalHostPtySession(
+        client: client,
+        sessionId: 'session-1',
+        workspaceId: 'workspace-1',
+        tabId: 'tab-1',
+      );
+      addTearDown(session.dispose);
+      final events = <TerminalPtySessionEvent>[];
+      final sub = session.events.listen(events.add);
+      addTearDown(sub.cancel);
+
+      await session.start(
+        launch: _launch(),
+        workingDirectory: '/repo',
+        cols: 80,
+        rows: 24,
+      );
+      expect(session.writeBytes(<int>[9, 10]), isTrue);
+      await _flushAsync();
+
+      expect(client.attachCalls, hasLength(2));
+      expect(client.attachCalls.last.workingDirectory, '/repo');
+      expect(client.attachCalls.last.cols, 80);
+      expect(client.attachCalls.last.rows, 24);
+      expect(client.writes, <List<int>>[
+        <int>[9, 10],
+      ]);
+      expect(events.whereType<TerminalPtyErrorEvent>(), isEmpty);
+    },
+  );
+
+  test(
+    'host PTY session reattaches with the latest size before resizing',
+    () async {
+      final client = _FakeTerminalHostClient(
+        attachment: TerminalHostAttachment(
+          sessionId: 'session-1',
+          created: true,
+          running: true,
+          snapshot: Uint8List(0),
+        ),
+        attachments: <TerminalHostAttachment>[
+          TerminalHostAttachment(
+            sessionId: 'session-1',
+            created: true,
+            running: true,
+            snapshot: Uint8List(0),
+          ),
+          TerminalHostAttachment(
+            sessionId: 'session-1',
+            created: true,
+            running: true,
+            snapshot: Uint8List(0),
+          ),
+        ],
+      );
+      client.resizeErrors.add(
+        StateError('Bad state: Terminal session is not attached: session-1'),
+      );
+      final session = TerminalHostPtySession(
+        client: client,
+        sessionId: 'session-1',
+        workspaceId: 'workspace-1',
+        tabId: 'tab-1',
+      );
+      addTearDown(session.dispose);
+
+      await session.start(
+        launch: _launch(),
+        workingDirectory: '/repo',
+        cols: 80,
+        rows: 24,
+      );
+      session.resize(120, 40, 8, 16);
+      await _flushAsync();
+
+      expect(client.attachCalls, hasLength(2));
+      expect(client.attachCalls.last.cols, 120);
+      expect(client.attachCalls.last.rows, 40);
+      expect(client.resizes, <(String, int, int)>[('session-1', 120, 40)]);
+    },
+  );
+
+  test(
+    'host PTY session emits one error when stale-session recovery fails',
+    () async {
+      final client = _FakeTerminalHostClient(
+        attachment: TerminalHostAttachment(
+          sessionId: 'session-1',
+          created: true,
+          running: true,
+          snapshot: Uint8List(0),
+        ),
+        attachments: <TerminalHostAttachment>[
+          TerminalHostAttachment(
+            sessionId: 'session-1',
+            created: true,
+            running: true,
+            snapshot: Uint8List(0),
+          ),
+          TerminalHostAttachment(
+            sessionId: 'session-1',
+            created: true,
+            running: true,
+            snapshot: Uint8List(0),
+          ),
+        ],
+      );
+      client.writeErrors.addAll(<Object>[
+        StateError('Terminal session is not attached: session-1'),
+        StateError('Terminal session is not attached: session-1'),
+      ]);
+      final session = TerminalHostPtySession(
+        client: client,
+        sessionId: 'session-1',
+        workspaceId: 'workspace-1',
+        tabId: 'tab-1',
+      );
+      addTearDown(session.dispose);
+      final events = <TerminalPtySessionEvent>[];
+      final sub = session.events.listen(events.add);
+      addTearDown(sub.cancel);
+
+      await session.start(
+        launch: _launch(),
+        workingDirectory: '/repo',
+        cols: 80,
+        rows: 24,
+      );
+      expect(session.writeBytes(<int>[9]), isTrue);
+      await _flushAsync();
+
+      expect(client.attachCalls, hasLength(2));
+      expect(client.writes, isEmpty);
+      final error = events.whereType<TerminalPtyErrorEvent>().single.error;
+      expect(
+        error,
+        isA<StateError>().having(
+          (error) => error.message,
+          'message',
+          contains('Terminal session is not attached'),
+        ),
+      );
+    },
+  );
+
+  test(
     'host PTY session forwards matching host events and write errors',
     () async {
       final client = _FakeTerminalHostClient(
@@ -220,16 +394,47 @@ GhosttyTerminalShellLaunch _launch() {
   );
 }
 
-final class _FakeTerminalHostClient implements TerminalHostClient {
-  _FakeTerminalHostClient({required this.attachment});
+Future<void> _flushAsync() async {
+  await Future<void>.delayed(Duration.zero);
+  await Future<void>.delayed(Duration.zero);
+}
 
-  final TerminalHostAttachment attachment;
+final class _FakeTerminalHostClient implements TerminalHostClient {
+  _FakeTerminalHostClient({
+    required TerminalHostAttachment attachment,
+    List<TerminalHostAttachment>? attachments,
+  }) : _attachments = attachments ?? <TerminalHostAttachment>[attachment];
+
+  final List<TerminalHostAttachment> _attachments;
   final StreamController<TerminalHostEvent> _events =
       StreamController<TerminalHostEvent>.broadcast();
+  final List<
+    ({
+      String sessionId,
+      String workspaceId,
+      String tabId,
+      String workingDirectory,
+      int cols,
+      int rows,
+    })
+  >
+  attachCalls =
+      <
+        ({
+          String sessionId,
+          String workspaceId,
+          String tabId,
+          String workingDirectory,
+          int cols,
+          int rows,
+        })
+      >[];
   final List<List<int>> writes = <List<int>>[];
   final List<(String, int, int)> resizes = <(String, int, int)>[];
   final List<String> detached = <String>[];
   final List<String> terminated = <String>[];
+  final List<Object> writeErrors = <Object>[];
+  final List<Object> resizeErrors = <Object>[];
   String? attachedWorkingDirectory;
   Object? writeError;
 
@@ -252,8 +457,19 @@ final class _FakeTerminalHostClient implements TerminalHostClient {
     required int cols,
     required int rows,
   }) async {
+    attachCalls.add((
+      sessionId: sessionId,
+      workspaceId: workspaceId,
+      tabId: tabId,
+      workingDirectory: workingDirectory,
+      cols: cols,
+      rows: rows,
+    ));
     attachedWorkingDirectory = workingDirectory;
-    return attachment;
+    final index = attachCalls.length - 1;
+    return _attachments[index < _attachments.length
+        ? index
+        : _attachments.length - 1];
   }
 
   @override
@@ -261,6 +477,9 @@ final class _FakeTerminalHostClient implements TerminalHostClient {
     required String sessionId,
     required List<int> bytes,
   }) async {
+    if (writeErrors.isNotEmpty) {
+      throw writeErrors.removeAt(0);
+    }
     if (writeError case final error?) {
       throw error;
     }
@@ -273,6 +492,9 @@ final class _FakeTerminalHostClient implements TerminalHostClient {
     required int cols,
     required int rows,
   }) async {
+    if (resizeErrors.isNotEmpty) {
+      throw resizeErrors.removeAt(0);
+    }
     resizes.add((sessionId, cols, rows));
   }
 

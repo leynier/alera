@@ -53,6 +53,11 @@ final class TerminalHostPtySession implements TerminalPtySession {
       StreamController<TerminalPtySessionEvent>.broadcast();
 
   StreamSubscription<TerminalHostEvent>? _hostSub;
+  Future<void>? _reattachFuture;
+  GhosttyTerminalShellLaunch? _launch;
+  String? _workingDirectory;
+  int? _cols;
+  int? _rows;
   bool _disposed = false;
   bool _startedNewProcess = false;
 
@@ -72,8 +77,27 @@ final class TerminalHostPtySession implements TerminalPtySession {
     if (_disposed) {
       throw StateError('PTY session is disposed.');
     }
+    _launch = launch;
+    _workingDirectory = workingDirectory;
+    _cols = cols;
+    _rows = rows;
     _hostSub ??= _client.events.listen(_handleHostEvent);
-    final attachment = await _client.createOrAttach(
+    final attachment = await _createOrAttach();
+    _applyAttachment(attachment);
+  }
+
+  Future<TerminalHostAttachment> _createOrAttach() {
+    final launch = _launch;
+    final workingDirectory = _workingDirectory;
+    final cols = _cols;
+    final rows = _rows;
+    if (launch == null ||
+        workingDirectory == null ||
+        cols == null ||
+        rows == null) {
+      throw StateError('PTY session has not been started.');
+    }
+    return _client.createOrAttach(
       sessionId: _sessionId,
       workspaceId: _workspaceId,
       tabId: _tabId,
@@ -82,6 +106,9 @@ final class TerminalHostPtySession implements TerminalPtySession {
       cols: cols,
       rows: rows,
     );
+  }
+
+  void _applyAttachment(TerminalHostAttachment attachment) {
     _startedNewProcess = attachment.created;
     if (attachment.snapshot.isNotEmpty) {
       _events.add(TerminalPtyOutputEvent(attachment.snapshot));
@@ -99,11 +126,7 @@ final class TerminalHostPtySession implements TerminalPtySession {
     if (_disposed || bytes.isEmpty) {
       return false;
     }
-    unawaited(
-      _client
-          .write(sessionId: _sessionId, bytes: bytes)
-          .catchError(_emitHostError),
-    );
+    unawaited(_writeBytes(bytes).catchError(_emitHostError));
     return true;
   }
 
@@ -112,11 +135,64 @@ final class TerminalHostPtySession implements TerminalPtySession {
     if (_disposed) {
       return;
     }
-    unawaited(
-      _client
-          .resize(sessionId: _sessionId, cols: cols, rows: rows)
-          .catchError(_emitHostError),
-    );
+    _cols = cols;
+    _rows = rows;
+    unawaited(_resize(cols: cols, rows: rows).catchError(_emitHostError));
+  }
+
+  Future<void> _writeBytes(List<int> bytes) async {
+    try {
+      await _client.write(sessionId: _sessionId, bytes: bytes);
+    } catch (error) {
+      if (!_shouldRecoverFromHostError(error)) {
+        rethrow;
+      }
+      await _reattach();
+      await _client.write(sessionId: _sessionId, bytes: bytes);
+    }
+  }
+
+  Future<void> _resize({required int cols, required int rows}) async {
+    try {
+      await _client.resize(sessionId: _sessionId, cols: cols, rows: rows);
+    } catch (error) {
+      if (!_shouldRecoverFromHostError(error)) {
+        rethrow;
+      }
+      await _reattach();
+      await _client.resize(sessionId: _sessionId, cols: cols, rows: rows);
+    }
+  }
+
+  Future<void> _reattach() {
+    if (_disposed) {
+      throw StateError('PTY session is disposed.');
+    }
+    final existing = _reattachFuture;
+    if (existing != null) {
+      return existing;
+    }
+    late final Future<void> next;
+    next = _createOrAttach().then(_applyAttachment).whenComplete(() {
+      if (identical(_reattachFuture, next)) {
+        _reattachFuture = null;
+      }
+    });
+    _reattachFuture = next;
+    return next;
+  }
+
+  bool _shouldRecoverFromHostError(Object error) {
+    final message = _hostErrorMessage(error);
+    return message.contains('Terminal session is not attached') ||
+        message.contains('Terminal host connection closed');
+  }
+
+  String _hostErrorMessage(Object error) {
+    if (error is StateError) {
+      return error.message;
+    }
+    return error.toString();
   }
 
   @override
