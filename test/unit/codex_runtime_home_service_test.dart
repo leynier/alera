@@ -90,6 +90,111 @@ void main() {
       expect(runtimeToml, contains('trusted_hash = "sha256:'));
     });
 
+    test('skips plugin-only hooks when mirroring user Codex hooks', () async {
+      const pluginCommands = <String>[
+        r'node "${CLAUDE_PLUGIN_ROOT}/scripts/on-stop.mjs"',
+        r'node "${CLAUDE_PLUGIN_DATA}/scripts/on-stop.mjs"',
+        r'node "${PLUGIN_ROOT}/scripts/on-stop.mjs"',
+        r'node "${PLUGIN_DATA}/scripts/on-stop.mjs"',
+      ];
+      const userCommand = 'echo normal-user-hook';
+      final systemHooksPath = p.join(home.path, '.codex', 'hooks.json');
+      _writeJson(systemHooksPath, <String, Object?>{
+        'hooks': <String, Object?>{
+          'Stop': <Object?>[
+            _userHookCommands(<String>[...pluginCommands, userCommand]),
+          ],
+          'PreCompact': <Object?>[
+            for (final command in pluginCommands) _userHook(command),
+          ],
+        },
+      });
+      final canonicalSystemHooksPath = File(
+        systemHooksPath,
+      ).resolveSymbolicLinksSync();
+      final pluginTrustedHashes = <String>[
+        for (var index = 0; index < pluginCommands.length; index++)
+          computeCodexTrustedHashForTesting(
+            sourcePath: systemHooksPath,
+            eventLabel: 'stop',
+            groupIndex: 0,
+            handlerIndex: index,
+            command: pluginCommands[index],
+          ),
+      ];
+      final systemConfig = File(p.join(home.path, '.codex', 'config.toml'))
+        ..createSync(recursive: true);
+      systemConfig.writeAsStringSync(
+        <String>[
+          for (var index = 0; index < pluginCommands.length; index++)
+            _trustBlock(
+              key: '$canonicalSystemHooksPath:stop:0:$index',
+              enabled: true,
+              trustedHash: pluginTrustedHashes[index],
+            ),
+          _trustBlock(
+            key: '$canonicalSystemHooksPath:stop:0:${pluginCommands.length}',
+            enabled: true,
+            trustedHash: computeCodexTrustedHashForTesting(
+              sourcePath: systemHooksPath,
+              eventLabel: 'stop',
+              groupIndex: 0,
+              handlerIndex: pluginCommands.length,
+              command: userCommand,
+            ),
+          ),
+        ].join('\n'),
+      );
+
+      final preparation = await service.prepareForTerminalLaunch();
+
+      final runtimeHooksPath = p.join(
+        preparation.runtimeHomePath,
+        'hooks.json',
+      );
+      final runtimeHooksText = File(runtimeHooksPath).readAsStringSync();
+      final runtimeHooks = _hooks(runtimeHooksPath);
+      expect(_commandsFor(runtimeHooks, 'Stop'), contains(userCommand));
+      expect(_commandsFor(runtimeHooks, 'PreCompact'), isEmpty);
+      expect(_managedCommandCount(runtimeHooks, 'alera-codex-hook.sh'), 6);
+      for (final command in pluginCommands) {
+        expect(runtimeHooksText, isNot(contains(command)));
+      }
+
+      final canonicalRuntimeHooksPath = File(
+        runtimeHooksPath,
+      ).resolveSymbolicLinksSync();
+      final runtimeToml = File(
+        p.join(preparation.runtimeHomePath, 'config.toml'),
+      ).readAsStringSync();
+      expect(
+        runtimeToml,
+        contains(
+          '[hooks.state."${_escapeTomlString('$canonicalRuntimeHooksPath:stop:0:0')}"]',
+        ),
+      );
+      expect(
+        runtimeToml,
+        isNot(
+          contains(
+            '[hooks.state."${_escapeTomlString('$canonicalRuntimeHooksPath:stop:0:1')}"]',
+          ),
+        ),
+      );
+      for (final command in pluginCommands) {
+        expect(runtimeToml, isNot(contains(command)));
+      }
+      for (final hash in pluginTrustedHashes) {
+        expect(runtimeToml, isNot(contains(hash)));
+        expect(systemConfig.readAsStringSync(), contains(hash));
+      }
+
+      final systemHooks = _hooks(systemHooksPath);
+      for (final command in pluginCommands) {
+        expect(_commandsFor(systemHooks, 'Stop'), contains(command));
+      }
+    });
+
     test('enables hooks in a fresh runtime config', () async {
       final preparation = await service.prepareForTerminalLaunch();
 
@@ -430,11 +535,26 @@ String _markerFingerprint(File marker) {
 }
 
 Map<String, Object?> _userHook(String command) {
+  return _userHookCommands(<String>[command]);
+}
+
+Map<String, Object?> _userHookCommands(List<String> commands) {
   return <String, Object?>{
     'hooks': <Object?>[
-      <String, Object?>{'type': 'command', 'command': command},
+      for (final command in commands)
+        <String, Object?>{'type': 'command', 'command': command},
     ],
   };
+}
+
+String _trustBlock({
+  required String key,
+  required bool enabled,
+  required String trustedHash,
+}) {
+  return '[hooks.state."${_escapeTomlString(key)}"]\n'
+      'enabled = $enabled\n'
+      'trusted_hash = "$trustedHash"\n';
 }
 
 void _writeJson(String path, Map<String, Object?> value) {

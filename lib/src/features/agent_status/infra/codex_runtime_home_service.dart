@@ -740,9 +740,8 @@ final class CodexRuntimeHomeService {
       systemConfig['hooks'] as Map,
     ).entries) {
       final definitions = _definitionsFromValue(entry.value);
-      final userDefinitions = _removeManagedCommands(
-        definitions,
-        descriptor.managedScriptFileNames,
+      final userDefinitions = _removeCodexPluginOnlyHookCommands(
+        _removeManagedCommands(definitions, descriptor.managedScriptFileNames),
       );
       if (userDefinitions.isNotEmpty) {
         nextHooks[entry.key] = _dedupeHookDefinitions(userDefinitions);
@@ -1242,6 +1241,13 @@ const List<String> _codexSystemResourceEntries = <String>[
   'prompts',
 ];
 
+const List<String> _codexPluginOnlyHookPlaceholders = <String>[
+  r'${CLAUDE_PLUGIN_ROOT}',
+  r'${CLAUDE_PLUGIN_DATA}',
+  r'${PLUGIN_ROOT}',
+  r'${PLUGIN_DATA}',
+];
+
 const Map<String, String> _codexEventLabels = <String, String>{
   'SessionStart': 'session_start',
   'UserPromptSubmit': 'user_prompt_submit',
@@ -1367,6 +1373,24 @@ List<Map<String, Object?>> _removeManagedCommands(
   List<Map<String, Object?>> definitions,
   Set<String> managedScriptFileNames,
 ) {
+  return _removeHookCommandsWhere(
+    definitions,
+    (command) => _isManagedCommand(command, managedScriptFileNames),
+  );
+}
+
+List<Map<String, Object?>> _removeCodexPluginOnlyHookCommands(
+  List<Map<String, Object?>> definitions,
+) {
+  // Plugin placeholders are only expanded for plugin-provided hooks, not for
+  // hooks mirrored into Alera's plain runtime hooks.json.
+  return _removeHookCommandsWhere(definitions, _isCodexPluginOnlyHookCommand);
+}
+
+List<Map<String, Object?>> _removeHookCommandsWhere(
+  List<Map<String, Object?>> definitions,
+  bool Function(String? command) shouldRemove,
+) {
   final cleaned = <Map<String, Object?>>[];
   for (final definition in definitions) {
     final hooks = definition['hooks'];
@@ -1377,9 +1401,8 @@ List<Map<String, Object?>> _removeManagedCommands(
     final nextHooks = <Object?>[
       for (final hook in hooks)
         if (hook is! Map ||
-            !_isManagedCommand(
+            !shouldRemove(
               Map<String, Object?>.from(hook)['command'] as String?,
-              managedScriptFileNames,
             ))
           hook,
     ];
@@ -1396,6 +1419,13 @@ bool _isManagedCommand(String? command, Set<String> managedScriptFileNames) {
     return false;
   }
   return managedScriptFileNames.any(command.contains);
+}
+
+bool _isCodexPluginOnlyHookCommand(String? command) {
+  if (command == null) {
+    return false;
+  }
+  return _codexPluginOnlyHookPlaceholders.any(command.contains);
 }
 
 List<Map<String, Object?>> _dedupeHookDefinitions(
