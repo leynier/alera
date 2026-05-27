@@ -9,6 +9,7 @@ import 'package:alera/src/features/workbench/presentation/terminal_link_resolver
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/features/workbench/infra/terminal_shell_startup_preparer.dart';
 import 'package:alera/src/shared/infra/uri/external_uri_launcher.dart';
 import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
@@ -418,6 +419,7 @@ class XtermTerminalRuntime implements TerminalRuntime {
     ExternalUriLauncher? externalUriLauncher,
     List<GhosttyTerminalShellLaunch> Function()? shellLaunchesBuilder,
     TerminalLaunchEnvironmentBuilder? agentHookEnvironmentBuilder,
+    TerminalShellStartupPreparer? shellStartupPreparer,
   }) {
     return XtermTerminalRuntime._(
       ptySessionFactory ?? const DefaultTerminalPtySessionFactory(),
@@ -425,6 +427,7 @@ class XtermTerminalRuntime implements TerminalRuntime {
       externalUriLauncher ?? UrlLauncherExternalUriLauncher(),
       shellLaunchesBuilder ?? _terminalShellLaunches,
       agentHookEnvironmentBuilder,
+      shellStartupPreparer,
     );
   }
 
@@ -434,12 +437,14 @@ class XtermTerminalRuntime implements TerminalRuntime {
     this._externalUriLauncher,
     this._shellLaunchesBuilder,
     this._agentHookEnvironmentBuilder,
+    this._shellStartupPreparer,
   );
 
   final TerminalPtySessionFactory _ptySessionFactory;
   final ExternalUriLauncher _externalUriLauncher;
   final List<GhosttyTerminalShellLaunch> Function() _shellLaunchesBuilder;
   final TerminalLaunchEnvironmentBuilder? _agentHookEnvironmentBuilder;
+  final TerminalShellStartupPreparer? _shellStartupPreparer;
   TerminalSettings _settings;
   final StreamController<TerminalRuntimeExitEvent> _exitController =
       StreamController<TerminalRuntimeExitEvent>.broadcast();
@@ -471,6 +476,7 @@ class XtermTerminalRuntime implements TerminalRuntime {
             _externalUriLauncher,
             _shellLaunchesBuilder,
             _agentHookEnvironmentBuilder,
+            _shellStartupPreparer,
             _handleSessionExit,
           );
         })
@@ -518,6 +524,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     this._externalUriLauncher,
     this._shellLaunchesBuilder,
     this._agentHookEnvironmentBuilder,
+    this._shellStartupPreparer,
     this._onExit,
   ) {
     _terminal = _createTerminal();
@@ -534,6 +541,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   final ExternalUriLauncher _externalUriLauncher;
   final List<GhosttyTerminalShellLaunch> Function() _shellLaunchesBuilder;
   final TerminalLaunchEnvironmentBuilder? _agentHookEnvironmentBuilder;
+  final TerminalShellStartupPreparer? _shellStartupPreparer;
   final void Function(TerminalRuntimeExitEvent event) _onExit;
   TerminalSettings _settings;
   late xterm.Terminal _terminal;
@@ -774,11 +782,15 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
       _ptySessionSub = sub;
       _activePtyGeneration = generation;
       try {
+        final sanitizedLaunch = _launchWithSanitizedAgentHookEnvironment(
+          launch,
+          agentHookEnvironment,
+        );
+        final preparedLaunch = await _shellStartupPreparer?.prepare(
+          sanitizedLaunch,
+        );
         final workspaceLaunch = _launchInWorkingDirectory(
-          _launchWithSanitizedAgentHookEnvironment(
-            launch,
-            agentHookEnvironment,
-          ),
+          preparedLaunch ?? sanitizedLaunch,
           _workspace.path,
         );
         await session.start(
@@ -1118,7 +1130,7 @@ GhosttyTerminalShellLaunch _launchWithSanitizedAgentHookEnvironment(
     shell: launch.shell,
     arguments: launch.arguments,
     environment: environment.isEmpty ? null : environment,
-    setupCommand: _setupCommandWithCodexHomeRestore(launch, environment),
+    setupCommand: launch.setupCommand,
   );
 }
 
@@ -1199,64 +1211,10 @@ bool _isWindowsCommandPromptLaunch(GhosttyTerminalShellLaunch launch) {
   return _shellExecutableName(launch) == 'cmd';
 }
 
-bool _isWindowsPowerShellLaunch(GhosttyTerminalShellLaunch launch) {
-  final executable = _shellExecutableName(launch);
-  return executable == 'powershell' || executable == 'pwsh';
-}
-
 String _shellExecutableName(GhosttyTerminalShellLaunch launch) {
   final executable = launch.shell.replaceAll(r'\', '/').split('/').last;
   final lower = executable.toLowerCase();
   return lower.endsWith('.exe') ? lower.substring(0, lower.length - 4) : lower;
-}
-
-String? _setupCommandWithCodexHomeRestore(
-  GhosttyTerminalShellLaunch launch,
-  Map<String, String> environment,
-) {
-  if (!environment.containsKey('ALERA_CODEX_HOME')) {
-    return launch.setupCommand;
-  }
-  final restore = _codexHomeRestoreCommand(launch);
-  final existing = launch.setupCommand;
-  if (restore == null) {
-    return existing;
-  }
-  if (existing == null || existing.isEmpty) {
-    return restore;
-  }
-  return '$restore$existing';
-}
-
-String? _codexHomeRestoreCommand(GhosttyTerminalShellLaunch launch) {
-  if (_isWindowsCommandPromptLaunch(launch)) {
-    return 'set "CODEX_HOME=%ALERA_CODEX_HOME%"\n';
-  }
-  if (_isWindowsPowerShellLaunch(launch)) {
-    return r'if ($env:ALERA_CODEX_HOME) { $env:CODEX_HOME = $env:ALERA_CODEX_HOME }'
-        '\n';
-  }
-  final executable = _shellExecutableName(launch);
-  if (executable == 'fish') {
-    return 'if set -q ALERA_CODEX_HOME; set -gx CODEX_HOME \$ALERA_CODEX_HOME; end\n';
-  }
-  if (executable == 'nu' || executable == 'nushell') {
-    return r'if ("ALERA_CODEX_HOME" in $env) { $env.CODEX_HOME = $env.ALERA_CODEX_HOME }'
-        '\n';
-  }
-  if (const <String>{
-    'ash',
-    'bash',
-    'dash',
-    'ksh',
-    'mksh',
-    'oksh',
-    'sh',
-    'zsh',
-  }.contains(executable)) {
-    return 'if [ -n "\${ALERA_CODEX_HOME:-}" ]; then export CODEX_HOME="\$ALERA_CODEX_HOME"; fi\n';
-  }
-  return null;
 }
 
 String _cmdQuote(String value) {

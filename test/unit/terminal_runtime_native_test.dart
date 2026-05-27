@@ -7,6 +7,7 @@ import 'package:flutter/gestures.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/features/workbench/infra/terminal_shell_startup_preparer.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/shared/infra/uri/external_uri_launcher.dart';
 import 'package:ffi/ffi.dart';
@@ -202,118 +203,74 @@ void main() {
       },
     );
 
-    test('agent hook launch env strips inherited metadata before injection', () {
-      final launch = launchWithSanitizedAgentHookEnvironmentForTesting(
-        _launch(
-          'shell',
-          shell: '/bin/zsh',
-          environment: const <String, String>{
-            'PATH': '/usr/bin',
-            'ALERA_AGENT_HOOK_TOKEN': 'stale',
-            'ALERA_TERMINAL_SESSION_ID': 'old-session',
-            'ALERA_CODEX_HOME': '/old-runtime',
+    test(
+      'agent hook launch env strips inherited metadata before injection',
+      () {
+        final launch = launchWithSanitizedAgentHookEnvironmentForTesting(
+          _launch(
+            'shell',
+            shell: '/bin/zsh',
+            environment: const <String, String>{
+              'PATH': '/usr/bin',
+              'ALERA_AGENT_HOOK_TOKEN': 'stale',
+              'ALERA_TERMINAL_SESSION_ID': 'old-session',
+              'ALERA_CODEX_HOME': '/old-runtime',
+            },
+          ),
+          const <String, String>{
+            'ALERA_AGENT_HOOK_TOKEN': 'fresh',
+            'ALERA_TERMINAL_SESSION_ID': 'session-1',
+            'ALERA_WORKSPACE_ID': 'workspace-1',
+            'ALERA_TAB_ID': 'tab-1',
+            'CODEX_HOME': '/runtime/codex',
+            'ALERA_CODEX_HOME': '/runtime/codex',
           },
-        ),
-        const <String, String>{
+        );
+
+        expect(launch.environment, <String, String>{
+          'PATH': '/usr/bin',
           'ALERA_AGENT_HOOK_TOKEN': 'fresh',
           'ALERA_TERMINAL_SESSION_ID': 'session-1',
           'ALERA_WORKSPACE_ID': 'workspace-1',
           'ALERA_TAB_ID': 'tab-1',
           'CODEX_HOME': '/runtime/codex',
           'ALERA_CODEX_HOME': '/runtime/codex',
-        },
-      );
+        });
+        expect(launch.setupCommand, isNull);
 
-      expect(launch.environment, <String, String>{
-        'PATH': '/usr/bin',
-        'ALERA_AGENT_HOOK_TOKEN': 'fresh',
-        'ALERA_TERMINAL_SESSION_ID': 'session-1',
-        'ALERA_WORKSPACE_ID': 'workspace-1',
-        'ALERA_TAB_ID': 'tab-1',
-        'CODEX_HOME': '/runtime/codex',
-        'ALERA_CODEX_HOME': '/runtime/codex',
-      });
-      expect(
-        launch.setupCommand,
-        startsWith(
-          r'if [ -n "${ALERA_CODEX_HOME:-}" ]; then export CODEX_HOME="$ALERA_CODEX_HOME"; fi',
-        ),
-      );
+        final sanitizedOnly = launchWithSanitizedAgentHookEnvironmentForTesting(
+          _launch(
+            'shell',
+            shell: '/bin/zsh',
+            environment: const <String, String>{
+              'ALERA_AGENT_HOOK_PORT': '123',
+              'ALERA_CODEX_HOME': '/old-runtime',
+              'USER': 'tester',
+            },
+          ),
+          null,
+        );
+        expect(sanitizedOnly.environment, <String, String>{'USER': 'tester'});
 
-      final sanitizedOnly = launchWithSanitizedAgentHookEnvironmentForTesting(
-        _launch(
-          'shell',
-          shell: '/bin/zsh',
-          environment: const <String, String>{
-            'ALERA_AGENT_HOOK_PORT': '123',
-            'ALERA_CODEX_HOME': '/old-runtime',
-            'USER': 'tester',
-          },
-        ),
-        null,
-      );
-      expect(sanitizedOnly.environment, <String, String>{'USER': 'tester'});
+        final existingSetupLaunch =
+            launchWithSanitizedAgentHookEnvironmentForTesting(
+              _launch(
+                'shell',
+                shell: '/bin/zsh',
+                setupCommand: 'printf setup\n',
+              ),
+              const <String, String>{'ALERA_CODEX_HOME': '/runtime/codex'},
+            );
+        expect(existingSetupLaunch.setupCommand, 'printf setup\n');
 
-      final cmdLaunch = launchWithSanitizedAgentHookEnvironmentForTesting(
-        _launch('cmd', shell: r'C:\Windows\System32\cmd.exe'),
-        const <String, String>{'ALERA_CODEX_HOME': r'C:\Alera\codex-home'},
-      );
-      expect(
-        cmdLaunch.setupCommand,
-        startsWith('set "CODEX_HOME=%ALERA_CODEX_HOME%"'),
-      );
-
-      final powershellLaunch =
-          launchWithSanitizedAgentHookEnvironmentForTesting(
-            _launch('pwsh', shell: 'pwsh.exe'),
-            const <String, String>{'ALERA_CODEX_HOME': r'C:\Alera\codex-home'},
-          );
-      expect(
-        powershellLaunch.setupCommand,
-        startsWith(
-          r'if ($env:ALERA_CODEX_HOME) { $env:CODEX_HOME = $env:ALERA_CODEX_HOME }',
-        ),
-      );
-
-      final fishLaunch = launchWithSanitizedAgentHookEnvironmentForTesting(
-        _launch('fish', shell: '/opt/homebrew/bin/fish'),
-        const <String, String>{'ALERA_CODEX_HOME': '/runtime/codex'},
-      );
-      expect(
-        fishLaunch.setupCommand,
-        startsWith(
-          'if set -q ALERA_CODEX_HOME; set -gx CODEX_HOME \$ALERA_CODEX_HOME; end',
-        ),
-      );
-
-      final nushellLaunch = launchWithSanitizedAgentHookEnvironmentForTesting(
-        _launch('nu', shell: '/usr/local/bin/nu'),
-        const <String, String>{'ALERA_CODEX_HOME': '/runtime/codex'},
-      );
-      expect(
-        nushellLaunch.setupCommand,
-        startsWith(
-          r'if ("ALERA_CODEX_HOME" in $env) { $env.CODEX_HOME = $env.ALERA_CODEX_HOME }',
-        ),
-      );
-
-      final unknownLaunch = launchWithSanitizedAgentHookEnvironmentForTesting(
-        _launch(
-          'unknown',
-          shell: '/usr/local/bin/elvish',
-          setupCommand: 'printf setup\n',
-        ),
-        const <String, String>{'ALERA_CODEX_HOME': '/runtime/codex'},
-      );
-      expect(unknownLaunch.setupCommand, 'printf setup\n');
-
-      final unknownWithoutSetup =
-          launchWithSanitizedAgentHookEnvironmentForTesting(
-            _launch('unknown', shell: '/usr/local/bin/elvish'),
-            const <String, String>{'ALERA_CODEX_HOME': '/runtime/codex'},
-          );
-      expect(unknownWithoutSetup.setupCommand, isNull);
-    });
+        final unknownWithoutSetup =
+            launchWithSanitizedAgentHookEnvironmentForTesting(
+              _launch('unknown', shell: '/usr/local/bin/elvish'),
+              const <String, String>{'ALERA_CODEX_HOME': '/runtime/codex'},
+            );
+        expect(unknownWithoutSetup.setupCommand, isNull);
+      },
+    );
 
     test('posix read helper covers invalid fds', () async {
       final receivePort = ReceivePort();
@@ -883,10 +840,11 @@ void main() {
     );
 
     test(
-      'writes sanitized Codex restore setup command to new sessions',
+      'prepares Codex launches without writing restore setup commands',
       () async {
         debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
         final fakeSession = _FakeTerminalPtySession();
+        final shellStartupPreparer = _RecordingTerminalShellStartupPreparer();
         final runtime = XtermTerminalRuntime(
           ptySessionFactory: _FakeTerminalPtySessionFactory(
             sessions: <_FakeTerminalPtySession>[fakeSession],
@@ -894,6 +852,7 @@ void main() {
           shellLaunchesBuilder: () => <GhosttyTerminalShellLaunch>[
             _launch('shell', shell: '/bin/zsh', setupCommand: 'printf setup\n'),
           ],
+          shellStartupPreparer: shellStartupPreparer,
           agentHookEnvironmentBuilder:
               ({
                 required terminalSessionId,
@@ -915,17 +874,16 @@ void main() {
           await session.ensureStarted();
 
           final startedSetupCommand = fakeSession.startedLaunch!.setupCommand;
-          expect(
-            startedSetupCommand,
-            startsWith(
-              r'if [ -n "${ALERA_CODEX_HOME:-}" ]; then export CODEX_HOME="$ALERA_CODEX_HOME"; fi',
-            ),
-          );
-          expect(startedSetupCommand, contains('printf setup\n'));
+          expect(startedSetupCommand, 'printf setup\n');
           final writtenSetupCommand = fakeSession.writes
               .map(utf8.decode)
               .join();
           expect(writtenSetupCommand, startedSetupCommand);
+          expect(shellStartupPreparer.launches, hasLength(1));
+          expect(
+            shellStartupPreparer.launches.single.environment,
+            containsPair('ALERA_CODEX_HOME', '/runtime/codex'),
+          );
         } finally {
           debugDefaultTargetPlatformOverride = null;
         }
@@ -1336,6 +1294,18 @@ class _FakeTerminalPtySessionFactory implements TerminalPtySessionFactory {
     final session = _availableSessions.removeAt(0);
     createdSessions.add(session);
     return session;
+  }
+}
+
+class _RecordingTerminalShellStartupPreparer
+    implements TerminalShellStartupPreparer {
+  final List<GhosttyTerminalShellLaunch> launches =
+      <GhosttyTerminalShellLaunch>[];
+
+  @override
+  GhosttyTerminalShellLaunch prepare(GhosttyTerminalShellLaunch launch) {
+    launches.add(launch);
+    return launch;
   }
 }
 

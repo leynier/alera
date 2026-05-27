@@ -22,6 +22,7 @@ import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_pty_session.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
+import 'package:alera/src/features/workbench/infra/terminal_shell_startup_preparer.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -256,12 +257,14 @@ final terminalRuntimeProvider = Provider<TerminalRuntime>((ref) {
   final terminalHostClient = ref.watch(terminalHostClientProvider);
   final agentHookReceiver = ref.watch(agentHookReceiverProvider);
   final codexRuntimeHome = ref.watch(codexRuntimeHomeServiceProvider);
+  final shellStartupPreparer = ref.watch(terminalShellStartupPreparerProvider);
   final runtime = XtermTerminalRuntime(
     ptySessionFactory: TerminalHostPtySessionFactory(
       client: terminalHostClient,
     ),
     initialSettings: ref.read(settingsControllerProvider).terminal,
     externalUriLauncher: ref.watch(externalUriLauncherProvider),
+    shellStartupPreparer: shellStartupPreparer,
     agentHookEnvironmentBuilder:
         ({required terminalSessionId, required workspaceId, required tabId}) {
           final hooks = ref
@@ -290,6 +293,11 @@ final terminalRuntimeProvider = Provider<TerminalRuntime>((ref) {
   });
   return runtime;
 });
+
+final terminalShellStartupPreparerProvider =
+    Provider<TerminalShellStartupPreparer>((ref) {
+      return AleraTerminalShellStartupPreparer();
+    });
 
 final terminalRuntimeExitCoordinatorProvider = Provider<void>((ref) {
   final runtime = ref.watch(terminalRuntimeProvider);
