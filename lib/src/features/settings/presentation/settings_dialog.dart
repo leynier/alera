@@ -222,7 +222,7 @@ const List<_SettingsSearchEntry> _generalSearchEntries = <_SettingsSearchEntry>[
   ),
   _SettingsSearchEntry(
     title: 'Codex hooks',
-    description: 'Install managed Codex hooks.',
+    description: 'Use Alera-managed Codex runtime hooks.',
     keywords: <String>['codex', 'agent', 'status', 'hooks'],
   ),
   _SettingsSearchEntry(
@@ -677,7 +677,7 @@ class _GeneralSettingsPane extends ConsumerWidget {
             _SwitchSettingRow(
               title: 'Codex hooks',
               description:
-                  'Install Alera-managed Codex hooks. Disable to remove only Alera-managed hook entries.',
+                  'Use an Alera-managed Codex runtime home with status hooks.',
               value: general.agentStatusHooks.codex,
               onChanged: (value) => ref
                   .read(settingsControllerProvider.notifier)

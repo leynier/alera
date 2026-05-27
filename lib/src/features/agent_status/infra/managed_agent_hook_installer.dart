@@ -63,6 +63,9 @@ class ManagedAgentHookInstallService {
   final ManagedAgentHookPlatform _platform;
 
   ManagedAgentHookInstallStatus status(AgentType agentType) {
+    if (agentType == AgentType.codex) {
+      return _codexRuntimeOnlyStatus();
+    }
     final artifact = _managedArtifact(agentType);
     if (artifact != null) {
       return _managedArtifactStatus(artifact);
@@ -131,6 +134,9 @@ class ManagedAgentHookInstallService {
   }
 
   ManagedAgentHookInstallStatus install(AgentType agentType) {
+    if (agentType == AgentType.codex) {
+      return _codexRuntimeOnlyStatus();
+    }
     final artifact = _managedArtifact(agentType);
     if (artifact != null) {
       final current = _managedArtifactStatus(artifact);
@@ -204,6 +210,9 @@ class ManagedAgentHookInstallService {
   }
 
   ManagedAgentHookInstallStatus remove(AgentType agentType) {
+    if (agentType == AgentType.codex) {
+      return _codexRuntimeOnlyStatus();
+    }
     final artifact = _managedArtifact(agentType);
     if (artifact != null) {
       return _removeManagedArtifact(artifact);
@@ -257,12 +266,24 @@ class ManagedAgentHookInstallService {
 
   Future<List<ManagedAgentHookInstallStatus>> reconcile({
     required Iterable<AgentType> enabledAgentTypes,
+    Iterable<AgentType>? agentTypes,
   }) async {
     final enabled = enabledAgentTypes.toSet();
+    final candidates = agentTypes ?? AgentType.values;
     return <ManagedAgentHookInstallStatus>[
-      for (final agentType in AgentType.values)
+      for (final agentType in candidates)
         enabled.contains(agentType) ? install(agentType) : remove(agentType),
     ];
+  }
+
+  ManagedAgentHookInstallStatus _codexRuntimeOnlyStatus() {
+    return ManagedAgentHookInstallStatus(
+      agentType: AgentType.codex,
+      state: ManagedAgentHookInstallState.notInstalled,
+      configPath: p.join(_homeDirectory, '.codex', 'hooks.json'),
+      managedHooksPresent: false,
+      detail: 'Codex hooks are installed only in Alera-managed runtime homes.',
+    );
   }
 
   _AgentHookDescriptor _descriptor(AgentType agentType) {

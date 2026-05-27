@@ -790,7 +790,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
         _running = true;
         _prunePtyGenerationState();
         notifyListeners();
-        final setupCommand = launch.setupCommand;
+        final setupCommand = workspaceLaunch.setupCommand;
         if (session.startedNewProcess &&
             setupCommand != null &&
             setupCommand.isNotEmpty) {
@@ -1118,7 +1118,7 @@ GhosttyTerminalShellLaunch _launchWithSanitizedAgentHookEnvironment(
     shell: launch.shell,
     arguments: launch.arguments,
     environment: environment.isEmpty ? null : environment,
-    setupCommand: launch.setupCommand,
+    setupCommand: _setupCommandWithCodexHomeRestore(launch, environment),
   );
 }
 
@@ -1191,12 +1191,72 @@ bool _isAleraAgentHookEnvironmentKey(String key, String _) {
   return key.startsWith('ALERA_AGENT_HOOK_') ||
       key == 'ALERA_TERMINAL_SESSION_ID' ||
       key == 'ALERA_WORKSPACE_ID' ||
-      key == 'ALERA_TAB_ID';
+      key == 'ALERA_TAB_ID' ||
+      key == 'ALERA_CODEX_HOME';
 }
 
 bool _isWindowsCommandPromptLaunch(GhosttyTerminalShellLaunch launch) {
+  return _shellExecutableName(launch) == 'cmd';
+}
+
+bool _isWindowsPowerShellLaunch(GhosttyTerminalShellLaunch launch) {
+  final executable = _shellExecutableName(launch);
+  return executable == 'powershell' || executable == 'pwsh';
+}
+
+String _shellExecutableName(GhosttyTerminalShellLaunch launch) {
   final executable = launch.shell.replaceAll(r'\', '/').split('/').last;
-  return executable.toLowerCase() == 'cmd.exe';
+  final lower = executable.toLowerCase();
+  return lower.endsWith('.exe') ? lower.substring(0, lower.length - 4) : lower;
+}
+
+String? _setupCommandWithCodexHomeRestore(
+  GhosttyTerminalShellLaunch launch,
+  Map<String, String> environment,
+) {
+  if (!environment.containsKey('ALERA_CODEX_HOME')) {
+    return launch.setupCommand;
+  }
+  final restore = _codexHomeRestoreCommand(launch);
+  final existing = launch.setupCommand;
+  if (restore == null) {
+    return existing;
+  }
+  if (existing == null || existing.isEmpty) {
+    return restore;
+  }
+  return '$restore$existing';
+}
+
+String? _codexHomeRestoreCommand(GhosttyTerminalShellLaunch launch) {
+  if (_isWindowsCommandPromptLaunch(launch)) {
+    return 'set "CODEX_HOME=%ALERA_CODEX_HOME%"\n';
+  }
+  if (_isWindowsPowerShellLaunch(launch)) {
+    return r'if ($env:ALERA_CODEX_HOME) { $env:CODEX_HOME = $env:ALERA_CODEX_HOME }'
+        '\n';
+  }
+  final executable = _shellExecutableName(launch);
+  if (executable == 'fish') {
+    return 'if set -q ALERA_CODEX_HOME; set -gx CODEX_HOME \$ALERA_CODEX_HOME; end\n';
+  }
+  if (executable == 'nu' || executable == 'nushell') {
+    return r'if ("ALERA_CODEX_HOME" in $env) { $env.CODEX_HOME = $env.ALERA_CODEX_HOME }'
+        '\n';
+  }
+  if (const <String>{
+    'ash',
+    'bash',
+    'dash',
+    'ksh',
+    'mksh',
+    'oksh',
+    'sh',
+    'zsh',
+  }.contains(executable)) {
+    return 'if [ -n "\${ALERA_CODEX_HOME:-}" ]; then export CODEX_HOME="\$ALERA_CODEX_HOME"; fi\n';
+  }
+  return null;
 }
 
 String _cmdQuote(String value) {

@@ -6,6 +6,7 @@ import 'package:alera/src/features/agent_status/application/agent_status_control
 import 'package:alera/src/features/agent_status/application/agent_status_notifications.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/infra/agent_hook_receiver.dart';
+import 'package:alera/src/features/agent_status/infra/codex_runtime_home_service.dart';
 import 'package:alera/src/features/agent_status/infra/desktop_agent_status_notification_service.dart';
 import 'package:alera/src/features/agent_status/infra/managed_agent_hook_installer.dart';
 import 'package:alera/src/features/agent_status/infra/window_manager_agent_window_activator.dart';
@@ -102,6 +103,12 @@ final managedAgentHookInstallServiceProvider =
       return ManagedAgentHookInstallService();
     });
 
+final codexRuntimeHomeServiceProvider = Provider<CodexRuntimeHomeService>((
+  ref,
+) {
+  return CodexRuntimeHomeService();
+});
+
 final agentStatusNotificationPresenterProvider =
     Provider<AgentStatusNotificationPresenter>((ref) {
       return DesktopAgentStatusNotificationService();
@@ -149,6 +156,7 @@ final agentHookReceiverLifecycleProvider = Provider<void>((ref) {
 
 final agentHookInstallerCoordinatorProvider = Provider<void>((ref) {
   final service = ref.watch(managedAgentHookInstallServiceProvider);
+  final codexRuntimeHome = ref.watch(codexRuntimeHomeServiceProvider);
   ref.listen<AgentStatusHookSettings>(
     settingsControllerProvider.select(
       (settings) => settings.general.agentStatusHooks,
@@ -157,8 +165,10 @@ final agentHookInstallerCoordinatorProvider = Provider<void>((ref) {
       if (previous == null || previous == next) {
         return;
       }
-      final operation = service.reconcile(
-        enabledAgentTypes: _enabledAgentStatusHookTypes(next),
+      final operation = _reconcileAgentHooks(
+        service: service,
+        codexRuntimeHome: codexRuntimeHome,
+        settings: next,
       );
       unawaited(
         operation.then<void>((_) {}).catchError(_ignoreProviderAsyncError),
@@ -245,6 +255,7 @@ final agentStatusNotificationCoordinatorProvider = Provider<void>((ref) {
 final terminalRuntimeProvider = Provider<TerminalRuntime>((ref) {
   final terminalHostClient = ref.watch(terminalHostClientProvider);
   final agentHookReceiver = ref.watch(agentHookReceiverProvider);
+  final codexRuntimeHome = ref.watch(codexRuntimeHomeServiceProvider);
   final runtime = XtermTerminalRuntime(
     ptySessionFactory: TerminalHostPtySessionFactory(
       client: terminalHostClient,
@@ -253,15 +264,17 @@ final terminalRuntimeProvider = Provider<TerminalRuntime>((ref) {
     externalUriLauncher: ref.watch(externalUriLauncherProvider),
     agentHookEnvironmentBuilder:
         ({required terminalSessionId, required workspaceId, required tabId}) {
-          final enabled = ref
+          final hooks = ref
               .read(settingsControllerProvider)
               .general
-              .agentStatusHooks
-              .anyEnabled;
-          if (!enabled) {
+              .agentStatusHooks;
+          if (!hooks.anyEnabled) {
             return null;
           }
-          return agentHookReceiver.launchEnvironmentFor(
+          return _terminalLaunchEnvironmentFor(
+            agentHookReceiver: agentHookReceiver,
+            codexRuntimeHome: codexRuntimeHome,
+            hooks: hooks,
             terminalSessionId: terminalSessionId,
             workspaceId: workspaceId,
             tabId: tabId,
@@ -398,6 +411,65 @@ List<AgentType> _enabledAgentStatusHookTypes(AgentStatusHookSettings settings) {
     if (settings.pi) AgentType.pi,
     if (settings.amp) AgentType.amp,
   ];
+}
+
+List<AgentType> _nonCodexAgentTypes() {
+  return <AgentType>[
+    for (final agentType in AgentType.values)
+      if (agentType != AgentType.codex) agentType,
+  ];
+}
+
+List<AgentType> _enabledNonCodexAgentStatusHookTypes(
+  AgentStatusHookSettings settings,
+) {
+  return <AgentType>[
+    for (final agentType in _enabledAgentStatusHookTypes(settings))
+      if (agentType != AgentType.codex) agentType,
+  ];
+}
+
+Future<List<ManagedAgentHookInstallStatus>> _reconcileAgentHooks({
+  required ManagedAgentHookInstallService service,
+  required CodexRuntimeHomeService codexRuntimeHome,
+  required AgentStatusHookSettings settings,
+}) async {
+  final results = await service.reconcile(
+    enabledAgentTypes: _enabledNonCodexAgentStatusHookTypes(settings),
+    agentTypes: _nonCodexAgentTypes(),
+  );
+  results.add(
+    settings.codex
+        ? await codexRuntimeHome.install()
+        : await codexRuntimeHome.remove(),
+  );
+  return results;
+}
+
+Future<Map<String, String>?> _terminalLaunchEnvironmentFor({
+  required AgentHookReceiver agentHookReceiver,
+  required CodexRuntimeHomeService codexRuntimeHome,
+  required AgentStatusHookSettings hooks,
+  required String terminalSessionId,
+  required String workspaceId,
+  required String tabId,
+}) async {
+  final environment = <String, String>{};
+  final hookEnvironment = await agentHookReceiver.launchEnvironmentFor(
+    terminalSessionId: terminalSessionId,
+    workspaceId: workspaceId,
+    tabId: tabId,
+  );
+  if (hookEnvironment != null) {
+    environment.addAll(hookEnvironment);
+  }
+  if (hooks.codex) {
+    try {
+      final preparation = await codexRuntimeHome.prepareForTerminalLaunch();
+      environment.addAll(preparation.environment);
+    } catch (_) {}
+  }
+  return environment.isEmpty ? null : environment;
 }
 
 bool _isAgentStatusHookEnabled(

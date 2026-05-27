@@ -26,7 +26,7 @@ void main() {
       }
     });
 
-    test('installs Codex hooks idempotently and preserves user hooks', () {
+    test('does not install Codex hooks into the user config', () {
       final configPath = p.join(home.path, '.codex', 'hooks.json');
       _writeJson(configPath, <String, Object?>{
         'hooks': <String, Object?>{
@@ -43,27 +43,16 @@ void main() {
         },
       });
 
-      expect(
-        service.install(AgentType.codex).state,
-        ManagedAgentHookInstallState.installed,
-      );
-      expect(
-        service.install(AgentType.codex).state,
-        ManagedAgentHookInstallState.installed,
-      );
+      final status = service.install(AgentType.codex);
 
+      expect(status.state, ManagedAgentHookInstallState.notInstalled);
       final config = _readJson(configPath);
       final hooks = Map<String, Object?>.from(config['hooks'] as Map);
+      expect(_commandsFor(hooks, 'PreToolUse'), <String>['echo user-hook']);
+      expect(_managedCommandCount(hooks, 'alera-codex-hook.sh'), 0);
       expect(
-        _commandsFor(hooks, 'PreToolUse'),
-        containsAll(<String>['echo user-hook']),
-      );
-      expect(_managedCommandCount(hooks, 'alera-codex-hook.sh'), 6);
-      expect(
-        File(
-          p.join(home.path, '.alera', 'agent-hooks', 'alera-codex-hook.sh'),
-        ).existsSync(),
-        isTrue,
+        File(p.join(home.path, '.alera', 'agent-hooks')).existsSync(),
+        isFalse,
       );
     });
 
