@@ -27,7 +27,7 @@ void main() {
     });
 
     test(
-      'zsh uses a managed ZDOTDIR and restores Codex home in wrappers',
+      'zsh uses a managed ZDOTDIR and restores managed agent env in wrappers',
       () async {
         final launch = await preparer.prepare(
           _launch(
@@ -74,6 +74,10 @@ void main() {
         ).readAsString();
         expect(zshrc, contains('source "\$_alera_orig_zdotdir/.zshrc"'));
         expect(zshrc, contains('export CODEX_HOME="\${ALERA_CODEX_HOME}"'));
+        expect(
+          zshrc,
+          contains('export CLAUDE_CONFIG_DIR="\${ALERA_CLAUDE_CONFIG_DIR}"'),
+        );
         expect(zshrc, contains("export ZDOTDIR='$expectedZdotdir'"));
       },
     );
@@ -132,7 +136,7 @@ void main() {
     });
 
     test(
-      'bash uses a managed rcfile and restores Codex home after user rc',
+      'bash uses a managed rcfile and restores managed agent env after user rc',
       () async {
         final launch = await preparer.prepare(
           _launch(
@@ -164,6 +168,10 @@ void main() {
         final rcFile = await File(expectedRcFile).readAsString();
         expect(rcFile, contains('. "\${ALERA_ORIG_BASHRC}"'));
         expect(rcFile, contains('export CODEX_HOME="\${ALERA_CODEX_HOME}"'));
+        expect(
+          rcFile,
+          contains('export CLAUDE_CONFIG_DIR="\${ALERA_CLAUDE_CONFIG_DIR}"'),
+        );
       },
     );
 
@@ -196,33 +204,35 @@ void main() {
             launch.arguments[launch.arguments.indexOf('-EncodedCommand') + 1];
         final script = _decodePowerShellEncodedCommand(encodedCommand);
         expect(script, contains(r'$env:CODEX_HOME = $env:ALERA_CODEX_HOME'));
-      },
-    );
-
-    test(
-      'fish uses an init command to restore Codex home after startup',
-      () async {
-        final launch = await preparer.prepare(
-          _launch(
-            shell: '/opt/homebrew/bin/fish',
-            arguments: const <String>['-i'],
-            environment: const <String, String>{
-              'CODEX_HOME': '/runtime/codex',
-              'ALERA_CODEX_HOME': '/runtime/codex',
-            },
-          ),
-        );
-
-        expect(launch.arguments, hasLength(3));
-        expect(launch.arguments[0], '-i');
-        expect(launch.arguments[1], '-C');
         expect(
-          launch.arguments[2],
-          'if set -q ALERA_CODEX_HOME; set -gx CODEX_HOME \$ALERA_CODEX_HOME; end',
+          script,
+          contains(r'$env:CLAUDE_CONFIG_DIR = $env:ALERA_CLAUDE_CONFIG_DIR'),
         );
-        expect(launch.setupCommand, isNull);
       },
     );
+
+    test('fish uses an init command to restore Codex home after startup', () async {
+      final launch = await preparer.prepare(
+        _launch(
+          shell: '/opt/homebrew/bin/fish',
+          arguments: const <String>['-i'],
+          environment: const <String, String>{
+            'CODEX_HOME': '/runtime/codex',
+            'ALERA_CODEX_HOME': '/runtime/codex',
+          },
+        ),
+      );
+
+      expect(launch.arguments, hasLength(3));
+      expect(launch.arguments[0], '-i');
+      expect(launch.arguments[1], '-C');
+      expect(
+        launch.arguments[2],
+        'if set -q ALERA_CODEX_HOME; set -gx CODEX_HOME \$ALERA_CODEX_HOME; end\n'
+        'if set -q ALERA_CLAUDE_CONFIG_DIR; set -gx CLAUDE_CONFIG_DIR \$ALERA_CLAUDE_CONFIG_DIR; end',
+      );
+      expect(launch.setupCommand, isNull);
+    });
 
     test('fish command launches keep a setup-command fallback', () async {
       final launch = await preparer.prepare(
@@ -241,7 +251,8 @@ void main() {
       expect(
         launch.setupCommand,
         startsWith(
-          'if set -q ALERA_CODEX_HOME; set -gx CODEX_HOME \$ALERA_CODEX_HOME; end\n',
+          'if set -q ALERA_CODEX_HOME; set -gx CODEX_HOME \$ALERA_CODEX_HOME; end\n'
+          'if set -q ALERA_CLAUDE_CONFIG_DIR; set -gx CLAUDE_CONFIG_DIR \$ALERA_CLAUDE_CONFIG_DIR; end\n',
         ),
       );
       expect(launch.setupCommand, contains('printf setup\n'));
@@ -280,43 +291,46 @@ void main() {
       );
       expect(config, contains('source \$__alera_user_config'));
       expect(config, contains(r'$env.CODEX_HOME = $env.ALERA_CODEX_HOME'));
+      expect(
+        config,
+        contains(r'$env.CLAUDE_CONFIG_DIR = $env.ALERA_CLAUDE_CONFIG_DIR'),
+      );
       expect(config, contains('pre_prompt'));
     });
 
-    test(
-      'nushell custom-config launches keep a setup-command fallback',
-      () async {
-        final launch = await preparer.prepare(
-          _launch(
-            shell: '/usr/local/bin/nu',
-            arguments: const <String>[
-              '--config',
-              '/Users/tester/config.nu',
-              '-i',
-            ],
-            environment: const <String, String>{
-              'CODEX_HOME': '/runtime/codex',
-              'ALERA_CODEX_HOME': '/runtime/codex',
-            },
-            setupCommand: 'print setup\n',
-          ),
-        );
+    test('nushell custom-config launches keep a setup-command fallback', () async {
+      final launch = await preparer.prepare(
+        _launch(
+          shell: '/usr/local/bin/nu',
+          arguments: const <String>[
+            '--config',
+            '/Users/tester/config.nu',
+            '-i',
+          ],
+          environment: const <String, String>{
+            'CODEX_HOME': '/runtime/codex',
+            'ALERA_CODEX_HOME': '/runtime/codex',
+          },
+          setupCommand: 'print setup\n',
+        ),
+      );
 
-        expect(launch.arguments, const <String>[
-          '--config',
-          '/Users/tester/config.nu',
-          '-i',
-        ]);
-        expect(
-          launch.setupCommand,
-          startsWith(
-            r'if ("ALERA_CODEX_HOME" in $env) { $env.CODEX_HOME = $env.ALERA_CODEX_HOME }'
-            '\n',
-          ),
-        );
-        expect(launch.setupCommand, contains('print setup\n'));
-      },
-    );
+      expect(launch.arguments, const <String>[
+        '--config',
+        '/Users/tester/config.nu',
+        '-i',
+      ]);
+      expect(
+        launch.setupCommand,
+        startsWith(
+          r'if ("ALERA_CODEX_HOME" in $env) { $env.CODEX_HOME = $env.ALERA_CODEX_HOME }'
+          '\n'
+          r'if ("ALERA_CLAUDE_CONFIG_DIR" in $env) { $env.CLAUDE_CONFIG_DIR = $env.ALERA_CLAUDE_CONFIG_DIR }'
+          '\n',
+        ),
+      );
+      expect(launch.setupCommand, contains('print setup\n'));
+    });
 
     test('cmd launches keep a command-prompt setup-command fallback', () async {
       final launch = await preparer.prepare(
@@ -333,31 +347,30 @@ void main() {
       expect(launch.arguments, const <String>['/d']);
       expect(
         launch.setupCommand,
-        'if defined ALERA_CODEX_HOME set "CODEX_HOME=%ALERA_CODEX_HOME%"\n',
+        'if defined ALERA_CODEX_HOME set "CODEX_HOME=%ALERA_CODEX_HOME%"\n'
+        'if defined ALERA_CLAUDE_CONFIG_DIR set "CLAUDE_CONFIG_DIR=%ALERA_CLAUDE_CONFIG_DIR%"\n',
       );
     });
 
-    test(
-      'cmd launches prepend restore before existing setup commands',
-      () async {
-        final launch = await preparer.prepare(
-          _launch(
-            shell: r'C:\Windows\System32\cmd.exe',
-            environment: const <String, String>{
-              'CODEX_HOME': r'C:\Alera\codex-home',
-              'ALERA_CODEX_HOME': r'C:\Alera\codex-home',
-            },
-            setupCommand: 'echo setup\n',
-          ),
-        );
+    test('cmd launches prepend restore before existing setup commands', () async {
+      final launch = await preparer.prepare(
+        _launch(
+          shell: r'C:\Windows\System32\cmd.exe',
+          environment: const <String, String>{
+            'CODEX_HOME': r'C:\Alera\codex-home',
+            'ALERA_CODEX_HOME': r'C:\Alera\codex-home',
+          },
+          setupCommand: 'echo setup\n',
+        ),
+      );
 
-        expect(
-          launch.setupCommand,
-          'if defined ALERA_CODEX_HOME set "CODEX_HOME=%ALERA_CODEX_HOME%"\n'
-          'echo setup\n',
-        );
-      },
-    );
+      expect(
+        launch.setupCommand,
+        'if defined ALERA_CODEX_HOME set "CODEX_HOME=%ALERA_CODEX_HOME%"\n'
+        'if defined ALERA_CLAUDE_CONFIG_DIR set "CLAUDE_CONFIG_DIR=%ALERA_CLAUDE_CONFIG_DIR%"\n'
+        'echo setup\n',
+      );
+    });
 
     test('POSIX fallback shells keep a setup-command fallback', () async {
       for (final shell in _posixFallbackShells) {
@@ -375,7 +388,8 @@ void main() {
         expect(launch.arguments, const <String>['-l']);
         expect(
           launch.setupCommand,
-          'if [ -n "\${ALERA_CODEX_HOME:-}" ]; then export CODEX_HOME="\$ALERA_CODEX_HOME"; fi\n',
+          'if [ -n "\${ALERA_CODEX_HOME:-}" ]; then export CODEX_HOME="\$ALERA_CODEX_HOME"; fi\n'
+          'if [ -n "\${ALERA_CLAUDE_CONFIG_DIR:-}" ]; then export CLAUDE_CONFIG_DIR="\$ALERA_CLAUDE_CONFIG_DIR"; fi\n',
         );
       }
     });
@@ -398,9 +412,32 @@ void main() {
           expect(
             launch.setupCommand,
             'if [ -n "\${ALERA_CODEX_HOME:-}" ]; then export CODEX_HOME="\$ALERA_CODEX_HOME"; fi\n'
+            'if [ -n "\${ALERA_CLAUDE_CONFIG_DIR:-}" ]; then export CLAUDE_CONFIG_DIR="\$ALERA_CLAUDE_CONFIG_DIR"; fi\n'
             'printf setup\n',
           );
         }
+      },
+    );
+
+    test(
+      'Claude runtime env alone triggers shell restore preparation',
+      () async {
+        final launch = await preparer.prepare(
+          _launch(
+            shell: '/bin/sh',
+            arguments: const <String>['-l'],
+            environment: const <String, String>{
+              'CLAUDE_CONFIG_DIR': '/runtime/claude',
+              'ALERA_CLAUDE_CONFIG_DIR': '/runtime/claude',
+            },
+          ),
+        );
+
+        expect(launch.arguments, const <String>['-l']);
+        expect(
+          launch.setupCommand,
+          contains('export CLAUDE_CONFIG_DIR="\$ALERA_CLAUDE_CONFIG_DIR"'),
+        );
       },
     );
 

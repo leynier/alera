@@ -56,7 +56,7 @@ void main() {
       );
     });
 
-    test('removes only Alera-managed hooks', () {
+    test('does not install Claude hooks into the user config', () {
       final configPath = p.join(home.path, '.claude', 'settings.json');
       _writeJson(configPath, <String, Object?>{
         'hooks': <String, Object?>{
@@ -65,8 +65,7 @@ void main() {
               'hooks': <Object?>[
                 <String, Object?>{
                   'type': 'command',
-                  'command':
-                      "if [ -x '/Users/test/.orca/agent-hooks/claude-hook.sh' ]; then /bin/sh '/Users/test/.orca/agent-hooks/claude-hook.sh'; fi",
+                  'command': 'echo user-hook',
                 },
               ],
             },
@@ -74,21 +73,21 @@ void main() {
         },
       });
 
-      service.install(AgentType.claude);
-      expect(
-        _managedCommandCount(_hooks(configPath), 'alera-claude-hook.sh'),
-        6,
-      );
+      final status = service.install(AgentType.claude);
 
-      final removed = service.remove(AgentType.claude);
-
-      expect(removed.state, ManagedAgentHookInstallState.notInstalled);
+      expect(status.state, ManagedAgentHookInstallState.notInstalled);
       final hooks = _hooks(configPath);
       expect(_managedCommandCount(hooks, 'alera-claude-hook.sh'), 0);
-      expect(_commandsFor(hooks, 'UserPromptSubmit').single, contains('.orca'));
+      expect(_commandsFor(hooks, 'UserPromptSubmit'), <String>[
+        'echo user-hook',
+      ]);
+      expect(
+        File(p.join(home.path, '.alera', 'agent-hooks')).existsSync(),
+        isFalse,
+      );
     });
 
-    test('reports corrupt config as an error', () {
+    test('does not parse Claude settings because hooks are runtime-only', () {
       final configPath = p.join(home.path, '.claude', 'settings.json');
       File(configPath)
         ..createSync(recursive: true)
@@ -96,11 +95,11 @@ void main() {
 
       expect(
         service.status(AgentType.claude).state,
-        ManagedAgentHookInstallState.error,
+        ManagedAgentHookInstallState.notInstalled,
       );
       expect(
         service.install(AgentType.claude).state,
-        ManagedAgentHookInstallState.error,
+        ManagedAgentHookInstallState.notInstalled,
       );
     });
 

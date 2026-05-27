@@ -28,7 +28,8 @@ final class AleraTerminalShellStartupPreparer
     GhosttyTerminalShellLaunch launch,
   ) async {
     final environment = launch.environment;
-    if (environment == null || !environment.containsKey('ALERA_CODEX_HOME')) {
+    if (environment == null ||
+        !_hasManagedAgentRuntimeEnvironment(environment)) {
       return launch;
     }
 
@@ -38,9 +39,15 @@ final class AleraTerminalShellStartupPreparer
       'fish' => _prepareFishLaunch(launch),
       'nu' || 'nushell' => _prepareNushellLaunch(launch),
       'powershell' || 'pwsh' => _preparePowerShellLaunch(launch),
-      'cmd' => _launchWithPrependedSetupCommand(launch, _cmdRestoreCodexHome),
+      'cmd' => _launchWithPrependedSetupCommand(
+        launch,
+        _cmdRestoreManagedAgentEnvironment,
+      ),
       final executable when _isPosixSetupFallbackShell(executable) =>
-        _launchWithPrependedSetupCommand(launch, _shRestoreCodexHome),
+        _launchWithPrependedSetupCommand(
+          launch,
+          _shRestoreManagedAgentEnvironment,
+        ),
       _ => launch,
     };
   }
@@ -125,7 +132,10 @@ final class AleraTerminalShellStartupPreparer
     GhosttyTerminalShellLaunch launch,
   ) {
     if (_hasFishCommandArgument(launch.arguments)) {
-      return _launchWithPrependedSetupCommand(launch, _fishRestoreCodexHome);
+      return _launchWithPrependedSetupCommand(
+        launch,
+        _fishRestoreManagedAgentEnvironment,
+      );
     }
 
     return GhosttyTerminalShellLaunch(
@@ -134,7 +144,7 @@ final class AleraTerminalShellStartupPreparer
       arguments: <String>[
         ...launch.arguments,
         '-C',
-        _fishRestoreCodexHome.trimRight(),
+        _fishRestoreManagedAgentEnvironment.trimRight(),
       ],
       environment: launch.environment,
       setupCommand: launch.setupCommand,
@@ -145,7 +155,10 @@ final class AleraTerminalShellStartupPreparer
     GhosttyTerminalShellLaunch launch,
   ) async {
     if (_requiresNushellSetupFallback(launch.arguments)) {
-      return _launchWithPrependedSetupCommand(launch, _nushellRestoreCodexHome);
+      return _launchWithPrependedSetupCommand(
+        launch,
+        _nushellRestoreManagedAgentEnvironment,
+      );
     }
 
     final nushellDir = await _startupDirectory('nushell');
@@ -182,7 +195,7 @@ final class AleraTerminalShellStartupPreparer
         '-NoLogo',
         '-NoExit',
         '-EncodedCommand',
-        _encodePowerShellCommand(_powerShellRestoreCodexHomeScript),
+        _encodePowerShellCommand(_powerShellRestoreManagedAgentEnvironment),
       ],
       environment: launch.environment,
       setupCommand: launch.setupCommand,
@@ -213,6 +226,11 @@ GhosttyTerminalShellLaunch _launchWithPrependedSetupCommand(
         ? setupCommand
         : '$setupCommand$existing',
   );
+}
+
+bool _hasManagedAgentRuntimeEnvironment(Map<String, String> environment) {
+  return environment.containsKey('ALERA_CODEX_HOME') ||
+      environment.containsKey('ALERA_CLAUDE_CONFIG_DIR');
 }
 
 Future<void> _writeIfChanged(File file, String contents) async {
@@ -252,6 +270,9 @@ export ZDOTDIR=$quotedManagedZdotdir
 if [[ -n "\${ALERA_CODEX_HOME:-}" ]]; then
   export CODEX_HOME="\${ALERA_CODEX_HOME}"
 fi
+if [[ -n "\${ALERA_CLAUDE_CONFIG_DIR:-}" ]]; then
+  export CLAUDE_CONFIG_DIR="\${ALERA_CLAUDE_CONFIG_DIR}"
+fi
 ''';
 }
 
@@ -268,6 +289,9 @@ if [[ -n "\$_alera_orig_zdotdir" && "\$_alera_orig_zdotdir" != "\${ZDOTDIR:-}" &
 fi
 if [[ -n "\${ALERA_CODEX_HOME:-}" ]]; then
   export CODEX_HOME="\${ALERA_CODEX_HOME}"
+fi
+if [[ -n "\${ALERA_CLAUDE_CONFIG_DIR:-}" ]]; then
+  export CLAUDE_CONFIG_DIR="\${ALERA_CLAUDE_CONFIG_DIR}"
 fi
 export ZDOTDIR=$quotedManagedZdotdir
 unset _alera_orig_zdotdir
@@ -317,19 +341,27 @@ fi
 if [ -n "\${ALERA_CODEX_HOME:-}" ]; then
   export CODEX_HOME="\${ALERA_CODEX_HOME}"
 fi
+if [ -n "\${ALERA_CLAUDE_CONFIG_DIR:-}" ]; then
+  export CLAUDE_CONFIG_DIR="\${ALERA_CLAUDE_CONFIG_DIR}"
+fi
 ''';
 
-const String _fishRestoreCodexHome =
-    'if set -q ALERA_CODEX_HOME; set -gx CODEX_HOME \$ALERA_CODEX_HOME; end\n';
+const String _fishRestoreManagedAgentEnvironment =
+    'if set -q ALERA_CODEX_HOME; set -gx CODEX_HOME \$ALERA_CODEX_HOME; end\n'
+    'if set -q ALERA_CLAUDE_CONFIG_DIR; set -gx CLAUDE_CONFIG_DIR \$ALERA_CLAUDE_CONFIG_DIR; end\n';
 
-const String _cmdRestoreCodexHome =
-    'if defined ALERA_CODEX_HOME set "CODEX_HOME=%ALERA_CODEX_HOME%"\n';
+const String _cmdRestoreManagedAgentEnvironment =
+    'if defined ALERA_CODEX_HOME set "CODEX_HOME=%ALERA_CODEX_HOME%"\n'
+    'if defined ALERA_CLAUDE_CONFIG_DIR set "CLAUDE_CONFIG_DIR=%ALERA_CLAUDE_CONFIG_DIR%"\n';
 
-const String _shRestoreCodexHome =
-    'if [ -n "\${ALERA_CODEX_HOME:-}" ]; then export CODEX_HOME="\$ALERA_CODEX_HOME"; fi\n';
+const String _shRestoreManagedAgentEnvironment =
+    'if [ -n "\${ALERA_CODEX_HOME:-}" ]; then export CODEX_HOME="\$ALERA_CODEX_HOME"; fi\n'
+    'if [ -n "\${ALERA_CLAUDE_CONFIG_DIR:-}" ]; then export CLAUDE_CONFIG_DIR="\$ALERA_CLAUDE_CONFIG_DIR"; fi\n';
 
-const String _nushellRestoreCodexHome =
+const String _nushellRestoreManagedAgentEnvironment =
     r'if ("ALERA_CODEX_HOME" in $env) { $env.CODEX_HOME = $env.ALERA_CODEX_HOME }'
+    '\n'
+    r'if ("ALERA_CLAUDE_CONFIG_DIR" in $env) { $env.CLAUDE_CONFIG_DIR = $env.ALERA_CLAUDE_CONFIG_DIR }'
     '\n';
 
 const String _nushellConfigFile = r'''
@@ -341,9 +373,15 @@ if ($__alera_user_config | path exists) {
 if ("ALERA_CODEX_HOME" in $env) {
   $env.CODEX_HOME = $env.ALERA_CODEX_HOME
 }
-let __alera_restore_codex_home = { ||
+if ("ALERA_CLAUDE_CONFIG_DIR" in $env) {
+  $env.CLAUDE_CONFIG_DIR = $env.ALERA_CLAUDE_CONFIG_DIR
+}
+let __alera_restore_managed_agent_environment = { ||
   if ("ALERA_CODEX_HOME" in $env) {
     $env.CODEX_HOME = $env.ALERA_CODEX_HOME
+  }
+  if ("ALERA_CLAUDE_CONFIG_DIR" in $env) {
+    $env.CLAUDE_CONFIG_DIR = $env.ALERA_CLAUDE_CONFIG_DIR
   }
 }
 if not ("config" in $env) {
@@ -351,12 +389,15 @@ if not ("config" in $env) {
 }
 let __alera_hooks = if ("hooks" in $env.config) { $env.config.hooks } else { {} }
 let __alera_pre_prompt = if ("pre_prompt" in $__alera_hooks) { $__alera_hooks.pre_prompt } else { [] }
-$env.config = ($env.config | upsert hooks ($__alera_hooks | upsert pre_prompt ($__alera_pre_prompt | append $__alera_restore_codex_home)))
+$env.config = ($env.config | upsert hooks ($__alera_hooks | upsert pre_prompt ($__alera_pre_prompt | append $__alera_restore_managed_agent_environment)))
 ''';
 
-const String _powerShellRestoreCodexHomeScript = r'''
+const String _powerShellRestoreManagedAgentEnvironment = r'''
 if ($env:ALERA_CODEX_HOME) {
   $env:CODEX_HOME = $env:ALERA_CODEX_HOME
+}
+if ($env:ALERA_CLAUDE_CONFIG_DIR) {
+  $env:CLAUDE_CONFIG_DIR = $env:ALERA_CLAUDE_CONFIG_DIR
 }
 ''';
 

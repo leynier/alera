@@ -66,6 +66,9 @@ class ManagedAgentHookInstallService {
     if (agentType == AgentType.codex) {
       return _codexRuntimeOnlyStatus();
     }
+    if (agentType == AgentType.claude) {
+      return _claudeRuntimeOnlyStatus();
+    }
     final artifact = _managedArtifact(agentType);
     if (artifact != null) {
       return _managedArtifactStatus(artifact);
@@ -136,6 +139,9 @@ class ManagedAgentHookInstallService {
   ManagedAgentHookInstallStatus install(AgentType agentType) {
     if (agentType == AgentType.codex) {
       return _codexRuntimeOnlyStatus();
+    }
+    if (agentType == AgentType.claude) {
+      return _claudeRuntimeOnlyStatus();
     }
     final artifact = _managedArtifact(agentType);
     if (artifact != null) {
@@ -213,6 +219,9 @@ class ManagedAgentHookInstallService {
     if (agentType == AgentType.codex) {
       return _codexRuntimeOnlyStatus();
     }
+    if (agentType == AgentType.claude) {
+      return _claudeRuntimeOnlyStatus();
+    }
     final artifact = _managedArtifact(agentType);
     if (artifact != null) {
       return _removeManagedArtifact(artifact);
@@ -283,6 +292,17 @@ class ManagedAgentHookInstallService {
       configPath: p.join(_homeDirectory, '.codex', 'hooks.json'),
       managedHooksPresent: false,
       detail: 'Codex hooks are installed only in Alera-managed runtime homes.',
+    );
+  }
+
+  ManagedAgentHookInstallStatus _claudeRuntimeOnlyStatus() {
+    return ManagedAgentHookInstallStatus(
+      agentType: AgentType.claude,
+      state: ManagedAgentHookInstallState.notInstalled,
+      configPath: p.join(_homeDirectory, '.claude', 'settings.json'),
+      managedHooksPresent: false,
+      detail:
+          'Claude Code hooks are installed only in Alera-managed runtime homes.',
     );
   }
 

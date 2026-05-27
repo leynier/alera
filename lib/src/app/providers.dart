@@ -6,6 +6,7 @@ import 'package:alera/src/features/agent_status/application/agent_status_control
 import 'package:alera/src/features/agent_status/application/agent_status_notifications.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/infra/agent_hook_receiver.dart';
+import 'package:alera/src/features/agent_status/infra/claude_runtime_home_service.dart';
 import 'package:alera/src/features/agent_status/infra/codex_runtime_home_service.dart';
 import 'package:alera/src/features/agent_status/infra/desktop_agent_status_notification_service.dart';
 import 'package:alera/src/features/agent_status/infra/managed_agent_hook_installer.dart';
@@ -110,6 +111,12 @@ final codexRuntimeHomeServiceProvider = Provider<CodexRuntimeHomeService>((
   return CodexRuntimeHomeService();
 });
 
+final claudeRuntimeHomeServiceProvider = Provider<ClaudeRuntimeHomeService>((
+  ref,
+) {
+  return ClaudeRuntimeHomeService();
+});
+
 final agentStatusNotificationPresenterProvider =
     Provider<AgentStatusNotificationPresenter>((ref) {
       return DesktopAgentStatusNotificationService();
@@ -158,6 +165,7 @@ final agentHookReceiverLifecycleProvider = Provider<void>((ref) {
 final agentHookInstallerCoordinatorProvider = Provider<void>((ref) {
   final service = ref.watch(managedAgentHookInstallServiceProvider);
   final codexRuntimeHome = ref.watch(codexRuntimeHomeServiceProvider);
+  final claudeRuntimeHome = ref.watch(claudeRuntimeHomeServiceProvider);
   ref.listen<AgentStatusHookSettings>(
     settingsControllerProvider.select(
       (settings) => settings.general.agentStatusHooks,
@@ -169,6 +177,7 @@ final agentHookInstallerCoordinatorProvider = Provider<void>((ref) {
       final operation = _reconcileAgentHooks(
         service: service,
         codexRuntimeHome: codexRuntimeHome,
+        claudeRuntimeHome: claudeRuntimeHome,
         settings: next,
       );
       unawaited(
@@ -257,6 +266,7 @@ final terminalRuntimeProvider = Provider<TerminalRuntime>((ref) {
   final terminalHostClient = ref.watch(terminalHostClientProvider);
   final agentHookReceiver = ref.watch(agentHookReceiverProvider);
   final codexRuntimeHome = ref.watch(codexRuntimeHomeServiceProvider);
+  final claudeRuntimeHome = ref.watch(claudeRuntimeHomeServiceProvider);
   final shellStartupPreparer = ref.watch(terminalShellStartupPreparerProvider);
   final runtime = XtermTerminalRuntime(
     ptySessionFactory: TerminalHostPtySessionFactory(
@@ -277,6 +287,7 @@ final terminalRuntimeProvider = Provider<TerminalRuntime>((ref) {
           return _terminalLaunchEnvironmentFor(
             agentHookReceiver: agentHookReceiver,
             codexRuntimeHome: codexRuntimeHome,
+            claudeRuntimeHome: claudeRuntimeHome,
             hooks: hooks,
             terminalSessionId: terminalSessionId,
             workspaceId: workspaceId,
@@ -421,35 +432,43 @@ List<AgentType> _enabledAgentStatusHookTypes(AgentStatusHookSettings settings) {
   ];
 }
 
-List<AgentType> _nonCodexAgentTypes() {
+List<AgentType> _globalManagedAgentTypes() {
   return <AgentType>[
     for (final agentType in AgentType.values)
-      if (agentType != AgentType.codex) agentType,
+      if (agentType != AgentType.codex && agentType != AgentType.claude)
+        agentType,
   ];
 }
 
-List<AgentType> _enabledNonCodexAgentStatusHookTypes(
+List<AgentType> _enabledGlobalManagedAgentStatusHookTypes(
   AgentStatusHookSettings settings,
 ) {
   return <AgentType>[
     for (final agentType in _enabledAgentStatusHookTypes(settings))
-      if (agentType != AgentType.codex) agentType,
+      if (agentType != AgentType.codex && agentType != AgentType.claude)
+        agentType,
   ];
 }
 
 Future<List<ManagedAgentHookInstallStatus>> _reconcileAgentHooks({
   required ManagedAgentHookInstallService service,
   required CodexRuntimeHomeService codexRuntimeHome,
+  required ClaudeRuntimeHomeService claudeRuntimeHome,
   required AgentStatusHookSettings settings,
 }) async {
   final results = await service.reconcile(
-    enabledAgentTypes: _enabledNonCodexAgentStatusHookTypes(settings),
-    agentTypes: _nonCodexAgentTypes(),
+    enabledAgentTypes: _enabledGlobalManagedAgentStatusHookTypes(settings),
+    agentTypes: _globalManagedAgentTypes(),
   );
   results.add(
     settings.codex
         ? await codexRuntimeHome.install()
         : await codexRuntimeHome.remove(),
+  );
+  results.add(
+    settings.claude
+        ? await claudeRuntimeHome.install()
+        : await claudeRuntimeHome.remove(),
   );
   return results;
 }
@@ -457,6 +476,7 @@ Future<List<ManagedAgentHookInstallStatus>> _reconcileAgentHooks({
 Future<Map<String, String>?> _terminalLaunchEnvironmentFor({
   required AgentHookReceiver agentHookReceiver,
   required CodexRuntimeHomeService codexRuntimeHome,
+  required ClaudeRuntimeHomeService claudeRuntimeHome,
   required AgentStatusHookSettings hooks,
   required String terminalSessionId,
   required String workspaceId,
@@ -474,6 +494,12 @@ Future<Map<String, String>?> _terminalLaunchEnvironmentFor({
   if (hooks.codex) {
     try {
       final preparation = await codexRuntimeHome.prepareForTerminalLaunch();
+      environment.addAll(preparation.environment);
+    } catch (_) {}
+  }
+  if (hooks.claude) {
+    try {
+      final preparation = await claudeRuntimeHome.prepareForTerminalLaunch();
       environment.addAll(preparation.environment);
     } catch (_) {}
   }

@@ -227,7 +227,7 @@ const List<_SettingsSearchEntry> _generalSearchEntries = <_SettingsSearchEntry>[
   ),
   _SettingsSearchEntry(
     title: 'Claude Code hooks',
-    description: 'Install managed Claude Code hooks.',
+    description: 'Use an Alera-managed Claude Code config with status hooks.',
     keywords: <String>['claude', 'agent', 'status', 'hooks'],
   ),
   _SettingsSearchEntry(
@@ -686,7 +686,7 @@ class _GeneralSettingsPane extends ConsumerWidget {
             _SwitchSettingRow(
               title: 'Claude Code hooks',
               description:
-                  'Install Alera-managed Claude Code hooks. Disable to remove only Alera-managed hook entries.',
+                  'Use an Alera-managed Claude Code config with status hooks.',
               value: general.agentStatusHooks.claude,
               onChanged: (value) => ref
                   .read(settingsControllerProvider.notifier)

@@ -1,0 +1,436 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:alera/src/features/agent_status/infra/claude_runtime_home_service.dart';
+import 'package:alera/src/features/agent_status/infra/managed_agent_hook_installer.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
+
+void main() {
+  group('ClaudeRuntimeHomeService', () {
+    late Directory root;
+    late Directory home;
+    late Directory support;
+    late ClaudeRuntimeHomeService service;
+
+    setUp(() async {
+      root = await Directory.systemTemp.createTemp('alera-claude-runtime-');
+      home = Directory(p.join(root.path, 'home'))..createSync(recursive: true);
+      support = Directory(p.join(root.path, 'support'))
+        ..createSync(recursive: true);
+      service = ClaudeRuntimeHomeService(
+        homeDirectory: home.path,
+        applicationSupportDirectory: () async => support,
+        platform: ManagedAgentHookPlatform.posix,
+        environment: <String, String>{'HOME': home.path},
+        syncMacOSKeychainCredentials: false,
+      );
+    });
+
+    tearDown(() {
+      if (root.existsSync()) {
+        root.deleteSync(recursive: true);
+      }
+    });
+
+    test('prepares a runtime config without mutating user settings', () async {
+      final sourceSettingsPath = p.join(home.path, '.claude', 'settings.json');
+      _writeJson(sourceSettingsPath, <String, Object?>{
+        'apiKeyHelper': 'echo api-key',
+        'env': <String, Object?>{'FOO': 'bar'},
+        'hooks': <String, Object?>{
+          'UserPromptSubmit': <Object?>[_userHook('echo user-hook')],
+        },
+      });
+      final sourcePluginFile =
+          File(p.join(home.path, '.claude', 'plugins', 'demo.md'))
+            ..createSync(recursive: true)
+            ..writeAsStringSync('plugin contents');
+      final legacyConfig = File(p.join(home.path, '.claude.json'))
+        ..writeAsStringSync('{"projects":{}}\n');
+
+      final preparation = await service.prepareForTerminalLaunch();
+
+      final expectedRuntimeHome = p.join(
+        support.path,
+        'agent-runtime-homes',
+        'claude',
+        'home',
+      );
+      expect(preparation.runtimeHomePath, expectedRuntimeHome);
+      expect(preparation.environment['CLAUDE_CONFIG_DIR'], expectedRuntimeHome);
+      expect(
+        preparation.environment['ALERA_CLAUDE_CONFIG_DIR'],
+        expectedRuntimeHome,
+      );
+      expect(
+        preparation.hookStatus.state,
+        ManagedAgentHookInstallState.installed,
+      );
+
+      final sourceSettings = _readJson(sourceSettingsPath);
+      expect(sourceSettings['apiKeyHelper'], 'echo api-key');
+      expect(
+        _managedCommandCount(
+          _hooks(sourceSettingsPath),
+          'alera-claude-hook.sh',
+        ),
+        0,
+      );
+
+      final runtimeSettingsPath = p.join(
+        preparation.runtimeHomePath,
+        'settings.json',
+      );
+      final runtimeSettings = _readJson(runtimeSettingsPath);
+      expect(runtimeSettings['apiKeyHelper'], 'echo api-key');
+      expect(runtimeSettings['env'], <String, Object?>{'FOO': 'bar'});
+      final runtimeHooks = _hooks(runtimeSettingsPath);
+      expect(
+        _commandsFor(runtimeHooks, 'UserPromptSubmit'),
+        contains('echo user-hook'),
+      );
+      expect(_managedCommandCount(runtimeHooks, 'alera-claude-hook.sh'), 6);
+      expect(
+        File(
+          p.join(home.path, '.alera', 'agent-hooks', 'alera-claude-hook.sh'),
+        ).existsSync(),
+        isTrue,
+      );
+
+      final runtimePluginFile = File(
+        p.join(preparation.runtimeHomePath, 'plugins', 'demo.md'),
+      );
+      expect(
+        runtimePluginFile.readAsStringSync(),
+        sourcePluginFile.readAsStringSync(),
+      );
+      final runtimeLegacyConfig = File(
+        p.join(preparation.runtimeHomePath, '.claude.json'),
+      );
+      expect(
+        runtimeLegacyConfig.readAsStringSync(),
+        legacyConfig.readAsStringSync(),
+      );
+    });
+
+    test(
+      'uses inherited CLAUDE_CONFIG_DIR as the source config directory',
+      () async {
+        final customConfig = Directory(p.join(root.path, 'custom-claude'))
+          ..createSync(recursive: true);
+        _writeJson(
+          p.join(customConfig.path, 'settings.json'),
+          <String, Object?>{'theme': 'dark'},
+        );
+        File(p.join(home.path, '.claude.json')).writeAsStringSync('{}\n');
+        final customService = ClaudeRuntimeHomeService(
+          homeDirectory: home.path,
+          applicationSupportDirectory: () async => support,
+          platform: ManagedAgentHookPlatform.posix,
+          environment: <String, String>{
+            'HOME': home.path,
+            'CLAUDE_CONFIG_DIR': customConfig.path,
+          },
+          syncMacOSKeychainCredentials: false,
+        );
+
+        final preparation = await customService.prepareForTerminalLaunch();
+
+        final runtimeSettings = _readJson(
+          p.join(preparation.runtimeHomePath, 'settings.json'),
+        );
+        expect(runtimeSettings['theme'], 'dark');
+        expect(
+          File(
+            p.join(preparation.runtimeHomePath, '.claude.json'),
+          ).existsSync(),
+          isFalse,
+        );
+      },
+    );
+
+    test(
+      'reuses fallback copied resources while the source is unchanged',
+      () async {
+        final sourcePluginFile =
+            File(p.join(home.path, '.claude', 'plugins', 'demo.md'))
+              ..createSync(recursive: true)
+              ..writeAsStringSync('plugin contents');
+        final fallbackService = _serviceWithFailingResourceLinks(
+          home: home,
+          support: support,
+        );
+
+        final preparation = await fallbackService.prepareForTerminalLaunch();
+        final runtimeOnlyFile = File(
+          p.join(preparation.runtimeHomePath, 'plugins', 'runtime-only.md'),
+        )..writeAsStringSync('runtime-side change');
+        final marker = File(
+          p.join(preparation.runtimeHomePath, '.alera-copied-plugins.json'),
+        );
+        final markerBefore = marker.readAsStringSync();
+
+        await fallbackService.prepareForTerminalLaunch();
+
+        expect(
+          File(
+            p.join(preparation.runtimeHomePath, 'plugins', 'demo.md'),
+          ).readAsStringSync(),
+          sourcePluginFile.readAsStringSync(),
+        );
+        expect(runtimeOnlyFile.existsSync(), isTrue);
+        expect(runtimeOnlyFile.readAsStringSync(), 'runtime-side change');
+        expect(marker.readAsStringSync(), markerBefore);
+      },
+    );
+
+    test(
+      'refreshes fallback copied resources after the source changes',
+      () async {
+        final sourcePluginsPath = p.join(home.path, '.claude', 'plugins');
+        File(p.join(sourcePluginsPath, 'demo.md'))
+          ..createSync(recursive: true)
+          ..writeAsStringSync('plugin contents');
+        final fallbackService = _serviceWithFailingResourceLinks(
+          home: home,
+          support: support,
+        );
+
+        final preparation = await fallbackService.prepareForTerminalLaunch();
+        final runtimeOnlyFile = File(
+          p.join(preparation.runtimeHomePath, 'plugins', 'runtime-only.md'),
+        )..writeAsStringSync('runtime-side change');
+        final marker = File(
+          p.join(preparation.runtimeHomePath, '.alera-copied-plugins.json'),
+        );
+        final fingerprintBefore = _markerFingerprint(marker);
+
+        File(
+          p.join(sourcePluginsPath, 'new.md'),
+        ).writeAsStringSync('new source');
+        await fallbackService.prepareForTerminalLaunch();
+
+        expect(runtimeOnlyFile.existsSync(), isFalse);
+        expect(
+          File(
+            p.join(preparation.runtimeHomePath, 'plugins', 'new.md'),
+          ).existsSync(),
+          isTrue,
+        );
+        expect(_markerFingerprint(marker), isNot(fingerprintBefore));
+      },
+    );
+
+    test(
+      'removes owned runtime resources when the source disappears',
+      () async {
+        final sourcePlugins = Directory(p.join(home.path, '.claude', 'plugins'))
+          ..createSync(recursive: true);
+        File(p.join(sourcePlugins.path, 'demo.md')).writeAsStringSync('plugin');
+
+        final preparation = await service.prepareForTerminalLaunch();
+        sourcePlugins.deleteSync(recursive: true);
+        await service.prepareForTerminalLaunch();
+
+        expect(
+          FileSystemEntity.typeSync(
+            p.join(preparation.runtimeHomePath, 'plugins'),
+            followLinks: false,
+          ),
+          FileSystemEntityType.notFound,
+        );
+      },
+    );
+
+    test('remove deletes only managed runtime hooks', () async {
+      final sourceSettingsPath = p.join(home.path, '.claude', 'settings.json');
+      _writeJson(sourceSettingsPath, <String, Object?>{
+        'hooks': <String, Object?>{
+          'UserPromptSubmit': <Object?>[_userHook('echo user-hook')],
+        },
+      });
+
+      final preparation = await service.prepareForTerminalLaunch();
+      final removed = await service.remove();
+
+      expect(removed.state, ManagedAgentHookInstallState.notInstalled);
+      expect(
+        _commandsFor(_hooks(sourceSettingsPath), 'UserPromptSubmit'),
+        <String>['echo user-hook'],
+      );
+      final runtimeHooks = _hooks(
+        p.join(preparation.runtimeHomePath, 'settings.json'),
+      );
+      expect(_commandsFor(runtimeHooks, 'UserPromptSubmit'), <String>[
+        'echo user-hook',
+      ]);
+      expect(_managedCommandCount(runtimeHooks, 'alera-claude-hook.sh'), 0);
+    });
+
+    test('reports invalid source settings as an error', () async {
+      final sourceSettings = File(p.join(home.path, '.claude', 'settings.json'))
+        ..createSync(recursive: true)
+        ..writeAsStringSync('{not json');
+
+      final status = await service.install();
+
+      expect(status.state, ManagedAgentHookInstallState.error);
+      expect(status.configPath, sourceSettings.path);
+    });
+
+    test(
+      'copies legacy keychain credentials into the scoped runtime entry',
+      () async {
+        final keychain = _FakeClaudeKeychainCredentialsStore(
+          legacyCredentials: '{"token":"legacy"}',
+        );
+        final keychainService = ClaudeRuntimeHomeService(
+          homeDirectory: home.path,
+          applicationSupportDirectory: () async => support,
+          platform: ManagedAgentHookPlatform.posix,
+          environment: <String, String>{'HOME': home.path},
+          keychainCredentialsStore: keychain,
+        );
+
+        final preparation = await keychainService.prepareForTerminalLaunch();
+
+        expect(
+          keychain.scopedCredentials[preparation.runtimeHomePath],
+          '{"token":"legacy"}',
+        );
+        expect(keychain.deletedConfigDirs, isEmpty);
+      },
+    );
+
+    test(
+      'removes scoped runtime keychain credentials when legacy auth is missing',
+      () async {
+        final keychain = _FakeClaudeKeychainCredentialsStore();
+        final keychainService = ClaudeRuntimeHomeService(
+          homeDirectory: home.path,
+          applicationSupportDirectory: () async => support,
+          platform: ManagedAgentHookPlatform.posix,
+          environment: <String, String>{'HOME': home.path},
+          keychainCredentialsStore: keychain,
+        );
+
+        final preparation = await keychainService.prepareForTerminalLaunch();
+
+        expect(keychain.scopedCredentials, isEmpty);
+        expect(keychain.deletedConfigDirs, <String>[
+          preparation.runtimeHomePath,
+        ]);
+      },
+    );
+  });
+}
+
+ClaudeRuntimeHomeService _serviceWithFailingResourceLinks({
+  required Directory home,
+  required Directory support,
+}) {
+  return ClaudeRuntimeHomeService(
+    homeDirectory: home.path,
+    applicationSupportDirectory: () async => support,
+    platform: ManagedAgentHookPlatform.posix,
+    environment: <String, String>{'HOME': home.path},
+    syncMacOSKeychainCredentials: false,
+    resourceLinkCreator: ({required sourcePath, required targetPath}) =>
+        throw const FileSystemException('symlinks disabled'),
+  );
+}
+
+final class _FakeClaudeKeychainCredentialsStore
+    implements ClaudeKeychainCredentialsStore {
+  _FakeClaudeKeychainCredentialsStore({this.legacyCredentials});
+
+  final String? legacyCredentials;
+  final scopedCredentials = <String, String>{};
+  final deletedConfigDirs = <String>[];
+
+  @override
+  String? readLegacyCredentials() => legacyCredentials;
+
+  @override
+  void writeScopedCredentials({
+    required String configDir,
+    required String credentials,
+  }) {
+    scopedCredentials[configDir] = credentials;
+  }
+
+  @override
+  void deleteScopedCredentials(String configDir) {
+    deletedConfigDirs.add(configDir);
+    scopedCredentials.remove(configDir);
+  }
+}
+
+String _markerFingerprint(File marker) {
+  final decoded = jsonDecode(marker.readAsStringSync()) as Map;
+  return decoded['sourceFingerprint'] as String;
+}
+
+Map<String, Object?> _userHook(String command) {
+  return <String, Object?>{
+    'hooks': <Object?>[
+      <String, Object?>{'type': 'command', 'command': command},
+    ],
+  };
+}
+
+void _writeJson(String path, Map<String, Object?> value) {
+  final file = File(path)..createSync(recursive: true);
+  file.writeAsStringSync(
+    '${const JsonEncoder.withIndent('  ').convert(value)}\n',
+  );
+}
+
+Map<String, Object?> _readJson(String path) {
+  return Map<String, Object?>.from(
+    jsonDecode(File(path).readAsStringSync()) as Map,
+  );
+}
+
+Map<String, Object?> _hooks(String configPath) {
+  final decoded = _readJson(configPath);
+  return Map<String, Object?>.from(decoded['hooks'] as Map);
+}
+
+List<String> _commandsFor(Map<String, Object?> hooks, String eventName) {
+  final definitions = hooks[eventName] as List? ?? const <Object?>[];
+  return <String>[
+    for (final definition in definitions)
+      if (definition is Map)
+        for (final hook in (definition['hooks'] as List? ?? const <Object?>[]))
+          if (hook is Map && hook['command'] is String)
+            hook['command'] as String,
+  ];
+}
+
+int _managedCommandCount(Map<String, Object?> hooks, String fileName) {
+  var count = 0;
+  for (final event in hooks.values) {
+    if (event is! List) {
+      continue;
+    }
+    for (final definition in event) {
+      if (definition is! Map) {
+        continue;
+      }
+      final hooksList = definition['hooks'];
+      if (hooksList is! List) {
+        continue;
+      }
+      for (final hook in hooksList) {
+        if (hook is Map &&
+            hook['command'] is String &&
+            (hook['command'] as String).contains(fileName)) {
+          count += 1;
+        }
+      }
+    }
+  }
+  return count;
+}

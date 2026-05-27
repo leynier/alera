@@ -215,6 +215,7 @@ void main() {
               'ALERA_AGENT_HOOK_TOKEN': 'stale',
               'ALERA_TERMINAL_SESSION_ID': 'old-session',
               'ALERA_CODEX_HOME': '/old-runtime',
+              'ALERA_CLAUDE_CONFIG_DIR': '/old-claude-runtime',
             },
           ),
           const <String, String>{
@@ -224,6 +225,8 @@ void main() {
             'ALERA_TAB_ID': 'tab-1',
             'CODEX_HOME': '/runtime/codex',
             'ALERA_CODEX_HOME': '/runtime/codex',
+            'CLAUDE_CONFIG_DIR': '/runtime/claude',
+            'ALERA_CLAUDE_CONFIG_DIR': '/runtime/claude',
           },
         );
 
@@ -235,6 +238,8 @@ void main() {
           'ALERA_TAB_ID': 'tab-1',
           'CODEX_HOME': '/runtime/codex',
           'ALERA_CODEX_HOME': '/runtime/codex',
+          'CLAUDE_CONFIG_DIR': '/runtime/claude',
+          'ALERA_CLAUDE_CONFIG_DIR': '/runtime/claude',
         });
         expect(launch.setupCommand, isNull);
 
@@ -245,6 +250,7 @@ void main() {
             environment: const <String, String>{
               'ALERA_AGENT_HOOK_PORT': '123',
               'ALERA_CODEX_HOME': '/old-runtime',
+              'ALERA_CLAUDE_CONFIG_DIR': '/old-claude-runtime',
               'USER': 'tester',
             },
           ),

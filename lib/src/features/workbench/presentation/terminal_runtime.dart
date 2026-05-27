@@ -1204,7 +1204,8 @@ bool _isAleraAgentHookEnvironmentKey(String key, String _) {
       key == 'ALERA_TERMINAL_SESSION_ID' ||
       key == 'ALERA_WORKSPACE_ID' ||
       key == 'ALERA_TAB_ID' ||
-      key == 'ALERA_CODEX_HOME';
+      key == 'ALERA_CODEX_HOME' ||
+      key == 'ALERA_CLAUDE_CONFIG_DIR';
 }
 
 bool _isWindowsCommandPromptLaunch(GhosttyTerminalShellLaunch launch) {
