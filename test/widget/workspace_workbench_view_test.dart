@@ -794,6 +794,7 @@ Future<void> _pumpWorkbenchView(
   required List<_SplitGroupAction> splitGroups,
   required List<String> mergedGroups,
   required List<_UpdatedSplitRatioAction> updatedRatios,
+  List<String>? activatedGroups,
   Size size = const Size(420, 280),
   Map<String, AgentStatusEntry> agentStatuses =
       const <String, AgentStatusEntry>{},
@@ -841,6 +842,9 @@ Future<void> _pumpWorkbenchView(
                   },
               onMergeGroup: ({required String groupId}) async {
                 mergedGroups.add(groupId);
+              },
+              onActivateGroup: ({required String groupId}) {
+                activatedGroups?.add(groupId);
               },
               onUpdateSplitRatio:
                   ({required List<int> nodePath, required double ratio}) {

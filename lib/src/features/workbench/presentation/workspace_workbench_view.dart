@@ -32,6 +32,8 @@ typedef SplitWorkbenchGroupCallback =
     });
 typedef MergeWorkbenchGroupCallback =
     Future<void> Function({required String groupId});
+typedef ActivateWorkbenchGroupCallback =
+    void Function({required String groupId});
 typedef UpdateWorkbenchSplitRatioCallback =
     void Function({required List<int> nodePath, required double ratio});
 typedef RenameWorkspaceTabCallback =
@@ -139,6 +141,7 @@ class WorkspaceWorkbenchView extends StatelessWidget {
     required this.onMoveTab,
     required this.onSplitGroup,
     required this.onMergeGroup,
+    required this.onActivateGroup,
     required this.onUpdateSplitRatio,
   });
 
@@ -156,6 +159,7 @@ class WorkspaceWorkbenchView extends StatelessWidget {
   final MoveWorkspaceTabCallback onMoveTab;
   final SplitWorkbenchGroupCallback onSplitGroup;
   final MergeWorkbenchGroupCallback onMergeGroup;
+  final ActivateWorkbenchGroupCallback onActivateGroup;
   final UpdateWorkbenchSplitRatioCallback onUpdateSplitRatio;
 
   @override
@@ -182,6 +186,7 @@ class WorkspaceWorkbenchView extends StatelessWidget {
       onMoveTab: onMoveTab,
       onSplitGroup: onSplitGroup,
       onMergeGroup: onMergeGroup,
+      onActivateGroup: onActivateGroup,
       onUpdateSplitRatio: onUpdateSplitRatio,
     );
   }
@@ -204,6 +209,7 @@ class _WorkbenchLayoutView extends StatelessWidget {
     required this.onMoveTab,
     required this.onSplitGroup,
     required this.onMergeGroup,
+    required this.onActivateGroup,
     required this.onUpdateSplitRatio,
   });
 
@@ -222,6 +228,7 @@ class _WorkbenchLayoutView extends StatelessWidget {
   final MoveWorkspaceTabCallback onMoveTab;
   final SplitWorkbenchGroupCallback onSplitGroup;
   final MergeWorkbenchGroupCallback onMergeGroup;
+  final ActivateWorkbenchGroupCallback onActivateGroup;
   final UpdateWorkbenchSplitRatioCallback onUpdateSplitRatio;
 
   @override
@@ -243,6 +250,7 @@ class _WorkbenchLayoutView extends StatelessWidget {
         onMoveTab: onMoveTab,
         onSplitGroup: onSplitGroup,
         onMergeGroup: onMergeGroup,
+        onActivateGroup: onActivateGroup,
       );
     }
     return _WorkbenchSplitView(
@@ -261,6 +269,7 @@ class _WorkbenchLayoutView extends StatelessWidget {
       onMoveTab: onMoveTab,
       onSplitGroup: onSplitGroup,
       onMergeGroup: onMergeGroup,
+      onActivateGroup: onActivateGroup,
       onUpdateSplitRatio: onUpdateSplitRatio,
     );
   }
@@ -283,6 +292,7 @@ class _WorkbenchSplitView extends StatelessWidget {
     required this.onMoveTab,
     required this.onSplitGroup,
     required this.onMergeGroup,
+    required this.onActivateGroup,
     required this.onUpdateSplitRatio,
   });
 
@@ -301,6 +311,7 @@ class _WorkbenchSplitView extends StatelessWidget {
   final MoveWorkspaceTabCallback onMoveTab;
   final SplitWorkbenchGroupCallback onSplitGroup;
   final MergeWorkbenchGroupCallback onMergeGroup;
+  final ActivateWorkbenchGroupCallback onActivateGroup;
   final UpdateWorkbenchSplitRatioCallback onUpdateSplitRatio;
 
   @override
@@ -322,6 +333,7 @@ class _WorkbenchSplitView extends StatelessWidget {
       onMoveTab: onMoveTab,
       onSplitGroup: onSplitGroup,
       onMergeGroup: onMergeGroup,
+      onActivateGroup: onActivateGroup,
       onUpdateSplitRatio: onUpdateSplitRatio,
     );
     final second = _WorkbenchLayoutView(
@@ -340,6 +352,7 @@ class _WorkbenchSplitView extends StatelessWidget {
       onMoveTab: onMoveTab,
       onSplitGroup: onSplitGroup,
       onMergeGroup: onMergeGroup,
+      onActivateGroup: onActivateGroup,
       onUpdateSplitRatio: onUpdateSplitRatio,
     );
     return LayoutBuilder(
@@ -406,6 +419,7 @@ class _WorkbenchPane extends StatelessWidget {
     required this.onMoveTab,
     required this.onSplitGroup,
     required this.onMergeGroup,
+    required this.onActivateGroup,
   });
 
   final Workspace workspace;
@@ -422,6 +436,7 @@ class _WorkbenchPane extends StatelessWidget {
   final MoveWorkspaceTabCallback onMoveTab;
   final SplitWorkbenchGroupCallback onSplitGroup;
   final MergeWorkbenchGroupCallback onMergeGroup;
+  final ActivateWorkbenchGroupCallback onActivateGroup;
 
   @override
   Widget build(BuildContext context) {
@@ -434,52 +449,65 @@ class _WorkbenchPane extends StatelessWidget {
         if (tabsById[tabId] case final WorkspaceTabRecord tab) tab,
     ];
     final activeTab = _activeTab(group, groupTabs);
-    return _PaneDropTarget(
-      workspaceId: workspace.id,
-      groupId: groupId,
-      tabCount: groupTabs.length,
-      onMoveTab: onMoveTab,
-      child: DecoratedBox(
-        decoration: const BoxDecoration(
-          color: AleraTokens.bg,
-          border: Border(
-            right: BorderSide(color: AleraTokens.borderSubtle),
-            bottom: BorderSide(color: AleraTokens.borderSubtle),
+    // Promote this pane to the workbench's active group whenever any descendant
+    // widget (terminal view, tab strip controls, etc.) gains real focus, so
+    // keyboard shortcuts like split-right/down act on the focused pane.
+    return Focus(
+      canRequestFocus: false,
+      skipTraversal: true,
+      onFocusChange: (hasFocus) {
+        if (hasFocus) {
+          onActivateGroup(groupId: groupId);
+        }
+      },
+      child: _PaneDropTarget(
+        workspaceId: workspace.id,
+        groupId: groupId,
+        tabCount: groupTabs.length,
+        onMoveTab: onMoveTab,
+        child: DecoratedBox(
+          decoration: const BoxDecoration(
+            color: AleraTokens.bg,
+            border: Border(
+              right: BorderSide(color: AleraTokens.borderSubtle),
+              bottom: BorderSide(color: AleraTokens.borderSubtle),
+            ),
           ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            _WorkspaceTabStrip(
-              workspace: workspace,
-              groupId: groupId,
-              tabs: groupTabs,
-              activeTabId: activeTab?.id,
-              canCloseSplit: layout.paneGroupIds.length > 1,
-              terminalRuntime: terminalRuntime,
-              agentStatuses: agentStatuses,
-              onSelectTab: (tabId) =>
-                  onSelectTab(groupId: groupId, tabId: tabId),
-              onCloseTab: onCloseTab,
-              onCloseTabs: onCloseTabs,
-              onRenameTab: onRenameTab,
-              onCreateTab: () => unawaited(onCreateTab(targetGroupId: groupId)),
-              onSplitGroup: (zone) =>
-                  unawaited(onSplitGroup(groupId: groupId, zone: zone)),
-              onMergeGroup: () => unawaited(onMergeGroup(groupId: groupId)),
-            ),
-            const Divider(height: 1, color: AleraTokens.borderSubtle),
-            Expanded(
-              child: activeTab == null
-                  ? const Center(child: CircularProgressIndicator())
-                  : _WorkspaceTabContent(
-                      workspace: workspace,
-                      tab: activeTab,
-                      autofocus: layout.activeGroupId == groupId,
-                      terminalRuntime: terminalRuntime,
-                    ),
-            ),
-          ],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              _WorkspaceTabStrip(
+                workspace: workspace,
+                groupId: groupId,
+                tabs: groupTabs,
+                activeTabId: activeTab?.id,
+                canCloseSplit: layout.paneGroupIds.length > 1,
+                terminalRuntime: terminalRuntime,
+                agentStatuses: agentStatuses,
+                onSelectTab: (tabId) =>
+                    onSelectTab(groupId: groupId, tabId: tabId),
+                onCloseTab: onCloseTab,
+                onCloseTabs: onCloseTabs,
+                onRenameTab: onRenameTab,
+                onCreateTab: () =>
+                    unawaited(onCreateTab(targetGroupId: groupId)),
+                onSplitGroup: (zone) =>
+                    unawaited(onSplitGroup(groupId: groupId, zone: zone)),
+                onMergeGroup: () => unawaited(onMergeGroup(groupId: groupId)),
+              ),
+              const Divider(height: 1, color: AleraTokens.borderSubtle),
+              Expanded(
+                child: activeTab == null
+                    ? const Center(child: CircularProgressIndicator())
+                    : _WorkspaceTabContent(
+                        workspace: workspace,
+                        tab: activeTab,
+                        autofocus: layout.activeGroupId == groupId,
+                        terminalRuntime: terminalRuntime,
+                      ),
+              ),
+            ],
+          ),
         ),
       ),
     );

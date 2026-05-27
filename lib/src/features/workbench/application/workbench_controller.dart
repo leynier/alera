@@ -399,6 +399,30 @@ class WorkbenchController extends _$WorkbenchController {
     );
   }
 
+  /// Promotes [groupId] to the workspace's active group when a pane in it
+  /// receives real keyboard focus. Idempotent so it can be wired directly to
+  /// focus-change events without risking loops or redundant rebuilds.
+  ///
+  /// Focus is ephemeral session state, so the new layout is applied in memory
+  /// only; the next explicit user action (tab click, split, merge, rename)
+  /// will persist the latest layout. This avoids a SQLite write on every
+  /// pane click.
+  void focusWorkbenchGroup({
+    required String workspaceId,
+    required String groupId,
+  }) {
+    final layout = state.layoutFor(workspaceId);
+    if (layout == null || layout.activeGroupId == groupId) {
+      return;
+    }
+    final tabId = layout.groups[groupId]?.activeTabId;
+    if (tabId == null) {
+      return;
+    }
+    final nextLayout = layout.setActiveTab(groupId: groupId, tabId: tabId);
+    unawaited(_applyLayout(nextLayout, persist: false));
+  }
+
   Future<void> moveWorkspaceTab({
     required String workspaceId,
     required String tabId,

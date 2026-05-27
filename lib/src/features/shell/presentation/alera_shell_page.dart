@@ -214,6 +214,12 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
           groupId: groupId,
         );
       },
+      onActivateGroup: ({required groupId}) {
+        controller.focusWorkbenchGroup(
+          workspaceId: workspace.id,
+          groupId: groupId,
+        );
+      },
       onUpdateSplitRatio: ({required nodePath, required ratio}) {
         controller.updateWorkbenchSplitRatio(
           workspaceId: workspace.id,
