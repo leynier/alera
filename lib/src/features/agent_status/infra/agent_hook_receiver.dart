@@ -5,6 +5,7 @@ import 'package:alera/src/features/agent_status/application/agent_status_control
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/infra/agent_hook_endpoint_file.dart';
 import 'package:alera/src/features/agent_status/infra/agent_hook_request_parser.dart';
+import 'package:alera/src/features/agent_status/infra/codex_transcript_status_watcher.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:shelf/shelf.dart' as shelf;
@@ -20,12 +21,14 @@ class AgentHookReceiver {
     ApplicationSupportDirectoryResolver? applicationSupportDirectory,
     String? token,
     AgentHookEnabledPredicate? isAgentEnabled,
+    CodexTranscriptStatusWatcher? codexTranscriptStatusWatcher,
   }) {
     return AgentHookReceiver._(
       statusSink,
       applicationSupportDirectory ?? getApplicationSupportDirectory,
       token ?? createAgentHookToken(),
       isAgentEnabled ?? ((_) => true),
+      codexTranscriptStatusWatcher,
     );
   }
 
@@ -34,12 +37,16 @@ class AgentHookReceiver {
     this._applicationSupportDirectory,
     this._token,
     this._isAgentEnabled,
-  );
+    CodexTranscriptStatusWatcher? codexTranscriptStatusWatcher,
+  ) : _codexTranscriptStatusWatcher =
+          codexTranscriptStatusWatcher ??
+          CodexTranscriptStatusWatcher(_statusSink);
 
   final AgentStatusSink _statusSink;
   final ApplicationSupportDirectoryResolver _applicationSupportDirectory;
   final String _token;
   final AgentHookEnabledPredicate _isAgentEnabled;
+  final CodexTranscriptStatusWatcher _codexTranscriptStatusWatcher;
 
   HttpServer? _server;
   Future<void>? _starting;
@@ -71,6 +78,7 @@ class AgentHookReceiver {
     final server = _server;
     _server = null;
     _endpoint = null;
+    _codexTranscriptStatusWatcher.clear();
     await server?.close(force: true);
   }
 
@@ -90,6 +98,7 @@ class AgentHookReceiver {
   Future<void> dispose() async {
     _disposed = true;
     await stop();
+    _codexTranscriptStatusWatcher.dispose();
   }
 
   Future<void> _start() async {
@@ -200,6 +209,7 @@ class AgentHookReceiver {
       }
       if (event != null) {
         _statusSink.applyHookEvent(event);
+        _codexTranscriptStatusWatcher.observeHookEvent(event);
       }
       return shelf.Response(HttpStatus.noContent);
     } catch (_) {

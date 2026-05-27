@@ -1,3 +1,5 @@
+import 'package:alera/src/features/agent_status/domain/agent_status.dart';
+import 'package:alera/src/features/agent_status/presentation/agent_status_dot.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
@@ -711,6 +713,37 @@ void main() {
       expect(terminalRuntime.requestedTabIds, contains('tab-1'));
     });
 
+    testWidgets('terminal tab chips show agent status dots', (tester) async {
+      final tab = _tab('tab-1', title: 'Terminal');
+
+      await _pumpWorkbenchView(
+        tester,
+        tabs: <WorkspaceTabRecord>[tab],
+        terminalRuntime: terminalRuntime,
+        layout: WorkbenchLayout.single(
+          workspaceId: _workspaceId,
+          tabIds: <String>[tab.id],
+        ),
+        agentStatuses: <String, AgentStatusEntry>{
+          tab.terminalSessionId: _agentStatus(
+            tab,
+            state: AgentStatusState.waiting,
+          ),
+        },
+        createdTabs: createdTabs,
+        selectedTabs: selectedTabs,
+        closedTabs: closedTabs,
+        closedTabGroups: closedTabGroups,
+        renamedTabs: renamedTabs,
+        movedTabs: movedTabs,
+        splitGroups: splitGroups,
+        mergedGroups: mergedGroups,
+        updatedRatios: updatedRatios,
+      );
+
+      expect(find.byType(AgentStatusDot), findsOneWidget);
+    });
+
     testWidgets('browser tabs use the browser icon in the chip', (
       tester,
     ) async {
@@ -762,6 +795,8 @@ Future<void> _pumpWorkbenchView(
   required List<String> mergedGroups,
   required List<_UpdatedSplitRatioAction> updatedRatios,
   Size size = const Size(420, 280),
+  Map<String, AgentStatusEntry> agentStatuses =
+      const <String, AgentStatusEntry>{},
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -776,6 +811,7 @@ Future<void> _pumpWorkbenchView(
               tabs: tabs,
               layout: layout,
               terminalRuntime: terminalRuntime,
+              agentStatuses: agentStatuses,
               onCreateTab: ({String? targetGroupId}) async {
                 createdTabs.add(targetGroupId);
               },
@@ -861,6 +897,22 @@ WorkspaceTabRecord _tab(
     kind: kind,
     createdAt: DateTime.utc(2026, 5, 22),
     updatedAt: DateTime.utc(2026, 5, 22),
+  );
+}
+
+AgentStatusEntry _agentStatus(
+  WorkspaceTabRecord tab, {
+  required AgentStatusState state,
+}) {
+  return AgentStatusEntry(
+    terminalSessionId: tab.terminalSessionId,
+    workspaceId: tab.workspaceId,
+    tabId: tab.id,
+    agentType: AgentType.codex,
+    state: state,
+    prompt: '',
+    updatedAt: DateTime.utc(2026, 5, 22),
+    stateStartedAt: DateTime.utc(2026, 5, 22),
   );
 }
 

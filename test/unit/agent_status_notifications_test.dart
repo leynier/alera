@@ -36,7 +36,8 @@ void main() {
     test('composes attention and done notifications only', () {
       final waiting = composeAgentStatusNotification(
         entry: _entry(AgentStatusState.waiting, prompt: 'Review command'),
-        workspaceName: 'Alera',
+        projectName: 'Alera',
+        workspaceName: 'main',
         tabTitle: 'Codex',
       );
       final blocked = composeAgentStatusNotification(
@@ -52,7 +53,8 @@ void main() {
           agentType: AgentType.agy,
           prompt: '',
         ),
-        workspaceName: 'Alera',
+        projectName: 'Alera',
+        workspaceName: 'main',
         tabTitle: 'Claude',
       );
       final cursorDone = composeAgentStatusNotification(
@@ -89,13 +91,14 @@ void main() {
 
       expect(waiting, isNotNull);
       expect(waiting!.title, 'Codex needs attention');
-      expect(waiting.body, 'Review command');
+      expect(waiting.body, 'Workspace main in Alera');
+      expect(waiting.body, isNot(contains('Review command')));
       expect(blocked, isNotNull);
       expect(blocked!.title, 'GitHub Copilot needs attention');
-      expect(blocked.body, 'Choose target');
+      expect(blocked.body, 'Open Alera');
       expect(done, isNotNull);
       expect(done!.title, 'Antigravity finished');
-      expect(done.body, 'Claude');
+      expect(done.body, 'Workspace main in Alera');
       expect(cursorDone!.title, 'Cursor finished');
       expect(openCodeDone!.title, 'OpenCode finished');
       expect(piWaiting!.title, 'Pi needs attention');

@@ -149,12 +149,14 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
     final tabs = state.tabsFor(workspace.id);
     final controller = ref.read(workbenchControllerProvider.notifier);
     final terminalRuntime = ref.read(terminalRuntimeProvider);
+    final agentStatuses = ref.watch(agentStatusControllerProvider);
     return WorkspaceWorkbenchView(
       project: project,
       workspace: workspace,
       tabs: tabs,
       layout: state.layoutFor(workspace.id),
       terminalRuntime: terminalRuntime,
+      agentStatuses: agentStatuses,
       onCreateTab: ({targetGroupId}) async {
         final tab = await controller.createTerminalTab(
           workspace,

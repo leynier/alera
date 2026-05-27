@@ -40,8 +40,8 @@ NormalizedAgentStatus? normalizeAgentHookEvent(
   }
   final toolSnapshot = _extractToolSnapshot(event, eventName: eventName);
   final state = switch (event.agentType) {
-    AgentType.codex => _normalizeCodexState(eventName),
-    AgentType.claude => _normalizeClaudeState(eventName),
+    AgentType.codex => _normalizeCodexState(eventName, toolSnapshot.toolName),
+    AgentType.claude => _normalizeClaudeState(eventName, toolSnapshot.toolName),
     AgentType.copilot => _normalizeCopilotState(
       eventName,
       event.payload,
@@ -176,6 +176,8 @@ _ToolSnapshot _extractToolSnapshot(
         ? _readAgyToolCall(payload)
         : event.agentType == AgentType.copilot
         ? _readCopilotToolCall(payload)
+        : event.agentType == AgentType.codex
+        ? _readCodexToolCall(payload)
         : const _NestedToolCall();
     toolName =
         _readFirstString(payload, const <String>[
@@ -273,6 +275,15 @@ String? _deriveToolInputPreview(String? toolName, Object? input) {
   if (input is String) {
     return _normalizeSingleLine(input, 160);
   }
+  if (input is List) {
+    final preview = _deriveQuestionListPreview(input);
+    if (preview != null) {
+      return preview;
+    }
+    if (input.isNotEmpty) {
+      return _normalizeSingleLine(input.join(', '), 160);
+    }
+  }
   if (input is Map) {
     final keys = <String>[
       ...?_toolInputKeysByTool[toolName],
@@ -304,6 +315,12 @@ String? _deriveToolInputPreview(String? toolName, Object? input) {
         return _normalizeSingleLine(value, 160);
       }
       if (value is List && value.isNotEmpty) {
+        if (key == 'questions') {
+          final preview = _deriveQuestionListPreview(value);
+          if (preview != null) {
+            return preview;
+          }
+        }
         return _normalizeSingleLine(value.join(', '), 160);
       }
     }
@@ -313,6 +330,24 @@ String? _deriveToolInputPreview(String? toolName, Object? input) {
   } catch (_) {
     return null;
   }
+}
+
+String? _deriveQuestionListPreview(List<Object?> questions) {
+  for (final question in questions) {
+    if (question is String && question.trim().isNotEmpty) {
+      return _normalizeSingleLine(question, 160);
+    }
+    if (question is Map) {
+      final text = _readFirstString(
+        Map<String, Object?>.from(question),
+        const <String>['question', 'Question', 'prompt', 'Prompt'],
+      );
+      if (text != null) {
+        return text;
+      }
+    }
+  }
+  return null;
 }
 
 String? _extractToolResponseText(Object? response) {
@@ -468,6 +503,42 @@ bool _isGenericInterrupted(AgentHookEvent event) {
   return value == true;
 }
 
+bool _isHumanInputTool(String? toolName) {
+  if (toolName == null) {
+    return false;
+  }
+  final normalized = toolName
+      .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')
+      .toLowerCase();
+  return _isHumanInputToolName(normalized) ||
+      normalized.endsWith('requestuserinput') ||
+      normalized.endsWith('askquestion') ||
+      normalized.endsWith('askpermission') ||
+      normalized.endsWith('askapproval') ||
+      normalized.endsWith('requestpermission') ||
+      normalized.endsWith('requestpermissions') ||
+      normalized.endsWith('requestapproval') ||
+      normalized.endsWith('askuser');
+}
+
+bool _isHumanInputToolName(String normalizedToolName) {
+  return normalizedToolName == 'askquestion' ||
+      normalizedToolName == 'askpermission' ||
+      normalizedToolName == 'askapproval' ||
+      normalizedToolName == 'askuser' ||
+      normalizedToolName == 'requestuserinput' ||
+      normalizedToolName == 'requestinput' ||
+      normalizedToolName == 'requestpermission' ||
+      normalizedToolName == 'requestpermissions' ||
+      normalizedToolName == 'requestapproval' ||
+      normalizedToolName == 'approve' ||
+      normalizedToolName == 'approval' ||
+      normalizedToolName == 'permission' ||
+      normalizedToolName == 'confirm' ||
+      normalizedToolName == 'confirmation' ||
+      normalizedToolName == 'requestconfirmation';
+}
+
 String? _readFirstString(Map<String, Object?> payload, List<String> keys) {
   for (final key in keys) {
     final value = payload[key];
@@ -517,6 +588,10 @@ const Map<String, List<String>> _toolInputKeysByTool = <String, List<String>>{
   'run_command': <String>['CommandLine', 'command'],
   'ask_question': <String>['Prompt', 'question'],
   'ask_permission': <String>['Action', 'Target', 'Reason'],
+  'request_user_input': <String>['questions', 'question'],
+  'functions.request_user_input': <String>['questions', 'question'],
+  'request_permissions': <String>['reason', 'permissions'],
+  'functions.request_permissions': <String>['reason', 'permissions'],
   'bash': <String>['command'],
   'read': <String>['file_path', 'filePath', 'path'],
   'write': <String>['file_path', 'filePath', 'path'],

@@ -15,7 +15,7 @@ AgentStatusState? _normalizeCopilotState(
           notificationType == 'elicitation_dialog');
   final isAskUserTool =
       (eventName == 'PreToolUse' || eventName == 'PermissionRequest') &&
-      _isCopilotAskUserTool(toolName);
+      _isHumanInputTool(toolName);
   if (isBlockingNotification || isAskUserTool) {
     return AgentStatusState.blocked;
   }
@@ -135,12 +135,4 @@ _NestedToolCall _readCopilotToolCall(Map<String, Object?> payload) {
     ]),
     toolInputSource: args,
   );
-}
-
-bool _isCopilotAskUserTool(String? toolName) {
-  if (toolName == null) {
-    return false;
-  }
-  return toolName.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toLowerCase() ==
-      'askuser';
 }

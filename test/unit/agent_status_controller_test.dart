@@ -57,6 +57,133 @@ void main() {
       expect(entry.stateStartedAt, times[0]);
     });
 
+    test('normalizes human input tool use as waiting', () {
+      final controller = container.read(agentStatusControllerProvider.notifier);
+
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.codex,
+          hookEventName: 'PreToolUse',
+          payload: <String, Object?>{
+            'tool_name': 'functions.request_user_input',
+            'tool_input': <String, Object?>{'question': 'Approve command?'},
+          },
+        ),
+      );
+
+      var entry = container.read(agentStatusControllerProvider)['session-1']!;
+      expect(entry.state, AgentStatusState.waiting);
+      expect(entry.toolName, 'functions.request_user_input');
+      expect(entry.toolInput, 'Approve command?');
+
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.codex,
+          hookEventName: 'PreToolUse',
+          payload: <String, Object?>{
+            'tool_name': 'request_user_input',
+            'tool_input': <String, Object?>{
+              'questions': <Object?>[
+                <String, Object?>{'question': 'Which path should I use?'},
+              ],
+            },
+          },
+        ),
+      );
+
+      entry = container.read(agentStatusControllerProvider)['session-1']!;
+      expect(entry.state, AgentStatusState.waiting);
+      expect(entry.toolName, 'request_user_input');
+      expect(entry.toolInput, 'Which path should I use?');
+
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.codex,
+          hookEventName: 'PreToolUse',
+          payload: <String, Object?>{
+            'toolCall': <String, Object?>{
+              'name': 'request_user_input',
+              'args': <String, Object?>{
+                'questions': <Object?>[
+                  <String, Object?>{'question': 'Which implementation option?'},
+                ],
+              },
+            },
+          },
+        ),
+      );
+
+      entry = container.read(agentStatusControllerProvider)['session-1']!;
+      expect(entry.state, AgentStatusState.waiting);
+      expect(entry.toolName, 'request_user_input');
+      expect(entry.toolInput, 'Which implementation option?');
+
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.codex,
+          hookEventName: 'PreToolUse',
+          payload: <String, Object?>{
+            'tool_name': 'functions.request_approval',
+            'tool_input': <String, Object?>{
+              'command': 'flutter test',
+              'reason': 'Run the focused suite.',
+            },
+          },
+        ),
+      );
+
+      entry = container.read(agentStatusControllerProvider)['session-1']!;
+      expect(entry.state, AgentStatusState.waiting);
+      expect(entry.toolName, 'functions.request_approval');
+      expect(entry.toolInput, 'flutter test');
+
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.codex,
+          hookEventName: 'PreToolUse',
+          payload: <String, Object?>{
+            'tool_name': 'request_permissions',
+            'tool_input': <String, Object?>{
+              'reason': 'Need workspace write access.',
+            },
+          },
+        ),
+      );
+
+      entry = container.read(agentStatusControllerProvider)['session-1']!;
+      expect(entry.state, AgentStatusState.waiting);
+      expect(entry.toolName, 'request_permissions');
+      expect(entry.toolInput, 'Need workspace write access.');
+
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.codex,
+          hookEventName: 'PermissionRequest',
+          payload: <String, Object?>{'tool_name': 'Bash'},
+        ),
+      );
+
+      entry = container.read(agentStatusControllerProvider)['session-1']!;
+      expect(entry.state, AgentStatusState.waiting);
+
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.claude,
+          hookEventName: 'PreToolUse',
+          payload: <String, Object?>{
+            'tool_name': 'askUser',
+            'tool_input': <String, Object?>{'question': 'Which target?'},
+          },
+        ),
+      );
+
+      entry = container.read(agentStatusControllerProvider)['session-1']!;
+      expect(entry.state, AgentStatusState.waiting);
+      expect(entry.agentType, AgentType.claude);
+      expect(entry.toolName, 'askUser');
+      expect(entry.toolInput, 'Which target?');
+    });
+
     test('normalizes waiting, done, and Claude interrupt states', () {
       final controller = container.read(agentStatusControllerProvider.notifier);
 

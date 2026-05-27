@@ -116,6 +116,7 @@ class AgentStatusNotificationTracker {
 
 AgentStatusNotification? composeAgentStatusNotification({
   required AgentStatusEntry entry,
+  String? projectName,
   String? workspaceName,
   String? tabTitle,
 }) {
@@ -138,11 +139,11 @@ AgentStatusNotification? composeAgentStatusNotification({
     AgentStatusState.done => '$agent finished',
     AgentStatusState.working => agent,
   };
-  final body = _firstNonEmpty(<String>[
-    entry.prompt,
-    tabTitle ?? '',
-    workspaceName ?? '',
-  ]);
+  final body = _notificationLocationBody(
+    projectName: projectName,
+    workspaceName: workspaceName,
+    tabTitle: tabTitle,
+  );
   final payload = AgentStatusNotificationPayload(
     terminalSessionId: entry.terminalSessionId,
     workspaceId: entry.workspaceId,
@@ -153,7 +154,7 @@ AgentStatusNotification? composeAgentStatusNotification({
   return AgentStatusNotification(
     id: _notificationId(entry),
     title: title,
-    body: body.isEmpty ? 'Open Alera' : body,
+    body: body,
     payload: payload,
   );
 }
@@ -181,14 +182,24 @@ int _notificationId(AgentStatusEntry entry) {
   return hash == 0 ? 1 : hash;
 }
 
-String _firstNonEmpty(List<String> values) {
-  for (final value in values) {
-    final trimmed = value.trim();
-    if (trimmed.isNotEmpty) {
-      return trimmed;
-    }
+String _notificationLocationBody({
+  String? projectName,
+  String? workspaceName,
+  String? tabTitle,
+}) {
+  final project = projectName?.trim() ?? '';
+  final workspace = workspaceName?.trim() ?? '';
+  if (workspace.isNotEmpty && project.isNotEmpty) {
+    return 'Workspace $workspace in $project';
   }
-  return '';
+  if (workspace.isNotEmpty) {
+    return 'Workspace $workspace';
+  }
+  final tab = tabTitle?.trim() ?? '';
+  if (tab.isNotEmpty) {
+    return 'Terminal $tab';
+  }
+  return 'Open Alera';
 }
 
 String? _requiredString(Object? value) {

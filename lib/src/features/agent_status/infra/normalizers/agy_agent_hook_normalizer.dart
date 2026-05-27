@@ -41,5 +41,5 @@ _NestedToolCall _readAgyToolCall(Map<String, Object?> payload) {
 }
 
 bool _isAgyFeedbackTool(String? toolName) {
-  return toolName == 'ask_question' || toolName == 'ask_permission';
+  return _isHumanInputTool(toolName);
 }

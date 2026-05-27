@@ -374,6 +374,15 @@ Workspace? _findWorkspaceById(WorkbenchState state, String workspaceId) {
   return null;
 }
 
+Project? _findProjectById(WorkbenchState state, String projectId) {
+  for (final project in state.projects) {
+    if (project.id == projectId) {
+      return project;
+    }
+  }
+  return null;
+}
+
 WorkspaceTabRecord? _findTabById(
   WorkbenchState state,
   String workspaceId,
@@ -397,9 +406,13 @@ Future<void> _showAgentStatusNotifications({
   final state = ref.read(workbenchControllerProvider);
   for (final entry in entries) {
     final workspace = _findWorkspaceById(state, entry.workspaceId);
+    final project = workspace == null
+        ? null
+        : _findProjectById(state, workspace.projectId);
     final tab = _findTabById(state, entry.workspaceId, entry.tabId);
     final notification = composeAgentStatusNotification(
       entry: entry,
+      projectName: project?.name,
       workspaceName: workspace?.name,
       tabTitle: tab?.title,
     );

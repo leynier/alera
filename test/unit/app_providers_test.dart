@@ -194,7 +194,7 @@ void main() {
         expect(presenter.initializeCalls, 1);
         expect(presenter.notifications, hasLength(1));
         expect(presenter.notifications.single.title, 'Codex finished');
-        expect(presenter.notifications.single.body, 'Run tests');
+        expect(presenter.notifications.single.body, 'Open Alera');
       },
     );
 

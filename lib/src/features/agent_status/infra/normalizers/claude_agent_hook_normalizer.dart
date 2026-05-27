@@ -1,6 +1,9 @@
 part of '../agent_hook_event_normalizer.dart';
 
-AgentStatusState? _normalizeClaudeState(String eventName) {
+AgentStatusState? _normalizeClaudeState(String eventName, String? toolName) {
+  if (eventName == 'PreToolUse' && _isHumanInputTool(toolName)) {
+    return AgentStatusState.waiting;
+  }
   return switch (eventName) {
     'UserPromptSubmit' ||
     'PreToolUse' ||

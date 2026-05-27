@@ -4,6 +4,7 @@ import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/chips/alera_chip.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
+import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/shell/presentation/alera_shell_page.dart';
@@ -36,6 +37,8 @@ void main() {
     WorkspaceFolderOpener? workspaceFolderOpener,
     _ShellTestWorkbenchController? controller,
     AleraSettings? settings,
+    Map<String, AgentStatusEntry> agentStatuses =
+        const <String, AgentStatusEntry>{},
   }) async {
     final shellController = controller ?? _ShellTestWorkbenchController(state);
     final runtime = terminalRuntime ?? _FakeTerminalRuntime();
@@ -50,6 +53,9 @@ void main() {
         overrides: [
           aleraDatabaseProvider.overrideWith((ref) async => db),
           workbenchControllerProvider.overrideWith(() => shellController),
+          agentStatusControllerProvider.overrideWith(
+            () => _ShellTestAgentStatusController(agentStatuses),
+          ),
           terminalRuntimeProvider.overrideWith((ref) => runtime),
           terminalHostWarmupProvider.overrideWith((ref) {}),
           settingsControllerProvider.overrideWith(() => settingsController),
@@ -87,6 +93,30 @@ void main() {
     expect(find.text('/repo/alera'), findsNothing);
     expect(find.widgetWithText(OutlinedButton, 'Add project'), findsOneWidget);
     expect(find.byTooltip('Settings'), findsOneWidget);
+  });
+
+  testWidgets('workspace and tab surfaces show agent status indicators', (
+    tester,
+  ) async {
+    await pumpShell(
+      tester,
+      state: _populatedWorkbenchState(),
+      agentStatuses: <String, AgentStatusEntry>{
+        'tab-1': _agentStatusEntry(
+          terminalSessionId: 'tab-1',
+          workspaceId: 'workspace-1',
+          tabId: 'tab-1',
+          state: AgentStatusState.waiting,
+        ),
+      },
+    );
+
+    expect(
+      find.byWidgetPredicate(
+        (widget) => widget is Tooltip && widget.message == 'Codex waiting',
+      ),
+      findsNWidgets(2),
+    );
   });
 
   testWidgets('shell renders split terminal panes for one workspace', (
@@ -650,25 +680,26 @@ void main() {
     expect(find.text('No projects yet'), findsAtLeastNWidgets(1));
   });
 
-  testWidgets('shell shows a toast when the workbench state contains an error', (
-    tester,
-  ) async {
-    final events = <AleraToastData>[];
-    final subscription = AleraToast.stream.listen(events.add);
-    addTearDown(subscription.cancel);
+  testWidgets(
+    'shell shows a toast when the workbench state contains an error',
+    (tester) async {
+      final events = <AleraToastData>[];
+      final subscription = AleraToast.stream.listen(events.add);
+      addTearDown(subscription.cancel);
 
-    await pumpShell(
-      tester,
-      state: _populatedWorkbenchState().copyWith(error: 'Workspace failed'),
-    );
+      await pumpShell(
+        tester,
+        state: _populatedWorkbenchState().copyWith(error: 'Workspace failed'),
+      );
 
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
-    expect(events, isNotEmpty);
-    expect(events.last.message, 'Workspace failed');
-    expect(events.last.tone, AleraToastTone.error);
-  });
+      expect(events, isNotEmpty);
+      expect(events.last.message, 'Workspace failed');
+      expect(events.last.tone, AleraToastTone.error);
+    },
+  );
 
   testWidgets('clicking a tab activates it in the shell state bridge', (
     tester,
@@ -729,7 +760,9 @@ void main() {
     );
   });
 
-  testWidgets('pane split actions focus the new terminal session', (tester) async {
+  testWidgets('pane split actions focus the new terminal session', (
+    tester,
+  ) async {
     final harness = await pumpShell(tester, state: _populatedWorkbenchState());
 
     await tester.tap(find.byTooltip('Pane actions').first);
@@ -810,7 +843,10 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.widgetWithText(FilledButton, 'Create workspace'), findsOneWidget);
+    expect(
+      find.widgetWithText(FilledButton, 'Create workspace'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('project context menu can open the create workspace dialog', (
@@ -827,7 +863,10 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.widgetWithText(FilledButton, 'Create workspace'), findsOneWidget);
+    expect(
+      find.widgetWithText(FilledButton, 'Create workspace'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('workspace toggle can hide terminal rows', (tester) async {
@@ -842,8 +881,8 @@ void main() {
     var bestDistance = double.infinity;
     final toggleCount = toggles.evaluate().length;
     for (var index = 0; index < toggleCount; index += 1) {
-      final distance = (tester.getCenter(toggles.at(index)).dy - workspaceCenter.dy)
-          .abs();
+      final distance =
+          (tester.getCenter(toggles.at(index)).dy - workspaceCenter.dy).abs();
       if (distance < bestDistance) {
         bestDistance = distance;
         toggleIndex = index;
@@ -990,7 +1029,10 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Rename'));
     await tester.pumpAndSettle();
-    await tester.enterText(find.widgetWithText(TextField, 'Project name'), 'New');
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Project name'),
+      'New',
+    );
     await tester.tap(find.text('Rename'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
@@ -1101,7 +1143,10 @@ void main() {
     final events = <AleraToastData>[];
     final subscription = AleraToast.stream.listen(events.add);
     addTearDown(subscription.cancel);
-    final state = _linkedWorkbenchState(linkedExpanded: true, linkedActive: true);
+    final state = _linkedWorkbenchState(
+      linkedExpanded: true,
+      linkedActive: true,
+    );
 
     await pumpShell(
       tester,
@@ -1153,7 +1198,8 @@ void main() {
         .first;
 
     BoxDecoration decorationOf(Finder finder) {
-      return tester.widget<AnimatedContainer>(finder).decoration! as BoxDecoration;
+      return tester.widget<AnimatedContainer>(finder).decoration!
+          as BoxDecoration;
     }
 
     expect(decorationOf(projectContainer).color, Colors.transparent);
@@ -1432,6 +1478,33 @@ WorkbenchState _linkedWorkbenchState({
     ),
     bootstrapped: true,
   );
+}
+
+AgentStatusEntry _agentStatusEntry({
+  required String terminalSessionId,
+  required String workspaceId,
+  required String tabId,
+  required AgentStatusState state,
+}) {
+  return AgentStatusEntry(
+    terminalSessionId: terminalSessionId,
+    workspaceId: workspaceId,
+    tabId: tabId,
+    agentType: AgentType.codex,
+    state: state,
+    prompt: '',
+    updatedAt: DateTime.utc(2026, 5, 22),
+    stateStartedAt: DateTime.utc(2026, 5, 22),
+  );
+}
+
+class _ShellTestAgentStatusController extends AgentStatusController {
+  _ShellTestAgentStatusController(this._entries);
+
+  final Map<String, AgentStatusEntry> _entries;
+
+  @override
+  Map<String, AgentStatusEntry> build() => _entries;
 }
 
 class _ShellTestWorkbenchController extends WorkbenchController {

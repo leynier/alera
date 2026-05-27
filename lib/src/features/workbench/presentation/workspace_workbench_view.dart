@@ -4,6 +4,8 @@ import 'dart:math' as math;
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
+import 'package:alera/src/features/agent_status/domain/agent_status.dart';
+import 'package:alera/src/features/agent_status/presentation/agent_status_dot.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
@@ -128,6 +130,7 @@ class WorkspaceWorkbenchView extends StatelessWidget {
     required this.tabs,
     required this.layout,
     required this.terminalRuntime,
+    required this.agentStatuses,
     required this.onCreateTab,
     required this.onSelectTab,
     required this.onCloseTab,
@@ -144,6 +147,7 @@ class WorkspaceWorkbenchView extends StatelessWidget {
   final List<WorkspaceTabRecord> tabs;
   final WorkbenchLayout? layout;
   final TerminalRuntime terminalRuntime;
+  final Map<String, AgentStatusEntry> agentStatuses;
   final CreateTerminalTabCallback onCreateTab;
   final SelectWorkspaceTabCallback onSelectTab;
   final ValueChanged<String> onCloseTab;
@@ -169,6 +173,7 @@ class WorkspaceWorkbenchView extends StatelessWidget {
       node: resolvedLayout.root,
       nodePath: const <int>[],
       terminalRuntime: terminalRuntime,
+      agentStatuses: agentStatuses,
       onCreateTab: onCreateTab,
       onSelectTab: onSelectTab,
       onCloseTab: onCloseTab,
@@ -190,6 +195,7 @@ class _WorkbenchLayoutView extends StatelessWidget {
     required this.node,
     required this.nodePath,
     required this.terminalRuntime,
+    required this.agentStatuses,
     required this.onCreateTab,
     required this.onSelectTab,
     required this.onCloseTab,
@@ -207,6 +213,7 @@ class _WorkbenchLayoutView extends StatelessWidget {
   final WorkbenchLayoutNode node;
   final List<int> nodePath;
   final TerminalRuntime terminalRuntime;
+  final Map<String, AgentStatusEntry> agentStatuses;
   final CreateTerminalTabCallback onCreateTab;
   final SelectWorkspaceTabCallback onSelectTab;
   final ValueChanged<String> onCloseTab;
@@ -227,6 +234,7 @@ class _WorkbenchLayoutView extends StatelessWidget {
         layout: layout,
         groupId: groupId,
         terminalRuntime: terminalRuntime,
+        agentStatuses: agentStatuses,
         onCreateTab: onCreateTab,
         onSelectTab: onSelectTab,
         onCloseTab: onCloseTab,
@@ -244,6 +252,7 @@ class _WorkbenchLayoutView extends StatelessWidget {
       node: node,
       nodePath: nodePath,
       terminalRuntime: terminalRuntime,
+      agentStatuses: agentStatuses,
       onCreateTab: onCreateTab,
       onSelectTab: onSelectTab,
       onCloseTab: onCloseTab,
@@ -265,6 +274,7 @@ class _WorkbenchSplitView extends StatelessWidget {
     required this.node,
     required this.nodePath,
     required this.terminalRuntime,
+    required this.agentStatuses,
     required this.onCreateTab,
     required this.onSelectTab,
     required this.onCloseTab,
@@ -282,6 +292,7 @@ class _WorkbenchSplitView extends StatelessWidget {
   final WorkbenchLayoutNode node;
   final List<int> nodePath;
   final TerminalRuntime terminalRuntime;
+  final Map<String, AgentStatusEntry> agentStatuses;
   final CreateTerminalTabCallback onCreateTab;
   final SelectWorkspaceTabCallback onSelectTab;
   final ValueChanged<String> onCloseTab;
@@ -302,6 +313,7 @@ class _WorkbenchSplitView extends StatelessWidget {
       node: node.first!,
       nodePath: <int>[...nodePath, 0],
       terminalRuntime: terminalRuntime,
+      agentStatuses: agentStatuses,
       onCreateTab: onCreateTab,
       onSelectTab: onSelectTab,
       onCloseTab: onCloseTab,
@@ -319,6 +331,7 @@ class _WorkbenchSplitView extends StatelessWidget {
       node: node.second!,
       nodePath: <int>[...nodePath, 1],
       terminalRuntime: terminalRuntime,
+      agentStatuses: agentStatuses,
       onCreateTab: onCreateTab,
       onSelectTab: onSelectTab,
       onCloseTab: onCloseTab,
@@ -384,6 +397,7 @@ class _WorkbenchPane extends StatelessWidget {
     required this.layout,
     required this.groupId,
     required this.terminalRuntime,
+    required this.agentStatuses,
     required this.onCreateTab,
     required this.onSelectTab,
     required this.onCloseTab,
@@ -399,6 +413,7 @@ class _WorkbenchPane extends StatelessWidget {
   final WorkbenchLayout layout;
   final String groupId;
   final TerminalRuntime terminalRuntime;
+  final Map<String, AgentStatusEntry> agentStatuses;
   final CreateTerminalTabCallback onCreateTab;
   final SelectWorkspaceTabCallback onSelectTab;
   final ValueChanged<String> onCloseTab;
@@ -442,6 +457,7 @@ class _WorkbenchPane extends StatelessWidget {
               activeTabId: activeTab?.id,
               canCloseSplit: layout.paneGroupIds.length > 1,
               terminalRuntime: terminalRuntime,
+              agentStatuses: agentStatuses,
               onSelectTab: (tabId) =>
                   onSelectTab(groupId: groupId, tabId: tabId),
               onCloseTab: onCloseTab,
@@ -739,6 +755,7 @@ class _WorkspaceTabStrip extends StatefulWidget {
     required this.activeTabId,
     required this.canCloseSplit,
     required this.terminalRuntime,
+    required this.agentStatuses,
     required this.onSelectTab,
     required this.onCloseTab,
     required this.onCloseTabs,
@@ -754,6 +771,7 @@ class _WorkspaceTabStrip extends StatefulWidget {
   final String? activeTabId;
   final bool canCloseSplit;
   final TerminalRuntime terminalRuntime;
+  final Map<String, AgentStatusEntry> agentStatuses;
   final ValueChanged<String> onSelectTab;
   final ValueChanged<String> onCloseTab;
   final ValueChanged<List<String>> onCloseTabs;
@@ -814,6 +832,7 @@ class _WorkspaceTabStripState extends State<_WorkspaceTabStrip> {
                         tab: tab,
                         active: tab.id == widget.activeTabId,
                         terminalRuntime: widget.terminalRuntime,
+                        status: widget.agentStatuses[tab.terminalSessionId],
                         groupTabs: widget.tabs,
                         onSelect: () => widget.onSelectTab(tab.id),
                         onClose: () => widget.onCloseTab(tab.id),
@@ -1011,6 +1030,7 @@ class _DraggableWorkspaceTabChip extends StatelessWidget {
     required this.tab,
     required this.active,
     required this.terminalRuntime,
+    required this.status,
     required this.groupTabs,
     required this.onSelect,
     required this.onClose,
@@ -1024,6 +1044,7 @@ class _DraggableWorkspaceTabChip extends StatelessWidget {
   final WorkspaceTabRecord tab;
   final bool active;
   final TerminalRuntime terminalRuntime;
+  final AgentStatusEntry? status;
   final List<WorkspaceTabRecord> groupTabs;
   final VoidCallback onSelect;
   final VoidCallback onClose;
@@ -1052,6 +1073,7 @@ class _DraggableWorkspaceTabChip extends StatelessWidget {
           child: _WorkspaceTabChip(
             tab: tab,
             terminalSession: session,
+            status: status,
             active: active,
             groupTabs: groupTabs,
             onTap: onSelect,
@@ -1064,6 +1086,7 @@ class _DraggableWorkspaceTabChip extends StatelessWidget {
         child: _WorkspaceTabChip(
           tab: tab,
           terminalSession: session,
+          status: status,
           active: active,
           groupTabs: groupTabs,
           onTap: onSelect,
@@ -1081,6 +1104,7 @@ class _WorkspaceTabChip extends StatelessWidget {
   const _WorkspaceTabChip({
     required this.tab,
     required this.terminalSession,
+    required this.status,
     required this.active,
     required this.groupTabs,
     required this.onTap,
@@ -1092,6 +1116,7 @@ class _WorkspaceTabChip extends StatelessWidget {
 
   final WorkspaceTabRecord tab;
   final TerminalSessionHandle? terminalSession;
+  final AgentStatusEntry? status;
   final bool active;
   final List<WorkspaceTabRecord> groupTabs;
   final VoidCallback onTap;
@@ -1258,6 +1283,13 @@ class _WorkspaceTabChip extends StatelessWidget {
                   color: active
                       ? AleraTokens.foreground
                       : AleraTokens.foregroundMuted,
+                ),
+                const SizedBox(width: AleraTokens.space4),
+                SizedBox.square(
+                  dimension: 6,
+                  child: status == null
+                      ? const SizedBox.shrink()
+                      : AgentStatusDot(status: status, size: 6),
                 ),
                 const SizedBox(width: AleraTokens.space4),
                 ConstrainedBox(

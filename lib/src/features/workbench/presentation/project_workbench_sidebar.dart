@@ -19,6 +19,7 @@ import 'package:alera/src/features/projects/presentation/widgets/sidebar_resize_
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_search_bar.dart';
 import 'package:alera/src/features/workbench/application/workbench_listing.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
+import 'package:alera/src/features/workbench/application/workspace_agent_status_projection.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
@@ -576,6 +577,10 @@ class _SidebarBody extends StatelessWidget {
               .tabsFor(row.workspace.id)
               .where((tab) => tab.kind == WorkspaceTabKind.terminal)
               .length,
+          status: aggregateWorkspaceAgentStatus(
+            tabs: state.tabsFor(row.workspace.id),
+            agentStatuses: agentStatuses,
+          ),
           isActive: row.workspace.id == state.activeWorkspaceId,
           showProjectChip: row.showProjectChip,
           expanded: row.expanded,
@@ -792,6 +797,7 @@ class _WorkspaceRow extends StatefulWidget {
     required this.project,
     required this.workspace,
     required this.terminalTabCount,
+    required this.status,
     required this.isActive,
     required this.showProjectChip,
     required this.expanded,
@@ -808,6 +814,7 @@ class _WorkspaceRow extends StatefulWidget {
   final Project project;
   final Workspace workspace;
   final int terminalTabCount;
+  final AgentStatusEntry? status;
   final bool isActive;
   final bool showProjectChip;
   final bool expanded;
@@ -963,7 +970,9 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                   children: <Widget>[
                     Padding(
                       padding: const EdgeInsets.only(top: 6),
-                      child: AleraStatusDot(active: isActive),
+                      child: widget.status == null
+                          ? AleraStatusDot(active: isActive)
+                          : AgentStatusDot(status: widget.status, size: 8),
                     ),
                     const SizedBox(width: AleraTokens.space8),
                     Expanded(
