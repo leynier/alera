@@ -119,6 +119,72 @@ void main() {
       expect(sink.events.first.payload['tool_name'], 'request_permissions');
       expect(sink.events.last.payload['tool_name'], 'request_permissions');
     });
+
+    test(
+      'marks interrupted turn as stopped after permission cancellation',
+      () async {
+        transcript.writeAsStringSync('');
+        watcher.observeHookEvent(
+          _event(
+            hookEventName: 'UserPromptSubmit',
+            payload: <String, Object?>{
+              'turn_id': 'turn-1',
+              'transcript_path': transcript.path,
+              'prompt': 'write a file',
+            },
+          ),
+        );
+        await watcher.scanNowForTesting('session-1');
+
+        transcript.writeAsStringSync(
+          '${jsonEncode(<String, Object?>{
+            'type': 'event_msg',
+            'payload': <String, Object?>{'type': 'turn_aborted', 'turn_id': 'turn-1', 'reason': 'interrupted'},
+          })}\n',
+          mode: FileMode.append,
+        );
+        await watcher.scanNowForTesting('session-1');
+
+        expect(sink.events, hasLength(1));
+        final event = sink.events.single;
+        expect(event.hookEventName, 'Stop');
+        expect(event.version, 'codex-transcript');
+        expect(event.payload['is_interrupt'], isTrue);
+      },
+    );
+
+    test(
+      'marks completed transcript turn as stopped with last message',
+      () async {
+        transcript.writeAsStringSync('');
+        watcher.observeHookEvent(
+          _event(
+            hookEventName: 'UserPromptSubmit',
+            payload: <String, Object?>{
+              'turn_id': 'turn-1',
+              'transcript_path': transcript.path,
+              'prompt': 'finish',
+            },
+          ),
+        );
+        await watcher.scanNowForTesting('session-1');
+
+        transcript.writeAsStringSync(
+          '${jsonEncode(<String, Object?>{
+            'type': 'event_msg',
+            'payload': <String, Object?>{'type': 'task_complete', 'turn_id': 'turn-1', 'last_agent_message': 'Done.'},
+          })}\n',
+          mode: FileMode.append,
+        );
+        await watcher.scanNowForTesting('session-1');
+
+        expect(sink.events, hasLength(1));
+        final event = sink.events.single;
+        expect(event.hookEventName, 'Stop');
+        expect(event.payload['is_interrupt'], isFalse);
+        expect(event.payload['last_assistant_message'], 'Done.');
+      },
+    );
   });
 }
 

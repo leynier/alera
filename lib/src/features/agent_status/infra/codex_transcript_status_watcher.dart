@@ -214,6 +214,13 @@ class _CodexTranscriptWatch {
       return;
     }
 
+    final completion = _turnCompletion(record);
+    if (completion != null) {
+      _emitStop(completion);
+      dispose();
+      return;
+    }
+
     final pending = _pendingFunctionCall(record);
     if (pending != null) {
       _emitWaiting(pending);
@@ -241,6 +248,47 @@ class _CodexTranscriptWatch {
           'tool_name': toolName,
           'tool_use_id': completedCallId,
           'transcript_path': transcriptPath,
+        },
+      ),
+    );
+  }
+
+  _TranscriptTurnCompletion? _turnCompletion(Map<String, Object?> record) {
+    final payload = _recordPayload(record);
+    if (record['type'] != 'event_msg' || payload == null) {
+      return null;
+    }
+    if (turnId != null && payload['turn_id'] != turnId) {
+      return null;
+    }
+    final payloadType = payload['type'];
+    if (payloadType == 'task_complete') {
+      return _TranscriptTurnCompletion(
+        interrupted: false,
+        lastAssistantMessage: _string(payload['last_agent_message']),
+      );
+    }
+    if (payloadType == 'turn_aborted') {
+      return const _TranscriptTurnCompletion(interrupted: true);
+    }
+    return null;
+  }
+
+  void _emitStop(_TranscriptTurnCompletion completion) {
+    _statusSink.applyHookEvent(
+      AgentHookEvent(
+        terminalSessionId: terminalSessionId,
+        workspaceId: workspaceId,
+        tabId: tabId,
+        agentType: AgentType.codex,
+        hookEventName: 'Stop',
+        version: 'codex-transcript',
+        payload: <String, Object?>{
+          'hook_event_name': 'Stop',
+          'transcript_path': transcriptPath,
+          'is_interrupt': completion.interrupted,
+          if (completion.lastAssistantMessage != null)
+            'last_assistant_message': completion.lastAssistantMessage,
         },
       ),
     );
@@ -329,6 +377,16 @@ class _CodexTranscriptWatch {
       ),
     );
   }
+}
+
+class _TranscriptTurnCompletion {
+  const _TranscriptTurnCompletion({
+    required this.interrupted,
+    this.lastAssistantMessage,
+  });
+
+  final bool interrupted;
+  final String? lastAssistantMessage;
 }
 
 class _PendingFunctionCall {
