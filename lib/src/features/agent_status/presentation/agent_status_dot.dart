@@ -1,6 +1,7 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/feedback/alera_status_dot.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
+import 'package:alera/src/features/agent_status/presentation/agent_identity_icon.dart';
 import 'package:flutter/material.dart';
 
 class AgentStatusDot extends StatelessWidget {
@@ -40,16 +41,7 @@ Color agentStatusColor(AgentStatusState state) {
 }
 
 String agentStatusTooltip(AgentStatusEntry entry) {
-  final agent = switch (entry.agentType) {
-    AgentType.codex => 'Codex',
-    AgentType.claude => 'Claude Code',
-    AgentType.copilot => 'GitHub Copilot',
-    AgentType.cursor => 'Cursor',
-    AgentType.agy => 'Antigravity',
-    AgentType.opencode => 'OpenCode',
-    AgentType.pi => 'Pi',
-    AgentType.amp => 'Amp',
-  };
+  final agent = agentDisplayName(entry.agentType);
   final state = switch (entry.state) {
     AgentStatusState.working => 'working',
     AgentStatusState.waiting => 'waiting',

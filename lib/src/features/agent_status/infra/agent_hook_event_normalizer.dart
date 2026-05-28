@@ -82,6 +82,23 @@ NormalizedAgentStatus? normalizeAgentHookEvent(
   );
 }
 
+bool isAgentSessionCloseHookEvent(AgentHookEvent event) {
+  final eventName = _hookEventName(event);
+  if (eventName == null) {
+    return false;
+  }
+  return switch (event.agentType) {
+    AgentType.copilot => eventName == 'SessionEnd',
+    AgentType.cursor => eventName == 'sessionEnd',
+    AgentType.pi => eventName == 'session_shutdown',
+    AgentType.codex ||
+    AgentType.claude ||
+    AgentType.agy ||
+    AgentType.opencode ||
+    AgentType.amp => false,
+  };
+}
+
 String? _hookEventName(AgentHookEvent event) {
   final explicit = _readFirstString(
     <String, Object?>{'hookEventName': event.hookEventName},

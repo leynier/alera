@@ -1,4 +1,6 @@
+import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/workbench/application/workspace_agent_status_projection.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
@@ -43,21 +45,27 @@ class WorkbenchWorkspaceRow extends WorkbenchSidebarRow {
   final int indent;
 }
 
-class SidebarTerminalTabRow extends WorkbenchSidebarRow {
-  const SidebarTerminalTabRow({
+class SidebarAgentRunRow extends WorkbenchSidebarRow {
+  const SidebarAgentRunRow({
     required this.workspace,
     required this.tab,
+    required this.status,
     required this.indent,
   });
 
   final Workspace workspace;
   final WorkspaceTabRecord tab;
+  final AgentStatusEntry status;
   final int indent;
 }
 
 /// Builds the flat list of rows the sidebar should render for the current
 /// [state]. Pure function — easy to unit test.
-List<WorkbenchSidebarRow> buildSidebarRows(WorkbenchState state) {
+List<WorkbenchSidebarRow> buildSidebarRows(
+  WorkbenchState state, {
+  Map<String, AgentStatusEntry> agentStatuses =
+      const <String, AgentStatusEntry>{},
+}) {
   final prefs = state.viewPrefs;
   final query = state.searchQuery.trim().toLowerCase();
 
@@ -125,7 +133,7 @@ List<WorkbenchSidebarRow> buildSidebarRows(WorkbenchState state) {
     return sorted;
   }
 
-  void appendSidebarTerminalTabRows(
+  void appendSidebarAgentRunRows(
     List<WorkbenchSidebarRow> rows,
     Workspace workspace,
     int indent,
@@ -133,13 +141,18 @@ List<WorkbenchSidebarRow> buildSidebarRows(WorkbenchState state) {
     if (!prefs.expandedWorkspaceIds.contains(workspace.id)) {
       return;
     }
-    final tabs = state.tabsFor(workspace.id);
-    for (final tab in tabs) {
-      if (tab.kind != WorkspaceTabKind.terminal) {
-        continue;
-      }
+    final runs = visibleWorkspaceAgentRuns(
+      tabs: state.tabsFor(workspace.id),
+      agentStatuses: agentStatuses,
+    );
+    for (final run in runs) {
       rows.add(
-        SidebarTerminalTabRow(workspace: workspace, tab: tab, indent: indent),
+        SidebarAgentRunRow(
+          workspace: workspace,
+          tab: run.tab,
+          status: run.status,
+          indent: indent,
+        ),
       );
     }
   }
@@ -181,7 +194,7 @@ List<WorkbenchSidebarRow> buildSidebarRows(WorkbenchState state) {
               expanded: prefs.expandedWorkspaceIds.contains(workspace.id),
             ),
           );
-          appendSidebarTerminalTabRows(rows, workspace, 2);
+          appendSidebarAgentRunRows(rows, workspace, 2);
         }
       }
     case WorkbenchGroupBy.none:
@@ -219,7 +232,7 @@ List<WorkbenchSidebarRow> buildSidebarRows(WorkbenchState state) {
             expanded: prefs.expandedWorkspaceIds.contains(entry.workspace.id),
           ),
         );
-        appendSidebarTerminalTabRows(rows, entry.workspace, 1);
+        appendSidebarAgentRunRows(rows, entry.workspace, 1);
       }
   }
 

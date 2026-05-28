@@ -245,8 +245,8 @@ class WorkbenchController extends _$WorkbenchController {
     required Project project,
     required Workspace workspace,
   }) async {
-    // Selecting a workspace also reveals its sidebar terminal-tab list so the
-    // user can jump into a tab right away. Subsequent toggles via the chevron
+    // Selecting a workspace also reveals its sidebar agent-run list so the
+    // user can jump into a run right away. Subsequent toggles via the chevron
     // can hide it back independently of the active selection.
     final prefs = state.viewPrefs;
     final nextPrefs = prefs.expandedWorkspaceIds.contains(workspace.id)
@@ -588,8 +588,8 @@ class WorkbenchController extends _$WorkbenchController {
 
   /// Collapses or expands the appropriate items depending on the active group
   /// mode. In [WorkbenchGroupBy.project] this toggles every visible project
-  /// group; in [WorkbenchGroupBy.none] it toggles the sidebar-visible
-  /// terminal-tab list of the active workspace.
+  /// group; in [WorkbenchGroupBy.none] it toggles the sidebar-visible agent-run
+  /// list of the active workspace.
   void toggleCollapseAll() {
     final prefs = state.viewPrefs;
     if (prefs.groupBy == WorkbenchGroupBy.project) {

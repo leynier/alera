@@ -26,6 +26,7 @@ dependencies:
   package_info_plus: ^10.1.0
   url_launcher: ^6.3.2
   flutter_colorpicker: ^1.1.0
+  flutter_svg: ^2.3.0
   riverpod_annotation: ^4.0.2
   dart_mappable: ^4.8.0
   drift: ^2.33.0
@@ -75,3 +76,4 @@ flutter:
   assets:
     - assets/logo/alera-logo.png
     - assets/logo/alera-logo-white.png
+    - assets/agents/

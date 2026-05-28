@@ -56,12 +56,46 @@ void main() {
       expect(status?.tabId, secondTab.id);
     });
 
-    test('ignores non-terminal tabs and stale tab ids', () {
+    test('returns visible runs sorted by status priority and recency', () {
+      final doneTab = _tab('tab-done');
+      final waitingTab = _tab('tab-waiting');
+      final workingTab = _tab('tab-working');
+
+      final runs = visibleWorkspaceAgentRuns(
+        tabs: <WorkspaceTabRecord>[doneTab, waitingTab, workingTab],
+        agentStatuses: <String, AgentStatusEntry>{
+          doneTab.terminalSessionId: _entry(doneTab, AgentStatusState.done),
+          waitingTab.terminalSessionId: _entry(
+            waitingTab,
+            AgentStatusState.waiting,
+            updatedAt: DateTime.utc(2026, 5, 26, 11),
+          ),
+          workingTab.terminalSessionId: _entry(
+            workingTab,
+            AgentStatusState.working,
+            updatedAt: DateTime.utc(2026, 5, 26, 12),
+          ),
+        },
+      );
+
+      expect(runs.map((run) => run.tab.id), <String>[
+        'tab-waiting',
+        'tab-working',
+        'tab-done',
+      ]);
+    });
+
+    test('ignores non-terminal tabs and stale tab/session ids', () {
       final browserTab = _tab('browser', kind: WorkspaceTabKind.browser);
       final terminalTab = _tab('terminal');
+      final mismatchedSessionTab = _tab('mismatched-session');
 
       final status = aggregateWorkspaceAgentStatus(
-        tabs: <WorkspaceTabRecord>[browserTab, terminalTab],
+        tabs: <WorkspaceTabRecord>[
+          browserTab,
+          terminalTab,
+          mismatchedSessionTab,
+        ],
         agentStatuses: <String, AgentStatusEntry>{
           browserTab.terminalSessionId: _entry(
             browserTab,
@@ -71,6 +105,11 @@ void main() {
             terminalTab,
             AgentStatusState.working,
             tabId: 'old-tab',
+          ),
+          mismatchedSessionTab.terminalSessionId: _entry(
+            mismatchedSessionTab,
+            AgentStatusState.working,
+            terminalSessionId: 'old-session',
           ),
         },
       );
@@ -99,10 +138,11 @@ AgentStatusEntry _entry(
   AgentStatusState state, {
   DateTime? updatedAt,
   String? tabId,
+  String? terminalSessionId,
 }) {
   final timestamp = updatedAt ?? DateTime.utc(2026, 5, 26);
   return AgentStatusEntry(
-    terminalSessionId: tab.terminalSessionId,
+    terminalSessionId: terminalSessionId ?? tab.terminalSessionId,
     workspaceId: tab.workspaceId,
     tabId: tabId ?? tab.id,
     agentType: AgentType.codex,

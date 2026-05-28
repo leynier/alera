@@ -14,7 +14,7 @@ import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
-import 'package:alera/src/features/agent_status/presentation/agent_status_dot.dart';
+import 'package:alera/src/features/agent_status/presentation/agent_identity_icon.dart';
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_resize_handle.dart';
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_search_bar.dart';
 import 'package:alera/src/features/workbench/application/workbench_listing.dart';
@@ -22,7 +22,6 @@ import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/application/workspace_agent_status_projection.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
-import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_dialog_launchers.dart';
 import 'package:alera/src/features/workbench/presentation/widgets/workbench_sidebar_toolbar.dart';
 import 'package:flutter/material.dart';
@@ -54,7 +53,6 @@ class _ProjectWorkbenchSidebarState
     final state = ref.watch(workbenchControllerProvider);
     final agentStatuses = ref.watch(agentStatusControllerProvider);
     final controller = ref.read(workbenchControllerProvider.notifier);
-    final terminalRuntime = ref.read(terminalRuntimeProvider);
     final workspaceFolderOpener = ref.read(workspaceFolderOpenerProvider);
     if (state.collapsed) {
       return _CollapsedSidebar(
@@ -100,7 +98,6 @@ class _ProjectWorkbenchSidebarState
                       : _SidebarBody(
                           state: state,
                           controller: controller,
-                          terminalRuntime: terminalRuntime,
                           agentStatuses: agentStatuses,
                           onOpenWorkspace: _openWorkspace,
                           onOpenWorkspaceFolder: _openWorkspaceFolder,
@@ -490,7 +487,6 @@ class _SidebarBody extends StatelessWidget {
   const _SidebarBody({
     required this.state,
     required this.controller,
-    required this.terminalRuntime,
     required this.agentStatuses,
     required this.onOpenWorkspace,
     required this.onOpenWorkspaceFolder,
@@ -508,7 +504,6 @@ class _SidebarBody extends StatelessWidget {
 
   final WorkbenchState state;
   final WorkbenchController controller;
-  final TerminalRuntime terminalRuntime;
   final Map<String, AgentStatusEntry> agentStatuses;
   final Future<void> Function(Project project, Workspace workspace)
   onOpenWorkspace;
@@ -527,7 +522,7 @@ class _SidebarBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final rows = buildSidebarRows(state);
+    final rows = buildSidebarRows(state, agentStatuses: agentStatuses);
     if (rows.isEmpty) {
       return _EmptyResultsView(query: state.searchQuery);
     }
@@ -568,19 +563,18 @@ class _SidebarBody extends StatelessWidget {
       final leftPadding = row.indent == 0
           ? AleraTokens.space8
           : AleraTokens.space20;
+      final tabs = state.tabsFor(row.workspace.id);
+      final agentRuns = visibleWorkspaceAgentRuns(
+        tabs: tabs,
+        agentStatuses: agentStatuses,
+      );
       return Padding(
         padding: EdgeInsets.only(left: leftPadding, right: AleraTokens.space8),
         child: _WorkspaceRow(
           project: row.project,
           workspace: row.workspace,
-          terminalTabCount: state
-              .tabsFor(row.workspace.id)
-              .where((tab) => tab.kind == WorkspaceTabKind.terminal)
-              .length,
-          status: aggregateWorkspaceAgentStatus(
-            tabs: state.tabsFor(row.workspace.id),
-            agentStatuses: agentStatuses,
-          ),
+          agentRunCount: agentRuns.length,
+          status: agentRuns.isEmpty ? null : agentRuns.first.status,
           isActive: row.workspace.id == state.activeWorkspaceId,
           showProjectChip: row.showProjectChip,
           expanded: row.expanded,
@@ -598,21 +592,18 @@ class _SidebarBody extends StatelessWidget {
         ),
       );
     }
-    if (row is SidebarTerminalTabRow) {
+    if (row is SidebarAgentRunRow) {
       final leftPadding = row.indent <= 1
           ? AleraTokens.space20
           : AleraTokens.space32;
       return Padding(
         padding: EdgeInsets.only(left: leftPadding, right: AleraTokens.space8),
-        child: _TerminalRow(
+        child: _AgentRunRow(
           workspace: row.workspace,
           tab: row.tab,
-          terminalRuntime: terminalRuntime,
-          status: agentStatuses[row.tab.terminalSessionId],
-          // A terminal only reads as "active" when both its workspace is the
-          // currently selected workspace AND the tab is the active one for
-          // that workspace. Otherwise an inactive workspace's last-active tab
-          // would keep its highlight even though it is not really focused.
+          status: row.status,
+          // An agent run only reads as active when its workspace and backing
+          // terminal tab are both selected.
           isActive:
               row.workspace.id == state.activeWorkspaceId &&
               state.activeTabIdByWorkspace[row.workspace.id] == row.tab.id,
@@ -796,7 +787,7 @@ class _WorkspaceRow extends StatefulWidget {
   const _WorkspaceRow({
     required this.project,
     required this.workspace,
-    required this.terminalTabCount,
+    required this.agentRunCount,
     required this.status,
     required this.isActive,
     required this.showProjectChip,
@@ -813,7 +804,7 @@ class _WorkspaceRow extends StatefulWidget {
 
   final Project project;
   final Workspace workspace;
-  final int terminalTabCount;
+  final int agentRunCount;
   final AgentStatusEntry? status;
   final bool isActive;
   final bool showProjectChip;
@@ -925,11 +916,11 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
     if (!widget.workspace.isMain && source != null && source.isNotEmpty) {
       parts.add('base: $source');
     }
-    if (widget.terminalTabCount > 0) {
+    if (widget.agentRunCount > 0) {
       parts.add(
-        widget.terminalTabCount == 1
-            ? '1 terminal tab'
-            : '${widget.terminalTabCount} terminal tabs',
+        widget.agentRunCount == 1
+            ? '1 agent run'
+            : '${widget.agentRunCount} agent runs',
       );
     }
     return parts.join(' · ');
@@ -972,7 +963,7 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                       padding: const EdgeInsets.only(top: 6),
                       child: widget.status == null
                           ? AleraStatusDot(active: isActive)
-                          : AgentStatusDot(status: widget.status, size: 8),
+                          : _AgentRunStateIndicator(status: widget.status!),
                     ),
                     const SizedBox(width: AleraTokens.space8),
                     Expanded(
@@ -1023,17 +1014,18 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                         ],
                       ),
                     ),
-                    AleraIconButton(
-                      tooltip: widget.expanded
-                          ? 'Hide terminal tabs'
-                          : 'Show terminal tabs',
-                      onPressed: widget.onToggleExpanded,
-                      icon: widget.expanded
-                          ? Icons.keyboard_arrow_up
-                          : Icons.keyboard_arrow_down,
-                      iconSize: 14,
-                      minSize: 24,
-                    ),
+                    if (widget.agentRunCount > 0)
+                      AleraIconButton(
+                        tooltip: widget.expanded
+                            ? 'Hide agent runs'
+                            : 'Show agent runs',
+                        onPressed: widget.onToggleExpanded,
+                        icon: widget.expanded
+                            ? Icons.keyboard_arrow_up
+                            : Icons.keyboard_arrow_down,
+                        iconSize: 14,
+                        minSize: 24,
+                      ),
                     if (widget.onDelete != null)
                       IgnorePointer(
                         ignoring: !actionsVisible,
@@ -1065,11 +1057,10 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
   }
 }
 
-class _TerminalRow extends StatefulWidget {
-  const _TerminalRow({
+class _AgentRunRow extends StatefulWidget {
+  const _AgentRunRow({
     required this.workspace,
     required this.tab,
-    required this.terminalRuntime,
     required this.status,
     required this.isActive,
     required this.onTap,
@@ -1078,17 +1069,16 @@ class _TerminalRow extends StatefulWidget {
 
   final Workspace workspace;
   final WorkspaceTabRecord tab;
-  final TerminalRuntime terminalRuntime;
-  final AgentStatusEntry? status;
+  final AgentStatusEntry status;
   final bool isActive;
   final VoidCallback onTap;
   final VoidCallback onClose;
 
   @override
-  State<_TerminalRow> createState() => _TerminalRowState();
+  State<_AgentRunRow> createState() => _AgentRunRowState();
 }
 
-class _TerminalRowState extends State<_TerminalRow> {
+class _AgentRunRowState extends State<_AgentRunRow> {
   bool _hovered = false;
 
   @override
@@ -1096,10 +1086,8 @@ class _TerminalRowState extends State<_TerminalRow> {
     final theme = Theme.of(context);
     final isActive = widget.isActive;
     final actionsVisible = _hovered || isActive;
-    final session = widget.terminalRuntime.sessionFor(
-      workspace: widget.workspace,
-      tab: widget.tab,
-    );
+    final primaryLabel = _agentRunPrimaryLabel(widget.status);
+    final secondaryLabel = _agentRunSecondaryLabel(widget.status);
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
@@ -1120,29 +1108,37 @@ class _TerminalRowState extends State<_TerminalRow> {
             child: Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: AleraTokens.space8,
-                vertical: AleraTokens.space4,
+                vertical: AleraTokens.space6,
               ),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Icon(
-                    Icons.terminal,
-                    size: 12,
-                    color: isActive
-                        ? AleraTokens.foreground
-                        : AleraTokens.foregroundFaint,
+                  Padding(
+                    padding: const EdgeInsets.only(top: 1),
+                    child: _AgentRunStateIndicator(
+                      status: widget.status,
+                      size: 12,
+                    ),
                   ),
-                  if (widget.status != null) ...<Widget>[
-                    const SizedBox(width: AleraTokens.space6),
-                    AgentStatusDot(status: widget.status),
-                  ],
-                  const SizedBox(width: AleraTokens.space8),
+                  const SizedBox(width: AleraTokens.space6),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 1),
+                    child: AgentIdentityIcon(
+                      agentType: widget.status.agentType,
+                      size: 13,
+                      color: isActive
+                          ? AleraTokens.foreground
+                          : AleraTokens.foregroundMuted,
+                    ),
+                  ),
+                  const SizedBox(width: AleraTokens.space6),
                   Expanded(
-                    child: AnimatedBuilder(
-                      animation: session,
-                      builder: (context, _) {
-                        return Text(
-                          session.displayTitle,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Text(
+                          primaryLabel,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.labelSmall?.copyWith(
@@ -1151,10 +1147,21 @@ class _TerminalRowState extends State<_TerminalRow> {
                                 : AleraTokens.foregroundMuted,
                             fontWeight: isActive
                                 ? FontWeight.w600
-                                : FontWeight.w400,
+                                : FontWeight.w500,
                           ),
-                        );
-                      },
+                        ),
+                        if (secondaryLabel.isNotEmpty) ...<Widget>[
+                          const SizedBox(height: AleraTokens.space2),
+                          Text(
+                            secondaryLabel,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: AleraTokens.foregroundFaint,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                   IgnorePointer(
@@ -1166,23 +1173,13 @@ class _TerminalRowState extends State<_TerminalRow> {
                         padding: const EdgeInsets.only(
                           left: AleraTokens.space4,
                         ),
-                        child: InkWell(
-                          onTap: widget.onClose,
-                          mouseCursor: SystemMouseCursors.click,
-                          borderRadius: BorderRadius.circular(
-                            AleraTokens.radiusSm,
-                          ),
-                          child: const Padding(
-                            padding: EdgeInsets.all(AleraTokens.space2),
-                            child: Tooltip(
-                              message: 'Close terminal',
-                              child: Icon(
-                                Icons.close,
-                                size: 12,
-                                color: AleraTokens.foregroundMuted,
-                              ),
-                            ),
-                          ),
+                        child: AleraIconButton(
+                          tooltip: 'Close terminal',
+                          onPressed: widget.onClose,
+                          icon: Icons.close,
+                          iconSize: 12,
+                          minSize: 22,
+                          borderRadius: AleraTokens.radiusSm,
                         ),
                       ),
                     ),
@@ -1195,6 +1192,100 @@ class _TerminalRowState extends State<_TerminalRow> {
       ),
     );
   }
+}
+
+class _AgentRunStateIndicator extends StatelessWidget {
+  const _AgentRunStateIndicator({required this.status, this.size = 13});
+
+  final AgentStatusEntry status;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = _agentRunStateLabel(status);
+    final color = _agentRunStateColor(status);
+    return Tooltip(
+      message: label,
+      child: Semantics(
+        label: label,
+        child: SizedBox.square(
+          dimension: size,
+          child: Center(child: _buildIndicator(color)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIndicator(Color color) {
+    if (status.state == AgentStatusState.working) {
+      return SizedBox.square(
+        dimension: size - 2,
+        child: CircularProgressIndicator(
+          strokeWidth: 1.7,
+          color: AleraTokens.warning,
+        ),
+      );
+    }
+    final icon = status.interrupted == true
+        ? Icons.cancel_outlined
+        : switch (status.state) {
+            AgentStatusState.done => Icons.check_circle_outline,
+            AgentStatusState.waiting ||
+            AgentStatusState.blocked => Icons.notifications_active_outlined,
+            AgentStatusState.working => Icons.sync,
+          };
+    return Icon(icon, size: size, color: color);
+  }
+}
+
+Color _agentRunStateColor(AgentStatusEntry status) {
+  if (status.interrupted == true) {
+    return AleraTokens.error;
+  }
+  return switch (status.state) {
+    AgentStatusState.working => AleraTokens.warning,
+    AgentStatusState.waiting => AleraTokens.warning,
+    AgentStatusState.blocked => AleraTokens.error,
+    AgentStatusState.done => AleraTokens.success,
+  };
+}
+
+String _agentRunStateLabel(AgentStatusEntry status) {
+  if (status.interrupted == true) {
+    return 'Interrupted';
+  }
+  return switch (status.state) {
+    AgentStatusState.working => 'Working',
+    AgentStatusState.waiting => 'Waiting for input',
+    AgentStatusState.blocked => 'Blocked',
+    AgentStatusState.done => 'Done',
+  };
+}
+
+String _agentRunPrimaryLabel(AgentStatusEntry status) {
+  final prompt = status.prompt.trim();
+  if (prompt.isNotEmpty) {
+    return prompt;
+  }
+  return _agentRunStateLabel(status);
+}
+
+String _agentRunSecondaryLabel(AgentStatusEntry status) {
+  if (status.state == AgentStatusState.working) {
+    final toolName = status.toolName?.trim() ?? '';
+    final toolInput = status.toolInput?.trim() ?? '';
+    if (toolName.isNotEmpty && toolInput.isNotEmpty) {
+      return '$toolName: $toolInput';
+    }
+    if (toolName.isNotEmpty) {
+      return toolName;
+    }
+  }
+  final assistantMessage = status.lastAssistantMessage?.trim() ?? '';
+  if (assistantMessage.isNotEmpty) {
+    return assistantMessage;
+  }
+  return '${agentDisplayName(status.agentType)} · ${_agentRunStateLabel(status)}';
 }
 
 class _EmptyProjectsView extends StatelessWidget {

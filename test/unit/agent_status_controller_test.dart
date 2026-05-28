@@ -245,7 +245,7 @@ void main() {
       controller.applyHookEvent(
         _event(
           agentType: AgentType.copilot,
-          hookEventName: 'SessionEnd',
+          hookEventName: 'Stop',
           payload: <String, Object?>{'lastAssistantMessage': 'Done.'},
         ),
       );
@@ -253,6 +253,19 @@ void main() {
       entry = container.read(agentStatusControllerProvider)['session-1']!;
       expect(entry.state, AgentStatusState.done);
       expect(entry.lastAssistantMessage, 'Done.');
+
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.copilot,
+          hookEventName: 'SessionEnd',
+          payload: <String, Object?>{},
+        ),
+      );
+
+      expect(
+        container.read(agentStatusControllerProvider).containsKey('session-1'),
+        isFalse,
+      );
     });
 
     test('normalizes AGY invocation and feedback tool states', () {
@@ -427,6 +440,19 @@ void main() {
       expect(entry.toolName, 'bash');
       expect(entry.toolInput, 'flutter test');
       expect(entry.lastAssistantMessage, 'Done.');
+
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.pi,
+          hookEventName: 'session_shutdown',
+          payload: <String, Object?>{},
+        ),
+      );
+
+      expect(
+        container.read(agentStatusControllerProvider).containsKey('session-1'),
+        isFalse,
+      );
     });
 
     test('normalizes Amp prompt, tool, assistant, and cancelled states', () {

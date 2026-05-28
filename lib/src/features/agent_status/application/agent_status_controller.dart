@@ -36,6 +36,10 @@ class AgentStatusController extends Notifier<Map<String, AgentStatusEntry>>
 
   @override
   void applyHookEvent(AgentHookEvent event) {
+    if (isAgentSessionCloseHookEvent(event)) {
+      clearTerminal(event.terminalSessionId);
+      return;
+    }
     final previous = state[event.terminalSessionId];
     final normalized = normalizeAgentHookEvent(event, previous: previous);
     if (normalized == null) {

@@ -29,8 +29,8 @@ class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
   final Set<String> selectedProjectIds;
   final Set<String> collapsedProjectIds;
 
-  /// Workspaces whose sidebar terminal-tab list is currently expanded.
-  /// Activating a workspace adds it to this set so terminal tabs are visible by
+  /// Workspaces whose sidebar agent-run list is currently expanded.
+  /// Activating a workspace adds it to this set so agent runs are visible by
   /// default; the per-row chevron lets the user toggle membership without
   /// changing the active selection.
   final Set<String> expandedWorkspaceIds;

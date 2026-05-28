@@ -115,7 +115,13 @@ void main() {
       find.byWidgetPredicate(
         (widget) => widget is Tooltip && widget.message == 'Codex waiting',
       ),
-      findsNWidgets(2),
+      findsOneWidget,
+    );
+    expect(
+      find.byWidgetPredicate(
+        (widget) => widget is Tooltip && widget.message == 'Waiting for input',
+      ),
+      findsWidgets,
     );
   });
 
@@ -587,15 +593,25 @@ void main() {
     expect(copiedText, '/repo/alera');
   });
 
-  testWidgets('sidebar terminal rows can switch workspaces and request focus', (
+  testWidgets('sidebar agent rows can switch workspaces and request focus', (
     tester,
   ) async {
+    const prompt = 'Review linked workspace';
     final harness = await pumpShell(
       tester,
       state: _linkedWorkbenchState(linkedExpanded: true),
+      agentStatuses: <String, AgentStatusEntry>{
+        'tab-2': _agentStatusEntry(
+          terminalSessionId: 'tab-2',
+          workspaceId: 'workspace-2',
+          tabId: 'tab-2',
+          state: AgentStatusState.waiting,
+          prompt: prompt,
+        ),
+      },
     );
 
-    await tester.tap(find.text('Linked terminal'));
+    await tester.tap(find.text(prompt));
     await tester.pumpAndSettle();
 
     expect(harness.controller.state.activeWorkspaceId, 'workspace-2');
@@ -606,26 +622,38 @@ void main() {
     expect(harness.runtime.focusedTabIds, contains('tab-2'));
   });
 
-  testWidgets('closing a sidebar terminal row closes the runtime tab', (
+  testWidgets('closing a sidebar agent row closes the runtime tab', (
     tester,
   ) async {
+    const prompt = 'Review linked workspace';
     final harness = await pumpShell(
       tester,
-      state: _linkedWorkbenchState(linkedExpanded: true, linkedActive: true),
+      state: _linkedWorkbenchState(linkedExpanded: true),
+      agentStatuses: <String, AgentStatusEntry>{
+        'tab-2': _agentStatusEntry(
+          terminalSessionId: 'tab-2',
+          workspaceId: 'workspace-2',
+          tabId: 'tab-2',
+          state: AgentStatusState.waiting,
+          prompt: prompt,
+        ),
+      },
     );
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer();
+    await mouse.moveTo(tester.getCenter(find.text(prompt)));
+    await tester.pumpAndSettle();
 
-    final terminalRow = find.ancestor(
-      of: find.text('Linked terminal'),
-      matching: find.byType(InkWell),
-    );
-    final rowRect = tester.getRect(terminalRow.first);
-    await tester.tapAt(Offset(rowRect.right - 12, rowRect.center.dy));
+    await tester.tap(find.byTooltip('Close terminal').first);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(harness.runtime.closedTabIds, <String>['tab-2']);
     expect(harness.controller.state.tabsFor('workspace-2'), isEmpty);
-    expect(find.text('Linked terminal'), findsNothing);
+    expect(harness.controller.state.activeWorkspaceId, 'workspace-1');
+    expect(harness.runtime.focusedTabIds, isNot(contains('tab-2')));
+    expect(find.text(prompt), findsNothing);
   });
 
   testWidgets('linked workspace removal closes runtime and removes the row', (
@@ -869,13 +897,25 @@ void main() {
     );
   });
 
-  testWidgets('workspace toggle can hide terminal rows', (tester) async {
+  testWidgets('workspace toggle can hide agent rows', (tester) async {
+    const prompt = 'Review linked workspace';
     final harness = await pumpShell(
       tester,
       state: _linkedWorkbenchState(linkedExpanded: true, linkedActive: true),
+      agentStatuses: <String, AgentStatusEntry>{
+        'tab-2': _agentStatusEntry(
+          terminalSessionId: 'tab-2',
+          workspaceId: 'workspace-2',
+          tabId: 'tab-2',
+          state: AgentStatusState.waiting,
+          prompt: prompt,
+        ),
+      },
     );
 
-    final toggles = find.byTooltip('Hide terminal tabs');
+    expect(find.text(prompt), findsOneWidget);
+
+    final toggles = find.byTooltip('Hide agent runs');
     final workspaceCenter = tester.getCenter(find.text('Feature login').first);
     var toggleIndex = 0;
     var bestDistance = double.infinity;
@@ -898,6 +938,7 @@ void main() {
       ),
       isFalse,
     );
+    expect(find.text(prompt), findsNothing);
   });
 
   testWidgets('workspace removal dialog omits branch details when blank', (
@@ -1137,42 +1178,63 @@ void main() {
     expect(events.last.message, 'Bad state: remove project failed');
   });
 
-  testWidgets('sidebar terminal close failures surface an error toast event', (
+  testWidgets('sidebar agent close failures surface an error toast event', (
     tester,
   ) async {
+    const prompt = 'Review linked workspace';
     final events = <AleraToastData>[];
     final subscription = AleraToast.stream.listen(events.add);
     addTearDown(subscription.cancel);
-    final state = _linkedWorkbenchState(
-      linkedExpanded: true,
-      linkedActive: true,
-    );
+    final state = _linkedWorkbenchState(linkedExpanded: true);
 
-    await pumpShell(
+    final harness = await pumpShell(
       tester,
       state: state,
       controller: _ShellTestWorkbenchController(
         state,
         closeWorkspaceTabFailure: StateError('close tab failed'),
       ),
+      agentStatuses: <String, AgentStatusEntry>{
+        'tab-2': _agentStatusEntry(
+          terminalSessionId: 'tab-2',
+          workspaceId: 'workspace-2',
+          tabId: 'tab-2',
+          state: AgentStatusState.waiting,
+          prompt: prompt,
+        ),
+      },
     );
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer();
+    await mouse.moveTo(tester.getCenter(find.text(prompt)));
+    await tester.pumpAndSettle();
 
-    final terminalRow = find.ancestor(
-      of: find.text('Linked terminal'),
-      matching: find.byType(InkWell),
-    );
-    final rowRect = tester.getRect(terminalRow.first);
-    await tester.tapAt(Offset(rowRect.right - 12, rowRect.center.dy));
+    await tester.tap(find.byTooltip('Close terminal').first);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
+    expect(harness.runtime.closedTabIds, <String>['tab-2']);
     expect(events.last.message, 'Bad state: close tab failed');
   });
 
   testWidgets('hovering sidebar rows updates their highlight state', (
     tester,
   ) async {
-    await pumpShell(tester, state: _linkedWorkbenchState(linkedExpanded: true));
+    const prompt = 'Review linked workspace';
+    await pumpShell(
+      tester,
+      state: _linkedWorkbenchState(linkedExpanded: true),
+      agentStatuses: <String, AgentStatusEntry>{
+        'tab-2': _agentStatusEntry(
+          terminalSessionId: 'tab-2',
+          workspaceId: 'workspace-2',
+          tabId: 'tab-2',
+          state: AgentStatusState.waiting,
+          prompt: prompt,
+        ),
+      },
+    );
 
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
     addTearDown(mouse.removePointer);
@@ -1192,7 +1254,7 @@ void main() {
         .first;
     final terminalContainer = find
         .ancestor(
-          of: find.text('Linked terminal'),
+          of: find.text(prompt),
           matching: find.byType(AnimatedContainer),
         )
         .first;
@@ -1219,7 +1281,7 @@ void main() {
     expect(decorationOf(workspaceContainer).color, Colors.transparent);
 
     expect(decorationOf(terminalContainer).color, Colors.transparent);
-    await mouse.moveTo(tester.getCenter(find.text('Linked terminal')));
+    await mouse.moveTo(tester.getCenter(find.text(prompt)));
     await tester.pumpAndSettle();
     expect(decorationOf(terminalContainer).color, AleraTokens.surface);
     await mouse.moveTo(const Offset(0, 0));
@@ -1485,6 +1547,7 @@ AgentStatusEntry _agentStatusEntry({
   required String workspaceId,
   required String tabId,
   required AgentStatusState state,
+  String prompt = '',
 }) {
   return AgentStatusEntry(
     terminalSessionId: terminalSessionId,
@@ -1492,7 +1555,7 @@ AgentStatusEntry _agentStatusEntry({
     tabId: tabId,
     agentType: AgentType.codex,
     state: state,
-    prompt: '',
+    prompt: prompt,
     updatedAt: DateTime.utc(2026, 5, 22),
     stateStartedAt: DateTime.utc(2026, 5, 22),
   );
