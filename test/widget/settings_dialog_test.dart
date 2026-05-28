@@ -45,7 +45,7 @@ Future<ProviderContainer> _pumpSettingsDialog(
               'SF Mono',
             ]),
       ),
-      updateServiceProvider.overrideWithValue(_FakeUpdateService()),
+      aleraUpdateServiceProvider.overrideWithValue(_FakeUpdateService()),
       if (starController != null)
         gitHubStarControllerProvider.overrideWith(() => starController),
     ],

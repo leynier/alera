@@ -144,7 +144,7 @@ Future<void> _pumpSection(
 ) async {
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [updateControllerProvider.overrideWith(() => controller)],
+      overrides: [aleraUpdateControllerProvider.overrideWith(() => controller)],
       child: MaterialApp(
         theme: buildAleraDarkTheme(),
         home: const Scaffold(body: UpdateSettingsSection()),

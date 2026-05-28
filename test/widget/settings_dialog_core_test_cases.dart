@@ -22,7 +22,7 @@ void _registerSettingsDialogCoreTests() {
                 'SF Mono',
               ]),
         ),
-        updateServiceProvider.overrideWithValue(_FakeUpdateService()),
+        aleraUpdateServiceProvider.overrideWithValue(_FakeUpdateService()),
         if (starController != null)
           gitHubStarControllerProvider.overrideWith(() => starController),
       ],

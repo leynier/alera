@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:alera/src/app/dependencies.dart';
+import 'package:alera/src/features/settings/application/settings_providers.dart';
 import 'package:alera/src/features/settings/infra/github_star_service.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 

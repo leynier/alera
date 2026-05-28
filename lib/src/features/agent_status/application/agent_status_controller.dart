@@ -1,30 +1,33 @@
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/infra/agent_hook_event_normalizer.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+
+part 'agent_status_controller.g.dart';
 
 abstract interface class AgentStatusSink {
   void applyHookEvent(AgentHookEvent event);
 }
 
-final agentStatusClockProvider = Provider<DateTime Function()>((ref) {
+@Riverpod(keepAlive: true)
+DateTime Function() agentStatusClock(Ref ref) {
   return () => DateTime.now().toUtc();
-});
+}
 
-final agentStatusControllerProvider =
-    NotifierProvider<AgentStatusController, Map<String, AgentStatusEntry>>(
-      AgentStatusController.new,
-    );
+@Riverpod(keepAlive: true)
+AgentStatusEntry? agentStatusByTerminalSession(
+  Ref ref,
+  String terminalSessionId,
+) {
+  return ref.watch(
+    agentStatusControllerProvider.select(
+      (entries) => entries[terminalSessionId],
+    ),
+  );
+}
 
-final agentStatusByTerminalSessionProvider =
-    Provider.family<AgentStatusEntry?, String>((ref, terminalSessionId) {
-      return ref.watch(
-        agentStatusControllerProvider.select(
-          (entries) => entries[terminalSessionId],
-        ),
-      );
-    });
-
-class AgentStatusController extends Notifier<Map<String, AgentStatusEntry>>
+@Riverpod(keepAlive: true)
+class AgentStatusController extends _$AgentStatusController
     implements AgentStatusSink {
   late DateTime Function() _now;
 

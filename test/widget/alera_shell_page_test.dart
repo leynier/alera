@@ -61,7 +61,7 @@ Future<_ShellPumpHarness> _pumpShell(
           () => _ShellTestAgentStatusController(agentStatuses),
         ),
         terminalRuntimeProvider.overrideWith((ref) => runtime),
-        terminalHostWarmupProvider.overrideWith((ref) {}),
+        terminalHostWarmupCoordinatorProvider.overrideWith((ref) {}),
         settingsControllerProvider.overrideWith(() => settingsController),
         if (workspaceFolderOpener != null)
           workspaceFolderOpenerProvider.overrideWith(

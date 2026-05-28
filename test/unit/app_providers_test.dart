@@ -126,7 +126,7 @@ void main() {
     );
 
     test(
-      'terminalHostWarmupProvider starts the host with settings config',
+      'terminalHostWarmupCoordinatorProvider starts the host with settings config',
       () async {
         final client = _FakeTerminalHostClient();
         final settings = AleraSettings.defaults.copyWith(
@@ -144,7 +144,7 @@ void main() {
         );
         addTearDown(container.dispose);
 
-        container.read(terminalHostWarmupProvider);
+        container.read(terminalHostWarmupCoordinatorProvider);
         await Future<void>.delayed(Duration.zero);
 
         expect(client.ensureStartedConfigs, hasLength(1));

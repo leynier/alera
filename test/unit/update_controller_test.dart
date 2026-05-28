@@ -12,7 +12,7 @@ void main() {
         result: const AleraUpdateCheckResult(message: 'No update.'),
       );
       final container = ProviderContainer(
-        overrides: [updateServiceProvider.overrideWithValue(service)],
+        overrides: [aleraUpdateServiceProvider.overrideWithValue(service)],
       );
       addTearDown(container.dispose);
       final controller = container.read(aleraUpdateControllerProvider.notifier);
@@ -41,7 +41,7 @@ void main() {
         result: AleraUpdateCheckResult(latest: _update),
       );
       final container = ProviderContainer(
-        overrides: [updateServiceProvider.overrideWithValue(service)],
+        overrides: [aleraUpdateServiceProvider.overrideWithValue(service)],
       );
       addTearDown(container.dispose);
       final controller = container.read(aleraUpdateControllerProvider.notifier);
@@ -70,7 +70,7 @@ void main() {
         ),
       );
       final container = ProviderContainer(
-        overrides: [updateServiceProvider.overrideWithValue(service)],
+        overrides: [aleraUpdateServiceProvider.overrideWithValue(service)],
       );
       addTearDown(container.dispose);
       final controller = container.read(aleraUpdateControllerProvider.notifier);
@@ -88,7 +88,7 @@ void main() {
         checkError: StateError('network down'),
       );
       final container = ProviderContainer(
-        overrides: [updateServiceProvider.overrideWithValue(service)],
+        overrides: [aleraUpdateServiceProvider.overrideWithValue(service)],
       );
       addTearDown(container.dispose);
       final controller = container.read(aleraUpdateControllerProvider.notifier);
@@ -110,7 +110,7 @@ void main() {
         result: AleraUpdateCheckResult(latest: _update),
       );
       final container = ProviderContainer(
-        overrides: [updateServiceProvider.overrideWithValue(service)],
+        overrides: [aleraUpdateServiceProvider.overrideWithValue(service)],
       );
       addTearDown(container.dispose);
       final controller = container.read(aleraUpdateControllerProvider.notifier);
@@ -121,22 +121,27 @@ void main() {
       expect(service.openedUpdate, _update);
     });
 
-    test('installLatest opens the download page when auto-install is disabled', () async {
-      final service = _FakeUpdateService(
-        result: AleraUpdateCheckResult(latest: _update),
-      );
-      final container = ProviderContainer(
-        overrides: [updateServiceProvider.overrideWithValue(service)],
-      );
-      addTearDown(container.dispose);
-      final controller = container.read(aleraUpdateControllerProvider.notifier);
+    test(
+      'installLatest opens the download page when auto-install is disabled',
+      () async {
+        final service = _FakeUpdateService(
+          result: AleraUpdateCheckResult(latest: _update),
+        );
+        final container = ProviderContainer(
+          overrides: [aleraUpdateServiceProvider.overrideWithValue(service)],
+        );
+        addTearDown(container.dispose);
+        final controller = container.read(
+          aleraUpdateControllerProvider.notifier,
+        );
 
-      await controller.checkForUpdates();
-      await controller.installLatest();
+        await controller.checkForUpdates();
+        await controller.installLatest();
 
-      expect(service.openedUpdate, _update);
-      expect(service.installedUpdate, isNull);
-    });
+        expect(service.openedUpdate, _update);
+        expect(service.installedUpdate, isNull);
+      },
+    );
 
     test(
       'downloads an auto-installable update and reaches downloaded state',
@@ -155,7 +160,7 @@ void main() {
           ),
         );
         final container = ProviderContainer(
-          overrides: [updateServiceProvider.overrideWithValue(service)],
+          overrides: [aleraUpdateServiceProvider.overrideWithValue(service)],
         );
         addTearDown(container.dispose);
         final controller = container.read(
@@ -190,7 +195,7 @@ void main() {
         installError: StateError('disk full'),
       );
       final container = ProviderContainer(
-        overrides: [updateServiceProvider.overrideWithValue(service)],
+        overrides: [aleraUpdateServiceProvider.overrideWithValue(service)],
       );
       addTearDown(container.dispose);
       final controller = container.read(aleraUpdateControllerProvider.notifier);
@@ -211,7 +216,7 @@ void main() {
     test('restartApp delegates to the update service', () async {
       final service = _FakeUpdateService();
       final container = ProviderContainer(
-        overrides: [updateServiceProvider.overrideWithValue(service)],
+        overrides: [aleraUpdateServiceProvider.overrideWithValue(service)],
       );
       addTearDown(container.dispose);
       final controller = container.read(aleraUpdateControllerProvider.notifier);

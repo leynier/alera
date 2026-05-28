@@ -96,8 +96,8 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
 
   @override
   Widget build(BuildContext context) {
-    ref.watch(terminalHostWarmupProvider);
-    ref.watch(agentHookReceiverLifecycleProvider);
+    ref.watch(terminalHostWarmupCoordinatorProvider);
+    ref.watch(agentHookReceiverLifecycleCoordinatorProvider);
     ref.watch(agentHookInstallerCoordinatorProvider);
     ref.watch(agentStatusNotificationCoordinatorProvider);
     ref.watch(agentAwakeCoordinatorProvider);

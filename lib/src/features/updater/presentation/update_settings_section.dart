@@ -10,8 +10,8 @@ class UpdateSettingsSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(updateControllerProvider);
-    final controller = ref.read(updateControllerProvider.notifier);
+    final state = ref.watch(aleraUpdateControllerProvider);
+    final controller = ref.read(aleraUpdateControllerProvider.notifier);
     final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

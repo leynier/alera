@@ -1,4 +1,4 @@
-import 'package:alera/src/app/dependencies.dart';
+import 'package:alera/src/features/updater/application/update_providers.dart';
 import 'package:alera/src/features/updater/application/update_service.dart';
 import 'package:alera/src/features/updater/domain/alera_update.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -9,7 +9,7 @@ part 'update_controller.g.dart';
 class AleraUpdateController extends _$AleraUpdateController {
   bool _disposed = false;
 
-  AleraUpdateService get _service => ref.read(updateServiceProvider);
+  AleraUpdateService get _service => ref.read(aleraUpdateServiceProvider);
 
   @override
   AleraUpdateState build() {
@@ -17,7 +17,7 @@ class AleraUpdateController extends _$AleraUpdateController {
     ref.onDispose(() {
       _disposed = true;
     });
-    final service = ref.read(updateServiceProvider);
+    final service = ref.read(aleraUpdateServiceProvider);
     return AleraUpdateState.idle(service.config);
   }
 
