@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_history_store.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_server.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -133,6 +135,7 @@ void main() {
       await restoredClient.request('terminate', <String, Object?>{
         'sessionId': 'session-1',
       });
+      expect(await restoredHarness.readHistory('session-1'), isNull);
     },
   );
 
@@ -151,7 +154,10 @@ void main() {
         endedAt: null,
         buffer: utf8.encode('previous output'),
       );
-      await harness.writeRawHistory(sessionId: 'corrupt', contents: 'not json');
+      await harness.writeLegacyHistory(
+        sessionId: 'legacy-json',
+        contents: 'not json',
+      );
 
       final unauthenticated = await harness.connect();
       addTearDown(unauthenticated.dispose);
@@ -197,8 +203,8 @@ void main() {
       });
       expect(ignoredResize['ok'], isTrue);
 
-      final corrupt = await client.request('createOrAttach', <String, Object?>{
-        'sessionId': 'corrupt',
+      final legacy = await client.request('createOrAttach', <String, Object?>{
+        'sessionId': 'legacy-json',
         'workspaceId': 'workspace-1',
         'tabId': 'tab-2',
         'workingDirectory': Directory.current.path,
@@ -209,7 +215,7 @@ void main() {
           environment: <String, String>{},
         ).toJson(),
       });
-      expect(corrupt.payload['created'], isTrue);
+      expect(legacy.payload['created'], isTrue);
 
       final malformedCreate = await client.request(
         'createOrAttach',
@@ -271,10 +277,6 @@ void main() {
       final client = await harness.connect();
       addTearDown(client.dispose);
       await client.hello(harness.token);
-      final sessionsDir = Directory(
-        p.join(harness.runtimeDir.path, 'sessions'),
-      );
-      await sessionsDir.delete(recursive: true);
 
       final created = await client.request('createOrAttach', <String, Object?>{
         'sessionId': 'running-checkpoint',
@@ -284,7 +286,7 @@ void main() {
         'launch': const TerminalHostLaunch(
           label: 'long running shell',
           shell: '/bin/sh',
-          arguments: <String>['-c', 'printf tick; sleep 5'],
+          arguments: <String>['-c', 'printf tick; sleep 30'],
           environment: <String, String>{},
         ).toJson(),
       });
@@ -294,20 +296,17 @@ void main() {
         contains('tick'),
       );
       await Future<void>.delayed(const Duration(milliseconds: 5200));
-      expect(
-        await File(
-          p.join(
-            sessionsDir.path,
-            '${Uri.encodeComponent('running-checkpoint')}.json',
-          ),
-        ).exists(),
-        isTrue,
-      );
+      expect(await harness.historyDatabaseFile.exists(), isTrue);
+      final checkpoint = await harness.readHistory('running-checkpoint');
+      expect(checkpoint, isNotNull);
+      expect(checkpoint!.running, isTrue);
+      expect(utf8.decode(checkpoint.buffer), contains('tick'));
 
       final terminate = await client.request('terminate', <String, Object?>{
         'sessionId': 'running-checkpoint',
       });
       expect(terminate['ok'], isTrue);
+      expect(await harness.readHistory('running-checkpoint'), isNull);
     },
   );
 
@@ -463,16 +462,11 @@ void main() {
       await harness.waitForStop();
 
       expect(await harness.controlFile.exists(), isFalse);
-      final history = Map<String, Object?>.from(
-        jsonDecode(await harness.historyFile('detached-running').readAsString())
-            as Map,
-      );
-      expect(history['running'], isFalse);
-      expect(history['endedAt'], isNotNull);
-      expect(
-        utf8.decode(decodeTerminalHostBytes(history['bufferBase64'])),
-        contains('still-running'),
-      );
+      final history = await harness.readHistory('detached-running');
+      expect(history, isNotNull);
+      expect(history!.running, isFalse);
+      expect(history.endedAt, isNotNull);
+      expect(utf8.decode(history.buffer), contains('still-running'));
     },
   );
 
@@ -613,30 +607,48 @@ final class _TerminalHostServerHarness {
     required DateTime? endedAt,
     required List<int> buffer,
   }) async {
-    final file = _historyFile(sessionId);
-    await file.parent.create(recursive: true);
-    await file.writeAsString(
-      jsonEncode(<String, Object?>{
-        'protocolVersion': aleraTerminalHostProtocolVersion,
-        'sessionId': sessionId,
-        'workspaceId': 'workspace-1',
-        'tabId': 'tab-1',
-        'workingDirectory': Directory.current.path,
-        'running': false,
-        'exitCode': null,
-        'endedAt': endedAt?.toIso8601String(),
-        'bufferBase64': encodeTerminalHostBytes(buffer),
-      }),
-    );
+    final store = TerminalHostHistoryStore.open(runtimeDir: runtimeDir);
+    try {
+      store.upsert(
+        TerminalHostCheckpoint(
+          sessionId: sessionId,
+          workspaceId: 'workspace-1',
+          tabId: 'tab-1',
+          workingDirectory: Directory.current.path,
+          running: false,
+          exitCode: null,
+          endedAt: endedAt,
+          updatedAt: DateTime.now().toUtc(),
+          buffer: Uint8List.fromList(buffer),
+        ),
+      );
+    } finally {
+      store.close();
+    }
   }
 
-  Future<void> writeRawHistory({
+  Future<void> writeLegacyHistory({
     required String sessionId,
     required String contents,
   }) async {
-    final file = _historyFile(sessionId);
+    final file = File(
+      p.join(
+        runtimeDir.path,
+        'sessions',
+        '${Uri.encodeComponent(sessionId)}.json',
+      ),
+    );
     await file.parent.create(recursive: true);
     await file.writeAsString(contents);
+  }
+
+  Future<TerminalHostCheckpoint?> readHistory(String sessionId) async {
+    final store = TerminalHostHistoryStore.open(runtimeDir: runtimeDir);
+    try {
+      return store.read(sessionId);
+    } finally {
+      store.close();
+    }
   }
 
   Future<void> dispose() async {
@@ -668,19 +680,8 @@ final class _TerminalHostServerHarness {
     throw StateError('terminal host test server did not publish control file');
   }
 
-  File historyFile(String sessionId) {
-    return File(
-      p.join(
-        runtimeDir.path,
-        'sessions',
-        '${Uri.encodeComponent(sessionId)}.json',
-      ),
-    );
-  }
-
-  File _historyFile(String sessionId) {
-    return historyFile(sessionId);
-  }
+  File get historyDatabaseFile =>
+      File(p.join(runtimeDir.path, terminalHostHistoryDatabaseFileName));
 }
 
 final class _TerminalHostJsonClient {

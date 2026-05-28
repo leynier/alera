@@ -31,6 +31,7 @@ dependencies:
   dart_mappable: ^4.8.0
   drift: ^2.33.0
   meta: ^1.18.0
+  sqlite3: ^3.3.1
   sqlite3_flutter_libs: ^0.6.0+eol
   shelf: ^1.4.2
   shelf_router: ^1.1.4

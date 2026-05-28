@@ -5,8 +5,8 @@ import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
 
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_history_store.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
-import 'package:path/path.dart' as p;
 import 'package:portable_pty/portable_pty.dart';
 
 final class AleraTerminalHostServer {
@@ -21,7 +21,6 @@ final class AleraTerminalHostServer {
       File(controlFilePath),
       token,
       config,
-      Directory(p.join(runtimeDir, 'sessions')),
     );
   }
 
@@ -30,11 +29,9 @@ final class AleraTerminalHostServer {
     this._controlFile,
     this._token,
     this._config,
-    this._historyDir,
   );
 
   final Directory _runtimeDir;
-  final Directory _historyDir;
   final File _controlFile;
   final String _token;
   final Map<String, _TerminalHostSession> _sessions =
@@ -43,6 +40,7 @@ final class AleraTerminalHostServer {
       <_TerminalHostClientConnection>{};
 
   ServerSocket? _server;
+  TerminalHostHistoryStore? _historyStore;
   TerminalHostConfig _config;
   Timer? _shutdownTimer;
   bool _disposed = false;
@@ -51,9 +49,7 @@ final class AleraTerminalHostServer {
     if (!await _runtimeDir.exists()) {
       await _runtimeDir.create(recursive: true);
     }
-    if (!await _historyDir.exists()) {
-      await _historyDir.create(recursive: true);
-    }
+    _historyStore = TerminalHostHistoryStore.open(runtimeDir: _runtimeDir);
     _server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
     await _writeControlFile(_server!.port);
     _scheduleShutdownIfIdle();
@@ -78,6 +74,8 @@ final class AleraTerminalHostServer {
     for (final session in sessions) {
       await session.terminate(removeHistory: false);
     }
+    _historyStore?.close();
+    _historyStore = null;
     await _deleteControlFile();
     await _server?.close();
     _server = null;
@@ -233,7 +231,7 @@ final class AleraTerminalHostServer {
       sessionId: sessionId,
       workspaceId: workspaceId,
       tabId: tabId,
-      historyFile: _historyFile(sessionId),
+      historyStore: _requireHistoryStore(),
       maxBufferBytes: _config.scrollbackBytes,
       onLifecycleChanged: _scheduleShutdownIfIdle,
     );
@@ -255,7 +253,7 @@ final class AleraTerminalHostServer {
       launch: launch,
       cols: (payload['cols'] as int?) ?? 80,
       rows: (payload['rows'] as int?) ?? 24,
-      historyFile: _historyFile(sessionId),
+      historyStore: _requireHistoryStore(),
       maxBufferBytes: _config.scrollbackBytes,
       onLifecycleChanged: _scheduleShutdownIfIdle,
     );
@@ -276,10 +274,12 @@ final class AleraTerminalHostServer {
     return session;
   }
 
-  File _historyFile(String sessionId) {
-    return File(
-      p.join(_historyDir.path, '${Uri.encodeComponent(sessionId)}.json'),
-    );
+  TerminalHostHistoryStore _requireHistoryStore() {
+    final store = _historyStore;
+    if (store == null) {
+      throw StateError('Terminal host history store is not open.');
+    }
+    return store;
   }
 
   void _applyConfig(TerminalHostConfig config) {
@@ -332,7 +332,7 @@ final class _TerminalHostSession {
     this.workspaceId,
     this.tabId,
     this.workingDirectory,
-    this._historyFile,
+    this._historyStore,
     this._pty,
     this._running,
     List<int> buffer,
@@ -350,7 +350,7 @@ final class _TerminalHostSession {
     required TerminalHostLaunch launch,
     required int cols,
     required int rows,
-    required File historyFile,
+    required TerminalHostHistoryStore historyStore,
     required int maxBufferBytes,
     required void Function() onLifecycleChanged,
   }) async {
@@ -370,7 +370,7 @@ final class _TerminalHostSession {
       workspaceId,
       tabId,
       workingDirectory,
-      historyFile,
+      historyStore,
       pty,
       true,
       const <int>[],
@@ -388,44 +388,42 @@ final class _TerminalHostSession {
     required String sessionId,
     required String workspaceId,
     required String tabId,
-    required File historyFile,
+    required TerminalHostHistoryStore historyStore,
     required int maxBufferBytes,
     required void Function() onLifecycleChanged,
   }) async {
     try {
-      if (!await historyFile.exists()) {
+      final checkpoint = historyStore.read(sessionId);
+      if (checkpoint == null) {
         return null;
       }
-      final decoded = jsonDecode(await historyFile.readAsString());
-      final map = asTerminalHostMap(decoded, 'terminal host history');
-      if (map['endedAt'] == null) {
+      if (checkpoint.endedAt == null) {
         return _TerminalHostSession._(
           sessionId,
           workspaceId,
           tabId,
-          (map['workingDirectory'] as String?) ?? '',
-          historyFile,
+          checkpoint.workingDirectory,
+          historyStore,
           null,
           false,
-          decodeTerminalHostBytes(map['bufferBase64']),
+          checkpoint.buffer,
           -1,
           null,
           maxBufferBytes,
           onLifecycleChanged,
         );
       }
-      final endedAt = DateTime.tryParse(map['endedAt'] as String? ?? '');
       return _TerminalHostSession._(
         sessionId,
         workspaceId,
         tabId,
-        (map['workingDirectory'] as String?) ?? '',
-        historyFile,
+        checkpoint.workingDirectory,
+        historyStore,
         null,
         false,
-        decodeTerminalHostBytes(map['bufferBase64']),
-        (map['exitCode'] as int?) ?? 0,
-        endedAt,
+        checkpoint.buffer,
+        checkpoint.exitCode ?? 0,
+        checkpoint.endedAt,
         maxBufferBytes,
         onLifecycleChanged,
       );
@@ -438,7 +436,7 @@ final class _TerminalHostSession {
   final String workspaceId;
   final String tabId;
   final String workingDirectory;
-  final File _historyFile;
+  final TerminalHostHistoryStore _historyStore;
   final Set<_TerminalHostClientConnection> _clients =
       <_TerminalHostClientConnection>{};
 
@@ -453,7 +451,6 @@ final class _TerminalHostSession {
   int? _exitCode;
   DateTime? _endedAt;
   bool _terminated = false;
-  int _checkpointSerial = 0;
 
   bool get running => _running;
 
@@ -518,11 +515,7 @@ final class _TerminalHostSession {
     _checkpointTimer?.cancel();
     _checkpointTimer = null;
     if (removeHistory) {
-      try {
-        if (await _historyFile.exists()) {
-          await _historyFile.delete();
-        }
-      } catch (_) {}
+      _historyStore.delete(id);
     } else {
       await _writeCheckpoint(endedAt: _endedAt ?? DateTime.now().toUtc());
     }
@@ -615,27 +608,19 @@ final class _TerminalHostSession {
     if (endedAt != null) {
       _endedAt = endedAt;
     }
-    final parent = _historyFile.parent;
-    if (!await parent.exists()) {
-      await parent.create(recursive: true);
-    }
-    final temp = File('${_historyFile.path}.tmp.${_checkpointSerial++}');
-    await temp.writeAsString(
-      jsonEncode(<String, Object?>{
-        'protocolVersion': aleraTerminalHostProtocolVersion,
-        'sessionId': id,
-        'workspaceId': workspaceId,
-        'tabId': tabId,
-        'workingDirectory': workingDirectory,
-        'running': _running,
-        'exitCode': _exitCode,
-        'endedAt': _endedAt?.toIso8601String(),
-        'bufferBase64': _buffer.toBase64(),
-        'updatedAt': DateTime.now().toUtc().toIso8601String(),
-      }),
-      flush: true,
+    _historyStore.upsert(
+      TerminalHostCheckpoint(
+        sessionId: id,
+        workspaceId: workspaceId,
+        tabId: tabId,
+        workingDirectory: workingDirectory,
+        running: _running,
+        exitCode: _exitCode,
+        endedAt: _endedAt,
+        updatedAt: DateTime.now().toUtc(),
+        buffer: _buffer.toBytes(),
+      ),
     );
-    await temp.rename(_historyFile.path);
   }
 }
 

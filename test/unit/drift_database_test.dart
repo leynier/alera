@@ -115,6 +115,10 @@ void main() {
           File(p.join(tempDir.path, aleraDatabaseFileName)).existsSync(),
           isTrue,
         );
+        final journalMode = await db
+            .customSelect('PRAGMA journal_mode')
+            .getSingle();
+        expect((journalMode.data.values.single as String).toLowerCase(), 'wal');
         expect(
           await db.customSelect('SELECT 1 AS value').getSingle(),
           isA<QueryRow>(),

@@ -82,7 +82,13 @@ LazyDatabase _openConnection() {
       dir.createSync(recursive: true);
     }
     final file = File(p.join(dir.path, aleraDatabaseFileName));
-    return NativeDatabase.createInBackground(file);
+    return NativeDatabase.createInBackground(
+      file,
+      setup: (database) {
+        database.execute('PRAGMA journal_mode = WAL;');
+        database.execute('PRAGMA synchronous = NORMAL;');
+      },
+    );
   });
 }
 
@@ -97,7 +103,8 @@ LazyDatabase _openConnection() {
   ],
 )
 class AleraDatabase extends _$AleraDatabase {
-  AleraDatabase({QueryExecutor? executor}) : super(executor ?? _openConnection());
+  AleraDatabase({QueryExecutor? executor})
+    : super(executor ?? _openConnection());
 
   @override
   int get schemaVersion => aleraSchemaVersion;
