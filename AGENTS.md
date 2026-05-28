@@ -25,6 +25,7 @@ This document defines contributor and agent governance only. It does not change 
 
 ## Code Generation Workflow
 
+- Riverpod providers MUST use code generation (`riverpod_generator`) rather than hand-written provider declarations.
 - When a task may touch Riverpod, Drift, or `dart_mappable` generated code, agents MUST ensure a single repo-scoped `build_runner` watcher is active before editing generated surfaces.
 - The standard watcher command for this repository is `flutter pub run build_runner watch -d`.
 - Agents MUST use the repo-scoped PID/log convention under `.dart_tool/copilot/`: `build_runner_watch.pid` for the active watcher PID and `build_runner_watch.log` for output.
@@ -110,6 +111,7 @@ When planning is needed, use a spec-driven development flow. Do not jump straigh
 - Do not create vague modules named `helpers`, `utils`, `common`, `misc`, or similar dumping grounds.
 - Name files and types after the domain concept they model, such as `workspace_folder_opener.dart` or `update_archive.dart`.
 - If a file name starts feeling generic, split responsibilities before adding more code.
+- Avoid files longer than 500 lines. When a file approaches that size, split it by concrete domain responsibility instead of adding more unrelated code.
 
 ## Flutter UI Rules
 
