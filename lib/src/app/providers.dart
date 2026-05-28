@@ -1,10 +1,12 @@
 import 'dart:async';
 
 import 'package:alera/src/app/dependencies.dart';
+import 'package:alera/src/features/agent_status/application/agent_awake_service.dart';
 import 'package:alera/src/features/agent_status/application/agent_status_notification_activation_service.dart';
 import 'package:alera/src/features/agent_status/application/agent_status_controller.dart';
 import 'package:alera/src/features/agent_status/application/agent_status_notifications.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
+import 'package:alera/src/features/agent_status/infra/agent_awake_assertions.dart';
 import 'package:alera/src/features/agent_status/infra/agent_hook_receiver.dart';
 import 'package:alera/src/features/agent_status/infra/agent_runtime_overlay_service.dart';
 import 'package:alera/src/features/agent_status/infra/claude_runtime_home_service.dart';

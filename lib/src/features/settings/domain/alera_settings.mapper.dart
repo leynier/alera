@@ -895,6 +895,15 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
         opt: true,
         def: false,
       );
+  static bool _$keepComputerAwakeWhileAgentsWork(GeneralSettings v) =>
+      v.keepComputerAwakeWhileAgentsWork;
+  static const Field<GeneralSettings, bool>
+  _f$keepComputerAwakeWhileAgentsWork = Field(
+    'keepComputerAwakeWhileAgentsWork',
+    _$keepComputerAwakeWhileAgentsWork,
+    opt: true,
+    def: false,
+  );
 
   @override
   final MappableFields<GeneralSettings> fields = const {
@@ -904,6 +913,7 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
     #confirmWorkspaceRemoval: _f$confirmWorkspaceRemoval,
     #agentStatusHooks: _f$agentStatusHooks,
     #agentStatusNotificationsEnabled: _f$agentStatusNotificationsEnabled,
+    #keepComputerAwakeWhileAgentsWork: _f$keepComputerAwakeWhileAgentsWork,
   };
 
   static GeneralSettings _instantiate(DecodingData data) {
@@ -915,6 +925,9 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
       agentStatusHooks: data.dec(_f$agentStatusHooks),
       agentStatusNotificationsEnabled: data.dec(
         _f$agentStatusNotificationsEnabled,
+      ),
+      keepComputerAwakeWhileAgentsWork: data.dec(
+        _f$keepComputerAwakeWhileAgentsWork,
       ),
     );
   }
@@ -994,6 +1007,7 @@ abstract class GeneralSettingsCopyWith<$R, $In extends GeneralSettings, $Out>
     bool? confirmWorkspaceRemoval,
     AgentStatusHookSettings? agentStatusHooks,
     bool? agentStatusNotificationsEnabled,
+    bool? keepComputerAwakeWhileAgentsWork,
   });
   GeneralSettingsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -1024,6 +1038,7 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
     bool? confirmWorkspaceRemoval,
     AgentStatusHookSettings? agentStatusHooks,
     bool? agentStatusNotificationsEnabled,
+    bool? keepComputerAwakeWhileAgentsWork,
   }) => $apply(
     FieldCopyWithData({
       if (workspaceDirectory != $none) #workspaceDirectory: workspaceDirectory,
@@ -1035,6 +1050,8 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
       if (agentStatusHooks != null) #agentStatusHooks: agentStatusHooks,
       if (agentStatusNotificationsEnabled != null)
         #agentStatusNotificationsEnabled: agentStatusNotificationsEnabled,
+      if (keepComputerAwakeWhileAgentsWork != null)
+        #keepComputerAwakeWhileAgentsWork: keepComputerAwakeWhileAgentsWork,
     }),
   );
   @override
@@ -1056,6 +1073,10 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
     agentStatusNotificationsEnabled: data.get(
       #agentStatusNotificationsEnabled,
       or: $value.agentStatusNotificationsEnabled,
+    ),
+    keepComputerAwakeWhileAgentsWork: data.get(
+      #keepComputerAwakeWhileAgentsWork,
+      or: $value.keepComputerAwakeWhileAgentsWork,
     ),
   );
 

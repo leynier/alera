@@ -68,6 +68,82 @@ final agentStatusNotificationActivationServiceProvider =
       );
     });
 
+final agentAwakeDisplayLockProvider = Provider<AgentAwakeDisplayLock>((ref) {
+  return const WakelockAgentAwakeDisplayLock();
+});
+
+final agentAwakeAssertionsProvider = Provider<List<AgentAwakeAssertion>>((ref) {
+  final processRunner = ref.watch(processRunnerProvider);
+  final now = ref.watch(agentStatusClockProvider);
+  return <AgentAwakeAssertion>[
+    MacosSystemSleepAssertion(processRunner: processRunner, now: now),
+    LinuxLidSleepAssertion(processRunner: processRunner, now: now),
+    WindowsSystemSleepAssertion(),
+  ];
+});
+
+final agentAwakeServiceProvider = Provider<AgentAwakeService>((ref) {
+  final service = AgentAwakeService(
+    displayLock: ref.watch(agentAwakeDisplayLockProvider),
+    assertions: ref.watch(agentAwakeAssertionsProvider),
+    now: ref.watch(agentStatusClockProvider),
+  );
+  unawaited(
+    service
+        .setHookSettings(
+          ref.read(settingsControllerProvider).general.agentStatusHooks,
+        )
+        .catchError(_ignoreProviderAsyncError),
+  );
+  unawaited(
+    service
+        .setStatuses(ref.read(agentStatusControllerProvider))
+        .catchError(_ignoreProviderAsyncError),
+  );
+  unawaited(
+    service
+        .setEnabled(
+          ref
+              .read(settingsControllerProvider)
+              .general
+              .keepComputerAwakeWhileAgentsWork,
+        )
+        .catchError(_ignoreProviderAsyncError),
+  );
+  ref.listen<AgentStatusHookSettings>(
+    settingsControllerProvider.select(
+      (settings) => settings.general.agentStatusHooks,
+    ),
+    (_, next) {
+      unawaited(
+        service.setHookSettings(next).catchError(_ignoreProviderAsyncError),
+      );
+    },
+  );
+  ref.listen<bool>(
+    settingsControllerProvider.select(
+      (settings) => settings.general.keepComputerAwakeWhileAgentsWork,
+    ),
+    (_, next) {
+      unawaited(service.setEnabled(next).catchError(_ignoreProviderAsyncError));
+    },
+  );
+  ref.listen<Map<String, AgentStatusEntry>>(agentStatusControllerProvider, (
+    _,
+    next,
+  ) {
+    unawaited(service.setStatuses(next).catchError(_ignoreProviderAsyncError));
+  });
+  ref.onDispose(() {
+    unawaited(service.dispose().catchError(_ignoreProviderAsyncError));
+  });
+  return service;
+});
+
+final agentAwakeCoordinatorProvider = Provider<void>((ref) {
+  ref.watch(agentAwakeServiceProvider);
+});
+
 final agentHookReceiverLifecycleProvider = Provider<void>((ref) {
   final enabled = ref.watch(
     settingsControllerProvider.select(

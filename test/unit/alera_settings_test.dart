@@ -45,6 +45,7 @@ void main() {
       expect(general.agentStatusHooks.amp, isFalse);
       expect(general.agentStatusHooks.anyEnabled, isFalse);
       expect(general.agentStatusNotificationsEnabled, isFalse);
+      expect(general.keepComputerAwakeWhileAgentsWork, isFalse);
     });
 
     test('small settings fragments round-trip through json', () {
@@ -65,6 +66,7 @@ void main() {
           'amp': true,
         },
         'agentStatusNotificationsEnabled': true,
+        'keepComputerAwakeWhileAgentsWork': true,
       });
 
       expect(overrides.foreground, '#ffffff');
@@ -80,6 +82,7 @@ void main() {
       expect(general.agentStatusHooks.pi, isFalse);
       expect(general.agentStatusHooks.amp, isTrue);
       expect(general.agentStatusNotificationsEnabled, isTrue);
+      expect(general.keepComputerAwakeWhileAgentsWork, isTrue);
     });
 
     test('round-trips through json', () {
@@ -96,6 +99,7 @@ void main() {
             amp: true,
           ),
           agentStatusNotificationsEnabled: true,
+          keepComputerAwakeWhileAgentsWork: true,
         ),
         terminal: TerminalSettings(
           fontFamily: 'SF Mono',
@@ -143,6 +147,7 @@ void main() {
       expect(restored.general.agentStatusHooks.pi, isTrue);
       expect(restored.general.agentStatusHooks.amp, isTrue);
       expect(restored.general.agentStatusNotificationsEnabled, isTrue);
+      expect(restored.general.keepComputerAwakeWhileAgentsWork, isTrue);
       expect(restored.terminal.fontFamily, 'SF Mono');
       expect(restored.terminal.fontSize, 15);
       expect(restored.terminal.fontWeight, 500);

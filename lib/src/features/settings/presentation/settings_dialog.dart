@@ -286,6 +286,19 @@ const List<_SettingsSearchEntry> _generalSearchEntries = <_SettingsSearchEntry>[
     ],
   ),
   _SettingsSearchEntry(
+    title: 'Keep computer awake while agents are working',
+    description: 'Keep this computer and display awake during agent work.',
+    keywords: <String>[
+      'awake',
+      'sleep',
+      'power',
+      'agent',
+      'working',
+      'lid',
+      'display',
+    ],
+  ),
+  _SettingsSearchEntry(
     title: 'Updates',
     description: 'Check desktop releases for this platform.',
     keywords: <String>['release', 'download', 'version'],

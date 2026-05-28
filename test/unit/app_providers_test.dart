@@ -2,8 +2,10 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:alera/src/app/providers.dart';
+import 'package:alera/src/features/agent_status/application/agent_awake_service.dart';
 import 'package:alera/src/features/agent_status/application/agent_status_notifications.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
+import 'package:alera/src/features/agent_status/infra/agent_awake_assertions.dart';
 import 'package:alera/src/features/projects/application/project_service.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
@@ -199,6 +201,79 @@ void main() {
         expect(presenter.notifications.single.body, 'Open Alera');
       },
     );
+
+    test('agent awake coordinator follows working agent statuses', () async {
+      final displayLock = _FakeAwakeDisplayLock();
+      final assertion = _FakeAwakeAssertion();
+      final settings = AleraSettings.defaults.copyWith(
+        general: AleraSettings.defaults.general.copyWith(
+          agentStatusHooks: const AgentStatusHookSettings(codex: true),
+          keepComputerAwakeWhileAgentsWork: true,
+        ),
+      );
+      final container = ProviderContainer(
+        overrides: [
+          settingsControllerProvider.overrideWithValue(settings),
+          agentAwakeDisplayLockProvider.overrideWithValue(displayLock),
+          agentAwakeAssertionsProvider.overrideWithValue(<AgentAwakeAssertion>[
+            assertion,
+          ]),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      container.read(agentAwakeCoordinatorProvider);
+      container
+          .read(agentStatusControllerProvider.notifier)
+          .applyHookEvent(
+            const AgentHookEvent(
+              terminalSessionId: 'session-1',
+              workspaceId: 'workspace-1',
+              tabId: 'tab-1',
+              agentType: AgentType.codex,
+              hookEventName: 'UserPromptSubmit',
+              payload: <String, Object?>{'prompt': 'Run tests'},
+            ),
+          );
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(displayLock.states, <bool>[true]);
+      expect(assertion.starts, isNotEmpty);
+
+      container
+          .read(agentStatusControllerProvider.notifier)
+          .applyHookEvent(
+            const AgentHookEvent(
+              terminalSessionId: 'session-1',
+              workspaceId: 'workspace-1',
+              tabId: 'tab-1',
+              agentType: AgentType.codex,
+              hookEventName: 'Stop',
+              payload: <String, Object?>{'prompt': 'Run tests'},
+            ),
+          );
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(displayLock.states, <bool>[true, false]);
+      expect(assertion.stops, isNotEmpty);
+    });
+
+    test('agent awake assertions include Windows system sleep lock', () {
+      final container = ProviderContainer(
+        overrides: [
+          processRunnerProvider.overrideWithValue(_FakeProcessRunner()),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final assertions = container.read(agentAwakeAssertionsProvider);
+
+      expect(assertions, contains(isA<MacosSystemSleepAssertion>()));
+      expect(assertions, contains(isA<LinuxLidSleepAssertion>()));
+      expect(assertions, contains(isA<WindowsSystemSleepAssertion>()));
+    });
 
     test(
       'exit coordinator closes runtime tabs when the workspace is missing',

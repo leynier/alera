@@ -1,0 +1,351 @@
+import 'dart:async';
+import 'dart:ffi' as ffi;
+import 'dart:io';
+
+import 'package:alera/src/features/agent_status/application/agent_awake_service.dart';
+import 'package:alera/src/shared/infra/process/process_runner.dart';
+import 'package:logging/logging.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
+
+const Duration macosSystemSleepAssertionRetryDelay = Duration(seconds: 30);
+const Duration linuxLidSleepAssertionRetryDelay = Duration(seconds: 30);
+const int _windowsExecutionStateSystemRequired = 0x00000001;
+const int _windowsExecutionStateDisplayRequired = 0x00000002;
+const int _windowsExecutionStateContinuous = 0x80000000;
+const int _windowsAwakeExecutionState =
+    _windowsExecutionStateContinuous |
+    _windowsExecutionStateSystemRequired |
+    _windowsExecutionStateDisplayRequired;
+
+typedef WindowsExecutionStateSetter = int Function(int flags);
+
+class WakelockAgentAwakeDisplayLock implements AgentAwakeDisplayLock {
+  const WakelockAgentAwakeDisplayLock();
+
+  @override
+  Future<void> setEnabled(bool enabled) {
+    return WakelockPlus.toggle(enable: enabled);
+  }
+}
+
+class MacosSystemSleepAssertion extends _ProcessBackedAwakeAssertion {
+  MacosSystemSleepAssertion({
+    required super.processRunner,
+    super.now,
+    super.logger,
+    super.platform,
+    super.retryDelay = macosSystemSleepAssertionRetryDelay,
+  }) : super(
+         executable: '/usr/bin/caffeinate',
+         arguments: const <String>['-i', '-s'],
+         supportedPlatform: 'macos',
+         label: 'macOS system sleep assertion',
+       );
+}
+
+class LinuxLidSleepAssertion extends _ProcessBackedAwakeAssertion {
+  LinuxLidSleepAssertion({
+    required super.processRunner,
+    super.now,
+    super.logger,
+    super.platform,
+    super.retryDelay = linuxLidSleepAssertionRetryDelay,
+  }) : super(
+         executable: 'systemd-inhibit',
+         arguments: const <String>[
+           '--what=sleep:handle-lid-switch',
+           '--who=Alera',
+           '--why=Agents are working',
+           '--mode=block',
+           'sleep',
+           'infinity',
+         ],
+         supportedPlatform: 'linux',
+         label: 'Linux lid sleep assertion',
+         isUnavailableError: _isMissingExecutable,
+         isUnavailableExitCode: (code) => code == 127,
+       );
+}
+
+class WindowsSystemSleepAssertion implements AgentAwakeAssertion {
+  WindowsSystemSleepAssertion({
+    String? platform,
+    WindowsExecutionStateSetter? setExecutionState,
+    Logger? logger,
+  }) : _platform = platform ?? Platform.operatingSystem,
+       _setExecutionState = setExecutionState ?? _setThreadExecutionState,
+       _logger = logger ?? Logger('AgentAwakeAssertion');
+
+  final String _platform;
+  final WindowsExecutionStateSetter _setExecutionState;
+  final Logger _logger;
+  bool _active = false;
+
+  @override
+  Future<void> start(String reason) async {
+    if (_platform != 'windows' || _active) {
+      return;
+    }
+    if (_trySetExecutionState(_windowsAwakeExecutionState, 'start', reason)) {
+      _active = true;
+    }
+  }
+
+  @override
+  Future<void> stop(String reason) async {
+    if (_platform != 'windows' || !_active) {
+      return;
+    }
+    _active = false;
+    _trySetExecutionState(_windowsExecutionStateContinuous, 'stop', reason);
+  }
+
+  @override
+  Future<void> dispose() {
+    return stop('dispose');
+  }
+
+  bool _trySetExecutionState(int flags, String action, String reason) {
+    try {
+      final previousState = _setExecutionState(flags);
+      if (previousState != 0) {
+        return true;
+      }
+      _logger.warning(
+        '[agent-awake] Windows system sleep assertion returned 0 while trying to $action: $reason',
+      );
+    } catch (error, stackTrace) {
+      _logger.warning(
+        '[agent-awake] failed to $action Windows system sleep assertion: $reason',
+        error,
+        stackTrace,
+      );
+    }
+    return false;
+  }
+}
+
+class _ProcessBackedAwakeAssertion implements AgentAwakeAssertion {
+  _ProcessBackedAwakeAssertion({
+    required this.processRunner,
+    required this.executable,
+    required this.arguments,
+    required this.supportedPlatform,
+    required this.label,
+    required this.retryDelay,
+    DateTime Function()? now,
+    Logger? logger,
+    String? platform,
+    bool Function(Object error)? isUnavailableError,
+    bool Function(int exitCode)? isUnavailableExitCode,
+  }) : _now = now ?? (() => DateTime.now().toUtc()),
+       _logger = logger ?? Logger('AgentAwakeAssertion'),
+       _platform = platform ?? Platform.operatingSystem,
+       _isUnavailableError = isUnavailableError ?? ((_) => false),
+       _isUnavailableExitCode = isUnavailableExitCode ?? ((_) => false);
+
+  final ProcessRunner processRunner;
+  final String executable;
+  final List<String> arguments;
+  final String supportedPlatform;
+  final String label;
+  final Duration retryDelay;
+  final DateTime Function() _now;
+  final Logger _logger;
+  final String _platform;
+  final bool Function(Object error) _isUnavailableError;
+  final bool Function(int exitCode) _isUnavailableExitCode;
+
+  StartedProcess? _child;
+  DateTime? _retryNotBefore;
+  Timer? _retryTimer;
+  bool _unavailable = false;
+  String? _lastFailureKey;
+  bool _warnedForLastFailure = false;
+  final Set<StartedProcess> _intentionalStops = <StartedProcess>{};
+  final Set<StartedProcess> _reportedFailures = <StartedProcess>{};
+
+  @override
+  Future<void> start(String reason) async {
+    if (_platform != supportedPlatform || _child != null || _unavailable) {
+      return;
+    }
+    final retryNotBefore = _retryNotBefore;
+    if (retryNotBefore != null && _now().isBefore(retryNotBefore)) {
+      _scheduleRetry();
+      return;
+    }
+
+    final StartedProcess child;
+    try {
+      child = await processRunner.start(executable, arguments);
+    } catch (error) {
+      _handleFailure('spawn-error', reason, error, 'spawn-error');
+      return;
+    }
+
+    _child = child;
+    unawaited(child.stdout.drain<void>());
+    unawaited(child.stderr.drain<void>());
+    unawaited(
+      child.exitCode
+          .then<void>((exitCode) {
+            _handleChildExit(child, exitCode, reason);
+          })
+          .catchError((Object error, StackTrace stackTrace) {
+            _handleChildFailure(
+              child,
+              'exit-error:${error.runtimeType}',
+              'exit-error',
+              reason,
+              error,
+            );
+          }),
+    );
+    _resetRetrySuppression();
+    _resetFailureStreak();
+  }
+
+  @override
+  Future<void> stop(String reason) async {
+    _resetRetrySuppression();
+    _resetFailureStreak();
+    final child = _child;
+    if (child == null) {
+      return;
+    }
+    _child = null;
+    _intentionalStops.add(child);
+    try {
+      child.kill();
+    } catch (error, stackTrace) {
+      _logger.warning(
+        '[agent-awake] failed to stop $label: $reason',
+        error,
+        stackTrace,
+      );
+    }
+  }
+
+  @override
+  Future<void> dispose() {
+    return stop('dispose');
+  }
+
+  void _handleChildExit(StartedProcess child, int exitCode, String reason) {
+    _handleChildFailure(
+      child,
+      'exit:$exitCode',
+      'exit',
+      reason,
+      <String, Object?>{'exitCode': exitCode},
+      exitCode: exitCode,
+    );
+  }
+
+  void _handleChildFailure(
+    StartedProcess child,
+    String failureKey,
+    String failureType,
+    String reason,
+    Object details, {
+    int? exitCode,
+  }) {
+    if (_intentionalStops.remove(child)) {
+      return;
+    }
+    if (!_reportedFailures.add(child)) {
+      return;
+    }
+    if (identical(_child, child)) {
+      _child = null;
+    }
+    _handleFailure(
+      failureKey,
+      reason,
+      details,
+      failureType,
+      exitCode: exitCode,
+    );
+  }
+
+  void _handleFailure(
+    String failureKey,
+    String reason,
+    Object details,
+    String failureType, {
+    int? exitCode,
+  }) {
+    if (_isUnavailable(details, exitCode)) {
+      _unavailable = true;
+      _resetRetrySuppression();
+      _logFailure('unavailable', reason, details, failureType);
+      return;
+    }
+    _logFailure(failureKey, reason, details, failureType);
+    _retryNotBefore = _now().add(retryDelay);
+    _scheduleRetry();
+  }
+
+  bool _isUnavailable(Object details, int? exitCode) {
+    return _isUnavailableError(details) ||
+        (exitCode != null && _isUnavailableExitCode(exitCode));
+  }
+
+  void _logFailure(
+    String failureKey,
+    String reason,
+    Object details,
+    String failureType,
+  ) {
+    final message =
+        '[agent-awake] $label failed: reason=$reason failureType=$failureType details=$details';
+    if (_lastFailureKey == failureKey && _warnedForLastFailure) {
+      _logger.fine(message);
+      return;
+    }
+    _lastFailureKey = failureKey;
+    _warnedForLastFailure = true;
+    _logger.warning(message);
+  }
+
+  void _scheduleRetry() {
+    final retryNotBefore = _retryNotBefore;
+    if (retryNotBefore == null || _retryTimer != null) {
+      return;
+    }
+    final delay = retryNotBefore.difference(_now());
+    _retryTimer = Timer(delay.isNegative ? Duration.zero : delay, () {
+      _retryTimer = null;
+      unawaited(start('$label retry'));
+    });
+  }
+
+  void _resetRetrySuppression() {
+    _retryNotBefore = null;
+    _retryTimer?.cancel();
+    _retryTimer = null;
+  }
+
+  void _resetFailureStreak() {
+    _lastFailureKey = null;
+    _warnedForLastFailure = false;
+  }
+}
+
+bool _isMissingExecutable(Object error) {
+  return error is ProcessException && error.errorCode == 2;
+}
+
+int _setThreadExecutionState(int flags) {
+  return _setThreadExecutionStateFunction(flags);
+}
+
+final _SetThreadExecutionStateDart _setThreadExecutionStateFunction =
+    ffi.DynamicLibrary.open('kernel32.dll').lookupFunction<
+      _SetThreadExecutionStateNative,
+      _SetThreadExecutionStateDart
+    >('SetThreadExecutionState');
+
+typedef _SetThreadExecutionStateNative = ffi.Uint32 Function(ffi.Uint32 flags);
+typedef _SetThreadExecutionStateDart = int Function(int flags);

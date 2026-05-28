@@ -219,7 +219,9 @@ void _registerSettingsDialogCoreTests() {
     expect(find.text('Confirm workspace removal'), findsOneWidget);
   });
 
-  testWidgets('edits agent status notification settings', (tester) async {
+  testWidgets('edits agent status notification and awake settings', (
+    tester,
+  ) async {
     final container = await pumpSettingsDialogLocal(tester);
 
     await tester.ensureVisible(find.text('Agent status notifications'));
@@ -234,6 +236,10 @@ void _registerSettingsDialogCoreTests() {
     expect(find.text('Pi hooks'), findsOneWidget);
     expect(find.text('Amp hooks'), findsOneWidget);
     expect(find.text('Agent status notifications'), findsOneWidget);
+    expect(
+      find.text('Keep computer awake while agents are working'),
+      findsOneWidget,
+    );
 
     await tester.ensureVisible(find.text('Codex hooks'));
     await tester.pump();
@@ -242,6 +248,12 @@ void _registerSettingsDialogCoreTests() {
     await tester.ensureVisible(find.text('Agent status notifications'));
     await tester.pump();
     await tester.tap(find.byType(Switch).at(10));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.ensureVisible(
+      find.text('Keep computer awake while agents are working'),
+    );
+    await tester.pump();
+    await tester.tap(find.byType(Switch).at(11));
     await tester.pump(const Duration(milliseconds: 50));
 
     expect(
@@ -255,11 +267,26 @@ void _registerSettingsDialogCoreTests() {
           .agentStatusNotificationsEnabled,
       isTrue,
     );
+    expect(
+      container
+          .read(settingsControllerProvider)
+          .general
+          .keepComputerAwakeWhileAgentsWork,
+      isTrue,
+    );
 
     await tester.enterText(find.byType(TextField).first, 'notification');
     await tester.pump();
 
     expect(find.text('Agent status notifications'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).first, 'awake');
+    await tester.pump();
+
+    expect(
+      find.text('Keep computer awake while agents are working'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('edits terminal color override via color picker dialog', (

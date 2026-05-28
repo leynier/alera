@@ -122,6 +122,7 @@ void main() {
         await controller.setAgentStatusHookEnabled(AgentType.pi, true);
         await controller.setAgentStatusHookEnabled(AgentType.amp, true);
         await controller.setAgentStatusNotificationsEnabled(true);
+        await controller.setKeepComputerAwakeWhileAgentsWork(true);
 
         final restored = await repository.load();
         expect(
@@ -149,6 +150,7 @@ void main() {
         expect(restored.general.agentStatusHooks.pi, isTrue);
         expect(restored.general.agentStatusHooks.amp, isTrue);
         expect(restored.general.agentStatusNotificationsEnabled, isTrue);
+        expect(restored.general.keepComputerAwakeWhileAgentsWork, isTrue);
       },
     );
 

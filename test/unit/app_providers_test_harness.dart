@@ -339,6 +339,33 @@ class _FakeTerminalRuntime implements TerminalRuntime {
   }
 }
 
+class _FakeAwakeDisplayLock implements AgentAwakeDisplayLock {
+  final List<bool> states = <bool>[];
+
+  @override
+  Future<void> setEnabled(bool enabled) async {
+    states.add(enabled);
+  }
+}
+
+class _FakeAwakeAssertion implements AgentAwakeAssertion {
+  final List<String> starts = <String>[];
+  final List<String> stops = <String>[];
+
+  @override
+  Future<void> start(String reason) async {
+    starts.add(reason);
+  }
+
+  @override
+  Future<void> stop(String reason) async {
+    stops.add(reason);
+  }
+
+  @override
+  Future<void> dispose() async {}
+}
+
 class _FakePathProviderPlatform extends PathProviderPlatform
     with MockPlatformInterfaceMixin {
   _FakePathProviderPlatform(this.applicationSupportPath);

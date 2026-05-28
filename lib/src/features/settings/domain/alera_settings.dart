@@ -151,6 +151,7 @@ class GeneralSettings with GeneralSettingsMappable {
     this.confirmWorkspaceRemoval = true,
     this.agentStatusHooks = AgentStatusHookSettings.defaults,
     this.agentStatusNotificationsEnabled = false,
+    this.keepComputerAwakeWhileAgentsWork = false,
   });
 
   /// User-configured root directory where new linked workspaces are created.
@@ -174,6 +175,9 @@ class GeneralSettings with GeneralSettingsMappable {
 
   /// Show native desktop notifications for local agent status events.
   final bool agentStatusNotificationsEnabled;
+
+  /// Keep the local computer awake while local hook-reported agents are working.
+  final bool keepComputerAwakeWhileAgentsWork;
 
   static const GeneralSettings defaults = GeneralSettings();
 

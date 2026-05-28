@@ -130,6 +130,16 @@ class _GeneralSettingsPane extends ConsumerWidget {
                   .read(settingsControllerProvider.notifier)
                   .setAgentStatusNotificationsEnabled(value),
             ),
+            _SwitchSettingRow(
+              title: 'Keep computer awake while agents are working',
+              description: _agentAwakeSettingDescription(
+                Theme.of(context).platform,
+              ),
+              value: general.keepComputerAwakeWhileAgentsWork,
+              onChanged: (value) => ref
+                  .read(settingsControllerProvider.notifier)
+                  .setKeepComputerAwakeWhileAgentsWork(value),
+            ),
           ],
         ),
         const SizedBox(height: AleraTokens.space24),
@@ -141,6 +151,13 @@ class _GeneralSettingsPane extends ConsumerWidget {
       ],
     );
   }
+}
+
+String _agentAwakeSettingDescription(TargetPlatform platform) {
+  if (platform == TargetPlatform.windows) {
+    return 'Keeps this computer and display awake while agents are working. Lid-close behavior follows this device\'s power settings.';
+  }
+  return 'Keeps this computer and display awake while agents are working. Alera also asks this device to stay awake when the lid is closed, subject to its power policy.';
 }
 
 class _SupportAleraSection extends ConsumerWidget {
