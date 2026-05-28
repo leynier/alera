@@ -9,6 +9,9 @@ on:
       - ready_for_review
   workflow_dispatch:
 
+env:
+  ALERA_FLAVOR: release
+
 jobs:
   build:
     name: build ${{ matrix.platform }}
@@ -44,4 +47,4 @@ jobs:
         run: flutter pub get
 
       - name: Build desktop app
-        run: flutter build ${{ matrix.platform }} --release
+        run: flutter build ${{ matrix.platform }} --release --dart-define=ALERA_FLAVOR=release

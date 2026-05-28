@@ -1,3 +1,4 @@
+import 'package:alera/src/core/build_flavor.dart';
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_brand_row.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -19,7 +20,7 @@ void main() {
       ),
     );
 
-    expect(find.text('Alera'), findsOneWidget);
+    expect(find.text(kAleraAppName), findsOneWidget);
     expect(find.byTooltip('Add project'), findsOneWidget);
     expect(find.byTooltip('Collapse sidebar'), findsOneWidget);
     expect(find.byTooltip('Expand sidebar'), findsNothing);
@@ -49,7 +50,7 @@ void main() {
       ),
     );
 
-    expect(find.text('Alera'), findsNothing);
+    expect(find.text(kAleraAppName), findsNothing);
     expect(find.byTooltip('Add project'), findsNothing);
     expect(find.byTooltip('Collapse sidebar'), findsNothing);
     expect(find.byTooltip('Expand sidebar'), findsOneWidget);

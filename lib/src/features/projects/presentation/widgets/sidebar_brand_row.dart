@@ -1,4 +1,5 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/core/build_flavor.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:flutter/material.dart';
 
@@ -38,7 +39,7 @@ class SidebarBrandRow extends StatelessWidget {
         children: <Widget>[
           Expanded(
             child: Text(
-              'Alera',
+              kAleraAppName,
               style: theme.textTheme.titleSmall?.copyWith(
                 color: AleraTokens.foreground,
                 fontWeight: FontWeight.w600,

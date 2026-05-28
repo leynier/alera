@@ -35,6 +35,7 @@ concurrency:
 
 env:
   ALERA_UPDATE_BASE_URL: https://leynier.github.io/alera
+  ALERA_FLAVOR: release
 
 jobs:
   cut:
@@ -177,6 +178,7 @@ jobs:
           fi
           archive_url="${BASE_URL}/${archive_file}"
           dart run desktop_updater:release "$PLATFORM" \
+            --dart-define "ALERA_FLAVOR=release" \
             --dart-define "ALERA_UPDATE_CHANNEL=$CHANNEL" \
             --dart-define "ALERA_UPDATE_ARCHIVE_URL=$archive_url" \
             --dart-define "ALERA_RELEASE_PAGE_URL=$RELEASE_PAGE_URL" \

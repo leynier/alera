@@ -2,9 +2,13 @@
 cmake_minimum_required(VERSION 3.14)
 project(alera LANGUAGES CXX)
 
-# The name of the executable created for the application. Change this to change
-# the on-disk name of your application.
-set(BINARY_NAME "alera")
+# The on-disk name of the executable. Driven by ALERA_FLAVOR so that a dev
+# build coexists with an installed release build.
+if("$ENV{ALERA_FLAVOR}" STREQUAL "release")
+  set(BINARY_NAME "alera")
+else()
+  set(BINARY_NAME "alera-dev")
+endif()
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
 # versions of CMake.

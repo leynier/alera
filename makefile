@@ -1,7 +1,8 @@
 DART ?= dart
 FLUTTER ?= flutter
 APP_DEVICE ?= macos
-ALERA_APP_ID ?= dev.leynier.alera
+ALERA_FLAVOR ?= dev
+ALERA_APP_ID ?= $(if $(filter release,$(ALERA_FLAVOR)),dev.leynier.alera,dev.leynier.alera.dev)
 ALERA_CLI_BUNDLE_DIR ?= .dart_tool/alera
 ALERA_CLI_DEBUG_PORT ?= 8181
 ALERA_CLI_DEBUG_TOKEN ?= dev-token
@@ -42,15 +43,15 @@ host-debug-wrapper:
 
 # Run the Flutter app with the normal development fallback for the CLI.
 app-debug:
-	$(DART) $(ALERA_DEBUG_TOOL) app-debug --flutter "$(FLUTTER)" --device "$(APP_DEVICE)"
+	$(DART) $(ALERA_DEBUG_TOOL) app-debug --flutter "$(FLUTTER)" --device "$(APP_DEVICE)" --alera-flavor "$(ALERA_FLAVOR)"
 
 # Run the Flutter app against the locally compiled CLI bundle.
 app-debug-bundled-cli:
-	$(DART) $(ALERA_DEBUG_TOOL) app-debug-bundled-cli --dart "$(DART)" --flutter "$(FLUTTER)" --device "$(APP_DEVICE)" --bundle-dir "$(ALERA_CLI_BUNDLE_DIR)"
+	$(DART) $(ALERA_DEBUG_TOOL) app-debug-bundled-cli --dart "$(DART)" --flutter "$(FLUTTER)" --device "$(APP_DEVICE)" --alera-flavor "$(ALERA_FLAVOR)" --bundle-dir "$(ALERA_CLI_BUNDLE_DIR)"
 
 # Run the Flutter app while forcing its launched terminal host to expose a VM service.
 app-debug-host-observe:
-	$(DART) $(ALERA_DEBUG_TOOL) app-debug-host-observe --dart "$(DART)" --flutter "$(FLUTTER)" --device "$(APP_DEVICE)" --debug-port "$(ALERA_CLI_DEBUG_PORT)"
+	$(DART) $(ALERA_DEBUG_TOOL) app-debug-host-observe --dart "$(DART)" --flutter "$(FLUTTER)" --device "$(APP_DEVICE)" --alera-flavor "$(ALERA_FLAVOR)" --debug-port "$(ALERA_CLI_DEBUG_PORT)"
 
 # Inspect running Alera app and terminal-host processes.
 debug-processes:

@@ -1,3 +1,4 @@
+import 'package:alera/src/core/build_flavor.dart';
 import 'package:dart_mappable/dart_mappable.dart';
 import 'package:meta/meta.dart';
 
@@ -112,8 +113,8 @@ class AleraUpdateConfig with AleraUpdateConfigMappable {
           defaultValue: 'stable',
         ),
       ),
-      autoInstallEnabled: const bool.fromEnvironment(
-        'ALERA_UPDATE_AUTO_INSTALL_ENABLED',
+      autoInstallEnabled: effectiveAutoInstallEnabled(
+        const bool.fromEnvironment('ALERA_UPDATE_AUTO_INSTALL_ENABLED'),
       ),
       signedRelease: const bool.fromEnvironment('ALERA_SIGNED_RELEASE'),
     );

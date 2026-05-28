@@ -1,12 +1,14 @@
 import 'dart:async';
 
+import 'package:alera/src/core/build_flavor.dart';
 import 'package:alera/src/features/agent_status/application/agent_status_notifications.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
-const String aleraWindowsNotificationAppName = 'Alera';
+const String aleraWindowsNotificationAppName = kAleraAppName;
 const String aleraWindowsNotificationAppUserModelId = 'Leynier.Alera';
 const String aleraWindowsNotificationGuid =
     '6f03d61e-b22a-42fc-9e44-a02319d77f55';
+const String _openAleraActionLabel = 'Open $kAleraAppName';
 
 class DesktopAgentStatusNotificationService
     implements AgentStatusNotificationPresenter {
@@ -38,7 +40,9 @@ class DesktopAgentStatusNotificationService
           requestSoundPermission: true,
           requestBadgePermission: false,
         ),
-        linux: LinuxInitializationSettings(defaultActionName: 'Open Alera'),
+        linux: LinuxInitializationSettings(
+          defaultActionName: _openAleraActionLabel,
+        ),
         windows: WindowsInitializationSettings(
           appName: aleraWindowsNotificationAppName,
           appUserModelId: aleraWindowsNotificationAppUserModelId,
@@ -68,7 +72,7 @@ class DesktopAgentStatusNotificationService
       notificationDetails: const NotificationDetails(
         macOS: DarwinNotificationDetails(),
         linux: LinuxNotificationDetails(
-          defaultActionName: 'Open Alera',
+          defaultActionName: _openAleraActionLabel,
           urgency: LinuxNotificationUrgency.normal,
         ),
         windows: WindowsNotificationDetails(

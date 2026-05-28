@@ -139,7 +139,7 @@ Alera targets:
 - Windows
 - Linux
 
-Bundle/application identifiers use `dev.leynier.alera`.
+Released builds use bundle/application identifier `dev.leynier.alera` and the display name `Alera`. Local builds default to the `dev` flavor (`dev.leynier.alera.dev`, display name `Alera Dev`) so a development build can coexist with an installed release without sharing user data. Set `ALERA_FLAVOR=release` to opt a local build back into the release identifier.
 
 ## Releases and updates
 
