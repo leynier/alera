@@ -1,16 +1,16 @@
-import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_pty_session.dart';
-import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
 
+import 'terminal_host_test_fakes.dart';
+
 void main() {
   test('factory creates sessions with the provided ids', () {
-    final client = _FakeTerminalHostClient(
+    final client = FakeTerminalHostClient(
       attachment: TerminalHostAttachment(
         sessionId: 'session-1',
         created: true,
@@ -33,7 +33,7 @@ void main() {
   test(
     'host PTY session replays snapshots and suppresses restored exits',
     () async {
-      final client = _FakeTerminalHostClient(
+      final client = FakeTerminalHostClient(
         attachment: TerminalHostAttachment(
           sessionId: 'session-1',
           created: false,
@@ -76,7 +76,7 @@ void main() {
   test(
     'host PTY session writes, resizes, detaches, and terminates by id',
     () async {
-      final client = _FakeTerminalHostClient(
+      final client = FakeTerminalHostClient(
         attachment: TerminalHostAttachment(
           sessionId: 'session-1',
           created: true,
@@ -134,7 +134,7 @@ void main() {
   test(
     'host PTY session reattaches and retries writes after stale host state',
     () async {
-      final client = _FakeTerminalHostClient(
+      final client = FakeTerminalHostClient(
         attachment: TerminalHostAttachment(
           sessionId: 'session-1',
           created: true,
@@ -193,7 +193,7 @@ void main() {
   test(
     'host PTY session reattaches with the latest size before resizing',
     () async {
-      final client = _FakeTerminalHostClient(
+      final client = FakeTerminalHostClient(
         attachment: TerminalHostAttachment(
           sessionId: 'session-1',
           created: true,
@@ -245,7 +245,7 @@ void main() {
   test(
     'host PTY session emits one error when stale-session recovery fails',
     () async {
-      final client = _FakeTerminalHostClient(
+      final client = FakeTerminalHostClient(
         attachment: TerminalHostAttachment(
           sessionId: 'session-1',
           created: true,
@@ -308,7 +308,7 @@ void main() {
   test(
     'host PTY session forwards matching host events and write errors',
     () async {
-      final client = _FakeTerminalHostClient(
+      final client = FakeTerminalHostClient(
         attachment: TerminalHostAttachment(
           sessionId: 'session-1',
           created: true,
@@ -353,7 +353,7 @@ void main() {
   );
 
   test('host PTY session rejects use after disposal', () async {
-    final client = _FakeTerminalHostClient(
+    final client = FakeTerminalHostClient(
       attachment: TerminalHostAttachment(
         sessionId: 'session-1',
         created: true,
@@ -397,123 +397,4 @@ GhosttyTerminalShellLaunch _launch() {
 Future<void> _flushAsync() async {
   await Future<void>.delayed(Duration.zero);
   await Future<void>.delayed(Duration.zero);
-}
-
-final class _FakeTerminalHostClient implements TerminalHostClient {
-  _FakeTerminalHostClient({
-    required TerminalHostAttachment attachment,
-    List<TerminalHostAttachment>? attachments,
-  }) : _attachments = attachments ?? <TerminalHostAttachment>[attachment];
-
-  final List<TerminalHostAttachment> _attachments;
-  final StreamController<TerminalHostEvent> _events =
-      StreamController<TerminalHostEvent>.broadcast();
-  final List<
-    ({
-      String sessionId,
-      String workspaceId,
-      String tabId,
-      String workingDirectory,
-      int cols,
-      int rows,
-    })
-  >
-  attachCalls =
-      <
-        ({
-          String sessionId,
-          String workspaceId,
-          String tabId,
-          String workingDirectory,
-          int cols,
-          int rows,
-        })
-      >[];
-  final List<List<int>> writes = <List<int>>[];
-  final List<(String, int, int)> resizes = <(String, int, int)>[];
-  final List<String> detached = <String>[];
-  final List<String> terminated = <String>[];
-  final List<Object> writeErrors = <Object>[];
-  final List<Object> resizeErrors = <Object>[];
-  String? attachedWorkingDirectory;
-  Object? writeError;
-
-  @override
-  Stream<TerminalHostEvent> get events => _events.stream;
-
-  @override
-  Future<void> configure(TerminalHostConfig config) async {}
-
-  @override
-  Future<void> ensureStarted({required TerminalHostConfig config}) async {}
-
-  @override
-  Future<TerminalHostAttachment> createOrAttach({
-    required String sessionId,
-    required String workspaceId,
-    required String tabId,
-    required String workingDirectory,
-    required GhosttyTerminalShellLaunch launch,
-    required int cols,
-    required int rows,
-  }) async {
-    attachCalls.add((
-      sessionId: sessionId,
-      workspaceId: workspaceId,
-      tabId: tabId,
-      workingDirectory: workingDirectory,
-      cols: cols,
-      rows: rows,
-    ));
-    attachedWorkingDirectory = workingDirectory;
-    final index = attachCalls.length - 1;
-    return _attachments[index < _attachments.length
-        ? index
-        : _attachments.length - 1];
-  }
-
-  @override
-  Future<void> write({
-    required String sessionId,
-    required List<int> bytes,
-  }) async {
-    if (writeErrors.isNotEmpty) {
-      throw writeErrors.removeAt(0);
-    }
-    if (writeError case final error?) {
-      throw error;
-    }
-    writes.add(List<int>.from(bytes));
-  }
-
-  @override
-  Future<void> resize({
-    required String sessionId,
-    required int cols,
-    required int rows,
-  }) async {
-    if (resizeErrors.isNotEmpty) {
-      throw resizeErrors.removeAt(0);
-    }
-    resizes.add((sessionId, cols, rows));
-  }
-
-  @override
-  Future<void> detach(String sessionId) async {
-    detached.add(sessionId);
-  }
-
-  @override
-  Future<void> terminate(String sessionId) async {
-    terminated.add(sessionId);
-  }
-
-  @override
-  void dispose() {
-    unawaited(_events.close());
-  }
-
-  void emit(TerminalHostEvent event) {
-    _events.add(event);
-  }
 }

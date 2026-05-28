@@ -1,0 +1,202 @@
+part of 'workbench_controller.dart';
+
+mixin _WorkbenchControllerSync
+    on _$WorkbenchController, _WorkbenchControllerInternals {
+  void _onProjectsChanged(List<Project> projects) {
+    final validProjectIds = <String>{
+      for (final project in projects) project.id,
+    };
+    // Prune collapse/selection ids that point at removed projects. New
+    // projects are not added to either set so they show up expanded and (when
+    // there is no active selection) visible by default.
+    final prefs = state.viewPrefs;
+    final prunedCollapsed = prefs.collapsedProjectIds
+        .where(validProjectIds.contains)
+        .toSet();
+    final prunedSelected = prefs.selectedProjectIds
+        .where(validProjectIds.contains)
+        .toSet();
+    final prefsChanged =
+        prunedCollapsed.length != prefs.collapsedProjectIds.length ||
+        prunedSelected.length != prefs.selectedProjectIds.length;
+    final nextViewPrefs = prefsChanged
+        ? prefs.copyWith(
+            collapsedProjectIds: prunedCollapsed,
+            selectedProjectIds: prunedSelected,
+          )
+        : prefs;
+    final updatedWorkspaces = <String, List<Workspace>>{
+      for (final entry in state.workspacesByProject.entries)
+        if (validProjectIds.contains(entry.key)) entry.key: entry.value,
+    };
+    final liveWorkspaceIds = <String>{
+      for (final workspaces in updatedWorkspaces.values)
+        for (final workspace in workspaces) workspace.id,
+    };
+    final updatedTabs = <String, List<WorkspaceTabRecord>>{
+      for (final entry in state.tabsByWorkspace.entries)
+        if (liveWorkspaceIds.contains(entry.key)) entry.key: entry.value,
+    };
+    final updatedLayouts = <String, WorkbenchLayout>{
+      for (final entry in state.layoutByWorkspace.entries)
+        if (liveWorkspaceIds.contains(entry.key)) entry.key: entry.value,
+    };
+    final updatedActiveTabs = <String, String>{
+      for (final entry in state.activeTabIdByWorkspace.entries)
+        if (liveWorkspaceIds.contains(entry.key)) entry.key: entry.value,
+    };
+
+    final currentActiveProjectId =
+        state.activeProjectId != null &&
+            validProjectIds.contains(state.activeProjectId)
+        ? state.activeProjectId
+        : (projects.isNotEmpty ? projects.first.id : null);
+    final activeProjectId = currentActiveProjectId;
+    final activeWorkspaceId = _resolveActiveWorkspaceId(
+      activeProjectId: activeProjectId,
+      workspacesByProject: updatedWorkspaces,
+      preferredWorkspaceId: state.activeWorkspaceId,
+    );
+
+    state = state.copyWith(
+      projects: projects,
+      workspacesByProject: updatedWorkspaces,
+      tabsByWorkspace: updatedTabs,
+      viewPrefs: nextViewPrefs,
+      activeProjectId: activeProjectId,
+      activeWorkspaceId: activeWorkspaceId,
+      activeTabIdByWorkspace: updatedActiveTabs,
+      layoutByWorkspace: updatedLayouts,
+    );
+    if (prefsChanged) {
+      unawaited(_persistViewPrefs());
+    }
+
+    for (final project in projects) {
+      if (_workspaceSubs.containsKey(project.id)) {
+        continue;
+      }
+      _workspaceSubs[project.id] = _repository
+          .watchWorkspaces(project.id)
+          .listen((workspaces) => _onWorkspacesChanged(project, workspaces));
+      unawaited(_ensureMainWorkspaceForProject(project));
+    }
+
+    final removedProjectIds = _workspaceSubs.keys
+        .where((projectId) => !validProjectIds.contains(projectId))
+        .toList(growable: false);
+    for (final projectId in removedProjectIds) {
+      _workspaceSubs.remove(projectId)?.cancel();
+      final removedWorkspaceIds = _tabSubProjectIds.entries
+          .where((entry) => entry.value == projectId)
+          .map((entry) => entry.key)
+          .toList(growable: false);
+      for (final workspaceId in removedWorkspaceIds) {
+        _tabSubs.remove(workspaceId)?.cancel();
+        _tabSubProjectIds.remove(workspaceId);
+      }
+    }
+    _ensureSelectionHasTab();
+  }
+
+  void _onWorkspacesChanged(Project project, List<Workspace> workspaces) {
+    final nextWorkspaces = Map<String, List<Workspace>>.from(
+      state.workspacesByProject,
+    )..[project.id] = workspaces;
+    final liveWorkspaceIds = <String>{
+      for (final workspace in workspaces) workspace.id,
+    };
+    final removedWorkspaceIds = _tabSubProjectIds.entries
+        .where(
+          (entry) =>
+              entry.value == project.id &&
+              !liveWorkspaceIds.contains(entry.key),
+        )
+        .map((entry) => entry.key)
+        .toList(growable: false);
+    for (final workspaceId in removedWorkspaceIds) {
+      _tabSubs.remove(workspaceId)?.cancel();
+      _tabSubProjectIds.remove(workspaceId);
+    }
+    final nextLayouts = <String, WorkbenchLayout>{
+      for (final entry in state.layoutByWorkspace.entries)
+        if (!removedWorkspaceIds.contains(entry.key)) entry.key: entry.value,
+    };
+    for (final workspace in workspaces) {
+      if (_tabSubs.containsKey(workspace.id)) {
+        continue;
+      }
+      _tabSubProjectIds[workspace.id] = project.id;
+      unawaited(_loadLayoutForWorkspace(workspace.id));
+      _tabSubs[workspace.id] = _repository
+          .watchWorkspaceTabs(workspace.id)
+          .listen((tabs) => _onTabsChanged(workspace.id, tabs));
+    }
+    // Preserve the active project while it is still valid; never silently jump
+    // to a different project just because this project's workspaces changed.
+    final candidateProjectId =
+        (state.activeProjectId != null &&
+            state.projects.any((proj) => proj.id == state.activeProjectId))
+        ? state.activeProjectId
+        : project.id;
+    final activeWorkspaceId = _resolveActiveWorkspaceId(
+      activeProjectId: candidateProjectId,
+      workspacesByProject: nextWorkspaces,
+      preferredWorkspaceId: state.activeWorkspaceId,
+    );
+    // Drop any expansion entries that pointed at workspaces that no longer
+    // exist so the set stays tight.
+    final viewPrefs = state.viewPrefs;
+    final prunedExpanded = viewPrefs.expandedWorkspaceIds
+        .where(
+          (id) =>
+              !removedWorkspaceIds.contains(id) ||
+              liveWorkspaceIds.contains(id),
+        )
+        .toSet();
+    final expansionChanged =
+        prunedExpanded.length != viewPrefs.expandedWorkspaceIds.length;
+    final nextViewPrefs = expansionChanged
+        ? viewPrefs.copyWith(expandedWorkspaceIds: prunedExpanded)
+        : viewPrefs;
+    state = state.copyWith(
+      workspacesByProject: nextWorkspaces,
+      viewPrefs: nextViewPrefs,
+      activeProjectId: candidateProjectId,
+      activeWorkspaceId: activeWorkspaceId,
+      layoutByWorkspace: nextLayouts,
+    );
+    if (expansionChanged) {
+      unawaited(_persistViewPrefs());
+    }
+    _ensureSelectionHasTab();
+  }
+
+  void _onTabsChanged(String workspaceId, List<WorkspaceTabRecord> tabs) {
+    final nextTabs = Map<String, List<WorkspaceTabRecord>>.from(
+      state.tabsByWorkspace,
+    )..[workspaceId] = tabs;
+    final currentLayout = state.layoutFor(workspaceId);
+    if (currentLayout == null) {
+      state = state.copyWith(tabsByWorkspace: nextTabs);
+      if (!_loadingLayoutWorkspaceIds.contains(workspaceId)) {
+        unawaited(_loadLayoutForWorkspace(workspaceId));
+      }
+      _ensureSelectionHasTab();
+      return;
+    }
+
+    final layout = currentLayout.sanitize(tabs);
+    final nextLayouts = Map<String, WorkbenchLayout>.from(
+      state.layoutByWorkspace,
+    )..[workspaceId] = layout;
+    final activeTabs = _activeTabsWithLayout(layout);
+    state = state.copyWith(
+      tabsByWorkspace: nextTabs,
+      layoutByWorkspace: nextLayouts,
+      activeTabIdByWorkspace: activeTabs,
+    );
+    unawaited(_repository.upsertWorkbenchLayout(layout));
+    _ensureSelectionHasTab();
+  }
+}
