@@ -44,6 +44,10 @@ extension _CodexRuntimeHomeServiceHookPlanning on CodexRuntimeHomeService {
   ) {
     final signatures = <String, bool>{};
     final trustEntries = _readHookTrustEntries(descriptor.systemTomlPath);
+    final trustedHashesByEvent = _trustedSystemHookHashesByEvent(
+      descriptor,
+      trustEntries,
+    );
     for (final eventEntry in systemHooks.entries) {
       final definitions = _definitionsFromValue(eventEntry.value);
       for (var groupIndex = 0; groupIndex < definitions.length; groupIndex++) {
@@ -72,18 +76,53 @@ extension _CodexRuntimeHomeServiceHookPlanning on CodexRuntimeHomeService {
           if (entry == null) {
             continue;
           }
+          final expectedHash = _computeTrustedHash(entry);
           final state = trustEntries[_computeTrustKey(entry)];
-          if (state?.trustedHash == _computeTrustedHash(entry)) {
-            final signature = _trustSignature(entry);
-            final enabled = state?.enabled != false;
-            if (enabled || !signatures.containsKey(signature)) {
-              signatures[signature] = enabled;
-            }
+          final enabled = state?.trustedHash == expectedHash
+              ? state?.enabled != false
+              : trustedHashesByEvent[entry.eventLabel]?[expectedHash];
+          if (enabled == null) {
+            continue;
+          }
+          final signature = _trustSignature(entry);
+          if (enabled || !signatures.containsKey(signature)) {
+            signatures[signature] = enabled;
           }
         }
       }
     }
     return signatures;
+  }
+
+  Map<String, Map<String, bool>> _trustedSystemHookHashesByEvent(
+    _CodexRuntimeHookDescriptor descriptor,
+    Map<String, _CodexHookTrustState> trustEntries,
+  ) {
+    final trustedHashesByEvent = <String, Map<String, bool>>{};
+    final canonicalSystemHooksPath = _canonicalTrustPath(
+      descriptor.systemConfigPath,
+    );
+    for (final entry in trustEntries.entries) {
+      final parsed = _parseTrustKey(entry.key);
+      final trustedHash = entry.value.trustedHash;
+      if (parsed == null || trustedHash == null) {
+        continue;
+      }
+      if (_canonicalTrustPath(parsed.sourcePath) != canonicalSystemHooksPath) {
+        continue;
+      }
+      final hashes = trustedHashesByEvent.putIfAbsent(
+        parsed.eventLabel,
+        () => <String, bool>{},
+      );
+      final enabled = entry.value.enabled != false;
+      // Codex trust keys include hook indices; after reordering, the hash still
+      // proves the same event and command identity was approved.
+      if (enabled || !hashes.containsKey(trustedHash)) {
+        hashes[trustedHash] = enabled;
+      }
+    }
+    return trustedHashesByEvent;
   }
 
   List<_MirroredRuntimeUserHookTrustEntry>

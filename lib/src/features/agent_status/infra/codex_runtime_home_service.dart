@@ -406,9 +406,10 @@ final class _CodexHookTrustState {
 }
 
 final class _ParsedTrustKey {
-  const _ParsedTrustKey({required this.sourcePath});
+  const _ParsedTrustKey({required this.sourcePath, required this.eventLabel});
 
   final String sourcePath;
+  final String eventLabel;
 }
 
 final class _MirroredRuntimeUserHookTrustEntry {

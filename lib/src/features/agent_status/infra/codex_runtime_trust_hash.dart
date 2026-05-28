@@ -73,10 +73,14 @@ _ParsedTrustKey? _parseTrustKey(String key) {
     return null;
   }
   final sourcePath = key.substring(0, thirdLast);
+  final eventLabel = key.substring(thirdLast + 1, secondLast);
   if (sourcePath.isEmpty) {
     return null;
   }
-  return _ParsedTrustKey(sourcePath: sourcePath);
+  if (eventLabel.isEmpty) {
+    return null;
+  }
+  return _ParsedTrustKey(sourcePath: sourcePath, eventLabel: eventLabel);
 }
 
 @visibleForTesting

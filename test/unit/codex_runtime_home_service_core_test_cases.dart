@@ -156,6 +156,73 @@ void _registerCodexRuntimeHomeServiceCoreTests() {
     }
   });
 
+  test('mirrors trusted user hooks when system trust indices are stale', () async {
+    final systemHooksPath = p.join(home.path, '.codex', 'hooks.json');
+    _writeJson(systemHooksPath, <String, Object?>{
+      'hooks': <String, Object?>{
+        'Stop': <Object?>[
+          _userHook('first-stop-hook'),
+          _userHook('second-stop-hook'),
+        ],
+      },
+    });
+    final canonicalSystemHooksPath = File(
+      systemHooksPath,
+    ).resolveSymbolicLinksSync();
+    File(p.join(home.path, '.codex', 'config.toml'))
+      ..createSync(recursive: true)
+      ..writeAsStringSync(
+        <String>[
+          _trustBlock(
+            key: '$canonicalSystemHooksPath:stop:0:0',
+            enabled: true,
+            trustedHash: computeCodexTrustedHashForTesting(
+              sourcePath: systemHooksPath,
+              eventLabel: 'stop',
+              groupIndex: 1,
+              handlerIndex: 0,
+              command: 'second-stop-hook',
+            ),
+          ),
+          _trustBlock(
+            key: '$canonicalSystemHooksPath:stop:1:0',
+            enabled: true,
+            trustedHash: computeCodexTrustedHashForTesting(
+              sourcePath: systemHooksPath,
+              eventLabel: 'stop',
+              groupIndex: 0,
+              handlerIndex: 0,
+              command: 'first-stop-hook',
+            ),
+          ),
+        ].join('\n'),
+      );
+
+    final preparation = await service.prepareForTerminalLaunch();
+
+    final runtimeHooksPath = p.join(preparation.runtimeHomePath, 'hooks.json');
+    final canonicalRuntimeHooksPath = File(
+      runtimeHooksPath,
+    ).resolveSymbolicLinksSync();
+    final runtimeToml = File(
+      p.join(preparation.runtimeHomePath, 'config.toml'),
+    ).readAsStringSync();
+    expect(
+      runtimeToml,
+      contains(
+        '[hooks.state."${_escapeTomlString('$canonicalRuntimeHooksPath:stop:0:0')}"]',
+      ),
+    );
+    expect(
+      runtimeToml,
+      contains(
+        '[hooks.state."${_escapeTomlString('$canonicalRuntimeHooksPath:stop:1:0')}"]',
+      ),
+    );
+    expect(runtimeToml, isNot(contains('$canonicalSystemHooksPath:stop:0:0')));
+    expect(runtimeToml, isNot(contains('$canonicalSystemHooksPath:stop:1:0')));
+  });
+
   test('enables hooks in a fresh runtime config', () async {
     final preparation = await service.prepareForTerminalLaunch();
 
