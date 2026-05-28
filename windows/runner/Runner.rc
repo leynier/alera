@@ -92,9 +92,9 @@ BEGIN
             VALUE "CompanyName", "dev.leynier" "\0"
             VALUE "FileDescription", "Alera" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "alera" "\0"
+            VALUE "InternalName", "Alera" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 dev.leynier. All rights reserved." "\0"
-            VALUE "OriginalFilename", "alera.exe" "\0"
+            VALUE "OriginalFilename", "Alera.exe" "\0"
             VALUE "ProductName", "Alera" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END

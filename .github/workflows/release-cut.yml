@@ -214,6 +214,17 @@ jobs:
           fi
           mkdir -p "pages/updates/${CHANNEL}/${ARTIFACT_VERSION}+${BUILD_NUMBER}-${PLATFORM}" release-assets
           cp -R "$updater_dir/." "pages/updates/${CHANNEL}/${ARTIFACT_VERSION}+${BUILD_NUMBER}-${PLATFORM}/"
+          if [[ "$PLATFORM" == "macos" && -d "$bundle_dir/alera.app" ]]; then
+            # desktop_updater names the bundle after the lowercase pubspec
+            # package name; the release display name is Alera (see
+            # lib/src/core/build_flavor.dart). Runs after the updater archive
+            # step (which reads alera.app) and before the tarball is created.
+            # The runner filesystem is case-insensitive, so route through a
+            # distinct temp name; a direct case-only mv can be a no-op (BSD) or
+            # a "same file" error (GNU) that would abort the job under set -e.
+            mv "$bundle_dir/alera.app" "$bundle_dir/.Alera.app.tmp"
+            mv "$bundle_dir/.Alera.app.tmp" "$bundle_dir/Alera.app"
+          fi
           tar -czf "release-assets/alera-${RELEASE_VERSION}-${PLATFORM}.tar.gz" -C "$bundle_dir" .
 
       - name: Upload updater artifact
