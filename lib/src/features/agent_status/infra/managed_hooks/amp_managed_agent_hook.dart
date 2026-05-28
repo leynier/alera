@@ -24,7 +24,10 @@ extension _AmpManagedAgentHook on ManagedAgentHookInstallService {
     return p.join(_homeDirectory, '.config', 'amp');
   }
 
-  String _ampPluginSource() => r'''
+  String _ampPluginSource() => aleraAmpStatusPluginSource();
+}
+
+String aleraAmpStatusPluginSource() => r'''
 // ALERA_AGENT_STATUS_MANAGED_FILE
 let warnedBadEndpoint = false
 let cachedEndpointKey = ''
@@ -167,4 +170,3 @@ export default function (amp: any) {
   })
 }
 ''';
-}

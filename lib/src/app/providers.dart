@@ -460,8 +460,11 @@ List<AgentType> _globalManagedAgentTypes() {
     for (final agentType in AgentType.values)
       if (agentType != AgentType.codex &&
           agentType != AgentType.claude &&
+          agentType != AgentType.copilot &&
+          agentType != AgentType.cursor &&
           agentType != AgentType.opencode &&
-          agentType != AgentType.pi)
+          agentType != AgentType.pi &&
+          agentType != AgentType.amp)
         agentType,
   ];
 }
@@ -473,8 +476,11 @@ List<AgentType> _enabledGlobalManagedAgentStatusHookTypes(
     for (final agentType in _enabledAgentStatusHookTypes(settings))
       if (agentType != AgentType.codex &&
           agentType != AgentType.claude &&
+          agentType != AgentType.copilot &&
+          agentType != AgentType.cursor &&
           agentType != AgentType.opencode &&
-          agentType != AgentType.pi)
+          agentType != AgentType.pi &&
+          agentType != AgentType.amp)
         agentType,
   ];
 }
@@ -523,6 +529,15 @@ Future<Map<String, String>?> _terminalLaunchEnvironmentFor({
   if (hookEnvironment != null) {
     environment.addAll(hookEnvironment);
   }
+  if (hooks.copilot ||
+      hooks.cursor ||
+      hooks.opencode ||
+      hooks.pi ||
+      hooks.amp) {
+    try {
+      await agentRuntimeOverlay.clearTerminalOverlays(terminalSessionId);
+    } catch (_) {}
+  }
   if (hooks.codex) {
     try {
       final preparation = await codexRuntimeHome.prepareForTerminalLaunch();
@@ -532,6 +547,22 @@ Future<Map<String, String>?> _terminalLaunchEnvironmentFor({
   if (hooks.claude) {
     try {
       final preparation = await claudeRuntimeHome.prepareForTerminalLaunch();
+      environment.addAll(preparation.environment);
+    } catch (_) {}
+  }
+  if (hooks.copilot) {
+    try {
+      final preparation = await agentRuntimeOverlay
+          .prepareCopilotForTerminalLaunch(
+            terminalSessionId: terminalSessionId,
+          );
+      environment.addAll(preparation.environment);
+    } catch (_) {}
+  }
+  if (hooks.cursor) {
+    try {
+      final preparation = await agentRuntimeOverlay
+          .prepareCursorForTerminalLaunch(terminalSessionId: terminalSessionId);
       environment.addAll(preparation.environment);
     } catch (_) {}
   }
@@ -547,6 +578,14 @@ Future<Map<String, String>?> _terminalLaunchEnvironmentFor({
   if (hooks.pi) {
     try {
       final preparation = await agentRuntimeOverlay.preparePiForTerminalLaunch(
+        terminalSessionId: terminalSessionId,
+      );
+      environment.addAll(preparation.environment);
+    } catch (_) {}
+  }
+  if (hooks.amp) {
+    try {
+      final preparation = await agentRuntimeOverlay.prepareAmpForTerminalLaunch(
         terminalSessionId: terminalSessionId,
       );
       environment.addAll(preparation.environment);

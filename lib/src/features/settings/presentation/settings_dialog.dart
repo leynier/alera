@@ -232,12 +232,12 @@ const List<_SettingsSearchEntry> _generalSearchEntries = <_SettingsSearchEntry>[
   ),
   _SettingsSearchEntry(
     title: 'GitHub Copilot hooks',
-    description: 'Install managed GitHub Copilot hooks.',
+    description: 'Use an Alera-managed GitHub Copilot home overlay.',
     keywords: <String>['copilot', 'github', 'agent', 'status', 'hooks'],
   ),
   _SettingsSearchEntry(
     title: 'Cursor hooks',
-    description: 'Install managed Cursor CLI hooks.',
+    description: 'Use an Alera-managed Cursor Agent plugin wrapper.',
     keywords: <String>['cursor', 'agent', 'status', 'hooks', 'cli'],
   ),
   _SettingsSearchEntry(
@@ -257,7 +257,7 @@ const List<_SettingsSearchEntry> _generalSearchEntries = <_SettingsSearchEntry>[
   ),
   _SettingsSearchEntry(
     title: 'Amp hooks',
-    description: 'Install managed Amp status plugin.',
+    description: 'Use an Alera-managed Amp config overlay.',
     keywords: <String>['amp', 'agent', 'status', 'hooks', 'plugin'],
   ),
   _SettingsSearchEntry(
@@ -694,8 +694,7 @@ class _GeneralSettingsPane extends ConsumerWidget {
             ),
             _SwitchSettingRow(
               title: 'GitHub Copilot hooks',
-              description:
-                  'Install Alera-managed GitHub Copilot hooks. Disable to remove only Alera-managed hook entries.',
+              description: 'Use an Alera-managed GitHub Copilot home overlay.',
               value: general.agentStatusHooks.copilot,
               onChanged: (value) => ref
                   .read(settingsControllerProvider.notifier)
@@ -703,8 +702,7 @@ class _GeneralSettingsPane extends ConsumerWidget {
             ),
             _SwitchSettingRow(
               title: 'Cursor hooks',
-              description:
-                  'Install Alera-managed Cursor CLI hooks. Disable to remove only Alera-managed hook entries.',
+              description: 'Use an Alera-managed Cursor Agent plugin wrapper.',
               value: general.agentStatusHooks.cursor,
               onChanged: (value) => ref
                   .read(settingsControllerProvider.notifier)
@@ -739,8 +737,7 @@ class _GeneralSettingsPane extends ConsumerWidget {
             ),
             _SwitchSettingRow(
               title: 'Amp hooks',
-              description:
-                  'Install Alera-managed Amp status plugin. Disable to remove only Alera-managed files.',
+              description: 'Use an Alera-managed Amp config overlay.',
               value: general.agentStatusHooks.amp,
               onChanged: (value) => ref
                   .read(settingsControllerProvider.notifier)

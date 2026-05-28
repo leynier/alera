@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/infra/managed_agent_hook_installer.dart';
 import 'package:crypto/crypto.dart';
 import 'package:meta/meta.dart';
@@ -82,9 +83,179 @@ final class AgentRuntimeOverlayService {
     );
   }
 
+  Future<AgentRuntimeOverlayPreparation> prepareCopilotForTerminalLaunch({
+    required String terminalSessionId,
+  }) async {
+    final source = _resolveSource(
+      publicEnvKey: 'COPILOT_HOME',
+      overlayEnvKey: 'ALERA_COPILOT_HOME',
+      sourceEnvKey: 'ALERA_COPILOT_SOURCE_HOME',
+      defaultSourcePath: p.join(_homeDirectory, '.copilot'),
+    );
+    if (source.isExplicit && !_sourceExists(source.path)) {
+      return AgentRuntimeOverlayPreparation(
+        sourcePath: source.path,
+        environment: <String, String>{'COPILOT_HOME': source.path},
+      );
+    }
+
+    final support = await _applicationSupportDirectory();
+    final root = _overlayRoot(support, 'copilot');
+    final overlay = _overlayDirectory(root, terminalSessionId);
+    try {
+      _safeRemoveOverlay(overlay.path, root);
+      overlay.createSync(recursive: true);
+      if (_sourceExists(source.path)) {
+        _mirrorSourceDirectory(
+          sourcePath: source.path,
+          overlayPath: overlay.path,
+          managedSubdirectory: 'hooks',
+          managedFileName: 'alera.json',
+        );
+      }
+      final status = ManagedAgentHookInstallService(
+        homeDirectory: overlay.path,
+        platform: _platform,
+        environment: <String, String>{
+          ..._environment,
+          'HOME': overlay.path,
+          'COPILOT_HOME': overlay.path,
+        },
+      ).install(AgentType.copilot);
+      if (status.state == ManagedAgentHookInstallState.error) {
+        throw StateError(status.detail ?? 'Could not install Copilot hooks.');
+      }
+    } catch (_) {
+      _safeRemoveOverlay(overlay.path, root);
+      if (source.isExplicit) {
+        return AgentRuntimeOverlayPreparation(
+          sourcePath: source.path,
+          environment: <String, String>{'COPILOT_HOME': source.path},
+        );
+      }
+      return const AgentRuntimeOverlayPreparation(
+        environment: <String, String>{},
+      );
+    }
+
+    final sourceExists = _sourceExists(source.path);
+    return AgentRuntimeOverlayPreparation(
+      overlayPath: overlay.path,
+      sourcePath: sourceExists ? source.path : null,
+      environment: <String, String>{
+        'COPILOT_HOME': overlay.path,
+        'ALERA_COPILOT_HOME': overlay.path,
+        if (sourceExists) 'ALERA_COPILOT_SOURCE_HOME': source.path,
+      },
+    );
+  }
+
+  Future<AgentRuntimeOverlayPreparation> prepareCursorForTerminalLaunch({
+    required String terminalSessionId,
+  }) async {
+    final support = await _applicationSupportDirectory();
+    final root = _overlayRoot(support, 'cursor');
+    final overlay = _overlayDirectory(root, terminalSessionId);
+    final pluginRoot = Directory(p.join(overlay.path, 'plugin'));
+    try {
+      _safeRemoveOverlay(overlay.path, root);
+      overlay.createSync(recursive: true);
+      final status = ManagedAgentHookInstallService(
+        homeDirectory: overlay.path,
+        platform: _platform,
+        environment: <String, String>{..._environment, 'HOME': overlay.path},
+      ).install(AgentType.cursor);
+      if (status.state == ManagedAgentHookInstallState.error) {
+        throw StateError(status.detail ?? 'Could not install Cursor hooks.');
+      }
+      _writeCursorPlugin(pluginRoot);
+      final wrapperBin = _wrapperBinDirectory(support, terminalSessionId);
+      _writeAgentWrapper(
+        directory: wrapperBin,
+        executableName: 'cursor-agent',
+        source: _cursorAgentWrapperSource(pluginRoot.path, wrapperBin.path),
+      );
+      return AgentRuntimeOverlayPreparation(
+        overlayPath: overlay.path,
+        environment: <String, String>{
+          'ALERA_CURSOR_PLUGIN_DIR': pluginRoot.path,
+          'ALERA_AGENT_WRAPPER_PATH': wrapperBin.path,
+        },
+      );
+    } catch (_) {
+      _safeRemoveOverlay(overlay.path, root);
+      return const AgentRuntimeOverlayPreparation(
+        environment: <String, String>{},
+      );
+    }
+  }
+
+  Future<AgentRuntimeOverlayPreparation> prepareAmpForTerminalLaunch({
+    required String terminalSessionId,
+  }) async {
+    final source = _resolveAmpSource();
+    final support = await _applicationSupportDirectory();
+    final root = _overlayRoot(support, 'amp');
+    final overlay = _overlayDirectory(root, terminalSessionId);
+    final xdgConfigHome = p.join(overlay.path, 'xdg');
+    final ampConfigDir = p.join(xdgConfigHome, 'amp');
+    try {
+      _safeRemoveOverlay(overlay.path, root);
+      Directory(ampConfigDir).createSync(recursive: true);
+      if (_sourceExists(source.path)) {
+        _mirrorSourceDirectory(
+          sourcePath: source.path,
+          overlayPath: ampConfigDir,
+          managedSubdirectory: 'plugins',
+          managedFileName: 'alera-agent-status.ts',
+        );
+      }
+      _writeManagedFile(
+        p.join(ampConfigDir, 'plugins', 'alera-agent-status.ts'),
+        aleraAmpStatusPluginSource(),
+      );
+      final settingsFile = File(p.join(ampConfigDir, 'settings.json'));
+      if (!settingsFile.existsSync()) {
+        settingsFile.writeAsStringSync('{}\n');
+      }
+      final wrapperBin = _wrapperBinDirectory(support, terminalSessionId);
+      _writeAgentWrapper(
+        directory: wrapperBin,
+        executableName: 'amp',
+        source: _ampWrapperSource(
+          xdgConfigHome: xdgConfigHome,
+          settingsFile: settingsFile.path,
+          wrapperDirectory: wrapperBin.path,
+        ),
+      );
+      final sourceExists = _sourceExists(source.path);
+      return AgentRuntimeOverlayPreparation(
+        overlayPath: overlay.path,
+        sourcePath: sourceExists ? source.path : null,
+        environment: <String, String>{
+          'ALERA_AMP_CONFIG_DIR': ampConfigDir,
+          if (sourceExists) 'ALERA_AMP_SOURCE_CONFIG_DIR': source.path,
+          'ALERA_AGENT_WRAPPER_PATH': wrapperBin.path,
+        },
+      );
+    } catch (_) {
+      _safeRemoveOverlay(overlay.path, root);
+      return const AgentRuntimeOverlayPreparation(
+        environment: <String, String>{},
+      );
+    }
+  }
+
   Future<void> clearTerminalOverlays(String terminalSessionId) async {
     final support = await _applicationSupportDirectory();
-    for (final agentKey in const <String>['opencode', 'pi']) {
+    for (final agentKey in const <String>[
+      'opencode',
+      'pi',
+      'copilot',
+      'cursor',
+      'amp',
+      'wrappers',
+    ]) {
       final root = _overlayRoot(support, agentKey);
       _safeRemoveOverlay(_overlayDirectory(root, terminalSessionId).path, root);
     }
@@ -156,6 +327,177 @@ final class AgentRuntimeOverlayService {
     );
   }
 
+  void _writeCursorPlugin(Directory pluginRoot) {
+    final overlayPath = pluginRoot.parent.path;
+    final generatedHooks = File(p.join(overlayPath, '.cursor', 'hooks.json'));
+    if (!generatedHooks.existsSync()) {
+      throw StateError('Cursor hooks.json was not generated.');
+    }
+    final pluginHooks = File(p.join(pluginRoot.path, 'hooks', 'hooks.json'));
+    pluginHooks.parent.createSync(recursive: true);
+    _deleteEntity(pluginHooks.path);
+    generatedHooks.copySync(pluginHooks.path);
+    _writeJsonObject(
+      p.join(pluginRoot.path, '.cursor-plugin', 'plugin.json'),
+      <String, Object?>{
+        'name': 'alera-agent-status',
+        'displayName': 'Alera Agent Status',
+        'description': 'Alera terminal agent status hooks.',
+        'version': '0.1.0',
+        'hooks': 'hooks/hooks.json',
+      },
+    );
+  }
+
+  Directory _wrapperBinDirectory(Directory support, String terminalSessionId) {
+    final root = _overlayRoot(support, 'wrappers');
+    return Directory(
+      p.join(_overlayDirectory(root, terminalSessionId).path, 'bin'),
+    );
+  }
+
+  void _writeAgentWrapper({
+    required Directory directory,
+    required String executableName,
+    required String source,
+  }) {
+    final path = p.join(directory.path, _wrapperFileName(executableName));
+    _writeManagedFile(path, source);
+    if (_platform != ManagedAgentHookPlatform.windows) {
+      Process.runSync('chmod', <String>['755', path]);
+    }
+  }
+
+  String _wrapperFileName(String executableName) {
+    return _platform == ManagedAgentHookPlatform.windows
+        ? '$executableName.cmd'
+        : executableName;
+  }
+
+  String _cursorAgentWrapperSource(String pluginRoot, String wrapperDirectory) {
+    if (_platform == ManagedAgentHookPlatform.windows) {
+      return _windowsCursorAgentWrapperSource(pluginRoot);
+    }
+    return '''#!/bin/sh
+${_posixStripWrapperPathPrelude(wrapperDirectory)}
+ALERA_PLUGIN_DIR=${_shQuote(pluginRoot)}
+ALERA_REAL_COMMAND=\$(command -v cursor-agent 2>/dev/null || true)
+if [ -z "\$ALERA_REAL_COMMAND" ]; then
+  echo "Alera Cursor wrapper could not find cursor-agent on PATH." >&2
+  exit 127
+fi
+exec "\$ALERA_REAL_COMMAND" --plugin-dir "\$ALERA_PLUGIN_DIR" "\$@"
+''';
+  }
+
+  String _ampWrapperSource({
+    required String xdgConfigHome,
+    required String settingsFile,
+    required String wrapperDirectory,
+  }) {
+    if (_platform == ManagedAgentHookPlatform.windows) {
+      return _windowsAmpWrapperSource(
+        xdgConfigHome: xdgConfigHome,
+        settingsFile: settingsFile,
+      );
+    }
+    return '''#!/bin/sh
+${_posixStripWrapperPathPrelude(wrapperDirectory)}
+export XDG_CONFIG_HOME=${_shQuote(xdgConfigHome)}
+export AMP_SETTINGS_FILE=${_shQuote(settingsFile)}
+ALERA_REAL_COMMAND=\$(command -v amp 2>/dev/null || true)
+if [ -z "\$ALERA_REAL_COMMAND" ]; then
+  echo "Alera Amp wrapper could not find amp on PATH." >&2
+  exit 127
+fi
+exec "\$ALERA_REAL_COMMAND" "\$@"
+''';
+  }
+
+  String _posixStripWrapperPathPrelude(String wrapperDirectory) {
+    return '''
+ALERA_WRAPPER_DIR=${_shQuote(wrapperDirectory)}
+ALERA_STRIPPED_PATH=
+ALERA_OLD_IFS=\${IFS}
+IFS=:
+for ALERA_ENTRY in \${PATH:-}; do
+  if [ "\$ALERA_ENTRY" = "\$ALERA_WRAPPER_DIR" ]; then
+    continue
+  fi
+  if [ -z "\$ALERA_STRIPPED_PATH" ]; then
+    ALERA_STRIPPED_PATH=\$ALERA_ENTRY
+  else
+    ALERA_STRIPPED_PATH=\$ALERA_STRIPPED_PATH:\$ALERA_ENTRY
+  fi
+done
+IFS=\$ALERA_OLD_IFS
+PATH=\$ALERA_STRIPPED_PATH
+export PATH
+''';
+  }
+
+  String _windowsCursorAgentWrapperSource(String pluginRoot) {
+    return '''@echo off
+setlocal
+set "ALERA_PLUGIN_DIR=${_cmdEnvValue(pluginRoot)}"
+set "ALERA_REAL_COMMAND="
+for /f "delims=" %%P in ('where cursor-agent 2^>nul') do (
+  if /I not "%%~fP"=="%~f0" if not defined ALERA_REAL_COMMAND set "ALERA_REAL_COMMAND=%%~fP"
+)
+if not defined ALERA_REAL_COMMAND (
+  echo Alera Cursor wrapper could not find cursor-agent on PATH. 1^>^&2
+  exit /b 127
+)
+"%ALERA_REAL_COMMAND%" --plugin-dir "%ALERA_PLUGIN_DIR%" %*
+exit /b %ERRORLEVEL%
+''';
+  }
+
+  String _windowsAmpWrapperSource({
+    required String xdgConfigHome,
+    required String settingsFile,
+  }) {
+    return '''@echo off
+setlocal
+set "XDG_CONFIG_HOME=${_cmdEnvValue(xdgConfigHome)}"
+set "AMP_SETTINGS_FILE=${_cmdEnvValue(settingsFile)}"
+set "ALERA_REAL_COMMAND="
+for /f "delims=" %%P in ('where amp 2^>nul') do (
+  if /I not "%%~fP"=="%~f0" if not defined ALERA_REAL_COMMAND set "ALERA_REAL_COMMAND=%%~fP"
+)
+if not defined ALERA_REAL_COMMAND (
+  echo Alera Amp wrapper could not find amp on PATH. 1^>^&2
+  exit /b 127
+)
+"%ALERA_REAL_COMMAND%" %*
+exit /b %ERRORLEVEL%
+''';
+  }
+
+  _OverlaySource _resolveAmpSource() {
+    final sourceValue = _trimmedEnvironmentValue('ALERA_AMP_SOURCE_CONFIG_DIR');
+    if (sourceValue != null) {
+      return _OverlaySource(sourceValue, isExplicit: true);
+    }
+
+    final ampConfigValue = _trimmedEnvironmentValue('AMP_CONFIG_DIR');
+    final overlayValue = _trimmedEnvironmentValue('ALERA_AMP_CONFIG_DIR');
+    if (ampConfigValue != null &&
+        (overlayValue == null || !_samePath(ampConfigValue, overlayValue))) {
+      return _OverlaySource(ampConfigValue, isExplicit: true);
+    }
+
+    final xdgConfigHome = _trimmedEnvironmentValue('XDG_CONFIG_HOME');
+    if (xdgConfigHome != null) {
+      final candidate = p.join(xdgConfigHome, 'amp');
+      if (overlayValue == null || !_samePath(candidate, overlayValue)) {
+        return _OverlaySource(candidate, isExplicit: false);
+      }
+    }
+
+    return _OverlaySource(_defaultAmpConfigDir(), isExplicit: false);
+  }
+
   _OverlaySource _resolveSource({
     required String publicEnvKey,
     required String overlayEnvKey,
@@ -195,6 +537,16 @@ final class AgentRuntimeOverlayService {
       }
     }
     return p.join(_homeDirectory, '.config', 'opencode');
+  }
+
+  String _defaultAmpConfigDir() {
+    if (_platform == ManagedAgentHookPlatform.windows) {
+      final userProfile = _trimmedEnvironmentValue('USERPROFILE');
+      if (userProfile != null) {
+        return p.join(userProfile, '.config', 'amp');
+      }
+    }
+    return p.join(_homeDirectory, '.config', 'amp');
   }
 
   String _overlayRoot(Directory support, String agentKey) {
@@ -259,6 +611,13 @@ final class AgentRuntimeOverlayService {
     );
     final tmp = File(tmpPath)..writeAsStringSync(content);
     tmp.renameSync(path);
+  }
+
+  void _writeJsonObject(String path, Map<String, Object?> value) {
+    _writeManagedFile(
+      path,
+      '${const JsonEncoder.withIndent('  ').convert(value)}\n',
+    );
   }
 
   void _copyEntity(String sourcePath, String targetPath) {
@@ -457,6 +816,17 @@ final class AgentRuntimeOverlayService {
         .replaceFirst(RegExp(r'^~(?=$|/)'), _homeDirectory)
         .replaceAll(r'${HOME}', _homeDirectory)
         .replaceAll(RegExp(r'\$HOME(?![A-Za-z0-9_])'), _homeDirectory);
+  }
+
+  String _shQuote(String value) {
+    if (value.isEmpty) {
+      return "''";
+    }
+    return "'${value.replaceAll("'", "'\"'\"'")}'";
+  }
+
+  String _cmdEnvValue(String value) {
+    return value.replaceAll('"', '""');
   }
 
   static String _resolveHome(Map<String, String>? environment) {

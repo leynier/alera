@@ -90,6 +90,8 @@ void main() {
             'export PI_CODING_AGENT_DIR="\${ALERA_PI_CODING_AGENT_DIR}"',
           ),
         );
+        expect(zshrc, contains('export COPILOT_HOME="\${ALERA_COPILOT_HOME}"'));
+        expect(zshrc, contains('ALERA_AGENT_WRAPPER_PATH'));
         expect(zshrc, contains("export ZDOTDIR='$expectedZdotdir'"));
       },
     );
@@ -196,6 +198,11 @@ void main() {
             'export PI_CODING_AGENT_DIR="\${ALERA_PI_CODING_AGENT_DIR}"',
           ),
         );
+        expect(
+          rcFile,
+          contains('export COPILOT_HOME="\${ALERA_COPILOT_HOME}"'),
+        );
+        expect(rcFile, contains('ALERA_AGENT_WRAPPER_PATH'));
       },
     );
 
@@ -244,6 +251,11 @@ void main() {
             r'$env:PI_CODING_AGENT_DIR = $env:ALERA_PI_CODING_AGENT_DIR',
           ),
         );
+        expect(
+          script,
+          contains(r'$env:COPILOT_HOME = $env:ALERA_COPILOT_HOME'),
+        );
+        expect(script, contains(r'$env:ALERA_AGENT_WRAPPER_PATH'));
       },
     );
 
@@ -267,7 +279,9 @@ void main() {
         'if set -q ALERA_CODEX_HOME; set -gx CODEX_HOME \$ALERA_CODEX_HOME; end\n'
         'if set -q ALERA_CLAUDE_CONFIG_DIR; set -gx CLAUDE_CONFIG_DIR \$ALERA_CLAUDE_CONFIG_DIR; end\n'
         'if set -q ALERA_OPENCODE_CONFIG_DIR; set -gx OPENCODE_CONFIG_DIR \$ALERA_OPENCODE_CONFIG_DIR; end\n'
-        'if set -q ALERA_PI_CODING_AGENT_DIR; set -gx PI_CODING_AGENT_DIR \$ALERA_PI_CODING_AGENT_DIR; end',
+        'if set -q ALERA_PI_CODING_AGENT_DIR; set -gx PI_CODING_AGENT_DIR \$ALERA_PI_CODING_AGENT_DIR; end\n'
+        'if set -q ALERA_COPILOT_HOME; set -gx COPILOT_HOME \$ALERA_COPILOT_HOME; end\n'
+        'if set -q ALERA_AGENT_WRAPPER_PATH; if not contains -- \$ALERA_AGENT_WRAPPER_PATH \$PATH; set -gx PATH \$ALERA_AGENT_WRAPPER_PATH \$PATH; end; end',
       );
       expect(launch.setupCommand, isNull);
     });
@@ -292,7 +306,9 @@ void main() {
           'if set -q ALERA_CODEX_HOME; set -gx CODEX_HOME \$ALERA_CODEX_HOME; end\n'
           'if set -q ALERA_CLAUDE_CONFIG_DIR; set -gx CLAUDE_CONFIG_DIR \$ALERA_CLAUDE_CONFIG_DIR; end\n'
           'if set -q ALERA_OPENCODE_CONFIG_DIR; set -gx OPENCODE_CONFIG_DIR \$ALERA_OPENCODE_CONFIG_DIR; end\n'
-          'if set -q ALERA_PI_CODING_AGENT_DIR; set -gx PI_CODING_AGENT_DIR \$ALERA_PI_CODING_AGENT_DIR; end\n',
+          'if set -q ALERA_PI_CODING_AGENT_DIR; set -gx PI_CODING_AGENT_DIR \$ALERA_PI_CODING_AGENT_DIR; end\n'
+          'if set -q ALERA_COPILOT_HOME; set -gx COPILOT_HOME \$ALERA_COPILOT_HOME; end\n'
+          'if set -q ALERA_AGENT_WRAPPER_PATH; if not contains -- \$ALERA_AGENT_WRAPPER_PATH \$PATH; set -gx PATH \$ALERA_AGENT_WRAPPER_PATH \$PATH; end; end\n',
         ),
       );
       expect(launch.setupCommand, contains('printf setup\n'));
@@ -343,6 +359,8 @@ void main() {
         config,
         contains(r'$env.PI_CODING_AGENT_DIR = $env.ALERA_PI_CODING_AGENT_DIR'),
       );
+      expect(config, contains(r'$env.COPILOT_HOME = $env.ALERA_COPILOT_HOME'));
+      expect(config, contains('ALERA_AGENT_WRAPPER_PATH'));
       expect(config, contains('pre_prompt'));
     });
 
@@ -378,6 +396,10 @@ void main() {
           r'if ("ALERA_OPENCODE_CONFIG_DIR" in $env) { $env.OPENCODE_CONFIG_DIR = $env.ALERA_OPENCODE_CONFIG_DIR }'
           '\n'
           r'if ("ALERA_PI_CODING_AGENT_DIR" in $env) { $env.PI_CODING_AGENT_DIR = $env.ALERA_PI_CODING_AGENT_DIR }'
+          '\n'
+          r'if ("ALERA_COPILOT_HOME" in $env) { $env.COPILOT_HOME = $env.ALERA_COPILOT_HOME }'
+          '\n'
+          r'if ("ALERA_AGENT_WRAPPER_PATH" in $env) { let __alera_path_entries = if ("PATH" in $env) { $env.PATH } else { [] }; if not ($env.ALERA_AGENT_WRAPPER_PATH in $__alera_path_entries) { $env.PATH = ($__alera_path_entries | prepend $env.ALERA_AGENT_WRAPPER_PATH) } }'
           '\n',
         ),
       );
@@ -402,7 +424,9 @@ void main() {
         'if defined ALERA_CODEX_HOME set "CODEX_HOME=%ALERA_CODEX_HOME%"\n'
         'if defined ALERA_CLAUDE_CONFIG_DIR set "CLAUDE_CONFIG_DIR=%ALERA_CLAUDE_CONFIG_DIR%"\n'
         'if defined ALERA_OPENCODE_CONFIG_DIR set "OPENCODE_CONFIG_DIR=%ALERA_OPENCODE_CONFIG_DIR%"\n'
-        'if defined ALERA_PI_CODING_AGENT_DIR set "PI_CODING_AGENT_DIR=%ALERA_PI_CODING_AGENT_DIR%"\n',
+        'if defined ALERA_PI_CODING_AGENT_DIR set "PI_CODING_AGENT_DIR=%ALERA_PI_CODING_AGENT_DIR%"\n'
+        'if defined ALERA_COPILOT_HOME set "COPILOT_HOME=%ALERA_COPILOT_HOME%"\n'
+        'if defined ALERA_AGENT_WRAPPER_PATH set "PATH=%ALERA_AGENT_WRAPPER_PATH%;%PATH%"\n',
       );
     });
 
@@ -424,6 +448,8 @@ void main() {
         'if defined ALERA_CLAUDE_CONFIG_DIR set "CLAUDE_CONFIG_DIR=%ALERA_CLAUDE_CONFIG_DIR%"\n'
         'if defined ALERA_OPENCODE_CONFIG_DIR set "OPENCODE_CONFIG_DIR=%ALERA_OPENCODE_CONFIG_DIR%"\n'
         'if defined ALERA_PI_CODING_AGENT_DIR set "PI_CODING_AGENT_DIR=%ALERA_PI_CODING_AGENT_DIR%"\n'
+        'if defined ALERA_COPILOT_HOME set "COPILOT_HOME=%ALERA_COPILOT_HOME%"\n'
+        'if defined ALERA_AGENT_WRAPPER_PATH set "PATH=%ALERA_AGENT_WRAPPER_PATH%;%PATH%"\n'
         'echo setup\n',
       );
     });
@@ -447,37 +473,38 @@ void main() {
           'if [ -n "\${ALERA_CODEX_HOME:-}" ]; then export CODEX_HOME="\$ALERA_CODEX_HOME"; fi\n'
           'if [ -n "\${ALERA_CLAUDE_CONFIG_DIR:-}" ]; then export CLAUDE_CONFIG_DIR="\$ALERA_CLAUDE_CONFIG_DIR"; fi\n'
           'if [ -n "\${ALERA_OPENCODE_CONFIG_DIR:-}" ]; then export OPENCODE_CONFIG_DIR="\$ALERA_OPENCODE_CONFIG_DIR"; fi\n'
-          'if [ -n "\${ALERA_PI_CODING_AGENT_DIR:-}" ]; then export PI_CODING_AGENT_DIR="\$ALERA_PI_CODING_AGENT_DIR"; fi\n',
+          'if [ -n "\${ALERA_PI_CODING_AGENT_DIR:-}" ]; then export PI_CODING_AGENT_DIR="\$ALERA_PI_CODING_AGENT_DIR"; fi\n'
+          'if [ -n "\${ALERA_COPILOT_HOME:-}" ]; then export COPILOT_HOME="\$ALERA_COPILOT_HOME"; fi\n'
+          'if [ -n "\${ALERA_AGENT_WRAPPER_PATH:-}" ]; then case ":\${PATH:-}:" in *":\${ALERA_AGENT_WRAPPER_PATH}:"*) ;; *) export PATH="\${ALERA_AGENT_WRAPPER_PATH}\${PATH:+:\${PATH}}" ;; esac; fi\n',
         );
       }
     });
 
-    test(
-      'POSIX fallback shells prepend restore before existing setup commands',
-      () async {
-        for (final shell in _posixFallbackShells) {
-          final launch = await preparer.prepare(
-            _launch(
-              shell: shell,
-              environment: const <String, String>{
-                'CODEX_HOME': '/runtime/codex',
-                'ALERA_CODEX_HOME': '/runtime/codex',
-              },
-              setupCommand: 'printf setup\n',
-            ),
-          );
+    test('POSIX fallback shells prepend restore before existing setup commands', () async {
+      for (final shell in _posixFallbackShells) {
+        final launch = await preparer.prepare(
+          _launch(
+            shell: shell,
+            environment: const <String, String>{
+              'CODEX_HOME': '/runtime/codex',
+              'ALERA_CODEX_HOME': '/runtime/codex',
+            },
+            setupCommand: 'printf setup\n',
+          ),
+        );
 
-          expect(
-            launch.setupCommand,
-            'if [ -n "\${ALERA_CODEX_HOME:-}" ]; then export CODEX_HOME="\$ALERA_CODEX_HOME"; fi\n'
-            'if [ -n "\${ALERA_CLAUDE_CONFIG_DIR:-}" ]; then export CLAUDE_CONFIG_DIR="\$ALERA_CLAUDE_CONFIG_DIR"; fi\n'
-            'if [ -n "\${ALERA_OPENCODE_CONFIG_DIR:-}" ]; then export OPENCODE_CONFIG_DIR="\$ALERA_OPENCODE_CONFIG_DIR"; fi\n'
-            'if [ -n "\${ALERA_PI_CODING_AGENT_DIR:-}" ]; then export PI_CODING_AGENT_DIR="\$ALERA_PI_CODING_AGENT_DIR"; fi\n'
-            'printf setup\n',
-          );
-        }
-      },
-    );
+        expect(
+          launch.setupCommand,
+          'if [ -n "\${ALERA_CODEX_HOME:-}" ]; then export CODEX_HOME="\$ALERA_CODEX_HOME"; fi\n'
+          'if [ -n "\${ALERA_CLAUDE_CONFIG_DIR:-}" ]; then export CLAUDE_CONFIG_DIR="\$ALERA_CLAUDE_CONFIG_DIR"; fi\n'
+          'if [ -n "\${ALERA_OPENCODE_CONFIG_DIR:-}" ]; then export OPENCODE_CONFIG_DIR="\$ALERA_OPENCODE_CONFIG_DIR"; fi\n'
+          'if [ -n "\${ALERA_PI_CODING_AGENT_DIR:-}" ]; then export PI_CODING_AGENT_DIR="\$ALERA_PI_CODING_AGENT_DIR"; fi\n'
+          'if [ -n "\${ALERA_COPILOT_HOME:-}" ]; then export COPILOT_HOME="\$ALERA_COPILOT_HOME"; fi\n'
+          'if [ -n "\${ALERA_AGENT_WRAPPER_PATH:-}" ]; then case ":\${PATH:-}:" in *":\${ALERA_AGENT_WRAPPER_PATH}:"*) ;; *) export PATH="\${ALERA_AGENT_WRAPPER_PATH}\${PATH:+:\${PATH}}" ;; esac; fi\n'
+          'printf setup\n',
+        );
+      }
+    });
 
     test(
       'Claude runtime env alone triggers shell restore preparation',

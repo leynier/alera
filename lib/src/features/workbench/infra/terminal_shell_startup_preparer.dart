@@ -231,8 +231,10 @@ GhosttyTerminalShellLaunch _launchWithPrependedSetupCommand(
 bool _hasManagedAgentRuntimeEnvironment(Map<String, String> environment) {
   return environment.containsKey('ALERA_CODEX_HOME') ||
       environment.containsKey('ALERA_CLAUDE_CONFIG_DIR') ||
+      environment.containsKey('ALERA_COPILOT_HOME') ||
       environment.containsKey('ALERA_OPENCODE_CONFIG_DIR') ||
-      environment.containsKey('ALERA_PI_CODING_AGENT_DIR');
+      environment.containsKey('ALERA_PI_CODING_AGENT_DIR') ||
+      environment.containsKey('ALERA_AGENT_WRAPPER_PATH');
 }
 
 Future<void> _writeIfChanged(File file, String contents) async {
@@ -281,6 +283,15 @@ fi
 if [[ -n "\${ALERA_PI_CODING_AGENT_DIR:-}" ]]; then
   export PI_CODING_AGENT_DIR="\${ALERA_PI_CODING_AGENT_DIR}"
 fi
+if [[ -n "\${ALERA_COPILOT_HOME:-}" ]]; then
+  export COPILOT_HOME="\${ALERA_COPILOT_HOME}"
+fi
+if [[ -n "\${ALERA_AGENT_WRAPPER_PATH:-}" ]]; then
+  case ":\${PATH:-}:" in
+    *":\${ALERA_AGENT_WRAPPER_PATH}:"*) ;;
+    *) export PATH="\${ALERA_AGENT_WRAPPER_PATH}\${PATH:+:\${PATH}}" ;;
+  esac
+fi
 ''';
 }
 
@@ -306,6 +317,15 @@ if [[ -n "\${ALERA_OPENCODE_CONFIG_DIR:-}" ]]; then
 fi
 if [[ -n "\${ALERA_PI_CODING_AGENT_DIR:-}" ]]; then
   export PI_CODING_AGENT_DIR="\${ALERA_PI_CODING_AGENT_DIR}"
+fi
+if [[ -n "\${ALERA_COPILOT_HOME:-}" ]]; then
+  export COPILOT_HOME="\${ALERA_COPILOT_HOME}"
+fi
+if [[ -n "\${ALERA_AGENT_WRAPPER_PATH:-}" ]]; then
+  case ":\${PATH:-}:" in
+    *":\${ALERA_AGENT_WRAPPER_PATH}:"*) ;;
+    *) export PATH="\${ALERA_AGENT_WRAPPER_PATH}\${PATH:+:\${PATH}}" ;;
+  esac
 fi
 export ZDOTDIR=$quotedManagedZdotdir
 unset _alera_orig_zdotdir
@@ -364,25 +384,40 @@ fi
 if [ -n "\${ALERA_PI_CODING_AGENT_DIR:-}" ]; then
   export PI_CODING_AGENT_DIR="\${ALERA_PI_CODING_AGENT_DIR}"
 fi
+if [ -n "\${ALERA_COPILOT_HOME:-}" ]; then
+  export COPILOT_HOME="\${ALERA_COPILOT_HOME}"
+fi
+if [ -n "\${ALERA_AGENT_WRAPPER_PATH:-}" ]; then
+  case ":\${PATH:-}:" in
+    *":\${ALERA_AGENT_WRAPPER_PATH}:"*) ;;
+    *) export PATH="\${ALERA_AGENT_WRAPPER_PATH}\${PATH:+:\${PATH}}" ;;
+  esac
+fi
 ''';
 
 const String _fishRestoreManagedAgentEnvironment =
     'if set -q ALERA_CODEX_HOME; set -gx CODEX_HOME \$ALERA_CODEX_HOME; end\n'
     'if set -q ALERA_CLAUDE_CONFIG_DIR; set -gx CLAUDE_CONFIG_DIR \$ALERA_CLAUDE_CONFIG_DIR; end\n'
     'if set -q ALERA_OPENCODE_CONFIG_DIR; set -gx OPENCODE_CONFIG_DIR \$ALERA_OPENCODE_CONFIG_DIR; end\n'
-    'if set -q ALERA_PI_CODING_AGENT_DIR; set -gx PI_CODING_AGENT_DIR \$ALERA_PI_CODING_AGENT_DIR; end\n';
+    'if set -q ALERA_PI_CODING_AGENT_DIR; set -gx PI_CODING_AGENT_DIR \$ALERA_PI_CODING_AGENT_DIR; end\n'
+    'if set -q ALERA_COPILOT_HOME; set -gx COPILOT_HOME \$ALERA_COPILOT_HOME; end\n'
+    'if set -q ALERA_AGENT_WRAPPER_PATH; if not contains -- \$ALERA_AGENT_WRAPPER_PATH \$PATH; set -gx PATH \$ALERA_AGENT_WRAPPER_PATH \$PATH; end; end\n';
 
 const String _cmdRestoreManagedAgentEnvironment =
     'if defined ALERA_CODEX_HOME set "CODEX_HOME=%ALERA_CODEX_HOME%"\n'
     'if defined ALERA_CLAUDE_CONFIG_DIR set "CLAUDE_CONFIG_DIR=%ALERA_CLAUDE_CONFIG_DIR%"\n'
     'if defined ALERA_OPENCODE_CONFIG_DIR set "OPENCODE_CONFIG_DIR=%ALERA_OPENCODE_CONFIG_DIR%"\n'
-    'if defined ALERA_PI_CODING_AGENT_DIR set "PI_CODING_AGENT_DIR=%ALERA_PI_CODING_AGENT_DIR%"\n';
+    'if defined ALERA_PI_CODING_AGENT_DIR set "PI_CODING_AGENT_DIR=%ALERA_PI_CODING_AGENT_DIR%"\n'
+    'if defined ALERA_COPILOT_HOME set "COPILOT_HOME=%ALERA_COPILOT_HOME%"\n'
+    'if defined ALERA_AGENT_WRAPPER_PATH set "PATH=%ALERA_AGENT_WRAPPER_PATH%;%PATH%"\n';
 
 const String _shRestoreManagedAgentEnvironment =
     'if [ -n "\${ALERA_CODEX_HOME:-}" ]; then export CODEX_HOME="\$ALERA_CODEX_HOME"; fi\n'
     'if [ -n "\${ALERA_CLAUDE_CONFIG_DIR:-}" ]; then export CLAUDE_CONFIG_DIR="\$ALERA_CLAUDE_CONFIG_DIR"; fi\n'
     'if [ -n "\${ALERA_OPENCODE_CONFIG_DIR:-}" ]; then export OPENCODE_CONFIG_DIR="\$ALERA_OPENCODE_CONFIG_DIR"; fi\n'
-    'if [ -n "\${ALERA_PI_CODING_AGENT_DIR:-}" ]; then export PI_CODING_AGENT_DIR="\$ALERA_PI_CODING_AGENT_DIR"; fi\n';
+    'if [ -n "\${ALERA_PI_CODING_AGENT_DIR:-}" ]; then export PI_CODING_AGENT_DIR="\$ALERA_PI_CODING_AGENT_DIR"; fi\n'
+    'if [ -n "\${ALERA_COPILOT_HOME:-}" ]; then export COPILOT_HOME="\$ALERA_COPILOT_HOME"; fi\n'
+    'if [ -n "\${ALERA_AGENT_WRAPPER_PATH:-}" ]; then case ":\${PATH:-}:" in *":\${ALERA_AGENT_WRAPPER_PATH}:"*) ;; *) export PATH="\${ALERA_AGENT_WRAPPER_PATH}\${PATH:+:\${PATH}}" ;; esac; fi\n';
 
 const String _nushellRestoreManagedAgentEnvironment =
     r'if ("ALERA_CODEX_HOME" in $env) { $env.CODEX_HOME = $env.ALERA_CODEX_HOME }'
@@ -392,6 +427,10 @@ const String _nushellRestoreManagedAgentEnvironment =
     r'if ("ALERA_OPENCODE_CONFIG_DIR" in $env) { $env.OPENCODE_CONFIG_DIR = $env.ALERA_OPENCODE_CONFIG_DIR }'
     '\n'
     r'if ("ALERA_PI_CODING_AGENT_DIR" in $env) { $env.PI_CODING_AGENT_DIR = $env.ALERA_PI_CODING_AGENT_DIR }'
+    '\n'
+    r'if ("ALERA_COPILOT_HOME" in $env) { $env.COPILOT_HOME = $env.ALERA_COPILOT_HOME }'
+    '\n'
+    r'if ("ALERA_AGENT_WRAPPER_PATH" in $env) { let __alera_path_entries = if ("PATH" in $env) { $env.PATH } else { [] }; if not ($env.ALERA_AGENT_WRAPPER_PATH in $__alera_path_entries) { $env.PATH = ($__alera_path_entries | prepend $env.ALERA_AGENT_WRAPPER_PATH) } }'
     '\n';
 
 const String _nushellConfigFile = r'''
@@ -412,6 +451,15 @@ if ("ALERA_OPENCODE_CONFIG_DIR" in $env) {
 if ("ALERA_PI_CODING_AGENT_DIR" in $env) {
   $env.PI_CODING_AGENT_DIR = $env.ALERA_PI_CODING_AGENT_DIR
 }
+if ("ALERA_COPILOT_HOME" in $env) {
+  $env.COPILOT_HOME = $env.ALERA_COPILOT_HOME
+}
+if ("ALERA_AGENT_WRAPPER_PATH" in $env) {
+  let __alera_path_entries = if ("PATH" in $env) { $env.PATH } else { [] }
+  if not ($env.ALERA_AGENT_WRAPPER_PATH in $__alera_path_entries) {
+    $env.PATH = ($__alera_path_entries | prepend $env.ALERA_AGENT_WRAPPER_PATH)
+  }
+}
 let __alera_restore_managed_agent_environment = { ||
   if ("ALERA_CODEX_HOME" in $env) {
     $env.CODEX_HOME = $env.ALERA_CODEX_HOME
@@ -424,6 +472,15 @@ let __alera_restore_managed_agent_environment = { ||
   }
   if ("ALERA_PI_CODING_AGENT_DIR" in $env) {
     $env.PI_CODING_AGENT_DIR = $env.ALERA_PI_CODING_AGENT_DIR
+  }
+  if ("ALERA_COPILOT_HOME" in $env) {
+    $env.COPILOT_HOME = $env.ALERA_COPILOT_HOME
+  }
+  if ("ALERA_AGENT_WRAPPER_PATH" in $env) {
+    let __alera_path_entries = if ("PATH" in $env) { $env.PATH } else { [] }
+    if not ($env.ALERA_AGENT_WRAPPER_PATH in $__alera_path_entries) {
+      $env.PATH = ($__alera_path_entries | prepend $env.ALERA_AGENT_WRAPPER_PATH)
+    }
   }
 }
 if not ("config" in $env) {
@@ -446,6 +503,16 @@ if ($env:ALERA_OPENCODE_CONFIG_DIR) {
 }
 if ($env:ALERA_PI_CODING_AGENT_DIR) {
   $env:PI_CODING_AGENT_DIR = $env:ALERA_PI_CODING_AGENT_DIR
+}
+if ($env:ALERA_COPILOT_HOME) {
+  $env:COPILOT_HOME = $env:ALERA_COPILOT_HOME
+}
+if ($env:ALERA_AGENT_WRAPPER_PATH) {
+  $separator = [IO.Path]::PathSeparator
+  $entries = @($env:PATH -split [Regex]::Escape([string]$separator))
+  if ($entries -notcontains $env:ALERA_AGENT_WRAPPER_PATH) {
+    $env:PATH = $env:ALERA_AGENT_WRAPPER_PATH + $separator + $env:PATH
+  }
 }
 ''';
 
