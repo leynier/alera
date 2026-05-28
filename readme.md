@@ -143,7 +143,7 @@ Released builds use bundle/application identifier `dev.leynier.alera` and the di
 
 ## Releases and updates
 
-Public release cuts are maintainer-managed through GitHub Actions. Stable builds can detect new releases and open the manual download page; automatic stable installation stays disabled until the release builds are signed and trusted for the target platform. Release candidate builds may opt into automatic installation through explicit build flags. Stable builds read `app-archive.json`; release candidate builds read `app-archive-rc.json`.
+Public release cuts are maintainer-managed through GitHub Actions. Stable builds can detect new releases and open the manual download page; automatic stable installation stays disabled until the release builds are signed and trusted for the target platform. Release candidate builds may opt into automatic installation through explicit build flags. Stable builds read `https://updates.alera.build/app-archive.json`; release candidate builds read `https://updates.alera.build/app-archive-rc.json`. Updater payloads are hosted in Cloudflare R2 under `updates/stable/` and `updates/rc/`; GitHub Releases remain the manual download surface.
 
 ## Reference projects
 

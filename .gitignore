@@ -29,5 +29,8 @@ macos/Runner/Configs/Flavor.xcconfig
 # Agy workspace
 .antigravitycli/
 
+# Cloudflare Wrangler local cache
+.wrangler/
+
 # MacOS
 .DS_Store

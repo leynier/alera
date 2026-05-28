@@ -17,7 +17,7 @@ void main() {
     test('exposes the canonical default URLs and environment defaults', () {
       expect(
         AleraUpdateConfig.defaultArchiveUrl,
-        Uri.parse('https://leynier.github.io/alera/app-archive.json'),
+        Uri.parse('https://updates.alera.build/app-archive.json'),
       );
       expect(
         AleraUpdateConfig.defaultReleasePageUrl,

@@ -12,7 +12,10 @@ void main(List<String> args) {
   final buildNumber = int.parse(_requiredEnv('ALERA_RELEASE_BUILD_NUMBER'));
   final baseUrl = _trimTrailingSlash(
     Platform.environment['ALERA_UPDATE_BASE_URL'] ??
-        'https://leynier.github.io/alera',
+        'https://updates.alera.build',
+  );
+  final pathPrefix = _normalizePathPrefix(
+    Platform.environment['ALERA_UPDATE_PATH_PREFIX'] ?? 'updates',
   );
   final releaseDate =
       Platform.environment['ALERA_RELEASE_DATE'] ??
@@ -32,7 +35,7 @@ void main(List<String> args) {
           'changes': changes,
           'date': releaseDate,
           'mandatory': mandatory,
-          'url': '$baseUrl/updates/$artifactVersion+$buildNumber-$platform',
+          'url': '$baseUrl/$pathPrefix/$artifactVersion+$buildNumber-$platform',
           'platform': platform,
         },
     ],
@@ -55,6 +58,14 @@ String _requiredEnv(String name) {
 
 String _trimTrailingSlash(String value) {
   return value.endsWith('/') ? value.substring(0, value.length - 1) : value;
+}
+
+String _normalizePathPrefix(String value) {
+  final trimmed = value.trim();
+  if (trimmed.isEmpty) {
+    return 'updates';
+  }
+  return trimmed.split('/').where((part) => part.trim().isNotEmpty).join('/');
 }
 
 List<Map<String, String>> _changesFromEnvironment(String releaseVersion) {

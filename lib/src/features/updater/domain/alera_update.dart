@@ -50,7 +50,7 @@ class AleraUpdateConfig with AleraUpdateConfigMappable {
   });
 
   static final Uri defaultArchiveUrl = Uri.parse(
-    'https://leynier.github.io/alera/app-archive.json',
+    'https://updates.alera.build/app-archive.json',
   );
   static final Uri defaultReleasePageUrl = Uri.parse(
     'https://github.com/leynier/alera/releases',
@@ -95,7 +95,7 @@ class AleraUpdateConfig with AleraUpdateConfigMappable {
     final archiveUrl = Uri.tryParse(
       const String.fromEnvironment(
         'ALERA_UPDATE_ARCHIVE_URL',
-        defaultValue: 'https://leynier.github.io/alera/app-archive.json',
+        defaultValue: 'https://updates.alera.build/app-archive.json',
       ),
     );
     final releasePageUrl = Uri.tryParse(
