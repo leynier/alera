@@ -58,6 +58,13 @@ void main() {
       );
     });
 
+    test('reports Codex hooks as runtime-only status', () {
+      final status = service.status(AgentType.codex);
+
+      expect(status.state, ManagedAgentHookInstallState.notInstalled);
+      expect(status.detail, contains('runtime homes'));
+    });
+
     test('does not install Claude hooks into the user config', () {
       final configPath = p.join(home.path, '.claude', 'settings.json');
       _writeJson(configPath, <String, Object?>{
@@ -134,6 +141,87 @@ void main() {
       );
     });
 
+    test('reports malformed JSON configs as errors', () {
+      final configPath = p.join(home.path, '.cursor', 'hooks.json');
+      File(configPath)
+        ..createSync(recursive: true)
+        ..writeAsStringSync('{not json');
+
+      final status = service.status(AgentType.cursor);
+      final install = service.install(AgentType.cursor);
+      final remove = service.remove(AgentType.cursor);
+
+      expect(status.state, ManagedAgentHookInstallState.error);
+      expect(install.state, ManagedAgentHookInstallState.error);
+      expect(remove.state, ManagedAgentHookInstallState.error);
+      expect(status.detail, contains('Could not parse Cursor hooks.json.'));
+      expect(install.detail, contains('Could not parse Cursor hooks.json.'));
+      expect(remove.detail, contains('Could not parse Cursor hooks.json.'));
+    });
+
+    test('reports partial Copilot configs when disabled or missing events', () {
+      service.install(AgentType.copilot);
+      final configPath = p.join(home.path, '.copilot', 'hooks', 'alera.json');
+      final config = _readJson(configPath);
+      config['disableAllHooks'] = true;
+      _writeJson(configPath, config);
+
+      final disabledStatus = service.status(AgentType.copilot);
+
+      expect(disabledStatus.state, ManagedAgentHookInstallState.partial);
+      expect(disabledStatus.detail, contains('disabled'));
+
+      config.remove('disableAllHooks');
+      final hooks = Map<String, Object?>.from(config['hooks'] as Map);
+      hooks.remove('Stop');
+      config['hooks'] = hooks;
+      _writeJson(configPath, config);
+
+      final missingStatus = service.status(AgentType.copilot);
+
+      expect(missingStatus.state, ManagedAgentHookInstallState.partial);
+      expect(missingStatus.detail, contains('Stop'));
+    });
+
+    test('keeps existing managed scripts executable on reinstall', () {
+      service.install(AgentType.copilot);
+      final scriptPath = p.join(
+        home.path,
+        '.alera',
+        'agent-hooks',
+        'alera-copilot-hook.sh',
+      );
+      final before = File(scriptPath).readAsStringSync();
+
+      final status = service.install(AgentType.copilot);
+
+      expect(status.state, ManagedAgentHookInstallState.installed);
+      expect(File(scriptPath).readAsStringSync(), before);
+    });
+
+    test('cleans stale managed commands from unmanaged Copilot events', () {
+      final configPath = p.join(home.path, '.copilot', 'hooks', 'alera.json');
+      final staleCommand = p.join(
+        home.path,
+        '.alera',
+        'agent-hooks',
+        'alera-copilot-hook.sh',
+      );
+      _writeJson(configPath, <String, Object?>{
+        'hooks': <String, Object?>{
+          'customEvent': <Object?>[
+            <String, Object?>{'bash': staleCommand},
+            <String, Object?>{'bash': 'echo keep'},
+          ],
+        },
+      });
+
+      service.install(AgentType.copilot);
+      final hooks = _hooks(configPath);
+
+      expect(_directCommandsFor(hooks, 'customEvent'), <String>['echo keep']);
+    });
+
     test('removes only Alera-managed Copilot hooks', () {
       service.install(AgentType.copilot);
       final configPath = p.join(home.path, '.copilot', 'hooks', 'alera.json');
@@ -154,6 +242,35 @@ void main() {
         'echo user prompt',
       ]);
       expect(nextHooks['SessionStart'], isNull);
+    });
+
+    test('remove preserves user hooks nested beside managed commands', () {
+      service.install(AgentType.copilot);
+      final configPath = p.join(home.path, '.copilot', 'hooks', 'alera.json');
+      final config = _readJson(configPath);
+      final hooks = Map<String, Object?>.from(config['hooks'] as Map);
+      final managedCommand = p.join(
+        home.path,
+        '.alera',
+        'agent-hooks',
+        'alera-copilot-hook.sh',
+      );
+      hooks['Stop'] = <Object?>[
+        <String, Object?>{
+          'hooks': <Object?>[
+            <String, Object?>{'type': 'command', 'command': managedCommand},
+            <String, Object?>{'type': 'command', 'command': 'echo user stop'},
+          ],
+        },
+      ];
+      config['hooks'] = hooks;
+      _writeJson(configPath, config);
+
+      final status = service.remove(AgentType.copilot);
+      final nextHooks = _hooks(configPath);
+
+      expect(status.state, ManagedAgentHookInstallState.notInstalled);
+      expect(_commandsFor(nextHooks, 'Stop'), <String>['echo user stop']);
     });
 
     test('installs Cursor hooks with top-level commands', () {
@@ -216,6 +333,31 @@ void main() {
         ).readAsStringSync(),
         allOf(contains('/hook/cursor'), contains('ALERA_AGENT_HOOK_ENDPOINT')),
       );
+    });
+
+    test('installs Copilot PowerShell hooks on Windows with quoted paths', () {
+      final quotedHome = Directory(p.join(home.path, "quoted'home"))
+        ..createSync(recursive: true);
+      final windowsService = ManagedAgentHookInstallService(
+        homeDirectory: quotedHome.path,
+        platform: ManagedAgentHookPlatform.windows,
+        environment: <String, String>{'USERPROFILE': quotedHome.path},
+      );
+
+      final status = windowsService.install(AgentType.copilot);
+      final configPath = p.join(
+        quotedHome.path,
+        '.copilot',
+        'hooks',
+        'alera.json',
+      );
+      final hooks = _hooks(configPath);
+      final command = _directCommandsFor(hooks, 'UserPromptSubmit').single;
+
+      expect(status.state, ManagedAgentHookInstallState.installed);
+      expect(command, contains(r'$env:ALERA_COPILOT_HOOK_EVENT'));
+      expect(command, contains("quoted''home"));
+      expect(command, contains('alera-copilot-hook.ps1'));
     });
 
     test('removes only Alera-managed Cursor hooks', () {
@@ -302,6 +444,38 @@ void main() {
       );
     });
 
+    test('installs AGY wrapper scripts on Windows', () {
+      final windowsService = ManagedAgentHookInstallService(
+        homeDirectory: home.path,
+        platform: ManagedAgentHookPlatform.windows,
+        environment: <String, String>{'USERPROFILE': home.path},
+      );
+
+      final status = windowsService.install(AgentType.agy);
+      final configPath = p.join(home.path, '.gemini', 'config', 'hooks.json');
+      final bundle = Map<String, Object?>.from(
+        _readJson(configPath)['alera-status'] as Map,
+      );
+
+      expect(status.state, ManagedAgentHookInstallState.installed);
+      expect(
+        _commandsFor(bundle, 'Stop').single,
+        contains('alera-agy-stop.cmd'),
+      );
+      expect(
+        File(
+          p.join(home.path, '.alera', 'agent-hooks', 'alera-agy-stop.cmd'),
+        ).readAsStringSync(),
+        contains('ALERA_AGY_EVENT=Stop'),
+      );
+      expect(
+        File(
+          p.join(home.path, '.alera', 'agent-hooks', 'alera-agy-hook.cmd'),
+        ).readAsStringSync(),
+        contains('/hook/agy'),
+      );
+    });
+
     test('removes only Alera-managed AGY bundle entries', () {
       service.install(AgentType.agy);
       final configPath = p.join(home.path, '.gemini', 'config', 'hooks.json');
@@ -321,6 +495,17 @@ void main() {
       expect(status.state, ManagedAgentHookInstallState.notInstalled);
       expect(_commandsFor(nextBundle, 'PreInvocation'), <String>['echo user']);
       expect(nextBundle['Stop'], isNull);
+    });
+
+    test('removes empty AGY bundles after deleting managed commands', () {
+      service.install(AgentType.agy);
+
+      final status = service.remove(AgentType.agy);
+      final configPath = p.join(home.path, '.gemini', 'config', 'hooks.json');
+      final config = _readJson(configPath);
+
+      expect(status.state, ManagedAgentHookInstallState.notInstalled);
+      expect(config.containsKey('alera-status'), isFalse);
     });
 
     test('installs and removes the managed OpenCode status plugin', () {
@@ -354,6 +539,58 @@ void main() {
       final removed = service.remove(AgentType.opencode);
       expect(removed.state, ManagedAgentHookInstallState.notInstalled);
       expect(File(pluginPath).existsSync(), isFalse);
+    });
+
+    test('resolves OpenCode artifact paths from env and Windows defaults', () {
+      final envPath = p.join(home.path, 'custom-opencode');
+      final envService = ManagedAgentHookInstallService(
+        homeDirectory: home.path,
+        platform: ManagedAgentHookPlatform.posix,
+        environment: <String, String>{
+          'HOME': home.path,
+          'OPENCODE_CONFIG_DIR': envPath,
+        },
+      );
+      expect(
+        envService.install(AgentType.opencode).configPath,
+        p.join(envPath, 'plugins', 'alera-agent-status.js'),
+      );
+
+      final appData = p.join(home.path, 'AppData', 'Roaming');
+      final windowsService = ManagedAgentHookInstallService(
+        homeDirectory: home.path,
+        platform: ManagedAgentHookPlatform.windows,
+        environment: <String, String>{
+          'USERPROFILE': home.path,
+          'APPDATA': appData,
+        },
+      );
+      expect(
+        windowsService.install(AgentType.opencode).configPath,
+        p.join(appData, 'opencode', 'plugins', 'alera-agent-status.js'),
+      );
+    });
+
+    test('reports managed artifacts that need updating as partial', () {
+      final pluginPath = p.join(
+        home.path,
+        '.config',
+        'opencode',
+        'plugins',
+        'alera-agent-status.js',
+      );
+      File(pluginPath)
+        ..createSync(recursive: true)
+        ..writeAsStringSync(
+          '// ALERA_AGENT_STATUS_MANAGED_FILE\n'
+          'export default function stalePlugin() {}\n',
+        );
+
+      final status = service.status(AgentType.opencode);
+
+      expect(status.state, ManagedAgentHookInstallState.partial);
+      expect(status.managedHooksPresent, isTrue);
+      expect(status.detail, contains('needs to be updated'));
     });
 
     test('installs the managed Pi extension under PI_CODING_AGENT_DIR', () {
@@ -413,6 +650,32 @@ void main() {
       expect(File(pluginPath).existsSync(), isFalse);
     });
 
+    test('resolves Amp artifact paths from env and Windows defaults', () {
+      final envPath = p.join(home.path, 'custom-amp');
+      final envService = ManagedAgentHookInstallService(
+        homeDirectory: home.path,
+        platform: ManagedAgentHookPlatform.posix,
+        environment: <String, String>{
+          'HOME': home.path,
+          'AMP_CONFIG_DIR': envPath,
+        },
+      );
+      expect(
+        envService.install(AgentType.amp).configPath,
+        p.join(envPath, 'plugins', 'alera-agent-status.ts'),
+      );
+
+      final windowsService = ManagedAgentHookInstallService(
+        homeDirectory: home.path,
+        platform: ManagedAgentHookPlatform.windows,
+        environment: <String, String>{'USERPROFILE': home.path},
+      );
+      expect(
+        windowsService.install(AgentType.amp).configPath,
+        p.join(home.path, '.config', 'amp', 'plugins', 'alera-agent-status.ts'),
+      );
+    });
+
     test('refuses to overwrite unmanaged OpenCode plugin files', () {
       final pluginPath = p.join(
         home.path,
@@ -456,6 +719,60 @@ void main() {
       expect(
         File(pluginPath).readAsStringSync(),
         'export default function userPlugin() {}\n',
+      );
+    });
+
+    test(
+      'bulk install, remove, and reconcile use every supported agent',
+      () async {
+        final installStatuses = await service.installAll();
+
+        expect(installStatuses, hasLength(AgentType.values.length));
+        expect(
+          installStatuses.where(
+            (status) => status.state == ManagedAgentHookInstallState.installed,
+          ),
+          isNotEmpty,
+        );
+
+        final reconcileStatuses = await service.reconcile(
+          enabledAgentTypes: const <AgentType>{AgentType.copilot},
+          agentTypes: const <AgentType>{AgentType.copilot, AgentType.cursor},
+        );
+
+        expect(reconcileStatuses.map((status) => status.agentType), <AgentType>[
+          AgentType.copilot,
+          AgentType.cursor,
+        ]);
+        expect(
+          reconcileStatuses.first.state,
+          ManagedAgentHookInstallState.installed,
+        );
+        expect(
+          reconcileStatuses.last.state,
+          ManagedAgentHookInstallState.notInstalled,
+        );
+
+        final removeStatuses = await service.removeAll();
+
+        expect(removeStatuses, hasLength(AgentType.values.length));
+        expect(
+          removeStatuses.every(
+            (status) =>
+                status.state == ManagedAgentHookInstallState.notInstalled,
+          ),
+          isTrue,
+        );
+      },
+    );
+
+    test('throws when home cannot be resolved from the environment', () {
+      expect(
+        () => ManagedAgentHookInstallService(
+          platform: ManagedAgentHookPlatform.posix,
+          environment: const <String, String>{},
+        ),
+        throwsStateError,
       );
     });
   });

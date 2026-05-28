@@ -55,6 +55,14 @@ void main() {
       expect(entry.toolInput, 'flutter analyze');
       expect(entry.updatedAt, times[1]);
       expect(entry.stateStartedAt, times[0]);
+      expect(
+        container.read(agentStatusByTerminalSessionProvider('session-1')),
+        same(entry),
+      );
+      expect(
+        container.read(agentStatusByTerminalSessionProvider('missing')),
+        isNull,
+      );
     });
 
     test('normalizes human input tool use as waiting', () {

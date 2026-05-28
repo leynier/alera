@@ -150,6 +150,88 @@ void main() {
       },
     );
 
+    test('reports not installed before runtime hooks exist', () async {
+      final status = await service.status();
+
+      expect(status.state, ManagedAgentHookInstallState.notInstalled);
+      expect(status.managedHooksPresent, isFalse);
+      expect(
+        status.configPath,
+        p.join(
+          support.path,
+          'agent-runtime-homes',
+          'claude',
+          'home',
+          'settings.json',
+        ),
+      );
+    });
+
+    test('reports invalid runtime settings as an error', () async {
+      final runtimeSettingsPath = p.join(
+        support.path,
+        'agent-runtime-homes',
+        'claude',
+        'home',
+        'settings.json',
+      );
+      File(runtimeSettingsPath)
+        ..createSync(recursive: true)
+        ..writeAsStringSync('{not json');
+
+      final status = await service.status();
+      final removeStatus = await service.remove();
+
+      expect(status.state, ManagedAgentHookInstallState.error);
+      expect(removeStatus.state, ManagedAgentHookInstallState.error);
+      expect(status.configPath, runtimeSettingsPath);
+      expect(removeStatus.configPath, runtimeSettingsPath);
+    });
+
+    test('reports partial status when a managed event is missing', () async {
+      final preparation = await service.prepareForTerminalLaunch();
+      final runtimeSettingsPath = p.join(
+        preparation.runtimeHomePath,
+        'settings.json',
+      );
+      final runtimeConfig = _readJson(runtimeSettingsPath);
+      final runtimeHooks = Map<String, Object?>.from(
+        runtimeConfig['hooks'] as Map,
+      );
+      runtimeHooks.remove('Stop');
+      runtimeConfig['hooks'] = runtimeHooks;
+      _writeJson(runtimeSettingsPath, runtimeConfig);
+
+      final status = await service.status();
+
+      expect(status.state, ManagedAgentHookInstallState.partial);
+      expect(status.managedHooksPresent, isTrue);
+      expect(status.detail, contains('Managed hook missing for events: Stop.'));
+    });
+
+    test('uses cmd runtime hooks on Windows', () async {
+      final windowsService = ClaudeRuntimeHomeService(
+        homeDirectory: home.path,
+        applicationSupportDirectory: () async => support,
+        platform: ManagedAgentHookPlatform.windows,
+        environment: <String, String>{'USERPROFILE': home.path},
+        syncMacOSKeychainCredentials: false,
+      );
+
+      final preparation = await windowsService.prepareForTerminalLaunch();
+
+      final runtimeHooks = _hooks(
+        p.join(preparation.runtimeHomePath, 'settings.json'),
+      );
+      expect(_managedCommandCount(runtimeHooks, 'alera-claude-hook.cmd'), 6);
+      expect(
+        File(
+          p.join(home.path, '.alera', 'agent-hooks', 'alera-claude-hook.cmd'),
+        ).readAsStringSync(),
+        contains('/hook/claude'),
+      );
+    });
+
     test(
       'reuses fallback copied resources while the source is unchanged',
       () async {
@@ -223,6 +305,69 @@ void main() {
     );
 
     test(
+      'clears markers for linked resources and removes stale owned entries',
+      () async {
+        final sourcePlugins = Directory(p.join(home.path, '.claude', 'plugins'))
+          ..createSync(recursive: true);
+        File(p.join(sourcePlugins.path, 'demo.md')).writeAsStringSync('plugin');
+        final preparation = await service.prepareForTerminalLaunch();
+        final marker = File(
+          p.join(preparation.runtimeHomePath, '.alera-copied-plugins.json'),
+        )..writeAsStringSync('{}\n');
+
+        await service.prepareForTerminalLaunch();
+
+        expect(marker.existsSync(), isFalse);
+
+        final sourceCommands = Directory(
+          p.join(home.path, '.claude', 'commands'),
+        )..createSync(recursive: true);
+        File(p.join(sourceCommands.path, 'demo.md')).writeAsStringSync('cmd');
+        await service.prepareForTerminalLaunch();
+        sourceCommands.deleteSync(recursive: true);
+        await service.prepareForTerminalLaunch();
+
+        expect(
+          FileSystemEntity.typeSync(
+            p.join(preparation.runtimeHomePath, 'commands'),
+            followLinks: false,
+          ),
+          FileSystemEntityType.notFound,
+        );
+      },
+    );
+
+    test(
+      'copies linked resources and ignores malformed fallback markers',
+      () async {
+        final targetPath = p.join(home.path, 'missing-plugin-target.md');
+        final sourcePlugins = Directory(p.join(home.path, '.claude', 'plugins'))
+          ..createSync(recursive: true);
+        Link(p.join(sourcePlugins.path, 'linked.md')).createSync(targetPath);
+        final fallbackService = _serviceWithFailingResourceLinks(
+          home: home,
+          support: support,
+        );
+
+        final preparation = await fallbackService.prepareForTerminalLaunch();
+        final marker = File(
+          p.join(preparation.runtimeHomePath, '.alera-copied-plugins.json'),
+        )..writeAsStringSync('{bad');
+        sourcePlugins.deleteSync(recursive: true);
+        await fallbackService.prepareForTerminalLaunch();
+
+        expect(marker.existsSync(), isTrue);
+        expect(
+          FileSystemEntity.typeSync(
+            p.join(preparation.runtimeHomePath, 'plugins'),
+            followLinks: false,
+          ),
+          isNot(FileSystemEntityType.notFound),
+        );
+      },
+    );
+
+    test(
       'removes owned runtime resources when the source disappears',
       () async {
         final sourcePlugins = Directory(p.join(home.path, '.claude', 'plugins'))
@@ -240,6 +385,109 @@ void main() {
           ),
           FileSystemEntityType.notFound,
         );
+      },
+    );
+
+    test('handles broken source links and stale runtime links', () async {
+      final runtimeHome = Directory(
+        p.join(support.path, 'agent-runtime-homes', 'claude', 'home'),
+      )..createSync(recursive: true);
+      final sourcePlugins = Directory(p.join(home.path, '.claude', 'plugins'))
+        ..createSync(recursive: true);
+      File(p.join(sourcePlugins.path, 'demo.md')).writeAsStringSync('plugin');
+      final wrongSource = Directory(p.join(root.path, 'wrong-plugins'))
+        ..createSync(recursive: true);
+      Link(p.join(runtimeHome.path, 'plugins')).createSync(wrongSource.path);
+      final brokenSourcePath = p.join(home.path, '.claude', 'broken-link');
+      Link(brokenSourcePath).createSync(p.join(root.path, 'missing-source'));
+      File(
+        p.join(runtimeHome.path, '.alera-copied-broken-link.json'),
+      ).writeAsStringSync('{}\n');
+
+      await service.prepareForTerminalLaunch();
+
+      expect(
+        FileSystemEntity.typeSync(
+          p.join(runtimeHome.path, 'plugins'),
+          followLinks: false,
+        ),
+        FileSystemEntityType.link,
+      );
+      expect(
+        Link(p.join(runtimeHome.path, 'plugins')).targetSync(),
+        sourcePlugins.path,
+      );
+      expect(
+        File(
+          p.join(runtimeHome.path, '.alera-copied-broken-link.json'),
+        ).existsSync(),
+        isFalse,
+      );
+    });
+
+    test(
+      'accepts relative runtime links that already point to the source',
+      () async {
+        final runtimeHome = Directory(
+          p.join(support.path, 'agent-runtime-homes', 'claude', 'home'),
+        )..createSync(recursive: true);
+        final sourcePlugins = Directory(p.join(home.path, '.claude', 'plugins'))
+          ..createSync(recursive: true);
+        File(p.join(sourcePlugins.path, 'demo.md')).writeAsStringSync('plugin');
+        final relativeTarget = p.relative(
+          sourcePlugins.path,
+          from: runtimeHome.path,
+        );
+        Link(p.join(runtimeHome.path, 'plugins')).createSync(relativeTarget);
+        final marker = File(
+          p.join(runtimeHome.path, '.alera-copied-plugins.json'),
+        )..writeAsStringSync('{}\n');
+
+        await service.prepareForTerminalLaunch();
+
+        expect(marker.existsSync(), isFalse);
+        expect(
+          Link(p.join(runtimeHome.path, 'plugins')).targetSync(),
+          relativeTarget,
+        );
+      },
+    );
+
+    test(
+      'fingerprints nested fallback copies and deletes stale owned files',
+      () async {
+        final sourcePlugins = Directory(p.join(home.path, '.claude', 'plugins'))
+          ..createSync(recursive: true);
+        final nested = Directory(p.join(sourcePlugins.path, 'nested'))
+          ..createSync();
+        File(p.join(nested.path, 'demo.md')).writeAsStringSync('plugin');
+        final legacyConfig = File(p.join(home.path, '.claude.json'))
+          ..writeAsStringSync('{"projects":{}}\n');
+        final fallbackService = _serviceWithFailingResourceLinks(
+          home: home,
+          support: support,
+        );
+
+        final preparation = await fallbackService.prepareForTerminalLaunch();
+        final pluginMarker = File(
+          p.join(preparation.runtimeHomePath, '.alera-copied-plugins.json'),
+        );
+        final firstFingerprint = _markerFingerprint(pluginMarker);
+        File(
+          p.join(nested.path, 'next.md'),
+        ).writeAsStringSync('changed nested source');
+
+        await fallbackService.prepareForTerminalLaunch();
+        expect(_markerFingerprint(pluginMarker), isNot(firstFingerprint));
+
+        final runtimeLegacyConfig = File(
+          p.join(preparation.runtimeHomePath, '.claude.json'),
+        );
+        expect(runtimeLegacyConfig.existsSync(), isTrue);
+        legacyConfig.deleteSync();
+        await fallbackService.prepareForTerminalLaunch();
+
+        expect(runtimeLegacyConfig.existsSync(), isFalse);
       },
     );
 
@@ -267,6 +515,52 @@ void main() {
       ]);
       expect(_managedCommandCount(runtimeHooks, 'alera-claude-hook.sh'), 0);
     });
+
+    test(
+      'install replaces stale managed hooks copied from source settings',
+      () async {
+        final staleManagedCommand = p.join(
+          home.path,
+          '.alera',
+          'agent-hooks',
+          'alera-claude-hook.sh',
+        );
+        final sourceSettingsPath = p.join(
+          home.path,
+          '.claude',
+          'settings.json',
+        );
+        _writeJson(sourceSettingsPath, <String, Object?>{
+          'hooks': <String, Object?>{
+            'UserPromptSubmit': <Object?>[
+              <String, Object?>{'command': staleManagedCommand},
+            ],
+            'Stop': <Object?>[
+              <String, Object?>{
+                'hooks': <Object?>[
+                  <String, Object?>{'command': staleManagedCommand},
+                  <String, Object?>{'command': 'echo user-stop'},
+                ],
+              },
+            ],
+          },
+        });
+
+        final preparation = await service.prepareForTerminalLaunch();
+
+        final runtimeHooks = _hooks(
+          p.join(preparation.runtimeHomePath, 'settings.json'),
+        );
+        expect(
+          _commandsFor(runtimeHooks, 'Stop'),
+          allOf(
+            contains('echo user-stop'),
+            isNot(contains(staleManagedCommand)),
+          ),
+        );
+        expect(_managedCommandCount(runtimeHooks, 'alera-claude-hook.sh'), 6);
+      },
+    );
 
     test('reports invalid source settings as an error', () async {
       final sourceSettings = File(p.join(home.path, '.claude', 'settings.json'))
@@ -323,6 +617,35 @@ void main() {
         ]);
       },
     );
+
+    test('ignores keychain sync failures', () async {
+      final keychainService = ClaudeRuntimeHomeService(
+        homeDirectory: home.path,
+        applicationSupportDirectory: () async => support,
+        platform: ManagedAgentHookPlatform.posix,
+        environment: <String, String>{'HOME': home.path},
+        keychainCredentialsStore: _ThrowingClaudeKeychainCredentialsStore(),
+      );
+
+      final preparation = await keychainService.prepareForTerminalLaunch();
+
+      expect(
+        preparation.hookStatus.state,
+        ManagedAgentHookInstallState.installed,
+      );
+    });
+
+    test('throws when a home directory cannot be resolved', () {
+      expect(
+        () => ClaudeRuntimeHomeService(
+          applicationSupportDirectory: () async => support,
+          platform: ManagedAgentHookPlatform.posix,
+          environment: const <String, String>{},
+          syncMacOSKeychainCredentials: false,
+        ),
+        throwsStateError,
+      );
+    });
   });
 }
 
@@ -365,6 +688,23 @@ final class _FakeClaudeKeychainCredentialsStore
     deletedConfigDirs.add(configDir);
     scopedCredentials.remove(configDir);
   }
+}
+
+final class _ThrowingClaudeKeychainCredentialsStore
+    implements ClaudeKeychainCredentialsStore {
+  @override
+  String? readLegacyCredentials() {
+    throw const FileSystemException('keychain unavailable');
+  }
+
+  @override
+  void writeScopedCredentials({
+    required String configDir,
+    required String credentials,
+  }) {}
+
+  @override
+  void deleteScopedCredentials(String configDir) {}
 }
 
 String _markerFingerprint(File marker) {

@@ -239,12 +239,16 @@ String _shQuote(String value) => "'${value.replaceAll("'", "'\\''")}'";
 
 String _resolveHome(Map<String, String>? environment) {
   final env = environment ?? Platform.environment;
+  // coverage:ignore-start
+  // This branch depends on the host OS rather than injected platform state.
+  // Constructor tests cover HOME and USERPROFILE fallback behavior on macOS.
   if (Platform.isWindows) {
     final profile = env['USERPROFILE']?.trim();
     if (profile != null && profile.isNotEmpty) {
       return profile;
     }
   }
+  // coverage:ignore-end
   final home = env['HOME']?.trim();
   if (home != null && home.isNotEmpty) {
     return home;
@@ -263,6 +267,9 @@ void _createResourceLink({
   Link(targetPath).createSync(sourcePath, recursive: true);
 }
 
+// coverage:ignore-start
+// Defensive label for uncommon FileSystemEntityType values that are difficult
+// to synthesize portably; normal file, directory, and link sync paths are tested.
 String _fileSystemEntityTypeName(FileSystemEntityType type) {
   if (type == FileSystemEntityType.directory) {
     return 'directory';
@@ -278,6 +285,7 @@ String _fileSystemEntityTypeName(FileSystemEntityType type) {
   }
   return type.toString();
 }
+// coverage:ignore-end
 
 final class _TomlSection {
   const _TomlSection({

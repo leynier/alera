@@ -68,7 +68,9 @@ Future<_ShellPumpHarness> _pumpShell(
             (ref) => workspaceFolderOpener,
           ),
       ],
-      child: const MaterialApp(home: AleraShellPage()),
+      child: MaterialApp(
+        home: AleraShellPage(key: const ValueKey<String>('alera-shell-page')),
+      ),
     ),
   );
   await tester.pump();
@@ -340,6 +342,10 @@ AgentStatusEntry _agentStatusEntry({
   required String tabId,
   required AgentStatusState state,
   String prompt = '',
+  String? toolName,
+  String? toolInput,
+  String? lastAssistantMessage,
+  bool? interrupted,
 }) {
   return AgentStatusEntry(
     terminalSessionId: terminalSessionId,
@@ -348,6 +354,10 @@ AgentStatusEntry _agentStatusEntry({
     agentType: AgentType.codex,
     state: state,
     prompt: prompt,
+    toolName: toolName,
+    toolInput: toolInput,
+    lastAssistantMessage: lastAssistantMessage,
+    interrupted: interrupted,
     updatedAt: DateTime.utc(2026, 5, 22),
     stateStartedAt: DateTime.utc(2026, 5, 22),
   );

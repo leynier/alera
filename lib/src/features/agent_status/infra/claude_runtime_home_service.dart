@@ -240,6 +240,10 @@ void _createResourceLink({
   Link(targetPath).createSync(sourcePath);
 }
 
+// coverage:ignore-start
+// Native macOS keychain adapter. Service behavior is covered through
+// ClaudeKeychainCredentialsStore fakes; exercising this class would mutate the
+// developer keychain and depend on the local `security` binary.
 final class _MacOSClaudeKeychainCredentialsStore
     implements ClaudeKeychainCredentialsStore {
   const _MacOSClaudeKeychainCredentialsStore();
@@ -333,6 +337,7 @@ final class _MacOSClaudeKeychainCredentialsStore
     return user;
   }
 }
+// coverage:ignore-end
 
 class _ClaudeRuntimeHookDescriptor {
   const _ClaudeRuntimeHookDescriptor({

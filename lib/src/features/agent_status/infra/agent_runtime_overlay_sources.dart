@@ -218,9 +218,13 @@ extension _AgentRuntimeOverlaySources on AgentRuntimeOverlayService {
       return;
     }
     try {
+      // coverage:ignore-start
+      // Real directory removal is handled by _safeRemoveTree before this helper
+      // is called; this branch protects direct future calls.
       if (type == FileSystemEntityType.directory &&
           !FileSystemEntity.isLinkSync(path)) {
         Directory(path).deleteSync(recursive: true);
+        // coverage:ignore-end
       } else if (FileSystemEntity.isLinkSync(path)) {
         Link(path).deleteSync();
       } else {

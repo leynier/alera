@@ -245,6 +245,20 @@ void _registerSettingsDialogCoreTests() {
     await tester.pump();
     await tester.tap(find.byType(Switch).at(2));
     await tester.pump(const Duration(milliseconds: 50));
+    for (final entry in const <({String label, int switchIndex})>[
+      (label: 'Claude Code hooks', switchIndex: 3),
+      (label: 'GitHub Copilot hooks', switchIndex: 4),
+      (label: 'Cursor hooks', switchIndex: 5),
+      (label: 'Antigravity hooks', switchIndex: 6),
+      (label: 'OpenCode hooks', switchIndex: 7),
+      (label: 'Pi hooks', switchIndex: 8),
+      (label: 'Amp hooks', switchIndex: 9),
+    ]) {
+      await tester.ensureVisible(find.text(entry.label));
+      await tester.pump();
+      await tester.tap(find.byType(Switch).at(entry.switchIndex));
+      await tester.pump(const Duration(milliseconds: 50));
+    }
     await tester.ensureVisible(find.text('Agent status notifications'));
     await tester.pump();
     await tester.tap(find.byType(Switch).at(10));
@@ -258,6 +272,50 @@ void _registerSettingsDialogCoreTests() {
 
     expect(
       container.read(settingsControllerProvider).general.agentStatusHooks.codex,
+      isTrue,
+    );
+    expect(
+      container
+          .read(settingsControllerProvider)
+          .general
+          .agentStatusHooks
+          .claude,
+      isTrue,
+    );
+    expect(
+      container
+          .read(settingsControllerProvider)
+          .general
+          .agentStatusHooks
+          .copilot,
+      isTrue,
+    );
+    expect(
+      container
+          .read(settingsControllerProvider)
+          .general
+          .agentStatusHooks
+          .cursor,
+      isTrue,
+    );
+    expect(
+      container.read(settingsControllerProvider).general.agentStatusHooks.agy,
+      isTrue,
+    );
+    expect(
+      container
+          .read(settingsControllerProvider)
+          .general
+          .agentStatusHooks
+          .opencode,
+      isTrue,
+    );
+    expect(
+      container.read(settingsControllerProvider).general.agentStatusHooks.pi,
+      isTrue,
+    );
+    expect(
+      container.read(settingsControllerProvider).general.agentStatusHooks.amp,
       isTrue,
     );
     expect(

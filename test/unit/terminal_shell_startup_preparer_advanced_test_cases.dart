@@ -237,6 +237,37 @@ void _registerTerminalShellStartupPreparerAdvancedTests() {
   );
 
   test(
+    'Pi and wrapper env trigger restore when they are the only managed env',
+    () async {
+      final piLaunch = await preparer.prepare(
+        _launch(
+          shell: '/bin/sh',
+          arguments: const <String>['-l'],
+          environment: const <String, String>{
+            'PI_CODING_AGENT_DIR': '/runtime/pi',
+            'ALERA_PI_CODING_AGENT_DIR': '/runtime/pi',
+          },
+        ),
+      );
+      final wrapperLaunch = await preparer.prepare(
+        _launch(
+          shell: '/bin/sh',
+          arguments: const <String>['-l'],
+          environment: const <String, String>{
+            'ALERA_AGENT_WRAPPER_PATH': '/runtime/wrappers',
+          },
+        ),
+      );
+
+      expect(
+        piLaunch.setupCommand,
+        contains('export PI_CODING_AGENT_DIR="\$ALERA_PI_CODING_AGENT_DIR"'),
+      );
+      expect(wrapperLaunch.setupCommand, contains('ALERA_AGENT_WRAPPER_PATH'));
+    },
+  );
+
+  test(
     'unsupported shells keep env-only launches without setup syntax',
     () async {
       for (final shell in <String>['/usr/local/bin/elvish']) {

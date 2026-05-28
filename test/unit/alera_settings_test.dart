@@ -83,6 +83,14 @@ void main() {
       expect(general.agentStatusHooks.amp, isTrue);
       expect(general.agentStatusNotificationsEnabled, isTrue);
       expect(general.keepComputerAwakeWhileAgentsWork, isTrue);
+
+      final hooks = AgentStatusHookSettings.fromJson(<String, Object?>{
+        'claude': true,
+        'pi': true,
+      });
+      expect(hooks.claude, isTrue);
+      expect(hooks.pi, isTrue);
+      expect(hooks.anyEnabled, isTrue);
     });
 
     test('round-trips through json', () {

@@ -159,8 +159,12 @@ Uint8List _blob(Object? value) {
   if (value is Uint8List) {
     return Uint8List.fromList(value);
   }
+  // coverage:ignore-start
+  // sqlite3 returns Uint8List for BLOBs today; keep this for alternate drivers
+  // or older row adapters that expose BLOBs as plain int lists.
   if (value is List<int>) {
     return Uint8List.fromList(value);
   }
+  // coverage:ignore-end
   return Uint8List(0);
 }

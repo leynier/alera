@@ -237,6 +237,140 @@ void _registerCodexRuntimeHomeServiceCoreTests() {
     );
   });
 
+  test(
+    'inserts hooks into existing feature sections before trailing blanks',
+    () async {
+      File(p.join(home.path, '.codex', 'config.toml'))
+        ..createSync(recursive: true)
+        ..writeAsStringSync(
+          '[features]\n\n[projects."/repo"]\ntrust_level = "trusted"\n',
+        );
+
+      final preparation = await service.prepareForTerminalLaunch();
+
+      final runtimeToml = File(
+        p.join(preparation.runtimeHomePath, 'config.toml'),
+      ).readAsStringSync();
+      expect(runtimeToml, contains('[features]\nhooks = true\n\n[projects.'));
+    },
+  );
+
+  test('mirrors trust metadata with optional hook fields', () async {
+    final systemHooksPath = p.join(home.path, '.codex', 'hooks.json');
+    const userCommand = 'echo rich-user-hook';
+    _writeJson(systemHooksPath, <String, Object?>{
+      'hooks': <String, Object?>{
+        'PreToolUse': <Object?>[
+          <String, Object?>{
+            'matcher': 'Bash',
+            'hooks': <Object?>[
+              <String, Object?>{
+                'type': 'command',
+                'command': userCommand,
+                'timeout': 1 << 32,
+                'async': true,
+                'statusMessage': 'Running Bash hook',
+              },
+            ],
+          },
+          <String, Object?>{'hooks': 'not-a-list'},
+        ],
+        'PreCompact': 'not-a-list',
+      },
+    });
+    final canonicalSystemHooksPath = File(
+      systemHooksPath,
+    ).resolveSymbolicLinksSync();
+    final systemTrustKey = '$canonicalSystemHooksPath:pre_tool_use:0:0';
+    final trustedHash = computeCodexTrustedHashForTesting(
+      sourcePath: systemHooksPath,
+      eventLabel: 'pre_tool_use',
+      groupIndex: 0,
+      handlerIndex: 0,
+      command: userCommand,
+      timeoutSec: 1 << 32,
+      async: true,
+      matcher: 'Bash',
+      statusMessage: 'Running Bash hook',
+    );
+    File(p.join(home.path, '.codex', 'config.toml'))
+      ..createSync(recursive: true)
+      ..writeAsStringSync(
+        _trustBlock(
+          key: systemTrustKey,
+          enabled: true,
+          trustedHash: trustedHash,
+        ),
+      );
+
+    final preparation = await service.prepareForTerminalLaunch();
+
+    final runtimeToml = File(
+      p.join(preparation.runtimeHomePath, 'config.toml'),
+    ).readAsStringSync();
+    expect(runtimeToml, contains('trusted_hash = "$trustedHash"'));
+  });
+
+  test('reports not installed before runtime hooks exist', () async {
+    final status = await service.status();
+
+    expect(status.state, ManagedAgentHookInstallState.notInstalled);
+    expect(status.managedHooksPresent, isFalse);
+    expect(
+      status.configPath,
+      p.join(
+        support.path,
+        'agent-runtime-homes',
+        'codex',
+        'home',
+        'hooks.json',
+      ),
+    );
+  });
+
+  test('reports invalid runtime hooks as an error', () async {
+    final runtimeHooksPath = p.join(
+      support.path,
+      'agent-runtime-homes',
+      'codex',
+      'home',
+      'hooks.json',
+    );
+    File(runtimeHooksPath)
+      ..createSync(recursive: true)
+      ..writeAsStringSync('{not json');
+
+    final status = await service.status();
+    final installStatus = await service.install();
+    final removeStatus = await service.remove();
+
+    expect(status.state, ManagedAgentHookInstallState.error);
+    expect(installStatus.state, ManagedAgentHookInstallState.error);
+    expect(removeStatus.state, ManagedAgentHookInstallState.error);
+    expect(status.configPath, runtimeHooksPath);
+    expect(installStatus.configPath, runtimeHooksPath);
+    expect(removeStatus.configPath, runtimeHooksPath);
+  });
+
+  test('remove preserves user runtime hooks beside managed commands', () async {
+    final preparation = await service.prepareForTerminalLaunch();
+    final runtimeHooksPath = p.join(preparation.runtimeHomePath, 'hooks.json');
+    final config = _readJson(runtimeHooksPath);
+    final hooks = Map<String, Object?>.from(config['hooks'] as Map);
+    hooks['Stop'] = <Object?>[
+      _userHook('echo user stop'),
+      ...(hooks['Stop'] as List? ?? const <Object?>[]),
+    ];
+    config['hooks'] = hooks;
+    _writeJson(runtimeHooksPath, config);
+
+    final status = await service.remove();
+    final nextHooks = _hooks(runtimeHooksPath);
+
+    expect(status.state, ManagedAgentHookInstallState.notInstalled);
+    expect(_commandsFor(nextHooks, 'Stop'), <String>['echo user stop']);
+  });
+
   test('enables hooks in runtime without mutating user config', () async {
     final systemConfig = File(p.join(home.path, '.codex', 'config.toml'))
       ..createSync(recursive: true)
@@ -267,6 +401,99 @@ void _registerCodexRuntimeHomeServiceCoreTests() {
     expect(runtimeToml, contains('hooks = true'));
     expect(runtimeToml, isNot(contains('hooks = false')));
     expect(systemConfig.readAsStringSync(), '[features]\nhooks = false\n');
+  });
+
+  test(
+    'reports partial status for missing and disabled managed hooks',
+    () async {
+      final preparation = await service.prepareForTerminalLaunch();
+      final runtimeHooksPath = p.join(
+        preparation.runtimeHomePath,
+        'hooks.json',
+      );
+      final runtimeConfig = _readJson(runtimeHooksPath);
+      final runtimeHooks = Map<String, Object?>.from(
+        runtimeConfig['hooks'] as Map,
+      );
+      runtimeHooks.remove('Stop');
+      runtimeConfig['hooks'] = runtimeHooks;
+      _writeJson(runtimeHooksPath, runtimeConfig);
+
+      final runtimeToml = File(
+        p.join(preparation.runtimeHomePath, 'config.toml'),
+      );
+      runtimeToml.writeAsStringSync(
+        runtimeToml.readAsStringSync().replaceFirst(
+          'enabled = true',
+          'enabled = false',
+        ),
+      );
+
+      final status = await service.status();
+
+      expect(status.state, ManagedAgentHookInstallState.partial);
+      expect(status.managedHooksPresent, isTrue);
+      expect(status.detail, contains('Managed hook missing for events: Stop.'));
+      expect(status.detail, contains('Managed hook disabled for events:'));
+    },
+  );
+
+  test(
+    'reports partial status when runtime trust entries are missing',
+    () async {
+      final preparation = await service.prepareForTerminalLaunch();
+      File(p.join(preparation.runtimeHomePath, 'config.toml')).deleteSync();
+
+      final status = await service.status();
+
+      expect(status.state, ManagedAgentHookInstallState.partial);
+      expect(status.detail, contains('Trust entry missing for events:'));
+    },
+  );
+
+  test('remove deletes managed runtime hooks and trust entries', () async {
+    final preparation = await service.prepareForTerminalLaunch();
+    final runtimeHooksPath = p.join(preparation.runtimeHomePath, 'hooks.json');
+    final runtimeTomlPath = p.join(preparation.runtimeHomePath, 'config.toml');
+    expect(
+      _managedCommandCount(_hooks(runtimeHooksPath), 'alera-codex-hook.sh'),
+      6,
+    );
+    expect(File(runtimeTomlPath).readAsStringSync(), contains('[hooks.state.'));
+
+    final status = await service.remove();
+
+    expect(status.state, ManagedAgentHookInstallState.notInstalled);
+    expect(
+      _managedCommandCount(_hooks(runtimeHooksPath), 'alera-codex-hook.sh'),
+      0,
+    );
+    expect(
+      File(runtimeTomlPath).readAsStringSync(),
+      isNot(contains('[hooks.state.')),
+    );
+  });
+
+  test('uses cmd runtime hooks on Windows', () async {
+    final windowsService = CodexRuntimeHomeService(
+      homeDirectory: home.path,
+      applicationSupportDirectory: () async => support,
+      platform: ManagedAgentHookPlatform.windows,
+      environment: <String, String>{'USERPROFILE': home.path},
+    );
+
+    final preparation = await windowsService.prepareForTerminalLaunch();
+
+    final runtimeHooks = _hooks(
+      p.join(preparation.runtimeHomePath, 'hooks.json'),
+    );
+    expect(_managedCommandCount(runtimeHooks, 'alera-codex-hook.cmd'), 6);
+    expect(
+      File(
+        p.join(home.path, '.alera', 'agent-hooks', 'alera-codex-hook.cmd'),
+      ).readAsStringSync(),
+      contains('/hook/codex'),
+    );
   });
 
   test('preserves runtime trust entries when enabling fresh hooks', () async {

@@ -106,6 +106,21 @@ void main() {
       expect(working, isNull);
     });
 
+    test('composes fallback notification titles and location bodies', () {
+      final workspaceOnly = composeAgentStatusNotification(
+        entry: _entry(AgentStatusState.waiting),
+        workspaceName: 'feature/login',
+      );
+      final tabOnly = composeAgentStatusNotification(
+        entry: _entry(AgentStatusState.done),
+        tabTitle: 'Terminal 2',
+      );
+
+      expect(workspaceOnly!.body, 'Workspace feature/login');
+      expect(tabOnly!.title, 'Codex finished');
+      expect(tabOnly.body, 'Terminal Terminal 2');
+    });
+
     test('deduplicates unchanged states by terminal and state start time', () {
       final tracker = AgentStatusNotificationTracker();
       final firstWaiting = _entry(AgentStatusState.waiting);

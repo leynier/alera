@@ -66,6 +66,64 @@ void _registerCodexRuntimeHomeServiceAdvancedTests() {
     expect(runtimeToml, contains('trusted_hash = "$systemTrustedHash"'));
   });
 
+  test(
+    'parses escaped TOML trust strings while checking runtime status',
+    () async {
+      final preparation = await service.prepareForTerminalLaunch();
+      final runtimeTomlPath = p.join(
+        preparation.runtimeHomePath,
+        'config.toml',
+      );
+      File(runtimeTomlPath).writeAsStringSync(r'''
+[hooks.state."escaped\n\r\t\b\f\"\\z:stop:0:0"]
+enabled = true
+trusted_hash = "sha256:escaped\n\r\t\b\f\"\\z"
+''', mode: FileMode.append);
+
+      final status = await service.status();
+
+      expect(status.state, ManagedAgentHookInstallState.installed);
+    },
+  );
+
+  test('parses unknown TOML escapes and EOF trust blocks', () async {
+    final preparation = await service.prepareForTerminalLaunch();
+    final runtimeTomlPath = p.join(preparation.runtimeHomePath, 'config.toml');
+    File(runtimeTomlPath).writeAsStringSync(
+      '\n[hooks.state."unknown\\q:stop:0:0"]\n'
+      'enabled = true',
+      mode: FileMode.append,
+    );
+
+    final status = await service.status();
+
+    expect(status.state, ManagedAgentHookInstallState.installed);
+  });
+
+  test('removes stale runtime trust entries when hooks change', () async {
+    final preparation = await service.prepareForTerminalLaunch();
+    final runtimeHooksPath = p.join(preparation.runtimeHomePath, 'hooks.json');
+    final canonicalRuntimeHooksPath = File(
+      runtimeHooksPath,
+    ).resolveSymbolicLinksSync();
+    final runtimeTomlPath = p.join(preparation.runtimeHomePath, 'config.toml');
+    File(runtimeTomlPath).writeAsStringSync(
+      _trustBlock(
+        key: '$canonicalRuntimeHooksPath:stop:99:99',
+        enabled: true,
+        trustedHash: 'sha256:stale',
+      ),
+      mode: FileMode.append,
+    );
+
+    await service.prepareForTerminalLaunch();
+
+    expect(
+      File(runtimeTomlPath).readAsStringSync(),
+      isNot(contains('sha256:stale')),
+    );
+  });
+
   test('preserves hook-like text inside multiline TOML strings', () async {
     final systemConfig = File(p.join(home.path, '.codex', 'config.toml'))
       ..createSync(recursive: true)
@@ -105,6 +163,53 @@ void _registerCodexRuntimeHomeServiceAdvancedTests() {
     expect(runtimeToml, isNot(contains('codex_hooks')));
     expect(systemConfig.readAsStringSync(), contains('codex_hooks = true'));
   });
+
+  test(
+    'normalizes complex TOML headers without treating strings as tables',
+    () async {
+      File(p.join(home.path, '.codex', 'config.toml'))
+        ..createSync(recursive: true)
+        ..writeAsStringSync(
+          '\ufefftitle = "demo"\n'
+          '\n'
+          '[features]\n'
+          'basic_note = """line with escaped \\\\" quote\n'
+          '[not.a.table]\n'
+          '"""\n'
+          "literal_note = '''\n"
+          '[also.not.a.table]\n'
+          "'''\n"
+          'codex_hooks = false\n'
+          'hooks = false\n'
+          '\n'
+          '[projects."escaped\\\\"project"]\n'
+          'trust_level = "trusted"\n'
+          '\n'
+          "[projects.'literal]project']\n"
+          'trust_level = "trusted"\n'
+          '\n'
+          '[[profiles."array]profile"]] # valid array table\n'
+          'name = "demo"\n'
+          '\n'
+          '[[broken.array] trailing text\n',
+        );
+
+      final preparation = await service.prepareForTerminalLaunch();
+
+      final runtimeToml = File(
+        p.join(preparation.runtimeHomePath, 'config.toml'),
+      ).readAsStringSync();
+      expect(runtimeToml.codeUnitAt(0), isNot(0xfeff));
+      expect(runtimeToml, contains('hooks = true'));
+      expect(runtimeToml, isNot(contains('codex_hooks')));
+      expect(runtimeToml, contains('[not.a.table]'));
+      expect(runtimeToml, contains('[also.not.a.table]'));
+      expect(runtimeToml, contains('[projects."escaped\\\\"project"]'));
+      expect(runtimeToml, contains("[projects.'literal]project']"));
+      expect(runtimeToml, contains('[[profiles."array]profile"]]'));
+      expect(runtimeToml, contains('[[broken.array] trailing text'));
+    },
+  );
 
   test('ignores fake trust blocks inside multiline TOML strings', () async {
     final systemHooksPath = p.join(home.path, '.codex', 'hooks.json');
@@ -201,7 +306,8 @@ void _registerCodexRuntimeHomeServiceAdvancedTests() {
     'refreshes fallback copied resources after the source changes',
     () async {
       final sourceSkillsPath = p.join(home.path, '.codex', 'skills');
-      File(p.join(sourceSkillsPath, 'demo.md'))
+      final nestedSkillsPath = p.join(sourceSkillsPath, 'nested');
+      File(p.join(nestedSkillsPath, 'demo.md'))
         ..createSync(recursive: true)
         ..writeAsStringSync('skill contents');
       final fallbackService = _serviceWithFailingResourceLinks(
@@ -218,17 +324,127 @@ void _registerCodexRuntimeHomeServiceAdvancedTests() {
       );
       final fingerprintBefore = _markerFingerprint(marker);
 
-      File(p.join(sourceSkillsPath, 'new.md')).writeAsStringSync('new source');
+      File(p.join(nestedSkillsPath, 'new.md')).writeAsStringSync('new source');
       await fallbackService.prepareForTerminalLaunch();
 
       expect(runtimeOnlyFile.existsSync(), isFalse);
       expect(
         File(
-          p.join(preparation.runtimeHomePath, 'skills', 'new.md'),
+          p.join(preparation.runtimeHomePath, 'skills', 'nested', 'new.md'),
         ).existsSync(),
         isTrue,
       );
       expect(_markerFingerprint(marker), isNot(fingerprintBefore));
+    },
+  );
+
+  test(
+    'clears markers for linked resources and removes stale owned entries',
+    () async {
+      final sourceSkills = Directory(p.join(home.path, '.codex', 'skills'))
+        ..createSync(recursive: true);
+      File(p.join(sourceSkills.path, 'demo.md')).writeAsStringSync('skill');
+      final preparation = await service.prepareForTerminalLaunch();
+      final marker = File(
+        p.join(preparation.runtimeHomePath, '.alera-copied-skills.json'),
+      )..writeAsStringSync('{}\n');
+
+      await service.prepareForTerminalLaunch();
+
+      expect(marker.existsSync(), isFalse);
+
+      final sourcePrompts = Directory(p.join(home.path, '.codex', 'prompts'))
+        ..createSync(recursive: true);
+      File(p.join(sourcePrompts.path, 'demo.md')).writeAsStringSync('prompt');
+      await service.prepareForTerminalLaunch();
+      sourcePrompts.deleteSync(recursive: true);
+      await service.prepareForTerminalLaunch();
+
+      expect(
+        FileSystemEntity.typeSync(
+          p.join(preparation.runtimeHomePath, 'prompts'),
+          followLinks: false,
+        ),
+        FileSystemEntityType.notFound,
+      );
+    },
+  );
+
+  test(
+    'accepts relative runtime links that already point to the source',
+    () async {
+      final runtimeHome = Directory(
+        p.join(support.path, 'agent-runtime-homes', 'codex', 'home'),
+      )..createSync(recursive: true);
+      final sourceSkills = Directory(p.join(home.path, '.codex', 'skills'))
+        ..createSync(recursive: true);
+      File(p.join(sourceSkills.path, 'demo.md')).writeAsStringSync('skill');
+      final relativeTarget = p.relative(
+        sourceSkills.path,
+        from: runtimeHome.path,
+      );
+      Link(p.join(runtimeHome.path, 'skills')).createSync(relativeTarget);
+      final marker = File(p.join(runtimeHome.path, '.alera-copied-skills.json'))
+        ..writeAsStringSync('{}\n');
+
+      await service.prepareForTerminalLaunch();
+
+      expect(marker.existsSync(), isFalse);
+      expect(
+        Link(p.join(runtimeHome.path, 'skills')).targetSync(),
+        relativeTarget,
+      );
+    },
+  );
+
+  test(
+    'resolves Codex home from USERPROFILE and current directory fallbacks',
+    () {
+      final profileService = CodexRuntimeHomeService(
+        applicationSupportDirectory: () async => support,
+        platform: ManagedAgentHookPlatform.posix,
+        environment: <String, String>{'HOME': '', 'USERPROFILE': home.path},
+      );
+      final currentFallbackService = CodexRuntimeHomeService(
+        applicationSupportDirectory: () async => support,
+        platform: ManagedAgentHookPlatform.posix,
+        environment: const <String, String>{},
+      );
+
+      expect(profileService, isA<CodexRuntimeHomeService>());
+      expect(currentFallbackService, isA<CodexRuntimeHomeService>());
+    },
+  );
+
+  test(
+    'copies linked resources and ignores malformed fallback markers',
+    () async {
+      final targetPath = p.join(home.path, 'missing-theme-target.toml');
+      final sourceThemes = Directory(p.join(home.path, '.codex', 'themes'))
+        ..createSync(recursive: true);
+      Link(
+        p.join(sourceThemes.path, 'linked-theme.toml'),
+      ).createSync(targetPath);
+      final fallbackService = _serviceWithFailingResourceLinks(
+        home: home,
+        support: support,
+      );
+
+      final preparation = await fallbackService.prepareForTerminalLaunch();
+      final marker = File(
+        p.join(preparation.runtimeHomePath, '.alera-copied-themes.json'),
+      )..writeAsStringSync('{bad');
+      sourceThemes.deleteSync(recursive: true);
+      await fallbackService.prepareForTerminalLaunch();
+
+      expect(marker.existsSync(), isTrue);
+      expect(
+        FileSystemEntity.typeSync(
+          p.join(preparation.runtimeHomePath, 'themes'),
+          followLinks: false,
+        ),
+        isNot(FileSystemEntityType.notFound),
+      );
     },
   );
 }

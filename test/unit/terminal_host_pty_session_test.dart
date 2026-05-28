@@ -191,6 +191,53 @@ void main() {
   );
 
   test(
+    'host PTY session reports stale recovery before startup and after disposal',
+    () async {
+      final client = FakeTerminalHostClient(
+        attachment: TerminalHostAttachment(
+          sessionId: 'session-1',
+          created: true,
+          running: true,
+          snapshot: Uint8List(0),
+        ),
+      );
+      client.writeErrors.addAll(<Object>[
+        Exception('Terminal host connection closed'),
+        StateError('Terminal session is not attached: session-1'),
+      ]);
+      final session = TerminalHostPtySession(
+        client: client,
+        sessionId: 'session-1',
+        workspaceId: 'workspace-1',
+        tabId: 'tab-1',
+      );
+      final events = <TerminalPtySessionEvent>[];
+      final sub = session.events.listen(events.add);
+      addTearDown(sub.cancel);
+
+      expect(session.writeBytes(<int>[1]), isTrue);
+      await _flushAsync();
+
+      await session.start(
+        launch: _launch(),
+        workingDirectory: '/repo',
+        cols: 80,
+        rows: 24,
+      );
+      expect(session.writeBytes(<int>[2]), isTrue);
+      session.dispose();
+      await _flushAsync();
+
+      final recoveryWithoutStartup = events
+          .whereType<TerminalPtyErrorEvent>()
+          .map((event) => event.error.toString())
+          .firstWhere((message) => message.contains('has not been started'));
+      expect(recoveryWithoutStartup, contains('has not been started'));
+      expect(client.attachCalls, hasLength(1));
+    },
+  );
+
+  test(
     'host PTY session reattaches with the latest size before resizing',
     () async {
       final client = FakeTerminalHostClient(

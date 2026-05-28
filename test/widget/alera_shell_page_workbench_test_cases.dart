@@ -70,6 +70,32 @@ void _registerAleraShellWorkbenchTests() {
     );
   });
 
+  testWidgets('focused split panes promote their workbench group', (
+    tester,
+  ) async {
+    final harness = await _pumpShell(tester, state: _splitWorkbenchState());
+    final before = harness.controller.state.layoutFor('workspace-1')!;
+    final paneFocus = tester.widget<Focus>(
+      find
+          .byWidgetPredicate(
+            (widget) =>
+                widget is Focus &&
+                widget.onFocusChange != null &&
+                widget.canRequestFocus == false &&
+                widget.skipTraversal == true,
+          )
+          .first,
+    );
+
+    paneFocus.onFocusChange!(true);
+    await tester.pump();
+
+    expect(
+      harness.controller.state.layoutFor('workspace-1')!.activeGroupId,
+      isNot(before.activeGroupId),
+    );
+  });
+
   testWidgets('dragging a tab to a pane edge creates a directional split', (
     tester,
   ) async {

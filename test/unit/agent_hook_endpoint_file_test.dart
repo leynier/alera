@@ -18,6 +18,10 @@ void main() {
 
     test('renders Windows endpoint cmd files', () {
       expect(
+        agentHookEndpointFileName(kind: AgentHookEndpointFileKind.windows),
+        'endpoint.cmd',
+      );
+      expect(
         buildAgentHookEndpointFileContent(
           kind: AgentHookEndpointFileKind.windows,
           port: 4567,

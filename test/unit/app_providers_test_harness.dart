@@ -22,6 +22,23 @@ String _slugSegment(String input) {
       .replaceAll(RegExp(r'^-|-$'), '');
 }
 
+Future<HttpClientResponse> _postHook(
+  int port, {
+  required String path,
+  required String token,
+  required String body,
+}) async {
+  final client = HttpClient();
+  addTearDown(client.close);
+  final request = await client.postUrl(
+    Uri.parse('http://127.0.0.1:$port$path'),
+  );
+  request.headers.set(aleraAgentHookTokenHeader, token);
+  request.headers.contentType = ContentType.json;
+  request.write(body);
+  return request.close();
+}
+
 class _TestSettingsController extends SettingsController {
   _TestSettingsController(this._seed);
 
@@ -36,8 +53,21 @@ class _TestSettingsController extends SettingsController {
 }
 
 final class _FakeTerminalHostClient implements TerminalHostClient {
+  _FakeTerminalHostClient({TerminalHostAttachment? attachment})
+    : attachment =
+          attachment ??
+          TerminalHostAttachment(
+            sessionId: 'session-1',
+            created: true,
+            running: true,
+            snapshot: Uint8List(0),
+          );
+
+  final TerminalHostAttachment attachment;
   final List<TerminalHostConfig> ensureStartedConfigs = <TerminalHostConfig>[];
   final List<TerminalHostConfig> configureConfigs = <TerminalHostConfig>[];
+  final List<GhosttyTerminalShellLaunch> launches =
+      <GhosttyTerminalShellLaunch>[];
 
   @override
   Stream<TerminalHostEvent> get events =>
@@ -57,8 +87,15 @@ final class _FakeTerminalHostClient implements TerminalHostClient {
     required GhosttyTerminalShellLaunch launch,
     required int cols,
     required int rows,
-  }) {
-    throw UnimplementedError();
+  }) async {
+    launches.add(launch);
+    return TerminalHostAttachment(
+      sessionId: sessionId,
+      created: attachment.created,
+      running: attachment.running,
+      snapshot: attachment.snapshot,
+      exitCode: attachment.exitCode,
+    );
   }
 
   @override
@@ -305,6 +342,59 @@ class _FakeNotificationPresenter implements AgentStatusNotificationPresenter {
   }
 }
 
+class _FakeNotificationWindowActivator
+    implements AgentNotificationWindowActivator {
+  int calls = 0;
+
+  @override
+  Future<void> showAndFocus() async {
+    calls++;
+  }
+}
+
+class _FakeStatusSink implements AgentStatusSink {
+  final List<AgentHookEvent> events = <AgentHookEvent>[];
+
+  @override
+  void applyHookEvent(AgentHookEvent event) {
+    events.add(event);
+  }
+}
+
+class _TestWorkbenchController extends WorkbenchController {
+  _TestWorkbenchController(this._seed);
+
+  final WorkbenchState _seed;
+  final List<String> selectedWorkspaceIds = <String>[];
+  final Map<String, String> activeTabs = <String, String>{};
+
+  @override
+  WorkbenchState build() => _seed;
+
+  @override
+  Future<void> selectWorkspace({
+    required Project project,
+    required Workspace workspace,
+  }) async {
+    selectedWorkspaceIds.add(workspace.id);
+    state = state.copyWith(
+      activeProjectId: project.id,
+      activeWorkspaceId: workspace.id,
+    );
+  }
+
+  @override
+  void setActiveTab({required String workspaceId, required String tabId}) {
+    activeTabs[workspaceId] = tabId;
+    state = state.copyWith(
+      activeTabIdByWorkspace: <String, String>{
+        ...state.activeTabIdByWorkspace,
+        workspaceId: tabId,
+      },
+    );
+  }
+}
+
 class _FakeTerminalRuntime implements TerminalRuntime {
   final StreamController<TerminalRuntimeExitEvent> _events =
       StreamController<TerminalRuntimeExitEvent>.broadcast();
@@ -337,6 +427,88 @@ class _FakeTerminalRuntime implements TerminalRuntime {
   }) {
     throw UnimplementedError();
   }
+}
+
+class _FocusableTerminalRuntime implements TerminalRuntime {
+  final StreamController<TerminalRuntimeExitEvent> _events =
+      StreamController<TerminalRuntimeExitEvent>.broadcast();
+  final List<String> focusedTabIds = <String>[];
+
+  @override
+  Stream<TerminalRuntimeExitEvent> get exits => _events.stream;
+
+  @override
+  void closeTab(String tabId) {}
+
+  @override
+  void closeWorkspace(String workspaceId) {}
+
+  @override
+  void dispose() {
+    _events.close();
+  }
+
+  @override
+  TerminalSessionHandle sessionFor({
+    required Workspace workspace,
+    required WorkspaceTabRecord tab,
+  }) {
+    return _FocusableTerminalSessionHandle(
+      workspace: workspace,
+      tab: tab,
+      onFocus: () => focusedTabIds.add(tab.id),
+    );
+  }
+}
+
+class _FocusableTerminalSessionHandle extends TerminalSessionHandle {
+  _FocusableTerminalSessionHandle({
+    required this.workspace,
+    required this.tab,
+    required this.onFocus,
+  });
+
+  final Workspace workspace;
+  final WorkspaceTabRecord tab;
+  final VoidCallback onFocus;
+
+  @override
+  String get displayTitle => tab.title;
+
+  @override
+  String? get errorMessage => null;
+
+  @override
+  bool get isRunning => true;
+
+  @override
+  bool get isStarting => false;
+
+  @override
+  String get tabId => tab.id;
+
+  @override
+  String get workspaceId => workspace.id;
+
+  @override
+  Widget buildView({
+    Key? key,
+    bool autofocus = false,
+    FocusOnKeyEventCallback? onKeyEvent,
+  }) {
+    return SizedBox(key: key);
+  }
+
+  @override
+  Future<void> ensureStarted() async {}
+
+  @override
+  void requestFocus() {
+    onFocus();
+  }
+
+  @override
+  Future<void> restart() async {}
 }
 
 class _FakeAwakeDisplayLock implements AgentAwakeDisplayLock {

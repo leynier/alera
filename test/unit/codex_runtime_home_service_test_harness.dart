@@ -49,8 +49,14 @@ void _writeJson(String path, Map<String, Object?> value) {
   );
 }
 
+Map<String, Object?> _readJson(String path) {
+  return Map<String, Object?>.from(
+    jsonDecode(File(path).readAsStringSync()) as Map,
+  );
+}
+
 Map<String, Object?> _hooks(String configPath) {
-  final decoded = jsonDecode(File(configPath).readAsStringSync()) as Map;
+  final decoded = _readJson(configPath);
   return Map<String, Object?>.from(decoded['hooks'] as Map);
 }
 

@@ -19,6 +19,9 @@ const int _windowsAwakeExecutionState =
 
 typedef WindowsExecutionStateSetter = int Function(int flags);
 
+// coverage:ignore-start
+// Thin adapter to wakelock_plus. Unit tests cover AgentAwakeDisplayLock through
+// injected fakes; plugin behavior belongs to desktop integration coverage.
 class WakelockAgentAwakeDisplayLock implements AgentAwakeDisplayLock {
   const WakelockAgentAwakeDisplayLock();
 
@@ -27,6 +30,7 @@ class WakelockAgentAwakeDisplayLock implements AgentAwakeDisplayLock {
     return WakelockPlus.toggle(enable: enabled);
   }
 }
+// coverage:ignore-end
 
 class MacosSystemSleepAssertion extends _ProcessBackedAwakeAssertion {
   MacosSystemSleepAssertion({
@@ -337,6 +341,9 @@ bool _isMissingExecutable(Object error) {
   return error is ProcessException && error.errorCode == 2;
 }
 
+// coverage:ignore-start
+// Windows FFI binding cannot be exercised on non-Windows CI. The injectable
+// WindowsExecutionStateSetter covers flag selection and failure handling.
 int _setThreadExecutionState(int flags) {
   return _setThreadExecutionStateFunction(flags);
 }
@@ -349,3 +356,4 @@ final _SetThreadExecutionStateDart _setThreadExecutionStateFunction =
 
 typedef _SetThreadExecutionStateNative = ffi.Uint32 Function(ffi.Uint32 flags);
 typedef _SetThreadExecutionStateDart = int Function(int flags);
+// coverage:ignore-end

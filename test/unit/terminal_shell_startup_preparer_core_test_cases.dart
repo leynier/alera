@@ -95,6 +95,21 @@ void _registerTerminalShellStartupPreparerCoreTests() {
     },
   );
 
+  test('zsh removes stale original config when no home is available', () async {
+    final launch = await preparer.prepare(
+      _launch(
+        shell: '/bin/zsh',
+        environment: const <String, String>{
+          'HOME': '',
+          'CODEX_HOME': '/runtime/codex',
+          'ALERA_CODEX_HOME': '/runtime/codex',
+        },
+      ),
+    );
+
+    expect(launch.environment, isNot(contains('ALERA_ORIG_ZDOTDIR')));
+  });
+
   test('zsh rejects generated wrapper ZDOTDIR self-loops', () async {
     final wrapperZdotdir = p.join(
       tempDir.path,
@@ -118,6 +133,19 @@ void _registerTerminalShellStartupPreparerCoreTests() {
       launch.environment,
       containsPair('ALERA_ORIG_ZDOTDIR', '/Users/tester'),
     );
+
+    final repeated = await preparer.prepare(
+      _launch(
+        shell: '/bin/zsh',
+        environment: <String, String>{
+          'HOME': '/Users/tester',
+          'ZDOTDIR': '$wrapperZdotdir/',
+          'CODEX_HOME': '/runtime/codex',
+          'ALERA_CODEX_HOME': '/runtime/codex',
+        },
+      ),
+    );
+    expect(repeated.environment, containsPair('ZDOTDIR', wrapperZdotdir));
   });
 
   test(
@@ -215,6 +243,29 @@ void _registerTerminalShellStartupPreparerCoreTests() {
       expect(script, contains(r'$env:ALERA_AGENT_WRAPPER_PATH'));
     },
   );
+
+  test('powershell preserves existing no-logo and no-exit switches', () async {
+    final launch = await preparer.prepare(
+      _launch(
+        shell: r'C:\Program Files\PowerShell\7\pwsh.exe',
+        arguments: const <String>['-nologo', '-noexit'],
+        environment: const <String, String>{
+          'CODEX_HOME': r'C:\Alera\codex-home',
+          'ALERA_CODEX_HOME': r'C:\Alera\codex-home',
+        },
+      ),
+    );
+
+    expect(
+      launch.arguments.where((argument) => argument.toLowerCase() == '-nologo'),
+      hasLength(1),
+    );
+    expect(
+      launch.arguments.where((argument) => argument.toLowerCase() == '-noexit'),
+      hasLength(1),
+    );
+    expect(launch.arguments, contains('-EncodedCommand'));
+  });
 
   test('fish uses an init command to restore Codex home after startup', () async {
     final launch = await preparer.prepare(

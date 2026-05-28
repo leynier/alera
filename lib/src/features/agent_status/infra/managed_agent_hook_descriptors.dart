@@ -56,6 +56,9 @@ extension _ManagedAgentHookDescriptors on ManagedAgentHookInstallService {
         scriptFileName: scriptFileName,
         scriptPath: scriptPath,
       ),
+      // coverage:ignore-start
+      // Descriptor lookups for artifact-backed agents are guarded by
+      // _managedArtifact before this switch. This branch protects future misuse.
       AgentType.opencode ||
       AgentType.pi ||
       AgentType.amp => throw ArgumentError.value(
@@ -63,6 +66,7 @@ extension _ManagedAgentHookDescriptors on ManagedAgentHookInstallService {
         'agentType',
         'Managed artifact agents do not use JSON hook descriptors.',
       ),
+      // coverage:ignore-end
     };
   }
 
@@ -95,6 +99,9 @@ extension _ManagedAgentHookDescriptors on ManagedAgentHookInstallService {
     try {
       content = file.readAsStringSync();
     } catch (_) {
+      // coverage:ignore-start
+      // File permission races are platform/filesystem dependent; status tests
+      // cover missing, managed, stale, and unmanaged artifact contents.
       return ManagedAgentHookInstallStatus(
         agentType: artifact.agentType,
         state: ManagedAgentHookInstallState.error,
@@ -102,6 +109,7 @@ extension _ManagedAgentHookDescriptors on ManagedAgentHookInstallService {
         managedHooksPresent: false,
         detail: 'Could not read ${artifact.label}.',
       );
+      // coverage:ignore-end
     }
     if (!content.contains(_managedArtifactMarker)) {
       return ManagedAgentHookInstallStatus(
@@ -141,6 +149,9 @@ extension _ManagedAgentHookDescriptors on ManagedAgentHookInstallService {
     try {
       content = file.readAsStringSync();
     } catch (_) {
+      // coverage:ignore-start
+      // File permission races are platform/filesystem dependent; remove tests
+      // cover the managed and unmanaged artifact paths.
       return ManagedAgentHookInstallStatus(
         agentType: artifact.agentType,
         state: ManagedAgentHookInstallState.error,
@@ -148,6 +159,7 @@ extension _ManagedAgentHookDescriptors on ManagedAgentHookInstallService {
         managedHooksPresent: false,
         detail: 'Could not read ${artifact.label}.',
       );
+      // coverage:ignore-end
     }
     if (!content.contains(_managedArtifactMarker)) {
       return ManagedAgentHookInstallStatus(

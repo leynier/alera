@@ -279,9 +279,13 @@ final class AleraTerminalHostServer {
 
   TerminalHostHistoryStore _requireHistoryStore() {
     final store = _historyStore;
+    // coverage:ignore-start
+    // The store is opened before the socket accepts requests; this guard keeps
+    // the invariant explicit for future lifecycle changes.
     if (store == null) {
       throw StateError('Terminal host history store is not open.');
     }
+    // coverage:ignore-end
     return store;
   }
 

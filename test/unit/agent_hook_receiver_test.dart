@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -34,6 +35,7 @@ void main() {
     test('writes endpoint file and exposes launch metadata', () async {
       final endpoint = receiver.endpoint!;
 
+      expect(receiver.isRunning, isTrue);
       expect(File(endpoint.filePath).existsSync(), isTrue);
       expect(File(endpoint.filePath).readAsStringSync(), contains('token-1'));
       expect(
@@ -58,6 +60,44 @@ void main() {
       expect(response.statusCode, HttpStatus.forbidden);
       expect(sink.events, isEmpty);
     });
+
+    test(
+      'start throws after dispose and stop waits for failed startup',
+      () async {
+        await receiver.dispose();
+        expect(receiver.isRunning, isFalse);
+        expect(receiver.start, throwsStateError);
+
+        final failingReceiver = AgentHookReceiver(
+          statusSink: sink,
+          applicationSupportDirectory: () async =>
+              throw StateError('no support'),
+          token: 'token-1',
+        );
+        addTearDown(failingReceiver.dispose);
+
+        await expectLater(failingReceiver.start(), throwsStateError);
+        await failingReceiver.stop();
+
+        expect(failingReceiver.isRunning, isFalse);
+
+        final supportCompleter = Completer<Directory>();
+        final slowFailingReceiver = AgentHookReceiver(
+          statusSink: sink,
+          applicationSupportDirectory: () => supportCompleter.future,
+          token: 'token-1',
+        );
+        addTearDown(slowFailingReceiver.dispose);
+
+        final startFuture = slowFailingReceiver.start();
+        final stopFuture = slowFailingReceiver.stop();
+        supportCompleter.completeError(StateError('no support'));
+
+        await expectLater(startFuture, throwsStateError);
+        await stopFuture;
+        expect(slowFailingReceiver.isRunning, isFalse);
+      },
+    );
 
     test('returns 404 outside supported hook routes', () async {
       final response = await _post(
@@ -205,6 +245,32 @@ void main() {
       expect(response.statusCode, HttpStatus.noContent);
       expect(sink.events, isEmpty);
     });
+
+    test('swallows status sink failures after parsing a hook', () async {
+      await receiver.dispose();
+      receiver = AgentHookReceiver(
+        statusSink: _ThrowingStatusSink(),
+        applicationSupportDirectory: () async => tempDir,
+        token: 'token-1',
+      );
+      await receiver.start();
+
+      final response = await _post(
+        receiver.endpoint!.port,
+        path: '/hook/claude',
+        token: 'token-1',
+        body: jsonEncode(<String, Object?>{
+          'terminalSessionId': 'session-1',
+          'workspaceId': 'workspace-1',
+          'tabId': 'tab-1',
+          'hookEventName': 'UserPromptSubmit',
+          'payload': <String, Object?>{'prompt': 'ship it'},
+        }),
+        contentType: ContentType.json,
+      );
+
+      expect(response.statusCode, HttpStatus.noContent);
+    });
   });
 }
 
@@ -232,5 +298,12 @@ class _FakeStatusSink implements AgentStatusSink {
   @override
   void applyHookEvent(AgentHookEvent event) {
     events.add(event);
+  }
+}
+
+class _ThrowingStatusSink implements AgentStatusSink {
+  @override
+  void applyHookEvent(AgentHookEvent event) {
+    throw StateError('sink failed');
   }
 }

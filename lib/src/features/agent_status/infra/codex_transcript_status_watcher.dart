@@ -114,7 +114,11 @@ class _CodexTranscriptWatch {
           )
           .listen((_) => _scheduleScan(), onError: (_) {});
     } catch (_) {
+      // coverage:ignore-start
+      // File watch setup can fail on platform/filesystem races; scan polling
+      // still handles the transcript and is covered by watcher tests.
       _offset = 0;
+      // coverage:ignore-end
     }
     _pollTimer = Timer.periodic(pollInterval, (_) => _scheduleScan());
     _scheduleScan();

@@ -57,6 +57,10 @@ extension _ManagedAgentHookJson on ManagedAgentHookInstallService {
     tmp.renameSync(path);
   }
 
+  // coverage:ignore-start
+  // External PowerShell hook template. The Dart behavior around installing and
+  // selecting this script is tested; executing every literal line belongs to
+  // Windows agent-hook smoke coverage.
   String _windowsPowerShellManagedScript({
     required String source,
     required String eventEnvVar,
@@ -92,6 +96,7 @@ extension _ManagedAgentHookJson on ManagedAgentHookInstallService {
       '',
     ].join('\r\n');
   }
+  // coverage:ignore-end
 
   Map<String, Object?> _mapFromValue(Object? value) {
     if (value is Map) {

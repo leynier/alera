@@ -171,6 +171,121 @@ void _registerAleraShellSidebarActionTests() {
     expect(harness.runtime.focusedTabIds, contains('tab-2'));
   });
 
+  testWidgets('sidebar agent rows describe working and interrupted runs', (
+    tester,
+  ) async {
+    await _pumpShell(
+      tester,
+      state: _linkedWorkbenchState(linkedExpanded: true),
+      agentStatuses: <String, AgentStatusEntry>{
+        'tab-1': _agentStatusEntry(
+          terminalSessionId: 'tab-1',
+          workspaceId: 'workspace-1',
+          tabId: 'tab-1',
+          state: AgentStatusState.working,
+          toolName: 'Bash',
+          toolInput: 'flutter test',
+        ),
+        'tab-2': _agentStatusEntry(
+          terminalSessionId: 'tab-2',
+          workspaceId: 'workspace-2',
+          tabId: 'tab-2',
+          state: AgentStatusState.done,
+          lastAssistantMessage: 'Stopped early',
+          interrupted: true,
+        ),
+      },
+    );
+
+    expect(find.text('Working'), findsOneWidget);
+    expect(find.text('Bash: flutter test'), findsOneWidget);
+    expect(find.text('Interrupted'), findsOneWidget);
+    expect(find.text('Stopped early'), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (widget) => widget is Tooltip && widget.message == 'Interrupted',
+      ),
+      findsWidgets,
+    );
+  });
+
+  testWidgets('sidebar agent rows describe blocked runs without messages', (
+    tester,
+  ) async {
+    await _pumpShell(
+      tester,
+      state: _linkedWorkbenchState(linkedExpanded: true),
+      agentStatuses: <String, AgentStatusEntry>{
+        'tab-2': _agentStatusEntry(
+          terminalSessionId: 'tab-2',
+          workspaceId: 'workspace-2',
+          tabId: 'tab-2',
+          state: AgentStatusState.blocked,
+        ),
+      },
+    );
+
+    expect(find.text('Blocked'), findsWidgets);
+    expect(find.text('Codex · Blocked'), findsOneWidget);
+  });
+
+  testWidgets('sidebar agent rows describe tool-only and done runs', (
+    tester,
+  ) async {
+    await _pumpShell(
+      tester,
+      state: _linkedWorkbenchState(linkedExpanded: true),
+      agentStatuses: <String, AgentStatusEntry>{
+        'tab-1': _agentStatusEntry(
+          terminalSessionId: 'tab-1',
+          workspaceId: 'workspace-1',
+          tabId: 'tab-1',
+          state: AgentStatusState.working,
+          toolName: 'Bash',
+        ),
+        'tab-2': _agentStatusEntry(
+          terminalSessionId: 'tab-2',
+          workspaceId: 'workspace-2',
+          tabId: 'tab-2',
+          state: AgentStatusState.done,
+        ),
+      },
+    );
+
+    expect(find.text('Bash'), findsOneWidget);
+    expect(find.text('Done'), findsWidgets);
+    expect(find.text('Codex · Done'), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (widget) => widget is Tooltip && widget.message == 'Done',
+      ),
+      findsWidgets,
+    );
+  });
+
+  testWidgets('workspace rows show plural agent run counts', (tester) async {
+    await _pumpShell(
+      tester,
+      state: _stackedWorkbenchState(),
+      agentStatuses: <String, AgentStatusEntry>{
+        'tab-1': _agentStatusEntry(
+          terminalSessionId: 'tab-1',
+          workspaceId: 'workspace-1',
+          tabId: 'tab-1',
+          state: AgentStatusState.waiting,
+        ),
+        'tab-2': _agentStatusEntry(
+          terminalSessionId: 'tab-2',
+          workspaceId: 'workspace-1',
+          tabId: 'tab-2',
+          state: AgentStatusState.done,
+        ),
+      },
+    );
+
+    expect(find.textContaining('2 agent runs'), findsOneWidget);
+  });
+
   testWidgets('closing a sidebar agent row closes the runtime tab', (
     tester,
   ) async {

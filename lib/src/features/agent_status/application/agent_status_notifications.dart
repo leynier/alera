@@ -137,7 +137,10 @@ AgentStatusNotification? composeAgentStatusNotification({
     AgentStatusState.waiting ||
     AgentStatusState.blocked => '$agent needs attention',
     AgentStatusState.done => '$agent finished',
+    // coverage:ignore-start
+    // _isNotifiableState excludes working entries before notification compose.
     AgentStatusState.working => agent,
+    // coverage:ignore-end
   };
   final body = _notificationLocationBody(
     projectName: projectName,

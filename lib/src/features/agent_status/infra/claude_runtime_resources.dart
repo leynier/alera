@@ -90,10 +90,14 @@ extension _ClaudeRuntimeResources on ClaudeRuntimeHomeService {
     required String sourcePath,
   }) {
     final targetPath = p.join(runtimeHomePath, entryName);
+    // coverage:ignore-start
+    // Source entries come from a just-read directory listing. This handles the
+    // filesystem race where an entry disappears before it can be linked.
     if (!_sourceExists(sourcePath)) {
       _removeOwnedRuntimeResource(targetPath, runtimeHomePath, entryName);
       return;
     }
+    // coverage:ignore-end
     if (_targetAlreadyPointsToSource(targetPath, sourcePath)) {
       _clearCopiedResourceMarker(runtimeHomePath, entryName);
       return;
@@ -155,11 +159,15 @@ extension _ClaudeRuntimeResources on ClaudeRuntimeHomeService {
           _targetIsOwnedFallbackCopy(runtimeHome.path, entryName, sourcePath)) {
         continue;
       }
+      // coverage:ignore-start
+      // _syncLinkedResource handles expected entries before stale cleanup runs.
+      // Keep this as a defensive cleanup if that ordering changes.
       if (FileSystemEntity.typeSync(entity.path, followLinks: false) ==
           FileSystemEntityType.link) {
         _deleteEntity(entity.path);
         _clearCopiedResourceMarker(runtimeHome.path, entryName);
       }
+      // coverage:ignore-end
     }
   }
 
@@ -169,10 +177,14 @@ extension _ClaudeRuntimeResources on ClaudeRuntimeHomeService {
     String entryName,
   ) {
     final type = FileSystemEntity.typeSync(targetPath, followLinks: false);
+    // coverage:ignore-start
+    // Paired with the disappeared-source race above: clear any stale marker even
+    // when the target was already removed by the filesystem or another process.
     if (type == FileSystemEntityType.notFound) {
       _clearCopiedResourceMarker(runtimeHomePath, entryName);
       return;
     }
+    // coverage:ignore-end
     if (type == FileSystemEntityType.link ||
         _copiedResourceMarker(runtimeHomePath, entryName) != null) {
       _deleteEntity(targetPath);

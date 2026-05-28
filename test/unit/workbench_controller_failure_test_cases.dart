@@ -56,6 +56,28 @@ void _registerWorkbenchControllerFailureTests() {
         secondTab.id,
       );
       expect(_controller.state.layoutFor(workspace.id)?.activeGroupId, groupId);
+
+      await _controller.moveWorkspaceTab(
+        workspaceId: workspace.id,
+        tabId: secondTab.id,
+        targetGroupId: groupId,
+        zone: WorkbenchDropZone.right,
+      );
+      final splitLayout = _controller.state.layoutFor(workspace.id)!;
+      final firstGroupId = splitLayout.groupIdForTab(firstTab.id)!;
+      _controller.focusWorkbenchGroup(
+        workspaceId: workspace.id,
+        groupId: firstGroupId,
+      );
+      await _flush();
+      expect(
+        _controller.state.layoutFor(workspace.id)?.activeGroupId,
+        firstGroupId,
+      );
+      _controller.focusWorkbenchGroup(
+        workspaceId: 'missing-workspace',
+        groupId: firstGroupId,
+      );
     },
   );
 

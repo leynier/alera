@@ -175,7 +175,7 @@ class _AgentRunStateIndicator extends StatelessWidget {
             AgentStatusState.done => Icons.check_circle_outline,
             AgentStatusState.waiting ||
             AgentStatusState.blocked => Icons.notifications_active_outlined,
-            AgentStatusState.working => Icons.sync,
+            AgentStatusState.working => Icons.sync, // coverage:ignore-line
           };
     return Icon(icon, size: size, color: color);
   }

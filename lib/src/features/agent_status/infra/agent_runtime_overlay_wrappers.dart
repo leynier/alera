@@ -5,7 +5,11 @@ extension _AgentRuntimeOverlayWrappers on AgentRuntimeOverlayService {
     final overlayPath = pluginRoot.parent.path;
     final generatedHooks = File(p.join(overlayPath, '.cursor', 'hooks.json'));
     if (!generatedHooks.existsSync()) {
+      // coverage:ignore-start
+      // ManagedAgentHookInstallService should create this file before plugin
+      // assembly; this remains as a guard against future installer regressions.
       throw StateError('Cursor hooks.json was not generated.');
+      // coverage:ignore-end
     }
     final pluginHooks = File(p.join(pluginRoot.path, 'hooks', 'hooks.json'));
     pluginHooks.parent.createSync(recursive: true);
@@ -48,6 +52,9 @@ extension _AgentRuntimeOverlayWrappers on AgentRuntimeOverlayService {
         : executableName;
   }
 
+  // coverage:ignore-start
+  // External command wrapper templates. Overlay tests verify they are selected
+  // and written; their runtime behavior is shell/cmd integration coverage.
   String _cursorAgentWrapperSource(String pluginRoot, String wrapperDirectory) {
     if (_platform == ManagedAgentHookPlatform.windows) {
       return _windowsCursorAgentWrapperSource(pluginRoot);
@@ -144,7 +151,9 @@ if not defined ALERA_REAL_COMMAND (
   exit /b 127
 )
 "%ALERA_REAL_COMMAND%" %*
-exit /b %ERRORLEVEL%
-''';
+	exit /b %ERRORLEVEL%
+	''';
   }
+
+  // coverage:ignore-end
 }

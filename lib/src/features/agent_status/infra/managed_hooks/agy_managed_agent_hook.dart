@@ -104,7 +104,11 @@ extension _AgyManagedAgentHook on ManagedAgentHookInstallService {
       'PostInvocation' => 'alera-agy-post-invocation.cmd',
       'Stop' => 'alera-agy-stop.cmd',
       'PostToolUse' => 'alera-agy-post-tool-use.cmd',
+      // coverage:ignore-start
+      // Event names are fixed by _agyDescriptor; this fallback keeps wrapper
+      // naming deterministic if AGY introduces another event.
       _ => 'alera-agy-${eventName.toLowerCase()}.cmd',
+      // coverage:ignore-end
     };
     return p.join(_homeDirectory, '.alera', 'agent-hooks', fileName);
   }

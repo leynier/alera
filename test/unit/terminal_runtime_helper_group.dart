@@ -294,6 +294,20 @@ void _registerTerminalRuntimeHelperGroup() {
           'USER': 'tester',
         });
 
+        final pathOnlyWrapper =
+            launchWithSanitizedAgentHookEnvironmentForTesting(
+              _launch(
+                'shell',
+                shell: '/bin/zsh',
+                environment: const <String, String>{
+                  'PATH': '/old-wrapper',
+                  'ALERA_AGENT_WRAPPER_PATH': '/old-wrapper',
+                },
+              ),
+              null,
+            );
+        expect(pathOnlyWrapper.environment, isNot(contains('PATH')));
+
         final existingSetupLaunch =
             launchWithSanitizedAgentHookEnvironmentForTesting(
               _launch(

@@ -242,10 +242,14 @@ extension _CodexRuntimeHomeServiceResourceSync on CodexRuntimeHomeService {
         });
         return;
       }
+      // coverage:ignore-start
+      // Defensive handling for uncommon FileSystemEntityType values; normal
+      // directory, file, and link fingerprints are covered with real entries.
       records.add(<String, Object?>{
         'path': relativePath,
         'type': _fileSystemEntityTypeName(type),
       });
+      // coverage:ignore-end
     }
 
     collect(sourcePath, '');

@@ -36,6 +36,16 @@ void main() {
       expect(event.payload['prompt'], 'build it');
     });
 
+    test('decodes empty request bodies as empty JSON objects', () {
+      expect(
+        decodeAgentHookRequestBody(
+          contentType: 'application/json',
+          bodyBytes: utf8.encode('  \n '),
+        ),
+        <String, Object?>{},
+      );
+    });
+
     test('parses form bodies with JSON payload fields', () {
       final form = Uri(
         queryParameters: <String, String>{

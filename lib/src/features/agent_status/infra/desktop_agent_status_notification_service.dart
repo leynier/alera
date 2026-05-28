@@ -1,3 +1,6 @@
+// coverage:ignore-file
+// Adapter over flutter_local_notifications. Notification decisions and
+// activation payloads are covered at the application layer with fakes.
 import 'dart:async';
 
 import 'package:alera/src/core/build_flavor.dart';

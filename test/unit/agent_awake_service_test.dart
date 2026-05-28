@@ -99,6 +99,92 @@ void main() {
       expect(displayLock.states, <bool>[true, false]);
       expect(assertion.stops, contains('settings-change'));
     });
+
+    test('treats every enabled agent hook as wake eligible', () async {
+      for (final agentType in AgentType.values) {
+        final displayLock = _FakeDisplayLock();
+        final assertion = _FakeAssertion();
+        final updatedAt = DateTime.now().toUtc();
+        final service = AgentAwakeService(
+          displayLock: displayLock,
+          assertions: <AgentAwakeAssertion>[assertion],
+        );
+
+        await service.setHookSettings(_settingsFor(agentType));
+        await service.setEnabled(true);
+        await service.setStatuses(<String, AgentStatusEntry>{
+          'session-${agentType.key}': _entry(
+            agentType: agentType,
+            updatedAt: updatedAt,
+          ),
+        });
+
+        expect(displayLock.states, <bool>[true], reason: agentType.key);
+        expect(assertion.starts, <String>['status-change']);
+        await service.dispose();
+      }
+    });
+
+    test('uses the earliest future status expiry for stale refresh', () async {
+      final displayLock = _FakeDisplayLock();
+      final assertion = _FakeAssertion();
+      final staleAfter = const Duration(milliseconds: 20);
+      final base = DateTime.utc(2026, 5, 27, 12);
+      var now = base;
+      final service = _service(
+        displayLock: displayLock,
+        assertion: assertion,
+        now: () => now,
+        staleAfter: staleAfter,
+      );
+
+      await service.setHookSettings(
+        const AgentStatusHookSettings(codex: true, claude: true),
+      );
+      await service.setEnabled(true);
+      await service.setStatuses(<String, AgentStatusEntry>{
+        'late': _entry(
+          terminalSessionId: 'late',
+          agentType: AgentType.codex,
+          updatedAt: base,
+        ),
+        'early': _entry(
+          terminalSessionId: 'early',
+          agentType: AgentType.claude,
+          updatedAt: base.subtract(const Duration(milliseconds: 15)),
+        ),
+      });
+
+      now = base.add(const Duration(milliseconds: 6));
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      expect(displayLock.states, <bool>[true]);
+      expect(assertion.starts, contains('stale-expiry'));
+      await service.dispose();
+    });
+
+    test('logs and continues when display lock and assertions fail', () async {
+      final displayLock = _FakeDisplayLock()..throwOnSet = true;
+      final assertion = _FakeAssertion()
+        ..throwOnStart = true
+        ..throwOnStop = true
+        ..throwOnDispose = true;
+      final service = _service(displayLock: displayLock, assertion: assertion);
+
+      await service.setHookSettings(const AgentStatusHookSettings(codex: true));
+      await service.setEnabled(true);
+      await service.setStatuses(<String, AgentStatusEntry>{
+        'session-1': _entry(),
+      });
+      await service.setStatuses(const <String, AgentStatusEntry>{});
+      await service.dispose();
+      await service.dispose();
+
+      expect(displayLock.states, <bool>[true]);
+      expect(assertion.starts, <String>['status-change']);
+      expect(assertion.stops, contains('status-change'));
+      expect(assertion.disposeCount, 1);
+    });
   });
 }
 
@@ -118,6 +204,7 @@ AgentAwakeService _service({
 
 AgentStatusEntry _entry({
   String terminalSessionId = 'session-1',
+  AgentType agentType = AgentType.codex,
   AgentStatusState state = AgentStatusState.working,
   DateTime? updatedAt,
 }) {
@@ -126,7 +213,7 @@ AgentStatusEntry _entry({
     terminalSessionId: terminalSessionId,
     workspaceId: 'workspace-1',
     tabId: 'tab-1',
-    agentType: AgentType.codex,
+    agentType: agentType,
     state: state,
     prompt: 'Run tests',
     updatedAt: time,
@@ -134,12 +221,29 @@ AgentStatusEntry _entry({
   );
 }
 
+AgentStatusHookSettings _settingsFor(AgentType agentType) {
+  return switch (agentType) {
+    AgentType.codex => const AgentStatusHookSettings(codex: true),
+    AgentType.claude => const AgentStatusHookSettings(claude: true),
+    AgentType.copilot => const AgentStatusHookSettings(copilot: true),
+    AgentType.cursor => const AgentStatusHookSettings(cursor: true),
+    AgentType.agy => const AgentStatusHookSettings(agy: true),
+    AgentType.opencode => const AgentStatusHookSettings(opencode: true),
+    AgentType.pi => const AgentStatusHookSettings(pi: true),
+    AgentType.amp => const AgentStatusHookSettings(amp: true),
+  };
+}
+
 class _FakeDisplayLock implements AgentAwakeDisplayLock {
   final List<bool> states = <bool>[];
+  var throwOnSet = false;
 
   @override
   Future<void> setEnabled(bool enabled) async {
     states.add(enabled);
+    if (throwOnSet) {
+      throw StateError('display lock failed');
+    }
   }
 }
 
@@ -147,19 +251,31 @@ class _FakeAssertion implements AgentAwakeAssertion {
   final List<String> starts = <String>[];
   final List<String> stops = <String>[];
   var disposeCount = 0;
+  var throwOnStart = false;
+  var throwOnStop = false;
+  var throwOnDispose = false;
 
   @override
   Future<void> start(String reason) async {
     starts.add(reason);
+    if (throwOnStart) {
+      throw StateError('start failed');
+    }
   }
 
   @override
   Future<void> stop(String reason) async {
     stops.add(reason);
+    if (throwOnStop) {
+      throw StateError('stop failed');
+    }
   }
 
   @override
   Future<void> dispose() async {
     disposeCount++;
+    if (throwOnDispose) {
+      throw StateError('dispose failed');
+    }
   }
 }
