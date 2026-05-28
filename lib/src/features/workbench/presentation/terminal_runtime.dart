@@ -70,6 +70,9 @@ typedef TerminalLaunchEnvironmentBuilder =
       required String tabId,
     });
 
+typedef TerminalSessionCleanup =
+    FutureOr<void> Function(String terminalSessionId);
+
 final class TerminalRuntimeExitEvent {
   const TerminalRuntimeExitEvent({
     required this.workspaceId,
@@ -420,6 +423,7 @@ class XtermTerminalRuntime implements TerminalRuntime {
     List<GhosttyTerminalShellLaunch> Function()? shellLaunchesBuilder,
     TerminalLaunchEnvironmentBuilder? agentHookEnvironmentBuilder,
     TerminalShellStartupPreparer? shellStartupPreparer,
+    TerminalSessionCleanup? terminalSessionCleanup,
   }) {
     return XtermTerminalRuntime._(
       ptySessionFactory ?? const DefaultTerminalPtySessionFactory(),
@@ -428,6 +432,7 @@ class XtermTerminalRuntime implements TerminalRuntime {
       shellLaunchesBuilder ?? _terminalShellLaunches,
       agentHookEnvironmentBuilder,
       shellStartupPreparer,
+      terminalSessionCleanup,
     );
   }
 
@@ -438,6 +443,7 @@ class XtermTerminalRuntime implements TerminalRuntime {
     this._shellLaunchesBuilder,
     this._agentHookEnvironmentBuilder,
     this._shellStartupPreparer,
+    this._terminalSessionCleanup,
   );
 
   final TerminalPtySessionFactory _ptySessionFactory;
@@ -445,6 +451,7 @@ class XtermTerminalRuntime implements TerminalRuntime {
   final List<GhosttyTerminalShellLaunch> Function() _shellLaunchesBuilder;
   final TerminalLaunchEnvironmentBuilder? _agentHookEnvironmentBuilder;
   final TerminalShellStartupPreparer? _shellStartupPreparer;
+  final TerminalSessionCleanup? _terminalSessionCleanup;
   TerminalSettings _settings;
   final StreamController<TerminalRuntimeExitEvent> _exitController =
       StreamController<TerminalRuntimeExitEvent>.broadcast();
@@ -491,7 +498,10 @@ class XtermTerminalRuntime implements TerminalRuntime {
 
   @override
   void closeTab(String tabId) {
-    _sessions.remove(tabId)?.dispose(terminatePty: true);
+    final session = _sessions.remove(tabId);
+    if (session != null) {
+      _disposeSession(session, terminatePty: true);
+    }
   }
 
   @override
@@ -501,17 +511,34 @@ class XtermTerminalRuntime implements TerminalRuntime {
         .map((entry) => entry.key)
         .toList(growable: false);
     for (final tabId in removed) {
-      _sessions.remove(tabId)?.dispose(terminatePty: true);
+      final session = _sessions.remove(tabId);
+      if (session != null) {
+        _disposeSession(session, terminatePty: true);
+      }
     }
   }
 
   @override
   void dispose() {
     for (final session in _sessions.values) {
-      session.dispose(terminatePty: false);
+      _disposeSession(session, terminatePty: false);
     }
     _sessions.clear();
     unawaited(_exitController.close());
+  }
+
+  void _disposeSession(
+    _XtermTerminalSessionHandle session, {
+    required bool terminatePty,
+  }) {
+    final terminalSessionId = session.terminalSessionId;
+    session.dispose(terminatePty: terminatePty);
+    final cleanup = _terminalSessionCleanup;
+    if (terminatePty && cleanup != null) {
+      unawaited(
+        Future<void>.sync(() => cleanup(terminalSessionId)).catchError((_) {}),
+      );
+    }
   }
 }
 
@@ -575,6 +602,8 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
 
   @override
   String get workspaceId => _workspace.id;
+
+  String get terminalSessionId => _tab.terminalSessionId;
 
   @override
   String get displayTitle {
@@ -1120,8 +1149,20 @@ GhosttyTerminalShellLaunch _launchWithSanitizedAgentHookEnvironment(
   GhosttyTerminalShellLaunch launch,
   Map<String, String>? agentHookEnvironment,
 ) {
-  final environment = <String, String>{...?launch.environment}
-    ..removeWhere(_isAleraAgentHookEnvironmentKey);
+  final environment = <String, String>{...?launch.environment};
+  _restoreOrStripManagedOverlayEnvironment(
+    environment,
+    primary: 'OPENCODE_CONFIG_DIR',
+    overlay: 'ALERA_OPENCODE_CONFIG_DIR',
+    source: 'ALERA_OPENCODE_SOURCE_CONFIG_DIR',
+  );
+  _restoreOrStripManagedOverlayEnvironment(
+    environment,
+    primary: 'PI_CODING_AGENT_DIR',
+    overlay: 'ALERA_PI_CODING_AGENT_DIR',
+    source: 'ALERA_PI_SOURCE_AGENT_DIR',
+  );
+  environment.removeWhere(_isAleraAgentHookEnvironmentKey);
   if (agentHookEnvironment != null) {
     environment.addAll(agentHookEnvironment);
   }
@@ -1132,6 +1173,23 @@ GhosttyTerminalShellLaunch _launchWithSanitizedAgentHookEnvironment(
     environment: environment.isEmpty ? null : environment,
     setupCommand: launch.setupCommand,
   );
+}
+
+void _restoreOrStripManagedOverlayEnvironment(
+  Map<String, String> environment, {
+  required String primary,
+  required String overlay,
+  required String source,
+}) {
+  final sourceValue = environment[source];
+  final overlayValue = environment[overlay];
+  if (sourceValue != null && sourceValue.isNotEmpty) {
+    environment[primary] = sourceValue;
+  } else if (overlayValue != null && environment[primary] == overlayValue) {
+    environment.remove(primary);
+  }
+  environment.remove(overlay);
+  environment.remove(source);
 }
 
 GhosttyTerminalShellLaunch _launchInWorkingDirectory(
@@ -1205,7 +1263,11 @@ bool _isAleraAgentHookEnvironmentKey(String key, String _) {
       key == 'ALERA_WORKSPACE_ID' ||
       key == 'ALERA_TAB_ID' ||
       key == 'ALERA_CODEX_HOME' ||
-      key == 'ALERA_CLAUDE_CONFIG_DIR';
+      key == 'ALERA_CLAUDE_CONFIG_DIR' ||
+      key == 'ALERA_OPENCODE_CONFIG_DIR' ||
+      key == 'ALERA_OPENCODE_SOURCE_CONFIG_DIR' ||
+      key == 'ALERA_PI_CODING_AGENT_DIR' ||
+      key == 'ALERA_PI_SOURCE_AGENT_DIR';
 }
 
 bool _isWindowsCommandPromptLaunch(GhosttyTerminalShellLaunch launch) {

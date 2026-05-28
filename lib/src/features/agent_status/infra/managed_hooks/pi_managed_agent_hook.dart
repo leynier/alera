@@ -18,7 +18,10 @@ extension _PiManagedAgentHook on ManagedAgentHookInstallService {
     return p.join(_homeDirectory, '.pi', 'agent');
   }
 
-  String _piExtensionSource() => r'''
+  String _piExtensionSource() => aleraPiStatusExtensionSource();
+}
+
+String aleraPiStatusExtensionSource() => r'''
 // ALERA_AGENT_STATUS_MANAGED_FILE
 let warnedBadEndpoint = false
 let cachedEndpointKey = ''
@@ -156,4 +159,3 @@ export default function (pi) {
   })
 }
 ''';
-}

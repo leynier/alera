@@ -216,6 +216,11 @@ void main() {
               'ALERA_TERMINAL_SESSION_ID': 'old-session',
               'ALERA_CODEX_HOME': '/old-runtime',
               'ALERA_CLAUDE_CONFIG_DIR': '/old-claude-runtime',
+              'OPENCODE_CONFIG_DIR': '/old-opencode-overlay',
+              'ALERA_OPENCODE_CONFIG_DIR': '/old-opencode-overlay',
+              'ALERA_OPENCODE_SOURCE_CONFIG_DIR': '/user-opencode',
+              'PI_CODING_AGENT_DIR': '/old-pi-overlay',
+              'ALERA_PI_CODING_AGENT_DIR': '/old-pi-overlay',
             },
           ),
           const <String, String>{
@@ -227,6 +232,11 @@ void main() {
             'ALERA_CODEX_HOME': '/runtime/codex',
             'CLAUDE_CONFIG_DIR': '/runtime/claude',
             'ALERA_CLAUDE_CONFIG_DIR': '/runtime/claude',
+            'OPENCODE_CONFIG_DIR': '/runtime/opencode',
+            'ALERA_OPENCODE_CONFIG_DIR': '/runtime/opencode',
+            'ALERA_OPENCODE_SOURCE_CONFIG_DIR': '/user-opencode',
+            'PI_CODING_AGENT_DIR': '/runtime/pi',
+            'ALERA_PI_CODING_AGENT_DIR': '/runtime/pi',
           },
         );
 
@@ -240,6 +250,11 @@ void main() {
           'ALERA_CODEX_HOME': '/runtime/codex',
           'CLAUDE_CONFIG_DIR': '/runtime/claude',
           'ALERA_CLAUDE_CONFIG_DIR': '/runtime/claude',
+          'OPENCODE_CONFIG_DIR': '/runtime/opencode',
+          'ALERA_OPENCODE_CONFIG_DIR': '/runtime/opencode',
+          'ALERA_OPENCODE_SOURCE_CONFIG_DIR': '/user-opencode',
+          'PI_CODING_AGENT_DIR': '/runtime/pi',
+          'ALERA_PI_CODING_AGENT_DIR': '/runtime/pi',
         });
         expect(launch.setupCommand, isNull);
 
@@ -251,12 +266,20 @@ void main() {
               'ALERA_AGENT_HOOK_PORT': '123',
               'ALERA_CODEX_HOME': '/old-runtime',
               'ALERA_CLAUDE_CONFIG_DIR': '/old-claude-runtime',
+              'OPENCODE_CONFIG_DIR': '/old-opencode-overlay',
+              'ALERA_OPENCODE_CONFIG_DIR': '/old-opencode-overlay',
+              'ALERA_OPENCODE_SOURCE_CONFIG_DIR': '/user-opencode',
+              'PI_CODING_AGENT_DIR': '/old-pi-overlay',
+              'ALERA_PI_CODING_AGENT_DIR': '/old-pi-overlay',
               'USER': 'tester',
             },
           ),
           null,
         );
-        expect(sanitizedOnly.environment, <String, String>{'USER': 'tester'});
+        expect(sanitizedOnly.environment, <String, String>{
+          'OPENCODE_CONFIG_DIR': '/user-opencode',
+          'USER': 'tester',
+        });
 
         final existingSetupLaunch =
             launchWithSanitizedAgentHookEnvironmentForTesting(
@@ -711,11 +734,13 @@ void main() {
         final factory = _FakeTerminalPtySessionFactory(
           sessions: <_FakeTerminalPtySession>[first, second, third],
         );
+        final cleanedTerminalSessionIds = <String>[];
         final runtime = XtermTerminalRuntime(
           ptySessionFactory: factory,
           shellLaunchesBuilder: () => <GhosttyTerminalShellLaunch>[
             _launch('shell', shell: '/bin/sh'),
           ],
+          terminalSessionCleanup: cleanedTerminalSessionIds.add,
         );
         addTearDown(runtime.dispose);
         try {
@@ -746,17 +771,20 @@ void main() {
           expect(first.terminated, isTrue);
           expect(second.disposed, isFalse);
           expect(third.disposed, isFalse);
+          expect(cleanedTerminalSessionIds, <String>['tab-1']);
 
           runtime.closeWorkspace('workspace-1');
           await Future<void>.delayed(Duration.zero);
           expect(second.disposed, isTrue);
           expect(second.terminated, isTrue);
           expect(third.disposed, isFalse);
+          expect(cleanedTerminalSessionIds, <String>['tab-1', 'tab-2']);
 
           runtime.dispose();
           await Future<void>.delayed(Duration.zero);
           expect(third.disposed, isTrue);
           expect(third.terminated, isFalse);
+          expect(cleanedTerminalSessionIds, <String>['tab-1', 'tab-2']);
         } finally {
           debugDefaultTargetPlatformOverride = null;
         }

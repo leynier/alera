@@ -230,7 +230,9 @@ GhosttyTerminalShellLaunch _launchWithPrependedSetupCommand(
 
 bool _hasManagedAgentRuntimeEnvironment(Map<String, String> environment) {
   return environment.containsKey('ALERA_CODEX_HOME') ||
-      environment.containsKey('ALERA_CLAUDE_CONFIG_DIR');
+      environment.containsKey('ALERA_CLAUDE_CONFIG_DIR') ||
+      environment.containsKey('ALERA_OPENCODE_CONFIG_DIR') ||
+      environment.containsKey('ALERA_PI_CODING_AGENT_DIR');
 }
 
 Future<void> _writeIfChanged(File file, String contents) async {
@@ -273,6 +275,12 @@ fi
 if [[ -n "\${ALERA_CLAUDE_CONFIG_DIR:-}" ]]; then
   export CLAUDE_CONFIG_DIR="\${ALERA_CLAUDE_CONFIG_DIR}"
 fi
+if [[ -n "\${ALERA_OPENCODE_CONFIG_DIR:-}" ]]; then
+  export OPENCODE_CONFIG_DIR="\${ALERA_OPENCODE_CONFIG_DIR}"
+fi
+if [[ -n "\${ALERA_PI_CODING_AGENT_DIR:-}" ]]; then
+  export PI_CODING_AGENT_DIR="\${ALERA_PI_CODING_AGENT_DIR}"
+fi
 ''';
 }
 
@@ -292,6 +300,12 @@ if [[ -n "\${ALERA_CODEX_HOME:-}" ]]; then
 fi
 if [[ -n "\${ALERA_CLAUDE_CONFIG_DIR:-}" ]]; then
   export CLAUDE_CONFIG_DIR="\${ALERA_CLAUDE_CONFIG_DIR}"
+fi
+if [[ -n "\${ALERA_OPENCODE_CONFIG_DIR:-}" ]]; then
+  export OPENCODE_CONFIG_DIR="\${ALERA_OPENCODE_CONFIG_DIR}"
+fi
+if [[ -n "\${ALERA_PI_CODING_AGENT_DIR:-}" ]]; then
+  export PI_CODING_AGENT_DIR="\${ALERA_PI_CODING_AGENT_DIR}"
 fi
 export ZDOTDIR=$quotedManagedZdotdir
 unset _alera_orig_zdotdir
@@ -344,24 +358,40 @@ fi
 if [ -n "\${ALERA_CLAUDE_CONFIG_DIR:-}" ]; then
   export CLAUDE_CONFIG_DIR="\${ALERA_CLAUDE_CONFIG_DIR}"
 fi
+if [ -n "\${ALERA_OPENCODE_CONFIG_DIR:-}" ]; then
+  export OPENCODE_CONFIG_DIR="\${ALERA_OPENCODE_CONFIG_DIR}"
+fi
+if [ -n "\${ALERA_PI_CODING_AGENT_DIR:-}" ]; then
+  export PI_CODING_AGENT_DIR="\${ALERA_PI_CODING_AGENT_DIR}"
+fi
 ''';
 
 const String _fishRestoreManagedAgentEnvironment =
     'if set -q ALERA_CODEX_HOME; set -gx CODEX_HOME \$ALERA_CODEX_HOME; end\n'
-    'if set -q ALERA_CLAUDE_CONFIG_DIR; set -gx CLAUDE_CONFIG_DIR \$ALERA_CLAUDE_CONFIG_DIR; end\n';
+    'if set -q ALERA_CLAUDE_CONFIG_DIR; set -gx CLAUDE_CONFIG_DIR \$ALERA_CLAUDE_CONFIG_DIR; end\n'
+    'if set -q ALERA_OPENCODE_CONFIG_DIR; set -gx OPENCODE_CONFIG_DIR \$ALERA_OPENCODE_CONFIG_DIR; end\n'
+    'if set -q ALERA_PI_CODING_AGENT_DIR; set -gx PI_CODING_AGENT_DIR \$ALERA_PI_CODING_AGENT_DIR; end\n';
 
 const String _cmdRestoreManagedAgentEnvironment =
     'if defined ALERA_CODEX_HOME set "CODEX_HOME=%ALERA_CODEX_HOME%"\n'
-    'if defined ALERA_CLAUDE_CONFIG_DIR set "CLAUDE_CONFIG_DIR=%ALERA_CLAUDE_CONFIG_DIR%"\n';
+    'if defined ALERA_CLAUDE_CONFIG_DIR set "CLAUDE_CONFIG_DIR=%ALERA_CLAUDE_CONFIG_DIR%"\n'
+    'if defined ALERA_OPENCODE_CONFIG_DIR set "OPENCODE_CONFIG_DIR=%ALERA_OPENCODE_CONFIG_DIR%"\n'
+    'if defined ALERA_PI_CODING_AGENT_DIR set "PI_CODING_AGENT_DIR=%ALERA_PI_CODING_AGENT_DIR%"\n';
 
 const String _shRestoreManagedAgentEnvironment =
     'if [ -n "\${ALERA_CODEX_HOME:-}" ]; then export CODEX_HOME="\$ALERA_CODEX_HOME"; fi\n'
-    'if [ -n "\${ALERA_CLAUDE_CONFIG_DIR:-}" ]; then export CLAUDE_CONFIG_DIR="\$ALERA_CLAUDE_CONFIG_DIR"; fi\n';
+    'if [ -n "\${ALERA_CLAUDE_CONFIG_DIR:-}" ]; then export CLAUDE_CONFIG_DIR="\$ALERA_CLAUDE_CONFIG_DIR"; fi\n'
+    'if [ -n "\${ALERA_OPENCODE_CONFIG_DIR:-}" ]; then export OPENCODE_CONFIG_DIR="\$ALERA_OPENCODE_CONFIG_DIR"; fi\n'
+    'if [ -n "\${ALERA_PI_CODING_AGENT_DIR:-}" ]; then export PI_CODING_AGENT_DIR="\$ALERA_PI_CODING_AGENT_DIR"; fi\n';
 
 const String _nushellRestoreManagedAgentEnvironment =
     r'if ("ALERA_CODEX_HOME" in $env) { $env.CODEX_HOME = $env.ALERA_CODEX_HOME }'
     '\n'
     r'if ("ALERA_CLAUDE_CONFIG_DIR" in $env) { $env.CLAUDE_CONFIG_DIR = $env.ALERA_CLAUDE_CONFIG_DIR }'
+    '\n'
+    r'if ("ALERA_OPENCODE_CONFIG_DIR" in $env) { $env.OPENCODE_CONFIG_DIR = $env.ALERA_OPENCODE_CONFIG_DIR }'
+    '\n'
+    r'if ("ALERA_PI_CODING_AGENT_DIR" in $env) { $env.PI_CODING_AGENT_DIR = $env.ALERA_PI_CODING_AGENT_DIR }'
     '\n';
 
 const String _nushellConfigFile = r'''
@@ -376,12 +406,24 @@ if ("ALERA_CODEX_HOME" in $env) {
 if ("ALERA_CLAUDE_CONFIG_DIR" in $env) {
   $env.CLAUDE_CONFIG_DIR = $env.ALERA_CLAUDE_CONFIG_DIR
 }
+if ("ALERA_OPENCODE_CONFIG_DIR" in $env) {
+  $env.OPENCODE_CONFIG_DIR = $env.ALERA_OPENCODE_CONFIG_DIR
+}
+if ("ALERA_PI_CODING_AGENT_DIR" in $env) {
+  $env.PI_CODING_AGENT_DIR = $env.ALERA_PI_CODING_AGENT_DIR
+}
 let __alera_restore_managed_agent_environment = { ||
   if ("ALERA_CODEX_HOME" in $env) {
     $env.CODEX_HOME = $env.ALERA_CODEX_HOME
   }
   if ("ALERA_CLAUDE_CONFIG_DIR" in $env) {
     $env.CLAUDE_CONFIG_DIR = $env.ALERA_CLAUDE_CONFIG_DIR
+  }
+  if ("ALERA_OPENCODE_CONFIG_DIR" in $env) {
+    $env.OPENCODE_CONFIG_DIR = $env.ALERA_OPENCODE_CONFIG_DIR
+  }
+  if ("ALERA_PI_CODING_AGENT_DIR" in $env) {
+    $env.PI_CODING_AGENT_DIR = $env.ALERA_PI_CODING_AGENT_DIR
   }
 }
 if not ("config" in $env) {
@@ -398,6 +440,12 @@ if ($env:ALERA_CODEX_HOME) {
 }
 if ($env:ALERA_CLAUDE_CONFIG_DIR) {
   $env:CLAUDE_CONFIG_DIR = $env:ALERA_CLAUDE_CONFIG_DIR
+}
+if ($env:ALERA_OPENCODE_CONFIG_DIR) {
+  $env:OPENCODE_CONFIG_DIR = $env:ALERA_OPENCODE_CONFIG_DIR
+}
+if ($env:ALERA_PI_CODING_AGENT_DIR) {
+  $env:PI_CODING_AGENT_DIR = $env:ALERA_PI_CODING_AGENT_DIR
 }
 ''';
 

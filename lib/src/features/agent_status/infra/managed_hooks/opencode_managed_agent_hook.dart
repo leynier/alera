@@ -24,7 +24,10 @@ extension _OpenCodeManagedAgentHook on ManagedAgentHookInstallService {
     return p.join(_homeDirectory, '.config', 'opencode');
   }
 
-  String _opencodePluginSource() => r'''
+  String _opencodePluginSource() => aleraOpenCodeStatusPluginSource();
+}
+
+String aleraOpenCodeStatusPluginSource() => r'''
 // ALERA_AGENT_STATUS_MANAGED_FILE
 let warnedBadEndpoint = false;
 let cachedEndpointKey = "";
@@ -215,4 +218,3 @@ export const AleraOpenCodeStatusPlugin = async (_ctx) => {
   };
 };
 ''';
-}

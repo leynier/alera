@@ -6,6 +6,7 @@ import 'package:alera/src/features/agent_status/application/agent_status_control
 import 'package:alera/src/features/agent_status/application/agent_status_notifications.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/infra/agent_hook_receiver.dart';
+import 'package:alera/src/features/agent_status/infra/agent_runtime_overlay_service.dart';
 import 'package:alera/src/features/agent_status/infra/claude_runtime_home_service.dart';
 import 'package:alera/src/features/agent_status/infra/codex_runtime_home_service.dart';
 import 'package:alera/src/features/agent_status/infra/desktop_agent_status_notification_service.dart';
@@ -116,6 +117,12 @@ final claudeRuntimeHomeServiceProvider = Provider<ClaudeRuntimeHomeService>((
 ) {
   return ClaudeRuntimeHomeService();
 });
+
+final agentRuntimeOverlayServiceProvider = Provider<AgentRuntimeOverlayService>(
+  (ref) {
+    return AgentRuntimeOverlayService();
+  },
+);
 
 final agentStatusNotificationPresenterProvider =
     Provider<AgentStatusNotificationPresenter>((ref) {
@@ -267,6 +274,7 @@ final terminalRuntimeProvider = Provider<TerminalRuntime>((ref) {
   final agentHookReceiver = ref.watch(agentHookReceiverProvider);
   final codexRuntimeHome = ref.watch(codexRuntimeHomeServiceProvider);
   final claudeRuntimeHome = ref.watch(claudeRuntimeHomeServiceProvider);
+  final agentRuntimeOverlay = ref.watch(agentRuntimeOverlayServiceProvider);
   final shellStartupPreparer = ref.watch(terminalShellStartupPreparerProvider);
   final runtime = XtermTerminalRuntime(
     ptySessionFactory: TerminalHostPtySessionFactory(
@@ -275,6 +283,7 @@ final terminalRuntimeProvider = Provider<TerminalRuntime>((ref) {
     initialSettings: ref.read(settingsControllerProvider).terminal,
     externalUriLauncher: ref.watch(externalUriLauncherProvider),
     shellStartupPreparer: shellStartupPreparer,
+    terminalSessionCleanup: agentRuntimeOverlay.clearTerminalOverlays,
     agentHookEnvironmentBuilder:
         ({required terminalSessionId, required workspaceId, required tabId}) {
           final hooks = ref
@@ -288,6 +297,7 @@ final terminalRuntimeProvider = Provider<TerminalRuntime>((ref) {
             agentHookReceiver: agentHookReceiver,
             codexRuntimeHome: codexRuntimeHome,
             claudeRuntimeHome: claudeRuntimeHome,
+            agentRuntimeOverlay: agentRuntimeOverlay,
             hooks: hooks,
             terminalSessionId: terminalSessionId,
             workspaceId: workspaceId,
@@ -448,7 +458,10 @@ List<AgentType> _enabledAgentStatusHookTypes(AgentStatusHookSettings settings) {
 List<AgentType> _globalManagedAgentTypes() {
   return <AgentType>[
     for (final agentType in AgentType.values)
-      if (agentType != AgentType.codex && agentType != AgentType.claude)
+      if (agentType != AgentType.codex &&
+          agentType != AgentType.claude &&
+          agentType != AgentType.opencode &&
+          agentType != AgentType.pi)
         agentType,
   ];
 }
@@ -458,7 +471,10 @@ List<AgentType> _enabledGlobalManagedAgentStatusHookTypes(
 ) {
   return <AgentType>[
     for (final agentType in _enabledAgentStatusHookTypes(settings))
-      if (agentType != AgentType.codex && agentType != AgentType.claude)
+      if (agentType != AgentType.codex &&
+          agentType != AgentType.claude &&
+          agentType != AgentType.opencode &&
+          agentType != AgentType.pi)
         agentType,
   ];
 }
@@ -483,6 +499,8 @@ Future<List<ManagedAgentHookInstallStatus>> _reconcileAgentHooks({
         ? await claudeRuntimeHome.install()
         : await claudeRuntimeHome.remove(),
   );
+  results.add(service.remove(AgentType.opencode));
+  results.add(service.remove(AgentType.pi));
   return results;
 }
 
@@ -490,6 +508,7 @@ Future<Map<String, String>?> _terminalLaunchEnvironmentFor({
   required AgentHookReceiver agentHookReceiver,
   required CodexRuntimeHomeService codexRuntimeHome,
   required ClaudeRuntimeHomeService claudeRuntimeHome,
+  required AgentRuntimeOverlayService agentRuntimeOverlay,
   required AgentStatusHookSettings hooks,
   required String terminalSessionId,
   required String workspaceId,
@@ -513,6 +532,23 @@ Future<Map<String, String>?> _terminalLaunchEnvironmentFor({
   if (hooks.claude) {
     try {
       final preparation = await claudeRuntimeHome.prepareForTerminalLaunch();
+      environment.addAll(preparation.environment);
+    } catch (_) {}
+  }
+  if (hooks.opencode) {
+    try {
+      final preparation = await agentRuntimeOverlay
+          .prepareOpenCodeForTerminalLaunch(
+            terminalSessionId: terminalSessionId,
+          );
+      environment.addAll(preparation.environment);
+    } catch (_) {}
+  }
+  if (hooks.pi) {
+    try {
+      final preparation = await agentRuntimeOverlay.preparePiForTerminalLaunch(
+        terminalSessionId: terminalSessionId,
+      );
       environment.addAll(preparation.environment);
     } catch (_) {}
   }

@@ -722,7 +722,7 @@ class _GeneralSettingsPane extends ConsumerWidget {
             _SwitchSettingRow(
               title: 'OpenCode hooks',
               description:
-                  'Install Alera-managed OpenCode status plugin. Disable to remove only Alera-managed files.',
+                  'Use an Alera-managed OpenCode config overlay with status plugin.',
               value: general.agentStatusHooks.opencode,
               onChanged: (value) => ref
                   .read(settingsControllerProvider.notifier)
@@ -731,7 +731,7 @@ class _GeneralSettingsPane extends ConsumerWidget {
             _SwitchSettingRow(
               title: 'Pi hooks',
               description:
-                  'Install Alera-managed Pi status extension. Disable to remove only Alera-managed files.',
+                  'Use an Alera-managed Pi agent overlay with status extension.',
               value: general.agentStatusHooks.pi,
               onChanged: (value) => ref
                   .read(settingsControllerProvider.notifier)
