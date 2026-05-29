@@ -14,6 +14,7 @@ Future<void> main(List<String> arguments) async {
     workingDirectory: repoRoot,
     mode: ProcessStartMode.detached,
     includeParentEnvironment: true,
+    runInShell: Platform.isWindows,
   );
 }
 

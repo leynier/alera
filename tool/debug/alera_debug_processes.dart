@@ -13,6 +13,7 @@ Future<int> _run(
     workingDirectory: _repoRoot,
     environment: environment,
     includeParentEnvironment: true,
+    runInShell: Platform.isWindows,
   );
   StreamSubscription<List<int>>? stdinSub;
   if (forwardStdin && stdin.hasTerminal) {

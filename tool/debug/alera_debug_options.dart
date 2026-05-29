@@ -45,7 +45,10 @@ final class _Options {
       dartExecutable: map['dart'] ?? Platform.environment['DART'] ?? 'dart',
       flutterExecutable:
           map['flutter'] ?? Platform.environment['FLUTTER'] ?? 'flutter',
-      device: map['device'] ?? Platform.environment['APP_DEVICE'] ?? 'macos',
+      device:
+          map['device'] ??
+          Platform.environment['APP_DEVICE'] ??
+          _defaultFlutterDevice(),
       flavor: flavor,
       appId:
           map['app-id'] ?? Platform.environment['ALERA_APP_ID'] ?? defaultAppId,
@@ -91,6 +94,22 @@ final class _Options {
   final String hostDetachedShutdownSeconds;
   final String hostScrollbackBytes;
   final String? appSupportDir;
+}
+
+String _defaultFlutterDevice() {
+  if (Platform.isMacOS) {
+    return 'macos';
+  }
+  if (Platform.isWindows) {
+    return 'windows';
+  }
+  if (Platform.isLinux) {
+    return 'linux';
+  }
+  throw const FormatException(
+    'No default Flutter desktop device is available for this host platform. '
+    'Pass --device explicitly.',
+  );
 }
 
 final class _RuntimePaths {

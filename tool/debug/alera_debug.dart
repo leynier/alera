@@ -18,7 +18,15 @@ Future<void> main(List<String> arguments) async {
   }
 
   final command = arguments.first;
-  final options = _Options.parse(arguments.skip(1).toList());
+  final _Options options;
+  try {
+    options = _Options.parse(arguments.skip(1).toList());
+  } on FormatException catch (error) {
+    stderr.writeln(error.message);
+    _printUsage();
+    exitCode = 64;
+    return;
+  }
   final context = _DebugContext(options);
 
   final result = switch (command) {
