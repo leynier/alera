@@ -6,12 +6,11 @@ project(runner LANGUAGES CXX)
 # so that a dev build coexists with an installed release build (XDG user-data
 # dirs are keyed by APPLICATION_ID).
 # https://wiki.gnome.org/HowDoI/ChooseApplicationID
+set(BINARY_NAME "alera-dev")
+set(APPLICATION_ID "dev.leynier.alera.dev")
 if("$ENV{ALERA_FLAVOR}" STREQUAL "release")
   set(BINARY_NAME "alera")
   set(APPLICATION_ID "dev.leynier.alera")
-else()
-  set(BINARY_NAME "alera-dev")
-  set(APPLICATION_ID "dev.leynier.alera.dev")
 endif()
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
