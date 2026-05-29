@@ -13,7 +13,7 @@ final class _DebugContext {
       'bin/alera.dart',
       '--output',
       _options.bundleDir,
-    ]);
+    ], normalizeDartBuildOutput: true);
   }
 
   Future<int> cliHelp() async {

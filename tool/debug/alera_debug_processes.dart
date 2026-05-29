@@ -5,6 +5,7 @@ Future<int> _run(
   List<String> arguments, {
   Map<String, String>? environment,
   bool forwardStdin = false,
+  bool normalizeDartBuildOutput = false,
 }) async {
   stdout.writeln([executable, ...arguments].map(_quoteForLog).join(' '));
   final process = await Process.start(
@@ -23,12 +24,60 @@ Future<int> _run(
       onDone: process.stdin.close,
     );
   }
-  final stdoutDone = stdout.addStream(process.stdout);
-  final stderrDone = stderr.addStream(process.stderr);
+  final stdoutDone = normalizeDartBuildOutput
+      ? _writeNormalizedDartBuildOutput(process.stdout, stdout)
+      : stdout.addStream(process.stdout);
+  final stderrDone = normalizeDartBuildOutput
+      ? _writeNormalizedDartBuildOutput(process.stderr, stderr)
+      : stderr.addStream(process.stderr);
   final processExit = await process.exitCode;
   await stdinSub?.cancel();
   await Future.wait(<Future<void>>[stdoutDone, stderrDone]);
   return processExit;
+}
+
+Future<void> _writeNormalizedDartBuildOutput(
+  Stream<List<int>> stream,
+  IOSink sink,
+) async {
+  final output = StringBuffer();
+  await for (final chunk in utf8.decoder.bind(stream)) {
+    output.write(chunk);
+  }
+  sink.write(_DartBuildOutputNormalizer().convert(output.toString()));
+}
+
+final class _DartBuildOutputNormalizer {
+  static const _markers = <String>[
+    'Running build hooks...',
+    'Running link hooks...',
+    'Copying ',
+  ];
+
+  int? _lastCodeUnit;
+
+  String convert(String value) {
+    final output = StringBuffer();
+    for (var index = 0; index < value.length;) {
+      final marker = _markers.where(
+        (marker) => value.startsWith(marker, index),
+      );
+      if (marker.isNotEmpty && _needsLineBreakBeforeMarker) {
+        output.writeln();
+        _lastCodeUnit = 10;
+      }
+      final codeUnit = value.codeUnitAt(index);
+      output.writeCharCode(codeUnit);
+      _lastCodeUnit = codeUnit;
+      index += 1;
+    }
+    return output.toString();
+  }
+
+  bool get _needsLineBreakBeforeMarker {
+    final lastCodeUnit = _lastCodeUnit;
+    return lastCodeUnit != null && lastCodeUnit != 10 && lastCodeUnit != 13;
+  }
 }
 
 Future<List<_ProcessInfo>> _listProcesses() async {
