@@ -19,10 +19,11 @@ class _Header extends StatelessWidget {
                 borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
                 border: Border.all(color: AleraTokens.borderSubtle),
               ),
-              child: const Icon(
-                Icons.terminal,
-                size: 32,
-                color: AleraTokens.accent,
+              child: Image.asset(
+                'assets/logo/alera-logo-white.png',
+                width: 32,
+                height: 32,
+                filterQuality: FilterQuality.medium,
               ),
             ),
             const SizedBox(width: AleraTokens.space16),
