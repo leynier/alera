@@ -73,6 +73,21 @@
   }
 }
 
+/* Hero: swap the typewriter line for a small static tagline when motion is reduced. */
+.hero-static-tagline {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-typewriter,
+  .hero-caret {
+    display: none;
+  }
+  .hero-static-tagline {
+    display: flex;
+  }
+}
+
 .noise-overlay::before {
   content: '';
   position: absolute;

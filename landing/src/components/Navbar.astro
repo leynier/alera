@@ -22,15 +22,13 @@ const repo = 'leynier/alera';
         href={`https://github.com/${repo}/stargazers`}
         target="_blank"
         rel="noopener noreferrer"
-        class="hidden sm:inline-flex items-center"
-        aria-label="GitHub stars"
+        class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border text-body-md text-foreground-faint hover:border-foreground-faint hover:text-foreground transition-colors duration-fast"
+        aria-label="Star on GitHub"
       >
-        <img
-          src={`https://img.shields.io/github/stars/${repo}?style=flat-square&label=&color=323232&labelColor=181818`}
-          alt="GitHub stars"
-          height="20"
-          loading="lazy"
-        />
+        <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 .587l3.668 7.568 8.332 1.151-6.064 5.828 1.48 8.279L12 19.771l-7.416 3.642 1.48-8.279L0 9.306l8.332-1.151z"/>
+        </svg>
+        Star
       </a>
       <a
         href={`https://github.com/${repo}`}
