@@ -29,11 +29,11 @@ Agentic coding is the new bottleneck of developer tooling. Most "AI IDEs" today 
 
 Alera takes the opposite bet:
 
-- **Bring your own agent.** Alera is terminal-first. Every CLI coding agent runs in its own real PTY, the way it was meant to. No proprietary chat layer, no vendor lock-in.
-- **Run many agents at once.** Each task gets its own Git worktree, its own tabs, and its own terminals, so Claude, Codex, Amp, and friends can work in parallel without stepping on each other.
-- **Native performance.** Flutter for a fast, consistent desktop UI. Rust for the PTY and process layer (`portable_pty`). Ghostty's VTE engine for terminal parsing. No Electron, no embedded browser, no JS event loop in the hot path.
-- **See what your agents are doing.** Lifecycle hooks for the most popular CLI agents stream their activity into Alera so you can tell, at a glance, which terminals are idle, working, or waiting on you.
-- **Never lose a terminal again.** Terminal sessions persist across restarts. Close the app, reboot the machine, come back, and your scrollback, processes, and layout are still there.
+- **Bring your own agent.** Alera is terminal-first. Every CLI coding agent runs in its own real PTY, the way it was meant to. No proprietary chat layer, no vendor lock-in
+- **Run many agents at once.** Each task gets its own Git worktree, its own tabs, and its own terminals, so Claude, Codex, Amp, and friends can work in parallel without stepping on each other
+- **Native performance.** Flutter for a fast, consistent desktop UI. Rust for the PTY and process layer (`portable_pty`). Ghostty's VTE engine for terminal parsing. No Electron, no embedded browser, no JS event loop in the hot path
+- **See what your agents are doing.** Lifecycle hooks for the most popular CLI agents stream their activity into Alera so you can tell, at a glance, which terminals are idle, working, or waiting on you
+- **Never lose a terminal again.** Terminal sessions persist across restarts. Close the app, reboot the machine, come back, and your scrollback, processes, and layout are still there
 
 ---
 
@@ -98,14 +98,14 @@ Stable and release-candidate update channels with a manual download flow today, 
 
 Alera is shipping fast. A non-exhaustive list of what's on the roadmap:
 
-- **SSH worktrees**: run agents on remote machines as if they were local.
-- **Mobile companion app**: monitor and nudge your agents from your phone.
-- **File explorer, search, and diff panels**: review and edit AI-generated changes without leaving Alera.
-- **Git operations UI**: stage, commit, push, resolve conflicts visually.
-- **Embedded browser & browser use**: give agents a real browser to drive.
-- **GitHub / GitLab / Linear / CI integrations**: PRs, issues and checks linked per worktree.
-- **Orchestration between agents**: inter-agent messaging, task dispatch, coordinator loops.
-- **Voice, automations, MCP management, skills, and more.**
+- **SSH worktrees**: run agents on remote machines as if they were local
+- **Mobile companion app**: monitor and nudge your agents from your phone
+- **File explorer, search, and diff panels**: review and edit AI-generated changes without leaving Alera
+- **Git operations UI**: stage, commit, push, resolve conflicts visually
+- **Embedded browser & browser use**: give agents a real browser to drive
+- **GitHub / GitLab / Linear / CI integrations**: PRs, issues and checks linked per worktree
+- **Orchestration between agents**: inter-agent messaging, task dispatch, coordinator loops
+- **Voice, automations, MCP management, skills, and more**
 
 See the full [roadmap](roadmap.md) for the complete picture, including difficulty/utility scoring per feature.
 
@@ -149,11 +149,11 @@ Alera is built around three deliberate engineering choices:
 ╰──────────────────────────╯      ╰──────────────────────────╯      ╰──────────────────────────╯
 ```
 
-- **Flutter** for the desktop shell, design system, and UI: fast startup, consistent look across macOS / Windows / Linux, fully native rendering.
-- **Rust** for the PTY and process boundary through [`portable_pty`](https://crates.io/crates/portable-pty), so spawning, signalling, and resizing real terminals stays predictable on every OS.
-- **Ghostty's VTE** through `ghostty_vte_flutter` for terminal parsing: the same engine that powers the Ghostty terminal emulator.
-- **Drift / SQLite** for local persistence of projects, workspaces, tabs, layouts, settings, and terminal state.
-- **No Electron, no Chromium, no Node runtime** in the app, and no plan to add them.
+- **Flutter** for the desktop shell, design system, and UI: fast startup, consistent look across macOS / Windows / Linux, fully native rendering
+- **Rust** for the PTY and process boundary through [`portable_pty`](https://crates.io/crates/portable-pty), so spawning, signalling, and resizing real terminals stays predictable on every OS
+- **Ghostty's VTE** through `ghostty_vte_flutter` for terminal parsing: the same engine that powers the Ghostty terminal emulator
+- **Drift / SQLite** for local persistence of projects, workspaces, tabs, layouts, settings, and terminal state
+- **No Electron, no Chromium, no Node runtime** in the app, and no plan to add them
 
 For more, see [`docs/architecture.md`](docs/architecture.md).
 
@@ -163,11 +163,11 @@ For more, see [`docs/architecture.md`](docs/architecture.md).
 
 Alera stands on the shoulders of brilliant work in the agentic dev and terminal space. Special thanks to:
 
-- **[Orca](https://github.com/stablyai/orca)**: the primary inspiration for worktree-oriented, multi-agent product thinking.
-- **[Ghostty](https://ghostty.org/)**: the bar for fast, high-quality terminal experiences.
-- **[xterm.js](https://xtermjs.org/)**: ecosystem reference for terminal compatibility.
-- **[Flutter](https://flutter.dev/)**: the foundation that makes Alera's cross-platform desktop UI possible.
-- **[Drift](https://drift.simonbinder.eu/)** and **[desktop_updater](https://pub.dev/packages/desktop_updater)**: used for local persistence and desktop update plumbing.
+- **[Orca](https://github.com/stablyai/orca)**: the primary inspiration for worktree-oriented, multi-agent product thinking
+- **[Ghostty](https://ghostty.org/)**: the bar for fast, high-quality terminal experiences
+- **[xterm.js](https://xtermjs.org/)**: ecosystem reference for terminal compatibility
+- **[Flutter](https://flutter.dev/)**: the foundation that makes Alera's cross-platform desktop UI possible
+- **[Drift](https://drift.simonbinder.eu/)** and **[desktop_updater](https://pub.dev/packages/desktop_updater)**: used for local persistence and desktop update plumbing
 
 ---
 
@@ -175,21 +175,21 @@ Alera stands on the shoulders of brilliant work in the agentic dev and terminal 
 
 Want to contribute or hack on Alera locally? Start with:
 
-- [`AGENTS.md`](AGENTS.md): contributor and agent governance rules.
-- [`docs/architecture.md`](docs/architecture.md): architecture glossary and naming rules.
-- [`docs/testing.md`](docs/testing.md): unit, widget, golden, E2E, and coverage workflow.
-- [`docs/ui-styleguide.md`](docs/ui-styleguide.md): design tokens and UI rules.
+- [`AGENTS.md`](AGENTS.md): contributor and agent governance rules
+- [`docs/architecture.md`](docs/architecture.md): architecture glossary and naming rules
+- [`docs/testing.md`](docs/testing.md): unit, widget, golden, E2E, and coverage workflow
+- [`docs/ui-styleguide.md`](docs/ui-styleguide.md): design tokens and UI rules
 
 ### Project layout
 
-- `lib/src/app`: bootstrap, dependency providers, theme setup.
-- `lib/src/shared`: shared infrastructure (process, storage, helpers).
-- `lib/src/features/projects`: project registry and project sidebar UI.
-- `lib/src/features/workbench`: workspaces, tabs, split layouts, terminal runtime.
-- `lib/src/features/agent_status`: agent lifecycle hooks and activity tracking.
-- `lib/src/features/updater`: update archive parsing and desktop updater integration.
-- `lib/src/features/shell`: top-level application shell.
-- `lib/src/design_system`: shared Alera UI components.
+- `lib/src/app`: bootstrap, dependency providers, theme setup
+- `lib/src/shared`: shared infrastructure (process, storage, helpers)
+- `lib/src/features/projects`: project registry and project sidebar UI
+- `lib/src/features/workbench`: workspaces, tabs, split layouts, terminal runtime
+- `lib/src/features/agent_status`: agent lifecycle hooks and activity tracking
+- `lib/src/features/updater`: update archive parsing and desktop updater integration
+- `lib/src/features/shell`: top-level application shell
+- `lib/src/design_system`: shared Alera UI components
 
 ### Checks
 
@@ -220,8 +220,8 @@ Public release cuts are maintainer-managed through GitHub Actions. Stable builds
 
 - Stable manifest: `https://updates.alera.build/app-archive.json`
 - Release-candidate manifest: `https://updates.alera.build/app-archive-rc.json`
-- Updater payloads are hosted in Cloudflare R2 under `updates/stable/` and `updates/rc/`.
-- [GitHub Releases](https://github.com/leynier/alera/releases) remain the manual download surface.
+- Updater payloads are hosted in Cloudflare R2 under `updates/stable/` and `updates/rc/`
+- [GitHub Releases](https://github.com/leynier/alera/releases) remain the manual download surface
 
 ---
 
