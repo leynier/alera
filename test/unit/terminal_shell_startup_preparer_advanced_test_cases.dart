@@ -82,7 +82,7 @@ void _registerTerminalShellStartupPreparerAdvancedTests() {
         '\n'
         r'if ("ALERA_COPILOT_HOME" in $env) { $env.COPILOT_HOME = $env.ALERA_COPILOT_HOME }'
         '\n'
-        r'if ("ALERA_AGENT_WRAPPER_PATH" in $env) { let __alera_path_entries = if ("PATH" in $env) { $env.PATH } else { [] }; if not ($env.ALERA_AGENT_WRAPPER_PATH in $__alera_path_entries) { $env.PATH = ($__alera_path_entries | prepend $env.ALERA_AGENT_WRAPPER_PATH) } }'
+        r'if ("ALERA_AGENT_WRAPPER_PATH" in $env) { let __alera_path_entries = if ("PATH" in $env) { $env.PATH } else { [] }; $env.PATH = ($__alera_path_entries | where $it != $env.ALERA_AGENT_WRAPPER_PATH | prepend $env.ALERA_AGENT_WRAPPER_PATH) }'
         '\n',
       ),
     );
@@ -151,42 +151,56 @@ void _registerTerminalShellStartupPreparerAdvancedTests() {
       );
 
       expect(launch.arguments, const <String>['-l']);
-      expect(
-        launch.setupCommand,
-        'if [ -n "\${ALERA_CODEX_HOME:-}" ]; then export CODEX_HOME="\$ALERA_CODEX_HOME"; fi\n'
-        'if [ -n "\${ALERA_CLAUDE_CONFIG_DIR:-}" ]; then export CLAUDE_CONFIG_DIR="\$ALERA_CLAUDE_CONFIG_DIR"; fi\n'
-        'if [ -n "\${ALERA_OPENCODE_CONFIG_DIR:-}" ]; then export OPENCODE_CONFIG_DIR="\$ALERA_OPENCODE_CONFIG_DIR"; fi\n'
-        'if [ -n "\${ALERA_PI_CODING_AGENT_DIR:-}" ]; then export PI_CODING_AGENT_DIR="\$ALERA_PI_CODING_AGENT_DIR"; fi\n'
-        'if [ -n "\${ALERA_COPILOT_HOME:-}" ]; then export COPILOT_HOME="\$ALERA_COPILOT_HOME"; fi\n'
-        'if [ -n "\${ALERA_AGENT_WRAPPER_PATH:-}" ]; then case ":\${PATH:-}:" in *":\${ALERA_AGENT_WRAPPER_PATH}:"*) ;; *) export PATH="\${ALERA_AGENT_WRAPPER_PATH}\${PATH:+:\${PATH}}" ;; esac; fi\n',
-      );
+      expect(launch.setupCommand, _expectedPosixRestoreManagedAgentEnvironment);
     }
   });
 
-  test('POSIX fallback shells prepend restore before existing setup commands', () async {
-    for (final shell in _posixFallbackShells) {
-      final launch = await preparer.prepare(
-        _launch(
-          shell: shell,
-          environment: const <String, String>{
-            'CODEX_HOME': '/runtime/codex',
-            'ALERA_CODEX_HOME': '/runtime/codex',
-          },
-          setupCommand: 'printf setup\n',
-        ),
-      );
+  test(
+    'POSIX fallback shells prepend restore before existing setup commands',
+    () async {
+      for (final shell in _posixFallbackShells) {
+        final launch = await preparer.prepare(
+          _launch(
+            shell: shell,
+            environment: const <String, String>{
+              'CODEX_HOME': '/runtime/codex',
+              'ALERA_CODEX_HOME': '/runtime/codex',
+            },
+            setupCommand: 'printf setup\n',
+          ),
+        );
 
-      expect(
-        launch.setupCommand,
-        'if [ -n "\${ALERA_CODEX_HOME:-}" ]; then export CODEX_HOME="\$ALERA_CODEX_HOME"; fi\n'
-        'if [ -n "\${ALERA_CLAUDE_CONFIG_DIR:-}" ]; then export CLAUDE_CONFIG_DIR="\$ALERA_CLAUDE_CONFIG_DIR"; fi\n'
-        'if [ -n "\${ALERA_OPENCODE_CONFIG_DIR:-}" ]; then export OPENCODE_CONFIG_DIR="\$ALERA_OPENCODE_CONFIG_DIR"; fi\n'
-        'if [ -n "\${ALERA_PI_CODING_AGENT_DIR:-}" ]; then export PI_CODING_AGENT_DIR="\$ALERA_PI_CODING_AGENT_DIR"; fi\n'
-        'if [ -n "\${ALERA_COPILOT_HOME:-}" ]; then export COPILOT_HOME="\$ALERA_COPILOT_HOME"; fi\n'
-        'if [ -n "\${ALERA_AGENT_WRAPPER_PATH:-}" ]; then case ":\${PATH:-}:" in *":\${ALERA_AGENT_WRAPPER_PATH}:"*) ;; *) export PATH="\${ALERA_AGENT_WRAPPER_PATH}\${PATH:+:\${PATH}}" ;; esac; fi\n'
-        'printf setup\n',
-      );
-    }
+        expect(
+          launch.setupCommand,
+          '${_expectedPosixRestoreManagedAgentEnvironment}printf setup\n',
+        );
+      }
+    },
+  );
+
+  test('POSIX fallback shells preserve leading empty PATH entries', () async {
+    final launch = await preparer.prepare(
+      _launch(
+        shell: '/bin/sh',
+        environment: const <String, String>{
+          'ALERA_AGENT_WRAPPER_PATH': '/wrapper/bin',
+        },
+        setupCommand: 'printf "%s" "\$PATH"\n',
+      ),
+    );
+
+    final result = await Process.run(
+      '/bin/sh',
+      <String>['-c', launch.setupCommand!],
+      includeParentEnvironment: false,
+      environment: const <String, String>{
+        'ALERA_AGENT_WRAPPER_PATH': '/wrapper/bin',
+        'PATH': ':/usr/bin:/wrapper/bin',
+      },
+    );
+
+    expect(result.exitCode, 0, reason: result.stderr.toString());
+    expect(result.stdout, '/wrapper/bin::/usr/bin');
   });
 
   test('Claude runtime env alone triggers shell restore preparation', () async {
@@ -283,4 +297,82 @@ void _registerTerminalShellStartupPreparerAdvancedTests() {
       }
     },
   );
+
+  test('generated zsh startup moves wrapper dir to front, not skip', () async {
+    final prepared = await preparer.prepare(
+      _launch(
+        shell: '/bin/zsh',
+        environment: const <String, String>{
+          'HOME': '/Users/leynier',
+          'ALERA_AGENT_WRAPPER_PATH': '/wrapper/bin',
+        },
+      ),
+    );
+    final zdotdir = prepared.environment!['ZDOTDIR']!;
+    for (final fileName in const <String>['.zshenv', '.zshrc']) {
+      final contents = File(p.join(zdotdir, fileName)).readAsStringSync();
+      expect(
+        contents,
+        contains(r'path=("${ALERA_AGENT_WRAPPER_PATH}"'),
+        reason: '$fileName must rebuild PATH with the wrapper dir first',
+      );
+      expect(
+        contents,
+        isNot(contains(r'*":${ALERA_AGENT_WRAPPER_PATH}:"*) ;;')),
+        reason: '$fileName must not skip when the wrapper dir is present',
+      );
+    }
+  });
+
+  test('zsh startup puts wrapper dir first even after rc prepends', () async {
+    final zshExecutable = <String>[
+      '/bin/zsh',
+      '/usr/bin/zsh',
+      '/usr/local/bin/zsh',
+      '/opt/homebrew/bin/zsh',
+    ].firstWhere((path) => File(path).existsSync(), orElse: () => '');
+    if (zshExecutable.isEmpty) {
+      markTestSkipped('zsh is not available on this platform');
+      return;
+    }
+
+    // A user ZDOTDIR whose .zshenv prepends a decoy dir, the exact shape that
+    // defeated the previous skip-if-present logic.
+    final userZdotdir = Directory(p.join(tempDir.path, 'user-zdotdir'))
+      ..createSync(recursive: true);
+    File(
+      p.join(userZdotdir.path, '.zshenv'),
+    ).writeAsStringSync('export PATH="/decoy/bin:\$PATH"\n');
+
+    final prepared = await preparer.prepare(
+      _launch(
+        shell: zshExecutable,
+        environment: <String, String>{
+          'HOME': userZdotdir.path,
+          'ZDOTDIR': userZdotdir.path,
+          'ALERA_AGENT_WRAPPER_PATH': '/wrapper/bin',
+        },
+      ),
+    );
+    final managedZdotdir = prepared.environment!['ZDOTDIR']!;
+    final originalZdotdir = prepared.environment!['ALERA_ORIG_ZDOTDIR']!;
+
+    // Wrapper dir starts in the middle of PATH; the rc prepend then pushes a
+    // decoy in front of it, so only "move to front" yields the right result.
+    final result = await Process.run(
+      zshExecutable,
+      const <String>['-c', r'print -rn -- ${path[1]}'],
+      includeParentEnvironment: false,
+      environment: <String, String>{
+        'ZDOTDIR': managedZdotdir,
+        'ALERA_ORIG_ZDOTDIR': originalZdotdir,
+        'ALERA_AGENT_WRAPPER_PATH': '/wrapper/bin',
+        'HOME': userZdotdir.path,
+        'PATH': '/usr/bin:/wrapper/bin:/bin',
+      },
+    );
+
+    expect(result.exitCode, 0, reason: result.stderr.toString());
+    expect((result.stdout as String).trim(), '/wrapper/bin');
+  });
 }

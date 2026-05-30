@@ -39,10 +39,10 @@ if [[ -n "\${ALERA_COPILOT_HOME:-}" ]]; then
   export COPILOT_HOME="\${ALERA_COPILOT_HOME}"
 fi
 if [[ -n "\${ALERA_AGENT_WRAPPER_PATH:-}" ]]; then
-  case ":\${PATH:-}:" in
-    *":\${ALERA_AGENT_WRAPPER_PATH}:"*) ;;
-    *) export PATH="\${ALERA_AGENT_WRAPPER_PATH}\${PATH:+:\${PATH}}" ;;
-  esac
+  # Move the managed wrapper dir to the front even if a sourced rc (e.g.
+  # ~/.zshenv prepending ~/.local/bin) already placed it later in PATH.
+  path=("\${ALERA_AGENT_WRAPPER_PATH}" "\${(@)path:#\${ALERA_AGENT_WRAPPER_PATH}}")
+  export PATH
 fi
 ''';
 }
@@ -74,10 +74,10 @@ if [[ -n "\${ALERA_COPILOT_HOME:-}" ]]; then
   export COPILOT_HOME="\${ALERA_COPILOT_HOME}"
 fi
 if [[ -n "\${ALERA_AGENT_WRAPPER_PATH:-}" ]]; then
-  case ":\${PATH:-}:" in
-    *":\${ALERA_AGENT_WRAPPER_PATH}:"*) ;;
-    *) export PATH="\${ALERA_AGENT_WRAPPER_PATH}\${PATH:+:\${PATH}}" ;;
-  esac
+  # Move the managed wrapper dir to the front even if a sourced rc (e.g.
+  # ~/.zshenv prepending ~/.local/bin) already placed it later in PATH.
+  path=("\${ALERA_AGENT_WRAPPER_PATH}" "\${(@)path:#\${ALERA_AGENT_WRAPPER_PATH}}")
+  export PATH
 fi
 export ZDOTDIR=$quotedManagedZdotdir
 unset _alera_orig_zdotdir

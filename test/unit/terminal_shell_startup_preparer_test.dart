@@ -44,3 +44,11 @@ const List<String> _posixFallbackShells = <String>[
   '/bin/oksh',
   '/bin/sh',
 ];
+
+const String _expectedPosixRestoreManagedAgentEnvironment =
+    'if [ -n "\${ALERA_CODEX_HOME:-}" ]; then export CODEX_HOME="\$ALERA_CODEX_HOME"; fi\n'
+    'if [ -n "\${ALERA_CLAUDE_CONFIG_DIR:-}" ]; then export CLAUDE_CONFIG_DIR="\$ALERA_CLAUDE_CONFIG_DIR"; fi\n'
+    'if [ -n "\${ALERA_OPENCODE_CONFIG_DIR:-}" ]; then export OPENCODE_CONFIG_DIR="\$ALERA_OPENCODE_CONFIG_DIR"; fi\n'
+    'if [ -n "\${ALERA_PI_CODING_AGENT_DIR:-}" ]; then export PI_CODING_AGENT_DIR="\$ALERA_PI_CODING_AGENT_DIR"; fi\n'
+    'if [ -n "\${ALERA_COPILOT_HOME:-}" ]; then export COPILOT_HOME="\$ALERA_COPILOT_HOME"; fi\n'
+    'if [ -n "\${ALERA_AGENT_WRAPPER_PATH:-}" ]; then __alera_new_path=""; __alera_appended=0; __alera_old_ifs="\${IFS-}"; IFS=":"; for __alera_entry in \${PATH:-}; do [ "\${__alera_entry}" = "\${ALERA_AGENT_WRAPPER_PATH}" ] && continue; if [ "\${__alera_appended}" -eq 0 ]; then __alera_new_path="\${__alera_entry}"; __alera_appended=1; else __alera_new_path="\${__alera_new_path}:\${__alera_entry}"; fi; done; IFS="\${__alera_old_ifs}"; if [ "\${__alera_appended}" -eq 1 ]; then export PATH="\${ALERA_AGENT_WRAPPER_PATH}:\${__alera_new_path}"; else export PATH="\${ALERA_AGENT_WRAPPER_PATH}"; fi; unset __alera_new_path __alera_appended __alera_old_ifs __alera_entry; fi\n';

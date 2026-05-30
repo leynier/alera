@@ -561,6 +561,18 @@ void main() {
         isTrue,
       );
     });
+
+    test('detects Amp new turn and prompt on agent.start', () {
+      final normalized = normalizeAgentHookEvent(
+        _event(
+          agentType: AgentType.amp,
+          hookEventName: 'agent.start',
+          payload: const <String, Object?>{'message': 'Ship the feature'},
+        ),
+      );
+      expect(normalized?.state, AgentStatusState.working);
+      expect(normalized?.prompt, 'Ship the feature');
+    });
   });
 }
 

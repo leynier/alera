@@ -194,7 +194,9 @@ void _registerTerminalShellStartupPreparerCoreTests() {
         contains('export PI_CODING_AGENT_DIR="\${ALERA_PI_CODING_AGENT_DIR}"'),
       );
       expect(rcFile, contains('export COPILOT_HOME="\${ALERA_COPILOT_HOME}"'));
-      expect(rcFile, contains('ALERA_AGENT_WRAPPER_PATH'));
+      expect(rcFile, contains('__alera_appended=0'));
+      expect(rcFile, contains('export PATH="\${ALERA_AGENT_WRAPPER_PATH}:'));
+      expect(rcFile, isNot(contains('*":\${ALERA_AGENT_WRAPPER_PATH}:"*) ;;')));
     },
   );
 
@@ -316,7 +318,7 @@ void _registerTerminalShellStartupPreparerCoreTests() {
       'if set -q ALERA_OPENCODE_CONFIG_DIR; set -gx OPENCODE_CONFIG_DIR \$ALERA_OPENCODE_CONFIG_DIR; end\n'
       'if set -q ALERA_PI_CODING_AGENT_DIR; set -gx PI_CODING_AGENT_DIR \$ALERA_PI_CODING_AGENT_DIR; end\n'
       'if set -q ALERA_COPILOT_HOME; set -gx COPILOT_HOME \$ALERA_COPILOT_HOME; end\n'
-      'if set -q ALERA_AGENT_WRAPPER_PATH; if not contains -- \$ALERA_AGENT_WRAPPER_PATH \$PATH; set -gx PATH \$ALERA_AGENT_WRAPPER_PATH \$PATH; end; end',
+      'if set -q ALERA_AGENT_WRAPPER_PATH; set -gx PATH \$ALERA_AGENT_WRAPPER_PATH (string match --invert -- \$ALERA_AGENT_WRAPPER_PATH \$PATH); end',
     );
     expect(launch.setupCommand, isNull);
   });
@@ -343,7 +345,7 @@ void _registerTerminalShellStartupPreparerCoreTests() {
         'if set -q ALERA_OPENCODE_CONFIG_DIR; set -gx OPENCODE_CONFIG_DIR \$ALERA_OPENCODE_CONFIG_DIR; end\n'
         'if set -q ALERA_PI_CODING_AGENT_DIR; set -gx PI_CODING_AGENT_DIR \$ALERA_PI_CODING_AGENT_DIR; end\n'
         'if set -q ALERA_COPILOT_HOME; set -gx COPILOT_HOME \$ALERA_COPILOT_HOME; end\n'
-        'if set -q ALERA_AGENT_WRAPPER_PATH; if not contains -- \$ALERA_AGENT_WRAPPER_PATH \$PATH; set -gx PATH \$ALERA_AGENT_WRAPPER_PATH \$PATH; end; end\n',
+        'if set -q ALERA_AGENT_WRAPPER_PATH; set -gx PATH \$ALERA_AGENT_WRAPPER_PATH (string match --invert -- \$ALERA_AGENT_WRAPPER_PATH \$PATH); end\n',
       ),
     );
     expect(launch.setupCommand, contains('printf setup\n'));
