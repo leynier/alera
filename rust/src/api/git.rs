@@ -224,16 +224,15 @@ pub fn create_worktree(
             }
             _ => GitError::from_git2(error),
         })?;
-    let reference = branch.into_reference();
-
-    let mut options = WorktreeAddOptions::new();
-    options.reference(Some(&reference));
-    let admin_name = worktree_admin_name(&path);
-    let worktree_result = repo.worktree(&admin_name, Path::new(&path), Some(&options));
-    // Release the borrows on `repo` held via `reference`/`options` before
-    // mutating refs in the rollback path below.
-    drop(options);
-    drop(reference);
+    // Scope `reference`/`options` so the borrows they hold on `repo` end before
+    // the rollback path below mutates refs.
+    let worktree_result = {
+        let reference = branch.into_reference();
+        let mut options = WorktreeAddOptions::new();
+        options.reference(Some(&reference));
+        let admin_name = worktree_admin_name(&path);
+        repo.worktree(&admin_name, Path::new(&path), Some(&options))
+    };
     if let Err(error) = worktree_result {
         // The branch was created above; if the worktree could not be added the
         // whole action failed, so roll the branch back to keep it atomic and

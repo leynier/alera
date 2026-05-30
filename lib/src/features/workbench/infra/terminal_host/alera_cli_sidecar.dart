@@ -67,9 +67,21 @@ final class DefaultAleraCliResolver implements AleraCliResolver {
       }
     }
 
+    // Dev-only fallback when no bundled binary is present: build and run the
+    // Rust sidecar from source via cargo. Production always finds the bundled
+    // binary above, so this branch never runs in a packaged app.
     return AleraCliCommand(
-      executable: _nonBlank(environment['DART']) ?? 'dart',
-      prefixArguments: const <String>['run', 'bin/alera.dart'],
+      executable: _nonBlank(environment['CARGO']) ?? 'cargo',
+      prefixArguments: const <String>[
+        'run',
+        '--quiet',
+        '--locked',
+        '--manifest-path',
+        'rust/Cargo.toml',
+        '-p',
+        'alera-cli',
+        '--',
+      ],
       workingDirectory: _currentDirectory,
     );
   }

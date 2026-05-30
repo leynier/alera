@@ -55,20 +55,22 @@ add_subdirectory(${FLUTTER_MANAGED_DIR})
 # Application build; see runner/CMakeLists.txt.
 add_subdirectory("runner")
 
-find_program(DART_EXECUTABLE dart)
-if(NOT DART_EXECUTABLE)
-  message(FATAL_ERROR "dart executable is required to build the Alera CLI sidecar")
+find_program(CARGO_EXECUTABLE cargo)
+if(NOT CARGO_EXECUTABLE)
+  message(FATAL_ERROR "cargo executable is required to build the Alera CLI sidecar")
 endif()
 
-set(ALERA_CLI_OUTPUT_DIR "${CMAKE_BINARY_DIR}/alera_cli")
-set(ALERA_CLI_BUNDLE_DIR "${ALERA_CLI_OUTPUT_DIR}/bundle")
-set(ALERA_CLI_OUTPUT "${ALERA_CLI_BUNDLE_DIR}/bin/alera.exe")
+# The sidecar is the Rust crate rust/alera-cli (binary `alera.exe`); see
+# linux/CMakeLists.txt for rationale. Windows uses a multi-config generator, so
+# the build profile is selected with generator expressions at build time.
+set(ALERA_CLI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../rust")
+set(ALERA_CLI_PROFILE_DIR "$<IF:$<CONFIG:Release>,release,debug>")
+set(ALERA_CLI_OUTPUT "${ALERA_CLI_DIR}/target/${ALERA_CLI_PROFILE_DIR}/alera.exe")
 add_custom_target(alera_cli_sidecar ALL
-  COMMAND "${CMAKE_COMMAND}" -E remove_directory "${ALERA_CLI_OUTPUT_DIR}"
-  COMMAND "${DART_EXECUTABLE}" build cli --target "${CMAKE_CURRENT_SOURCE_DIR}/../bin/alera.dart" --output "${ALERA_CLI_OUTPUT_DIR}"
+  COMMAND "${CARGO_EXECUTABLE}" build --locked -p alera-cli $<$<CONFIG:Release>:--release>
   BYPRODUCTS "${ALERA_CLI_OUTPUT}"
-  WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.."
-  COMMENT "Building Alera CLI sidecar"
+  WORKING_DIRECTORY "${ALERA_CLI_DIR}"
+  COMMENT "Building Alera CLI sidecar (Rust)"
   VERBATIM
 )
 add_dependencies(${BINARY_NAME} alera_cli_sidecar)
@@ -95,7 +97,7 @@ set(INSTALL_BUNDLE_LIB_DIR "${CMAKE_INSTALL_PREFIX}")
 install(TARGETS ${BINARY_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}"
   COMPONENT Runtime)
 
-install(DIRECTORY "${ALERA_CLI_BUNDLE_DIR}/"
+install(PROGRAMS "${ALERA_CLI_OUTPUT}"
   DESTINATION "${CMAKE_INSTALL_PREFIX}/resources/alera"
   COMPONENT Runtime)
 

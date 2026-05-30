@@ -92,14 +92,14 @@ Lifecycle changes must cover both host timeout paths. With the app closed and no
 
 Scrollback changes must check both rendering and host memory behavior. The terminal row scrollback controls xterm history in the app. The host scrollback size controls how many bytes are retained for detached-session snapshots and checkpoints; tests should prove the buffer is trimmed to the configured byte limit and that checkpoints remain restorable after restart.
 
-For local sidecar smoke tests, build the CLI with Dart's build-hook-aware CLI builder:
+For local sidecar smoke tests, build the Rust CLI sidecar with the makefile (which drives cargo and stages the binary):
 
 ```bash
-rm -rf .dart_tool/alera
-dart build cli --target bin/alera.dart --output .dart_tool/alera
+make cli-build
+make cli-help
 ```
 
-The executable is written to `.dart_tool/alera/bundle/bin/alera` on macOS/Linux and `.dart_tool/alera/bundle/bin/alera.exe` on Windows. Keep the sibling `lib/` directory with it because build hooks may place native dynamic libraries there.
+`make cli-build` runs `cargo build --release -p alera-cli` and stages the single binary into `.dart_tool/alera/alera` (`.dart_tool/alera/alera.exe` on Windows); `make cli-help` runs the staged binary's `--help`. The Rust crate also has its own checks via `make rust-test` (`cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test`).
 
 The repository `makefile` exposes cross-platform debug targets around the same flow. `make help` lists available targets. For foreground host debugging, `make host-debug` and `make host-debug-observe` accept `ALERA_HOST_EMPTY_SHUTDOWN_SECONDS`, `ALERA_HOST_DETACHED_SHUTDOWN_SECONDS`, and `ALERA_HOST_SCROLLBACK_BYTES`, which are forwarded to `alera terminal-host`.
 

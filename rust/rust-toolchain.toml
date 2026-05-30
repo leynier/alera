@@ -1,0 +1,5 @@
+# Pins the Rust toolchain so native build hooks (linux/windows CMake, macOS
+# Xcode) and CI produce reproducible sidecar binaries from a clean checkout.
+[toolchain]
+channel = "1.96"
+components = ["rustfmt", "clippy"]

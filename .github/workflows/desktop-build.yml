@@ -39,15 +39,25 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
       - name: Install Linux Flutter dependencies
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev
 
       - name: Install dependencies
         run: flutter pub get
+
+      # The native build hooks compile both the Rust terminal-host sidecar
+      # (alera-cli) and the flutter_rust_bridge git library (alera_native).
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.96"
+          components: rustfmt, clippy
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
 
       - name: Build desktop app
         run: flutter build ${{ matrix.platform }} --release --dart-define=ALERA_FLAVOR=release

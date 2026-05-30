@@ -3,19 +3,25 @@ import Layout from '../layouts/Layout.astro';
 import Navbar from '../components/Navbar.astro';
 import Hero from '../components/Hero.astro';
 import Agents from '../components/Agents.astro';
+import Stack from '../components/Stack.astro';
 import Features from '../components/Features.astro';
 import Workflow from '../components/Workflow.astro';
+import Roadmap from '../components/Roadmap.astro';
+import Faq from '../components/Faq.astro';
 import CtaSection from '../components/CtaSection.astro';
 import Footer from '../components/Footer.astro';
 ---
 
-<Layout title="Alera - A workspace for AI agents">
+<Layout title="Alera - The native workbench for CLI coding agents">
   <Navbar />
   <main>
     <Hero />
     <Agents />
+    <Stack />
     <Features />
     <Workflow />
+    <Roadmap />
+    <Faq />
     <CtaSection />
   </main>
   <Footer />

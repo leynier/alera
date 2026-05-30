@@ -33,11 +33,11 @@ Legacy pre-Drift stores are no longer read or migrated.
 
 ## CLI Sidecar
 
-Alera ships a separate Dart CLI named `alera` for non-UI background work. The desktop app launches `alera terminal-host` as a detached sidecar process instead of relaunching the Flutter app executable, so closing the app window detaches from terminal PTYs without creating another dock/taskbar app instance.
+Alera ships a separate Rust CLI named `alera` for non-UI background work. The desktop app launches `alera terminal-host` as a detached sidecar process instead of relaunching the Flutter app executable, so closing the app window detaches from terminal PTYs without creating another dock/taskbar app instance.
 
-The CLI entrypoint is `bin/alera.dart` and uses `CommandRunner` from `package:args`. Release and desktop builds compile it with `dart build cli --target bin/alera.dart`, which preserves Dart build hooks and bundles the native assets required by dependencies such as `portable_pty`. The built CLI bundle is copied into `Contents/Resources/alera/` on macOS and `resources/alera/` next to the app executable on Linux and Windows.
+The CLI is the Rust crate under `rust/` (`rust/alera-cli`, binary `alera`), a 1:1 reimplementation of the original Dart host that speaks the same socket protocol, `host.json` control file, and SQLite checkpoint schema. Release and desktop builds compile it with `cargo build --locked` from the native build hooks (`linux/CMakeLists.txt`, `windows/CMakeLists.txt`, and the macOS "Build Alera CLI Sidecar" Xcode phase); a Release app build produces `--release`, other configs build debug. The single binary is installed into `Contents/Resources/alera/alera` on macOS and `resources/alera/alera[.exe]` next to the app executable on Linux and Windows. The original Dart host (`bin/alera.dart` and the host-side files under `lib/src/features/workbench/infra/terminal_host/`) is kept in the tree as a reference but is no longer built or bundled.
 
-The app resolves the sidecar through `AleraCliResolver`. Development builds may also use `.dart_tool/alera/bundle/bin/alera` or fall back to `dart run bin/alera.dart` when no compiled sidecar is present.
+The app resolves the sidecar through `AleraCliResolver`, which honors `ALERA_CLI_PATH` first and then searches the bundled `resources/alera/` locations. When no compiled sidecar is present (pure source checkout), development builds fall back to `cargo run -p alera-cli` to build and run the Rust host from source.
 
 The shell eagerly starts the terminal host after the local database is available, before the first terminal tab is created. The app passes the current host lifecycle and host scrollback settings when launching `alera terminal-host`, then sends a `configure` request whenever terminal settings change so an already-running host updates without requiring an app restart.
 

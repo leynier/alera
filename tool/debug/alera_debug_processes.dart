@@ -6,12 +6,13 @@ Future<int> _run(
   Map<String, String>? environment,
   bool forwardStdin = false,
   bool normalizeDartBuildOutput = false,
+  String? workingDirectory,
 }) async {
   stdout.writeln([executable, ...arguments].map(_quoteForLog).join(' '));
   final process = await Process.start(
     executable,
     arguments,
-    workingDirectory: _repoRoot,
+    workingDirectory: workingDirectory ?? _repoRoot,
     environment: environment,
     includeParentEnvironment: true,
     runInShell: Platform.isWindows,

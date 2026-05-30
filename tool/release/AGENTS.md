@@ -10,6 +10,7 @@ This file applies to release scripts, packaging helpers, updater manifest genera
 - Tags use `vX.Y.Z` for stable releases and `vX.Y.Z-rc.N` for release candidates.
 - Do not publish a stable release if any platform artifact or update archive is missing.
 - Keep release scripts deterministic and testable outside GitHub Actions where practical.
+- The shipped terminal-host sidecar is the Rust binary (`rust/alera-cli`), built by the platform native build hooks via `cargo build --locked --release` and installed at `resources/alera/alera[.exe]` (macOS `Contents/Resources/alera/alera`). It is bundled as part of the built app, so the archive scripts pick it up generically; an unsigned helper binary still ships until the signing/notarization phase covers it.
 
 ## Updater Policy
 

@@ -1,4 +1,5 @@
 DART ?= dart
+CARGO ?= cargo
 FLUTTER ?= flutter
 APP_DEVICE_ARG = $(if $(APP_DEVICE),--device "$(APP_DEVICE)",)
 ALERA_FLAVOR ?= dev
@@ -11,7 +12,7 @@ ALERA_HOST_DETACHED_SHUTDOWN_SECONDS ?= 3600
 ALERA_HOST_SCROLLBACK_BYTES ?= 10000000
 ALERA_DEBUG_TOOL = tool/debug/alera_debug.dart
 
-.PHONY: help update-refs frb-generate cli-build cli-help host-debug host-debug-observe host-debug-wrapper app-debug app-debug-bundled-cli app-debug-host-observe debug-processes host-stop
+.PHONY: help update-refs frb-generate rust-test cli-build cli-help host-debug host-debug-observe host-debug-wrapper app-debug app-debug-bundled-cli app-debug-host-observe debug-processes host-stop
 
 # List available make targets.
 help:
@@ -26,13 +27,19 @@ update-refs:
 frb-generate:
 	flutter_rust_bridge_codegen generate
 
-# Build the bundled Dart CLI sidecar used by desktop app launches.
-cli-build:
-	$(DART) $(ALERA_DEBUG_TOOL) cli-build --dart "$(DART)" --bundle-dir "$(ALERA_CLI_BUNDLE_DIR)"
+# Format, lint, and test the Rust workspace (alera_native + alera-cli). The
+# `--workspace` flags are required because `rust/` has a root package, so a bare
+# clippy/test would only cover `alera_native` and skip the `alera-cli` member.
+rust-test:
+	cd rust && "$(CARGO)" fmt --check && "$(CARGO)" clippy --workspace --all-targets -- -D warnings && "$(CARGO)" test --workspace
 
-# Smoke-test the locally built CLI sidecar.
+# Build the Rust alera CLI sidecar (cargo) used by desktop app launches.
+cli-build:
+	$(DART) $(ALERA_DEBUG_TOOL) cli-build --cargo "$(CARGO)" --bundle-dir "$(ALERA_CLI_BUNDLE_DIR)"
+
+# Smoke-test the locally built Rust CLI sidecar.
 cli-help:
-	$(DART) $(ALERA_DEBUG_TOOL) cli-help --dart "$(DART)" --bundle-dir "$(ALERA_CLI_BUNDLE_DIR)"
+	$(DART) $(ALERA_DEBUG_TOOL) cli-help --cargo "$(CARGO)" --bundle-dir "$(ALERA_CLI_BUNDLE_DIR)"
 
 # Run the terminal host in the foreground for direct stdout/stderr debugging.
 host-debug:
