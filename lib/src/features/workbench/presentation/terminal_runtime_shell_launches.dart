@@ -525,7 +525,7 @@ bool _terminalHardwareKeyboardOnlyFor(
   TargetPlatform platform, {
   required bool isWeb,
 }) {
-  return !isWeb && platform == TargetPlatform.windows;
+  return false;
 }
 
 String _noTerminalShellCandidatesMessage() {

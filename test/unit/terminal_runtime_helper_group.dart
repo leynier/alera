@@ -78,7 +78,7 @@ void _registerTerminalRuntimeHelperGroup() {
         );
         expect(
           terminalHardwareKeyboardOnlyForTesting(TargetPlatform.windows),
-          isTrue,
+          isFalse,
         );
         expect(
           terminalHardwareKeyboardOnlyForTesting(

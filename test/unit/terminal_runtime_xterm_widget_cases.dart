@@ -219,7 +219,7 @@ void _registerXtermRuntimeWidgetTests() {
     }
   });
 
-  testWidgets('build view uses hardware keyboard input on Windows', (
+  testWidgets('build view uses text input composition on Windows', (
     tester,
   ) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.windows;
@@ -246,7 +246,7 @@ void _registerXtermRuntimeWidgetTests() {
       final view = tester.widget<xterm.TerminalView>(
         find.byType(xterm.TerminalView),
       );
-      expect(view.hardwareKeyboardOnly, isTrue);
+      expect(view.hardwareKeyboardOnly, isFalse);
     } finally {
       runtime.dispose();
       await tester.pumpWidget(const SizedBox.shrink());
