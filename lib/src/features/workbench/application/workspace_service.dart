@@ -1,12 +1,12 @@
 import 'dart:io';
 
-import 'dart:convert';
-
 import 'package:alera/src/features/projects/application/project_service.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
-import 'package:alera/src/shared/infra/process/process_runner.dart';
+import 'package:alera/src/shared/infra/git/git_backend.dart';
+import 'package:alera/src/shared/infra/git/git_exception.dart';
+import 'package:alera/src/shared/infra/git/git_worktree_entry.dart';
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 
@@ -55,7 +55,7 @@ class WorkspaceService {
   factory WorkspaceService({
     required WorkbenchRepository repository,
     required ProjectService projectService,
-    required ProcessRunner processRunner,
+    required GitBackend gitBackend,
     WorkspaceRoot? workspaceRoot,
     Uuid? uuid,
     DateTime Function()? now,
@@ -63,7 +63,7 @@ class WorkspaceService {
     return WorkspaceService._(
       repository,
       projectService,
-      processRunner,
+      gitBackend,
       workspaceRoot ?? WorkspaceRoot(),
       uuid ?? const Uuid(),
       now ?? _defaultNow,
@@ -73,7 +73,7 @@ class WorkspaceService {
   WorkspaceService._(
     this._repository,
     this._projectService,
-    this._processRunner,
+    this._gitBackend,
     this._workspaceRoot,
     this._uuid,
     this._now,
@@ -81,7 +81,7 @@ class WorkspaceService {
 
   final WorkbenchRepository _repository;
   final ProjectService _projectService;
-  final ProcessRunner _processRunner;
+  final GitBackend _gitBackend;
   final WorkspaceRoot _workspaceRoot;
   final Uuid _uuid;
   final DateTime Function() _now;
@@ -170,7 +170,7 @@ class WorkspaceService {
       throw WorkspaceException('New branch name is required');
     }
 
-    await _validateBranchName(project, normalizedBranch);
+    await _validateBranchName(normalizedBranch);
     await _ensureSourceBranchExists(project, normalizedSource);
     await _ensureNewBranchDoesNotExist(project, normalizedBranch);
 
@@ -200,18 +200,17 @@ class WorkspaceService {
       parent.createSync(recursive: true);
     }
 
-    final result = await _processRunner.run('git', <String>[
-      'worktree',
-      'add',
-      '-b',
-      normalizedBranch,
-      workspacePath,
-      normalizedSource,
-    ], workingDirectory: project.repoPath);
-    if (result.exitCode != 0) {
+    try {
+      await _gitBackend.createWorktree(
+        repoPath: project.repoPath,
+        newBranch: normalizedBranch,
+        path: workspacePath,
+        sourceBranch: normalizedSource,
+      );
+    } on GitException catch (error) {
       throw WorkspaceException(
-        'git worktree add failed (exit ${result.exitCode})',
-        stderr: result.stderr,
+        'git worktree add failed',
+        stderr: error.context,
       );
     }
 
@@ -239,16 +238,16 @@ class WorkspaceService {
     if (workspace.isMain) {
       throw WorkspaceException('The main workspace cannot be removed');
     }
-    final removeResult = await _processRunner.run('git', <String>[
-      'worktree',
-      'remove',
-      '--force',
-      workspace.path,
-    ], workingDirectory: project.repoPath);
-    if (removeResult.exitCode != 0) {
+    try {
+      await _gitBackend.removeWorktree(
+        repoPath: project.repoPath,
+        path: workspace.path,
+        force: true,
+      );
+    } on GitException catch (error) {
       throw WorkspaceException(
-        'git worktree remove failed (exit ${removeResult.exitCode})',
-        stderr: removeResult.stderr,
+        'git worktree remove failed',
+        stderr: error.context,
       );
     }
     if (deleteBranch) {
@@ -256,15 +255,16 @@ class WorkspaceService {
       if (branch == null || branch.isEmpty) {
         throw WorkspaceException('Workspace branch is required');
       }
-      final branchResult = await _processRunner.run('git', <String>[
-        'branch',
-        '-D',
-        branch,
-      ], workingDirectory: project.repoPath);
-      if (branchResult.exitCode != 0) {
+      try {
+        await _gitBackend.deleteBranch(
+          repoPath: project.repoPath,
+          branch: branch,
+          force: true,
+        );
+      } on GitException catch (error) {
         throw WorkspaceException(
           'git branch -D $branch failed',
-          stderr: branchResult.stderr,
+          stderr: error.context,
         );
       }
     }
@@ -315,17 +315,18 @@ class WorkspaceService {
     return _repository.listWorkspaces(project.id);
   }
 
-  Future<void> _validateBranchName(Project project, String branchName) async {
-    final result = await _processRunner.run('git', <String>[
-      'check-ref-format',
-      '--branch',
-      branchName,
-    ], workingDirectory: project.repoPath);
-    if (result.exitCode != 0) {
+  Future<void> _validateBranchName(String branchName) async {
+    final bool valid;
+    try {
+      valid = await _gitBackend.isValidBranchName(branchName);
+    } on GitException catch (error) {
       throw WorkspaceException(
         'Invalid branch name "$branchName"',
-        stderr: result.stderr,
+        stderr: error.context,
       );
+    }
+    if (!valid) {
+      throw WorkspaceException('Invalid branch name "$branchName"');
     }
   }
 
@@ -340,71 +341,39 @@ class WorkspaceService {
     Project project,
     String branchName,
   ) async {
-    final result = await _processRunner.run('git', <String>[
-      'rev-parse',
-      '--verify',
-      '--quiet',
-      branchName,
-    ], workingDirectory: project.repoPath);
-    if (result.exitCode == 0) {
+    final exists = await _gitBackend.branchExists(project.repoPath, branchName);
+    if (exists) {
       throw WorkspaceException('Branch "$branchName" already exists');
     }
   }
 
   Future<String> _currentBranch(String repoPath) async {
-    final result = await _processRunner.run('git', const <String>[
-      'branch',
-      '--show-current',
-    ], workingDirectory: repoPath);
-    final branch = result.stdout.trim();
-    if (result.exitCode == 0 && branch.isNotEmpty) {
-      return branch;
+    try {
+      return await _gitBackend.currentBranch(repoPath);
+    } on GitException {
+      return 'HEAD';
     }
-    return 'HEAD';
   }
 
   Future<Map<String, ({String path, String branch})>?> _listLiveWorktrees(
     String repoPath,
   ) async {
-    final result = await _processRunner.run('git', const <String>[
-      'worktree',
-      'list',
-      '--porcelain',
-    ], workingDirectory: repoPath);
-    if (result.exitCode != 0) {
+    final List<GitWorktreeEntry> liveEntries;
+    try {
+      liveEntries = await _gitBackend.listWorktrees(repoPath);
+    } on GitException {
       return null;
     }
-    final lines = const LineSplitter().convert(result.stdout);
     final entries = <String, ({String path, String branch})>{};
-    String? currentPath;
-    String currentBranch = 'HEAD';
-    void flush() {
-      final path = currentPath;
-      if (path == null || path.isEmpty) {
-        return;
-      }
-      entries[_canonicalPath(path)] = (path: path, branch: currentBranch);
-    }
-
-    for (final line in lines) {
-      if (line.isEmpty) {
-        flush();
-        currentPath = null;
-        currentBranch = 'HEAD';
+    for (final entry in liveEntries) {
+      if (entry.path.isEmpty) {
         continue;
       }
-      if (line.startsWith('worktree ')) {
-        currentPath = line.substring('worktree '.length).trim();
-        continue;
-      }
-      if (line.startsWith('branch ')) {
-        final rawBranch = line.substring('branch '.length).trim();
-        currentBranch = rawBranch.startsWith('refs/heads/')
-            ? rawBranch.substring('refs/heads/'.length)
-            : rawBranch;
-      }
+      entries[_canonicalPath(entry.path)] = (
+        path: entry.path,
+        branch: entry.branch,
+      );
     }
-    flush();
     return entries;
   }
 

@@ -34,7 +34,7 @@ void _registerTerminalHostServerLifecycleTests() {
           shell: '/bin/sh',
           arguments: <String>[
             '-c',
-            r'IFS= read line; printf "got:%s" "$line"; exit 7',
+            r'printf ready; IFS= read -r line; printf "got:%s" "$line"; exit 7',
           ],
           environment: <String, String>{'TERM': 'xterm-256color'},
         ).toJson(),
@@ -69,6 +69,10 @@ void _registerTerminalHostServerLifecycleTests() {
         'sessionId': 'session-1',
       });
 
+      expect(
+        await client.outputContaining('session-1', 'ready'),
+        contains('ready'),
+      );
       await client.request('resize', <String, Object?>{
         'sessionId': 'session-1',
         'cols': 100,
@@ -128,6 +132,7 @@ void _registerTerminalHostServerLifecycleTests() {
       });
       expect(await restoredHarness.readHistory('session-1'), isNull);
     },
+    skip: _skipTerminalHostRealPtyOnLinuxCiReason,
   );
 
   test(
@@ -253,6 +258,7 @@ void _registerTerminalHostServerLifecycleTests() {
       });
       await expectLater(client.done, completes);
     },
+    skip: _skipTerminalHostRealPtyOnLinuxCiReason,
   );
 
   test(
@@ -299,5 +305,6 @@ void _registerTerminalHostServerLifecycleTests() {
       expect(terminate['ok'], isTrue);
       expect(await harness.readHistory('running-checkpoint'), isNull);
     },
+    skip: _skipTerminalHostRealPtyOnLinuxCiReason,
   );
 }

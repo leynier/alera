@@ -12,7 +12,7 @@ ALERA_HOST_DETACHED_SHUTDOWN_SECONDS ?= 3600
 ALERA_HOST_SCROLLBACK_BYTES ?= 10000000
 ALERA_DEBUG_TOOL = tool/debug/alera_debug.dart
 
-.PHONY: help update-refs rust-test cli-build cli-help host-debug host-debug-observe host-debug-wrapper app-debug app-debug-bundled-cli app-debug-host-observe debug-processes host-stop
+.PHONY: help update-refs frb-generate rust-test cli-build cli-help host-debug host-debug-observe host-debug-wrapper app-debug app-debug-bundled-cli app-debug-host-observe debug-processes host-stop
 
 # List available make targets.
 help:
@@ -22,9 +22,16 @@ help:
 update-refs:
 	git submodule update --init --recursive --remote --merge
 
-# Format, lint, and test the Rust alera CLI crate.
+# Regenerate flutter_rust_bridge bindings after changing the Rust API surface
+# (rust/src/api). The generated Dart under lib/src/rust is committed.
+frb-generate:
+	flutter_rust_bridge_codegen generate
+
+# Format, lint, and test the Rust workspace (alera_native + alera-cli). The
+# `--workspace` flags are required because `rust/` has a root package, so a bare
+# clippy/test would only cover `alera_native` and skip the `alera-cli` member.
 rust-test:
-	cd rust && "$(CARGO)" fmt --check && "$(CARGO)" clippy --all-targets -- -D warnings && "$(CARGO)" test
+	cd rust && "$(CARGO)" fmt --check && "$(CARGO)" clippy --workspace --all-targets -- -D warnings && "$(CARGO)" test --workspace
 
 # Build the Rust alera CLI sidecar (cargo) used by desktop app launches.
 cli-build:

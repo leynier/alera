@@ -62,32 +62,33 @@ void main() {
     expect(values, <String>['alera']);
   });
 
-  testWidgets('escape clears text first and then unfocuses when already empty', (
-    tester,
-  ) async {
-    final controller = TextEditingController(text: 'filter');
-    final focusNode = FocusNode();
-    addTearDown(controller.dispose);
-    addTearDown(focusNode.dispose);
+  testWidgets(
+    'escape clears text first and then unfocuses when already empty',
+    (tester) async {
+      final controller = TextEditingController(text: 'filter');
+      final focusNode = FocusNode();
+      addTearDown(controller.dispose);
+      addTearDown(focusNode.dispose);
 
-    await pumpField(
-      tester,
-      controller: controller,
-      focusNode: focusNode,
-      onChanged: (_) {},
-    );
+      await pumpField(
+        tester,
+        controller: controller,
+        focusNode: focusNode,
+        onChanged: (_) {},
+      );
 
-    await tester.tap(find.byType(TextField));
-    await tester.pumpAndSettle();
-    expect(focusNode.hasFocus, isTrue);
+      await tester.tap(find.byType(TextField));
+      await tester.pumpAndSettle();
+      expect(focusNode.hasFocus, isTrue);
 
-    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
-    await tester.pumpAndSettle();
-    expect(controller.text, isEmpty);
-    expect(focusNode.hasFocus, isTrue);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(controller.text, isEmpty);
+      expect(focusNode.hasFocus, isTrue);
 
-    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
-    await tester.pumpAndSettle();
-    expect(focusNode.hasFocus, isFalse);
-  });
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(focusNode.hasFocus, isFalse);
+    },
+  );
 }

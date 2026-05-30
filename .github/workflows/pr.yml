@@ -135,10 +135,12 @@ jobs:
         run: cargo fmt --check
         working-directory: rust
 
+      # --workspace is required because rust/ has a root package (alera_native),
+      # so a bare clippy/test would skip the alera-cli member.
       - name: Clippy
-        run: cargo clippy --all-targets -- -D warnings
+        run: cargo clippy --workspace --all-targets -- -D warnings
         working-directory: rust
 
       - name: Test
-        run: cargo test
+        run: cargo test --workspace
         working-directory: rust

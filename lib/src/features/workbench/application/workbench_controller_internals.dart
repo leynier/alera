@@ -11,7 +11,7 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
   WorkspaceService get _workspaceService => WorkspaceService(
     repository: ref.read(workbenchRepositoryProvider),
     projectService: ref.read(projectServiceProvider),
-    processRunner: ref.read(processRunnerProvider),
+    gitBackend: ref.read(gitBackendProvider),
     workspaceRoot: WorkspaceRoot(
       override: ref.read(settingsControllerProvider).general.workspaceDirectory,
     ),

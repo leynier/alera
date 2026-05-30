@@ -46,7 +46,8 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      # The native build hooks compile the Rust terminal-host sidecar via cargo.
+      # The native build hooks compile both the Rust terminal-host sidecar
+      # (alera-cli) and the flutter_rust_bridge git library (alera_native).
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@master
         with:

@@ -5,23 +5,29 @@ import 'package:alera/src/features/projects/application/project_repository.dart'
 import 'package:alera/src/features/projects/application/project_service.dart';
 import 'package:alera/src/features/projects/application/projects_service.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
-import 'package:alera/src/shared/infra/process/process_runner.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
+
+import 'fake_git_backend.dart';
 
 void main() {
   group('ProjectsService', () {
     late Directory tempDir;
     late _FakeProjectRepository repository;
-    late _FakeProcessRunner processRunner;
+    late FakeGitBackend gitBackend;
     late ProjectsService service;
 
     setUp(() {
       tempDir = Directory.systemTemp.createTempSync('alera-projects-test-');
       repository = _FakeProjectRepository();
-      processRunner = _FakeProcessRunner();
+      gitBackend = FakeGitBackend()
+        // Folders without a `.git` entry are plain folders, and a successful
+        // clone materialises a `.git` so the destination validates as a repo.
+        ..isRepository = false
+        ..onClone = (_, destination) =>
+            Directory(p.join(destination, '.git')).createSync(recursive: true);
       service = ProjectsService(
-        projectService: ProjectService(processRunner),
+        projectService: ProjectService(gitBackend),
         projectRepository: repository,
         now: () => DateTime.utc(2026, 5, 25, 12),
       );
@@ -54,14 +60,11 @@ void main() {
       final project = await service.addLocalProject(path: repo.path);
 
       expect(project.kind, ProjectKind.gitRepository);
-      expect(processRunner.calls, isEmpty);
+      expect(gitBackend.calls, isEmpty);
     });
 
     test('rejects blank local project paths', () async {
-      await expectLater(
-        service.addLocalProject(path: '   '),
-        throwsStateError,
-      );
+      await expectLater(service.addLocalProject(path: '   '), throwsStateError);
     });
 
     test('surfaces invalid local project path messages', () async {
@@ -77,24 +80,27 @@ void main() {
       );
     });
 
-    test('returns an already-registered local project for the same path', () async {
-      final repo = Directory(p.join(tempDir.path, 'repo'))
-        ..createSync(recursive: true);
-      Directory(p.join(repo.path, '.git')).createSync();
-      final existing = Project(
-        id: 'project-1',
-        name: 'Existing',
-        repoPath: repo.path,
-        createdAt: DateTime.utc(2026, 5, 24),
-        updatedAt: DateTime.utc(2026, 5, 24),
-      );
-      await repository.add(existing);
+    test(
+      'returns an already-registered local project for the same path',
+      () async {
+        final repo = Directory(p.join(tempDir.path, 'repo'))
+          ..createSync(recursive: true);
+        Directory(p.join(repo.path, '.git')).createSync();
+        final existing = Project(
+          id: 'project-1',
+          name: 'Existing',
+          repoPath: repo.path,
+          createdAt: DateTime.utc(2026, 5, 24),
+          updatedAt: DateTime.utc(2026, 5, 24),
+        );
+        await repository.add(existing);
 
-      final project = await service.addLocalProject(path: repo.path);
+        final project = await service.addLocalProject(path: repo.path);
 
-      expect(project, same(existing));
-      expect(repository.projects, hasLength(1));
-    });
+        expect(project, same(existing));
+        expect(repository.projects, hasLength(1));
+      },
+    );
 
     test('clones and registers a Git repository project', () async {
       final destination = p.join(tempDir.path, 'cloned-repo');
@@ -107,17 +113,18 @@ void main() {
       expect(project.kind, ProjectKind.gitRepository);
       expect(project.repoPath, destination);
       expect(project.name, 'cloned-repo');
-      expect(processRunner.calls.single.arguments, <String>[
-        'clone',
-        '--progress',
-        '--',
-        'https://example.com/acme/cloned-repo.git',
-        destination,
-      ]);
+      final cloneCalls = gitBackend.calls
+          .where((call) => call.method == 'clone')
+          .toList();
+      expect(cloneCalls, hasLength(1));
+      expect(cloneCalls.single.args, <String, Object?>{
+        'url': 'https://example.com/acme/cloned-repo.git',
+        'destinationPath': destination,
+      });
     });
 
     test('does not persist a project when clone fails', () async {
-      processRunner.cloneFails = true;
+      gitBackend.cloneFails = true;
 
       await expectLater(
         service.cloneProject(
@@ -191,7 +198,10 @@ void main() {
         ..createSync(recursive: true);
       Directory(p.join(repo.path, '.git')).createSync();
 
-      final project = await service.addProject(repoPath: repo.path, name: 'Wrapper');
+      final project = await service.addProject(
+        repoPath: repo.path,
+        name: 'Wrapper',
+      );
 
       expect(project.repoPath, repo.path);
       expect(project.name, 'Wrapper');
@@ -275,57 +285,4 @@ class _FakeProjectRepository implements ProjectRepository {
   Future<void> dispose() {
     return _controller.close();
   }
-}
-
-class _FakeProcessRunner implements ProcessRunner {
-  final List<_ProcessCall> calls = <_ProcessCall>[];
-  bool cloneFails = false;
-
-  @override
-  Future<ProcessRunOutput> run(
-    String executable,
-    List<String> arguments, {
-    String? workingDirectory,
-    Map<String, String>? environment,
-  }) async {
-    if (arguments.isNotEmpty && arguments.first == 'clone') {
-      calls.add(_ProcessCall(arguments: List<String>.from(arguments)));
-      if (cloneFails) {
-        return const ProcessRunOutput(
-          exitCode: 128,
-          stdout: '',
-          stderr: 'fatal: could not clone',
-        );
-      }
-      final destination = arguments.last;
-      Directory(p.join(destination, '.git')).createSync(recursive: true);
-      return const ProcessRunOutput(exitCode: 0, stdout: '', stderr: '');
-    }
-
-    if (arguments.contains('rev-parse')) {
-      return const ProcessRunOutput(
-        exitCode: 128,
-        stdout: '',
-        stderr: 'fatal: not a git repository',
-      );
-    }
-
-    return const ProcessRunOutput(exitCode: 0, stdout: '', stderr: '');
-  }
-
-  @override
-  Future<StartedProcess> start(
-    String executable,
-    List<String> arguments, {
-    String? workingDirectory,
-    Map<String, String>? environment,
-  }) {
-    throw UnimplementedError();
-  }
-}
-
-class _ProcessCall {
-  const _ProcessCall({required this.arguments});
-
-  final List<String> arguments;
 }

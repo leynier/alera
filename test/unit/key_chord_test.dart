@@ -56,7 +56,10 @@ void main() {
       final result = KeyChord.parse('Mod+LaunchRocket');
 
       expect(result, isA<KeyChordParseFailure>());
-      expect((result as KeyChordParseFailure).message, 'Unsupported key: LaunchRocket.');
+      expect(
+        (result as KeyChordParseFailure).message,
+        'Unsupported key: LaunchRocket.',
+      );
     });
 
     test('rejects two trigger keys', () {

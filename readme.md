@@ -117,7 +117,7 @@ See the full [roadmap](roadmap.md) for the complete picture, including difficult
 
 ### Run from source
 
-Alera is a Flutter desktop app. You'll need a recent [Flutter SDK](https://docs.flutter.dev/get-started/install) and a working Rust toolchain (used by the native PTY layer).
+Alera is a Flutter desktop app. You'll need a recent [Flutter SDK](https://docs.flutter.dev/get-started/install) and a working Rust toolchain (`rustup`). The Rust workspace under `rust/` provides both the native terminal-host sidecar (`alera-cli`) and the git layer (`alera_native`, compiled into the app through `flutter_rust_bridge`).
 
 ```bash
 git clone https://github.com/leynier/alera.git
@@ -132,6 +132,8 @@ flutter run -d linux
 ```
 
 By default a local build runs as **Alera Dev** (`dev.leynier.alera.dev`) so it can coexist with an installed release without sharing user data. Set `ALERA_FLAVOR=release` to opt back into the release identifier.
+
+Regenerate the `flutter_rust_bridge` bindings after changing the Rust API (`rust/src/api`) with `make frb-generate`.
 
 ---
 

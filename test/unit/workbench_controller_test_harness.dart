@@ -44,9 +44,11 @@ class _WorkbenchHarness {
     );
     projectRepository = _FakeProjectRepository(<Project>[project]);
     workbenchRepository = _FakeWorkbenchRepository();
-    processRunner = _FakeProcessRunner();
+    gitBackend = FakeGitBackend()
+      ..sourceBranches = <String>['main', 'origin/main']
+      ..includeQueriedRepoAsMain = true;
     viewPrefsRepository = _FakeWorkbenchViewPrefsRepository();
-    final projectService = ProjectService(processRunner);
+    final projectService = ProjectService(gitBackend);
     final projectsService = ProjectsService(
       projectService: projectService,
       projectRepository: projectRepository,
@@ -62,7 +64,7 @@ class _WorkbenchHarness {
     );
     container = ProviderContainer(
       overrides: [
-        processRunnerProvider.overrideWithValue(processRunner),
+        gitBackendProvider.overrideWithValue(gitBackend),
         projectRepositoryProvider.overrideWithValue(projectRepository),
         workbenchRepositoryProvider.overrideWithValue(workbenchRepository),
         projectServiceProvider.overrideWithValue(projectService),
@@ -81,7 +83,7 @@ class _WorkbenchHarness {
   late final Project project;
   late final _FakeProjectRepository projectRepository;
   late final _FakeWorkbenchRepository workbenchRepository;
-  late final _FakeProcessRunner processRunner;
+  late final FakeGitBackend gitBackend;
   late final _FakeWorkbenchViewPrefsRepository viewPrefsRepository;
   late final ProviderContainer container;
   late final WorkbenchController _controller;

@@ -96,7 +96,7 @@ final class ProjectServiceProvider
   }
 }
 
-String _$projectServiceHash() => r'119832685b6b6a65c3eaeeabef93692a313b27a2';
+String _$projectServiceHash() => r'fe8756a547017f287e863db560a669b021bee8c0';
 
 @ProviderFor(projectRepository)
 final projectRepositoryProvider = ProjectRepositoryProvider._();

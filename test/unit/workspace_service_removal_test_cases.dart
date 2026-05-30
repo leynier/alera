@@ -4,7 +4,7 @@ void _registerWorkspaceServiceRemovalTests() {
   test(
     'removeWorkspace deletes the workspace and cascades its workspace tabs',
     () async {
-      processRunner.sourceBranches = <String>['main'];
+      gitBackend.sourceBranches = <String>['main'];
       final linkedWorkspace = await service.createLinkedWorkspace(
         project: project,
         sourceBranch: 'main',
@@ -50,7 +50,7 @@ void _registerWorkspaceServiceRemovalTests() {
   });
 
   test('removeWorkspace keeps the branch when deleteBranch is false', () async {
-    processRunner.sourceBranches = <String>['main'];
+    gitBackend.sourceBranches = <String>['main'];
     final linkedWorkspace = await service.createLinkedWorkspace(
       project: project,
       sourceBranch: 'main',
@@ -64,13 +64,7 @@ void _registerWorkspaceServiceRemovalTests() {
     );
 
     expect(
-      processRunner.calls.any(
-        (call) =>
-            call.arguments.length >= 3 &&
-            call.arguments[0] == 'branch' &&
-            call.arguments[1] == '-D' &&
-            call.arguments[2] == 'feature/keep-branch',
-      ),
+      gitBackend.calls.any((call) => call.method == 'deleteBranch'),
       isFalse,
     );
     expect(
@@ -82,13 +76,13 @@ void _registerWorkspaceServiceRemovalTests() {
   });
 
   test('removeWorkspace surfaces git worktree removal failures', () async {
-    processRunner.sourceBranches = <String>['main'];
+    gitBackend.sourceBranches = <String>['main'];
     final linkedWorkspace = await service.createLinkedWorkspace(
       project: project,
       sourceBranch: 'main',
       newBranchName: 'feature/remove-failure',
     );
-    processRunner.failingWorktreeRemovePaths.add(linkedWorkspace.path);
+    gitBackend.failingWorktreeRemovePaths.add(linkedWorkspace.path);
 
     await expectLater(
       service.removeWorkspace(
@@ -101,13 +95,13 @@ void _registerWorkspaceServiceRemovalTests() {
   });
 
   test('removeWorkspace surfaces git branch deletion failures', () async {
-    processRunner.sourceBranches = <String>['main'];
+    gitBackend.sourceBranches = <String>['main'];
     final linkedWorkspace = await service.createLinkedWorkspace(
       project: project,
       sourceBranch: 'main',
       newBranchName: 'feature/branch-failure',
     );
-    processRunner.failingBranchDeletes.add('feature/branch-failure');
+    gitBackend.failingBranchDeletes.add('feature/branch-failure');
 
     await expectLater(
       service.removeWorkspace(
@@ -160,8 +154,8 @@ void _registerWorkspaceServiceRemovalTests() {
   test('WorkspaceService defaults timestamps to current utc time', () async {
     final defaultService = WorkspaceService(
       repository: repository,
-      projectService: ProjectService(processRunner),
-      processRunner: processRunner,
+      projectService: ProjectService(gitBackend),
+      gitBackend: gitBackend,
     );
     final before = DateTime.now().toUtc().subtract(const Duration(seconds: 1));
 

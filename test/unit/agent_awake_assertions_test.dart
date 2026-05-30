@@ -64,7 +64,7 @@ void main() {
 
       await assertion.start('status-change');
       first.completeExit(1);
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await _waitForStartCalls(runner, 2);
 
       expect(runner.calls, hasLength(2));
     });
@@ -86,7 +86,7 @@ void main() {
       await assertion.start('status-change');
       await assertion.start('status-change');
       now = now.add(const Duration(milliseconds: 6));
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await _waitForStartCalls(runner, 2);
 
       expect(runner.calls, hasLength(2));
     });
@@ -105,7 +105,7 @@ void main() {
       await assertion.start('status-change');
       first.completeExitError(StateError('exit failed'));
       first.completeExit(1);
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await _waitForStartCalls(runner, 2);
 
       expect(runner.calls, hasLength(2));
     });
@@ -147,25 +147,27 @@ void main() {
       expect(runner.calls, hasLength(1));
     });
 
-    test('suppresses repeated warning-level logs for the same failure', () async {
-      final runner = _FakeProcessRunner()
-        ..queuedStarts.addAll(<Object>[
-          const ProcessException('/usr/bin/caffeinate', <String>[], 'boom'),
-          const ProcessException('/usr/bin/caffeinate', <String>[], 'boom'),
-          _FakeStartedProcess(),
-        ]);
-      final assertion = MacosSystemSleepAssertion(
-        processRunner: runner,
-        platform: 'macos',
-        retryDelay: Duration.zero,
-      );
+    test(
+      'suppresses repeated warning-level logs for the same failure',
+      () async {
+        final runner = _FakeProcessRunner()
+          ..queuedStarts.addAll(<Object>[
+            const ProcessException('/usr/bin/caffeinate', <String>[], 'boom'),
+            const ProcessException('/usr/bin/caffeinate', <String>[], 'boom'),
+            _FakeStartedProcess(),
+          ]);
+        final assertion = MacosSystemSleepAssertion(
+          processRunner: runner,
+          platform: 'macos',
+          retryDelay: Duration.zero,
+        );
 
-      await assertion.start('status-change');
-      await Future<void>.delayed(Duration.zero);
-      await Future<void>.delayed(Duration.zero);
+        await assertion.start('status-change');
+        await _waitForStartCalls(runner, 3);
 
-      expect(runner.calls, hasLength(3));
-    });
+        expect(runner.calls, hasLength(3));
+      },
+    );
   });
 
   group('LinuxLidSleepAssertion', () {
@@ -375,6 +377,20 @@ class _FakeProcessRunner implements ProcessRunner {
       throw next;
     }
     return (next as _FakeStartedProcess).startedProcess;
+  }
+}
+
+Future<void> _waitForStartCalls(
+  _FakeProcessRunner runner,
+  int count, {
+  Duration timeout = const Duration(seconds: 1),
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (DateTime.now().isBefore(deadline)) {
+    if (runner.calls.length >= count) {
+      return;
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 5));
   }
 }
 

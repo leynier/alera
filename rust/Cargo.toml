@@ -1,3 +1,33 @@
+[package]
+name = "alera_native"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "staticlib"]
+
+# `rust/` is both the flutter_rust_bridge library package (`alera_native`, built
+# by cargokit via `cargo build --manifest-path rust/Cargo.toml`, no `-p`) and the
+# workspace root that hosts the `alera-cli` terminal-host sidecar (built by the
+# native hooks via `cargo build --locked -p alera-cli`). One lock file, one
+# target dir; the FRB build only compiles the root package.
 [workspace]
 members = ["alera-cli"]
 resolver = "2"
+
+[dependencies]
+flutter_rust_bridge = "=2.12.0"
+# Local git operations via libgit2. Network features (https/ssh/openssl) are
+# disabled on purpose: every git2-backed operation here is local, and the only
+# operation that touches the network (clone) is delegated to the git CLI via
+# git_cmd, which uses the system credential helper.
+git2 = { version = "0.21", default-features = false }
+# Thin wrapper around the git CLI; used only for clone.
+git_cmd = "0.6"
+camino = "1"
+
+[dev-dependencies]
+tempfile = "3"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }

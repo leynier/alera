@@ -7,7 +7,9 @@ import 'package:alera/src/features/projects/presentation/add_project_dialog.dart
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
-import 'package:alera/src/shared/infra/process/process_runner.dart';
+import 'package:alera/src/shared/infra/git/git_backend.dart';
+import 'package:alera/src/shared/infra/git/git_providers.dart';
+import 'package:alera/src/shared/infra/git/git_worktree_entry.dart';
 import 'package:alera/src/shared/infra/storage/drift_database.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
@@ -30,7 +32,6 @@ void main() {
     });
     final projectDir = Directory(p.join(tempRoot.path, 'sample-project'))
       ..createSync(recursive: true);
-    Directory(p.join(projectDir.path, '.git')).createSync();
 
     final db = AleraDatabase(executor: NativeDatabase.memory());
     var dbClosed = false;
@@ -54,7 +55,7 @@ void main() {
             ref.onDispose(closeDb);
             return db;
           }),
-          processRunnerProvider.overrideWithValue(_E2eProcessRunner()),
+          gitBackendProvider.overrideWithValue(const _E2eGitBackend()),
           terminalRuntimeProvider.overrideWith((ref) => terminalRuntime),
         ],
         child: const AleraApp(),
@@ -117,33 +118,55 @@ Future<void> _pumpUntilFound(
   fail('Expected to find $finder. Visible text: $visibleText');
 }
 
-class _E2eProcessRunner implements ProcessRunner {
-  @override
-  Future<ProcessRunOutput> run(
-    String executable,
-    List<String> arguments, {
-    String? workingDirectory,
-    Map<String, String>? environment,
-  }) async {
-    if (executable == 'git' &&
-        arguments.contains('rev-parse') &&
-        arguments.contains('--is-inside-work-tree')) {
-      return const ProcessRunOutput(exitCode: 1, stdout: '', stderr: '');
-    }
-    return const ProcessRunOutput(exitCode: 0, stdout: '', stderr: '');
-  }
+class _E2eGitBackend implements GitBackend {
+  const _E2eGitBackend();
 
   @override
-  Future<StartedProcess> start(
-    String executable,
-    List<String> arguments, {
-    String? workingDirectory,
-    Map<String, String>? environment,
-  }) {
-    throw UnimplementedError(
-      'The E2E smoke flow uses a fake terminal runtime.',
-    );
-  }
+  Future<bool> isGitRepository(String path) async => false;
+
+  @override
+  Future<List<String>> listBranches(String path) async => const <String>[];
+
+  @override
+  Future<String> currentBranch(String path) async => 'HEAD';
+
+  @override
+  Future<bool> branchExists(String repoPath, String branch) async => false;
+
+  @override
+  Future<bool> isValidBranchName(String name) async => true;
+
+  @override
+  Future<void> createWorktree({
+    required String repoPath,
+    required String newBranch,
+    required String path,
+    required String sourceBranch,
+  }) async {}
+
+  @override
+  Future<void> removeWorktree({
+    required String repoPath,
+    required String path,
+    bool force = true,
+  }) async {}
+
+  @override
+  Future<void> deleteBranch({
+    required String repoPath,
+    required String branch,
+    bool force = true,
+  }) async {}
+
+  @override
+  Future<List<GitWorktreeEntry>> listWorktrees(String repoPath) async =>
+      const <GitWorktreeEntry>[];
+
+  @override
+  Future<void> clone({
+    required String url,
+    required String destinationPath,
+  }) async {}
 }
 
 class _E2eTerminalRuntime implements TerminalRuntime {

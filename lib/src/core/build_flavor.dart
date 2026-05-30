@@ -31,4 +31,3 @@ bool effectiveAutoInstallEnabled(bool requested, {bool? isDevBuild}) {
   }
   return requested;
 }
-

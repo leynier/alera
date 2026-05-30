@@ -1,7 +1,8 @@
 import 'dart:io';
 
 import 'package:alera/src/features/projects/domain/project.dart';
-import 'package:alera/src/shared/infra/process/process_runner.dart';
+import 'package:alera/src/shared/infra/git/git_backend.dart';
+import 'package:alera/src/shared/infra/git/git_exception.dart';
 import 'package:path/path.dart' as p;
 
 class ProjectValidationResult {
@@ -43,9 +44,9 @@ class LocalProjectInspectionResult {
 }
 
 class ProjectService {
-  ProjectService(this._processRunner);
+  ProjectService(this._gitBackend);
 
-  final ProcessRunner _processRunner;
+  final GitBackend _gitBackend;
 
   Future<bool> isGitRepository(String path) async {
     final result = await validateGitRepository(path);
@@ -66,28 +67,21 @@ class ProjectService {
       return ProjectValidationResult.ok();
     }
 
-    final result = await _processRunner.run('git', <String>[
-      '-C',
-      path,
-      'rev-parse',
-      '--is-inside-work-tree',
-    ]);
-
-    if (result.exitCode == 0 && result.stdout.trim() == 'true') {
-      return ProjectValidationResult.ok();
-    }
-
-    final stderr = result.stderr.trim();
-    if (stderr.isNotEmpty) {
-      if (stderr.toLowerCase().contains('operation not permitted')) {
-        return ProjectValidationResult.fail(
-          'access denied by macOS sandbox for: $path',
-        );
+    try {
+      final isRepository = await _gitBackend.isGitRepository(path);
+      if (isRepository) {
+        return ProjectValidationResult.ok();
       }
-      return ProjectValidationResult.fail(stderr);
+      return ProjectValidationResult.fail(
+        'path is not a git repository: $path',
+      );
+    } on AccessDeniedException {
+      return ProjectValidationResult.fail(
+        'access denied by macOS sandbox for: $path',
+      );
+    } on GitException catch (error) {
+      return ProjectValidationResult.fail(error.context);
     }
-
-    return ProjectValidationResult.fail('path is not a git repository: $path');
   }
 
   Future<LocalProjectInspectionResult> inspectLocalProjectPath(
@@ -134,20 +128,13 @@ class ProjectService {
       }
     }
 
-    final result = await _processRunner.run('git', <String>[
-      'clone',
-      '--progress',
-      '--',
-      normalizedUrl,
-      normalizedDestination,
-    ]);
-    if (result.exitCode != 0) {
-      final stderr = result.stderr.trim();
-      throw StateError(
-        stderr.isEmpty
-            ? 'git clone failed (exit ${result.exitCode})'
-            : 'git clone failed (exit ${result.exitCode}): $stderr',
+    try {
+      await _gitBackend.clone(
+        url: normalizedUrl,
+        destinationPath: normalizedDestination,
       );
+    } on GitException catch (error) {
+      throw StateError('git clone failed: ${error.context}');
     }
 
     final validation = await validateGitRepository(normalizedDestination);
@@ -159,27 +146,11 @@ class ProjectService {
   }
 
   Future<List<String>> listGitBranches(String path) async {
-    final result = await _processRunner.run('git', <String>[
-      '-C',
-      path,
-      'for-each-ref',
-      '--format=%(refname:short)',
-      'refs/heads',
-      'refs/remotes',
-    ]);
-    if (result.exitCode != 0) {
+    // The backend already sorts, de-duplicates, and drops `*/HEAD` entries.
+    try {
+      return await _gitBackend.listBranches(path);
+    } on GitException {
       return const <String>[];
     }
-    final seen = <String>{};
-    final branches = <String>[];
-    for (final line in result.stdout.split('\n')) {
-      final branch = line.trim();
-      if (branch.isEmpty || branch.endsWith('/HEAD') || !seen.add(branch)) {
-        continue;
-      }
-      branches.add(branch);
-    }
-    branches.sort();
-    return branches;
   }
 }

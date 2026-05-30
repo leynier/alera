@@ -15,9 +15,9 @@ class DriftWorkbenchViewPrefsRepository
 
   @override
   Future<WorkbenchViewPrefs> load() async {
-    final row = await (_db.select(_db.workbenchViewPrefsTable)
-          ..where((table) => table.id.equals(_rowId)))
-        .getSingleOrNull();
+    final row = await (_db.select(
+      _db.workbenchViewPrefsTable,
+    )..where((table) => table.id.equals(_rowId))).getSingleOrNull();
     if (row == null) {
       return WorkbenchViewPrefs.defaults;
     }
@@ -34,11 +34,13 @@ class DriftWorkbenchViewPrefsRepository
 
   @override
   Future<void> save(WorkbenchViewPrefs prefs) async {
-    await _db.into(_db.workbenchViewPrefsTable).insertOnConflictUpdate(
-      WorkbenchViewPrefsTableCompanion(
-        id: const Value(_rowId),
-        dataJson: Value(jsonEncode(prefs.toMap())),
-      ),
-    );
+    await _db
+        .into(_db.workbenchViewPrefsTable)
+        .insertOnConflictUpdate(
+          WorkbenchViewPrefsTableCompanion(
+            id: const Value(_rowId),
+            dataJson: Value(jsonEncode(prefs.toMap())),
+          ),
+        );
   }
 }
