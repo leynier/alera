@@ -1,3 +1,4 @@
+pub mod agent_hooks;
 pub mod git;
 
 #[flutter_rust_bridge::frb(init)]

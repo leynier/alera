@@ -54,7 +54,49 @@ final class AgentHookReceiverProvider
   }
 }
 
-String _$agentHookReceiverHash() => r'18dec1c16e4aa3f4d05289c3bc124024e57f501f';
+String _$agentHookReceiverHash() => r'bc2999306c825069eccb760ef642d0711f65221a';
+
+@ProviderFor(agentHookServer)
+final agentHookServerProvider = AgentHookServerProvider._();
+
+final class AgentHookServerProvider
+    extends
+        $FunctionalProvider<AgentHookServer, AgentHookServer, AgentHookServer>
+    with $Provider<AgentHookServer> {
+  AgentHookServerProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'agentHookServerProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$agentHookServerHash();
+
+  @$internal
+  @override
+  $ProviderElement<AgentHookServer> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  AgentHookServer create(Ref ref) {
+    return agentHookServer(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(AgentHookServer value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<AgentHookServer>(value),
+    );
+  }
+}
+
+String _$agentHookServerHash() => r'6c7676a5efe731caf8271b2ad865b70d12798ec3';
 
 @ProviderFor(managedAgentHookInstallService)
 final managedAgentHookInstallServiceProvider =
@@ -736,7 +778,7 @@ final class AgentHookReceiverLifecycleCoordinatorProvider
 }
 
 String _$agentHookReceiverLifecycleCoordinatorHash() =>
-    r'cb1295e2d49b8386110d0f22715c67e75f17fa09';
+    r'1e1fb6be685697b3f1d70fa4ba1911744aa85043';
 
 @ProviderFor(agentHookInstallerCoordinator)
 final agentHookInstallerCoordinatorProvider =

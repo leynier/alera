@@ -184,7 +184,7 @@ final class AgentStatusControllerProvider
 }
 
 String _$agentStatusControllerHash() =>
-    r'100b74dc231df28eabd079f98c66786569ab91d1';
+    r'9423dc65a6d812e8896c82c264f5a4a795628623';
 
 abstract class _$AgentStatusController
     extends $Notifier<Map<String, AgentStatusEntry>> {

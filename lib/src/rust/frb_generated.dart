@@ -3,6 +3,7 @@
 
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
+import 'api/agent_hooks.dart';
 import 'api/git.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -66,7 +67,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => 479975113;
+  int get rustContentHash => 590809161;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -120,6 +121,19 @@ abstract class RustLibApi extends BaseApi {
     required String path,
     required bool force,
   });
+
+  Future<void> crateApiAgentHooksSetAgentHookEnabledAgents({
+    required List<String> enabledAgents,
+  });
+
+  Future<AgentHookEndpointDto> crateApiAgentHooksStartAgentHookReceiver({
+    required String token,
+    required List<String> enabledAgents,
+  });
+
+  Future<void> crateApiAgentHooksStopAgentHookReceiver();
+
+  Stream<AgentHookEventBatchDto> crateApiAgentHooksWatchAgentHookEventBatches();
 }
 
 class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
@@ -480,10 +494,196 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     argNames: ["repoPath", "path", "force"],
   );
 
+  @override
+  Future<void> crateApiAgentHooksSetAgentHookEnabledAgents({
+    required List<String> enabledAgents,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_list_String(enabledAgents, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 12,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiAgentHooksSetAgentHookEnabledAgentsConstMeta,
+        argValues: [enabledAgents],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiAgentHooksSetAgentHookEnabledAgentsConstMeta =>
+      const TaskConstMeta(
+        debugName: "set_agent_hook_enabled_agents",
+        argNames: ["enabledAgents"],
+      );
+
+  @override
+  Future<AgentHookEndpointDto> crateApiAgentHooksStartAgentHookReceiver({
+    required String token,
+    required List<String> enabledAgents,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(token, serializer);
+          sse_encode_list_String(enabledAgents, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 13,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_agent_hook_endpoint_dto,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiAgentHooksStartAgentHookReceiverConstMeta,
+        argValues: [token, enabledAgents],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiAgentHooksStartAgentHookReceiverConstMeta =>
+      const TaskConstMeta(
+        debugName: "start_agent_hook_receiver",
+        argNames: ["token", "enabledAgents"],
+      );
+
+  @override
+  Future<void> crateApiAgentHooksStopAgentHookReceiver() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 14,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiAgentHooksStopAgentHookReceiverConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiAgentHooksStopAgentHookReceiverConstMeta =>
+      const TaskConstMeta(debugName: "stop_agent_hook_receiver", argNames: []);
+
+  @override
+  Stream<AgentHookEventBatchDto>
+  crateApiAgentHooksWatchAgentHookEventBatches() {
+    final sink = RustStreamSink<AgentHookEventBatchDto>();
+    unawaited(
+      handler.executeNormal(
+        NormalTask(
+          callFfi: (port_) {
+            final serializer = SseSerializer(generalizedFrbRustBinding);
+            sse_encode_StreamSink_agent_hook_event_batch_dto_Sse(
+              sink,
+              serializer,
+            );
+            pdeCallFfi(
+              generalizedFrbRustBinding,
+              serializer,
+              funcId: 15,
+              port: port_,
+            );
+          },
+          codec: SseCodec(
+            decodeSuccessData: sse_decode_unit,
+            decodeErrorData: null,
+          ),
+          constMeta: kCrateApiAgentHooksWatchAgentHookEventBatchesConstMeta,
+          argValues: [sink],
+          apiImpl: this,
+        ),
+      ),
+    );
+    return sink.stream;
+  }
+
+  TaskConstMeta get kCrateApiAgentHooksWatchAgentHookEventBatchesConstMeta =>
+      const TaskConstMeta(
+        debugName: "watch_agent_hook_event_batches",
+        argNames: ["sink"],
+      );
+
+  @protected
+  AnyhowException dco_decode_AnyhowException(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return AnyhowException(raw as String);
+  }
+
+  @protected
+  RustStreamSink<AgentHookEventBatchDto>
+  dco_decode_StreamSink_agent_hook_event_batch_dto_Sse(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    throw UnimplementedError();
+  }
+
   @protected
   String dco_decode_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as String;
+  }
+
+  @protected
+  AgentHookEndpointDto dco_decode_agent_hook_endpoint_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 1)
+      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
+    return AgentHookEndpointDto(port: dco_decode_u_16(arr[0]));
+  }
+
+  @protected
+  AgentHookEventBatchDto dco_decode_agent_hook_event_batch_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return AgentHookEventBatchDto(
+      events: dco_decode_list_agent_hook_event_dto(arr[0]),
+      coalescedIntermediateCount: dco_decode_u_32(arr[1]),
+    );
+  }
+
+  @protected
+  AgentHookEventDto dco_decode_agent_hook_event_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    return AgentHookEventDto(
+      terminalSessionId: dco_decode_String(arr[0]),
+      workspaceId: dco_decode_String(arr[1]),
+      tabId: dco_decode_String(arr[2]),
+      agentType: dco_decode_String(arr[3]),
+      payloadJson: dco_decode_String(arr[4]),
+      hookEventName: dco_decode_opt_String(arr[5]),
+      version: dco_decode_opt_String(arr[6]),
+      inferredEventName: dco_decode_opt_String(arr[7]),
+    );
   }
 
   @protected
@@ -535,6 +735,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<AgentHookEventDto> dco_decode_list_agent_hook_event_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_agent_hook_event_dto).toList();
+  }
+
+  @protected
   List<GitWorktreeEntry> dco_decode_list_git_worktree_entry(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_git_worktree_entry).toList();
@@ -544,6 +750,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as Uint8List;
+  }
+
+  @protected
+  String? dco_decode_opt_String(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_String(raw);
+  }
+
+  @protected
+  int dco_decode_u_16(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as int;
+  }
+
+  @protected
+  int dco_decode_u_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as int;
   }
 
   @protected
@@ -559,10 +783,73 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_String(deserializer);
+    return AnyhowException(inner);
+  }
+
+  @protected
+  RustStreamSink<AgentHookEventBatchDto>
+  sse_decode_StreamSink_agent_hook_event_batch_dto_Sse(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    throw UnimplementedError('Unreachable ()');
+  }
+
+  @protected
   String sse_decode_String(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_list_prim_u_8_strict(deserializer);
     return utf8.decoder.convert(inner);
+  }
+
+  @protected
+  AgentHookEndpointDto sse_decode_agent_hook_endpoint_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_port = sse_decode_u_16(deserializer);
+    return AgentHookEndpointDto(port: var_port);
+  }
+
+  @protected
+  AgentHookEventBatchDto sse_decode_agent_hook_event_batch_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_events = sse_decode_list_agent_hook_event_dto(deserializer);
+    var var_coalescedIntermediateCount = sse_decode_u_32(deserializer);
+    return AgentHookEventBatchDto(
+      events: var_events,
+      coalescedIntermediateCount: var_coalescedIntermediateCount,
+    );
+  }
+
+  @protected
+  AgentHookEventDto sse_decode_agent_hook_event_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_terminalSessionId = sse_decode_String(deserializer);
+    var var_workspaceId = sse_decode_String(deserializer);
+    var var_tabId = sse_decode_String(deserializer);
+    var var_agentType = sse_decode_String(deserializer);
+    var var_payloadJson = sse_decode_String(deserializer);
+    var var_hookEventName = sse_decode_opt_String(deserializer);
+    var var_version = sse_decode_opt_String(deserializer);
+    var var_inferredEventName = sse_decode_opt_String(deserializer);
+    return AgentHookEventDto(
+      terminalSessionId: var_terminalSessionId,
+      workspaceId: var_workspaceId,
+      tabId: var_tabId,
+      agentType: var_agentType,
+      payloadJson: var_payloadJson,
+      hookEventName: var_hookEventName,
+      version: var_version,
+      inferredEventName: var_inferredEventName,
+    );
   }
 
   @protected
@@ -613,6 +900,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<AgentHookEventDto> sse_decode_list_agent_hook_event_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <AgentHookEventDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_agent_hook_event_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<GitWorktreeEntry> sse_decode_list_git_worktree_entry(
     SseDeserializer deserializer,
   ) {
@@ -634,6 +935,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  String? sse_decode_opt_String(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_String(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  int sse_decode_u_16(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getUint16();
+  }
+
+  @protected
+  int sse_decode_u_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getUint32();
+  }
+
+  @protected
   int sse_decode_u_8(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getUint8();
@@ -645,9 +969,70 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_AnyhowException(
+    AnyhowException self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.message, serializer);
+  }
+
+  @protected
+  void sse_encode_StreamSink_agent_hook_event_batch_dto_Sse(
+    RustStreamSink<AgentHookEventBatchDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(
+      self.setupAndSerialize(
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_agent_hook_event_batch_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+      ),
+      serializer,
+    );
+  }
+
+  @protected
   void sse_encode_String(String self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_list_prim_u_8_strict(utf8.encoder.convert(self), serializer);
+  }
+
+  @protected
+  void sse_encode_agent_hook_endpoint_dto(
+    AgentHookEndpointDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_16(self.port, serializer);
+  }
+
+  @protected
+  void sse_encode_agent_hook_event_batch_dto(
+    AgentHookEventBatchDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_agent_hook_event_dto(self.events, serializer);
+    sse_encode_u_32(self.coalescedIntermediateCount, serializer);
+  }
+
+  @protected
+  void sse_encode_agent_hook_event_dto(
+    AgentHookEventDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.terminalSessionId, serializer);
+    sse_encode_String(self.workspaceId, serializer);
+    sse_encode_String(self.tabId, serializer);
+    sse_encode_String(self.agentType, serializer);
+    sse_encode_String(self.payloadJson, serializer);
+    sse_encode_opt_String(self.hookEventName, serializer);
+    sse_encode_opt_String(self.version, serializer);
+    sse_encode_opt_String(self.inferredEventName, serializer);
   }
 
   @protected
@@ -695,6 +1080,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_agent_hook_event_dto(
+    List<AgentHookEventDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_agent_hook_event_dto(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_git_worktree_entry(
     List<GitWorktreeEntry> self,
     SseSerializer serializer,
@@ -714,6 +1111,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
     serializer.buffer.putUint8List(self);
+  }
+
+  @protected
+  void sse_encode_opt_String(String? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_String(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_u_16(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putUint16(self);
+  }
+
+  @protected
+  void sse_encode_u_32(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putUint32(self);
   }
 
   @protected

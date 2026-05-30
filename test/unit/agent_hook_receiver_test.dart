@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:alera/src/features/agent_status/application/agent_status_controller.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/infra/agent_hook_endpoint_file.dart';
+import 'package:alera/src/features/agent_status/infra/agent_hook_request_parser.dart';
 import 'package:alera/src/features/agent_status/infra/agent_hook_receiver.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -12,15 +13,18 @@ void main() {
   group('AgentHookReceiver', () {
     late Directory tempDir;
     late _FakeStatusSink sink;
+    late _FakeAgentHookServer hookServer;
     late AgentHookReceiver receiver;
 
     setUp(() async {
       tempDir = await Directory.systemTemp.createTemp('alera-hook-receiver-');
       sink = _FakeStatusSink();
+      hookServer = _FakeAgentHookServer();
       receiver = AgentHookReceiver(
         statusSink: sink,
         applicationSupportDirectory: () async => tempDir,
         token: 'token-1',
+        hookServer: hookServer,
       );
       await receiver.start();
     });
@@ -73,6 +77,7 @@ void main() {
           applicationSupportDirectory: () async =>
               throw StateError('no support'),
           token: 'token-1',
+          hookServer: _FakeAgentHookServer(),
         );
         addTearDown(failingReceiver.dispose);
 
@@ -86,6 +91,7 @@ void main() {
           statusSink: sink,
           applicationSupportDirectory: () => supportCompleter.future,
           token: 'token-1',
+          hookServer: _FakeAgentHookServer(),
         );
         addTearDown(slowFailingReceiver.dispose);
 
@@ -225,6 +231,7 @@ void main() {
         applicationSupportDirectory: () async => tempDir,
         token: 'token-1',
         isAgentEnabled: (agentType) => agentType != AgentType.copilot,
+        hookServer: _FakeAgentHookServer(),
       );
       await receiver.start();
 
@@ -252,6 +259,7 @@ void main() {
         statusSink: _ThrowingStatusSink(),
         applicationSupportDirectory: () async => tempDir,
         token: 'token-1',
+        hookServer: _FakeAgentHookServer(),
       );
       await receiver.start();
 
@@ -305,5 +313,106 @@ class _ThrowingStatusSink implements AgentStatusSink {
   @override
   void applyHookEvent(AgentHookEvent event) {
     throw StateError('sink failed');
+  }
+}
+
+class _FakeAgentHookServer implements AgentHookServer {
+  final _batches = StreamController<AgentHookEventBatch>.broadcast();
+  final _enabledAgents = <String>{};
+
+  HttpServer? _server;
+  String _token = '';
+
+  @override
+  Stream<AgentHookEventBatch> watchEventBatches() => _batches.stream;
+
+  @override
+  Future<int> start({
+    required String token,
+    required List<String> enabledAgents,
+  }) async {
+    _token = token;
+    _enabledAgents
+      ..clear()
+      ..addAll(enabledAgents);
+    final existing = _server;
+    if (existing != null) {
+      return existing.port;
+    }
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    _server = server;
+    unawaited(_serve(server));
+    return server.port;
+  }
+
+  @override
+  Future<void> setEnabledAgents(List<String> enabledAgents) async {
+    _enabledAgents
+      ..clear()
+      ..addAll(enabledAgents);
+  }
+
+  @override
+  Future<void> stop() async {
+    final server = _server;
+    _server = null;
+    await server?.close(force: true);
+  }
+
+  Future<void> _serve(HttpServer server) async {
+    await for (final request in server) {
+      await _handle(request);
+    }
+  }
+
+  Future<void> _handle(HttpRequest request) async {
+    final agentType = _agentTypeForPath(request.uri.path);
+    if (request.method != 'POST' || agentType == null) {
+      request.response.statusCode = HttpStatus.notFound;
+      await request.response.close();
+      return;
+    }
+    if (request.headers.value(aleraAgentHookTokenHeader) != _token) {
+      request.response.statusCode = HttpStatus.forbidden;
+      await request.response.close();
+      return;
+    }
+    if (!_enabledAgents.contains(agentType.key)) {
+      request.response.statusCode = HttpStatus.noContent;
+      await request.response.close();
+      return;
+    }
+    try {
+      final bodyBytes = <int>[];
+      await for (final chunk in request) {
+        bodyBytes.addAll(chunk);
+        if (bodyBytes.length > agentHookRequestMaxBytes) {
+          throw const FormatException('too large');
+        }
+      }
+      final decoded = decodeAgentHookRequestBody(
+        contentType: request.headers.contentType?.toString() ?? '',
+        bodyBytes: bodyBytes,
+      );
+      final event = parseAgentHookRequest(agentType: agentType, body: decoded);
+      if (event != null) {
+        _batches.add(AgentHookEventBatch(events: <AgentHookEvent>[event]));
+      }
+    } catch (_) {}
+    request.response.statusCode = HttpStatus.noContent;
+    await request.response.close();
+  }
+
+  AgentType? _agentTypeForPath(String path) {
+    if (!path.startsWith('/hook/')) {
+      return null;
+    }
+    final key = path.substring('/hook/'.length);
+    for (final agentType in AgentType.values) {
+      if (agentType.key == key) {
+        return agentType;
+      }
+    }
+    return null;
   }
 }

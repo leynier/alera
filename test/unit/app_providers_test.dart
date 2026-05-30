@@ -10,6 +10,7 @@ import 'package:alera/src/features/agent_status/application/agent_status_notific
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/infra/agent_awake_assertions.dart';
 import 'package:alera/src/features/agent_status/infra/agent_hook_endpoint_file.dart';
+import 'package:alera/src/features/agent_status/infra/agent_hook_request_parser.dart';
 import 'package:alera/src/features/agent_status/infra/agent_hook_receiver.dart';
 import 'package:alera/src/features/agent_status/infra/agent_runtime_overlay_service.dart';
 import 'package:alera/src/features/agent_status/infra/claude_runtime_home_service.dart';
@@ -160,6 +161,7 @@ void main() {
           statusSink: _FakeStatusSink(),
           applicationSupportDirectory: () async => support,
           token: 'token-1',
+          hookServer: _FakeAgentHookServer(),
         );
         addTearDown(receiver.dispose);
         final client = _FakeTerminalHostClient();
@@ -636,7 +638,10 @@ void main() {
         ),
       );
       final container = ProviderContainer(
-        overrides: [settingsControllerProvider.overrideWithValue(settings)],
+        overrides: [
+          settingsControllerProvider.overrideWithValue(settings),
+          agentHookServerProvider.overrideWithValue(_FakeAgentHookServer()),
+        ],
       );
       addTearDown(container.dispose);
 
@@ -695,6 +700,7 @@ void main() {
           statusSink: _FakeStatusSink(),
           applicationSupportDirectory: () async => support,
           token: 'token-1',
+          hookServer: _FakeAgentHookServer(),
         );
         addTearDown(receiver.dispose);
         final settings = AleraSettings.defaults.copyWith(
@@ -711,7 +717,9 @@ void main() {
         addTearDown(container.dispose);
 
         container.read(agentHookReceiverLifecycleCoordinatorProvider);
-        await Future<void>.delayed(Duration.zero);
+        for (var attempt = 0; attempt < 20 && !receiver.isRunning; attempt++) {
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+        }
 
         expect(receiver.isRunning, isTrue);
       },
@@ -866,6 +874,7 @@ void main() {
           statusSink: _FakeStatusSink(),
           applicationSupportDirectory: () async => support,
           token: 'token-1',
+          hookServer: _FakeAgentHookServer(),
         );
         addTearDown(receiver.dispose);
 
@@ -940,6 +949,7 @@ void main() {
           statusSink: _FakeStatusSink(),
           applicationSupportDirectory: () async => support,
           token: 'token-1',
+          hookServer: _FakeAgentHookServer(),
         );
         addTearDown(receiver.dispose);
         final overlay = AgentRuntimeOverlayService(
@@ -1003,6 +1013,7 @@ void main() {
           statusSink: _FakeStatusSink(),
           applicationSupportDirectory: () async => support,
           token: 'token-1',
+          hookServer: _FakeAgentHookServer(),
         );
         addTearDown(receiver.dispose);
         Future<Directory> failingSupport() async => throw StateError('boom');

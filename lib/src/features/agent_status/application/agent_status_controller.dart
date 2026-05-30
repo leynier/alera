@@ -39,34 +39,57 @@ class AgentStatusController extends _$AgentStatusController
 
   @override
   void applyHookEvent(AgentHookEvent event) {
-    if (isAgentSessionCloseHookEvent(event)) {
-      clearTerminal(event.terminalSessionId);
+    applyHookEvents(<AgentHookEvent>[event]);
+  }
+
+  void applyHookEvents(List<AgentHookEvent> events) {
+    if (events.isEmpty) {
       return;
     }
-    final previous = state[event.terminalSessionId];
-    final normalized = normalizeAgentHookEvent(event, previous: previous);
-    if (normalized == null) {
-      return;
-    }
+    var next = state;
+    var changed = false;
     final receivedAt = _now();
-    final stateStartedAt = previous?.state == normalized.state
-        ? previous!.stateStartedAt
-        : receivedAt;
-    final next = AgentStatusEntry(
-      terminalSessionId: event.terminalSessionId,
-      workspaceId: event.workspaceId,
-      tabId: event.tabId,
-      agentType: event.agentType,
-      state: normalized.state,
-      prompt: normalized.prompt,
-      updatedAt: receivedAt,
-      stateStartedAt: stateStartedAt,
-      toolName: normalized.toolName,
-      toolInput: normalized.toolInput,
-      lastAssistantMessage: normalized.lastAssistantMessage,
-      interrupted: normalized.interrupted,
-    );
-    state = <String, AgentStatusEntry>{...state, event.terminalSessionId: next};
+    for (final event in events) {
+      if (isAgentSessionCloseHookEvent(event)) {
+        if (!next.containsKey(event.terminalSessionId)) {
+          continue;
+        }
+        next = <String, AgentStatusEntry>{...next}
+          ..remove(event.terminalSessionId);
+        changed = true;
+        continue;
+      }
+      final previous = next[event.terminalSessionId];
+      final normalized = normalizeAgentHookEvent(event, previous: previous);
+      if (normalized == null) {
+        continue;
+      }
+      final stateStartedAt = previous?.state == normalized.state
+          ? previous!.stateStartedAt
+          : receivedAt;
+      final entry = AgentStatusEntry(
+        terminalSessionId: event.terminalSessionId,
+        workspaceId: event.workspaceId,
+        tabId: event.tabId,
+        agentType: event.agentType,
+        state: normalized.state,
+        prompt: normalized.prompt,
+        updatedAt: receivedAt,
+        stateStartedAt: stateStartedAt,
+        toolName: normalized.toolName,
+        toolInput: normalized.toolInput,
+        lastAssistantMessage: normalized.lastAssistantMessage,
+        interrupted: normalized.interrupted,
+      );
+      next = <String, AgentStatusEntry>{
+        ...next,
+        event.terminalSessionId: entry,
+      };
+      changed = true;
+    }
+    if (changed) {
+      state = next;
+    }
   }
 
   void markTerminalExited({

@@ -6,7 +6,8 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `canonical`, `from_git2`, `head_branch_name`, `new`, `open_repo`, `unborn_branch_name`, `worktree_admin_name`
+// These functions are ignored because they are not marked as `pub`: `canonical`, `existing_worktree_admin_names`, `from_git2`, `has_configured_remote_for_tracking_branch`, `head_branch_name`, `is_path_occupied`, `new`, `open_repo`, `remote_tracking_upstream_name`, `split_clone_destination`, `unborn_branch_name`, `unique_worktree_admin_name`, `worktree_admin_name`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `eq`, `fmt`, `fmt`
 
 /// Returns `true` when `path` resolves to a git repository (work tree). Mirrors
 /// `git rev-parse --is-inside-work-tree`; surfaces permission failures as

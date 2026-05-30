@@ -31,6 +31,7 @@ part 'agent_status_providers.g.dart';
 AgentHookReceiver agentHookReceiver(Ref ref) {
   final receiver = AgentHookReceiver(
     statusSink: ref.read(agentStatusControllerProvider.notifier),
+    hookServer: ref.watch(agentHookServerProvider),
     isAgentEnabled: (agentType) => isAgentStatusHookEnabled(
       ref.read(settingsControllerProvider).general.agentStatusHooks,
       agentType,
@@ -40,6 +41,11 @@ AgentHookReceiver agentHookReceiver(Ref ref) {
     unawaited(receiver.dispose());
   });
   return receiver;
+}
+
+@Riverpod(keepAlive: true)
+AgentHookServer agentHookServer(Ref ref) {
+  return RustAgentHookServer();
 }
 
 @Riverpod(keepAlive: true)
@@ -181,13 +187,16 @@ void agentAwakeCoordinator(Ref ref) {
 
 @Riverpod(keepAlive: true)
 void agentHookReceiverLifecycleCoordinator(Ref ref) {
-  final enabled = ref.watch(
+  final hooks = ref.watch(
     settingsControllerProvider.select(
-      (settings) => settings.general.agentStatusHooks.anyEnabled,
+      (settings) => settings.general.agentStatusHooks,
     ),
   );
   final receiver = ref.watch(agentHookReceiverProvider);
-  if (enabled) {
+  if (hooks.anyEnabled) {
+    unawaited(
+      receiver.updateEnabledAgents().catchError(_ignoreProviderAsyncError),
+    );
     unawaited(receiver.start().catchError(_ignoreProviderAsyncError));
   } else {
     unawaited(receiver.stop().catchError(_ignoreProviderAsyncError));

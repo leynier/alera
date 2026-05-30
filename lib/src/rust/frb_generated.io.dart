@@ -3,6 +3,7 @@
 
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
+import 'api/agent_hooks.dart';
 import 'api/git.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -19,7 +20,23 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   });
 
   @protected
+  AnyhowException dco_decode_AnyhowException(dynamic raw);
+
+  @protected
+  RustStreamSink<AgentHookEventBatchDto>
+  dco_decode_StreamSink_agent_hook_event_batch_dto_Sse(dynamic raw);
+
+  @protected
   String dco_decode_String(dynamic raw);
+
+  @protected
+  AgentHookEndpointDto dco_decode_agent_hook_endpoint_dto(dynamic raw);
+
+  @protected
+  AgentHookEventBatchDto dco_decode_agent_hook_event_batch_dto(dynamic raw);
+
+  @protected
+  AgentHookEventDto dco_decode_agent_hook_event_dto(dynamic raw);
 
   @protected
   bool dco_decode_bool(dynamic raw);
@@ -40,10 +57,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<String> dco_decode_list_String(dynamic raw);
 
   @protected
+  List<AgentHookEventDto> dco_decode_list_agent_hook_event_dto(dynamic raw);
+
+  @protected
   List<GitWorktreeEntry> dco_decode_list_git_worktree_entry(dynamic raw);
 
   @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
+
+  @protected
+  String? dco_decode_opt_String(dynamic raw);
+
+  @protected
+  int dco_decode_u_16(dynamic raw);
+
+  @protected
+  int dco_decode_u_32(dynamic raw);
 
   @protected
   int dco_decode_u_8(dynamic raw);
@@ -52,7 +81,31 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void dco_decode_unit(dynamic raw);
 
   @protected
+  AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
+
+  @protected
+  RustStreamSink<AgentHookEventBatchDto>
+  sse_decode_StreamSink_agent_hook_event_batch_dto_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   String sse_decode_String(SseDeserializer deserializer);
+
+  @protected
+  AgentHookEndpointDto sse_decode_agent_hook_endpoint_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  AgentHookEventBatchDto sse_decode_agent_hook_event_batch_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  AgentHookEventDto sse_decode_agent_hook_event_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   bool sse_decode_bool(SseDeserializer deserializer);
@@ -73,6 +126,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<String> sse_decode_list_String(SseDeserializer deserializer);
 
   @protected
+  List<AgentHookEventDto> sse_decode_list_agent_hook_event_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<GitWorktreeEntry> sse_decode_list_git_worktree_entry(
     SseDeserializer deserializer,
   );
@@ -81,13 +139,52 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
+  String? sse_decode_opt_String(SseDeserializer deserializer);
+
+  @protected
+  int sse_decode_u_16(SseDeserializer deserializer);
+
+  @protected
+  int sse_decode_u_32(SseDeserializer deserializer);
+
+  @protected
   int sse_decode_u_8(SseDeserializer deserializer);
 
   @protected
   void sse_decode_unit(SseDeserializer deserializer);
 
   @protected
+  void sse_encode_AnyhowException(
+    AnyhowException self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_StreamSink_agent_hook_event_batch_dto_Sse(
+    RustStreamSink<AgentHookEventBatchDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_String(String self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_agent_hook_endpoint_dto(
+    AgentHookEndpointDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_agent_hook_event_batch_dto(
+    AgentHookEventBatchDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_agent_hook_event_dto(
+    AgentHookEventDto self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
@@ -111,6 +208,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_agent_hook_event_dto(
+    List<AgentHookEventDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_git_worktree_entry(
     List<GitWorktreeEntry> self,
     SseSerializer serializer,
@@ -121,6 +224,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     Uint8List self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_opt_String(String? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_u_16(int self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_u_32(int self, SseSerializer serializer);
 
   @protected
   void sse_encode_u_8(int self, SseSerializer serializer);
