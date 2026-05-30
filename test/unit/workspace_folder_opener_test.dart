@@ -137,7 +137,10 @@ void main() {
   test(
     'detects the current workspace-folder platform for this environment',
     () {
-      expect(currentWorkspaceFolderPlatform(), WorkspaceFolderPlatform.macos);
+      expect(
+        currentWorkspaceFolderPlatform(),
+        workspaceFolderPlatformForOperatingSystem(Platform.operatingSystem),
+      );
     },
   );
 

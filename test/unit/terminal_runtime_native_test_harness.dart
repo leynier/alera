@@ -18,6 +18,13 @@ GhosttyTerminalShellLaunch _launch(
   );
 }
 
+String? get _skipLinuxCiRealPtyReason {
+  if (Platform.isLinux && Platform.environment['CI'] == 'true') {
+    return 'Linux CI uses the Rust terminal-host sidecar E2E for real PTY coverage.';
+  }
+  return null;
+}
+
 Workspace _workspace({String id = 'workspace-1', String path = '/repo/alera'}) {
   final now = DateTime.utc(2026, 5, 25, 12);
   return Workspace(

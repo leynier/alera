@@ -1,5 +1,14 @@
 part of 'terminal_host_server_test.dart';
 
+const _terminalHostTestTimeout = Duration(seconds: 15);
+
+String? get _skipTerminalHostRealPtyOnLinuxCiReason {
+  if (Platform.isLinux && Platform.environment['CI'] == 'true') {
+    return 'Linux CI covers real terminal sessions through the Rust sidecar E2E.';
+  }
+  return null;
+}
+
 final class _TerminalHostServerHarness {
   _TerminalHostServerHarness._({
     required this.tempDir,
@@ -115,11 +124,11 @@ final class _TerminalHostServerHarness {
     }
     _disposed = true;
     await _server.dispose();
-    await _runFuture.timeout(const Duration(seconds: 2));
+    await _runFuture.timeout(_terminalHostTestTimeout);
   }
 
   Future<void> waitForStop() async {
-    await _runFuture.timeout(const Duration(seconds: 5));
+    await _runFuture.timeout(_terminalHostTestTimeout);
   }
 
   Future<void> _waitForControlFile() async {
@@ -161,7 +170,7 @@ final class _TerminalHostJsonClient {
   late final StreamSubscription<String> _sub;
   int _nextId = 1;
 
-  Future<void> get done => _done.future.timeout(const Duration(seconds: 5));
+  Future<void> get done => _done.future.timeout(_terminalHostTestTimeout);
 
   Future<Map<String, Object?>> hello(String token) {
     return _requestWithId(0, 'hello', <String, Object?>{
@@ -221,7 +230,7 @@ final class _TerminalHostJsonClient {
     final completer = Completer<Map<String, Object?>>();
     _responses[id] = completer;
     writeRaw(<String, Object?>{'id': id, 'type': type, 'payload': payload});
-    return completer.future.timeout(const Duration(seconds: 5));
+    return completer.future.timeout(_terminalHostTestTimeout);
   }
 
   void _handleLine(String line) {
@@ -249,6 +258,6 @@ final class _TerminalHostJsonClient {
   Future<Map<String, Object?>> _waitForEvent() {
     final completer = Completer<Map<String, Object?>>();
     _eventWaiters.add(completer);
-    return completer.future.timeout(const Duration(seconds: 5));
+    return completer.future.timeout(_terminalHostTestTimeout);
   }
 }

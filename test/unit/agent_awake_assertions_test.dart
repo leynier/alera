@@ -64,7 +64,7 @@ void main() {
 
       await assertion.start('status-change');
       first.completeExit(1);
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await _waitForStartCalls(runner, 2);
 
       expect(runner.calls, hasLength(2));
     });
@@ -86,7 +86,7 @@ void main() {
       await assertion.start('status-change');
       await assertion.start('status-change');
       now = now.add(const Duration(milliseconds: 6));
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await _waitForStartCalls(runner, 2);
 
       expect(runner.calls, hasLength(2));
     });
@@ -105,7 +105,7 @@ void main() {
       await assertion.start('status-change');
       first.completeExitError(StateError('exit failed'));
       first.completeExit(1);
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await _waitForStartCalls(runner, 2);
 
       expect(runner.calls, hasLength(2));
     });
@@ -163,8 +163,7 @@ void main() {
         );
 
         await assertion.start('status-change');
-        await Future<void>.delayed(Duration.zero);
-        await Future<void>.delayed(Duration.zero);
+        await _waitForStartCalls(runner, 3);
 
         expect(runner.calls, hasLength(3));
       },
@@ -378,6 +377,20 @@ class _FakeProcessRunner implements ProcessRunner {
       throw next;
     }
     return (next as _FakeStartedProcess).startedProcess;
+  }
+}
+
+Future<void> _waitForStartCalls(
+  _FakeProcessRunner runner,
+  int count, {
+  Duration timeout = const Duration(seconds: 1),
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (DateTime.now().isBefore(deadline)) {
+    if (runner.calls.length >= count) {
+      return;
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 5));
   }
 }
 

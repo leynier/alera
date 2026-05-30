@@ -55,7 +55,10 @@ void _registerTerminalSurfaceRuntimeTests() {
     debugDefaultTargetPlatformOverride = TargetPlatform.linux;
     try {
       final factory = _FakeTerminalPtySessionFactory();
-      final runtime = XtermTerminalRuntime(ptySessionFactory: factory);
+      final runtime = XtermTerminalRuntime(
+        ptySessionFactory: factory,
+        shellLaunchesBuilder: _testShellLaunches,
+      );
       addTearDown(runtime.dispose);
       final exits = <TerminalRuntimeExitEvent>[];
       final exitSub = runtime.exits.listen(exits.add);
@@ -92,7 +95,10 @@ void _registerTerminalSurfaceRuntimeTests() {
     debugDefaultTargetPlatformOverride = TargetPlatform.linux;
     try {
       final factory = _FakeTerminalPtySessionFactory();
-      final runtime = XtermTerminalRuntime(ptySessionFactory: factory);
+      final runtime = XtermTerminalRuntime(
+        ptySessionFactory: factory,
+        shellLaunchesBuilder: _testShellLaunches,
+      );
       addTearDown(runtime.dispose);
       final exits = <TerminalRuntimeExitEvent>[];
       final exitSub = runtime.exits.listen(exits.add);
@@ -221,6 +227,7 @@ void _registerTerminalSurfaceRuntimeTests() {
       final runtime = XtermTerminalRuntime(
         ptySessionFactory: factory,
         externalUriLauncher: launcher,
+        shellLaunchesBuilder: _testShellLaunches,
       );
       addTearDown(runtime.dispose);
       final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
@@ -250,6 +257,7 @@ void _registerTerminalSurfaceRuntimeTests() {
       final runtime = XtermTerminalRuntime(
         ptySessionFactory: factory,
         externalUriLauncher: launcher,
+        shellLaunchesBuilder: _testShellLaunches,
       );
       addTearDown(runtime.dispose);
       final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
@@ -272,7 +280,10 @@ void _registerTerminalSurfaceRuntimeTests() {
     tester,
   ) async {
     final factory = _FakeTerminalPtySessionFactory();
-    final runtime = XtermTerminalRuntime(ptySessionFactory: factory);
+    final runtime = XtermTerminalRuntime(
+      ptySessionFactory: factory,
+      shellLaunchesBuilder: _testShellLaunches,
+    );
     addTearDown(runtime.dispose);
     final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
 
@@ -291,7 +302,10 @@ void _registerTerminalSurfaceRuntimeTests() {
     debugDefaultTargetPlatformOverride = TargetPlatform.linux;
     try {
       final factory = _FakeTerminalPtySessionFactory();
-      final runtime = XtermTerminalRuntime(ptySessionFactory: factory);
+      final runtime = XtermTerminalRuntime(
+        ptySessionFactory: factory,
+        shellLaunchesBuilder: _testShellLaunches,
+      );
       addTearDown(runtime.dispose);
       final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
 

@@ -43,6 +43,17 @@ Future<void> _pumpTerminalSurface(
   await tester.pump(const Duration(milliseconds: 200));
 }
 
+List<GhosttyTerminalShellLaunch> _testShellLaunches() {
+  return const <GhosttyTerminalShellLaunch>[
+    GhosttyTerminalShellLaunch(
+      label: 'sh',
+      shell: '/bin/sh',
+      arguments: <String>['-i'],
+      environment: <String, String>{'TERM': 'xterm-256color'},
+    ),
+  ];
+}
+
 Offset _cellCenter(WidgetTester tester, xterm.CellOffset offset) {
   final terminalViewState = tester.state<xterm.TerminalViewState>(
     find.byType(xterm.TerminalView),
