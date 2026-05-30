@@ -47,7 +47,7 @@ void main() {
     expect(command.prefixArguments, isEmpty);
   });
 
-  test('falls back to dart run after checking bundle candidates', () async {
+  test('falls back to cargo run after checking bundle candidates', () async {
     final tempDir = await Directory.systemTemp.createTemp(
       'alera-cli-sidecar-fallback-',
     );
@@ -60,7 +60,7 @@ void main() {
     final resolver = DefaultAleraCliResolver(
       environment: <String, String>{
         'ALERA_CLI_BUNDLE_DIR': bundleDir.path,
-        'DART': ' /usr/local/bin/dart ',
+        'CARGO': ' /usr/local/bin/cargo ',
       },
       operatingSystem: 'macos',
       resolvedExecutable: p.join(
@@ -77,8 +77,17 @@ void main() {
       runtimeDir: p.join(tempDir.path, 'support', 'terminal_host'),
     );
 
-    expect(command.executable, '/usr/local/bin/dart');
-    expect(command.prefixArguments, const <String>['run', 'bin/alera.dart']);
+    expect(command.executable, '/usr/local/bin/cargo');
+    expect(command.prefixArguments, const <String>[
+      'run',
+      '--quiet',
+      '--locked',
+      '--manifest-path',
+      'rust/Cargo.toml',
+      '-p',
+      'alera-cli',
+      '--',
+    ]);
     expect(command.workingDirectory, tempDir.path);
   });
 
@@ -92,7 +101,7 @@ void main() {
       }
     });
     final resolver = DefaultAleraCliResolver(
-      environment: const <String, String>{'DART': '   '},
+      environment: const <String, String>{'CARGO': '   '},
       operatingSystem: 'macos',
       resolvedExecutable: p.join(tempDir.path, 'Alera'),
       currentDirectoryPath: tempDir.path,
@@ -102,7 +111,7 @@ void main() {
       runtimeDir: p.join(tempDir.path, 'support', 'terminal_host'),
     );
 
-    expect(command.executable, 'dart');
+    expect(command.executable, 'cargo');
     expect(command.workingDirectory, tempDir.path);
   });
 

@@ -8,6 +8,7 @@ This file applies to GitHub metadata and GitHub Actions workflows.
 
 - Release jobs must be reproducible from a clean checkout.
 - Build jobs must run on native runners for their platform.
+- Any job that builds the desktop app or runs the Linux desktop integration tests must set up the pinned Rust toolchain (matching `rust/rust-toolchain.toml`) and the Rust build cache before the Flutter build, because the native build hooks compile the Rust `alera` terminal-host sidecar via `cargo build --locked`. Keep this consistent across `pr.yml`, `desktop-build.yml`, and `release-cut.yml`.
 - Pull request workflows must initialize required submodules before dependency resolution.
 - Do not expose partial releases to users.
 - Release automation must publish drafts first, verify required assets and update manifests, then publish public releases.

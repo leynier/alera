@@ -163,6 +163,18 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      # The native build hooks compile the Rust terminal-host sidecar via cargo.
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.96"
+          components: rustfmt, clippy
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
       - name: Apply release version locally
         run: dart tool/release/update_pubspec_version.dart "${{ needs.cut.outputs.artifact_version }}" "${{ needs.cut.outputs.build_number }}"
 

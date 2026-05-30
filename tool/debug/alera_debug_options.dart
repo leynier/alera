@@ -3,6 +3,7 @@ part of 'alera_debug.dart';
 final class _Options {
   const _Options({
     required this.dartExecutable,
+    required this.cargoExecutable,
     required this.flutterExecutable,
     required this.device,
     required this.flavor,
@@ -43,6 +44,8 @@ final class _Options {
         : kAleraDevBundleId;
     return _Options(
       dartExecutable: map['dart'] ?? Platform.environment['DART'] ?? 'dart',
+      cargoExecutable:
+          map['cargo'] ?? Platform.environment['CARGO'] ?? 'cargo',
       flutterExecutable:
           map['flutter'] ?? Platform.environment['FLUTTER'] ?? 'flutter',
       device:
@@ -83,6 +86,7 @@ final class _Options {
   }
 
   final String dartExecutable;
+  final String cargoExecutable;
   final String flutterExecutable;
   final String device;
   final String flavor;

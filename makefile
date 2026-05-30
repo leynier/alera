@@ -1,4 +1,5 @@
 DART ?= dart
+CARGO ?= cargo
 FLUTTER ?= flutter
 APP_DEVICE_ARG = $(if $(APP_DEVICE),--device "$(APP_DEVICE)",)
 ALERA_FLAVOR ?= dev
@@ -11,7 +12,7 @@ ALERA_HOST_DETACHED_SHUTDOWN_SECONDS ?= 3600
 ALERA_HOST_SCROLLBACK_BYTES ?= 10000000
 ALERA_DEBUG_TOOL = tool/debug/alera_debug.dart
 
-.PHONY: help update-refs cli-build cli-help host-debug host-debug-observe host-debug-wrapper app-debug app-debug-bundled-cli app-debug-host-observe debug-processes host-stop
+.PHONY: help update-refs rust-test cli-build cli-help host-debug host-debug-observe host-debug-wrapper app-debug app-debug-bundled-cli app-debug-host-observe debug-processes host-stop
 
 # List available make targets.
 help:
@@ -21,13 +22,17 @@ help:
 update-refs:
 	git submodule update --init --recursive --remote --merge
 
-# Build the bundled Dart CLI sidecar used by desktop app launches.
-cli-build:
-	$(DART) $(ALERA_DEBUG_TOOL) cli-build --dart "$(DART)" --bundle-dir "$(ALERA_CLI_BUNDLE_DIR)"
+# Format, lint, and test the Rust alera CLI crate.
+rust-test:
+	cd rust && "$(CARGO)" fmt --check && "$(CARGO)" clippy --all-targets -- -D warnings && "$(CARGO)" test
 
-# Smoke-test the locally built CLI sidecar.
+# Build the Rust alera CLI sidecar (cargo) used by desktop app launches.
+cli-build:
+	$(DART) $(ALERA_DEBUG_TOOL) cli-build --cargo "$(CARGO)" --bundle-dir "$(ALERA_CLI_BUNDLE_DIR)"
+
+# Smoke-test the locally built Rust CLI sidecar.
 cli-help:
-	$(DART) $(ALERA_DEBUG_TOOL) cli-help --dart "$(DART)" --bundle-dir "$(ALERA_CLI_BUNDLE_DIR)"
+	$(DART) $(ALERA_DEBUG_TOOL) cli-help --cargo "$(CARGO)" --bundle-dir "$(ALERA_CLI_BUNDLE_DIR)"
 
 # Run the terminal host in the foreground for direct stdout/stderr debugging.
 host-debug:

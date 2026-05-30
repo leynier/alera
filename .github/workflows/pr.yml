@@ -98,5 +98,47 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      # The Linux build hook compiles the Rust terminal-host sidecar via cargo.
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.96"
+          components: rustfmt, clippy
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
       - name: Desktop E2E
         run: xvfb-run -a flutter test integration_test -d linux -r github
+
+  rust:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.96"
+          components: rustfmt, clippy
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
+      - name: Format
+        run: cargo fmt --check
+        working-directory: rust
+
+      - name: Clippy
+        run: cargo clippy --all-targets -- -D warnings
+        working-directory: rust
+
+      - name: Test
+        run: cargo test
+        working-directory: rust

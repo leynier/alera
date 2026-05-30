@@ -32,7 +32,7 @@ Future<void> main(List<String> arguments) async {
   final result = switch (command) {
     'cli-build' => await context.buildCli(),
     'cli-help' => await context.cliHelp(),
-    'host-debug' => await context.hostDebug(observe: false),
+    'host-debug' => await context.hostDebugForeground(),
     'host-debug-observe' => await context.hostDebug(observe: true),
     'host-debug-wrapper' => await context.buildHostDebugWrapper(),
     'app-debug' => await context.appDebug(),
@@ -57,11 +57,11 @@ Usage: dart tool/debug/alera_debug.dart <command> [options]
 
 Commands:
   help                      List available make/debug commands.
-  cli-build                 Build the bundled alera CLI sidecar.
+  cli-build                 Build the Rust alera CLI sidecar (cargo).
   cli-help                  Build the sidecar and print alera --help.
-  host-debug                Run alera terminal-host in the foreground.
-  host-debug-observe        Run alera terminal-host with a Dart VM service.
-  host-debug-wrapper        Build the app-launched VM-service wrapper.
+  host-debug                Run the Rust alera terminal-host in the foreground.
+  host-debug-observe        Run the Dart reference host with a Dart VM service.
+  host-debug-wrapper        Build the Dart reference VM-service wrapper.
   app-debug                 Run the Flutter desktop app.
   app-debug-bundled-cli     Run the app against the compiled CLI bundle.
   app-debug-host-observe    Run the app with a VM-service host wrapper.

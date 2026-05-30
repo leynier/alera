@@ -5,15 +5,38 @@ final class _DebugContext {
 
   final _Options _options;
 
-  Future<int> buildCli({String? outputDir}) {
-    return _run(_options.dartExecutable, <String>[
+  // Builds the Rust sidecar (rust/alera-cli) in release and stages the single
+  // binary into the bundle dir so ALERA_CLI_BUNDLE_DIR resolution finds it.
+  Future<int> buildCli({String? outputDir}) async {
+    final cargoExit = await _run(_options.cargoExecutable, const <String>[
       'build',
-      'cli',
-      '--target',
-      'bin/alera.dart',
-      '--output',
-      outputDir ?? _options.bundleDir,
-    ], normalizeDartBuildOutput: true);
+      '--locked',
+      '-p',
+      'alera-cli',
+      '--release',
+    ], workingDirectory: _rustDir);
+    if (cargoExit != 0) {
+      return cargoExit;
+    }
+    return _stageCliBinary(outputDir ?? _options.bundleDir);
+  }
+
+  Future<int> _stageCliBinary(String outputDir) async {
+    final source = File(
+      _join(_rustDir, 'target', 'release', _cliExecutableName),
+    );
+    if (!await source.exists()) {
+      stderr.writeln('Built Alera CLI binary not found at ${source.path}.');
+      return 1;
+    }
+    final destinationDir = Directory(_absoluteBuildOutputPath(outputDir));
+    await destinationDir.create(recursive: true);
+    final destination = File(_join(destinationDir.path, _cliExecutableName));
+    await source.copy(destination.path);
+    if (!Platform.isWindows) {
+      await _run('chmod', <String>['755', destination.path]);
+    }
+    return 0;
   }
 
   Future<int> cliHelp() async {
@@ -24,6 +47,37 @@ final class _DebugContext {
     return _run(_cliExecutablePath, const <String>['--help']);
   }
 
+  // Runs the compiled Rust sidecar in the foreground for stdout/stderr debugging.
+  Future<int> hostDebugForeground() async {
+    final buildExit = await buildCli();
+    if (buildExit != 0) {
+      return buildExit;
+    }
+    final paths = _runtimePaths;
+    await paths.runtimeDir.create(recursive: true);
+    if (await paths.controlFile.exists()) {
+      await paths.controlFile.delete();
+    }
+    return _run(_cliExecutablePath, <String>[
+      'terminal-host',
+      '--runtime-dir',
+      paths.runtimeDir.path,
+      '--control-file',
+      paths.controlFile.path,
+      '--token',
+      _options.debugToken,
+      '--empty-shutdown-delay-seconds',
+      _options.hostEmptyShutdownSeconds,
+      '--detached-session-shutdown-delay-seconds',
+      _options.hostDetachedShutdownSeconds,
+      '--scrollback-bytes',
+      _options.hostScrollbackBytes,
+    ], forwardStdin: true);
+  }
+
+  // Runs the retained Dart reference host under a Dart VM service. The shipped
+  // sidecar is the Rust binary; this target exists only to debug the Dart
+  // reference implementation with a Dart debugger attached.
   Future<int> hostDebug({required bool observe}) async {
     final paths = _runtimePaths;
     await paths.runtimeDir.create(recursive: true);
@@ -220,8 +274,8 @@ final class _DebugContext {
     final commandLine = process.commandLine;
     final normalized = _normalizeSeparators(commandLine);
     return commandLine.contains('alera terminal-host') ||
-        normalized.contains('/alera/bin/alera') ||
-        normalized.contains('/.dart_tool/alera/bundle/bin/alera') ||
+        normalized.contains('/alera/alera') ||
+        normalized.contains('/.dart_tool/alera/alera') ||
         normalized.contains('/Alera.app/Contents/MacOS/Alera') ||
         normalized.contains('/Alera Dev.app/Contents/MacOS/Alera Dev') ||
         normalized.contains('/alera-dev') ||
@@ -239,16 +293,18 @@ final class _DebugContext {
     );
   }
 
+  String get _rustDir => _join(_repoRoot, 'rust');
+
+  String get _cliExecutableName => Platform.isWindows ? 'alera.exe' : 'alera';
+
   String get _cliExecutablePath {
-    return _join(
-      _cliBundlePathFor(_options.bundleDir),
-      'bin',
-      Platform.isWindows ? 'alera.exe' : 'alera',
-    );
+    return _join(_cliBundlePathFor(_options.bundleDir), _cliExecutableName);
   }
 
+  // The Rust sidecar is a single binary staged directly in the bundle dir, so
+  // ALERA_CLI_BUNDLE_DIR points at the directory that holds `alera`.
   String _cliBundlePathFor(String buildOutputDir) {
-    return _join(_absoluteBuildOutputPath(buildOutputDir), 'bundle');
+    return _absoluteBuildOutputPath(buildOutputDir);
   }
 
   String get _cliBuildOutputPath {

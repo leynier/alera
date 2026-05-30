@@ -406,7 +406,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -eu\nDART_BIN=\"${FLUTTER_ROOT:-}/bin/cache/dart-sdk/bin/dart\"\nif [ ! -x \"$DART_BIN\" ]; then\n  DART_BIN=\"$(command -v dart || true)\"\nfi\nif [ -z \"$DART_BIN\" ] || [ ! -x \"$DART_BIN\" ]; then\n  echo \"error: dart executable is required to build the Alera CLI sidecar.\" >&2\n  exit 1\nfi\nBUILD_DIR=\"$DERIVED_FILE_DIR/alera_cli\"\nOUTPUT_DIR=\"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/alera\"\nrm -rf \"$BUILD_DIR\" \"$OUTPUT_DIR\"\nmkdir -p \"$OUTPUT_DIR\"\ncd \"$SRCROOT/..\"\n\"$DART_BIN\" build cli --target bin/alera.dart --output \"$BUILD_DIR\"\ncp -R \"$BUILD_DIR/bundle/.\" \"$OUTPUT_DIR/\"\nchmod 755 \"$OUTPUT_DIR/bin/alera\"\n";
+			shellScript = "set -eu\nexport PATH=\"$HOME/.cargo/bin:$PATH\"\nCARGO_BIN=\"$(command -v cargo || true)\"\nif [ -z \"$CARGO_BIN\" ] || [ ! -x \"$CARGO_BIN\" ]; then\n  echo \"error: cargo executable is required to build the Alera CLI sidecar.\" >&2\n  exit 1\nfi\nif [ \"${CONFIGURATION:-}\" = \"Release\" ]; then\n  PROFILE_ARG=\"--release\"\n  PROFILE_DIR=\"release\"\nelse\n  PROFILE_ARG=\"\"\n  PROFILE_DIR=\"debug\"\nfi\nRUST_DIR=\"$SRCROOT/../rust\"\nOUTPUT_DIR=\"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/alera\"\nrm -rf \"$OUTPUT_DIR\"\nmkdir -p \"$OUTPUT_DIR\"\n( cd \"$RUST_DIR\" && \"$CARGO_BIN\" build --locked -p alera-cli $PROFILE_ARG )\ncp \"$RUST_DIR/target/$PROFILE_DIR/alera\" \"$OUTPUT_DIR/alera\"\nchmod 755 \"$OUTPUT_DIR/alera\"\n";
 		};
 		B8884D6A98818EFA54DBE94B /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
