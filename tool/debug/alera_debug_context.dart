@@ -5,14 +5,14 @@ final class _DebugContext {
 
   final _Options _options;
 
-  Future<int> buildCli() {
+  Future<int> buildCli({String? outputDir}) {
     return _run(_options.dartExecutable, <String>[
       'build',
       'cli',
       '--target',
       'bin/alera.dart',
       '--output',
-      _options.bundleDir,
+      outputDir ?? _options.bundleDir,
     ], normalizeDartBuildOutput: true);
   }
 
@@ -74,16 +74,13 @@ final class _DebugContext {
 
   Future<int> appDebugBundledCli() async {
     await _prepareFlavor();
-    final buildExit = await buildCli();
+    final buildOutputDir = await _appDebugBundledCliOutputDir();
+    final buildExit = await buildCli(outputDir: buildOutputDir);
     if (buildExit != 0) {
       return buildExit;
     }
     final environment = _flutterEnvironment();
-    environment['ALERA_CLI_BUNDLE_DIR'] = _join(
-      _repoRoot,
-      _options.bundleDir,
-      'bundle',
-    );
+    environment['ALERA_CLI_BUNDLE_DIR'] = _cliBundlePathFor(buildOutputDir);
     return _run(
       _options.flutterExecutable,
       _flutterRunArguments(),
@@ -109,6 +106,35 @@ final class _DebugContext {
       environment: environment,
       forwardStdin: true,
     );
+  }
+
+  Future<String> _appDebugBundledCliOutputDir() async {
+    if (!Platform.isWindows) {
+      return _options.bundleDir;
+    }
+
+    final fixedBundleHosts = (await _listProcesses())
+        .where(_isCliBundleTerminalHostProcess)
+        .toList(growable: false);
+    if (fixedBundleHosts.isEmpty) {
+      return _options.bundleDir;
+    }
+
+    final outputDir = _windowsSideBySideCliBuildOutputPath();
+    stdout.writeln(
+      'Bundled terminal host is still running from ${_options.bundleDir}; '
+      'building a fresh Windows bundle at $outputDir.',
+    );
+    return outputDir;
+  }
+
+  bool _isCliBundleTerminalHostProcess(_ProcessInfo process) {
+    final commandLine = _normalizeProcessText(process.commandLine);
+    return commandLine.contains('terminal-host') &&
+        _containsNormalizedPathRoot(
+          commandLine,
+          _normalizeProcessText(_cliBuildOutputPath),
+        );
   }
 
   List<String> _flutterRunArguments() {
@@ -215,12 +241,49 @@ final class _DebugContext {
 
   String get _cliExecutablePath {
     return _join(
-      _repoRoot,
-      _options.bundleDir,
-      'bundle',
+      _cliBundlePathFor(_options.bundleDir),
       'bin',
       Platform.isWindows ? 'alera.exe' : 'alera',
     );
+  }
+
+  String _cliBundlePathFor(String buildOutputDir) {
+    return _join(_absoluteBuildOutputPath(buildOutputDir), 'bundle');
+  }
+
+  String get _cliBuildOutputPath {
+    return _absoluteBuildOutputPath(_options.bundleDir);
+  }
+
+  String _absoluteBuildOutputPath(String buildOutputDir) {
+    final bundleDir = Directory(buildOutputDir);
+    return bundleDir.isAbsolute
+        ? bundleDir.path
+        : _join(_repoRoot, bundleDir.path);
+  }
+
+  String _windowsSideBySideCliBuildOutputPath() {
+    final absoluteOutput = _cliBuildOutputPath;
+    final outputName = _pathBasename(absoluteOutput);
+    final runsRoot = _join(
+      Directory(absoluteOutput).parent.path,
+      '$outputName-runs',
+    );
+    return _join(
+      runsRoot,
+      'app-debug-${DateTime.now().toUtc().millisecondsSinceEpoch}',
+    );
+  }
+
+  String _pathBasename(String path) {
+    final normalized = _normalizeSeparators(
+      path,
+    ).replaceAll(RegExp(r'/+$'), '');
+    final separator = normalized.lastIndexOf('/');
+    if (separator < 0) {
+      return normalized;
+    }
+    return normalized.substring(separator + 1);
   }
 
   String get _hostDebugWrapperPath {

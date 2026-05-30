@@ -208,6 +208,18 @@ String _normalizeSeparators(String value) {
   return value.replaceAll(r'\', '/');
 }
 
+String _normalizeProcessText(String value) {
+  return _normalizeSeparators(value).toLowerCase();
+}
+
+bool _containsNormalizedPathRoot(String value, String pathRoot) {
+  return value.contains('$pathRoot/') ||
+      value.contains('$pathRoot ') ||
+      value.contains('$pathRoot"') ||
+      value.contains("$pathRoot'") ||
+      value.endsWith(pathRoot);
+}
+
 String _quoteForLog(String value) {
   if (value.contains(' ') || value.contains('\t')) {
     return '"$value"';
