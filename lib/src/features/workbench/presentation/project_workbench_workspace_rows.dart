@@ -6,6 +6,7 @@ class _WorkspaceRow extends StatefulWidget {
     required this.workspace,
     required this.agentRunCount,
     required this.status,
+    required this.hasTerminalTabs,
     required this.isActive,
     required this.showProjectChip,
     required this.expanded,
@@ -23,6 +24,7 @@ class _WorkspaceRow extends StatefulWidget {
   final Workspace workspace;
   final int agentRunCount;
   final AgentStatusEntry? status;
+  final bool hasTerminalTabs;
   final bool isActive;
   final bool showProjectChip;
   final bool expanded;
@@ -179,7 +181,9 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                     Padding(
                       padding: const EdgeInsets.only(top: 6),
                       child: widget.status == null
-                          ? AleraStatusDot(active: isActive)
+                          ? AleraStatusDot(
+                              active: isActive || widget.hasTerminalTabs,
+                            )
                           : _AgentRunStateIndicator(status: widget.status!),
                     ),
                     const SizedBox(width: AleraTokens.space8),

@@ -1,6 +1,50 @@
 part of 'alera_shell_page_test.dart';
 
 void _registerAleraShellSidebarStateTests() {
+  testWidgets('inactive workspaces with terminal tabs show active dots', (
+    tester,
+  ) async {
+    await _pumpShell(tester, state: _linkedWorkbenchState());
+
+    final dots = tester
+        .widgetList<AleraStatusDot>(
+          find.descendant(
+            of: find.byType(ProjectWorkbenchSidebar),
+            matching: find.byType(AleraStatusDot),
+          ),
+        )
+        .toList();
+
+    expect(dots, hasLength(2));
+    expect(dots.map((dot) => dot.active), <bool>[true, true]);
+  });
+
+  testWidgets('inactive workspaces without terminal tabs keep muted dots', (
+    tester,
+  ) async {
+    final seeded = _linkedWorkbenchState();
+    final state = seeded.copyWith(
+      tabsByWorkspace: <String, List<WorkspaceTabRecord>>{
+        'workspace-1': seeded.tabsFor('workspace-1'),
+        'workspace-2': const <WorkspaceTabRecord>[],
+      },
+    );
+
+    await _pumpShell(tester, state: state);
+
+    final dots = tester
+        .widgetList<AleraStatusDot>(
+          find.descendant(
+            of: find.byType(ProjectWorkbenchSidebar),
+            matching: find.byType(AleraStatusDot),
+          ),
+        )
+        .toList();
+
+    expect(dots, hasLength(2));
+    expect(dots.map((dot) => dot.active), <bool>[true, false]);
+  });
+
   testWidgets('workspace toggle can hide agent rows', (tester) async {
     const prompt = 'Review linked workspace';
     final harness = await _pumpShell(

@@ -56,6 +56,45 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
     expect(terminalRuntime.requestedTabIds, isEmpty);
   });
 
+  testWidgets('non-terminal tab title taps select without terminal focus', (
+    tester,
+  ) async {
+    final terminalTab = _tab('tab-1', title: 'Terminal 1');
+    final editorTab = _tab(
+      'tab-2',
+      title: 'Editor',
+      kind: WorkspaceTabKind.editor,
+    );
+
+    await _pumpWorkbenchView(
+      tester,
+      tabs: <WorkspaceTabRecord>[terminalTab, editorTab],
+      terminalRuntime: terminalRuntime,
+      layout: WorkbenchLayout.single(
+        workspaceId: _workspaceId,
+        groupId: 'group-a',
+        tabIds: <String>[editorTab.id, terminalTab.id],
+      ),
+      createdTabs: createdTabs,
+      selectedTabs: selectedTabs,
+      closedTabs: closedTabs,
+      closedTabGroups: closedTabGroups,
+      renamedTabs: renamedTabs,
+      movedTabs: movedTabs,
+      splitGroups: splitGroups,
+      mergedGroups: mergedGroups,
+      updatedRatios: updatedRatios,
+    );
+
+    await tester.tap(find.text('Editor'));
+    await tester.pump();
+
+    expect(selectedTabs, <_SelectedTabAction>[
+      const _SelectedTabAction('group-a', 'tab-2'),
+    ]);
+    expect(terminalRuntime.focusRequestsByTab['tab-1'], 0);
+  });
+
   testWidgets('marks only the active terminal tab visible', (tester) async {
     final tabs = <WorkspaceTabRecord>[
       _tab('tab-1', title: 'Terminal 1'),
@@ -361,5 +400,6 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
     expect(selectedTabs, <_SelectedTabAction>[
       const _SelectedTabAction('group-a', 'tab-1'),
     ]);
+    expect(terminalRuntime.focusRequestsByTab['tab-1'], 1);
   });
 }

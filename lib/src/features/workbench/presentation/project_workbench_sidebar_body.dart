@@ -85,6 +85,9 @@ class _SidebarBody extends StatelessWidget {
         tabs: tabs,
         agentStatuses: agentStatuses,
       );
+      final hasTerminalTabs = tabs.any(
+        (tab) => tab.kind == WorkspaceTabKind.terminal,
+      );
       return Padding(
         padding: EdgeInsets.only(left: leftPadding, right: AleraTokens.space8),
         child: _WorkspaceRow(
@@ -92,6 +95,7 @@ class _SidebarBody extends StatelessWidget {
           workspace: row.workspace,
           agentRunCount: agentRuns.length,
           status: agentRuns.isEmpty ? null : agentRuns.first.status,
+          hasTerminalTabs: hasTerminalTabs,
           isActive: row.workspace.id == state.activeWorkspaceId,
           showProjectChip: row.showProjectChip,
           expanded: row.expanded,

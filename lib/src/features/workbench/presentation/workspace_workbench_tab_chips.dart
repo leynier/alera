@@ -34,6 +34,11 @@ class _DraggableWorkspaceTabChip extends StatelessWidget {
     final session = tab.kind == WorkspaceTabKind.terminal
         ? terminalRuntime.sessionFor(workspace: workspace, tab: tab)
         : null;
+    void selectAndFocus() {
+      onSelect();
+      session?.requestFocus();
+    }
+
     return Padding(
       padding: const EdgeInsets.only(right: AleraTokens.space8),
       child: Draggable<_WorkspaceTabDragData>(
@@ -53,7 +58,7 @@ class _DraggableWorkspaceTabChip extends StatelessWidget {
             status: status,
             active: active,
             groupTabs: groupTabs,
-            onTap: onSelect,
+            onTap: selectAndFocus,
             onClose: onClose,
             onCloseTabs: onCloseTabs,
             onRename: onRename,
@@ -66,7 +71,7 @@ class _DraggableWorkspaceTabChip extends StatelessWidget {
           status: status,
           active: active,
           groupTabs: groupTabs,
-          onTap: onSelect,
+          onTap: selectAndFocus,
           onClose: onClose,
           onCloseTabs: onCloseTabs,
           onRename: onRename,

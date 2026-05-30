@@ -178,6 +178,10 @@ class _FakeTerminalRuntime implements TerminalRuntime {
   Map<String, bool> get visibilityByTab => <String, bool>{
     for (final entry in _sessions.entries) entry.key: entry.value.visible,
   };
+  Map<String, int> get focusRequestsByTab => <String, int>{
+    for (final entry in _sessions.entries)
+      entry.key: entry.value.requestFocusCalls,
+  };
 
   @override
   Stream<TerminalRuntimeExitEvent> get exits =>
@@ -241,6 +245,7 @@ class _FakeTerminalSessionHandle extends TerminalSessionHandle {
   Future<void> restart() async {}
 
   bool visible = false;
+  int requestFocusCalls = 0;
   int _visibilityLeaseCount = 0;
 
   @override
@@ -270,7 +275,9 @@ class _FakeTerminalSessionHandle extends TerminalSessionHandle {
   }
 
   @override
-  void requestFocus() {}
+  void requestFocus() {
+    requestFocusCalls += 1;
+  }
 }
 
 final class _FakeTerminalVisibilityLease implements TerminalVisibilityLease {
