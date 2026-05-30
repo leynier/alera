@@ -160,7 +160,7 @@ fn canonical(path: &str) -> String {
 /// [`GitErrorKind::AccessDenied`] so the UI can explain sandbox denials.
 pub fn is_git_repository(path: String) -> Result<bool, GitError> {
     match Repository::discover(&path) {
-        Ok(_) => Ok(true),
+        Ok(repo) => Ok(repo.workdir().is_some()),
         Err(error) => match error.code() {
             ErrorCode::NotFound => Ok(false),
             _ => {
@@ -446,6 +446,14 @@ mod tests {
 
         let plain = tempfile::tempdir().expect("tempdir");
         assert!(!is_git_repository(path_str(plain.path())).unwrap());
+    }
+
+    #[test]
+    fn rejects_bare_repository() {
+        let bare = tempfile::tempdir().expect("tempdir");
+        run_git(bare.path(), &["init", "--bare"]);
+
+        assert!(!is_git_repository(path_str(bare.path())).unwrap());
     }
 
     #[test]
