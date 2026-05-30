@@ -221,6 +221,53 @@ pub fn is_valid_branch_name(name: String) -> Result<bool, GitError> {
     Branch::name_is_valid(&name).map_err(GitError::from_git2)
 }
 
+fn remote_tracking_upstream_name(
+    repo: &Repository,
+    source_branch: &str,
+) -> Result<Option<String>, GitError> {
+    let mut candidates = vec![source_branch];
+    if let Some(stripped) = source_branch.strip_prefix("refs/remotes/") {
+        candidates.push(stripped);
+    }
+
+    for candidate in candidates {
+        match repo.find_branch(candidate, BranchType::Remote) {
+            Ok(branch) => {
+                let Some(remote_branch) = branch.name().map_err(GitError::from_git2)? else {
+                    return Ok(None);
+                };
+                let remote_branch = remote_branch.to_string();
+                if has_configured_remote_for_tracking_branch(repo, &remote_branch)? {
+                    return Ok(Some(remote_branch));
+                }
+                return Ok(None);
+            }
+            Err(error) if error.code() == ErrorCode::NotFound => {}
+            Err(error) => return Err(GitError::from_git2(error)),
+        }
+    }
+
+    Ok(None)
+}
+
+fn has_configured_remote_for_tracking_branch(
+    repo: &Repository,
+    remote_branch: &str,
+) -> Result<bool, GitError> {
+    let remotes = repo.remotes().map_err(GitError::from_git2)?;
+    for remote in remotes.iter() {
+        let Some(remote) = remote.map_err(GitError::from_git2)? else {
+            continue;
+        };
+        if let Some(remainder) = remote_branch.strip_prefix(remote) {
+            if remainder.starts_with('/') {
+                return Ok(true);
+            }
+        }
+    }
+    Ok(false)
+}
+
 /// Creates `new_branch` from `source_branch` and adds a linked worktree at
 /// `path`. Mirrors `git worktree add -b <new_branch> <path> <source_branch>`.
 pub fn create_worktree(
@@ -246,17 +293,24 @@ pub fn create_worktree(
         .peel_to_commit()
         .map_err(GitError::from_git2)?;
 
-    let branch = repo
-        .branch(&new_branch, &source_commit, false)
-        .map_err(|error| match error.code() {
-            ErrorCode::Exists => {
-                GitError::new(GitErrorKind::BranchAlreadyExists, new_branch.clone())
-            }
-            ErrorCode::InvalidSpec => {
-                GitError::new(GitErrorKind::InvalidBranchName, new_branch.clone())
-            }
-            _ => GitError::from_git2(error),
-        })?;
+    let upstream_name = remote_tracking_upstream_name(&repo, &source_branch)?;
+    let mut branch =
+        repo.branch(&new_branch, &source_commit, false)
+            .map_err(|error| match error.code() {
+                ErrorCode::Exists => {
+                    GitError::new(GitErrorKind::BranchAlreadyExists, new_branch.clone())
+                }
+                ErrorCode::InvalidSpec => {
+                    GitError::new(GitErrorKind::InvalidBranchName, new_branch.clone())
+                }
+                _ => GitError::from_git2(error),
+            })?;
+    if let Some(upstream_name) = upstream_name.as_deref() {
+        if let Err(error) = branch.set_upstream(Some(upstream_name)) {
+            let _ = branch.delete();
+            return Err(GitError::from_git2(error));
+        }
+    }
     // Scope `reference`/`options` so the borrows they hold on `repo` end before
     // the rollback path below mutates refs.
     let worktree_result = {
@@ -536,7 +590,11 @@ mod tests {
     #[test]
     fn creates_worktree_from_remote_tracking_branch() {
         let repo = init_repo();
-        // Simulate a fetched remote-tracking ref without a network remote.
+        run_git(
+            repo.path(),
+            &["remote", "add", "origin", "https://example.com/repo.git"],
+        );
+        // Simulate a fetched remote-tracking ref without a network fetch.
         run_git(
             repo.path(),
             &["update-ref", "refs/remotes/origin/feature", "HEAD"],
@@ -553,6 +611,16 @@ mod tests {
         .unwrap();
 
         assert!(branch_exists(path_str(repo.path()), "local-feature".to_string()).unwrap());
+        let repo_handle = Repository::open(repo.path()).unwrap();
+        let config = repo_handle.config().unwrap();
+        assert_eq!(
+            config.get_string("branch.local-feature.remote").unwrap(),
+            "origin"
+        );
+        assert_eq!(
+            config.get_string("branch.local-feature.merge").unwrap(),
+            "refs/heads/feature"
+        );
     }
 
     #[test]
