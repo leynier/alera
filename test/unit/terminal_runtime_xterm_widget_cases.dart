@@ -210,6 +210,43 @@ void _registerXtermRuntimeWidgetTests() {
         KeyEventResult.handled,
       );
       expect(capturedEvent, isA<KeyUpEvent>());
+      expect(view.hardwareKeyboardOnly, isFalse);
+    } finally {
+      runtime.dispose();
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  testWidgets('build view uses hardware keyboard input on Windows', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+    final runtime = XtermTerminalRuntime(
+      ptySessionFactory: _FakeTerminalPtySessionFactory(
+        sessions: <_FakeTerminalPtySession>[_FakeTerminalPtySession()],
+      ),
+      shellLaunchesBuilder: () => <GhosttyTerminalShellLaunch>[
+        _launch('shell', shell: r'C:\Program Files\PowerShell\7\pwsh.exe'),
+      ],
+    );
+    addTearDown(runtime.dispose);
+    final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
+    try {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox.expand(child: session.buildView(autofocus: true)),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final view = tester.widget<xterm.TerminalView>(
+        find.byType(xterm.TerminalView),
+      );
+      expect(view.hardwareKeyboardOnly, isTrue);
     } finally {
       runtime.dispose();
       await tester.pumpWidget(const SizedBox.shrink());

@@ -32,17 +32,28 @@ final class AleraTerminalShellStartupPreparer
     GhosttyTerminalShellLaunch launch,
   ) async {
     final environment = launch.environment;
-    if (environment == null ||
-        !_hasManagedAgentRuntimeEnvironment(environment)) {
+    final hasManagedEnvironment =
+        environment != null && _hasManagedAgentRuntimeEnvironment(environment);
+    final hasSetupCommand = _hasSetupCommand(launch);
+    final executable = _shellExecutableName(launch);
+    if (executable == 'powershell' || executable == 'pwsh') {
+      if (!hasManagedEnvironment && !hasSetupCommand) {
+        return launch;
+      }
+      return _preparePowerShellLaunch(
+        launch,
+        restoreManagedEnvironment: hasManagedEnvironment,
+      );
+    }
+    if (environment == null || !hasManagedEnvironment) {
       return launch;
     }
 
-    return switch (_shellExecutableName(launch)) {
+    return switch (executable) {
       'zsh' => _prepareZshLaunch(launch, environment),
       'bash' => _prepareBashLaunch(launch, environment),
       'fish' => _prepareFishLaunch(launch),
       'nu' || 'nushell' => _prepareNushellLaunch(launch),
-      'powershell' || 'pwsh' => _preparePowerShellLaunch(launch),
       'cmd' => _launchWithPrependedSetupCommand(
         launch,
         _cmdRestoreManagedAgentEnvironment,
@@ -179,10 +190,20 @@ final class AleraTerminalShellStartupPreparer
   }
 
   GhosttyTerminalShellLaunch _preparePowerShellLaunch(
-    GhosttyTerminalShellLaunch launch,
-  ) {
+    GhosttyTerminalShellLaunch launch, {
+    required bool restoreManagedEnvironment,
+  }) {
     if (_hasPowerShellCommandArgument(launch.arguments)) {
       return launch;
+    }
+
+    final setupCommand = launch.setupCommand;
+    final startupScript = StringBuffer();
+    if (restoreManagedEnvironment) {
+      startupScript.write(_powerShellRestoreManagedAgentEnvironment);
+    }
+    if (setupCommand != null && setupCommand.isNotEmpty) {
+      startupScript.write(setupCommand);
     }
 
     final filteredArguments = launch.arguments
@@ -199,10 +220,10 @@ final class AleraTerminalShellStartupPreparer
         '-NoLogo',
         '-NoExit',
         '-EncodedCommand',
-        _encodePowerShellCommand(_powerShellRestoreManagedAgentEnvironment),
+        _encodePowerShellCommand(startupScript.toString()),
       ],
       environment: launch.environment,
-      setupCommand: launch.setupCommand,
+      setupCommand: null,
     );
   }
 
@@ -239,6 +260,11 @@ bool _hasManagedAgentRuntimeEnvironment(Map<String, String> environment) {
       environment.containsKey('ALERA_OPENCODE_CONFIG_DIR') ||
       environment.containsKey('ALERA_PI_CODING_AGENT_DIR') ||
       environment.containsKey('ALERA_AGENT_WRAPPER_PATH');
+}
+
+bool _hasSetupCommand(GhosttyTerminalShellLaunch launch) {
+  final setupCommand = launch.setupCommand;
+  return setupCommand != null && setupCommand.isNotEmpty;
 }
 
 Future<void> _writeIfChanged(File file, String contents) async {

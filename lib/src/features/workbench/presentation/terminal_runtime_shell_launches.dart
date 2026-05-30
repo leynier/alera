@@ -8,7 +8,7 @@ Map<String, String> _terminalPlatformEnvironment() {
 
 List<GhosttyTerminalShellLaunch> _terminalShellLaunches() {
   final platformEnvironment = _terminalPlatformEnvironment();
-  final launches = <GhosttyTerminalShellLaunch>[
+  final ghosttyLaunches = <GhosttyTerminalShellLaunch>[
     ...ghosttyTerminalShellLaunches(
       profile: GhosttyTerminalShellProfile.userShell,
       platformEnvironment: platformEnvironment,
@@ -22,6 +22,13 @@ List<GhosttyTerminalShellLaunch> _terminalShellLaunches() {
       platformEnvironment: platformEnvironment,
     ),
   ];
+  final launches = <GhosttyTerminalShellLaunch>[
+    if (_isWindowsDesktopTerminalTarget)
+      ..._windowsTerminalShellLaunches(platformEnvironment),
+    ...ghosttyLaunches,
+    if (!_isWindowsDesktopTerminalTarget && ghosttyLaunches.isEmpty)
+      ..._posixDesktopFallbackShellLaunches(platformEnvironment),
+  ];
   final seen = <String>{};
   return launches
       .where((launch) {
@@ -29,6 +36,177 @@ List<GhosttyTerminalShellLaunch> _terminalShellLaunches() {
         return seen.add(key);
       })
       .toList(growable: false);
+}
+
+List<GhosttyTerminalShellLaunch> _posixDesktopFallbackShellLaunches(
+  Map<String, String> platformEnvironment,
+) {
+  return switch (defaultTargetPlatform) {
+    TargetPlatform.linux ||
+    TargetPlatform.macOS => <GhosttyTerminalShellLaunch>[
+      GhosttyTerminalShellLaunch(
+        label: 'sh',
+        shell: '/bin/sh',
+        arguments: const <String>['-i'],
+        environment: ghosttyTerminalShellEnvironment(
+          platformEnvironment: platformEnvironment,
+          overrides: const <String, String>{'TERM': 'xterm-256color'},
+        ),
+      ),
+    ],
+    _ => const <GhosttyTerminalShellLaunch>[],
+  };
+}
+
+List<GhosttyTerminalShellLaunch> _windowsTerminalShellLaunches(
+  Map<String, String> platformEnvironment, {
+  bool Function(String path) fileExists = _fileExists,
+}) {
+  final shellEnvironment = ghosttyTerminalShellEnvironment(
+    platformEnvironment: platformEnvironment,
+    overrides: const <String, String>{'TERM': 'xterm-256color'},
+  );
+  final launches = <GhosttyTerminalShellLaunch>[];
+  final pwsh = _resolveWindowsPowerShell7(
+    platformEnvironment,
+    fileExists: fileExists,
+  );
+  if (pwsh != null) {
+    launches.add(
+      GhosttyTerminalShellLaunch(
+        label: 'PowerShell 7',
+        shell: pwsh,
+        environment: shellEnvironment,
+      ),
+    );
+  }
+  final powershell = _resolveWindowsPowerShell(platformEnvironment);
+  if (powershell != null) {
+    launches.add(
+      GhosttyTerminalShellLaunch(
+        label: 'Windows PowerShell',
+        shell: powershell,
+        environment: shellEnvironment,
+      ),
+    );
+  }
+  launches.add(
+    GhosttyTerminalShellLaunch(
+      label: 'cmd.exe',
+      shell: _resolveWindowsCommandPrompt(platformEnvironment),
+      environment: shellEnvironment,
+    ),
+  );
+  return launches;
+}
+
+String? _resolveWindowsPowerShell7(
+  Map<String, String> environment, {
+  required bool Function(String path) fileExists,
+}) {
+  return _resolveFirstExistingWindowsPath(<String>[
+        if (_windowsEnvironmentValue(environment, 'ProgramFiles')
+            case final dir?)
+          _joinWindowsPath(dir, 'PowerShell', '7', 'pwsh.exe'),
+        if (_windowsEnvironmentValue(environment, 'ProgramW6432')
+            case final dir?)
+          _joinWindowsPath(dir, 'PowerShell', '7', 'pwsh.exe'),
+      ], fileExists: fileExists) ??
+      'pwsh.exe';
+}
+
+String? _resolveWindowsPowerShell(Map<String, String> environment) {
+  if (_windowsSystemRoot(environment) case final root?) {
+    return _joinWindowsPath(
+      root,
+      'System32',
+      'WindowsPowerShell',
+      'v1.0',
+      'powershell.exe',
+    );
+  }
+  return 'powershell.exe';
+}
+
+String _resolveWindowsCommandPrompt(Map<String, String> environment) {
+  final comspec = _windowsEnvironmentValue(environment, 'ComSpec');
+  if (comspec != null && comspec.isNotEmpty) {
+    return comspec;
+  }
+  if (_windowsSystemRoot(environment) case final root?) {
+    return _joinWindowsPath(root, 'System32', 'cmd.exe');
+  }
+  return 'cmd.exe';
+}
+
+String? _resolveFirstExistingWindowsPath(
+  Iterable<String> candidates, {
+  required bool Function(String path) fileExists,
+}) {
+  for (final candidate in _uniqueWindowsPaths(candidates)) {
+    if (candidate.isNotEmpty && fileExists(candidate)) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
+String? _windowsSystemRoot(Map<String, String> environment) {
+  return _windowsEnvironmentValue(environment, 'SystemRoot') ??
+      _windowsEnvironmentValue(environment, 'windir');
+}
+
+String? _windowsEnvironmentValue(Map<String, String> environment, String key) {
+  final exact = environment[key];
+  if (exact != null && exact.isNotEmpty) {
+    return exact;
+  }
+  final lowerKey = key.toLowerCase();
+  for (final entry in environment.entries) {
+    if (entry.key.toLowerCase() == lowerKey && entry.value.isNotEmpty) {
+      return entry.value;
+    }
+  }
+  return null;
+}
+
+List<String> _uniqueWindowsPaths(Iterable<String> paths) {
+  final seen = <String>{};
+  final unique = <String>[];
+  for (final path in paths) {
+    final key = path.toLowerCase();
+    if (seen.add(key)) {
+      unique.add(path);
+    }
+  }
+  return unique;
+}
+
+String _joinWindowsPath(
+  String first,
+  String second, [
+  String? third,
+  String? fourth,
+  String? fifth,
+]) {
+  final parts = <String>[first, second, ?third, ?fourth, ?fifth];
+  final buffer = StringBuffer();
+  for (final part in parts) {
+    if (part.isEmpty) {
+      continue;
+    }
+    if (buffer.isNotEmpty && !buffer.toString().endsWith(r'\')) {
+      buffer.write(r'\');
+    }
+    buffer.write(part.replaceAll('/', r'\').replaceAll(RegExp(r'\\+$'), ''));
+  }
+  return buffer.toString();
+}
+
+bool _fileExists(String path) => File(path).existsSync();
+
+bool get _isWindowsDesktopTerminalTarget {
+  return !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
 }
 
 GhosttyTerminalShellLaunch _launchWithSanitizedAgentHookEnvironment(
@@ -168,6 +346,18 @@ GhosttyTerminalShellLaunch _launchInWorkingDirectory(
       setupCommand: launch.setupCommand,
     );
   }
+  if (_isWindowsPowerShellLaunch(launch)) {
+    return GhosttyTerminalShellLaunch(
+      label: launch.label,
+      shell: launch.shell,
+      arguments: launch.arguments,
+      environment: launch.environment,
+      setupCommand: _prependSetupCommand(
+        launch.setupCommand,
+        "Set-Location -LiteralPath ${_powerShellQuote(workingDirectory)}\r\n",
+      ),
+    );
+  }
   final execCommand = StringBuffer(
     'cd ${_shQuote(workingDirectory)} || true; exec ',
   )..write(_shQuote(launch.shell));
@@ -204,6 +394,17 @@ List<GhosttyTerminalShellLaunch> terminalShellLaunchesForTesting() {
 }
 
 @visibleForTesting
+List<GhosttyTerminalShellLaunch> windowsTerminalShellLaunchesForTesting(
+  Map<String, String> platformEnvironment, {
+  required bool Function(String path) fileExists,
+}) {
+  return _windowsTerminalShellLaunches(
+    platformEnvironment,
+    fileExists: fileExists,
+  );
+}
+
+@visibleForTesting
 GhosttyTerminalShellLaunch launchWithSanitizedAgentHookEnvironmentForTesting(
   GhosttyTerminalShellLaunch launch,
   Map<String, String>? agentHookEnvironment,
@@ -234,6 +435,13 @@ bool _isWindowsCommandPromptLaunch(GhosttyTerminalShellLaunch launch) {
   return _shellExecutableName(launch) == 'cmd';
 }
 
+bool _isWindowsPowerShellLaunch(GhosttyTerminalShellLaunch launch) {
+  return switch (_shellExecutableName(launch)) {
+    'pwsh' || 'powershell' => true,
+    _ => false,
+  };
+}
+
 String _shellExecutableName(GhosttyTerminalShellLaunch launch) {
   final executable = launch.shell.replaceAll(r'\', '/').split('/').last;
   final lower = executable.toLowerCase();
@@ -244,9 +452,25 @@ String _cmdQuote(String value) {
   return '"${value.replaceAll('"', '""')}"';
 }
 
+String _powerShellQuote(String value) {
+  return "'${value.replaceAll("'", "''")}'";
+}
+
+String _prependSetupCommand(String? existing, String setupCommand) {
+  if (existing == null || existing.isEmpty) {
+    return setupCommand;
+  }
+  return '$setupCommand$existing';
+}
+
 @visibleForTesting
 String cmdQuoteForTesting(String value) {
   return _cmdQuote(value);
+}
+
+@visibleForTesting
+String powerShellQuoteForTesting(String value) {
+  return _powerShellQuote(value);
 }
 
 String _shQuote(String value) {
@@ -266,6 +490,10 @@ bool get _isSupportedNativeDesktopTerminalPlatform {
     defaultTargetPlatform,
     isWeb: kIsWeb,
   );
+}
+
+bool get _terminalHardwareKeyboardOnly {
+  return _terminalHardwareKeyboardOnlyFor(defaultTargetPlatform, isWeb: kIsWeb);
 }
 
 final xterm.TerminalTargetPlatform _xtermTargetPlatform =
@@ -291,6 +519,29 @@ bool _isSupportedNativeDesktopTerminalPlatformFor(
     TargetPlatform.iOS ||
     TargetPlatform.fuchsia => false,
   };
+}
+
+bool _terminalHardwareKeyboardOnlyFor(
+  TargetPlatform platform, {
+  required bool isWeb,
+}) {
+  return !isWeb && platform == TargetPlatform.windows;
+}
+
+String _noTerminalShellCandidatesMessage() {
+  return switch (defaultTargetPlatform) {
+    TargetPlatform.windows =>
+      'No Windows terminal shell executable could be resolved.',
+    _ => 'No desktop PTY shell candidates are available.',
+  };
+}
+
+@visibleForTesting
+bool terminalHardwareKeyboardOnlyForTesting(
+  TargetPlatform platform, {
+  bool isWeb = false,
+}) {
+  return _terminalHardwareKeyboardOnlyFor(platform, isWeb: isWeb);
 }
 
 xterm.TerminalTargetPlatform _xtermTargetPlatformFor(TargetPlatform platform) {

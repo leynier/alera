@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi' as ffi;
-import 'dart:io' show Platform;
+import 'dart:io' show File, Platform;
 import 'dart:isolate';
 
 import 'package:alera/src/features/settings/domain/alera_settings.dart';

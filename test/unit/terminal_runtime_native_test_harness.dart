@@ -50,6 +50,15 @@ WorkspaceTabRecord _tab({
   );
 }
 
+String _decodePowerShellEncodedCommand(String encodedCommand) {
+  final bytes = base64.decode(encodedCommand);
+  final codeUnits = <int>[];
+  for (var i = 0; i < bytes.length; i += 2) {
+    codeUnits.add(bytes[i] | (bytes[i + 1] << 8));
+  }
+  return String.fromCharCodes(codeUnits);
+}
+
 class _FakeTerminalPtySessionFactory implements TerminalPtySessionFactory {
   _FakeTerminalPtySessionFactory({List<_FakeTerminalPtySession>? sessions})
     : _availableSessions = sessions ?? <_FakeTerminalPtySession>[];

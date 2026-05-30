@@ -213,7 +213,7 @@ void _registerTerminalShellStartupPreparerCoreTests() {
         ),
       );
 
-      expect(launch.setupCommand, 'Write-Output setup\n');
+      expect(launch.setupCommand, isNull);
       expect(
         launch.arguments,
         containsAllInOrder(<String>['-NoLogo', '-NoExit', '-EncodedCommand']),
@@ -226,6 +226,7 @@ void _registerTerminalShellStartupPreparerCoreTests() {
       final encodedCommand =
           launch.arguments[launch.arguments.indexOf('-EncodedCommand') + 1];
       final script = _decodePowerShellEncodedCommand(encodedCommand);
+      expect(script, contains('Write-Output setup\n'));
       expect(script, contains(r'$env:CODEX_HOME = $env:ALERA_CODEX_HOME'));
       expect(
         script,
@@ -241,6 +242,32 @@ void _registerTerminalShellStartupPreparerCoreTests() {
       );
       expect(script, contains(r'$env:COPILOT_HOME = $env:ALERA_COPILOT_HOME'));
       expect(script, contains(r'$env:ALERA_AGENT_WRAPPER_PATH'));
+    },
+  );
+
+  test(
+    'powershell encodes setup commands without managed environment',
+    () async {
+      final launch = await preparer.prepare(
+        _launch(
+          shell: r'C:\Program Files\PowerShell\7\pwsh.exe',
+          setupCommand:
+              "Set-Location -LiteralPath 'C:\\Users\\O''Brien\\Project'\r\n",
+        ),
+      );
+
+      expect(launch.setupCommand, isNull);
+      expect(
+        launch.arguments,
+        containsAllInOrder(<String>['-NoLogo', '-NoExit', '-EncodedCommand']),
+      );
+      final encodedCommand =
+          launch.arguments[launch.arguments.indexOf('-EncodedCommand') + 1];
+      final script = _decodePowerShellEncodedCommand(encodedCommand);
+      expect(
+        script,
+        "Set-Location -LiteralPath 'C:\\Users\\O''Brien\\Project'\r\n",
+      );
     },
   );
 

@@ -268,6 +268,54 @@ void _registerXtermRuntimeSessionTests() {
     },
   );
 
+  test(
+    'prepares PowerShell working directory without writing setup commands',
+    () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+      final fakeSession = _FakeTerminalPtySession();
+      final runtime = XtermTerminalRuntime(
+        ptySessionFactory: _FakeTerminalPtySessionFactory(
+          sessions: <_FakeTerminalPtySession>[fakeSession],
+        ),
+        shellLaunchesBuilder: () => <GhosttyTerminalShellLaunch>[
+          _launch(
+            'PowerShell 7',
+            shell: r'C:\Program Files\PowerShell\7\pwsh.exe',
+          ),
+        ],
+        shellStartupPreparer: AleraTerminalShellStartupPreparer(),
+      );
+      addTearDown(runtime.dispose);
+      final session = runtime.sessionFor(
+        workspace: _workspace(path: r"C:\Users\O'Brien\Alera Workspace"),
+        tab: _tab(),
+      );
+      try {
+        await session.ensureStarted();
+
+        final startedLaunch = fakeSession.startedLaunch;
+        expect(startedLaunch, isNotNull);
+        expect(startedLaunch!.setupCommand, isNull);
+        expect(fakeSession.writes, isEmpty);
+        expect(
+          startedLaunch.arguments,
+          containsAllInOrder(<String>['-NoLogo', '-NoExit', '-EncodedCommand']),
+        );
+        final encodedCommand = startedLaunch
+            .arguments[startedLaunch.arguments.indexOf('-EncodedCommand') + 1];
+        final script = _decodePowerShellEncodedCommand(encodedCommand);
+        expect(
+          script,
+          contains(
+            "Set-Location -LiteralPath 'C:\\Users\\O''Brien\\Alera Workspace'\r\n",
+          ),
+        );
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    },
+  );
+
   test('surfaces a clear error when every shell launch fails', () async {
     debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
     final factory = _FakeTerminalPtySessionFactory(
@@ -298,6 +346,33 @@ void _registerXtermRuntimeSessionTests() {
       debugDefaultTargetPlatformOverride = null;
     }
   });
+
+  test(
+    'surfaces a clear Windows error when no shell can be resolved',
+    () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+      final factory = _FakeTerminalPtySessionFactory();
+      final runtime = XtermTerminalRuntime(
+        ptySessionFactory: factory,
+        shellLaunchesBuilder: () => const <GhosttyTerminalShellLaunch>[],
+      );
+      addTearDown(runtime.dispose);
+      final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
+      try {
+        await session.ensureStarted();
+
+        expect(factory.createdSessions, isEmpty);
+        expect(session.isRunning, isFalse);
+        expect(
+          session.errorMessage,
+          contains('No Windows terminal shell executable could be resolved'),
+        );
+        expect(session.errorMessage, isNot(contains(': null')));
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    },
+  );
 
   test(
     'does not replay setup commands when attaching existing sessions',

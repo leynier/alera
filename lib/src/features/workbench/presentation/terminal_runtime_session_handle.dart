@@ -194,6 +194,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
       cursorType: _settings.cursorShape.toXtermCursorType(),
       cursorBlink: _settings.cursorBlink,
       backgroundOpacity: _settings.backgroundOpacity,
+      hardwareKeyboardOnly: _terminalHardwareKeyboardOnly,
     );
   }
 
@@ -249,6 +250,9 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
 
   Future<void> _startPtySession() async {
     final launches = _shellLaunchesBuilder();
+    if (launches.isEmpty) {
+      throw StateError(_noTerminalShellCandidatesMessage());
+    }
     final agentHookEnvironment = await _agentHookEnvironmentBuilder?.call(
       terminalSessionId: _tab.terminalSessionId,
       workspaceId: _workspace.id,
@@ -273,13 +277,19 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
           launch,
           agentHookEnvironment,
         );
+        final workspaceAwarePowerShellLaunch =
+            _isWindowsPowerShellLaunch(sanitizedLaunch)
+            ? _launchInWorkingDirectory(sanitizedLaunch, _workspace.path)
+            : null;
         final preparedLaunch = await _shellStartupPreparer?.prepare(
-          sanitizedLaunch,
+          workspaceAwarePowerShellLaunch ?? sanitizedLaunch,
         );
-        final workspaceLaunch = _launchInWorkingDirectory(
-          preparedLaunch ?? sanitizedLaunch,
-          _workspace.path,
-        );
+        final workspaceLaunch = workspaceAwarePowerShellLaunch == null
+            ? _launchInWorkingDirectory(
+                preparedLaunch ?? sanitizedLaunch,
+                _workspace.path,
+              )
+            : (preparedLaunch ?? workspaceAwarePowerShellLaunch);
         await session.start(
           launch: workspaceLaunch,
           workingDirectory: _workspace.path,
