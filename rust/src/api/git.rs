@@ -9,9 +9,7 @@
 use std::path::Path;
 
 use camino::Utf8Path;
-use git2::{
-    Branch, BranchType, ErrorCode, Repository, WorktreeAddOptions, WorktreePruneOptions,
-};
+use git2::{Branch, BranchType, ErrorCode, Repository, WorktreeAddOptions, WorktreePruneOptions};
 
 /// A single git worktree entry, mirroring one record of `git worktree list`.
 pub struct GitWorktreeEntry {
@@ -200,6 +198,13 @@ pub fn create_worktree(
 ) -> Result<(), GitError> {
     let repo = open_repo(&repo_path)?;
 
+    // Match `git worktree add`: refuse an occupied target up front (an existing
+    // empty directory is fine) so a blocked path never creates an orphan branch
+    // or worktree admin entry that would make a later retry fail.
+    if is_path_occupied(&path) {
+        return Err(GitError::new(GitErrorKind::WorktreeAlreadyExists, path));
+    }
+
     // Resolve the source as any committish (local branch, remote-tracking ref
     // like `origin/main`, tag, or SHA) to match `git worktree add`'s semantics.
     let source_commit = repo
@@ -224,23 +229,41 @@ pub fn create_worktree(
     let mut options = WorktreeAddOptions::new();
     options.reference(Some(&reference));
     let admin_name = worktree_admin_name(&path);
-    repo.worktree(&admin_name, Path::new(&path), Some(&options))
-        .map_err(|error| match error.code() {
-            ErrorCode::Exists => {
-                GitError::new(GitErrorKind::WorktreeAlreadyExists, path.clone())
-            }
+    let worktree_result = repo.worktree(&admin_name, Path::new(&path), Some(&options));
+    // Release the borrows on `repo` held via `reference`/`options` before
+    // mutating refs in the rollback path below.
+    drop(options);
+    drop(reference);
+    if let Err(error) = worktree_result {
+        // The branch was created above; if the worktree could not be added the
+        // whole action failed, so roll the branch back to keep it atomic and
+        // let a retry succeed instead of hitting BranchAlreadyExists.
+        if let Ok(mut created) = repo.find_branch(&new_branch, BranchType::Local) {
+            let _ = created.delete();
+        }
+        return Err(match error.code() {
+            ErrorCode::Exists => GitError::new(GitErrorKind::WorktreeAlreadyExists, path.clone()),
             _ => GitError::from_git2(error),
-        })?;
+        });
+    }
     Ok(())
+}
+
+/// Whether `path` is occupied for the purpose of `git worktree add`: it exists
+/// and is anything other than an empty directory.
+fn is_path_occupied(path: &str) -> bool {
+    let target = Path::new(path);
+    match std::fs::read_dir(target) {
+        // A directory is free only when empty.
+        Ok(mut entries) => entries.next().is_some(),
+        // Not a directory: occupied if it exists (e.g. a file), free otherwise.
+        Err(_) => target.exists(),
+    }
 }
 
 /// Removes the worktree whose checkout lives at `path`, deleting the working
 /// tree files. Mirrors `git worktree remove --force <path>`.
-pub fn remove_worktree(
-    repo_path: String,
-    path: String,
-    force: bool,
-) -> Result<(), GitError> {
+pub fn remove_worktree(repo_path: String, path: String, force: bool) -> Result<(), GitError> {
     let repo = open_repo(&repo_path)?;
     let target = canonical(&path);
 
@@ -269,11 +292,7 @@ pub fn remove_worktree(
 }
 
 /// Force-deletes a local branch. Mirrors `git branch -D <branch>`.
-pub fn delete_branch(
-    repo_path: String,
-    branch: String,
-    _force: bool,
-) -> Result<(), GitError> {
+pub fn delete_branch(repo_path: String, branch: String, _force: bool) -> Result<(), GitError> {
     let repo = open_repo(&repo_path)?;
     let mut target = repo
         .find_branch(&branch, BranchType::Local)
@@ -319,25 +338,38 @@ pub fn list_worktrees(repo_path: String) -> Result<Vec<GitWorktreeEntry>, GitErr
     Ok(entries)
 }
 
+/// Splits `destination_path` into the parent directory to run `git` in and the
+/// final path component to use as the clone target. Cloning `basename` from
+/// inside `parent` yields exactly `parent/basename`, so a relative destination
+/// is not double-prefixed by `git -C <parent>`.
+fn split_clone_destination(destination_path: &str) -> Result<(String, String), GitError> {
+    let destination = Path::new(destination_path);
+    let name = destination
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| {
+            GitError::new(
+                GitErrorKind::CloneFailed,
+                format!("invalid destination path: {destination_path}"),
+            )
+        })?;
+    let parent = destination
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .and_then(|parent| parent.to_str())
+        .unwrap_or(".");
+    Ok((parent.to_string(), name.to_string()))
+}
+
 /// Clones a repository into `destination_path` using the system `git` CLI so
 /// the user's credential helper authenticates private remotes. Mirrors
 /// `git clone --progress -- <url> <destination_path>`.
 pub fn clone_repository(url: String, destination_path: String) -> Result<(), GitError> {
-    let destination = Path::new(&destination_path);
-    let parent = destination
-        .parent()
-        .filter(|parent| !parent.as_os_str().is_empty())
-        .unwrap_or_else(|| Path::new("."));
-    let parent = Utf8Path::from_path(parent).ok_or_else(|| {
-        GitError::new(
-            GitErrorKind::CloneFailed,
-            format!("destination parent is not valid UTF-8: {destination_path}"),
-        )
-    })?;
+    let (parent, name) = split_clone_destination(&destination_path)?;
 
     git_cmd::git_in_dir(
-        parent,
-        &["clone", "--progress", "--", &url, &destination_path],
+        Utf8Path::new(&parent),
+        &["clone", "--progress", "--", &url, &name],
     )
     .map_err(|error| GitError::new(GitErrorKind::CloneFailed, error.to_string()))?;
     Ok(())
@@ -407,8 +439,8 @@ mod tests {
     #[test]
     fn creates_lists_and_removes_worktree() {
         let repo = init_repo();
-        let worktree_path = repo.path().join("..").join("wt-feature");
-        let worktree_path = worktree_path.to_string_lossy().to_string();
+        let worktree_base = tempfile::tempdir().expect("tempdir");
+        let worktree_path = path_str(&worktree_base.path().join("feature"));
 
         create_worktree(
             path_str(repo.path()),
@@ -435,7 +467,8 @@ mod tests {
     fn rejects_duplicate_branch() {
         let repo = init_repo();
         run_git(repo.path(), &["branch", "feature"]);
-        let worktree_path = path_str(&repo.path().join("..").join("wt-dupe"));
+        let worktree_base = tempfile::tempdir().expect("tempdir");
+        let worktree_path = path_str(&worktree_base.path().join("dupe"));
         let error = create_worktree(
             path_str(repo.path()),
             "feature".to_string(),
@@ -455,7 +488,9 @@ mod tests {
         let subdir_path = path_str(&subdir);
         assert!(is_git_repository(subdir_path.clone()).unwrap());
         assert_eq!(current_branch(subdir_path.clone()).unwrap(), "main");
-        assert!(list_branches(subdir_path).unwrap().contains(&"main".to_string()));
+        assert!(list_branches(subdir_path)
+            .unwrap()
+            .contains(&"main".to_string()));
     }
 
     #[test]
@@ -467,8 +502,8 @@ mod tests {
             &["update-ref", "refs/remotes/origin/feature", "HEAD"],
         );
 
-        let worktree_path =
-            path_str(&repo.path().join("..").join("wt-from-remote"));
+        let worktree_base = tempfile::tempdir().expect("tempdir");
+        let worktree_path = path_str(&worktree_base.path().join("from-remote"));
         create_worktree(
             path_str(repo.path()),
             "local-feature".to_string(),
@@ -477,8 +512,71 @@ mod tests {
         )
         .unwrap();
 
-        assert!(
-            branch_exists(path_str(repo.path()), "local-feature".to_string()).unwrap()
+        assert!(branch_exists(path_str(repo.path()), "local-feature".to_string()).unwrap());
+    }
+
+    #[test]
+    fn rolls_back_branch_when_worktree_fails() {
+        let repo = init_repo();
+        // Block the worktree path with a non-empty directory so `repo.worktree`
+        // fails after the branch has been created.
+        let worktree_base = tempfile::tempdir().expect("tempdir");
+        let blocked = worktree_base.path().join("blocked");
+        std::fs::create_dir_all(&blocked).expect("create blocker dir");
+        std::fs::write(blocked.join("busy.txt"), "x").expect("write blocker");
+        let worktree_path = path_str(&blocked);
+
+        let error = create_worktree(
+            path_str(repo.path()),
+            "feature".to_string(),
+            worktree_path.clone(),
+            "main".to_string(),
+        )
+        .unwrap_err();
+        assert!(!matches!(error.kind, GitErrorKind::BranchAlreadyExists));
+        // The branch must have been rolled back.
+        assert!(!branch_exists(path_str(repo.path()), "feature".to_string()).unwrap());
+
+        // After clearing the blocker, a retry succeeds (no orphan branch).
+        std::fs::remove_dir_all(&worktree_path).expect("remove blocker dir");
+        create_worktree(
+            path_str(repo.path()),
+            "feature".to_string(),
+            worktree_path,
+            "main".to_string(),
+        )
+        .unwrap();
+        assert!(branch_exists(path_str(repo.path()), "feature".to_string()).unwrap());
+    }
+
+    #[test]
+    fn split_clone_destination_uses_basename_under_parent() {
+        assert_eq!(
+            split_clone_destination("repos/demo").unwrap(),
+            ("repos".to_string(), "demo".to_string())
         );
+        assert_eq!(
+            split_clone_destination("/abs/repos/demo").unwrap(),
+            ("/abs/repos".to_string(), "demo".to_string())
+        );
+        assert_eq!(
+            split_clone_destination("demo").unwrap(),
+            (".".to_string(), "demo".to_string())
+        );
+    }
+
+    #[test]
+    fn clones_from_local_source_into_nested_destination() {
+        let source = init_repo();
+        let workspace = tempfile::tempdir().expect("tempdir");
+        let destination = workspace.path().join("nested").join("cloned");
+        std::fs::create_dir_all(destination.parent().unwrap()).expect("create parent");
+
+        clone_repository(path_str(source.path()), path_str(&destination)).unwrap();
+
+        // The clone lands exactly at the destination, not double-nested.
+        assert!(destination.join(".git").exists());
+        assert!(!destination.join("cloned").exists());
+        assert!(is_git_repository(path_str(&destination)).unwrap());
     }
 }
