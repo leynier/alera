@@ -115,6 +115,39 @@ fn worktree_admin_name(path: &str) -> String {
         .unwrap_or_else(|| path.to_string())
 }
 
+/// Builds the `.git/worktrees/<id>` admin id from the target path's basename,
+/// appending a numeric suffix when that id is already taken — mirroring
+/// `git worktree add`, which disambiguates same-basename worktrees instead of
+/// rejecting them. The id is internal: `list_worktrees`/`remove_worktree` match
+/// worktrees by path, not by id, so any unique id is safe here.
+fn unique_worktree_admin_name(repo: &Repository, path: &str) -> String {
+    let base = worktree_admin_name(path);
+    let existing = existing_worktree_admin_names(repo);
+    if !existing.contains(&base) {
+        return base;
+    }
+    let mut suffix = 1u32;
+    loop {
+        let candidate = format!("{base}{suffix}");
+        if !existing.contains(&candidate) {
+            return candidate;
+        }
+        suffix += 1;
+    }
+}
+
+fn existing_worktree_admin_names(repo: &Repository) -> std::collections::HashSet<String> {
+    let mut names = std::collections::HashSet::new();
+    if let Ok(list) = repo.worktrees() {
+        for entry in list.iter() {
+            if let Ok(Some(name)) = entry {
+                names.insert(name.to_string());
+            }
+        }
+    }
+    names
+}
+
 /// Canonicalizes a path for comparison, tolerating paths that no longer exist.
 fn canonical(path: &str) -> String {
     std::fs::canonicalize(path)
@@ -230,7 +263,7 @@ pub fn create_worktree(
         let reference = branch.into_reference();
         let mut options = WorktreeAddOptions::new();
         options.reference(Some(&reference));
-        let admin_name = worktree_admin_name(&path);
+        let admin_name = unique_worktree_admin_name(&repo, &path);
         repo.worktree(&admin_name, Path::new(&path), Some(&options))
     };
     if let Err(error) = worktree_result {
@@ -546,6 +579,47 @@ mod tests {
         )
         .unwrap();
         assert!(branch_exists(path_str(repo.path()), "feature".to_string()).unwrap());
+    }
+
+    #[test]
+    fn creates_same_basename_worktrees_under_different_parents() {
+        // The same repo can back two worktrees whose target paths share a
+        // basename but live under different parents (e.g. the repo opened as two
+        // Alera projects). Both must succeed; `git worktree add` disambiguates
+        // the internal admin id rather than reporting WorktreeAlreadyExists.
+        let repo = init_repo();
+        let parent_a = tempfile::tempdir().expect("tempdir");
+        let parent_b = tempfile::tempdir().expect("tempdir");
+        let path_a = path_str(&parent_a.path().join("shared"));
+        let path_b = path_str(&parent_b.path().join("shared"));
+
+        create_worktree(
+            path_str(repo.path()),
+            "feature-a".to_string(),
+            path_a.clone(),
+            "main".to_string(),
+        )
+        .unwrap();
+        create_worktree(
+            path_str(repo.path()),
+            "feature-b".to_string(),
+            path_b.clone(),
+            "main".to_string(),
+        )
+        .unwrap();
+
+        assert!(Path::new(&path_a).join(".git").exists());
+        assert!(Path::new(&path_b).join(".git").exists());
+
+        let worktrees = list_worktrees(path_str(repo.path())).unwrap();
+        let target_a = canonical(&path_a);
+        let target_b = canonical(&path_b);
+        assert!(worktrees
+            .iter()
+            .any(|entry| canonical(&entry.path) == target_a && entry.branch == "feature-a"));
+        assert!(worktrees
+            .iter()
+            .any(|entry| canonical(&entry.path) == target_b && entry.branch == "feature-b"));
     }
 
     #[test]
