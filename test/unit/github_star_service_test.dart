@@ -4,58 +4,70 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('GitHubStarService', () {
-    test('checkStarred returns true when gh reports the repo as starred', () async {
-      final runner = _FakeProcessRunner(<Object>[
-        const ProcessRunOutput(exitCode: 0, stdout: '', stderr: ''),
-      ]);
-      final service = GitHubStarService(runner);
+    test(
+      'checkStarred returns true when gh reports the repo as starred',
+      () async {
+        final runner = _FakeProcessRunner(<Object>[
+          const ProcessRunOutput(exitCode: 0, stdout: '', stderr: ''),
+        ]);
+        final service = GitHubStarService(runner);
 
-      expect(await service.checkStarred(), isTrue);
-      expect(runner.calls.single.executable, 'gh');
-    });
+        expect(await service.checkStarred(), isTrue);
+        expect(runner.calls.single.executable, 'gh');
+      },
+    );
 
-    test('checkStarred returns false for 404 responses in stderr or stdout', () async {
-      final runner = _FakeProcessRunner(<Object>[
-        const ProcessRunOutput(
-          exitCode: 1,
-          stdout: '',
-          stderr: 'HTTP 404 not found',
-        ),
-        const ProcessRunOutput(
-          exitCode: 1,
-          stdout: 'status: 404',
-          stderr: '',
-        ),
-      ]);
-      final service = GitHubStarService(runner);
+    test(
+      'checkStarred returns false for 404 responses in stderr or stdout',
+      () async {
+        final runner = _FakeProcessRunner(<Object>[
+          const ProcessRunOutput(
+            exitCode: 1,
+            stdout: '',
+            stderr: 'HTTP 404 not found',
+          ),
+          const ProcessRunOutput(
+            exitCode: 1,
+            stdout: 'status: 404',
+            stderr: '',
+          ),
+        ]);
+        final service = GitHubStarService(runner);
 
-      expect(await service.checkStarred(), isFalse);
-      expect(await service.checkStarred(), isFalse);
-    });
+        expect(await service.checkStarred(), isFalse);
+        expect(await service.checkStarred(), isFalse);
+      },
+    );
 
-    test('checkStarred returns null for unexpected failures and exceptions', () async {
-      final runner = _FakeProcessRunner(<Object>[
-        const ProcessRunOutput(exitCode: 1, stdout: '', stderr: 'boom'),
-        StateError('gh missing'),
-      ]);
-      final service = GitHubStarService(runner);
+    test(
+      'checkStarred returns null for unexpected failures and exceptions',
+      () async {
+        final runner = _FakeProcessRunner(<Object>[
+          const ProcessRunOutput(exitCode: 1, stdout: '', stderr: 'boom'),
+          StateError('gh missing'),
+        ]);
+        final service = GitHubStarService(runner);
 
-      expect(await service.checkStarred(), isNull);
-      expect(await service.checkStarred(), isNull);
-    });
+        expect(await service.checkStarred(), isNull);
+        expect(await service.checkStarred(), isNull);
+      },
+    );
 
-    test('star returns true on success and false on failure or exceptions', () async {
-      final runner = _FakeProcessRunner(<Object>[
-        const ProcessRunOutput(exitCode: 0, stdout: '', stderr: ''),
-        const ProcessRunOutput(exitCode: 1, stdout: '', stderr: 'boom'),
-        StateError('gh missing'),
-      ]);
-      final service = GitHubStarService(runner);
+    test(
+      'star returns true on success and false on failure or exceptions',
+      () async {
+        final runner = _FakeProcessRunner(<Object>[
+          const ProcessRunOutput(exitCode: 0, stdout: '', stderr: ''),
+          const ProcessRunOutput(exitCode: 1, stdout: '', stderr: 'boom'),
+          StateError('gh missing'),
+        ]);
+        final service = GitHubStarService(runner);
 
-      expect(await service.star(), isTrue);
-      expect(await service.star(), isFalse);
-      expect(await service.star(), isFalse);
-    });
+        expect(await service.star(), isTrue);
+        expect(await service.star(), isFalse);
+        expect(await service.star(), isFalse);
+      },
+    );
   });
 }
 

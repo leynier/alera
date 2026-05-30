@@ -147,25 +147,28 @@ void main() {
       expect(runner.calls, hasLength(1));
     });
 
-    test('suppresses repeated warning-level logs for the same failure', () async {
-      final runner = _FakeProcessRunner()
-        ..queuedStarts.addAll(<Object>[
-          const ProcessException('/usr/bin/caffeinate', <String>[], 'boom'),
-          const ProcessException('/usr/bin/caffeinate', <String>[], 'boom'),
-          _FakeStartedProcess(),
-        ]);
-      final assertion = MacosSystemSleepAssertion(
-        processRunner: runner,
-        platform: 'macos',
-        retryDelay: Duration.zero,
-      );
+    test(
+      'suppresses repeated warning-level logs for the same failure',
+      () async {
+        final runner = _FakeProcessRunner()
+          ..queuedStarts.addAll(<Object>[
+            const ProcessException('/usr/bin/caffeinate', <String>[], 'boom'),
+            const ProcessException('/usr/bin/caffeinate', <String>[], 'boom'),
+            _FakeStartedProcess(),
+          ]);
+        final assertion = MacosSystemSleepAssertion(
+          processRunner: runner,
+          platform: 'macos',
+          retryDelay: Duration.zero,
+        );
 
-      await assertion.start('status-change');
-      await Future<void>.delayed(Duration.zero);
-      await Future<void>.delayed(Duration.zero);
+        await assertion.start('status-change');
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
 
-      expect(runner.calls, hasLength(3));
-    });
+        expect(runner.calls, hasLength(3));
+      },
+    );
   });
 
   group('LinuxLidSleepAssertion', () {

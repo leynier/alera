@@ -62,7 +62,9 @@ class FakeGitBackend implements GitBackend {
 
   /// When set, [clone] throws [cloneError].
   bool cloneFails = false;
-  GitException cloneError = const CloneFailedException('fatal: could not clone');
+  GitException cloneError = const CloneFailedException(
+    'fatal: could not clone',
+  );
 
   /// Side effect invoked by a successful [clone] (e.g. to materialise the
   /// destination on disk).
@@ -70,7 +72,9 @@ class FakeGitBackend implements GitBackend {
 
   @override
   Future<bool> isGitRepository(String path) async {
-    calls.add(GitBackendCall('isGitRepository', <String, Object?>{'path': path}));
+    calls.add(
+      GitBackendCall('isGitRepository', <String, Object?>{'path': path}),
+    );
     final error = isRepositoryError;
     if (error != null) {
       throw error;

@@ -18,17 +18,20 @@ void main() {
       expect(result.stderr, 'stderr');
     });
 
-    test('start exposes stdin, stdout, pid, exit code, and default kill', () async {
-      final process = await runner.start('sh', <String>['-c', 'cat']);
-      process.stdinWrite(utf8.encode('hello from runner\n'));
+    test(
+      'start exposes stdin, stdout, pid, exit code, and default kill',
+      () async {
+        final process = await runner.start('sh', <String>['-c', 'cat']);
+        process.stdinWrite(utf8.encode('hello from runner\n'));
 
-      final output = await utf8.decoder.bind(process.stdout).first;
-      expect(output, contains('hello from runner'));
-      expect(process.pid, greaterThan(0));
+        final output = await utf8.decoder.bind(process.stdout).first;
+        expect(output, contains('hello from runner'));
+        expect(process.pid, greaterThan(0));
 
-      expect(process.kill(), isTrue);
-      final exitCode = await process.exitCode;
-      expect(exitCode, isNot(0));
-    });
+        expect(process.kill(), isTrue);
+        final exitCode = await process.exitCode;
+        expect(exitCode, isNot(0));
+      },
+    );
   });
 }

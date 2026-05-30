@@ -64,10 +64,7 @@ void main() {
     });
 
     test('rejects blank local project paths', () async {
-      await expectLater(
-        service.addLocalProject(path: '   '),
-        throwsStateError,
-      );
+      await expectLater(service.addLocalProject(path: '   '), throwsStateError);
     });
 
     test('surfaces invalid local project path messages', () async {
@@ -83,24 +80,27 @@ void main() {
       );
     });
 
-    test('returns an already-registered local project for the same path', () async {
-      final repo = Directory(p.join(tempDir.path, 'repo'))
-        ..createSync(recursive: true);
-      Directory(p.join(repo.path, '.git')).createSync();
-      final existing = Project(
-        id: 'project-1',
-        name: 'Existing',
-        repoPath: repo.path,
-        createdAt: DateTime.utc(2026, 5, 24),
-        updatedAt: DateTime.utc(2026, 5, 24),
-      );
-      await repository.add(existing);
+    test(
+      'returns an already-registered local project for the same path',
+      () async {
+        final repo = Directory(p.join(tempDir.path, 'repo'))
+          ..createSync(recursive: true);
+        Directory(p.join(repo.path, '.git')).createSync();
+        final existing = Project(
+          id: 'project-1',
+          name: 'Existing',
+          repoPath: repo.path,
+          createdAt: DateTime.utc(2026, 5, 24),
+          updatedAt: DateTime.utc(2026, 5, 24),
+        );
+        await repository.add(existing);
 
-      final project = await service.addLocalProject(path: repo.path);
+        final project = await service.addLocalProject(path: repo.path);
 
-      expect(project, same(existing));
-      expect(repository.projects, hasLength(1));
-    });
+        expect(project, same(existing));
+        expect(repository.projects, hasLength(1));
+      },
+    );
 
     test('clones and registers a Git repository project', () async {
       final destination = p.join(tempDir.path, 'cloned-repo');
@@ -198,7 +198,10 @@ void main() {
         ..createSync(recursive: true);
       Directory(p.join(repo.path, '.git')).createSync();
 
-      final project = await service.addProject(repoPath: repo.path, name: 'Wrapper');
+      final project = await service.addProject(
+        repoPath: repo.path,
+        name: 'Wrapper',
+      );
 
       expect(project.repoPath, repo.path);
       expect(project.name, 'Wrapper');

@@ -64,25 +64,22 @@ class RustGitBackend implements GitBackend {
   );
 
   @override
-  Future<List<GitWorktreeEntry>> listWorktrees(String repoPath) => _guard(
-    () async {
-      final entries = await rust.listWorktrees(repoPath: repoPath);
-      return entries
-          .map(
-            (entry) =>
-                GitWorktreeEntry(path: entry.path, branch: entry.branch),
-          )
-          .toList(growable: false);
-    },
-  );
+  Future<List<GitWorktreeEntry>> listWorktrees(String repoPath) =>
+      _guard(() async {
+        final entries = await rust.listWorktrees(repoPath: repoPath);
+        return entries
+            .map(
+              (entry) =>
+                  GitWorktreeEntry(path: entry.path, branch: entry.branch),
+            )
+            .toList(growable: false);
+      });
 
   @override
-  Future<void> clone({
-    required String url,
-    required String destinationPath,
-  }) => _guard(
-    () => rust.cloneRepository(url: url, destinationPath: destinationPath),
-  );
+  Future<void> clone({required String url, required String destinationPath}) =>
+      _guard(
+        () => rust.cloneRepository(url: url, destinationPath: destinationPath),
+      );
 
   Future<T> _guard<T>(Future<T> Function() body) async {
     try {
@@ -98,12 +95,15 @@ class RustGitBackend implements GitBackend {
       rust.GitErrorKind.notARepository => NotARepositoryException(context),
       rust.GitErrorKind.accessDenied => AccessDeniedException(context),
       rust.GitErrorKind.branchNotFound => BranchNotFoundException(context),
-      rust.GitErrorKind.branchAlreadyExists =>
-        BranchAlreadyExistsException(context),
-      rust.GitErrorKind.invalidBranchName =>
-        InvalidBranchNameException(context),
-      rust.GitErrorKind.worktreeAlreadyExists =>
-        WorktreeAlreadyExistsException(context),
+      rust.GitErrorKind.branchAlreadyExists => BranchAlreadyExistsException(
+        context,
+      ),
+      rust.GitErrorKind.invalidBranchName => InvalidBranchNameException(
+        context,
+      ),
+      rust.GitErrorKind.worktreeAlreadyExists => WorktreeAlreadyExistsException(
+        context,
+      ),
       rust.GitErrorKind.worktreeNotFound => WorktreeNotFoundException(context),
       rust.GitErrorKind.cloneFailed => CloneFailedException(context),
       rust.GitErrorKind.gitCli => GitCliException(context),

@@ -85,7 +85,7 @@ void main() {
         'not bytes',
       ],
     );
-    database.dispose();
+    database.close();
 
     final store = TerminalHostHistoryStore.open(runtimeDir: runtimeDir);
     addTearDown(store.close);

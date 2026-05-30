@@ -16,12 +16,14 @@ void main() {
 
       expect(await repository.load(), WorkbenchViewPrefs.defaults);
 
-      await db.into(db.workbenchViewPrefsTable).insert(
-        WorkbenchViewPrefsTableCompanion(
-          id: const Value(1),
-          dataJson: Value(jsonEncode(<Object?>['invalid'])),
-        ),
-      );
+      await db
+          .into(db.workbenchViewPrefsTable)
+          .insert(
+            WorkbenchViewPrefsTableCompanion(
+              id: const Value(1),
+              dataJson: Value(jsonEncode(<Object?>['invalid'])),
+            ),
+          );
       expect(await repository.load(), WorkbenchViewPrefs.defaults);
     });
 
@@ -40,12 +42,14 @@ void main() {
 
       expect(restored, prefs);
 
-      await db.into(db.workbenchViewPrefsTable).insertOnConflictUpdate(
-        WorkbenchViewPrefsTableCompanion(
-          id: const Value(1),
-          dataJson: Value(jsonEncode(prefs.toMap())),
-        ),
-      );
+      await db
+          .into(db.workbenchViewPrefsTable)
+          .insertOnConflictUpdate(
+            WorkbenchViewPrefsTableCompanion(
+              id: const Value(1),
+              dataJson: Value(jsonEncode(prefs.toMap())),
+            ),
+          );
       expect(await repository.load(), prefs);
     });
   });

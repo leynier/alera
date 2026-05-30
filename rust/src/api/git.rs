@@ -69,7 +69,10 @@ impl GitError {
 }
 
 fn open_repo(path: &str) -> Result<Repository, GitError> {
-    Repository::open(path).map_err(|error| match error.code() {
+    // `discover` (rather than `open`) so operations work when `path` is a
+    // subdirectory of the work tree, matching `is_git_repository` and the
+    // behaviour of `git -C <path> ...`.
+    Repository::discover(path).map_err(|error| match error.code() {
         ErrorCode::NotFound => GitError::new(GitErrorKind::NotARepository, path),
         _ => GitError::from_git2(error),
     })
@@ -197,11 +200,11 @@ pub fn create_worktree(
 ) -> Result<(), GitError> {
     let repo = open_repo(&repo_path)?;
 
-    let source = repo
-        .find_branch(&source_branch, BranchType::Local)
-        .map_err(|_| GitError::new(GitErrorKind::BranchNotFound, source_branch.clone()))?;
-    let source_commit = source
-        .get()
+    // Resolve the source as any committish (local branch, remote-tracking ref
+    // like `origin/main`, tag, or SHA) to match `git worktree add`'s semantics.
+    let source_commit = repo
+        .revparse_single(&source_branch)
+        .map_err(|_| GitError::new(GitErrorKind::BranchNotFound, source_branch.clone()))?
         .peel_to_commit()
         .map_err(GitError::from_git2)?;
 
@@ -441,5 +444,41 @@ mod tests {
         )
         .unwrap_err();
         assert!(matches!(error.kind, GitErrorKind::BranchAlreadyExists));
+    }
+
+    #[test]
+    fn operates_from_subdirectory() {
+        let repo = init_repo();
+        let subdir = repo.path().join("nested").join("dir");
+        std::fs::create_dir_all(&subdir).expect("create subdir");
+
+        let subdir_path = path_str(&subdir);
+        assert!(is_git_repository(subdir_path.clone()).unwrap());
+        assert_eq!(current_branch(subdir_path.clone()).unwrap(), "main");
+        assert!(list_branches(subdir_path).unwrap().contains(&"main".to_string()));
+    }
+
+    #[test]
+    fn creates_worktree_from_remote_tracking_branch() {
+        let repo = init_repo();
+        // Simulate a fetched remote-tracking ref without a network remote.
+        run_git(
+            repo.path(),
+            &["update-ref", "refs/remotes/origin/feature", "HEAD"],
+        );
+
+        let worktree_path =
+            path_str(&repo.path().join("..").join("wt-from-remote"));
+        create_worktree(
+            path_str(repo.path()),
+            "local-feature".to_string(),
+            worktree_path,
+            "origin/feature".to_string(),
+        )
+        .unwrap();
+
+        assert!(
+            branch_exists(path_str(repo.path()), "local-feature".to_string()).unwrap()
+        );
     }
 }

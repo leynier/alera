@@ -72,7 +72,9 @@ class ProjectService {
       if (isRepository) {
         return ProjectValidationResult.ok();
       }
-      return ProjectValidationResult.fail('path is not a git repository: $path');
+      return ProjectValidationResult.fail(
+        'path is not a git repository: $path',
+      );
     } on AccessDeniedException {
       return ProjectValidationResult.fail(
         'access denied by macOS sandbox for: $path',

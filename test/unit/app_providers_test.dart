@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/features/agent_status/application/agent_awake_service.dart';

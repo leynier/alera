@@ -46,24 +46,25 @@ class DriftProjectRepository implements ProjectRepository {
   @override
   Future<void> remove(String projectId) async {
     await _db.transaction(() async {
-      final workspaceIds = await (_db.select(_db.workspacesTable)
-            ..where((table) => table.projectId.equals(projectId)))
-          .map((row) => row.id)
-          .get();
+      final workspaceIds =
+          await (_db.select(_db.workspacesTable)
+                ..where((table) => table.projectId.equals(projectId)))
+              .map((row) => row.id)
+              .get();
       if (workspaceIds.isNotEmpty) {
-        await (_db.delete(_db.workspaceTabsTable)
-              ..where((table) => table.workspaceId.isIn(workspaceIds)))
-            .go();
-        await (_db.delete(_db.workbenchLayoutsTable)
-              ..where((table) => table.workspaceId.isIn(workspaceIds)))
-            .go();
-        await (_db.delete(_db.workspacesTable)
-              ..where((table) => table.id.isIn(workspaceIds)))
-            .go();
+        await (_db.delete(
+          _db.workspaceTabsTable,
+        )..where((table) => table.workspaceId.isIn(workspaceIds))).go();
+        await (_db.delete(
+          _db.workbenchLayoutsTable,
+        )..where((table) => table.workspaceId.isIn(workspaceIds))).go();
+        await (_db.delete(
+          _db.workspacesTable,
+        )..where((table) => table.id.isIn(workspaceIds))).go();
       }
-      await (_db.delete(_db.projectsTable)
-            ..where((table) => table.id.equals(projectId)))
-          .go();
+      await (_db.delete(
+        _db.projectsTable,
+      )..where((table) => table.id.equals(projectId))).go();
     });
   }
 }

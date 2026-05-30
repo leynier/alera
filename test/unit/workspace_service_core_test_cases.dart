@@ -305,9 +305,7 @@ void _registerWorkspaceServiceCoreTests() {
         sourceBranch: 'main',
         newBranchName: 'feature/remove-me',
       );
-      gitBackend.liveBranchByPath = <String, String>{
-        project.repoPath: 'main',
-      };
+      gitBackend.liveBranchByPath = <String, String>{project.repoPath: 'main'};
 
       final workspaces = await service.reconcile(project);
 

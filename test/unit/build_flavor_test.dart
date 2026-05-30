@@ -9,10 +9,7 @@ void main() {
         isFalse,
         reason: 'dev flavor must hard-disable auto-update',
       );
-      expect(
-        effectiveAutoInstallEnabled(false, isDevBuild: true),
-        isFalse,
-      );
+      expect(effectiveAutoInstallEnabled(false, isDevBuild: true), isFalse);
     });
 
     test('preserves the requested flag on a release build', () {

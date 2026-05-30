@@ -14,6 +14,9 @@ analyzer:
     - riverpod_lint
   exclude:
     - third_party/**
+    # Vendored flutter_rust_bridge/cargokit scaffolding; it is its own package
+    # (resolved only during the native build), not part of the app analysis.
+    - rust_builder/**
 
 linter:
   # The lint rules applied to this project can be customized in the
