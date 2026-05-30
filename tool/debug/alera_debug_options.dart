@@ -44,8 +44,7 @@ final class _Options {
         : kAleraDevBundleId;
     return _Options(
       dartExecutable: map['dart'] ?? Platform.environment['DART'] ?? 'dart',
-      cargoExecutable:
-          map['cargo'] ?? Platform.environment['CARGO'] ?? 'cargo',
+      cargoExecutable: map['cargo'] ?? Platform.environment['CARGO'] ?? 'cargo',
       flutterExecutable:
           map['flutter'] ?? Platform.environment['FLUTTER'] ?? 'flutter',
       device:
