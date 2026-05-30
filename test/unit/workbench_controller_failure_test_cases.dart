@@ -136,7 +136,8 @@ void _registerWorkbenchControllerFailureTests() {
       isTrue,
     );
 
-    _harness.processRunner.createGitClone = true;
+    _harness.gitBackend.onClone = (_, destination) =>
+        Directory(p.join(destination, '.git')).createSync(recursive: true);
     final cloneDestination = p.join(_harness.tempDir.path, 'repo-cloned');
     final clonedProject = await _controller.cloneProject(
       gitUrl: 'https://example.com/acme/alera.git',

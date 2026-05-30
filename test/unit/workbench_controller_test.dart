@@ -18,16 +18,17 @@ import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:alera/src/shared/infra/process/process_runner.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
+
+import 'fake_git_backend.dart';
 
 part 'workbench_controller_lifecycle_test_cases.dart';
 part 'workbench_controller_view_prefs_test_cases.dart';
 part 'workbench_controller_failure_test_cases.dart';
 part 'workbench_controller_test_harness.dart';
-part 'workbench_controller_process_runner_fake.dart';
 
 late _WorkbenchHarness _harness;
 late WorkbenchController _controller;

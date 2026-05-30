@@ -3,6 +3,7 @@ import 'package:alera/src/features/projects/application/project_service.dart';
 import 'package:alera/src/features/projects/application/projects_service.dart';
 import 'package:alera/src/features/projects/infra/drift_project_repository.dart';
 import 'package:alera/src/features/workbench/application/workspace_folder_opener.dart';
+import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:alera/src/shared/infra/process/process_providers.dart';
 import 'package:alera/src/shared/infra/storage/storage_providers.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -16,7 +17,7 @@ WorkspaceFolderOpener workspaceFolderOpener(Ref ref) {
 
 @Riverpod(keepAlive: true)
 ProjectService projectService(Ref ref) {
-  return ProjectService(ref.watch(processRunnerProvider));
+  return ProjectService(ref.watch(gitBackendProvider));
 }
 
 @Riverpod(keepAlive: true)

@@ -11,7 +11,7 @@ void _registerWorkspaceServiceCoreTests() {
   test(
     'ensureMainWorkspace stores the main checkout as an active workspace',
     () async {
-      processRunner.currentBranch = 'main';
+      gitBackend.headBranch = 'main';
 
       final workspace = await service.ensureMainWorkspace(project);
 
@@ -36,7 +36,7 @@ void _registerWorkspaceServiceCoreTests() {
     expect(workspace.path, folderProject.repoPath);
     expect(workspace.kind, WorkspaceKind.main);
     expect(workspace.status, WorkspaceStatus.active);
-    expect(processRunner.calls, isEmpty);
+    expect(gitBackend.calls, isEmpty);
   });
 
   test('ensureMainWorkspace preserves a custom main workspace name', () async {
@@ -52,7 +52,7 @@ void _registerWorkspaceServiceCoreTests() {
       status: WorkspaceStatus.active,
     );
     await repository.upsertWorkspace(existing);
-    processRunner.currentBranch = 'main';
+    gitBackend.headBranch = 'main';
 
     final workspace = await service.ensureMainWorkspace(project);
 
@@ -64,8 +64,7 @@ void _registerWorkspaceServiceCoreTests() {
   test(
     'ensureMainWorkspace falls back to HEAD when git cannot resolve a branch',
     () async {
-      processRunner.currentBranch = '';
-      processRunner.currentBranchExitCode = 1;
+      gitBackend.headBranchFails = true;
 
       final workspace = await service.ensureMainWorkspace(project);
 
@@ -117,13 +116,13 @@ void _registerWorkspaceServiceCoreTests() {
     );
 
     expect(branches, isEmpty);
-    expect(processRunner.calls, isEmpty);
+    expect(gitBackend.calls, isEmpty);
   });
 
   test(
     'createLinkedWorkspace creates a new worktree from the requested source branch',
     () async {
-      processRunner.sourceBranches = <String>['main', 'origin/main'];
+      gitBackend.sourceBranches = <String>['main', 'origin/main'];
 
       final workspace = await service.createLinkedWorkspace(
         project: project,
@@ -136,14 +135,15 @@ void _registerWorkspaceServiceCoreTests() {
       expect(workspace.branch, 'feature/terminal-tabs');
       expect(workspace.name, 'feature/terminal-tabs');
       expect(workspace.path, contains('project-1'));
-      expect(processRunner.calls.last.arguments, <String>[
-        'worktree',
-        'add',
-        '-b',
-        'feature/terminal-tabs',
-        workspace.path,
-        'origin/main',
-      ]);
+      final createCall = gitBackend.calls.lastWhere(
+        (call) => call.method == 'createWorktree',
+      );
+      expect(createCall.args, <String, Object?>{
+        'repoPath': project.repoPath,
+        'newBranch': 'feature/terminal-tabs',
+        'path': workspace.path,
+        'sourceBranch': 'origin/main',
+      });
     },
   );
 
@@ -157,7 +157,7 @@ void _registerWorkspaceServiceCoreTests() {
       throwsA(isA<WorkspaceException>()),
     );
 
-    expect(processRunner.calls, isEmpty);
+    expect(gitBackend.calls, isEmpty);
   });
 
   test('createLinkedWorkspace rejects a blank new branch name', () async {
@@ -170,11 +170,11 @@ void _registerWorkspaceServiceCoreTests() {
       throwsA(isA<WorkspaceException>()),
     );
 
-    expect(processRunner.calls, isEmpty);
+    expect(gitBackend.calls, isEmpty);
   });
 
   test('createLinkedWorkspace rejects invalid git branch names', () async {
-    processRunner.invalidBranchNames.add('bad branch');
+    gitBackend.invalidBranchNames.add('bad branch');
 
     await expectLater(
       service.createLinkedWorkspace(
@@ -189,7 +189,7 @@ void _registerWorkspaceServiceCoreTests() {
   test(
     'createLinkedWorkspace rejects missing sources and existing target branches',
     () async {
-      processRunner.sourceBranches = <String>['develop'];
+      gitBackend.sourceBranches = <String>['develop'];
 
       await expectLater(
         service.createLinkedWorkspace(
@@ -200,7 +200,7 @@ void _registerWorkspaceServiceCoreTests() {
         throwsA(isA<WorkspaceException>()),
       );
 
-      processRunner.sourceBranches = <String>['main', 'feature/existing'];
+      gitBackend.sourceBranches = <String>['main', 'feature/existing'];
 
       await expectLater(
         service.createLinkedWorkspace(
@@ -214,8 +214,8 @@ void _registerWorkspaceServiceCoreTests() {
   );
 
   test('createLinkedWorkspace surfaces git worktree add failures', () async {
-    processRunner.sourceBranches = <String>['main'];
-    processRunner.failingWorktreeAddBranches.add('feature/add-failure');
+    gitBackend.sourceBranches = <String>['main'];
+    gitBackend.failingWorktreeAddBranches.add('feature/add-failure');
 
     await expectLater(
       service.createLinkedWorkspace(
@@ -230,7 +230,7 @@ void _registerWorkspaceServiceCoreTests() {
   test(
     'createLinkedWorkspace rejects duplicate branches, paths, and invalid slugs',
     () async {
-      processRunner.sourceBranches = <String>['main'];
+      gitBackend.sourceBranches = <String>['main'];
       await repository.upsertWorkspace(
         Workspace(
           id: 'workspace-existing-branch',
@@ -297,15 +297,15 @@ void _registerWorkspaceServiceCoreTests() {
   test(
     'reconcile keeps the main workspace and removes missing linked ones',
     () async {
-      processRunner.currentBranch = 'main';
-      processRunner.sourceBranches = <String>['main'];
+      gitBackend.headBranch = 'main';
+      gitBackend.sourceBranches = <String>['main'];
       final mainWorkspace = await service.ensureMainWorkspace(project);
       final linkedWorkspace = await service.createLinkedWorkspace(
         project: project,
         sourceBranch: 'main',
         newBranchName: 'feature/remove-me',
       );
-      processRunner.liveBranchByPath = <String, String>{
+      gitBackend.liveBranchByPath = <String, String>{
         project.repoPath: 'main',
       };
 
@@ -332,15 +332,15 @@ void _registerWorkspaceServiceCoreTests() {
   test(
     'reconcile keeps linked workspaces when git worktree list fails',
     () async {
-      processRunner.currentBranch = 'main';
-      processRunner.sourceBranches = <String>['main'];
+      gitBackend.headBranch = 'main';
+      gitBackend.sourceBranches = <String>['main'];
       final mainWorkspace = await service.ensureMainWorkspace(project);
       final linkedWorkspace = await service.createLinkedWorkspace(
         project: project,
         sourceBranch: 'main',
         newBranchName: 'feature/keep-me',
       );
-      processRunner.worktreeListFails = true;
+      gitBackend.worktreeListFails = true;
 
       final workspaces = await service.reconcile(project);
 
@@ -354,15 +354,15 @@ void _registerWorkspaceServiceCoreTests() {
   test(
     'reconcile updates linked workspace metadata from live worktrees',
     () async {
-      processRunner.currentBranch = 'main';
-      processRunner.sourceBranches = <String>['main'];
+      gitBackend.headBranch = 'main';
+      gitBackend.sourceBranches = <String>['main'];
       await service.ensureMainWorkspace(project);
       final linkedWorkspace = await service.createLinkedWorkspace(
         project: project,
         sourceBranch: 'main',
         newBranchName: 'feature/live-rename',
       );
-      processRunner.liveBranchByPath = <String, String>{
+      gitBackend.liveBranchByPath = <String, String>{
         project.repoPath: 'main',
         linkedWorkspace.path: 'feature/live-updated',
       };
@@ -381,15 +381,15 @@ void _registerWorkspaceServiceCoreTests() {
   test(
     'reconcile skips pruning when the live list does not include the main workspace',
     () async {
-      processRunner.currentBranch = 'main';
-      processRunner.sourceBranches = <String>['main'];
+      gitBackend.headBranch = 'main';
+      gitBackend.sourceBranches = <String>['main'];
       await service.ensureMainWorkspace(project);
       final linkedWorkspace = await service.createLinkedWorkspace(
         project: project,
         sourceBranch: 'main',
         newBranchName: 'feature/cannot-prune',
       );
-      processRunner.liveBranchByPath = <String, String>{
+      gitBackend.liveBranchByPath = <String, String>{
         linkedWorkspace.path: 'feature/cannot-prune',
       };
 
@@ -430,7 +430,7 @@ void _registerWorkspaceServiceCoreTests() {
         ),
         isFalse,
       );
-      expect(processRunner.calls, isEmpty);
+      expect(gitBackend.calls, isEmpty);
     },
   );
 
@@ -448,7 +448,7 @@ void _registerWorkspaceServiceCoreTests() {
         throwsA(isA<WorkspaceException>()),
       );
 
-      expect(processRunner.calls, isEmpty);
+      expect(gitBackend.calls, isEmpty);
     },
   );
 }

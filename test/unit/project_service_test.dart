@@ -2,18 +2,20 @@ import 'dart:io';
 
 import 'package:alera/src/features/projects/application/project_service.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
-import 'package:alera/src/shared/infra/process/process_runner.dart';
+import 'package:alera/src/shared/infra/git/git_exception.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
+import 'fake_git_backend.dart';
+
 void main() {
   group('ProjectService', () {
-    late _FakeProcessRunner processRunner;
+    late FakeGitBackend gitBackend;
     late ProjectService service;
 
     setUp(() {
-      processRunner = _FakeProcessRunner();
-      service = ProjectService(processRunner);
+      gitBackend = FakeGitBackend();
+      service = ProjectService(gitBackend);
     });
 
     test(
@@ -31,10 +33,8 @@ void main() {
             dir.deleteSync(recursive: true);
           }
         });
-        processRunner.revParseResult = const ProcessRunOutput(
-          exitCode: 1,
-          stdout: '',
-          stderr: 'Operation not permitted',
+        gitBackend.isRepositoryError = const AccessDeniedException(
+          'operation not permitted',
         );
 
         final denied = await service.validateGitRepository(dir.path);
@@ -45,7 +45,7 @@ void main() {
       },
     );
 
-    test('validateGitRepository returns stderr and generic failures', () async {
+    test('validateGitRepository reports non-repository folders', () async {
       final dir = Directory.systemTemp.createTempSync('alera-project-service-');
       addTearDown(() {
         if (dir.existsSync()) {
@@ -53,24 +53,11 @@ void main() {
         }
       });
 
-      processRunner.revParseResult = const ProcessRunOutput(
-        exitCode: 1,
-        stdout: '',
-        stderr: 'not a git repository',
-      );
-      final stderrFailure = await service.validateGitRepository(dir.path);
-      expect(stderrFailure.message, 'not a git repository');
+      gitBackend.isRepository = false;
 
-      processRunner.revParseResult = const ProcessRunOutput(
-        exitCode: 1,
-        stdout: '',
-        stderr: '',
-      );
-      final genericFailure = await service.validateGitRepository(dir.path);
-      expect(
-        genericFailure.message,
-        'path is not a git repository: ${dir.path}',
-      );
+      final result = await service.validateGitRepository(dir.path);
+      expect(result.isValidGitRepository, isFalse);
+      expect(result.message, 'path is not a git repository: ${dir.path}');
     });
 
     test(
@@ -101,11 +88,7 @@ void main() {
             folderDir.deleteSync(recursive: true);
           }
         });
-        processRunner.revParseResult = const ProcessRunOutput(
-          exitCode: 1,
-          stdout: '',
-          stderr: '',
-        );
+        gitBackend.isRepository = false;
 
         final folderProject = await service.inspectLocalProjectPath(
           folderDir.path,
@@ -126,11 +109,7 @@ void main() {
           }
         });
 
-        processRunner.revParseResult = const ProcessRunOutput(
-          exitCode: 0,
-          stdout: 'true\n',
-          stderr: '',
-        );
+        gitBackend.isRepository = true;
 
         final result = await service.validateGitRepository(dir.path);
 
@@ -187,11 +166,8 @@ void main() {
           'nested',
           'failing-clone',
         );
-        processRunner.cloneResult = const ProcessRunOutput(
-          exitCode: 1,
-          stdout: '',
-          stderr: 'fatal: boom',
-        );
+        gitBackend.cloneFails = true;
+        gitBackend.cloneError = const CloneFailedException('fatal: boom');
 
         await expectLater(
           service.cloneGitRepository(
@@ -207,17 +183,11 @@ void main() {
           'nested',
           'invalid-clone',
         );
-        processRunner.cloneResult = const ProcessRunOutput(
-          exitCode: 0,
-          stdout: '',
-          stderr: '',
-        );
-        processRunner.createDestinationOnClone = true;
-        processRunner.revParseResult = const ProcessRunOutput(
-          exitCode: 1,
-          stdout: '',
-          stderr: 'not a git repository',
-        );
+        // Clone succeeds but produces a folder that is not a git repository.
+        gitBackend.cloneFails = false;
+        gitBackend.isRepository = false;
+        gitBackend.onClone = (_, destination) =>
+            Directory(destination).createSync(recursive: true);
 
         await expectLater(
           service.cloneGitRepository(
@@ -229,47 +199,42 @@ void main() {
       },
     );
 
-    test(
-      'cloneGitRepository uses a generic error when git emits no stderr',
-      () async {
-        final destination = Directory.systemTemp.createTempSync(
-          'alera-project-clone-empty-stderr-',
-        );
-        addTearDown(() {
-          if (destination.existsSync()) {
-            destination.deleteSync(recursive: true);
-          }
-        });
-        processRunner.cloneResult = const ProcessRunOutput(
-          exitCode: 128,
-          stdout: '',
-          stderr: '',
-        );
+    test('cloneGitRepository wraps clone failures as state errors', () async {
+      final destination = Directory.systemTemp.createTempSync(
+        'alera-project-clone-failure-',
+      );
+      addTearDown(() {
+        if (destination.existsSync()) {
+          destination.deleteSync(recursive: true);
+        }
+      });
+      gitBackend.cloneFails = true;
+      gitBackend.cloneError = const CloneFailedException('exit 128');
 
-        await expectLater(
-          service.cloneGitRepository(
-            url: 'https://example.com/repo.git',
-            destinationPath: destination.path,
+      await expectLater(
+        service.cloneGitRepository(
+          url: 'https://example.com/repo.git',
+          destinationPath: destination.path,
+        ),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains('git clone failed'),
           ),
-          throwsA(
-            isA<StateError>().having(
-              (error) => error.message,
-              'message',
-              'git clone failed (exit 128)',
-            ),
-          ),
-        );
-      },
-    );
+        ),
+      );
+    });
 
     test(
-      'listGitBranches sorts unique refs and ignores HEAD aliases',
+      'listGitBranches sorts unique refs and returns empty on failure',
       () async {
-        processRunner.branchesResult = const ProcessRunOutput(
-          exitCode: 0,
-          stdout: 'origin/main\nmain\norigin/HEAD\nfeature/a\nmain\n',
-          stderr: '',
-        );
+        gitBackend.sourceBranches = <String>[
+          'origin/main',
+          'main',
+          'feature/a',
+          'main',
+        ];
 
         expect(await service.listGitBranches('/tmp/repo'), <String>[
           'feature/a',
@@ -277,64 +242,9 @@ void main() {
           'origin/main',
         ]);
 
-        processRunner.branchesResult = const ProcessRunOutput(
-          exitCode: 1,
-          stdout: '',
-          stderr: 'boom',
-        );
+        gitBackend.listBranchesFails = true;
         expect(await service.listGitBranches('/tmp/repo'), isEmpty);
       },
     );
   });
-}
-
-class _FakeProcessRunner implements ProcessRunner {
-  ProcessRunOutput revParseResult = const ProcessRunOutput(
-    exitCode: 0,
-    stdout: 'true\n',
-    stderr: '',
-  );
-  ProcessRunOutput cloneResult = const ProcessRunOutput(
-    exitCode: 0,
-    stdout: '',
-    stderr: '',
-  );
-  ProcessRunOutput branchesResult = const ProcessRunOutput(
-    exitCode: 0,
-    stdout: '',
-    stderr: '',
-  );
-  bool createDestinationOnClone = false;
-
-  @override
-  Future<ProcessRunOutput> run(
-    String executable,
-    List<String> arguments, {
-    String? workingDirectory,
-    Map<String, String>? environment,
-  }) async {
-    if (arguments.contains('rev-parse')) {
-      return revParseResult;
-    }
-    if (arguments.contains('for-each-ref')) {
-      return branchesResult;
-    }
-    if (arguments.isNotEmpty && arguments.first == 'clone') {
-      if (createDestinationOnClone && arguments.length >= 4) {
-        Directory(arguments.last).createSync(recursive: true);
-      }
-      return cloneResult;
-    }
-    return const ProcessRunOutput(exitCode: 0, stdout: '', stderr: '');
-  }
-
-  @override
-  Future<StartedProcess> start(
-    String executable,
-    List<String> arguments, {
-    String? workingDirectory,
-    Map<String, String>? environment,
-  }) {
-    throw UnimplementedError();
-  }
 }

@@ -11,7 +11,7 @@ ALERA_HOST_DETACHED_SHUTDOWN_SECONDS ?= 3600
 ALERA_HOST_SCROLLBACK_BYTES ?= 10000000
 ALERA_DEBUG_TOOL = tool/debug/alera_debug.dart
 
-.PHONY: help update-refs cli-build cli-help host-debug host-debug-observe host-debug-wrapper app-debug app-debug-bundled-cli app-debug-host-observe debug-processes host-stop
+.PHONY: help update-refs frb-generate cli-build cli-help host-debug host-debug-observe host-debug-wrapper app-debug app-debug-bundled-cli app-debug-host-observe debug-processes host-stop
 
 # List available make targets.
 help:
@@ -20,6 +20,11 @@ help:
 # Update all reference projects (git submodules) to their latest remote commits
 update-refs:
 	git submodule update --init --recursive --remote --merge
+
+# Regenerate flutter_rust_bridge bindings after changing the Rust API surface
+# (rust/src/api). The generated Dart under lib/src/rust is committed.
+frb-generate:
+	flutter_rust_bridge_codegen generate
 
 # Build the bundled Dart CLI sidecar used by desktop app launches.
 cli-build:

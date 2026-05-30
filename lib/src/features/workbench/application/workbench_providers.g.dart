@@ -198,7 +198,7 @@ final class WorkspaceServiceProvider
   }
 }
 
-String _$workspaceServiceHash() => r'e9bd8e26cb12275a25b88b6f0d8af668907ba0f7';
+String _$workspaceServiceHash() => r'f9d3d65d61dcdf4f8edb8155472273e603fa04f0';
 
 @ProviderFor(terminalHostClient)
 final terminalHostClientProvider = TerminalHostClientProvider._();

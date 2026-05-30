@@ -69,11 +69,15 @@ TODO: Add public download links when release artifacts are available.
 
 ### Run from source
 
+Building Alera requires a Rust toolchain (`rustup`) in addition to the Flutter SDK: git operations run in a Rust crate (`rust/`) compiled into the app through `flutter_rust_bridge`.
+
 ```bash
 git submodule update --init third_party/xterm third_party/dart_terminal
 flutter pub get
 flutter run -d macos
 ```
+
+Regenerate the Rust bindings after changing the Rust API (`rust/src/api`) with `make frb-generate`.
 
 TODO: Add Windows and Linux local run notes if extra setup is required.
 

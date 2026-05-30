@@ -33,6 +33,13 @@ This document defines contributor and agent governance only. It does not change 
 - Agents MUST NOT start a second watcher for the same repository while a live PID is already recorded.
 - If the watcher exits unexpectedly, agents should restart it, refresh the PID file, and continue using the same repo-scoped convention.
 
+## Native Rust Layer
+
+- Alera runs a Rust layer under Flutter through `flutter_rust_bridge` v2. The crate lives at `rust/` (`alera_native`), the Flutter build plugin at `rust_builder/`, and the generated Dart bindings at `lib/src/rust/` (committed, not regenerated in CI). `RustLib.init()` runs in `lib/main.dart` before `runApp`.
+- Git operations MUST go through the `GitBackend` boundary (`lib/src/shared/infra/git/`), not by spawning the `git` binary via `ProcessRunner`. The production implementation `RustGitBackend` calls the Rust API; local operations use `git2` (libgit2) and only `clone` is delegated to the `git` CLI (via the `git_cmd` crate) so the system credential helper keeps working.
+- Keep the `GitBackend` interface free of generated bridge types: `RustGitBackend` is the only place that imports `lib/src/rust/api/git.dart`, and it translates the native `GitError` into the domain `GitException` hierarchy. Services depend on `GitBackend`; unit tests use the shared `FakeGitBackend` (`test/unit/fake_git_backend.dart`).
+- After changing the Rust API surface (`rust/src/api`), regenerate bindings with `make frb-generate` (`flutter_rust_bridge_codegen generate`) and commit the result. Building the desktop app requires a Rust toolchain (`rustup`); CI installs it via `dtolnay/rust-toolchain`.
+
 ## Spec-Driven Planning
 
 When planning is needed, use a spec-driven development flow. Do not jump straight from a vague request to implementation if important product or technical decisions are still undefined.

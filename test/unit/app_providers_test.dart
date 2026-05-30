@@ -29,6 +29,7 @@ import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
+import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 import 'package:alera/src/shared/infra/uri/external_uri_launcher.dart';
 import 'package:flutter/foundation.dart';
@@ -40,6 +41,8 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
+import 'fake_git_backend.dart';
+
 part 'app_providers_test_harness.dart';
 
 void main() {
@@ -47,7 +50,7 @@ void main() {
     test(
       'workspaceServiceProvider uses the configured workspace root override',
       () async {
-        final processRunner = _FakeProcessRunner();
+        final gitBackend = FakeGitBackend()..sourceBranches = <String>['main'];
         final repository = _FakeWorkbenchRepository();
         final repoDir = Directory.systemTemp.createTempSync(
           'alera-provider-repo',
@@ -71,9 +74,9 @@ void main() {
               ),
             ),
             workbenchRepositoryProvider.overrideWithValue(repository),
-            processRunnerProvider.overrideWithValue(processRunner),
+            gitBackendProvider.overrideWithValue(gitBackend),
             projectServiceProvider.overrideWithValue(
-              ProjectService(processRunner),
+              ProjectService(gitBackend),
             ),
           ],
         );
@@ -96,13 +99,11 @@ void main() {
         );
         expect(repository.workspaces.single.path, workspace.path);
         expect(
-          processRunner.calls.any(
+          gitBackend.calls.any(
             (call) =>
-                call.workingDirectory == repoPath &&
-                call.arguments.length >= 5 &&
-                call.arguments[0] == 'worktree' &&
-                call.arguments[1] == 'add' &&
-                call.arguments[4] == workspace.path,
+                call.method == 'createWorktree' &&
+                call.args['repoPath'] == repoPath &&
+                call.args['path'] == workspace.path,
           ),
           isTrue,
         );

@@ -10,9 +10,10 @@ import 'package:alera/src/features/workbench/application/workspace_service.dart'
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
-import 'package:alera/src/shared/infra/process/process_runner.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
+
+import 'fake_git_backend.dart';
 
 part 'workspace_service_core_test_cases.dart';
 part 'workspace_service_removal_test_cases.dart';
@@ -20,7 +21,7 @@ part 'workspace_service_test_harness.dart';
 
 late Directory tempDir;
 late _FakeWorkbenchRepository repository;
-late _FakeProcessRunner processRunner;
+late FakeGitBackend gitBackend;
 late WorkspaceService service;
 late Project project;
 
@@ -29,11 +30,11 @@ void main() {
     setUp(() {
       tempDir = Directory.systemTemp.createTempSync('alera-workspace-test-');
       repository = _FakeWorkbenchRepository();
-      processRunner = _FakeProcessRunner();
+      gitBackend = FakeGitBackend();
       service = WorkspaceService(
         repository: repository,
-        projectService: ProjectService(processRunner),
-        processRunner: processRunner,
+        projectService: ProjectService(gitBackend),
+        gitBackend: gitBackend,
         workspaceRoot: WorkspaceRoot(
           override: p.join(tempDir.path, 'workspaces'),
         ),

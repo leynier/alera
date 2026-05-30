@@ -21,7 +21,7 @@ import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_p
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_pty_session.dart';
 import 'package:alera/src/features/workbench/infra/terminal_shell_startup_preparer.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
-import 'package:alera/src/shared/infra/process/process_providers.dart';
+import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:alera/src/shared/infra/storage/storage_providers.dart';
 import 'package:alera/src/shared/infra/uri/uri_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -58,7 +58,7 @@ WorkspaceService workspaceService(Ref ref) {
   return WorkspaceService(
     repository: ref.watch(workbenchRepositoryProvider),
     projectService: ref.watch(projectServiceProvider),
-    processRunner: ref.watch(processRunnerProvider),
+    gitBackend: ref.watch(gitBackendProvider),
     workspaceRoot: WorkspaceRoot(override: override),
   );
 }
