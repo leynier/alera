@@ -6,7 +6,7 @@
   <img src="https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-blue?style=for-the-badge" alt="Supported platforms" />
   <img src="https://img.shields.io/badge/Built%20with-Flutter%20%2B%20Rust-3DDC84?style=for-the-badge&logo=flutter&logoColor=white" alt="Built with Flutter and Rust" />
   <img src="https://img.shields.io/badge/Engine-Ghostty%20VTE-111111?style=for-the-badge" alt="Ghostty VTE engine" />
-  <a href="https://github.com/leynier/alera/blob/main/LICENSE"><img src="https://img.shields.io/github/license/leynier/alera?style=for-the-badge" alt="License" /></a>
+  <a href="https://github.com/leynier/alera/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="License" /></a>
 </p>
 
 <p align="center">
@@ -227,12 +227,12 @@ Public release cuts are maintainer-managed through GitHub Actions. Stable builds
 
 ## Community & support
 
-- ⭐ **Star this repo** to follow along. Alera ships often.
-- 🐛 **Found a bug or want a feature?** [Open an issue](https://github.com/leynier/alera/issues).
-- 🌐 **Website:** [alera.dev](https://alera.dev).
-- 📜 **License:** see [`LICENSE`](LICENSE).
-- 🛡️ **Security:** see [`SECURITY.md`](SECURITY.md).
-- 🤝 **Code of conduct:** see [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).
+- ⭐ **Star this repo** to follow along. Alera ships often
+- 🐛 **Found a bug or want a feature?** [Open an issue](https://github.com/leynier/alera/issues)
+- 🌐 **Website:** [alera.dev](https://alera.dev)
+- 📜 **License:** see [`LICENSE`](LICENSE)
+- 🛡️ **Security:** see [`SECURITY.md`](SECURITY.md)
+- 🤝 **Code of conduct:** see [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md)
 
 ---
 
