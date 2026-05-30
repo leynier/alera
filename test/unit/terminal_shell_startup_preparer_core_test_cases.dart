@@ -194,7 +194,9 @@ void _registerTerminalShellStartupPreparerCoreTests() {
         contains('export PI_CODING_AGENT_DIR="\${ALERA_PI_CODING_AGENT_DIR}"'),
       );
       expect(rcFile, contains('export COPILOT_HOME="\${ALERA_COPILOT_HOME}"'));
-      expect(rcFile, contains('ALERA_AGENT_WRAPPER_PATH'));
+      expect(rcFile, contains('__alera_appended=0'));
+      expect(rcFile, contains('export PATH="\${ALERA_AGENT_WRAPPER_PATH}:'));
+      expect(rcFile, isNot(contains('*":\${ALERA_AGENT_WRAPPER_PATH}:"*) ;;')));
     },
   );
 

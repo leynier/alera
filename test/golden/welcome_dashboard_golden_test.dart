@@ -18,6 +18,7 @@ void main() {
         'renders populated desktop dashboard',
         fileName: 'welcome_dashboard_populated_desktop',
         constraints: const BoxConstraints.tightFor(width: 980, height: 720),
+        pumpBeforeTest: precacheImages,
         builder: () => _GoldenDashboardFrame(state: _populatedState()),
       );
 
@@ -25,6 +26,7 @@ void main() {
         'renders empty compact dashboard',
         fileName: 'welcome_dashboard_empty_compact',
         constraints: const BoxConstraints.tightFor(width: 390, height: 760),
+        pumpBeforeTest: precacheImages,
         builder: () => const _GoldenDashboardFrame(
           state: WorkbenchState(bootstrapped: true),
         ),

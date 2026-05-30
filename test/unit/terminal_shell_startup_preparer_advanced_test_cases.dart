@@ -151,42 +151,56 @@ void _registerTerminalShellStartupPreparerAdvancedTests() {
       );
 
       expect(launch.arguments, const <String>['-l']);
-      expect(
-        launch.setupCommand,
-        'if [ -n "\${ALERA_CODEX_HOME:-}" ]; then export CODEX_HOME="\$ALERA_CODEX_HOME"; fi\n'
-        'if [ -n "\${ALERA_CLAUDE_CONFIG_DIR:-}" ]; then export CLAUDE_CONFIG_DIR="\$ALERA_CLAUDE_CONFIG_DIR"; fi\n'
-        'if [ -n "\${ALERA_OPENCODE_CONFIG_DIR:-}" ]; then export OPENCODE_CONFIG_DIR="\$ALERA_OPENCODE_CONFIG_DIR"; fi\n'
-        'if [ -n "\${ALERA_PI_CODING_AGENT_DIR:-}" ]; then export PI_CODING_AGENT_DIR="\$ALERA_PI_CODING_AGENT_DIR"; fi\n'
-        'if [ -n "\${ALERA_COPILOT_HOME:-}" ]; then export COPILOT_HOME="\$ALERA_COPILOT_HOME"; fi\n'
-        'if [ -n "\${ALERA_AGENT_WRAPPER_PATH:-}" ]; then __alera_new_path=""; __alera_old_ifs="\${IFS-}"; IFS=":"; for __alera_entry in \${PATH:-}; do [ "\${__alera_entry}" = "\${ALERA_AGENT_WRAPPER_PATH}" ] && continue; if [ -z "\${__alera_new_path}" ]; then __alera_new_path="\${__alera_entry}"; else __alera_new_path="\${__alera_new_path}:\${__alera_entry}"; fi; done; IFS="\${__alera_old_ifs}"; export PATH="\${ALERA_AGENT_WRAPPER_PATH}\${__alera_new_path:+:\${__alera_new_path}}"; unset __alera_new_path __alera_old_ifs __alera_entry; fi\n',
-      );
+      expect(launch.setupCommand, _expectedPosixRestoreManagedAgentEnvironment);
     }
   });
 
-  test('POSIX fallback shells prepend restore before existing setup commands', () async {
-    for (final shell in _posixFallbackShells) {
-      final launch = await preparer.prepare(
-        _launch(
-          shell: shell,
-          environment: const <String, String>{
-            'CODEX_HOME': '/runtime/codex',
-            'ALERA_CODEX_HOME': '/runtime/codex',
-          },
-          setupCommand: 'printf setup\n',
-        ),
-      );
+  test(
+    'POSIX fallback shells prepend restore before existing setup commands',
+    () async {
+      for (final shell in _posixFallbackShells) {
+        final launch = await preparer.prepare(
+          _launch(
+            shell: shell,
+            environment: const <String, String>{
+              'CODEX_HOME': '/runtime/codex',
+              'ALERA_CODEX_HOME': '/runtime/codex',
+            },
+            setupCommand: 'printf setup\n',
+          ),
+        );
 
-      expect(
-        launch.setupCommand,
-        'if [ -n "\${ALERA_CODEX_HOME:-}" ]; then export CODEX_HOME="\$ALERA_CODEX_HOME"; fi\n'
-        'if [ -n "\${ALERA_CLAUDE_CONFIG_DIR:-}" ]; then export CLAUDE_CONFIG_DIR="\$ALERA_CLAUDE_CONFIG_DIR"; fi\n'
-        'if [ -n "\${ALERA_OPENCODE_CONFIG_DIR:-}" ]; then export OPENCODE_CONFIG_DIR="\$ALERA_OPENCODE_CONFIG_DIR"; fi\n'
-        'if [ -n "\${ALERA_PI_CODING_AGENT_DIR:-}" ]; then export PI_CODING_AGENT_DIR="\$ALERA_PI_CODING_AGENT_DIR"; fi\n'
-        'if [ -n "\${ALERA_COPILOT_HOME:-}" ]; then export COPILOT_HOME="\$ALERA_COPILOT_HOME"; fi\n'
-        'if [ -n "\${ALERA_AGENT_WRAPPER_PATH:-}" ]; then __alera_new_path=""; __alera_old_ifs="\${IFS-}"; IFS=":"; for __alera_entry in \${PATH:-}; do [ "\${__alera_entry}" = "\${ALERA_AGENT_WRAPPER_PATH}" ] && continue; if [ -z "\${__alera_new_path}" ]; then __alera_new_path="\${__alera_entry}"; else __alera_new_path="\${__alera_new_path}:\${__alera_entry}"; fi; done; IFS="\${__alera_old_ifs}"; export PATH="\${ALERA_AGENT_WRAPPER_PATH}\${__alera_new_path:+:\${__alera_new_path}}"; unset __alera_new_path __alera_old_ifs __alera_entry; fi\n'
-        'printf setup\n',
-      );
-    }
+        expect(
+          launch.setupCommand,
+          '${_expectedPosixRestoreManagedAgentEnvironment}printf setup\n',
+        );
+      }
+    },
+  );
+
+  test('POSIX fallback shells preserve leading empty PATH entries', () async {
+    final launch = await preparer.prepare(
+      _launch(
+        shell: '/bin/sh',
+        environment: const <String, String>{
+          'ALERA_AGENT_WRAPPER_PATH': '/wrapper/bin',
+        },
+        setupCommand: 'printf "%s" "\$PATH"\n',
+      ),
+    );
+
+    final result = await Process.run(
+      '/bin/sh',
+      <String>['-c', launch.setupCommand!],
+      includeParentEnvironment: false,
+      environment: const <String, String>{
+        'ALERA_AGENT_WRAPPER_PATH': '/wrapper/bin',
+        'PATH': ':/usr/bin:/wrapper/bin',
+      },
+    );
+
+    expect(result.exitCode, 0, reason: result.stderr.toString());
+    expect(result.stdout, '/wrapper/bin::/usr/bin');
   });
 
   test('Claude runtime env alone triggers shell restore preparation', () async {
