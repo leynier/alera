@@ -76,6 +76,58 @@ void _registerXtermRuntimeSessionTests() {
     },
   );
 
+  test('defers PTY resize and input until startup finishes', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    final startCompleter = Completer<void>();
+    final fakeSession = _FakeTerminalPtySession(startCompleter: startCompleter);
+    final runtime = XtermTerminalRuntime(
+      ptySessionFactory: _FakeTerminalPtySessionFactory(
+        sessions: <_FakeTerminalPtySession>[fakeSession],
+      ),
+      shellLaunchesBuilder: () => <GhosttyTerminalShellLaunch>[
+        _launch('shell', shell: '/bin/sh'),
+      ],
+    );
+    addTearDown(runtime.dispose);
+    final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
+    TerminalVisibilityLease? visibility;
+    try {
+      visibility = acquireTerminalVisibilityForTesting(session);
+      final start = session.ensureStarted();
+      await Future<void>.delayed(Duration.zero);
+
+      handleTerminalResizeForTesting(session, 100, 30, 8, 16);
+      handleTerminalResizeForTesting(session, 120, 40, 8, 16);
+      flushPendingPtyResizeForTesting(session);
+      feedTerminalInputForTesting(session, 'early input');
+
+      expect(fakeSession.resizeCalls, isEmpty);
+      expect(fakeSession.writes, isEmpty);
+      expect(fakeSession.outputPausedCalls, isEmpty);
+      expect(
+        terminalBufferTextForTesting(session),
+        isNot(contains('PTY session has not been started')),
+      );
+
+      startCompleter.complete();
+      await start;
+
+      expect(fakeSession.resizeCalls, <_ResizeCall>[
+        const _ResizeCall(
+          cols: 120,
+          rows: 40,
+          cellWidthPx: 8,
+          cellHeightPx: 16,
+        ),
+      ]);
+      expect(session.isRunning, isTrue);
+      expect(session.errorMessage, isNull);
+    } finally {
+      visibility?.dispose();
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
   test(
     'closes tabs and workspaces without disposing unrelated sessions',
     () async {
@@ -142,6 +194,183 @@ void _registerXtermRuntimeSessionTests() {
       }
     },
   );
+
+  test(
+    'pauses hidden terminal output and restores from snapshots when visible',
+    () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      final fakeSession = _FakeTerminalPtySession();
+      final runtime = XtermTerminalRuntime(
+        ptySessionFactory: _FakeTerminalPtySessionFactory(
+          sessions: <_FakeTerminalPtySession>[fakeSession],
+        ),
+        shellLaunchesBuilder: () => <GhosttyTerminalShellLaunch>[
+          _launch('shell', shell: '/bin/sh'),
+        ],
+      );
+      addTearDown(runtime.dispose);
+      final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
+      TerminalVisibilityLease? visibility;
+      TerminalVisibilityLease? resumedVisibility;
+      try {
+        visibility = acquireTerminalVisibilityForTesting(session);
+        await session.ensureStarted();
+
+        fakeSession.emitOutput(utf8.encode('visible\r\n'));
+        await Future<void>.delayed(Duration.zero);
+        expect(terminalBufferTextForTesting(session), contains('visible'));
+
+        visibility.dispose();
+        visibility = null;
+        await Future<void>.delayed(Duration.zero);
+        expect(fakeSession.outputPausedCalls, contains(true));
+
+        fakeSession.emitOutput(utf8.encode('hidden\r\n'));
+        await Future<void>.delayed(Duration.zero);
+        expect(
+          terminalBufferTextForTesting(session),
+          isNot(contains('hidden')),
+        );
+
+        resumedVisibility = acquireTerminalVisibilityForTesting(session);
+        await Future<void>.delayed(Duration.zero);
+        expect(fakeSession.outputPausedCalls.last, isFalse);
+
+        fakeSession.emitSnapshot(utf8.encode('visible\r\nhidden\r\n'));
+        await Future<void>.delayed(Duration.zero);
+        final restored = terminalBufferTextForTesting(session);
+        expect(restored, contains('visible'));
+        expect(restored, contains('hidden'));
+      } finally {
+        visibility?.dispose();
+        resumedVisibility?.dispose();
+        debugDefaultTargetPlatformOverride = null;
+      }
+    },
+  );
+
+  test(
+    'keeps output visible until every visibility lease is released',
+    () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      final fakeSession = _FakeTerminalPtySession();
+      final runtime = XtermTerminalRuntime(
+        ptySessionFactory: _FakeTerminalPtySessionFactory(
+          sessions: <_FakeTerminalPtySession>[fakeSession],
+        ),
+        shellLaunchesBuilder: () => <GhosttyTerminalShellLaunch>[
+          _launch('shell', shell: '/bin/sh'),
+        ],
+      );
+      addTearDown(runtime.dispose);
+      final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
+      TerminalVisibilityLease? firstVisibility;
+      TerminalVisibilityLease? secondVisibility;
+      try {
+        firstVisibility = acquireTerminalVisibilityForTesting(session);
+        secondVisibility = acquireTerminalVisibilityForTesting(session);
+        await session.ensureStarted();
+
+        firstVisibility.dispose();
+        firstVisibility = null;
+        await Future<void>.delayed(Duration.zero);
+        expect(fakeSession.outputPausedCalls, isEmpty);
+
+        fakeSession.emitOutput(utf8.encode('still-visible\r\n'));
+        await Future<void>.delayed(Duration.zero);
+        expect(
+          terminalBufferTextForTesting(session),
+          contains('still-visible'),
+        );
+
+        secondVisibility.dispose();
+        secondVisibility = null;
+        await Future<void>.delayed(Duration.zero);
+        expect(fakeSession.outputPausedCalls, <bool>[true]);
+      } finally {
+        firstVisibility?.dispose();
+        secondVisibility?.dispose();
+        debugDefaultTargetPlatformOverride = null;
+      }
+    },
+  );
+
+  test('restores snapshots from a fresh terminal cursor state', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    final fakeSession = _FakeTerminalPtySession();
+    final runtime = XtermTerminalRuntime(
+      ptySessionFactory: _FakeTerminalPtySessionFactory(
+        sessions: <_FakeTerminalPtySession>[fakeSession],
+      ),
+      shellLaunchesBuilder: () => <GhosttyTerminalShellLaunch>[
+        _launch('shell', shell: '/bin/sh'),
+      ],
+    );
+    addTearDown(runtime.dispose);
+    final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
+    TerminalVisibilityLease? visibility;
+    TerminalVisibilityLease? resumedVisibility;
+    try {
+      visibility = acquireTerminalVisibilityForTesting(session);
+      await session.ensureStarted();
+
+      fakeSession.emitOutput(utf8.encode('stale-cursor'));
+      await Future<void>.delayed(Duration.zero);
+
+      visibility.dispose();
+      visibility = null;
+      await Future<void>.delayed(Duration.zero);
+      resumedVisibility = acquireTerminalVisibilityForTesting(session);
+      await Future<void>.delayed(Duration.zero);
+
+      fakeSession.emitSnapshot(utf8.encode('fresh prompt'));
+      await Future<void>.delayed(Duration.zero);
+
+      final restored = terminalBufferTextForTesting(session);
+      expect(restored.split('\n').first, 'fresh prompt');
+      expect(restored, isNot(contains('stale-cursor')));
+    } finally {
+      visibility?.dispose();
+      resumedVisibility?.dispose();
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  test('hidden terminal exits still notify the runtime', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    final fakeSession = _FakeTerminalPtySession();
+    final runtime = XtermTerminalRuntime(
+      ptySessionFactory: _FakeTerminalPtySessionFactory(
+        sessions: <_FakeTerminalPtySession>[fakeSession],
+      ),
+      shellLaunchesBuilder: () => <GhosttyTerminalShellLaunch>[
+        _launch('shell', shell: '/bin/sh'),
+      ],
+    );
+    addTearDown(runtime.dispose);
+    final exits = <TerminalRuntimeExitEvent>[];
+    final exitSub = runtime.exits.listen(exits.add);
+    addTearDown(exitSub.cancel);
+    final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
+    TerminalVisibilityLease? visibility;
+    try {
+      visibility = acquireTerminalVisibilityForTesting(session);
+      await session.ensureStarted();
+      visibility.dispose();
+      visibility = null;
+      await Future<void>.delayed(Duration.zero);
+
+      fakeSession.emitExit(12);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(session.isRunning, isFalse);
+      expect(exits, hasLength(1));
+      expect(exits.single.exitCode, 12);
+    } finally {
+      visibility?.dispose();
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
 
   test(
     'unsupported mobile platforms fail before creating PTY sessions',

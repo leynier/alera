@@ -45,6 +45,30 @@ fn read_message(reader: &mut BufReader<TcpStream>) -> Value {
     serde_json::from_str(line.trim_end()).expect("host sent invalid JSON")
 }
 
+fn read_message_with_timeout(
+    reader: &mut BufReader<TcpStream>,
+    timeout: Duration,
+) -> Option<Value> {
+    reader.get_mut().set_read_timeout(Some(timeout)).unwrap();
+    let mut line = String::new();
+    let result = reader.read_line(&mut line);
+    reader
+        .get_mut()
+        .set_read_timeout(Some(Duration::from_secs(10)))
+        .unwrap();
+    match result {
+        Ok(0) => panic!("host closed the connection unexpectedly"),
+        Ok(_) => Some(serde_json::from_str(line.trim_end()).expect("host sent invalid JSON")),
+        Err(error)
+            if error.kind() == std::io::ErrorKind::WouldBlock
+                || error.kind() == std::io::ErrorKind::TimedOut =>
+        {
+            None
+        }
+        Err(error) => panic!("timed out or failed reading from host: {error}"),
+    }
+}
+
 fn connect(port: u16) -> (TcpStream, BufReader<TcpStream>) {
     let stream = TcpStream::connect(("127.0.0.1", port)).unwrap();
     stream
@@ -54,10 +78,19 @@ fn connect(port: u16) -> (TcpStream, BufReader<TcpStream>) {
     (writer, BufReader::new(stream))
 }
 
+fn read_response(reader: &mut BufReader<TcpStream>, id: i64) -> Value {
+    loop {
+        let message = read_message(reader);
+        if message.get("id") == Some(&json!(id)) {
+            return message;
+        }
+    }
+}
+
 fn handshake(writer: &mut TcpStream, reader: &mut BufReader<TcpStream>, token: &str) {
     send(
         writer,
-        json!({"id": 0, "type": "hello", "payload": {"protocolVersion": 1, "token": token}}),
+        json!({"id": 0, "type": "hello", "payload": {"protocolVersion": 2, "token": token}}),
     );
     let hello = read_message(reader);
     assert_eq!(hello["id"], json!(0));
@@ -254,6 +287,121 @@ fn full_protocol_sequence() {
 }
 
 #[test]
+fn pauses_output_per_client_and_resumes_from_snapshot() {
+    let dir = tempfile::tempdir().unwrap();
+    let control_path = dir.path().join("host.json");
+    let token = "pause-token";
+    let (_guard, port) = spawn_host(dir.path(), &control_path, token);
+
+    let (mut active_writer, mut active_reader) = connect(port);
+    handshake(&mut active_writer, &mut active_reader, token);
+    send(
+        &mut active_writer,
+        json!({
+            "id": 1,
+            "type": "createOrAttach",
+            "payload": {
+                "sessionId": "paused",
+                "workspaceId": "w1",
+                "tabId": "t1",
+                "workingDirectory": "/tmp",
+                "launch": {
+                    "shell": "/bin/sh",
+                    "arguments": ["-c", "printf READY; IFS= read -r line; printf 'GOT:%s' \"$line\"; exit 0"],
+                    "environment": {"PATH": "/usr/bin:/bin", "TERM": "xterm"}
+                },
+                "cols": 80,
+                "rows": 24
+            }
+        }),
+    );
+    let create = read_response(&mut active_reader, 1);
+    assert_eq!(create["ok"], json!(true), "create failed: {create}");
+
+    let mut active_output = Vec::new();
+    while !String::from_utf8_lossy(&active_output).contains("READY") {
+        let message = read_message(&mut active_reader);
+        if message.get("event").and_then(Value::as_str) == Some("output") {
+            let bytes = STANDARD
+                .decode(message["payload"]["dataBase64"].as_str().unwrap())
+                .unwrap();
+            active_output.extend_from_slice(&bytes);
+        }
+    }
+
+    let (mut paused_writer, mut paused_reader) = connect(port);
+    handshake(&mut paused_writer, &mut paused_reader, token);
+    send(
+        &mut paused_writer,
+        json!({
+            "id": 1,
+            "type": "createOrAttach",
+            "payload": {
+                "sessionId": "paused",
+                "workspaceId": "w1",
+                "tabId": "t1",
+                "workingDirectory": "/tmp",
+                "launch": {
+                    "shell": "/bin/sh",
+                    "arguments": [],
+                    "environment": {"PATH": "/usr/bin:/bin"}
+                },
+                "cols": 80,
+                "rows": 24
+            }
+        }),
+    );
+    let attached = read_response(&mut paused_reader, 1);
+    assert_eq!(attached["ok"], json!(true), "attach failed: {attached}");
+    assert_eq!(attached["payload"]["created"], json!(false));
+    send(
+        &mut paused_writer,
+        json!({"id": 2, "type": "setOutputPaused", "payload": {"sessionId": "paused", "paused": true}}),
+    );
+    let paused = read_response(&mut paused_reader, 2);
+    assert_eq!(paused["ok"], json!(true), "pause failed: {paused}");
+
+    send(
+        &mut active_writer,
+        json!({"id": 2, "type": "write", "payload": {"sessionId": "paused", "dataBase64": STANDARD.encode(b"abc\r")}}),
+    );
+    let _ = read_response(&mut active_reader, 2);
+    while !String::from_utf8_lossy(&active_output).contains("GOT:abc") {
+        let message = read_message(&mut active_reader);
+        if message.get("event").and_then(Value::as_str) == Some("output") {
+            let bytes = STANDARD
+                .decode(message["payload"]["dataBase64"].as_str().unwrap())
+                .unwrap();
+            active_output.extend_from_slice(&bytes);
+        }
+    }
+
+    while let Some(message) =
+        read_message_with_timeout(&mut paused_reader, Duration::from_millis(200))
+    {
+        assert_ne!(
+            message.get("event").and_then(Value::as_str),
+            Some("output"),
+            "paused client received output: {message}"
+        );
+    }
+
+    send(
+        &mut paused_writer,
+        json!({"id": 3, "type": "setOutputPaused", "payload": {"sessionId": "paused", "paused": false}}),
+    );
+    let resumed = read_response(&mut paused_reader, 3);
+    assert_eq!(resumed["ok"], json!(true), "resume failed: {resumed}");
+    let snapshot = STANDARD
+        .decode(resumed["payload"]["snapshotBase64"].as_str().unwrap())
+        .unwrap();
+    assert!(
+        String::from_utf8_lossy(&snapshot).contains("GOT:abc"),
+        "resume snapshot should include hidden output"
+    );
+}
+
+#[test]
 fn rejects_bad_token() {
     let dir = tempfile::tempdir().unwrap();
     let control_path = dir.path().join("host.json");
@@ -289,7 +437,7 @@ fn rejects_bad_token() {
     let (mut writer, mut reader) = connect(port);
     send(
         &mut writer,
-        json!({"id": 0, "type": "hello", "payload": {"protocolVersion": 1, "token": "wrong"}}),
+        json!({"id": 0, "type": "hello", "payload": {"protocolVersion": 2, "token": "wrong"}}),
     );
     let response = read_message(&mut reader);
     assert_eq!(response["id"], json!(0));

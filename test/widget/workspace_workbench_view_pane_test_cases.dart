@@ -56,6 +56,69 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
     expect(terminalRuntime.requestedTabIds, isEmpty);
   });
 
+  testWidgets('marks only the active terminal tab visible', (tester) async {
+    final tabs = <WorkspaceTabRecord>[
+      _tab('tab-1', title: 'Terminal 1'),
+      _tab('tab-2', title: 'Terminal 2'),
+    ];
+
+    WorkbenchLayout layoutWithActive(String activeTabId) {
+      return WorkbenchLayout(
+        workspaceId: _workspaceId,
+        root: WorkbenchLayoutNode.leaf('group-a'),
+        groups: <String, WorkbenchPaneGroup>{
+          'group-a': WorkbenchPaneGroup(
+            id: 'group-a',
+            tabIds: <String>[for (final tab in tabs) tab.id],
+            activeTabId: activeTabId,
+          ),
+        },
+        activeGroupId: 'group-a',
+      );
+    }
+
+    await _pumpWorkbenchView(
+      tester,
+      tabs: tabs,
+      terminalRuntime: terminalRuntime,
+      layout: layoutWithActive('tab-1'),
+      createdTabs: createdTabs,
+      selectedTabs: selectedTabs,
+      closedTabs: closedTabs,
+      closedTabGroups: closedTabGroups,
+      renamedTabs: renamedTabs,
+      movedTabs: movedTabs,
+      splitGroups: splitGroups,
+      mergedGroups: mergedGroups,
+      updatedRatios: updatedRatios,
+    );
+    expect(terminalRuntime.visibilityByTab, <String, bool>{
+      'tab-1': true,
+      'tab-2': false,
+    });
+
+    await _pumpWorkbenchView(
+      tester,
+      tabs: tabs,
+      terminalRuntime: terminalRuntime,
+      layout: layoutWithActive('tab-2'),
+      createdTabs: createdTabs,
+      selectedTabs: selectedTabs,
+      closedTabs: closedTabs,
+      closedTabGroups: closedTabGroups,
+      renamedTabs: renamedTabs,
+      movedTabs: movedTabs,
+      splitGroups: splitGroups,
+      mergedGroups: mergedGroups,
+      updatedRatios: updatedRatios,
+    );
+
+    expect(terminalRuntime.visibilityByTab, <String, bool>{
+      'tab-1': false,
+      'tab-2': true,
+    });
+  });
+
   testWidgets('dragging the split handle updates the split ratio', (
     tester,
   ) async {

@@ -113,6 +113,8 @@ final class _TerminalHostSession {
   final TerminalHostHistoryStore _historyStore;
   final Set<_TerminalHostClientConnection> _clients =
       <_TerminalHostClientConnection>{};
+  final Set<_TerminalHostClientConnection> _outputPausedClients =
+      <_TerminalHostClientConnection>{};
 
   PortablePty? _pty;
   Isolate? _reader;
@@ -138,6 +140,13 @@ final class _TerminalHostSession {
     };
   }
 
+  Map<String, Object?> snapshotPayload() {
+    return <String, Object?>{
+      'sessionId': id,
+      'snapshotBase64': _buffer.toBase64(),
+    };
+  }
+
   void updateConfig({required int maxBufferBytes}) {
     _buffer.maxBytes = maxBufferBytes;
     _scheduleCheckpoint(immediate: true);
@@ -145,11 +154,21 @@ final class _TerminalHostSession {
 
   void attach(_TerminalHostClientConnection client) {
     _clients.add(client);
+    _outputPausedClients.remove(client);
   }
 
   void detach(_TerminalHostClientConnection client) {
     _clients.remove(client);
+    _outputPausedClients.remove(client);
     _scheduleCheckpoint(immediate: true);
+  }
+
+  void setOutputPaused(_TerminalHostClientConnection client, bool paused) {
+    if (paused) {
+      _outputPausedClients.add(client);
+    } else {
+      _outputPausedClients.remove(client);
+    }
   }
 
   void write(Uint8List bytes) {
@@ -211,7 +230,7 @@ final class _TerminalHostSession {
     }
     if (message is Uint8List) {
       _appendOutput(message);
-      _broadcast(<String, Object?>{
+      _broadcastOutput(<String, Object?>{
         'event': 'output',
         'payload': <String, Object?>{
           'sessionId': id,
@@ -262,6 +281,14 @@ final class _TerminalHostSession {
   void _broadcast(Map<String, Object?> message) {
     for (final client in _clients.toList(growable: false)) {
       client.write(message);
+    }
+  }
+
+  void _broadcastOutput(Map<String, Object?> message) {
+    for (final client in _clients.toList(growable: false)) {
+      if (!_outputPausedClients.contains(client)) {
+        client.write(message);
+      }
     }
   }
 

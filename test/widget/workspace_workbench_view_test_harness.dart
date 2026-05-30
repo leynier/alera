@@ -175,6 +175,9 @@ class _FakeTerminalRuntime implements TerminalRuntime {
   final Map<String, _FakeTerminalSessionHandle> _sessions =
       <String, _FakeTerminalSessionHandle>{};
   final List<String> requestedTabIds = <String>[];
+  Map<String, bool> get visibilityByTab => <String, bool>{
+    for (final entry in _sessions.entries) entry.key: entry.value.visible,
+  };
 
   @override
   Stream<TerminalRuntimeExitEvent> get exits =>
@@ -237,6 +240,26 @@ class _FakeTerminalSessionHandle extends TerminalSessionHandle {
   @override
   Future<void> restart() async {}
 
+  bool visible = false;
+  int _visibilityLeaseCount = 0;
+
+  @override
+  TerminalVisibilityLease acquireVisibility() {
+    _visibilityLeaseCount += 1;
+    _setVisible(true);
+    return _FakeTerminalVisibilityLease(() {
+      if (_visibilityLeaseCount == 0) {
+        return;
+      }
+      _visibilityLeaseCount -= 1;
+      _setVisible(_visibilityLeaseCount > 0);
+    });
+  }
+
+  void _setVisible(bool visible) {
+    this.visible = visible;
+  }
+
   @override
   Widget buildView({
     Key? key,
@@ -248,6 +271,22 @@ class _FakeTerminalSessionHandle extends TerminalSessionHandle {
 
   @override
   void requestFocus() {}
+}
+
+final class _FakeTerminalVisibilityLease implements TerminalVisibilityLease {
+  _FakeTerminalVisibilityLease(this._onDispose);
+
+  final void Function() _onDispose;
+  bool _disposed = false;
+
+  @override
+  void dispose() {
+    if (_disposed) {
+      return;
+    }
+    _disposed = true;
+    _onDispose();
+  }
 }
 
 class _SelectedTabAction {

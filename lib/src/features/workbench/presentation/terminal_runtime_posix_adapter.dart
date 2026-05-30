@@ -72,6 +72,9 @@ class _PosixPortablePtySessionAdapter implements TerminalPtySession {
     );
   }
 
+  @override
+  Future<void> setOutputPaused(bool paused) async {}
+
   void _handleReadMessage(Object? message) {
     if (_disposed) {
       return;

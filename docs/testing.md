@@ -92,6 +92,8 @@ Lifecycle changes must cover both host timeout paths. With the app closed and no
 
 Scrollback changes must check both rendering and host memory behavior. The terminal row scrollback controls xterm history in the app. The host scrollback size controls how many bytes are retained for detached-session snapshots and checkpoints; tests should prove the buffer is trimmed to the configured byte limit and that checkpoints remain restorable after restart.
 
+Output visibility changes must prove the PTY keeps running while a hidden terminal pauses only client output delivery. Cover the host protocol with two clients for the same session, confirm the paused client stops receiving `output` frames while another client continues, then resume and verify the returned snapshot restores the hidden terminal before new live output is rendered. Exit and error delivery should remain independent from output pause state.
+
 For local sidecar smoke tests, build the Rust CLI sidecar with the makefile (which drives cargo and stages the binary):
 
 ```bash

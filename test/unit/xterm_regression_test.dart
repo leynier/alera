@@ -20,6 +20,16 @@ void main() {
     }
   });
 
+  test('xterm reflows narrow wide-character prompts without RangeError', () {
+    final terminal = Terminal();
+
+    terminal
+      ..resize(1, 4)
+      ..write('📦x');
+
+    terminal.resize(2, 4);
+  });
+
   test(
     'xterm handles line feeds at the bottom of a scroll region after resize',
     () {

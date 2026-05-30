@@ -50,6 +50,22 @@ void writeTerminalOutputForTesting(TerminalSessionHandle session, String data) {
 }
 
 @visibleForTesting
+String terminalBufferTextForTesting(TerminalSessionHandle session) {
+  final terminal = (session as _XtermTerminalSessionHandle)._terminal;
+  return <String>[
+    for (var i = 0; i < terminal.buffer.height; i++)
+      terminal.buffer.lines[i].toString(),
+  ].join('\n');
+}
+
+@visibleForTesting
+TerminalVisibilityLease acquireTerminalVisibilityForTesting(
+  TerminalSessionHandle session,
+) {
+  return (session as _XtermTerminalSessionHandle).acquireVisibility();
+}
+
+@visibleForTesting
 void setTerminalTitleForTesting(TerminalSessionHandle session, String title) {
   (session as _XtermTerminalSessionHandle)._handleTitleChanged(title);
 }

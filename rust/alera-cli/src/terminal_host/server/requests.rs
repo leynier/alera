@@ -99,6 +99,21 @@ impl ServerActor {
                 }
                 Ok(json!({}))
             }
+            "setOutputPaused" => {
+                self.require_auth(client_id)?;
+                let session_id = self.require_session(payload)?;
+                let paused = payload
+                    .get("paused")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false);
+                let snapshot = if let Some(session) = self.sessions.get_mut(&session_id) {
+                    session.set_output_paused(client_id, paused);
+                    session.snapshot_payload()
+                } else {
+                    json!({})
+                };
+                Ok(snapshot)
+            }
             "detach" => {
                 self.require_auth(client_id)?;
                 let session_id = self.require_session(payload)?;

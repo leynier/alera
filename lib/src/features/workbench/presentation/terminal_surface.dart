@@ -26,9 +26,12 @@ class TerminalSurface extends ConsumerStatefulWidget {
 }
 
 class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
+  TerminalVisibilityLease? _visibilityLease;
+
   @override
   void initState() {
     super.initState();
+    _visibilityLease = widget.session.acquireVisibility();
     _scheduleStart(widget.session);
   }
 
@@ -36,8 +39,17 @@ class _TerminalSurfaceState extends ConsumerState<TerminalSurface> {
   void didUpdateWidget(TerminalSurface oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.session != widget.session) {
+      _visibilityLease?.dispose();
+      _visibilityLease = widget.session.acquireVisibility();
       _scheduleStart(widget.session);
     }
+  }
+
+  @override
+  void dispose() {
+    _visibilityLease?.dispose();
+    _visibilityLease = null;
+    super.dispose();
   }
 
   void _scheduleStart(TerminalSessionHandle session) {

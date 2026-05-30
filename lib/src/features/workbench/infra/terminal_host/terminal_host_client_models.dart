@@ -28,6 +28,11 @@ abstract interface class TerminalHostClient {
     required int rows,
   });
 
+  Future<Uint8List> setOutputPaused({
+    required String sessionId,
+    required bool paused,
+  });
+
   Future<void> detach(String sessionId);
 
   Future<void> terminate(String sessionId);
@@ -59,6 +64,18 @@ final class TerminalHostAttachment {
   final bool running;
   final Uint8List snapshot;
   final int? exitCode;
+}
+
+final class TerminalHostSnapshot {
+  const TerminalHostSnapshot({required this.data});
+
+  factory TerminalHostSnapshot.fromJson(Map<String, Object?> json) {
+    return TerminalHostSnapshot(
+      data: decodeTerminalHostBytes(json['snapshotBase64']),
+    );
+  }
+
+  final Uint8List data;
 }
 
 sealed class TerminalHostEvent {

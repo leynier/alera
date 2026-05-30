@@ -79,6 +79,9 @@ class _GhosttyTerminalPtySessionAdapter implements TerminalPtySession {
   }
 
   @override
+  Future<void> setOutputPaused(bool paused) async {}
+
+  @override
   void dispose() {
     if (_disposed) {
       return;

@@ -107,6 +107,7 @@ class _FakeTerminalPtySession implements TerminalPtySession {
       StreamController<TerminalPtySessionEvent>.broadcast();
   final List<List<int>> writes = <List<int>>[];
   final List<_ResizeCall> resizeCalls = <_ResizeCall>[];
+  final List<bool> outputPausedCalls = <bool>[];
   GhosttyTerminalShellLaunch? startedLaunch;
   String? startedWorkingDirectory;
   int? startedCols;
@@ -158,11 +159,23 @@ class _FakeTerminalPtySession implements TerminalPtySession {
     );
   }
 
+  @override
+  Future<void> setOutputPaused(bool paused) async {
+    outputPausedCalls.add(paused);
+  }
+
   void emitOutput(List<int> data) {
     if (_events.isClosed) {
       return;
     }
     _events.add(TerminalPtyOutputEvent(Uint8List.fromList(data)));
+  }
+
+  void emitSnapshot(List<int> data) {
+    if (_events.isClosed) {
+      return;
+    }
+    _events.add(TerminalPtySnapshotEvent(Uint8List.fromList(data)));
   }
 
   void emitExit(int exitCode) {

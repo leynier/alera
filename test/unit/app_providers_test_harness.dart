@@ -117,6 +117,14 @@ final class _FakeTerminalHostClient implements TerminalHostClient {
   }) async {}
 
   @override
+  Future<Uint8List> setOutputPaused({
+    required String sessionId,
+    required bool paused,
+  }) async {
+    return Uint8List(0);
+  }
+
+  @override
   Future<void> terminate(String sessionId) async {}
 
   @override
@@ -602,6 +610,10 @@ class _FocusableTerminalSessionHandle extends TerminalSessionHandle {
 
   @override
   Future<void> ensureStarted() async {}
+
+  @override
+  TerminalVisibilityLease acquireVisibility() =>
+      const NoopTerminalVisibilityLease();
 
   @override
   void requestFocus() {

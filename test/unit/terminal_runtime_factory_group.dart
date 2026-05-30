@@ -191,6 +191,8 @@ void _registerTerminalRuntimeFactoryGroup() {
                   !readyCompleter.isCompleted) {
                 readyCompleter.complete();
               }
+            case TerminalPtySnapshotEvent():
+              break;
             case TerminalPtyExitEvent():
               if (!exitCompleter.isCompleted) {
                 exitCompleter.complete();
@@ -252,6 +254,8 @@ void _registerTerminalRuntimeFactoryGroup() {
                   !readyCompleter.isCompleted) {
                 readyCompleter.complete();
               }
+            case TerminalPtySnapshotEvent():
+              break;
             case TerminalPtyExitEvent():
               if (!exitCompleter.isCompleted) {
                 exitCompleter.complete();

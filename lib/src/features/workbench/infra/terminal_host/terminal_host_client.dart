@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client_models.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_process_launcher.dart';
@@ -123,6 +124,18 @@ final class SocketTerminalHostClient implements TerminalHostClient {
       'cols': cols,
       'rows': rows,
     });
+  }
+
+  @override
+  Future<Uint8List> setOutputPaused({
+    required String sessionId,
+    required bool paused,
+  }) async {
+    final payload = await _request('setOutputPaused', <String, Object?>{
+      'sessionId': sessionId,
+      'paused': paused,
+    });
+    return TerminalHostSnapshot.fromJson(payload).data;
   }
 
   @override

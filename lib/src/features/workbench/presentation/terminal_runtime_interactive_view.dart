@@ -105,3 +105,19 @@ class _TerminalPtySize {
 }
 
 const Duration _ptyResizeDebounceDuration = Duration(milliseconds: 150);
+
+final class _TerminalVisibilityLease implements TerminalVisibilityLease {
+  _TerminalVisibilityLease(this._onDispose);
+
+  final VoidCallback _onDispose;
+  bool _disposed = false;
+
+  @override
+  void dispose() {
+    if (_disposed) {
+      return;
+    }
+    _disposed = true;
+    _onDispose();
+  }
+}

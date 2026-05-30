@@ -119,6 +119,9 @@ class _FakeTerminalPtySession implements TerminalPtySession {
   @override
   void resize(int cols, int rows, int cellWidthPx, int cellHeightPx) {}
 
+  @override
+  Future<void> setOutputPaused(bool paused) async {}
+
   void emitExit(int exitCode) {
     if (_events.isClosed) {
       return;
@@ -187,6 +190,10 @@ class _ImmediateNotifySessionHandle extends TerminalSessionHandle {
   Future<void> restart() => ensureStarted();
 
   @override
+  TerminalVisibilityLease acquireVisibility() =>
+      const NoopTerminalVisibilityLease();
+
+  @override
   Widget buildView({
     Key? key,
     bool autofocus = false,
@@ -227,6 +234,10 @@ class _ShortcutCaptureSessionHandle extends TerminalSessionHandle {
 
   @override
   Future<void> restart() async {}
+
+  @override
+  TerminalVisibilityLease acquireVisibility() =>
+      const NoopTerminalVisibilityLease();
 
   @override
   Widget buildView({
@@ -297,6 +308,10 @@ class _ErrorSessionHandle extends TerminalSessionHandle {
   }
 
   @override
+  TerminalVisibilityLease acquireVisibility() =>
+      const NoopTerminalVisibilityLease();
+
+  @override
   Widget buildView({
     Key? key,
     bool autofocus = false,
@@ -335,6 +350,10 @@ class _StartingSessionHandle extends TerminalSessionHandle {
 
   @override
   Future<void> restart() async {}
+
+  @override
+  TerminalVisibilityLease acquireVisibility() =>
+      const NoopTerminalVisibilityLease();
 
   @override
   Widget buildView({

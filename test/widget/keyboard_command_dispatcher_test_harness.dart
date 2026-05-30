@@ -253,6 +253,10 @@ class _FakeTerminalSessionHandle extends TerminalSessionHandle {
   Future<void> restart() async {}
 
   @override
+  TerminalVisibilityLease acquireVisibility() =>
+      const NoopTerminalVisibilityLease();
+
+  @override
   Widget buildView({
     Key? key,
     bool autofocus = false,

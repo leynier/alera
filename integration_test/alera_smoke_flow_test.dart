@@ -266,5 +266,9 @@ class _E2eTerminalSessionHandle extends TerminalSessionHandle {
   void requestFocus() {}
 
   @override
+  TerminalVisibilityLease acquireVisibility() =>
+      const NoopTerminalVisibilityLease();
+
+  @override
   Future<void> restart() => ensureStarted();
 }

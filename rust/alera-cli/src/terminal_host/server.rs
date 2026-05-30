@@ -150,7 +150,7 @@ impl ServerActor {
                 let broadcast = self.sessions.get_mut(&session_id).map(|session| {
                     let payload = session.append_output(&data);
                     let arm = session.arm_checkpoint();
-                    let clients: Vec<u64> = session.clients.iter().copied().collect();
+                    let clients = session.output_clients();
                     (event("output", payload), clients, arm)
                 });
                 if let Some((frame, clients, arm)) = broadcast {

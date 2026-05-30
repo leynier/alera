@@ -80,6 +80,8 @@ void _registerTerminalSurfaceInteractionTests() {
       );
       addTearDown(runtime.dispose);
       final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
+      final visibility = session.acquireVisibility();
+      addTearDown(visibility.dispose);
 
       await session.ensureStarted();
       factory.sessions.single.emitOutput(

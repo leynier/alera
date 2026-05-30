@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-const int aleraTerminalHostProtocolVersion = 1;
+const int aleraTerminalHostProtocolVersion = 2;
 const String aleraCliExecutableName = 'alera';
 const String aleraCliWindowsExecutableName = 'alera.exe';
 const String aleraTerminalHostCommand = 'terminal-host';

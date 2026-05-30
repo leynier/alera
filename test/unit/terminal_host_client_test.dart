@@ -49,6 +49,10 @@ void main() {
     await client.write(sessionId: 'session-1', bytes: const <int>[]);
     await client.write(sessionId: 'session-1', bytes: const <int>[1, 2]);
     await client.resize(sessionId: 'session-1', cols: 120, rows: 40);
+    final snapshot = await client.setOutputPaused(
+      sessionId: 'session-1',
+      paused: false,
+    );
     await client.detach('session-1');
     await client.terminate('session-1');
 
@@ -77,11 +81,13 @@ void main() {
     expect(attachment.created, isTrue);
     expect(attachment.running, isTrue);
     expect(attachment.snapshot, <int>[65, 66]);
+    expect(snapshot, <int>[83, 78, 65, 80]);
     expect(server.requestTypes, <String>[
       'hello',
       'createOrAttach',
       'write',
       'resize',
+      'setOutputPaused',
       'detach',
       'terminate',
     ]);
@@ -97,6 +103,10 @@ void main() {
       server.payloadFor('write')['dataBase64'],
       encodeTerminalHostBytes(<int>[1, 2]),
     );
+    expect(server.payloadFor('setOutputPaused'), <String, Object?>{
+      'sessionId': 'session-1',
+      'paused': false,
+    });
     expect((await outputEvent).data, <int>[65]);
     expect((await exitEvent).exitCode, 7);
     expect((await errorEvent).error, 'boom');
@@ -463,6 +473,19 @@ final class _TerminalHostTestServer {
             'created': true,
             'running': true,
             'snapshotBase64': encodeTerminalHostBytes(<int>[65, 66]),
+          },
+        }),
+      );
+      return;
+    }
+    if (type == 'setOutputPaused') {
+      _client!.writeln(
+        jsonEncode(<String, Object?>{
+          'id': id,
+          'ok': true,
+          'payload': <String, Object?>{
+            'sessionId': 'session-1',
+            'snapshotBase64': encodeTerminalHostBytes(<int>[83, 78, 65, 80]),
           },
         }),
       );

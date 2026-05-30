@@ -195,6 +195,12 @@ final class AleraTerminalHostServer {
           rows: (payload['rows'] as int?) ?? 24,
         );
         return const <String, Object?>{};
+      case 'setOutputPaused':
+        client.requireAuthenticated();
+        final paused = payload['paused'] == true;
+        final session = _session(payload);
+        session.setOutputPaused(client, paused);
+        return session.snapshotPayload();
       case 'detach':
         client.requireAuthenticated();
         _session(payload).detach(client);

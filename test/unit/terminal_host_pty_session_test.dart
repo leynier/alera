@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client.dart';
@@ -131,6 +132,48 @@ void main() {
     },
   );
 
+  test('host PTY session pauses output and emits resume snapshots', () async {
+    final client = FakeTerminalHostClient(
+      attachment: TerminalHostAttachment(
+        sessionId: 'session-1',
+        created: true,
+        running: true,
+        snapshot: Uint8List(0),
+      ),
+    );
+    final session = TerminalHostPtySession(
+      client: client,
+      sessionId: 'session-1',
+      workspaceId: 'workspace-1',
+      tabId: 'tab-1',
+    );
+    addTearDown(session.dispose);
+    final events = <TerminalPtySessionEvent>[];
+    final sub = session.events.listen(events.add);
+    addTearDown(sub.cancel);
+
+    await session.start(
+      launch: _launch(),
+      workingDirectory: '/repo',
+      cols: 80,
+      rows: 24,
+    );
+    await session.setOutputPaused(true);
+    await session.setOutputPaused(false);
+    await _flushAsync();
+
+    expect(client.outputPaused, <(String, bool)>[
+      ('session-1', true),
+      ('session-1', false),
+    ]);
+    expect(events.whereType<TerminalPtySnapshotEvent>().single.data, <int>[
+      83,
+      78,
+      65,
+      80,
+    ]);
+  });
+
   test(
     'host PTY session reattaches and retries writes after stale host state',
     () async {
@@ -191,8 +234,9 @@ void main() {
   );
 
   test(
-    'host PTY session reports stale recovery before startup and after disposal',
+    'host PTY session ignores host operations while startup is pending',
     () async {
+      final attachCompleter = Completer<void>();
       final client = FakeTerminalHostClient(
         attachment: TerminalHostAttachment(
           sessionId: 'session-1',
@@ -200,40 +244,52 @@ void main() {
           running: true,
           snapshot: Uint8List(0),
         ),
+        attachCompleter: attachCompleter,
       );
-      client.writeErrors.addAll(<Object>[
-        Exception('Terminal host connection closed'),
-        StateError('Terminal session is not attached: session-1'),
-      ]);
       final session = TerminalHostPtySession(
         client: client,
         sessionId: 'session-1',
         workspaceId: 'workspace-1',
         tabId: 'tab-1',
       );
+      addTearDown(session.dispose);
       final events = <TerminalPtySessionEvent>[];
       final sub = session.events.listen(events.add);
       addTearDown(sub.cancel);
 
-      expect(session.writeBytes(<int>[1]), isTrue);
-      await _flushAsync();
-
-      await session.start(
+      final start = session.start(
         launch: _launch(),
         workingDirectory: '/repo',
         cols: 80,
         rows: 24,
       );
-      expect(session.writeBytes(<int>[2]), isTrue);
-      session.dispose();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(session.writeBytes(<int>[1]), isFalse);
+      session.resize(100, 30, 8, 16);
+      await session.setOutputPaused(true);
       await _flushAsync();
 
-      final recoveryWithoutStartup = events
-          .whereType<TerminalPtyErrorEvent>()
-          .map((event) => event.error.toString())
-          .firstWhere((message) => message.contains('has not been started'));
-      expect(recoveryWithoutStartup, contains('has not been started'));
       expect(client.attachCalls, hasLength(1));
+      expect(client.writes, isEmpty);
+      expect(client.resizes, isEmpty);
+      expect(client.outputPaused, isEmpty);
+      expect(events.whereType<TerminalPtyErrorEvent>(), isEmpty);
+
+      attachCompleter.complete();
+      await start;
+
+      expect(session.writeBytes(<int>[2]), isTrue);
+      session.resize(120, 40, 8, 16);
+      await session.setOutputPaused(false);
+      await _flushAsync();
+
+      expect(client.writes, <List<int>>[
+        <int>[2],
+      ]);
+      expect(client.resizes, <(String, int, int)>[('session-1', 120, 40)]);
+      expect(client.outputPaused, <(String, bool)>[('session-1', false)]);
+      expect(events.whereType<TerminalPtyErrorEvent>(), isEmpty);
     },
   );
 

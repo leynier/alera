@@ -30,7 +30,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   final void Function(TerminalRuntimeExitEvent event) _onExit;
   TerminalSettings _settings;
   late xterm.Terminal _terminal;
-  late final Osc8TerminalLinkTracker _osc8LinkTracker;
+  late Osc8TerminalLinkTracker _osc8LinkTracker;
   final GlobalKey<xterm.TerminalViewState> _terminalViewKey =
       GlobalKey<xterm.TerminalViewState>();
   final xterm.TerminalController _terminalController =
@@ -44,15 +44,18 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   Timer? _pendingPtyResizeTimer;
   _TerminalPtySize? _pendingPtySize;
   int _ptyGeneration = 0;
+  int _startAttempt = 0;
   int? _activePtyGeneration;
   final Set<int> _exitedPtyGenerations = <int>{};
   final Set<int> _suppressedExitPtyGenerations = <int>{};
+  final Set<Object> _visibilityLeases = <Object>{};
 
   bool _starting = false;
   bool _started = false;
   bool _running = false;
   String _title = '';
   String? _errorMessage;
+  bool _visible = false;
   bool _disposed = false;
 
   @override
@@ -118,6 +121,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     if (_started || _starting) {
       return;
     }
+    final attempt = ++_startAttempt;
     _starting = true;
     _errorMessage = null;
     notifyListeners();
@@ -127,18 +131,25 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
           'Terminal sessions require a native desktop PTY path.',
         );
       }
-      await _startPtySession();
-      _started = true;
+      final started = await _startPtySession();
+      if (!_disposed && attempt == _startAttempt && started) {
+        _started = true;
+      }
     } catch (error) {
-      _errorMessage = error.toString();
+      if (!_disposed && attempt == _startAttempt) {
+        _errorMessage = error.toString();
+      }
     } finally {
-      _starting = false;
-      notifyListeners();
+      if (!_disposed && attempt == _startAttempt) {
+        _starting = false;
+        notifyListeners();
+      }
     }
   }
 
   @override
   Future<void> restart() async {
+    _startAttempt += 1;
     _errorMessage = null;
     _started = false;
     _starting = false;
@@ -146,6 +157,22 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     notifyListeners();
     await _stopPtySession(suppressExit: true);
     await ensureStarted();
+  }
+
+  @override
+  TerminalVisibilityLease acquireVisibility() {
+    if (_disposed) {
+      return const NoopTerminalVisibilityLease();
+    }
+    final token = Object();
+    _visibilityLeases.add(token);
+    _syncVisibilityFromLeases();
+    return _TerminalVisibilityLease(() {
+      if (_disposed || !_visibilityLeases.remove(token)) {
+        return;
+      }
+      _syncVisibilityFromLeases();
+    });
   }
 
   @override
@@ -238,17 +265,22 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   }
 
   void _flushPendingPtyResize() {
+    _pendingPtyResizeTimer?.cancel();
     _pendingPtyResizeTimer = null;
     final size = _pendingPtySize;
-    _pendingPtySize = null;
     final session = _ptySession;
-    if (_disposed || size == null || session == null) {
+    if (_disposed || size == null) {
+      _pendingPtySize = null;
       return;
     }
+    if (session == null) {
+      return;
+    }
+    _pendingPtySize = null;
     session.resize(size.cols, size.rows, size.cellWidthPx, size.cellHeightPx);
   }
 
-  Future<void> _startPtySession() async {
+  Future<bool> _startPtySession() async {
     final launches = _shellLaunchesBuilder();
     if (launches.isEmpty) {
       throw StateError(_noTerminalShellCandidatesMessage());
@@ -269,8 +301,6 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
       final sub = session.events.listen(
         (event) => _handlePtySessionEvent(event, generation),
       );
-      _ptySession = session;
-      _ptySessionSub = sub;
       _activePtyGeneration = generation;
       try {
         final sanitizedLaunch = _launchWithSanitizedAgentHookEnvironment(
@@ -296,19 +326,44 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
           cols: _terminal.viewWidth,
           rows: _terminal.viewHeight,
         );
-        _running = true;
+        if (_disposed || _activePtyGeneration != generation) {
+          unawaited(sub.cancel());
+          session.dispose();
+          _prunePtyGenerationState();
+          return false;
+        }
+        _ptySession = session;
+        _ptySessionSub = sub;
+        if (!_visible) {
+          _syncPtyOutputVisibility();
+        }
+        _flushPendingPtyResize();
+        _running = !_exitedPtyGenerations.contains(generation);
         _prunePtyGenerationState();
         notifyListeners();
         final setupCommand = workspaceLaunch.setupCommand;
-        if (session.startedNewProcess &&
+        if (_running &&
+            session.startedNewProcess &&
             setupCommand != null &&
             setupCommand.isNotEmpty) {
           await Future<void>.delayed(const Duration(milliseconds: 120));
-          session.writeBytes(utf8.encode(setupCommand));
+          if (!_disposed &&
+              _activePtyGeneration == generation &&
+              identical(_ptySession, session)) {
+            session.writeBytes(utf8.encode(setupCommand));
+          }
           await Future<void>.delayed(const Duration(milliseconds: 120));
         }
-        return;
+        return !_disposed &&
+            _activePtyGeneration == generation &&
+            identical(_ptySession, session);
       } catch (error) {
+        if (_disposed || _activePtyGeneration != generation) {
+          unawaited(sub.cancel());
+          session.dispose();
+          _prunePtyGenerationState();
+          return false;
+        }
         lastError = error;
         _suppressedExitPtyGenerations.add(generation);
         if (_activePtyGeneration == generation) {
@@ -334,7 +389,13 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     }
     switch (event) {
       case TerminalPtyOutputEvent(:final data):
-        _ptyOutputController.add(data);
+        if (_visible) {
+          _ptyOutputController.add(data);
+        }
+      case TerminalPtySnapshotEvent(:final data):
+        if (_visible) {
+          _replaceTerminalWithSnapshot(data);
+        }
       case TerminalPtyExitEvent(:final exitCode):
         _handlePtyExit(
           exitCode: exitCode,
@@ -408,6 +469,47 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     _terminal.write(data);
   }
 
+  void _replaceTerminalWithSnapshot(List<int> data) {
+    if (_disposed) {
+      return;
+    }
+    final previousTerminal = _terminal;
+    final viewWidth = previousTerminal.viewWidth;
+    final viewHeight = previousTerminal.viewHeight;
+    _detachTerminal(previousTerminal);
+    _osc8LinkTracker.dispose();
+
+    final nextTerminal = _createTerminal()..resize(viewWidth, viewHeight);
+    _terminal = nextTerminal;
+    _osc8LinkTracker = Osc8TerminalLinkTracker(terminal: nextTerminal);
+    _attachTerminal(nextTerminal);
+    nextTerminal.write(const Utf8Decoder(allowMalformed: true).convert(data));
+    notifyListeners();
+  }
+
+  void _syncPtyOutputVisibility() {
+    final session = _ptySession;
+    if (_disposed || session == null) {
+      return;
+    }
+    unawaited(
+      session.setOutputPaused(!_visible).catchError((Object error) {
+        if (!_disposed) {
+          _writeToTerminal('\n[terminal error: $error]\n');
+        }
+      }),
+    );
+  }
+
+  void _syncVisibilityFromLeases() {
+    final visible = _visibilityLeases.isNotEmpty;
+    if (_visible == visible) {
+      return;
+    }
+    _visible = visible;
+    _syncPtyOutputVisibility();
+  }
+
   Future<void> _stopPtySession({required bool suppressExit}) async {
     await _stopPtySessionWithMode(suppressExit: suppressExit, terminate: true);
   }
@@ -457,6 +559,9 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   @override
   void dispose({bool terminatePty = true}) {
     _disposed = true;
+    _startAttempt += 1;
+    _visibilityLeases.clear();
+    _visible = false;
     _osc8LinkTracker.dispose();
     _detachTerminal(_terminal);
     unawaited(

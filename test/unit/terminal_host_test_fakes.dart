@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
@@ -8,9 +9,11 @@ final class FakeTerminalHostClient implements TerminalHostClient {
   FakeTerminalHostClient({
     required TerminalHostAttachment attachment,
     List<TerminalHostAttachment>? attachments,
+    this.attachCompleter,
   }) : _attachments = attachments ?? <TerminalHostAttachment>[attachment];
 
   final List<TerminalHostAttachment> _attachments;
+  final Completer<void>? attachCompleter;
   final StreamController<TerminalHostEvent> _events =
       StreamController<TerminalHostEvent>.broadcast();
   final List<
@@ -36,6 +39,7 @@ final class FakeTerminalHostClient implements TerminalHostClient {
       >[];
   final List<List<int>> writes = <List<int>>[];
   final List<(String, int, int)> resizes = <(String, int, int)>[];
+  final List<(String, bool)> outputPaused = <(String, bool)>[];
   final List<String> detached = <String>[];
   final List<String> terminated = <String>[];
   final List<Object> writeErrors = <Object>[];
@@ -71,6 +75,9 @@ final class FakeTerminalHostClient implements TerminalHostClient {
       rows: rows,
     ));
     attachedWorkingDirectory = workingDirectory;
+    if (attachCompleter case final completer?) {
+      await completer.future;
+    }
     final index = attachCalls.length - 1;
     return _attachments[index < _attachments.length
         ? index
@@ -101,6 +108,15 @@ final class FakeTerminalHostClient implements TerminalHostClient {
       throw resizeErrors.removeAt(0);
     }
     resizes.add((sessionId, cols, rows));
+  }
+
+  @override
+  Future<Uint8List> setOutputPaused({
+    required String sessionId,
+    required bool paused,
+  }) async {
+    outputPaused.add((sessionId, paused));
+    return Uint8List.fromList(<int>[83, 78, 65, 80]);
   }
 
   @override

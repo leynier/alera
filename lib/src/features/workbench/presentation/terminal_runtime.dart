@@ -46,6 +46,8 @@ abstract class TerminalSessionHandle extends ChangeNotifier {
 
   Future<void> restart();
 
+  TerminalVisibilityLease acquireVisibility();
+
   Widget buildView({
     Key? key,
     bool autofocus = false,
@@ -55,6 +57,17 @@ abstract class TerminalSessionHandle extends ChangeNotifier {
   /// Moves keyboard focus to this terminal's text input so subsequent
   /// keypresses are routed to its PTY instead of any sidebar control.
   void requestFocus();
+}
+
+abstract interface class TerminalVisibilityLease {
+  void dispose();
+}
+
+final class NoopTerminalVisibilityLease implements TerminalVisibilityLease {
+  const NoopTerminalVisibilityLease();
+
+  @override
+  void dispose() {}
 }
 
 abstract interface class TerminalRuntime {
@@ -118,6 +131,8 @@ abstract interface class TerminalPtySession {
 
   void resize(int cols, int rows, int cellWidthPx, int cellHeightPx);
 
+  Future<void> setOutputPaused(bool paused);
+
   void dispose();
 
   void terminate();
@@ -129,6 +144,12 @@ sealed class TerminalPtySessionEvent {
 
 final class TerminalPtyOutputEvent extends TerminalPtySessionEvent {
   const TerminalPtyOutputEvent(this.data);
+
+  final Uint8List data;
+}
+
+final class TerminalPtySnapshotEvent extends TerminalPtySessionEvent {
+  const TerminalPtySnapshotEvent(this.data);
 
   final Uint8List data;
 }

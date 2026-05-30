@@ -136,6 +136,97 @@ void _registerTerminalHostServerLifecycleTests() {
   );
 
   test(
+    'pauses output per client and resumes with a host snapshot',
+    () async {
+      final harness = await _TerminalHostServerHarness.start();
+      addTearDown(() async {
+        await harness.dispose();
+        if (await harness.tempDir.exists()) {
+          await harness.tempDir.delete(recursive: true);
+        }
+      });
+
+      final activeClient = await harness.connect();
+      addTearDown(activeClient.dispose);
+      await activeClient.hello(harness.token);
+      final create = await activeClient.request('createOrAttach', <
+        String,
+        Object?
+      >{
+        'sessionId': 'paused-session',
+        'workspaceId': 'workspace-1',
+        'tabId': 'tab-1',
+        'workingDirectory': Directory.current.path,
+        'launch': const TerminalHostLaunch(
+          label: 'shell',
+          shell: '/bin/sh',
+          arguments: <String>[
+            '-c',
+            r'printf ready; IFS= read -r line; printf "got:%s" "$line"; exit 0',
+          ],
+          environment: <String, String>{'TERM': 'xterm-256color'},
+        ).toJson(),
+        'cols': 80,
+        'rows': 24,
+      });
+      expect(create['ok'], isTrue);
+      expect(
+        await activeClient.outputContaining('paused-session', 'ready'),
+        contains('ready'),
+      );
+
+      final pausedClient = await harness.connect();
+      addTearDown(pausedClient.dispose);
+      await pausedClient.hello(harness.token);
+      final attached = await pausedClient.request(
+        'createOrAttach',
+        <String, Object?>{
+          'sessionId': 'paused-session',
+          'workspaceId': 'workspace-1',
+          'tabId': 'tab-1',
+          'workingDirectory': Directory.current.path,
+          'launch': const TerminalHostLaunch(
+            label: 'shell',
+            shell: '/bin/sh',
+            arguments: <String>['-c', 'exit 0'],
+            environment: <String, String>{},
+          ).toJson(),
+        },
+      );
+      expect(attached.payload['created'], isFalse);
+      await pausedClient.request('setOutputPaused', <String, Object?>{
+        'sessionId': 'paused-session',
+        'paused': true,
+      });
+
+      await activeClient.request('write', <String, Object?>{
+        'sessionId': 'paused-session',
+        'dataBase64': encodeTerminalHostBytes(utf8.encode('abc\r')),
+      });
+      expect(
+        await activeClient.outputContaining('paused-session', 'got:abc'),
+        contains('got:abc'),
+      );
+      await expectLater(
+        pausedClient
+            .event('output', sessionId: 'paused-session')
+            .timeout(const Duration(milliseconds: 250)),
+        throwsA(isA<TimeoutException>()),
+      );
+
+      final resumed = await pausedClient.request(
+        'setOutputPaused',
+        <String, Object?>{'sessionId': 'paused-session', 'paused': false},
+      );
+      expect(
+        utf8.decode(decodeTerminalHostBytes(resumed.payload['snapshotBase64'])),
+        contains('got:abc'),
+      );
+    },
+    skip: _skipTerminalHostRealPtyOnLinuxCiReason,
+  );
+
+  test(
     'reports malformed requests and restores incomplete checkpoints',
     () async {
       final harness = await _TerminalHostServerHarness.start();

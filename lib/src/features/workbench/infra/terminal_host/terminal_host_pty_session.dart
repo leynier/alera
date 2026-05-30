@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
@@ -59,7 +60,9 @@ final class TerminalHostPtySession implements TerminalPtySession {
   int? _cols;
   int? _rows;
   bool _disposed = false;
+  bool _started = false;
   bool _startedNewProcess = false;
+  Future<void>? _startFuture;
 
   @override
   Stream<TerminalPtySessionEvent> get events => _events.stream;
@@ -77,13 +80,34 @@ final class TerminalHostPtySession implements TerminalPtySession {
     if (_disposed) {
       throw StateError('PTY session is disposed.');
     }
+    if (_started) {
+      return;
+    }
+    final existingStart = _startFuture;
+    if (existingStart != null) {
+      return existingStart;
+    }
     _launch = launch;
     _workingDirectory = workingDirectory;
     _cols = cols;
     _rows = rows;
     _hostSub ??= _client.events.listen(_handleHostEvent);
-    final attachment = await _createOrAttach();
-    _applyAttachment(attachment);
+    late final Future<void> startFuture;
+    startFuture = _createOrAttach()
+        .then((attachment) {
+          if (_disposed) {
+            return;
+          }
+          _applyAttachment(attachment);
+          _started = true;
+        })
+        .whenComplete(() {
+          if (identical(_startFuture, startFuture)) {
+            _startFuture = null;
+          }
+        });
+    _startFuture = startFuture;
+    return startFuture;
   }
 
   Future<TerminalHostAttachment> _createOrAttach() {
@@ -123,7 +147,7 @@ final class TerminalHostPtySession implements TerminalPtySession {
 
   @override
   bool writeBytes(List<int> bytes) {
-    if (_disposed || bytes.isEmpty) {
+    if (_disposed || !_started || bytes.isEmpty) {
       return false;
     }
     unawaited(_writeBytes(bytes).catchError(_emitHostError));
@@ -137,6 +161,9 @@ final class TerminalHostPtySession implements TerminalPtySession {
     }
     _cols = cols;
     _rows = rows;
+    if (!_started) {
+      return;
+    }
     unawaited(_resize(cols: cols, rows: rows).catchError(_emitHostError));
   }
 
@@ -161,6 +188,44 @@ final class TerminalHostPtySession implements TerminalPtySession {
       }
       await _reattach();
       await _client.resize(sessionId: _sessionId, cols: cols, rows: rows);
+    }
+  }
+
+  @override
+  Future<void> setOutputPaused(bool paused) async {
+    if (_disposed || !_started) {
+      return;
+    }
+    try {
+      final snapshot = await _client.setOutputPaused(
+        sessionId: _sessionId,
+        paused: paused,
+      );
+      _emitResumeSnapshot(paused: paused, snapshot: snapshot);
+    } catch (error) {
+      if (!_shouldRecoverFromHostError(error)) {
+        _emitHostError(error);
+        return;
+      }
+      try {
+        await _reattach();
+        final snapshot = await _client.setOutputPaused(
+          sessionId: _sessionId,
+          paused: paused,
+        );
+        _emitResumeSnapshot(paused: paused, snapshot: snapshot);
+      } catch (retryError) {
+        _emitHostError(retryError);
+      }
+    }
+  }
+
+  void _emitResumeSnapshot({
+    required bool paused,
+    required List<int> snapshot,
+  }) {
+    if (!_disposed && !paused) {
+      _events.add(TerminalPtySnapshotEvent(Uint8List.fromList(snapshot)));
     }
   }
 
@@ -201,6 +266,7 @@ final class TerminalHostPtySession implements TerminalPtySession {
       return;
     }
     _disposed = true;
+    _started = false;
     unawaited(_hostSub?.cancel());
     _hostSub = null;
     unawaited(_client.detach(_sessionId).catchError((_) {}));
@@ -213,6 +279,7 @@ final class TerminalHostPtySession implements TerminalPtySession {
       return;
     }
     _disposed = true;
+    _started = false;
     unawaited(_hostSub?.cancel());
     _hostSub = null;
     unawaited(_client.terminate(_sessionId).catchError((_) {}));
