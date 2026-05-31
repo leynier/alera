@@ -187,7 +187,7 @@ void main() {
 
       entry = container.read(agentStatusControllerProvider)['session-1']!;
       expect(entry.state, AgentStatusState.waiting);
-      expect(entry.agentType, AgentType.claude);
+      expect(entry.agentType, AgentType.codex);
       expect(entry.toolName, 'askUser');
       expect(entry.toolInput, 'Which target?');
     });

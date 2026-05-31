@@ -1,3 +1,4 @@
+import 'package:alera/src/features/agent_status/application/agent_status_identity_resolver.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/infra/agent_hook_event_normalizer.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -50,8 +51,16 @@ class AgentStatusController extends _$AgentStatusController
     var changed = false;
     final receivedAt = _now();
     for (final event in events) {
+      final previous = next[event.terminalSessionId];
       if (isAgentSessionCloseHookEvent(event)) {
-        if (!next.containsKey(event.terminalSessionId)) {
+        final identity = resolveAgentStatusIdentity(
+          previous: previous,
+          incomingAgentType: event.agentType,
+          normalizedState: AgentStatusState.done,
+          receivedAt: receivedAt,
+          staleThreshold: agentStatusIdentityStaleThreshold,
+        );
+        if (identity.shouldIgnoreEvent || previous == null) {
           continue;
         }
         next = <String, AgentStatusEntry>{...next}
@@ -59,9 +68,18 @@ class AgentStatusController extends _$AgentStatusController
         changed = true;
         continue;
       }
-      final previous = next[event.terminalSessionId];
       final normalized = normalizeAgentHookEvent(event, previous: previous);
       if (normalized == null) {
+        continue;
+      }
+      final identity = resolveAgentStatusIdentity(
+        previous: previous,
+        incomingAgentType: event.agentType,
+        normalizedState: normalized.state,
+        receivedAt: receivedAt,
+        staleThreshold: agentStatusIdentityStaleThreshold,
+      );
+      if (identity.shouldIgnoreEvent) {
         continue;
       }
       final stateStartedAt = previous?.state == normalized.state
@@ -71,7 +89,7 @@ class AgentStatusController extends _$AgentStatusController
         terminalSessionId: event.terminalSessionId,
         workspaceId: event.workspaceId,
         tabId: event.tabId,
-        agentType: event.agentType,
+        agentType: identity.effectiveAgentType,
         state: normalized.state,
         prompt: normalized.prompt,
         updatedAt: receivedAt,
