@@ -124,6 +124,7 @@ void _registerSettingsDialogAdvancedTests() {
       fakePlatform.requests.single.confirmButtonText,
       'Use as workspace directory',
     );
+    expect(fakePlatform.requests.single.canCreateDirectories, isTrue);
   });
 
   testWidgets('font autocomplete supports arrow-up and numpad enter', (

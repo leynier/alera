@@ -402,6 +402,7 @@ class _WorkspaceDirectoryRowState extends State<_WorkspaceDirectoryRow> {
           ? _controller.text
           : widget.value,
       confirmButtonText: 'Use as workspace directory',
+      canCreateDirectories: true,
     );
     if (picked == null) {
       return;

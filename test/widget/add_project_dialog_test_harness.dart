@@ -37,14 +37,12 @@ class _FakeFileSelectorPlatform extends FileSelectorPlatform
   final List<_DirectoryRequest> requests = <_DirectoryRequest>[];
 
   @override
-  Future<String?> getDirectoryPath({
-    String? initialDirectory,
-    String? confirmButtonText,
-  }) async {
+  Future<String?> getDirectoryPathWithOptions(FileDialogOptions options) async {
     requests.add(
       _DirectoryRequest(
-        initialDirectory: initialDirectory,
-        confirmButtonText: confirmButtonText,
+        initialDirectory: options.initialDirectory,
+        confirmButtonText: options.confirmButtonText,
+        canCreateDirectories: options.canCreateDirectories,
       ),
     );
     if (responses.isEmpty) {
@@ -62,8 +60,10 @@ class _DirectoryRequest {
   const _DirectoryRequest({
     required this.initialDirectory,
     required this.confirmButtonText,
+    required this.canCreateDirectories,
   });
 
   final String? initialDirectory;
   final String? confirmButtonText;
+  final bool? canCreateDirectories;
 }
