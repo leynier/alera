@@ -75,6 +75,7 @@ class _AddProjectDialogState extends State<AddProjectDialog> {
     try {
       final selected = await getDirectoryPath(
         confirmButtonText: 'Select folder',
+        canCreateDirectories: true,
       );
       if (!mounted || selected == null || selected.trim().isEmpty) {
         return;
@@ -94,6 +95,7 @@ class _AddProjectDialogState extends State<AddProjectDialog> {
     try {
       final selected = await getDirectoryPath(
         confirmButtonText: 'Select parent folder',
+        canCreateDirectories: true,
       );
       if (!mounted || selected == null || selected.trim().isEmpty) {
         return;

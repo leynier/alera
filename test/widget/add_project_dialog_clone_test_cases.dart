@@ -37,6 +37,7 @@ void _registerAddProjectDialogCloneTests() {
       fakePlatform.requests.single.confirmButtonText,
       'Select parent folder',
     );
+    expect(fakePlatform.requests.single.canCreateDirectories, isTrue);
   });
 
   testWidgets('clone parent browse shows picker errors', (tester) async {

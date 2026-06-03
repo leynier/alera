@@ -249,5 +249,6 @@ void _registerAddProjectDialogLocalTests() {
       'from-picker',
     );
     expect(fakePlatform.requests.first.confirmButtonText, 'Select folder');
+    expect(fakePlatform.requests.first.canCreateDirectories, isTrue);
   });
 }
