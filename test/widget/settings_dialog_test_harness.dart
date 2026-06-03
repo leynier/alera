@@ -94,9 +94,7 @@ class _FakeFileSelectorPlatform extends FileSelectorPlatform
   final List<_DirectoryRequest> requests = <_DirectoryRequest>[];
 
   @override
-  Future<String?> getDirectoryPathWithOptions(
-    FileDialogOptions options,
-  ) async {
+  Future<String?> getDirectoryPathWithOptions(FileDialogOptions options) async {
     requests.add(
       _DirectoryRequest(
         initialDirectory: options.initialDirectory,
