@@ -48,6 +48,7 @@ class _DraggableWorkspaceTabChip extends StatelessWidget {
           tabId: tab.id,
         ),
         feedback: _DraggedTabFeedback(
+          tab: tab,
           title: session?.displayTitle ?? tab.title,
         ),
         childWhenDragging: Opacity(
@@ -259,9 +260,8 @@ class _WorkspaceTabChip extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                Icon(
-                  _iconForWorkspaceTabKind(tab.kind),
-                  size: 12,
+                _WorkspaceTabLeadingIcon(
+                  tab: tab,
                   color: active
                       ? AleraTokens.foreground
                       : AleraTokens.foregroundMuted,
@@ -275,7 +275,9 @@ class _WorkspaceTabChip extends StatelessWidget {
                 ),
                 const SizedBox(width: AleraTokens.space4),
                 ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 72),
+                  constraints: BoxConstraints(
+                    maxWidth: tab.kind == WorkspaceTabKind.editor ? 180 : 92,
+                  ),
                   child: Text(
                     title,
                     maxLines: 1,
@@ -322,17 +324,31 @@ enum _TabMenuAction {
   changeTitle,
 }
 
-IconData _iconForWorkspaceTabKind(WorkspaceTabKind kind) {
-  return switch (kind) {
-    WorkspaceTabKind.terminal => Icons.terminal,
-    WorkspaceTabKind.editor => Icons.description_outlined,
-    WorkspaceTabKind.browser => Icons.public,
-  };
+class _WorkspaceTabLeadingIcon extends StatelessWidget {
+  const _WorkspaceTabLeadingIcon({required this.tab, required this.color});
+
+  final WorkspaceTabRecord tab;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return switch (tab.kind) {
+      WorkspaceTabKind.editor => AleraFileIcon(
+        pathOrName: tab.filePath ?? tab.title,
+        kind: AleraFileIconKind.file,
+        size: 12,
+        fallbackColor: color,
+      ),
+      WorkspaceTabKind.terminal => Icon(Icons.terminal, size: 12, color: color),
+      WorkspaceTabKind.browser => Icon(Icons.public, size: 12, color: color),
+    };
+  }
 }
 
 class _DraggedTabFeedback extends StatelessWidget {
-  const _DraggedTabFeedback({required this.title});
+  const _DraggedTabFeedback({required this.tab, required this.title});
 
+  final WorkspaceTabRecord tab;
   final String title;
 
   @override
@@ -359,7 +375,7 @@ class _DraggedTabFeedback extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            const Icon(Icons.terminal, size: 12, color: AleraTokens.foreground),
+            _WorkspaceTabLeadingIcon(tab: tab, color: AleraTokens.foreground),
             const SizedBox(width: AleraTokens.space8),
             Flexible(
               child: Text(

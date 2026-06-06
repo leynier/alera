@@ -32,6 +32,14 @@ class SettingsController extends _$SettingsController {
     await _save(state.copyWith(terminal: settings));
   }
 
+  Future<void> updateEditor(EditorSettings settings) async {
+    await _save(state.copyWith(editor: settings));
+  }
+
+  Future<void> resetEditorSettings() async {
+    await _save(state.copyWith(editor: EditorSettings.defaults));
+  }
+
   Future<void> resetTerminalSettings() async {
     await _save(state.copyWith(terminal: TerminalSettings.defaults));
   }

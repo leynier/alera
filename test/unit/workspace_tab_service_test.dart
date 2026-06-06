@@ -60,6 +60,133 @@ void main() {
       },
     );
 
+    test(
+      'openOrCreateEditorTab creates an editor tab for a normalized path',
+      () async {
+        final repository = _FakeWorkbenchRepository();
+        final service = WorkspaceTabService(
+          repository: repository,
+          now: () => DateTime.utc(2026, 5, 21, 1),
+        );
+
+        final tab = await service.openOrCreateEditorTab(
+          workspaceId: 'workspace-1',
+          relativePath: './lib\\src/main.dart',
+        );
+
+        expect(tab.kind, WorkspaceTabKind.editor);
+        expect(tab.title, 'main.dart');
+        expect(tab.filePath, 'lib/src/main.dart');
+        expect(repository.tabs, hasLength(1));
+        expect(repository.tabs.single.id, tab.id);
+      },
+    );
+
+    test('openOrCreateEditorTab reuses an existing editor tab', () async {
+      final repository = _FakeWorkbenchRepository();
+      final service = WorkspaceTabService(repository: repository);
+
+      final first = await service.openOrCreateEditorTab(
+        workspaceId: 'workspace-1',
+        relativePath: 'lib/main.dart',
+      );
+      final second = await service.openOrCreateEditorTab(
+        workspaceId: 'workspace-1',
+        relativePath: './lib/main.dart',
+      );
+
+      expect(second.id, first.id);
+      expect(repository.tabs, hasLength(1));
+    });
+
+    test('openOrCreateEditorTab rejects paths outside the workspace', () async {
+      final repository = _FakeWorkbenchRepository();
+      final service = WorkspaceTabService(repository: repository);
+
+      await expectLater(
+        service.openOrCreateEditorTab(
+          workspaceId: 'workspace-1',
+          relativePath: '../secrets.dart',
+        ),
+        throwsStateError,
+      );
+    });
+
+    test(
+      'updates open editor tab paths and titles after a file move',
+      () async {
+        final repository = _FakeWorkbenchRepository()
+          ..tabs.add(
+            WorkspaceTabRecord(
+              id: 'tab-1',
+              workspaceId: 'workspace-1',
+              kind: WorkspaceTabKind.editor,
+              title: 'note.txt',
+              createdAt: DateTime.utc(2026, 5, 21),
+              updatedAt: DateTime.utc(2026, 5, 21),
+              payload: const <String, Object?>{
+                workspaceTabFilePathPayloadKey: 'docs/note.txt',
+              },
+            ),
+          );
+        final service = WorkspaceTabService(
+          repository: repository,
+          now: () => DateTime.utc(2026, 5, 21, 1),
+        );
+
+        final updated = await service.updateEditorPathsAfterMove(
+          workspaceId: 'workspace-1',
+          oldRelativePath: 'docs/note.txt',
+          newRelativePath: 'docs/renamed-note.txt',
+        );
+
+        expect(updated.single.filePath, 'docs/renamed-note.txt');
+        expect(updated.single.title, 'renamed-note.txt');
+        expect(repository.tabs.single.filePath, 'docs/renamed-note.txt');
+        expect(repository.tabs.single.title, 'renamed-note.txt');
+      },
+    );
+
+    test('updates descendant editor tab paths after a folder move', () async {
+      final repository = _FakeWorkbenchRepository()
+        ..tabs.addAll(<WorkspaceTabRecord>[
+          WorkspaceTabRecord(
+            id: 'tab-1',
+            workspaceId: 'workspace-1',
+            kind: WorkspaceTabKind.editor,
+            title: 'main.dart',
+            createdAt: DateTime.utc(2026, 5, 21),
+            updatedAt: DateTime.utc(2026, 5, 21),
+            payload: const <String, Object?>{
+              workspaceTabFilePathPayloadKey: 'src/main.dart',
+            },
+          ),
+          WorkspaceTabRecord(
+            id: 'tab-2',
+            workspaceId: 'workspace-1',
+            kind: WorkspaceTabKind.editor,
+            title: 'readme.md',
+            createdAt: DateTime.utc(2026, 5, 21),
+            updatedAt: DateTime.utc(2026, 5, 21),
+            payload: const <String, Object?>{
+              workspaceTabFilePathPayloadKey: 'readme.md',
+            },
+          ),
+        ]);
+      final service = WorkspaceTabService(repository: repository);
+
+      final updated = await service.updateEditorPathsAfterMove(
+        workspaceId: 'workspace-1',
+        oldRelativePath: 'src',
+        newRelativePath: 'lib/src',
+      );
+
+      expect(updated, hasLength(1));
+      expect(updated.single.filePath, 'lib/src/main.dart');
+      expect(repository.tabs.first.filePath, 'lib/src/main.dart');
+      expect(repository.tabs.last.filePath, 'readme.md');
+    });
+
     test('renames a tab and marks its title as manual', () async {
       final repository = _FakeWorkbenchRepository()
         ..tabs.add(

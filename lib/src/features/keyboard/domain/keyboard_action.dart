@@ -50,6 +50,7 @@ enum KeyboardActionId {
   addProject,
   toggleSidebar,
   createWorkspace,
+  saveFile,
   newTerminalTab,
   closeTab,
   nextTab,
@@ -172,6 +173,14 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
     defaultBindings: PlatformBindings.uniform(<String>['Mod+Shift+N']),
     searchKeywords: <String>['worktree', 'branch'],
     allowInTerminal: true,
+  ),
+  KeybindingDefinition(
+    id: KeyboardActionId.saveFile,
+    label: 'Save file',
+    group: KeyboardActionGroup.workspace,
+    description: 'Save the active editor file.',
+    defaultBindings: PlatformBindings.uniform(<String>['Mod+S']),
+    searchKeywords: <String>['editor', 'write'],
   ),
   KeybindingDefinition(
     id: KeyboardActionId.newTerminalTab,

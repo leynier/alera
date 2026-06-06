@@ -3,6 +3,7 @@ import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
+import 'package:alera/src/features/settings/domain/editor_syntax_theme_catalog.dart';
 import 'package:alera/src/features/settings/infra/drift_settings_repository.dart';
 import 'package:alera/src/shared/infra/storage/drift_database.dart';
 import 'package:drift/native.dart';
@@ -59,6 +60,33 @@ void main() {
         TerminalCursorShape.block,
       );
       expect((await repository.load()).terminal.fontFamily, 'JetBrains Mono');
+    });
+
+    test('persists and resets editor settings', () async {
+      final db = AleraDatabase(executor: NativeDatabase.memory());
+      addTearDown(db.close);
+      final repository = DriftSettingsRepository(db);
+      final container = ProviderContainer(
+        overrides: [settingsRepositoryProvider.overrideWithValue(repository)],
+      );
+      addTearDown(container.dispose);
+      final controller = container.read(settingsControllerProvider.notifier);
+      await controller.load();
+
+      await controller.updateEditor(
+        controller.state.editor.copyWith(
+          tabSize: 2,
+          themeName: EditorSyntaxThemeNames.monokai,
+        ),
+      );
+      var restored = await repository.load();
+      expect(restored.editor.tabSize, 2);
+      expect(restored.editor.themeName, EditorSyntaxThemeNames.monokai);
+
+      await controller.resetEditorSettings();
+      restored = await repository.load();
+      expect(restored.editor.tabSize, EditorSettings.defaults.tabSize);
+      expect(restored.editor.themeName, EditorSettings.defaults.themeName);
     });
 
     test('persists keyboard binding changes and reset', () async {

@@ -21,3 +21,12 @@
 	path = third_party/dart_terminal
 	url = https://github.com/leynier/dart_terminal.git
 	branch = next
+[submodule "reference_projects/code_forge"]
+	path = reference_projects/code_forge
+	url = https://github.com/heckmon/code_forge.git
+[submodule "reference_projects/flutter_directory_tree"]
+	path = reference_projects/flutter_directory_tree
+	url = https://github.com/omar-hanafy/flutter_directory_tree.git
+[submodule "reference_projects/directory_tree"]
+	path = reference_projects/directory_tree
+	url = https://github.com/omar-hanafy/directory_tree.git

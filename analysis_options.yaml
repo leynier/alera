@@ -14,6 +14,8 @@ analyzer:
     - riverpod_lint
   exclude:
     - third_party/**
+    # Reference-only submodules are intentionally not part of the Alera package.
+    - reference_projects/**
     # Vendored flutter_rust_bridge/cargokit scaffolding; it is its own package
     # (resolved only during the native build), not part of the app analysis.
     - rust_builder/**

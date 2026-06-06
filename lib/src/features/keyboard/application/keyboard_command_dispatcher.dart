@@ -1,10 +1,12 @@
 import 'dart:async';
 
 import 'package:alera/src/app/providers.dart';
+import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
+import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_dialog_launchers.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Maps a [KeyboardActionId] to concrete app behavior, reusing existing
@@ -29,6 +31,8 @@ class KeyboardCommandDispatcher {
         unawaited(
           showCreateWorkspaceFlow(context, ref, initialProject: project),
         );
+      case KeyboardActionId.saveFile:
+        _saveActiveEditor();
       case KeyboardActionId.newTerminalTab:
         _newTerminalTab();
       case KeyboardActionId.closeTab:
@@ -76,6 +80,14 @@ class KeyboardCommandDispatcher {
     }());
   }
 
+  void _saveActiveEditor() {
+    final tab = ref.read(workbenchControllerProvider).activeWorkspaceTab;
+    if (tab == null || tab.kind != WorkspaceTabKind.editor) {
+      return;
+    }
+    unawaited(ref.read(editorSessionRegistryProvider).save(tab.id));
+  }
+
   void _closeActiveTab() {
     final state = ref.read(workbenchControllerProvider);
     final workspace = state.activeWorkspace;
@@ -83,12 +95,28 @@ class KeyboardCommandDispatcher {
     if (workspace == null || tab == null) {
       return;
     }
-    ref.read(terminalRuntimeProvider).closeTab(tab.id);
-    unawaited(
-      ref
+    unawaited(() async {
+      final registry = ref.read(editorSessionRegistryProvider);
+      if (registry.isDirty(tab.id)) {
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AleraConfirmDialog(
+            title: 'Close unsaved editor?',
+            message: '${tab.title} has unsaved changes.',
+            confirmLabel: 'Close',
+            destructive: true,
+          ),
+        );
+        if (confirmed != true) {
+          return;
+        }
+      }
+      ref.read(terminalRuntimeProvider).closeTab(tab.id);
+      await ref
           .read(workbenchControllerProvider.notifier)
-          .closeWorkspaceTab(workspace: workspace, tabId: tab.id),
-    );
+          .closeWorkspaceTab(workspace: workspace, tabId: tab.id);
+      registry.forget(tab.id);
+    }());
   }
 
   void _cycleTab(int delta) {

@@ -31,7 +31,7 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
   });
 
   testWidgets('shows a loading state for non-terminal tabs', (tester) async {
-    final tab = _tab('tab-1', title: 'Editor', kind: WorkspaceTabKind.editor);
+    final tab = _tab('tab-1', title: 'Browser', kind: WorkspaceTabKind.browser);
 
     await _pumpWorkbenchView(
       tester,
@@ -62,8 +62,8 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
     final terminalTab = _tab('tab-1', title: 'Terminal 1');
     final editorTab = _tab(
       'tab-2',
-      title: 'Editor',
-      kind: WorkspaceTabKind.editor,
+      title: 'Browser',
+      kind: WorkspaceTabKind.browser,
     );
 
     await _pumpWorkbenchView(
@@ -86,7 +86,7 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
       updatedRatios: updatedRatios,
     );
 
-    await tester.tap(find.text('Editor'));
+    await tester.tap(find.text('Browser'));
     await tester.pump();
 
     expect(selectedTabs, <_SelectedTabAction>[

@@ -59,7 +59,82 @@ void main() {
     expect(processRunner.calls, <_ProcessCall>[
       const _ProcessCall('explorer.exe', <String>[r'C:\repo\alera']),
     ]);
-    expect(opener.fileManagerLabel, 'File Explorer');
+    expect(opener.fileManagerLabel, 'Explorer');
+  });
+
+  test('reveals an item in Finder on macOS', () async {
+    final processRunner = _FakeProcessRunner();
+    final directory = await Directory.systemTemp.createTemp(
+      'alera-reveal-item-',
+    );
+    final file = File('${directory.path}/note.txt');
+    await file.writeAsString('note');
+    addTearDown(() async {
+      if (await directory.exists()) {
+        await directory.delete(recursive: true);
+      }
+    });
+    final opener = WorkspaceFolderOpener(
+      processRunner: processRunner,
+      platform: WorkspaceFolderPlatform.macos,
+    );
+
+    final result = await opener.reveal(file.path);
+
+    expect(result.ok, isTrue);
+    expect(processRunner.calls, <_ProcessCall>[
+      _ProcessCall('open', <String>['-R', file.path]),
+    ]);
+  });
+
+  test('reveals an item in Explorer on Windows', () async {
+    final processRunner = _FakeProcessRunner();
+    final directory = await Directory.systemTemp.createTemp(
+      'alera-reveal-item-',
+    );
+    final file = File('${directory.path}/note.txt');
+    await file.writeAsString('note');
+    addTearDown(() async {
+      if (await directory.exists()) {
+        await directory.delete(recursive: true);
+      }
+    });
+    final opener = WorkspaceFolderOpener(
+      processRunner: processRunner,
+      platform: WorkspaceFolderPlatform.windows,
+    );
+
+    final result = await opener.reveal(file.path);
+
+    expect(result.ok, isTrue);
+    expect(processRunner.calls, <_ProcessCall>[
+      _ProcessCall('explorer.exe', <String>['/select,${file.path}']),
+    ]);
+  });
+
+  test('reveals the parent folder on Linux for files', () async {
+    final processRunner = _FakeProcessRunner();
+    final directory = await Directory.systemTemp.createTemp(
+      'alera-reveal-item-',
+    );
+    final file = File('${directory.path}/note.txt');
+    await file.writeAsString('note');
+    addTearDown(() async {
+      if (await directory.exists()) {
+        await directory.delete(recursive: true);
+      }
+    });
+    final opener = WorkspaceFolderOpener(
+      processRunner: processRunner,
+      platform: WorkspaceFolderPlatform.linux,
+    );
+
+    final result = await opener.reveal(file.path);
+
+    expect(result.ok, isTrue);
+    expect(processRunner.calls, <_ProcessCall>[
+      _ProcessCall('xdg-open', <String>[directory.path]),
+    ]);
   });
 
   test('falls back to gio on Linux when xdg-open fails', () async {

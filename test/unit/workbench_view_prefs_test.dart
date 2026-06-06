@@ -11,6 +11,16 @@ void main() {
       expect(WorkbenchViewPrefs.defaults.selectedProjectIds, isEmpty);
       expect(WorkbenchViewPrefs.defaults.collapsedProjectIds, isEmpty);
       expect(WorkbenchViewPrefs.defaults.expandedWorkspaceIds, isEmpty);
+      expect(WorkbenchViewPrefs.defaults.rightSidebarVisible, isTrue);
+      expect(WorkbenchViewPrefs.defaults.rightSidebarWidth, 280);
+      expect(
+        WorkbenchViewPrefs.defaults.activeContextPanelTab,
+        WorkbenchContextPanelTab.explorer,
+      );
+      expect(
+        WorkbenchViewPrefs.defaults.explorerMode,
+        WorkspaceExplorerMode.hideIgnored,
+      );
     });
 
     test('round-trips through json', () {
@@ -21,6 +31,10 @@ void main() {
         selectedProjectIds: <String>{'p1', 'p2'},
         collapsedProjectIds: <String>{'p3'},
         expandedWorkspaceIds: <String>{'w1'},
+        rightSidebarVisible: false,
+        rightSidebarWidth: 360,
+        activeContextPanelTab: WorkbenchContextPanelTab.explorer,
+        explorerMode: WorkspaceExplorerMode.showAll,
       );
       final restored = WorkbenchViewPrefs.fromJson(
         Map<String, Object?>.from(prefs.toMap()),
@@ -31,6 +45,10 @@ void main() {
       expect(restored.selectedProjectIds, <String>{'p1', 'p2'});
       expect(restored.collapsedProjectIds, <String>{'p3'});
       expect(restored.expandedWorkspaceIds, <String>{'w1'});
+      expect(restored.rightSidebarVisible, isFalse);
+      expect(restored.rightSidebarWidth, 360);
+      expect(restored.activeContextPanelTab, WorkbenchContextPanelTab.explorer);
+      expect(restored.explorerMode, WorkspaceExplorerMode.showAll);
     });
 
     test('fromJson requires the current schema', () {
@@ -81,6 +99,7 @@ void main() {
       expect(updated.projectSort, WorkbenchSortBy.name);
       expect(updated.workspaceSort, WorkbenchSortBy.name);
       expect(updated.collapsedProjectIds, isEmpty);
+      expect(updated.rightSidebarVisible, isTrue);
     });
   });
 }

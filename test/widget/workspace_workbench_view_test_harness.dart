@@ -115,12 +115,17 @@ WorkspaceTabRecord _tab(
   String id, {
   required String title,
   WorkspaceTabKind kind = WorkspaceTabKind.terminal,
+  String? filePath,
 }) {
+  final payload = filePath == null
+      ? const <String, Object?>{}
+      : <String, Object?>{workspaceTabFilePathPayloadKey: filePath};
   return WorkspaceTabRecord(
     id: id,
     workspaceId: _workspaceId,
     title: title,
     kind: kind,
+    payload: payload,
     createdAt: DateTime.utc(2026, 5, 22),
     updatedAt: DateTime.utc(2026, 5, 22),
   );

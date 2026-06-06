@@ -52,6 +52,11 @@ abstract final class AleraTokens {
   static const Color error = Color(0xFFF87171);
   static const Color onError = Color(0xFF2C0D0D);
   static const Color warning = Color(0xFFF59E0B);
+  static const Color syntaxKeyword = Color(0xFFC792EA);
+  static const Color syntaxOperator = Color(0xFF89DDFF);
+  static const Color syntaxFunction = Color(0xFF82AAFF);
+  static const Color syntaxLiteral = Color(0xFFFFCB6B);
+  static const Color syntaxVariable = Color(0xFFFFCC80);
   static const Color shadowSoft = Color(0x14000000);
   static const Color barrierDark = Color(0x8A000000);
 

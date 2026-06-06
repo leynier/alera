@@ -10,6 +10,7 @@ import 'package:alera/src/features/workbench/application/workbench_controller.da
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/application/workbench_view_prefs_repository.dart';
+import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
 import 'package:alera/src/features/workbench/application/workspace_service.dart';
 import 'package:alera/src/features/workbench/application/workspace_tab_service.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
@@ -48,6 +49,16 @@ WorkspaceTabService workspaceTabService(Ref ref) {
   return WorkspaceTabService(
     repository: ref.watch(workbenchRepositoryProvider),
   );
+}
+
+@Riverpod(keepAlive: true)
+WorkspaceFileService workspaceFileService(Ref ref) {
+  return const WorkspaceFileService();
+}
+
+@Riverpod(keepAlive: true)
+EditorSessionRegistry editorSessionRegistry(Ref ref) {
+  return EditorSessionRegistry();
 }
 
 @Riverpod(keepAlive: true)
