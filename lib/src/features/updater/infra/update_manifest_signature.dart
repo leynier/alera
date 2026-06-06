@@ -79,6 +79,10 @@ Future<Map<String, Object?>> signAleraManifest({
   required String publicKeyBase64,
   required String publicKeyId,
 }) async {
+  final normalizedPublicKeyId = publicKeyId.trim();
+  if (normalizedPublicKeyId.isEmpty) {
+    throw const FormatException('publicKeyId must be a non-empty string.');
+  }
   final unsigned = Map<String, Object?>.from(manifest)
     ..remove(aleraManifestSignatureKey);
   final privateKeyBytes = base64Decode(privateKeyBase64);
@@ -96,7 +100,7 @@ Future<Map<String, Object?>> signAleraManifest({
     ...unsigned,
     aleraManifestSignatureKey: AleraManifestSignature(
       algorithm: aleraManifestSignatureAlgorithm,
-      publicKeyId: publicKeyId,
+      publicKeyId: normalizedPublicKeyId,
       signature: base64Encode(signature.bytes),
     ).toJson(),
   };

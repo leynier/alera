@@ -16,10 +16,11 @@ Future<void> main(List<String> args) async {
 
   final source = file.readAsStringSync();
   final publicKey = Platform.environment['ALERA_UPDATE_MANIFEST_PUBLIC_KEY'];
-  if (publicKey != null && publicKey.trim().isNotEmpty) {
+  final normalizedPublicKey = publicKey?.trim();
+  if (normalizedPublicKey != null && normalizedPublicKey.isNotEmpty) {
     final verified = await verifyAleraManifestSignature(
       manifestJson: source,
-      publicKeyBase64: publicKey,
+      publicKeyBase64: normalizedPublicKey,
     );
     if (!verified) {
       stderr.writeln('$path has an invalid manifest signature.');

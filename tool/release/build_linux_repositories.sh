@@ -14,8 +14,9 @@ require_env() {
 require_env ALERA_LINUX_GPG_PRIVATE_KEY_BASE64
 require_env ALERA_LINUX_GPG_KEY_ID
 
-gpg_home="$RUNNER_TEMP/alera-linux-gpg"
-mkdir -p "$gpg_home"
+tmp_root="${RUNNER_TEMP:-${TMPDIR:-/tmp}}"
+mkdir -p "$tmp_root"
+gpg_home="$(mktemp -d "${tmp_root%/}/alera-linux-gpg.XXXXXX")"
 chmod 700 "$gpg_home"
 printf '%s' "$ALERA_LINUX_GPG_PRIVATE_KEY_BASE64" | base64 --decode | gpg --homedir "$gpg_home" --batch --import
 

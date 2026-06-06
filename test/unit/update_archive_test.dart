@@ -142,6 +142,74 @@ void main() {
       expect(linux?.provenanceUrl, isNull);
     });
 
+    test('rejects malformed schema entries instead of dropping them', () {
+      expect(
+        () => AleraUpdateArchive.fromJson(<String, Object?>{
+          'schemaVersion': 2,
+          'items': <Object?>['not-an-object'],
+        }),
+        throwsFormatException,
+      );
+
+      expect(
+        () => AleraUpdateArchive.fromJson(<String, Object?>{
+          'schemaVersion': 2,
+          'items': <Object?>[
+            <String, Object?>{
+              'version': '1.0.0',
+              'shortVersion': 10,
+              'changes': <Object?>[],
+              'date': '2026-06-06',
+              'mandatory': false,
+              'artifacts': <Object?>['not-an-object'],
+            },
+          ],
+        }),
+        throwsFormatException,
+      );
+    });
+
+    test('requires schema v2 integrity metadata', () {
+      final missingSha = Map<String, Object?>.from(jsonDecode(_archiveV2Json));
+      final missingShaItems = List<Object?>.from(missingSha['items'] as List);
+      final missingShaItem = Map<String, Object?>.from(
+        missingShaItems.first as Map,
+      )..remove('sha256');
+      missingShaItems[0] = missingShaItem;
+      missingSha['items'] = missingShaItems;
+
+      expect(
+        () => AleraUpdateArchive.fromJson(missingSha),
+        throwsFormatException,
+      );
+
+      final invalidSize = Map<String, Object?>.from(jsonDecode(_archiveV2Json));
+      final invalidSizeItems = List<Object?>.from(invalidSize['items'] as List);
+      final invalidSizeItem = Map<String, Object?>.from(
+        invalidSizeItems.first as Map,
+      )..['size'] = 0;
+      invalidSizeItems[0] = invalidSizeItem;
+      invalidSize['items'] = invalidSizeItems;
+
+      expect(
+        () => AleraUpdateArchive.fromJson(invalidSize),
+        throwsFormatException,
+      );
+
+      final invalidSha = Map<String, Object?>.from(jsonDecode(_archiveV2Json));
+      final invalidShaItems = List<Object?>.from(invalidSha['items'] as List);
+      final invalidShaItem = Map<String, Object?>.from(
+        invalidShaItems.first as Map,
+      )..['sha256'] = 'not-a-sha';
+      invalidShaItems[0] = invalidShaItem;
+      invalidSha['items'] = invalidShaItems;
+
+      expect(
+        () => AleraUpdateArchive.fromJson(invalidSha),
+        throwsFormatException,
+      );
+    });
+
     test('verifies signed schema v2 manifests', () async {
       final keyPair = await Ed25519().newKeyPairFromSeed(List.filled(32, 1));
       final keyData = await keyPair.extract();
@@ -168,6 +236,25 @@ void main() {
         AleraUpdateArchive.fromSignedJsonString(
           jsonEncode(tampered),
           publicKeyBase64: publicKey,
+        ),
+        throwsFormatException,
+      );
+    });
+
+    test('rejects empty manifest public key ids when signing', () async {
+      final keyPair = await Ed25519().newKeyPairFromSeed(List.filled(32, 1));
+      final keyData = await keyPair.extract();
+      final publicKeyData = await keyPair.extractPublicKey();
+      final privateKey = base64Encode(keyData.bytes);
+      final publicKey = base64Encode(publicKeyData.bytes);
+      final decoded = Map<String, Object?>.from(jsonDecode(_archiveV2Json));
+
+      await expectLater(
+        signAleraManifest(
+          manifest: decoded,
+          privateKeyBase64: privateKey,
+          publicKeyBase64: publicKey,
+          publicKeyId: '   ',
         ),
         throwsFormatException,
       );

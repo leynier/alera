@@ -26,8 +26,6 @@ on:
 
 permissions:
   contents: write
-  id-token: write
-  attestations: write
 
 concurrency:
   group: release-cut
@@ -54,14 +52,14 @@ jobs:
       release_base_ref: ${{ steps.version.outputs.release_base_ref }}
     steps:
       - name: Checkout ref
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           ref: ${{ inputs.ref }}
           fetch-depth: 0
           submodules: recursive
 
       - name: Setup Dart
-        uses: dart-lang/setup-dart@v1
+        uses: dart-lang/setup-dart@65eb853c7ba17dde3be364c3d2858773e7144260
 
       - name: Compute next version
         id: version
@@ -147,13 +145,13 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout release ref
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           ref: ${{ needs.cut.outputs.release_base_ref }}
           submodules: recursive
 
       - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
         with:
           channel: stable
           cache: true
@@ -168,13 +166,13 @@ jobs:
       # The native build hooks compile both the Rust terminal-host sidecar
       # (alera-cli) and the flutter_rust_bridge git library (alera_native).
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9
         with:
           toolchain: "1.96"
           components: rustfmt, clippy
 
       - name: Cache Rust build
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32
         with:
           workspaces: rust
 
@@ -194,6 +192,10 @@ jobs:
           archive_file="app-archive.json"
           if [[ "$CHANNEL" == "rc" ]]; then
             archive_file="app-archive-rc.json"
+          fi
+          if [[ -z "${ALERA_UPDATE_MANIFEST_PUBLIC_KEY:-}" ]]; then
+            echo "::error::ALERA_UPDATE_MANIFEST_PUBLIC_KEY is required for signed release builds." >&2
+            exit 64
           fi
           archive_url="${BASE_URL}/${archive_file}"
           dart run desktop_updater:release "$PLATFORM" \
@@ -292,7 +294,7 @@ jobs:
           cp -R release-assets/. "$ASSET_DIR/"
 
       - name: Upload updater artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: updater-${{ matrix.platform }}
           path: pages/
@@ -300,7 +302,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload release asset artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: release-${{ matrix.platform }}
           path: release-assets/
@@ -312,21 +314,25 @@ jobs:
       - cut
       - build
     if: needs.cut.outputs.should_release == 'true'
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           ref: ${{ needs.cut.outputs.release_base_ref }}
           fetch-depth: 0
           submodules: recursive
 
       - name: Setup Dart
-        uses: dart-lang/setup-dart@v1
+        uses: dart-lang/setup-dart@65eb853c7ba17dde3be364c3d2858773e7144260
 
       - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
         with:
           channel: stable
           cache: true
@@ -340,14 +346,14 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Download updater artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           pattern: updater-*
           path: public
           merge-multiple: true
 
       - name: Download release assets
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           pattern: release-*
           path: release-assets
@@ -520,7 +526,7 @@ jobs:
         run: gh release upload "$TAG" release-assets/* "public/$ALERA_ARCHIVE_FILE" --repo "$GITHUB_REPOSITORY" --clobber
 
       - name: Attest release assets
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be
         with:
           subject-path: |
             release-assets/*

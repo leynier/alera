@@ -32,13 +32,21 @@ if [[ ! -d "$app_path" ]]; then
   exit 1
 fi
 
-keychain="$RUNNER_TEMP/alera-release-signing.keychain-db"
+tmp_root="${RUNNER_TEMP:-${TMPDIR:-/tmp}}"
+mkdir -p "$tmp_root"
+keychain="$tmp_root/alera-release-signing.keychain-db"
 security create-keychain -p "$APPLE_CERTIFICATE_PASSWORD" "$keychain"
 security set-keychain-settings -lut 21600 "$keychain"
 security unlock-keychain -p "$APPLE_CERTIFICATE_PASSWORD" "$keychain"
-security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+existing_keychains=()
+while IFS= read -r existing_keychain; do
+  if [[ -n "$existing_keychain" ]]; then
+    existing_keychains+=("$existing_keychain")
+  fi
+done < <(security list-keychains -d user | tr -d '"')
+security list-keychains -d user -s "$keychain" "${existing_keychains[@]}"
 
-cert_path="$RUNNER_TEMP/alera-developer-id.p12"
+cert_path="$tmp_root/alera-developer-id.p12"
 printf '%s' "$APPLE_CERTIFICATE_P12_BASE64" | base64_decode >"$cert_path"
 security import "$cert_path" -k "$keychain" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
 security set-key-partition-list -S apple-tool:,apple: -s -k "$APPLE_CERTIFICATE_PASSWORD" "$keychain"
@@ -57,7 +65,7 @@ codesign --force --deep --options runtime --timestamp \
 
 codesign --verify --strict --deep --verbose=2 "$app_path"
 
-zip_path="$RUNNER_TEMP/Alera-notarization.zip"
+zip_path="$tmp_root/Alera-notarization.zip"
 ditto -c -k --keepParent "$app_path" "$zip_path"
 xcrun notarytool submit "$zip_path" \
   --apple-id "$APPLE_ID" \

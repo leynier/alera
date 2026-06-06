@@ -34,7 +34,12 @@ if ($null -eq $signtool) {
   exit 1
 }
 
-$pfxPath = Join-Path $env:RUNNER_TEMP "alera-signing.pfx"
+$tempRoot = if ([string]::IsNullOrWhiteSpace($env:RUNNER_TEMP)) {
+  [IO.Path]::GetTempPath()
+} else {
+  $env:RUNNER_TEMP
+}
+$pfxPath = Join-Path $tempRoot "alera-signing.pfx"
 [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($certificateBase64))
 
 $targets = Get-ChildItem $BundleDir -Recurse -File |

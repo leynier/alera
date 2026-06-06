@@ -179,7 +179,7 @@ String _linuxUpdateMessage(AleraUpdateChannel channel, AleraUpdateInfo update) {
 
 String _manualInstallBlockedMessage(AleraUpdateArchive archive) {
   if (archive.schemaVersion >= 2) {
-    return 'Update manifest is signed; automatic installer apply is pending for this artifact type.';
+    return 'Update manifest is signed; automatic installation is pending for this artifact type.';
   }
   return 'Automatic installation is blocked until stable releases are signed.';
 }

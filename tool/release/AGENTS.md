@@ -28,5 +28,5 @@ This file applies to release scripts, packaging helpers, updater manifest genera
 
 - macOS production auto-update requires Apple Developer ID signing and notarization.
 - Windows production auto-update requires Authenticode signing.
-- Linux stable production distribution requires signed `.deb` and `.rpm` package repositories. Release candidates must not publish to the stable Linux package repositories.
+- Linux stable production distribution requires `.deb` and `.rpm` package repositories to be signed. Release candidates must not publish to the stable Linux package repositories.
 - Signing secrets must never be required by local manifest-generation scripts.

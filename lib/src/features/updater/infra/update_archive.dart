@@ -43,11 +43,14 @@ class AleraUpdateArchive {
       schemaVersion: schemaVersion,
       items: [
         for (final item in items)
-          if (item is Map)
-            ..._itemsFromJson(
-              Map<String, Object?>.from(item),
+          ..._itemsFromJson(
+            _archiveEntryAsMap(
+              item,
+              collectionName: 'items',
               schemaVersion: schemaVersion,
             ),
+            schemaVersion: schemaVersion,
+          ),
       ],
     );
   }
@@ -87,24 +90,57 @@ List<AleraUpdateInfo> _itemsFromJson(
   required int schemaVersion,
 }) {
   final artifacts = json['artifacts'];
-  if (schemaVersion >= 2 && artifacts is List && artifacts.isNotEmpty) {
+  if (schemaVersion >= 2 && artifacts != null) {
+    if (artifacts is! List) {
+      throw FormatException(
+        'artifacts must be a JSON array for schemaVersion $schemaVersion.',
+      );
+    }
+    if (artifacts.isEmpty) {
+      return [_itemFromJson(json, schemaVersion: schemaVersion)];
+    }
     return [
       for (final artifact in artifacts)
-        if (artifact is Map)
-          _itemFromJson(json, artifact: Map<String, Object?>.from(artifact)),
+        _itemFromJson(
+          json,
+          schemaVersion: schemaVersion,
+          artifact: _archiveEntryAsMap(
+            artifact,
+            collectionName: 'artifacts',
+            schemaVersion: schemaVersion,
+          ),
+        ),
     ];
   }
-  return [_itemFromJson(json)];
+  return [_itemFromJson(json, schemaVersion: schemaVersion)];
 }
 
 AleraUpdateInfo _itemFromJson(
   Map<String, Object?> json, {
+  required int schemaVersion,
   Map<String, Object?>? artifact,
 }) {
   final source = artifact ?? json;
   final url = _requiredString(source, 'url');
+  final sha256 = _optionalString(source['sha256']);
   final size = _optionalInt(source['size']);
-  if (size != null && size <= 0) {
+  if (schemaVersion >= 2) {
+    if (sha256 == null) {
+      throw const FormatException(
+        'sha256 is required for schema v2 artifacts.',
+      );
+    }
+    if (!_sha256Pattern.hasMatch(sha256)) {
+      throw const FormatException(
+        'sha256 must be a lowercase hex SHA-256 for schema v2 artifacts.',
+      );
+    }
+    if (size == null || size <= 0) {
+      throw const FormatException(
+        'size must be a positive integer for schema v2 artifacts.',
+      );
+    }
+  } else if (size != null && size <= 0) {
     throw const FormatException('size must be a positive integer.');
   }
   return AleraUpdateInfo(
@@ -116,10 +152,26 @@ AleraUpdateInfo _itemFromJson(
     platform: _requiredString(source, 'platform'),
     changes: _changesFromJson(json['changes']),
     installerKind: _optionalString(source['installerKind']) ?? 'directory',
-    sha256: _optionalString(source['sha256']),
+    sha256: sha256,
     size: size,
     signatureBundleUrl: _optionalUri(source['signatureBundleUrl']),
     provenanceUrl: _optionalUri(source['provenanceUrl']),
+  );
+}
+
+final RegExp _sha256Pattern = RegExp(r'^[0-9a-f]{64}$');
+
+Map<String, Object?> _archiveEntryAsMap(
+  Object? value, {
+  required String collectionName,
+  required int schemaVersion,
+}) {
+  if (value is Map) {
+    return Map<String, Object?>.from(value);
+  }
+  throw FormatException(
+    'Each $collectionName entry must be a JSON object for '
+    'schemaVersion $schemaVersion: $value.',
   );
 }
 
