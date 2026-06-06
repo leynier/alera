@@ -1,5 +1,9 @@
+import 'dart:convert';
+
 import 'package:alera/src/features/updater/domain/alera_update.dart';
 import 'package:alera/src/features/updater/infra/update_archive.dart';
+import 'package:alera/src/features/updater/infra/update_manifest_signature.dart';
+import 'package:cryptography/cryptography.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -119,6 +123,55 @@ void main() {
         throwsFormatException,
       );
     });
+
+    test('parses schema v2 items with integrity metadata', () {
+      final archive = AleraUpdateArchive.fromJsonString(_archiveV2Json);
+
+      final linux = archive.latestFor(
+        platform: 'linux',
+        currentBuildNumber: 1,
+        channel: AleraUpdateChannel.stable,
+      );
+
+      expect(archive.schemaVersion, 2);
+      expect(archive.items, hasLength(3));
+      expect(linux?.installerKind, 'deb');
+      expect(linux?.sha256, startsWith('aaaaaaaa'));
+      expect(linux?.size, 42);
+      expect(linux?.signatureBundleUrl, isNull);
+      expect(linux?.provenanceUrl, isNull);
+    });
+
+    test('verifies signed schema v2 manifests', () async {
+      final keyPair = await Ed25519().newKeyPairFromSeed(List.filled(32, 1));
+      final keyData = await keyPair.extract();
+      final publicKeyData = await keyPair.extractPublicKey();
+      final privateKey = base64Encode(keyData.bytes);
+      final publicKey = base64Encode(publicKeyData.bytes);
+      final decoded = Map<String, Object?>.from(jsonDecode(_archiveV2Json));
+      final signed = await signAleraManifest(
+        manifest: decoded,
+        privateKeyBase64: privateKey,
+        publicKeyBase64: publicKey,
+        publicKeyId: 'test-key',
+      );
+
+      final archive = await AleraUpdateArchive.fromSignedJsonString(
+        jsonEncode(signed),
+        publicKeyBase64: publicKey,
+      );
+
+      expect(archive.schemaVersion, 2);
+
+      final tampered = Map<String, Object?>.from(signed)..['version'] = '9.9.9';
+      await expectLater(
+        AleraUpdateArchive.fromSignedJsonString(
+          jsonEncode(tampered),
+          publicKeyBase64: publicKey,
+        ),
+        throwsFormatException,
+      );
+    });
   });
 }
 
@@ -162,6 +215,56 @@ const String _archiveJson = '''
       "mandatory": false,
       "url": "https://example.com/updates/0.1.1+2-linux",
       "platform": "linux"
+    }
+  ]
+}
+''';
+
+const String _archiveV2Json = '''
+{
+  "schemaVersion": 2,
+  "appName": "Alera",
+  "description": "Alera desktop agentic development environment.",
+  "channel": "stable",
+  "version": "1.0.0",
+  "buildNumber": 10,
+  "publishedAt": "2026-06-06T00:00:00Z",
+  "items": [
+    {
+      "version": "1.0.0",
+      "shortVersion": 10,
+      "changes": [{"type": "fix", "message": "Fix release."}],
+      "date": "2026-06-06",
+      "mandatory": false,
+      "platform": "macos",
+      "installerKind": "tar.gz",
+      "url": "https://example.com/alera-macos.tar.gz",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "size": 40
+    },
+    {
+      "version": "1.0.0",
+      "shortVersion": 10,
+      "changes": [{"type": "fix", "message": "Fix release."}],
+      "date": "2026-06-06",
+      "mandatory": false,
+      "platform": "linux",
+      "installerKind": "deb",
+      "url": "https://example.com/alera.deb",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "size": 42
+    },
+    {
+      "version": "1.0.0",
+      "shortVersion": 10,
+      "changes": [{"type": "fix", "message": "Fix release."}],
+      "date": "2026-06-06",
+      "mandatory": false,
+      "platform": "linux",
+      "installerKind": "rpm",
+      "url": "https://example.com/alera.rpm",
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "size": 43
     }
   ]
 }

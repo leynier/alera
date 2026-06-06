@@ -50,7 +50,9 @@ class DesktopAleraUpdateService implements AleraUpdateService {
         message: 'Desktop updates are not available on $_platform.',
       );
     }
-    if (config.canAutoInstall) {
+    if (config.canAutoInstall &&
+        config.channel == AleraUpdateChannel.rc &&
+        !config.signedRelease) {
       return _checkWithDesktopUpdater();
     }
     return _checkManually();
@@ -87,7 +89,12 @@ class DesktopAleraUpdateService implements AleraUpdateService {
 
     final packageInfo = await _loadPackageInfo();
     final currentBuild = int.tryParse(packageInfo.buildNumber) ?? 0;
-    final archive = AleraUpdateArchive.fromJsonString(response.body);
+    final archive = config.signedRelease
+        ? await AleraUpdateArchive.fromSignedJsonString(
+            response.body,
+            publicKeyBase64: config.manifestPublicKey,
+          )
+        : AleraUpdateArchive.fromJsonString(response.body);
     final latest = archive.latestFor(
       platform: _platform,
       currentBuildNumber: currentBuild,
@@ -98,10 +105,18 @@ class DesktopAleraUpdateService implements AleraUpdateService {
       return const AleraUpdateCheckResult(message: 'Alera is up to date.');
     }
 
+    if (_platform == 'linux') {
+      return AleraUpdateCheckResult(
+        latest: latest,
+        message: _linuxUpdateMessage(config.channel, latest),
+      );
+    }
+
     return AleraUpdateCheckResult(
       latest: latest,
+      autoInstallAllowed: config.canAutoInstall && archive.schemaVersion == 1,
       message: config.autoInstallEnabled
-          ? 'Automatic installation is blocked until stable releases are signed.'
+          ? _manualInstallBlockedMessage(archive)
           : 'Update ${latest.version} is available for manual download.',
     );
   }
@@ -152,6 +167,21 @@ class DesktopAleraUpdateService implements AleraUpdateService {
       _client.close();
     }
   }
+}
+
+String _linuxUpdateMessage(AleraUpdateChannel channel, AleraUpdateInfo update) {
+  if (channel == AleraUpdateChannel.stable &&
+      (update.installerKind == 'deb' || update.installerKind == 'rpm')) {
+    return 'Update ${update.version} is available through the Linux package repository.';
+  }
+  return 'Update ${update.version} is available for manual download.';
+}
+
+String _manualInstallBlockedMessage(AleraUpdateArchive archive) {
+  if (archive.schemaVersion >= 2) {
+    return 'Update manifest is signed; automatic installer apply is pending for this artifact type.';
+  }
+  return 'Automatic installation is blocked until stable releases are signed.';
 }
 
 AleraUpdateInfo _fromItemModel(ItemModel item) {

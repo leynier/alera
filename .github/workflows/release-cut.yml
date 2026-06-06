@@ -26,6 +26,8 @@ on:
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 concurrency:
   group: release-cut
@@ -158,7 +160,7 @@ jobs:
 
       - name: Install Linux Flutter dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev
+        run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev rpm
 
       - name: Install dependencies
         run: flutter pub get
@@ -179,13 +181,14 @@ jobs:
       - name: Apply release version locally
         run: dart tool/release/update_pubspec_version.dart "${{ needs.cut.outputs.artifact_version }}" "${{ needs.cut.outputs.build_number }}"
 
-      - name: Build updater archive
+      - name: Build release bundle
         shell: bash
         env:
           PLATFORM: ${{ matrix.platform }}
           CHANNEL: ${{ needs.cut.outputs.channel }}
           BASE_URL: ${{ env.ALERA_UPDATE_BASE_URL }}
           RELEASE_PAGE_URL: https://github.com/${{ github.repository }}/releases/tag/${{ needs.cut.outputs.tag }}
+          ALERA_UPDATE_MANIFEST_PUBLIC_KEY: ${{ secrets.ALERA_UPDATE_MANIFEST_PUBLIC_KEY }}
         run: |
           set -euo pipefail
           archive_file="app-archive.json"
@@ -199,34 +202,27 @@ jobs:
             --dart-define "ALERA_UPDATE_ARCHIVE_URL=$archive_url" \
             --dart-define "ALERA_RELEASE_PAGE_URL=$RELEASE_PAGE_URL" \
             --dart-define "ALERA_UPDATE_AUTO_INSTALL_ENABLED=false" \
-            --dart-define "ALERA_SIGNED_RELEASE=false"
-          dart run desktop_updater:archive "$PLATFORM"
+            --dart-define "ALERA_SIGNED_RELEASE=true" \
+            --dart-define "ALERA_UPDATE_MANIFEST_PUBLIC_KEY=$ALERA_UPDATE_MANIFEST_PUBLIC_KEY"
 
-      - name: Prepare release and updater artifacts
+      - name: Prepare release artifact directories
         shell: bash
         env:
           PLATFORM: ${{ matrix.platform }}
           CHANNEL: ${{ needs.cut.outputs.channel }}
-          RELEASE_VERSION: ${{ needs.cut.outputs.release_version }}
           ARTIFACT_VERSION: ${{ needs.cut.outputs.artifact_version }}
           BUILD_NUMBER: ${{ needs.cut.outputs.build_number }}
         run: |
           set -euo pipefail
           app_name="$(grep -E '^name:' pubspec.yaml | awk '{print $2}')"
-          updater_dir="dist/${BUILD_NUMBER}/${ARTIFACT_VERSION}+${BUILD_NUMBER}-${PLATFORM}"
           bundle_dir="dist/${BUILD_NUMBER}/${app_name}-${ARTIFACT_VERSION}+${BUILD_NUMBER}-${PLATFORM}"
-          if [[ ! -d "$updater_dir" ]]; then
-            echo "::error::Missing updater archive $updater_dir"
-            find dist -maxdepth 3 -type d -print || true
-            exit 1
-          fi
           if [[ ! -d "$bundle_dir" ]]; then
             echo "::error::Missing release bundle $bundle_dir"
             find dist -maxdepth 3 -type d -print || true
             exit 1
           fi
-          mkdir -p "pages/updates/${CHANNEL}/${ARTIFACT_VERSION}+${BUILD_NUMBER}-${PLATFORM}" release-assets
-          cp -R "$updater_dir/." "pages/updates/${CHANNEL}/${ARTIFACT_VERSION}+${BUILD_NUMBER}-${PLATFORM}/"
+          asset_dir="pages/updates/${CHANNEL}/${ARTIFACT_VERSION}+${BUILD_NUMBER}-${PLATFORM}"
+          mkdir -p "$asset_dir" release-assets
           if [[ "$PLATFORM" == "macos" && -d "$bundle_dir/alera.app" ]]; then
             # desktop_updater names the bundle after the lowercase pubspec
             # package name; the release display name is Alera (see
@@ -238,7 +234,62 @@ jobs:
             mv "$bundle_dir/alera.app" "$bundle_dir/.Alera.app.tmp"
             mv "$bundle_dir/.Alera.app.tmp" "$bundle_dir/Alera.app"
           fi
-          tar -czf "release-assets/alera-${RELEASE_VERSION}-${PLATFORM}.tar.gz" -C "$bundle_dir" .
+          echo "BUNDLE_DIR=$bundle_dir" >>"$GITHUB_ENV"
+          echo "ASSET_DIR=$asset_dir" >>"$GITHUB_ENV"
+
+      - name: Sign and package macOS release
+        if: matrix.platform == 'macos'
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ needs.cut.outputs.release_version }}
+          APPLE_DEVELOPER_ID_APPLICATION: ${{ secrets.APPLE_DEVELOPER_ID_APPLICATION }}
+          APPLE_DEVELOPER_ID_TEAM_ID: ${{ secrets.APPLE_DEVELOPER_ID_TEAM_ID }}
+          APPLE_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        run: |
+          set -euo pipefail
+          bash tool/release/sign_macos.sh "$BUNDLE_DIR" "$BUNDLE_DIR/Alera.app"
+          tar -czf "release-assets/alera-${RELEASE_VERSION}-macos.tar.gz" -C "$BUNDLE_DIR" .
+
+      - name: Sign and package Windows release
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ needs.cut.outputs.release_version }}
+          WINDOWS_CERTIFICATE_PFX_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_PFX_BASE64 }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          WINDOWS_TIMESTAMP_URL: ${{ vars.WINDOWS_TIMESTAMP_URL }}
+        run: |
+          pwsh -NoProfile -File tool/release/sign_windows.ps1 -BundleDir "$env:BUNDLE_DIR"
+          tar -czf "release-assets/alera-$env:RELEASE_VERSION-windows.tar.gz" -C "$env:BUNDLE_DIR" .
+
+      - name: Package stable Linux release
+        if: matrix.platform == 'linux' && needs.cut.outputs.channel == 'stable'
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ needs.cut.outputs.release_version }}
+          ARTIFACT_VERSION: ${{ needs.cut.outputs.artifact_version }}
+          BUILD_NUMBER: ${{ needs.cut.outputs.build_number }}
+        run: |
+          set -euo pipefail
+          bash tool/release/package_linux.sh "$BUNDLE_DIR" release-assets "$RELEASE_VERSION" "$ARTIFACT_VERSION" "$BUILD_NUMBER"
+
+      - name: Package RC Linux release
+        if: matrix.platform == 'linux' && needs.cut.outputs.channel == 'rc'
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ needs.cut.outputs.release_version }}
+        run: |
+          set -euo pipefail
+          tar -czf "release-assets/alera-${RELEASE_VERSION}-linux.tar.gz" -C "$BUNDLE_DIR" .
+
+      - name: Stage release assets for updater
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp -R release-assets/. "$ASSET_DIR/"
 
       - name: Upload updater artifact
         uses: actions/upload-artifact@v4
@@ -274,6 +325,15 @@ jobs:
       - name: Setup Dart
         uses: dart-lang/setup-dart@v1
 
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
       - name: Configure git author
         run: |
           git config user.name "github-actions[bot]"
@@ -292,6 +352,10 @@ jobs:
           pattern: release-*
           path: release-assets
           merge-multiple: true
+
+      - name: Install Linux repository tools
+        if: needs.cut.outputs.channel == 'stable'
+        run: sudo apt-get update && sudo apt-get install -y apt-utils createrepo-c
 
       - name: Preserve existing update indexes
         run: |
@@ -324,14 +388,25 @@ jobs:
           ALERA_RELEASE_BUILD_NUMBER: ${{ needs.cut.outputs.build_number }}
           ALERA_UPDATE_BASE_URL: ${{ env.ALERA_UPDATE_BASE_URL }}
           ALERA_UPDATE_PATH_PREFIX: updates/${{ needs.cut.outputs.channel }}
+          ALERA_UPDATE_MANIFEST_PRIVATE_KEY: ${{ secrets.ALERA_UPDATE_MANIFEST_PRIVATE_KEY }}
+          ALERA_UPDATE_MANIFEST_PUBLIC_KEY: ${{ secrets.ALERA_UPDATE_MANIFEST_PUBLIC_KEY }}
+          ALERA_UPDATE_MANIFEST_PUBLIC_KEY_ID: ${{ vars.ALERA_UPDATE_MANIFEST_PUBLIC_KEY_ID }}
         run: |
           archive_file="app-archive.json"
           if [[ "$CHANNEL" == "rc" ]]; then
             archive_file="app-archive-rc.json"
           fi
           dart tool/release/build_app_archive.dart "public/$archive_file"
+          dart tool/release/sign_app_archive.dart "public/$archive_file"
           dart tool/release/verify_app_archive.dart "public/$archive_file"
           echo "ALERA_ARCHIVE_FILE=$archive_file" >>"$GITHUB_ENV"
+
+      - name: Build signed Linux package repositories
+        if: needs.cut.outputs.channel == 'stable'
+        env:
+          ALERA_LINUX_GPG_PRIVATE_KEY_BASE64: ${{ secrets.ALERA_LINUX_GPG_PRIVATE_KEY_BASE64 }}
+          ALERA_LINUX_GPG_KEY_ID: ${{ secrets.ALERA_LINUX_GPG_KEY_ID }}
+        run: bash tool/release/build_linux_repositories.sh public
 
       - name: Ensure AWS CLI
         run: |
@@ -444,6 +519,13 @@ jobs:
           TAG: ${{ needs.cut.outputs.tag }}
         run: gh release upload "$TAG" release-assets/* "public/$ALERA_ARCHIVE_FILE" --repo "$GITHUB_REPOSITORY" --clobber
 
+      - name: Attest release assets
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            release-assets/*
+            public/${{ env.ALERA_ARCHIVE_FILE }}
+
       - name: Publish release
         id: publish_release
         env:
@@ -466,11 +548,17 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: auto
           R2_ENDPOINT: https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          CHANNEL: ${{ needs.cut.outputs.channel }}
         run: |
           set -euo pipefail
           aws s3 sync public/updates "s3://${ALERA_R2_BUCKET}/updates" \
             --endpoint-url "$R2_ENDPOINT" \
             --cache-control "public, max-age=31536000, immutable"
+          if [[ "$CHANNEL" == "stable" ]]; then
+            aws s3 sync public/linux "s3://${ALERA_R2_BUCKET}/linux" \
+              --endpoint-url "$R2_ENDPOINT" \
+              --cache-control "public, max-age=300"
+          fi
           for archive_file in app-archive.json app-archive-rc.json; do
             if [[ -f "public/$archive_file" ]]; then
               aws s3 cp "public/$archive_file" "s3://${ALERA_R2_BUCKET}/$archive_file" \

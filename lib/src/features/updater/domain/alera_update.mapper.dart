@@ -166,6 +166,13 @@ class AleraUpdateConfigMapper extends ClassMapperBase<AleraUpdateConfig> {
     'signedRelease',
     _$signedRelease,
   );
+  static String _$manifestPublicKey(AleraUpdateConfig v) => v.manifestPublicKey;
+  static const Field<AleraUpdateConfig, String> _f$manifestPublicKey = Field(
+    'manifestPublicKey',
+    _$manifestPublicKey,
+    opt: true,
+    def: '',
+  );
 
   @override
   final MappableFields<AleraUpdateConfig> fields = const {
@@ -174,6 +181,7 @@ class AleraUpdateConfigMapper extends ClassMapperBase<AleraUpdateConfig> {
     #channel: _f$channel,
     #autoInstallEnabled: _f$autoInstallEnabled,
     #signedRelease: _f$signedRelease,
+    #manifestPublicKey: _f$manifestPublicKey,
   };
 
   static AleraUpdateConfig _instantiate(DecodingData data) {
@@ -183,6 +191,7 @@ class AleraUpdateConfigMapper extends ClassMapperBase<AleraUpdateConfig> {
       channel: data.dec(_f$channel),
       autoInstallEnabled: data.dec(_f$autoInstallEnabled),
       signedRelease: data.dec(_f$signedRelease),
+      manifestPublicKey: data.dec(_f$manifestPublicKey),
     );
   }
 
@@ -263,6 +272,7 @@ abstract class AleraUpdateConfigCopyWith<
     AleraUpdateChannel? channel,
     bool? autoInstallEnabled,
     bool? signedRelease,
+    String? manifestPublicKey,
   });
   AleraUpdateConfigCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -284,6 +294,7 @@ class _AleraUpdateConfigCopyWithImpl<$R, $Out>
     AleraUpdateChannel? channel,
     bool? autoInstallEnabled,
     bool? signedRelease,
+    String? manifestPublicKey,
   }) => $apply(
     FieldCopyWithData({
       if (archiveUrl != null) #archiveUrl: archiveUrl,
@@ -291,6 +302,7 @@ class _AleraUpdateConfigCopyWithImpl<$R, $Out>
       if (channel != null) #channel: channel,
       if (autoInstallEnabled != null) #autoInstallEnabled: autoInstallEnabled,
       if (signedRelease != null) #signedRelease: signedRelease,
+      if (manifestPublicKey != null) #manifestPublicKey: manifestPublicKey,
     }),
   );
   @override
@@ -303,6 +315,10 @@ class _AleraUpdateConfigCopyWithImpl<$R, $Out>
       or: $value.autoInstallEnabled,
     ),
     signedRelease: data.get(#signedRelease, or: $value.signedRelease),
+    manifestPublicKey: data.get(
+      #manifestPublicKey,
+      or: $value.manifestPublicKey,
+    ),
   );
 
   @override
@@ -358,6 +374,39 @@ class AleraUpdateInfoMapper extends ClassMapperBase<AleraUpdateInfo> {
     'changes',
     _$changes,
   );
+  static String _$installerKind(AleraUpdateInfo v) => v.installerKind;
+  static const Field<AleraUpdateInfo, String> _f$installerKind = Field(
+    'installerKind',
+    _$installerKind,
+    opt: true,
+    def: 'directory',
+  );
+  static String? _$sha256(AleraUpdateInfo v) => v.sha256;
+  static const Field<AleraUpdateInfo, String> _f$sha256 = Field(
+    'sha256',
+    _$sha256,
+    opt: true,
+  );
+  static int? _$size(AleraUpdateInfo v) => v.size;
+  static const Field<AleraUpdateInfo, int> _f$size = Field(
+    'size',
+    _$size,
+    opt: true,
+  );
+  static Uri? _$signatureBundleUrl(AleraUpdateInfo v) => v.signatureBundleUrl;
+  static const Field<AleraUpdateInfo, Uri> _f$signatureBundleUrl = Field(
+    'signatureBundleUrl',
+    _$signatureBundleUrl,
+    opt: true,
+    hook: _UriStringHook(),
+  );
+  static Uri? _$provenanceUrl(AleraUpdateInfo v) => v.provenanceUrl;
+  static const Field<AleraUpdateInfo, Uri> _f$provenanceUrl = Field(
+    'provenanceUrl',
+    _$provenanceUrl,
+    opt: true,
+    hook: _UriStringHook(),
+  );
 
   @override
   final MappableFields<AleraUpdateInfo> fields = const {
@@ -368,6 +417,11 @@ class AleraUpdateInfoMapper extends ClassMapperBase<AleraUpdateInfo> {
     #url: _f$url,
     #platform: _f$platform,
     #changes: _f$changes,
+    #installerKind: _f$installerKind,
+    #sha256: _f$sha256,
+    #size: _f$size,
+    #signatureBundleUrl: _f$signatureBundleUrl,
+    #provenanceUrl: _f$provenanceUrl,
   };
 
   static AleraUpdateInfo _instantiate(DecodingData data) {
@@ -379,6 +433,11 @@ class AleraUpdateInfoMapper extends ClassMapperBase<AleraUpdateInfo> {
       url: data.dec(_f$url),
       platform: data.dec(_f$platform),
       changes: data.dec(_f$changes),
+      installerKind: data.dec(_f$installerKind),
+      sha256: data.dec(_f$sha256),
+      size: data.dec(_f$size),
+      signatureBundleUrl: data.dec(_f$signatureBundleUrl),
+      provenanceUrl: data.dec(_f$provenanceUrl),
     );
   }
 
@@ -453,6 +512,11 @@ abstract class AleraUpdateInfoCopyWith<$R, $In extends AleraUpdateInfo, $Out>
     Uri? url,
     String? platform,
     List<String>? changes,
+    String? installerKind,
+    String? sha256,
+    int? size,
+    Uri? signatureBundleUrl,
+    Uri? provenanceUrl,
   });
   AleraUpdateInfoCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -483,6 +547,11 @@ class _AleraUpdateInfoCopyWithImpl<$R, $Out>
     Uri? url,
     String? platform,
     List<String>? changes,
+    String? installerKind,
+    Object? sha256 = $none,
+    Object? size = $none,
+    Object? signatureBundleUrl = $none,
+    Object? provenanceUrl = $none,
   }) => $apply(
     FieldCopyWithData({
       if (version != null) #version: version,
@@ -492,6 +561,11 @@ class _AleraUpdateInfoCopyWithImpl<$R, $Out>
       if (url != null) #url: url,
       if (platform != null) #platform: platform,
       if (changes != null) #changes: changes,
+      if (installerKind != null) #installerKind: installerKind,
+      if (sha256 != $none) #sha256: sha256,
+      if (size != $none) #size: size,
+      if (signatureBundleUrl != $none) #signatureBundleUrl: signatureBundleUrl,
+      if (provenanceUrl != $none) #provenanceUrl: provenanceUrl,
     }),
   );
   @override
@@ -503,6 +577,14 @@ class _AleraUpdateInfoCopyWithImpl<$R, $Out>
     url: data.get(#url, or: $value.url),
     platform: data.get(#platform, or: $value.platform),
     changes: data.get(#changes, or: $value.changes),
+    installerKind: data.get(#installerKind, or: $value.installerKind),
+    sha256: data.get(#sha256, or: $value.sha256),
+    size: data.get(#size, or: $value.size),
+    signatureBundleUrl: data.get(
+      #signatureBundleUrl,
+      or: $value.signatureBundleUrl,
+    ),
+    provenanceUrl: data.get(#provenanceUrl, or: $value.provenanceUrl),
   );
 
   @override

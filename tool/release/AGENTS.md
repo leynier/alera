@@ -18,6 +18,8 @@ This file applies to release scripts, packaging helpers, updater manifest genera
 - UI and controllers must depend on Alera updater abstractions, not directly on `desktop_updater`.
 - The stable public update index is `app-archive.json`.
 - The release-candidate public update index is `app-archive-rc.json`.
+- Public update indexes use schema v2 and MUST be Ed25519-signed before publication.
+- Schema v2 artifacts MUST include SHA-256 and size metadata. Signature bundle and provenance URLs are optional and must only be present when the referenced files are actually published.
 - Stable auto-install is disabled until trusted signing/notarization is available for the release build.
 - Unsigned stable builds may show that an update exists and open the manual download page.
 - RC or preview auto-install may be enabled only by explicit build flags.
@@ -26,5 +28,5 @@ This file applies to release scripts, packaging helpers, updater manifest genera
 
 - macOS production auto-update requires Apple Developer ID signing and notarization.
 - Windows production auto-update requires Authenticode signing.
-- Linux artifacts must document package/dependency expectations.
+- Linux stable production distribution requires signed `.deb` and `.rpm` package repositories. Release candidates must not publish to the stable Linux package repositories.
 - Signing secrets must never be required by local manifest-generation scripts.

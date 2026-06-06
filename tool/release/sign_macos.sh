@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+bundle_dir="${1:?bundle directory is required}"
+app_path="${2:-$bundle_dir/Alera.app}"
+
+require_env() {
+  local name="$1"
+  if [[ -z "${!name:-}" ]]; then
+    echo "::error::$name is required for macOS release signing." >&2
+    exit 64
+  fi
+}
+
+require_env APPLE_DEVELOPER_ID_APPLICATION
+require_env APPLE_DEVELOPER_ID_TEAM_ID
+require_env APPLE_CERTIFICATE_P12_BASE64
+require_env APPLE_CERTIFICATE_PASSWORD
+require_env APPLE_ID
+require_env APPLE_APP_SPECIFIC_PASSWORD
+
+base64_decode() {
+  if base64 --decode >/dev/null 2>&1 <<<""; then
+    base64 --decode
+  else
+    base64 -D
+  fi
+}
+
+if [[ ! -d "$app_path" ]]; then
+  echo "::error::Missing macOS app bundle: $app_path" >&2
+  exit 1
+fi
+
+keychain="$RUNNER_TEMP/alera-release-signing.keychain-db"
+security create-keychain -p "$APPLE_CERTIFICATE_PASSWORD" "$keychain"
+security set-keychain-settings -lut 21600 "$keychain"
+security unlock-keychain -p "$APPLE_CERTIFICATE_PASSWORD" "$keychain"
+security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+
+cert_path="$RUNNER_TEMP/alera-developer-id.p12"
+printf '%s' "$APPLE_CERTIFICATE_P12_BASE64" | base64_decode >"$cert_path"
+security import "$cert_path" -k "$keychain" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+security set-key-partition-list -S apple-tool:,apple: -s -k "$APPLE_CERTIFICATE_PASSWORD" "$keychain"
+
+identity="$APPLE_DEVELOPER_ID_APPLICATION"
+entitlements="macos/Runner/Release.entitlements"
+
+while IFS= read -r binary; do
+  codesign --force --options runtime --timestamp --sign "$identity" "$binary"
+done < <(find "$app_path/Contents/Resources/alera" -type f -perm -111 2>/dev/null || true)
+
+codesign --force --deep --options runtime --timestamp \
+  --entitlements "$entitlements" \
+  --sign "$identity" \
+  "$app_path"
+
+codesign --verify --strict --deep --verbose=2 "$app_path"
+
+zip_path="$RUNNER_TEMP/Alera-notarization.zip"
+ditto -c -k --keepParent "$app_path" "$zip_path"
+xcrun notarytool submit "$zip_path" \
+  --apple-id "$APPLE_ID" \
+  --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+  --team-id "$APPLE_DEVELOPER_ID_TEAM_ID" \
+  --wait
+xcrun stapler staple "$app_path"
+xcrun stapler validate "$app_path"
+spctl -a -t exec -vv "$app_path"
