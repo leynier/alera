@@ -312,6 +312,8 @@ pub fn write_workspace_text_file(
     read_workspace_text_file(workspace_path, canonical_relative_path)
 }
 
+// FRB exposes this as named arguments on the Dart side, so keep the boundary flat.
+#[allow(clippy::too_many_arguments)]
 pub fn write_workspace_editor_text_file(
     workspace_path: String,
     relative_path: String,
@@ -956,7 +958,7 @@ mod tests {
             relative_path: relative_path.to_string(),
             name: relative_path
                 .split('/')
-                .last()
+                .next_back()
                 .unwrap_or(relative_path)
                 .to_string(),
             kind,

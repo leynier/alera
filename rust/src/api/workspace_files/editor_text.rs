@@ -77,7 +77,7 @@ fn expand_workspace_editor_tabs(text: &str, tab_size: i32) -> String {
     for character in text.chars() {
         if character == '\t' {
             let spaces = effective_tab_size - (column % effective_tab_size);
-            expanded.extend(std::iter::repeat(' ').take(spaces));
+            expanded.extend(std::iter::repeat_n(' ', spaces));
             column += spaces;
         } else {
             expanded.push(character);
