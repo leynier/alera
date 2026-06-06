@@ -11,6 +11,7 @@ import 'package:alera/src/features/workbench/application/workbench_repository.da
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/application/workbench_view_prefs_repository.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
+import 'package:alera/src/features/workbench/application/workspace_search_service.dart';
 import 'package:alera/src/features/workbench/application/workspace_service.dart';
 import 'package:alera/src/features/workbench/application/workspace_tab_service.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
@@ -54,6 +55,11 @@ WorkspaceTabService workspaceTabService(Ref ref) {
 @Riverpod(keepAlive: true)
 WorkspaceFileService workspaceFileService(Ref ref) {
   return const WorkspaceFileService();
+}
+
+@Riverpod(keepAlive: true)
+WorkspaceSearchService workspaceSearchService(Ref ref) {
+  return const WorkspaceSearchService();
 }
 
 @Riverpod(keepAlive: true)

@@ -22,6 +22,7 @@ import 'package:re_highlight/re_highlight.dart';
 part 'workspace_editor_language_registry.dart';
 part 'workspace_editor_widgets.dart';
 part 'workspace_editor_focus.dart';
+part 'workspace_editor_reveal.dart';
 
 class WorkspaceEditorSurface extends ConsumerStatefulWidget {
   const WorkspaceEditorSurface({
@@ -73,6 +74,8 @@ class _WorkspaceEditorSurfaceState
       isDirty: _isDirty,
       save: _save,
       discard: _discardChanges,
+      reveal: _revealOrDefer,
+      reload: _reloadFromDiskAfterExternalChange,
     );
     _controller.addListener(_handleControllerChanged);
     _document = _editorSessions.documentFor(widget.tab.id);
@@ -229,6 +232,7 @@ class _WorkspaceEditorSurfaceState
     } finally {
       if (mounted) {
         setState(() => _loading = false);
+        _applyPendingReveal();
       }
     }
   }
@@ -389,8 +393,11 @@ class _WorkspaceEditorSurfaceState
       _controller.text = _document.currentText ?? '';
       _loadError = _document.loadError;
       _loading = false;
+      _applyPendingReveal();
       return;
     }
+    _loading = true;
+    _loadError = null;
     unawaited(_load());
   }
 
@@ -466,22 +473,4 @@ String workspaceEditorCodeForgeKey({
   required String themeName,
 }) {
   return 'workspace-editor-$tabId-$filePath-$themeName';
-}
-
-class _EditorMessage extends StatelessWidget {
-  const _EditorMessage({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Text(
-        message,
-        style: Theme.of(
-          context,
-        ).textTheme.bodyMedium?.copyWith(color: AleraTokens.foregroundMuted),
-      ),
-    );
-  }
 }
