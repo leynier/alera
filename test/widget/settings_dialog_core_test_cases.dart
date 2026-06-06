@@ -52,6 +52,11 @@ void _registerSettingsDialogCoreTests() {
     await tester.pump();
   }
 
+  Future<void> selectEditorSectionLocal(WidgetTester tester) async {
+    await tester.tap(find.text('Editor').first);
+    await tester.pump();
+  }
+
   testWidgets('shows terminal settings and filters with search', (
     tester,
   ) async {
@@ -77,6 +82,54 @@ void _registerSettingsDialogCoreTests() {
     await tester.pump();
 
     expect(find.text('No settings found.'), findsOneWidget);
+  });
+
+  testWidgets('edits and resets editor settings', (tester) async {
+    final container = await pumpSettingsDialogLocal(tester);
+    await selectEditorSectionLocal(tester);
+
+    expect(find.text('Editor'), findsWidgets);
+    expect(find.text('Tab size'), findsOneWidget);
+    expect(find.text('Theme preset'), findsOneWidget);
+    expect(container.read(settingsControllerProvider).editor.tabSize, 4);
+    expect(
+      container.read(settingsControllerProvider).editor.themeName,
+      EditorSyntaxThemeNames.alera,
+    );
+
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('editor-theme-search-field')),
+      'monokai',
+    );
+    await tester.pump();
+    await tester.tap(find.text(EditorSyntaxThemeNames.monokai));
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(
+      container.read(settingsControllerProvider).editor.themeName,
+      EditorSyntaxThemeNames.monokai,
+    );
+
+    await tester.ensureVisible(find.text('Tab size'));
+    await tester.pump();
+
+    await tester.enterText(find.byType(TextField).last, '2');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(container.read(settingsControllerProvider).editor.tabSize, 2);
+
+    await tester.tap(find.text('Reset editor'));
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(
+      container.read(settingsControllerProvider).editor.tabSize,
+      EditorSettings.defaults.tabSize,
+    );
+    expect(
+      container.read(settingsControllerProvider).editor.themeName,
+      EditorSettings.defaults.themeName,
+    );
   });
 
   testWidgets('edits and resets terminal settings', (tester) async {

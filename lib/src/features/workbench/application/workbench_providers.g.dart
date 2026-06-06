@@ -154,6 +154,102 @@ final class WorkspaceTabServiceProvider
 String _$workspaceTabServiceHash() =>
     r'fb00e54f6d99f27461ff806e7a51443a68e10bb6';
 
+@ProviderFor(workspaceFileService)
+final workspaceFileServiceProvider = WorkspaceFileServiceProvider._();
+
+final class WorkspaceFileServiceProvider
+    extends
+        $FunctionalProvider<
+          WorkspaceFileService,
+          WorkspaceFileService,
+          WorkspaceFileService
+        >
+    with $Provider<WorkspaceFileService> {
+  WorkspaceFileServiceProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'workspaceFileServiceProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$workspaceFileServiceHash();
+
+  @$internal
+  @override
+  $ProviderElement<WorkspaceFileService> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  WorkspaceFileService create(Ref ref) {
+    return workspaceFileService(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(WorkspaceFileService value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<WorkspaceFileService>(value),
+    );
+  }
+}
+
+String _$workspaceFileServiceHash() =>
+    r'caafbfd4f0d5e1241b84321d4ae06da175f89d9a';
+
+@ProviderFor(editorSessionRegistry)
+final editorSessionRegistryProvider = EditorSessionRegistryProvider._();
+
+final class EditorSessionRegistryProvider
+    extends
+        $FunctionalProvider<
+          EditorSessionRegistry,
+          EditorSessionRegistry,
+          EditorSessionRegistry
+        >
+    with $Provider<EditorSessionRegistry> {
+  EditorSessionRegistryProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'editorSessionRegistryProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$editorSessionRegistryHash();
+
+  @$internal
+  @override
+  $ProviderElement<EditorSessionRegistry> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  EditorSessionRegistry create(Ref ref) {
+    return editorSessionRegistry(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(EditorSessionRegistry value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<EditorSessionRegistry>(value),
+    );
+  }
+}
+
+String _$editorSessionRegistryHash() =>
+    r'13bc331bb32ccb9ecb6c5f2f465edb8e34f935bb';
+
 @ProviderFor(workspaceService)
 final workspaceServiceProvider = WorkspaceServiceProvider._();
 

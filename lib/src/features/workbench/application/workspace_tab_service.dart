@@ -54,6 +54,33 @@ class WorkspaceTabService {
     return tab;
   }
 
+  Future<WorkspaceTabRecord> openOrCreateEditorTab({
+    required String workspaceId,
+    required String relativePath,
+  }) async {
+    final normalizedPath = _normalizeRelativePath(relativePath);
+    final existing = await _repository.listWorkspaceTabs(workspaceId);
+    for (final tab in existing) {
+      if (tab.kind == WorkspaceTabKind.editor &&
+          tab.payload[workspaceTabFilePathPayloadKey] == normalizedPath) {
+        return tab;
+      }
+    }
+    final tab = WorkspaceTabRecord(
+      id: _uuid.v4(),
+      workspaceId: workspaceId,
+      kind: WorkspaceTabKind.editor,
+      title: _titleForPath(normalizedPath),
+      createdAt: _now(),
+      updatedAt: _now(),
+      payload: <String, Object?>{
+        workspaceTabFilePathPayloadKey: normalizedPath,
+      },
+    );
+    await _repository.upsertWorkspaceTab(tab);
+    return tab;
+  }
+
   Future<void> closeTab(String tabId) {
     return _repository.removeWorkspaceTab(tabId);
   }
@@ -82,6 +109,45 @@ class WorkspaceTabService {
     return next;
   }
 
+  Future<List<WorkspaceTabRecord>> updateEditorPathsAfterMove({
+    required String workspaceId,
+    required String oldRelativePath,
+    required String newRelativePath,
+  }) async {
+    final oldPath = _normalizeRelativePath(oldRelativePath);
+    final newPath = _normalizeRelativePath(newRelativePath);
+    final tabs = await _repository.listWorkspaceTabs(workspaceId);
+    final updated = <WorkspaceTabRecord>[];
+    for (final tab in tabs) {
+      if (tab.kind != WorkspaceTabKind.editor) {
+        continue;
+      }
+      final filePath = tab.filePath;
+      if (filePath == null) {
+        continue;
+      }
+      final nextPath = _replacePathPrefix(
+        path: filePath,
+        oldPath: oldPath,
+        newPath: newPath,
+      );
+      if (nextPath == null || nextPath == filePath) {
+        continue;
+      }
+      final next = tab.copyWith(
+        title: _titleForPath(nextPath),
+        updatedAt: _now(),
+        payload: <String, Object?>{
+          ...tab.payload,
+          workspaceTabFilePathPayloadKey: nextPath,
+        },
+      );
+      await _repository.upsertWorkspaceTab(next);
+      updated.add(next);
+    }
+    return updated;
+  }
+
   int _nextOrdinal(List<WorkspaceTabRecord> tabs) {
     final used = <int>{};
     for (final tab in tabs) {
@@ -96,5 +162,37 @@ class WorkspaceTabService {
       ordinal += 1;
     }
     return ordinal;
+  }
+
+  String _normalizeRelativePath(String path) {
+    final normalized = path
+        .replaceAll('\\', '/')
+        .split('/')
+        .where((part) => part.trim().isNotEmpty && part != '.')
+        .join('/');
+    if (normalized.isEmpty || normalized.split('/').contains('..')) {
+      throw StateError('File path must stay inside the workspace');
+    }
+    return normalized;
+  }
+
+  String _titleForPath(String path) {
+    final parts = path.split('/');
+    return parts.isEmpty ? path : parts.last;
+  }
+
+  String? _replacePathPrefix({
+    required String path,
+    required String oldPath,
+    required String newPath,
+  }) {
+    if (path == oldPath) {
+      return newPath;
+    }
+    final prefix = '$oldPath/';
+    if (!path.startsWith(prefix)) {
+      return null;
+    }
+    return '$newPath/${path.substring(prefix.length)}';
   }
 }

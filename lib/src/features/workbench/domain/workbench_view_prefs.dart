@@ -8,6 +8,12 @@ enum WorkbenchGroupBy { none, project }
 @MappableEnum()
 enum WorkbenchSortBy { name, recent }
 
+@MappableEnum()
+enum WorkbenchContextPanelTab { explorer }
+
+@MappableEnum()
+enum WorkspaceExplorerMode { hideIgnored, showAll }
+
 @MappableClass()
 class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
   const WorkbenchViewPrefs({
@@ -17,6 +23,10 @@ class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
     required this.selectedProjectIds,
     required this.collapsedProjectIds,
     required this.expandedWorkspaceIds,
+    this.rightSidebarVisible = true,
+    this.rightSidebarWidth = 280,
+    this.activeContextPanelTab = WorkbenchContextPanelTab.explorer,
+    this.explorerMode = WorkspaceExplorerMode.hideIgnored,
   });
 
   final WorkbenchGroupBy groupBy;
@@ -34,6 +44,10 @@ class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
   /// default; the per-row chevron lets the user toggle membership without
   /// changing the active selection.
   final Set<String> expandedWorkspaceIds;
+  final bool rightSidebarVisible;
+  final double rightSidebarWidth;
+  final WorkbenchContextPanelTab activeContextPanelTab;
+  final WorkspaceExplorerMode explorerMode;
 
   static const WorkbenchViewPrefs defaults = WorkbenchViewPrefs(
     groupBy: WorkbenchGroupBy.project,
@@ -42,6 +56,10 @@ class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
     selectedProjectIds: <String>{},
     collapsedProjectIds: <String>{},
     expandedWorkspaceIds: <String>{},
+    rightSidebarVisible: true,
+    rightSidebarWidth: 280,
+    activeContextPanelTab: WorkbenchContextPanelTab.explorer,
+    explorerMode: WorkspaceExplorerMode.hideIgnored,
   );
 
   factory WorkbenchViewPrefs.fromJson(Map<String, Object?> json) =>

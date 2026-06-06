@@ -5,6 +5,7 @@
 
 import 'api/agent_hooks.dart';
 import 'api/git.dart';
+import 'api/workspace_files.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi' as ffi;
@@ -27,6 +28,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   dco_decode_StreamSink_agent_hook_event_batch_dto_Sse(dynamic raw);
 
   @protected
+  RustStreamSink<WorkspaceExplorerWatchBatch>
+  dco_decode_StreamSink_workspace_explorer_watch_batch_Sse(dynamic raw);
+
+  @protected
   String dco_decode_String(dynamic raw);
 
   @protected
@@ -42,6 +47,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool dco_decode_bool(dynamic raw);
 
   @protected
+  WorkspaceExplorerDirectoryChildren
+  dco_decode_box_autoadd_workspace_explorer_directory_children(dynamic raw);
+
+  @protected
+  WorkspaceExplorerWatcherHandle
+  dco_decode_box_autoadd_workspace_explorer_watcher_handle(dynamic raw);
+
+  @protected
+  WorkspaceFileGitStatus dco_decode_box_autoadd_workspace_file_git_status(
+    dynamic raw,
+  );
+
+  @protected
   GitError dco_decode_git_error(dynamic raw);
 
   @protected
@@ -52,6 +70,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int dco_decode_i_32(dynamic raw);
+
+  @protected
+  PlatformInt64 dco_decode_i_64(dynamic raw);
 
   @protected
   List<String> dco_decode_list_String(dynamic raw);
@@ -66,7 +87,32 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
+  List<WorkspaceExplorerDirectoryChildren>
+  dco_decode_list_workspace_explorer_directory_children(dynamic raw);
+
+  @protected
+  List<WorkspaceExplorerEntryBinding>
+  dco_decode_list_workspace_explorer_entry_binding(dynamic raw);
+
+  @protected
+  List<WorkspaceExplorerTreeNode> dco_decode_list_workspace_explorer_tree_node(
+    dynamic raw,
+  );
+
+  @protected
+  List<WorkspaceFileEntry> dco_decode_list_workspace_file_entry(dynamic raw);
+
+  @protected
   String? dco_decode_opt_String(dynamic raw);
+
+  @protected
+  WorkspaceExplorerDirectoryChildren?
+  dco_decode_opt_box_autoadd_workspace_explorer_directory_children(dynamic raw);
+
+  @protected
+  WorkspaceFileGitStatus? dco_decode_opt_box_autoadd_workspace_file_git_status(
+    dynamic raw,
+  );
 
   @protected
   int dco_decode_u_16(dynamic raw);
@@ -75,10 +121,68 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int dco_decode_u_32(dynamic raw);
 
   @protected
+  BigInt dco_decode_u_64(dynamic raw);
+
+  @protected
   int dco_decode_u_8(dynamic raw);
 
   @protected
   void dco_decode_unit(dynamic raw);
+
+  @protected
+  WorkspaceEditorTextFile dco_decode_workspace_editor_text_file(dynamic raw);
+
+  @protected
+  WorkspaceExplorerDirectoryChildren
+  dco_decode_workspace_explorer_directory_children(dynamic raw);
+
+  @protected
+  WorkspaceExplorerEntryBinding dco_decode_workspace_explorer_entry_binding(
+    dynamic raw,
+  );
+
+  @protected
+  WorkspaceExplorerTreeNode dco_decode_workspace_explorer_tree_node(
+    dynamic raw,
+  );
+
+  @protected
+  WorkspaceExplorerTreeNodeKind dco_decode_workspace_explorer_tree_node_kind(
+    dynamic raw,
+  );
+
+  @protected
+  WorkspaceExplorerTreeProjection dco_decode_workspace_explorer_tree_projection(
+    dynamic raw,
+  );
+
+  @protected
+  WorkspaceExplorerWatchBatch dco_decode_workspace_explorer_watch_batch(
+    dynamic raw,
+  );
+
+  @protected
+  WorkspaceExplorerWatcherHandle dco_decode_workspace_explorer_watcher_handle(
+    dynamic raw,
+  );
+
+  @protected
+  WorkspaceFileEntry dco_decode_workspace_file_entry(dynamic raw);
+
+  @protected
+  WorkspaceFileError dco_decode_workspace_file_error(dynamic raw);
+
+  @protected
+  WorkspaceFileErrorKind dco_decode_workspace_file_error_kind(dynamic raw);
+
+  @protected
+  WorkspaceFileGitStatus dco_decode_workspace_file_git_status(dynamic raw);
+
+  @protected
+  WorkspaceFileKind dco_decode_workspace_file_kind(dynamic raw);
+
+  @protected
+  WorkspaceTextFile dco_decode_workspace_text_file(dynamic raw);
 
   @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
@@ -86,6 +190,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   RustStreamSink<AgentHookEventBatchDto>
   sse_decode_StreamSink_agent_hook_event_batch_dto_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  RustStreamSink<WorkspaceExplorerWatchBatch>
+  sse_decode_StreamSink_workspace_explorer_watch_batch_Sse(
     SseDeserializer deserializer,
   );
 
@@ -111,6 +221,23 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
+  WorkspaceExplorerDirectoryChildren
+  sse_decode_box_autoadd_workspace_explorer_directory_children(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WorkspaceExplorerWatcherHandle
+  sse_decode_box_autoadd_workspace_explorer_watcher_handle(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WorkspaceFileGitStatus sse_decode_box_autoadd_workspace_file_git_status(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   GitError sse_decode_git_error(SseDeserializer deserializer);
 
   @protected
@@ -121,6 +248,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int sse_decode_i_32(SseDeserializer deserializer);
+
+  @protected
+  PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
 
   @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
@@ -139,7 +269,40 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
+  List<WorkspaceExplorerDirectoryChildren>
+  sse_decode_list_workspace_explorer_directory_children(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<WorkspaceExplorerEntryBinding>
+  sse_decode_list_workspace_explorer_entry_binding(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<WorkspaceExplorerTreeNode> sse_decode_list_workspace_explorer_tree_node(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<WorkspaceFileEntry> sse_decode_list_workspace_file_entry(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
+
+  @protected
+  WorkspaceExplorerDirectoryChildren?
+  sse_decode_opt_box_autoadd_workspace_explorer_directory_children(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WorkspaceFileGitStatus? sse_decode_opt_box_autoadd_workspace_file_git_status(
+    SseDeserializer deserializer,
+  );
 
   @protected
   int sse_decode_u_16(SseDeserializer deserializer);
@@ -148,10 +311,84 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int sse_decode_u_32(SseDeserializer deserializer);
 
   @protected
+  BigInt sse_decode_u_64(SseDeserializer deserializer);
+
+  @protected
   int sse_decode_u_8(SseDeserializer deserializer);
 
   @protected
   void sse_decode_unit(SseDeserializer deserializer);
+
+  @protected
+  WorkspaceEditorTextFile sse_decode_workspace_editor_text_file(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WorkspaceExplorerDirectoryChildren
+  sse_decode_workspace_explorer_directory_children(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WorkspaceExplorerEntryBinding sse_decode_workspace_explorer_entry_binding(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WorkspaceExplorerTreeNode sse_decode_workspace_explorer_tree_node(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WorkspaceExplorerTreeNodeKind sse_decode_workspace_explorer_tree_node_kind(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WorkspaceExplorerTreeProjection sse_decode_workspace_explorer_tree_projection(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WorkspaceExplorerWatchBatch sse_decode_workspace_explorer_watch_batch(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WorkspaceExplorerWatcherHandle sse_decode_workspace_explorer_watcher_handle(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WorkspaceFileEntry sse_decode_workspace_file_entry(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WorkspaceFileError sse_decode_workspace_file_error(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WorkspaceFileErrorKind sse_decode_workspace_file_error_kind(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WorkspaceFileGitStatus sse_decode_workspace_file_git_status(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WorkspaceFileKind sse_decode_workspace_file_kind(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WorkspaceTextFile sse_decode_workspace_text_file(
+    SseDeserializer deserializer,
+  );
 
   @protected
   void sse_encode_AnyhowException(
@@ -162,6 +399,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_StreamSink_agent_hook_event_batch_dto_Sse(
     RustStreamSink<AgentHookEventBatchDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_StreamSink_workspace_explorer_watch_batch_Sse(
+    RustStreamSink<WorkspaceExplorerWatchBatch> self,
     SseSerializer serializer,
   );
 
@@ -190,6 +433,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_workspace_explorer_directory_children(
+    WorkspaceExplorerDirectoryChildren self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_workspace_explorer_watcher_handle(
+    WorkspaceExplorerWatcherHandle self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_workspace_file_git_status(
+    WorkspaceFileGitStatus self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_git_error(GitError self, SseSerializer serializer);
 
   @protected
@@ -203,6 +464,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
@@ -226,7 +490,43 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_workspace_explorer_directory_children(
+    List<WorkspaceExplorerDirectoryChildren> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_workspace_explorer_entry_binding(
+    List<WorkspaceExplorerEntryBinding> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_workspace_explorer_tree_node(
+    List<WorkspaceExplorerTreeNode> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_workspace_file_entry(
+    List<WorkspaceFileEntry> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_workspace_explorer_directory_children(
+    WorkspaceExplorerDirectoryChildren? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_workspace_file_git_status(
+    WorkspaceFileGitStatus? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_u_16(int self, SseSerializer serializer);
@@ -235,10 +535,97 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_u_32(int self, SseSerializer serializer);
 
   @protected
+  void sse_encode_u_64(BigInt self, SseSerializer serializer);
+
+  @protected
   void sse_encode_u_8(int self, SseSerializer serializer);
 
   @protected
   void sse_encode_unit(void self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_workspace_editor_text_file(
+    WorkspaceEditorTextFile self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_workspace_explorer_directory_children(
+    WorkspaceExplorerDirectoryChildren self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_workspace_explorer_entry_binding(
+    WorkspaceExplorerEntryBinding self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_workspace_explorer_tree_node(
+    WorkspaceExplorerTreeNode self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_workspace_explorer_tree_node_kind(
+    WorkspaceExplorerTreeNodeKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_workspace_explorer_tree_projection(
+    WorkspaceExplorerTreeProjection self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_workspace_explorer_watch_batch(
+    WorkspaceExplorerWatchBatch self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_workspace_explorer_watcher_handle(
+    WorkspaceExplorerWatcherHandle self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_workspace_file_entry(
+    WorkspaceFileEntry self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_workspace_file_error(
+    WorkspaceFileError self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_workspace_file_error_kind(
+    WorkspaceFileErrorKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_workspace_file_git_status(
+    WorkspaceFileGitStatus self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_workspace_file_kind(
+    WorkspaceFileKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_workspace_text_file(
+    WorkspaceTextFile self,
+    SseSerializer serializer,
+  );
 }
 
 // Section: wire_class

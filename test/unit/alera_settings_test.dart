@@ -1,6 +1,7 @@
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_shortcut_settings.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
+import 'package:alera/src/features/settings/domain/editor_syntax_theme_catalog.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
 import 'package:dart_mappable/dart_mappable.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -46,6 +47,13 @@ void main() {
       expect(general.agentStatusHooks.anyEnabled, isFalse);
       expect(general.agentStatusNotificationsEnabled, isFalse);
       expect(general.keepComputerAwakeWhileAgentsWork, isFalse);
+    });
+
+    test('editor defaults match current editor behavior', () {
+      const editor = EditorSettings.defaults;
+
+      expect(editor.tabSize, 4);
+      expect(editor.themeName, EditorSyntaxThemeNames.alera);
     });
 
     test('small settings fragments round-trip through json', () {
@@ -109,6 +117,10 @@ void main() {
           agentStatusNotificationsEnabled: true,
           keepComputerAwakeWhileAgentsWork: true,
         ),
+        editor: EditorSettings(
+          tabSize: 2,
+          themeName: EditorSyntaxThemeNames.nord,
+        ),
         terminal: TerminalSettings(
           fontFamily: 'SF Mono',
           fontSize: 15,
@@ -156,6 +168,8 @@ void main() {
       expect(restored.general.agentStatusHooks.amp, isTrue);
       expect(restored.general.agentStatusNotificationsEnabled, isTrue);
       expect(restored.general.keepComputerAwakeWhileAgentsWork, isTrue);
+      expect(restored.editor.tabSize, 2);
+      expect(restored.editor.themeName, EditorSyntaxThemeNames.nord);
       expect(restored.terminal.fontFamily, 'SF Mono');
       expect(restored.terminal.fontSize, 15);
       expect(restored.terminal.fontWeight, 500);
@@ -270,6 +284,13 @@ void main() {
         }),
         throwsA(isA<MapperException>()),
       );
+    });
+
+    test('editor parsing preserves old settings without theme name', () {
+      final restored = EditorSettings.fromJson(<String, Object?>{'tabSize': 2});
+
+      expect(restored.tabSize, 2);
+      expect(restored.themeName, EditorSyntaxThemeNames.alera);
     });
 
     test(

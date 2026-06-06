@@ -100,6 +100,99 @@ extension WorkbenchSortByMapperExtension on WorkbenchSortBy {
   }
 }
 
+class WorkbenchContextPanelTabMapper
+    extends EnumMapper<WorkbenchContextPanelTab> {
+  WorkbenchContextPanelTabMapper._();
+
+  static WorkbenchContextPanelTabMapper? _instance;
+  static WorkbenchContextPanelTabMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(
+        _instance = WorkbenchContextPanelTabMapper._(),
+      );
+    }
+    return _instance!;
+  }
+
+  static WorkbenchContextPanelTab fromValue(dynamic value) {
+    ensureInitialized();
+    return MapperContainer.globals.fromValue(value);
+  }
+
+  @override
+  WorkbenchContextPanelTab decode(dynamic value) {
+    switch (value) {
+      case r'explorer':
+        return WorkbenchContextPanelTab.explorer;
+      default:
+        throw MapperException.unknownEnumValue(value);
+    }
+  }
+
+  @override
+  dynamic encode(WorkbenchContextPanelTab self) {
+    switch (self) {
+      case WorkbenchContextPanelTab.explorer:
+        return r'explorer';
+    }
+  }
+}
+
+extension WorkbenchContextPanelTabMapperExtension on WorkbenchContextPanelTab {
+  String toValue() {
+    WorkbenchContextPanelTabMapper.ensureInitialized();
+    return MapperContainer.globals.toValue<WorkbenchContextPanelTab>(this)
+        as String;
+  }
+}
+
+class WorkspaceExplorerModeMapper extends EnumMapper<WorkspaceExplorerMode> {
+  WorkspaceExplorerModeMapper._();
+
+  static WorkspaceExplorerModeMapper? _instance;
+  static WorkspaceExplorerModeMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = WorkspaceExplorerModeMapper._());
+    }
+    return _instance!;
+  }
+
+  static WorkspaceExplorerMode fromValue(dynamic value) {
+    ensureInitialized();
+    return MapperContainer.globals.fromValue(value);
+  }
+
+  @override
+  WorkspaceExplorerMode decode(dynamic value) {
+    switch (value) {
+      case r'hideIgnored':
+        return WorkspaceExplorerMode.hideIgnored;
+      case r'showAll':
+        return WorkspaceExplorerMode.showAll;
+      default:
+        throw MapperException.unknownEnumValue(value);
+    }
+  }
+
+  @override
+  dynamic encode(WorkspaceExplorerMode self) {
+    switch (self) {
+      case WorkspaceExplorerMode.hideIgnored:
+        return r'hideIgnored';
+      case WorkspaceExplorerMode.showAll:
+        return r'showAll';
+    }
+  }
+}
+
+extension WorkspaceExplorerModeMapperExtension on WorkspaceExplorerMode {
+  String toValue() {
+    WorkspaceExplorerModeMapper.ensureInitialized();
+    return MapperContainer.globals.toValue<WorkspaceExplorerMode>(this)
+        as String;
+  }
+}
+
 class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
   WorkbenchViewPrefsMapper._();
 
@@ -109,6 +202,8 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
       MapperContainer.globals.use(_instance = WorkbenchViewPrefsMapper._());
       WorkbenchGroupByMapper.ensureInitialized();
       WorkbenchSortByMapper.ensureInitialized();
+      WorkbenchContextPanelTabMapper.ensureInitialized();
+      WorkspaceExplorerModeMapper.ensureInitialized();
     }
     return _instance!;
   }
@@ -140,6 +235,41 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
       v.expandedWorkspaceIds;
   static const Field<WorkbenchViewPrefs, Set<String>> _f$expandedWorkspaceIds =
       Field('expandedWorkspaceIds', _$expandedWorkspaceIds);
+  static bool _$rightSidebarVisible(WorkbenchViewPrefs v) =>
+      v.rightSidebarVisible;
+  static const Field<WorkbenchViewPrefs, bool> _f$rightSidebarVisible = Field(
+    'rightSidebarVisible',
+    _$rightSidebarVisible,
+    opt: true,
+    def: true,
+  );
+  static double _$rightSidebarWidth(WorkbenchViewPrefs v) =>
+      v.rightSidebarWidth;
+  static const Field<WorkbenchViewPrefs, double> _f$rightSidebarWidth = Field(
+    'rightSidebarWidth',
+    _$rightSidebarWidth,
+    opt: true,
+    def: 280,
+  );
+  static WorkbenchContextPanelTab _$activeContextPanelTab(
+    WorkbenchViewPrefs v,
+  ) => v.activeContextPanelTab;
+  static const Field<WorkbenchViewPrefs, WorkbenchContextPanelTab>
+  _f$activeContextPanelTab = Field(
+    'activeContextPanelTab',
+    _$activeContextPanelTab,
+    opt: true,
+    def: WorkbenchContextPanelTab.explorer,
+  );
+  static WorkspaceExplorerMode _$explorerMode(WorkbenchViewPrefs v) =>
+      v.explorerMode;
+  static const Field<WorkbenchViewPrefs, WorkspaceExplorerMode>
+  _f$explorerMode = Field(
+    'explorerMode',
+    _$explorerMode,
+    opt: true,
+    def: WorkspaceExplorerMode.hideIgnored,
+  );
 
   @override
   final MappableFields<WorkbenchViewPrefs> fields = const {
@@ -149,6 +279,10 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
     #selectedProjectIds: _f$selectedProjectIds,
     #collapsedProjectIds: _f$collapsedProjectIds,
     #expandedWorkspaceIds: _f$expandedWorkspaceIds,
+    #rightSidebarVisible: _f$rightSidebarVisible,
+    #rightSidebarWidth: _f$rightSidebarWidth,
+    #activeContextPanelTab: _f$activeContextPanelTab,
+    #explorerMode: _f$explorerMode,
   };
 
   static WorkbenchViewPrefs _instantiate(DecodingData data) {
@@ -159,6 +293,10 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
       selectedProjectIds: data.dec(_f$selectedProjectIds),
       collapsedProjectIds: data.dec(_f$collapsedProjectIds),
       expandedWorkspaceIds: data.dec(_f$expandedWorkspaceIds),
+      rightSidebarVisible: data.dec(_f$rightSidebarVisible),
+      rightSidebarWidth: data.dec(_f$rightSidebarWidth),
+      activeContextPanelTab: data.dec(_f$activeContextPanelTab),
+      explorerMode: data.dec(_f$explorerMode),
     );
   }
 
@@ -240,6 +378,10 @@ abstract class WorkbenchViewPrefsCopyWith<
     Set<String>? selectedProjectIds,
     Set<String>? collapsedProjectIds,
     Set<String>? expandedWorkspaceIds,
+    bool? rightSidebarVisible,
+    double? rightSidebarWidth,
+    WorkbenchContextPanelTab? activeContextPanelTab,
+    WorkspaceExplorerMode? explorerMode,
   });
   WorkbenchViewPrefsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -262,6 +404,10 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
     Set<String>? selectedProjectIds,
     Set<String>? collapsedProjectIds,
     Set<String>? expandedWorkspaceIds,
+    bool? rightSidebarVisible,
+    double? rightSidebarWidth,
+    WorkbenchContextPanelTab? activeContextPanelTab,
+    WorkspaceExplorerMode? explorerMode,
   }) => $apply(
     FieldCopyWithData({
       if (groupBy != null) #groupBy: groupBy,
@@ -272,6 +418,12 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
         #collapsedProjectIds: collapsedProjectIds,
       if (expandedWorkspaceIds != null)
         #expandedWorkspaceIds: expandedWorkspaceIds,
+      if (rightSidebarVisible != null)
+        #rightSidebarVisible: rightSidebarVisible,
+      if (rightSidebarWidth != null) #rightSidebarWidth: rightSidebarWidth,
+      if (activeContextPanelTab != null)
+        #activeContextPanelTab: activeContextPanelTab,
+      if (explorerMode != null) #explorerMode: explorerMode,
     }),
   );
   @override
@@ -291,6 +443,19 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
       #expandedWorkspaceIds,
       or: $value.expandedWorkspaceIds,
     ),
+    rightSidebarVisible: data.get(
+      #rightSidebarVisible,
+      or: $value.rightSidebarVisible,
+    ),
+    rightSidebarWidth: data.get(
+      #rightSidebarWidth,
+      or: $value.rightSidebarWidth,
+    ),
+    activeContextPanelTab: data.get(
+      #activeContextPanelTab,
+      or: $value.activeContextPanelTab,
+    ),
+    explorerMode: data.get(#explorerMode, or: $value.explorerMode),
   );
 
   @override

@@ -146,6 +146,35 @@ mixin _WorkbenchControllerViewPrefs
     _updateViewPrefs(state.viewPrefs.copyWith(expandedWorkspaceIds: next));
   }
 
+  void setRightSidebarVisible(bool visible) {
+    if (state.viewPrefs.rightSidebarVisible == visible) {
+      return;
+    }
+    _updateViewPrefs(state.viewPrefs.copyWith(rightSidebarVisible: visible));
+  }
+
+  void toggleRightSidebarVisible() {
+    setRightSidebarVisible(!state.viewPrefs.rightSidebarVisible);
+  }
+
+  void setRightSidebarWidth(double value) {
+    final clamped = value.clamp(
+      AleraTokens.sidebarMinWidth,
+      AleraTokens.sidebarMaxWidth,
+    );
+    if ((state.viewPrefs.rightSidebarWidth - clamped).abs() < 0.5) {
+      return;
+    }
+    _updateViewPrefs(state.viewPrefs.copyWith(rightSidebarWidth: clamped));
+  }
+
+  void setExplorerMode(WorkspaceExplorerMode mode) {
+    if (state.viewPrefs.explorerMode == mode) {
+      return;
+    }
+    _updateViewPrefs(state.viewPrefs.copyWith(explorerMode: mode));
+  }
+
   void _updateViewPrefs(WorkbenchViewPrefs prefs) {
     state = state.copyWith(viewPrefs: prefs);
     unawaited(_persistViewPrefs());

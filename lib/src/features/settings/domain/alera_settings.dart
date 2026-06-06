@@ -1,5 +1,6 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_shortcut_settings.dart';
+import 'package:alera/src/features/settings/domain/editor_syntax_theme_catalog.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
 import 'package:dart_mappable/dart_mappable.dart';
 
@@ -143,6 +144,25 @@ class AgentStatusHookSettings with AgentStatusHookSettingsMappable {
 }
 
 @MappableClass()
+class EditorSettings with EditorSettingsMappable {
+  const EditorSettings({
+    this.tabSize = 4,
+    this.themeName = EditorSyntaxThemeNames.alera,
+  });
+
+  /// Number of spaces inserted when the editor handles a Tab key press.
+  final int tabSize;
+
+  /// Syntax highlighting theme used by editor tabs.
+  final String themeName;
+
+  static const EditorSettings defaults = EditorSettings();
+
+  factory EditorSettings.fromJson(Map<String, Object?> json) =>
+      EditorSettingsMapper.fromMap(Map<String, dynamic>.from(json));
+}
+
+@MappableClass()
 class GeneralSettings with GeneralSettingsMappable {
   const GeneralSettings({
     this.workspaceDirectory,
@@ -189,16 +209,19 @@ class GeneralSettings with GeneralSettingsMappable {
 class AleraSettings with AleraSettingsMappable {
   const AleraSettings({
     required this.general,
+    this.editor = EditorSettings.defaults,
     required this.terminal,
     required this.keyboard,
   });
 
   final GeneralSettings general;
+  final EditorSettings editor;
   final TerminalSettings terminal;
   final KeyboardShortcutSettings keyboard;
 
   static const AleraSettings defaults = AleraSettings(
     general: GeneralSettings.defaults,
+    editor: EditorSettings.defaults,
     terminal: TerminalSettings.defaults,
     keyboard: KeyboardShortcutSettings.defaults,
   );

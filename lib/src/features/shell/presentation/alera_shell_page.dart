@@ -1,10 +1,15 @@
+import 'dart:async';
+
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
+import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/features/keyboard/presentation/keyboard_shortcuts_scope.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
+import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_context_sidebar.dart';
 import 'package:alera/src/features/workbench/presentation/project_workbench_sidebar.dart';
 import 'package:alera/src/features/workbench/presentation/welcome_dashboard.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_workbench_view.dart';
@@ -116,21 +121,62 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
 
     final project = state.activeProject;
     final workspace = state.activeWorkspace;
+    final controller = ref.read(workbenchControllerProvider.notifier);
 
     return Scaffold(
       body: KeyboardShortcutsScope(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            const ProjectWorkbenchSidebar(),
-            Expanded(
-              child: _buildContent(
-                state: state,
-                project: project,
-                workspace: workspace,
-              ),
-            ),
-          ],
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final showContextSidebar =
+                workspace != null &&
+                _canShowContextSidebar(
+                  shellWidth: constraints.maxWidth,
+                  state: state,
+                );
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                const ProjectWorkbenchSidebar(),
+                Expanded(
+                  child: _buildContent(
+                    state: state,
+                    project: project,
+                    workspace: workspace,
+                  ),
+                ),
+                if (workspace != null && showContextSidebar)
+                  WorkspaceContextSidebar(
+                    workspace: workspace,
+                    prefs: state.viewPrefs,
+                    onToggleVisible: controller.toggleRightSidebarVisible,
+                    onResize: controller.setRightSidebarWidth,
+                    onSetExplorerMode: controller.setExplorerMode,
+                    onOpenFile: (relativePath) {
+                      unawaited(
+                        controller.openEditorTab(
+                          workspace: workspace,
+                          relativePath: relativePath,
+                        ),
+                      );
+                    },
+                    onPathMoved: (oldRelativePath, newRelativePath) async {
+                      await controller.syncEditorTabsAfterPathMove(
+                        workspace: workspace,
+                        oldRelativePath: oldRelativePath,
+                        newRelativePath: newRelativePath,
+                      );
+                      ref
+                          .read(editorSessionRegistryProvider)
+                          .updateDocumentPathsAfterMove(
+                            workspacePath: workspace.path,
+                            oldRelativePath: oldRelativePath,
+                            newRelativePath: newRelativePath,
+                          );
+                    },
+                  ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -175,10 +221,17 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
         );
       },
       onCloseTab: (tabId) async {
+        if (!await _confirmCloseDirtyTabs(tabs, <String>[tabId])) {
+          return;
+        }
         terminalRuntime.closeTab(tabId);
         await controller.closeWorkspaceTab(workspace: workspace, tabId: tabId);
+        ref.read(editorSessionRegistryProvider).forget(tabId);
       },
       onCloseTabs: (tabIds) async {
+        if (!await _confirmCloseDirtyTabs(tabs, tabIds)) {
+          return;
+        }
         for (final tabId in tabIds) {
           terminalRuntime.closeTab(tabId);
         }
@@ -186,6 +239,10 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
           workspace: workspace,
           tabIds: tabIds,
         );
+        final registry = ref.read(editorSessionRegistryProvider);
+        for (final tabId in tabIds) {
+          registry.forget(tabId);
+        }
       },
       onRenameTab: ({required tabId, required title}) async {
         await controller.renameWorkspaceTab(tabId: tabId, title: title);
@@ -231,9 +288,50 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
     );
   }
 
+  Future<bool> _confirmCloseDirtyTabs(
+    List<WorkspaceTabRecord> tabs,
+    List<String> tabIds,
+  ) async {
+    final registry = ref.read(editorSessionRegistryProvider);
+    final dirty = <String>[
+      for (final tab in tabs)
+        if (tabIds.contains(tab.id) && registry.isDirty(tab.id)) tab.title,
+    ];
+    if (dirty.isEmpty) {
+      return true;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AleraConfirmDialog(
+        title: dirty.length == 1
+            ? 'Close unsaved editor?'
+            : 'Close unsaved editors?',
+        message: dirty.length == 1
+            ? '${dirty.first} has unsaved changes.'
+            : '${dirty.length} editor tabs have unsaved changes.',
+        confirmLabel: 'Close',
+        destructive: true,
+      ),
+    );
+    return confirmed == true;
+  }
+
   void _showError(String message) {
     AleraToast.show(context, message: message, tone: AleraToastTone.error);
   }
+}
+
+bool _canShowContextSidebar({
+  required double shellWidth,
+  required WorkbenchState state,
+}) {
+  final leftWidth = state.collapsed
+      ? AleraTokens.sidebarCollapsedWidth
+      : AleraTokens.sidebarDefaultWidth;
+  final rightWidth = state.viewPrefs.rightSidebarVisible
+      ? state.viewPrefs.rightSidebarWidth
+      : AleraTokens.sidebarCollapsedWidth;
+  return shellWidth - leftWidth - rightWidth >= AleraTokens.emptyStateMaxWidth;
 }
 
 String buildRawLogClipboardText(List<String> logs) {

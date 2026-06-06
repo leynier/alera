@@ -34,7 +34,7 @@ class WorkspaceFolderOpener {
       case WorkspaceFolderPlatform.macos:
         return 'Finder';
       case WorkspaceFolderPlatform.windows:
-        return 'File Explorer';
+        return 'Explorer';
       case WorkspaceFolderPlatform.linux:
       case WorkspaceFolderPlatform.other:
         return 'File Manager';
@@ -73,6 +73,36 @@ class WorkspaceFolderOpener {
     );
   }
 
+  Future<WorkspaceFolderOpenResult> reveal(String path) async {
+    final normalized = path.trim();
+    if (normalized.isEmpty) {
+      return const WorkspaceFolderOpenResult.failure('Path is empty.');
+    }
+    if (!await FileSystemEntity.type(
+      normalized,
+    ).then((type) => type != FileSystemEntityType.notFound)) {
+      return const WorkspaceFolderOpenResult.failure('Path was not found.');
+    }
+
+    final commands = _revealCommandsForPlatform(normalized);
+    for (final command in commands) {
+      try {
+        final result = await processRunner.run(
+          command.executable,
+          command.arguments,
+        );
+        if (result.exitCode == 0) {
+          return const WorkspaceFolderOpenResult.success();
+        }
+      } catch (_) {
+        continue;
+      }
+    }
+    return WorkspaceFolderOpenResult.failure(
+      'Could not reveal item in $fileManagerLabel.',
+    );
+  }
+
   List<_WorkspaceFolderOpenCommand> _commandsForPlatform(String path) {
     switch (_platform) {
       case WorkspaceFolderPlatform.macos:
@@ -93,6 +123,38 @@ class WorkspaceFolderOpener {
           _WorkspaceFolderOpenCommand('xdg-open', <String>[path]),
         ];
     }
+  }
+
+  List<_WorkspaceFolderOpenCommand> _revealCommandsForPlatform(String path) {
+    switch (_platform) {
+      case WorkspaceFolderPlatform.macos:
+        return <_WorkspaceFolderOpenCommand>[
+          _WorkspaceFolderOpenCommand('open', <String>['-R', path]),
+        ];
+      case WorkspaceFolderPlatform.windows:
+        return <_WorkspaceFolderOpenCommand>[
+          _WorkspaceFolderOpenCommand('explorer.exe', <String>[
+            '/select,$path',
+          ]),
+        ];
+      case WorkspaceFolderPlatform.linux:
+        final target = _fileManagerTargetForReveal(path);
+        return <_WorkspaceFolderOpenCommand>[
+          _WorkspaceFolderOpenCommand('xdg-open', <String>[target]),
+          _WorkspaceFolderOpenCommand('gio', <String>['open', target]),
+        ];
+      case WorkspaceFolderPlatform.other:
+        final target = _fileManagerTargetForReveal(path);
+        return <_WorkspaceFolderOpenCommand>[
+          _WorkspaceFolderOpenCommand('xdg-open', <String>[target]),
+        ];
+    }
+  }
+
+  String _fileManagerTargetForReveal(String path) {
+    return FileSystemEntity.isDirectorySync(path)
+        ? path
+        : File(path).parent.path;
   }
 }
 

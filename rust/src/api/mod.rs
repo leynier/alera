@@ -1,5 +1,6 @@
 pub mod agent_hooks;
 pub mod git;
+pub mod workspace_files;
 
 #[flutter_rust_bridge::frb(init)]
 pub fn init_app() {

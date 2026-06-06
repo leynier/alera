@@ -82,6 +82,8 @@ class KeyboardActionIdMapper extends EnumMapper<KeyboardActionId> {
         return KeyboardActionId.toggleSidebar;
       case r'createWorkspace':
         return KeyboardActionId.createWorkspace;
+      case r'saveFile':
+        return KeyboardActionId.saveFile;
       case r'newTerminalTab':
         return KeyboardActionId.newTerminalTab;
       case r'closeTab':
@@ -130,6 +132,8 @@ class KeyboardActionIdMapper extends EnumMapper<KeyboardActionId> {
         return r'toggleSidebar';
       case KeyboardActionId.createWorkspace:
         return r'createWorkspace';
+      case KeyboardActionId.saveFile:
+        return r'saveFile';
       case KeyboardActionId.newTerminalTab:
         return r'newTerminalTab';
       case KeyboardActionId.closeTab:

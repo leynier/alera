@@ -832,6 +832,143 @@ class _AgentStatusHookSettingsCopyWithImpl<$R, $Out>
       _AgentStatusHookSettingsCopyWithImpl<$R2, $Out2>($value, $cast, t);
 }
 
+class EditorSettingsMapper extends ClassMapperBase<EditorSettings> {
+  EditorSettingsMapper._();
+
+  static EditorSettingsMapper? _instance;
+  static EditorSettingsMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = EditorSettingsMapper._());
+    }
+    return _instance!;
+  }
+
+  @override
+  final String id = 'EditorSettings';
+
+  static int _$tabSize(EditorSettings v) => v.tabSize;
+  static const Field<EditorSettings, int> _f$tabSize = Field(
+    'tabSize',
+    _$tabSize,
+    opt: true,
+    def: 4,
+  );
+  static String _$themeName(EditorSettings v) => v.themeName;
+  static const Field<EditorSettings, String> _f$themeName = Field(
+    'themeName',
+    _$themeName,
+    opt: true,
+    def: EditorSyntaxThemeNames.alera,
+  );
+
+  @override
+  final MappableFields<EditorSettings> fields = const {
+    #tabSize: _f$tabSize,
+    #themeName: _f$themeName,
+  };
+
+  static EditorSettings _instantiate(DecodingData data) {
+    return EditorSettings(
+      tabSize: data.dec(_f$tabSize),
+      themeName: data.dec(_f$themeName),
+    );
+  }
+
+  @override
+  final Function instantiate = _instantiate;
+
+  static EditorSettings fromMap(Map<String, dynamic> map) {
+    return ensureInitialized().decodeMap<EditorSettings>(map);
+  }
+
+  static EditorSettings fromJson(String json) {
+    return ensureInitialized().decodeJson<EditorSettings>(json);
+  }
+}
+
+mixin EditorSettingsMappable {
+  String toJson() {
+    return EditorSettingsMapper.ensureInitialized().encodeJson<EditorSettings>(
+      this as EditorSettings,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return EditorSettingsMapper.ensureInitialized().encodeMap<EditorSettings>(
+      this as EditorSettings,
+    );
+  }
+
+  EditorSettingsCopyWith<EditorSettings, EditorSettings, EditorSettings>
+  get copyWith => _EditorSettingsCopyWithImpl<EditorSettings, EditorSettings>(
+    this as EditorSettings,
+    $identity,
+    $identity,
+  );
+  @override
+  String toString() {
+    return EditorSettingsMapper.ensureInitialized().stringifyValue(
+      this as EditorSettings,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return EditorSettingsMapper.ensureInitialized().equalsValue(
+      this as EditorSettings,
+      other,
+    );
+  }
+
+  @override
+  int get hashCode {
+    return EditorSettingsMapper.ensureInitialized().hashValue(
+      this as EditorSettings,
+    );
+  }
+}
+
+extension EditorSettingsValueCopy<$R, $Out>
+    on ObjectCopyWith<$R, EditorSettings, $Out> {
+  EditorSettingsCopyWith<$R, EditorSettings, $Out> get $asEditorSettings =>
+      $base.as((v, t, t2) => _EditorSettingsCopyWithImpl<$R, $Out>(v, t, t2));
+}
+
+abstract class EditorSettingsCopyWith<$R, $In extends EditorSettings, $Out>
+    implements ClassCopyWith<$R, $In, $Out> {
+  $R call({int? tabSize, String? themeName});
+  EditorSettingsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
+    Then<$Out2, $R2> t,
+  );
+}
+
+class _EditorSettingsCopyWithImpl<$R, $Out>
+    extends ClassCopyWithBase<$R, EditorSettings, $Out>
+    implements EditorSettingsCopyWith<$R, EditorSettings, $Out> {
+  _EditorSettingsCopyWithImpl(super.value, super.then, super.then2);
+
+  @override
+  late final ClassMapperBase<EditorSettings> $mapper =
+      EditorSettingsMapper.ensureInitialized();
+  @override
+  $R call({int? tabSize, String? themeName}) => $apply(
+    FieldCopyWithData({
+      if (tabSize != null) #tabSize: tabSize,
+      if (themeName != null) #themeName: themeName,
+    }),
+  );
+  @override
+  EditorSettings $make(CopyWithData data) => EditorSettings(
+    tabSize: data.get(#tabSize, or: $value.tabSize),
+    themeName: data.get(#themeName, or: $value.themeName),
+  );
+
+  @override
+  EditorSettingsCopyWith<$R2, EditorSettings, $Out2> $chain<$R2, $Out2>(
+    Then<$Out2, $R2> t,
+  ) => _EditorSettingsCopyWithImpl<$R2, $Out2>($value, $cast, t);
+}
+
 class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
   GeneralSettingsMapper._();
 
@@ -1094,6 +1231,7 @@ class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
     if (_instance == null) {
       MapperContainer.globals.use(_instance = AleraSettingsMapper._());
       GeneralSettingsMapper.ensureInitialized();
+      EditorSettingsMapper.ensureInitialized();
       TerminalSettingsMapper.ensureInitialized();
       KeyboardShortcutSettingsMapper.ensureInitialized();
     }
@@ -1108,6 +1246,13 @@ class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
     'general',
     _$general,
   );
+  static EditorSettings _$editor(AleraSettings v) => v.editor;
+  static const Field<AleraSettings, EditorSettings> _f$editor = Field(
+    'editor',
+    _$editor,
+    opt: true,
+    def: EditorSettings.defaults,
+  );
   static TerminalSettings _$terminal(AleraSettings v) => v.terminal;
   static const Field<AleraSettings, TerminalSettings> _f$terminal = Field(
     'terminal',
@@ -1120,6 +1265,7 @@ class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
   @override
   final MappableFields<AleraSettings> fields = const {
     #general: _f$general,
+    #editor: _f$editor,
     #terminal: _f$terminal,
     #keyboard: _f$keyboard,
   };
@@ -1127,6 +1273,7 @@ class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
   static AleraSettings _instantiate(DecodingData data) {
     return AleraSettings(
       general: data.dec(_f$general),
+      editor: data.dec(_f$editor),
       terminal: data.dec(_f$terminal),
       keyboard: data.dec(_f$keyboard),
     );
@@ -1195,6 +1342,7 @@ extension AleraSettingsValueCopy<$R, $Out>
 abstract class AleraSettingsCopyWith<$R, $In extends AleraSettings, $Out>
     implements ClassCopyWith<$R, $In, $Out> {
   GeneralSettingsCopyWith<$R, GeneralSettings, GeneralSettings> get general;
+  EditorSettingsCopyWith<$R, EditorSettings, EditorSettings> get editor;
   TerminalSettingsCopyWith<$R, TerminalSettings, TerminalSettings> get terminal;
   KeyboardShortcutSettingsCopyWith<
     $R,
@@ -1204,6 +1352,7 @@ abstract class AleraSettingsCopyWith<$R, $In extends AleraSettings, $Out>
   get keyboard;
   $R call({
     GeneralSettings? general,
+    EditorSettings? editor,
     TerminalSettings? terminal,
     KeyboardShortcutSettings? keyboard,
   });
@@ -1222,6 +1371,9 @@ class _AleraSettingsCopyWithImpl<$R, $Out>
   GeneralSettingsCopyWith<$R, GeneralSettings, GeneralSettings> get general =>
       $value.general.copyWith.$chain((v) => call(general: v));
   @override
+  EditorSettingsCopyWith<$R, EditorSettings, EditorSettings> get editor =>
+      $value.editor.copyWith.$chain((v) => call(editor: v));
+  @override
   TerminalSettingsCopyWith<$R, TerminalSettings, TerminalSettings>
   get terminal => $value.terminal.copyWith.$chain((v) => call(terminal: v));
   @override
@@ -1234,11 +1386,13 @@ class _AleraSettingsCopyWithImpl<$R, $Out>
   @override
   $R call({
     GeneralSettings? general,
+    EditorSettings? editor,
     TerminalSettings? terminal,
     KeyboardShortcutSettings? keyboard,
   }) => $apply(
     FieldCopyWithData({
       if (general != null) #general: general,
+      if (editor != null) #editor: editor,
       if (terminal != null) #terminal: terminal,
       if (keyboard != null) #keyboard: keyboard,
     }),
@@ -1246,6 +1400,7 @@ class _AleraSettingsCopyWithImpl<$R, $Out>
   @override
   AleraSettings $make(CopyWithData data) => AleraSettings(
     general: data.get(#general, or: $value.general),
+    editor: data.get(#editor, or: $value.editor),
     terminal: data.get(#terminal, or: $value.terminal),
     keyboard: data.get(#keyboard, or: $value.keyboard),
   );

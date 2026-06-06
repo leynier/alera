@@ -14,6 +14,7 @@ import 'package:alera/src/design_system/surfaces/alera_panel.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/keyboard/presentation/keyboard_settings_pane.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
+import 'package:alera/src/features/settings/domain/editor_syntax_theme_catalog.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
 import 'package:alera/src/features/settings/infra/system_font_service.dart';
 import 'package:alera/src/features/updater/presentation/update_settings_section.dart';
@@ -24,6 +25,7 @@ import 'package:flutter/services.dart';
 
 part 'settings_dialog_navigation.dart';
 part 'settings_dialog_general_pane.dart';
+part 'settings_dialog_editor_pane.dart';
 part 'settings_dialog_terminal_pane.dart';
 part 'settings_dialog_theme_picker.dart';
 part 'settings_dialog_setting_rows.dart';
@@ -91,6 +93,18 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         icon: Icons.tune,
         entries: _generalSearchEntries,
         builder: (_) => _GeneralSettingsPane(general: settings.general),
+      ),
+      _SettingsSectionData(
+        id: 'editor',
+        title: 'Editor',
+        description: 'Code editor defaults.',
+        icon: Icons.code,
+        entries: _editorSearchEntries,
+        onReset: controller.resetEditorSettings,
+        builder: (_) => _EditorSettingsPane(
+          settings: settings.editor,
+          onChanged: (editor) => controller.updateEditor(editor),
+        ),
       ),
       _SettingsSectionData(
         id: 'terminal',
@@ -331,6 +345,19 @@ const List<_SettingsSearchEntry> _keyboardSearchEntries =
         keywords: <String>['app first', 'terminal first', 'policy'],
       ),
     ];
+
+const List<_SettingsSearchEntry> _editorSearchEntries = <_SettingsSearchEntry>[
+  _SettingsSearchEntry(
+    title: 'Theme preset',
+    description: 'Syntax highlighting theme used by editor tabs.',
+    keywords: <String>['syntax', 'highlight', 'highlighting', 'color', 'code'],
+  ),
+  _SettingsSearchEntry(
+    title: 'Tab size',
+    description: 'Spaces inserted when pressing Tab in editor tabs.',
+    keywords: <String>['indent', 'indentation', 'spaces', 'code'],
+  ),
+];
 
 const List<_SettingsSearchEntry>
 _terminalSearchEntries = <_SettingsSearchEntry>[

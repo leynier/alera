@@ -23,6 +23,41 @@ mixin _WorkbenchControllerTabs
     }
   }
 
+  Future<WorkspaceTabRecord> openEditorTab({
+    required Workspace workspace,
+    required String relativePath,
+    String? targetGroupId,
+  }) async {
+    try {
+      final previousTabs = state.tabsFor(workspace.id);
+      final layout = _layoutForMutation(workspace.id, previousTabs);
+      final tab = await _workspaceTabService.openOrCreateEditorTab(
+        workspaceId: workspace.id,
+        relativePath: relativePath,
+      );
+      final alreadyOpen = previousTabs.any(
+        (candidate) => candidate.id == tab.id,
+      );
+      final tabs = alreadyOpen
+          ? previousTabs
+          : <WorkspaceTabRecord>[...previousTabs, tab];
+      _setTabsForWorkspace(workspace.id, tabs);
+      final groupId = targetGroupId ?? layout.activeGroupId;
+      final nextLayout = alreadyOpen
+          ? layout.setActiveTab(
+              groupId: layout.groupIdForTab(tab.id) ?? groupId,
+              tabId: tab.id,
+            )
+          : layout.addTabToGroup(groupId: groupId, tabId: tab.id);
+      await _applyLayout(nextLayout.sanitize(tabs), persist: true);
+      state = state.copyWith(error: null);
+      return tab;
+    } catch (error) {
+      state = state.copyWith(error: error.toString());
+      rethrow;
+    }
+  }
+
   Future<void> closeWorkspaceTab({
     required Workspace workspace,
     required String tabId,
@@ -92,6 +127,34 @@ mixin _WorkbenchControllerTabs
           if (candidate.id == tab.id) tab else candidate,
       ];
       _setTabsForWorkspace(tab.workspaceId, tabs);
+      state = state.copyWith(error: null);
+    } catch (error) {
+      state = state.copyWith(error: error.toString());
+      rethrow;
+    }
+  }
+
+  Future<void> syncEditorTabsAfterPathMove({
+    required Workspace workspace,
+    required String oldRelativePath,
+    required String newRelativePath,
+  }) async {
+    try {
+      final updatedTabs = await _workspaceTabService.updateEditorPathsAfterMove(
+        workspaceId: workspace.id,
+        oldRelativePath: oldRelativePath,
+        newRelativePath: newRelativePath,
+      );
+      if (updatedTabs.isEmpty) {
+        return;
+      }
+      final byId = <String, WorkspaceTabRecord>{
+        for (final tab in updatedTabs) tab.id: tab,
+      };
+      final tabs = <WorkspaceTabRecord>[
+        for (final tab in state.tabsFor(workspace.id)) byId[tab.id] ?? tab,
+      ];
+      _setTabsForWorkspace(workspace.id, tabs);
       state = state.copyWith(error: null);
     } catch (error) {
       state = state.copyWith(error: error.toString());

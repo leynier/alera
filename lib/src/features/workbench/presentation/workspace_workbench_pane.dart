@@ -233,7 +233,12 @@ class _WorkspaceTabContent extends StatelessWidget {
         session: terminalRuntime.sessionFor(workspace: workspace, tab: tab),
         autofocus: autofocus,
       ),
-      WorkspaceTabKind.editor || WorkspaceTabKind.browser => const Center(
+      WorkspaceTabKind.editor => WorkspaceEditorSurface(
+        workspace: workspace,
+        tab: tab,
+        autofocus: autofocus,
+      ),
+      WorkspaceTabKind.browser => const Center(
         child: CircularProgressIndicator(),
       ),
     };

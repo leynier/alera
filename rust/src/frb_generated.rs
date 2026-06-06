@@ -38,7 +38,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 590809161;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1886324043;
 
 // Section: executor
 
@@ -111,6 +111,129 @@ fn wire__crate__api__git__clone_repository_impl(
                         crate::api::git::clone_repository(api_url, api_destination_path)?;
                     Ok(output_ok)
                 })())
+            }
+        },
+    )
+}
+fn wire__crate__api__workspace_files__copy_workspace_entry_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "copy_workspace_entry",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_workspace_path = <String>::sse_decode(&mut deserializer);
+            let api_relative_path = <String>::sse_decode(&mut deserializer);
+            let api_target_parent_relative_path = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::workspace_files::WorkspaceFileError>(
+                    (move || {
+                        let output_ok = crate::api::workspace_files::copy_workspace_entry(
+                            api_workspace_path,
+                            api_relative_path,
+                            api_target_parent_relative_path,
+                        )?;
+                        Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__workspace_files__create_workspace_directory_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "create_workspace_directory",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_workspace_path = <String>::sse_decode(&mut deserializer);
+            let api_parent_relative_path = <String>::sse_decode(&mut deserializer);
+            let api_name = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::workspace_files::WorkspaceFileError>(
+                    (move || {
+                        let output_ok = crate::api::workspace_files::create_workspace_directory(
+                            api_workspace_path,
+                            api_parent_relative_path,
+                            api_name,
+                        )?;
+                        Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__workspace_files__create_workspace_file_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "create_workspace_file",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_workspace_path = <String>::sse_decode(&mut deserializer);
+            let api_parent_relative_path = <String>::sse_decode(&mut deserializer);
+            let api_name = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::workspace_files::WorkspaceFileError>(
+                    (move || {
+                        let output_ok = crate::api::workspace_files::create_workspace_file(
+                            api_workspace_path,
+                            api_parent_relative_path,
+                            api_name,
+                        )?;
+                        Ok(output_ok)
+                    })(),
+                )
             }
         },
     )
@@ -221,6 +344,47 @@ fn wire__crate__api__git__delete_branch_impl(
                         crate::api::git::delete_branch(api_repo_path, api_branch, api__force)?;
                     Ok(output_ok)
                 })())
+            }
+        },
+    )
+}
+fn wire__crate__api__workspace_files__delete_workspace_entry_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "delete_workspace_entry",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_workspace_path = <String>::sse_decode(&mut deserializer);
+            let api_relative_path = <String>::sse_decode(&mut deserializer);
+            let api_use_trash = <bool>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::workspace_files::WorkspaceFileError>(
+                    (move || {
+                        let output_ok = crate::api::workspace_files::delete_workspace_entry(
+                            api_workspace_path,
+                            api_relative_path,
+                            api_use_trash,
+                        )?;
+                        Ok(output_ok)
+                    })(),
+                )
             }
         },
     )
@@ -358,6 +522,47 @@ fn wire__crate__api__git__list_branches_impl(
         },
     )
 }
+fn wire__crate__api__workspace_files__list_workspace_children_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_workspace_children",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_workspace_path = <String>::sse_decode(&mut deserializer);
+            let api_relative_path = <String>::sse_decode(&mut deserializer);
+            let api_hide_ignored = <bool>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::workspace_files::WorkspaceFileError>(
+                    (move || {
+                        let output_ok = crate::api::workspace_files::list_workspace_children(
+                            api_workspace_path,
+                            api_relative_path,
+                            api_hide_ignored,
+                        )?;
+                        Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__git__list_worktrees_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -387,6 +592,175 @@ fn wire__crate__api__git__list_worktrees_impl(
                     let output_ok = crate::api::git::list_worktrees(api_repo_path)?;
                     Ok(output_ok)
                 })())
+            }
+        },
+    )
+}
+fn wire__crate__api__workspace_files__move_workspace_entry_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "move_workspace_entry",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_workspace_path = <String>::sse_decode(&mut deserializer);
+            let api_relative_path = <String>::sse_decode(&mut deserializer);
+            let api_target_parent_relative_path = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::workspace_files::WorkspaceFileError>(
+                    (move || {
+                        let output_ok = crate::api::workspace_files::move_workspace_entry(
+                            api_workspace_path,
+                            api_relative_path,
+                            api_target_parent_relative_path,
+                        )?;
+                        Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__workspace_files__project_workspace_explorer_tree_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "project_workspace_explorer_tree",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_workspace_name = <String>::sse_decode(&mut deserializer);
+            let api_workspace_path = <String>::sse_decode(&mut deserializer);
+            let api_directories = <Vec<
+                crate::api::workspace_files::WorkspaceExplorerDirectoryChildren,
+            >>::sse_decode(&mut deserializer);
+            let api_replacement = <Option<
+                crate::api::workspace_files::WorkspaceExplorerDirectoryChildren,
+            >>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok = Result::<_, ()>::Ok(
+                        crate::api::workspace_files::project_workspace_explorer_tree(
+                            api_workspace_name,
+                            api_workspace_path,
+                            api_directories,
+                            api_replacement,
+                        ),
+                    )?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__workspace_files__read_workspace_editor_text_file_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "read_workspace_editor_text_file",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_workspace_path = <String>::sse_decode(&mut deserializer);
+            let api_relative_path = <String>::sse_decode(&mut deserializer);
+            let api_tab_size = <i32>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::workspace_files::WorkspaceFileError>(
+                    (move || {
+                        let output_ok =
+                            crate::api::workspace_files::read_workspace_editor_text_file(
+                                api_workspace_path,
+                                api_relative_path,
+                                api_tab_size,
+                            )?;
+                        Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__workspace_files__read_workspace_text_file_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "read_workspace_text_file",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_workspace_path = <String>::sse_decode(&mut deserializer);
+            let api_relative_path = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::workspace_files::WorkspaceFileError>(
+                    (move || {
+                        let output_ok = crate::api::workspace_files::read_workspace_text_file(
+                            api_workspace_path,
+                            api_relative_path,
+                        )?;
+                        Ok(output_ok)
+                    })(),
+                )
             }
         },
     )
@@ -423,6 +797,47 @@ fn wire__crate__api__git__remove_worktree_impl(
                         crate::api::git::remove_worktree(api_repo_path, api_path, api_force)?;
                     Ok(output_ok)
                 })())
+            }
+        },
+    )
+}
+fn wire__crate__api__workspace_files__rename_workspace_entry_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "rename_workspace_entry",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_workspace_path = <String>::sse_decode(&mut deserializer);
+            let api_relative_path = <String>::sse_decode(&mut deserializer);
+            let api_new_name = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::workspace_files::WorkspaceFileError>(
+                    (move || {
+                        let output_ok = crate::api::workspace_files::rename_workspace_entry(
+                            api_workspace_path,
+                            api_relative_path,
+                            api_new_name,
+                        )?;
+                        Ok(output_ok)
+                    })(),
+                )
             }
         },
     )
@@ -499,6 +914,44 @@ fn wire__crate__api__agent_hooks__start_agent_hook_receiver_impl(
         },
     )
 }
+fn wire__crate__api__workspace_files__start_workspace_explorer_watcher_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "start_workspace_explorer_watcher",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_workspace_path = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::workspace_files::WorkspaceFileError>(
+                    (move || {
+                        let output_ok =
+                            crate::api::workspace_files::start_workspace_explorer_watcher(
+                                api_workspace_path,
+                            )?;
+                        Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__agent_hooks__stop_agent_hook_receiver_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -529,6 +982,87 @@ fn wire__crate__api__agent_hooks__stop_agent_hook_receiver_impl(
                     })?;
                     Ok(output_ok)
                 })())
+            }
+        },
+    )
+}
+fn wire__crate__api__workspace_files__stop_workspace_explorer_watcher_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "stop_workspace_explorer_watcher",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_handle =
+                <crate::api::workspace_files::WorkspaceExplorerWatcherHandle>::sse_decode(
+                    &mut deserializer,
+                );
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok = Result::<_, ()>::Ok({
+                        crate::api::workspace_files::stop_workspace_explorer_watcher(api_handle);
+                    })?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__workspace_files__update_workspace_explorer_watcher_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "update_workspace_explorer_watcher",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_handle =
+                <crate::api::workspace_files::WorkspaceExplorerWatcherHandle>::sse_decode(
+                    &mut deserializer,
+                );
+            let api_watched_relative_paths = <Vec<String>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::workspace_files::WorkspaceFileError>(
+                    (move || {
+                        let output_ok =
+                            crate::api::workspace_files::update_workspace_explorer_watcher(
+                                api_handle,
+                                api_watched_relative_paths,
+                            )?;
+                        Ok(output_ok)
+                    })(),
+                )
             }
         },
     )
@@ -571,6 +1105,147 @@ fn wire__crate__api__agent_hooks__watch_agent_hook_event_batches_impl(
         },
     )
 }
+fn wire__crate__api__workspace_files__watch_workspace_explorer_events_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "watch_workspace_explorer_events",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_handle =
+                <crate::api::workspace_files::WorkspaceExplorerWatcherHandle>::sse_decode(
+                    &mut deserializer,
+                );
+            let api_sink = <StreamSink<
+                crate::api::workspace_files::WorkspaceExplorerWatchBatch,
+                flutter_rust_bridge::for_generated::SseCodec,
+            >>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok = Result::<_, ()>::Ok({
+                        crate::api::workspace_files::watch_workspace_explorer_events(
+                            api_handle, api_sink,
+                        );
+                    })?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__workspace_files__write_workspace_editor_text_file_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "write_workspace_editor_text_file",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_workspace_path = <String>::sse_decode(&mut deserializer);
+            let api_relative_path = <String>::sse_decode(&mut deserializer);
+            let api_current_display_content = <String>::sse_decode(&mut deserializer);
+            let api_original_raw_content = <Option<String>>::sse_decode(&mut deserializer);
+            let api_original_display_content = <Option<String>>::sse_decode(&mut deserializer);
+            let api_expected_content_token = <Option<String>>::sse_decode(&mut deserializer);
+            let api_overwrite_if_changed = <bool>::sse_decode(&mut deserializer);
+            let api_tab_size = <i32>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::workspace_files::WorkspaceFileError>(
+                    (move || {
+                        let output_ok =
+                            crate::api::workspace_files::write_workspace_editor_text_file(
+                                api_workspace_path,
+                                api_relative_path,
+                                api_current_display_content,
+                                api_original_raw_content,
+                                api_original_display_content,
+                                api_expected_content_token,
+                                api_overwrite_if_changed,
+                                api_tab_size,
+                            )?;
+                        Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__workspace_files__write_workspace_text_file_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "write_workspace_text_file",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_workspace_path = <String>::sse_decode(&mut deserializer);
+            let api_relative_path = <String>::sse_decode(&mut deserializer);
+            let api_content = <String>::sse_decode(&mut deserializer);
+            let api_expected_content_token = <Option<String>>::sse_decode(&mut deserializer);
+            let api_overwrite_if_changed = <bool>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::workspace_files::WorkspaceFileError>(
+                    (move || {
+                        let output_ok = crate::api::workspace_files::write_workspace_text_file(
+                            api_workspace_path,
+                            api_relative_path,
+                            api_content,
+                            api_expected_content_token,
+                            api_overwrite_if_changed,
+                        )?;
+                        Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 
 // Section: dart2rust
 
@@ -585,6 +1260,19 @@ impl SseDecode for flutter_rust_bridge::for_generated::anyhow::Error {
 impl SseDecode
     for StreamSink<
         crate::api::agent_hooks::AgentHookEventBatchDto,
+        flutter_rust_bridge::for_generated::SseCodec,
+    >
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <String>::sse_decode(deserializer);
+        return StreamSink::deserialize(inner);
+    }
+}
+
+impl SseDecode
+    for StreamSink<
+        crate::api::workspace_files::WorkspaceExplorerWatchBatch,
         flutter_rust_bridge::for_generated::SseCodec,
     >
 {
@@ -706,6 +1394,13 @@ impl SseDecode for i32 {
     }
 }
 
+impl SseDecode for i64 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        deserializer.cursor.read_i64::<NativeEndian>().unwrap()
+    }
+}
+
 impl SseDecode for Vec<String> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -758,11 +1453,97 @@ impl SseDecode for Vec<u8> {
     }
 }
 
+impl SseDecode for Vec<crate::api::workspace_files::WorkspaceExplorerDirectoryChildren> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(
+                <crate::api::workspace_files::WorkspaceExplorerDirectoryChildren>::sse_decode(
+                    deserializer,
+                ),
+            );
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::workspace_files::WorkspaceExplorerEntryBinding> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(
+                <crate::api::workspace_files::WorkspaceExplorerEntryBinding>::sse_decode(
+                    deserializer,
+                ),
+            );
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::workspace_files::WorkspaceExplorerTreeNode> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(
+                <crate::api::workspace_files::WorkspaceExplorerTreeNode>::sse_decode(deserializer),
+            );
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::workspace_files::WorkspaceFileEntry> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::workspace_files::WorkspaceFileEntry>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Option<String> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<String>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::workspace_files::WorkspaceExplorerDirectoryChildren> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(
+                <crate::api::workspace_files::WorkspaceExplorerDirectoryChildren>::sse_decode(
+                    deserializer,
+                ),
+            );
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::workspace_files::WorkspaceFileGitStatus> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(
+                <crate::api::workspace_files::WorkspaceFileGitStatus>::sse_decode(deserializer),
+            );
         } else {
             return None;
         }
@@ -783,6 +1564,13 @@ impl SseDecode for u32 {
     }
 }
 
+impl SseDecode for u64 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        deserializer.cursor.read_u64::<NativeEndian>().unwrap()
+    }
+}
+
 impl SseDecode for u8 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -793,6 +1581,244 @@ impl SseDecode for u8 {
 impl SseDecode for () {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {}
+}
+
+impl SseDecode for crate::api::workspace_files::WorkspaceEditorTextFile {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_rawContent = <String>::sse_decode(deserializer);
+        let mut var_displayContent = <String>::sse_decode(deserializer);
+        let mut var_contentToken = <String>::sse_decode(deserializer);
+        let mut var_modifiedMillis = <i64>::sse_decode(deserializer);
+        let mut var_size = <u64>::sse_decode(deserializer);
+        return crate::api::workspace_files::WorkspaceEditorTextFile {
+            raw_content: var_rawContent,
+            display_content: var_displayContent,
+            content_token: var_contentToken,
+            modified_millis: var_modifiedMillis,
+            size: var_size,
+        };
+    }
+}
+
+impl SseDecode for crate::api::workspace_files::WorkspaceExplorerDirectoryChildren {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_relativePath = <String>::sse_decode(deserializer);
+        let mut var_children =
+            <Vec<crate::api::workspace_files::WorkspaceFileEntry>>::sse_decode(deserializer);
+        return crate::api::workspace_files::WorkspaceExplorerDirectoryChildren {
+            relative_path: var_relativePath,
+            children: var_children,
+        };
+    }
+}
+
+impl SseDecode for crate::api::workspace_files::WorkspaceExplorerEntryBinding {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_nodeId = <String>::sse_decode(deserializer);
+        let mut var_relativePath = <String>::sse_decode(deserializer);
+        return crate::api::workspace_files::WorkspaceExplorerEntryBinding {
+            node_id: var_nodeId,
+            relative_path: var_relativePath,
+        };
+    }
+}
+
+impl SseDecode for crate::api::workspace_files::WorkspaceExplorerTreeNode {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_name = <String>::sse_decode(deserializer);
+        let mut var_kind =
+            <crate::api::workspace_files::WorkspaceExplorerTreeNodeKind>::sse_decode(deserializer);
+        let mut var_parentId = <String>::sse_decode(deserializer);
+        let mut var_virtualPath = <String>::sse_decode(deserializer);
+        let mut var_sourcePath = <String>::sse_decode(deserializer);
+        let mut var_entryId = <Option<String>>::sse_decode(deserializer);
+        let mut var_childIds = <Vec<String>>::sse_decode(deserializer);
+        let mut var_isExpanded = <bool>::sse_decode(deserializer);
+        let mut var_isVirtual = <bool>::sse_decode(deserializer);
+        return crate::api::workspace_files::WorkspaceExplorerTreeNode {
+            id: var_id,
+            name: var_name,
+            kind: var_kind,
+            parent_id: var_parentId,
+            virtual_path: var_virtualPath,
+            source_path: var_sourcePath,
+            entry_id: var_entryId,
+            child_ids: var_childIds,
+            is_expanded: var_isExpanded,
+            is_virtual: var_isVirtual,
+        };
+    }
+}
+
+impl SseDecode for crate::api::workspace_files::WorkspaceExplorerTreeNodeKind {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::workspace_files::WorkspaceExplorerTreeNodeKind::Root,
+            1 => crate::api::workspace_files::WorkspaceExplorerTreeNodeKind::Folder,
+            2 => crate::api::workspace_files::WorkspaceExplorerTreeNodeKind::File,
+            _ => unreachable!(
+                "Invalid variant for WorkspaceExplorerTreeNodeKind: {}",
+                inner
+            ),
+        };
+    }
+}
+
+impl SseDecode for crate::api::workspace_files::WorkspaceExplorerTreeProjection {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_directories = <Vec<
+            crate::api::workspace_files::WorkspaceExplorerDirectoryChildren,
+        >>::sse_decode(deserializer);
+        let mut var_nodes =
+            <Vec<crate::api::workspace_files::WorkspaceExplorerTreeNode>>::sse_decode(deserializer);
+        let mut var_entryBindings =
+            <Vec<crate::api::workspace_files::WorkspaceExplorerEntryBinding>>::sse_decode(
+                deserializer,
+            );
+        return crate::api::workspace_files::WorkspaceExplorerTreeProjection {
+            directories: var_directories,
+            nodes: var_nodes,
+            entry_bindings: var_entryBindings,
+        };
+    }
+}
+
+impl SseDecode for crate::api::workspace_files::WorkspaceExplorerWatchBatch {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_directoryRelativePaths = <Vec<String>>::sse_decode(deserializer);
+        let mut var_changedRelativePaths = <Vec<String>>::sse_decode(deserializer);
+        let mut var_coalescedEventCount = <u32>::sse_decode(deserializer);
+        return crate::api::workspace_files::WorkspaceExplorerWatchBatch {
+            directory_relative_paths: var_directoryRelativePaths,
+            changed_relative_paths: var_changedRelativePaths,
+            coalesced_event_count: var_coalescedEventCount,
+        };
+    }
+}
+
+impl SseDecode for crate::api::workspace_files::WorkspaceExplorerWatcherHandle {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        return crate::api::workspace_files::WorkspaceExplorerWatcherHandle { id: var_id };
+    }
+}
+
+impl SseDecode for crate::api::workspace_files::WorkspaceFileEntry {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_relativePath = <String>::sse_decode(deserializer);
+        let mut var_name = <String>::sse_decode(deserializer);
+        let mut var_kind =
+            <crate::api::workspace_files::WorkspaceFileKind>::sse_decode(deserializer);
+        let mut var_size = <u64>::sse_decode(deserializer);
+        let mut var_modifiedMillis = <i64>::sse_decode(deserializer);
+        let mut var_contentToken = <String>::sse_decode(deserializer);
+        let mut var_isIgnored = <bool>::sse_decode(deserializer);
+        let mut var_isHidden = <bool>::sse_decode(deserializer);
+        let mut var_isSymlink = <bool>::sse_decode(deserializer);
+        let mut var_isProtected = <bool>::sse_decode(deserializer);
+        let mut var_hasChildrenHint = <bool>::sse_decode(deserializer);
+        let mut var_gitStatus =
+            <Option<crate::api::workspace_files::WorkspaceFileGitStatus>>::sse_decode(deserializer);
+        return crate::api::workspace_files::WorkspaceFileEntry {
+            relative_path: var_relativePath,
+            name: var_name,
+            kind: var_kind,
+            size: var_size,
+            modified_millis: var_modifiedMillis,
+            content_token: var_contentToken,
+            is_ignored: var_isIgnored,
+            is_hidden: var_isHidden,
+            is_symlink: var_isSymlink,
+            is_protected: var_isProtected,
+            has_children_hint: var_hasChildrenHint,
+            git_status: var_gitStatus,
+        };
+    }
+}
+
+impl SseDecode for crate::api::workspace_files::WorkspaceFileError {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_kind =
+            <crate::api::workspace_files::WorkspaceFileErrorKind>::sse_decode(deserializer);
+        let mut var_context = <String>::sse_decode(deserializer);
+        return crate::api::workspace_files::WorkspaceFileError {
+            kind: var_kind,
+            context: var_context,
+        };
+    }
+}
+
+impl SseDecode for crate::api::workspace_files::WorkspaceFileErrorKind {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::workspace_files::WorkspaceFileErrorKind::InvalidPath,
+            1 => crate::api::workspace_files::WorkspaceFileErrorKind::OutsideWorkspace,
+            2 => crate::api::workspace_files::WorkspaceFileErrorKind::NotFound,
+            3 => crate::api::workspace_files::WorkspaceFileErrorKind::AlreadyExists,
+            4 => crate::api::workspace_files::WorkspaceFileErrorKind::ProtectedPath,
+            5 => crate::api::workspace_files::WorkspaceFileErrorKind::Unsupported,
+            6 => crate::api::workspace_files::WorkspaceFileErrorKind::Conflict,
+            7 => crate::api::workspace_files::WorkspaceFileErrorKind::Io,
+            _ => unreachable!("Invalid variant for WorkspaceFileErrorKind: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::workspace_files::WorkspaceFileGitStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::workspace_files::WorkspaceFileGitStatus::Untracked,
+            1 => crate::api::workspace_files::WorkspaceFileGitStatus::Added,
+            2 => crate::api::workspace_files::WorkspaceFileGitStatus::Modified,
+            _ => unreachable!("Invalid variant for WorkspaceFileGitStatus: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::workspace_files::WorkspaceFileKind {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::workspace_files::WorkspaceFileKind::File,
+            1 => crate::api::workspace_files::WorkspaceFileKind::Directory,
+            2 => crate::api::workspace_files::WorkspaceFileKind::Symlink,
+            3 => crate::api::workspace_files::WorkspaceFileKind::Other,
+            _ => unreachable!("Invalid variant for WorkspaceFileKind: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::workspace_files::WorkspaceTextFile {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_content = <String>::sse_decode(deserializer);
+        let mut var_contentToken = <String>::sse_decode(deserializer);
+        let mut var_modifiedMillis = <i64>::sse_decode(deserializer);
+        let mut var_size = <u64>::sse_decode(deserializer);
+        return crate::api::workspace_files::WorkspaceTextFile {
+            content: var_content,
+            content_token: var_contentToken,
+            modified_millis: var_modifiedMillis,
+            size: var_size,
+        };
+    }
 }
 
 fn pde_ffi_dispatcher_primary_impl(
@@ -806,34 +1832,130 @@ fn pde_ffi_dispatcher_primary_impl(
     match func_id {
         1 => wire__crate__api__git__branch_exists_impl(port, ptr, rust_vec_len, data_len),
         2 => wire__crate__api__git__clone_repository_impl(port, ptr, rust_vec_len, data_len),
-        3 => wire__crate__api__git__create_worktree_impl(port, ptr, rust_vec_len, data_len),
-        4 => wire__crate__api__git__current_branch_impl(port, ptr, rust_vec_len, data_len),
-        5 => wire__crate__api__git__delete_branch_impl(port, ptr, rust_vec_len, data_len),
-        6 => wire__crate__api__init_app_impl(port, ptr, rust_vec_len, data_len),
-        7 => wire__crate__api__git__is_git_repository_impl(port, ptr, rust_vec_len, data_len),
-        8 => wire__crate__api__git__is_valid_branch_name_impl(port, ptr, rust_vec_len, data_len),
-        9 => wire__crate__api__git__list_branches_impl(port, ptr, rust_vec_len, data_len),
-        10 => wire__crate__api__git__list_worktrees_impl(port, ptr, rust_vec_len, data_len),
-        11 => wire__crate__api__git__remove_worktree_impl(port, ptr, rust_vec_len, data_len),
-        12 => wire__crate__api__agent_hooks__set_agent_hook_enabled_agents_impl(
+        3 => wire__crate__api__workspace_files__copy_workspace_entry_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        13 => wire__crate__api__agent_hooks__start_agent_hook_receiver_impl(
+        4 => wire__crate__api__workspace_files__create_workspace_directory_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        14 => wire__crate__api__agent_hooks__stop_agent_hook_receiver_impl(
+        5 => wire__crate__api__workspace_files__create_workspace_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        15 => wire__crate__api__agent_hooks__watch_agent_hook_event_batches_impl(
+        6 => wire__crate__api__git__create_worktree_impl(port, ptr, rust_vec_len, data_len),
+        7 => wire__crate__api__git__current_branch_impl(port, ptr, rust_vec_len, data_len),
+        8 => wire__crate__api__git__delete_branch_impl(port, ptr, rust_vec_len, data_len),
+        9 => wire__crate__api__workspace_files__delete_workspace_entry_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        10 => wire__crate__api__init_app_impl(port, ptr, rust_vec_len, data_len),
+        11 => wire__crate__api__git__is_git_repository_impl(port, ptr, rust_vec_len, data_len),
+        12 => wire__crate__api__git__is_valid_branch_name_impl(port, ptr, rust_vec_len, data_len),
+        13 => wire__crate__api__git__list_branches_impl(port, ptr, rust_vec_len, data_len),
+        14 => wire__crate__api__workspace_files__list_workspace_children_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        15 => wire__crate__api__git__list_worktrees_impl(port, ptr, rust_vec_len, data_len),
+        16 => wire__crate__api__workspace_files__move_workspace_entry_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        17 => wire__crate__api__workspace_files__project_workspace_explorer_tree_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        18 => wire__crate__api__workspace_files__read_workspace_editor_text_file_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        19 => wire__crate__api__workspace_files__read_workspace_text_file_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        20 => wire__crate__api__git__remove_worktree_impl(port, ptr, rust_vec_len, data_len),
+        21 => wire__crate__api__workspace_files__rename_workspace_entry_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        22 => wire__crate__api__agent_hooks__set_agent_hook_enabled_agents_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        23 => wire__crate__api__agent_hooks__start_agent_hook_receiver_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        24 => wire__crate__api__workspace_files__start_workspace_explorer_watcher_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        25 => wire__crate__api__agent_hooks__stop_agent_hook_receiver_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        26 => wire__crate__api__workspace_files__stop_workspace_explorer_watcher_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        27 => wire__crate__api__workspace_files__update_workspace_explorer_watcher_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        28 => wire__crate__api__agent_hooks__watch_agent_hook_event_batches_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        29 => wire__crate__api__workspace_files__watch_workspace_explorer_events_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        30 => wire__crate__api__workspace_files__write_workspace_editor_text_file_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        31 => wire__crate__api__workspace_files__write_workspace_text_file_impl(
             port,
             ptr,
             rust_vec_len,
@@ -987,6 +2109,337 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitWorktreeEntry>
         self
     }
 }
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::workspace_files::WorkspaceEditorTextFile {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.raw_content.into_into_dart().into_dart(),
+            self.display_content.into_into_dart().into_dart(),
+            self.content_token.into_into_dart().into_dart(),
+            self.modified_millis.into_into_dart().into_dart(),
+            self.size.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::workspace_files::WorkspaceEditorTextFile
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::workspace_files::WorkspaceEditorTextFile>
+    for crate::api::workspace_files::WorkspaceEditorTextFile
+{
+    fn into_into_dart(self) -> crate::api::workspace_files::WorkspaceEditorTextFile {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart
+    for crate::api::workspace_files::WorkspaceExplorerDirectoryChildren
+{
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.relative_path.into_into_dart().into_dart(),
+            self.children.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::workspace_files::WorkspaceExplorerDirectoryChildren
+{
+}
+impl
+    flutter_rust_bridge::IntoIntoDart<
+        crate::api::workspace_files::WorkspaceExplorerDirectoryChildren,
+    > for crate::api::workspace_files::WorkspaceExplorerDirectoryChildren
+{
+    fn into_into_dart(self) -> crate::api::workspace_files::WorkspaceExplorerDirectoryChildren {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::workspace_files::WorkspaceExplorerEntryBinding {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.node_id.into_into_dart().into_dart(),
+            self.relative_path.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::workspace_files::WorkspaceExplorerEntryBinding
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::workspace_files::WorkspaceExplorerEntryBinding>
+    for crate::api::workspace_files::WorkspaceExplorerEntryBinding
+{
+    fn into_into_dart(self) -> crate::api::workspace_files::WorkspaceExplorerEntryBinding {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::workspace_files::WorkspaceExplorerTreeNode {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.name.into_into_dart().into_dart(),
+            self.kind.into_into_dart().into_dart(),
+            self.parent_id.into_into_dart().into_dart(),
+            self.virtual_path.into_into_dart().into_dart(),
+            self.source_path.into_into_dart().into_dart(),
+            self.entry_id.into_into_dart().into_dart(),
+            self.child_ids.into_into_dart().into_dart(),
+            self.is_expanded.into_into_dart().into_dart(),
+            self.is_virtual.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::workspace_files::WorkspaceExplorerTreeNode
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::workspace_files::WorkspaceExplorerTreeNode>
+    for crate::api::workspace_files::WorkspaceExplorerTreeNode
+{
+    fn into_into_dart(self) -> crate::api::workspace_files::WorkspaceExplorerTreeNode {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::workspace_files::WorkspaceExplorerTreeNodeKind {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Root => 0.into_dart(),
+            Self::Folder => 1.into_dart(),
+            Self::File => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::workspace_files::WorkspaceExplorerTreeNodeKind
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::workspace_files::WorkspaceExplorerTreeNodeKind>
+    for crate::api::workspace_files::WorkspaceExplorerTreeNodeKind
+{
+    fn into_into_dart(self) -> crate::api::workspace_files::WorkspaceExplorerTreeNodeKind {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart
+    for crate::api::workspace_files::WorkspaceExplorerTreeProjection
+{
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.directories.into_into_dart().into_dart(),
+            self.nodes.into_into_dart().into_dart(),
+            self.entry_bindings.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::workspace_files::WorkspaceExplorerTreeProjection
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::workspace_files::WorkspaceExplorerTreeProjection>
+    for crate::api::workspace_files::WorkspaceExplorerTreeProjection
+{
+    fn into_into_dart(self) -> crate::api::workspace_files::WorkspaceExplorerTreeProjection {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::workspace_files::WorkspaceExplorerWatchBatch {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.directory_relative_paths.into_into_dart().into_dart(),
+            self.changed_relative_paths.into_into_dart().into_dart(),
+            self.coalesced_event_count.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::workspace_files::WorkspaceExplorerWatchBatch
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::workspace_files::WorkspaceExplorerWatchBatch>
+    for crate::api::workspace_files::WorkspaceExplorerWatchBatch
+{
+    fn into_into_dart(self) -> crate::api::workspace_files::WorkspaceExplorerWatchBatch {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::workspace_files::WorkspaceExplorerWatcherHandle {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [self.id.into_into_dart().into_dart()].into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::workspace_files::WorkspaceExplorerWatcherHandle
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::workspace_files::WorkspaceExplorerWatcherHandle>
+    for crate::api::workspace_files::WorkspaceExplorerWatcherHandle
+{
+    fn into_into_dart(self) -> crate::api::workspace_files::WorkspaceExplorerWatcherHandle {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::workspace_files::WorkspaceFileEntry {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.relative_path.into_into_dart().into_dart(),
+            self.name.into_into_dart().into_dart(),
+            self.kind.into_into_dart().into_dart(),
+            self.size.into_into_dart().into_dart(),
+            self.modified_millis.into_into_dart().into_dart(),
+            self.content_token.into_into_dart().into_dart(),
+            self.is_ignored.into_into_dart().into_dart(),
+            self.is_hidden.into_into_dart().into_dart(),
+            self.is_symlink.into_into_dart().into_dart(),
+            self.is_protected.into_into_dart().into_dart(),
+            self.has_children_hint.into_into_dart().into_dart(),
+            self.git_status.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::workspace_files::WorkspaceFileEntry
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::workspace_files::WorkspaceFileEntry>
+    for crate::api::workspace_files::WorkspaceFileEntry
+{
+    fn into_into_dart(self) -> crate::api::workspace_files::WorkspaceFileEntry {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::workspace_files::WorkspaceFileError {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.kind.into_into_dart().into_dart(),
+            self.context.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::workspace_files::WorkspaceFileError
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::workspace_files::WorkspaceFileError>
+    for crate::api::workspace_files::WorkspaceFileError
+{
+    fn into_into_dart(self) -> crate::api::workspace_files::WorkspaceFileError {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::workspace_files::WorkspaceFileErrorKind {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::InvalidPath => 0.into_dart(),
+            Self::OutsideWorkspace => 1.into_dart(),
+            Self::NotFound => 2.into_dart(),
+            Self::AlreadyExists => 3.into_dart(),
+            Self::ProtectedPath => 4.into_dart(),
+            Self::Unsupported => 5.into_dart(),
+            Self::Conflict => 6.into_dart(),
+            Self::Io => 7.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::workspace_files::WorkspaceFileErrorKind
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::workspace_files::WorkspaceFileErrorKind>
+    for crate::api::workspace_files::WorkspaceFileErrorKind
+{
+    fn into_into_dart(self) -> crate::api::workspace_files::WorkspaceFileErrorKind {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::workspace_files::WorkspaceFileGitStatus {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Untracked => 0.into_dart(),
+            Self::Added => 1.into_dart(),
+            Self::Modified => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::workspace_files::WorkspaceFileGitStatus
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::workspace_files::WorkspaceFileGitStatus>
+    for crate::api::workspace_files::WorkspaceFileGitStatus
+{
+    fn into_into_dart(self) -> crate::api::workspace_files::WorkspaceFileGitStatus {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::workspace_files::WorkspaceFileKind {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::File => 0.into_dart(),
+            Self::Directory => 1.into_dart(),
+            Self::Symlink => 2.into_dart(),
+            Self::Other => 3.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::workspace_files::WorkspaceFileKind
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::workspace_files::WorkspaceFileKind>
+    for crate::api::workspace_files::WorkspaceFileKind
+{
+    fn into_into_dart(self) -> crate::api::workspace_files::WorkspaceFileKind {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::workspace_files::WorkspaceTextFile {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.content.into_into_dart().into_dart(),
+            self.content_token.into_into_dart().into_dart(),
+            self.modified_millis.into_into_dart().into_dart(),
+            self.size.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::workspace_files::WorkspaceTextFile
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::workspace_files::WorkspaceTextFile>
+    for crate::api::workspace_files::WorkspaceTextFile
+{
+    fn into_into_dart(self) -> crate::api::workspace_files::WorkspaceTextFile {
+        self
+    }
+}
 
 impl SseEncode for flutter_rust_bridge::for_generated::anyhow::Error {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -998,6 +2451,18 @@ impl SseEncode for flutter_rust_bridge::for_generated::anyhow::Error {
 impl SseEncode
     for StreamSink<
         crate::api::agent_hooks::AgentHookEventBatchDto,
+        flutter_rust_bridge::for_generated::SseCodec,
+    >
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        unimplemented!("")
+    }
+}
+
+impl SseEncode
+    for StreamSink<
+        crate::api::workspace_files::WorkspaceExplorerWatchBatch,
         flutter_rust_bridge::for_generated::SseCodec,
     >
 {
@@ -1097,6 +2562,13 @@ impl SseEncode for i32 {
     }
 }
 
+impl SseEncode for i64 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        serializer.cursor.write_i64::<NativeEndian>(self).unwrap();
+    }
+}
+
 impl SseEncode for Vec<String> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -1137,12 +2609,78 @@ impl SseEncode for Vec<u8> {
     }
 }
 
+impl SseEncode for Vec<crate::api::workspace_files::WorkspaceExplorerDirectoryChildren> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::workspace_files::WorkspaceExplorerDirectoryChildren>::sse_encode(
+                item, serializer,
+            );
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::workspace_files::WorkspaceExplorerEntryBinding> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::workspace_files::WorkspaceExplorerEntryBinding>::sse_encode(
+                item, serializer,
+            );
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::workspace_files::WorkspaceExplorerTreeNode> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::workspace_files::WorkspaceExplorerTreeNode>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::workspace_files::WorkspaceFileEntry> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::workspace_files::WorkspaceFileEntry>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<String> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <String>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::workspace_files::WorkspaceExplorerDirectoryChildren> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::workspace_files::WorkspaceExplorerDirectoryChildren>::sse_encode(
+                value, serializer,
+            );
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::workspace_files::WorkspaceFileGitStatus> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::workspace_files::WorkspaceFileGitStatus>::sse_encode(value, serializer);
         }
     }
 }
@@ -1161,6 +2699,13 @@ impl SseEncode for u32 {
     }
 }
 
+impl SseEncode for u64 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        serializer.cursor.write_u64::<NativeEndian>(self).unwrap();
+    }
+}
+
 impl SseEncode for u8 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -1171,6 +2716,200 @@ impl SseEncode for u8 {
 impl SseEncode for () {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {}
+}
+
+impl SseEncode for crate::api::workspace_files::WorkspaceEditorTextFile {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.raw_content, serializer);
+        <String>::sse_encode(self.display_content, serializer);
+        <String>::sse_encode(self.content_token, serializer);
+        <i64>::sse_encode(self.modified_millis, serializer);
+        <u64>::sse_encode(self.size, serializer);
+    }
+}
+
+impl SseEncode for crate::api::workspace_files::WorkspaceExplorerDirectoryChildren {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.relative_path, serializer);
+        <Vec<crate::api::workspace_files::WorkspaceFileEntry>>::sse_encode(
+            self.children,
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::workspace_files::WorkspaceExplorerEntryBinding {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.node_id, serializer);
+        <String>::sse_encode(self.relative_path, serializer);
+    }
+}
+
+impl SseEncode for crate::api::workspace_files::WorkspaceExplorerTreeNode {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.name, serializer);
+        <crate::api::workspace_files::WorkspaceExplorerTreeNodeKind>::sse_encode(
+            self.kind, serializer,
+        );
+        <String>::sse_encode(self.parent_id, serializer);
+        <String>::sse_encode(self.virtual_path, serializer);
+        <String>::sse_encode(self.source_path, serializer);
+        <Option<String>>::sse_encode(self.entry_id, serializer);
+        <Vec<String>>::sse_encode(self.child_ids, serializer);
+        <bool>::sse_encode(self.is_expanded, serializer);
+        <bool>::sse_encode(self.is_virtual, serializer);
+    }
+}
+
+impl SseEncode for crate::api::workspace_files::WorkspaceExplorerTreeNodeKind {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::workspace_files::WorkspaceExplorerTreeNodeKind::Root => 0,
+                crate::api::workspace_files::WorkspaceExplorerTreeNodeKind::Folder => 1,
+                crate::api::workspace_files::WorkspaceExplorerTreeNodeKind::File => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::workspace_files::WorkspaceExplorerTreeProjection {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Vec<crate::api::workspace_files::WorkspaceExplorerDirectoryChildren>>::sse_encode(
+            self.directories,
+            serializer,
+        );
+        <Vec<crate::api::workspace_files::WorkspaceExplorerTreeNode>>::sse_encode(
+            self.nodes, serializer,
+        );
+        <Vec<crate::api::workspace_files::WorkspaceExplorerEntryBinding>>::sse_encode(
+            self.entry_bindings,
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::workspace_files::WorkspaceExplorerWatchBatch {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Vec<String>>::sse_encode(self.directory_relative_paths, serializer);
+        <Vec<String>>::sse_encode(self.changed_relative_paths, serializer);
+        <u32>::sse_encode(self.coalesced_event_count, serializer);
+    }
+}
+
+impl SseEncode for crate::api::workspace_files::WorkspaceExplorerWatcherHandle {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+    }
+}
+
+impl SseEncode for crate::api::workspace_files::WorkspaceFileEntry {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.relative_path, serializer);
+        <String>::sse_encode(self.name, serializer);
+        <crate::api::workspace_files::WorkspaceFileKind>::sse_encode(self.kind, serializer);
+        <u64>::sse_encode(self.size, serializer);
+        <i64>::sse_encode(self.modified_millis, serializer);
+        <String>::sse_encode(self.content_token, serializer);
+        <bool>::sse_encode(self.is_ignored, serializer);
+        <bool>::sse_encode(self.is_hidden, serializer);
+        <bool>::sse_encode(self.is_symlink, serializer);
+        <bool>::sse_encode(self.is_protected, serializer);
+        <bool>::sse_encode(self.has_children_hint, serializer);
+        <Option<crate::api::workspace_files::WorkspaceFileGitStatus>>::sse_encode(
+            self.git_status,
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::workspace_files::WorkspaceFileError {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <crate::api::workspace_files::WorkspaceFileErrorKind>::sse_encode(self.kind, serializer);
+        <String>::sse_encode(self.context, serializer);
+    }
+}
+
+impl SseEncode for crate::api::workspace_files::WorkspaceFileErrorKind {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::workspace_files::WorkspaceFileErrorKind::InvalidPath => 0,
+                crate::api::workspace_files::WorkspaceFileErrorKind::OutsideWorkspace => 1,
+                crate::api::workspace_files::WorkspaceFileErrorKind::NotFound => 2,
+                crate::api::workspace_files::WorkspaceFileErrorKind::AlreadyExists => 3,
+                crate::api::workspace_files::WorkspaceFileErrorKind::ProtectedPath => 4,
+                crate::api::workspace_files::WorkspaceFileErrorKind::Unsupported => 5,
+                crate::api::workspace_files::WorkspaceFileErrorKind::Conflict => 6,
+                crate::api::workspace_files::WorkspaceFileErrorKind::Io => 7,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::workspace_files::WorkspaceFileGitStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::workspace_files::WorkspaceFileGitStatus::Untracked => 0,
+                crate::api::workspace_files::WorkspaceFileGitStatus::Added => 1,
+                crate::api::workspace_files::WorkspaceFileGitStatus::Modified => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::workspace_files::WorkspaceFileKind {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::workspace_files::WorkspaceFileKind::File => 0,
+                crate::api::workspace_files::WorkspaceFileKind::Directory => 1,
+                crate::api::workspace_files::WorkspaceFileKind::Symlink => 2,
+                crate::api::workspace_files::WorkspaceFileKind::Other => 3,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::workspace_files::WorkspaceTextFile {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.content, serializer);
+        <String>::sse_encode(self.content_token, serializer);
+        <i64>::sse_encode(self.modified_millis, serializer);
+        <u64>::sse_encode(self.size, serializer);
+    }
 }
 
 #[cfg(not(target_family = "wasm"))]
