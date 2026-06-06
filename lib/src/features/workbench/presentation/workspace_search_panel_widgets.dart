@@ -1,29 +1,56 @@
 part of 'workspace_search_panel.dart';
 
-class _SearchToggleButton extends StatelessWidget {
-  const _SearchToggleButton({
-    required this.tooltip,
-    required this.icon,
-    required this.active,
-    required this.onPressed,
-  });
+@visibleForTesting
+class WorkspaceSearchTextRange {
+  const WorkspaceSearchTextRange({required this.start, required this.end});
 
-  final String tooltip;
-  final IconData icon;
-  final bool active;
-  final VoidCallback onPressed;
+  final int start;
+  final int end;
+}
 
-  @override
-  Widget build(BuildContext context) {
-    return AleraIconButton(
-      tooltip: tooltip,
-      icon: icon,
-      onPressed: onPressed,
-      iconColor: active ? AleraTokens.foreground : AleraTokens.foregroundMuted,
-      backgroundColor: active ? AleraTokens.surfaceElevated : null,
-      borderColor: active ? AleraTokens.border : AleraTokens.borderSubtle,
-    );
+@visibleForTesting
+WorkspaceSearchTextRange workspaceSearchTextRangeForCharRange({
+  required String text,
+  required int oneBasedColumn,
+  required int charLength,
+}) {
+  final startColumn = oneBasedColumn - 1;
+  final start = _utf16OffsetForCharOffset(text, startColumn);
+  final end = _utf16OffsetForCharOffset(text, startColumn + charLength);
+  return WorkspaceSearchTextRange(start: start, end: end);
+}
+
+WorkspaceSearchTextRange _matchPreviewRange(native.WorkspaceSearchMatch match) {
+  return workspaceSearchTextRangeForCharRange(
+    text: match.lineContent,
+    oneBasedColumn: match.displayColumn ?? match.column,
+    charLength: match.displayMatchLength ?? match.matchLength,
+  );
+}
+
+int _utf16OffsetForCharOffset(String text, int charOffset) {
+  var remaining = charOffset < 0 ? 0 : charOffset;
+  var utf16Offset = 0;
+  while (utf16Offset < text.length && remaining > 0) {
+    final codeUnit = text.codeUnitAt(utf16Offset);
+    final nextOffset =
+        _isLeadingSurrogate(codeUnit) &&
+            utf16Offset + 1 < text.length &&
+            _isTrailingSurrogate(text.codeUnitAt(utf16Offset + 1))
+        ? utf16Offset + 2
+        : utf16Offset + 1;
+    utf16Offset = nextOffset;
+    remaining -= 1;
   }
+  return utf16Offset.clamp(0, text.length).toInt();
+}
+
+bool _isLeadingSurrogate(int codeUnit) {
+  return codeUnit >= 0xD800 && codeUnit <= 0xDBFF;
+}
+
+bool _isTrailingSurrogate(int codeUnit) {
+  return codeUnit >= 0xDC00 && codeUnit <= 0xDFFF;
 }
 
 class _SearchSummary extends StatelessWidget {
@@ -34,8 +61,11 @@ class _SearchSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final result = state.result;
+    if (!state.hasQuery && !state.loading && result == null) {
+      return const SizedBox.shrink();
+    }
     final text = !state.hasQuery
-        ? 'Enter a search query'
+        ? ''
         : state.loading
         ? 'Searching...'
         : result == null
@@ -82,10 +112,12 @@ class _SearchEmptyState extends StatelessWidget {
     if (state.loading) {
       return const Center(child: CircularProgressIndicator());
     }
-    final message = state.hasQuery ? 'No results' : 'Search this workspace';
+    if (!state.hasQuery) {
+      return const SizedBox.shrink();
+    }
     return Center(
       child: Text(
-        message,
+        'No results',
         style: Theme.of(
           context,
         ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundMuted),
@@ -94,10 +126,34 @@ class _SearchEmptyState extends StatelessWidget {
   }
 }
 
+class _SearchPathParts {
+  const _SearchPathParts({required this.name, required this.directory});
+
+  final String name;
+  final String directory;
+
+  factory _SearchPathParts.from(String relativePath) {
+    final splitIndex = relativePath.lastIndexOf(RegExp(r'[/\\]'));
+    if (splitIndex < 0) {
+      return _SearchPathParts(name: relativePath, directory: '');
+    }
+    return _SearchPathParts(
+      name: relativePath.substring(splitIndex + 1),
+      directory: relativePath.substring(0, splitIndex),
+    );
+  }
+}
+
+double _searchRowLeftPadding(int depth) {
+  return AleraTokens.space8 + depth * AleraTokens.space16;
+}
+
 class _SearchFileResultRow extends StatelessWidget {
   const _SearchFileResultRow({
     required this.file,
     required this.collapsed,
+    required this.depth,
+    required this.showDirectory,
     required this.replacing,
     required this.onToggleCollapsed,
     required this.onReplaceFile,
@@ -105,18 +161,25 @@ class _SearchFileResultRow extends StatelessWidget {
 
   final native.WorkspaceSearchFileResult file;
   final bool collapsed;
+  final int depth;
+  final bool showDirectory;
   final bool replacing;
   final VoidCallback onToggleCollapsed;
   final VoidCallback? onReplaceFile;
 
   @override
   Widget build(BuildContext context) {
+    final path = _SearchPathParts.from(file.relativePath);
+    final textTheme = Theme.of(context).textTheme;
     return InkWell(
+      mouseCursor: SystemMouseCursors.click,
       onTap: onToggleCollapsed,
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AleraTokens.space8,
-          vertical: AleraTokens.space6,
+        padding: EdgeInsets.fromLTRB(
+          _searchRowLeftPadding(depth),
+          AleraTokens.space6,
+          AleraTokens.space8,
+          AleraTokens.space6,
         ),
         child: Row(
           children: <Widget>[
@@ -126,20 +189,46 @@ class _SearchFileResultRow extends StatelessWidget {
               color: AleraTokens.foregroundMuted,
             ),
             const SizedBox(width: AleraTokens.space4),
+            AleraFileIcon(
+              pathOrName: path.name,
+              kind: AleraFileIconKind.file,
+              size: 15,
+              fallbackColor: AleraTokens.foregroundMuted,
+            ),
+            const SizedBox(width: AleraTokens.space6),
             Expanded(
-              child: Text(
-                file.relativePath,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AleraTokens.foreground,
-                  fontWeight: FontWeight.w600,
-                ),
+              child: RichText(
+                maxLines: 1,
                 overflow: TextOverflow.ellipsis,
+                text: TextSpan(
+                  children: <InlineSpan>[
+                    TextSpan(
+                      text: path.name,
+                      style: textTheme.bodySmall?.copyWith(
+                        color: AleraTokens.foreground,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (showDirectory && path.directory.isNotEmpty)
+                      TextSpan(
+                        text: '  ${path.directory}',
+                        style: textTheme.bodySmall?.copyWith(
+                          color: AleraTokens.foregroundMuted,
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
-            Text(
-              '${file.matches.length}',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AleraTokens.foregroundMuted,
+            SizedBox(
+              width: AleraTokens.space24,
+              child: Text(
+                '${file.matches.length}',
+                textAlign: TextAlign.right,
+                style: textTheme.bodySmall?.copyWith(
+                  color: AleraTokens.foreground,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
             const SizedBox(width: AleraTokens.space4),
@@ -157,18 +246,94 @@ class _SearchFileResultRow extends StatelessWidget {
   }
 }
 
+class _SearchDirectoryResultRow extends StatelessWidget {
+  const _SearchDirectoryResultRow({
+    required this.name,
+    required this.matchCount,
+    required this.depth,
+    required this.collapsed,
+    required this.onToggleCollapsed,
+  });
+
+  final String name;
+  final int matchCount;
+  final int depth;
+  final bool collapsed;
+  final VoidCallback onToggleCollapsed;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return InkWell(
+      mouseCursor: SystemMouseCursors.click,
+      onTap: onToggleCollapsed,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          _searchRowLeftPadding(depth),
+          AleraTokens.space6,
+          AleraTokens.space8,
+          AleraTokens.space6,
+        ),
+        child: Row(
+          children: <Widget>[
+            Icon(
+              collapsed ? Icons.chevron_right : Icons.expand_more,
+              size: 16,
+              color: AleraTokens.foregroundMuted,
+            ),
+            const SizedBox(width: AleraTokens.space4),
+            AleraFileIcon(
+              pathOrName: name,
+              kind: AleraFileIconKind.folder,
+              isExpanded: !collapsed,
+              size: 15,
+              fallbackColor: AleraTokens.foregroundMuted,
+            ),
+            const SizedBox(width: AleraTokens.space6),
+            Expanded(
+              child: Text(
+                name,
+                style: textTheme.bodySmall?.copyWith(
+                  color: AleraTokens.foreground,
+                  fontWeight: FontWeight.w600,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            SizedBox(
+              width: AleraTokens.space24,
+              child: Text(
+                '$matchCount',
+                textAlign: TextAlign.right,
+                style: textTheme.bodySmall?.copyWith(
+                  color: AleraTokens.foreground,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _SearchMatchResultRow extends StatelessWidget {
   const _SearchMatchResultRow({
     required this.file,
     required this.match,
+    required this.depth,
     required this.replacing,
+    required this.showReplacementPreview,
     required this.onOpen,
     required this.onReplace,
   });
 
   final native.WorkspaceSearchFileResult file;
   final native.WorkspaceSearchMatch match;
+  final int depth;
   final bool replacing;
+  final bool showReplacementPreview;
   final VoidCallback onOpen;
   final VoidCallback? onReplace;
 
@@ -176,10 +341,11 @@ class _SearchMatchResultRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final preview = match.replacementPreview;
     return InkWell(
+      mouseCursor: SystemMouseCursors.click,
       onTap: onOpen,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AleraTokens.space32,
+        padding: EdgeInsets.fromLTRB(
+          _searchRowLeftPadding(depth),
           AleraTokens.space4,
           AleraTokens.space8,
           AleraTokens.space6,
@@ -198,31 +364,14 @@ class _SearchMatchResultRow extends StatelessWidget {
                 textAlign: TextAlign.right,
               ),
             ),
-            const SizedBox(width: AleraTokens.space8),
+            const SizedBox(width: AleraTokens.space6),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  Text(
-                    match.lineContent.trimRight(),
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AleraTokens.foregroundMuted,
-                      fontFamily: 'JetBrains Mono',
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (preview != null)
-                    Text(
-                      preview.trimRight(),
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AleraTokens.success,
-                        fontFamily: 'JetBrains Mono',
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                ],
+              child: RichText(
+                text: showReplacementPreview && preview != null
+                    ? _replacementPreviewSpan(context, match, preview)
+                    : _matchLineSpan(context, match),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
             const SizedBox(width: AleraTokens.space4),
@@ -237,5 +386,88 @@ class _SearchMatchResultRow extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  TextSpan _matchLineSpan(
+    BuildContext context,
+    native.WorkspaceSearchMatch match,
+  ) {
+    final baseStyle = Theme.of(context).textTheme.bodySmall?.copyWith(
+      color: AleraTokens.foregroundMuted,
+      fontFamily: 'JetBrains Mono',
+    );
+    final matchStyle = baseStyle?.copyWith(
+      color: AleraTokens.foreground,
+      backgroundColor: AleraTokens.accentSubtle,
+      fontWeight: FontWeight.w700,
+    );
+    final range = _clampedTextRange(
+      match.lineContent.trimRight(),
+      _matchPreviewRange(match),
+    );
+    return _lineSpanWithRange(
+      text: match.lineContent.trimRight(),
+      range: range,
+      baseStyle: baseStyle,
+      rangeStyle: matchStyle,
+    );
+  }
+
+  TextSpan _replacementPreviewSpan(
+    BuildContext context,
+    native.WorkspaceSearchMatch match,
+    String replacement,
+  ) {
+    final text = match.lineContent.trimRight();
+    final range = _clampedTextRange(text, _matchPreviewRange(match));
+    final baseStyle = Theme.of(context).textTheme.bodySmall?.copyWith(
+      color: AleraTokens.foregroundMuted,
+      fontFamily: 'JetBrains Mono',
+    );
+    final oldStyle = baseStyle?.copyWith(
+      color: AleraTokens.error,
+      backgroundColor: AleraTokens.onError,
+      decoration: TextDecoration.lineThrough,
+      decorationColor: AleraTokens.error,
+    );
+    final newStyle = baseStyle?.copyWith(
+      color: AleraTokens.success,
+      fontWeight: FontWeight.w700,
+    );
+    return TextSpan(
+      children: <InlineSpan>[
+        TextSpan(text: text.substring(0, range.start), style: baseStyle),
+        TextSpan(text: text.substring(range.start, range.end), style: oldStyle),
+        TextSpan(text: replacement, style: newStyle),
+        TextSpan(text: text.substring(range.end), style: baseStyle),
+      ],
+    );
+  }
+
+  TextSpan _lineSpanWithRange({
+    required String text,
+    required WorkspaceSearchTextRange range,
+    required TextStyle? baseStyle,
+    required TextStyle? rangeStyle,
+  }) {
+    return TextSpan(
+      children: <InlineSpan>[
+        TextSpan(text: text.substring(0, range.start), style: baseStyle),
+        TextSpan(
+          text: text.substring(range.start, range.end),
+          style: rangeStyle,
+        ),
+        TextSpan(text: text.substring(range.end), style: baseStyle),
+      ],
+    );
+  }
+
+  WorkspaceSearchTextRange _clampedTextRange(
+    String text,
+    WorkspaceSearchTextRange range,
+  ) {
+    final start = range.start.clamp(0, text.length).toInt();
+    final end = range.end.clamp(start, text.length).toInt();
+    return WorkspaceSearchTextRange(start: start, end: end);
   }
 }

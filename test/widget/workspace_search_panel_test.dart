@@ -1,0 +1,82 @@
+import 'package:alera/src/features/workbench/application/workspace_search_controller.dart';
+import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_search_panel.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  testWidgets('shows active replacement and filters after workspace switch', (
+    tester,
+  ) async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    final workspaceA = _workspace(id: 'workspace-a', path: '/workspace-a');
+    final workspaceB = _workspace(id: 'workspace-b', path: '/workspace-b');
+    final workspaceBController = container.read(
+      workspaceSearchControllerProvider(workspaceB.id).notifier,
+    );
+    workspaceBController.setReplacement(workspaceB.path, 'replacement text');
+    workspaceBController.setIncludePattern(workspaceB.path, 'lib/**');
+    workspaceBController.setExcludePattern(workspaceB.path, 'build/**');
+
+    await _pumpSearchPanel(tester, container: container, workspace: workspaceA);
+
+    expect(find.byType(TextField), findsOneWidget);
+    expect(_textFieldWithValue('replacement text'), findsNothing);
+    expect(_textFieldWithValue('lib/**'), findsNothing);
+    expect(_textFieldWithValue('build/**'), findsNothing);
+
+    await _pumpSearchPanel(tester, container: container, workspace: workspaceB);
+
+    expect(find.byType(TextField), findsNWidgets(4));
+    expect(_textFieldWithValue('replacement text'), findsOneWidget);
+    expect(_textFieldWithValue('lib/**'), findsOneWidget);
+    expect(_textFieldWithValue('build/**'), findsOneWidget);
+  });
+}
+
+Future<void> _pumpSearchPanel(
+  WidgetTester tester, {
+  required ProviderContainer container,
+  required Workspace workspace,
+}) {
+  return tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 320,
+            height: 520,
+            child: WorkspaceSearchPanel(
+              workspace: workspace,
+              onOpenMatch: (_) {},
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+Finder _textFieldWithValue(String value) {
+  return find.byWidgetPredicate(
+    (widget) => widget is TextField && widget.controller?.text == value,
+  );
+}
+
+Workspace _workspace({required String id, required String path}) {
+  final now = DateTime(2026, 1);
+  return Workspace(
+    id: id,
+    projectId: 'project-1',
+    name: id,
+    path: path,
+    createdAt: now,
+    updatedAt: now,
+    kind: WorkspaceKind.main,
+    status: WorkspaceStatus.active,
+  );
+}

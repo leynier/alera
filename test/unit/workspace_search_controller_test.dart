@@ -45,6 +45,150 @@ void main() {
     expect(state.error, isNull);
   });
 
+  test('toggle all files collapsed collapses every result file', () async {
+    final service = _FakeWorkspaceSearchService(result: _multiFileSearchResult);
+    final container = ProviderContainer(
+      overrides: [workspaceSearchServiceProvider.overrideWithValue(service)],
+    );
+    addTearDown(container.dispose);
+
+    final provider = workspaceSearchControllerProvider('workspace-1');
+    final controller = container.read(provider.notifier);
+    controller.setQuery('/workspace', 'needle');
+    await controller.searchNow('/workspace');
+
+    controller.toggleAllFilesCollapsed();
+
+    expect(container.read(provider).collapsedResultNodeKeys, <String>{
+      workspaceSearchFileNodeKey('lib/main.dart'),
+      workspaceSearchFileNodeKey('lib/other.dart'),
+    });
+  });
+
+  test(
+    'toggle all files collapsed expands when every file is collapsed',
+    () async {
+      final service = _FakeWorkspaceSearchService(
+        result: _multiFileSearchResult,
+      );
+      final container = ProviderContainer(
+        overrides: [workspaceSearchServiceProvider.overrideWithValue(service)],
+      );
+      addTearDown(container.dispose);
+
+      final provider = workspaceSearchControllerProvider('workspace-1');
+      final controller = container.read(provider.notifier);
+      controller.setQuery('/workspace', 'needle');
+      await controller.searchNow('/workspace');
+
+      controller.toggleAllFilesCollapsed();
+      controller.toggleAllFilesCollapsed();
+
+      expect(container.read(provider).collapsedResultNodeKeys, isEmpty);
+    },
+  );
+
+  test(
+    'toggle all results collapsed collapses tree directories and files',
+    () async {
+      final service = _FakeWorkspaceSearchService(result: _treeSearchResult);
+      final container = ProviderContainer(
+        overrides: [workspaceSearchServiceProvider.overrideWithValue(service)],
+      );
+      addTearDown(container.dispose);
+
+      final provider = workspaceSearchControllerProvider('workspace-1');
+      final controller = container.read(provider.notifier);
+      controller.setQuery('/workspace', 'needle');
+      await controller.searchNow('/workspace');
+      controller.toggleViewAsTree();
+
+      controller.toggleAllResultsCollapsed();
+
+      expect(container.read(provider).collapsedResultNodeKeys, <String>{
+        workspaceSearchDirectoryNodeKey('src'),
+        workspaceSearchDirectoryNodeKey('src/components'),
+        workspaceSearchDirectoryNodeKey('src/components/home'),
+        workspaceSearchFileNodeKey('src/components/home/button.astro'),
+        workspaceSearchFileNodeKey('src/components/home/card.astro'),
+        workspaceSearchFileNodeKey('bun.lock'),
+      });
+    },
+  );
+
+  test(
+    'toggle all results collapsed expands tree when every node is collapsed',
+    () async {
+      final service = _FakeWorkspaceSearchService(result: _treeSearchResult);
+      final container = ProviderContainer(
+        overrides: [workspaceSearchServiceProvider.overrideWithValue(service)],
+      );
+      addTearDown(container.dispose);
+
+      final provider = workspaceSearchControllerProvider('workspace-1');
+      final controller = container.read(provider.notifier);
+      controller.setQuery('/workspace', 'needle');
+      await controller.searchNow('/workspace');
+      controller.toggleViewAsTree();
+
+      controller.toggleAllResultsCollapsed();
+      controller.toggleAllResultsCollapsed();
+
+      expect(container.read(provider).collapsedResultNodeKeys, isEmpty);
+    },
+  );
+
+  test('toggle all files collapsed is a no-op without results', () {
+    final service = _FakeWorkspaceSearchService();
+    final container = ProviderContainer(
+      overrides: [workspaceSearchServiceProvider.overrideWithValue(service)],
+    );
+    addTearDown(container.dispose);
+
+    final provider = workspaceSearchControllerProvider('workspace-1');
+    final controller = container.read(provider.notifier);
+
+    controller.toggleAllFilesCollapsed();
+
+    expect(container.read(provider).collapsedResultNodeKeys, isEmpty);
+  });
+
+  test('clear search results clears replacement and filters', () async {
+    final service = _FakeWorkspaceSearchService();
+    final container = ProviderContainer(
+      overrides: [workspaceSearchServiceProvider.overrideWithValue(service)],
+    );
+    addTearDown(container.dispose);
+
+    final provider = workspaceSearchControllerProvider('workspace-1');
+    final controller = container.read(provider.notifier);
+    controller.setQuery('/workspace', 'needle');
+    controller.setReplacement('/workspace', 'replacement');
+    controller.setIncludePattern('/workspace', 'lib/**');
+    controller.setExcludePattern('/workspace', 'build/**');
+    await controller.searchNow('/workspace');
+    controller.toggleAllFilesCollapsed();
+
+    controller.clearSearchResults();
+
+    final state = container.read(provider);
+    expect(state.query, isEmpty);
+    expect(state.result, isNull);
+    expect(state.error, isNull);
+    expect(state.loading, isFalse);
+    expect(state.collapsedResultNodeKeys, isEmpty);
+    expect(state.replacement, isEmpty);
+    expect(state.includePattern, isEmpty);
+    expect(state.excludePattern, isEmpty);
+  });
+
+  test('search directory paths returns cumulative ancestors', () {
+    expect(
+      workspaceSearchDirectoryPaths('src/components/home/button.astro'),
+      <String>['src', 'src/components', 'src/components/home'],
+    );
+  });
+
   test('replace requires a current preview result', () async {
     final service = _FakeWorkspaceSearchService();
     final container = ProviderContainer(
@@ -230,6 +374,94 @@ const native.WorkspaceSearchResult _searchResult = native.WorkspaceSearchResult(
     ),
   ],
 );
+
+const native.WorkspaceSearchResult _multiFileSearchResult =
+    native.WorkspaceSearchResult(
+      totalMatches: 2,
+      truncated: false,
+      files: <native.WorkspaceSearchFileResult>[
+        native.WorkspaceSearchFileResult(
+          relativePath: 'lib/main.dart',
+          contentToken: 'token-1',
+          matches: <native.WorkspaceSearchMatch>[
+            native.WorkspaceSearchMatch(
+              id: 'lib/main.dart:1:1:0',
+              line: 1,
+              column: 1,
+              matchLength: 6,
+              lineContent: 'needle',
+            ),
+          ],
+        ),
+        native.WorkspaceSearchFileResult(
+          relativePath: 'lib/other.dart',
+          contentToken: 'token-2',
+          matches: <native.WorkspaceSearchMatch>[
+            native.WorkspaceSearchMatch(
+              id: 'lib/other.dart:1:1:0',
+              line: 1,
+              column: 1,
+              matchLength: 6,
+              lineContent: 'needle',
+            ),
+          ],
+        ),
+      ],
+    );
+
+const native.WorkspaceSearchResult _treeSearchResult =
+    native.WorkspaceSearchResult(
+      totalMatches: 4,
+      truncated: false,
+      files: <native.WorkspaceSearchFileResult>[
+        native.WorkspaceSearchFileResult(
+          relativePath: 'src/components/home/button.astro',
+          contentToken: 'token-1',
+          matches: <native.WorkspaceSearchMatch>[
+            native.WorkspaceSearchMatch(
+              id: 'src/components/home/button.astro:1:1:0',
+              line: 1,
+              column: 1,
+              matchLength: 6,
+              lineContent: 'needle',
+            ),
+            native.WorkspaceSearchMatch(
+              id: 'src/components/home/button.astro:2:1:1',
+              line: 2,
+              column: 1,
+              matchLength: 6,
+              lineContent: 'needle',
+            ),
+          ],
+        ),
+        native.WorkspaceSearchFileResult(
+          relativePath: 'src/components/home/card.astro',
+          contentToken: 'token-2',
+          matches: <native.WorkspaceSearchMatch>[
+            native.WorkspaceSearchMatch(
+              id: 'src/components/home/card.astro:1:1:0',
+              line: 1,
+              column: 1,
+              matchLength: 6,
+              lineContent: 'needle',
+            ),
+          ],
+        ),
+        native.WorkspaceSearchFileResult(
+          relativePath: 'bun.lock',
+          contentToken: 'token-3',
+          matches: <native.WorkspaceSearchMatch>[
+            native.WorkspaceSearchMatch(
+              id: 'bun.lock:1:1:0',
+              line: 1,
+              column: 1,
+              matchLength: 6,
+              lineContent: 'needle',
+            ),
+          ],
+        ),
+      ],
+    );
 
 const native.WorkspaceSearchResult _truncatedSearchResult =
     native.WorkspaceSearchResult(

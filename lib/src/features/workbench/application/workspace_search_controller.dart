@@ -11,6 +11,52 @@ part 'workspace_search_controller.g.dart';
 const int _workspaceSearchMaxResults = 2000;
 const Duration _workspaceSearchDebounce = Duration(milliseconds: 250);
 
+String workspaceSearchDirectoryNodeKey(String relativePath) {
+  return 'dir:$relativePath';
+}
+
+String workspaceSearchFileNodeKey(String relativePath) {
+  return 'file:$relativePath';
+}
+
+Set<String> workspaceSearchCollapsibleNodeKeys(
+  native.WorkspaceSearchResult? result, {
+  required bool viewAsTree,
+}) {
+  if (result == null) {
+    return const <String>{};
+  }
+  final keys = <String>{};
+  for (final file in result.files) {
+    if (viewAsTree) {
+      for (final directory in workspaceSearchDirectoryPaths(
+        file.relativePath,
+      )) {
+        keys.add(workspaceSearchDirectoryNodeKey(directory));
+      }
+    }
+    keys.add(workspaceSearchFileNodeKey(file.relativePath));
+  }
+  return keys;
+}
+
+List<String> workspaceSearchDirectoryPaths(String relativePath) {
+  final segments = relativePath
+      .split(RegExp(r'[/\\]'))
+      .where((segment) => segment.isNotEmpty)
+      .toList(growable: false);
+  if (segments.length <= 1) {
+    return const <String>[];
+  }
+  final paths = <String>[];
+  final current = <String>[];
+  for (final segment in segments.take(segments.length - 1)) {
+    current.add(segment);
+    paths.add(current.join('/'));
+  }
+  return paths;
+}
+
 class WorkspaceSearchState {
   const WorkspaceSearchState({
     this.query = '',
@@ -23,9 +69,10 @@ class WorkspaceSearchState {
     this.preserveCase = false,
     this.loading = false,
     this.replacing = false,
+    this.viewAsTree = false,
     this.error,
     this.result,
-    this.collapsedFilePaths = const <String>{},
+    this.collapsedResultNodeKeys = const <String>{},
   });
 
   final String query;
@@ -38,9 +85,12 @@ class WorkspaceSearchState {
   final bool preserveCase;
   final bool loading;
   final bool replacing;
+  final bool viewAsTree;
   final String? error;
   final native.WorkspaceSearchResult? result;
-  final Set<String> collapsedFilePaths;
+  final Set<String> collapsedResultNodeKeys;
+
+  Set<String> get collapsedFilePaths => collapsedResultNodeKeys;
 
   bool get hasQuery => query.isNotEmpty;
 
@@ -57,9 +107,10 @@ class WorkspaceSearchState {
     bool? preserveCase,
     bool? loading,
     bool? replacing,
+    bool? viewAsTree,
     Object? error = _sentinel,
     Object? result = _sentinel,
-    Set<String>? collapsedFilePaths,
+    Set<String>? collapsedResultNodeKeys,
   }) {
     return WorkspaceSearchState(
       query: query ?? this.query,
@@ -72,11 +123,13 @@ class WorkspaceSearchState {
       preserveCase: preserveCase ?? this.preserveCase,
       loading: loading ?? this.loading,
       replacing: replacing ?? this.replacing,
+      viewAsTree: viewAsTree ?? this.viewAsTree,
       error: identical(error, _sentinel) ? this.error : error as String?,
       result: identical(result, _sentinel)
           ? this.result
           : result as native.WorkspaceSearchResult?,
-      collapsedFilePaths: collapsedFilePaths ?? this.collapsedFilePaths,
+      collapsedResultNodeKeys:
+          collapsedResultNodeKeys ?? this.collapsedResultNodeKeys,
     );
   }
 }
@@ -168,12 +221,53 @@ class WorkspaceSearchController extends _$WorkspaceSearchController {
     );
   }
 
-  void toggleFileCollapsed(String relativePath) {
-    final next = Set<String>.from(state.collapsedFilePaths);
-    if (!next.add(relativePath)) {
-      next.remove(relativePath);
+  void toggleResultNodeCollapsed(String nodeKey) {
+    final next = Set<String>.from(state.collapsedResultNodeKeys);
+    if (!next.add(nodeKey)) {
+      next.remove(nodeKey);
     }
-    state = state.copyWith(collapsedFilePaths: next);
+    state = state.copyWith(collapsedResultNodeKeys: next);
+  }
+
+  void toggleFileCollapsed(String relativePath) {
+    toggleResultNodeCollapsed(workspaceSearchFileNodeKey(relativePath));
+  }
+
+  void toggleAllResultsCollapsed() {
+    final keys = workspaceSearchCollapsibleNodeKeys(
+      state.result,
+      viewAsTree: state.viewAsTree,
+    );
+    if (keys.isEmpty) {
+      return;
+    }
+    final allCollapsed = keys.every(state.collapsedResultNodeKeys.contains);
+    state = state.copyWith(
+      collapsedResultNodeKeys: allCollapsed ? const <String>{} : keys,
+    );
+  }
+
+  void toggleAllFilesCollapsed() {
+    toggleAllResultsCollapsed();
+  }
+
+  void toggleViewAsTree() {
+    state = state.copyWith(viewAsTree: !state.viewAsTree);
+  }
+
+  void clearSearchResults() {
+    _debounce?.cancel();
+    _requestGeneration += 1;
+    state = state.copyWith(
+      query: '',
+      replacement: '',
+      includePattern: '',
+      excludePattern: '',
+      loading: false,
+      error: null,
+      result: null,
+      collapsedResultNodeKeys: const <String>{},
+    );
   }
 
   Future<void> searchNow(String workspacePath) async {
@@ -308,7 +402,12 @@ class WorkspaceSearchController extends _$WorkspaceSearchController {
     WorkspaceSearchState next,
   ) {
     _requestGeneration += 1;
-    state = next.copyWith(loading: next.hasQuery, error: null, result: null);
+    state = next.copyWith(
+      loading: next.hasQuery,
+      error: null,
+      result: null,
+      collapsedResultNodeKeys: const <String>{},
+    );
     _scheduleSearch(workspacePath);
   }
 

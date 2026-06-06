@@ -99,6 +99,39 @@ void main() {
       isFalse,
     );
   });
+
+  test('search text range maps non-bmp characters before the match', () {
+    final range = workspaceSearchTextRangeForCharRange(
+      text: '🙂needle',
+      oneBasedColumn: 2,
+      charLength: 6,
+    );
+
+    expect(range.start, 2);
+    expect(range.end, 8);
+  });
+
+  test('search text range maps non-bmp characters inside the match', () {
+    final range = workspaceSearchTextRangeForCharRange(
+      text: 'a🙂b',
+      oneBasedColumn: 2,
+      charLength: 1,
+    );
+
+    expect(range.start, 1);
+    expect(range.end, 3);
+  });
+
+  test('search text range uses display columns for clamped previews', () {
+    final range = workspaceSearchTextRangeForCharRange(
+      text: '…needle…',
+      oneBasedColumn: 2,
+      charLength: 6,
+    );
+
+    expect(range.start, 1);
+    expect(range.end, 7);
+  });
 }
 
 const native.WorkspaceSearchResult _searchResult = native.WorkspaceSearchResult(
