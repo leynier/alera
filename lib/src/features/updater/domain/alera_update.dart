@@ -47,6 +47,7 @@ class AleraUpdateConfig with AleraUpdateConfigMappable {
     required this.channel,
     required this.autoInstallEnabled,
     required this.signedRelease,
+    this.manifestPublicKey = '',
   });
 
   static final Uri defaultArchiveUrl = Uri.parse(
@@ -63,6 +64,7 @@ class AleraUpdateConfig with AleraUpdateConfigMappable {
   final AleraUpdateChannel channel;
   final bool autoInstallEnabled;
   final bool signedRelease;
+  final String manifestPublicKey;
 
   static AleraUpdateConfig _resolvedEnvironmentConfig({
     required Uri? archiveUrl,
@@ -70,6 +72,7 @@ class AleraUpdateConfig with AleraUpdateConfigMappable {
     required AleraUpdateChannel channel,
     required bool autoInstallEnabled,
     required bool signedRelease,
+    required String manifestPublicKey,
   }) {
     return AleraUpdateConfig(
       archiveUrl: resolveUpdateConfigUriForTesting(
@@ -83,12 +86,14 @@ class AleraUpdateConfig with AleraUpdateConfigMappable {
       channel: channel,
       autoInstallEnabled: autoInstallEnabled,
       signedRelease: signedRelease,
+      manifestPublicKey: manifestPublicKey,
     );
   }
 
   bool get canAutoInstall {
     return autoInstallEnabled &&
-        (signedRelease || channel == AleraUpdateChannel.rc);
+        ((signedRelease && manifestPublicKey.trim().isNotEmpty) ||
+            channel == AleraUpdateChannel.rc);
   }
 
   factory AleraUpdateConfig.fromEnvironment() {
@@ -117,6 +122,9 @@ class AleraUpdateConfig with AleraUpdateConfigMappable {
         const bool.fromEnvironment('ALERA_UPDATE_AUTO_INSTALL_ENABLED'),
       ),
       signedRelease: const bool.fromEnvironment('ALERA_SIGNED_RELEASE'),
+      manifestPublicKey: const String.fromEnvironment(
+        'ALERA_UPDATE_MANIFEST_PUBLIC_KEY',
+      ),
     );
   }
 
@@ -150,6 +158,11 @@ class AleraUpdateInfo with AleraUpdateInfoMappable {
     required this.url,
     required this.platform,
     required this.changes,
+    this.installerKind = 'directory',
+    this.sha256,
+    this.size,
+    this.signatureBundleUrl,
+    this.provenanceUrl,
   });
 
   final String version;
@@ -160,6 +173,13 @@ class AleraUpdateInfo with AleraUpdateInfoMappable {
   final Uri url;
   final String platform;
   final List<String> changes;
+  final String installerKind;
+  final String? sha256;
+  final int? size;
+  @MappableField(hook: _UriStringHook())
+  final Uri? signatureBundleUrl;
+  @MappableField(hook: _UriStringHook())
+  final Uri? provenanceUrl;
 
   bool get isPrerelease => version.contains('-');
 

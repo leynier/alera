@@ -1,7 +1,16 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
+import 'package:path/path.dart' as p;
+
 const _platforms = <String>['macos', 'windows', 'linux'];
+const _ignoredSuffixes = <String>[
+  '.intoto.jsonl',
+  '.sha256',
+  '.sig',
+  '.sigstore',
+];
 
 void main(List<String> args) {
   final outputPath = args.isEmpty ? 'public/app-archive.json' : args.first;
@@ -22,29 +31,102 @@ void main(List<String> args) {
       DateTime.now().toUtc().toIso8601String().split('T').first;
   final mandatory =
       (Platform.environment['ALERA_RELEASE_MANDATORY'] ?? 'false') == 'true';
+  final publicDir = Directory(
+    Platform.environment['ALERA_RELEASE_PUBLIC_DIR'] ?? 'public',
+  );
+  final channelPath = pathPrefix.split('/').last;
   final changes = _changesFromEnvironment(releaseVersion);
 
+  final items = <Map<String, Object?>>[];
+  for (final platform in _platforms) {
+    final artifactDir = Directory(
+      p.join(
+        publicDir.path,
+        'updates',
+        channelPath,
+        '$artifactVersion+$buildNumber-$platform',
+      ),
+    );
+    if (!artifactDir.existsSync()) {
+      stderr.writeln('Missing update artifact directory: ${artifactDir.path}');
+      exit(1);
+    }
+    final files =
+        artifactDir
+            .listSync()
+            .whereType<File>()
+            .where((file) => !_isSidecarFile(file.path))
+            .toList()
+          ..sort((left, right) => left.path.compareTo(right.path));
+    if (files.isEmpty) {
+      stderr.writeln('No release artifacts found in ${artifactDir.path}');
+      exit(1);
+    }
+    for (final file in files) {
+      final name = p.basename(file.path);
+      final relativePath = [
+        pathPrefix,
+        '$artifactVersion+$buildNumber-$platform',
+        name,
+      ].join('/');
+      final url = '$baseUrl/$relativePath';
+      items.add(<String, Object?>{
+        'version': releaseVersion,
+        'shortVersion': buildNumber,
+        'changes': changes,
+        'date': releaseDate,
+        'mandatory': mandatory,
+        'platform': platform,
+        'installerKind': _installerKindFor(name),
+        'url': url,
+        'sha256': sha256.convert(file.readAsBytesSync()).toString(),
+        'size': file.lengthSync(),
+      });
+    }
+  }
+
   final archive = <String, Object?>{
+    'schemaVersion': 2,
     'appName': 'Alera',
     'description': 'Alera desktop agentic development environment.',
-    'items': [
-      for (final platform in _platforms)
-        <String, Object?>{
-          'version': releaseVersion,
-          'shortVersion': buildNumber,
-          'changes': changes,
-          'date': releaseDate,
-          'mandatory': mandatory,
-          'url': '$baseUrl/$pathPrefix/$artifactVersion+$buildNumber-$platform',
-          'platform': platform,
-        },
-    ],
+    'channel': channelPath,
+    'version': releaseVersion,
+    'buildNumber': buildNumber,
+    'publishedAt': '${releaseDate}T00:00:00Z',
+    'items': items,
   };
 
   final output = File(outputPath);
   output.parent.createSync(recursive: true);
   output.writeAsStringSync(const JsonEncoder.withIndent('  ').convert(archive));
   stdout.writeln('Wrote ${output.path}');
+}
+
+bool _isSidecarFile(String path) {
+  return _ignoredSuffixes.any(path.endsWith);
+}
+
+String _installerKindFor(String fileName) {
+  if (fileName.endsWith('.deb')) {
+    return 'deb';
+  }
+  if (fileName.endsWith('.rpm')) {
+    return 'rpm';
+  }
+  if (fileName.endsWith('.msi')) {
+    return 'msi';
+  }
+  if (fileName.endsWith('.dmg')) {
+    return 'dmg';
+  }
+  if (fileName.endsWith('.zip')) {
+    return 'zip';
+  }
+  if (fileName.endsWith('.tar.gz')) {
+    return 'tar.gz';
+  }
+  stderr.writeln('Unsupported release artifact type: $fileName');
+  exit(1);
 }
 
 String _requiredEnv(String name) {
