@@ -16,6 +16,8 @@ This file applies to GitHub metadata and GitHub Actions workflows.
 - Update indexes must be deployed only after the corresponding GitHub Release is public.
 - Existing stable and release-candidate update indexes must be preserved when publishing the other channel; ignore only confirmed first-time 404 responses.
 - Stable release jobs must not enable automatic installation until signing and notarization or trust are configured for the relevant platform.
+- Release jobs must sign schema v2 update indexes before publication and verify the manifest signature before upload.
+- Linux release jobs must publish signed APT and RPM repository metadata when Linux packages are included.
 - Signing secrets must be scoped only to release jobs that need them.
 
 ## Issue And PR Policy

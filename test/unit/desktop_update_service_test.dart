@@ -1,7 +1,10 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:alera/src/features/updater/domain/alera_update.dart';
 import 'package:alera/src/features/updater/infra/desktop_update_service.dart';
+import 'package:alera/src/features/updater/infra/update_manifest_signature.dart';
+import 'package:cryptography/cryptography.dart';
 import 'package:desktop_updater/desktop_updater.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -124,6 +127,71 @@ void main() {
 
         expect(notPublishedResult.message, 'No update index is published yet.');
         expect(upToDateResult.message, 'Alera is up to date.');
+      },
+    );
+
+    test(
+      'verifies signed manifests and routes Linux updates through packages',
+      () async {
+        final signed = await _signedArchiveV2Json();
+        final service = DesktopAleraUpdateService(
+          config: AleraUpdateConfig(
+            archiveUrl: Uri.parse('https://example.com/archive.json'),
+            releasePageUrl: Uri.parse('https://example.com/releases'),
+            channel: AleraUpdateChannel.stable,
+            autoInstallEnabled: true,
+            signedRelease: true,
+            manifestPublicKey: signed.publicKey,
+          ),
+          client: MockClient((_) async => http.Response(signed.manifest, 200)),
+          loadPackageInfo: () async => _packageInfo(buildNumber: '1'),
+          platform: 'linux',
+        );
+
+        final result = await service.checkForUpdates();
+
+        expect(result.latest?.version, '1.0.0');
+        expect(result.latest?.installerKind, 'deb');
+        expect(result.autoInstallAllowed, isFalse);
+        expect(
+          result.message,
+          'Update 1.0.0 is available through the Linux package repository.',
+        );
+      },
+    );
+
+    test(
+      'routes Linux release-candidate tarballs to manual download',
+      () async {
+        final signed = await _signedArchiveV2Json(
+          channel: 'rc',
+          version: '1.0.0-rc.0',
+          installerKind: 'tar.gz',
+          artifactUrl: 'https://example.com/alera-linux.tar.gz',
+        );
+        final service = DesktopAleraUpdateService(
+          config: AleraUpdateConfig(
+            archiveUrl: Uri.parse('https://example.com/archive-rc.json'),
+            releasePageUrl: Uri.parse('https://example.com/releases'),
+            channel: AleraUpdateChannel.rc,
+            autoInstallEnabled: true,
+            signedRelease: true,
+            manifestPublicKey: signed.publicKey,
+          ),
+          client: MockClient((_) async => http.Response(signed.manifest, 200)),
+          loadPackageInfo: () async => _packageInfo(buildNumber: '1'),
+          platform: 'linux',
+        );
+
+        final result = await service.checkForUpdates();
+
+        expect(result.latest?.version, '1.0.0-rc.0');
+        expect(result.latest?.installerKind, 'tar.gz');
+        expect(result.autoInstallAllowed, isFalse);
+        expect(
+          result.message,
+          'Update 1.0.0-rc.0 is available for manual download.',
+        );
       },
     );
 
@@ -347,6 +415,32 @@ PackageInfo _packageInfo({required String buildNumber}) {
   );
 }
 
+Future<({String manifest, String publicKey})> _signedArchiveV2Json({
+  String channel = 'stable',
+  String version = '1.0.0',
+  String installerKind = 'deb',
+  String artifactUrl = 'https://example.com/alera.deb',
+}) async {
+  final keyPair = await Ed25519().newKeyPairFromSeed(List.filled(32, 2));
+  final keyData = await keyPair.extract();
+  final publicKeyData = await keyPair.extractPublicKey();
+  final privateKey = base64Encode(keyData.bytes);
+  final publicKey = base64Encode(publicKeyData.bytes);
+  final decoded = _archiveV2Json(
+    channel: channel,
+    version: version,
+    installerKind: installerKind,
+    artifactUrl: artifactUrl,
+  );
+  final signed = await signAleraManifest(
+    manifest: decoded,
+    privateKeyBase64: privateKey,
+    publicKeyBase64: publicKey,
+    publicKeyId: 'test-key',
+  );
+  return (manifest: jsonEncode(signed), publicKey: publicKey);
+}
+
 ItemModel _item({
   required String version,
   required int shortVersion,
@@ -450,3 +544,37 @@ const String _archiveJson = '''
   ]
 }
 ''';
+
+Map<String, Object?> _archiveV2Json({
+  required String channel,
+  required String version,
+  required String installerKind,
+  required String artifactUrl,
+}) {
+  return <String, Object?>{
+    'schemaVersion': 2,
+    'appName': 'Alera',
+    'description': 'Alera desktop agentic development environment.',
+    'channel': channel,
+    'version': version,
+    'buildNumber': 10,
+    'publishedAt': '2026-06-06T00:00:00Z',
+    'items': <Object?>[
+      <String, Object?>{
+        'version': version,
+        'shortVersion': 10,
+        'changes': <Object?>[
+          <String, Object?>{'type': 'fix', 'message': 'Fix release.'},
+        ],
+        'date': '2026-06-06',
+        'mandatory': false,
+        'platform': 'linux',
+        'installerKind': installerKind,
+        'url': artifactUrl,
+        'sha256':
+            'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        'size': 42,
+      },
+    ],
+  };
+}
