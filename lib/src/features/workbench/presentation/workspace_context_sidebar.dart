@@ -119,7 +119,7 @@ class _CollapsedContextRail extends StatelessWidget {
             tab: WorkbenchContextPanelTab.search,
             activeTab: activeTab,
             tooltip: 'Search',
-            icon: Icons.search,
+            icon: Icons.search_rounded,
             onPressed: () => onOpenTab(WorkbenchContextPanelTab.search),
           ),
           const Spacer(),
@@ -174,7 +174,7 @@ class _ContextTabHeader extends StatelessWidget {
                 tab: WorkbenchContextPanelTab.search,
                 activeTab: activeTab,
                 tooltip: 'Search',
-                icon: Icons.search,
+                icon: Icons.search_rounded,
                 onPressed: () =>
                     onSetActiveTab(WorkbenchContextPanelTab.search),
               ),
