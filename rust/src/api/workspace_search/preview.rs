@@ -1,7 +1,11 @@
+use std::fs;
+
 use regex::Regex;
 
 use super::compile::{compile_search, CompiledSearch};
 use super::engine::run_search;
+use super::line_ranges::LineRanges;
+use super::paths::resolve_replace_file;
 use super::{
     WorkspaceReplaceOptions, WorkspaceReplacePreview, WorkspaceSearchError, WorkspaceSearchMatch,
 };
@@ -12,8 +16,18 @@ pub(super) fn preview_workspace_replace_impl(
     let compiled = compile_search(&options.search)?;
     let mut result = run_search(&compiled, false)?;
     for file in &mut result.files {
+        let (path, _) = resolve_replace_file(&compiled.root, &file.relative_path)?;
+        let content = fs::read_to_string(&path)
+            .map_err(|error| WorkspaceSearchError::from_io(error, file.relative_path.clone()))?;
+        let line_ranges = LineRanges::new(&content);
         for m in &mut file.matches {
-            m.replacement_preview = Some(preview_replacement(m, &compiled, &options));
+            m.replacement_preview = Some(preview_replacement(
+                m,
+                &content,
+                &line_ranges,
+                &compiled,
+                &options,
+            ));
         }
     }
     Ok(WorkspaceReplacePreview {
@@ -25,17 +39,15 @@ pub(super) fn preview_workspace_replace_impl(
 
 pub(super) fn preview_replacement(
     m: &WorkspaceSearchMatch,
+    content: &str,
+    line_ranges: &LineRanges,
     compiled: &CompiledSearch,
     options: &WorkspaceReplaceOptions,
 ) -> String {
-    let col = m.display_column.unwrap_or(m.column).saturating_sub(1) as usize;
-    let len = m.display_match_length.unwrap_or(m.match_length) as usize;
-    let chars = m.line_content.chars().collect::<Vec<_>>();
-    if col + len > chars.len() {
-        return options.replacement.clone();
-    }
-    let matched = chars[col..col + len].iter().collect::<String>();
-    replacement_for_slice(&matched, &compiled.replacement_regex, options)
+    line_ranges
+        .match_slice(content, m.line, m.column, m.match_length)
+        .map(|matched| replacement_for_slice(matched, &compiled.replacement_regex, options))
+        .unwrap_or_else(|| options.replacement.clone())
 }
 
 pub(super) fn replacement_for_slice(

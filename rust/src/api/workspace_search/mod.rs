@@ -3,12 +3,15 @@ use std::io;
 mod compile;
 mod engine;
 mod globs;
+mod line_ranges;
 mod paths;
 mod preview;
 mod replace;
 
 #[cfg(test)]
 mod ignore_tests;
+#[cfg(test)]
+mod preview_tests;
 #[cfg(test)]
 mod replace_tests;
 #[cfg(test)]
