@@ -1,6 +1,7 @@
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_preview_kind.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
+import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:uuid/uuid.dart';
 
 class WorkspaceTabPathMoveResult {
@@ -124,6 +125,52 @@ class WorkspaceTabService {
     return tab;
   }
 
+  Future<WorkspaceTabRecord> openOrCreateGitDiffTab({
+    required String workspaceId,
+    String? relativePath,
+    GitChangeArea? area,
+    required WorkspaceGitDiffScope scope,
+  }) async {
+    final normalizedPath = relativePath == null
+        ? null
+        : _normalizeRelativePath(relativePath);
+    if (scope == WorkspaceGitDiffScope.file && area == null) {
+      throw StateError('Git diff file tabs require an area.');
+    }
+    if (scope != WorkspaceGitDiffScope.all && normalizedPath == null) {
+      throw StateError('Git diff file tabs require a file path.');
+    }
+    final existing = await _repository.listWorkspaceTabs(workspaceId);
+    for (final tab in existing) {
+      if (tab.kind != WorkspaceTabKind.gitDiff) {
+        continue;
+      }
+      if (tab.gitDiffScope == scope &&
+          tab.filePath == normalizedPath &&
+          tab.gitDiffArea == area) {
+        return tab;
+      }
+    }
+    final payload = <String, Object?>{
+      workspaceTabGitDiffScopePayloadKey: scope.key,
+      if (area != null) workspaceTabGitDiffAreaPayloadKey: area.key,
+    };
+    if (normalizedPath != null) {
+      payload[workspaceTabFilePathPayloadKey] = normalizedPath;
+    }
+    final tab = WorkspaceTabRecord(
+      id: _uuid.v4(),
+      workspaceId: workspaceId,
+      kind: WorkspaceTabKind.gitDiff,
+      title: _titleForGitDiff(scope: scope, path: normalizedPath, area: area),
+      createdAt: _now(),
+      updatedAt: _now(),
+      payload: payload,
+    );
+    await _repository.upsertWorkspaceTab(tab);
+    return tab;
+  }
+
   Future<void> closeTab(String tabId) {
     return _repository.removeWorkspaceTab(tabId);
   }
@@ -179,7 +226,12 @@ class WorkspaceTabService {
       }
     }
     for (final tab in tabs) {
-      if (tab.kind != WorkspaceTabKind.editor) {
+      if (tab.kind != WorkspaceTabKind.editor &&
+          tab.kind != WorkspaceTabKind.gitDiff) {
+        continue;
+      }
+      if (tab.kind == WorkspaceTabKind.gitDiff &&
+          tab.gitDiffArea == GitChangeArea.staged) {
         continue;
       }
       final filePath = tab.filePath;
@@ -217,6 +269,12 @@ class WorkspaceTabService {
       final next = tab.copyWith(
         title: tab.isMermanPreview
             ? _previewTitleForPath(nextPath)
+            : tab.kind == WorkspaceTabKind.gitDiff
+            ? _titleForGitDiff(
+                scope: tab.gitDiffScope ?? WorkspaceGitDiffScope.file,
+                path: nextPath,
+                area: tab.gitDiffArea,
+              )
             : _titleForPath(nextPath),
         updatedAt: _now(),
         payload: <String, Object?>{
@@ -268,6 +326,19 @@ class WorkspaceTabService {
 
   String _previewTitleForPath(String path) {
     return '${_titleForPath(path)} preview';
+  }
+
+  String _titleForGitDiff({
+    required WorkspaceGitDiffScope scope,
+    required String? path,
+    required GitChangeArea? area,
+  }) {
+    return switch (scope) {
+      WorkspaceGitDiffScope.all => 'All changes',
+      WorkspaceGitDiffScope.fileAll => '${_titleForPath(path!)} changes',
+      WorkspaceGitDiffScope.file =>
+        '${_titleForPath(path!)} ${area!.label.toLowerCase()}',
+    };
   }
 
   String? _replacePathPrefix({

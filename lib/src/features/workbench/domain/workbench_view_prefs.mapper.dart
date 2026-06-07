@@ -126,6 +126,8 @@ class WorkbenchContextPanelTabMapper
         return WorkbenchContextPanelTab.explorer;
       case r'search':
         return WorkbenchContextPanelTab.search;
+      case r'gitDiff':
+        return WorkbenchContextPanelTab.gitDiff;
       default:
         throw MapperException.unknownEnumValue(value);
     }
@@ -138,6 +140,8 @@ class WorkbenchContextPanelTabMapper
         return r'explorer';
       case WorkbenchContextPanelTab.search:
         return r'search';
+      case WorkbenchContextPanelTab.gitDiff:
+        return r'gitDiff';
     }
   }
 }
@@ -197,6 +201,52 @@ extension WorkspaceExplorerModeMapperExtension on WorkspaceExplorerMode {
   }
 }
 
+class GitDiffViewModeMapper extends EnumMapper<GitDiffViewMode> {
+  GitDiffViewModeMapper._();
+
+  static GitDiffViewModeMapper? _instance;
+  static GitDiffViewModeMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = GitDiffViewModeMapper._());
+    }
+    return _instance!;
+  }
+
+  static GitDiffViewMode fromValue(dynamic value) {
+    ensureInitialized();
+    return MapperContainer.globals.fromValue(value);
+  }
+
+  @override
+  GitDiffViewMode decode(dynamic value) {
+    switch (value) {
+      case r'tree':
+        return GitDiffViewMode.tree;
+      case r'flat':
+        return GitDiffViewMode.flat;
+      default:
+        throw MapperException.unknownEnumValue(value);
+    }
+  }
+
+  @override
+  dynamic encode(GitDiffViewMode self) {
+    switch (self) {
+      case GitDiffViewMode.tree:
+        return r'tree';
+      case GitDiffViewMode.flat:
+        return r'flat';
+    }
+  }
+}
+
+extension GitDiffViewModeMapperExtension on GitDiffViewMode {
+  String toValue() {
+    GitDiffViewModeMapper.ensureInitialized();
+    return MapperContainer.globals.toValue<GitDiffViewMode>(this) as String;
+  }
+}
+
 class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
   WorkbenchViewPrefsMapper._();
 
@@ -208,6 +258,7 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
       WorkbenchSortByMapper.ensureInitialized();
       WorkbenchContextPanelTabMapper.ensureInitialized();
       WorkspaceExplorerModeMapper.ensureInitialized();
+      GitDiffViewModeMapper.ensureInitialized();
     }
     return _instance!;
   }
@@ -274,6 +325,15 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
     opt: true,
     def: WorkspaceExplorerMode.hideIgnored,
   );
+  static GitDiffViewMode _$gitDiffViewMode(WorkbenchViewPrefs v) =>
+      v.gitDiffViewMode;
+  static const Field<WorkbenchViewPrefs, GitDiffViewMode> _f$gitDiffViewMode =
+      Field(
+        'gitDiffViewMode',
+        _$gitDiffViewMode,
+        opt: true,
+        def: GitDiffViewMode.tree,
+      );
 
   @override
   final MappableFields<WorkbenchViewPrefs> fields = const {
@@ -287,6 +347,7 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
     #rightSidebarWidth: _f$rightSidebarWidth,
     #activeContextPanelTab: _f$activeContextPanelTab,
     #explorerMode: _f$explorerMode,
+    #gitDiffViewMode: _f$gitDiffViewMode,
   };
 
   static WorkbenchViewPrefs _instantiate(DecodingData data) {
@@ -301,6 +362,7 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
       rightSidebarWidth: data.dec(_f$rightSidebarWidth),
       activeContextPanelTab: data.dec(_f$activeContextPanelTab),
       explorerMode: data.dec(_f$explorerMode),
+      gitDiffViewMode: data.dec(_f$gitDiffViewMode),
     );
   }
 
@@ -386,6 +448,7 @@ abstract class WorkbenchViewPrefsCopyWith<
     double? rightSidebarWidth,
     WorkbenchContextPanelTab? activeContextPanelTab,
     WorkspaceExplorerMode? explorerMode,
+    GitDiffViewMode? gitDiffViewMode,
   });
   WorkbenchViewPrefsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -412,6 +475,7 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
     double? rightSidebarWidth,
     WorkbenchContextPanelTab? activeContextPanelTab,
     WorkspaceExplorerMode? explorerMode,
+    GitDiffViewMode? gitDiffViewMode,
   }) => $apply(
     FieldCopyWithData({
       if (groupBy != null) #groupBy: groupBy,
@@ -428,6 +492,7 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
       if (activeContextPanelTab != null)
         #activeContextPanelTab: activeContextPanelTab,
       if (explorerMode != null) #explorerMode: explorerMode,
+      if (gitDiffViewMode != null) #gitDiffViewMode: gitDiffViewMode,
     }),
   );
   @override
@@ -460,6 +525,7 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
       or: $value.activeContextPanelTab,
     ),
     explorerMode: data.get(#explorerMode, or: $value.explorerMode),
+    gitDiffViewMode: data.get(#gitDiffViewMode, or: $value.gitDiffViewMode),
   );
 
   @override

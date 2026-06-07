@@ -264,6 +264,10 @@ class _WorkspaceTabContent extends StatelessWidget {
         onOpenEditor: onOpenEditor,
         onOpenMermanPreview: onOpenMermanPreview,
       ),
+      WorkspaceTabKind.gitDiff => WorkspaceGitDiffSurface(
+        workspace: workspace,
+        tab: tab,
+      ),
       WorkspaceTabKind.browser => const Center(
         child: CircularProgressIndicator(),
       ),

@@ -454,7 +454,9 @@ void main() {
               onResize: (_) {},
               onSetContextPanelTab: (_) {},
               onSetExplorerMode: (_) {},
+              onSetGitDiffViewMode: (_) {},
               onOpenFile: (_) {},
+              onOpenGitDiff: ({relativePath, area, required scope}) async {},
               onOpenSearchMatch: (_) {},
               onPathMoved: (_, _) async {},
             ),
@@ -464,6 +466,18 @@ void main() {
     );
 
     expect(find.byTooltip('Expand panel'), findsOneWidget);
+    expect(find.byTooltip('Explorer'), findsOneWidget);
+    expect(find.byTooltip('Search'), findsOneWidget);
+    expect(find.byTooltip('Source Control'), findsOneWidget);
+    expect(find.byIcon(Icons.fork_right_outlined), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.byTooltip('Explorer')).dy,
+      lessThan(tester.getTopLeft(find.byTooltip('Search')).dy),
+    );
+    expect(
+      tester.getTopLeft(find.byTooltip('Search')).dy,
+      lessThan(tester.getTopLeft(find.byTooltip('Source Control')).dy),
+    );
     expect(find.byType(WorkspaceExplorer), findsNothing);
 
     await tester.pumpWidget(
@@ -478,7 +492,9 @@ void main() {
               onResize: (_) {},
               onSetContextPanelTab: (_) {},
               onSetExplorerMode: (_) {},
+              onSetGitDiffViewMode: (_) {},
               onOpenFile: (_) {},
+              onOpenGitDiff: ({relativePath, area, required scope}) async {},
               onOpenSearchMatch: (_) {},
               onPathMoved: (_, _) async {},
             ),
@@ -490,6 +506,7 @@ void main() {
 
     expect(find.byTooltip('Expand panel'), findsNothing);
     expect(find.byTooltip('Collapse panel'), findsOneWidget);
+    expect(find.byIcon(Icons.fork_right_outlined), findsOneWidget);
     expect(find.byType(WorkspaceExplorer), findsOneWidget);
   });
 }
