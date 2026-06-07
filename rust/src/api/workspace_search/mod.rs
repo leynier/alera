@@ -3,12 +3,15 @@ use std::io;
 mod compile;
 mod engine;
 mod globs;
+mod line_ranges;
 mod paths;
 mod preview;
 mod replace;
 
 #[cfg(test)]
 mod ignore_tests;
+#[cfg(test)]
+mod preview_tests;
 #[cfg(test)]
 mod replace_tests;
 #[cfg(test)]
@@ -134,7 +137,7 @@ pub fn search_workspace(
     options: WorkspaceSearchOptions,
 ) -> Result<WorkspaceSearchResult, WorkspaceSearchError> {
     let compiled = compile::compile_search(&options)?;
-    engine::run_search(&compiled, None, false)
+    engine::run_search(&compiled, false)
 }
 
 pub fn preview_workspace_replace(
