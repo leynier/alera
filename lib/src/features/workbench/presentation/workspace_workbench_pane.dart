@@ -9,6 +9,8 @@ class _WorkbenchPane extends StatelessWidget {
     required this.terminalRuntime,
     required this.agentStatuses,
     required this.onCreateTab,
+    required this.onOpenEditorTab,
+    required this.onOpenMarkdownViewerTab,
     required this.onSelectTab,
     required this.onCloseTab,
     required this.onCloseTabs,
@@ -26,6 +28,8 @@ class _WorkbenchPane extends StatelessWidget {
   final TerminalRuntime terminalRuntime;
   final Map<String, AgentStatusEntry> agentStatuses;
   final CreateTerminalTabCallback onCreateTab;
+  final OpenFileTabCallback onOpenEditorTab;
+  final OpenFileTabCallback onOpenMarkdownViewerTab;
   final SelectWorkspaceTabCallback onSelectTab;
   final ValueChanged<String> onCloseTab;
   final ValueChanged<List<String>> onCloseTabs;
@@ -101,6 +105,22 @@ class _WorkbenchPane extends StatelessWidget {
                         tab: activeTab,
                         autofocus: layout.activeGroupId == groupId,
                         terminalRuntime: terminalRuntime,
+                        onOpenEditorTab: (relativePath) {
+                          unawaited(
+                            onOpenEditorTab(
+                              relativePath: relativePath,
+                              targetGroupId: groupId,
+                            ),
+                          );
+                        },
+                        onOpenMarkdownViewerTab: (relativePath) {
+                          unawaited(
+                            onOpenMarkdownViewerTab(
+                              relativePath: relativePath,
+                              targetGroupId: groupId,
+                            ),
+                          );
+                        },
                       ),
               ),
             ],
@@ -219,12 +239,16 @@ class _WorkspaceTabContent extends StatelessWidget {
     required this.tab,
     required this.autofocus,
     required this.terminalRuntime,
+    required this.onOpenEditorTab,
+    required this.onOpenMarkdownViewerTab,
   });
 
   final Workspace workspace;
   final WorkspaceTabRecord tab;
   final bool autofocus;
   final TerminalRuntime terminalRuntime;
+  final ValueChanged<String> onOpenEditorTab;
+  final ValueChanged<String> onOpenMarkdownViewerTab;
 
   @override
   Widget build(BuildContext context) {
@@ -237,6 +261,12 @@ class _WorkspaceTabContent extends StatelessWidget {
         workspace: workspace,
         tab: tab,
         autofocus: autofocus,
+        onOpenMarkdownViewerTab: onOpenMarkdownViewerTab,
+      ),
+      WorkspaceTabKind.markdownViewer => WorkspaceMarkdownViewerSurface(
+        workspace: workspace,
+        tab: tab,
+        onOpenEditorTab: onOpenEditorTab,
       ),
       WorkspaceTabKind.browser => const Center(
         child: CircularProgressIndicator(),

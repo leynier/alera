@@ -281,4 +281,49 @@ void _registerWorkspaceWorkbenchViewTabTests() {
     expect(icon.kind, AleraFileIconKind.file);
     expect(icon.pathOrName, 'lib/main.dart');
   });
+
+  testWidgets('markdown viewer tabs use file icons in the chip', (
+    tester,
+  ) async {
+    final terminalTab = _tab('tab-1', title: 'Terminal');
+    final viewerTab = _tab(
+      'tab-2',
+      title: 'readme.md',
+      kind: WorkspaceTabKind.markdownViewer,
+      filePath: 'docs/readme.md',
+    );
+
+    await _pumpWorkbenchView(
+      tester,
+      tabs: <WorkspaceTabRecord>[terminalTab, viewerTab],
+      terminalRuntime: terminalRuntime,
+      layout: WorkbenchLayout(
+        workspaceId: _workspaceId,
+        root: WorkbenchLayoutNode.leaf('group-a'),
+        groups: <String, WorkbenchPaneGroup>{
+          'group-a': WorkbenchPaneGroup(
+            id: 'group-a',
+            tabIds: <String>[terminalTab.id, viewerTab.id],
+            activeTabId: terminalTab.id,
+          ),
+        },
+        activeGroupId: 'group-a',
+      ),
+      createdTabs: createdTabs,
+      selectedTabs: selectedTabs,
+      closedTabs: closedTabs,
+      closedTabGroups: closedTabGroups,
+      renamedTabs: renamedTabs,
+      movedTabs: movedTabs,
+      splitGroups: splitGroups,
+      mergedGroups: mergedGroups,
+      updatedRatios: updatedRatios,
+    );
+
+    final fileIcons = tester.widgetList<AleraFileIcon>(
+      find.byType(AleraFileIcon),
+    );
+    expect(fileIcons.single.kind, AleraFileIconKind.file);
+    expect(fileIcons.single.pathOrName, 'docs/readme.md');
+  });
 }

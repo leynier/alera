@@ -6,6 +6,7 @@ part 'workspace_tab_record.mapper.dart';
 enum WorkspaceTabKind {
   terminal('terminal'),
   editor('editor'),
+  markdownViewer('markdownViewer'),
   browser('browser');
 
   const WorkspaceTabKind(this.key);
@@ -31,6 +32,9 @@ enum WorkspaceTabKind {
 const String workspaceTabManualTitlePayloadKey = 'manualTitle';
 const String workspaceTabTerminalSessionIdPayloadKey = 'terminalSessionId';
 const String workspaceTabFilePathPayloadKey = 'filePath';
+
+bool isWorkspaceMarkdownFilePath(String path) =>
+    path.toLowerCase().endsWith('.md');
 
 @MappableClass()
 class WorkspaceTabRecord with WorkspaceTabRecordMappable {

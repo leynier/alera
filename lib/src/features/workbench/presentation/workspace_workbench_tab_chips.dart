@@ -276,7 +276,7 @@ class _WorkspaceTabChip extends StatelessWidget {
                 const SizedBox(width: AleraTokens.space4),
                 ConstrainedBox(
                   constraints: BoxConstraints(
-                    maxWidth: tab.kind == WorkspaceTabKind.editor ? 180 : 92,
+                    maxWidth: _isFileBackedTabKind(tab.kind) ? 180 : 92,
                   ),
                   child: Text(
                     title,
@@ -339,10 +339,23 @@ class _WorkspaceTabLeadingIcon extends StatelessWidget {
         size: 12,
         fallbackColor: color,
       ),
+      WorkspaceTabKind.markdownViewer => AleraFileIcon(
+        pathOrName: tab.filePath ?? tab.title,
+        kind: AleraFileIconKind.file,
+        size: 12,
+        fallbackColor: color,
+      ),
       WorkspaceTabKind.terminal => Icon(Icons.terminal, size: 12, color: color),
       WorkspaceTabKind.browser => Icon(Icons.public, size: 12, color: color),
     };
   }
+}
+
+bool _isFileBackedTabKind(WorkspaceTabKind kind) {
+  return switch (kind) {
+    WorkspaceTabKind.editor || WorkspaceTabKind.markdownViewer => true,
+    WorkspaceTabKind.terminal || WorkspaceTabKind.browser => false,
+  };
 }
 
 class _DraggedTabFeedback extends StatelessWidget {

@@ -58,27 +58,26 @@ class WorkspaceTabService {
     required String workspaceId,
     required String relativePath,
   }) async {
-    final normalizedPath = _normalizeRelativePath(relativePath);
-    final existing = await _repository.listWorkspaceTabs(workspaceId);
-    for (final tab in existing) {
-      if (tab.kind == WorkspaceTabKind.editor &&
-          tab.payload[workspaceTabFilePathPayloadKey] == normalizedPath) {
-        return tab;
-      }
-    }
-    final tab = WorkspaceTabRecord(
-      id: _uuid.v4(),
+    return _openOrCreateFileTab(
       workspaceId: workspaceId,
+      relativePath: relativePath,
       kind: WorkspaceTabKind.editor,
-      title: _titleForPath(normalizedPath),
-      createdAt: _now(),
-      updatedAt: _now(),
-      payload: <String, Object?>{
-        workspaceTabFilePathPayloadKey: normalizedPath,
-      },
     );
-    await _repository.upsertWorkspaceTab(tab);
-    return tab;
+  }
+
+  Future<WorkspaceTabRecord> openOrCreateMarkdownViewerTab({
+    required String workspaceId,
+    required String relativePath,
+  }) async {
+    final normalizedPath = _normalizeRelativePath(relativePath);
+    if (!isWorkspaceMarkdownFilePath(normalizedPath)) {
+      throw StateError('Markdown viewer tabs require a .md file');
+    }
+    return _openOrCreateFileTab(
+      workspaceId: workspaceId,
+      relativePath: normalizedPath,
+      kind: WorkspaceTabKind.markdownViewer,
+    );
   }
 
   Future<void> closeTab(String tabId) {
@@ -109,7 +108,7 @@ class WorkspaceTabService {
     return next;
   }
 
-  Future<List<WorkspaceTabRecord>> updateEditorPathsAfterMove({
+  Future<WorkspaceFileTabPathMoveResult> updateFileTabPathsAfterMove({
     required String workspaceId,
     required String oldRelativePath,
     required String newRelativePath,
@@ -118,8 +117,9 @@ class WorkspaceTabService {
     final newPath = _normalizeRelativePath(newRelativePath);
     final tabs = await _repository.listWorkspaceTabs(workspaceId);
     final updated = <WorkspaceTabRecord>[];
+    final closed = <String>[];
     for (final tab in tabs) {
-      if (tab.kind != WorkspaceTabKind.editor) {
+      if (!_isFileTabKind(tab.kind)) {
         continue;
       }
       final filePath = tab.filePath;
@@ -134,6 +134,12 @@ class WorkspaceTabService {
       if (nextPath == null || nextPath == filePath) {
         continue;
       }
+      if (tab.kind == WorkspaceTabKind.markdownViewer &&
+          !isWorkspaceMarkdownFilePath(nextPath)) {
+        await _repository.removeWorkspaceTab(tab.id);
+        closed.add(tab.id);
+        continue;
+      }
       final next = tab.copyWith(
         title: _titleForPath(nextPath),
         updatedAt: _now(),
@@ -145,7 +151,45 @@ class WorkspaceTabService {
       await _repository.upsertWorkspaceTab(next);
       updated.add(next);
     }
-    return updated;
+    return WorkspaceFileTabPathMoveResult(
+      updatedTabs: updated,
+      closedTabIds: closed,
+    );
+  }
+
+  Future<WorkspaceTabRecord> _openOrCreateFileTab({
+    required String workspaceId,
+    required String relativePath,
+    required WorkspaceTabKind kind,
+  }) async {
+    final normalizedPath = _normalizeRelativePath(relativePath);
+    final existing = await _repository.listWorkspaceTabs(workspaceId);
+    for (final tab in existing) {
+      if (tab.kind == kind &&
+          tab.payload[workspaceTabFilePathPayloadKey] == normalizedPath) {
+        return tab;
+      }
+    }
+    final tab = WorkspaceTabRecord(
+      id: _uuid.v4(),
+      workspaceId: workspaceId,
+      kind: kind,
+      title: _titleForPath(normalizedPath),
+      createdAt: _now(),
+      updatedAt: _now(),
+      payload: <String, Object?>{
+        workspaceTabFilePathPayloadKey: normalizedPath,
+      },
+    );
+    await _repository.upsertWorkspaceTab(tab);
+    return tab;
+  }
+
+  bool _isFileTabKind(WorkspaceTabKind kind) {
+    return switch (kind) {
+      WorkspaceTabKind.editor || WorkspaceTabKind.markdownViewer => true,
+      WorkspaceTabKind.terminal || WorkspaceTabKind.browser => false,
+    };
   }
 
   int _nextOrdinal(List<WorkspaceTabRecord> tabs) {
@@ -195,4 +239,16 @@ class WorkspaceTabService {
     }
     return '$newPath/${path.substring(prefix.length)}';
   }
+}
+
+class WorkspaceFileTabPathMoveResult {
+  const WorkspaceFileTabPathMoveResult({
+    required this.updatedTabs,
+    required this.closedTabIds,
+  });
+
+  final List<WorkspaceTabRecord> updatedTabs;
+  final List<String> closedTabIds;
+
+  bool get isEmpty => updatedTabs.isEmpty && closedTabIds.isEmpty;
 }

@@ -42,6 +42,7 @@ dependencies:
     path: rust_builder
   flutter_rust_bridge: 2.12.0
   flutter_directory_tree: ^1.0.0
+  gpt_markdown: ^1.1.7
   directory_tree: ^1.0.0
   code_forge: ^10.2.0
   re_highlight: ^0.0.3

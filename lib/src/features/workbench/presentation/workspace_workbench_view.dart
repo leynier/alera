@@ -14,6 +14,7 @@ import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_surface.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_dialog_launchers.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_markdown_viewer_surface.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_editor_surface.dart';
 import 'package:flutter/material.dart';
 
@@ -25,6 +26,11 @@ part 'workspace_workbench_resize_handle.dart';
 
 typedef CreateTerminalTabCallback =
     Future<void> Function({String? targetGroupId});
+typedef OpenFileTabCallback =
+    Future<void> Function({
+      required String relativePath,
+      String? targetGroupId,
+    });
 typedef SelectWorkspaceTabCallback =
     void Function({required String groupId, required String tabId});
 typedef MoveWorkspaceTabCallback =
@@ -142,6 +148,8 @@ class WorkspaceWorkbenchView extends StatelessWidget {
     required this.terminalRuntime,
     required this.agentStatuses,
     required this.onCreateTab,
+    required this.onOpenEditorTab,
+    required this.onOpenMarkdownViewerTab,
     required this.onSelectTab,
     required this.onCloseTab,
     required this.onCloseTabs,
@@ -160,6 +168,8 @@ class WorkspaceWorkbenchView extends StatelessWidget {
   final TerminalRuntime terminalRuntime;
   final Map<String, AgentStatusEntry> agentStatuses;
   final CreateTerminalTabCallback onCreateTab;
+  final OpenFileTabCallback onOpenEditorTab;
+  final OpenFileTabCallback onOpenMarkdownViewerTab;
   final SelectWorkspaceTabCallback onSelectTab;
   final ValueChanged<String> onCloseTab;
   final ValueChanged<List<String>> onCloseTabs;
@@ -187,6 +197,8 @@ class WorkspaceWorkbenchView extends StatelessWidget {
       terminalRuntime: terminalRuntime,
       agentStatuses: agentStatuses,
       onCreateTab: onCreateTab,
+      onOpenEditorTab: onOpenEditorTab,
+      onOpenMarkdownViewerTab: onOpenMarkdownViewerTab,
       onSelectTab: onSelectTab,
       onCloseTab: onCloseTab,
       onCloseTabs: onCloseTabs,
