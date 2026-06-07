@@ -116,12 +116,64 @@ void main() {
     await _pumpPanel(tester, backend: backend);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Stage all'));
+    await tester.tap(find.text('Stage all'));
     await tester.pumpAndSettle();
 
     expect(
       backend.calls.where((call) => call.method == 'stage').single.args,
       <String, Object?>{'path': '/tmp/project', 'filePath': null},
+    );
+  });
+
+  testWidgets('primary source control action is compact and clickable', (
+    tester,
+  ) async {
+    final backend = FakeGitBackend()
+      ..gitRepositoryStateResult = const GitRepositoryState(
+        branch: 'main',
+        upstream: 'origin/main',
+      )
+      ..gitStatusResult = const GitStatusResult(
+        entries: <GitChangeEntry>[
+          GitChangeEntry(
+            path: 'lib/new.dart',
+            area: GitChangeArea.untracked,
+            status: GitChangeStatus.untracked,
+          ),
+        ],
+      );
+
+    await _pumpPanel(tester, backend: backend);
+    await tester.pumpAndSettle();
+
+    final splitButton = find.ancestor(
+      of: find.text('Stage all'),
+      matching: find.byWidgetPredicate(
+        (widget) => widget is SizedBox && widget.height == 28,
+      ),
+    );
+    expect(splitButton, findsOneWidget);
+    expect(tester.getSize(splitButton).height, 28);
+
+    final primaryAction = find.ancestor(
+      of: find.text('Stage all'),
+      matching: find.byType(InkWell),
+    );
+    expect(
+      tester.widget<InkWell>(primaryAction).mouseCursor,
+      SystemMouseCursors.click,
+    );
+
+    final dropdownToggle = find.ancestor(
+      of: find.descendant(
+        of: splitButton,
+        matching: find.byIcon(Icons.expand_more),
+      ),
+      matching: find.byType(InkWell),
+    );
+    expect(
+      tester.widget<InkWell>(dropdownToggle).mouseCursor,
+      SystemMouseCursors.click,
     );
   });
 
@@ -351,7 +403,7 @@ void main() {
 
     await tester.enterText(_messageField(), 'commit staged file');
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, 'Commit'));
+    await tester.tap(find.text('Commit'));
     await tester.pumpAndSettle();
 
     expect(
@@ -383,7 +435,7 @@ void main() {
 
     await tester.enterText(_messageField(), 'commit that fails');
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, 'Commit'));
+    await tester.tap(find.text('Commit'));
     await tester.pumpAndSettle();
 
     expect(

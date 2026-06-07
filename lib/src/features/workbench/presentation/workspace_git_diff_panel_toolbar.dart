@@ -316,31 +316,106 @@ class _PrimaryActionButton extends StatelessWidget {
   final WorkspaceSourceControlState? state;
   final VoidCallback? onPressed;
   final ValueChanged<_SourceControlMenuAction> onSelected;
+  static const double _height = 28;
 
   @override
   Widget build(BuildContext context) {
     final action = this.action;
     final label = action == null ? 'Fetch' : _actionLabel(action);
     final icon = action == null ? Icons.download_outlined : _actionIcon(action);
-    return Row(
-      children: <Widget>[
-        Expanded(
-          child: FilledButton.icon(
-            onPressed: onPressed,
-            icon: Icon(icon, size: 16),
-            label: Text(label),
+    final enabled = onPressed != null && !busy;
+    final textStyle = Theme.of(
+      context,
+    ).textTheme.labelLarge?.copyWith(color: AleraTokens.onAccent);
+    final cursor = busy ? SystemMouseCursors.basic : SystemMouseCursors.click;
+    return MouseRegion(
+      cursor: cursor,
+      child: Opacity(
+        opacity: enabled || !busy ? 1 : 0.38,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+          child: Material(
+            color: AleraTokens.accent,
+            child: SizedBox(
+              height: _height,
+              child: Row(
+                children: <Widget>[
+                  Expanded(
+                    child: InkWell(
+                      mouseCursor: enabled
+                          ? SystemMouseCursors.click
+                          : SystemMouseCursors.basic,
+                      onTap: enabled ? onPressed : null,
+                      child: Center(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            Icon(icon, size: 15, color: AleraTokens.onAccent),
+                            const SizedBox(width: AleraTokens.space8),
+                            Text(label, style: textStyle),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Container(
+                    width: 0.5,
+                    height: 18,
+                    color: AleraTokens.onAccent.withValues(alpha: 0.18),
+                  ),
+                  Tooltip(
+                    message: 'Source control actions',
+                    child: Builder(
+                      builder: (context) {
+                        return InkWell(
+                          mouseCursor: cursor,
+                          onTap: busy
+                              ? null
+                              : () => unawaited(_openMenu(context)),
+                          child: const SizedBox(
+                            width: 34,
+                            height: _height,
+                            child: Icon(
+                              Icons.expand_more,
+                              size: 17,
+                              color: AleraTokens.onAccent,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
-        const SizedBox(width: AleraTokens.space2),
-        PopupMenuButton<_SourceControlMenuAction>(
-          tooltip: 'Source control actions',
-          enabled: !busy,
-          icon: const Icon(Icons.expand_more, size: 18),
-          onSelected: onSelected,
-          itemBuilder: _menuEntries,
-        ),
-      ],
+      ),
     );
+  }
+
+  Future<void> _openMenu(BuildContext context) async {
+    final renderBox = context.findRenderObject() as RenderBox;
+    final overlay = Navigator.of(context).overlay?.context.findRenderObject();
+    if (overlay is! RenderBox) {
+      return;
+    }
+    final topLeft = renderBox.localToGlobal(Offset.zero, ancestor: overlay);
+    final bottomRight = renderBox.localToGlobal(
+      renderBox.size.bottomRight(Offset.zero),
+      ancestor: overlay,
+    );
+    final selected = await showMenu<_SourceControlMenuAction>(
+      context: context,
+      position: RelativeRect.fromRect(
+        Rect.fromPoints(topLeft, bottomRight),
+        Offset.zero & overlay.size,
+      ),
+      items: _menuEntries(context),
+    );
+    if (selected != null) {
+      onSelected(selected);
+    }
   }
 
   List<PopupMenuEntry<_SourceControlMenuAction>> _menuEntries(
