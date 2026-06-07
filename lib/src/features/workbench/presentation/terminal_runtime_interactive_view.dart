@@ -19,19 +19,21 @@ class _InteractiveTerminalView extends StatefulWidget {
 
 class _InteractiveTerminalViewState extends State<_InteractiveTerminalView> {
   TerminalLinkRange? _hoveredLink;
+  xterm.CellOffset? _lastHoverOffset;
+  TerminalLinkRange? _lastHoverLink;
 
   @override
   void didUpdateWidget(covariant _InteractiveTerminalView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.session != widget.session) {
-      _hoveredLink = null;
+      _clearHoverState();
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
-      onExit: (_) => _setHoveredLink(null),
+      onExit: (_) => _clearHoverState(),
       onHover: _handleHover,
       child: widget.session._buildTerminalView(
         autofocus: widget.autofocus,
@@ -53,7 +55,14 @@ class _InteractiveTerminalViewState extends State<_InteractiveTerminalView> {
       event.position,
     );
     final offset = viewState.renderTerminal.getCellOffset(localPosition);
-    _setHoveredLink(widget.session._linkAt(offset));
+    if (_lastHoverOffset == offset) {
+      _setHoveredLink(_lastHoverLink);
+      return;
+    }
+    final link = widget.session._linkAt(offset);
+    _lastHoverOffset = offset;
+    _lastHoverLink = link;
+    _setHoveredLink(link);
   }
 
   void _handleTapUp(TapUpDetails _, xterm.CellOffset offset) {
@@ -87,6 +96,12 @@ class _InteractiveTerminalViewState extends State<_InteractiveTerminalView> {
     setState(() {
       _hoveredLink = link;
     });
+  }
+
+  void _clearHoverState() {
+    _lastHoverOffset = null;
+    _lastHoverLink = null;
+    _setHoveredLink(null);
   }
 }
 

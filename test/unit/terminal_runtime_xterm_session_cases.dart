@@ -1,6 +1,29 @@
 part of 'terminal_runtime_native_test.dart';
 
 void _registerXtermRuntimeSessionTests() {
+  test('batches visible output until a frame flush', () {
+    final runtime = XtermTerminalRuntime(
+      ptySessionFactory: _FakeTerminalPtySessionFactory(),
+      shellLaunchesBuilder: () => <GhosttyTerminalShellLaunch>[
+        _launch('shell', shell: '/bin/sh'),
+      ],
+    );
+    addTearDown(runtime.dispose);
+    final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
+
+    queueTerminalOutputForTesting(session, 'hello');
+    expect(terminalBufferTextForTesting(session), isNot(contains('hello')));
+
+    flushTerminalOutputForTesting(session);
+    expect(terminalBufferTextForTesting(session), contains('hello'));
+  });
+
+  test('terminal output frame cutoff preserves surrogate pairs', () {
+    final longText = '${'a' * (64 * 1024 - 1)}😀tail';
+
+    expect(terminalOutputFrameCutoffForTesting(longText), 64 * 1024 - 1);
+  });
+
   test(
     'reuses sessions, syncs metadata, and flushes pending resizes',
     () async {
@@ -218,6 +241,7 @@ void _registerXtermRuntimeSessionTests() {
 
         fakeSession.emitOutput(utf8.encode('visible\r\n'));
         await Future<void>.delayed(Duration.zero);
+        flushTerminalOutputForTesting(session);
         expect(terminalBufferTextForTesting(session), contains('visible'));
 
         visibility.dispose();
@@ -278,6 +302,7 @@ void _registerXtermRuntimeSessionTests() {
 
         fakeSession.emitOutput(utf8.encode('still-visible\r\n'));
         await Future<void>.delayed(Duration.zero);
+        flushTerminalOutputForTesting(session);
         expect(
           terminalBufferTextForTesting(session),
           contains('still-visible'),

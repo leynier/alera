@@ -138,6 +138,73 @@ fn operates_from_subdirectory() {
 }
 
 #[test]
+fn status_preserves_punctuation_and_control_character_paths() {
+    let repo = init_repo();
+    let comma_path = repo.path().join("comma,name.txt");
+    let newline_path = repo.path().join("line\nbreak.txt");
+    std::fs::write(&comma_path, "comma\n").expect("write comma path");
+    std::fs::write(&newline_path, "newline\n").expect("write newline path");
+
+    let status = git_status(path_str(repo.path())).unwrap();
+
+    assert!(status.entries.iter().any(|entry| {
+        entry.path == "comma,name.txt"
+            && entry.area == GitChangeArea::Untracked
+            && entry.status == GitChangeStatus::Untracked
+    }));
+    assert!(status.entries.iter().any(|entry| {
+        entry.path == "line\nbreak.txt"
+            && entry.area == GitChangeArea::Untracked
+            && entry.status == GitChangeStatus::Untracked
+    }));
+}
+
+#[test]
+fn diff_accepts_backslash_separators_from_subdirectory_workspace() {
+    let repo = init_repo();
+    let app_dir = repo.path().join("packages").join("app");
+    let lib_dir = app_dir.join("lib");
+    std::fs::create_dir_all(&lib_dir).expect("create lib dir");
+    std::fs::write(lib_dir.join("foo.dart"), "void main() {}\n").expect("write file");
+    run_git(repo.path(), &["add", "."]);
+    run_git(repo.path(), &["commit", "-m", "add app file"]);
+    std::fs::write(lib_dir.join("foo.dart"), "void main() {\n  print(1);\n}\n")
+        .expect("modify file");
+
+    let diff = git_diff(
+        path_str(&app_dir),
+        "lib\\foo.dart".to_string(),
+        GitChangeArea::Unstaged,
+    )
+    .unwrap();
+
+    assert_eq!(diff.files.len(), 1);
+    assert_eq!(diff.files[0].path, "lib/foo.dart");
+    assert!(diff_text(&diff.files[0]).contains("+  print(1);"));
+}
+
+#[test]
+fn concurrent_status_refreshes_do_not_share_mutable_probe_state() {
+    let repo = init_repo();
+    std::fs::write(repo.path().join("changed.txt"), "changed\n").expect("write changed");
+    let repo_path = path_str(repo.path());
+
+    let handles = (0..8)
+        .map(|_| {
+            let path = repo_path.clone();
+            std::thread::spawn(move || git_status(path).unwrap())
+        })
+        .collect::<Vec<_>>();
+
+    for handle in handles {
+        let status = handle.join().expect("status thread joins");
+        assert!(status.entries.iter().any(|entry| {
+            entry.path == "changed.txt" && entry.status == GitChangeStatus::Untracked
+        }));
+    }
+}
+
+#[test]
 fn creates_worktree_from_remote_tracking_branch() {
     let repo = init_repo();
     run_git(

@@ -5,7 +5,39 @@ import 'package:cryptography/cryptography.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
+import '../../tool/release/latest_stable_release.dart' as latest_stable;
+
 void main() {
+  group('latest stable release script', () {
+    test(
+      'selects the semver maximum stable tag and ignores release candidates',
+      () {
+        expect(
+          latest_stable.latestStableRelease(<String>[
+            'v1.4.9',
+            'v1.4.10-rc.0',
+            'v1.4.10',
+            'v1.10.0',
+            'v2.0.0-rc.1',
+            'not-a-version',
+          ]),
+          '1.10.0',
+        );
+      },
+    );
+
+    test('falls back when no stable release tags exist', () {
+      expect(
+        latest_stable.latestStableRelease(<String>[
+          'v1.0.0-rc.0',
+          'mobile-v0.0.12',
+          '',
+        ]),
+        '0.1.0',
+      );
+    });
+  });
+
   group('release archive scripts', () {
     test(
       'builds and verifies a stable manifest without sidecar URLs',

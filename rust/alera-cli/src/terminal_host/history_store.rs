@@ -13,8 +13,8 @@ use crate::terminal_host::checkpoint_entity::{ActiveModel, Column, Entity as Che
 
 pub const HISTORY_DATABASE_FILE_NAME: &str = "terminal_history.sqlite";
 
-/// Schema for the checkpoints table. Must match the Dart host's DDL exactly so
-/// either implementation can open a database created by the other.
+/// Schema for the checkpoints table. Keep this stable so existing terminal
+/// history databases remain readable.
 const CREATE_TABLE_SQL: &str = "\
 CREATE TABLE IF NOT EXISTS checkpoints (\n\
   sessionId TEXT PRIMARY KEY,\n\
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS checkpoints (\n\
   buffer BLOB NOT NULL\n\
 );";
 
-/// A persisted terminal session snapshot. Port of `TerminalHostCheckpoint`.
+/// A persisted terminal session snapshot.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TerminalHostCheckpoint {
     pub session_id: String,
@@ -82,7 +82,7 @@ pub struct TerminalHostHistoryStore {
 
 impl TerminalHostHistoryStore {
     /// Open (creating if needed) the history database under `runtime_dir`,
-    /// applying the Dart host's pragmas and ensuring the schema exists.
+    /// applying the host pragmas and ensuring the schema exists.
     pub async fn open(runtime_dir: &Path) -> Result<Self> {
         if !runtime_dir.exists() {
             std::fs::create_dir_all(runtime_dir)?;
@@ -110,7 +110,7 @@ impl TerminalHostHistoryStore {
         Ok(model.map(TerminalHostCheckpoint::from_model))
     }
 
-    /// Insert or replace a checkpoint, reproducing the Dart `INSERT OR REPLACE`.
+    /// Insert or replace a checkpoint.
     pub async fn upsert(&self, checkpoint: TerminalHostCheckpoint) -> Result<()> {
         Checkpoints::insert(checkpoint.into_active_model())
             .on_conflict(
@@ -221,8 +221,8 @@ mod tests {
 
     #[tokio::test]
     async fn on_disk_format_matches_dart_expectations() {
-        // Verifies the raw column encoding the Dart host reads back: running as
-        // an INTEGER 1, timestamps as ISO8601 text ending in Z, buffer as a BLOB.
+        // Verifies the raw column encoding: running as an INTEGER 1,
+        // timestamps as ISO8601 text ending in Z, buffer as a BLOB.
         let dir = tempfile::tempdir().unwrap();
         let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
         let mut checkpoint = sample("s1");

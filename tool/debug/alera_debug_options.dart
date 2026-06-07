@@ -2,14 +2,12 @@ part of 'alera_debug.dart';
 
 final class _Options {
   const _Options({
-    required this.dartExecutable,
     required this.cargoExecutable,
     required this.flutterExecutable,
     required this.device,
     required this.flavor,
     required this.appId,
     required this.bundleDir,
-    required this.debugPort,
     required this.debugToken,
     required this.hostEmptyShutdownSeconds,
     required this.hostDetachedShutdownSeconds,
@@ -43,7 +41,6 @@ final class _Options {
         ? kAleraReleaseBundleId
         : kAleraDevBundleId;
     return _Options(
-      dartExecutable: map['dart'] ?? Platform.environment['DART'] ?? 'dart',
       cargoExecutable: map['cargo'] ?? Platform.environment['CARGO'] ?? 'cargo',
       flutterExecutable:
           map['flutter'] ?? Platform.environment['FLUTTER'] ?? 'flutter',
@@ -58,10 +55,6 @@ final class _Options {
           map['bundle-dir'] ??
           Platform.environment['ALERA_CLI_BUNDLE_DIR'] ??
           '.dart_tool/alera',
-      debugPort:
-          map['debug-port'] ??
-          Platform.environment['ALERA_CLI_DEBUG_PORT'] ??
-          '8181',
       debugToken:
           map['debug-token'] ??
           Platform.environment['ALERA_CLI_DEBUG_TOKEN'] ??
@@ -84,14 +77,12 @@ final class _Options {
     );
   }
 
-  final String dartExecutable;
   final String cargoExecutable;
   final String flutterExecutable;
   final String device;
   final String flavor;
   final String appId;
   final String bundleDir;
-  final String debugPort;
   final String debugToken;
   final String hostEmptyShutdownSeconds;
   final String hostDetachedShutdownSeconds;

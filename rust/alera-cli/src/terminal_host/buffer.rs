@@ -1,9 +1,8 @@
 use std::collections::VecDeque;
 
 /// Bounded scrollback buffer retaining at most `max_bytes` of the most recent
-/// PTY output. Direct port of the Dart `_TerminalHostByteBuffer`, including its
-/// drop-oldest trimming and the special case for a single chunk larger than the
-/// cap.
+/// PTY output, including drop-oldest trimming and the special case for a single
+/// chunk larger than the cap.
 pub struct ScrollbackBuffer {
     chunks: VecDeque<Vec<u8>>,
     length: usize,
