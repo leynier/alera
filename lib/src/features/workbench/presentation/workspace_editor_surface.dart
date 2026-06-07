@@ -11,6 +11,8 @@ import 'package:alera/src/features/workbench/application/workspace_file_service.
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/rust/api/workspace_files.dart' as native;
+import 'package:alera/src/shared/infra/git/git_diff_models.dart';
+import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:code_forge/code_forge.dart' as code_forge;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -193,6 +195,7 @@ class _WorkspaceEditorSurfaceState
             ),
             dirty: _document.isDirty,
             saving: _saving,
+            onViewDiff: !_loading ? () => unawaited(_openDiffForFile()) : null,
             onSave: _document.isDirty && !_loading && !_saving
                 ? () => unawaited(_save())
                 : null,
@@ -263,6 +266,89 @@ class _WorkspaceEditorSurfaceState
       setState(() {});
       _showToast('Changes discarded');
     }
+  }
+
+  Future<void> _openDiffForFile() async {
+    final filePath = widget.tab.filePath;
+    if (filePath == null) {
+      return;
+    }
+    try {
+      final status = await ref
+          .read(gitBackendProvider)
+          .statusForPath(path: widget.workspace.path, filePath: filePath);
+      final entries = status.entriesForPath(filePath);
+      if (!mounted) {
+        return;
+      }
+      if (entries.isEmpty) {
+        _showToast('No Git diff for this file');
+        return;
+      }
+      if (entries.length == 1) {
+        await ref
+            .read(workbenchControllerProvider.notifier)
+            .openGitDiffTab(
+              workspace: widget.workspace,
+              relativePath: filePath,
+              area: entries.single.area,
+              scope: WorkspaceGitDiffScope.file,
+            );
+        return;
+      }
+      final choice = await _showDiffChoiceMenu(entries);
+      if (!mounted || choice == null) {
+        return;
+      }
+      if (choice.allForFile) {
+        await ref
+            .read(workbenchControllerProvider.notifier)
+            .openGitDiffTab(
+              workspace: widget.workspace,
+              relativePath: filePath,
+              scope: WorkspaceGitDiffScope.fileAll,
+            );
+        return;
+      }
+      await ref
+          .read(workbenchControllerProvider.notifier)
+          .openGitDiffTab(
+            workspace: widget.workspace,
+            relativePath: filePath,
+            area: choice.area,
+            scope: WorkspaceGitDiffScope.file,
+          );
+    } catch (_) {
+      if (mounted) {
+        _showToast('Could not open Git diff', tone: AleraToastTone.error);
+      }
+    }
+  }
+
+  Future<_DiffOpenChoice?> _showDiffChoiceMenu(List<GitChangeEntry> entries) {
+    final overlay =
+        Navigator.of(context).overlay!.context.findRenderObject()! as RenderBox;
+    return showMenu<_DiffOpenChoice>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        overlay.size.width - 280,
+        AleraTokens.sidebarHeaderHeight,
+        AleraTokens.space16,
+        0,
+      ),
+      items: <PopupMenuEntry<_DiffOpenChoice>>[
+        for (final entry in entries)
+          PopupMenuItem<_DiffOpenChoice>(
+            value: _DiffOpenChoice(area: entry.area),
+            child: Text('${entry.area.label} changes'),
+          ),
+        const PopupMenuDivider(height: AleraTokens.space8),
+        const PopupMenuItem<_DiffOpenChoice>(
+          value: _DiffOpenChoice(allForFile: true),
+          child: Text('All changes for file'),
+        ),
+      ],
+    );
   }
 
   Future<void> _resolveSaveConflict() async {
@@ -403,6 +489,13 @@ class _WorkspaceEditorSurfaceState
       trackBorderColor: Colors.transparent,
     );
   }
+}
+
+class _DiffOpenChoice {
+  const _DiffOpenChoice({this.area, this.allForFile = false});
+
+  final GitChangeArea? area;
+  final bool allForFile;
 }
 
 String workspaceEditorDisplayPath({

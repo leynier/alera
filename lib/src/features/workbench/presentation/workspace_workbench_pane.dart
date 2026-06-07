@@ -214,6 +214,17 @@ bool isWorkbenchPaneDropActionEnabled({
   return zone != WorkbenchDropZone.center;
 }
 
+@visibleForTesting
+bool workspaceTabUsesImagePreviewForTesting(WorkspaceTabRecord tab) {
+  final filePath = tab.filePath;
+  return filePath != null && isWorkspaceImageFilePath(filePath);
+}
+
+@visibleForTesting
+bool workspaceTabUsesPdfViewerForTesting(WorkspaceTabRecord tab) {
+  return tab.kind == WorkspaceTabKind.pdf;
+}
+
 Rect _centerDropRect(Size paneSize) {
   const centerWidthFactor = 0.36;
   const centerHeightFactor = 0.36;
@@ -257,7 +268,7 @@ class _WorkspaceTabContent extends StatelessWidget {
         session: terminalRuntime.sessionFor(workspace: workspace, tab: tab),
         autofocus: autofocus,
       ),
-      WorkspaceTabKind.editor => WorkspaceEditorSurface(
+      WorkspaceTabKind.editor => _WorkspaceFileTabContent(
         workspace: workspace,
         tab: tab,
         autofocus: autofocus,
@@ -268,10 +279,51 @@ class _WorkspaceTabContent extends StatelessWidget {
         tab: tab,
         onOpenEditorTab: onOpenEditorTab,
       ),
+      WorkspaceTabKind.pdf => WorkspacePdfViewerSurface(
+        workspace: workspace,
+        tab: tab,
+        autofocus: autofocus,
+      ),
+      WorkspaceTabKind.gitDiff => WorkspaceGitDiffSurface(
+        workspace: workspace,
+        tab: tab,
+      ),
       WorkspaceTabKind.browser => const Center(
         child: CircularProgressIndicator(),
       ),
     };
+  }
+}
+
+class _WorkspaceFileTabContent extends StatelessWidget {
+  const _WorkspaceFileTabContent({
+    required this.workspace,
+    required this.tab,
+    required this.autofocus,
+    required this.onOpenMarkdownViewerTab,
+  });
+
+  final Workspace workspace;
+  final WorkspaceTabRecord tab;
+  final bool autofocus;
+  final ValueChanged<String> onOpenMarkdownViewerTab;
+
+  @override
+  Widget build(BuildContext context) {
+    final filePath = tab.filePath;
+    if (filePath != null && isWorkspaceImageFilePath(filePath)) {
+      return WorkspaceImagePreviewSurface(
+        workspace: workspace,
+        tab: tab,
+        autofocus: autofocus,
+      );
+    }
+    return WorkspaceEditorSurface(
+      workspace: workspace,
+      tab: tab,
+      autofocus: autofocus,
+      onOpenMarkdownViewerTab: onOpenMarkdownViewerTab,
+    );
   }
 }
 

@@ -276,7 +276,7 @@ class _WorkspaceTabChip extends StatelessWidget {
                 const SizedBox(width: AleraTokens.space4),
                 ConstrainedBox(
                   constraints: BoxConstraints(
-                    maxWidth: _isFileBackedTabKind(tab.kind) ? 180 : 92,
+                    maxWidth: _tabTitleMaxWidth(tab.kind),
                   ),
                   child: Text(
                     title,
@@ -333,17 +333,18 @@ class _WorkspaceTabLeadingIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return switch (tab.kind) {
-      WorkspaceTabKind.editor => AleraFileIcon(
+      WorkspaceTabKind.editor ||
+      WorkspaceTabKind.markdownViewer ||
+      WorkspaceTabKind.pdf => AleraFileIcon(
         pathOrName: tab.filePath ?? tab.title,
         kind: AleraFileIconKind.file,
         size: 12,
         fallbackColor: color,
       ),
-      WorkspaceTabKind.markdownViewer => AleraFileIcon(
-        pathOrName: tab.filePath ?? tab.title,
-        kind: AleraFileIconKind.file,
+      WorkspaceTabKind.gitDiff => Icon(
+        Icons.fork_right_outlined,
         size: 12,
-        fallbackColor: color,
+        color: color,
       ),
       WorkspaceTabKind.terminal => Icon(Icons.terminal, size: 12, color: color),
       WorkspaceTabKind.browser => Icon(Icons.public, size: 12, color: color),
@@ -351,10 +352,13 @@ class _WorkspaceTabLeadingIcon extends StatelessWidget {
   }
 }
 
-bool _isFileBackedTabKind(WorkspaceTabKind kind) {
+double _tabTitleMaxWidth(WorkspaceTabKind kind) {
   return switch (kind) {
-    WorkspaceTabKind.editor || WorkspaceTabKind.markdownViewer => true,
-    WorkspaceTabKind.terminal || WorkspaceTabKind.browser => false,
+    WorkspaceTabKind.editor ||
+    WorkspaceTabKind.markdownViewer ||
+    WorkspaceTabKind.pdf ||
+    WorkspaceTabKind.gitDiff => 180,
+    WorkspaceTabKind.terminal || WorkspaceTabKind.browser => 92,
   };
 }
 

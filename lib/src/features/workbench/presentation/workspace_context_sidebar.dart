@@ -3,6 +3,7 @@ import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_explorer.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_git_diff_panel.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_search_panel.dart';
 import 'package:flutter/material.dart';
 
@@ -15,7 +16,9 @@ class WorkspaceContextSidebar extends StatelessWidget {
     required this.onResize,
     required this.onSetContextPanelTab,
     required this.onSetExplorerMode,
+    required this.onSetGitDiffViewMode,
     required this.onOpenFile,
+    required this.onOpenGitDiff,
     required this.onOpenSearchMatch,
     required this.onPathMoved,
   });
@@ -26,7 +29,9 @@ class WorkspaceContextSidebar extends StatelessWidget {
   final ValueChanged<double> onResize;
   final ValueChanged<WorkbenchContextPanelTab> onSetContextPanelTab;
   final ValueChanged<WorkspaceExplorerMode> onSetExplorerMode;
+  final ValueChanged<GitDiffViewMode> onSetGitDiffViewMode;
   final ValueChanged<String> onOpenFile;
+  final OpenGitDiffTabCallback onOpenGitDiff;
   final ValueChanged<WorkspaceSearchMatchTarget> onOpenSearchMatch;
   final Future<void> Function(String oldRelativePath, String newRelativePath)
   onPathMoved;
@@ -69,6 +74,13 @@ class WorkspaceContextSidebar extends StatelessWidget {
                             WorkspaceSearchPanel(
                               workspace: workspace,
                               onOpenMatch: onOpenSearchMatch,
+                            ),
+                          WorkbenchContextPanelTab.gitDiff =>
+                            WorkspaceGitDiffPanel(
+                              workspace: workspace,
+                              viewMode: prefs.gitDiffViewMode,
+                              onViewModeChanged: onSetGitDiffViewMode,
+                              onOpenGitDiff: onOpenGitDiff,
                             ),
                         },
                       ),
@@ -121,6 +133,14 @@ class _CollapsedContextRail extends StatelessWidget {
             tooltip: 'Search',
             icon: Icons.search_rounded,
             onPressed: () => onOpenTab(WorkbenchContextPanelTab.search),
+          ),
+          const SizedBox(height: AleraTokens.space6),
+          _ContextTabButton(
+            tab: WorkbenchContextPanelTab.gitDiff,
+            activeTab: activeTab,
+            tooltip: 'Source Control',
+            icon: Icons.fork_right_outlined,
+            onPressed: () => onOpenTab(WorkbenchContextPanelTab.gitDiff),
           ),
           const Spacer(),
           Padding(
@@ -177,6 +197,15 @@ class _ContextTabHeader extends StatelessWidget {
                 icon: Icons.search_rounded,
                 onPressed: () =>
                     onSetActiveTab(WorkbenchContextPanelTab.search),
+              ),
+              const SizedBox(width: AleraTokens.space6),
+              _ContextTabButton(
+                tab: WorkbenchContextPanelTab.gitDiff,
+                activeTab: activeTab,
+                tooltip: 'Source Control',
+                icon: Icons.fork_right_outlined,
+                onPressed: () =>
+                    onSetActiveTab(WorkbenchContextPanelTab.gitDiff),
               ),
               const Spacer(),
               AleraIconButton(
