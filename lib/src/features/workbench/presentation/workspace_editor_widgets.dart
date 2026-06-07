@@ -48,6 +48,15 @@ class _EditorFileBar extends StatelessWidget {
               ),
             ),
             const SizedBox(width: AleraTokens.space8),
+            if (onOpenPreview != null) ...<Widget>[
+              AleraIconButton(
+                tooltip: 'Open preview',
+                icon: Icons.visibility_outlined,
+                onPressed: onOpenPreview,
+                iconColor: color,
+              ),
+              const SizedBox(width: AleraTokens.space2),
+            ],
             AleraIconButton(
               tooltip: 'View diff',
               icon: Icons.difference_outlined,

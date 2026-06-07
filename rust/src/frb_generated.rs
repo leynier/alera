@@ -38,7 +38,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -602213441;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -498283764;
 
 // Section: executor
 
@@ -1008,6 +1008,45 @@ fn wire__crate__api__workspace_files__rename_workspace_entry_impl(
                             api_workspace_path,
                             api_relative_path,
                             api_new_name,
+                        )?;
+                        Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__merman_viewer__render_merman_workspace_file_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "render_merman_workspace_file",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_workspace_path = <String>::sse_decode(&mut deserializer);
+            let api_relative_path = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::merman_viewer::MermanViewerError>(
+                    (move || {
+                        let output_ok = crate::api::merman_viewer::render_merman_workspace_file(
+                            api_workspace_path,
+                            api_relative_path,
                         )?;
                         Ok(output_ok)
                     })(),
@@ -2061,6 +2100,51 @@ impl SseDecode for Vec<crate::api::workspace_search::WorkspaceSearchMatch> {
     }
 }
 
+impl SseDecode for crate::api::merman_viewer::MermanViewerError {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_kind =
+            <crate::api::merman_viewer::MermanViewerErrorKind>::sse_decode(deserializer);
+        let mut var_context = <String>::sse_decode(deserializer);
+        return crate::api::merman_viewer::MermanViewerError {
+            kind: var_kind,
+            context: var_context,
+        };
+    }
+}
+
+impl SseDecode for crate::api::merman_viewer::MermanViewerErrorKind {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::merman_viewer::MermanViewerErrorKind::InvalidPath,
+            1 => crate::api::merman_viewer::MermanViewerErrorKind::OutsideWorkspace,
+            2 => crate::api::merman_viewer::MermanViewerErrorKind::NotFound,
+            3 => crate::api::merman_viewer::MermanViewerErrorKind::Unsupported,
+            4 => crate::api::merman_viewer::MermanViewerErrorKind::Render,
+            5 => crate::api::merman_viewer::MermanViewerErrorKind::Io,
+            _ => unreachable!("Invalid variant for MermanViewerErrorKind: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::merman_viewer::MermanWorkspaceRender {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_svg = <String>::sse_decode(deserializer);
+        let mut var_contentToken = <String>::sse_decode(deserializer);
+        let mut var_modifiedMillis = <i64>::sse_decode(deserializer);
+        let mut var_size = <u64>::sse_decode(deserializer);
+        return crate::api::merman_viewer::MermanWorkspaceRender {
+            svg: var_svg,
+            content_token: var_contentToken,
+            modified_millis: var_modifiedMillis,
+            size: var_size,
+        };
+    }
+}
+
 impl SseDecode for Option<String> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -2678,73 +2762,79 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        27 => wire__crate__api__workspace_search__replace_workspace_matches_impl(
+        27 => wire__crate__api__merman_viewer__render_merman_workspace_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        28 => wire__crate__api__workspace_search__search_workspace_impl(
+        28 => wire__crate__api__workspace_search__replace_workspace_matches_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        29 => wire__crate__api__agent_hooks__set_agent_hook_enabled_agents_impl(
+        29 => wire__crate__api__workspace_search__search_workspace_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        30 => wire__crate__api__agent_hooks__start_agent_hook_receiver_impl(
+        30 => wire__crate__api__agent_hooks__set_agent_hook_enabled_agents_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        31 => wire__crate__api__workspace_files__start_workspace_explorer_watcher_impl(
+        31 => wire__crate__api__agent_hooks__start_agent_hook_receiver_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        32 => wire__crate__api__agent_hooks__stop_agent_hook_receiver_impl(
+        32 => wire__crate__api__workspace_files__start_workspace_explorer_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        33 => wire__crate__api__workspace_files__stop_workspace_explorer_watcher_impl(
+        33 => wire__crate__api__agent_hooks__stop_agent_hook_receiver_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        34 => wire__crate__api__workspace_files__update_workspace_explorer_watcher_impl(
+        34 => wire__crate__api__workspace_files__stop_workspace_explorer_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        35 => wire__crate__api__agent_hooks__watch_agent_hook_event_batches_impl(
+        35 => wire__crate__api__workspace_files__update_workspace_explorer_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        36 => wire__crate__api__workspace_files__watch_workspace_explorer_events_impl(
+        36 => wire__crate__api__agent_hooks__watch_agent_hook_event_batches_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        37 => wire__crate__api__workspace_files__write_workspace_editor_text_file_impl(
+        37 => wire__crate__api__workspace_files__watch_workspace_explorer_events_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        38 => wire__crate__api__workspace_files__write_workspace_text_file_impl(
+        38 => wire__crate__api__workspace_files__write_workspace_editor_text_file_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        39 => wire__crate__api__workspace_files__write_workspace_text_file_impl(
             port,
             ptr,
             rust_vec_len,
@@ -3148,6 +3238,75 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitWorktreeEntry>
     for crate::api::git::GitWorktreeEntry
 {
     fn into_into_dart(self) -> crate::api::git::GitWorktreeEntry {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::merman_viewer::MermanViewerError {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.kind.into_into_dart().into_dart(),
+            self.context.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::merman_viewer::MermanViewerError
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::merman_viewer::MermanViewerError>
+    for crate::api::merman_viewer::MermanViewerError
+{
+    fn into_into_dart(self) -> crate::api::merman_viewer::MermanViewerError {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::merman_viewer::MermanViewerErrorKind {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::InvalidPath => 0.into_dart(),
+            Self::OutsideWorkspace => 1.into_dart(),
+            Self::NotFound => 2.into_dart(),
+            Self::Unsupported => 3.into_dart(),
+            Self::Render => 4.into_dart(),
+            Self::Io => 5.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::merman_viewer::MermanViewerErrorKind
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::merman_viewer::MermanViewerErrorKind>
+    for crate::api::merman_viewer::MermanViewerErrorKind
+{
+    fn into_into_dart(self) -> crate::api::merman_viewer::MermanViewerErrorKind {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::merman_viewer::MermanWorkspaceRender {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.svg.into_into_dart().into_dart(),
+            self.content_token.into_into_dart().into_dart(),
+            self.modified_millis.into_into_dart().into_dart(),
+            self.size.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::merman_viewer::MermanWorkspaceRender
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::merman_viewer::MermanWorkspaceRender>
+    for crate::api::merman_viewer::MermanWorkspaceRender
+{
+    fn into_into_dart(self) -> crate::api::merman_viewer::MermanWorkspaceRender {
         self
     }
 }
@@ -4208,6 +4367,44 @@ impl SseEncode for Vec<crate::api::workspace_search::WorkspaceSearchMatch> {
         for item in self {
             <crate::api::workspace_search::WorkspaceSearchMatch>::sse_encode(item, serializer);
         }
+    }
+}
+
+impl SseEncode for crate::api::merman_viewer::MermanViewerError {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <crate::api::merman_viewer::MermanViewerErrorKind>::sse_encode(self.kind, serializer);
+        <String>::sse_encode(self.context, serializer);
+    }
+}
+
+impl SseEncode for crate::api::merman_viewer::MermanViewerErrorKind {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::merman_viewer::MermanViewerErrorKind::InvalidPath => 0,
+                crate::api::merman_viewer::MermanViewerErrorKind::OutsideWorkspace => 1,
+                crate::api::merman_viewer::MermanViewerErrorKind::NotFound => 2,
+                crate::api::merman_viewer::MermanViewerErrorKind::Unsupported => 3,
+                crate::api::merman_viewer::MermanViewerErrorKind::Render => 4,
+                crate::api::merman_viewer::MermanViewerErrorKind::Io => 5,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::merman_viewer::MermanWorkspaceRender {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.svg, serializer);
+        <String>::sse_encode(self.content_token, serializer);
+        <i64>::sse_encode(self.modified_millis, serializer);
+        <u64>::sse_encode(self.size, serializer);
     }
 }
 

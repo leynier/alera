@@ -219,6 +219,33 @@ void _registerWorkspaceWorkbenchViewHelperTests() {
       expect(workspaceTabUsesImagePreviewForTesting(svgTab), isFalse);
     });
 
+    test('identifies only merman preview tabs for merman preview routing', () {
+      final editorTab = _tab(
+        'tab-1',
+        title: 'diagram.mmd',
+        kind: WorkspaceTabKind.editor,
+        filePath: 'docs/diagram.mmd',
+      );
+      final previewTab = _tab(
+        'tab-2',
+        title: 'diagram.mmd preview',
+        kind: WorkspaceTabKind.editor,
+        filePath: 'docs/diagram.mmd',
+        mermanPreview: true,
+      );
+      final mermaidTab = _tab(
+        'tab-3',
+        title: 'diagram.mermaid preview',
+        kind: WorkspaceTabKind.editor,
+        filePath: 'docs/diagram.mermaid',
+        mermanPreview: true,
+      );
+
+      expect(workspaceTabUsesMermanPreviewForTesting(editorTab), isFalse);
+      expect(workspaceTabUsesMermanPreviewForTesting(previewTab), isTrue);
+      expect(workspaceTabUsesMermanPreviewForTesting(mermaidTab), isFalse);
+    });
+
     test('identifies PDF tabs for PDF viewer routing', () {
       final pdfTab = _tab(
         'tab-1',

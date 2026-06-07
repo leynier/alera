@@ -35,6 +35,8 @@ enum WorkspaceTabKind {
 const String workspaceTabManualTitlePayloadKey = 'manualTitle';
 const String workspaceTabTerminalSessionIdPayloadKey = 'terminalSessionId';
 const String workspaceTabFilePathPayloadKey = 'filePath';
+const String workspaceTabFileRolePayloadKey = 'fileRole';
+const String workspaceTabFileRoleMermanPreview = 'mermanPreview';
 const String workspaceTabGitDiffScopePayloadKey = 'gitDiffScope';
 const String workspaceTabGitDiffAreaPayloadKey = 'gitDiffArea';
 
@@ -93,6 +95,11 @@ class WorkspaceTabRecord with WorkspaceTabRecordMappable {
   String? get filePath {
     final value = payload[workspaceTabFilePathPayloadKey];
     return value is String && value.trim().isNotEmpty ? value : null;
+  }
+
+  bool get isMermanPreview {
+    return payload[workspaceTabFileRolePayloadKey] ==
+        workspaceTabFileRoleMermanPreview;
   }
 
   WorkspaceGitDiffScope? get gitDiffScope => WorkspaceGitDiffScope.fromJson(

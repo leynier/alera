@@ -7,6 +7,7 @@ import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/features/settings/domain/editor_syntax_theme_catalog.dart';
+import 'package:alera/src/features/workbench/application/workspace_file_preview_kind.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
@@ -33,12 +34,14 @@ class WorkspaceEditorSurface extends ConsumerStatefulWidget {
     required this.workspace,
     required this.tab,
     required this.autofocus,
+    this.onOpenMermanPreview,
     required this.onOpenMarkdownViewerTab,
   });
 
   final Workspace workspace;
   final WorkspaceTabRecord tab;
   final bool autofocus;
+  final ValueChanged<String>? onOpenMermanPreview;
   final ValueChanged<String> onOpenMarkdownViewerTab;
 
   @override
@@ -202,15 +205,24 @@ class _WorkspaceEditorSurfaceState
             onDiscard: _document.isDirty && !_loading && !_saving
                 ? () => unawaited(_discardChanges())
                 : null,
-            onOpenPreview: isWorkspaceMarkdownFilePath(filePath)
-                ? () => widget.onOpenMarkdownViewerTab(filePath)
-                : null,
+            onOpenPreview: _openPreviewActionFor(filePath),
           ),
           const Divider(height: 1, color: AleraTokens.borderSubtle),
           Expanded(child: content),
         ],
       ),
     );
+  }
+
+  VoidCallback? _openPreviewActionFor(String filePath) {
+    if (isWorkspaceMermanFilePath(filePath) &&
+        widget.onOpenMermanPreview != null) {
+      return () => widget.onOpenMermanPreview?.call(filePath);
+    }
+    if (isWorkspaceMarkdownFilePath(filePath)) {
+      return () => widget.onOpenMarkdownViewerTab(filePath);
+    }
+    return null;
   }
 
   Future<void> _save() async {

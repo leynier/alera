@@ -15,6 +15,8 @@ class _WorkbenchPane extends StatelessWidget {
     required this.onCloseTab,
     required this.onCloseTabs,
     required this.onRenameTab,
+    required this.onOpenEditor,
+    required this.onOpenMermanPreview,
     required this.onMoveTab,
     required this.onSplitGroup,
     required this.onMergeGroup,
@@ -34,6 +36,8 @@ class _WorkbenchPane extends StatelessWidget {
   final ValueChanged<String> onCloseTab;
   final ValueChanged<List<String>> onCloseTabs;
   final RenameWorkspaceTabCallback onRenameTab;
+  final OpenWorkspaceFileCallback onOpenEditor;
+  final OpenWorkspaceFileCallback onOpenMermanPreview;
   final MoveWorkspaceTabCallback onMoveTab;
   final SplitWorkbenchGroupCallback onSplitGroup;
   final MergeWorkbenchGroupCallback onMergeGroup;
@@ -120,6 +124,9 @@ class _WorkbenchPane extends StatelessWidget {
                               targetGroupId: groupId,
                             ),
                           );
+                        },
+                        onOpenMermanPreview: (relativePath) {
+                          unawaited(onOpenMermanPreview(relativePath));
                         },
                       ),
               ),
@@ -221,6 +228,14 @@ bool workspaceTabUsesImagePreviewForTesting(WorkspaceTabRecord tab) {
 }
 
 @visibleForTesting
+bool workspaceTabUsesMermanPreviewForTesting(WorkspaceTabRecord tab) {
+  final filePath = tab.filePath;
+  return filePath != null &&
+      tab.isMermanPreview &&
+      isWorkspaceMermanFilePath(filePath);
+}
+
+@visibleForTesting
 bool workspaceTabUsesPdfViewerForTesting(WorkspaceTabRecord tab) {
   return tab.kind == WorkspaceTabKind.pdf;
 }
@@ -252,6 +267,7 @@ class _WorkspaceTabContent extends StatelessWidget {
     required this.terminalRuntime,
     required this.onOpenEditorTab,
     required this.onOpenMarkdownViewerTab,
+    required this.onOpenMermanPreview,
   });
 
   final Workspace workspace;
@@ -260,6 +276,7 @@ class _WorkspaceTabContent extends StatelessWidget {
   final TerminalRuntime terminalRuntime;
   final ValueChanged<String> onOpenEditorTab;
   final ValueChanged<String> onOpenMarkdownViewerTab;
+  final ValueChanged<String> onOpenMermanPreview;
 
   @override
   Widget build(BuildContext context) {
@@ -272,6 +289,8 @@ class _WorkspaceTabContent extends StatelessWidget {
         workspace: workspace,
         tab: tab,
         autofocus: autofocus,
+        onOpenEditor: onOpenEditorTab,
+        onOpenMermanPreview: onOpenMermanPreview,
         onOpenMarkdownViewerTab: onOpenMarkdownViewerTab,
       ),
       WorkspaceTabKind.markdownViewer => WorkspaceMarkdownViewerSurface(
@@ -300,12 +319,16 @@ class _WorkspaceFileTabContent extends StatelessWidget {
     required this.workspace,
     required this.tab,
     required this.autofocus,
+    required this.onOpenEditor,
+    required this.onOpenMermanPreview,
     required this.onOpenMarkdownViewerTab,
   });
 
   final Workspace workspace;
   final WorkspaceTabRecord tab;
   final bool autofocus;
+  final ValueChanged<String> onOpenEditor;
+  final ValueChanged<String> onOpenMermanPreview;
   final ValueChanged<String> onOpenMarkdownViewerTab;
 
   @override
@@ -318,10 +341,21 @@ class _WorkspaceFileTabContent extends StatelessWidget {
         autofocus: autofocus,
       );
     }
+    if (filePath != null &&
+        tab.isMermanPreview &&
+        isWorkspaceMermanFilePath(filePath)) {
+      return WorkspaceMermanViewerSurface(
+        workspace: workspace,
+        tab: tab,
+        autofocus: autofocus,
+        onOpenEditor: onOpenEditor,
+      );
+    }
     return WorkspaceEditorSurface(
       workspace: workspace,
       tab: tab,
       autofocus: autofocus,
+      onOpenMermanPreview: onOpenMermanPreview,
       onOpenMarkdownViewerTab: onOpenMarkdownViewerTab,
     );
   }

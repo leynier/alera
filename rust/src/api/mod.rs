@@ -1,5 +1,6 @@
 pub mod agent_hooks;
 pub mod git;
+pub mod merman_viewer;
 pub mod workspace_files;
 pub mod workspace_search;
 
