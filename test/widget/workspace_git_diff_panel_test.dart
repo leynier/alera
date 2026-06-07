@@ -417,6 +417,88 @@ void main() {
     expect(editableText.controller.text, isEmpty);
   });
 
+  testWidgets('amend opens head message and submits edited text', (
+    tester,
+  ) async {
+    final backend = FakeGitBackend()
+      ..gitRepositoryStateResult = const GitRepositoryState(
+        branch: 'main',
+        upstream: 'origin/main',
+        headMessage: 'previous commit message',
+      )
+      ..gitStatusResult = const GitStatusResult(
+        entries: <GitChangeEntry>[
+          GitChangeEntry(
+            path: 'lib/staged.dart',
+            area: GitChangeArea.staged,
+            status: GitChangeStatus.modified,
+          ),
+        ],
+      );
+
+    await _pumpPanel(tester, backend: backend);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Source control actions'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Commit amend'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Amend commit'), findsOneWidget);
+    final amendField = find.byWidgetPredicate(
+      (widget) =>
+          widget is TextField &&
+          widget.controller?.text == 'previous commit message',
+    );
+    expect(amendField, findsOneWidget);
+
+    await tester.enterText(amendField, 'edited commit message');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Amend'));
+    await tester.pumpAndSettle();
+
+    expect(
+      backend.calls.where((call) => call.method == 'amendCommit').single.args,
+      <String, Object?>{
+        'path': '/tmp/project',
+        'message': 'edited commit message',
+      },
+    );
+    expect(_messageEditable(tester).controller.text, isEmpty);
+  });
+
+  testWidgets('amend is disabled without staged changes', (tester) async {
+    final backend = FakeGitBackend()
+      ..gitRepositoryStateResult = const GitRepositoryState(
+        branch: 'main',
+        upstream: 'origin/main',
+        headMessage: 'previous commit message',
+      )
+      ..gitStatusResult = const GitStatusResult(
+        entries: <GitChangeEntry>[
+          GitChangeEntry(
+            path: 'lib/unstaged.dart',
+            area: GitChangeArea.unstaged,
+            status: GitChangeStatus.modified,
+          ),
+        ],
+      );
+
+    await _pumpPanel(tester, backend: backend);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Source control actions'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Commit amend'));
+    await tester.pumpAndSettle();
+
+    expect(
+      backend.calls.where((call) => call.method == 'amendCommit'),
+      isEmpty,
+    );
+    expect(find.text('Amend commit'), findsNothing);
+  });
+
   testWidgets('failed commit keeps the typed message', (tester) async {
     final backend = FakeGitBackend()
       ..commitError = const GitInternalException('index locked')

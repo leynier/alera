@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 part 'workspace_git_diff_panel_groups.dart';
+part 'workspace_git_diff_panel_amend_dialog.dart';
 part 'workspace_git_diff_panel_stash_dialog.dart';
 part 'workspace_git_diff_panel_toolbar.dart';
 part 'workspace_git_diff_panel_tree.dart';
@@ -162,6 +163,8 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
       case _SourceControlMenuAction.commitPush:
       case _SourceControlMenuAction.commitSync:
         await _commitAction(action);
+      case _SourceControlMenuAction.amend:
+        await _amendAction();
       case _SourceControlMenuAction.stageAll:
         await _stage(null);
       case _SourceControlMenuAction.unstageAll:
@@ -311,6 +314,28 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
       _messageController.clear();
       setState(() {});
     }
+  }
+
+  Future<void> _amendAction() async {
+    final state = ref
+        .read(workspaceSourceControlControllerProvider(widget.workspace.path))
+        .asData
+        ?.value;
+    final initialMessage = state?.repositoryState.headMessage;
+    if (initialMessage == null || initialMessage.trim().isEmpty) {
+      return;
+    }
+    final message = await showDialog<String>(
+      context: context,
+      builder: (_) => _AmendCommitDialog(initialMessage: initialMessage),
+    );
+    if (message == null || !mounted) {
+      return;
+    }
+    await _run(
+      () => _notifier.amendCommit(message),
+      successMessage: 'Commit amended',
+    );
   }
 
   bool _actionRequiresMessage(_SourceControlMenuAction action) {

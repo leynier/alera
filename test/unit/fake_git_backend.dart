@@ -88,6 +88,7 @@ class FakeGitBackend implements GitBackend {
   GitException? discardError;
   GitException? discardAreaError;
   GitException? commitError;
+  GitException? amendCommitError;
   GitException? fetchError;
   GitException? pullError;
   GitException? pushError;
@@ -408,6 +409,24 @@ class FakeGitBackend implements GitBackend {
       }),
     );
     final error = commitError;
+    if (error != null) {
+      throw error;
+    }
+    return gitCommitOid;
+  }
+
+  @override
+  Future<String> amendCommit({
+    required String path,
+    required String message,
+  }) async {
+    calls.add(
+      GitBackendCall('amendCommit', <String, Object?>{
+        'path': path,
+        'message': message,
+      }),
+    );
+    final error = amendCommitError;
     if (error != null) {
       throw error;
     }

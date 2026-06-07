@@ -96,6 +96,14 @@ Future<void> gitDiscardArea({
 Future<String> gitCommit({required String path, required String message}) =>
     RustLib.instance.api.crateApiGitGitCommit(path: path, message: message);
 
+Future<String> gitCommitAmend({
+  required String path,
+  required String message,
+}) => RustLib.instance.api.crateApiGitGitCommitAmend(
+  path: path,
+  message: message,
+);
+
 Future<void> gitFetch({required String path}) =>
     RustLib.instance.api.crateApiGitGitFetch(path: path);
 
@@ -428,6 +436,7 @@ class GitRepositoryState {
   final int ahead;
   final int behind;
   final bool hasConflicts;
+  final String? headMessage;
 
   const GitRepositoryState({
     required this.branch,
@@ -435,6 +444,7 @@ class GitRepositoryState {
     required this.ahead,
     required this.behind,
     required this.hasConflicts,
+    this.headMessage,
   });
 
   @override
@@ -443,7 +453,8 @@ class GitRepositoryState {
       upstream.hashCode ^
       ahead.hashCode ^
       behind.hashCode ^
-      hasConflicts.hashCode;
+      hasConflicts.hashCode ^
+      headMessage.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -454,7 +465,8 @@ class GitRepositoryState {
           upstream == other.upstream &&
           ahead == other.ahead &&
           behind == other.behind &&
-          hasConflicts == other.hasConflicts;
+          hasConflicts == other.hasConflicts &&
+          headMessage == other.headMessage;
 }
 
 class GitStashEntry {

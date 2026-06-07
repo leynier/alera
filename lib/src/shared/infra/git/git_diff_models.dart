@@ -47,6 +47,7 @@ class GitRepositoryState {
     this.ahead = 0,
     this.behind = 0,
     this.hasConflicts = false,
+    this.headMessage,
   });
 
   final String branch;
@@ -54,8 +55,10 @@ class GitRepositoryState {
   final int ahead;
   final int behind;
   final bool hasConflicts;
+  final String? headMessage;
 
   bool get hasUpstream => upstream != null && upstream!.isNotEmpty;
+  bool get hasHeadCommit => headMessage != null;
 }
 
 class GitStashEntry {

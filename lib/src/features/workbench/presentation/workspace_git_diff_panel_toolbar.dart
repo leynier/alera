@@ -223,6 +223,7 @@ class _SourceControlToolbar extends StatelessWidget {
       WorkspaceSourceControlAction.commit => 'committing',
       WorkspaceSourceControlAction.commitPush => 'committing and pushing',
       WorkspaceSourceControlAction.commitSync => 'committing and syncing',
+      WorkspaceSourceControlAction.amend => 'amending',
       WorkspaceSourceControlAction.fetch => 'fetching',
       WorkspaceSourceControlAction.pull => 'pulling',
       WorkspaceSourceControlAction.push => 'pushing',
@@ -238,6 +239,7 @@ enum _SourceControlMenuAction {
   commit,
   commitPush,
   commitSync,
+  amend,
   stageAll,
   unstageAll,
   discardAll,
@@ -427,6 +429,7 @@ class _PrimaryActionButton extends StatelessWidget {
     final hasStashes = state?.stashes.isNotEmpty ?? false;
     final hasConflicts = state?.repositoryState.hasConflicts ?? false;
     final hasUpstream = state?.repositoryState.hasUpstream ?? false;
+    final hasHeadCommit = state?.repositoryState.hasHeadCommit ?? false;
     final hasData = state != null;
     final branch = state?.repositoryState.branch;
     final canPublish =
@@ -449,6 +452,12 @@ class _PrimaryActionButton extends StatelessWidget {
         label: 'Commit & sync',
         enabled: hasStaged && !hasConflicts && hasUpstream,
         leading: const Icon(Icons.sync, size: 16),
+      ),
+      AleraDropdownEntry<_SourceControlMenuAction>(
+        value: _SourceControlMenuAction.amend,
+        label: 'Commit amend',
+        enabled: hasStaged && !hasConflicts && hasHeadCommit,
+        leading: const Icon(Icons.edit_outlined, size: 16),
       ),
       const PopupMenuDivider(height: AleraTokens.space8),
       AleraDropdownEntry<_SourceControlMenuAction>(
@@ -521,6 +530,7 @@ class _PrimaryActionButton extends StatelessWidget {
       _SourceControlMenuAction.commit => 'Commit',
       _SourceControlMenuAction.commitPush => 'Commit & push',
       _SourceControlMenuAction.commitSync => 'Commit & sync',
+      _SourceControlMenuAction.amend => 'Commit amend',
       _SourceControlMenuAction.stageAll => 'Stage all',
       _SourceControlMenuAction.unstageAll => 'Unstage all',
       _SourceControlMenuAction.discardAll => 'Discard all',
@@ -538,6 +548,7 @@ class _PrimaryActionButton extends StatelessWidget {
   IconData _actionIcon(_SourceControlMenuAction action) {
     return switch (action) {
       _SourceControlMenuAction.commit => Icons.check,
+      _SourceControlMenuAction.amend => Icons.edit_outlined,
       _SourceControlMenuAction.commitPush ||
       _SourceControlMenuAction.push => Icons.north,
       _SourceControlMenuAction.commitSync ||

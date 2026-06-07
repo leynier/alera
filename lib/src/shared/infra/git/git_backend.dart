@@ -119,6 +119,9 @@ abstract interface class GitBackend {
   /// Creates a commit from the currently staged index.
   Future<String> commit({required String path, required String message});
 
+  /// Amends the current HEAD commit using the currently staged index.
+  Future<String> amendCommit({required String path, required String message});
+
   Future<void> fetch(String path);
 
   Future<void> pull(String path);

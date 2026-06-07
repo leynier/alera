@@ -127,6 +127,7 @@ class RustGitBackend implements GitBackend {
       ahead: state.ahead,
       behind: state.behind,
       hasConflicts: state.hasConflicts,
+      headMessage: state.headMessage,
     );
   });
 
@@ -184,6 +185,10 @@ class RustGitBackend implements GitBackend {
   @override
   Future<String> commit({required String path, required String message}) =>
       _guard(() => rust.gitCommit(path: path, message: message));
+
+  @override
+  Future<String> amendCommit({required String path, required String message}) =>
+      _guard(() => rust.gitCommitAmend(path: path, message: message));
 
   @override
   Future<void> fetch(String path) => _guard(() => rust.gitFetch(path: path));

@@ -52,6 +52,7 @@ enum WorkspaceSourceControlAction {
   commit,
   commitPush,
   commitSync,
+  amend,
   fetch,
   pull,
   push,
@@ -151,6 +152,12 @@ class WorkspaceSourceControlController
         await backend.pull(workspacePath);
         await backend.push(workspacePath);
       });
+
+  Future<void> amendCommit(String message) => _run(
+    WorkspaceSourceControlAction.amend,
+    (backend) =>
+        backend.amendCommit(path: workspacePath, message: message.trim()),
+  );
 
   Future<void> fetch() => _run(
     WorkspaceSourceControlAction.fetch,

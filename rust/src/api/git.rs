@@ -21,6 +21,7 @@ pub struct GitRepositoryState {
     pub ahead: u32,
     pub behind: u32,
     pub has_conflicts: bool,
+    pub head_message: Option<String>,
 }
 
 pub struct GitStashEntry {
@@ -367,12 +368,20 @@ pub fn git_repository_state(path: String) -> Result<GitRepositoryState, GitError
         }
     }
 
+    let head_message = current_head_commit(&repo)?.and_then(|commit| {
+        commit
+            .message()
+            .ok()
+            .map(|message| message.trim_end_matches(['\r', '\n']).to_string())
+    });
+
     Ok(GitRepositoryState {
         branch,
         upstream,
         ahead,
         behind,
         has_conflicts: repository_has_conflicts(&repo)?,
+        head_message,
     })
 }
 
@@ -545,6 +554,60 @@ pub fn git_commit(path: String, message: String) -> Result<String, GitError> {
     if cleanup_state {
         repo.cleanup_state().map_err(GitError::from_git2)?;
     }
+    Ok(oid.to_string())
+}
+
+pub fn git_commit_amend(path: String, message: String) -> Result<String, GitError> {
+    let repo = open_repo(&path)?;
+    if repository_has_conflicts(&repo)? {
+        return Err(GitError::new(
+            GitErrorKind::Conflict,
+            "resolve conflicts before amending",
+        ));
+    }
+    let message = message.trim();
+    if message.is_empty() {
+        return Err(GitError::new(
+            GitErrorKind::NothingToCommit,
+            "empty message",
+        ));
+    }
+
+    let head = current_head_commit(&repo)?.ok_or_else(|| {
+        GitError::new(
+            GitErrorKind::NothingToCommit,
+            "no commit to amend on this branch",
+        )
+    })?;
+    if repo.state() != RepositoryState::Clean {
+        return Err(GitError::new(
+            GitErrorKind::Conflict,
+            "finish or abort the in-progress git operation before amending",
+        ));
+    }
+
+    let mut index = repo.index().map_err(GitError::from_git2)?;
+    reject_out_of_scope_staged_entries(&repo, &path, Some(&head), &index)?;
+    let tree_id = index.write_tree().map_err(GitError::from_git2)?;
+    if head.tree_id() == tree_id {
+        return Err(GitError::new(
+            GitErrorKind::NothingToCommit,
+            "no staged changes",
+        ));
+    }
+    let tree = repo.find_tree(tree_id).map_err(GitError::from_git2)?;
+    let author = head.author();
+    let committer = git_signature(&repo)?;
+    let oid = head
+        .amend(
+            Some("HEAD"),
+            Some(&author),
+            Some(&committer),
+            None,
+            Some(message),
+            Some(&tree),
+        )
+        .map_err(GitError::from_git2)?;
     Ok(oid.to_string())
 }
 
