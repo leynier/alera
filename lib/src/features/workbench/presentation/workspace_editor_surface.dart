@@ -35,12 +35,14 @@ class WorkspaceEditorSurface extends ConsumerStatefulWidget {
     required this.tab,
     required this.autofocus,
     this.onOpenMermanPreview,
+    required this.onOpenMarkdownViewerTab,
   });
 
   final Workspace workspace;
   final WorkspaceTabRecord tab;
   final bool autofocus;
   final ValueChanged<String>? onOpenMermanPreview;
+  final ValueChanged<String> onOpenMarkdownViewerTab;
 
   @override
   ConsumerState<WorkspaceEditorSurface> createState() =>
@@ -203,17 +205,24 @@ class _WorkspaceEditorSurfaceState
             onDiscard: _document.isDirty && !_loading && !_saving
                 ? () => unawaited(_discardChanges())
                 : null,
-            onOpenPreview:
-                isWorkspaceMermanFilePath(filePath) &&
-                    widget.onOpenMermanPreview != null
-                ? () => widget.onOpenMermanPreview?.call(filePath)
-                : null,
+            onOpenPreview: _openPreviewActionFor(filePath),
           ),
           const Divider(height: 1, color: AleraTokens.borderSubtle),
           Expanded(child: content),
         ],
       ),
     );
+  }
+
+  VoidCallback? _openPreviewActionFor(String filePath) {
+    if (isWorkspaceMermanFilePath(filePath) &&
+        widget.onOpenMermanPreview != null) {
+      return () => widget.onOpenMermanPreview?.call(filePath);
+    }
+    if (isWorkspaceMarkdownFilePath(filePath)) {
+      return () => widget.onOpenMarkdownViewerTab(filePath);
+    }
+    return null;
   }
 
   Future<void> _save() async {

@@ -10,6 +10,8 @@ class _WorkbenchLayoutView extends StatelessWidget {
     required this.terminalRuntime,
     required this.agentStatuses,
     required this.onCreateTab,
+    required this.onOpenEditorTab,
+    required this.onOpenMarkdownViewerTab,
     required this.onSelectTab,
     required this.onCloseTab,
     required this.onCloseTabs,
@@ -31,6 +33,8 @@ class _WorkbenchLayoutView extends StatelessWidget {
   final TerminalRuntime terminalRuntime;
   final Map<String, AgentStatusEntry> agentStatuses;
   final CreateTerminalTabCallback onCreateTab;
+  final OpenFileTabCallback onOpenEditorTab;
+  final OpenFileTabCallback onOpenMarkdownViewerTab;
   final SelectWorkspaceTabCallback onSelectTab;
   final ValueChanged<String> onCloseTab;
   final ValueChanged<List<String>> onCloseTabs;
@@ -55,6 +59,8 @@ class _WorkbenchLayoutView extends StatelessWidget {
         terminalRuntime: terminalRuntime,
         agentStatuses: agentStatuses,
         onCreateTab: onCreateTab,
+        onOpenEditorTab: onOpenEditorTab,
+        onOpenMarkdownViewerTab: onOpenMarkdownViewerTab,
         onSelectTab: onSelectTab,
         onCloseTab: onCloseTab,
         onCloseTabs: onCloseTabs,
@@ -76,6 +82,8 @@ class _WorkbenchLayoutView extends StatelessWidget {
       terminalRuntime: terminalRuntime,
       agentStatuses: agentStatuses,
       onCreateTab: onCreateTab,
+      onOpenEditorTab: onOpenEditorTab,
+      onOpenMarkdownViewerTab: onOpenMarkdownViewerTab,
       onSelectTab: onSelectTab,
       onCloseTab: onCloseTab,
       onCloseTabs: onCloseTabs,
@@ -101,6 +109,8 @@ class _WorkbenchSplitView extends StatelessWidget {
     required this.terminalRuntime,
     required this.agentStatuses,
     required this.onCreateTab,
+    required this.onOpenEditorTab,
+    required this.onOpenMarkdownViewerTab,
     required this.onSelectTab,
     required this.onCloseTab,
     required this.onCloseTabs,
@@ -122,6 +132,8 @@ class _WorkbenchSplitView extends StatelessWidget {
   final TerminalRuntime terminalRuntime;
   final Map<String, AgentStatusEntry> agentStatuses;
   final CreateTerminalTabCallback onCreateTab;
+  final OpenFileTabCallback onOpenEditorTab;
+  final OpenFileTabCallback onOpenMarkdownViewerTab;
   final SelectWorkspaceTabCallback onSelectTab;
   final ValueChanged<String> onCloseTab;
   final ValueChanged<List<String>> onCloseTabs;
@@ -146,6 +158,8 @@ class _WorkbenchSplitView extends StatelessWidget {
       terminalRuntime: terminalRuntime,
       agentStatuses: agentStatuses,
       onCreateTab: onCreateTab,
+      onOpenEditorTab: onOpenEditorTab,
+      onOpenMarkdownViewerTab: onOpenMarkdownViewerTab,
       onSelectTab: onSelectTab,
       onCloseTab: onCloseTab,
       onCloseTabs: onCloseTabs,
@@ -167,6 +181,8 @@ class _WorkbenchSplitView extends StatelessWidget {
       terminalRuntime: terminalRuntime,
       agentStatuses: agentStatuses,
       onCreateTab: onCreateTab,
+      onOpenEditorTab: onOpenEditorTab,
+      onOpenMarkdownViewerTab: onOpenMarkdownViewerTab,
       onSelectTab: onSelectTab,
       onCloseTab: onCloseTab,
       onCloseTabs: onCloseTabs,

@@ -9,6 +9,8 @@ class _WorkbenchPane extends StatelessWidget {
     required this.terminalRuntime,
     required this.agentStatuses,
     required this.onCreateTab,
+    required this.onOpenEditorTab,
+    required this.onOpenMarkdownViewerTab,
     required this.onSelectTab,
     required this.onCloseTab,
     required this.onCloseTabs,
@@ -28,6 +30,8 @@ class _WorkbenchPane extends StatelessWidget {
   final TerminalRuntime terminalRuntime;
   final Map<String, AgentStatusEntry> agentStatuses;
   final CreateTerminalTabCallback onCreateTab;
+  final OpenFileTabCallback onOpenEditorTab;
+  final OpenFileTabCallback onOpenMarkdownViewerTab;
   final SelectWorkspaceTabCallback onSelectTab;
   final ValueChanged<String> onCloseTab;
   final ValueChanged<List<String>> onCloseTabs;
@@ -105,8 +109,25 @@ class _WorkbenchPane extends StatelessWidget {
                         tab: activeTab,
                         autofocus: layout.activeGroupId == groupId,
                         terminalRuntime: terminalRuntime,
-                        onOpenEditor: onOpenEditor,
-                        onOpenMermanPreview: onOpenMermanPreview,
+                        onOpenEditorTab: (relativePath) {
+                          unawaited(
+                            onOpenEditorTab(
+                              relativePath: relativePath,
+                              targetGroupId: groupId,
+                            ),
+                          );
+                        },
+                        onOpenMarkdownViewerTab: (relativePath) {
+                          unawaited(
+                            onOpenMarkdownViewerTab(
+                              relativePath: relativePath,
+                              targetGroupId: groupId,
+                            ),
+                          );
+                        },
+                        onOpenMermanPreview: (relativePath) {
+                          unawaited(onOpenMermanPreview(relativePath));
+                        },
                       ),
               ),
             ],
@@ -244,7 +265,8 @@ class _WorkspaceTabContent extends StatelessWidget {
     required this.tab,
     required this.autofocus,
     required this.terminalRuntime,
-    required this.onOpenEditor,
+    required this.onOpenEditorTab,
+    required this.onOpenMarkdownViewerTab,
     required this.onOpenMermanPreview,
   });
 
@@ -252,8 +274,9 @@ class _WorkspaceTabContent extends StatelessWidget {
   final WorkspaceTabRecord tab;
   final bool autofocus;
   final TerminalRuntime terminalRuntime;
-  final OpenWorkspaceFileCallback onOpenEditor;
-  final OpenWorkspaceFileCallback onOpenMermanPreview;
+  final ValueChanged<String> onOpenEditorTab;
+  final ValueChanged<String> onOpenMarkdownViewerTab;
+  final ValueChanged<String> onOpenMermanPreview;
 
   @override
   Widget build(BuildContext context) {
@@ -266,8 +289,14 @@ class _WorkspaceTabContent extends StatelessWidget {
         workspace: workspace,
         tab: tab,
         autofocus: autofocus,
-        onOpenEditor: onOpenEditor,
+        onOpenEditor: onOpenEditorTab,
         onOpenMermanPreview: onOpenMermanPreview,
+        onOpenMarkdownViewerTab: onOpenMarkdownViewerTab,
+      ),
+      WorkspaceTabKind.markdownViewer => WorkspaceMarkdownViewerSurface(
+        workspace: workspace,
+        tab: tab,
+        onOpenEditorTab: onOpenEditorTab,
       ),
       WorkspaceTabKind.pdf => WorkspacePdfViewerSurface(
         workspace: workspace,
@@ -292,13 +321,15 @@ class _WorkspaceFileTabContent extends StatelessWidget {
     required this.autofocus,
     required this.onOpenEditor,
     required this.onOpenMermanPreview,
+    required this.onOpenMarkdownViewerTab,
   });
 
   final Workspace workspace;
   final WorkspaceTabRecord tab;
   final bool autofocus;
-  final OpenWorkspaceFileCallback onOpenEditor;
-  final OpenWorkspaceFileCallback onOpenMermanPreview;
+  final ValueChanged<String> onOpenEditor;
+  final ValueChanged<String> onOpenMermanPreview;
+  final ValueChanged<String> onOpenMarkdownViewerTab;
 
   @override
   Widget build(BuildContext context) {
@@ -317,15 +348,15 @@ class _WorkspaceFileTabContent extends StatelessWidget {
         workspace: workspace,
         tab: tab,
         autofocus: autofocus,
-        onOpenEditor: (relativePath) => unawaited(onOpenEditor(relativePath)),
+        onOpenEditor: onOpenEditor,
       );
     }
     return WorkspaceEditorSurface(
       workspace: workspace,
       tab: tab,
       autofocus: autofocus,
-      onOpenMermanPreview: (relativePath) =>
-          unawaited(onOpenMermanPreview(relativePath)),
+      onOpenMermanPreview: onOpenMermanPreview,
+      onOpenMarkdownViewerTab: onOpenMarkdownViewerTab,
     );
   }
 }

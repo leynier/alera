@@ -7,6 +7,7 @@ part 'workspace_tab_record.mapper.dart';
 enum WorkspaceTabKind {
   terminal('terminal'),
   editor('editor'),
+  markdownViewer('markdownViewer'),
   pdf('pdf'),
   gitDiff('gitDiff'),
   browser('browser');
@@ -60,6 +61,9 @@ enum WorkspaceGitDiffScope {
     return null;
   }
 }
+
+bool isWorkspaceMarkdownFilePath(String path) =>
+    path.toLowerCase().endsWith('.md');
 
 @MappableClass()
 class WorkspaceTabRecord with WorkspaceTabRecordMappable {
