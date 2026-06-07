@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:alera/src/rust/api/workspace_files.dart' as native;
+import 'package:alera/src/rust/api/merman_viewer.dart' as merman_native;
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
@@ -66,6 +67,16 @@ class WorkspaceFileService {
     required String relativePath,
   }) {
     return native.readWorkspaceTextFile(
+      workspacePath: workspacePath,
+      relativePath: relativePath,
+    );
+  }
+
+  Future<merman_native.MermanWorkspaceRender> renderMermanWorkspaceFile({
+    required String workspacePath,
+    required String relativePath,
+  }) {
+    return merman_native.renderMermanWorkspaceFile(
       workspacePath: workspacePath,
       relativePath: relativePath,
     );

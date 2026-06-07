@@ -267,6 +267,18 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
       onRenameTab: ({required tabId, required title}) async {
         await controller.renameWorkspaceTab(tabId: tabId, title: title);
       },
+      onOpenEditor: (relativePath) async {
+        await controller.openEditorTab(
+          workspace: workspace,
+          relativePath: relativePath,
+        );
+      },
+      onOpenMermanPreview: (relativePath) async {
+        await controller.openMermanPreviewTab(
+          workspace: workspace,
+          relativePath: relativePath,
+        );
+      },
       onMoveTab:
           ({required tabId, required targetGroupId, required zone}) async {
             await controller.moveWorkspaceTab(

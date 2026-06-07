@@ -13,6 +13,8 @@ class _WorkbenchPane extends StatelessWidget {
     required this.onCloseTab,
     required this.onCloseTabs,
     required this.onRenameTab,
+    required this.onOpenEditor,
+    required this.onOpenMermanPreview,
     required this.onMoveTab,
     required this.onSplitGroup,
     required this.onMergeGroup,
@@ -30,6 +32,8 @@ class _WorkbenchPane extends StatelessWidget {
   final ValueChanged<String> onCloseTab;
   final ValueChanged<List<String>> onCloseTabs;
   final RenameWorkspaceTabCallback onRenameTab;
+  final OpenWorkspaceFileCallback onOpenEditor;
+  final OpenWorkspaceFileCallback onOpenMermanPreview;
   final MoveWorkspaceTabCallback onMoveTab;
   final SplitWorkbenchGroupCallback onSplitGroup;
   final MergeWorkbenchGroupCallback onMergeGroup;
@@ -101,6 +105,8 @@ class _WorkbenchPane extends StatelessWidget {
                         tab: activeTab,
                         autofocus: layout.activeGroupId == groupId,
                         terminalRuntime: terminalRuntime,
+                        onOpenEditor: onOpenEditor,
+                        onOpenMermanPreview: onOpenMermanPreview,
                       ),
               ),
             ],
@@ -200,6 +206,14 @@ bool workspaceTabUsesImagePreviewForTesting(WorkspaceTabRecord tab) {
   return filePath != null && isWorkspaceImageFilePath(filePath);
 }
 
+@visibleForTesting
+bool workspaceTabUsesMermanPreviewForTesting(WorkspaceTabRecord tab) {
+  final filePath = tab.filePath;
+  return filePath != null &&
+      tab.isMermanPreview &&
+      isWorkspaceMermanFilePath(filePath);
+}
+
 Rect _centerDropRect(Size paneSize) {
   const centerWidthFactor = 0.36;
   const centerHeightFactor = 0.36;
@@ -225,12 +239,16 @@ class _WorkspaceTabContent extends StatelessWidget {
     required this.tab,
     required this.autofocus,
     required this.terminalRuntime,
+    required this.onOpenEditor,
+    required this.onOpenMermanPreview,
   });
 
   final Workspace workspace;
   final WorkspaceTabRecord tab;
   final bool autofocus;
   final TerminalRuntime terminalRuntime;
+  final OpenWorkspaceFileCallback onOpenEditor;
+  final OpenWorkspaceFileCallback onOpenMermanPreview;
 
   @override
   Widget build(BuildContext context) {
@@ -243,6 +261,8 @@ class _WorkspaceTabContent extends StatelessWidget {
         workspace: workspace,
         tab: tab,
         autofocus: autofocus,
+        onOpenEditor: onOpenEditor,
+        onOpenMermanPreview: onOpenMermanPreview,
       ),
       WorkspaceTabKind.browser => const Center(
         child: CircularProgressIndicator(),
@@ -256,11 +276,15 @@ class _WorkspaceFileTabContent extends StatelessWidget {
     required this.workspace,
     required this.tab,
     required this.autofocus,
+    required this.onOpenEditor,
+    required this.onOpenMermanPreview,
   });
 
   final Workspace workspace;
   final WorkspaceTabRecord tab;
   final bool autofocus;
+  final OpenWorkspaceFileCallback onOpenEditor;
+  final OpenWorkspaceFileCallback onOpenMermanPreview;
 
   @override
   Widget build(BuildContext context) {
@@ -272,10 +296,22 @@ class _WorkspaceFileTabContent extends StatelessWidget {
         autofocus: autofocus,
       );
     }
+    if (filePath != null &&
+        tab.isMermanPreview &&
+        isWorkspaceMermanFilePath(filePath)) {
+      return WorkspaceMermanViewerSurface(
+        workspace: workspace,
+        tab: tab,
+        autofocus: autofocus,
+        onOpenEditor: (relativePath) => unawaited(onOpenEditor(relativePath)),
+      );
+    }
     return WorkspaceEditorSurface(
       workspace: workspace,
       tab: tab,
       autofocus: autofocus,
+      onOpenMermanPreview: (relativePath) =>
+          unawaited(onOpenMermanPreview(relativePath)),
     );
   }
 }

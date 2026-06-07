@@ -150,6 +150,126 @@ void _registerWorkbenchControllerLifecycleTests() {
     expect(_controller.state.activeWorkspaceTab?.hasManualTitle, isTrue);
   });
 
+  test('opens merman preview as a separate tab from the editor', () async {
+    await _controller.bootstrap();
+    final workspace = await _selectMainWorkspace(_controller, _harness);
+
+    final editor = await _controller.openEditorTab(
+      workspace: workspace,
+      relativePath: 'docs/diagram.mmd',
+    );
+    final preview = await _controller.openMermanPreviewTab(
+      workspace: workspace,
+      relativePath: 'docs/diagram.mmd',
+    );
+    await _flush();
+
+    expect(editor.id, isNot(preview.id));
+    expect(editor.isMermanPreview, isFalse);
+    expect(preview.isMermanPreview, isTrue);
+    expect(preview.title, 'diagram.mmd preview');
+    expect(
+      _controller.state.tabsFor(workspace.id).map((tab) => tab.id),
+      containsAll(<String>[editor.id, preview.id]),
+    );
+    expect(_controller.state.activeWorkspaceTab?.id, preview.id);
+
+    final reopenedEditor = await _controller.openEditorTab(
+      workspace: workspace,
+      relativePath: 'docs/diagram.mmd',
+    );
+    await _flush();
+
+    expect(reopenedEditor.id, editor.id);
+    expect(_controller.state.activeWorkspaceTab?.id, editor.id);
+    expect(_controller.state.tabsFor(workspace.id), hasLength(3));
+  });
+
+  test(
+    'opening editor from preview recreates the editor tab if needed',
+    () async {
+      await _controller.bootstrap();
+      final workspace = await _selectMainWorkspace(_controller, _harness);
+
+      final editor = await _controller.openEditorTab(
+        workspace: workspace,
+        relativePath: 'docs/diagram.mmd',
+      );
+      final preview = await _controller.openMermanPreviewTab(
+        workspace: workspace,
+        relativePath: 'docs/diagram.mmd',
+      );
+      await _controller.closeWorkspaceTab(
+        workspace: workspace,
+        tabId: editor.id,
+      );
+      await _flush();
+
+      final recreated = await _controller.openEditorTab(
+        workspace: workspace,
+        relativePath: 'docs/diagram.mmd',
+      );
+      await _flush();
+
+      expect(recreated.id, isNot(editor.id));
+      expect(recreated.isMermanPreview, isFalse);
+      expect(_controller.state.activeWorkspaceTab?.id, recreated.id);
+      expect(
+        _controller.state.tabsFor(workspace.id).map((tab) => tab.id),
+        containsAll(<String>[preview.id, recreated.id]),
+      );
+    },
+  );
+
+  test(
+    'syncing a merman rename to text removes redundant preview tabs from state and layout',
+    () async {
+      await _controller.bootstrap();
+      final workspace = await _selectMainWorkspace(_controller, _harness);
+
+      final editor = await _controller.openEditorTab(
+        workspace: workspace,
+        relativePath: 'docs/diagram.mmd',
+      );
+      final preview = await _controller.openMermanPreviewTab(
+        workspace: workspace,
+        relativePath: 'docs/diagram.mmd',
+      );
+      await _flush();
+
+      await _controller.syncEditorTabsAfterPathMove(
+        workspace: workspace,
+        oldRelativePath: 'docs/diagram.mmd',
+        newRelativePath: 'docs/diagram.txt',
+      );
+      await _flush();
+
+      final tabs = _controller.state.tabsFor(workspace.id);
+      expect(tabs.map((tab) => tab.id), isNot(contains(preview.id)));
+      expect(
+        tabs.singleWhere((tab) => tab.id == editor.id).filePath,
+        'docs/diagram.txt',
+      );
+      expect(
+        tabs.singleWhere((tab) => tab.id == editor.id).isMermanPreview,
+        isFalse,
+      );
+      final layout = _controller.state.layoutFor(workspace.id);
+      expect(
+        layout?.groups.values.expand((group) => group.tabIds),
+        isNot(contains(preview.id)),
+      );
+      expect(
+        _harness.workbenchRepository
+            .peekWorkbenchLayout(workspace.id)
+            ?.groups
+            .values
+            .expand((group) => group.tabIds),
+        isNot(contains(preview.id)),
+      );
+    },
+  );
+
   test(
     'deleting a workspace removes it from state without lingering',
     () async {

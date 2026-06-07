@@ -1,6 +1,19 @@
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
+import 'package:alera/src/features/workbench/application/workspace_file_preview_kind.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:uuid/uuid.dart';
+
+class WorkspaceTabPathMoveResult {
+  const WorkspaceTabPathMoveResult({
+    required this.updatedTabs,
+    required this.removedTabIds,
+  });
+
+  final List<WorkspaceTabRecord> updatedTabs;
+  final List<String> removedTabIds;
+
+  bool get isEmpty => updatedTabs.isEmpty && removedTabIds.isEmpty;
+}
 
 class WorkspaceTabService {
   factory WorkspaceTabService({
@@ -62,6 +75,7 @@ class WorkspaceTabService {
     final existing = await _repository.listWorkspaceTabs(workspaceId);
     for (final tab in existing) {
       if (tab.kind == WorkspaceTabKind.editor &&
+          !tab.isMermanPreview &&
           tab.payload[workspaceTabFilePathPayloadKey] == normalizedPath) {
         return tab;
       }
@@ -75,6 +89,35 @@ class WorkspaceTabService {
       updatedAt: _now(),
       payload: <String, Object?>{
         workspaceTabFilePathPayloadKey: normalizedPath,
+      },
+    );
+    await _repository.upsertWorkspaceTab(tab);
+    return tab;
+  }
+
+  Future<WorkspaceTabRecord> openOrCreateMermanPreviewTab({
+    required String workspaceId,
+    required String relativePath,
+  }) async {
+    final normalizedPath = _normalizeRelativePath(relativePath);
+    final existing = await _repository.listWorkspaceTabs(workspaceId);
+    for (final tab in existing) {
+      if (tab.kind == WorkspaceTabKind.editor &&
+          tab.isMermanPreview &&
+          tab.payload[workspaceTabFilePathPayloadKey] == normalizedPath) {
+        return tab;
+      }
+    }
+    final tab = WorkspaceTabRecord(
+      id: _uuid.v4(),
+      workspaceId: workspaceId,
+      kind: WorkspaceTabKind.editor,
+      title: _previewTitleForPath(normalizedPath),
+      createdAt: _now(),
+      updatedAt: _now(),
+      payload: <String, Object?>{
+        workspaceTabFilePathPayloadKey: normalizedPath,
+        workspaceTabFileRolePayloadKey: workspaceTabFileRoleMermanPreview,
       },
     );
     await _repository.upsertWorkspaceTab(tab);
@@ -109,7 +152,7 @@ class WorkspaceTabService {
     return next;
   }
 
-  Future<List<WorkspaceTabRecord>> updateEditorPathsAfterMove({
+  Future<WorkspaceTabPathMoveResult> updateEditorPathsAfterMove({
     required String workspaceId,
     required String oldRelativePath,
     required String newRelativePath,
@@ -118,6 +161,23 @@ class WorkspaceTabService {
     final newPath = _normalizeRelativePath(newRelativePath);
     final tabs = await _repository.listWorkspaceTabs(workspaceId);
     final updated = <WorkspaceTabRecord>[];
+    final removed = <String>[];
+    final normalEditorPaths = <String>{};
+    for (final tab in tabs) {
+      if (tab.kind == WorkspaceTabKind.editor && !tab.isMermanPreview) {
+        final filePath = tab.filePath;
+        if (filePath != null) {
+          normalEditorPaths.add(
+            _replacePathPrefix(
+                  path: filePath,
+                  oldPath: oldPath,
+                  newPath: newPath,
+                ) ??
+                filePath,
+          );
+        }
+      }
+    }
     for (final tab in tabs) {
       if (tab.kind != WorkspaceTabKind.editor) {
         continue;
@@ -134,8 +194,30 @@ class WorkspaceTabService {
       if (nextPath == null || nextPath == filePath) {
         continue;
       }
+      if (tab.isMermanPreview && !isWorkspaceMermanFilePath(nextPath)) {
+        if (normalEditorPaths.contains(nextPath)) {
+          await _repository.removeWorkspaceTab(tab.id);
+          removed.add(tab.id);
+          continue;
+        }
+        final nextPayload = <String, Object?>{
+          ...tab.payload,
+          workspaceTabFilePathPayloadKey: nextPath,
+        }..remove(workspaceTabFileRolePayloadKey);
+        final next = tab.copyWith(
+          title: _titleForPath(nextPath),
+          updatedAt: _now(),
+          payload: nextPayload,
+        );
+        await _repository.upsertWorkspaceTab(next);
+        updated.add(next);
+        normalEditorPaths.add(nextPath);
+        continue;
+      }
       final next = tab.copyWith(
-        title: _titleForPath(nextPath),
+        title: tab.isMermanPreview
+            ? _previewTitleForPath(nextPath)
+            : _titleForPath(nextPath),
         updatedAt: _now(),
         payload: <String, Object?>{
           ...tab.payload,
@@ -145,7 +227,10 @@ class WorkspaceTabService {
       await _repository.upsertWorkspaceTab(next);
       updated.add(next);
     }
-    return updated;
+    return WorkspaceTabPathMoveResult(
+      updatedTabs: List<WorkspaceTabRecord>.unmodifiable(updated),
+      removedTabIds: List<String>.unmodifiable(removed),
+    );
   }
 
   int _nextOrdinal(List<WorkspaceTabRecord> tabs) {
@@ -179,6 +264,10 @@ class WorkspaceTabService {
   String _titleForPath(String path) {
     final parts = path.split('/');
     return parts.isEmpty ? path : parts.last;
+  }
+
+  String _previewTitleForPath(String path) {
+    return '${_titleForPath(path)} preview';
   }
 
   String? _replacePathPrefix({

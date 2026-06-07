@@ -14,6 +14,8 @@ class _WorkbenchLayoutView extends StatelessWidget {
     required this.onCloseTab,
     required this.onCloseTabs,
     required this.onRenameTab,
+    required this.onOpenEditor,
+    required this.onOpenMermanPreview,
     required this.onMoveTab,
     required this.onSplitGroup,
     required this.onMergeGroup,
@@ -33,6 +35,8 @@ class _WorkbenchLayoutView extends StatelessWidget {
   final ValueChanged<String> onCloseTab;
   final ValueChanged<List<String>> onCloseTabs;
   final RenameWorkspaceTabCallback onRenameTab;
+  final OpenWorkspaceFileCallback onOpenEditor;
+  final OpenWorkspaceFileCallback onOpenMermanPreview;
   final MoveWorkspaceTabCallback onMoveTab;
   final SplitWorkbenchGroupCallback onSplitGroup;
   final MergeWorkbenchGroupCallback onMergeGroup;
@@ -55,6 +59,8 @@ class _WorkbenchLayoutView extends StatelessWidget {
         onCloseTab: onCloseTab,
         onCloseTabs: onCloseTabs,
         onRenameTab: onRenameTab,
+        onOpenEditor: onOpenEditor,
+        onOpenMermanPreview: onOpenMermanPreview,
         onMoveTab: onMoveTab,
         onSplitGroup: onSplitGroup,
         onMergeGroup: onMergeGroup,
@@ -74,6 +80,8 @@ class _WorkbenchLayoutView extends StatelessWidget {
       onCloseTab: onCloseTab,
       onCloseTabs: onCloseTabs,
       onRenameTab: onRenameTab,
+      onOpenEditor: onOpenEditor,
+      onOpenMermanPreview: onOpenMermanPreview,
       onMoveTab: onMoveTab,
       onSplitGroup: onSplitGroup,
       onMergeGroup: onMergeGroup,
@@ -97,6 +105,8 @@ class _WorkbenchSplitView extends StatelessWidget {
     required this.onCloseTab,
     required this.onCloseTabs,
     required this.onRenameTab,
+    required this.onOpenEditor,
+    required this.onOpenMermanPreview,
     required this.onMoveTab,
     required this.onSplitGroup,
     required this.onMergeGroup,
@@ -116,6 +126,8 @@ class _WorkbenchSplitView extends StatelessWidget {
   final ValueChanged<String> onCloseTab;
   final ValueChanged<List<String>> onCloseTabs;
   final RenameWorkspaceTabCallback onRenameTab;
+  final OpenWorkspaceFileCallback onOpenEditor;
+  final OpenWorkspaceFileCallback onOpenMermanPreview;
   final MoveWorkspaceTabCallback onMoveTab;
   final SplitWorkbenchGroupCallback onSplitGroup;
   final MergeWorkbenchGroupCallback onMergeGroup;
@@ -138,6 +150,8 @@ class _WorkbenchSplitView extends StatelessWidget {
       onCloseTab: onCloseTab,
       onCloseTabs: onCloseTabs,
       onRenameTab: onRenameTab,
+      onOpenEditor: onOpenEditor,
+      onOpenMermanPreview: onOpenMermanPreview,
       onMoveTab: onMoveTab,
       onSplitGroup: onSplitGroup,
       onMergeGroup: onMergeGroup,
@@ -157,6 +171,8 @@ class _WorkbenchSplitView extends StatelessWidget {
       onCloseTab: onCloseTab,
       onCloseTabs: onCloseTabs,
       onRenameTab: onRenameTab,
+      onOpenEditor: onOpenEditor,
+      onOpenMermanPreview: onOpenMermanPreview,
       onMoveTab: onMoveTab,
       onSplitGroup: onSplitGroup,
       onMergeGroup: onMergeGroup,

@@ -47,6 +47,8 @@ Future<void> _pumpWorkbenchView(
                   ({required String tabId, required String title}) async {
                     renamedTabs.add(title);
                   },
+              onOpenEditor: (_) async {},
+              onOpenMermanPreview: (_) async {},
               onMoveTab:
                   ({
                     required String tabId,
@@ -116,10 +118,15 @@ WorkspaceTabRecord _tab(
   required String title,
   WorkspaceTabKind kind = WorkspaceTabKind.terminal,
   String? filePath,
+  bool mermanPreview = false,
 }) {
   final payload = filePath == null
       ? const <String, Object?>{}
-      : <String, Object?>{workspaceTabFilePathPayloadKey: filePath};
+      : <String, Object?>{
+          workspaceTabFilePathPayloadKey: filePath,
+          if (mermanPreview)
+            workspaceTabFileRolePayloadKey: workspaceTabFileRoleMermanPreview,
+        };
   return WorkspaceTabRecord(
     id: id,
     workspaceId: _workspaceId,

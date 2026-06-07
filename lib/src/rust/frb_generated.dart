@@ -5,6 +5,7 @@
 
 import 'api/agent_hooks.dart';
 import 'api/git.dart';
+import 'api/merman_viewer.dart';
 import 'api/workspace_files.dart';
 import 'api/workspace_search.dart';
 import 'dart:async';
@@ -69,7 +70,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => -1399821637;
+  int get rustContentHash => -820142189;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -189,6 +190,11 @@ abstract class RustLibApi extends BaseApi {
     required String workspacePath,
     required String relativePath,
     required String newName,
+  });
+
+  Future<MermanWorkspaceRender> crateApiMermanViewerRenderMermanWorkspaceFile({
+    required String workspacePath,
+    required String relativePath,
   });
 
   Future<WorkspaceReplaceResult>
@@ -1031,6 +1037,41 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<MermanWorkspaceRender> crateApiMermanViewerRenderMermanWorkspaceFile({
+    required String workspacePath,
+    required String relativePath,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(workspacePath, serializer);
+          sse_encode_String(relativePath, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 23,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_merman_workspace_render,
+          decodeErrorData: sse_decode_merman_viewer_error,
+        ),
+        constMeta: kCrateApiMermanViewerRenderMermanWorkspaceFileConstMeta,
+        argValues: [workspacePath, relativePath],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiMermanViewerRenderMermanWorkspaceFileConstMeta =>
+      const TaskConstMeta(
+        debugName: "render_merman_workspace_file",
+        argNames: ["workspacePath", "relativePath"],
+      );
+
+  @override
   Future<WorkspaceReplaceResult>
   crateApiWorkspaceSearchReplaceWorkspaceMatches({
     required WorkspaceReplaceRequest request,
@@ -1043,7 +1084,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 23,
+            funcId: 24,
             port: port_,
           );
         },
@@ -1076,7 +1117,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 24,
+            funcId: 25,
             port: port_,
           );
         },
@@ -1106,7 +1147,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 25,
+            funcId: 26,
             port: port_,
           );
         },
@@ -1141,7 +1182,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 26,
+            funcId: 27,
             port: port_,
           );
         },
@@ -1175,7 +1216,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 27,
+            funcId: 28,
             port: port_,
           );
         },
@@ -1207,7 +1248,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 28,
+            funcId: 29,
             port: port_,
           );
         },
@@ -1240,7 +1281,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 29,
+            funcId: 30,
             port: port_,
           );
         },
@@ -1279,7 +1320,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 30,
+            funcId: 31,
             port: port_,
           );
         },
@@ -1318,7 +1359,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 31,
+              funcId: 32,
               port: port_,
             );
           },
@@ -1363,7 +1404,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 32,
+              funcId: 33,
               port: port_,
             );
           },
@@ -1415,7 +1456,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 33,
+            funcId: 34,
             port: port_,
           );
         },
@@ -1475,7 +1516,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 34,
+            funcId: 35,
             port: port_,
           );
         },
@@ -1768,6 +1809,38 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return (raw as List<dynamic>)
         .map(dco_decode_workspace_search_match)
         .toList();
+  }
+
+  @protected
+  MermanViewerError dco_decode_merman_viewer_error(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return MermanViewerError(
+      kind: dco_decode_merman_viewer_error_kind(arr[0]),
+      context: dco_decode_String(arr[1]),
+    );
+  }
+
+  @protected
+  MermanViewerErrorKind dco_decode_merman_viewer_error_kind(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return MermanViewerErrorKind.values[raw as int];
+  }
+
+  @protected
+  MermanWorkspaceRender dco_decode_merman_workspace_render(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return MermanWorkspaceRender(
+      svg: dco_decode_String(arr[0]),
+      contentToken: dco_decode_String(arr[1]),
+      modifiedMillis: dco_decode_i_64(arr[2]),
+      size: dco_decode_u_64(arr[3]),
+    );
   }
 
   @protected
@@ -2511,6 +2584,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       ans_.add(sse_decode_workspace_search_match(deserializer));
     }
     return ans_;
+  }
+
+  @protected
+  MermanViewerError sse_decode_merman_viewer_error(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_kind = sse_decode_merman_viewer_error_kind(deserializer);
+    var var_context = sse_decode_String(deserializer);
+    return MermanViewerError(kind: var_kind, context: var_context);
+  }
+
+  @protected
+  MermanViewerErrorKind sse_decode_merman_viewer_error_kind(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return MermanViewerErrorKind.values[inner];
+  }
+
+  @protected
+  MermanWorkspaceRender sse_decode_merman_workspace_render(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_svg = sse_decode_String(deserializer);
+    var var_contentToken = sse_decode_String(deserializer);
+    var var_modifiedMillis = sse_decode_i_64(deserializer);
+    var var_size = sse_decode_u_64(deserializer);
+    return MermanWorkspaceRender(
+      svg: var_svg,
+      contentToken: var_contentToken,
+      modifiedMillis: var_modifiedMillis,
+      size: var_size,
+    );
   }
 
   @protected
@@ -3322,6 +3431,37 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     for (final item in self) {
       sse_encode_workspace_search_match(item, serializer);
     }
+  }
+
+  @protected
+  void sse_encode_merman_viewer_error(
+    MermanViewerError self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_merman_viewer_error_kind(self.kind, serializer);
+    sse_encode_String(self.context, serializer);
+  }
+
+  @protected
+  void sse_encode_merman_viewer_error_kind(
+    MermanViewerErrorKind self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_merman_workspace_render(
+    MermanWorkspaceRender self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.svg, serializer);
+    sse_encode_String(self.contentToken, serializer);
+    sse_encode_i_64(self.modifiedMillis, serializer);
+    sse_encode_u_64(self.size, serializer);
   }
 
   @protected

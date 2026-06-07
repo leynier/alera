@@ -58,6 +58,41 @@ mixin _WorkbenchControllerTabs
     }
   }
 
+  Future<WorkspaceTabRecord> openMermanPreviewTab({
+    required Workspace workspace,
+    required String relativePath,
+    String? targetGroupId,
+  }) async {
+    try {
+      final previousTabs = state.tabsFor(workspace.id);
+      final layout = _layoutForMutation(workspace.id, previousTabs);
+      final tab = await _workspaceTabService.openOrCreateMermanPreviewTab(
+        workspaceId: workspace.id,
+        relativePath: relativePath,
+      );
+      final alreadyOpen = previousTabs.any(
+        (candidate) => candidate.id == tab.id,
+      );
+      final tabs = alreadyOpen
+          ? previousTabs
+          : <WorkspaceTabRecord>[...previousTabs, tab];
+      _setTabsForWorkspace(workspace.id, tabs);
+      final groupId = targetGroupId ?? layout.activeGroupId;
+      final nextLayout = alreadyOpen
+          ? layout.setActiveTab(
+              groupId: layout.groupIdForTab(tab.id) ?? groupId,
+              tabId: tab.id,
+            )
+          : layout.addTabToGroup(groupId: groupId, tabId: tab.id);
+      await _applyLayout(nextLayout.sanitize(tabs), persist: true);
+      state = state.copyWith(error: null);
+      return tab;
+    } catch (error) {
+      state = state.copyWith(error: error.toString());
+      rethrow;
+    }
+  }
+
   Future<void> closeWorkspaceTab({
     required Workspace workspace,
     required String tabId,
@@ -140,21 +175,26 @@ mixin _WorkbenchControllerTabs
     required String newRelativePath,
   }) async {
     try {
-      final updatedTabs = await _workspaceTabService.updateEditorPathsAfterMove(
-        workspaceId: workspace.id,
-        oldRelativePath: oldRelativePath,
-        newRelativePath: newRelativePath,
-      );
-      if (updatedTabs.isEmpty) {
+      final pathMoveResult = await _workspaceTabService
+          .updateEditorPathsAfterMove(
+            workspaceId: workspace.id,
+            oldRelativePath: oldRelativePath,
+            newRelativePath: newRelativePath,
+          );
+      if (pathMoveResult.isEmpty) {
         return;
       }
       final byId = <String, WorkspaceTabRecord>{
-        for (final tab in updatedTabs) tab.id: tab,
+        for (final tab in pathMoveResult.updatedTabs) tab.id: tab,
       };
+      final removedIds = pathMoveResult.removedTabIds.toSet();
       final tabs = <WorkspaceTabRecord>[
-        for (final tab in state.tabsFor(workspace.id)) byId[tab.id] ?? tab,
+        for (final tab in state.tabsFor(workspace.id))
+          if (!removedIds.contains(tab.id)) byId[tab.id] ?? tab,
       ];
       _setTabsForWorkspace(workspace.id, tabs);
+      final layout = _layoutForMutation(workspace.id, tabs);
+      await _applyLayout(layout, persist: true);
       state = state.copyWith(error: null);
     } catch (error) {
       state = state.copyWith(error: error.toString());

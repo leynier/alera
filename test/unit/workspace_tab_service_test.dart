@@ -99,6 +99,57 @@ void main() {
       expect(repository.tabs, hasLength(1));
     });
 
+    test('openOrCreateEditorTab ignores merman preview tabs', () async {
+      final repository = _FakeWorkbenchRepository()
+        ..tabs.add(
+          WorkspaceTabRecord(
+            id: 'preview-tab',
+            workspaceId: 'workspace-1',
+            kind: WorkspaceTabKind.editor,
+            title: 'diagram.mmd preview',
+            createdAt: DateTime.utc(2026, 5, 21),
+            updatedAt: DateTime.utc(2026, 5, 21),
+            payload: const <String, Object?>{
+              workspaceTabFilePathPayloadKey: 'docs/diagram.mmd',
+              workspaceTabFileRolePayloadKey: workspaceTabFileRoleMermanPreview,
+            },
+          ),
+        );
+      final service = WorkspaceTabService(repository: repository);
+
+      final editor = await service.openOrCreateEditorTab(
+        workspaceId: 'workspace-1',
+        relativePath: 'docs/diagram.mmd',
+      );
+
+      expect(editor.id, isNot('preview-tab'));
+      expect(editor.isMermanPreview, isFalse);
+      expect(repository.tabs, hasLength(2));
+    });
+
+    test(
+      'openOrCreateMermanPreviewTab creates and reuses preview tabs',
+      () async {
+        final repository = _FakeWorkbenchRepository();
+        final service = WorkspaceTabService(repository: repository);
+
+        final first = await service.openOrCreateMermanPreviewTab(
+          workspaceId: 'workspace-1',
+          relativePath: './docs/diagram.mmd',
+        );
+        final second = await service.openOrCreateMermanPreviewTab(
+          workspaceId: 'workspace-1',
+          relativePath: 'docs/diagram.mmd',
+        );
+
+        expect(second.id, first.id);
+        expect(first.title, 'diagram.mmd preview');
+        expect(first.filePath, 'docs/diagram.mmd');
+        expect(first.isMermanPreview, isTrue);
+        expect(repository.tabs, hasLength(1));
+      },
+    );
+
     test('openOrCreateEditorTab rejects paths outside the workspace', () async {
       final repository = _FakeWorkbenchRepository();
       final service = WorkspaceTabService(repository: repository);
@@ -140,10 +191,148 @@ void main() {
           newRelativePath: 'docs/renamed-note.txt',
         );
 
-        expect(updated.single.filePath, 'docs/renamed-note.txt');
-        expect(updated.single.title, 'renamed-note.txt');
+        expect(updated.updatedTabs.single.filePath, 'docs/renamed-note.txt');
+        expect(updated.updatedTabs.single.title, 'renamed-note.txt');
+        expect(updated.removedTabIds, isEmpty);
         expect(repository.tabs.single.filePath, 'docs/renamed-note.txt');
         expect(repository.tabs.single.title, 'renamed-note.txt');
+      },
+    );
+
+    test(
+      'updates merman preview tab paths and keeps preview titles after a file move',
+      () async {
+        final repository = _FakeWorkbenchRepository()
+          ..tabs.add(
+            WorkspaceTabRecord(
+              id: 'tab-1',
+              workspaceId: 'workspace-1',
+              kind: WorkspaceTabKind.editor,
+              title: 'diagram.mmd preview',
+              createdAt: DateTime.utc(2026, 5, 21),
+              updatedAt: DateTime.utc(2026, 5, 21),
+              payload: const <String, Object?>{
+                workspaceTabFilePathPayloadKey: 'docs/diagram.mmd',
+                workspaceTabFileRolePayloadKey:
+                    workspaceTabFileRoleMermanPreview,
+              },
+            ),
+          );
+        final service = WorkspaceTabService(
+          repository: repository,
+          now: () => DateTime.utc(2026, 5, 21, 1),
+        );
+
+        final updated = await service.updateEditorPathsAfterMove(
+          workspaceId: 'workspace-1',
+          oldRelativePath: 'docs/diagram.mmd',
+          newRelativePath: 'docs/renamed.mmd',
+        );
+
+        expect(updated.updatedTabs.single.filePath, 'docs/renamed.mmd');
+        expect(updated.updatedTabs.single.title, 'renamed.mmd preview');
+        expect(updated.updatedTabs.single.isMermanPreview, isTrue);
+        expect(updated.removedTabIds, isEmpty);
+      },
+    );
+
+    test(
+      'converts stale merman preview tabs to editor tabs after a non-merman rename',
+      () async {
+        final repository = _FakeWorkbenchRepository()
+          ..tabs.add(
+            WorkspaceTabRecord(
+              id: 'preview-tab',
+              workspaceId: 'workspace-1',
+              kind: WorkspaceTabKind.editor,
+              title: 'diagram.mmd preview',
+              createdAt: DateTime.utc(2026, 5, 21),
+              updatedAt: DateTime.utc(2026, 5, 21),
+              payload: const <String, Object?>{
+                workspaceTabFilePathPayloadKey: 'docs/diagram.mmd',
+                workspaceTabFileRolePayloadKey:
+                    workspaceTabFileRoleMermanPreview,
+              },
+            ),
+          );
+        final service = WorkspaceTabService(
+          repository: repository,
+          now: () => DateTime.utc(2026, 5, 21, 1),
+        );
+
+        final updated = await service.updateEditorPathsAfterMove(
+          workspaceId: 'workspace-1',
+          oldRelativePath: 'docs/diagram.mmd',
+          newRelativePath: 'docs/diagram.txt',
+        );
+
+        expect(updated.removedTabIds, isEmpty);
+        expect(updated.updatedTabs.single.id, 'preview-tab');
+        expect(updated.updatedTabs.single.filePath, 'docs/diagram.txt');
+        expect(updated.updatedTabs.single.title, 'diagram.txt');
+        expect(updated.updatedTabs.single.isMermanPreview, isFalse);
+        expect(
+          updated.updatedTabs.single.payload,
+          isNot(contains(workspaceTabFileRolePayloadKey)),
+        );
+
+        final editor = await service.openOrCreateEditorTab(
+          workspaceId: 'workspace-1',
+          relativePath: 'docs/diagram.txt',
+        );
+
+        expect(editor.id, 'preview-tab');
+        expect(repository.tabs, hasLength(1));
+      },
+    );
+
+    test(
+      'removes redundant preview tabs when a merman file is renamed to a text file with an editor open',
+      () async {
+        final repository = _FakeWorkbenchRepository()
+          ..tabs.addAll(<WorkspaceTabRecord>[
+            WorkspaceTabRecord(
+              id: 'editor-tab',
+              workspaceId: 'workspace-1',
+              kind: WorkspaceTabKind.editor,
+              title: 'diagram.mmd',
+              createdAt: DateTime.utc(2026, 5, 21),
+              updatedAt: DateTime.utc(2026, 5, 21),
+              payload: const <String, Object?>{
+                workspaceTabFilePathPayloadKey: 'docs/diagram.mmd',
+              },
+            ),
+            WorkspaceTabRecord(
+              id: 'preview-tab',
+              workspaceId: 'workspace-1',
+              kind: WorkspaceTabKind.editor,
+              title: 'diagram.mmd preview',
+              createdAt: DateTime.utc(2026, 5, 21),
+              updatedAt: DateTime.utc(2026, 5, 21),
+              payload: const <String, Object?>{
+                workspaceTabFilePathPayloadKey: 'docs/diagram.mmd',
+                workspaceTabFileRolePayloadKey:
+                    workspaceTabFileRoleMermanPreview,
+              },
+            ),
+          ]);
+        final service = WorkspaceTabService(
+          repository: repository,
+          now: () => DateTime.utc(2026, 5, 21, 1),
+        );
+
+        final updated = await service.updateEditorPathsAfterMove(
+          workspaceId: 'workspace-1',
+          oldRelativePath: 'docs/diagram.mmd',
+          newRelativePath: 'docs/diagram.txt',
+        );
+
+        expect(updated.removedTabIds, <String>['preview-tab']);
+        expect(updated.updatedTabs.single.id, 'editor-tab');
+        expect(updated.updatedTabs.single.filePath, 'docs/diagram.txt');
+        expect(updated.updatedTabs.single.title, 'diagram.txt');
+        expect(repository.tabs, hasLength(1));
+        expect(repository.tabs.single.id, 'editor-tab');
       },
     );
 
@@ -181,8 +370,9 @@ void main() {
         newRelativePath: 'lib/src',
       );
 
-      expect(updated, hasLength(1));
-      expect(updated.single.filePath, 'lib/src/main.dart');
+      expect(updated.updatedTabs, hasLength(1));
+      expect(updated.removedTabIds, isEmpty);
+      expect(updated.updatedTabs.single.filePath, 'lib/src/main.dart');
       expect(repository.tabs.first.filePath, 'lib/src/main.dart');
       expect(repository.tabs.last.filePath, 'readme.md');
     });
