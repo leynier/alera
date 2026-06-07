@@ -24,11 +24,11 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_urlencoded = "0.7"
 # Local git operations via libgit2. Network features (https/ssh/openssl) are
-# disabled on purpose: every git2-backed operation here is local, and the only
-# operation that touches the network (clone) is delegated to the git CLI via
-# git_cmd, which uses the system credential helper.
+# disabled on purpose: git2-backed operations here are local; operations that
+# need network credentials (clone/fetch/pull/push) are delegated to the git CLI
+# via git_cmd, which uses the system credential helper.
 git2 = { version = "0.21", default-features = false }
-# Thin wrapper around the git CLI; used only for clone.
+# Thin wrapper around the git CLI for networked git operations.
 git_cmd = "0.6"
 camino = "1"
 ignore = "0.4"

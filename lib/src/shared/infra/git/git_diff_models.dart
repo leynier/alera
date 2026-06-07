@@ -40,6 +40,41 @@ class GitStatusResult {
   }
 }
 
+class GitRepositoryState {
+  const GitRepositoryState({
+    required this.branch,
+    this.upstream,
+    this.ahead = 0,
+    this.behind = 0,
+    this.hasConflicts = false,
+    this.headMessage,
+  });
+
+  final String branch;
+  final String? upstream;
+  final int ahead;
+  final int behind;
+  final bool hasConflicts;
+  final String? headMessage;
+
+  bool get hasUpstream => upstream != null && upstream!.isNotEmpty;
+  bool get hasHeadCommit => headMessage != null;
+}
+
+class GitStashEntry {
+  const GitStashEntry({
+    required this.index,
+    required this.reference,
+    required this.message,
+    required this.oid,
+  });
+
+  final int index;
+  final String reference;
+  final String message;
+  final String oid;
+}
+
 class GitChangeGroup {
   const GitChangeGroup({
     required this.area,
@@ -52,8 +87,13 @@ class GitChangeGroup {
   final List<GitChangeTreeRow> treeRows;
 
   static List<GitChangeGroup> fromEntries(List<GitChangeEntry> entries) {
+    const orderedAreas = <GitChangeArea>[
+      GitChangeArea.staged,
+      GitChangeArea.unstaged,
+      GitChangeArea.untracked,
+    ];
     return <GitChangeGroup>[
-      for (final area in GitChangeArea.values)
+      for (final area in orderedAreas)
         GitChangeGroup(
           area: area,
           entries:
@@ -61,7 +101,7 @@ class GitChangeGroup {
                   .where((entry) => entry.area == area)
                   .toList(growable: false)
                 ..sort((a, b) => a.path.compareTo(b.path)),
-          treeRows: _fallbackTreeRows(
+          treeRows: _treeRows(
             entries.where((entry) => entry.area == area).toList(growable: false)
               ..sort((a, b) => a.path.compareTo(b.path)),
           ),
@@ -69,21 +109,120 @@ class GitChangeGroup {
     ].where((group) => group.entries.isNotEmpty).toList(growable: false);
   }
 
-  static List<GitChangeTreeRow> _fallbackTreeRows(
-    List<GitChangeEntry> entries,
-  ) {
-    return entries
-        .map(
-          (entry) => GitChangeTreeRow(
-            kind: GitChangeTreeRowKind.file,
-            name: entry.path.split('/').last,
-            path: entry.path,
-            depth: 0,
-            fileCount: 1,
-            entry: entry,
-          ),
-        )
-        .toList(growable: false);
+  static List<GitChangeTreeRow> _treeRows(List<GitChangeEntry> entries) {
+    final root = _GitChangeTreeNode.directory(name: '', path: '', depth: 0);
+    for (final entry in entries) {
+      final parts = entry.path
+          .split('/')
+          .where((part) => part.isNotEmpty)
+          .toList(growable: false);
+      if (parts.isEmpty) {
+        continue;
+      }
+      var parent = root;
+      for (var index = 0; index < parts.length - 1; index += 1) {
+        final path = parts.take(index + 1).join('/');
+        parent = parent.directoryChild(parts[index], path, index);
+      }
+      parent.children.add(
+        _GitChangeTreeNode.file(
+          name: parts.last,
+          path: entry.path,
+          depth: parts.length - 1,
+          entry: entry,
+        ),
+      );
+    }
+    root.sortRecursively();
+    final rows = <GitChangeTreeRow>[];
+    for (final child in root.children) {
+      child.appendRows(rows);
+    }
+    return rows;
+  }
+}
+
+class _GitChangeTreeNode {
+  _GitChangeTreeNode._({
+    required this.name,
+    required this.path,
+    required this.depth,
+    this.entry,
+  });
+
+  factory _GitChangeTreeNode.directory({
+    required String name,
+    required String path,
+    required int depth,
+  }) => _GitChangeTreeNode._(name: name, path: path, depth: depth);
+
+  factory _GitChangeTreeNode.file({
+    required String name,
+    required String path,
+    required int depth,
+    required GitChangeEntry entry,
+  }) =>
+      _GitChangeTreeNode._(name: name, path: path, depth: depth, entry: entry);
+
+  final String name;
+  final String path;
+  final int depth;
+  final GitChangeEntry? entry;
+  final List<_GitChangeTreeNode> children = <_GitChangeTreeNode>[];
+
+  _GitChangeTreeNode directoryChild(String name, String path, int depth) {
+    for (final child in children) {
+      if (child.entry == null && child.name == name) {
+        return child;
+      }
+    }
+    final child = _GitChangeTreeNode.directory(
+      name: name,
+      path: path,
+      depth: depth,
+    );
+    children.add(child);
+    return child;
+  }
+
+  void sortRecursively() {
+    children.sort((a, b) {
+      if (a.entry == null && b.entry != null) {
+        return -1;
+      }
+      if (a.entry != null && b.entry == null) {
+        return 1;
+      }
+      return a.name.compareTo(b.name);
+    });
+    for (final child in children) {
+      child.sortRecursively();
+    }
+  }
+
+  void appendRows(List<GitChangeTreeRow> rows) {
+    rows.add(
+      GitChangeTreeRow(
+        kind: entry == null
+            ? GitChangeTreeRowKind.directory
+            : GitChangeTreeRowKind.file,
+        name: name,
+        path: path,
+        depth: depth,
+        fileCount: fileCount,
+        entry: entry,
+      ),
+    );
+    for (final child in children) {
+      child.appendRows(rows);
+    }
+  }
+
+  int get fileCount {
+    if (entry != null) {
+      return 1;
+    }
+    return children.fold<int>(0, (count, child) => count + child.fileCount);
   }
 }
 

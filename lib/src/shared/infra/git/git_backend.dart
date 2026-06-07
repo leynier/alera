@@ -75,4 +75,63 @@ abstract interface class GitBackend {
   /// Loads a combined read-only diff for all changed files, or a single file
   /// when [filePath] is provided.
   Future<GitDiffResult> diffAll({required String path, String? filePath});
+
+  /// Branch/upstream/divergence information for the repository containing
+  /// [path].
+  Future<GitRepositoryState> repositoryState(String path);
+
+  /// Stages all visible changes under [path], or a single workspace-relative
+  /// [filePath] when provided.
+  Future<void> stage({required String path, String? filePath});
+
+  /// Stages visible changes in [area], optionally limited to a workspace
+  /// relative file or directory [filePath].
+  Future<void> stageArea({
+    required String path,
+    required GitChangeArea area,
+    String? filePath,
+  });
+
+  /// Removes all visible staged changes under [path] from the index, or a
+  /// single workspace-relative [filePath] when provided.
+  Future<void> unstage({required String path, String? filePath});
+
+  /// Removes visible changes in [area] from the index, optionally limited to a
+  /// workspace relative file or directory [filePath].
+  Future<void> unstageArea({
+    required String path,
+    required GitChangeArea area,
+    String? filePath,
+  });
+
+  /// Discards unstaged/untracked changes under [path], or a single
+  /// workspace-relative [filePath] when provided.
+  Future<void> discard({required String path, String? filePath});
+
+  /// Discards visible changes in [area], optionally limited to a workspace
+  /// relative file or directory [filePath].
+  Future<void> discardArea({
+    required String path,
+    required GitChangeArea area,
+    String? filePath,
+  });
+
+  /// Creates a commit from the currently staged index.
+  Future<String> commit({required String path, required String message});
+
+  /// Amends the current HEAD commit using the currently staged index.
+  Future<String> amendCommit({required String path, required String message});
+
+  Future<void> fetch(String path);
+
+  Future<void> pull(String path);
+
+  Future<void> push(String path);
+
+  Future<List<GitStashEntry>> listStashes(String path);
+
+  /// Stashes tracked changes for the repository containing [path].
+  Future<void> stash(String path);
+
+  Future<void> stashPop({required String path, required int stashIndex});
 }

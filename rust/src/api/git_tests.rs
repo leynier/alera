@@ -1,4 +1,5 @@
 use super::*;
+use git2::Repository;
 use std::path::Path;
 use std::process::Command;
 
@@ -8,6 +9,11 @@ mod git_diff_edge_tests;
 fn run_git(dir: &Path, args: &[&str]) {
     let status = git_command(dir, args).status().expect("git command runs");
     assert!(status.success(), "git {:?} failed", args);
+}
+
+fn run_git_expect_failure(dir: &Path, args: &[&str]) {
+    let status = git_command(dir, args).status().expect("git command runs");
+    assert!(!status.success(), "git {:?} succeeded unexpectedly", args);
 }
 
 fn git_command(dir: &Path, args: &[&str]) -> Command {
@@ -25,14 +31,56 @@ fn git_command(dir: &Path, args: &[&str]) -> Command {
 fn init_repo() -> tempfile::TempDir {
     let dir = tempfile::tempdir().expect("tempdir");
     run_git(dir.path(), &["init", "-b", "main"]);
+    configure_git_identity(dir.path());
     std::fs::write(dir.path().join("README.md"), "hello").expect("write");
     run_git(dir.path(), &["add", "."]);
     run_git(dir.path(), &["commit", "-m", "initial"]);
     dir
 }
 
+fn configure_git_identity(dir: &Path) {
+    run_git(dir, &["config", "user.name", "Test"]);
+    run_git(dir, &["config", "user.email", "test@example.com"]);
+}
+
 fn path_str(path: &Path) -> String {
     path.to_string_lossy().to_string()
+}
+
+fn head_commit_message(path: &Path) -> String {
+    let repo = Repository::open(path).expect("open repo");
+    let commit = repo
+        .head()
+        .expect("head")
+        .peel_to_commit()
+        .expect("head commit");
+    commit.message().expect("message").to_string()
+}
+
+fn head_author_name(path: &Path) -> String {
+    let repo = Repository::open(path).expect("open repo");
+    let commit = repo
+        .head()
+        .expect("head")
+        .peel_to_commit()
+        .expect("head commit");
+    let author = commit.author().name().expect("author name").to_string();
+    author
+}
+
+fn head_committer_name(path: &Path) -> String {
+    let repo = Repository::open(path).expect("open repo");
+    let commit = repo
+        .head()
+        .expect("head")
+        .peel_to_commit()
+        .expect("head commit");
+    let committer = commit
+        .committer()
+        .name()
+        .expect("committer name")
+        .to_string();
+    committer
 }
 
 fn diff_text(file: &GitDiffFile) -> String {
@@ -78,6 +126,15 @@ fn reports_branches_and_current() {
 fn validates_branch_names() {
     assert!(is_valid_branch_name("feature/login".to_string()).unwrap());
     assert!(!is_valid_branch_name("bad branch".to_string()).unwrap());
+}
+
+#[test]
+fn repository_state_includes_head_message() {
+    let repo = init_repo();
+
+    let state = git_repository_state(path_str(repo.path())).unwrap();
+
+    assert_eq!(state.head_message.as_deref(), Some("initial"));
 }
 
 #[test]
@@ -366,6 +423,788 @@ fn git_status_splits_untracked_unstaged_and_staged_changes() {
             && entry.added.is_none()
             && entry.removed == Some(0)
     }));
+    assert_eq!(
+        status
+            .groups
+            .iter()
+            .map(|group| group.area)
+            .collect::<Vec<_>>(),
+        vec![
+            GitChangeArea::Staged,
+            GitChangeArea::Unstaged,
+            GitChangeArea::Untracked,
+        ]
+    );
+}
+
+#[test]
+fn git_stage_unstage_commit_and_state_follow_index() {
+    let repo = init_repo();
+    std::fs::write(repo.path().join("README.md"), "hello\nupdated\n").expect("modify readme");
+
+    git_stage(path_str(repo.path()), Some("README.md".to_string())).unwrap();
+    let status = git_status(path_str(repo.path())).unwrap();
+    assert!(status
+        .entries
+        .iter()
+        .any(|entry| entry.path == "README.md" && entry.area == GitChangeArea::Staged));
+
+    git_unstage(path_str(repo.path()), Some("README.md".to_string())).unwrap();
+    let status = git_status(path_str(repo.path())).unwrap();
+    assert!(status
+        .entries
+        .iter()
+        .any(|entry| entry.path == "README.md" && entry.area == GitChangeArea::Unstaged));
+    assert!(!status
+        .entries
+        .iter()
+        .any(|entry| entry.path == "README.md" && entry.area == GitChangeArea::Staged));
+
+    git_stage(path_str(repo.path()), Some("README.md".to_string())).unwrap();
+    let oid = git_commit(path_str(repo.path()), "update readme".to_string()).unwrap();
+    assert!(!oid.is_empty());
+    let status = git_status(path_str(repo.path())).unwrap();
+    assert!(status.entries.is_empty());
+
+    let state = git_repository_state(path_str(repo.path())).unwrap();
+    assert_eq!(state.branch, "main");
+    assert!(!state.has_conflicts);
+}
+
+#[test]
+fn git_stage_treats_selected_pathspec_characters_as_literals() {
+    let repo = init_repo();
+    std::fs::write(repo.path().join("*.txt"), "literal star\n").expect("write star file");
+    std::fs::write(repo.path().join("other.txt"), "other\n").expect("write other file");
+    run_git(repo.path(), &["add", "*.txt", "other.txt"]);
+    run_git(repo.path(), &["commit", "-m", "add pathspec files"]);
+
+    std::fs::write(repo.path().join("*.txt"), "literal star changed\n").expect("modify star file");
+    std::fs::write(repo.path().join("other.txt"), "other changed\n").expect("modify other file");
+
+    git_stage(path_str(repo.path()), Some("*.txt".to_string())).unwrap();
+
+    let status = git_status(path_str(repo.path())).unwrap();
+    assert!(status
+        .entries
+        .iter()
+        .any(|entry| entry.path == "*.txt" && entry.area == GitChangeArea::Staged));
+    assert!(status
+        .entries
+        .iter()
+        .any(|entry| entry.path == "other.txt" && entry.area == GitChangeArea::Unstaged));
+    assert!(!status
+        .entries
+        .iter()
+        .any(|entry| entry.path == "other.txt" && entry.area == GitChangeArea::Staged));
+}
+
+#[test]
+fn git_unstage_treats_selected_pathspec_characters_as_literals() {
+    let repo = init_repo();
+    std::fs::write(repo.path().join("file[1].txt"), "literal bracket\n")
+        .expect("write bracket file");
+    std::fs::write(repo.path().join("file1.txt"), "glob match\n").expect("write match file");
+    run_git(repo.path(), &["add", "file[1].txt", "file1.txt"]);
+    run_git(repo.path(), &["commit", "-m", "add bracket files"]);
+
+    std::fs::write(repo.path().join("file[1].txt"), "literal bracket changed\n")
+        .expect("modify bracket file");
+    std::fs::write(repo.path().join("file1.txt"), "glob match changed\n")
+        .expect("modify match file");
+    run_git(repo.path(), &["add", "file[1].txt", "file1.txt"]);
+
+    git_unstage(path_str(repo.path()), Some("file[1].txt".to_string())).unwrap();
+
+    let status = git_status(path_str(repo.path())).unwrap();
+    assert!(status
+        .entries
+        .iter()
+        .any(|entry| entry.path == "file[1].txt" && entry.area == GitChangeArea::Unstaged));
+    assert!(!status
+        .entries
+        .iter()
+        .any(|entry| entry.path == "file[1].txt" && entry.area == GitChangeArea::Staged));
+    assert!(status
+        .entries
+        .iter()
+        .any(|entry| entry.path == "file1.txt" && entry.area == GitChangeArea::Staged));
+}
+
+#[test]
+fn git_stage_all_treats_workspace_pathspec_characters_as_literals() {
+    let repo = init_repo();
+    let bracket_dir = repo.path().join("packages").join("app[1]");
+    let glob_match_dir = repo.path().join("packages").join("app1");
+    std::fs::create_dir_all(&bracket_dir).expect("create bracket dir");
+    std::fs::create_dir_all(&glob_match_dir).expect("create glob match dir");
+    std::fs::write(bracket_dir.join("foo.dart"), "bracket\n").expect("write bracket file");
+    std::fs::write(glob_match_dir.join("foo.dart"), "glob\n").expect("write glob file");
+    run_git(repo.path(), &["add", "."]);
+    run_git(repo.path(), &["commit", "-m", "add app dirs"]);
+
+    std::fs::write(bracket_dir.join("foo.dart"), "bracket changed\n").expect("modify bracket file");
+    std::fs::write(glob_match_dir.join("foo.dart"), "glob changed\n").expect("modify glob file");
+
+    git_stage(path_str(&bracket_dir), None).unwrap();
+
+    let status = git_status(path_str(repo.path())).unwrap();
+    assert!(status.entries.iter().any(|entry| {
+        entry.path == "packages/app[1]/foo.dart" && entry.area == GitChangeArea::Staged
+    }));
+    assert!(status.entries.iter().any(|entry| {
+        entry.path == "packages/app1/foo.dart" && entry.area == GitChangeArea::Unstaged
+    }));
+    assert!(!status.entries.iter().any(|entry| {
+        entry.path == "packages/app1/foo.dart" && entry.area == GitChangeArea::Staged
+    }));
+}
+
+#[test]
+fn git_stage_area_limits_to_selected_area_and_folder() {
+    let repo = init_repo();
+    std::fs::create_dir_all(repo.path().join("lib")).expect("create lib");
+    std::fs::create_dir_all(repo.path().join("test")).expect("create test");
+    std::fs::write(repo.path().join("lib/tracked.dart"), "lib\n").expect("write lib tracked");
+    std::fs::write(repo.path().join("test/tracked.dart"), "test\n").expect("write test tracked");
+    run_git(repo.path(), &["add", "."]);
+    run_git(repo.path(), &["commit", "-m", "add tracked files"]);
+
+    std::fs::write(repo.path().join("lib/tracked.dart"), "lib changed\n")
+        .expect("modify lib tracked");
+    std::fs::write(repo.path().join("lib/new.dart"), "new\n").expect("write lib new");
+    std::fs::write(repo.path().join("test/tracked.dart"), "test changed\n")
+        .expect("modify test tracked");
+
+    git_stage_area(
+        path_str(repo.path()),
+        GitChangeArea::Unstaged,
+        Some("lib".to_string()),
+    )
+    .unwrap();
+
+    let status = git_status(path_str(repo.path())).unwrap();
+    assert!(status
+        .entries
+        .iter()
+        .any(|entry| { entry.path == "lib/tracked.dart" && entry.area == GitChangeArea::Staged }));
+    assert!(status
+        .entries
+        .iter()
+        .any(|entry| { entry.path == "lib/new.dart" && entry.area == GitChangeArea::Untracked }));
+    assert!(status.entries.iter().any(|entry| {
+        entry.path == "test/tracked.dart" && entry.area == GitChangeArea::Unstaged
+    }));
+}
+
+#[test]
+fn git_unstage_all_treats_workspace_pathspec_characters_as_literals() {
+    let repo = init_repo();
+    let bracket_dir = repo.path().join("packages").join("app[1]");
+    let glob_match_dir = repo.path().join("packages").join("app1");
+    std::fs::create_dir_all(&bracket_dir).expect("create bracket dir");
+    std::fs::create_dir_all(&glob_match_dir).expect("create glob match dir");
+    std::fs::write(bracket_dir.join("foo.dart"), "bracket\n").expect("write bracket file");
+    std::fs::write(glob_match_dir.join("foo.dart"), "glob\n").expect("write glob file");
+    run_git(repo.path(), &["add", "."]);
+    run_git(repo.path(), &["commit", "-m", "add app dirs"]);
+
+    std::fs::write(bracket_dir.join("foo.dart"), "bracket changed\n").expect("modify bracket file");
+    std::fs::write(glob_match_dir.join("foo.dart"), "glob changed\n").expect("modify glob file");
+    run_git(
+        repo.path(),
+        &["add", "packages/app[1]/foo.dart", "packages/app1/foo.dart"],
+    );
+
+    git_unstage(path_str(&bracket_dir), None).unwrap();
+
+    let status = git_status(path_str(repo.path())).unwrap();
+    assert!(status.entries.iter().any(|entry| {
+        entry.path == "packages/app[1]/foo.dart" && entry.area == GitChangeArea::Unstaged
+    }));
+    assert!(!status.entries.iter().any(|entry| {
+        entry.path == "packages/app[1]/foo.dart" && entry.area == GitChangeArea::Staged
+    }));
+    assert!(status.entries.iter().any(|entry| {
+        entry.path == "packages/app1/foo.dart" && entry.area == GitChangeArea::Staged
+    }));
+}
+
+#[test]
+fn git_discard_treats_selected_pathspec_characters_as_literals() {
+    let repo = init_repo();
+    std::fs::write(repo.path().join("file[1].txt"), "literal bracket\n")
+        .expect("write bracket file");
+    std::fs::write(repo.path().join("file1.txt"), "glob match\n").expect("write match file");
+    run_git(repo.path(), &["add", "file[1].txt", "file1.txt"]);
+    run_git(repo.path(), &["commit", "-m", "add bracket files"]);
+
+    std::fs::write(repo.path().join("file[1].txt"), "literal bracket changed\n")
+        .expect("modify bracket file");
+    std::fs::write(repo.path().join("file1.txt"), "glob match changed\n")
+        .expect("modify match file");
+
+    git_discard(path_str(repo.path()), Some("file[1].txt".to_string())).unwrap();
+
+    assert_eq!(
+        std::fs::read_to_string(repo.path().join("file[1].txt")).unwrap(),
+        "literal bracket\n"
+    );
+    assert_eq!(
+        std::fs::read_to_string(repo.path().join("file1.txt")).unwrap(),
+        "glob match changed\n"
+    );
+    let status = git_status(path_str(repo.path())).unwrap();
+    assert!(!status
+        .entries
+        .iter()
+        .any(|entry| entry.path == "file[1].txt"));
+    assert!(status
+        .entries
+        .iter()
+        .any(|entry| entry.path == "file1.txt" && entry.area == GitChangeArea::Unstaged));
+}
+
+#[test]
+fn git_discard_restores_tracked_and_deletes_untracked() {
+    let repo = init_repo();
+    let tracked = repo.path().join("README.md");
+    let untracked = repo.path().join("scratch.txt");
+    std::fs::write(&tracked, "changed\n").expect("modify readme");
+    std::fs::write(&untracked, "scratch\n").expect("write scratch");
+
+    git_discard(path_str(repo.path()), None).unwrap();
+
+    assert_eq!(std::fs::read_to_string(&tracked).unwrap(), "hello");
+    assert!(!untracked.exists());
+    assert!(git_status(path_str(repo.path()))
+        .unwrap()
+        .entries
+        .is_empty());
+}
+
+#[test]
+fn git_discard_all_removes_unstaged_rename_destination() {
+    let repo = init_repo();
+    let old_path = repo.path().join("old.txt");
+    let new_path = repo.path().join("new.txt");
+    std::fs::write(&old_path, "old\n").expect("write old file");
+    run_git(repo.path(), &["add", "old.txt"]);
+    run_git(repo.path(), &["commit", "-m", "add old file"]);
+
+    std::fs::rename(&old_path, &new_path).expect("rename tracked file");
+
+    let status = git_status(path_str(repo.path())).unwrap();
+    assert!(status.entries.iter().any(|entry| {
+        entry.path == "new.txt"
+            && entry.old_path.as_deref() == Some("old.txt")
+            && entry.area == GitChangeArea::Unstaged
+            && entry.status == GitChangeStatus::Renamed
+    }));
+
+    git_discard(path_str(repo.path()), None).unwrap();
+
+    assert_eq!(std::fs::read_to_string(&old_path).unwrap(), "old\n");
+    assert!(!new_path.exists());
+    assert!(git_status(path_str(repo.path()))
+        .unwrap()
+        .entries
+        .is_empty());
+}
+
+#[test]
+fn git_discard_all_keeps_rename_out_destination_outside_subdirectory_workspace() {
+    let repo = init_repo();
+    let app_dir = repo.path().join("packages").join("app");
+    let app_lib_dir = app_dir.join("lib");
+    let other_dir = repo.path().join("packages").join("other");
+    std::fs::create_dir_all(&app_lib_dir).expect("create app lib dir");
+    std::fs::create_dir_all(&other_dir).expect("create other dir");
+    let old_path = app_lib_dir.join("foo.dart");
+    let new_path = other_dir.join("foo.dart");
+    std::fs::write(&old_path, "app\n").expect("write app file");
+    run_git(repo.path(), &["add", "."]);
+    run_git(repo.path(), &["commit", "-m", "add app file"]);
+
+    std::fs::rename(&old_path, &new_path).expect("rename file out of workspace");
+
+    let status = git_status(path_str(&app_dir)).unwrap();
+    assert!(status.entries.iter().any(|entry| {
+        entry.path == "lib/foo.dart"
+            && entry.old_path.as_deref() == Some("lib/foo.dart")
+            && entry.area == GitChangeArea::Unstaged
+            && entry.status == GitChangeStatus::Renamed
+    }));
+
+    git_discard(path_str(&app_dir), None).unwrap();
+
+    assert_eq!(std::fs::read_to_string(&old_path).unwrap(), "app\n");
+    assert_eq!(std::fs::read_to_string(&new_path).unwrap(), "app\n");
+    assert!(git_status(path_str(&app_dir)).unwrap().entries.is_empty());
+}
+
+#[test]
+fn git_discard_area_limits_to_untracked_folder_entries() {
+    let repo = init_repo();
+    std::fs::create_dir_all(repo.path().join("lib")).expect("create lib");
+    std::fs::create_dir_all(repo.path().join("test")).expect("create test");
+    std::fs::write(repo.path().join("lib/tracked.dart"), "lib\n").expect("write lib tracked");
+    run_git(repo.path(), &["add", "."]);
+    run_git(repo.path(), &["commit", "-m", "add tracked file"]);
+
+    std::fs::write(repo.path().join("lib/tracked.dart"), "lib changed\n")
+        .expect("modify lib tracked");
+    std::fs::write(repo.path().join("lib/new.dart"), "new\n").expect("write lib new");
+    std::fs::write(repo.path().join("test/new.dart"), "test new\n").expect("write test new");
+
+    git_discard_area(
+        path_str(repo.path()),
+        GitChangeArea::Untracked,
+        Some("lib".to_string()),
+    )
+    .unwrap();
+
+    assert!(!repo.path().join("lib/new.dart").exists());
+    assert!(repo.path().join("test/new.dart").exists());
+    assert_eq!(
+        std::fs::read_to_string(repo.path().join("lib/tracked.dart")).unwrap(),
+        "lib changed\n"
+    );
+}
+
+#[test]
+fn git_commit_rejects_empty_index() {
+    let repo = init_repo();
+    let error = git_commit(path_str(repo.path()), "empty".to_string()).unwrap_err();
+    assert_eq!(error.kind, GitErrorKind::NothingToCommit);
+}
+
+#[test]
+fn git_commit_rejects_missing_identity() {
+    let repo = init_repo();
+    run_git(repo.path(), &["config", "user.name", ""]);
+    run_git(repo.path(), &["config", "user.email", ""]);
+    std::fs::write(repo.path().join("README.md"), "identity missing\n").expect("modify readme");
+    run_git(repo.path(), &["add", "README.md"]);
+
+    let error = git_commit(path_str(repo.path()), "update readme".to_string()).unwrap_err();
+
+    assert_eq!(error.kind, GitErrorKind::MissingIdentity);
+    assert!(error.context.contains("user.name"));
+    let status = git_status(path_str(repo.path())).unwrap();
+    assert!(status
+        .entries
+        .iter()
+        .any(|entry| entry.path == "README.md" && entry.area == GitChangeArea::Staged));
+}
+
+#[test]
+fn git_commit_rejects_staged_changes_outside_subdirectory_workspace() {
+    let repo = init_repo();
+    let app_dir = repo.path().join("packages").join("app");
+    let app_lib_dir = app_dir.join("lib");
+    std::fs::create_dir_all(&app_lib_dir).expect("create app lib dir");
+    std::fs::write(repo.path().join("root.txt"), "root\n").expect("write root file");
+    std::fs::write(app_lib_dir.join("foo.dart"), "app\n").expect("write app file");
+    run_git(repo.path(), &["add", "."]);
+    run_git(repo.path(), &["commit", "-m", "add workspace files"]);
+
+    std::fs::write(repo.path().join("root.txt"), "root changed\n").expect("modify root file");
+    std::fs::write(app_lib_dir.join("foo.dart"), "app changed\n").expect("modify app file");
+    run_git(
+        repo.path(),
+        &["add", "root.txt", "packages/app/lib/foo.dart"],
+    );
+
+    let error = git_commit(path_str(&app_dir), "workspace commit".to_string()).unwrap_err();
+    assert_eq!(error.kind, GitErrorKind::WorkspaceScope);
+
+    let state = git_repository_state(path_str(repo.path())).unwrap();
+    assert_eq!(state.ahead, 0);
+    let status = git_status(path_str(repo.path())).unwrap();
+    assert!(status
+        .entries
+        .iter()
+        .any(|entry| entry.path == "root.txt" && entry.area == GitChangeArea::Staged));
+    assert!(status.entries.iter().any(|entry| {
+        entry.path == "packages/app/lib/foo.dart" && entry.area == GitChangeArea::Staged
+    }));
+}
+
+#[test]
+fn git_commit_allows_subdirectory_workspace_when_staged_changes_are_scoped() {
+    let repo = init_repo();
+    let app_dir = repo.path().join("packages").join("app");
+    let app_lib_dir = app_dir.join("lib");
+    std::fs::create_dir_all(&app_lib_dir).expect("create app lib dir");
+    std::fs::write(app_lib_dir.join("foo.dart"), "app\n").expect("write app file");
+    run_git(repo.path(), &["add", "."]);
+    run_git(repo.path(), &["commit", "-m", "add app"]);
+
+    std::fs::write(app_lib_dir.join("foo.dart"), "app changed\n").expect("modify app file");
+    run_git(repo.path(), &["add", "packages/app/lib/foo.dart"]);
+
+    let oid = git_commit(path_str(&app_dir), "workspace commit".to_string()).unwrap();
+    assert!(!oid.is_empty());
+    assert!(git_status(path_str(&app_dir)).unwrap().entries.is_empty());
+}
+
+#[test]
+fn git_commit_amend_uses_staged_tree_and_edited_message() {
+    let repo = init_repo();
+    std::fs::write(repo.path().join("README.md"), "amended\n").expect("modify readme");
+    run_git(repo.path(), &["add", "README.md"]);
+
+    let oid = git_commit_amend(path_str(repo.path()), "amended message".to_string()).unwrap();
+
+    assert!(!oid.is_empty());
+    assert_eq!(head_commit_message(repo.path()), "amended message");
+    assert_eq!(
+        std::fs::read_to_string(repo.path().join("README.md")).unwrap(),
+        "amended\n"
+    );
+    assert!(git_status(path_str(repo.path()))
+        .unwrap()
+        .entries
+        .is_empty());
+}
+
+#[test]
+fn git_commit_amend_preserves_author_and_uses_configured_committer() {
+    let repo = init_repo();
+    run_git(repo.path(), &["config", "user.name", "Amender"]);
+    run_git(
+        repo.path(),
+        &["config", "user.email", "amender@example.com"],
+    );
+    std::fs::write(repo.path().join("README.md"), "amended\n").expect("modify readme");
+    run_git(repo.path(), &["add", "README.md"]);
+
+    git_commit_amend(path_str(repo.path()), "amended message".to_string()).unwrap();
+
+    assert_eq!(head_author_name(repo.path()), "Test");
+    assert_eq!(head_committer_name(repo.path()), "Amender");
+}
+
+#[test]
+fn git_commit_amend_rejects_empty_message() {
+    let repo = init_repo();
+    std::fs::write(repo.path().join("README.md"), "amended\n").expect("modify readme");
+    run_git(repo.path(), &["add", "README.md"]);
+
+    let error = git_commit_amend(path_str(repo.path()), "   ".to_string()).unwrap_err();
+
+    assert_eq!(error.kind, GitErrorKind::NothingToCommit);
+}
+
+#[test]
+fn git_commit_amend_rejects_missing_identity() {
+    let repo = init_repo();
+    run_git(repo.path(), &["config", "user.name", ""]);
+    run_git(repo.path(), &["config", "user.email", ""]);
+    std::fs::write(repo.path().join("README.md"), "amended\n").expect("modify readme");
+    run_git(repo.path(), &["add", "README.md"]);
+
+    let error = git_commit_amend(path_str(repo.path()), "amended message".to_string()).unwrap_err();
+
+    assert_eq!(error.kind, GitErrorKind::MissingIdentity);
+    assert!(error.context.contains("user.name"));
+}
+
+#[test]
+fn git_commit_amend_rejects_no_staged_changes() {
+    let repo = init_repo();
+
+    let error = git_commit_amend(path_str(repo.path()), "amended message".to_string()).unwrap_err();
+
+    assert_eq!(error.kind, GitErrorKind::NothingToCommit);
+}
+
+#[test]
+fn git_commit_amend_rejects_staged_changes_outside_subdirectory_workspace() {
+    let repo = init_repo();
+    let app_dir = repo.path().join("packages").join("app");
+    let app_lib_dir = app_dir.join("lib");
+    std::fs::create_dir_all(&app_lib_dir).expect("create app lib dir");
+    std::fs::write(repo.path().join("root.txt"), "root\n").expect("write root file");
+    std::fs::write(app_lib_dir.join("foo.dart"), "app\n").expect("write app file");
+    run_git(repo.path(), &["add", "."]);
+    run_git(repo.path(), &["commit", "-m", "add workspace files"]);
+
+    std::fs::write(repo.path().join("root.txt"), "root changed\n").expect("modify root file");
+    std::fs::write(app_lib_dir.join("foo.dart"), "app changed\n").expect("modify app file");
+    run_git(
+        repo.path(),
+        &["add", "root.txt", "packages/app/lib/foo.dart"],
+    );
+
+    let error = git_commit_amend(path_str(&app_dir), "amend workspace".to_string()).unwrap_err();
+
+    assert_eq!(error.kind, GitErrorKind::WorkspaceScope);
+}
+
+#[test]
+fn git_commit_amend_rejects_unresolved_merge_conflicts() {
+    let repo = init_repo();
+    run_git(repo.path(), &["checkout", "-b", "feature"]);
+    std::fs::write(repo.path().join("README.md"), "feature\n").expect("write feature change");
+    run_git(repo.path(), &["add", "README.md"]);
+    run_git(repo.path(), &["commit", "-m", "feature change"]);
+    run_git(repo.path(), &["checkout", "main"]);
+    std::fs::write(repo.path().join("README.md"), "main\n").expect("write main change");
+    run_git(repo.path(), &["add", "README.md"]);
+    run_git(repo.path(), &["commit", "-m", "main change"]);
+    run_git_expect_failure(repo.path(), &["merge", "feature"]);
+
+    let error = git_commit_amend(path_str(repo.path()), "amended message".to_string()).unwrap_err();
+
+    assert_eq!(error.kind, GitErrorKind::Conflict);
+}
+
+#[test]
+fn git_commit_rejects_unresolved_merge_conflicts() {
+    let repo = init_repo();
+    run_git(repo.path(), &["checkout", "-b", "feature"]);
+    std::fs::write(repo.path().join("README.md"), "feature\n").expect("write feature change");
+    run_git(repo.path(), &["add", "README.md"]);
+    run_git(repo.path(), &["commit", "-m", "feature change"]);
+    run_git(repo.path(), &["checkout", "main"]);
+    std::fs::write(repo.path().join("README.md"), "main\n").expect("write main change");
+    run_git(repo.path(), &["add", "README.md"]);
+    run_git(repo.path(), &["commit", "-m", "main change"]);
+    run_git_expect_failure(repo.path(), &["merge", "feature"]);
+
+    let error = git_commit(path_str(repo.path()), "merge commit".to_string()).unwrap_err();
+    assert_eq!(error.kind, GitErrorKind::Conflict);
+}
+
+#[test]
+fn git_commit_allows_resolved_merge_state() {
+    let repo = init_repo();
+    run_git(repo.path(), &["checkout", "-b", "feature"]);
+    std::fs::write(repo.path().join("README.md"), "feature\n").expect("write feature change");
+    run_git(repo.path(), &["add", "README.md"]);
+    run_git(repo.path(), &["commit", "-m", "feature change"]);
+    run_git(repo.path(), &["checkout", "main"]);
+    std::fs::write(repo.path().join("README.md"), "main\n").expect("write main change");
+    run_git(repo.path(), &["add", "README.md"]);
+    run_git(repo.path(), &["commit", "-m", "main change"]);
+    run_git_expect_failure(repo.path(), &["merge", "feature"]);
+
+    std::fs::write(repo.path().join("README.md"), "resolved\n").expect("resolve readme");
+    run_git(repo.path(), &["add", "README.md"]);
+
+    let oid = git_commit(path_str(repo.path()), "merge commit".to_string()).unwrap();
+
+    assert!(!oid.is_empty());
+    let repository = Repository::discover(repo.path()).expect("open repo");
+    assert_eq!(repository.state(), RepositoryState::Clean);
+    assert!(git_status(path_str(repo.path()))
+        .unwrap()
+        .entries
+        .is_empty());
+}
+
+#[test]
+fn git_stash_lists_and_pops_tracked_changes() {
+    let repo = init_repo();
+    let tracked = repo.path().join("README.md");
+    std::fs::write(&tracked, "stashed\n").expect("modify readme");
+    std::fs::write(repo.path().join("untracked.txt"), "left alone\n").expect("write untracked");
+
+    git_stash(path_str(repo.path())).unwrap();
+    assert_eq!(std::fs::read_to_string(&tracked).unwrap(), "hello");
+    assert!(repo.path().join("untracked.txt").exists());
+
+    let stashes = git_list_stashes(path_str(repo.path())).unwrap();
+    assert_eq!(stashes.len(), 1);
+    assert_eq!(stashes[0].reference, "stash@{0}");
+
+    git_stash_pop(path_str(repo.path()), stashes[0].index).unwrap();
+    assert_eq!(std::fs::read_to_string(&tracked).unwrap(), "stashed\n");
+    assert!(git_list_stashes(path_str(repo.path())).unwrap().is_empty());
+}
+
+#[test]
+fn git_stash_rejects_tracked_changes_outside_subdirectory_workspace() {
+    let repo = init_repo();
+    let app_dir = repo.path().join("packages").join("app");
+    let app_lib_dir = app_dir.join("lib");
+    std::fs::create_dir_all(&app_lib_dir).expect("create app lib dir");
+    std::fs::write(repo.path().join("root.txt"), "root\n").expect("write root file");
+    std::fs::write(app_lib_dir.join("foo.dart"), "app\n").expect("write app file");
+    run_git(repo.path(), &["add", "."]);
+    run_git(repo.path(), &["commit", "-m", "add stash files"]);
+
+    std::fs::write(repo.path().join("root.txt"), "root changed\n").expect("modify root file");
+    std::fs::write(app_lib_dir.join("foo.dart"), "app changed\n").expect("modify app file");
+
+    let error = git_stash(path_str(&app_dir)).unwrap_err();
+    assert_eq!(error.kind, GitErrorKind::WorkspaceScope);
+
+    assert_eq!(
+        std::fs::read_to_string(repo.path().join("root.txt")).unwrap(),
+        "root changed\n"
+    );
+    assert_eq!(
+        std::fs::read_to_string(app_lib_dir.join("foo.dart")).unwrap(),
+        "app changed\n"
+    );
+    assert!(git_list_stashes(path_str(repo.path())).unwrap().is_empty());
+}
+
+#[test]
+fn git_stash_allows_subdirectory_workspace_when_tracked_changes_are_scoped() {
+    let repo = init_repo();
+    let app_dir = repo.path().join("packages").join("app");
+    let app_lib_dir = app_dir.join("lib");
+    std::fs::create_dir_all(&app_lib_dir).expect("create app lib dir");
+    std::fs::write(repo.path().join("root.txt"), "root\n").expect("write root file");
+    std::fs::write(app_lib_dir.join("foo.dart"), "app\n").expect("write app file");
+    run_git(repo.path(), &["add", "."]);
+    run_git(repo.path(), &["commit", "-m", "add stash files"]);
+
+    std::fs::write(app_lib_dir.join("foo.dart"), "app changed\n").expect("modify app file");
+
+    git_stash(path_str(&app_dir)).unwrap();
+
+    assert_eq!(
+        std::fs::read_to_string(repo.path().join("root.txt")).unwrap(),
+        "root\n"
+    );
+    assert_eq!(
+        std::fs::read_to_string(app_lib_dir.join("foo.dart")).unwrap(),
+        "app\n"
+    );
+    assert_eq!(git_list_stashes(path_str(repo.path())).unwrap().len(), 1);
+    assert!(git_status(path_str(repo.path()))
+        .unwrap()
+        .entries
+        .is_empty());
+}
+
+#[test]
+fn git_stash_pop_rejects_stashes_with_changes_outside_subdirectory_workspace() {
+    let repo = init_repo();
+    let app_dir = repo.path().join("packages").join("app");
+    let app_lib_dir = app_dir.join("lib");
+    std::fs::create_dir_all(&app_lib_dir).expect("create app lib dir");
+    std::fs::write(repo.path().join("root.txt"), "root\n").expect("write root file");
+    std::fs::write(app_lib_dir.join("foo.dart"), "app\n").expect("write app file");
+    run_git(repo.path(), &["add", "."]);
+    run_git(repo.path(), &["commit", "-m", "add stash pop files"]);
+
+    std::fs::write(repo.path().join("root.txt"), "root changed\n").expect("modify root file");
+    std::fs::write(app_lib_dir.join("foo.dart"), "app changed\n").expect("modify app file");
+    run_git(repo.path(), &["stash", "push"]);
+
+    let error = git_stash_pop(path_str(&app_dir), 0).unwrap_err();
+    assert_eq!(error.kind, GitErrorKind::WorkspaceScope);
+
+    assert_eq!(
+        std::fs::read_to_string(repo.path().join("root.txt")).unwrap(),
+        "root\n"
+    );
+    assert_eq!(
+        std::fs::read_to_string(app_lib_dir.join("foo.dart")).unwrap(),
+        "app\n"
+    );
+    assert_eq!(git_list_stashes(path_str(repo.path())).unwrap().len(), 1);
+}
+
+#[test]
+fn git_stash_pop_allows_subdirectory_workspace_when_stash_is_scoped() {
+    let repo = init_repo();
+    let app_dir = repo.path().join("packages").join("app");
+    let app_lib_dir = app_dir.join("lib");
+    std::fs::create_dir_all(&app_lib_dir).expect("create app lib dir");
+    std::fs::write(repo.path().join("root.txt"), "root\n").expect("write root file");
+    std::fs::write(app_lib_dir.join("foo.dart"), "app\n").expect("write app file");
+    run_git(repo.path(), &["add", "."]);
+    run_git(repo.path(), &["commit", "-m", "add scoped stash pop files"]);
+
+    std::fs::write(app_lib_dir.join("foo.dart"), "app changed\n").expect("modify app file");
+    run_git(repo.path(), &["stash", "push"]);
+
+    git_stash_pop(path_str(&app_dir), 0).unwrap();
+
+    assert_eq!(
+        std::fs::read_to_string(repo.path().join("root.txt")).unwrap(),
+        "root\n"
+    );
+    assert_eq!(
+        std::fs::read_to_string(app_lib_dir.join("foo.dart")).unwrap(),
+        "app changed\n"
+    );
+    assert!(git_list_stashes(path_str(repo.path())).unwrap().is_empty());
+}
+
+#[test]
+fn git_push_sets_origin_upstream_when_missing() {
+    let repo = init_repo();
+    let bare = tempfile::tempdir().expect("bare remote");
+    run_git(bare.path(), &["init", "--bare"]);
+    run_git(
+        repo.path(),
+        &["remote", "add", "origin", &path_str(bare.path())],
+    );
+    std::fs::write(repo.path().join("README.md"), "pushed\n").expect("modify readme");
+    run_git(repo.path(), &["add", "README.md"]);
+    run_git(repo.path(), &["commit", "-m", "pushed"]);
+
+    git_push(path_str(repo.path())).unwrap();
+
+    let state = git_repository_state(path_str(repo.path())).unwrap();
+    assert_eq!(state.upstream.as_deref(), Some("origin/main"));
+    assert_eq!(state.ahead, 0);
+}
+
+#[test]
+fn git_pull_respects_configured_rebase_strategy() {
+    let source = init_repo();
+    let bare = tempfile::tempdir().expect("bare remote");
+    run_git(bare.path(), &["init", "--bare"]);
+    run_git(
+        source.path(),
+        &["remote", "add", "origin", &path_str(bare.path())],
+    );
+    run_git(source.path(), &["push", "-u", "origin", "main"]);
+    run_git(bare.path(), &["symbolic-ref", "HEAD", "refs/heads/main"]);
+
+    let clone_parent = tempfile::tempdir().expect("clone parent");
+    run_git(
+        clone_parent.path(),
+        &["clone", &path_str(bare.path()), "checkout"],
+    );
+    let clone_path = clone_parent.path().join("checkout");
+    configure_git_identity(&clone_path);
+
+    std::fs::write(source.path().join("remote.txt"), "remote\n").expect("write remote file");
+    run_git(source.path(), &["add", "remote.txt"]);
+    run_git(source.path(), &["commit", "-m", "remote change"]);
+    run_git(source.path(), &["push"]);
+
+    std::fs::write(clone_path.join("local.txt"), "local\n").expect("write local file");
+    run_git(&clone_path, &["add", "local.txt"]);
+    run_git(&clone_path, &["commit", "-m", "local change"]);
+    run_git(&clone_path, &["config", "pull.rebase", "true"]);
+
+    git_pull(path_str(&clone_path)).unwrap();
+
+    let output = git_command(&clone_path, &["rev-list", "--parents", "-n", "1", "HEAD"])
+        .output()
+        .expect("rev-list runs");
+    assert!(output.status.success());
+    let parents = String::from_utf8_lossy(&output.stdout);
+    assert_eq!(parents.split_whitespace().count(), 2);
+    let subject = git_command(&clone_path, &["log", "-1", "--format=%s"])
+        .output()
+        .expect("log runs");
+    assert!(subject.status.success());
+    assert_eq!(
+        String::from_utf8_lossy(&subject.stdout).trim(),
+        "local change"
+    );
 }
 
 #[cfg(unix)]
@@ -523,6 +1362,135 @@ fn git_status_uses_workspace_relative_paths_for_subdirectories() {
     assert_eq!(diff.files.len(), 1);
     assert_eq!(diff.files[0].path, "lib/foo.dart");
     assert!(diff_text(&diff.files[0]).contains("changed"));
+}
+
+#[test]
+fn git_stage_selected_path_uses_repo_relative_index_path_from_subdirectory() {
+    let repo = init_repo();
+    let root_lib_dir = repo.path().join("lib");
+    let app_dir = repo.path().join("packages").join("app");
+    let app_lib_dir = app_dir.join("lib");
+    std::fs::create_dir_all(&root_lib_dir).expect("create root lib dir");
+    std::fs::create_dir_all(&app_lib_dir).expect("create app lib dir");
+    std::fs::write(root_lib_dir.join("foo.dart"), "root\n").expect("write root file");
+    std::fs::write(app_lib_dir.join("foo.dart"), "app\n").expect("write app file");
+    run_git(repo.path(), &["add", "."]);
+    run_git(repo.path(), &["commit", "-m", "add colliding paths"]);
+
+    std::fs::write(root_lib_dir.join("foo.dart"), "root changed\n").expect("modify root file");
+    std::fs::write(app_lib_dir.join("foo.dart"), "app changed\n").expect("modify app file");
+
+    git_stage(path_str(&app_dir), Some("lib/foo.dart".to_string())).unwrap();
+
+    let status = git_status(path_str(repo.path())).unwrap();
+    assert!(status
+        .entries
+        .iter()
+        .any(|entry| entry.path == "packages/app/lib/foo.dart"
+            && entry.area == GitChangeArea::Staged));
+    assert!(status
+        .entries
+        .iter()
+        .any(|entry| entry.path == "lib/foo.dart" && entry.area == GitChangeArea::Unstaged));
+    assert!(!status
+        .entries
+        .iter()
+        .any(|entry| entry.path == "lib/foo.dart" && entry.area == GitChangeArea::Staged));
+}
+
+#[test]
+fn git_stage_selected_path_handles_rename_out_from_subdirectory_workspace() {
+    let repo = init_repo();
+    let app_dir = repo.path().join("packages").join("app");
+    let app_lib_dir = app_dir.join("lib");
+    let other_dir = repo.path().join("packages").join("other");
+    std::fs::create_dir_all(&app_lib_dir).expect("create app lib dir");
+    std::fs::create_dir_all(&other_dir).expect("create other dir");
+    std::fs::write(app_lib_dir.join("foo.dart"), "app\n").expect("write app file");
+    run_git(repo.path(), &["add", "."]);
+    run_git(repo.path(), &["commit", "-m", "add app file"]);
+
+    std::fs::rename(app_lib_dir.join("foo.dart"), other_dir.join("foo.dart"))
+        .expect("rename file out of workspace");
+
+    git_stage(path_str(&app_dir), Some("lib/foo.dart".to_string())).unwrap();
+
+    let status = git_status(path_str(repo.path())).unwrap();
+    assert!(status.entries.iter().any(|entry| {
+        entry.path == "packages/app/lib/foo.dart"
+            && entry.area == GitChangeArea::Staged
+            && entry.status == GitChangeStatus::Deleted
+    }));
+    assert!(!status.entries.iter().any(|entry| {
+        entry.path == "packages/other/foo.dart" && entry.area == GitChangeArea::Staged
+    }));
+}
+
+#[test]
+fn git_stage_all_handles_rename_out_from_subdirectory_workspace() {
+    let repo = init_repo();
+    let app_dir = repo.path().join("packages").join("app");
+    let app_lib_dir = app_dir.join("lib");
+    let other_dir = repo.path().join("packages").join("other");
+    std::fs::create_dir_all(&app_lib_dir).expect("create app lib dir");
+    std::fs::create_dir_all(&other_dir).expect("create other dir");
+    std::fs::write(app_lib_dir.join("foo.dart"), "app\n").expect("write app file");
+    run_git(repo.path(), &["add", "."]);
+    run_git(repo.path(), &["commit", "-m", "add app file"]);
+
+    std::fs::rename(app_lib_dir.join("foo.dart"), other_dir.join("foo.dart"))
+        .expect("rename file out of workspace");
+
+    git_stage(path_str(&app_dir), None).unwrap();
+
+    let status = git_status(path_str(repo.path())).unwrap();
+    assert!(status.entries.iter().any(|entry| {
+        entry.path == "packages/app/lib/foo.dart"
+            && entry.area == GitChangeArea::Staged
+            && entry.status == GitChangeStatus::Deleted
+    }));
+    assert!(!status.entries.iter().any(|entry| {
+        entry.path == "packages/other/foo.dart" && entry.area == GitChangeArea::Staged
+    }));
+}
+
+#[test]
+fn git_unstage_selected_path_uses_repo_relative_index_path_from_subdirectory() {
+    let repo = init_repo();
+    let root_lib_dir = repo.path().join("lib");
+    let app_dir = repo.path().join("packages").join("app");
+    let app_lib_dir = app_dir.join("lib");
+    std::fs::create_dir_all(&root_lib_dir).expect("create root lib dir");
+    std::fs::create_dir_all(&app_lib_dir).expect("create app lib dir");
+    std::fs::write(root_lib_dir.join("foo.dart"), "root\n").expect("write root file");
+    std::fs::write(app_lib_dir.join("foo.dart"), "app\n").expect("write app file");
+    run_git(repo.path(), &["add", "."]);
+    run_git(repo.path(), &["commit", "-m", "add colliding paths"]);
+
+    std::fs::write(root_lib_dir.join("foo.dart"), "root changed\n").expect("modify root file");
+    std::fs::write(app_lib_dir.join("foo.dart"), "app changed\n").expect("modify app file");
+    run_git(
+        repo.path(),
+        &["add", "lib/foo.dart", "packages/app/lib/foo.dart"],
+    );
+
+    git_unstage(path_str(&app_dir), Some("lib/foo.dart".to_string())).unwrap();
+
+    let status = git_status(path_str(repo.path())).unwrap();
+    assert!(status
+        .entries
+        .iter()
+        .any(|entry| entry.path == "packages/app/lib/foo.dart"
+            && entry.area == GitChangeArea::Unstaged));
+    assert!(!status
+        .entries
+        .iter()
+        .any(|entry| entry.path == "packages/app/lib/foo.dart"
+            && entry.area == GitChangeArea::Staged));
+    assert!(status
+        .entries
+        .iter()
+        .any(|entry| entry.path == "lib/foo.dart" && entry.area == GitChangeArea::Staged));
 }
 
 #[cfg(unix)]

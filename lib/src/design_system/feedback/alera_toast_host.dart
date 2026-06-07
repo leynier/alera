@@ -107,11 +107,11 @@ class _AleraToastHostState extends State<AleraToastHost> {
     return IgnorePointer(
       ignoring: true,
       child: Align(
-        alignment: Alignment.topRight,
+        alignment: Alignment.bottomRight,
         child: Padding(
           padding: const EdgeInsets.only(
-            top: AleraTokens.space16,
             right: AleraTokens.space16,
+            bottom: AleraTokens.space16,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,

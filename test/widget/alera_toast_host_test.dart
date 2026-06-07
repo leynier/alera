@@ -32,6 +32,31 @@ void main() {
     expect(find.text('Project added'), findsNothing);
   });
 
+  testWidgets('positions toasts at the bottom right of the host', (
+    tester,
+  ) async {
+    await _pumpToastHarness(
+      tester,
+      onPressed: (context) {
+        AleraToast.show(
+          context,
+          message: 'Saved',
+          duration: const Duration(milliseconds: 20),
+        );
+      },
+    );
+
+    await tester.tap(find.text('Show'));
+    await tester.pump();
+
+    final toastBottomLeft = tester.getBottomLeft(find.text('Saved'));
+    final toastTopRight = tester.getTopRight(find.text('Saved'));
+    final screenSize = tester.view.physicalSize / tester.view.devicePixelRatio;
+
+    expect(toastBottomLeft.dy, greaterThan(screenSize.height * 0.75));
+    expect(toastTopRight.dx, greaterThan(screenSize.width * 0.75));
+  });
+
   testWidgets(
     'queues toasts beyond the visible limit and drains them in order',
     (tester) async {

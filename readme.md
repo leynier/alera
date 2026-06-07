@@ -66,7 +66,7 @@ Register existing local folders or clone Git repositories from one place. Git-ba
 
 ### 🌳 Worktree-native workflow
 
-Every workspace is a worktree. No stashing, no branch juggling, no "wait, what was I working on?". Switching contexts is instant, and your agents never collide on the same files.
+Every workspace is a worktree. Less branch juggling, fewer "wait, what was I working on?" moments. Switching contexts is instant, and your agents never collide on the same files.
 
 ### 🤖 Multi-agent terminals
 
