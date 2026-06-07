@@ -3,6 +3,7 @@ import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_explorer.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_search_panel.dart';
 import 'package:flutter/material.dart';
 
 class WorkspaceContextSidebar extends StatelessWidget {
@@ -12,8 +13,10 @@ class WorkspaceContextSidebar extends StatelessWidget {
     required this.prefs,
     required this.onToggleVisible,
     required this.onResize,
+    required this.onSetContextPanelTab,
     required this.onSetExplorerMode,
     required this.onOpenFile,
+    required this.onOpenSearchMatch,
     required this.onPathMoved,
   });
 
@@ -21,8 +24,10 @@ class WorkspaceContextSidebar extends StatelessWidget {
   final WorkbenchViewPrefs prefs;
   final VoidCallback onToggleVisible;
   final ValueChanged<double> onResize;
+  final ValueChanged<WorkbenchContextPanelTab> onSetContextPanelTab;
   final ValueChanged<WorkspaceExplorerMode> onSetExplorerMode;
   final ValueChanged<String> onOpenFile;
+  final ValueChanged<WorkspaceSearchMatchTarget> onOpenSearchMatch;
   final Future<void> Function(String oldRelativePath, String newRelativePath)
   onPathMoved;
 
@@ -45,29 +50,54 @@ class WorkspaceContextSidebar extends StatelessWidget {
                   width: prefs.rightSidebarWidth,
                   child: Column(
                     children: <Widget>[
-                      _ContextTabHeader(onToggleVisible: onToggleVisible),
+                      _ContextTabHeader(
+                        activeTab: prefs.activeContextPanelTab,
+                        onSetActiveTab: onSetContextPanelTab,
+                        onToggleVisible: onToggleVisible,
+                      ),
                       Expanded(
-                        child: WorkspaceExplorer(
-                          workspace: workspace,
-                          mode: prefs.explorerMode,
-                          onModeChanged: onSetExplorerMode,
-                          onOpenFile: onOpenFile,
-                          onPathMoved: onPathMoved,
-                        ),
+                        child: switch (prefs.activeContextPanelTab) {
+                          WorkbenchContextPanelTab.explorer =>
+                            WorkspaceExplorer(
+                              workspace: workspace,
+                              mode: prefs.explorerMode,
+                              onModeChanged: onSetExplorerMode,
+                              onOpenFile: onOpenFile,
+                              onPathMoved: onPathMoved,
+                            ),
+                          WorkbenchContextPanelTab.search =>
+                            WorkspaceSearchPanel(
+                              workspace: workspace,
+                              onOpenMatch: onOpenSearchMatch,
+                            ),
+                        },
                       ),
                     ],
                   ),
                 ),
               ],
             )
-          : _CollapsedContextRail(onToggleVisible: onToggleVisible),
+          : _CollapsedContextRail(
+              activeTab: prefs.activeContextPanelTab,
+              onOpenTab: (tab) {
+                onSetContextPanelTab(tab);
+                onToggleVisible();
+              },
+              onToggleVisible: onToggleVisible,
+            ),
     );
   }
 }
 
 class _CollapsedContextRail extends StatelessWidget {
-  const _CollapsedContextRail({required this.onToggleVisible});
+  const _CollapsedContextRail({
+    required this.activeTab,
+    required this.onOpenTab,
+    required this.onToggleVisible,
+  });
 
+  final WorkbenchContextPanelTab activeTab;
+  final ValueChanged<WorkbenchContextPanelTab> onOpenTab;
   final VoidCallback onToggleVisible;
 
   @override
@@ -77,13 +107,20 @@ class _CollapsedContextRail extends StatelessWidget {
       child: Column(
         children: <Widget>[
           const SizedBox(height: AleraTokens.space8),
-          AleraIconButton(
+          _ContextTabButton(
+            tab: WorkbenchContextPanelTab.explorer,
+            activeTab: activeTab,
             tooltip: 'Explorer',
             icon: Icons.file_copy_outlined,
-            onPressed: onToggleVisible,
-            iconColor: AleraTokens.foregroundMuted,
-            backgroundColor: Colors.transparent,
-            borderColor: AleraTokens.borderSubtle,
+            onPressed: () => onOpenTab(WorkbenchContextPanelTab.explorer),
+          ),
+          const SizedBox(height: AleraTokens.space6),
+          _ContextTabButton(
+            tab: WorkbenchContextPanelTab.search,
+            activeTab: activeTab,
+            tooltip: 'Search',
+            icon: Icons.search_rounded,
+            onPressed: () => onOpenTab(WorkbenchContextPanelTab.search),
           ),
           const Spacer(),
           Padding(
@@ -101,8 +138,14 @@ class _CollapsedContextRail extends StatelessWidget {
 }
 
 class _ContextTabHeader extends StatelessWidget {
-  const _ContextTabHeader({required this.onToggleVisible});
+  const _ContextTabHeader({
+    required this.activeTab,
+    required this.onSetActiveTab,
+    required this.onToggleVisible,
+  });
 
+  final WorkbenchContextPanelTab activeTab;
+  final ValueChanged<WorkbenchContextPanelTab> onSetActiveTab;
   final VoidCallback onToggleVisible;
 
   @override
@@ -118,13 +161,22 @@ class _ContextTabHeader extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space8),
           child: Row(
             children: <Widget>[
-              AleraIconButton(
+              _ContextTabButton(
+                tab: WorkbenchContextPanelTab.explorer,
+                activeTab: activeTab,
                 tooltip: 'Explorer',
                 icon: Icons.file_copy_outlined,
-                onPressed: () {},
-                iconColor: AleraTokens.foreground,
-                backgroundColor: AleraTokens.surfaceElevated,
-                borderColor: AleraTokens.border,
+                onPressed: () =>
+                    onSetActiveTab(WorkbenchContextPanelTab.explorer),
+              ),
+              const SizedBox(width: AleraTokens.space6),
+              _ContextTabButton(
+                tab: WorkbenchContextPanelTab.search,
+                activeTab: activeTab,
+                tooltip: 'Search',
+                icon: Icons.search_rounded,
+                onPressed: () =>
+                    onSetActiveTab(WorkbenchContextPanelTab.search),
               ),
               const Spacer(),
               AleraIconButton(
@@ -136,6 +188,35 @@ class _ContextTabHeader extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _ContextTabButton extends StatelessWidget {
+  const _ContextTabButton({
+    required this.tab,
+    required this.activeTab,
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  final WorkbenchContextPanelTab tab;
+  final WorkbenchContextPanelTab activeTab;
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final active = tab == activeTab;
+    return AleraIconButton(
+      tooltip: tooltip,
+      icon: icon,
+      onPressed: onPressed,
+      iconColor: active ? AleraTokens.foreground : AleraTokens.foregroundMuted,
+      backgroundColor: active ? AleraTokens.surfaceElevated : null,
+      borderColor: active ? AleraTokens.border : AleraTokens.borderSubtle,
     );
   }
 }

@@ -6,6 +6,7 @@ import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/features/keyboard/presentation/keyboard_shortcuts_scope.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
@@ -150,6 +151,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                     prefs: state.viewPrefs,
                     onToggleVisible: controller.toggleRightSidebarVisible,
                     onResize: controller.setRightSidebarWidth,
+                    onSetContextPanelTab: controller.setContextPanelTab,
                     onSetExplorerMode: controller.setExplorerMode,
                     onOpenFile: (relativePath) {
                       unawaited(
@@ -158,6 +160,24 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                           relativePath: relativePath,
                         ),
                       );
+                    },
+                    onOpenSearchMatch: (target) {
+                      unawaited(() async {
+                        final tab = await controller.openEditorTab(
+                          workspace: workspace,
+                          relativePath: target.relativePath,
+                        );
+                        ref
+                            .read(editorSessionRegistryProvider)
+                            .reveal(
+                              tab.id,
+                              WorkspaceEditorRevealTarget(
+                                line: target.line,
+                                column: target.column,
+                                matchLength: target.matchLength,
+                              ),
+                            );
+                      }());
                     },
                     onPathMoved: (oldRelativePath, newRelativePath) async {
                       await controller.syncEditorTabsAfterPathMove(

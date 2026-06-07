@@ -124,6 +124,8 @@ class WorkbenchContextPanelTabMapper
     switch (value) {
       case r'explorer':
         return WorkbenchContextPanelTab.explorer;
+      case r'search':
+        return WorkbenchContextPanelTab.search;
       default:
         throw MapperException.unknownEnumValue(value);
     }
@@ -134,6 +136,8 @@ class WorkbenchContextPanelTabMapper
     switch (self) {
       case WorkbenchContextPanelTab.explorer:
         return r'explorer';
+      case WorkbenchContextPanelTab.search:
+        return r'search';
     }
   }
 }

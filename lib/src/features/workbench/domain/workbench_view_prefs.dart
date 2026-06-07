@@ -9,7 +9,7 @@ enum WorkbenchGroupBy { none, project }
 enum WorkbenchSortBy { name, recent }
 
 @MappableEnum()
-enum WorkbenchContextPanelTab { explorer }
+enum WorkbenchContextPanelTab { explorer, search }
 
 @MappableEnum()
 enum WorkspaceExplorerMode { hideIgnored, showAll }
