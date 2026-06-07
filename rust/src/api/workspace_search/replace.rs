@@ -24,7 +24,7 @@ pub(super) fn replace_workspace_matches_impl(
     } else {
         Some(request.match_ids.into_iter().collect::<HashSet<_>>())
     };
-    let matches = run_search(&compiled, Some(&request.options), true)?;
+    let matches = run_search(&compiled, true)?;
     if selected.is_none() && matches.truncated {
         return Err(WorkspaceSearchError::new(
             WorkspaceSearchErrorKind::InvalidPattern,
@@ -98,9 +98,12 @@ pub(super) fn replace_workspace_matches_impl(
                 continue;
             }
         };
+        let line_ranges = LineRanges::new(&content);
         let mut ranges = Vec::new();
         for m in selected_matches {
-            if let Some(range) = locate_match_range(&content, m.line, m.column, m.match_length) {
+            if let Some(range) =
+                line_ranges.locate_match_range(&content, m.line, m.column, m.match_length)
+            {
                 let replacement = replacement_for_slice(
                     &content[range.0..range.1],
                     &compiled.replacement_regex,
@@ -144,33 +147,54 @@ pub(super) fn replace_workspace_matches_impl(
     })
 }
 
-fn locate_match_range(
-    content: &str,
-    line_number: u32,
-    column: u32,
-    match_length: u32,
-) -> Option<(usize, usize)> {
-    let mut byte_cursor = 0;
-    for (idx, line) in content.split_inclusive('\n').enumerate() {
-        if idx as u32 + 1 == line_number {
-            let clean_line = line.strip_suffix('\n').unwrap_or(line);
-            let start_col = column.saturating_sub(1) as usize;
-            let start_byte = clean_line
-                .char_indices()
-                .nth(start_col)
-                .map(|(byte, _)| byte)
-                .unwrap_or(clean_line.len());
-            let end_char = start_col + match_length as usize;
-            let end_byte = clean_line
-                .char_indices()
-                .nth(end_char)
-                .map(|(byte, _)| byte)
-                .unwrap_or(clean_line.len());
-            return Some((byte_cursor + start_byte, byte_cursor + end_byte));
+struct LineRanges {
+    ranges: Vec<LineRange>,
+}
+
+impl LineRanges {
+    fn new(content: &str) -> Self {
+        let mut ranges = Vec::new();
+        let mut start = 0;
+        for line in content.split_inclusive('\n') {
+            let mut end = start + line.len();
+            if line.ends_with('\n') {
+                end -= 1;
+            }
+            if end > start && content.as_bytes()[end - 1] == b'\r' {
+                end -= 1;
+            }
+            ranges.push(LineRange { start, end });
+            start += line.len();
         }
-        byte_cursor += line.len();
+        Self { ranges }
     }
-    None
+
+    fn locate_match_range(
+        &self,
+        content: &str,
+        line_number: u32,
+        column: u32,
+        match_length: u32,
+    ) -> Option<(usize, usize)> {
+        let line = self.ranges.get(line_number.checked_sub(1)? as usize)?;
+        let clean_line = &content[line.start..line.end];
+        let start_col = column.saturating_sub(1) as usize;
+        let start_byte = byte_offset_for_char(clean_line, start_col);
+        let end_byte = byte_offset_for_char(clean_line, start_col + match_length as usize);
+        Some((line.start + start_byte, line.start + end_byte))
+    }
+}
+
+struct LineRange {
+    start: usize,
+    end: usize,
+}
+
+fn byte_offset_for_char(text: &str, char_offset: usize) -> usize {
+    text.char_indices()
+        .nth(char_offset)
+        .map(|(byte, _)| byte)
+        .unwrap_or(text.len())
 }
 
 fn relative_path_from_match_id(id: &str) -> String {

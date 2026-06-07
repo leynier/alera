@@ -56,6 +56,13 @@ class _WorkspaceSearchPanelState extends ConsumerState<WorkspaceSearchPanel> {
   bool _replaceVisible = false;
   bool _detailsVisible = false;
   String? _initializedOptionalSectionsWorkspaceId;
+  native.WorkspaceSearchResult? _cachedCollapsibleResult;
+  bool? _cachedCollapsibleViewAsTree;
+  Set<String> _cachedCollapsibleNodeKeys = const <String>{};
+  native.WorkspaceSearchResult? _cachedRowsResult;
+  Set<String>? _cachedRowsCollapsedNodeKeys;
+  bool? _cachedRowsViewAsTree;
+  _SearchRows _cachedRows = const _SearchRows(<_SearchRow>[]);
 
   @override
   void initState() {
@@ -85,18 +92,11 @@ class _WorkspaceSearchPanelState extends ConsumerState<WorkspaceSearchPanel> {
     _syncController(_excludeController, state.excludePattern);
     _initializeOptionalSections(state);
     final controller = ref.read(provider.notifier);
-    final collapsibleNodeKeys = workspaceSearchCollapsibleNodeKeys(
-      state.result,
-      viewAsTree: state.viewAsTree,
-    );
+    final collapsibleNodeKeys = _collapsibleNodeKeysFor(state);
     final allResultsCollapsed =
         collapsibleNodeKeys.isNotEmpty &&
         collapsibleNodeKeys.every(state.collapsedResultNodeKeys.contains);
-    final rows = _SearchRows.from(
-      state.result,
-      collapsedResultNodeKeys: state.collapsedResultNodeKeys,
-      viewAsTree: state.viewAsTree,
-    );
+    final rows = _rowsFor(state);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
@@ -325,5 +325,39 @@ class _WorkspaceSearchPanelState extends ConsumerState<WorkspaceSearchPanel> {
 
   void _toggleDetails() {
     setState(() => _detailsVisible = !_detailsVisible);
+  }
+
+  Set<String> _collapsibleNodeKeysFor(WorkspaceSearchState state) {
+    if (identical(_cachedCollapsibleResult, state.result) &&
+        _cachedCollapsibleViewAsTree == state.viewAsTree) {
+      return _cachedCollapsibleNodeKeys;
+    }
+    _cachedCollapsibleResult = state.result;
+    _cachedCollapsibleViewAsTree = state.viewAsTree;
+    _cachedCollapsibleNodeKeys = workspaceSearchCollapsibleNodeKeys(
+      state.result,
+      viewAsTree: state.viewAsTree,
+    );
+    return _cachedCollapsibleNodeKeys;
+  }
+
+  _SearchRows _rowsFor(WorkspaceSearchState state) {
+    if (identical(_cachedRowsResult, state.result) &&
+        identical(
+          _cachedRowsCollapsedNodeKeys,
+          state.collapsedResultNodeKeys,
+        ) &&
+        _cachedRowsViewAsTree == state.viewAsTree) {
+      return _cachedRows;
+    }
+    _cachedRowsResult = state.result;
+    _cachedRowsCollapsedNodeKeys = state.collapsedResultNodeKeys;
+    _cachedRowsViewAsTree = state.viewAsTree;
+    _cachedRows = _SearchRows.from(
+      state.result,
+      collapsedResultNodeKeys: state.collapsedResultNodeKeys,
+      viewAsTree: state.viewAsTree,
+    );
+    return _cachedRows;
   }
 }

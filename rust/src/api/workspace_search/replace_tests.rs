@@ -3,6 +3,56 @@ use std::fs;
 use super::*;
 use tempfile::tempdir;
 
+#[test]
+fn replace_selected_matches_uses_line_ranges_for_later_lines() {
+    let dir = tempdir().unwrap();
+    fs::write(
+        dir.path().join("note.txt"),
+        "skip needle\nemoji 🙂 needle\nlast needle\n",
+    )
+    .unwrap();
+    let search = WorkspaceSearchOptions {
+        workspace_path: dir.path().to_string_lossy().to_string(),
+        query: "needle".to_string(),
+        case_sensitive: true,
+        whole_word: false,
+        use_regex: false,
+        include_pattern: None,
+        exclude_pattern: None,
+        include_ignored: false,
+        max_results: None,
+    };
+    let preview = preview_workspace_replace(WorkspaceReplaceOptions {
+        search: search.clone(),
+        replacement: "pin".to_string(),
+        preserve_case: false,
+    })
+    .unwrap();
+    let file = &preview.result.files[0];
+    let selected = vec![file.matches[1].id.clone(), file.matches[2].id.clone()];
+
+    let replaced = replace_workspace_matches(WorkspaceReplaceRequest {
+        options: WorkspaceReplaceOptions {
+            search,
+            replacement: "pin".to_string(),
+            preserve_case: false,
+        },
+        match_ids: selected,
+        expected_files: vec![WorkspaceReplaceFileExpectation {
+            relative_path: file.relative_path.clone(),
+            content_token: file.content_token.clone(),
+        }],
+    })
+    .unwrap();
+
+    assert_eq!(replaced.files_changed, 1);
+    assert_eq!(replaced.matches_replaced, 2);
+    assert_eq!(
+        fs::read_to_string(dir.path().join("note.txt")).unwrap(),
+        "skip needle\nemoji 🙂 pin\nlast pin\n"
+    );
+}
+
 #[cfg(unix)]
 #[test]
 fn replace_reports_file_write_failures_as_conflicts() {

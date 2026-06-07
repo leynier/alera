@@ -134,7 +134,7 @@ pub fn search_workspace(
     options: WorkspaceSearchOptions,
 ) -> Result<WorkspaceSearchResult, WorkspaceSearchError> {
     let compiled = compile::compile_search(&options)?;
-    engine::run_search(&compiled, None, false)
+    engine::run_search(&compiled, false)
 }
 
 pub fn preview_workspace_replace(

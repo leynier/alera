@@ -4,12 +4,14 @@ import 'package:alera/src/features/workbench/application/workbench_providers.dar
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
 import 'package:alera/src/features/workbench/application/workspace_search_service.dart';
 import 'package:alera/src/rust/api/workspace_search.dart' as native;
+import 'package:path/path.dart' as p;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'workspace_search_controller.g.dart';
 
 const int _workspaceSearchMaxResults = 2000;
 const Duration _workspaceSearchDebounce = Duration(milliseconds: 250);
+final p.Context _workspaceSearchPathContext = p.Context(style: p.Style.posix);
 
 String workspaceSearchDirectoryNodeKey(String relativePath) {
   return 'dir:$relativePath';
@@ -41,8 +43,9 @@ Set<String> workspaceSearchCollapsibleNodeKeys(
 }
 
 List<String> workspaceSearchDirectoryPaths(String relativePath) {
-  final segments = relativePath
-      .split(RegExp(r'[/\\]'))
+  final normalized = relativePath.replaceAll('\\', '/');
+  final segments = _workspaceSearchPathContext
+      .split(normalized)
       .where((segment) => segment.isNotEmpty)
       .toList(growable: false);
   if (segments.length <= 1) {
@@ -52,7 +55,7 @@ List<String> workspaceSearchDirectoryPaths(String relativePath) {
   final current = <String>[];
   for (final segment in segments.take(segments.length - 1)) {
     current.add(segment);
-    paths.add(current.join('/'));
+    paths.add(_workspaceSearchPathContext.joinAll(current));
   }
   return paths;
 }

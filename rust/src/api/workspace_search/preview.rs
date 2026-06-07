@@ -10,7 +10,7 @@ pub(super) fn preview_workspace_replace_impl(
     options: WorkspaceReplaceOptions,
 ) -> Result<WorkspaceReplacePreview, WorkspaceSearchError> {
     let compiled = compile_search(&options.search)?;
-    let mut result = run_search(&compiled, Some(&options), false)?;
+    let mut result = run_search(&compiled, false)?;
     for file in &mut result.files {
         for m in &mut file.matches {
             m.replacement_preview = Some(preview_replacement(m, &compiled, &options));
