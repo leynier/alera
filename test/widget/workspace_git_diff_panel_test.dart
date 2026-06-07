@@ -98,6 +98,10 @@ void main() {
 
   testWidgets('stage all dispatches workspace scoped stage', (tester) async {
     final backend = FakeGitBackend()
+      ..gitRepositoryStateResult = const GitRepositoryState(
+        branch: 'main',
+        upstream: 'origin/main',
+      )
       ..gitStatusResult = const GitStatusResult(
         entries: <GitChangeEntry>[
           GitChangeEntry(
@@ -111,7 +115,7 @@ void main() {
     await _pumpPanel(tester, backend: backend);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Stage all'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Stage all'));
     await tester.pumpAndSettle();
 
     expect(
@@ -140,9 +144,9 @@ void main() {
     await _pumpPanel(tester, backend: backend);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Stage').first);
+    await tester.tap(find.byTooltip('Stage').last);
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Unstage').first);
+    await tester.tap(find.byTooltip('Unstage').last);
     await tester.pumpAndSettle();
 
     expect(
@@ -189,11 +193,11 @@ void main() {
     await _pumpPanel(tester, backend: backend);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Stage').first);
+    await tester.tap(find.byTooltip('Stage').last);
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Unstage').first);
+    await tester.tap(find.byTooltip('Unstage').last);
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Discard').first);
+    await tester.tap(find.byTooltip('Discard').last);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Discard').last);
     await tester.pumpAndSettle();
@@ -238,7 +242,7 @@ void main() {
     await _pumpPanel(tester, backend: backend);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Discard').first);
+    await tester.tap(find.byTooltip('Discard').last);
     await tester.pumpAndSettle();
     expect(backend.calls.where((call) => call.method == 'discard'), isEmpty);
 
@@ -269,16 +273,14 @@ void main() {
     await _pumpPanel(tester, backend: backend);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('More actions'));
+    await tester.tap(find.byTooltip('Source control actions'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Push'));
     await tester.pumpAndSettle();
 
     expect(find.text('lib/foo.dart'), findsOneWidget);
 
-    await tester.tap(find.byTooltip('More actions'));
-    await tester.pumpAndSettle();
-    expect(find.text('Refresh'), findsOneWidget);
+    expect(find.byTooltip('Refresh'), findsOneWidget);
   });
 
   testWidgets('refresh stays available after initial load failure', (
@@ -292,15 +294,13 @@ void main() {
 
     expect(find.text('index locked'), findsOneWidget);
 
-    await tester.tap(find.byTooltip('More actions'));
-    await tester.pumpAndSettle();
-    expect(find.text('Refresh'), findsOneWidget);
+    expect(find.byTooltip('Refresh'), findsOneWidget);
 
     backend.statusError = null;
     backend.gitStatusResult = const GitStatusResult(
       entries: <GitChangeEntry>[],
     );
-    await tester.tap(find.text('Refresh'));
+    await tester.tap(find.byTooltip('Refresh'));
     await tester.pumpAndSettle();
 
     expect(find.text('No changes'), findsOneWidget);
@@ -325,7 +325,7 @@ void main() {
     await _pumpPanel(tester, backend: backend);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('More actions'));
+    await tester.tap(find.byTooltip('Source control actions'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Stash'));
     await tester.pumpAndSettle();
@@ -348,9 +348,9 @@ void main() {
     await _pumpPanel(tester, backend: backend);
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextField), 'commit staged file');
+    await tester.enterText(_messageField(), 'commit staged file');
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Commit'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Commit'));
     await tester.pumpAndSettle();
 
     expect(
@@ -360,7 +360,7 @@ void main() {
         'message': 'commit staged file',
       },
     );
-    final editableText = tester.widget<EditableText>(find.byType(EditableText));
+    final editableText = _messageEditable(tester);
     expect(editableText.controller.text, isEmpty);
   });
 
@@ -380,16 +380,16 @@ void main() {
     await _pumpPanel(tester, backend: backend);
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextField), 'commit that fails');
+    await tester.enterText(_messageField(), 'commit that fails');
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Commit'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Commit'));
     await tester.pumpAndSettle();
 
     expect(
       backend.calls.where((call) => call.method == 'commit').single.args,
       <String, Object?>{'path': '/tmp/project', 'message': 'commit that fails'},
     );
-    final editableText = tester.widget<EditableText>(find.byType(EditableText));
+    final editableText = _messageEditable(tester);
     expect(editableText.controller.text, 'commit that fails');
   });
 
@@ -413,7 +413,7 @@ void main() {
       workspace: _workspace(id: 'workspace-a', path: '/tmp/project-a'),
     );
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField), 'message for workspace a');
+    await tester.enterText(_messageField(), 'message for workspace a');
     await tester.pumpAndSettle();
     expect(find.text('message for workspace a'), findsOneWidget);
 
@@ -424,12 +424,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final editableText = tester.widget<EditableText>(find.byType(EditableText));
+    final editableText = _messageEditable(tester);
     expect(editableText.controller.text, isEmpty);
-    final commitButton = tester.widget<FilledButton>(
-      find.widgetWithText(FilledButton, 'Commit'),
-    );
-    expect(commitButton.onPressed, isNull);
   });
 
   test('sync without upstream fails before pull or push', () async {
@@ -464,7 +460,7 @@ void main() {
       await _pumpPanel(tester, backend: backend);
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byTooltip('More actions'));
+      await tester.tap(find.byTooltip('Source control actions'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Sync'));
       await tester.pumpAndSettle();
@@ -494,7 +490,7 @@ void main() {
     await _pumpPanel(tester, backend: backend);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('More actions'));
+    await tester.tap(find.byTooltip('Source control actions'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Stash pop'));
     await tester.pumpAndSettle();
@@ -506,12 +502,163 @@ void main() {
       <String, Object?>{'path': '/tmp/project', 'stashIndex': 0},
     );
   });
+
+  testWidgets('groups are ordered as staged unstaged and untracked', (
+    tester,
+  ) async {
+    final backend = FakeGitBackend()
+      ..gitStatusResult = const GitStatusResult(
+        entries: <GitChangeEntry>[
+          GitChangeEntry(
+            path: 'lib/new.dart',
+            area: GitChangeArea.untracked,
+            status: GitChangeStatus.untracked,
+          ),
+          GitChangeEntry(
+            path: 'lib/dirty.dart',
+            area: GitChangeArea.unstaged,
+            status: GitChangeStatus.modified,
+          ),
+          GitChangeEntry(
+            path: 'lib/staged.dart',
+            area: GitChangeArea.staged,
+            status: GitChangeStatus.modified,
+          ),
+        ],
+      );
+
+    await _pumpPanel(tester, backend: backend);
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.getTopLeft(find.text('Staged')).dy,
+      lessThan(tester.getTopLeft(find.text('Unstaged')).dy),
+    );
+    expect(
+      tester.getTopLeft(find.text('Unstaged')).dy,
+      lessThan(tester.getTopLeft(find.text('Untracked')).dy),
+    );
+  });
+
+  testWidgets('filter narrows visible files without flattening groups', (
+    tester,
+  ) async {
+    final backend = FakeGitBackend()
+      ..gitStatusResult = const GitStatusResult(
+        entries: <GitChangeEntry>[
+          GitChangeEntry(
+            path: 'lib/visible.dart',
+            area: GitChangeArea.unstaged,
+            status: GitChangeStatus.modified,
+          ),
+          GitChangeEntry(
+            path: 'test/hidden.dart',
+            area: GitChangeArea.untracked,
+            status: GitChangeStatus.untracked,
+          ),
+        ],
+      );
+
+    await _pumpPanel(tester, backend: backend);
+    await tester.pumpAndSettle();
+
+    await tester.enterText(_filterField(), 'visible');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Unstaged'), findsOneWidget);
+    expect(find.text('lib/visible.dart'), findsOneWidget);
+    expect(find.text('test/hidden.dart'), findsNothing);
+  });
+
+  testWidgets('sections and visible rows can be collapsed together', (
+    tester,
+  ) async {
+    final backend = FakeGitBackend()
+      ..gitStatusResult = const GitStatusResult(
+        entries: <GitChangeEntry>[
+          GitChangeEntry(
+            path: 'lib/dirty.dart',
+            area: GitChangeArea.unstaged,
+            status: GitChangeStatus.modified,
+          ),
+        ],
+      );
+
+    await _pumpPanel(tester, backend: backend);
+    await tester.pumpAndSettle();
+
+    expect(find.text('lib/dirty.dart'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Collapse all'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Unstaged'), findsOneWidget);
+    expect(find.text('lib/dirty.dart'), findsNothing);
+
+    await tester.tap(find.byTooltip('Expand all'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('lib/dirty.dart'), findsOneWidget);
+  });
+
+  testWidgets('section and folder actions dispatch scoped area operations', (
+    tester,
+  ) async {
+    final backend = FakeGitBackend()
+      ..gitStatusResult = const GitStatusResult(
+        entries: <GitChangeEntry>[
+          GitChangeEntry(
+            path: 'lib/src/dirty.dart',
+            area: GitChangeArea.unstaged,
+            status: GitChangeStatus.modified,
+          ),
+        ],
+      );
+
+    await _pumpPanel(tester, backend: backend, viewMode: GitDiffViewMode.tree);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Stage').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Stage').at(2));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Discard').at(2));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Discard').last);
+    await tester.pumpAndSettle();
+
+    expect(
+      backend.calls.where((call) => call.method == 'stageArea').first.args,
+      <String, Object?>{
+        'path': '/tmp/project',
+        'area': GitChangeArea.unstaged,
+        'filePath': null,
+      },
+    );
+    expect(
+      backend.calls.where((call) => call.method == 'stageArea').last.args,
+      <String, Object?>{
+        'path': '/tmp/project',
+        'area': GitChangeArea.unstaged,
+        'filePath': 'lib/src',
+      },
+    );
+    expect(
+      backend.calls.where((call) => call.method == 'discardArea').single.args,
+      <String, Object?>{
+        'path': '/tmp/project',
+        'area': GitChangeArea.unstaged,
+        'filePath': 'lib/src',
+      },
+    );
+  });
 }
 
 Future<void> _pumpPanel(
   WidgetTester tester, {
   required FakeGitBackend backend,
   Workspace? workspace,
+  GitDiffViewMode viewMode = GitDiffViewMode.flat,
 }) {
   return tester.pumpWidget(
     ProviderScope(
@@ -523,7 +670,7 @@ Future<void> _pumpPanel(
             height: 520,
             child: WorkspaceGitDiffPanel(
               workspace: workspace ?? _workspace(),
-              viewMode: GitDiffViewMode.flat,
+              viewMode: viewMode,
               onViewModeChanged: (_) {},
               onOpenGitDiff: ({area, relativePath, required scope}) async {},
             ),
@@ -531,6 +678,25 @@ Future<void> _pumpPanel(
         ),
       ),
     ),
+  );
+}
+
+Finder _messageField() {
+  return find.byWidgetPredicate(
+    (widget) => widget is TextField && widget.decoration?.hintText == 'Message',
+  );
+}
+
+Finder _filterField() {
+  return find.byWidgetPredicate(
+    (widget) =>
+        widget is TextField && widget.decoration?.hintText == 'Filter files...',
+  );
+}
+
+EditableText _messageEditable(WidgetTester tester) {
+  return tester.widget<EditableText>(
+    find.descendant(of: _messageField(), matching: find.byType(EditableText)),
   );
 }
 

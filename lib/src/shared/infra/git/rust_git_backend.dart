@@ -135,12 +135,51 @@ class RustGitBackend implements GitBackend {
       _guard(() => rust.gitStage(path: path, filePath: filePath));
 
   @override
+  Future<void> stageArea({
+    required String path,
+    required GitChangeArea area,
+    String? filePath,
+  }) => _guard(
+    () => rust.gitStageArea(
+      path: path,
+      area: _toRustArea(area),
+      filePath: filePath,
+    ),
+  );
+
+  @override
   Future<void> unstage({required String path, String? filePath}) =>
       _guard(() => rust.gitUnstage(path: path, filePath: filePath));
 
   @override
+  Future<void> unstageArea({
+    required String path,
+    required GitChangeArea area,
+    String? filePath,
+  }) => _guard(
+    () => rust.gitUnstageArea(
+      path: path,
+      area: _toRustArea(area),
+      filePath: filePath,
+    ),
+  );
+
+  @override
   Future<void> discard({required String path, String? filePath}) =>
       _guard(() => rust.gitDiscard(path: path, filePath: filePath));
+
+  @override
+  Future<void> discardArea({
+    required String path,
+    required GitChangeArea area,
+    String? filePath,
+  }) => _guard(
+    () => rust.gitDiscardArea(
+      path: path,
+      area: _toRustArea(area),
+      filePath: filePath,
+    ),
+  );
 
   @override
   Future<String> commit({required String path, required String message}) =>

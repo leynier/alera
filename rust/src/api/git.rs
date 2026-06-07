@@ -385,6 +385,17 @@ pub fn git_stage(path: String, file_path: Option<String>) -> Result<(), GitError
     stage_status_entries(&repo, &path, &status.entries)
 }
 
+pub fn git_stage_area(
+    path: String,
+    area: GitChangeArea,
+    file_path: Option<String>,
+) -> Result<(), GitError> {
+    let repo = open_repo(&path)?;
+    let status = git_status(path.clone())?;
+    let entries = entries_for_area_and_scope(status.entries, area, file_path.as_deref());
+    stage_status_entries(&repo, &path, &entries)
+}
+
 pub fn git_unstage(path: String, file_path: Option<String>) -> Result<(), GitError> {
     let repo = open_repo(&path)?;
     if let Some(file_path) = file_path {
@@ -394,6 +405,17 @@ pub fn git_unstage(path: String, file_path: Option<String>) -> Result<(), GitErr
     unstage_status_entries(&repo, &path, &status.entries)
 }
 
+pub fn git_unstage_area(
+    path: String,
+    area: GitChangeArea,
+    file_path: Option<String>,
+) -> Result<(), GitError> {
+    let repo = open_repo(&path)?;
+    let status = git_status(path.clone())?;
+    let entries = entries_for_area_and_scope(status.entries, area, file_path.as_deref());
+    unstage_status_entries(&repo, &path, &entries)
+}
+
 pub fn git_discard(path: String, file_path: Option<String>) -> Result<(), GitError> {
     let repo = open_repo(&path)?;
     let status = match file_path.as_deref() {
@@ -401,9 +423,28 @@ pub fn git_discard(path: String, file_path: Option<String>) -> Result<(), GitErr
         None => git_status(path.clone())?,
     };
     let pathspecs = scoped_pathspecs(&repo, &path, file_path.as_deref())?;
+    discard_status_entries(&repo, &path, &status.entries, &pathspecs)
+}
 
-    let has_tracked_unstaged = status
-        .entries
+pub fn git_discard_area(
+    path: String,
+    area: GitChangeArea,
+    file_path: Option<String>,
+) -> Result<(), GitError> {
+    let repo = open_repo(&path)?;
+    let status = git_status(path.clone())?;
+    let entries = entries_for_area_and_scope(status.entries, area, file_path.as_deref());
+    let pathspecs = scoped_pathspecs(&repo, &path, file_path.as_deref())?;
+    discard_status_entries(&repo, &path, &entries, &pathspecs)
+}
+
+fn discard_status_entries(
+    repo: &Repository,
+    path: &str,
+    entries: &[GitChangeEntry],
+    pathspecs: &[String],
+) -> Result<(), GitError> {
+    let has_tracked_unstaged = entries
         .iter()
         .any(|entry| entry.area == GitChangeArea::Unstaged);
     if has_tracked_unstaged {
@@ -411,7 +452,7 @@ pub fn git_discard(path: String, file_path: Option<String>) -> Result<(), GitErr
         checkout.force();
         if pathspecs != [String::from(".")] {
             checkout.disable_pathspec_match(true);
-            for pathspec in &pathspecs {
+            for pathspec in pathspecs {
                 checkout.path(pathspec);
             }
         }
@@ -419,7 +460,7 @@ pub fn git_discard(path: String, file_path: Option<String>) -> Result<(), GitErr
             .map_err(GitError::from_git2)?;
     }
 
-    for entry in status.entries.iter().filter(|entry| {
+    for entry in entries.iter().filter(|entry| {
         entry.area == GitChangeArea::Untracked
             || (entry.area == GitChangeArea::Unstaged
                 && entry.status == GitChangeStatus::Renamed
@@ -429,6 +470,34 @@ pub fn git_discard(path: String, file_path: Option<String>) -> Result<(), GitErr
     }
 
     Ok(())
+}
+
+fn entries_for_area_and_scope(
+    entries: Vec<GitChangeEntry>,
+    area: GitChangeArea,
+    file_path: Option<&str>,
+) -> Vec<GitChangeEntry> {
+    entries
+        .into_iter()
+        .filter(|entry| {
+            entry.area == area
+                && file_path.is_none_or(|file_path| {
+                    workspace_path_is_in_scope(&entry.path, file_path)
+                        || entry
+                            .old_path
+                            .as_deref()
+                            .is_some_and(|old_path| workspace_path_is_in_scope(old_path, file_path))
+                })
+        })
+        .collect()
+}
+
+fn workspace_path_is_in_scope(path: &str, scope: &str) -> bool {
+    scope.is_empty()
+        || path == scope
+        || path
+            .strip_prefix(scope)
+            .is_some_and(|remainder| remainder.starts_with('/'))
 }
 
 pub fn git_commit(path: String, message: String) -> Result<String, GitError> {

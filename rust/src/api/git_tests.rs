@@ -310,6 +310,18 @@ fn git_status_splits_untracked_unstaged_and_staged_changes() {
             && entry.added.is_none()
             && entry.removed == Some(0)
     }));
+    assert_eq!(
+        status
+            .groups
+            .iter()
+            .map(|group| group.area)
+            .collect::<Vec<_>>(),
+        vec![
+            GitChangeArea::Staged,
+            GitChangeArea::Unstaged,
+            GitChangeArea::Untracked,
+        ]
+    );
 }
 
 #[test]
@@ -432,6 +444,43 @@ fn git_stage_all_treats_workspace_pathspec_characters_as_literals() {
     }));
     assert!(!status.entries.iter().any(|entry| {
         entry.path == "packages/app1/foo.dart" && entry.area == GitChangeArea::Staged
+    }));
+}
+
+#[test]
+fn git_stage_area_limits_to_selected_area_and_folder() {
+    let repo = init_repo();
+    std::fs::create_dir_all(repo.path().join("lib")).expect("create lib");
+    std::fs::create_dir_all(repo.path().join("test")).expect("create test");
+    std::fs::write(repo.path().join("lib/tracked.dart"), "lib\n").expect("write lib tracked");
+    std::fs::write(repo.path().join("test/tracked.dart"), "test\n").expect("write test tracked");
+    run_git(repo.path(), &["add", "."]);
+    run_git(repo.path(), &["commit", "-m", "add tracked files"]);
+
+    std::fs::write(repo.path().join("lib/tracked.dart"), "lib changed\n")
+        .expect("modify lib tracked");
+    std::fs::write(repo.path().join("lib/new.dart"), "new\n").expect("write lib new");
+    std::fs::write(repo.path().join("test/tracked.dart"), "test changed\n")
+        .expect("modify test tracked");
+
+    git_stage_area(
+        path_str(repo.path()),
+        GitChangeArea::Unstaged,
+        Some("lib".to_string()),
+    )
+    .unwrap();
+
+    let status = git_status(path_str(repo.path())).unwrap();
+    assert!(status
+        .entries
+        .iter()
+        .any(|entry| { entry.path == "lib/tracked.dart" && entry.area == GitChangeArea::Staged }));
+    assert!(status
+        .entries
+        .iter()
+        .any(|entry| { entry.path == "lib/new.dart" && entry.area == GitChangeArea::Untracked }));
+    assert!(status.entries.iter().any(|entry| {
+        entry.path == "test/tracked.dart" && entry.area == GitChangeArea::Unstaged
     }));
 }
 
@@ -579,6 +628,35 @@ fn git_discard_all_keeps_rename_out_destination_outside_subdirectory_workspace()
     assert_eq!(std::fs::read_to_string(&old_path).unwrap(), "app\n");
     assert_eq!(std::fs::read_to_string(&new_path).unwrap(), "app\n");
     assert!(git_status(path_str(&app_dir)).unwrap().entries.is_empty());
+}
+
+#[test]
+fn git_discard_area_limits_to_untracked_folder_entries() {
+    let repo = init_repo();
+    std::fs::create_dir_all(repo.path().join("lib")).expect("create lib");
+    std::fs::create_dir_all(repo.path().join("test")).expect("create test");
+    std::fs::write(repo.path().join("lib/tracked.dart"), "lib\n").expect("write lib tracked");
+    run_git(repo.path(), &["add", "."]);
+    run_git(repo.path(), &["commit", "-m", "add tracked file"]);
+
+    std::fs::write(repo.path().join("lib/tracked.dart"), "lib changed\n")
+        .expect("modify lib tracked");
+    std::fs::write(repo.path().join("lib/new.dart"), "new\n").expect("write lib new");
+    std::fs::write(repo.path().join("test/new.dart"), "test new\n").expect("write test new");
+
+    git_discard_area(
+        path_str(repo.path()),
+        GitChangeArea::Untracked,
+        Some("lib".to_string()),
+    )
+    .unwrap();
+
+    assert!(!repo.path().join("lib/new.dart").exists());
+    assert!(repo.path().join("test/new.dart").exists());
+    assert_eq!(
+        std::fs::read_to_string(repo.path().join("lib/tracked.dart")).unwrap(),
+        "lib changed\n"
+    );
 }
 
 #[test]

@@ -82,8 +82,11 @@ class FakeGitBackend implements GitBackend {
 
   GitException? statusError;
   GitException? stageError;
+  GitException? stageAreaError;
   GitException? unstageError;
+  GitException? unstageAreaError;
   GitException? discardError;
+  GitException? discardAreaError;
   GitException? commitError;
   GitException? fetchError;
   GitException? pullError;
@@ -312,6 +315,25 @@ class FakeGitBackend implements GitBackend {
   }
 
   @override
+  Future<void> stageArea({
+    required String path,
+    required GitChangeArea area,
+    String? filePath,
+  }) async {
+    calls.add(
+      GitBackendCall('stageArea', <String, Object?>{
+        'path': path,
+        'area': area,
+        'filePath': filePath,
+      }),
+    );
+    final error = stageAreaError;
+    if (error != null) {
+      throw error;
+    }
+  }
+
+  @override
   Future<void> unstage({required String path, String? filePath}) async {
     calls.add(
       GitBackendCall('unstage', <String, Object?>{
@@ -326,6 +348,25 @@ class FakeGitBackend implements GitBackend {
   }
 
   @override
+  Future<void> unstageArea({
+    required String path,
+    required GitChangeArea area,
+    String? filePath,
+  }) async {
+    calls.add(
+      GitBackendCall('unstageArea', <String, Object?>{
+        'path': path,
+        'area': area,
+        'filePath': filePath,
+      }),
+    );
+    final error = unstageAreaError;
+    if (error != null) {
+      throw error;
+    }
+  }
+
+  @override
   Future<void> discard({required String path, String? filePath}) async {
     calls.add(
       GitBackendCall('discard', <String, Object?>{
@@ -334,6 +375,25 @@ class FakeGitBackend implements GitBackend {
       }),
     );
     final error = discardError;
+    if (error != null) {
+      throw error;
+    }
+  }
+
+  @override
+  Future<void> discardArea({
+    required String path,
+    required GitChangeArea area,
+    String? filePath,
+  }) async {
+    calls.add(
+      GitBackendCall('discardArea', <String, Object?>{
+        'path': path,
+        'area': area,
+        'filePath': filePath,
+      }),
+    );
+    final error = discardAreaError;
     if (error != null) {
       throw error;
     }

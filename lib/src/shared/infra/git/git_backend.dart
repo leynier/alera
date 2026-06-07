@@ -84,13 +84,37 @@ abstract interface class GitBackend {
   /// [filePath] when provided.
   Future<void> stage({required String path, String? filePath});
 
+  /// Stages visible changes in [area], optionally limited to a workspace
+  /// relative file or directory [filePath].
+  Future<void> stageArea({
+    required String path,
+    required GitChangeArea area,
+    String? filePath,
+  });
+
   /// Removes all visible staged changes under [path] from the index, or a
   /// single workspace-relative [filePath] when provided.
   Future<void> unstage({required String path, String? filePath});
 
+  /// Removes visible changes in [area] from the index, optionally limited to a
+  /// workspace relative file or directory [filePath].
+  Future<void> unstageArea({
+    required String path,
+    required GitChangeArea area,
+    String? filePath,
+  });
+
   /// Discards unstaged/untracked changes under [path], or a single
   /// workspace-relative [filePath] when provided.
   Future<void> discard({required String path, String? filePath});
+
+  /// Discards visible changes in [area], optionally limited to a workspace
+  /// relative file or directory [filePath].
+  Future<void> discardArea({
+    required String path,
+    required GitChangeArea area,
+    String? filePath,
+  });
 
   /// Creates a commit from the currently staged index.
   Future<String> commit({required String path, required String message});

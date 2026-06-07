@@ -460,9 +460,9 @@ fn diff_line_stats_for_paths(
 
 fn status_result_from_entries(entries: Vec<GitChangeEntry>) -> GitStatusResult {
     let groups = [
-        GitChangeArea::Untracked,
-        GitChangeArea::Unstaged,
         GitChangeArea::Staged,
+        GitChangeArea::Unstaged,
+        GitChangeArea::Untracked,
     ]
     .into_iter()
     .filter_map(|area| {

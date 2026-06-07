@@ -200,10 +200,31 @@ class _E2eGitBackend implements GitBackend {
   Future<void> stage({required String path, String? filePath}) async {}
 
   @override
+  Future<void> stageArea({
+    required String path,
+    required GitChangeArea area,
+    String? filePath,
+  }) async {}
+
+  @override
   Future<void> unstage({required String path, String? filePath}) async {}
 
   @override
+  Future<void> unstageArea({
+    required String path,
+    required GitChangeArea area,
+    String? filePath,
+  }) async {}
+
+  @override
   Future<void> discard({required String path, String? filePath}) async {}
+
+  @override
+  Future<void> discardArea({
+    required String path,
+    required GitChangeArea area,
+    String? filePath,
+  }) async {}
 
   @override
   Future<String> commit({

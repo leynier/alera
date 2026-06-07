@@ -50,6 +50,8 @@ enum WorkspaceSourceControlAction {
   unstage,
   discard,
   commit,
+  commitPush,
+  commitSync,
   fetch,
   pull,
   push,
@@ -74,6 +76,12 @@ class WorkspaceSourceControlController
     (backend) => backend.stage(path: workspacePath, filePath: filePath),
   );
 
+  Future<void> stageArea(GitChangeArea area, {String? filePath}) => _run(
+    WorkspaceSourceControlAction.stage,
+    (backend) =>
+        backend.stageArea(path: workspacePath, area: area, filePath: filePath),
+  );
+
   Future<void> stageEntry(GitChangeEntry entry) =>
       _run(WorkspaceSourceControlAction.stage, (backend) async {
         for (final filePath in _actionPaths(entry)) {
@@ -84,6 +92,15 @@ class WorkspaceSourceControlController
   Future<void> unstage(String? filePath) => _run(
     WorkspaceSourceControlAction.unstage,
     (backend) => backend.unstage(path: workspacePath, filePath: filePath),
+  );
+
+  Future<void> unstageArea(GitChangeArea area, {String? filePath}) => _run(
+    WorkspaceSourceControlAction.unstage,
+    (backend) => backend.unstageArea(
+      path: workspacePath,
+      area: area,
+      filePath: filePath,
+    ),
   );
 
   Future<void> unstageEntry(GitChangeEntry entry) =>
@@ -98,6 +115,15 @@ class WorkspaceSourceControlController
     (backend) => backend.discard(path: workspacePath, filePath: filePath),
   );
 
+  Future<void> discardArea(GitChangeArea area, {String? filePath}) => _run(
+    WorkspaceSourceControlAction.discard,
+    (backend) => backend.discardArea(
+      path: workspacePath,
+      area: area,
+      filePath: filePath,
+    ),
+  );
+
   Future<void> discardEntry(GitChangeEntry entry) =>
       _run(WorkspaceSourceControlAction.discard, (backend) async {
         for (final filePath in _actionPaths(entry)) {
@@ -109,6 +135,22 @@ class WorkspaceSourceControlController
     WorkspaceSourceControlAction.commit,
     (backend) => backend.commit(path: workspacePath, message: message.trim()),
   );
+
+  Future<void> commitAndPush(String message) =>
+      _run(WorkspaceSourceControlAction.commitPush, (backend) async {
+        await backend.commit(path: workspacePath, message: message.trim());
+        await backend.push(workspacePath);
+      });
+
+  Future<void> commitAndSync(String message) =>
+      _run(WorkspaceSourceControlAction.commitSync, (backend) async {
+        await backend.commit(path: workspacePath, message: message.trim());
+        if (!(state.asData?.value.repositoryState.hasUpstream ?? false)) {
+          throw const NoUpstreamException('set an upstream before syncing');
+        }
+        await backend.pull(workspacePath);
+        await backend.push(workspacePath);
+      });
 
   Future<void> fetch() => _run(
     WorkspaceSourceControlAction.fetch,

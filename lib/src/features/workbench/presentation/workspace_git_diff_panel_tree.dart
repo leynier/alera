@@ -2,28 +2,38 @@ part of 'workspace_git_diff_panel.dart';
 
 class _GitDiffTree extends StatefulWidget {
   const _GitDiffTree({
+    required this.area,
     required this.rows,
     required this.busy,
+    required this.collapsedTreeNodes,
+    required this.onToggleTreeNode,
     required this.onOpenGitDiff,
     required this.onStage,
     required this.onUnstage,
     required this.onDiscard,
+    required this.onStageArea,
+    required this.onUnstageArea,
+    required this.onDiscardArea,
   });
 
+  final GitChangeArea area;
   final List<GitChangeTreeRow> rows;
   final bool busy;
+  final Set<String> collapsedTreeNodes;
+  final void Function(GitChangeArea area, String path) onToggleTreeNode;
   final OpenGitDiffTabCallback onOpenGitDiff;
   final ValueChanged<GitChangeEntry> onStage;
   final ValueChanged<GitChangeEntry> onUnstage;
   final ValueChanged<GitChangeEntry> onDiscard;
+  final void Function(GitChangeArea area, String? filePath) onStageArea;
+  final void Function(GitChangeArea area, String? filePath) onUnstageArea;
+  final void Function(GitChangeArea area, String? filePath) onDiscardArea;
 
   @override
   State<_GitDiffTree> createState() => _GitDiffTreeState();
 }
 
 class _GitDiffTreeState extends State<_GitDiffTree> {
-  final Set<String> _collapsed = <String>{};
-
   @override
   Widget build(BuildContext context) {
     final rows = widget.rows.isEmpty ? _fallbackRows() : widget.rows;
@@ -45,7 +55,7 @@ class _GitDiffTreeState extends State<_GitDiffTree> {
       }
       yield row;
       if (row.kind == GitChangeTreeRowKind.directory &&
-          _collapsed.contains(row.path)) {
+          widget.collapsedTreeNodes.contains(_treeNodeKey(row.path))) {
         collapsedDepth = row.depth;
       }
     }
@@ -69,35 +79,48 @@ class _GitDiffTreeState extends State<_GitDiffTree> {
         ),
       );
     }
-    final collapsed = _collapsed.contains(row.path);
+    final collapsed = widget.collapsedTreeNodes.contains(
+      _treeNodeKey(row.path),
+    );
     return _GitDiffDirectoryRow(
       row: row,
+      area: widget.area,
+      busy: widget.busy,
       collapsed: collapsed,
-      onTap: () {
-        setState(() {
-          if (!_collapsed.add(row.path)) {
-            _collapsed.remove(row.path);
-          }
-        });
-      },
+      onTap: () => widget.onToggleTreeNode(widget.area, row.path),
+      onStage: () => widget.onStageArea(widget.area, row.path),
+      onUnstage: () => widget.onUnstageArea(widget.area, row.path),
+      onDiscard: () => widget.onDiscardArea(widget.area, row.path),
     );
   }
 
   List<GitChangeTreeRow> _fallbackRows() {
     return const <GitChangeTreeRow>[];
   }
+
+  String _treeNodeKey(String path) => 'folder:${widget.area.key}:$path';
 }
 
 class _GitDiffDirectoryRow extends StatelessWidget {
   const _GitDiffDirectoryRow({
     required this.row,
+    required this.area,
+    required this.busy,
     required this.collapsed,
     required this.onTap,
+    required this.onStage,
+    required this.onUnstage,
+    required this.onDiscard,
   });
 
   final GitChangeTreeRow row;
+  final GitChangeArea area;
+  final bool busy;
   final bool collapsed;
   final VoidCallback onTap;
+  final VoidCallback onStage;
+  final VoidCallback onUnstage;
+  final VoidCallback onDiscard;
 
   @override
   Widget build(BuildContext context) {
@@ -134,6 +157,14 @@ class _GitDiffDirectoryRow extends StatelessWidget {
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
               color: AleraTokens.foregroundFaint,
             ),
+          ),
+          const SizedBox(width: AleraTokens.space6),
+          _AreaActions(
+            area: area,
+            busy: busy,
+            onStage: onStage,
+            onUnstage: onUnstage,
+            onDiscard: onDiscard,
           ),
         ],
       ),
@@ -242,6 +273,52 @@ class _GitFileActions extends StatelessWidget {
               tooltip: 'Discard',
               icon: Icons.close,
               onPressed: busy ? null : () => onDiscard(entry),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AreaActions extends StatelessWidget {
+  const _AreaActions({
+    required this.area,
+    required this.busy,
+    required this.onStage,
+    required this.onUnstage,
+    required this.onDiscard,
+  });
+
+  final GitChangeArea area;
+  final bool busy;
+  final VoidCallback onStage;
+  final VoidCallback onUnstage;
+  final VoidCallback onDiscard;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 58,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: <Widget>[
+          if (area == GitChangeArea.staged)
+            AleraIconButton(
+              tooltip: 'Unstage',
+              icon: Icons.remove,
+              onPressed: busy ? null : onUnstage,
+            )
+          else
+            AleraIconButton(
+              tooltip: 'Stage',
+              icon: Icons.add,
+              onPressed: busy ? null : onStage,
+            ),
+          if (area != GitChangeArea.staged)
+            AleraIconButton(
+              tooltip: 'Discard',
+              icon: Icons.close,
+              onPressed: busy ? null : onDiscard,
             ),
         ],
       ),

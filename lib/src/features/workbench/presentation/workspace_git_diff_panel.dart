@@ -17,6 +17,9 @@ import 'package:alera/src/shared/infra/git/git_exception.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+part 'workspace_git_diff_panel_groups.dart';
+part 'workspace_git_diff_panel_stash_dialog.dart';
+part 'workspace_git_diff_panel_toolbar.dart';
 part 'workspace_git_diff_panel_tree.dart';
 
 typedef OpenGitDiffTabCallback =
@@ -47,18 +50,25 @@ class WorkspaceGitDiffPanel extends ConsumerStatefulWidget {
 
 class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
   final TextEditingController _messageController = TextEditingController();
+  final TextEditingController _filterController = TextEditingController();
+  final Set<String> _collapsedSections = <String>{};
+  final Set<String> _collapsedTreeNodes = <String>{};
 
   @override
   void didUpdateWidget(covariant WorkspaceGitDiffPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.workspace.path != widget.workspace.path) {
       _messageController.clear();
+      _filterController.clear();
+      _collapsedSections.clear();
+      _collapsedTreeNodes.clear();
     }
   }
 
   @override
   void dispose() {
     _messageController.dispose();
+    _filterController.dispose();
     super.dispose();
   }
 
@@ -72,14 +82,19 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
       children: <Widget>[
         _SourceControlToolbar(
           messageController: _messageController,
+          filterController: _filterController,
           viewMode: widget.viewMode,
           state: state,
+          allCollapsed: _allVisibleNodesCollapsed(state.asData?.value),
           onMessageChanged: () => setState(() {}),
+          onFilterChanged: () => setState(() {}),
+          onRefresh: () => unawaited(_refresh()),
+          onToggleCollapseAll: () =>
+              _toggleAllVisibleNodes(state.asData?.value),
           onViewModeChanged: widget.onViewModeChanged,
           onOpenAll: () =>
               unawaited(widget.onOpenGitDiff(scope: WorkspaceGitDiffScope.all)),
-          onStageAll: () => unawaited(_stage(null)),
-          onCommit: () => unawaited(_commit()),
+          onPrimaryAction: (action) => unawaited(_runToolbarAction(action)),
           onSelectMenuAction: (action) => unawaited(_handleMenuAction(action)),
         ),
         const Divider(height: 1, color: AleraTokens.borderSubtle),
@@ -88,18 +103,30 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (error, _) => _GitDiffMessage(message: _messageFor(error)),
             data: (data) {
-              final entries = data.status.entries;
+              final status = _filteredStatus(data.status);
+              final entries = status.entries;
               if (entries.isEmpty) {
-                return const _GitDiffMessage(message: 'No changes');
+                return _GitDiffMessage(
+                  message: _filterController.text.trim().isEmpty
+                      ? 'No changes'
+                      : 'No files match the current filter',
+                );
               }
               return _GitDiffGroups(
-                groups: data.status.effectiveGroups,
+                groups: status.effectiveGroups,
                 viewMode: widget.viewMode,
                 busy: data.isBusy,
+                collapsedSections: _collapsedSections,
+                collapsedTreeNodes: _collapsedTreeNodes,
+                onToggleSection: _toggleSectionCollapsed,
+                onToggleTreeNode: _toggleTreeNodeCollapsed,
                 onOpenGitDiff: widget.onOpenGitDiff,
                 onStage: _stageEntry,
                 onUnstage: _unstageEntry,
                 onDiscard: _discardEntry,
+                onStageArea: _stageArea,
+                onUnstageArea: _unstageArea,
+                onDiscardArea: _discardAreaWithConfirmation,
               );
             },
           ),
@@ -108,13 +135,31 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
     );
   }
 
+  Future<void> _refresh() {
+    return _run(
+      () => _notifier.refresh(),
+      successMessage: 'Source control refreshed',
+    );
+  }
+
+  Future<void> _runToolbarAction(_SourceControlMenuAction action) async {
+    if (_actionRequiresMessage(action)) {
+      await _commitAction(action);
+      return;
+    }
+    await _handleMenuAction(action);
+  }
+
   Future<void> _handleMenuAction(_SourceControlMenuAction action) async {
     switch (action) {
       case _SourceControlMenuAction.refresh:
-        await _run(
-          () => _notifier.refresh(),
-          successMessage: 'Source Control refreshed',
-        );
+        await _refresh();
+      case _SourceControlMenuAction.commit:
+      case _SourceControlMenuAction.commitPush:
+      case _SourceControlMenuAction.commitSync:
+        await _commitAction(action);
+      case _SourceControlMenuAction.stageAll:
+        await _stage(null);
       case _SourceControlMenuAction.unstageAll:
         await _run(() => _notifier.unstage(null), successMessage: 'Unstaged');
       case _SourceControlMenuAction.discardAll:
@@ -125,6 +170,8 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
         await _run(() => _notifier.pull(), successMessage: 'Pulled');
       case _SourceControlMenuAction.push:
         await _run(() => _notifier.push(), successMessage: 'Pushed');
+      case _SourceControlMenuAction.publishBranch:
+        await _run(() => _notifier.push(), successMessage: 'Branch published');
       case _SourceControlMenuAction.sync:
         await _run(() => _notifier.sync(), successMessage: 'Synced');
       case _SourceControlMenuAction.stash:
@@ -145,6 +192,13 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
     return _run(() => _notifier.stage(filePath), successMessage: 'Staged');
   }
 
+  Future<void> _stageArea(GitChangeArea area, String? filePath) {
+    return _run(
+      () => _notifier.stageArea(area, filePath: filePath),
+      successMessage: 'Staged',
+    );
+  }
+
   Future<void> _stageEntry(GitChangeEntry entry) {
     return _run(() => _notifier.stageEntry(entry), successMessage: 'Staged');
   }
@@ -152,6 +206,13 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
   Future<void> _unstageEntry(GitChangeEntry entry) {
     return _run(
       () => _notifier.unstageEntry(entry),
+      successMessage: 'Unstaged',
+    );
+  }
+
+  Future<void> _unstageArea(GitChangeArea area, String? filePath) {
+    return _run(
+      () => _notifier.unstageArea(area, filePath: filePath),
       successMessage: 'Unstaged',
     );
   }
@@ -179,6 +240,29 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
     );
   }
 
+  Future<void> _discardAreaWithConfirmation(
+    GitChangeArea area,
+    String? filePath,
+  ) async {
+    final target = filePath ?? area.label.toLowerCase();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AleraConfirmDialog(
+        title: 'Discard changes?',
+        message: 'This permanently discards changes in "$target".',
+        confirmLabel: 'Discard',
+        destructive: true,
+      ),
+    );
+    if (confirmed != true || !mounted) {
+      return;
+    }
+    await _run(
+      () => _notifier.discardArea(area, filePath: filePath),
+      successMessage: 'Changes discarded',
+    );
+  }
+
   Future<void> _discardEntry(GitChangeEntry entry) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -199,19 +283,139 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
     );
   }
 
-  Future<void> _commit() async {
+  Future<void> _commitAction(_SourceControlMenuAction action) async {
     final message = _messageController.text.trim();
     if (message.isEmpty) {
       return;
     }
-    final committed = await _run(
-      () => _notifier.commit(message),
-      successMessage: 'Committed',
-    );
+    final committed = await switch (action) {
+      _SourceControlMenuAction.commit => _run(
+        () => _notifier.commit(message),
+        successMessage: 'Committed',
+      ),
+      _SourceControlMenuAction.commitPush => _run(
+        () => _notifier.commitAndPush(message),
+        successMessage: 'Committed and pushed',
+      ),
+      _SourceControlMenuAction.commitSync => _run(
+        () => _notifier.commitAndSync(message),
+        successMessage: 'Committed and synced',
+      ),
+      _ => Future<bool>.value(false),
+    };
     if (committed && mounted) {
       _messageController.clear();
       setState(() {});
     }
+  }
+
+  bool _actionRequiresMessage(_SourceControlMenuAction action) {
+    return switch (action) {
+      _SourceControlMenuAction.commit ||
+      _SourceControlMenuAction.commitPush ||
+      _SourceControlMenuAction.commitSync => true,
+      _ => false,
+    };
+  }
+
+  GitStatusResult _filteredStatus(GitStatusResult status) {
+    final query = _filterController.text.trim().toLowerCase();
+    if (query.isEmpty) {
+      return status;
+    }
+    final entries = status.entries
+        .where((entry) {
+          return entry.path.toLowerCase().contains(query) ||
+              (entry.oldPath?.toLowerCase().contains(query) ?? false);
+        })
+        .toList(growable: false);
+    return GitStatusResult(
+      entries: entries,
+      groups: GitChangeGroup.fromEntries(entries),
+    );
+  }
+
+  void _toggleSectionCollapsed(GitChangeArea area) {
+    setState(() {
+      final key = _sectionKey(area);
+      if (!_collapsedSections.add(key)) {
+        _collapsedSections.remove(key);
+      }
+    });
+  }
+
+  void _toggleTreeNodeCollapsed(GitChangeArea area, String path) {
+    setState(() {
+      final key = _treeNodeKey(area, path);
+      if (!_collapsedTreeNodes.add(key)) {
+        _collapsedTreeNodes.remove(key);
+      }
+    });
+  }
+
+  bool _allVisibleNodesCollapsed(WorkspaceSourceControlState? state) {
+    final keys = _visibleCollapsibleKeys(state);
+    return keys.isNotEmpty &&
+        keys.every(
+          (key) =>
+              _collapsedSections.contains(key) ||
+              _collapsedTreeNodes.contains(key),
+        );
+  }
+
+  void _toggleAllVisibleNodes(WorkspaceSourceControlState? state) {
+    final keys = _visibleCollapsibleKeys(state);
+    if (keys.isEmpty) {
+      return;
+    }
+    setState(() {
+      final allCollapsed = keys.every(
+        (key) =>
+            _collapsedSections.contains(key) ||
+            _collapsedTreeNodes.contains(key),
+      );
+      for (final key in keys) {
+        if (key.startsWith('section:')) {
+          if (allCollapsed) {
+            _collapsedSections.remove(key);
+          } else {
+            _collapsedSections.add(key);
+          }
+        } else {
+          if (allCollapsed) {
+            _collapsedTreeNodes.remove(key);
+          } else {
+            _collapsedTreeNodes.add(key);
+          }
+        }
+      }
+    });
+  }
+
+  Set<String> _visibleCollapsibleKeys(WorkspaceSourceControlState? state) {
+    if (state == null) {
+      return const <String>{};
+    }
+    final status = _filteredStatus(state.status);
+    final keys = <String>{};
+    for (final group in status.effectiveGroups) {
+      if (group.entries.isEmpty) {
+        continue;
+      }
+      keys.add(_sectionKey(group.area));
+      for (final row in group.treeRows) {
+        if (row.kind == GitChangeTreeRowKind.directory) {
+          keys.add(_treeNodeKey(group.area, row.path));
+        }
+      }
+    }
+    return keys;
+  }
+
+  String _sectionKey(GitChangeArea area) => 'section:${area.key}';
+
+  String _treeNodeKey(GitChangeArea area, String path) {
+    return 'folder:${area.key}:$path';
   }
 
   Future<bool> _run(
@@ -280,465 +484,5 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
       return error.context;
     }
     return 'Git operation failed.';
-  }
-}
-
-class _SourceControlToolbar extends StatelessWidget {
-  const _SourceControlToolbar({
-    required this.messageController,
-    required this.viewMode,
-    required this.state,
-    required this.onMessageChanged,
-    required this.onViewModeChanged,
-    required this.onOpenAll,
-    required this.onStageAll,
-    required this.onCommit,
-    required this.onSelectMenuAction,
-  });
-
-  final TextEditingController messageController;
-  final GitDiffViewMode viewMode;
-  final AsyncValue<WorkspaceSourceControlState> state;
-  final VoidCallback onMessageChanged;
-  final ValueChanged<GitDiffViewMode> onViewModeChanged;
-  final VoidCallback onOpenAll;
-  final VoidCallback onStageAll;
-  final VoidCallback onCommit;
-  final ValueChanged<_SourceControlMenuAction> onSelectMenuAction;
-
-  @override
-  Widget build(BuildContext context) {
-    final data = state.asData?.value;
-    final busy = state.isLoading || (data?.isBusy ?? false);
-    final hasChanges = data?.hasChanges ?? false;
-    final hasStagedChanges = data?.hasStagedChanges ?? false;
-    final hasConflicts = data?.repositoryState.hasConflicts ?? false;
-    final canCommit =
-        !busy &&
-        !hasConflicts &&
-        hasStagedChanges &&
-        messageController.text.trim().isNotEmpty;
-    return Padding(
-      padding: const EdgeInsets.all(AleraTokens.space8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: Text(
-                  'Source Control',
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-              ),
-              AleraIconButton(
-                tooltip: 'All changes',
-                icon: Icons.difference_outlined,
-                onPressed: busy ? null : onOpenAll,
-              ),
-              const SizedBox(width: AleraTokens.space2),
-              AleraIconButton(
-                tooltip: viewMode == GitDiffViewMode.tree
-                    ? 'Show flat list'
-                    : 'Show tree',
-                icon: viewMode == GitDiffViewMode.tree
-                    ? Icons.view_list_outlined
-                    : Icons.account_tree_outlined,
-                onPressed: busy
-                    ? null
-                    : () => onViewModeChanged(
-                        viewMode == GitDiffViewMode.tree
-                            ? GitDiffViewMode.flat
-                            : GitDiffViewMode.tree,
-                      ),
-              ),
-              const SizedBox(width: AleraTokens.space2),
-              _SourceControlMenuButton(
-                busy: busy,
-                state: data,
-                onSelected: onSelectMenuAction,
-              ),
-            ],
-          ),
-          const SizedBox(height: AleraTokens.space8),
-          AleraTextField(
-            controller: messageController,
-            hintText: 'Message',
-            dense: true,
-            enabled: !busy,
-            onChanged: (_) => onMessageChanged(),
-            onSubmitted: (_) {
-              if (canCommit) {
-                onCommit();
-              }
-            },
-          ),
-          const SizedBox(height: AleraTokens.space8),
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: !busy && hasChanges ? onStageAll : null,
-                  icon: const Icon(Icons.add, size: 16),
-                  label: const Text('Stage all'),
-                ),
-              ),
-              const SizedBox(width: AleraTokens.space8),
-              FilledButton(
-                onPressed: canCommit ? onCommit : null,
-                child: const Text('Commit'),
-              ),
-            ],
-          ),
-          if (data case final state?) ...<Widget>[
-            const SizedBox(height: AleraTokens.space6),
-            Text(
-              _repoSummary(state),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: AleraTokens.foregroundFaint,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  String _repoSummary(WorkspaceSourceControlState state) {
-    final repo = state.repositoryState;
-    final parts = <String>[repo.branch];
-    if (repo.upstream case final upstream?) {
-      parts.add(upstream);
-    }
-    if (repo.ahead > 0) {
-      parts.add('ahead ${repo.ahead}');
-    }
-    if (repo.behind > 0) {
-      parts.add('behind ${repo.behind}');
-    }
-    if (repo.hasConflicts) {
-      parts.add('conflicts');
-    }
-    if (state.action case final action?) {
-      parts.add(_actionLabel(action));
-    }
-    return parts.join(' · ');
-  }
-
-  String _actionLabel(WorkspaceSourceControlAction action) {
-    return switch (action) {
-      WorkspaceSourceControlAction.refresh => 'refreshing',
-      WorkspaceSourceControlAction.stage => 'staging',
-      WorkspaceSourceControlAction.unstage => 'unstaging',
-      WorkspaceSourceControlAction.discard => 'discarding',
-      WorkspaceSourceControlAction.commit => 'committing',
-      WorkspaceSourceControlAction.fetch => 'fetching',
-      WorkspaceSourceControlAction.pull => 'pulling',
-      WorkspaceSourceControlAction.push => 'pushing',
-      WorkspaceSourceControlAction.sync => 'syncing',
-      WorkspaceSourceControlAction.stash => 'stashing',
-      WorkspaceSourceControlAction.stashPop => 'popping stash',
-    };
-  }
-}
-
-enum _SourceControlMenuAction {
-  refresh,
-  unstageAll,
-  discardAll,
-  fetch,
-  pull,
-  push,
-  sync,
-  stash,
-  stashPop,
-}
-
-class _SourceControlMenuButton extends StatelessWidget {
-  const _SourceControlMenuButton({
-    required this.busy,
-    required this.state,
-    required this.onSelected,
-  });
-
-  final bool busy;
-  final WorkspaceSourceControlState? state;
-  final ValueChanged<_SourceControlMenuAction> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    final hasStaged = state?.hasStagedChanges ?? false;
-    final hasDiscardable = state?.hasUnstagedOrUntrackedChanges ?? false;
-    final hasStashable = state?.hasStashableChanges ?? false;
-    final hasStashes = state?.stashes.isNotEmpty ?? false;
-    final hasConflicts = state?.repositoryState.hasConflicts ?? false;
-    final hasUpstream = state?.repositoryState.hasUpstream ?? false;
-    final hasData = state != null;
-    return PopupMenuButton<_SourceControlMenuAction>(
-      tooltip: 'More actions',
-      enabled: !busy,
-      icon: const Icon(Icons.more_horiz, size: 18),
-      onSelected: onSelected,
-      itemBuilder: (context) => <PopupMenuEntry<_SourceControlMenuAction>>[
-        const AleraDropdownEntry<_SourceControlMenuAction>(
-          value: _SourceControlMenuAction.refresh,
-          label: 'Refresh',
-          leading: Icon(Icons.refresh, size: 16),
-        ),
-        AleraDropdownEntry<_SourceControlMenuAction>(
-          value: _SourceControlMenuAction.unstageAll,
-          label: 'Unstage all',
-          enabled: hasStaged,
-          leading: const Icon(Icons.remove, size: 16),
-        ),
-        AleraDropdownEntry<_SourceControlMenuAction>(
-          value: _SourceControlMenuAction.discardAll,
-          label: 'Discard all',
-          enabled: hasDiscardable,
-          leading: const Icon(Icons.close, size: 16),
-        ),
-        const PopupMenuDivider(height: AleraTokens.space8),
-        AleraDropdownEntry<_SourceControlMenuAction>(
-          value: _SourceControlMenuAction.fetch,
-          label: 'Fetch',
-          enabled: hasData,
-          leading: const Icon(Icons.download_outlined, size: 16),
-        ),
-        AleraDropdownEntry<_SourceControlMenuAction>(
-          value: _SourceControlMenuAction.pull,
-          label: 'Pull',
-          enabled: hasData,
-          leading: const Icon(Icons.south, size: 16),
-        ),
-        AleraDropdownEntry<_SourceControlMenuAction>(
-          value: _SourceControlMenuAction.push,
-          label: 'Push',
-          enabled: hasData && !hasConflicts,
-          leading: const Icon(Icons.north, size: 16),
-        ),
-        AleraDropdownEntry<_SourceControlMenuAction>(
-          value: _SourceControlMenuAction.sync,
-          label: 'Sync',
-          enabled: hasData && !hasConflicts && hasUpstream,
-          leading: const Icon(Icons.sync, size: 16),
-        ),
-        const PopupMenuDivider(height: AleraTokens.space8),
-        AleraDropdownEntry<_SourceControlMenuAction>(
-          value: _SourceControlMenuAction.stash,
-          label: 'Stash',
-          enabled: hasStashable,
-          leading: const Icon(Icons.inventory_2_outlined, size: 16),
-        ),
-        AleraDropdownEntry<_SourceControlMenuAction>(
-          value: _SourceControlMenuAction.stashPop,
-          label: 'Stash pop',
-          enabled: hasStashes,
-          leading: const Icon(Icons.unarchive_outlined, size: 16),
-        ),
-      ],
-    );
-  }
-}
-
-class _StashPickerDialog extends StatelessWidget {
-  const _StashPickerDialog({required this.stashes});
-
-  final List<GitStashEntry> stashes;
-
-  @override
-  Widget build(BuildContext context) {
-    return AleraDialog(
-      maxWidth: 460,
-      child: Padding(
-        padding: const EdgeInsets.all(AleraTokens.space20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            Text('Stash pop', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: AleraTokens.space12),
-            Flexible(
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: stashes.length,
-                itemBuilder: (context, index) {
-                  final stash = stashes[index];
-                  return ListTile(
-                    dense: true,
-                    title: Text(
-                      stash.reference,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    subtitle: Text(
-                      stash.message,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    onTap: () => Navigator.of(context).pop(stash),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: AleraTokens.space12),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Cancel'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _GitDiffGroups extends StatelessWidget {
-  const _GitDiffGroups({
-    required this.groups,
-    required this.viewMode,
-    required this.busy,
-    required this.onOpenGitDiff,
-    required this.onStage,
-    required this.onUnstage,
-    required this.onDiscard,
-  });
-
-  final List<GitChangeGroup> groups;
-  final GitDiffViewMode viewMode;
-  final bool busy;
-  final OpenGitDiffTabCallback onOpenGitDiff;
-  final ValueChanged<GitChangeEntry> onStage;
-  final ValueChanged<GitChangeEntry> onUnstage;
-  final ValueChanged<GitChangeEntry> onDiscard;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.symmetric(vertical: AleraTokens.space6),
-      children: <Widget>[
-        for (final group in groups)
-          _GitDiffGroup(
-            group: group,
-            viewMode: viewMode,
-            busy: busy,
-            onOpenGitDiff: onOpenGitDiff,
-            onStage: onStage,
-            onUnstage: onUnstage,
-            onDiscard: onDiscard,
-          ),
-      ],
-    );
-  }
-}
-
-class _GitDiffGroup extends StatelessWidget {
-  const _GitDiffGroup({
-    required this.group,
-    required this.viewMode,
-    required this.busy,
-    required this.onOpenGitDiff,
-    required this.onStage,
-    required this.onUnstage,
-    required this.onDiscard,
-  });
-
-  final GitChangeGroup group;
-  final GitDiffViewMode viewMode;
-  final bool busy;
-  final OpenGitDiffTabCallback onOpenGitDiff;
-  final ValueChanged<GitChangeEntry> onStage;
-  final ValueChanged<GitChangeEntry> onUnstage;
-  final ValueChanged<GitChangeEntry> onDiscard;
-
-  @override
-  Widget build(BuildContext context) {
-    if (group.entries.isEmpty) {
-      return const SizedBox.shrink();
-    }
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AleraTokens.space8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AleraTokens.space8,
-              vertical: AleraTokens.space4,
-            ),
-            child: Row(
-              children: <Widget>[
-                Expanded(
-                  child: Text(
-                    group.area.label,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: AleraTokens.foregroundMuted,
-                    ),
-                  ),
-                ),
-                Text(
-                  '${group.entries.length}',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: AleraTokens.foregroundFaint,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (viewMode == GitDiffViewMode.flat)
-            for (final entry in group.entries)
-              _GitDiffFileRow(
-                entry: entry,
-                depth: 0,
-                showRelativePath: true,
-                busy: busy,
-                onStage: onStage,
-                onUnstage: onUnstage,
-                onDiscard: onDiscard,
-                onTap: () => unawaited(
-                  onOpenGitDiff(
-                    relativePath: entry.path,
-                    area: entry.area,
-                    scope: WorkspaceGitDiffScope.file,
-                  ),
-                ),
-              )
-          else
-            _GitDiffTree(
-              rows: group.treeRows,
-              busy: busy,
-              onOpenGitDiff: onOpenGitDiff,
-              onStage: onStage,
-              onUnstage: onUnstage,
-              onDiscard: onDiscard,
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _GitDiffMessage extends StatelessWidget {
-  const _GitDiffMessage({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AleraTokens.space16),
-        child: Text(
-          message,
-          textAlign: TextAlign.center,
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundMuted),
-        ),
-      ),
-    );
   }
 }
