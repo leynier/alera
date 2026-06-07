@@ -1,4 +1,5 @@
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
+import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_shortcut_settings.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/domain/editor_syntax_theme_catalog.dart';
@@ -54,6 +55,24 @@ void main() {
 
       expect(editor.tabSize, 4);
       expect(editor.themeName, EditorSyntaxThemeNames.alera);
+    });
+
+    test('ai text generation defaults cover Alera agents conservatively', () {
+      const ai = AiTextGenerationSettings.defaults;
+
+      expect(ai.enabled, isTrue);
+      expect(ai.agent, AiTextGenerationAgent.codex);
+      expect(ai.timeoutSeconds, 120);
+      expect(ai.customCommand, isEmpty);
+      expect(ai.modelFor(AiTextGenerationAgent.codex), isNull);
+      expect(
+        AiTextGenerationAgent.values
+            .where((agent) => agent != AiTextGenerationAgent.custom)
+            .map((agent) => agent.agentType)
+            .whereType<Object>()
+            .length,
+        8,
+      );
     });
 
     test('small settings fragments round-trip through json', () {
@@ -121,6 +140,16 @@ void main() {
           tabSize: 2,
           themeName: EditorSyntaxThemeNames.nord,
         ),
+        aiTextGeneration: AiTextGenerationSettings(
+          agent: AiTextGenerationAgent.agy,
+          selectedModelByAgent: <AiTextGenerationAgent, String>{
+            AiTextGenerationAgent.agy: 'Gemini 3.5 Flash (Medium)',
+          },
+          instructionsByOperation: <AiTextGenerationOperation, String>{
+            AiTextGenerationOperation.commitMessage:
+                'Use conventional commits.',
+          },
+        ),
         terminal: TerminalSettings(
           fontFamily: 'SF Mono',
           fontSize: 15,
@@ -170,6 +199,17 @@ void main() {
       expect(restored.general.keepComputerAwakeWhileAgentsWork, isTrue);
       expect(restored.editor.tabSize, 2);
       expect(restored.editor.themeName, EditorSyntaxThemeNames.nord);
+      expect(restored.aiTextGeneration.agent, AiTextGenerationAgent.agy);
+      expect(
+        restored.aiTextGeneration.modelFor(AiTextGenerationAgent.agy),
+        'Gemini 3.5 Flash (Medium)',
+      );
+      expect(
+        restored.aiTextGeneration.instructionsFor(
+          AiTextGenerationOperation.commitMessage,
+        ),
+        'Use conventional commits.',
+      );
       expect(restored.terminal.fontFamily, 'SF Mono');
       expect(restored.terminal.fontSize, 15);
       expect(restored.terminal.fontWeight, 500);

@@ -1,5 +1,11 @@
+import 'dart:async';
+
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_providers.dart';
+import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_registry.dart';
+import 'package:alera/src/features/ai_text_generation/application/ai_text_model_discovery_service.dart';
+import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/buttons/alera_segmented_button.dart';
 import 'package:alera/src/design_system/feedback/alera_color_swatch.dart';
@@ -9,6 +15,7 @@ import 'package:alera/src/design_system/forms/alera_search_field.dart';
 import 'package:alera/src/design_system/forms/alera_setting_row.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
+import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/design_system/menus/alera_menu_item.dart';
 import 'package:alera/src/design_system/surfaces/alera_panel.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
@@ -25,6 +32,7 @@ import 'package:flutter/services.dart';
 
 part 'settings_dialog_navigation.dart';
 part 'settings_dialog_general_pane.dart';
+part 'settings_dialog_ai_text_pane.dart';
 part 'settings_dialog_editor_pane.dart';
 part 'settings_dialog_terminal_pane.dart';
 part 'settings_dialog_theme_picker.dart';
@@ -104,6 +112,18 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         builder: (_) => _EditorSettingsPane(
           settings: settings.editor,
           onChanged: (editor) => controller.updateEditor(editor),
+        ),
+      ),
+      _SettingsSectionData(
+        id: 'aiText',
+        title: 'AI text',
+        description: 'AI-generated source control text.',
+        icon: Icons.auto_awesome,
+        entries: _aiTextSearchEntries,
+        onReset: controller.resetAiTextGenerationSettings,
+        builder: (_) => _AiTextSettingsPane(
+          settings: settings.aiTextGeneration,
+          onChanged: (aiText) => controller.updateAiTextGeneration(aiText),
         ),
       ),
       _SettingsSectionData(
@@ -356,6 +376,35 @@ const List<_SettingsSearchEntry> _editorSearchEntries = <_SettingsSearchEntry>[
     title: 'Tab size',
     description: 'Spaces inserted when pressing Tab in editor tabs.',
     keywords: <String>['indent', 'indentation', 'spaces', 'code'],
+  ),
+];
+
+const List<_SettingsSearchEntry> _aiTextSearchEntries = <_SettingsSearchEntry>[
+  _SettingsSearchEntry(
+    title: 'AI text generation',
+    description: 'Generate source control text with local agent CLIs.',
+    keywords: <String>['ai', 'commit', 'pull request', 'branch'],
+  ),
+  _SettingsSearchEntry(
+    title: 'AI text agent',
+    description: 'Choose the CLI used for generated text.',
+    keywords: <String>[
+      'codex',
+      'claude',
+      'copilot',
+      'cursor',
+      'antigravity',
+      'agy',
+      'opencode',
+      'pi',
+      'amp',
+      'custom',
+    ],
+  ),
+  _SettingsSearchEntry(
+    title: 'AI text instructions',
+    description: 'Commit message instructions for generated text.',
+    keywords: <String>['prompt', 'instructions', 'commit message'],
   ),
 ];
 

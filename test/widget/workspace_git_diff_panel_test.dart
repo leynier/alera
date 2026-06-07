@@ -1,4 +1,11 @@
+import 'dart:async';
+
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_providers.dart';
+import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_service.dart';
+import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
+import 'package:alera/src/features/settings/application/settings_controller.dart';
+import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/application/workspace_source_control_controller.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
@@ -6,6 +13,7 @@ import 'package:alera/src/features/workbench/presentation/workspace_git_diff_pan
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_exception.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -29,7 +37,12 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [gitBackendProvider.overrideWithValue(backend)],
+        overrides: [
+          gitBackendProvider.overrideWithValue(backend),
+          settingsControllerProvider.overrideWith(
+            () => _PanelSettingsController(AleraSettings.defaults),
+          ),
+        ],
         child: MaterialApp(
           home: Scaffold(
             body: SizedBox(
@@ -73,7 +86,12 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [gitBackendProvider.overrideWithValue(backend)],
+        overrides: [
+          gitBackendProvider.overrideWithValue(backend),
+          settingsControllerProvider.overrideWith(
+            () => _PanelSettingsController(AleraSettings.defaults),
+          ),
+        ],
         child: MaterialApp(
           home: Scaffold(
             body: SizedBox(
@@ -563,6 +581,137 @@ void main() {
     expect(editableText.controller.text, isEmpty);
   });
 
+  testWidgets('generated commit message is ignored after workspace changes', (
+    tester,
+  ) async {
+    final backend = FakeGitBackend()
+      ..gitStatusResult = const GitStatusResult(
+        entries: <GitChangeEntry>[
+          GitChangeEntry(
+            path: 'lib/staged.dart',
+            area: GitChangeArea.staged,
+            status: GitChangeStatus.modified,
+          ),
+        ],
+      );
+    final service = _FakeAiTextGenerationService();
+
+    await _pumpPanel(
+      tester,
+      backend: backend,
+      service: service,
+      workspace: _workspace(id: 'workspace-a', path: '/tmp/project-a'),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Generate commit message with AI'));
+    await tester.pump();
+    expect(service.requests.single.workspacePath, '/tmp/project-a');
+
+    await _pumpPanel(
+      tester,
+      backend: backend,
+      service: service,
+      workspace: _workspace(id: 'workspace-b', path: '/tmp/project-b'),
+    );
+    await tester.pump();
+    await tester.tap(find.byTooltip('Generate commit message with AI'));
+    await tester.pump();
+    expect(service.requests.last.workspacePath, '/tmp/project-b');
+
+    service.completeAt(0, 'feat: stale message');
+    await tester.pump();
+
+    expect(find.text('Generating with AI'), findsOneWidget);
+    expect(find.byTooltip('Stop generating commit message'), findsOneWidget);
+    expect(find.byIcon(Icons.stop_circle_outlined), findsNothing);
+    expect(tester.widget<TextField>(_messageField()).enabled, isFalse);
+    expect(_messageEditable(tester).controller.text, isEmpty);
+
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await gesture.addPointer();
+    await gesture.moveTo(
+      tester.getCenter(find.byTooltip('Stop generating commit message')),
+    );
+    await tester.pump(const Duration(milliseconds: 150));
+
+    expect(find.byIcon(Icons.stop_circle_outlined), findsOneWidget);
+    await gesture.removePointer();
+
+    service.completeAt(1, 'feat: workspace b message');
+    await tester.pumpAndSettle();
+
+    expect(
+      _messageEditable(tester).controller.text,
+      'feat: workspace b message',
+    );
+    expect(service.canceled, <String>[
+      '/tmp/project-a::${AiTextGenerationOperation.commitMessage.key}',
+    ]);
+  });
+
+  testWidgets('running commit message generation is canceled on dispose', (
+    tester,
+  ) async {
+    final backend = FakeGitBackend()
+      ..gitStatusResult = const GitStatusResult(
+        entries: <GitChangeEntry>[
+          GitChangeEntry(
+            path: 'lib/staged.dart',
+            area: GitChangeArea.staged,
+            status: GitChangeStatus.modified,
+          ),
+        ],
+      );
+    final service = _FakeAiTextGenerationService();
+
+    await _pumpPanel(
+      tester,
+      backend: backend,
+      service: service,
+      workspace: _workspace(path: '/tmp/project-a'),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Generate commit message with AI'));
+    await tester.pump();
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+
+    expect(service.canceled, <String>[
+      '/tmp/project-a::${AiTextGenerationOperation.commitMessage.key}',
+    ]);
+  });
+
+  testWidgets('AI commit message action is hidden when AI text is disabled', (
+    tester,
+  ) async {
+    final backend = FakeGitBackend()
+      ..gitStatusResult = const GitStatusResult(
+        entries: <GitChangeEntry>[
+          GitChangeEntry(
+            path: 'lib/staged.dart',
+            area: GitChangeArea.staged,
+            status: GitChangeStatus.modified,
+          ),
+        ],
+      );
+
+    await _pumpPanel(
+      tester,
+      backend: backend,
+      settings: AleraSettings.defaults.copyWith(
+        aiTextGeneration: AiTextGenerationSettings.defaults.copyWith(
+          enabled: false,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('Generate commit message with AI'), findsNothing);
+  });
+
   test('sync without upstream fails before pull or push', () async {
     final backend = FakeGitBackend()
       ..gitRepositoryStateResult = const GitRepositoryState(branch: 'feature');
@@ -731,6 +880,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final messageField = tester.widget<TextField>(_messageField());
+    expect(messageField.decoration?.suffixIcon, isNull);
     expect(
       messageField.decoration?.contentPadding,
       const EdgeInsets.fromLTRB(
@@ -831,10 +981,19 @@ Future<void> _pumpPanel(
   required FakeGitBackend backend,
   Workspace? workspace,
   GitDiffViewMode viewMode = GitDiffViewMode.flat,
+  AiTextGenerationService? service,
+  AleraSettings settings = AleraSettings.defaults,
 }) {
   return tester.pumpWidget(
     ProviderScope(
-      overrides: [gitBackendProvider.overrideWithValue(backend)],
+      overrides: [
+        gitBackendProvider.overrideWithValue(backend),
+        settingsControllerProvider.overrideWith(
+          () => _PanelSettingsController(settings),
+        ),
+        if (service != null)
+          aiTextGenerationServiceProvider.overrideWithValue(service),
+      ],
       child: MaterialApp(
         home: Scaffold(
           body: SizedBox(
@@ -851,6 +1010,41 @@ Future<void> _pumpPanel(
       ),
     ),
   );
+}
+
+class _PanelSettingsController extends SettingsController {
+  _PanelSettingsController(this._settings);
+
+  final AleraSettings _settings;
+
+  @override
+  AleraSettings build() => _settings;
+}
+
+class _FakeAiTextGenerationService implements AiTextGenerationService {
+  final List<AiTextGenerationRequest> requests = <AiTextGenerationRequest>[];
+  final List<String> canceled = <String>[];
+  final List<Completer<AiTextGenerationResult>> _results =
+      <Completer<AiTextGenerationResult>>[];
+
+  @override
+  Future<AiTextGenerationResult> generate(AiTextGenerationRequest request) {
+    requests.add(request);
+    final result = Completer<AiTextGenerationResult>();
+    _results.add(result);
+    return result.future;
+  }
+
+  @override
+  void cancel(String workspacePath, AiTextGenerationOperation operation) {
+    canceled.add('$workspacePath::${operation.key}');
+  }
+
+  void completeAt(int index, String text) {
+    _results[index].complete(
+      AiTextGenerationResult(text: text, agentLabel: 'Codex'),
+    );
+  }
 }
 
 Finder _messageField() {

@@ -1231,6 +1231,7 @@ class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
     if (_instance == null) {
       MapperContainer.globals.use(_instance = AleraSettingsMapper._());
       GeneralSettingsMapper.ensureInitialized();
+      AiTextGenerationSettingsMapper.ensureInitialized();
       EditorSettingsMapper.ensureInitialized();
       TerminalSettingsMapper.ensureInitialized();
       KeyboardShortcutSettingsMapper.ensureInitialized();
@@ -1245,6 +1246,15 @@ class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
   static const Field<AleraSettings, GeneralSettings> _f$general = Field(
     'general',
     _$general,
+  );
+  static AiTextGenerationSettings _$aiTextGeneration(AleraSettings v) =>
+      v.aiTextGeneration;
+  static const Field<AleraSettings, AiTextGenerationSettings>
+  _f$aiTextGeneration = Field(
+    'aiTextGeneration',
+    _$aiTextGeneration,
+    opt: true,
+    def: AiTextGenerationSettings.defaults,
   );
   static EditorSettings _$editor(AleraSettings v) => v.editor;
   static const Field<AleraSettings, EditorSettings> _f$editor = Field(
@@ -1265,6 +1275,7 @@ class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
   @override
   final MappableFields<AleraSettings> fields = const {
     #general: _f$general,
+    #aiTextGeneration: _f$aiTextGeneration,
     #editor: _f$editor,
     #terminal: _f$terminal,
     #keyboard: _f$keyboard,
@@ -1273,6 +1284,7 @@ class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
   static AleraSettings _instantiate(DecodingData data) {
     return AleraSettings(
       general: data.dec(_f$general),
+      aiTextGeneration: data.dec(_f$aiTextGeneration),
       editor: data.dec(_f$editor),
       terminal: data.dec(_f$terminal),
       keyboard: data.dec(_f$keyboard),
@@ -1342,6 +1354,12 @@ extension AleraSettingsValueCopy<$R, $Out>
 abstract class AleraSettingsCopyWith<$R, $In extends AleraSettings, $Out>
     implements ClassCopyWith<$R, $In, $Out> {
   GeneralSettingsCopyWith<$R, GeneralSettings, GeneralSettings> get general;
+  AiTextGenerationSettingsCopyWith<
+    $R,
+    AiTextGenerationSettings,
+    AiTextGenerationSettings
+  >
+  get aiTextGeneration;
   EditorSettingsCopyWith<$R, EditorSettings, EditorSettings> get editor;
   TerminalSettingsCopyWith<$R, TerminalSettings, TerminalSettings> get terminal;
   KeyboardShortcutSettingsCopyWith<
@@ -1352,6 +1370,7 @@ abstract class AleraSettingsCopyWith<$R, $In extends AleraSettings, $Out>
   get keyboard;
   $R call({
     GeneralSettings? general,
+    AiTextGenerationSettings? aiTextGeneration,
     EditorSettings? editor,
     TerminalSettings? terminal,
     KeyboardShortcutSettings? keyboard,
@@ -1371,6 +1390,14 @@ class _AleraSettingsCopyWithImpl<$R, $Out>
   GeneralSettingsCopyWith<$R, GeneralSettings, GeneralSettings> get general =>
       $value.general.copyWith.$chain((v) => call(general: v));
   @override
+  AiTextGenerationSettingsCopyWith<
+    $R,
+    AiTextGenerationSettings,
+    AiTextGenerationSettings
+  >
+  get aiTextGeneration =>
+      $value.aiTextGeneration.copyWith.$chain((v) => call(aiTextGeneration: v));
+  @override
   EditorSettingsCopyWith<$R, EditorSettings, EditorSettings> get editor =>
       $value.editor.copyWith.$chain((v) => call(editor: v));
   @override
@@ -1386,12 +1413,14 @@ class _AleraSettingsCopyWithImpl<$R, $Out>
   @override
   $R call({
     GeneralSettings? general,
+    AiTextGenerationSettings? aiTextGeneration,
     EditorSettings? editor,
     TerminalSettings? terminal,
     KeyboardShortcutSettings? keyboard,
   }) => $apply(
     FieldCopyWithData({
       if (general != null) #general: general,
+      if (aiTextGeneration != null) #aiTextGeneration: aiTextGeneration,
       if (editor != null) #editor: editor,
       if (terminal != null) #terminal: terminal,
       if (keyboard != null) #keyboard: keyboard,
@@ -1400,6 +1429,7 @@ class _AleraSettingsCopyWithImpl<$R, $Out>
   @override
   AleraSettings $make(CopyWithData data) => AleraSettings(
     general: data.get(#general, or: $value.general),
+    aiTextGeneration: data.get(#aiTextGeneration, or: $value.aiTextGeneration),
     editor: data.get(#editor, or: $value.editor),
     terminal: data.get(#terminal, or: $value.terminal),
     keyboard: data.get(#keyboard, or: $value.keyboard),

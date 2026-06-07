@@ -6,9 +6,13 @@ class _SourceControlToolbar extends StatelessWidget {
     required this.filterController,
     required this.viewMode,
     required this.state,
+    required this.aiTextSettings,
+    required this.generatingCommitMessage,
     required this.allCollapsed,
     required this.filterVisible,
     required this.onMessageChanged,
+    required this.onGenerateCommitMessage,
+    required this.onCancelGenerateCommitMessage,
     required this.onFilterChanged,
     required this.onToggleFilter,
     required this.onRefresh,
@@ -23,9 +27,13 @@ class _SourceControlToolbar extends StatelessWidget {
   final TextEditingController filterController;
   final GitDiffViewMode viewMode;
   final AsyncValue<WorkspaceSourceControlState> state;
+  final AiTextGenerationSettings aiTextSettings;
+  final bool generatingCommitMessage;
   final bool allCollapsed;
   final bool filterVisible;
   final VoidCallback onMessageChanged;
+  final VoidCallback onGenerateCommitMessage;
+  final VoidCallback onCancelGenerateCommitMessage;
   final VoidCallback onFilterChanged;
   final VoidCallback onToggleFilter;
   final VoidCallback onRefresh;
@@ -41,6 +49,8 @@ class _SourceControlToolbar extends StatelessWidget {
     final busy = state.isLoading || (data?.isBusy ?? false);
     final hasStagedChanges = data?.hasStagedChanges ?? false;
     final hasConflicts = data?.repositoryState.hasConflicts ?? false;
+    final canGenerateCommitMessage =
+        aiTextSettings.enabled && !busy && !hasConflicts && hasStagedChanges;
     final canCommit =
         !busy &&
         !hasConflicts &&
@@ -64,6 +74,16 @@ class _SourceControlToolbar extends StatelessWidget {
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
               ),
+              if (aiTextSettings.enabled ||
+                  generatingCommitMessage) ...<Widget>[
+                _AiCommitMessageButton(
+                  generating: generatingCommitMessage,
+                  canGenerate: canGenerateCommitMessage,
+                  onGenerate: onGenerateCommitMessage,
+                  onCancel: onCancelGenerateCommitMessage,
+                ),
+                const SizedBox(width: AleraTokens.space2),
+              ],
               AleraIconButton(
                 tooltip: 'All changes',
                 icon: Icons.difference_outlined,
@@ -111,6 +131,7 @@ class _SourceControlToolbar extends StatelessWidget {
           _CommitMessageField(
             controller: messageController,
             enabled: !busy,
+            generating: generatingCommitMessage,
             onChanged: (_) => onMessageChanged(),
             onSubmitted: (_) {
               if (canCommit) {
@@ -252,25 +273,114 @@ enum _SourceControlMenuAction {
   stashPop,
 }
 
+class _AiCommitMessageButton extends StatefulWidget {
+  const _AiCommitMessageButton({
+    required this.generating,
+    required this.canGenerate,
+    required this.onGenerate,
+    required this.onCancel,
+  });
+
+  final bool generating;
+  final bool canGenerate;
+  final VoidCallback onGenerate;
+  final VoidCallback onCancel;
+
+  @override
+  State<_AiCommitMessageButton> createState() => _AiCommitMessageButtonState();
+}
+
+class _AiCommitMessageButtonState extends State<_AiCommitMessageButton> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final showingStop = widget.generating && _hovered;
+    final onPressed = widget.generating
+        ? widget.onCancel
+        : widget.canGenerate
+        ? widget.onGenerate
+        : null;
+    return MouseRegion(
+      cursor: onPressed == null
+          ? SystemMouseCursors.basic
+          : SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: Tooltip(
+        message: widget.generating
+            ? 'Stop generating commit message'
+            : 'Generate commit message with AI',
+        child: IconButton(
+          onPressed: onPressed,
+          visualDensity: VisualDensity.compact,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(
+            minWidth: 30,
+            minHeight: 30,
+            maxWidth: 30,
+            maxHeight: 30,
+          ),
+          style: IconButton.styleFrom(
+            minimumSize: const Size(30, 30),
+            maximumSize: const Size(30, 30),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+            ),
+          ),
+          icon: AnimatedSwitcher(
+            duration: AleraTokens.durationFast,
+            child: widget.generating && !showingStop
+                ? const SizedBox(
+                    key: ValueKey<String>('ai-commit-loading'),
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AleraTokens.foregroundMuted,
+                    ),
+                  )
+                : Icon(
+                    showingStop
+                        ? Icons.stop_circle_outlined
+                        : Icons.auto_awesome,
+                    key: ValueKey<String>(
+                      showingStop ? 'ai-commit-stop' : 'ai-commit-generate',
+                    ),
+                    size: 16,
+                    color: showingStop
+                        ? AleraTokens.error
+                        : AleraTokens.foregroundMuted,
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _CommitMessageField extends StatelessWidget {
   const _CommitMessageField({
     required this.controller,
     required this.enabled,
+    required this.generating,
     required this.onChanged,
     required this.onSubmitted,
   });
 
   final TextEditingController controller;
   final bool enabled;
+  final bool generating;
   final ValueChanged<String> onChanged;
   final ValueChanged<String> onSubmitted;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return TextField(
+    final field = TextField(
       controller: controller,
-      enabled: enabled,
+      enabled: enabled && !generating,
       minLines: 3,
       maxLines: 6,
       onChanged: onChanged,
@@ -295,6 +405,60 @@ class _CommitMessageField extends StatelessWidget {
         enabledBorder: _messageBorder(AleraTokens.borderSubtle),
         focusedBorder: _messageBorder(AleraTokens.border),
       ),
+    );
+    if (!generating) {
+      return field;
+    }
+    return Stack(
+      children: <Widget>[
+        field,
+        Positioned.fill(
+          child: AbsorbPointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: AleraTokens.barrierDark,
+                borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+                border: Border.all(color: AleraTokens.borderSubtle),
+              ),
+              child: Center(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: AleraTokens.surfaceElevated,
+                    borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+                    border: Border.all(color: AleraTokens.border),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AleraTokens.space12,
+                      vertical: AleraTokens.space8,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AleraTokens.foregroundMuted,
+                          ),
+                        ),
+                        const SizedBox(width: AleraTokens.space8),
+                        Text(
+                          'Generating with AI',
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            color: AleraTokens.foregroundMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

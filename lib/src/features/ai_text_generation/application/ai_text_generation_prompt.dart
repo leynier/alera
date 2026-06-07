@@ -1,0 +1,116 @@
+import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
+
+const int stagedDiffPromptBudget = 200000;
+
+class AiTextCommitContext {
+  const AiTextCommitContext({
+    required this.branch,
+    required this.stagedSummary,
+    required this.stagedPatch,
+  });
+
+  final String? branch;
+  final String stagedSummary;
+  final String stagedPatch;
+}
+
+String buildCommitMessagePrompt({
+  required AiTextCommitContext context,
+  required String customInstructions,
+}) {
+  final base = <String>[
+    'You are generating a single git commit message.',
+    'Return only the commit message text. Do not include a preamble, quotes, or code fences.',
+    '',
+    'Rules:',
+    '- First line: imperative mood, <= 72 chars, no trailing period.',
+    '- Optional body: blank line, then short wrapped bullet points or prose explaining WHY.',
+    '- Capture the primary user-visible or developer-visible change.',
+    '- Use only the staged changes below as context.',
+    '- Do not include "Co-authored-by" or other git trailers.',
+    '',
+    'Branch: ${context.branch ?? '(detached)'}',
+    '',
+    'Staged files:',
+    limitPromptSection(context.stagedSummary, 6000),
+    '',
+    'Staged patch:',
+    '```diff',
+    truncateDiffForPrompt(context.stagedPatch),
+    '```',
+  ].join('\n');
+
+  final trimmed = customInstructions.trim();
+  if (trimmed.isEmpty) {
+    return base;
+  }
+  return <String>[
+    base,
+    '',
+    'Additional user instructions:',
+    limitPromptSection(trimmed, 4000),
+  ].join('\n');
+}
+
+String limitPromptSection(String value, int maxChars) {
+  if (value.length <= maxChars) {
+    return value;
+  }
+  final omitted = value.length - maxChars;
+  return '${value.substring(0, maxChars)}\n\n[truncated: $omitted characters omitted]';
+}
+
+String truncateDiffForPrompt(
+  String diff, {
+  int budget = stagedDiffPromptBudget,
+}) {
+  if (diff.length <= budget) {
+    return diff;
+  }
+  final omitted = diff.length - budget;
+  return '${diff.substring(0, budget)}\n...(diff truncated, $omitted characters omitted)';
+}
+
+String cleanGeneratedText(String raw) {
+  var text = raw.replaceAll('\r\n', '\n').trim();
+  final firstNewline = text.indexOf('\n');
+  if (firstNewline != -1) {
+    final firstLine = text.substring(0, firstNewline).trim();
+    if (RegExp(
+          r'^(generating|thinking)\b',
+          caseSensitive: false,
+        ).hasMatch(firstLine) ||
+        RegExp(r'^[.…]+$').hasMatch(firstLine)) {
+      text = text.substring(firstNewline + 1).trim();
+    }
+  }
+  final fenced = RegExp(
+    r'^```[a-zA-Z0-9_-]*\n([\s\S]*?)\n```$',
+  ).firstMatch(text);
+  if (fenced != null) {
+    text = fenced.group(1)!.trim();
+  }
+  return text.replaceFirst(RegExp(r'^\s*(?:[-*]\s+|\d+[.)]\s+)'), '').trim();
+}
+
+String cleanGeneratedCommitMessage(String raw) {
+  final normalized = cleanGeneratedText(raw);
+  final lines = normalized.split('\n');
+  final subject = (lines.isEmpty ? '' : lines.first).trim().replaceFirst(
+    RegExp(r'[.]+$'),
+    '',
+  );
+  final candidate = subject.isEmpty ? 'Update project files' : subject;
+  final safeSubject = candidate
+      .substring(0, candidate.length > 72 ? 72 : candidate.length)
+      .trimRight();
+  final body = lines.skip(1).join('\n').trim();
+  return body.isEmpty ? safeSubject : '$safeSubject\n\n$body';
+}
+
+String promptInstructionsFor(
+  AiTextGenerationSettings settings,
+  AiTextGenerationOperation operation,
+) {
+  return settings.instructionsFor(operation);
+}
