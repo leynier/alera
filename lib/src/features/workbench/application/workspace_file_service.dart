@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:alera/src/rust/api/workspace_files.dart' as native;
 import 'package:flutter/foundation.dart';
+import 'package:path/path.dart' as p;
 
 class WorkspaceFileService {
   const WorkspaceFileService();
@@ -189,6 +192,90 @@ class WorkspaceFileService {
       useTrash: useTrash,
     );
   }
+
+  Future<ResolvedWorkspaceFile> resolveWorkspaceFilePath({
+    required String workspacePath,
+    required String relativePath,
+  }) async {
+    final normalizedRelativePath = _normalizeRelativeFilePath(relativePath);
+    late final String workspaceCanonicalPath;
+    try {
+      workspaceCanonicalPath = await Directory(
+        workspacePath,
+      ).resolveSymbolicLinks();
+    } on FileSystemException catch (error) {
+      throw native.WorkspaceFileError(
+        kind: native.WorkspaceFileErrorKind.io,
+        context: error.message,
+      );
+    }
+
+    final requestedPath = p.join(
+      workspaceCanonicalPath,
+      normalizedRelativePath,
+    );
+    late final String fileCanonicalPath;
+    try {
+      fileCanonicalPath = await File(requestedPath).resolveSymbolicLinks();
+    } on FileSystemException catch (error) {
+      throw native.WorkspaceFileError(
+        kind: error.osError == null
+            ? native.WorkspaceFileErrorKind.io
+            : native.WorkspaceFileErrorKind.notFound,
+        context: relativePath,
+      );
+    }
+
+    if (!p.isWithin(workspaceCanonicalPath, fileCanonicalPath)) {
+      throw native.WorkspaceFileError(
+        kind: native.WorkspaceFileErrorKind.outsideWorkspace,
+        context: relativePath,
+      );
+    }
+
+    final stat = await File(fileCanonicalPath).stat();
+    if (stat.type != FileSystemEntityType.file) {
+      throw native.WorkspaceFileError(
+        kind: native.WorkspaceFileErrorKind.unsupported,
+        context: relativePath,
+      );
+    }
+    return ResolvedWorkspaceFile(
+      path: fileCanonicalPath,
+      modifiedMicros: stat.modified.microsecondsSinceEpoch,
+      length: stat.size,
+    );
+  }
+
+  String _normalizeRelativeFilePath(String relativePath) {
+    if (relativePath.isEmpty || p.isAbsolute(relativePath)) {
+      throw native.WorkspaceFileError(
+        kind: native.WorkspaceFileErrorKind.invalidPath,
+        context: relativePath,
+      );
+    }
+    final normalized = p.normalize(relativePath.replaceAll(r'\', p.separator));
+    final parts = p.split(normalized);
+    if (normalized == '.' || parts.contains('..')) {
+      throw native.WorkspaceFileError(
+        kind: native.WorkspaceFileErrorKind.invalidPath,
+        context: relativePath,
+      );
+    }
+    return normalized;
+  }
+}
+
+class ResolvedWorkspaceFile {
+  const ResolvedWorkspaceFile({
+    required this.path,
+    required this.modifiedMicros,
+    required this.length,
+  });
+
+  final String path;
+  final int modifiedMicros;
+  final int length;
 }
 
 class EditorSessionRegistry {

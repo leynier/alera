@@ -186,5 +186,37 @@ void _registerWorkspaceWorkbenchViewHelperTests() {
         isTrue,
       );
     });
+
+    test('identifies image editor tabs for image preview routing', () {
+      final imageTab = _tab(
+        'tab-1',
+        title: 'logo.png',
+        kind: WorkspaceTabKind.editor,
+        filePath: 'assets/logo.png',
+      );
+      final textTab = _tab(
+        'tab-2',
+        title: 'main.dart',
+        kind: WorkspaceTabKind.editor,
+        filePath: 'lib/main.dart',
+      );
+      final svgTab = _tab(
+        'tab-3',
+        title: 'icon.svg',
+        kind: WorkspaceTabKind.editor,
+        filePath: 'assets/icon.svg',
+      );
+      final icoTab = _tab(
+        'tab-4',
+        title: 'app.ico',
+        kind: WorkspaceTabKind.editor,
+        filePath: 'assets/app.ico',
+      );
+
+      expect(workspaceTabUsesImagePreviewForTesting(imageTab), isTrue);
+      expect(workspaceTabUsesImagePreviewForTesting(icoTab), isTrue);
+      expect(workspaceTabUsesImagePreviewForTesting(textTab), isFalse);
+      expect(workspaceTabUsesImagePreviewForTesting(svgTab), isFalse);
+    });
   });
 }
