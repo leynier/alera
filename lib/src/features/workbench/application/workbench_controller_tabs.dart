@@ -36,6 +36,19 @@ mixin _WorkbenchControllerTabs
     );
   }
 
+  Future<WorkspaceTabRecord> openMarkdownViewerTab({
+    required Workspace workspace,
+    required String relativePath,
+    String? targetGroupId,
+  }) async {
+    return _openFileBackedTab(
+      workspace: workspace,
+      relativePath: relativePath,
+      targetGroupId: targetGroupId,
+      createTab: _workspaceTabService.openOrCreateMarkdownViewerTab,
+    );
+  }
+
   Future<WorkspaceTabRecord> openPdfTab({
     required Workspace workspace,
     required String relativePath,
@@ -54,6 +67,13 @@ mixin _WorkbenchControllerTabs
     required String relativePath,
     String? targetGroupId,
   }) {
+    if (isWorkspaceMarkdownFilePath(relativePath)) {
+      return openMarkdownViewerTab(
+        workspace: workspace,
+        relativePath: relativePath,
+        targetGroupId: targetGroupId,
+      );
+    }
     return isWorkspacePdfFilePath(relativePath)
         ? openPdfTab(
             workspace: workspace,
@@ -259,33 +279,51 @@ mixin _WorkbenchControllerTabs
     }
   }
 
-  Future<void> syncEditorTabsAfterPathMove({
+  Future<void> syncFileTabsAfterPathMove({
     required Workspace workspace,
     required String oldRelativePath,
     required String newRelativePath,
   }) async {
     try {
-      final pathMoveResult = await _workspaceTabService
-          .updateEditorPathsAfterMove(
-            workspaceId: workspace.id,
-            oldRelativePath: oldRelativePath,
-            newRelativePath: newRelativePath,
-          );
-      if (pathMoveResult.isEmpty) {
+      final result = await _workspaceTabService.updateFileTabPathsAfterMove(
+        workspaceId: workspace.id,
+        oldRelativePath: oldRelativePath,
+        newRelativePath: newRelativePath,
+      );
+      if (result.isEmpty) {
         return;
       }
+      final closedIds = result.closedTabIds.toSet();
       final byId = <String, WorkspaceTabRecord>{
-        for (final tab in pathMoveResult.updatedTabs) tab.id: tab,
+        for (final tab in result.updatedTabs) tab.id: tab,
       };
-      final removedIds = pathMoveResult.removedTabIds.toSet();
       final tabs = <WorkspaceTabRecord>[
         for (final tab in state.tabsFor(workspace.id))
-          if (!removedIds.contains(tab.id)) byId[tab.id] ?? tab,
+          if (!closedIds.contains(tab.id)) byId[tab.id] ?? tab,
       ];
       _setTabsForWorkspace(workspace.id, tabs);
-      final layout = _layoutForMutation(workspace.id, tabs);
-      await _applyLayout(layout, persist: true);
-      state = state.copyWith(error: null);
+      if (closedIds.isNotEmpty) {
+        if (tabs.isNotEmpty) {
+          var layout = _layoutForMutation(workspace.id, tabs);
+          for (final tabId in closedIds) {
+            layout = layout.removeTab(tabId);
+          }
+          await _applyLayout(layout.sanitize(tabs), persist: true);
+        } else {
+          final layout = WorkbenchLayout.single(
+            workspaceId: workspace.id,
+            tabIds: const <String>[],
+          );
+          await _applyLayout(layout, persist: true);
+        }
+      }
+      state = state.copyWith(
+        activeWorkspaceId:
+            tabs.isEmpty && state.activeWorkspaceId == workspace.id
+            ? null
+            : state.activeWorkspaceId,
+        error: null,
+      );
     } catch (error) {
       state = state.copyWith(error: error.toString());
       rethrow;

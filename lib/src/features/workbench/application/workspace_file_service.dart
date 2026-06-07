@@ -289,14 +289,17 @@ class ResolvedWorkspaceFile {
   final int length;
 }
 
-class EditorSessionRegistry {
+class EditorSessionRegistry extends ChangeNotifier {
   final Map<String, EditorDocumentSession> _documents =
       <String, EditorDocumentSession>{};
   final Map<String, EditorSessionHandle> _sessions =
       <String, EditorSessionHandle>{};
 
   EditorDocumentSession documentFor(String tabId) {
-    return _documents.putIfAbsent(tabId, EditorDocumentSession.new);
+    return _documents.putIfAbsent(
+      tabId,
+      () => EditorDocumentSession(onChanged: notifyListeners),
+    );
   }
 
   void register(String tabId, EditorSessionHandle handle) {
@@ -382,6 +385,24 @@ class EditorSessionRegistry {
     return sorted;
   }
 
+  String? dirtyTextForPath({
+    required String workspacePath,
+    required String relativePath,
+  }) {
+    for (final entry in _documents.entries) {
+      final tabId = entry.key;
+      final document = entry.value;
+      if (document.workspacePath == workspacePath &&
+          document.relativePath == relativePath &&
+          document.loadError == null &&
+          document.currentText != null &&
+          isDirty(tabId)) {
+        return document.currentText;
+      }
+    }
+    return null;
+  }
+
   void reveal(String tabId, WorkspaceEditorRevealTarget target) {
     final handle = _sessions[tabId];
     final reveal = handle?.reveal;
@@ -431,6 +452,7 @@ class EditorSessionRegistry {
     required String oldRelativePath,
     required String newRelativePath,
   }) {
+    var changed = false;
     for (final document in _documents.values) {
       if (document.workspacePath != workspacePath ||
           document.relativePath == null) {
@@ -443,13 +465,20 @@ class EditorSessionRegistry {
       );
       if (nextPath != null) {
         document.relativePath = nextPath;
+        changed = true;
       }
+    }
+    if (changed) {
+      notifyListeners();
     }
   }
 
   void forget(String tabId) {
-    _sessions.remove(tabId);
-    _documents.remove(tabId);
+    final hadSession = _sessions.remove(tabId) != null;
+    final hadDocument = _documents.remove(tabId) != null;
+    if (hadSession || hadDocument) {
+      notifyListeners();
+    }
   }
 
   String? _replacePathPrefix({
@@ -497,6 +526,10 @@ class WorkspaceEditorRevealTarget {
 }
 
 class EditorDocumentSession {
+  EditorDocumentSession({this._onChanged});
+
+  final VoidCallback? _onChanged;
+
   String? workspacePath;
   String? relativePath;
   String? loadedRawText;
@@ -517,8 +550,13 @@ class EditorDocumentSession {
     required String workspacePath,
     required String relativePath,
   }) {
+    if (this.workspacePath == workspacePath &&
+        this.relativePath == relativePath) {
+      return;
+    }
     this.workspacePath = workspacePath;
     this.relativePath = relativePath;
+    _notifyChanged();
   }
 
   void acceptLoaded(native.WorkspaceEditorTextFile file, {int tabSize = 4}) {
@@ -528,6 +566,7 @@ class EditorDocumentSession {
     currentText = loadedText;
     contentToken = file.contentToken;
     loadError = null;
+    _notifyChanged();
   }
 
   void acceptSaved(native.WorkspaceEditorTextFile file, {int? tabSize}) {
@@ -540,6 +579,7 @@ class EditorDocumentSession {
     currentText = null;
     contentToken = null;
     loadError = error;
+    _notifyChanged();
   }
 
   void clearSnapshot() {
@@ -548,9 +588,18 @@ class EditorDocumentSession {
     currentText = null;
     contentToken = null;
     loadError = null;
+    _notifyChanged();
   }
 
   void updateCurrentText(String text) {
+    if (currentText == text) {
+      return;
+    }
     currentText = text;
+    _notifyChanged();
+  }
+
+  void _notifyChanged() {
+    _onChanged?.call();
   }
 }

@@ -64,7 +64,9 @@ WorkspaceSearchService workspaceSearchService(Ref ref) {
 
 @Riverpod(keepAlive: true)
 EditorSessionRegistry editorSessionRegistry(Ref ref) {
-  return EditorSessionRegistry();
+  final registry = EditorSessionRegistry();
+  ref.onDispose(registry.dispose);
+  return registry;
 }
 
 @Riverpod(keepAlive: true)

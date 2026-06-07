@@ -58,6 +58,100 @@ void main() {
       expect(document.loadError, isA<StateError>());
     });
 
+    test('returns dirty editor text for a matching document path', () {
+      final registry = EditorSessionRegistry();
+      registry.documentFor('tab-1')
+        ..attachFile(
+          workspacePath: '/repo/alera',
+          relativePath: 'docs/readme.md',
+        )
+        ..acceptLoaded(
+          _editorFile(rawContent: '# Saved', displayContent: '# Saved'),
+        )
+        ..updateCurrentText('# Dirty');
+
+      expect(
+        registry.dirtyTextForPath(
+          workspacePath: '/repo/alera',
+          relativePath: 'docs/readme.md',
+        ),
+        '# Dirty',
+      );
+      expect(
+        registry.dirtyTextForPath(
+          workspacePath: '/repo/alera',
+          relativePath: 'docs/other.md',
+        ),
+        isNull,
+      );
+    });
+
+    test('does not return clean editor text for a matching document path', () {
+      final registry = EditorSessionRegistry();
+      registry.documentFor('tab-1')
+        ..attachFile(
+          workspacePath: '/repo/alera',
+          relativePath: 'docs/readme.md',
+        )
+        ..acceptLoaded(
+          _editorFile(rawContent: '# Saved', displayContent: '# Saved'),
+        );
+
+      expect(
+        registry.dirtyTextForPath(
+          workspacePath: '/repo/alera',
+          relativePath: 'docs/readme.md',
+        ),
+        isNull,
+      );
+    });
+
+    test('does not return dirty text from a document with load errors', () {
+      final registry = EditorSessionRegistry();
+      registry.documentFor('tab-1')
+        ..attachFile(
+          workspacePath: '/repo/alera',
+          relativePath: 'docs/readme.md',
+        )
+        ..acceptLoaded(
+          _editorFile(rawContent: '# Saved', displayContent: '# Saved'),
+        )
+        ..updateCurrentText('# Dirty')
+        ..acceptLoadError(StateError('failed to load'));
+
+      expect(
+        registry.dirtyTextForPath(
+          workspacePath: '/repo/alera',
+          relativePath: 'docs/readme.md',
+        ),
+        isNull,
+      );
+    });
+
+    test(
+      'notifies listeners when document content changes and is forgotten',
+      () {
+        final registry = EditorSessionRegistry();
+        var notifications = 0;
+        registry.addListener(() {
+          notifications += 1;
+        });
+
+        registry.documentFor('tab-1')
+          ..attachFile(
+            workspacePath: '/repo/alera',
+            relativePath: 'docs/readme.md',
+          )
+          ..acceptLoaded(
+            _editorFile(rawContent: '# Saved', displayContent: '# Saved'),
+          )
+          ..updateCurrentText('# Dirty');
+        registry.forget('tab-1');
+
+        expect(notifications, 4);
+      },
+    );
+
     test(
       'saveAll writes dirty documents without live editor widgets',
       () async {
