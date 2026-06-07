@@ -72,19 +72,48 @@ class WorkspaceTabService {
     required String workspaceId,
     required String relativePath,
   }) async {
+    return _openOrCreateFileTab(
+      workspaceId: workspaceId,
+      relativePath: relativePath,
+      kind: WorkspaceTabKind.editor,
+    );
+  }
+
+  Future<WorkspaceTabRecord> openOrCreatePdfTab({
+    required String workspaceId,
+    required String relativePath,
+  }) async {
+    return _openOrCreateFileTab(
+      workspaceId: workspaceId,
+      relativePath: relativePath,
+      kind: WorkspaceTabKind.pdf,
+    );
+  }
+
+  Future<WorkspaceTabRecord> _openOrCreateFileTab({
+    required String workspaceId,
+    required String relativePath,
+    required WorkspaceTabKind kind,
+  }) async {
     final normalizedPath = _normalizeRelativePath(relativePath);
     final existing = await _repository.listWorkspaceTabs(workspaceId);
     for (final tab in existing) {
-      if (tab.kind == WorkspaceTabKind.editor &&
-          !tab.isMermanPreview &&
-          tab.payload[workspaceTabFilePathPayloadKey] == normalizedPath) {
+      if (!_isFileBackedTab(tab) ||
+          tab.isMermanPreview ||
+          tab.payload[workspaceTabFilePathPayloadKey] != normalizedPath) {
+        continue;
+      }
+      if (tab.kind == kind) {
         return tab;
       }
+      final next = tab.copyWith(kind: kind, updatedAt: _now());
+      await _repository.upsertWorkspaceTab(next);
+      return next;
     }
     final tab = WorkspaceTabRecord(
       id: _uuid.v4(),
       workspaceId: workspaceId,
-      kind: WorkspaceTabKind.editor,
+      kind: kind,
       title: _titleForPath(normalizedPath),
       createdAt: _now(),
       updatedAt: _now(),
@@ -209,12 +238,12 @@ class WorkspaceTabService {
     final tabs = await _repository.listWorkspaceTabs(workspaceId);
     final updated = <WorkspaceTabRecord>[];
     final removed = <String>[];
-    final normalEditorPaths = <String>{};
+    final fileBackedPaths = <String>{};
     for (final tab in tabs) {
-      if (tab.kind == WorkspaceTabKind.editor && !tab.isMermanPreview) {
+      if (_isFileBackedTab(tab) && !tab.isMermanPreview) {
         final filePath = tab.filePath;
         if (filePath != null) {
-          normalEditorPaths.add(
+          fileBackedPaths.add(
             _replacePathPrefix(
                   path: filePath,
                   oldPath: oldPath,
@@ -227,6 +256,7 @@ class WorkspaceTabService {
     }
     for (final tab in tabs) {
       if (tab.kind != WorkspaceTabKind.editor &&
+          tab.kind != WorkspaceTabKind.pdf &&
           tab.kind != WorkspaceTabKind.gitDiff) {
         continue;
       }
@@ -246,8 +276,11 @@ class WorkspaceTabService {
       if (nextPath == null || nextPath == filePath) {
         continue;
       }
+      final nextKind = isWorkspacePdfFilePath(nextPath)
+          ? WorkspaceTabKind.pdf
+          : WorkspaceTabKind.editor;
       if (tab.isMermanPreview && !isWorkspaceMermanFilePath(nextPath)) {
-        if (normalEditorPaths.contains(nextPath)) {
+        if (fileBackedPaths.contains(nextPath)) {
           await _repository.removeWorkspaceTab(tab.id);
           removed.add(tab.id);
           continue;
@@ -257,16 +290,20 @@ class WorkspaceTabService {
           workspaceTabFilePathPayloadKey: nextPath,
         }..remove(workspaceTabFileRolePayloadKey);
         final next = tab.copyWith(
+          kind: nextKind,
           title: _titleForPath(nextPath),
           updatedAt: _now(),
           payload: nextPayload,
         );
         await _repository.upsertWorkspaceTab(next);
         updated.add(next);
-        normalEditorPaths.add(nextPath);
+        fileBackedPaths.add(nextPath);
         continue;
       }
       final next = tab.copyWith(
+        kind: tab.kind == WorkspaceTabKind.gitDiff || tab.isMermanPreview
+            ? tab.kind
+            : nextKind,
         title: tab.isMermanPreview
             ? _previewTitleForPath(nextPath)
             : tab.kind == WorkspaceTabKind.gitDiff
@@ -326,6 +363,11 @@ class WorkspaceTabService {
 
   String _previewTitleForPath(String path) {
     return '${_titleForPath(path)} preview';
+  }
+
+  bool _isFileBackedTab(WorkspaceTabRecord tab) {
+    return tab.kind == WorkspaceTabKind.editor ||
+        tab.kind == WorkspaceTabKind.pdf;
   }
 
   String _titleForGitDiff({

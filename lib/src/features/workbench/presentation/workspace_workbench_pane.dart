@@ -214,6 +214,11 @@ bool workspaceTabUsesMermanPreviewForTesting(WorkspaceTabRecord tab) {
       isWorkspaceMermanFilePath(filePath);
 }
 
+@visibleForTesting
+bool workspaceTabUsesPdfViewerForTesting(WorkspaceTabRecord tab) {
+  return tab.kind == WorkspaceTabKind.pdf;
+}
+
 Rect _centerDropRect(Size paneSize) {
   const centerWidthFactor = 0.36;
   const centerHeightFactor = 0.36;
@@ -263,6 +268,11 @@ class _WorkspaceTabContent extends StatelessWidget {
         autofocus: autofocus,
         onOpenEditor: onOpenEditor,
         onOpenMermanPreview: onOpenMermanPreview,
+      ),
+      WorkspaceTabKind.pdf => WorkspacePdfViewerSurface(
+        workspace: workspace,
+        tab: tab,
+        autofocus: autofocus,
       ),
       WorkspaceTabKind.gitDiff => WorkspaceGitDiffSurface(
         workspace: workspace,
