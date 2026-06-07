@@ -7,8 +7,10 @@ class _SourceControlToolbar extends StatelessWidget {
     required this.viewMode,
     required this.state,
     required this.allCollapsed,
+    required this.filterVisible,
     required this.onMessageChanged,
     required this.onFilterChanged,
+    required this.onToggleFilter,
     required this.onRefresh,
     required this.onToggleCollapseAll,
     required this.onViewModeChanged,
@@ -22,8 +24,10 @@ class _SourceControlToolbar extends StatelessWidget {
   final GitDiffViewMode viewMode;
   final AsyncValue<WorkspaceSourceControlState> state;
   final bool allCollapsed;
+  final bool filterVisible;
   final VoidCallback onMessageChanged;
   final VoidCallback onFilterChanged;
+  final VoidCallback onToggleFilter;
   final VoidCallback onRefresh;
   final VoidCallback onToggleCollapseAll;
   final ValueChanged<GitDiffViewMode> onViewModeChanged;
@@ -83,6 +87,12 @@ class _SourceControlToolbar extends StatelessWidget {
               ),
               const SizedBox(width: AleraTokens.space2),
               AleraIconButton(
+                tooltip: filterVisible ? 'Hide file filter' : 'Search files',
+                icon: Icons.search,
+                onPressed: busy ? null : onToggleFilter,
+              ),
+              const SizedBox(width: AleraTokens.space2),
+              AleraIconButton(
                 tooltip: allCollapsed ? 'Expand all' : 'Collapse all',
                 icon: allCollapsed
                     ? Icons.unfold_more_outlined
@@ -125,14 +135,6 @@ class _SourceControlToolbar extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AleraTokens.space8),
-          AleraTextField(
-            controller: filterController,
-            hintText: 'Filter files...',
-            prefixIcon: Icons.search,
-            dense: true,
-            enabled: !busy,
-            onChanged: (_) => onFilterChanged(),
-          ),
           if (data case final state?) ...<Widget>[
             const SizedBox(height: AleraTokens.space6),
             Text(
@@ -142,6 +144,15 @@ class _SourceControlToolbar extends StatelessWidget {
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                 color: AleraTokens.foregroundFaint,
               ),
+            ),
+          ],
+          if (filterVisible) ...<Widget>[
+            const SizedBox(height: AleraTokens.space8),
+            AleraSearchField(
+              controller: filterController,
+              hintText: 'Filter files...',
+              dense: true,
+              onChanged: (_) => onFilterChanged(),
             ),
           ],
         ],
@@ -272,7 +283,12 @@ class _CommitMessageField extends StatelessWidget {
         hintStyle: theme.textTheme.bodySmall?.copyWith(
           color: AleraTokens.foregroundFaint,
         ),
-        contentPadding: const EdgeInsets.all(AleraTokens.space8),
+        contentPadding: const EdgeInsets.fromLTRB(
+          AleraTokens.space8,
+          AleraTokens.space16,
+          AleraTokens.space8,
+          AleraTokens.space8,
+        ),
         border: _messageBorder(AleraTokens.borderSubtle),
         enabledBorder: _messageBorder(AleraTokens.borderSubtle),
         focusedBorder: _messageBorder(AleraTokens.border),

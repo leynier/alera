@@ -1,3 +1,4 @@
+import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/workbench/application/workspace_source_control_controller.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
@@ -562,12 +563,49 @@ void main() {
     await _pumpPanel(tester, backend: backend);
     await tester.pumpAndSettle();
 
+    expect(_filterField(), findsNothing);
+
+    await tester.tap(find.byTooltip('Search files'));
+    await tester.pumpAndSettle();
+
     await tester.enterText(_filterField(), 'visible');
     await tester.pumpAndSettle();
 
     expect(find.text('Unstaged'), findsOneWidget);
     expect(find.text('lib/visible.dart'), findsOneWidget);
     expect(find.text('test/hidden.dart'), findsNothing);
+
+    await tester.tap(find.byTooltip('Hide file filter'));
+    await tester.pumpAndSettle();
+
+    expect(_filterField(), findsOneWidget);
+    expect(find.text('test/hidden.dart'), findsNothing);
+
+    await tester.tap(find.byTooltip('Clear'));
+    await tester.pumpAndSettle();
+
+    expect(_filterField(), findsNothing);
+    expect(find.text('lib/visible.dart'), findsOneWidget);
+    expect(find.text('test/hidden.dart'), findsOneWidget);
+  });
+
+  testWidgets('commit message field has extra top padding', (tester) async {
+    final backend = FakeGitBackend()
+      ..gitStatusResult = const GitStatusResult(entries: <GitChangeEntry>[]);
+
+    await _pumpPanel(tester, backend: backend);
+    await tester.pumpAndSettle();
+
+    final messageField = tester.widget<TextField>(_messageField());
+    expect(
+      messageField.decoration?.contentPadding,
+      const EdgeInsets.fromLTRB(
+        AleraTokens.space8,
+        AleraTokens.space16,
+        AleraTokens.space8,
+        AleraTokens.space8,
+      ),
+    );
   });
 
   testWidgets('sections and visible rows can be collapsed together', (

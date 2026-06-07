@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
-import 'package:alera/src/design_system/forms/alera_text_field.dart';
+import 'package:alera/src/design_system/forms/alera_search_field.dart';
 import 'package:alera/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
@@ -53,6 +53,7 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
   final TextEditingController _filterController = TextEditingController();
   final Set<String> _collapsedSections = <String>{};
   final Set<String> _collapsedTreeNodes = <String>{};
+  bool _filterVisible = false;
 
   @override
   void didUpdateWidget(covariant WorkspaceGitDiffPanel oldWidget) {
@@ -62,6 +63,7 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
       _filterController.clear();
       _collapsedSections.clear();
       _collapsedTreeNodes.clear();
+      _filterVisible = false;
     }
   }
 
@@ -86,8 +88,10 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
           viewMode: widget.viewMode,
           state: state,
           allCollapsed: _allVisibleNodesCollapsed(state.asData?.value),
+          filterVisible: _isFilterVisible,
           onMessageChanged: () => setState(() {}),
           onFilterChanged: () => setState(() {}),
+          onToggleFilter: _toggleFilterVisibility,
           onRefresh: () => unawaited(_refresh()),
           onToggleCollapseAll: () =>
               _toggleAllVisibleNodes(state.asData?.value),
@@ -350,6 +354,15 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
       if (!_collapsedTreeNodes.add(key)) {
         _collapsedTreeNodes.remove(key);
       }
+    });
+  }
+
+  bool get _isFilterVisible =>
+      _filterVisible || _filterController.text.trim().isNotEmpty;
+
+  void _toggleFilterVisibility() {
+    setState(() {
+      _filterVisible = !_isFilterVisible;
     });
   }
 
