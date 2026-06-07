@@ -9,16 +9,14 @@ use super::paths::{
     content_token, is_protected_relative_path, relative_string, safe_regular_file_metadata,
     should_walk_entry,
 };
-use super::preview::replacement_for_slice;
 use super::{
-    WorkspaceReplaceOptions, WorkspaceSearchError, WorkspaceSearchErrorKind,
-    WorkspaceSearchFileResult, WorkspaceSearchMatch, WorkspaceSearchResult,
-    MAX_LINE_CONTENT_LENGTH, MAX_MATCHES_PER_FILE, MAX_TEXT_FILE_BYTES,
+    WorkspaceSearchError, WorkspaceSearchErrorKind, WorkspaceSearchFileResult,
+    WorkspaceSearchMatch, WorkspaceSearchResult, MAX_LINE_CONTENT_LENGTH, MAX_MATCHES_PER_FILE,
+    MAX_TEXT_FILE_BYTES,
 };
 
 pub(super) fn run_search(
     compiled: &CompiledSearch,
-    replace: Option<&WorkspaceReplaceOptions>,
     full_lines: bool,
 ) -> Result<WorkspaceSearchResult, WorkspaceSearchError> {
     let mut files = Vec::<WorkspaceSearchFileResult>::new();
@@ -94,7 +92,6 @@ pub(super) fn run_search(
             &relative_path,
             &text,
             compiled,
-            replace,
             full_lines,
             &mut total_matches,
             &mut truncated,
@@ -119,7 +116,6 @@ fn matches_in_file(
     relative_path: &str,
     text: &str,
     compiled: &CompiledSearch,
-    replace: Option<&WorkspaceReplaceOptions>,
     full_lines: bool,
     total_matches: &mut u32,
     truncated: &mut bool,
@@ -154,9 +150,6 @@ fn matches_in_file(
                     clamp_line_context(line, start, end)
                 };
                 let id = format!("{relative_path}:{line_number}:{column}:{}", out.len());
-                let replacement_preview = replace.map(|options| {
-                    replacement_for_slice(&line[start..end], &compiled.replacement_regex, options)
-                });
                 out.push(WorkspaceSearchMatch {
                     id,
                     line: line_number,
@@ -165,7 +158,7 @@ fn matches_in_file(
                     line_content: clamped.line_content,
                     display_column: clamped.display_column,
                     display_match_length: clamped.display_match_length,
-                    replacement_preview,
+                    replacement_preview: None,
                 });
                 *total_matches += 1;
                 file_count += 1;

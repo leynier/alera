@@ -194,6 +194,12 @@ bool isWorkbenchPaneDropActionEnabled({
   return zone != WorkbenchDropZone.center;
 }
 
+@visibleForTesting
+bool workspaceTabUsesImagePreviewForTesting(WorkspaceTabRecord tab) {
+  final filePath = tab.filePath;
+  return filePath != null && isWorkspaceImageFilePath(filePath);
+}
+
 Rect _centerDropRect(Size paneSize) {
   const centerWidthFactor = 0.36;
   const centerHeightFactor = 0.36;
@@ -233,7 +239,7 @@ class _WorkspaceTabContent extends StatelessWidget {
         session: terminalRuntime.sessionFor(workspace: workspace, tab: tab),
         autofocus: autofocus,
       ),
-      WorkspaceTabKind.editor => WorkspaceEditorSurface(
+      WorkspaceTabKind.editor => _WorkspaceFileTabContent(
         workspace: workspace,
         tab: tab,
         autofocus: autofocus,
@@ -246,6 +252,35 @@ class _WorkspaceTabContent extends StatelessWidget {
         child: CircularProgressIndicator(),
       ),
     };
+  }
+}
+
+class _WorkspaceFileTabContent extends StatelessWidget {
+  const _WorkspaceFileTabContent({
+    required this.workspace,
+    required this.tab,
+    required this.autofocus,
+  });
+
+  final Workspace workspace;
+  final WorkspaceTabRecord tab;
+  final bool autofocus;
+
+  @override
+  Widget build(BuildContext context) {
+    final filePath = tab.filePath;
+    if (filePath != null && isWorkspaceImageFilePath(filePath)) {
+      return WorkspaceImagePreviewSurface(
+        workspace: workspace,
+        tab: tab,
+        autofocus: autofocus,
+      );
+    }
+    return WorkspaceEditorSurface(
+      workspace: workspace,
+      tab: tab,
+      autofocus: autofocus,
+    );
   }
 }
 
