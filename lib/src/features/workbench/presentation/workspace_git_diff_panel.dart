@@ -134,7 +134,10 @@ class _GitDiffToolbar extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space8),
         child: Row(
           children: <Widget>[
-            Text('Git diff', style: Theme.of(context).textTheme.titleSmall),
+            Text(
+              'Source Control',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
             const Spacer(),
             AleraIconButton(
               tooltip: 'All changes',

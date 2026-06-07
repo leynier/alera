@@ -4,6 +4,7 @@ import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_explorer.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_git_diff_panel.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_search_panel.dart';
 import 'package:flutter/material.dart';
 
 class WorkspaceContextSidebar extends StatelessWidget {
@@ -13,11 +14,12 @@ class WorkspaceContextSidebar extends StatelessWidget {
     required this.prefs,
     required this.onToggleVisible,
     required this.onResize,
-    required this.onSetActiveContextPanelTab,
+    required this.onSetContextPanelTab,
     required this.onSetExplorerMode,
     required this.onSetGitDiffViewMode,
     required this.onOpenFile,
     required this.onOpenGitDiff,
+    required this.onOpenSearchMatch,
     required this.onPathMoved,
   });
 
@@ -25,11 +27,12 @@ class WorkspaceContextSidebar extends StatelessWidget {
   final WorkbenchViewPrefs prefs;
   final VoidCallback onToggleVisible;
   final ValueChanged<double> onResize;
-  final ValueChanged<WorkbenchContextPanelTab> onSetActiveContextPanelTab;
+  final ValueChanged<WorkbenchContextPanelTab> onSetContextPanelTab;
   final ValueChanged<WorkspaceExplorerMode> onSetExplorerMode;
   final ValueChanged<GitDiffViewMode> onSetGitDiffViewMode;
   final ValueChanged<String> onOpenFile;
   final OpenGitDiffTabCallback onOpenGitDiff;
+  final ValueChanged<WorkspaceSearchMatchTarget> onOpenSearchMatch;
   final Future<void> Function(String oldRelativePath, String newRelativePath)
   onPathMoved;
 
@@ -54,7 +57,7 @@ class WorkspaceContextSidebar extends StatelessWidget {
                     children: <Widget>[
                       _ContextTabHeader(
                         activeTab: prefs.activeContextPanelTab,
-                        onSetActiveContextPanelTab: onSetActiveContextPanelTab,
+                        onSetActiveTab: onSetContextPanelTab,
                         onToggleVisible: onToggleVisible,
                       ),
                       Expanded(
@@ -66,6 +69,11 @@ class WorkspaceContextSidebar extends StatelessWidget {
                               onModeChanged: onSetExplorerMode,
                               onOpenFile: onOpenFile,
                               onPathMoved: onPathMoved,
+                            ),
+                          WorkbenchContextPanelTab.search =>
+                            WorkspaceSearchPanel(
+                              workspace: workspace,
+                              onOpenMatch: onOpenSearchMatch,
                             ),
                           WorkbenchContextPanelTab.gitDiff =>
                             WorkspaceGitDiffPanel(
@@ -83,8 +91,8 @@ class WorkspaceContextSidebar extends StatelessWidget {
             )
           : _CollapsedContextRail(
               activeTab: prefs.activeContextPanelTab,
-              onActivateTab: (tab) {
-                onSetActiveContextPanelTab(tab);
+              onOpenTab: (tab) {
+                onSetContextPanelTab(tab);
                 onToggleVisible();
               },
               onToggleVisible: onToggleVisible,
@@ -96,12 +104,12 @@ class WorkspaceContextSidebar extends StatelessWidget {
 class _CollapsedContextRail extends StatelessWidget {
   const _CollapsedContextRail({
     required this.activeTab,
-    required this.onActivateTab,
+    required this.onOpenTab,
     required this.onToggleVisible,
   });
 
   final WorkbenchContextPanelTab activeTab;
-  final ValueChanged<WorkbenchContextPanelTab> onActivateTab;
+  final ValueChanged<WorkbenchContextPanelTab> onOpenTab;
   final VoidCallback onToggleVisible;
 
   @override
@@ -111,30 +119,28 @@ class _CollapsedContextRail extends StatelessWidget {
       child: Column(
         children: <Widget>[
           const SizedBox(height: AleraTokens.space8),
-          AleraIconButton(
+          _ContextTabButton(
+            tab: WorkbenchContextPanelTab.explorer,
+            activeTab: activeTab,
             tooltip: 'Explorer',
             icon: Icons.file_copy_outlined,
-            onPressed: () => onActivateTab(WorkbenchContextPanelTab.explorer),
-            iconColor: activeTab == WorkbenchContextPanelTab.explorer
-                ? AleraTokens.foreground
-                : AleraTokens.foregroundMuted,
-            backgroundColor: activeTab == WorkbenchContextPanelTab.explorer
-                ? AleraTokens.surfaceElevated
-                : Colors.transparent,
-            borderColor: AleraTokens.borderSubtle,
+            onPressed: () => onOpenTab(WorkbenchContextPanelTab.explorer),
           ),
           const SizedBox(height: AleraTokens.space6),
-          AleraIconButton(
-            tooltip: 'Git diff',
-            icon: Icons.difference_outlined,
-            onPressed: () => onActivateTab(WorkbenchContextPanelTab.gitDiff),
-            iconColor: activeTab == WorkbenchContextPanelTab.gitDiff
-                ? AleraTokens.foreground
-                : AleraTokens.foregroundMuted,
-            backgroundColor: activeTab == WorkbenchContextPanelTab.gitDiff
-                ? AleraTokens.surfaceElevated
-                : Colors.transparent,
-            borderColor: AleraTokens.borderSubtle,
+          _ContextTabButton(
+            tab: WorkbenchContextPanelTab.search,
+            activeTab: activeTab,
+            tooltip: 'Search',
+            icon: Icons.search_rounded,
+            onPressed: () => onOpenTab(WorkbenchContextPanelTab.search),
+          ),
+          const SizedBox(height: AleraTokens.space6),
+          _ContextTabButton(
+            tab: WorkbenchContextPanelTab.gitDiff,
+            activeTab: activeTab,
+            tooltip: 'Source Control',
+            icon: Icons.account_tree_outlined,
+            onPressed: () => onOpenTab(WorkbenchContextPanelTab.gitDiff),
           ),
           const Spacer(),
           Padding(
@@ -154,12 +160,12 @@ class _CollapsedContextRail extends StatelessWidget {
 class _ContextTabHeader extends StatelessWidget {
   const _ContextTabHeader({
     required this.activeTab,
-    required this.onSetActiveContextPanelTab,
+    required this.onSetActiveTab,
     required this.onToggleVisible,
   });
 
   final WorkbenchContextPanelTab activeTab;
-  final ValueChanged<WorkbenchContextPanelTab> onSetActiveContextPanelTab;
+  final ValueChanged<WorkbenchContextPanelTab> onSetActiveTab;
   final VoidCallback onToggleVisible;
 
   @override
@@ -175,38 +181,31 @@ class _ContextTabHeader extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space8),
           child: Row(
             children: <Widget>[
-              AleraIconButton(
+              _ContextTabButton(
+                tab: WorkbenchContextPanelTab.explorer,
+                activeTab: activeTab,
                 tooltip: 'Explorer',
                 icon: Icons.file_copy_outlined,
-                onPressed: () => onSetActiveContextPanelTab(
-                  WorkbenchContextPanelTab.explorer,
-                ),
-                iconColor: activeTab == WorkbenchContextPanelTab.explorer
-                    ? AleraTokens.foreground
-                    : AleraTokens.foregroundMuted,
-                backgroundColor: activeTab == WorkbenchContextPanelTab.explorer
-                    ? AleraTokens.surfaceElevated
-                    : Colors.transparent,
-                borderColor: activeTab == WorkbenchContextPanelTab.explorer
-                    ? AleraTokens.border
-                    : AleraTokens.borderSubtle,
+                onPressed: () =>
+                    onSetActiveTab(WorkbenchContextPanelTab.explorer),
               ),
-              const SizedBox(width: AleraTokens.space2),
-              AleraIconButton(
-                tooltip: 'Git diff',
-                icon: Icons.difference_outlined,
-                onPressed: () => onSetActiveContextPanelTab(
-                  WorkbenchContextPanelTab.gitDiff,
-                ),
-                iconColor: activeTab == WorkbenchContextPanelTab.gitDiff
-                    ? AleraTokens.foreground
-                    : AleraTokens.foregroundMuted,
-                backgroundColor: activeTab == WorkbenchContextPanelTab.gitDiff
-                    ? AleraTokens.surfaceElevated
-                    : Colors.transparent,
-                borderColor: activeTab == WorkbenchContextPanelTab.gitDiff
-                    ? AleraTokens.border
-                    : AleraTokens.borderSubtle,
+              const SizedBox(width: AleraTokens.space6),
+              _ContextTabButton(
+                tab: WorkbenchContextPanelTab.search,
+                activeTab: activeTab,
+                tooltip: 'Search',
+                icon: Icons.search_rounded,
+                onPressed: () =>
+                    onSetActiveTab(WorkbenchContextPanelTab.search),
+              ),
+              const SizedBox(width: AleraTokens.space6),
+              _ContextTabButton(
+                tab: WorkbenchContextPanelTab.gitDiff,
+                activeTab: activeTab,
+                tooltip: 'Source Control',
+                icon: Icons.account_tree_outlined,
+                onPressed: () =>
+                    onSetActiveTab(WorkbenchContextPanelTab.gitDiff),
               ),
               const Spacer(),
               AleraIconButton(
@@ -218,6 +217,35 @@ class _ContextTabHeader extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _ContextTabButton extends StatelessWidget {
+  const _ContextTabButton({
+    required this.tab,
+    required this.activeTab,
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  final WorkbenchContextPanelTab tab;
+  final WorkbenchContextPanelTab activeTab;
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final active = tab == activeTab;
+    return AleraIconButton(
+      tooltip: tooltip,
+      icon: icon,
+      onPressed: onPressed,
+      iconColor: active ? AleraTokens.foreground : AleraTokens.foregroundMuted,
+      backgroundColor: active ? AleraTokens.surfaceElevated : null,
+      borderColor: active ? AleraTokens.border : AleraTokens.borderSubtle,
     );
   }
 }

@@ -202,6 +202,54 @@ final class WorkspaceFileServiceProvider
 String _$workspaceFileServiceHash() =>
     r'caafbfd4f0d5e1241b84321d4ae06da175f89d9a';
 
+@ProviderFor(workspaceSearchService)
+final workspaceSearchServiceProvider = WorkspaceSearchServiceProvider._();
+
+final class WorkspaceSearchServiceProvider
+    extends
+        $FunctionalProvider<
+          WorkspaceSearchService,
+          WorkspaceSearchService,
+          WorkspaceSearchService
+        >
+    with $Provider<WorkspaceSearchService> {
+  WorkspaceSearchServiceProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'workspaceSearchServiceProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$workspaceSearchServiceHash();
+
+  @$internal
+  @override
+  $ProviderElement<WorkspaceSearchService> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  WorkspaceSearchService create(Ref ref) {
+    return workspaceSearchService(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(WorkspaceSearchService value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<WorkspaceSearchService>(value),
+    );
+  }
+}
+
+String _$workspaceSearchServiceHash() =>
+    r'd4b42d3d093dad896f72742e1ba91f7a5e556d67';
+
 @ProviderFor(editorSessionRegistry)
 final editorSessionRegistryProvider = EditorSessionRegistryProvider._();
 

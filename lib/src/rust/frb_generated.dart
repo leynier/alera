@@ -6,6 +6,7 @@
 import 'api/agent_hooks.dart';
 import 'api/git.dart';
 import 'api/workspace_files.dart';
+import 'api/workspace_search.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'frb_generated.dart';
@@ -68,7 +69,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => 72650700;
+  int get rustContentHash => -1954834184;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -166,6 +167,11 @@ abstract class RustLibApi extends BaseApi {
     required String targetParentRelativePath,
   });
 
+  Future<WorkspaceReplacePreview>
+  crateApiWorkspaceSearchPreviewWorkspaceReplace({
+    required WorkspaceReplaceOptions options,
+  });
+
   Future<WorkspaceExplorerTreeProjection>
   crateApiWorkspaceFilesProjectWorkspaceExplorerTree({
     required String workspaceName,
@@ -196,6 +202,15 @@ abstract class RustLibApi extends BaseApi {
     required String workspacePath,
     required String relativePath,
     required String newName,
+  });
+
+  Future<WorkspaceReplaceResult>
+  crateApiWorkspaceSearchReplaceWorkspaceMatches({
+    required WorkspaceReplaceRequest request,
+  });
+
+  Future<WorkspaceSearchResult> crateApiWorkspaceSearchSearchWorkspace({
+    required WorkspaceSearchOptions options,
   });
 
   Future<void> crateApiAgentHooksSetAgentHookEnabledAgents({
@@ -894,6 +909,40 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<WorkspaceReplacePreview>
+  crateApiWorkspaceSearchPreviewWorkspaceReplace({
+    required WorkspaceReplaceOptions options,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_workspace_replace_options(options, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 20,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_workspace_replace_preview,
+          decodeErrorData: sse_decode_workspace_search_error,
+        ),
+        constMeta: kCrateApiWorkspaceSearchPreviewWorkspaceReplaceConstMeta,
+        argValues: [options],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWorkspaceSearchPreviewWorkspaceReplaceConstMeta =>
+      const TaskConstMeta(
+        debugName: "preview_workspace_replace",
+        argNames: ["options"],
+      );
+
+  @override
   Future<WorkspaceExplorerTreeProjection>
   crateApiWorkspaceFilesProjectWorkspaceExplorerTree({
     required String workspaceName,
@@ -918,7 +967,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 20,
+            funcId: 21,
             port: port_,
           );
         },
@@ -962,7 +1011,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 21,
+            funcId: 22,
             port: port_,
           );
         },
@@ -998,7 +1047,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 22,
+            funcId: 23,
             port: port_,
           );
         },
@@ -1035,7 +1084,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 23,
+            funcId: 24,
             port: port_,
           );
         },
@@ -1071,7 +1120,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 24,
+            funcId: 25,
             port: port_,
           );
         },
@@ -1093,6 +1142,70 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<WorkspaceReplaceResult>
+  crateApiWorkspaceSearchReplaceWorkspaceMatches({
+    required WorkspaceReplaceRequest request,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_workspace_replace_request(request, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 26,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_workspace_replace_result,
+          decodeErrorData: sse_decode_workspace_search_error,
+        ),
+        constMeta: kCrateApiWorkspaceSearchReplaceWorkspaceMatchesConstMeta,
+        argValues: [request],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWorkspaceSearchReplaceWorkspaceMatchesConstMeta =>
+      const TaskConstMeta(
+        debugName: "replace_workspace_matches",
+        argNames: ["request"],
+      );
+
+  @override
+  Future<WorkspaceSearchResult> crateApiWorkspaceSearchSearchWorkspace({
+    required WorkspaceSearchOptions options,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_workspace_search_options(options, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 27,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_workspace_search_result,
+          decodeErrorData: sse_decode_workspace_search_error,
+        ),
+        constMeta: kCrateApiWorkspaceSearchSearchWorkspaceConstMeta,
+        argValues: [options],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWorkspaceSearchSearchWorkspaceConstMeta =>
+      const TaskConstMeta(debugName: "search_workspace", argNames: ["options"]);
+
+  @override
   Future<void> crateApiAgentHooksSetAgentHookEnabledAgents({
     required List<String> enabledAgents,
   }) {
@@ -1104,7 +1217,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 25,
+            funcId: 28,
             port: port_,
           );
         },
@@ -1139,7 +1252,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 26,
+            funcId: 29,
             port: port_,
           );
         },
@@ -1173,7 +1286,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 27,
+            funcId: 30,
             port: port_,
           );
         },
@@ -1205,7 +1318,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 28,
+            funcId: 31,
             port: port_,
           );
         },
@@ -1238,7 +1351,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 29,
+            funcId: 32,
             port: port_,
           );
         },
@@ -1277,7 +1390,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 30,
+            funcId: 33,
             port: port_,
           );
         },
@@ -1316,7 +1429,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 31,
+              funcId: 34,
               port: port_,
             );
           },
@@ -1361,7 +1474,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 32,
+              funcId: 35,
               port: port_,
             );
           },
@@ -1413,7 +1526,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 33,
+            funcId: 36,
             port: port_,
           );
         },
@@ -1473,7 +1586,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 34,
+            funcId: 37,
             port: port_,
           );
         },
@@ -1603,6 +1716,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_workspace_file_git_status(raw);
+  }
+
+  @protected
+  WorkspaceReplaceOptions dco_decode_box_autoadd_workspace_replace_options(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_workspace_replace_options(raw);
+  }
+
+  @protected
+  WorkspaceReplaceRequest dco_decode_box_autoadd_workspace_replace_request(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_workspace_replace_request(raw);
+  }
+
+  @protected
+  WorkspaceSearchOptions dco_decode_box_autoadd_workspace_search_options(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_workspace_search_options(raw);
   }
 
   @protected
@@ -1786,6 +1923,45 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<WorkspaceFileEntry> dco_decode_list_workspace_file_entry(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_workspace_file_entry).toList();
+  }
+
+  @protected
+  List<WorkspaceReplaceConflict> dco_decode_list_workspace_replace_conflict(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>)
+        .map(dco_decode_workspace_replace_conflict)
+        .toList();
+  }
+
+  @protected
+  List<WorkspaceReplaceFileExpectation>
+  dco_decode_list_workspace_replace_file_expectation(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>)
+        .map(dco_decode_workspace_replace_file_expectation)
+        .toList();
+  }
+
+  @protected
+  List<WorkspaceSearchFileResult> dco_decode_list_workspace_search_file_result(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>)
+        .map(dco_decode_workspace_search_file_result)
+        .toList();
+  }
+
+  @protected
+  List<WorkspaceSearchMatch> dco_decode_list_workspace_search_match(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>)
+        .map(dco_decode_workspace_search_match)
+        .toList();
   }
 
   @protected
@@ -2019,6 +2195,167 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  WorkspaceReplaceConflict dco_decode_workspace_replace_conflict(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return WorkspaceReplaceConflict(
+      relativePath: dco_decode_String(arr[0]),
+      reason: dco_decode_String(arr[1]),
+    );
+  }
+
+  @protected
+  WorkspaceReplaceFileExpectation dco_decode_workspace_replace_file_expectation(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return WorkspaceReplaceFileExpectation(
+      relativePath: dco_decode_String(arr[0]),
+      contentToken: dco_decode_String(arr[1]),
+    );
+  }
+
+  @protected
+  WorkspaceReplaceOptions dco_decode_workspace_replace_options(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return WorkspaceReplaceOptions(
+      search: dco_decode_workspace_search_options(arr[0]),
+      replacement: dco_decode_String(arr[1]),
+      preserveCase: dco_decode_bool(arr[2]),
+    );
+  }
+
+  @protected
+  WorkspaceReplacePreview dco_decode_workspace_replace_preview(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return WorkspaceReplacePreview(
+      result: dco_decode_workspace_search_result(arr[0]),
+      replacement: dco_decode_String(arr[1]),
+      preserveCase: dco_decode_bool(arr[2]),
+    );
+  }
+
+  @protected
+  WorkspaceReplaceRequest dco_decode_workspace_replace_request(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return WorkspaceReplaceRequest(
+      options: dco_decode_workspace_replace_options(arr[0]),
+      matchIds: dco_decode_list_String(arr[1]),
+      expectedFiles: dco_decode_list_workspace_replace_file_expectation(arr[2]),
+    );
+  }
+
+  @protected
+  WorkspaceReplaceResult dco_decode_workspace_replace_result(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return WorkspaceReplaceResult(
+      filesChanged: dco_decode_u_32(arr[0]),
+      matchesReplaced: dco_decode_u_32(arr[1]),
+      conflicts: dco_decode_list_workspace_replace_conflict(arr[2]),
+    );
+  }
+
+  @protected
+  WorkspaceSearchError dco_decode_workspace_search_error(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return WorkspaceSearchError(
+      kind: dco_decode_workspace_search_error_kind(arr[0]),
+      context: dco_decode_String(arr[1]),
+    );
+  }
+
+  @protected
+  WorkspaceSearchErrorKind dco_decode_workspace_search_error_kind(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return WorkspaceSearchErrorKind.values[raw as int];
+  }
+
+  @protected
+  WorkspaceSearchFileResult dco_decode_workspace_search_file_result(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return WorkspaceSearchFileResult(
+      relativePath: dco_decode_String(arr[0]),
+      contentToken: dco_decode_String(arr[1]),
+      matches: dco_decode_list_workspace_search_match(arr[2]),
+    );
+  }
+
+  @protected
+  WorkspaceSearchMatch dco_decode_workspace_search_match(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    return WorkspaceSearchMatch(
+      id: dco_decode_String(arr[0]),
+      line: dco_decode_u_32(arr[1]),
+      column: dco_decode_u_32(arr[2]),
+      matchLength: dco_decode_u_32(arr[3]),
+      lineContent: dco_decode_String(arr[4]),
+      displayColumn: dco_decode_opt_box_autoadd_u_32(arr[5]),
+      displayMatchLength: dco_decode_opt_box_autoadd_u_32(arr[6]),
+      replacementPreview: dco_decode_opt_String(arr[7]),
+    );
+  }
+
+  @protected
+  WorkspaceSearchOptions dco_decode_workspace_search_options(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
+    return WorkspaceSearchOptions(
+      workspacePath: dco_decode_String(arr[0]),
+      query: dco_decode_String(arr[1]),
+      caseSensitive: dco_decode_bool(arr[2]),
+      wholeWord: dco_decode_bool(arr[3]),
+      useRegex: dco_decode_bool(arr[4]),
+      includePattern: dco_decode_opt_String(arr[5]),
+      excludePattern: dco_decode_opt_String(arr[6]),
+      includeIgnored: dco_decode_bool(arr[7]),
+      maxResults: dco_decode_opt_box_autoadd_u_32(arr[8]),
+    );
+  }
+
+  @protected
+  WorkspaceSearchResult dco_decode_workspace_search_result(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return WorkspaceSearchResult(
+      files: dco_decode_list_workspace_search_file_result(arr[0]),
+      totalMatches: dco_decode_u_32(arr[1]),
+      truncated: dco_decode_bool(arr[2]),
+    );
+  }
+
+  @protected
   WorkspaceTextFile dco_decode_workspace_text_file(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -2147,6 +2484,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_workspace_file_git_status(deserializer));
+  }
+
+  @protected
+  WorkspaceReplaceOptions sse_decode_box_autoadd_workspace_replace_options(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_workspace_replace_options(deserializer));
+  }
+
+  @protected
+  WorkspaceReplaceRequest sse_decode_box_autoadd_workspace_replace_request(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_workspace_replace_request(deserializer));
+  }
+
+  @protected
+  WorkspaceSearchOptions sse_decode_box_autoadd_workspace_search_options(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_workspace_search_options(deserializer));
   }
 
   @protected
@@ -2392,6 +2753,63 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <WorkspaceFileEntry>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_workspace_file_entry(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<WorkspaceReplaceConflict> sse_decode_list_workspace_replace_conflict(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <WorkspaceReplaceConflict>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_workspace_replace_conflict(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<WorkspaceReplaceFileExpectation>
+  sse_decode_list_workspace_replace_file_expectation(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <WorkspaceReplaceFileExpectation>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_workspace_replace_file_expectation(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<WorkspaceSearchFileResult> sse_decode_list_workspace_search_file_result(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <WorkspaceSearchFileResult>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_workspace_search_file_result(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<WorkspaceSearchMatch> sse_decode_list_workspace_search_match(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <WorkspaceSearchMatch>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_workspace_search_match(deserializer));
     }
     return ans_;
   }
@@ -2676,6 +3094,197 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  WorkspaceReplaceConflict sse_decode_workspace_replace_conflict(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_relativePath = sse_decode_String(deserializer);
+    var var_reason = sse_decode_String(deserializer);
+    return WorkspaceReplaceConflict(
+      relativePath: var_relativePath,
+      reason: var_reason,
+    );
+  }
+
+  @protected
+  WorkspaceReplaceFileExpectation sse_decode_workspace_replace_file_expectation(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_relativePath = sse_decode_String(deserializer);
+    var var_contentToken = sse_decode_String(deserializer);
+    return WorkspaceReplaceFileExpectation(
+      relativePath: var_relativePath,
+      contentToken: var_contentToken,
+    );
+  }
+
+  @protected
+  WorkspaceReplaceOptions sse_decode_workspace_replace_options(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_search = sse_decode_workspace_search_options(deserializer);
+    var var_replacement = sse_decode_String(deserializer);
+    var var_preserveCase = sse_decode_bool(deserializer);
+    return WorkspaceReplaceOptions(
+      search: var_search,
+      replacement: var_replacement,
+      preserveCase: var_preserveCase,
+    );
+  }
+
+  @protected
+  WorkspaceReplacePreview sse_decode_workspace_replace_preview(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_result = sse_decode_workspace_search_result(deserializer);
+    var var_replacement = sse_decode_String(deserializer);
+    var var_preserveCase = sse_decode_bool(deserializer);
+    return WorkspaceReplacePreview(
+      result: var_result,
+      replacement: var_replacement,
+      preserveCase: var_preserveCase,
+    );
+  }
+
+  @protected
+  WorkspaceReplaceRequest sse_decode_workspace_replace_request(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_options = sse_decode_workspace_replace_options(deserializer);
+    var var_matchIds = sse_decode_list_String(deserializer);
+    var var_expectedFiles = sse_decode_list_workspace_replace_file_expectation(
+      deserializer,
+    );
+    return WorkspaceReplaceRequest(
+      options: var_options,
+      matchIds: var_matchIds,
+      expectedFiles: var_expectedFiles,
+    );
+  }
+
+  @protected
+  WorkspaceReplaceResult sse_decode_workspace_replace_result(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_filesChanged = sse_decode_u_32(deserializer);
+    var var_matchesReplaced = sse_decode_u_32(deserializer);
+    var var_conflicts = sse_decode_list_workspace_replace_conflict(
+      deserializer,
+    );
+    return WorkspaceReplaceResult(
+      filesChanged: var_filesChanged,
+      matchesReplaced: var_matchesReplaced,
+      conflicts: var_conflicts,
+    );
+  }
+
+  @protected
+  WorkspaceSearchError sse_decode_workspace_search_error(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_kind = sse_decode_workspace_search_error_kind(deserializer);
+    var var_context = sse_decode_String(deserializer);
+    return WorkspaceSearchError(kind: var_kind, context: var_context);
+  }
+
+  @protected
+  WorkspaceSearchErrorKind sse_decode_workspace_search_error_kind(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return WorkspaceSearchErrorKind.values[inner];
+  }
+
+  @protected
+  WorkspaceSearchFileResult sse_decode_workspace_search_file_result(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_relativePath = sse_decode_String(deserializer);
+    var var_contentToken = sse_decode_String(deserializer);
+    var var_matches = sse_decode_list_workspace_search_match(deserializer);
+    return WorkspaceSearchFileResult(
+      relativePath: var_relativePath,
+      contentToken: var_contentToken,
+      matches: var_matches,
+    );
+  }
+
+  @protected
+  WorkspaceSearchMatch sse_decode_workspace_search_match(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_line = sse_decode_u_32(deserializer);
+    var var_column = sse_decode_u_32(deserializer);
+    var var_matchLength = sse_decode_u_32(deserializer);
+    var var_lineContent = sse_decode_String(deserializer);
+    var var_displayColumn = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_displayMatchLength = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_replacementPreview = sse_decode_opt_String(deserializer);
+    return WorkspaceSearchMatch(
+      id: var_id,
+      line: var_line,
+      column: var_column,
+      matchLength: var_matchLength,
+      lineContent: var_lineContent,
+      displayColumn: var_displayColumn,
+      displayMatchLength: var_displayMatchLength,
+      replacementPreview: var_replacementPreview,
+    );
+  }
+
+  @protected
+  WorkspaceSearchOptions sse_decode_workspace_search_options(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_workspacePath = sse_decode_String(deserializer);
+    var var_query = sse_decode_String(deserializer);
+    var var_caseSensitive = sse_decode_bool(deserializer);
+    var var_wholeWord = sse_decode_bool(deserializer);
+    var var_useRegex = sse_decode_bool(deserializer);
+    var var_includePattern = sse_decode_opt_String(deserializer);
+    var var_excludePattern = sse_decode_opt_String(deserializer);
+    var var_includeIgnored = sse_decode_bool(deserializer);
+    var var_maxResults = sse_decode_opt_box_autoadd_u_32(deserializer);
+    return WorkspaceSearchOptions(
+      workspacePath: var_workspacePath,
+      query: var_query,
+      caseSensitive: var_caseSensitive,
+      wholeWord: var_wholeWord,
+      useRegex: var_useRegex,
+      includePattern: var_includePattern,
+      excludePattern: var_excludePattern,
+      includeIgnored: var_includeIgnored,
+      maxResults: var_maxResults,
+    );
+  }
+
+  @protected
+  WorkspaceSearchResult sse_decode_workspace_search_result(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_files = sse_decode_list_workspace_search_file_result(deserializer);
+    var var_totalMatches = sse_decode_u_32(deserializer);
+    var var_truncated = sse_decode_bool(deserializer);
+    return WorkspaceSearchResult(
+      files: var_files,
+      totalMatches: var_totalMatches,
+      truncated: var_truncated,
+    );
+  }
+
+  @protected
   WorkspaceTextFile sse_decode_workspace_text_file(
     SseDeserializer deserializer,
   ) {
@@ -2813,6 +3422,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_workspace_file_git_status(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_workspace_replace_options(
+    WorkspaceReplaceOptions self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_workspace_replace_options(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_workspace_replace_request(
+    WorkspaceReplaceRequest self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_workspace_replace_request(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_workspace_search_options(
+    WorkspaceSearchOptions self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_workspace_search_options(self, serializer);
   }
 
   @protected
@@ -3030,6 +3666,54 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_workspace_file_entry(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_workspace_replace_conflict(
+    List<WorkspaceReplaceConflict> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_workspace_replace_conflict(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_workspace_replace_file_expectation(
+    List<WorkspaceReplaceFileExpectation> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_workspace_replace_file_expectation(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_workspace_search_file_result(
+    List<WorkspaceSearchFileResult> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_workspace_search_file_result(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_workspace_search_match(
+    List<WorkspaceSearchMatch> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_workspace_search_match(item, serializer);
     }
   }
 
@@ -3266,6 +3950,147 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_workspace_replace_conflict(
+    WorkspaceReplaceConflict self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.relativePath, serializer);
+    sse_encode_String(self.reason, serializer);
+  }
+
+  @protected
+  void sse_encode_workspace_replace_file_expectation(
+    WorkspaceReplaceFileExpectation self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.relativePath, serializer);
+    sse_encode_String(self.contentToken, serializer);
+  }
+
+  @protected
+  void sse_encode_workspace_replace_options(
+    WorkspaceReplaceOptions self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_workspace_search_options(self.search, serializer);
+    sse_encode_String(self.replacement, serializer);
+    sse_encode_bool(self.preserveCase, serializer);
+  }
+
+  @protected
+  void sse_encode_workspace_replace_preview(
+    WorkspaceReplacePreview self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_workspace_search_result(self.result, serializer);
+    sse_encode_String(self.replacement, serializer);
+    sse_encode_bool(self.preserveCase, serializer);
+  }
+
+  @protected
+  void sse_encode_workspace_replace_request(
+    WorkspaceReplaceRequest self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_workspace_replace_options(self.options, serializer);
+    sse_encode_list_String(self.matchIds, serializer);
+    sse_encode_list_workspace_replace_file_expectation(
+      self.expectedFiles,
+      serializer,
+    );
+  }
+
+  @protected
+  void sse_encode_workspace_replace_result(
+    WorkspaceReplaceResult self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self.filesChanged, serializer);
+    sse_encode_u_32(self.matchesReplaced, serializer);
+    sse_encode_list_workspace_replace_conflict(self.conflicts, serializer);
+  }
+
+  @protected
+  void sse_encode_workspace_search_error(
+    WorkspaceSearchError self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_workspace_search_error_kind(self.kind, serializer);
+    sse_encode_String(self.context, serializer);
+  }
+
+  @protected
+  void sse_encode_workspace_search_error_kind(
+    WorkspaceSearchErrorKind self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_workspace_search_file_result(
+    WorkspaceSearchFileResult self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.relativePath, serializer);
+    sse_encode_String(self.contentToken, serializer);
+    sse_encode_list_workspace_search_match(self.matches, serializer);
+  }
+
+  @protected
+  void sse_encode_workspace_search_match(
+    WorkspaceSearchMatch self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_u_32(self.line, serializer);
+    sse_encode_u_32(self.column, serializer);
+    sse_encode_u_32(self.matchLength, serializer);
+    sse_encode_String(self.lineContent, serializer);
+    sse_encode_opt_box_autoadd_u_32(self.displayColumn, serializer);
+    sse_encode_opt_box_autoadd_u_32(self.displayMatchLength, serializer);
+    sse_encode_opt_String(self.replacementPreview, serializer);
+  }
+
+  @protected
+  void sse_encode_workspace_search_options(
+    WorkspaceSearchOptions self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.workspacePath, serializer);
+    sse_encode_String(self.query, serializer);
+    sse_encode_bool(self.caseSensitive, serializer);
+    sse_encode_bool(self.wholeWord, serializer);
+    sse_encode_bool(self.useRegex, serializer);
+    sse_encode_opt_String(self.includePattern, serializer);
+    sse_encode_opt_String(self.excludePattern, serializer);
+    sse_encode_bool(self.includeIgnored, serializer);
+    sse_encode_opt_box_autoadd_u_32(self.maxResults, serializer);
+  }
+
+  @protected
+  void sse_encode_workspace_search_result(
+    WorkspaceSearchResult self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_workspace_search_file_result(self.files, serializer);
+    sse_encode_u_32(self.totalMatches, serializer);
+    sse_encode_bool(self.truncated, serializer);
   }
 
   @protected

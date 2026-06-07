@@ -86,8 +86,7 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
   @override
   void didUpdateWidget(covariant WorkspaceExplorer oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.workspace.id != widget.workspace.id ||
-        oldWidget.mode != widget.mode) {
+    if (oldWidget.workspace.id != widget.workspace.id) {
       _resetExplorerProjection();
       _controller.dispose();
       _controller = tree.DirectoryTreeController(
@@ -95,6 +94,8 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
         flattenStrategy: const _AleraFlattenStrategy(),
       );
       unawaited(_restartExplorer());
+    } else if (oldWidget.mode != widget.mode) {
+      unawaited(_reloadForModeChange());
     }
   }
 
@@ -219,6 +220,45 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
       }
       _rebuildTree();
     } catch (error) {
+      if (mounted) {
+        _rebuildTree(tryPreserveState: false);
+      }
+      _showError(error);
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  Future<void> _reloadForModeChange() async {
+    final loadedDirectories =
+        _childrenByDirectory.keys
+            .where((relativePath) => relativePath.isNotEmpty)
+            .toList(growable: false)
+          ..sort(_compareDirectoryDepth);
+    setState(() => _loading = true);
+    try {
+      _resetExplorerProjection();
+      await _syncWatchedDirectories();
+      await _loadDirectory('');
+      for (final relativePath in loadedDirectories) {
+        if (!mounted) {
+          return;
+        }
+        if (!_isDirectoryEntry(_entryByPath[relativePath])) {
+          continue;
+        }
+        await _loadDirectory(relativePath);
+      }
+      if (!mounted) {
+        return;
+      }
+      _rebuildTree();
+    } catch (error) {
+      if (mounted) {
+        _rebuildTree(tryPreserveState: false);
+      }
       _showError(error);
     } finally {
       if (mounted) {
@@ -239,12 +279,29 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
     await _replaceDirectoryChildren(relativePath, children);
   }
 
-  void _rebuildTree() {
+  void _rebuildTree({bool tryPreserveState = true}) {
     if (!mounted) {
       return;
     }
     final next = _buildTreeData();
-    _controller.rebuild(next);
+    _controller.rebuild(next, tryPreserveState: tryPreserveState);
+  }
+
+  int _compareDirectoryDepth(String left, String right) {
+    final depthComparison = _directoryDepth(
+      left,
+    ).compareTo(_directoryDepth(right));
+    if (depthComparison != 0) {
+      return depthComparison;
+    }
+    return left.compareTo(right);
+  }
+
+  int _directoryDepth(String relativePath) {
+    if (relativePath.isEmpty) {
+      return 0;
+    }
+    return relativePath.split('/').length;
   }
 
   tree.TreeData _buildTreeData() {

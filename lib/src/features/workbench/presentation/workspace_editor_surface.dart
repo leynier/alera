@@ -24,6 +24,8 @@ import 'package:re_highlight/re_highlight.dart';
 part 'workspace_editor_language_registry.dart';
 part 'workspace_editor_widgets.dart';
 part 'workspace_editor_focus.dart';
+part 'workspace_editor_reveal.dart';
+part 'workspace_editor_loading.dart';
 
 class WorkspaceEditorSurface extends ConsumerStatefulWidget {
   const WorkspaceEditorSurface({
@@ -56,6 +58,7 @@ class _WorkspaceEditorSurfaceState
   bool _loading = true;
   bool _saving = false;
   bool _stateRefreshQueued = false;
+  int _loadRequestId = 0;
 
   @override
   void initState() {
@@ -75,6 +78,8 @@ class _WorkspaceEditorSurfaceState
       isDirty: _isDirty,
       save: _save,
       discard: _discardChanges,
+      reveal: _revealOrDefer,
+      reload: _reloadFromDiskAfterExternalChange,
     );
     _controller.addListener(_handleControllerChanged);
     _document = _editorSessions.documentFor(widget.tab.id);
@@ -86,6 +91,7 @@ class _WorkspaceEditorSurfaceState
   void didUpdateWidget(covariant WorkspaceEditorSurface oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.tab.id != widget.tab.id ||
+        oldWidget.workspace.path != widget.workspace.path ||
         oldWidget.tab.filePath != widget.tab.filePath) {
       _replaceFocusNode();
       _editorSessions.unregister(oldWidget.tab.id, _sessionHandle);
@@ -200,40 +206,6 @@ class _WorkspaceEditorSurfaceState
         ],
       ),
     );
-  }
-
-  Future<void> _load() async {
-    final filePath = widget.tab.filePath;
-    if (filePath == null) {
-      return;
-    }
-    setState(() {
-      _loading = true;
-      _loadError = null;
-    });
-    try {
-      final tabSize = _currentEditorTabSize();
-      final file = await _workspaceFiles.readEditorTextFile(
-        workspacePath: widget.workspace.path,
-        relativePath: filePath,
-        tabSize: tabSize,
-      );
-      if (!mounted) {
-        return;
-      }
-      _document.acceptLoaded(file, tabSize: tabSize);
-      _controller.text = _document.currentText ?? '';
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      _document.acceptLoadError(error);
-      _loadError = error;
-    } finally {
-      if (mounted) {
-        setState(() => _loading = false);
-      }
-    }
   }
 
   Future<void> _save() async {
@@ -447,6 +419,10 @@ class _WorkspaceEditorSurfaceState
     });
   }
 
+  void _setEditorState(VoidCallback update) {
+    setState(update);
+  }
+
   void _registerSession(String tabId) {
     _editorSessions.register(tabId, _sessionHandle);
   }
@@ -459,25 +435,6 @@ class _WorkspaceEditorSurfaceState
     SchedulerBinding.instance.addPostFrameCallback((_) {
       previous.dispose();
     });
-  }
-
-  void _restoreDocumentOrLoad() {
-    final filePath = widget.tab.filePath;
-    if (filePath == null) {
-      _loading = false;
-      return;
-    }
-    _document.attachFile(
-      workspacePath: widget.workspace.path,
-      relativePath: filePath,
-    );
-    if (_document.hasSnapshot) {
-      _controller.text = _document.currentText ?? '';
-      _loadError = _document.loadError;
-      _loading = false;
-      return;
-    }
-    unawaited(_load());
   }
 
   void _applyEditorSettings(int tabSize) {
@@ -559,22 +516,4 @@ String workspaceEditorCodeForgeKey({
   required String themeName,
 }) {
   return 'workspace-editor-$tabId-$filePath-$themeName';
-}
-
-class _EditorMessage extends StatelessWidget {
-  const _EditorMessage({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Text(
-        message,
-        style: Theme.of(
-          context,
-        ).textTheme.bodyMedium?.copyWith(color: AleraTokens.foregroundMuted),
-      ),
-    );
-  }
 }

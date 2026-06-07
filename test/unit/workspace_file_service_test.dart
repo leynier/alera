@@ -137,6 +137,51 @@ void main() {
 
       expect(document.relativePath, 'lib/src/main.dart');
     });
+
+    test('keeps reveal pending when live session has no reveal callback', () {
+      final registry = EditorSessionRegistry();
+      const target = WorkspaceEditorRevealTarget(
+        line: 3,
+        column: 5,
+        matchLength: 2,
+      );
+      registry.register(
+        'tab-1',
+        EditorSessionHandle(
+          isDirty: () => false,
+          save: () async {},
+          discard: () async {},
+        ),
+      );
+
+      registry.reveal('tab-1', target);
+
+      expect(registry.takePendingReveal('tab-1'), target);
+    });
+
+    test('clears clean snapshot when live session has no reload callback', () {
+      final registry = EditorSessionRegistry();
+      final document = registry.documentFor('tab-1')
+        ..attachFile(workspacePath: '/repo/alera', relativePath: 'note.txt')
+        ..acceptLoaded(
+          _editorFile(rawContent: 'original', displayContent: 'original'),
+        );
+      registry.register(
+        'tab-1',
+        EditorSessionHandle(
+          isDirty: () => false,
+          save: () async {},
+          discard: () async {},
+        ),
+      );
+
+      registry.reloadCleanFiles(
+        workspacePath: '/repo/alera',
+        relativePaths: const <String>['note.txt'],
+      );
+
+      expect(document.hasSnapshot, isFalse);
+    });
   });
 }
 

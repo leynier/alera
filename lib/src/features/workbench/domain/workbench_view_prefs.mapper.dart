@@ -124,6 +124,8 @@ class WorkbenchContextPanelTabMapper
     switch (value) {
       case r'explorer':
         return WorkbenchContextPanelTab.explorer;
+      case r'search':
+        return WorkbenchContextPanelTab.search;
       case r'gitDiff':
         return WorkbenchContextPanelTab.gitDiff;
       default:
@@ -136,6 +138,8 @@ class WorkbenchContextPanelTabMapper
     switch (self) {
       case WorkbenchContextPanelTab.explorer:
         return r'explorer';
+      case WorkbenchContextPanelTab.search:
+        return r'search';
       case WorkbenchContextPanelTab.gitDiff:
         return r'gitDiff';
     }

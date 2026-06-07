@@ -177,6 +177,7 @@ Want to contribute or hack on Alera locally? Start with:
 
 - [`AGENTS.md`](AGENTS.md): contributor and agent governance rules
 - [`docs/architecture.md`](docs/architecture.md): architecture glossary and naming rules
+- [`docs/release-trust.md`](docs/release-trust.md): release signing, Linux package trust, and update manifest verification
 - [`docs/testing.md`](docs/testing.md): unit, widget, golden, E2E, and coverage workflow
 - [`docs/ui-styleguide.md`](docs/ui-styleguide.md): design tokens and UI rules
 
@@ -216,11 +217,12 @@ See [`lib/src/core/build_flavor.dart`](lib/src/core/build_flavor.dart) for the c
 
 ## Releases and updates
 
-Public release cuts are maintainer-managed through GitHub Actions. Stable builds can detect new releases and open the manual download page; automatic stable installation stays disabled until release builds are signed and trusted for the target platform. Release-candidate builds may opt into automatic installation through explicit build flags.
+Public release cuts are maintainer-managed through GitHub Actions. Release artifacts are signed or packaged for platform trust, and the public update indexes are Ed25519-signed schema v2 manifests with SHA-256 metadata for each artifact. Stable automatic installation stays disabled unless the release build embeds the manifest public key and the platform apply path explicitly allows the artifact type. Stable Linux updates are installed through signed package repositories; release-candidate Linux builds remain manual downloads.
 
 - Stable manifest: `https://updates.alera.build/app-archive.json`
 - Release-candidate manifest: `https://updates.alera.build/app-archive-rc.json`
 - Updater payloads are hosted in Cloudflare R2 under `updates/stable/` and `updates/rc/`
+- Stable Linux repositories are hosted in Cloudflare R2 under `linux/apt/` and `linux/rpm/`
 - [GitHub Releases](https://github.com/leynier/alera/releases) remain the manual download surface
 
 ---
