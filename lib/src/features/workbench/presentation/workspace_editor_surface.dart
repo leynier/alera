@@ -33,11 +33,13 @@ class WorkspaceEditorSurface extends ConsumerStatefulWidget {
     required this.workspace,
     required this.tab,
     required this.autofocus,
+    required this.onOpenMarkdownViewerTab,
   });
 
   final Workspace workspace;
   final WorkspaceTabRecord tab;
   final bool autofocus;
+  final ValueChanged<String> onOpenMarkdownViewerTab;
 
   @override
   ConsumerState<WorkspaceEditorSurface> createState() =>
@@ -199,6 +201,9 @@ class _WorkspaceEditorSurfaceState
                 : null,
             onDiscard: _document.isDirty && !_loading && !_saving
                 ? () => unawaited(_discardChanges())
+                : null,
+            onOpenPreview: isWorkspaceMarkdownFilePath(filePath)
+                ? () => widget.onOpenMarkdownViewerTab(filePath)
                 : null,
           ),
           const Divider(height: 1, color: AleraTokens.borderSubtle),

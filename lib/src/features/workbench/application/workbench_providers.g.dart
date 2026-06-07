@@ -296,7 +296,7 @@ final class EditorSessionRegistryProvider
 }
 
 String _$editorSessionRegistryHash() =>
-    r'13bc331bb32ccb9ecb6c5f2f465edb8e34f935bb';
+    r'3f997ee69df5530b86852aa45d68479905292df0';
 
 @ProviderFor(workspaceService)
 final workspaceServiceProvider = WorkspaceServiceProvider._();

@@ -31,6 +31,8 @@ class WorkspaceTabKindMapper extends EnumMapper<WorkspaceTabKind> {
         return WorkspaceTabKind.terminal;
       case r'editor':
         return WorkspaceTabKind.editor;
+      case r'markdownViewer':
+        return WorkspaceTabKind.markdownViewer;
       case r'pdf':
         return WorkspaceTabKind.pdf;
       case r'gitDiff':
@@ -49,6 +51,8 @@ class WorkspaceTabKindMapper extends EnumMapper<WorkspaceTabKind> {
         return r'terminal';
       case WorkspaceTabKind.editor:
         return r'editor';
+      case WorkspaceTabKind.markdownViewer:
+        return r'markdownViewer';
       case WorkspaceTabKind.pdf:
         return r'pdf';
       case WorkspaceTabKind.gitDiff:

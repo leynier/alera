@@ -78,38 +78,19 @@ class WorkspaceTabService {
     );
   }
 
-  Future<WorkspaceTabRecord> _openOrCreateFileTab({
+  Future<WorkspaceTabRecord> openOrCreateMarkdownViewerTab({
     required String workspaceId,
     required String relativePath,
-    required WorkspaceTabKind kind,
   }) async {
     final normalizedPath = _normalizeRelativePath(relativePath);
-    final existing = await _repository.listWorkspaceTabs(workspaceId);
-    for (final tab in existing) {
-      if (!_isFileBackedTab(tab) ||
-          tab.payload[workspaceTabFilePathPayloadKey] != normalizedPath) {
-        continue;
-      }
-      if (tab.kind == kind) {
-        return tab;
-      }
-      final next = tab.copyWith(kind: kind, updatedAt: _now());
-      await _repository.upsertWorkspaceTab(next);
-      return next;
+    if (!isWorkspaceMarkdownFilePath(normalizedPath)) {
+      throw StateError('Markdown viewer tabs require a .md file');
     }
-    final tab = WorkspaceTabRecord(
-      id: _uuid.v4(),
+    return _openOrCreateFileTab(
       workspaceId: workspaceId,
-      kind: kind,
-      title: _titleForPath(normalizedPath),
-      createdAt: _now(),
-      updatedAt: _now(),
-      payload: <String, Object?>{
-        workspaceTabFilePathPayloadKey: normalizedPath,
-      },
+      relativePath: normalizedPath,
+      kind: WorkspaceTabKind.markdownViewer,
     );
-    await _repository.upsertWorkspaceTab(tab);
-    return tab;
   }
 
   Future<WorkspaceTabRecord> openOrCreateGitDiffTab({
@@ -186,7 +167,7 @@ class WorkspaceTabService {
     return next;
   }
 
-  Future<List<WorkspaceTabRecord>> updateEditorPathsAfterMove({
+  Future<WorkspaceFileTabPathMoveResult> updateFileTabPathsAfterMove({
     required String workspaceId,
     required String oldRelativePath,
     required String newRelativePath,
@@ -195,10 +176,9 @@ class WorkspaceTabService {
     final newPath = _normalizeRelativePath(newRelativePath);
     final tabs = await _repository.listWorkspaceTabs(workspaceId);
     final updated = <WorkspaceTabRecord>[];
+    final closed = <String>[];
     for (final tab in tabs) {
-      if (tab.kind != WorkspaceTabKind.editor &&
-          tab.kind != WorkspaceTabKind.pdf &&
-          tab.kind != WorkspaceTabKind.gitDiff) {
+      if (!_isFileTabKind(tab.kind)) {
         continue;
       }
       if (tab.kind == WorkspaceTabKind.gitDiff &&
@@ -217,11 +197,14 @@ class WorkspaceTabService {
       if (nextPath == null || nextPath == filePath) {
         continue;
       }
-      final nextKind = isWorkspacePdfFilePath(nextPath)
-          ? WorkspaceTabKind.pdf
-          : WorkspaceTabKind.editor;
+      final nextKind = _fileTabKindAfterPathMove(tab: tab, nextPath: nextPath);
+      if (nextKind == null) {
+        await _repository.removeWorkspaceTab(tab.id);
+        closed.add(tab.id);
+        continue;
+      }
       final next = tab.copyWith(
-        kind: tab.kind == WorkspaceTabKind.gitDiff ? tab.kind : nextKind,
+        kind: nextKind,
         title: tab.kind == WorkspaceTabKind.gitDiff
             ? _titleForGitDiff(
                 scope: tab.gitDiffScope ?? WorkspaceGitDiffScope.file,
@@ -238,7 +221,67 @@ class WorkspaceTabService {
       await _repository.upsertWorkspaceTab(next);
       updated.add(next);
     }
-    return updated;
+    return WorkspaceFileTabPathMoveResult(
+      updatedTabs: updated,
+      closedTabIds: closed,
+    );
+  }
+
+  Future<WorkspaceTabRecord> _openOrCreateFileTab({
+    required String workspaceId,
+    required String relativePath,
+    required WorkspaceTabKind kind,
+  }) async {
+    final normalizedPath = _normalizeRelativePath(relativePath);
+    final existing = await _repository.listWorkspaceTabs(workspaceId);
+    for (final tab in existing) {
+      if (tab.payload[workspaceTabFilePathPayloadKey] != normalizedPath) {
+        continue;
+      }
+      if (tab.kind == kind) {
+        return tab;
+      }
+      if (!_canRetargetFileBackedTab(from: tab.kind, to: kind)) {
+        continue;
+      }
+      final next = tab.copyWith(kind: kind, updatedAt: _now());
+      await _repository.upsertWorkspaceTab(next);
+      return next;
+    }
+    final tab = WorkspaceTabRecord(
+      id: _uuid.v4(),
+      workspaceId: workspaceId,
+      kind: kind,
+      title: _titleForPath(normalizedPath),
+      createdAt: _now(),
+      updatedAt: _now(),
+      payload: <String, Object?>{
+        workspaceTabFilePathPayloadKey: normalizedPath,
+      },
+    );
+    await _repository.upsertWorkspaceTab(tab);
+    return tab;
+  }
+
+  bool _isFileTabKind(WorkspaceTabKind kind) {
+    return switch (kind) {
+      WorkspaceTabKind.editor ||
+      WorkspaceTabKind.markdownViewer ||
+      WorkspaceTabKind.pdf ||
+      WorkspaceTabKind.gitDiff => true,
+      WorkspaceTabKind.terminal || WorkspaceTabKind.browser => false,
+    };
+  }
+
+  bool _canRetargetFileBackedTab({
+    required WorkspaceTabKind from,
+    required WorkspaceTabKind to,
+  }) {
+    return switch ((from, to)) {
+      (WorkspaceTabKind.editor, WorkspaceTabKind.pdf) ||
+      (WorkspaceTabKind.pdf, WorkspaceTabKind.editor) => true,
+      _ => false,
+    };
   }
 
   int _nextOrdinal(List<WorkspaceTabRecord> tabs) {
@@ -274,9 +317,26 @@ class WorkspaceTabService {
     return parts.isEmpty ? path : parts.last;
   }
 
-  bool _isFileBackedTab(WorkspaceTabRecord tab) {
-    return tab.kind == WorkspaceTabKind.editor ||
-        tab.kind == WorkspaceTabKind.pdf;
+  WorkspaceTabKind? _fileTabKindAfterPathMove({
+    required WorkspaceTabRecord tab,
+    required String nextPath,
+  }) {
+    return switch (tab.kind) {
+      WorkspaceTabKind.gitDiff => WorkspaceTabKind.gitDiff,
+      WorkspaceTabKind.markdownViewer =>
+        isWorkspaceMarkdownFilePath(nextPath)
+            ? WorkspaceTabKind.markdownViewer
+            : null,
+      WorkspaceTabKind.editor =>
+        isWorkspacePdfFilePath(nextPath)
+            ? WorkspaceTabKind.pdf
+            : WorkspaceTabKind.editor,
+      WorkspaceTabKind.pdf =>
+        isWorkspacePdfFilePath(nextPath)
+            ? WorkspaceTabKind.pdf
+            : WorkspaceTabKind.editor,
+      WorkspaceTabKind.terminal || WorkspaceTabKind.browser => null,
+    };
   }
 
   String _titleForGitDiff({
@@ -306,4 +366,16 @@ class WorkspaceTabService {
     }
     return '$newPath/${path.substring(prefix.length)}';
   }
+}
+
+class WorkspaceFileTabPathMoveResult {
+  const WorkspaceFileTabPathMoveResult({
+    required this.updatedTabs,
+    required this.closedTabIds,
+  });
+
+  final List<WorkspaceTabRecord> updatedTabs;
+  final List<String> closedTabIds;
+
+  bool get isEmpty => updatedTabs.isEmpty && closedTabIds.isEmpty;
 }

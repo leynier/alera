@@ -333,12 +333,8 @@ class _WorkspaceTabLeadingIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return switch (tab.kind) {
-      WorkspaceTabKind.editor => AleraFileIcon(
-        pathOrName: tab.filePath ?? tab.title,
-        kind: AleraFileIconKind.file,
-        size: 12,
-        fallbackColor: color,
-      ),
+      WorkspaceTabKind.editor ||
+      WorkspaceTabKind.markdownViewer ||
       WorkspaceTabKind.pdf => AleraFileIcon(
         pathOrName: tab.filePath ?? tab.title,
         kind: AleraFileIconKind.file,
@@ -359,6 +355,7 @@ class _WorkspaceTabLeadingIcon extends StatelessWidget {
 double _tabTitleMaxWidth(WorkspaceTabKind kind) {
   return switch (kind) {
     WorkspaceTabKind.editor ||
+    WorkspaceTabKind.markdownViewer ||
     WorkspaceTabKind.pdf ||
     WorkspaceTabKind.gitDiff => 180,
     WorkspaceTabKind.terminal || WorkspaceTabKind.browser => 92,
