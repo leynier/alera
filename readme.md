@@ -1,5 +1,5 @@
 <h1 align="center">
-  <a href="https://alera.dev"><img src="assets/logo/alera-logo.png" alt="Alera" width="64" valign="middle" /></a> Alera
+  <a href="https://alera.build"><img src="assets/logo/alera-logo.png" alt="Alera" width="64" valign="middle" /></a> Alera
 </h1>
 
 <p align="center">
@@ -17,7 +17,7 @@
 
 <p align="center">
   <a href="#install"><strong>Get Alera →</strong></a> &nbsp;·&nbsp;
-  <a href="https://alera.dev"><strong>alera.dev</strong></a> &nbsp;·&nbsp;
+  <a href="https://alera.build"><strong>alera.build</strong></a> &nbsp;·&nbsp;
   <a href="roadmap.md"><strong>Roadmap</strong></a>
 </p>
 
@@ -113,7 +113,7 @@ See the full [roadmap](roadmap.md) for the complete picture, including difficult
 
 ## Install
 
-> Public release artifacts and download links are being finalized. Track [releases on GitHub](https://github.com/leynier/alera/releases) or visit **[alera.dev](https://alera.dev)** for the latest.
+> Public release artifacts and download links are being finalized. Track [releases on GitHub](https://github.com/leynier/alera/releases) or visit **[alera.build](https://alera.build)** for the latest.
 
 ### Run from source
 
@@ -231,7 +231,7 @@ Public release cuts are maintainer-managed through GitHub Actions. Release artif
 
 - ⭐ **Star this repo** to follow along. Alera ships often
 - 🐛 **Found a bug or want a feature?** [Open an issue](https://github.com/leynier/alera/issues)
-- 🌐 **Website:** [alera.dev](https://alera.dev)
+- 🌐 **Website:** [alera.build](https://alera.build)
 - 📜 **License:** see [`LICENSE`](LICENSE)
 - 🛡️ **Security:** see [`SECURITY.md`](SECURITY.md)
 - 🤝 **Code of conduct:** see [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md)

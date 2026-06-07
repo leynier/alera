@@ -21,7 +21,7 @@ package_version="${artifact_version}"
 package_release="${build_number}"
 arch_deb="amd64"
 arch_rpm="x86_64"
-maintainer="${ALERA_LINUX_PACKAGE_MAINTAINER:-Alera Release Engineering <releases@alera.dev>}"
+maintainer="${ALERA_LINUX_PACKAGE_MAINTAINER:-Alera Release Engineering <dev@alera.build>}"
 description="Alera desktop agentic development environment."
 
 stage="$(mktemp -d)"
