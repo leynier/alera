@@ -1169,6 +1169,7 @@ fn git_pull_respects_configured_rebase_strategy() {
         &["remote", "add", "origin", &path_str(bare.path())],
     );
     run_git(source.path(), &["push", "-u", "origin", "main"]);
+    run_git(bare.path(), &["symbolic-ref", "HEAD", "refs/heads/main"]);
 
     let clone_parent = tempfile::tempdir().expect("clone parent");
     run_git(
