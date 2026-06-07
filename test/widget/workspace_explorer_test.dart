@@ -108,6 +108,189 @@ void main() {
     expect(service.watchedPathUpdates.last, contains(''));
   });
 
+  testWidgets(
+    'ignored files toggle refreshes the listing without manual refresh',
+    (tester) async {
+      final service = _FakeWorkspaceFileService()
+        ..childrenByDirectory[''] = <native.WorkspaceFileEntry>[
+          _file('tracked.dart'),
+        ]
+        ..showAllChildrenByDirectory[''] = <native.WorkspaceFileEntry>[
+          _file('ignored.dart'),
+          _file('tracked.dart'),
+        ];
+
+      await tester.pumpWidget(
+        _withWorkspaceFiles(
+          service,
+          child: MaterialApp(
+            home: Scaffold(
+              body: SizedBox(
+                width: 320,
+                height: 480,
+                child: const _WorkspaceExplorerModeHarness(),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('tracked.dart'), findsOneWidget);
+      expect(find.text('ignored.dart'), findsNothing);
+      expect(service.listChildrenCalls.last.hideIgnored, isTrue);
+
+      await tester.tap(find.byTooltip('Show ignored files'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('tracked.dart'), findsOneWidget);
+      expect(find.text('ignored.dart'), findsOneWidget);
+      expect(
+        service.listChildrenCalls.map((call) => call.hideIgnored),
+        containsAllInOrder(<bool>[true, false]),
+      );
+    },
+  );
+
+  testWidgets(
+    'ignored files toggle reloads expanded directories with the new filter',
+    (tester) async {
+      final service = _FakeWorkspaceFileService()
+        ..childrenByDirectory[''] = <native.WorkspaceFileEntry>[
+          _directory('src', hasChildrenHint: true),
+        ]
+        ..childrenByDirectory['src'] = <native.WorkspaceFileEntry>[
+          _file('src/main.dart'),
+        ]
+        ..showAllChildrenByDirectory[''] = <native.WorkspaceFileEntry>[
+          _directory('src', hasChildrenHint: true),
+        ]
+        ..showAllChildrenByDirectory['src'] = <native.WorkspaceFileEntry>[
+          _file('src/generated.dart'),
+          _file('src/main.dart'),
+        ];
+
+      await tester.pumpWidget(
+        _withWorkspaceFiles(
+          service,
+          child: MaterialApp(
+            home: Scaffold(
+              body: SizedBox(
+                width: 320,
+                height: 480,
+                child: const _WorkspaceExplorerModeHarness(),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('src'));
+      await tester.pumpAndSettle();
+      expect(find.text('main.dart'), findsOneWidget);
+      expect(find.text('generated.dart'), findsNothing);
+
+      await tester.tap(find.byTooltip('Show ignored files'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('main.dart'), findsOneWidget);
+      expect(find.text('generated.dart'), findsOneWidget);
+      expect(
+        service.listChildrenCalls,
+        contains(
+          const _ListChildrenCall(relativePath: 'src', hideIgnored: false),
+        ),
+      );
+    },
+  );
+
+  testWidgets('ignored files toggle clears stale rows when root reload fails', (
+    tester,
+  ) async {
+    final service = _FakeWorkspaceFileService()
+      ..childrenByDirectory[''] = <native.WorkspaceFileEntry>[
+        _file('tracked.dart'),
+      ]
+      ..failingListChildrenCalls.add(
+        const _ListChildrenCall(relativePath: '', hideIgnored: false),
+      );
+
+    await tester.pumpWidget(
+      _withWorkspaceFiles(
+        service,
+        child: MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 320,
+              height: 480,
+              child: const _WorkspaceExplorerModeHarness(),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('tracked.dart'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Show ignored files'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('tracked.dart'), findsNothing);
+  });
+
+  testWidgets(
+    'ignored files toggle clears stale children when expanded directory reload fails',
+    (tester) async {
+      final service = _FakeWorkspaceFileService()
+        ..childrenByDirectory[''] = <native.WorkspaceFileEntry>[
+          _directory('src', hasChildrenHint: true),
+        ]
+        ..childrenByDirectory['src'] = <native.WorkspaceFileEntry>[
+          _file('src/main.dart'),
+        ]
+        ..showAllChildrenByDirectory[''] = <native.WorkspaceFileEntry>[
+          _directory('src', hasChildrenHint: true),
+        ]
+        ..failingListChildrenCalls.add(
+          const _ListChildrenCall(relativePath: 'src', hideIgnored: false),
+        );
+
+      await tester.pumpWidget(
+        _withWorkspaceFiles(
+          service,
+          child: MaterialApp(
+            home: Scaffold(
+              body: SizedBox(
+                width: 320,
+                height: 480,
+                child: const _WorkspaceExplorerModeHarness(),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('src'));
+      await tester.pumpAndSettle();
+      expect(find.text('src'), findsOneWidget);
+      expect(find.text('main.dart'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Show ignored files'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('src'), findsOneWidget);
+      expect(find.text('main.dart'), findsNothing);
+      expect(
+        service.listChildrenCalls,
+        contains(
+          const _ListChildrenCall(relativePath: 'src', hideIgnored: false),
+        ),
+      );
+    },
+  );
+
   testWidgets('save all writes dirty editor documents that are not mounted', (
     tester,
   ) async {
@@ -339,6 +522,30 @@ Future<void> _pumpExplorer(
   await tester.pumpAndSettle();
 }
 
+class _WorkspaceExplorerModeHarness extends StatefulWidget {
+  const _WorkspaceExplorerModeHarness();
+
+  @override
+  State<_WorkspaceExplorerModeHarness> createState() =>
+      _WorkspaceExplorerModeHarnessState();
+}
+
+class _WorkspaceExplorerModeHarnessState
+    extends State<_WorkspaceExplorerModeHarness> {
+  WorkspaceExplorerMode _mode = WorkspaceExplorerMode.hideIgnored;
+
+  @override
+  Widget build(BuildContext context) {
+    return WorkspaceExplorer(
+      workspace: _workspace(),
+      mode: _mode,
+      onModeChanged: (mode) => setState(() => _mode = mode),
+      onOpenFile: (_) {},
+      onPathMoved: (_, _) async {},
+    );
+  }
+}
+
 Widget _withWorkspaceFiles(
   _FakeWorkspaceFileService service, {
   required Widget child,
@@ -365,8 +572,12 @@ class _FakeWorkspaceFileService extends WorkspaceFileService {
       StreamController<native.WorkspaceExplorerWatchBatch>.broadcast();
   final Map<String, List<native.WorkspaceFileEntry>> childrenByDirectory =
       <String, List<native.WorkspaceFileEntry>>{};
+  final Map<String, List<native.WorkspaceFileEntry>>
+  showAllChildrenByDirectory = <String, List<native.WorkspaceFileEntry>>{};
+  final Set<_ListChildrenCall> failingListChildrenCalls = <_ListChildrenCall>{};
   final List<String> createdFiles = <String>[];
   final List<String> copiedFiles = <String>[];
+  final List<_ListChildrenCall> listChildrenCalls = <_ListChildrenCall>[];
   final List<List<String>> watchedPathUpdates = <List<String>>[];
   final Map<String, String> writtenFiles = <String, String>{};
 
@@ -386,7 +597,18 @@ class _FakeWorkspaceFileService extends WorkspaceFileService {
     required String relativePath,
     required bool hideIgnored,
   }) async {
-    return childrenByDirectory[relativePath] ??
+    final call = _ListChildrenCall(
+      relativePath: relativePath,
+      hideIgnored: hideIgnored,
+    );
+    listChildrenCalls.add(call);
+    if (failingListChildrenCalls.contains(call)) {
+      throw StateError('Failed to list $relativePath');
+    }
+    return (hideIgnored
+            ? childrenByDirectory[relativePath]
+            : showAllChildrenByDirectory[relativePath]) ??
+        childrenByDirectory[relativePath] ??
         const <native.WorkspaceFileEntry>[];
   }
 
@@ -490,6 +712,26 @@ class _FakeWorkspaceFileService extends WorkspaceFileService {
     ];
     return entry;
   }
+}
+
+class _ListChildrenCall {
+  const _ListChildrenCall({
+    required this.relativePath,
+    required this.hideIgnored,
+  });
+
+  final String relativePath;
+  final bool hideIgnored;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is _ListChildrenCall &&
+          other.relativePath == relativePath &&
+          other.hideIgnored == hideIgnored;
+
+  @override
+  int get hashCode => Object.hash(relativePath, hideIgnored);
 }
 
 native.WorkspaceExplorerTreeProjection _projectExplorerTree({
