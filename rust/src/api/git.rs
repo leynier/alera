@@ -28,6 +28,22 @@ pub enum GitChangeStatus {
     Untracked,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GitChangeTreeRowKind {
+    Directory,
+    File,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GitDiffLineKind {
+    Addition,
+    Deletion,
+    Hunk,
+    Header,
+    Context,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GitChangeEntry {
     pub path: String,
     pub old_path: Option<String>,
@@ -39,8 +55,33 @@ pub struct GitChangeEntry {
     pub is_large: bool,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GitChangeTreeRow {
+    pub kind: GitChangeTreeRowKind,
+    pub name: String,
+    pub path: String,
+    pub depth: u32,
+    pub file_count: u32,
+    pub entry: Option<GitChangeEntry>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GitChangeGroup {
+    pub area: GitChangeArea,
+    pub entries: Vec<GitChangeEntry>,
+    pub tree_rows: Vec<GitChangeTreeRow>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GitStatusResult {
     pub entries: Vec<GitChangeEntry>,
+    pub groups: Vec<GitChangeGroup>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GitDiffLine {
+    pub text: String,
+    pub kind: GitDiffLineKind,
 }
 
 pub struct GitDiffFile {
@@ -48,12 +89,13 @@ pub struct GitDiffFile {
     pub old_path: Option<String>,
     pub area: GitChangeArea,
     pub status: GitChangeStatus,
-    pub patch: String,
+    pub lines: Vec<GitDiffLine>,
     pub added: Option<u32>,
     pub removed: Option<u32>,
     pub is_binary: bool,
     pub is_large: bool,
     pub truncated: bool,
+    pub line_preview_truncated: bool,
 }
 
 pub struct GitDiffResult {
@@ -241,6 +283,10 @@ pub fn is_valid_branch_name(name: String) -> Result<bool, GitError> {
 
 pub fn git_status(path: String) -> Result<GitStatusResult, GitError> {
     git_diff_impl::git_status(path)
+}
+
+pub fn git_status_for_path(path: String, file_path: String) -> Result<GitStatusResult, GitError> {
+    git_diff_impl::git_status_for_path(path, file_path)
 }
 
 pub fn git_diff(

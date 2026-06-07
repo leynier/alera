@@ -271,7 +271,7 @@ class _WorkspaceEditorSurfaceState
     try {
       final status = await ref
           .read(gitBackendProvider)
-          .status(widget.workspace.path);
+          .statusForPath(path: widget.workspace.path, filePath: filePath);
       final entries = status.entriesForPath(filePath);
       if (!mounted) {
         return;

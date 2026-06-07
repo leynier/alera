@@ -85,9 +85,16 @@ class RustGitBackend implements GitBackend {
   @override
   Future<GitStatusResult> status(String path) => _guard(() async {
     final result = await rust.gitStatus(path: path);
-    return GitStatusResult(
-      entries: result.entries.map(_toChangeEntry).toList(growable: false),
-    );
+    return _toStatusResult(result);
+  });
+
+  @override
+  Future<GitStatusResult> statusForPath({
+    required String path,
+    required String filePath,
+  }) => _guard(() async {
+    final result = await rust.gitStatusForPath(path: path, filePath: filePath);
+    return _toStatusResult(result);
   });
 
   @override
@@ -154,6 +161,32 @@ class RustGitBackend implements GitBackend {
     );
   }
 
+  GitStatusResult _toStatusResult(rust.GitStatusResult result) {
+    return GitStatusResult(
+      entries: result.entries.map(_toChangeEntry).toList(growable: false),
+      groups: result.groups.map(_toChangeGroup).toList(growable: false),
+    );
+  }
+
+  GitChangeGroup _toChangeGroup(rust.GitChangeGroup group) {
+    return GitChangeGroup(
+      area: _toArea(group.area),
+      entries: group.entries.map(_toChangeEntry).toList(growable: false),
+      treeRows: group.treeRows.map(_toTreeRow).toList(growable: false),
+    );
+  }
+
+  GitChangeTreeRow _toTreeRow(rust.GitChangeTreeRow row) {
+    return GitChangeTreeRow(
+      kind: _toTreeRowKind(row.kind),
+      name: row.name,
+      path: row.path,
+      depth: row.depth,
+      fileCount: row.fileCount,
+      entry: row.entry == null ? null : _toChangeEntry(row.entry!),
+    );
+  }
+
   GitDiffResult _toDiffResult(rust.GitDiffResult result) {
     return GitDiffResult(
       truncated: result.truncated,
@@ -164,16 +197,21 @@ class RustGitBackend implements GitBackend {
               oldPath: file.oldPath,
               area: _toArea(file.area),
               status: _toStatus(file.status),
-              patch: file.patch,
+              lines: file.lines.map(_toDiffLine).toList(growable: false),
               added: file.added,
               removed: file.removed,
               isBinary: file.isBinary,
               isLarge: file.isLarge,
               truncated: file.truncated,
+              linePreviewTruncated: file.linePreviewTruncated,
             ),
           )
           .toList(growable: false),
     );
+  }
+
+  GitDiffLine _toDiffLine(rust.GitDiffLine line) {
+    return GitDiffLine(text: line.text, kind: _toDiffLineKind(line.kind));
   }
 
   GitChangeArea _toArea(rust.GitChangeArea area) {
@@ -189,6 +227,23 @@ class RustGitBackend implements GitBackend {
       GitChangeArea.untracked => rust.GitChangeArea.untracked,
       GitChangeArea.unstaged => rust.GitChangeArea.unstaged,
       GitChangeArea.staged => rust.GitChangeArea.staged,
+    };
+  }
+
+  GitChangeTreeRowKind _toTreeRowKind(rust.GitChangeTreeRowKind kind) {
+    return switch (kind) {
+      rust.GitChangeTreeRowKind.directory => GitChangeTreeRowKind.directory,
+      rust.GitChangeTreeRowKind.file => GitChangeTreeRowKind.file,
+    };
+  }
+
+  GitDiffLineKind _toDiffLineKind(rust.GitDiffLineKind kind) {
+    return switch (kind) {
+      rust.GitDiffLineKind.addition => GitDiffLineKind.addition,
+      rust.GitDiffLineKind.deletion => GitDiffLineKind.deletion,
+      rust.GitDiffLineKind.hunk => GitDiffLineKind.hunk,
+      rust.GitDiffLineKind.header => GitDiffLineKind.header,
+      rust.GitDiffLineKind.context => GitDiffLineKind.context,
     };
   }
 

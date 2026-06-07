@@ -5,8 +5,9 @@ use git2::{
 };
 
 use super::{
-    open_repo, GitChangeArea, GitChangeEntry, GitChangeStatus, GitDiffFile, GitDiffResult,
-    GitError, GitErrorKind, GitStatusResult,
+    open_repo, GitChangeArea, GitChangeEntry, GitChangeGroup, GitChangeStatus, GitChangeTreeRow,
+    GitChangeTreeRowKind, GitDiffFile, GitDiffLine, GitDiffLineKind, GitDiffResult, GitError,
+    GitErrorKind, GitStatusResult,
 };
 
 #[path = "git_diff_combined.rs"]
@@ -29,24 +30,40 @@ pub(super) fn git_status(path: String) -> Result<GitStatusResult, GitError> {
     let repo = open_repo(&path)?;
     let paths = GitPathContext::new(&repo, &path)?;
     let mut options = status_options();
-    let statuses = repo
-        .statuses(Some(&mut options))
-        .map_err(GitError::from_git2)?;
+    git_status_with_options(&repo, &paths, &mut options)
+}
+
+pub(super) fn git_status_for_path(
+    path: String,
+    file_path: String,
+) -> Result<GitStatusResult, GitError> {
+    let repo = open_repo(&path)?;
+    let paths = GitPathContext::new(&repo, &path)?;
+    let mut options = status_options();
+    options
+        .disable_pathspec_match(true)
+        .pathspec(paths.to_repo_path(&file_path));
+    git_status_with_options(&repo, &paths, &mut options)
+}
+
+fn git_status_with_options(
+    repo: &Repository,
+    paths: &GitPathContext,
+    options: &mut StatusOptions,
+) -> Result<GitStatusResult, GitError> {
+    let statuses = repo.statuses(Some(options)).map_err(GitError::from_git2)?;
     let mut entries = Vec::new();
 
     for entry in statuses.iter() {
-        if let Some(change) = status_entry_to_change(&repo, &paths, &entry, GitChangeArea::Staged)?
-        {
+        if let Some(change) = status_entry_to_change(repo, paths, &entry, GitChangeArea::Staged)? {
             entries.push(change);
         }
-        if let Some(change) =
-            status_entry_to_change(&repo, &paths, &entry, GitChangeArea::Untracked)?
+        if let Some(change) = status_entry_to_change(repo, paths, &entry, GitChangeArea::Untracked)?
         {
             entries.push(change);
             continue;
         }
-        if let Some(change) =
-            status_entry_to_change(&repo, &paths, &entry, GitChangeArea::Unstaged)?
+        if let Some(change) = status_entry_to_change(repo, paths, &entry, GitChangeArea::Unstaged)?
         {
             entries.push(change);
         }
@@ -57,7 +74,7 @@ pub(super) fn git_status(path: String) -> Result<GitStatusResult, GitError> {
             .cmp(&area_sort_key(b.area))
             .then_with(|| a.path.cmp(&b.path))
     });
-    Ok(GitStatusResult { entries })
+    Ok(status_result_from_entries(entries))
 }
 
 pub(super) fn git_diff(
@@ -288,7 +305,7 @@ fn diff_file_for_area(
             }
             let mut diff = diff_for_area(repo, &pathspecs, area)?;
             let rendered = render_diff_for_path(&mut diff, &selection.path)?;
-            if rendered.patch.is_empty() {
+            if rendered.lines.is_empty() {
                 return Ok(None);
             }
             let Some(path) =
@@ -304,12 +321,13 @@ fn diff_file_for_area(
                     .and_then(|old_path| paths.to_workspace_path(old_path)),
                 area,
                 status: selection.status,
-                patch: rendered.patch,
+                lines: rendered.lines,
                 added: Some(rendered.added),
                 removed: Some(rendered.removed),
                 is_binary: rendered.is_binary,
                 is_large: false,
                 truncated: rendered.truncated,
+                line_preview_truncated: rendered.line_preview_truncated,
             }))
         }
     }
@@ -321,12 +339,13 @@ fn untracked_placeholder_diff_file(path: String) -> GitDiffFile {
         old_path: None,
         area: GitChangeArea::Untracked,
         status: GitChangeStatus::Untracked,
-        patch: String::new(),
+        lines: Vec::new(),
         added: None,
         removed: Some(0),
         is_binary: false,
         is_large: false,
         truncated: false,
+        line_preview_truncated: false,
     }
 }
 
@@ -433,10 +452,150 @@ fn diff_line_stats_for_paths(
     }
     let mut diff = diff_for_area(repo, &pathspecs, area)?;
     let rendered = render_diff_for_path(&mut diff, path)?;
-    if rendered.is_binary || rendered.patch.is_empty() {
+    if rendered.is_binary || rendered.lines.is_empty() {
         return Ok(None);
     }
     Ok(Some((rendered.added, rendered.removed)))
+}
+
+fn status_result_from_entries(entries: Vec<GitChangeEntry>) -> GitStatusResult {
+    let groups = [
+        GitChangeArea::Untracked,
+        GitChangeArea::Unstaged,
+        GitChangeArea::Staged,
+    ]
+    .into_iter()
+    .filter_map(|area| {
+        let entries = entries
+            .iter()
+            .filter(|entry| entry.area == area)
+            .cloned()
+            .collect::<Vec<_>>();
+        if entries.is_empty() {
+            return None;
+        }
+        let tree_rows = build_tree_rows(&entries);
+        Some(GitChangeGroup {
+            area,
+            entries,
+            tree_rows,
+        })
+    })
+    .collect();
+    GitStatusResult { entries, groups }
+}
+
+fn build_tree_rows(entries: &[GitChangeEntry]) -> Vec<GitChangeTreeRow> {
+    let mut root = StatusTreeNode::directory(String::new(), String::new(), 0);
+    for entry in entries {
+        let parts = entry
+            .path
+            .split('/')
+            .filter(|part| !part.is_empty())
+            .collect::<Vec<_>>();
+        if parts.is_empty() {
+            continue;
+        }
+        let mut parent = &mut root;
+        for index in 0..parts.len().saturating_sub(1) {
+            let path = parts[..=index].join("/");
+            parent = parent.directory_child(parts[index].to_string(), path, index as u32);
+        }
+        parent.children.push(StatusTreeNode::file(
+            parts.last().unwrap().to_string(),
+            entry.path.clone(),
+            parts.len().saturating_sub(1) as u32,
+            entry.clone(),
+        ));
+    }
+    root.sort_recursively();
+    let mut rows = Vec::new();
+    for child in &root.children {
+        child.append_rows(&mut rows);
+    }
+    rows
+}
+
+struct StatusTreeNode {
+    name: String,
+    path: String,
+    depth: u32,
+    entry: Option<GitChangeEntry>,
+    children: Vec<StatusTreeNode>,
+}
+
+impl StatusTreeNode {
+    fn directory(name: String, path: String, depth: u32) -> Self {
+        Self {
+            name,
+            path,
+            depth,
+            entry: None,
+            children: Vec::new(),
+        }
+    }
+
+    fn file(name: String, path: String, depth: u32, entry: GitChangeEntry) -> Self {
+        Self {
+            name,
+            path,
+            depth,
+            entry: Some(entry),
+            children: Vec::new(),
+        }
+    }
+
+    fn directory_child(&mut self, name: String, path: String, depth: u32) -> &mut StatusTreeNode {
+        if let Some(index) = self
+            .children
+            .iter()
+            .position(|child| child.entry.is_none() && child.name == name)
+        {
+            return &mut self.children[index];
+        }
+        self.children
+            .push(StatusTreeNode::directory(name, path, depth));
+        self.children.last_mut().expect("directory child exists")
+    }
+
+    fn sort_recursively(&mut self) {
+        self.children.sort_by(|a, b| match (&a.entry, &b.entry) {
+            (None, Some(_)) => std::cmp::Ordering::Less,
+            (Some(_), None) => std::cmp::Ordering::Greater,
+            _ => a.name.cmp(&b.name),
+        });
+        for child in &mut self.children {
+            child.sort_recursively();
+        }
+    }
+
+    fn append_rows(&self, rows: &mut Vec<GitChangeTreeRow>) {
+        rows.push(GitChangeTreeRow {
+            kind: if self.entry.is_some() {
+                GitChangeTreeRowKind::File
+            } else {
+                GitChangeTreeRowKind::Directory
+            },
+            name: self.name.clone(),
+            path: self.path.clone(),
+            depth: self.depth,
+            file_count: self.file_count(),
+            entry: self.entry.clone(),
+        });
+        for child in &self.children {
+            child.append_rows(rows);
+        }
+    }
+
+    fn file_count(&self) -> u32 {
+        if self.entry.is_some() {
+            return 1;
+        }
+        self.children
+            .iter()
+            .map(StatusTreeNode::file_count)
+            .sum::<u32>()
+    }
 }
 
 fn delta_path(delta: &git2::DiffDelta<'_>, old: bool) -> Result<String, GitError> {

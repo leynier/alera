@@ -74,7 +74,7 @@ fn git_diff_keeps_untracked_replacement_after_staged_delete() {
     )
     .unwrap();
     assert_eq!(untracked.files.len(), 1);
-    assert!(untracked.files[0].patch.contains("+replacement"));
+    assert!(diff_text(&untracked.files[0]).contains("+replacement"));
 
     let all = git_diff_all(path_str(repo.path()), None).unwrap();
     assert!(all.files.iter().any(|file| {
@@ -85,7 +85,7 @@ fn git_diff_keeps_untracked_replacement_after_staged_delete() {
     assert!(all.files.iter().any(|file| {
         file.path == "README.md"
             && file.area == GitChangeArea::Untracked
-            && file.patch.contains("+replacement")
+            && diff_text(file).contains("+replacement")
     }));
 }
 
@@ -117,7 +117,7 @@ fn git_diff_all_keeps_readable_files_when_untracked_file_is_unreadable() {
         .expect("unreadable untracked placeholder");
     assert_eq!(unreadable.area, GitChangeArea::Untracked);
     assert_eq!(unreadable.status, GitChangeStatus::Untracked);
-    assert!(unreadable.patch.is_empty());
+    assert!(unreadable.lines.is_empty());
     assert_eq!(unreadable.added, None);
     assert_eq!(unreadable.removed, Some(0));
 }
@@ -153,7 +153,7 @@ fn git_diff_untracked_unreadable_file_returns_placeholder() {
     assert_eq!(file.path, "unreadable.txt");
     assert_eq!(file.area, GitChangeArea::Untracked);
     assert_eq!(file.status, GitChangeStatus::Untracked);
-    assert!(file.patch.is_empty());
+    assert!(file.lines.is_empty());
     assert_eq!(file.added, None);
     assert_eq!(file.removed, Some(0));
 }
@@ -268,12 +268,8 @@ fn git_diff_keeps_staged_rename_out_visible_from_subdirectory_workspace() {
     assert_eq!(diff.files.len(), 1);
     assert_eq!(diff.files[0].path, "lib/foo.dart");
     assert_eq!(diff.files[0].status, GitChangeStatus::Renamed);
-    assert!(diff.files[0]
-        .patch
-        .contains("rename from packages/app/lib/foo.dart"));
-    assert!(diff.files[0]
-        .patch
-        .contains("rename to packages/other/foo.dart"));
+    assert!(diff_text(&diff.files[0]).contains("rename from packages/app/lib/foo.dart"));
+    assert!(diff_text(&diff.files[0]).contains("rename to packages/other/foo.dart"));
 }
 
 #[test]
@@ -310,7 +306,7 @@ fn git_diff_does_not_select_copy_delta_by_source_path() {
     assert_eq!(copy_diff.files[0].status, GitChangeStatus::Copied);
     assert_eq!(copy_diff.files[0].added, Some(0));
     assert_eq!(copy_diff.files[0].removed, Some(0));
-    assert!(!copy_diff.files[0].patch.contains("+source change"));
+    assert!(!diff_text(&copy_diff.files[0]).contains("+source change"));
 
     let diff = git_diff(
         path_str(repo.path()),
@@ -321,8 +317,8 @@ fn git_diff_does_not_select_copy_delta_by_source_path() {
     assert_eq!(diff.files.len(), 1);
     assert_eq!(diff.files[0].path, "packages/app/lib/foo.dart");
     assert_eq!(diff.files[0].status, GitChangeStatus::Modified);
-    assert!(diff.files[0].patch.contains("+source change"));
-    assert!(!diff.files[0].patch.contains("packages/aaa/foo.dart"));
+    assert!(diff_text(&diff.files[0]).contains("+source change"));
+    assert!(!diff_text(&diff.files[0]).contains("packages/aaa/foo.dart"));
 
     let all = git_diff_all(
         path_str(repo.path()),
@@ -332,8 +328,8 @@ fn git_diff_does_not_select_copy_delta_by_source_path() {
     assert_eq!(all.files.len(), 1);
     assert_eq!(all.files[0].path, "packages/app/lib/foo.dart");
     assert_eq!(all.files[0].status, GitChangeStatus::Modified);
-    assert!(all.files[0].patch.contains("+source change"));
-    assert!(!all.files[0].patch.contains("packages/aaa/foo.dart"));
+    assert!(diff_text(&all.files[0]).contains("+source change"));
+    assert!(!diff_text(&all.files[0]).contains("packages/aaa/foo.dart"));
 }
 
 #[test]
@@ -356,8 +352,8 @@ fn git_diff_treats_star_pathspec_characters_as_literals() {
 
     assert_eq!(diff.files.len(), 1);
     assert_eq!(diff.files[0].path, "*.txt");
-    assert!(diff.files[0].patch.contains("literal star changed"));
-    assert!(!diff.files[0].patch.contains("other changed"));
+    assert!(diff_text(&diff.files[0]).contains("literal star changed"));
+    assert!(!diff_text(&diff.files[0]).contains("other changed"));
 }
 
 #[test]
@@ -382,6 +378,6 @@ fn git_diff_treats_bracket_pathspec_characters_as_literals() {
 
     assert_eq!(diff.files.len(), 1);
     assert_eq!(diff.files[0].path, "file[1].txt");
-    assert!(diff.files[0].patch.contains("literal bracket changed"));
-    assert!(!diff.files[0].patch.contains("glob changed"));
+    assert!(diff_text(&diff.files[0]).contains("literal bracket changed"));
+    assert!(!diff_text(&diff.files[0]).contains("glob changed"));
 }

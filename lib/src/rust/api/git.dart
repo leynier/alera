@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `canonical`, `existing_worktree_admin_names`, `from_git2`, `has_configured_remote_for_tracking_branch`, `head_branch_name`, `is_path_occupied`, `new`, `open_repo`, `remote_tracking_upstream_name`, `split_clone_destination`, `unborn_branch_name`, `unique_worktree_admin_name`, `worktree_admin_name`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 Future<bool> isGitRepository({required String path}) =>
     RustLib.instance.api.crateApiGitIsGitRepository(path: path);
@@ -29,6 +29,14 @@ Future<bool> isValidBranchName({required String name}) =>
 
 Future<GitStatusResult> gitStatus({required String path}) =>
     RustLib.instance.api.crateApiGitGitStatus(path: path);
+
+Future<GitStatusResult> gitStatusForPath({
+  required String path,
+  required String filePath,
+}) => RustLib.instance.api.crateApiGitGitStatusForPath(
+  path: path,
+  filePath: filePath,
+);
 
 Future<GitDiffResult> gitDiff({
   required String path,
@@ -146,31 +154,98 @@ class GitChangeEntry {
           isLarge == other.isLarge;
 }
 
+class GitChangeGroup {
+  final GitChangeArea area;
+  final List<GitChangeEntry> entries;
+  final List<GitChangeTreeRow> treeRows;
+
+  const GitChangeGroup({
+    required this.area,
+    required this.entries,
+    required this.treeRows,
+  });
+
+  @override
+  int get hashCode => area.hashCode ^ entries.hashCode ^ treeRows.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GitChangeGroup &&
+          runtimeType == other.runtimeType &&
+          area == other.area &&
+          entries == other.entries &&
+          treeRows == other.treeRows;
+}
+
 enum GitChangeStatus { modified, added, deleted, renamed, copied, untracked }
+
+class GitChangeTreeRow {
+  final GitChangeTreeRowKind kind;
+  final String name;
+  final String path;
+  final int depth;
+  final int fileCount;
+  final GitChangeEntry? entry;
+
+  const GitChangeTreeRow({
+    required this.kind,
+    required this.name,
+    required this.path,
+    required this.depth,
+    required this.fileCount,
+    this.entry,
+  });
+
+  @override
+  int get hashCode =>
+      kind.hashCode ^
+      name.hashCode ^
+      path.hashCode ^
+      depth.hashCode ^
+      fileCount.hashCode ^
+      entry.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GitChangeTreeRow &&
+          runtimeType == other.runtimeType &&
+          kind == other.kind &&
+          name == other.name &&
+          path == other.path &&
+          depth == other.depth &&
+          fileCount == other.fileCount &&
+          entry == other.entry;
+}
+
+enum GitChangeTreeRowKind { directory, file }
 
 class GitDiffFile {
   final String path;
   final String? oldPath;
   final GitChangeArea area;
   final GitChangeStatus status;
-  final String patch;
+  final List<GitDiffLine> lines;
   final int? added;
   final int? removed;
   final bool isBinary;
   final bool isLarge;
   final bool truncated;
+  final bool linePreviewTruncated;
 
   const GitDiffFile({
     required this.path,
     this.oldPath,
     required this.area,
     required this.status,
-    required this.patch,
+    required this.lines,
     this.added,
     this.removed,
     required this.isBinary,
     required this.isLarge,
     required this.truncated,
+    required this.linePreviewTruncated,
   });
 
   @override
@@ -179,12 +254,13 @@ class GitDiffFile {
       oldPath.hashCode ^
       area.hashCode ^
       status.hashCode ^
-      patch.hashCode ^
+      lines.hashCode ^
       added.hashCode ^
       removed.hashCode ^
       isBinary.hashCode ^
       isLarge.hashCode ^
-      truncated.hashCode;
+      truncated.hashCode ^
+      linePreviewTruncated.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -195,13 +271,34 @@ class GitDiffFile {
           oldPath == other.oldPath &&
           area == other.area &&
           status == other.status &&
-          patch == other.patch &&
+          lines == other.lines &&
           added == other.added &&
           removed == other.removed &&
           isBinary == other.isBinary &&
           isLarge == other.isLarge &&
-          truncated == other.truncated;
+          truncated == other.truncated &&
+          linePreviewTruncated == other.linePreviewTruncated;
 }
+
+class GitDiffLine {
+  final String text;
+  final GitDiffLineKind kind;
+
+  const GitDiffLine({required this.text, required this.kind});
+
+  @override
+  int get hashCode => text.hashCode ^ kind.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GitDiffLine &&
+          runtimeType == other.runtimeType &&
+          text == other.text &&
+          kind == other.kind;
+}
+
+enum GitDiffLineKind { addition, deletion, hunk, header, context }
 
 class GitDiffResult {
   final List<GitDiffFile> files;
@@ -254,18 +351,20 @@ enum GitErrorKind {
 
 class GitStatusResult {
   final List<GitChangeEntry> entries;
+  final List<GitChangeGroup> groups;
 
-  const GitStatusResult({required this.entries});
+  const GitStatusResult({required this.entries, required this.groups});
 
   @override
-  int get hashCode => entries.hashCode;
+  int get hashCode => entries.hashCode ^ groups.hashCode;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is GitStatusResult &&
           runtimeType == other.runtimeType &&
-          entries == other.entries;
+          entries == other.entries &&
+          groups == other.groups;
 }
 
 class GitWorktreeEntry {

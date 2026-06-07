@@ -59,6 +59,12 @@ abstract interface class GitBackend {
   /// Lists changed files in the working tree split by Git area.
   Future<GitStatusResult> status(String path);
 
+  /// Lists changed entries for a single workspace-relative file.
+  Future<GitStatusResult> statusForPath({
+    required String path,
+    required String filePath,
+  });
+
   /// Loads a read-only diff for [filePath] in [area].
   Future<GitDiffResult> diff({
     required String path,

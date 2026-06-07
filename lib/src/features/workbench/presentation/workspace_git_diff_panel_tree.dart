@@ -1,9 +1,9 @@
 part of 'workspace_git_diff_panel.dart';
 
 class _GitDiffTree extends StatefulWidget {
-  const _GitDiffTree({required this.entries, required this.onOpenGitDiff});
+  const _GitDiffTree({required this.rows, required this.onOpenGitDiff});
 
-  final List<GitChangeEntry> entries;
+  final List<GitChangeTreeRow> rows;
   final OpenGitDiffTabCallback onOpenGitDiff;
 
   @override
@@ -15,149 +15,79 @@ class _GitDiffTreeState extends State<_GitDiffTree> {
 
   @override
   Widget build(BuildContext context) {
-    final roots = _buildTree(widget.entries);
+    final rows = widget.rows.isEmpty ? _fallbackRows() : widget.rows;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[for (final node in roots) ..._buildNode(node)],
+      children: <Widget>[for (final row in _visibleRows(rows)) _buildRow(row)],
     );
   }
 
-  List<Widget> _buildNode(_GitDiffTreeNode node) {
-    if (node.entry case final entry?) {
-      return <Widget>[
-        _GitDiffFileRow(
-          entry: entry,
-          depth: node.depth,
-          onTap: () => unawaited(
-            widget.onOpenGitDiff(
-              relativePath: entry.path,
-              area: entry.area,
-              scope: WorkspaceGitDiffScope.file,
-            ),
-          ),
-        ),
-      ];
+  Iterable<GitChangeTreeRow> _visibleRows(List<GitChangeTreeRow> rows) sync* {
+    int? collapsedDepth;
+    for (final row in rows) {
+      final hiddenDepth = collapsedDepth;
+      if (hiddenDepth != null) {
+        if (row.depth > hiddenDepth) {
+          continue;
+        }
+        collapsedDepth = null;
+      }
+      yield row;
+      if (row.kind == GitChangeTreeRowKind.directory &&
+          _collapsed.contains(row.path)) {
+        collapsedDepth = row.depth;
+      }
     }
-    final collapsed = _collapsed.contains(node.path);
-    return <Widget>[
-      _GitDiffDirectoryRow(
-        node: node,
-        collapsed: collapsed,
-        onTap: () {
-          setState(() {
-            if (!_collapsed.add(node.path)) {
-              _collapsed.remove(node.path);
-            }
-          });
-        },
-      ),
-      if (!collapsed)
-        for (final child in node.children) ..._buildNode(child),
-    ];
   }
 
-  List<_GitDiffTreeNode> _buildTree(List<GitChangeEntry> entries) {
-    final root = _GitDiffTreeNode.directory(name: '', path: '', depth: -1);
-    for (final entry in entries) {
-      final parts = entry.path
-          .split('/')
-          .where((part) => part.isNotEmpty)
-          .toList();
-      if (parts.isEmpty) {
-        continue;
-      }
-      var parent = root;
-      for (var index = 0; index < parts.length - 1; index++) {
-        final path = parts.take(index + 1).join('/');
-        parent = parent.directoryChild(parts[index], path, index);
-      }
-      parent.children.add(
-        _GitDiffTreeNode.file(
-          name: parts.last,
-          path: entry.path,
-          depth: parts.length - 1,
-          entry: entry,
+  Widget _buildRow(GitChangeTreeRow row) {
+    if (row.entry case final entry?) {
+      return _GitDiffFileRow(
+        entry: entry,
+        depth: row.depth,
+        onTap: () => unawaited(
+          widget.onOpenGitDiff(
+            relativePath: entry.path,
+            area: entry.area,
+            scope: WorkspaceGitDiffScope.file,
+          ),
         ),
       );
     }
-    root.sortRecursively();
-    return root.children;
-  }
-}
-
-class _GitDiffTreeNode {
-  _GitDiffTreeNode.directory({
-    required this.name,
-    required this.path,
-    required this.depth,
-  }) : entry = null;
-
-  _GitDiffTreeNode.file({
-    required this.name,
-    required this.path,
-    required this.depth,
-    required this.entry,
-  });
-
-  final String name;
-  final String path;
-  final int depth;
-  final GitChangeEntry? entry;
-  final List<_GitDiffTreeNode> children = <_GitDiffTreeNode>[];
-
-  _GitDiffTreeNode directoryChild(String name, String path, int depth) {
-    for (final child in children) {
-      if (child.entry == null && child.name == name) {
-        return child;
-      }
-    }
-    final child = _GitDiffTreeNode.directory(
-      name: name,
-      path: path,
-      depth: depth,
+    final collapsed = _collapsed.contains(row.path);
+    return _GitDiffDirectoryRow(
+      row: row,
+      collapsed: collapsed,
+      onTap: () {
+        setState(() {
+          if (!_collapsed.add(row.path)) {
+            _collapsed.remove(row.path);
+          }
+        });
+      },
     );
-    children.add(child);
-    return child;
   }
 
-  void sortRecursively() {
-    children.sort((a, b) {
-      if (a.entry == null && b.entry != null) {
-        return -1;
-      }
-      if (a.entry != null && b.entry == null) {
-        return 1;
-      }
-      return a.name.compareTo(b.name);
-    });
-    for (final child in children) {
-      child.sortRecursively();
-    }
-  }
-
-  int get fileCount {
-    if (entry != null) {
-      return 1;
-    }
-    return children.fold<int>(0, (count, child) => count + child.fileCount);
+  List<GitChangeTreeRow> _fallbackRows() {
+    return const <GitChangeTreeRow>[];
   }
 }
 
 class _GitDiffDirectoryRow extends StatelessWidget {
   const _GitDiffDirectoryRow({
-    required this.node,
+    required this.row,
     required this.collapsed,
     required this.onTap,
   });
 
-  final _GitDiffTreeNode node;
+  final GitChangeTreeRow row;
   final bool collapsed;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return _GitDiffBaseRow(
-      depth: node.depth,
+      depth: row.depth,
       onTap: onTap,
       child: Row(
         children: <Widget>[
@@ -168,7 +98,7 @@ class _GitDiffDirectoryRow extends StatelessWidget {
           ),
           const SizedBox(width: AleraTokens.space2),
           AleraFileIcon(
-            pathOrName: node.name,
+            pathOrName: row.name,
             kind: AleraFileIconKind.folder,
             isExpanded: !collapsed,
             size: 15,
@@ -176,7 +106,7 @@ class _GitDiffDirectoryRow extends StatelessWidget {
           const SizedBox(width: AleraTokens.space6),
           Expanded(
             child: Text(
-              node.name,
+              row.name,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -185,7 +115,7 @@ class _GitDiffDirectoryRow extends StatelessWidget {
             ),
           ),
           Text(
-            '${node.fileCount}',
+            '${row.fileCount}',
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
               color: AleraTokens.foregroundFaint,
             ),

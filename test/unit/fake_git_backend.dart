@@ -221,6 +221,25 @@ class FakeGitBackend implements GitBackend {
   }
 
   @override
+  Future<GitStatusResult> statusForPath({
+    required String path,
+    required String filePath,
+  }) async {
+    calls.add(
+      GitBackendCall('statusForPath', <String, Object?>{
+        'path': path,
+        'filePath': filePath,
+      }),
+    );
+    return GitStatusResult(
+      entries: gitStatusResult.entriesForPath(filePath),
+      groups: GitChangeGroup.fromEntries(
+        gitStatusResult.entriesForPath(filePath),
+      ),
+    );
+  }
+
+  @override
   Future<GitDiffResult> diff({
     required String path,
     required String filePath,

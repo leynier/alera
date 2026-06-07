@@ -31,6 +31,14 @@ fn path_str(path: &Path) -> String {
     path.to_string_lossy().to_string()
 }
 
+fn diff_text(file: &GitDiffFile) -> String {
+    file.lines
+        .iter()
+        .map(|line| line.text.as_str())
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 #[test]
 fn detects_repository() {
     let repo = init_repo();
@@ -315,6 +323,64 @@ fn git_status_lists_unreadable_untracked_files_without_reading_content() {
 }
 
 #[test]
+fn git_status_for_path_limits_results_to_selected_file() {
+    let repo = init_repo();
+    std::fs::write(repo.path().join("README.md"), "hello\nstaged\n").expect("modify readme");
+    run_git(repo.path(), &["add", "README.md"]);
+    std::fs::write(repo.path().join("README.md"), "hello\nstaged\nunstaged\n")
+        .expect("modify readme again");
+    std::fs::write(repo.path().join("unrelated.txt"), "unrelated\n").expect("write unrelated");
+
+    let status = git_status_for_path(path_str(repo.path()), "README.md".to_string()).unwrap();
+
+    assert_eq!(status.entries.len(), 2);
+    assert!(status.entries.iter().all(|entry| entry.path == "README.md"));
+    assert!(status
+        .entries
+        .iter()
+        .any(|entry| entry.area == GitChangeArea::Staged));
+    assert!(status
+        .entries
+        .iter()
+        .any(|entry| entry.area == GitChangeArea::Unstaged));
+    assert!(!status
+        .entries
+        .iter()
+        .any(|entry| entry.path == "unrelated.txt"));
+}
+
+#[test]
+fn git_status_returns_tree_projection_for_source_control_panel() {
+    let repo = init_repo();
+    std::fs::create_dir_all(repo.path().join("lib/src")).expect("create lib src");
+    std::fs::write(repo.path().join("lib/src/a.dart"), "a\n").expect("write a");
+    std::fs::write(repo.path().join("lib/b.dart"), "b\n").expect("write b");
+
+    let status = git_status(path_str(repo.path())).unwrap();
+    let group = status
+        .groups
+        .iter()
+        .find(|group| group.area == GitChangeArea::Untracked)
+        .expect("untracked group");
+
+    assert_eq!(group.entries.len(), 2);
+    assert!(group.tree_rows.iter().any(|row| {
+        row.kind == GitChangeTreeRowKind::Directory
+            && row.path == "lib"
+            && row.depth == 0
+            && row.file_count == 2
+    }));
+    assert!(group.tree_rows.iter().any(|row| {
+        row.kind == GitChangeTreeRowKind::File
+            && row.path == "lib/b.dart"
+            && row
+                .entry
+                .as_ref()
+                .is_some_and(|entry| entry.path == "lib/b.dart")
+    }));
+}
+
+#[test]
 fn git_diff_loads_single_area_and_combined_results() {
     let repo = init_repo();
     std::fs::write(repo.path().join("README.md"), "hello\nstaged\n").expect("write staged");
@@ -330,7 +396,7 @@ fn git_diff_loads_single_area_and_combined_results() {
     )
     .unwrap();
     assert_eq!(staged.files.len(), 1);
-    assert!(staged.files[0].patch.contains("+staged"));
+    assert!(diff_text(&staged.files[0]).contains("+staged"));
     assert!(staged.files[0].added.unwrap_or(0) >= 1);
 
     let all = git_diff_all(path_str(repo.path()), None).unwrap();
@@ -385,7 +451,7 @@ fn git_status_uses_workspace_relative_paths_for_subdirectories() {
     .unwrap();
     assert_eq!(diff.files.len(), 1);
     assert_eq!(diff.files[0].path, "lib/foo.dart");
-    assert!(diff.files[0].patch.contains("changed"));
+    assert!(diff_text(&diff.files[0]).contains("changed"));
 }
 
 #[cfg(unix)]
@@ -407,9 +473,9 @@ fn git_untracked_symlink_diff_does_not_read_target_contents() {
     .unwrap();
 
     assert_eq!(diff.files.len(), 1);
-    assert!(diff.files[0].patch.contains("new file mode 120000"));
-    assert!(diff.files[0].patch.contains(&path_str(&target)));
-    assert!(!diff.files[0].patch.contains("SECRET MATERIAL"));
+    assert!(diff_text(&diff.files[0]).contains("new file mode 120000"));
+    assert!(diff_text(&diff.files[0]).contains(&path_str(&target)));
+    assert!(!diff_text(&diff.files[0]).contains("SECRET MATERIAL"));
 }
 
 #[test]
@@ -442,14 +508,15 @@ fn git_diff_preserves_staged_rename_pairs() {
     assert_eq!(diff.files.len(), 1);
     assert_eq!(diff.files[0].status, GitChangeStatus::Renamed);
     assert_eq!(diff.files[0].old_path.as_deref(), Some("old.txt"));
-    assert!(diff.files[0].patch.contains("rename from old.txt"));
-    assert!(diff.files[0].patch.contains("rename to new.txt"));
+    assert!(diff_text(&diff.files[0]).contains("rename from old.txt"));
+    assert!(diff_text(&diff.files[0]).contains("rename to new.txt"));
 }
 
 #[test]
 fn git_diff_truncates_large_unicode_without_panicking() {
     let repo = init_repo();
     let total_added_lines = 120_000u32;
+    let expected_added_lines = total_added_lines + 1;
     let repeated = (0..total_added_lines)
         .map(|index| format!("á{index}\n"))
         .collect::<String>();
@@ -464,15 +531,14 @@ fn git_diff_truncates_large_unicode_without_panicking() {
     .unwrap();
 
     assert_eq!(single.files.len(), 1);
-    assert!(single.files[0].truncated);
-    assert!(single.files[0].added.unwrap() < total_added_lines);
-    assert!(single.files[0]
-        .patch
-        .is_char_boundary(single.files[0].patch.len()));
+    assert!(single.files[0].line_preview_truncated);
+    assert_eq!(single.files[0].added, Some(expected_added_lines));
+    let single_text = diff_text(&single.files[0]);
+    assert!(single_text.is_char_boundary(single_text.len()));
 
     let combined = git_diff_all(path_str(repo.path()), None).unwrap();
-    assert!(combined.truncated);
-    assert!(combined.files[0]
-        .patch
-        .is_char_boundary(combined.files[0].patch.len()));
+    assert!(combined.files[0].line_preview_truncated);
+    assert_eq!(combined.files[0].added, Some(expected_added_lines));
+    let combined_text = diff_text(&combined.files[0]);
+    assert!(combined_text.is_char_boundary(combined_text.len()));
 }

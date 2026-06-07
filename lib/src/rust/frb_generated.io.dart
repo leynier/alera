@@ -48,6 +48,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool dco_decode_bool(dynamic raw);
 
   @protected
+  GitChangeEntry dco_decode_box_autoadd_git_change_entry(dynamic raw);
+
+  @protected
   int dco_decode_box_autoadd_u_32(dynamic raw);
 
   @protected
@@ -85,10 +88,25 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   GitChangeEntry dco_decode_git_change_entry(dynamic raw);
 
   @protected
+  GitChangeGroup dco_decode_git_change_group(dynamic raw);
+
+  @protected
   GitChangeStatus dco_decode_git_change_status(dynamic raw);
 
   @protected
+  GitChangeTreeRow dco_decode_git_change_tree_row(dynamic raw);
+
+  @protected
+  GitChangeTreeRowKind dco_decode_git_change_tree_row_kind(dynamic raw);
+
+  @protected
   GitDiffFile dco_decode_git_diff_file(dynamic raw);
+
+  @protected
+  GitDiffLine dco_decode_git_diff_line(dynamic raw);
+
+  @protected
+  GitDiffLineKind dco_decode_git_diff_line_kind(dynamic raw);
 
   @protected
   GitDiffResult dco_decode_git_diff_result(dynamic raw);
@@ -121,7 +139,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<GitChangeEntry> dco_decode_list_git_change_entry(dynamic raw);
 
   @protected
+  List<GitChangeGroup> dco_decode_list_git_change_group(dynamic raw);
+
+  @protected
+  List<GitChangeTreeRow> dco_decode_list_git_change_tree_row(dynamic raw);
+
+  @protected
   List<GitDiffFile> dco_decode_list_git_diff_file(dynamic raw);
+
+  @protected
+  List<GitDiffLine> dco_decode_list_git_diff_line(dynamic raw);
 
   @protected
   List<GitWorktreeEntry> dco_decode_list_git_worktree_entry(dynamic raw);
@@ -166,6 +193,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   String? dco_decode_opt_String(dynamic raw);
+
+  @protected
+  GitChangeEntry? dco_decode_opt_box_autoadd_git_change_entry(dynamic raw);
 
   @protected
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
@@ -326,6 +356,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
+  GitChangeEntry sse_decode_box_autoadd_git_change_entry(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
@@ -367,10 +402,27 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   GitChangeEntry sse_decode_git_change_entry(SseDeserializer deserializer);
 
   @protected
+  GitChangeGroup sse_decode_git_change_group(SseDeserializer deserializer);
+
+  @protected
   GitChangeStatus sse_decode_git_change_status(SseDeserializer deserializer);
 
   @protected
+  GitChangeTreeRow sse_decode_git_change_tree_row(SseDeserializer deserializer);
+
+  @protected
+  GitChangeTreeRowKind sse_decode_git_change_tree_row_kind(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   GitDiffFile sse_decode_git_diff_file(SseDeserializer deserializer);
+
+  @protected
+  GitDiffLine sse_decode_git_diff_line(SseDeserializer deserializer);
+
+  @protected
+  GitDiffLineKind sse_decode_git_diff_line_kind(SseDeserializer deserializer);
 
   @protected
   GitDiffResult sse_decode_git_diff_result(SseDeserializer deserializer);
@@ -407,7 +459,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<GitChangeGroup> sse_decode_list_git_change_group(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<GitChangeTreeRow> sse_decode_list_git_change_tree_row(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<GitDiffFile> sse_decode_list_git_diff_file(SseDeserializer deserializer);
+
+  @protected
+  List<GitDiffLine> sse_decode_list_git_diff_line(SseDeserializer deserializer);
 
   @protected
   List<GitWorktreeEntry> sse_decode_list_git_worktree_entry(
@@ -462,6 +527,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
+
+  @protected
+  GitChangeEntry? sse_decode_opt_box_autoadd_git_change_entry(
+    SseDeserializer deserializer,
+  );
 
   @protected
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
@@ -666,6 +736,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_git_change_entry(
+    GitChangeEntry self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
 
   @protected
@@ -714,13 +790,40 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_git_change_group(
+    GitChangeGroup self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_git_change_status(
     GitChangeStatus self,
     SseSerializer serializer,
   );
 
   @protected
+  void sse_encode_git_change_tree_row(
+    GitChangeTreeRow self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_git_change_tree_row_kind(
+    GitChangeTreeRowKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_git_diff_file(GitDiffFile self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_git_diff_line(GitDiffLine self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_git_diff_line_kind(
+    GitDiffLineKind self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_git_diff_result(GitDiffResult self, SseSerializer serializer);
@@ -765,8 +868,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_git_change_group(
+    List<GitChangeGroup> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_git_change_tree_row(
+    List<GitChangeTreeRow> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_git_diff_file(
     List<GitDiffFile> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_git_diff_line(
+    List<GitDiffLine> self,
     SseSerializer serializer,
   );
 
@@ -832,6 +953,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_git_change_entry(
+    GitChangeEntry? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);

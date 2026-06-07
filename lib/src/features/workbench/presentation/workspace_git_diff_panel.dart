@@ -80,13 +80,13 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
               if (snapshot.hasError) {
                 return _GitDiffMessage(message: _messageFor(snapshot.error));
               }
-              final entries =
-                  snapshot.data?.entries ?? const <GitChangeEntry>[];
-              if (entries.isEmpty) {
+              final result = snapshot.data;
+              final entries = result?.entries ?? const <GitChangeEntry>[];
+              if (result == null || entries.isEmpty) {
                 return const _GitDiffMessage(message: 'No changes');
               }
               return _GitDiffGroups(
-                entries: entries,
+                groups: result.effectiveGroups,
                 viewMode: widget.viewMode,
                 onOpenGitDiff: widget.onOpenGitDiff,
               );
@@ -173,12 +173,12 @@ class _GitDiffToolbar extends StatelessWidget {
 
 class _GitDiffGroups extends StatelessWidget {
   const _GitDiffGroups({
-    required this.entries,
+    required this.groups,
     required this.viewMode,
     required this.onOpenGitDiff,
   });
 
-  final List<GitChangeEntry> entries;
+  final List<GitChangeGroup> groups;
   final GitDiffViewMode viewMode;
   final OpenGitDiffTabCallback onOpenGitDiff;
 
@@ -187,12 +187,9 @@ class _GitDiffGroups extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.symmetric(vertical: AleraTokens.space6),
       children: <Widget>[
-        for (final area in GitChangeArea.values)
+        for (final group in groups)
           _GitDiffGroup(
-            area: area,
-            entries: entries
-                .where((entry) => entry.area == area)
-                .toList(growable: false),
+            group: group,
             viewMode: viewMode,
             onOpenGitDiff: onOpenGitDiff,
           ),
@@ -203,24 +200,20 @@ class _GitDiffGroups extends StatelessWidget {
 
 class _GitDiffGroup extends StatelessWidget {
   const _GitDiffGroup({
-    required this.area,
-    required this.entries,
+    required this.group,
     required this.viewMode,
     required this.onOpenGitDiff,
   });
 
-  final GitChangeArea area;
-  final List<GitChangeEntry> entries;
+  final GitChangeGroup group;
   final GitDiffViewMode viewMode;
   final OpenGitDiffTabCallback onOpenGitDiff;
 
   @override
   Widget build(BuildContext context) {
-    if (entries.isEmpty) {
+    if (group.entries.isEmpty) {
       return const SizedBox.shrink();
     }
-    final sorted = entries.toList(growable: false)
-      ..sort((a, b) => a.path.compareTo(b.path));
     return Padding(
       padding: const EdgeInsets.only(bottom: AleraTokens.space8),
       child: Column(
@@ -235,14 +228,14 @@ class _GitDiffGroup extends StatelessWidget {
               children: <Widget>[
                 Expanded(
                   child: Text(
-                    area.label,
+                    group.area.label,
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
                       color: AleraTokens.foregroundMuted,
                     ),
                   ),
                 ),
                 Text(
-                  '${entries.length}',
+                  '${group.entries.length}',
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: AleraTokens.foregroundFaint,
                   ),
@@ -251,7 +244,7 @@ class _GitDiffGroup extends StatelessWidget {
             ),
           ),
           if (viewMode == GitDiffViewMode.flat)
-            for (final entry in sorted)
+            for (final entry in group.entries)
               _GitDiffFileRow(
                 entry: entry,
                 depth: 0,
@@ -265,7 +258,7 @@ class _GitDiffGroup extends StatelessWidget {
                 ),
               )
           else
-            _GitDiffTree(entries: sorted, onOpenGitDiff: onOpenGitDiff),
+            _GitDiffTree(rows: group.treeRows, onOpenGitDiff: onOpenGitDiff),
         ],
       ),
     );

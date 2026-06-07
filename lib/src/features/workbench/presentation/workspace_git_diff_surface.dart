@@ -11,8 +11,6 @@ import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-const int _maxRenderedDiffLinesPerFile = 5000;
-
 class WorkspaceGitDiffSurface extends ConsumerStatefulWidget {
   const WorkspaceGitDiffSurface({
     super.key,
@@ -265,20 +263,13 @@ class _DiffRows {
         items.add(const _BannerRow('Binary file diff is not shown.'));
       } else if (file.isLarge) {
         items.add(const _BannerRow('Large untracked file diff is not shown.'));
-      } else if (file.patch.isEmpty) {
+      } else if (file.lines.isEmpty) {
         items.add(const _BannerRow('No text diff for this file.'));
       } else {
-        var lineCount = 0;
-        var linePreviewTruncated = false;
-        for (final line in _splitLines(file.patch)) {
-          if (lineCount >= _maxRenderedDiffLinesPerFile) {
-            linePreviewTruncated = true;
-            break;
-          }
+        for (final line in file.lines) {
           items.add(_DiffLineRow(line));
-          lineCount += 1;
         }
-        if (linePreviewTruncated) {
+        if (file.linePreviewTruncated) {
           items.add(const _BannerRow('Diff line preview truncated.'));
         }
       }
@@ -287,19 +278,6 @@ class _DiffRows {
       }
     }
     return _DiffRows(items);
-  }
-}
-
-Iterable<String> _splitLines(String value) sync* {
-  var start = 0;
-  while (start <= value.length) {
-    final next = value.indexOf('\n', start);
-    if (next == -1) {
-      yield value.substring(start);
-      break;
-    }
-    yield value.substring(start, next);
-    start = next + 1;
   }
 }
 
@@ -365,10 +343,10 @@ class _BannerRow extends _DiffRow {
 class _DiffLineRow extends _DiffRow {
   const _DiffLineRow(this.text);
 
-  final String text;
+  final GitDiffLine text;
 
   @override
-  Widget build(BuildContext context) => _DiffLine(text: text);
+  Widget build(BuildContext context) => _DiffLine(line: text);
 }
 
 class _DiffStats extends StatelessWidget {
@@ -400,30 +378,23 @@ class _DiffStats extends StatelessWidget {
 }
 
 class _DiffLine extends StatelessWidget {
-  const _DiffLine({required this.text});
+  const _DiffLine({required this.line});
 
-  final String text;
+  final GitDiffLine line;
 
   @override
   Widget build(BuildContext context) {
-    final kind = text.startsWith('+')
-        ? _DiffLineKind.addition
-        : text.startsWith('-')
-        ? _DiffLineKind.deletion
-        : text.startsWith('@@')
-        ? _DiffLineKind.hunk
-        : _DiffLineKind.context;
-    final (color, background) = switch (kind) {
-      _DiffLineKind.addition => (
+    final (color, background) = switch (line.kind) {
+      GitDiffLineKind.addition => (
         AleraTokens.success,
         AleraTokens.success.withValues(alpha: 0.08),
       ),
-      _DiffLineKind.deletion => (
+      GitDiffLineKind.deletion => (
         AleraTokens.error,
         AleraTokens.error.withValues(alpha: 0.08),
       ),
-      _DiffLineKind.hunk => (AleraTokens.warning, AleraTokens.surfaceVariant),
-      _DiffLineKind.context => (
+      GitDiffLineKind.hunk => (AleraTokens.warning, AleraTokens.surfaceVariant),
+      GitDiffLineKind.header || GitDiffLineKind.context => (
         AleraTokens.foregroundMuted,
         Colors.transparent,
       ),
@@ -436,7 +407,7 @@ class _DiffLine extends StatelessWidget {
           vertical: AleraTokens.space2,
         ),
         child: Text(
-          text,
+          line.text,
           maxLines: 1,
           overflow: TextOverflow.visible,
           softWrap: false,
@@ -446,8 +417,6 @@ class _DiffLine extends StatelessWidget {
     );
   }
 }
-
-enum _DiffLineKind { addition, deletion, hunk, context }
 
 class _DiffBanner extends StatelessWidget {
   const _DiffBanner({required this.message});

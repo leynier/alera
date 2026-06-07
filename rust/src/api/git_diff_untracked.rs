@@ -1,6 +1,9 @@
 use git2::Repository;
 
-use super::{GitChangeArea, GitChangeStatus, GitDiffFile, GitError, GitErrorKind, GitPathContext};
+use super::{
+    git_diff_render::diff_lines_from_patch, GitChangeArea, GitChangeStatus, GitDiffFile, GitError,
+    GitErrorKind, GitPathContext,
+};
 
 const MAX_UNTRACKED_TEXT_BYTES: u64 = 256 * 1024;
 
@@ -26,17 +29,19 @@ pub(super) fn untracked_diff_file(
         .as_ref()
         .map(|content| build_untracked_patch(&display_path, content, untracked.is_symlink))
         .unwrap_or_default();
+    let (lines, line_preview_truncated) = diff_lines_from_patch(&patch);
     Ok(GitDiffFile {
         path: display_path,
         old_path: None,
         area: GitChangeArea::Untracked,
         status: GitChangeStatus::Untracked,
-        patch,
+        lines,
         added: untracked.added,
         removed: Some(0),
         is_binary: untracked.is_binary,
         is_large: untracked.is_large,
         truncated: false,
+        line_preview_truncated,
     })
 }
 

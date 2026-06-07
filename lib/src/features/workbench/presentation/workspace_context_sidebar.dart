@@ -139,7 +139,7 @@ class _CollapsedContextRail extends StatelessWidget {
             tab: WorkbenchContextPanelTab.gitDiff,
             activeTab: activeTab,
             tooltip: 'Source Control',
-            icon: Icons.account_tree_outlined,
+            icon: Icons.fork_right_outlined,
             onPressed: () => onOpenTab(WorkbenchContextPanelTab.gitDiff),
           ),
           const Spacer(),
@@ -203,7 +203,7 @@ class _ContextTabHeader extends StatelessWidget {
                 tab: WorkbenchContextPanelTab.gitDiff,
                 activeTab: activeTab,
                 tooltip: 'Source Control',
-                icon: Icons.account_tree_outlined,
+                icon: Icons.fork_right_outlined,
                 onPressed: () =>
                     onSetActiveTab(WorkbenchContextPanelTab.gitDiff),
               ),
