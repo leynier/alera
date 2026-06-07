@@ -6,6 +6,7 @@ part 'workspace_tab_record.mapper.dart';
 enum WorkspaceTabKind {
   terminal('terminal'),
   editor('editor'),
+  pdf('pdf'),
   browser('browser');
 
   const WorkspaceTabKind(this.key);

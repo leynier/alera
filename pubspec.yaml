@@ -47,6 +47,7 @@ dependencies:
   code_forge: ^10.2.0
   re_highlight: ^0.0.3
   vscode_material_icon_theme: ^5.26.0
+  pdfrx: ^2.4.3
 dev_dependencies:
   alchemist: ^0.14.0
   build_runner: ^2.15.0

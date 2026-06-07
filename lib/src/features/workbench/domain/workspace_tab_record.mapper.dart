@@ -31,6 +31,8 @@ class WorkspaceTabKindMapper extends EnumMapper<WorkspaceTabKind> {
         return WorkspaceTabKind.terminal;
       case r'editor':
         return WorkspaceTabKind.editor;
+      case r'pdf':
+        return WorkspaceTabKind.pdf;
       case r'browser':
         return WorkspaceTabKind.browser;
       default:
@@ -45,6 +47,8 @@ class WorkspaceTabKindMapper extends EnumMapper<WorkspaceTabKind> {
         return r'terminal';
       case WorkspaceTabKind.editor:
         return r'editor';
+      case WorkspaceTabKind.pdf:
+        return r'pdf';
       case WorkspaceTabKind.browser:
         return r'browser';
     }

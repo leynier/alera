@@ -200,6 +200,11 @@ bool workspaceTabUsesImagePreviewForTesting(WorkspaceTabRecord tab) {
   return filePath != null && isWorkspaceImageFilePath(filePath);
 }
 
+@visibleForTesting
+bool workspaceTabUsesPdfViewerForTesting(WorkspaceTabRecord tab) {
+  return tab.kind == WorkspaceTabKind.pdf;
+}
+
 Rect _centerDropRect(Size paneSize) {
   const centerWidthFactor = 0.36;
   const centerHeightFactor = 0.36;
@@ -240,6 +245,11 @@ class _WorkspaceTabContent extends StatelessWidget {
         autofocus: autofocus,
       ),
       WorkspaceTabKind.editor => _WorkspaceFileTabContent(
+        workspace: workspace,
+        tab: tab,
+        autofocus: autofocus,
+      ),
+      WorkspaceTabKind.pdf => WorkspacePdfViewerSurface(
         workspace: workspace,
         tab: tab,
         autofocus: autofocus,
