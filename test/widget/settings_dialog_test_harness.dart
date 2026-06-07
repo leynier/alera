@@ -56,46 +56,32 @@ class _FakeSystemFontService implements SystemFontService {
 }
 
 class _FakeAiTextModelDiscoveryService implements AiTextModelDiscoveryService {
-  const _FakeAiTextModelDiscoveryService({
-    this.models = const <AiTextModel>[
-      AiTextModel(
-        id: 'gpt-5.5',
-        label: 'GPT-5.5',
-        thinkingLevels: openAiThinkingLevels,
-        defaultThinkingLevel: 'low',
-      ),
-      AiTextModel(
-        id: 'gpt-5.4-mini',
-        label: 'GPT-5.4 Mini',
-        thinkingLevels: openAiThinkingLevels,
-        defaultThinkingLevel: 'low',
-      ),
-    ],
-    this.error,
-  });
+  const _FakeAiTextModelDiscoveryService();
 
-  final List<AiTextModel> models;
-  final String? error;
+  static const List<AiTextModel> _models = <AiTextModel>[
+    AiTextModel(
+      id: 'gpt-5.5',
+      label: 'GPT-5.5',
+      thinkingLevels: openAiThinkingLevels,
+      defaultThinkingLevel: 'low',
+    ),
+    AiTextModel(
+      id: 'gpt-5.4-mini',
+      label: 'GPT-5.4 Mini',
+      thinkingLevels: openAiThinkingLevels,
+      defaultThinkingLevel: 'low',
+    ),
+  ];
 
   @override
   Future<AiTextModelDiscoveryResult> discover(
     AiTextGenerationAgent agent,
   ) async {
-    if (error case final error?) {
-      final spec = aiTextAgentSpecs[agent];
-      return AiTextModelDiscoveryResult(
-        success: false,
-        agent: agent,
-        models: spec?.models ?? const <AiTextModel>[],
-        defaultModelId: spec?.defaultModelId ?? 'custom',
-        error: error,
-      );
-    }
     return AiTextModelDiscoveryResult(
       success: true,
       agent: agent,
-      models: models,
-      defaultModelId: models.first.id,
+      models: _models,
+      defaultModelId: _models.first.id,
     );
   }
 }
