@@ -156,7 +156,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                     onSetGitDiffViewMode: controller.setGitDiffViewMode,
                     onOpenFile: (relativePath) {
                       unawaited(
-                        controller.openEditorTab(
+                        controller.openFileTab(
                           workspace: workspace,
                           relativePath: relativePath,
                         ),

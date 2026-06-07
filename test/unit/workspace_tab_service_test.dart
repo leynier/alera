@@ -151,6 +151,108 @@ void main() {
       },
     );
 
+    test('openOrCreatePdfTab creates and reuses a PDF tab', () async {
+      final repository = _FakeWorkbenchRepository();
+      final service = WorkspaceTabService(
+        repository: repository,
+        now: () => DateTime.utc(2026, 5, 21, 1),
+      );
+
+      final first = await service.openOrCreatePdfTab(
+        workspaceId: 'workspace-1',
+        relativePath: './docs\\guide.pdf',
+      );
+      final second = await service.openOrCreatePdfTab(
+        workspaceId: 'workspace-1',
+        relativePath: 'docs/guide.pdf',
+      );
+
+      expect(first.kind, WorkspaceTabKind.pdf);
+      expect(first.title, 'guide.pdf');
+      expect(first.filePath, 'docs/guide.pdf');
+      expect(second.id, first.id);
+      expect(repository.tabs, hasLength(1));
+    });
+
+    test('openOrCreatePdfTab upgrades an existing editor PDF tab', () async {
+      final repository = _FakeWorkbenchRepository()
+        ..tabs.add(
+          WorkspaceTabRecord(
+            id: 'tab-1',
+            workspaceId: 'workspace-1',
+            kind: WorkspaceTabKind.editor,
+            title: 'guide.pdf',
+            createdAt: DateTime.utc(2026, 5, 21),
+            updatedAt: DateTime.utc(2026, 5, 21),
+            payload: const <String, Object?>{
+              workspaceTabFilePathPayloadKey: 'docs/guide.pdf',
+            },
+          ),
+        );
+      final service = WorkspaceTabService(
+        repository: repository,
+        now: () => DateTime.utc(2026, 5, 21, 1),
+      );
+
+      final tab = await service.openOrCreatePdfTab(
+        workspaceId: 'workspace-1',
+        relativePath: './docs/guide.pdf',
+      );
+
+      expect(tab.id, 'tab-1');
+      expect(tab.kind, WorkspaceTabKind.pdf);
+      expect(tab.filePath, 'docs/guide.pdf');
+      expect(tab.updatedAt, DateTime.utc(2026, 5, 21, 1));
+      expect(repository.tabs, hasLength(1));
+      expect(repository.tabs.single.kind, WorkspaceTabKind.pdf);
+    });
+
+    test('openOrCreateEditorTab upgrades an existing PDF tab', () async {
+      final repository = _FakeWorkbenchRepository()
+        ..tabs.add(
+          WorkspaceTabRecord(
+            id: 'tab-1',
+            workspaceId: 'workspace-1',
+            kind: WorkspaceTabKind.pdf,
+            title: 'guide.pdf',
+            createdAt: DateTime.utc(2026, 5, 21),
+            updatedAt: DateTime.utc(2026, 5, 21),
+            payload: const <String, Object?>{
+              workspaceTabFilePathPayloadKey: 'docs/guide.pdf',
+            },
+          ),
+        );
+      final service = WorkspaceTabService(
+        repository: repository,
+        now: () => DateTime.utc(2026, 5, 21, 1),
+      );
+
+      final tab = await service.openOrCreateEditorTab(
+        workspaceId: 'workspace-1',
+        relativePath: './docs/guide.pdf',
+      );
+
+      expect(tab.id, 'tab-1');
+      expect(tab.kind, WorkspaceTabKind.editor);
+      expect(tab.filePath, 'docs/guide.pdf');
+      expect(tab.updatedAt, DateTime.utc(2026, 5, 21, 1));
+      expect(repository.tabs, hasLength(1));
+      expect(repository.tabs.single.kind, WorkspaceTabKind.editor);
+    });
+
+    test('openOrCreatePdfTab rejects paths outside the workspace', () async {
+      final repository = _FakeWorkbenchRepository();
+      final service = WorkspaceTabService(repository: repository);
+
+      await expectLater(
+        service.openOrCreatePdfTab(
+          workspaceId: 'workspace-1',
+          relativePath: '../guide.pdf',
+        ),
+        throwsStateError,
+      );
+    });
+
     test('openOrCreateEditorTab rejects paths outside the workspace', () async {
       final repository = _FakeWorkbenchRepository();
       final service = WorkspaceTabService(repository: repository);
@@ -518,6 +620,111 @@ void main() {
       expect(repository.tabs.first.filePath, 'lib/src/main.dart');
       expect(repository.tabs.last.filePath, 'readme.md');
     });
+
+    test('updates open PDF tab paths and titles after a file move', () async {
+      final repository = _FakeWorkbenchRepository()
+        ..tabs.add(
+          WorkspaceTabRecord(
+            id: 'tab-1',
+            workspaceId: 'workspace-1',
+            kind: WorkspaceTabKind.pdf,
+            title: 'guide.pdf',
+            createdAt: DateTime.utc(2026, 5, 21),
+            updatedAt: DateTime.utc(2026, 5, 21),
+            payload: const <String, Object?>{
+              workspaceTabFilePathPayloadKey: 'docs/guide.pdf',
+            },
+          ),
+        );
+      final service = WorkspaceTabService(
+        repository: repository,
+        now: () => DateTime.utc(2026, 5, 21, 1),
+      );
+
+      final updated = await service.updateEditorPathsAfterMove(
+        workspaceId: 'workspace-1',
+        oldRelativePath: 'docs/guide.pdf',
+        newRelativePath: 'reference/guide.pdf',
+      );
+
+      expect(updated.updatedTabs.single.kind, WorkspaceTabKind.pdf);
+      expect(updated.updatedTabs.single.filePath, 'reference/guide.pdf');
+      expect(updated.updatedTabs.single.title, 'guide.pdf');
+      expect(updated.removedTabIds, isEmpty);
+      expect(repository.tabs.single.filePath, 'reference/guide.pdf');
+    });
+
+    test(
+      'changes editor tab to PDF when a move gives it a PDF extension',
+      () async {
+        final repository = _FakeWorkbenchRepository()
+          ..tabs.add(
+            WorkspaceTabRecord(
+              id: 'tab-1',
+              workspaceId: 'workspace-1',
+              kind: WorkspaceTabKind.editor,
+              title: 'note.txt',
+              createdAt: DateTime.utc(2026, 5, 21),
+              updatedAt: DateTime.utc(2026, 5, 21),
+              payload: const <String, Object?>{
+                workspaceTabFilePathPayloadKey: 'docs/note.txt',
+              },
+            ),
+          );
+        final service = WorkspaceTabService(
+          repository: repository,
+          now: () => DateTime.utc(2026, 5, 21, 1),
+        );
+
+        final updated = await service.updateEditorPathsAfterMove(
+          workspaceId: 'workspace-1',
+          oldRelativePath: 'docs/note.txt',
+          newRelativePath: 'docs/note.pdf',
+        );
+
+        expect(updated.updatedTabs.single.kind, WorkspaceTabKind.pdf);
+        expect(updated.updatedTabs.single.filePath, 'docs/note.pdf');
+        expect(updated.updatedTabs.single.title, 'note.pdf');
+        expect(updated.removedTabIds, isEmpty);
+        expect(repository.tabs.single.kind, WorkspaceTabKind.pdf);
+      },
+    );
+
+    test(
+      'changes PDF tab to editor when a move removes the PDF extension',
+      () async {
+        final repository = _FakeWorkbenchRepository()
+          ..tabs.add(
+            WorkspaceTabRecord(
+              id: 'tab-1',
+              workspaceId: 'workspace-1',
+              kind: WorkspaceTabKind.pdf,
+              title: 'guide.pdf',
+              createdAt: DateTime.utc(2026, 5, 21),
+              updatedAt: DateTime.utc(2026, 5, 21),
+              payload: const <String, Object?>{
+                workspaceTabFilePathPayloadKey: 'docs/guide.pdf',
+              },
+            ),
+          );
+        final service = WorkspaceTabService(
+          repository: repository,
+          now: () => DateTime.utc(2026, 5, 21, 1),
+        );
+
+        final updated = await service.updateEditorPathsAfterMove(
+          workspaceId: 'workspace-1',
+          oldRelativePath: 'docs/guide.pdf',
+          newRelativePath: 'docs/guide.txt',
+        );
+
+        expect(updated.updatedTabs.single.kind, WorkspaceTabKind.editor);
+        expect(updated.updatedTabs.single.filePath, 'docs/guide.txt');
+        expect(updated.updatedTabs.single.title, 'guide.txt');
+        expect(updated.removedTabIds, isEmpty);
+        expect(repository.tabs.single.kind, WorkspaceTabKind.editor);
+      },
+    );
 
     test('renames a tab and marks its title as manual', () async {
       final repository = _FakeWorkbenchRepository()

@@ -28,10 +28,59 @@ mixin _WorkbenchControllerTabs
     required String relativePath,
     String? targetGroupId,
   }) async {
+    return _openFileBackedTab(
+      workspace: workspace,
+      relativePath: relativePath,
+      targetGroupId: targetGroupId,
+      createTab: _workspaceTabService.openOrCreateEditorTab,
+    );
+  }
+
+  Future<WorkspaceTabRecord> openPdfTab({
+    required Workspace workspace,
+    required String relativePath,
+    String? targetGroupId,
+  }) async {
+    return _openFileBackedTab(
+      workspace: workspace,
+      relativePath: relativePath,
+      targetGroupId: targetGroupId,
+      createTab: _workspaceTabService.openOrCreatePdfTab,
+    );
+  }
+
+  Future<WorkspaceTabRecord> openFileTab({
+    required Workspace workspace,
+    required String relativePath,
+    String? targetGroupId,
+  }) {
+    return isWorkspacePdfFilePath(relativePath)
+        ? openPdfTab(
+            workspace: workspace,
+            relativePath: relativePath,
+            targetGroupId: targetGroupId,
+          )
+        : openEditorTab(
+            workspace: workspace,
+            relativePath: relativePath,
+            targetGroupId: targetGroupId,
+          );
+  }
+
+  Future<WorkspaceTabRecord> _openFileBackedTab({
+    required Workspace workspace,
+    required String relativePath,
+    String? targetGroupId,
+    required Future<WorkspaceTabRecord> Function({
+      required String workspaceId,
+      required String relativePath,
+    })
+    createTab,
+  }) async {
     try {
       final previousTabs = state.tabsFor(workspace.id);
       final layout = _layoutForMutation(workspace.id, previousTabs);
-      final tab = await _workspaceTabService.openOrCreateEditorTab(
+      final tab = await createTab(
         workspaceId: workspace.id,
         relativePath: relativePath,
       );
@@ -40,6 +89,8 @@ mixin _WorkbenchControllerTabs
       );
       final tabs = alreadyOpen
           ? previousTabs
+                .map((candidate) => candidate.id == tab.id ? tab : candidate)
+                .toList(growable: false)
           : <WorkspaceTabRecord>[...previousTabs, tab];
       _setTabsForWorkspace(workspace.id, tabs);
       final groupId = targetGroupId ?? layout.activeGroupId;

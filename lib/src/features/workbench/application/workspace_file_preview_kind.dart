@@ -1,6 +1,6 @@
 import 'package:path/path.dart' as p;
 
-enum WorkspaceFilePreviewKind { text, image, merman }
+enum WorkspaceFilePreviewKind { text, image, pdf, merman }
 
 const Set<String> workspaceImageFileExtensions = <String>{
   '.png',
@@ -22,11 +22,17 @@ WorkspaceFilePreviewKind workspaceFilePreviewKindForPath(String filePath) {
   if (workspaceMermanFileExtensions.contains(extension)) {
     return WorkspaceFilePreviewKind.merman;
   }
+  if (extension == '.pdf') {
+    return WorkspaceFilePreviewKind.pdf;
+  }
   return WorkspaceFilePreviewKind.text;
 }
 
 bool isWorkspaceImageFilePath(String filePath) =>
     workspaceFilePreviewKindForPath(filePath) == WorkspaceFilePreviewKind.image;
+
+bool isWorkspacePdfFilePath(String filePath) =>
+    workspaceFilePreviewKindForPath(filePath) == WorkspaceFilePreviewKind.pdf;
 
 bool isWorkspaceIcoFilePath(String filePath) =>
     p.extension(filePath).toLowerCase() == '.ico';
