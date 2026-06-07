@@ -475,7 +475,7 @@ fn discard_status_entries(
                 && entry.status == GitChangeStatus::Renamed
                 && entry.old_path.as_deref() != Some(entry.path.as_str()))
     }) {
-        delete_workspace_relative_path(&path, &entry.path)?;
+        delete_workspace_relative_path(path, &entry.path)?;
     }
 
     Ok(())

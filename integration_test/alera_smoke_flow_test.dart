@@ -233,6 +233,12 @@ class _E2eGitBackend implements GitBackend {
   }) async => 'e2e';
 
   @override
+  Future<String> amendCommit({
+    required String path,
+    required String message,
+  }) async => 'e2e';
+
+  @override
   Future<void> fetch(String path) async {}
 
   @override
