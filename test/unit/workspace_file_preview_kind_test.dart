@@ -32,5 +32,17 @@ void main() {
         WorkspaceFilePreviewKind.text,
       );
     });
+
+    test('classifies PDF extensions as PDF previews', () {
+      expect(
+        workspaceFilePreviewKindForPath('docs/spec.pdf'),
+        WorkspaceFilePreviewKind.pdf,
+      );
+      expect(
+        workspaceFilePreviewKindForPath('docs/WHITEPAPER.PDF'),
+        WorkspaceFilePreviewKind.pdf,
+      );
+      expect(isWorkspacePdfFilePath('docs/spec.pdf'), isTrue);
+    });
   });
 }
