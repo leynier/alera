@@ -1,25 +1,66 @@
-//! Git primitives exposed to Flutter through flutter_rust_bridge.
-//!
-//! Every operation here is local and backed by `git2` (libgit2). The single
-//! operation that needs the network — `clone` — is delegated to the system
-//! `git` CLI through `git_cmd`, so the user's credential helper keeps working.
-//! Business logic (paths, slugs, persistence, reconciliation) stays on the Dart
-//! side; this module only models the raw git plumbing.
-
 use std::path::Path;
 
 use camino::Utf8Path;
 use git2::{Branch, BranchType, ErrorCode, Repository, WorktreeAddOptions, WorktreePruneOptions};
 
-/// A single git worktree entry, mirroring one record of `git worktree list`.
+#[path = "git_diff_impl.rs"]
+mod git_diff_impl;
+
 pub struct GitWorktreeEntry {
     pub path: String,
     pub branch: String,
 }
 
-/// Discriminates the structured git failures surfaced to Dart. Kept as a plain
-/// (field-less) enum so flutter_rust_bridge mirrors it as a Dart `enum` without
-/// pulling in `freezed`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GitChangeArea {
+    Untracked,
+    Unstaged,
+    Staged,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GitChangeStatus {
+    Modified,
+    Added,
+    Deleted,
+    Renamed,
+    Copied,
+    Untracked,
+}
+
+pub struct GitChangeEntry {
+    pub path: String,
+    pub old_path: Option<String>,
+    pub area: GitChangeArea,
+    pub status: GitChangeStatus,
+    pub added: Option<u32>,
+    pub removed: Option<u32>,
+    pub is_binary: bool,
+    pub is_large: bool,
+}
+
+pub struct GitStatusResult {
+    pub entries: Vec<GitChangeEntry>,
+}
+
+pub struct GitDiffFile {
+    pub path: String,
+    pub old_path: Option<String>,
+    pub area: GitChangeArea,
+    pub status: GitChangeStatus,
+    pub patch: String,
+    pub added: Option<u32>,
+    pub removed: Option<u32>,
+    pub is_binary: bool,
+    pub is_large: bool,
+    pub truncated: bool,
+}
+
+pub struct GitDiffResult {
+    pub files: Vec<GitDiffFile>,
+    pub truncated: bool,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GitErrorKind {
     NotARepository,
@@ -34,10 +75,6 @@ pub enum GitErrorKind {
     Internal,
 }
 
-/// Structured git failure surfaced to Dart. `context` carries the relevant
-/// detail for the [`GitErrorKind`] (an offending path, branch name, or the
-/// underlying git message). The Dart `RustGitBackend` translates each kind into
-/// a domain `GitException`.
 #[derive(Debug)]
 pub struct GitError {
     pub kind: GitErrorKind,
@@ -76,9 +113,6 @@ fn open_repo(path: &str) -> Result<Repository, GitError> {
     })
 }
 
-/// Resolves the short branch name for a repository's HEAD, matching the
-/// behaviour of `git branch --show-current` (detached/unknown → `HEAD`, but a
-/// valid unborn branch still reports its name).
 fn head_branch_name(repo: &Repository) -> String {
     match repo.head() {
         Ok(head) => {
@@ -115,11 +149,6 @@ fn worktree_admin_name(path: &str) -> String {
         .unwrap_or_else(|| path.to_string())
 }
 
-/// Builds the `.git/worktrees/<id>` admin id from the target path's basename,
-/// appending a numeric suffix when that id is already taken — mirroring
-/// `git worktree add`, which disambiguates same-basename worktrees instead of
-/// rejecting them. The id is internal: `list_worktrees`/`remove_worktree` match
-/// worktrees by path, not by id, so any unique id is safe here.
 fn unique_worktree_admin_name(repo: &Repository, path: &str) -> String {
     let base = worktree_admin_name(path);
     let existing = existing_worktree_admin_names(repo);
@@ -148,16 +177,12 @@ fn existing_worktree_admin_names(repo: &Repository) -> std::collections::HashSet
     names
 }
 
-/// Canonicalizes a path for comparison, tolerating paths that no longer exist.
 fn canonical(path: &str) -> String {
     std::fs::canonicalize(path)
         .map(|resolved| resolved.to_string_lossy().to_string())
         .unwrap_or_else(|_| path.trim_end_matches('/').to_string())
 }
 
-/// Returns `true` when `path` resolves to a git repository (work tree). Mirrors
-/// `git rev-parse --is-inside-work-tree`; surfaces permission failures as
-/// [`GitErrorKind::AccessDenied`] so the UI can explain sandbox denials.
 pub fn is_git_repository(path: String) -> Result<bool, GitError> {
     match Repository::discover(&path) {
         Ok(repo) => Ok(repo.workdir().is_some()),
@@ -177,9 +202,6 @@ pub fn is_git_repository(path: String) -> Result<bool, GitError> {
     }
 }
 
-/// Lists local and remote-tracking branch short names, sorted and de-duplicated,
-/// excluding `*/HEAD` symbolic entries. Mirrors
-/// `git for-each-ref --format=%(refname:short) refs/heads refs/remotes`.
 pub fn list_branches(path: String) -> Result<Vec<String>, GitError> {
     let repo = open_repo(&path)?;
     let mut names: Vec<String> = Vec::new();
@@ -198,14 +220,11 @@ pub fn list_branches(path: String) -> Result<Vec<String>, GitError> {
     Ok(names)
 }
 
-/// Returns the current branch short name, or `HEAD` when detached. Mirrors
-/// `git branch --show-current`.
 pub fn current_branch(path: String) -> Result<String, GitError> {
     let repo = open_repo(&path)?;
     Ok(head_branch_name(&repo))
 }
 
-/// Returns `true` when a local branch named `branch` exists.
 pub fn branch_exists(repo_path: String, branch: String) -> Result<bool, GitError> {
     let repo = open_repo(&repo_path)?;
     let exists = match repo.find_branch(&branch, BranchType::Local) {
@@ -216,9 +235,24 @@ pub fn branch_exists(repo_path: String, branch: String) -> Result<bool, GitError
     Ok(exists)
 }
 
-/// Validates a branch name. Mirrors `git check-ref-format --branch`.
 pub fn is_valid_branch_name(name: String) -> Result<bool, GitError> {
     Branch::name_is_valid(&name).map_err(GitError::from_git2)
+}
+
+pub fn git_status(path: String) -> Result<GitStatusResult, GitError> {
+    git_diff_impl::git_status(path)
+}
+
+pub fn git_diff(
+    path: String,
+    file_path: String,
+    area: GitChangeArea,
+) -> Result<GitDiffResult, GitError> {
+    git_diff_impl::git_diff(path, file_path, area)
+}
+
+pub fn git_diff_all(path: String, file_path: Option<String>) -> Result<GitDiffResult, GitError> {
+    git_diff_impl::git_diff_all(path, file_path)
 }
 
 fn remote_tracking_upstream_name(
@@ -462,270 +496,5 @@ pub fn clone_repository(url: String, destination_path: String) -> Result<(), Git
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use std::path::Path;
-    use std::process::Command;
-
-    fn run_git(dir: &Path, args: &[&str]) {
-        let status = Command::new("git")
-            .args(args)
-            .current_dir(dir)
-            .env("GIT_AUTHOR_NAME", "Test")
-            .env("GIT_AUTHOR_EMAIL", "test@example.com")
-            .env("GIT_COMMITTER_NAME", "Test")
-            .env("GIT_COMMITTER_EMAIL", "test@example.com")
-            .status()
-            .expect("git command runs");
-        assert!(status.success(), "git {:?} failed", args);
-    }
-
-    fn init_repo() -> tempfile::TempDir {
-        let dir = tempfile::tempdir().expect("tempdir");
-        run_git(dir.path(), &["init", "-b", "main"]);
-        std::fs::write(dir.path().join("README.md"), "hello").expect("write");
-        run_git(dir.path(), &["add", "."]);
-        run_git(dir.path(), &["commit", "-m", "initial"]);
-        dir
-    }
-
-    fn path_str(path: &Path) -> String {
-        path.to_string_lossy().to_string()
-    }
-
-    #[test]
-    fn detects_repository() {
-        let repo = init_repo();
-        assert!(is_git_repository(path_str(repo.path())).unwrap());
-
-        let plain = tempfile::tempdir().expect("tempdir");
-        assert!(!is_git_repository(path_str(plain.path())).unwrap());
-    }
-
-    #[test]
-    fn rejects_bare_repository() {
-        let bare = tempfile::tempdir().expect("tempdir");
-        run_git(bare.path(), &["init", "--bare"]);
-
-        assert!(!is_git_repository(path_str(bare.path())).unwrap());
-    }
-
-    #[test]
-    fn reports_branches_and_current() {
-        let repo = init_repo();
-        run_git(repo.path(), &["branch", "feature"]);
-
-        let branches = list_branches(path_str(repo.path())).unwrap();
-        assert!(branches.contains(&"main".to_string()));
-        assert!(branches.contains(&"feature".to_string()));
-
-        assert_eq!(current_branch(path_str(repo.path())).unwrap(), "main");
-        assert!(branch_exists(path_str(repo.path()), "feature".to_string()).unwrap());
-        assert!(!branch_exists(path_str(repo.path()), "missing".to_string()).unwrap());
-    }
-
-    #[test]
-    fn validates_branch_names() {
-        assert!(is_valid_branch_name("feature/login".to_string()).unwrap());
-        assert!(!is_valid_branch_name("bad branch".to_string()).unwrap());
-    }
-
-    #[test]
-    fn creates_lists_and_removes_worktree() {
-        let repo = init_repo();
-        let worktree_base = tempfile::tempdir().expect("tempdir");
-        let worktree_path = path_str(&worktree_base.path().join("feature"));
-
-        create_worktree(
-            path_str(repo.path()),
-            "feature".to_string(),
-            worktree_path.clone(),
-            "main".to_string(),
-        )
-        .unwrap();
-
-        assert!(branch_exists(path_str(repo.path()), "feature".to_string()).unwrap());
-        let worktrees = list_worktrees(path_str(repo.path())).unwrap();
-        assert!(worktrees.iter().any(|entry| entry.branch == "feature"));
-        assert!(worktrees.iter().any(|entry| entry.branch == "main"));
-
-        remove_worktree(path_str(repo.path()), worktree_path.clone(), true).unwrap();
-        let worktrees = list_worktrees(path_str(repo.path())).unwrap();
-        assert!(!worktrees.iter().any(|entry| entry.branch == "feature"));
-
-        delete_branch(path_str(repo.path()), "feature".to_string(), true).unwrap();
-        assert!(!branch_exists(path_str(repo.path()), "feature".to_string()).unwrap());
-    }
-
-    #[test]
-    fn rejects_duplicate_branch() {
-        let repo = init_repo();
-        run_git(repo.path(), &["branch", "feature"]);
-        let worktree_base = tempfile::tempdir().expect("tempdir");
-        let worktree_path = path_str(&worktree_base.path().join("dupe"));
-        let error = create_worktree(
-            path_str(repo.path()),
-            "feature".to_string(),
-            worktree_path,
-            "main".to_string(),
-        )
-        .unwrap_err();
-        assert!(matches!(error.kind, GitErrorKind::BranchAlreadyExists));
-    }
-
-    #[test]
-    fn operates_from_subdirectory() {
-        let repo = init_repo();
-        let subdir = repo.path().join("nested").join("dir");
-        std::fs::create_dir_all(&subdir).expect("create subdir");
-
-        let subdir_path = path_str(&subdir);
-        assert!(is_git_repository(subdir_path.clone()).unwrap());
-        assert_eq!(current_branch(subdir_path.clone()).unwrap(), "main");
-        assert!(list_branches(subdir_path)
-            .unwrap()
-            .contains(&"main".to_string()));
-    }
-
-    #[test]
-    fn creates_worktree_from_remote_tracking_branch() {
-        let repo = init_repo();
-        run_git(
-            repo.path(),
-            &["remote", "add", "origin", "https://example.com/repo.git"],
-        );
-        // Simulate a fetched remote-tracking ref without a network fetch.
-        run_git(
-            repo.path(),
-            &["update-ref", "refs/remotes/origin/feature", "HEAD"],
-        );
-
-        let worktree_base = tempfile::tempdir().expect("tempdir");
-        let worktree_path = path_str(&worktree_base.path().join("from-remote"));
-        create_worktree(
-            path_str(repo.path()),
-            "local-feature".to_string(),
-            worktree_path,
-            "origin/feature".to_string(),
-        )
-        .unwrap();
-
-        assert!(branch_exists(path_str(repo.path()), "local-feature".to_string()).unwrap());
-        let repo_handle = Repository::open(repo.path()).unwrap();
-        let config = repo_handle.config().unwrap();
-        assert_eq!(
-            config.get_string("branch.local-feature.remote").unwrap(),
-            "origin"
-        );
-        assert_eq!(
-            config.get_string("branch.local-feature.merge").unwrap(),
-            "refs/heads/feature"
-        );
-    }
-
-    #[test]
-    fn rolls_back_branch_when_worktree_fails() {
-        let repo = init_repo();
-        // Block the worktree path with a non-empty directory so `repo.worktree`
-        // fails after the branch has been created.
-        let worktree_base = tempfile::tempdir().expect("tempdir");
-        let blocked = worktree_base.path().join("blocked");
-        std::fs::create_dir_all(&blocked).expect("create blocker dir");
-        std::fs::write(blocked.join("busy.txt"), "x").expect("write blocker");
-        let worktree_path = path_str(&blocked);
-
-        let error = create_worktree(
-            path_str(repo.path()),
-            "feature".to_string(),
-            worktree_path.clone(),
-            "main".to_string(),
-        )
-        .unwrap_err();
-        assert!(!matches!(error.kind, GitErrorKind::BranchAlreadyExists));
-        // The branch must have been rolled back.
-        assert!(!branch_exists(path_str(repo.path()), "feature".to_string()).unwrap());
-
-        // After clearing the blocker, a retry succeeds (no orphan branch).
-        std::fs::remove_dir_all(&worktree_path).expect("remove blocker dir");
-        create_worktree(
-            path_str(repo.path()),
-            "feature".to_string(),
-            worktree_path,
-            "main".to_string(),
-        )
-        .unwrap();
-        assert!(branch_exists(path_str(repo.path()), "feature".to_string()).unwrap());
-    }
-
-    #[test]
-    fn creates_same_basename_worktrees_under_different_parents() {
-        // The same repo can back two worktrees whose target paths share a
-        // basename but live under different parents (e.g. the repo opened as two
-        // Alera projects). Both must succeed; `git worktree add` disambiguates
-        // the internal admin id rather than reporting WorktreeAlreadyExists.
-        let repo = init_repo();
-        let parent_a = tempfile::tempdir().expect("tempdir");
-        let parent_b = tempfile::tempdir().expect("tempdir");
-        let path_a = path_str(&parent_a.path().join("shared"));
-        let path_b = path_str(&parent_b.path().join("shared"));
-
-        create_worktree(
-            path_str(repo.path()),
-            "feature-a".to_string(),
-            path_a.clone(),
-            "main".to_string(),
-        )
-        .unwrap();
-        create_worktree(
-            path_str(repo.path()),
-            "feature-b".to_string(),
-            path_b.clone(),
-            "main".to_string(),
-        )
-        .unwrap();
-
-        assert!(Path::new(&path_a).join(".git").exists());
-        assert!(Path::new(&path_b).join(".git").exists());
-
-        let worktrees = list_worktrees(path_str(repo.path())).unwrap();
-        let target_a = canonical(&path_a);
-        let target_b = canonical(&path_b);
-        assert!(worktrees
-            .iter()
-            .any(|entry| canonical(&entry.path) == target_a && entry.branch == "feature-a"));
-        assert!(worktrees
-            .iter()
-            .any(|entry| canonical(&entry.path) == target_b && entry.branch == "feature-b"));
-    }
-
-    #[test]
-    fn split_clone_destination_uses_basename_under_parent() {
-        assert_eq!(
-            split_clone_destination("repos/demo").unwrap(),
-            ("repos".to_string(), "demo".to_string())
-        );
-        assert_eq!(
-            split_clone_destination("/abs/repos/demo").unwrap(),
-            ("/abs/repos".to_string(), "demo".to_string())
-        );
-        assert_eq!(
-            split_clone_destination("demo").unwrap(),
-            (".".to_string(), "demo".to_string())
-        );
-    }
-
-    #[test]
-    fn clones_from_local_source_into_nested_destination() {
-        let source = init_repo();
-        let workspace = tempfile::tempdir().expect("tempdir");
-        let destination = workspace.path().join("nested").join("cloned");
-        std::fs::create_dir_all(destination.parent().unwrap()).expect("create parent");
-
-        clone_repository(path_str(source.path()), path_str(&destination)).unwrap();
-
-        // The clone lands exactly at the destination, not double-nested.
-        assert!(destination.join(".git").exists());
-        assert!(!destination.join("cloned").exists());
-        assert!(is_git_repository(path_str(&destination)).unwrap());
-    }
-}
+#[path = "git_tests.rs"]
+mod git_tests;

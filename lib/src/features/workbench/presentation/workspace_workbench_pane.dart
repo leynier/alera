@@ -238,6 +238,10 @@ class _WorkspaceTabContent extends StatelessWidget {
         tab: tab,
         autofocus: autofocus,
       ),
+      WorkspaceTabKind.gitDiff => WorkspaceGitDiffSurface(
+        workspace: workspace,
+        tab: tab,
+      ),
       WorkspaceTabKind.browser => const Center(
         child: CircularProgressIndicator(),
       ),

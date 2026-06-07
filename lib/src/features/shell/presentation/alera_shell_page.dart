@@ -150,13 +150,24 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                     prefs: state.viewPrefs,
                     onToggleVisible: controller.toggleRightSidebarVisible,
                     onResize: controller.setRightSidebarWidth,
+                    onSetActiveContextPanelTab:
+                        controller.setActiveContextPanelTab,
                     onSetExplorerMode: controller.setExplorerMode,
+                    onSetGitDiffViewMode: controller.setGitDiffViewMode,
                     onOpenFile: (relativePath) {
                       unawaited(
                         controller.openEditorTab(
                           workspace: workspace,
                           relativePath: relativePath,
                         ),
+                      );
+                    },
+                    onOpenGitDiff: ({relativePath, area, required scope}) {
+                      return controller.openGitDiffTab(
+                        workspace: workspace,
+                        relativePath: relativePath,
+                        area: area,
+                        scope: scope,
                       );
                     },
                     onPathMoved: (oldRelativePath, newRelativePath) async {

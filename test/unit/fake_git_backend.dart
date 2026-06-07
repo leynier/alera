@@ -1,4 +1,5 @@
 import 'package:alera/src/shared/infra/git/git_backend.dart';
+import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_exception.dart';
 import 'package:alera/src/shared/infra/git/git_worktree_entry.dart';
 
@@ -69,6 +70,10 @@ class FakeGitBackend implements GitBackend {
   /// Side effect invoked by a successful [clone] (e.g. to materialise the
   /// destination on disk).
   void Function(String url, String destinationPath)? onClone;
+
+  GitStatusResult gitStatusResult = const GitStatusResult(entries: []);
+  GitDiffResult gitDiffResult = const GitDiffResult(files: []);
+  GitDiffResult gitDiffAllResult = const GitDiffResult(files: []);
 
   @override
   Future<bool> isGitRepository(String path) async {
@@ -207,5 +212,41 @@ class FakeGitBackend implements GitBackend {
       throw cloneError;
     }
     onClone?.call(url, destinationPath);
+  }
+
+  @override
+  Future<GitStatusResult> status(String path) async {
+    calls.add(GitBackendCall('status', <String, Object?>{'path': path}));
+    return gitStatusResult;
+  }
+
+  @override
+  Future<GitDiffResult> diff({
+    required String path,
+    required String filePath,
+    required GitChangeArea area,
+  }) async {
+    calls.add(
+      GitBackendCall('diff', <String, Object?>{
+        'path': path,
+        'filePath': filePath,
+        'area': area,
+      }),
+    );
+    return gitDiffResult;
+  }
+
+  @override
+  Future<GitDiffResult> diffAll({
+    required String path,
+    String? filePath,
+  }) async {
+    calls.add(
+      GitBackendCall('diffAll', <String, Object?>{
+        'path': path,
+        'filePath': filePath,
+      }),
+    );
+    return gitDiffAllResult;
   }
 }

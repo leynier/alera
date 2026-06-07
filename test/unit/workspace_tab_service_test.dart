@@ -3,6 +3,7 @@ import 'package:alera/src/features/workbench/application/workbench_repository.da
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -112,6 +113,76 @@ void main() {
       );
     });
 
+    test('openOrCreateGitDiffTab creates and reuses file diff tabs', () async {
+      final repository = _FakeWorkbenchRepository();
+      final service = WorkspaceTabService(
+        repository: repository,
+        now: () => DateTime.utc(2026, 5, 21, 1),
+      );
+
+      final first = await service.openOrCreateGitDiffTab(
+        workspaceId: 'workspace-1',
+        relativePath: './lib\\main.dart',
+        area: GitChangeArea.unstaged,
+        scope: WorkspaceGitDiffScope.file,
+      );
+      final second = await service.openOrCreateGitDiffTab(
+        workspaceId: 'workspace-1',
+        relativePath: 'lib/main.dart',
+        area: GitChangeArea.unstaged,
+        scope: WorkspaceGitDiffScope.file,
+      );
+
+      expect(first.kind, WorkspaceTabKind.gitDiff);
+      expect(first.title, 'main.dart unstaged');
+      expect(first.filePath, 'lib/main.dart');
+      expect(first.gitDiffScope, WorkspaceGitDiffScope.file);
+      expect(first.gitDiffArea, GitChangeArea.unstaged);
+      expect(second.id, first.id);
+      expect(repository.tabs, hasLength(1));
+    });
+
+    test('openOrCreateGitDiffTab creates all changes tabs', () async {
+      final repository = _FakeWorkbenchRepository();
+      final service = WorkspaceTabService(
+        repository: repository,
+        now: () => DateTime.utc(2026, 5, 21, 1),
+      );
+
+      final tab = await service.openOrCreateGitDiffTab(
+        workspaceId: 'workspace-1',
+        scope: WorkspaceGitDiffScope.all,
+      );
+
+      expect(tab.kind, WorkspaceTabKind.gitDiff);
+      expect(tab.title, 'All changes');
+      expect(tab.filePath, isNull);
+      expect(tab.gitDiffScope, WorkspaceGitDiffScope.all);
+      expect(repository.tabs, hasLength(1));
+    });
+
+    test('openOrCreateGitDiffTab validates file diff payloads', () async {
+      final repository = _FakeWorkbenchRepository();
+      final service = WorkspaceTabService(repository: repository);
+
+      await expectLater(
+        service.openOrCreateGitDiffTab(
+          workspaceId: 'workspace-1',
+          relativePath: 'lib/main.dart',
+          scope: WorkspaceGitDiffScope.file,
+        ),
+        throwsStateError,
+      );
+      await expectLater(
+        service.openOrCreateGitDiffTab(
+          workspaceId: 'workspace-1',
+          area: GitChangeArea.staged,
+          scope: WorkspaceGitDiffScope.file,
+        ),
+        throwsStateError,
+      );
+    });
+
     test(
       'updates open editor tab paths and titles after a file move',
       () async {
@@ -146,6 +217,76 @@ void main() {
         expect(repository.tabs.single.title, 'renamed-note.txt');
       },
     );
+
+    test(
+      'updates open git diff tab paths and titles after a file move',
+      () async {
+        final repository = _FakeWorkbenchRepository()
+          ..tabs.add(
+            WorkspaceTabRecord(
+              id: 'tab-1',
+              workspaceId: 'workspace-1',
+              kind: WorkspaceTabKind.gitDiff,
+              title: 'note.txt unstaged',
+              createdAt: DateTime.utc(2026, 5, 21),
+              updatedAt: DateTime.utc(2026, 5, 21),
+              payload: const <String, Object?>{
+                workspaceTabFilePathPayloadKey: 'docs/note.txt',
+                workspaceTabGitDiffScopePayloadKey: 'file',
+                workspaceTabGitDiffAreaPayloadKey: 'unstaged',
+              },
+            ),
+          );
+        final service = WorkspaceTabService(
+          repository: repository,
+          now: () => DateTime.utc(2026, 5, 21, 1),
+        );
+
+        final updated = await service.updateEditorPathsAfterMove(
+          workspaceId: 'workspace-1',
+          oldRelativePath: 'docs/note.txt',
+          newRelativePath: 'docs/renamed-note.txt',
+        );
+
+        expect(updated.single.filePath, 'docs/renamed-note.txt');
+        expect(updated.single.title, 'renamed-note.txt unstaged');
+        expect(repository.tabs.single.filePath, 'docs/renamed-note.txt');
+        expect(repository.tabs.single.title, 'renamed-note.txt unstaged');
+      },
+    );
+
+    test('keeps staged git diff tab paths after a file move', () async {
+      final repository = _FakeWorkbenchRepository()
+        ..tabs.add(
+          WorkspaceTabRecord(
+            id: 'tab-1',
+            workspaceId: 'workspace-1',
+            kind: WorkspaceTabKind.gitDiff,
+            title: 'note.txt staged',
+            createdAt: DateTime.utc(2026, 5, 21),
+            updatedAt: DateTime.utc(2026, 5, 21),
+            payload: const <String, Object?>{
+              workspaceTabFilePathPayloadKey: 'docs/note.txt',
+              workspaceTabGitDiffScopePayloadKey: 'file',
+              workspaceTabGitDiffAreaPayloadKey: 'staged',
+            },
+          ),
+        );
+      final service = WorkspaceTabService(
+        repository: repository,
+        now: () => DateTime.utc(2026, 5, 21, 1),
+      );
+
+      final updated = await service.updateEditorPathsAfterMove(
+        workspaceId: 'workspace-1',
+        oldRelativePath: 'docs/note.txt',
+        newRelativePath: 'docs/renamed-note.txt',
+      );
+
+      expect(updated, isEmpty);
+      expect(repository.tabs.single.filePath, 'docs/note.txt');
+      expect(repository.tabs.single.title, 'note.txt staged');
+    });
 
     test('updates descendant editor tab paths after a folder move', () async {
       final repository = _FakeWorkbenchRepository()

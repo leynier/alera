@@ -3,6 +3,7 @@ import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_explorer.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_git_diff_panel.dart';
 import 'package:flutter/material.dart';
 
 class WorkspaceContextSidebar extends StatelessWidget {
@@ -12,8 +13,11 @@ class WorkspaceContextSidebar extends StatelessWidget {
     required this.prefs,
     required this.onToggleVisible,
     required this.onResize,
+    required this.onSetActiveContextPanelTab,
     required this.onSetExplorerMode,
+    required this.onSetGitDiffViewMode,
     required this.onOpenFile,
+    required this.onOpenGitDiff,
     required this.onPathMoved,
   });
 
@@ -21,8 +25,11 @@ class WorkspaceContextSidebar extends StatelessWidget {
   final WorkbenchViewPrefs prefs;
   final VoidCallback onToggleVisible;
   final ValueChanged<double> onResize;
+  final ValueChanged<WorkbenchContextPanelTab> onSetActiveContextPanelTab;
   final ValueChanged<WorkspaceExplorerMode> onSetExplorerMode;
+  final ValueChanged<GitDiffViewMode> onSetGitDiffViewMode;
   final ValueChanged<String> onOpenFile;
+  final OpenGitDiffTabCallback onOpenGitDiff;
   final Future<void> Function(String oldRelativePath, String newRelativePath)
   onPathMoved;
 
@@ -45,29 +52,56 @@ class WorkspaceContextSidebar extends StatelessWidget {
                   width: prefs.rightSidebarWidth,
                   child: Column(
                     children: <Widget>[
-                      _ContextTabHeader(onToggleVisible: onToggleVisible),
+                      _ContextTabHeader(
+                        activeTab: prefs.activeContextPanelTab,
+                        onSetActiveContextPanelTab: onSetActiveContextPanelTab,
+                        onToggleVisible: onToggleVisible,
+                      ),
                       Expanded(
-                        child: WorkspaceExplorer(
-                          workspace: workspace,
-                          mode: prefs.explorerMode,
-                          onModeChanged: onSetExplorerMode,
-                          onOpenFile: onOpenFile,
-                          onPathMoved: onPathMoved,
-                        ),
+                        child: switch (prefs.activeContextPanelTab) {
+                          WorkbenchContextPanelTab.explorer =>
+                            WorkspaceExplorer(
+                              workspace: workspace,
+                              mode: prefs.explorerMode,
+                              onModeChanged: onSetExplorerMode,
+                              onOpenFile: onOpenFile,
+                              onPathMoved: onPathMoved,
+                            ),
+                          WorkbenchContextPanelTab.gitDiff =>
+                            WorkspaceGitDiffPanel(
+                              workspace: workspace,
+                              viewMode: prefs.gitDiffViewMode,
+                              onViewModeChanged: onSetGitDiffViewMode,
+                              onOpenGitDiff: onOpenGitDiff,
+                            ),
+                        },
                       ),
                     ],
                   ),
                 ),
               ],
             )
-          : _CollapsedContextRail(onToggleVisible: onToggleVisible),
+          : _CollapsedContextRail(
+              activeTab: prefs.activeContextPanelTab,
+              onActivateTab: (tab) {
+                onSetActiveContextPanelTab(tab);
+                onToggleVisible();
+              },
+              onToggleVisible: onToggleVisible,
+            ),
     );
   }
 }
 
 class _CollapsedContextRail extends StatelessWidget {
-  const _CollapsedContextRail({required this.onToggleVisible});
+  const _CollapsedContextRail({
+    required this.activeTab,
+    required this.onActivateTab,
+    required this.onToggleVisible,
+  });
 
+  final WorkbenchContextPanelTab activeTab;
+  final ValueChanged<WorkbenchContextPanelTab> onActivateTab;
   final VoidCallback onToggleVisible;
 
   @override
@@ -80,9 +114,26 @@ class _CollapsedContextRail extends StatelessWidget {
           AleraIconButton(
             tooltip: 'Explorer',
             icon: Icons.file_copy_outlined,
-            onPressed: onToggleVisible,
-            iconColor: AleraTokens.foregroundMuted,
-            backgroundColor: Colors.transparent,
+            onPressed: () => onActivateTab(WorkbenchContextPanelTab.explorer),
+            iconColor: activeTab == WorkbenchContextPanelTab.explorer
+                ? AleraTokens.foreground
+                : AleraTokens.foregroundMuted,
+            backgroundColor: activeTab == WorkbenchContextPanelTab.explorer
+                ? AleraTokens.surfaceElevated
+                : Colors.transparent,
+            borderColor: AleraTokens.borderSubtle,
+          ),
+          const SizedBox(height: AleraTokens.space6),
+          AleraIconButton(
+            tooltip: 'Git diff',
+            icon: Icons.difference_outlined,
+            onPressed: () => onActivateTab(WorkbenchContextPanelTab.gitDiff),
+            iconColor: activeTab == WorkbenchContextPanelTab.gitDiff
+                ? AleraTokens.foreground
+                : AleraTokens.foregroundMuted,
+            backgroundColor: activeTab == WorkbenchContextPanelTab.gitDiff
+                ? AleraTokens.surfaceElevated
+                : Colors.transparent,
             borderColor: AleraTokens.borderSubtle,
           ),
           const Spacer(),
@@ -101,8 +152,14 @@ class _CollapsedContextRail extends StatelessWidget {
 }
 
 class _ContextTabHeader extends StatelessWidget {
-  const _ContextTabHeader({required this.onToggleVisible});
+  const _ContextTabHeader({
+    required this.activeTab,
+    required this.onSetActiveContextPanelTab,
+    required this.onToggleVisible,
+  });
 
+  final WorkbenchContextPanelTab activeTab;
+  final ValueChanged<WorkbenchContextPanelTab> onSetActiveContextPanelTab;
   final VoidCallback onToggleVisible;
 
   @override
@@ -121,10 +178,35 @@ class _ContextTabHeader extends StatelessWidget {
               AleraIconButton(
                 tooltip: 'Explorer',
                 icon: Icons.file_copy_outlined,
-                onPressed: () {},
-                iconColor: AleraTokens.foreground,
-                backgroundColor: AleraTokens.surfaceElevated,
-                borderColor: AleraTokens.border,
+                onPressed: () => onSetActiveContextPanelTab(
+                  WorkbenchContextPanelTab.explorer,
+                ),
+                iconColor: activeTab == WorkbenchContextPanelTab.explorer
+                    ? AleraTokens.foreground
+                    : AleraTokens.foregroundMuted,
+                backgroundColor: activeTab == WorkbenchContextPanelTab.explorer
+                    ? AleraTokens.surfaceElevated
+                    : Colors.transparent,
+                borderColor: activeTab == WorkbenchContextPanelTab.explorer
+                    ? AleraTokens.border
+                    : AleraTokens.borderSubtle,
+              ),
+              const SizedBox(width: AleraTokens.space2),
+              AleraIconButton(
+                tooltip: 'Git diff',
+                icon: Icons.difference_outlined,
+                onPressed: () => onSetActiveContextPanelTab(
+                  WorkbenchContextPanelTab.gitDiff,
+                ),
+                iconColor: activeTab == WorkbenchContextPanelTab.gitDiff
+                    ? AleraTokens.foreground
+                    : AleraTokens.foregroundMuted,
+                backgroundColor: activeTab == WorkbenchContextPanelTab.gitDiff
+                    ? AleraTokens.surfaceElevated
+                    : Colors.transparent,
+                borderColor: activeTab == WorkbenchContextPanelTab.gitDiff
+                    ? AleraTokens.border
+                    : AleraTokens.borderSubtle,
               ),
               const Spacer(),
               AleraIconButton(

@@ -9,10 +9,13 @@ enum WorkbenchGroupBy { none, project }
 enum WorkbenchSortBy { name, recent }
 
 @MappableEnum()
-enum WorkbenchContextPanelTab { explorer }
+enum WorkbenchContextPanelTab { explorer, gitDiff }
 
 @MappableEnum()
 enum WorkspaceExplorerMode { hideIgnored, showAll }
+
+@MappableEnum()
+enum GitDiffViewMode { tree, flat }
 
 @MappableClass()
 class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
@@ -27,6 +30,7 @@ class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
     this.rightSidebarWidth = 280,
     this.activeContextPanelTab = WorkbenchContextPanelTab.explorer,
     this.explorerMode = WorkspaceExplorerMode.hideIgnored,
+    this.gitDiffViewMode = GitDiffViewMode.tree,
   });
 
   final WorkbenchGroupBy groupBy;
@@ -48,6 +52,7 @@ class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
   final double rightSidebarWidth;
   final WorkbenchContextPanelTab activeContextPanelTab;
   final WorkspaceExplorerMode explorerMode;
+  final GitDiffViewMode gitDiffViewMode;
 
   static const WorkbenchViewPrefs defaults = WorkbenchViewPrefs(
     groupBy: WorkbenchGroupBy.project,
@@ -60,6 +65,7 @@ class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
     rightSidebarWidth: 280,
     activeContextPanelTab: WorkbenchContextPanelTab.explorer,
     explorerMode: WorkspaceExplorerMode.hideIgnored,
+    gitDiffViewMode: GitDiffViewMode.tree,
   );
 
   factory WorkbenchViewPrefs.fromJson(Map<String, Object?> json) =>

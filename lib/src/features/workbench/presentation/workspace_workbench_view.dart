@@ -15,6 +15,7 @@ import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart'
 import 'package:alera/src/features/workbench/presentation/terminal_surface.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_dialog_launchers.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_editor_surface.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_git_diff_surface.dart';
 import 'package:flutter/material.dart';
 
 part 'workspace_workbench_layout_view.dart';

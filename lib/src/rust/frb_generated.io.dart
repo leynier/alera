@@ -47,6 +47,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool dco_decode_bool(dynamic raw);
 
   @protected
+  int dco_decode_box_autoadd_u_32(dynamic raw);
+
+  @protected
   WorkspaceExplorerDirectoryChildren
   dco_decode_box_autoadd_workspace_explorer_directory_children(dynamic raw);
 
@@ -60,10 +63,28 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  GitChangeArea dco_decode_git_change_area(dynamic raw);
+
+  @protected
+  GitChangeEntry dco_decode_git_change_entry(dynamic raw);
+
+  @protected
+  GitChangeStatus dco_decode_git_change_status(dynamic raw);
+
+  @protected
+  GitDiffFile dco_decode_git_diff_file(dynamic raw);
+
+  @protected
+  GitDiffResult dco_decode_git_diff_result(dynamic raw);
+
+  @protected
   GitError dco_decode_git_error(dynamic raw);
 
   @protected
   GitErrorKind dco_decode_git_error_kind(dynamic raw);
+
+  @protected
+  GitStatusResult dco_decode_git_status_result(dynamic raw);
 
   @protected
   GitWorktreeEntry dco_decode_git_worktree_entry(dynamic raw);
@@ -79,6 +100,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<AgentHookEventDto> dco_decode_list_agent_hook_event_dto(dynamic raw);
+
+  @protected
+  List<GitChangeEntry> dco_decode_list_git_change_entry(dynamic raw);
+
+  @protected
+  List<GitDiffFile> dco_decode_list_git_diff_file(dynamic raw);
 
   @protected
   List<GitWorktreeEntry> dco_decode_list_git_worktree_entry(dynamic raw);
@@ -104,6 +131,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   String? dco_decode_opt_String(dynamic raw);
+
+  @protected
+  int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
 
   @protected
   WorkspaceExplorerDirectoryChildren?
@@ -221,6 +251,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
+  int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
+
+  @protected
   WorkspaceExplorerDirectoryChildren
   sse_decode_box_autoadd_workspace_explorer_directory_children(
     SseDeserializer deserializer,
@@ -238,10 +271,28 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  GitChangeArea sse_decode_git_change_area(SseDeserializer deserializer);
+
+  @protected
+  GitChangeEntry sse_decode_git_change_entry(SseDeserializer deserializer);
+
+  @protected
+  GitChangeStatus sse_decode_git_change_status(SseDeserializer deserializer);
+
+  @protected
+  GitDiffFile sse_decode_git_diff_file(SseDeserializer deserializer);
+
+  @protected
+  GitDiffResult sse_decode_git_diff_result(SseDeserializer deserializer);
+
+  @protected
   GitError sse_decode_git_error(SseDeserializer deserializer);
 
   @protected
   GitErrorKind sse_decode_git_error_kind(SseDeserializer deserializer);
+
+  @protected
+  GitStatusResult sse_decode_git_status_result(SseDeserializer deserializer);
 
   @protected
   GitWorktreeEntry sse_decode_git_worktree_entry(SseDeserializer deserializer);
@@ -259,6 +310,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<AgentHookEventDto> sse_decode_list_agent_hook_event_dto(
     SseDeserializer deserializer,
   );
+
+  @protected
+  List<GitChangeEntry> sse_decode_list_git_change_entry(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<GitDiffFile> sse_decode_list_git_diff_file(SseDeserializer deserializer);
 
   @protected
   List<GitWorktreeEntry> sse_decode_list_git_worktree_entry(
@@ -292,6 +351,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
+
+  @protected
+  int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
   WorkspaceExplorerDirectoryChildren?
@@ -433,6 +495,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_workspace_explorer_directory_children(
     WorkspaceExplorerDirectoryChildren self,
     SseSerializer serializer,
@@ -451,10 +516,37 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_git_change_area(GitChangeArea self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_git_change_entry(
+    GitChangeEntry self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_git_change_status(
+    GitChangeStatus self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_git_diff_file(GitDiffFile self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_git_diff_result(GitDiffResult self, SseSerializer serializer);
+
+  @protected
   void sse_encode_git_error(GitError self, SseSerializer serializer);
 
   @protected
   void sse_encode_git_error_kind(GitErrorKind self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_git_status_result(
+    GitStatusResult self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_git_worktree_entry(
@@ -474,6 +566,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_agent_hook_event_dto(
     List<AgentHookEventDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_git_change_entry(
+    List<GitChangeEntry> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_git_diff_file(
+    List<GitDiffFile> self,
     SseSerializer serializer,
   );
 
@@ -515,6 +619,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_workspace_explorer_directory_children(

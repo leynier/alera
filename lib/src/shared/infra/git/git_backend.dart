@@ -1,4 +1,5 @@
 import 'package:alera/src/shared/infra/git/git_worktree_entry.dart';
+import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 
 /// Injectable boundary for git operations. Mirrors the raw git plumbing only;
 /// orchestration (paths, slugs, persistence, reconciliation) lives in the
@@ -54,4 +55,18 @@ abstract interface class GitBackend {
   /// Clones [url] into [destinationPath] using the system `git` CLI so the
   /// user's credential helper authenticates private remotes.
   Future<void> clone({required String url, required String destinationPath});
+
+  /// Lists changed files in the working tree split by Git area.
+  Future<GitStatusResult> status(String path);
+
+  /// Loads a read-only diff for [filePath] in [area].
+  Future<GitDiffResult> diff({
+    required String path,
+    required String filePath,
+    required GitChangeArea area,
+  });
+
+  /// Loads a combined read-only diff for all changed files, or a single file
+  /// when [filePath] is provided.
+  Future<GitDiffResult> diffAll({required String path, String? filePath});
 }

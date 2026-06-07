@@ -339,6 +339,11 @@ class _WorkspaceTabLeadingIcon extends StatelessWidget {
         size: 12,
         fallbackColor: color,
       ),
+      WorkspaceTabKind.gitDiff => Icon(
+        Icons.difference_outlined,
+        size: 12,
+        color: color,
+      ),
       WorkspaceTabKind.terminal => Icon(Icons.terminal, size: 12, color: color),
       WorkspaceTabKind.browser => Icon(Icons.public, size: 12, color: color),
     };

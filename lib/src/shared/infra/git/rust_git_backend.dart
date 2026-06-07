@@ -1,5 +1,6 @@
 import 'package:alera/src/rust/api/git.dart' as rust;
 import 'package:alera/src/shared/infra/git/git_backend.dart';
+import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_exception.dart';
 import 'package:alera/src/shared/infra/git/git_worktree_entry.dart';
 
@@ -81,6 +82,35 @@ class RustGitBackend implements GitBackend {
         () => rust.cloneRepository(url: url, destinationPath: destinationPath),
       );
 
+  @override
+  Future<GitStatusResult> status(String path) => _guard(() async {
+    final result = await rust.gitStatus(path: path);
+    return GitStatusResult(
+      entries: result.entries.map(_toChangeEntry).toList(growable: false),
+    );
+  });
+
+  @override
+  Future<GitDiffResult> diff({
+    required String path,
+    required String filePath,
+    required GitChangeArea area,
+  }) => _guard(() async {
+    final result = await rust.gitDiff(
+      path: path,
+      filePath: filePath,
+      area: _toRustArea(area),
+    );
+    return _toDiffResult(result);
+  });
+
+  @override
+  Future<GitDiffResult> diffAll({required String path, String? filePath}) =>
+      _guard(() async {
+        final result = await rust.gitDiffAll(path: path, filePath: filePath);
+        return _toDiffResult(result);
+      });
+
   Future<T> _guard<T>(Future<T> Function() body) async {
     try {
       return await body();
@@ -108,6 +138,68 @@ class RustGitBackend implements GitBackend {
       rust.GitErrorKind.cloneFailed => CloneFailedException(context),
       rust.GitErrorKind.gitCli => GitCliException(context),
       rust.GitErrorKind.internal => GitInternalException(context),
+    };
+  }
+
+  GitChangeEntry _toChangeEntry(rust.GitChangeEntry entry) {
+    return GitChangeEntry(
+      path: entry.path,
+      oldPath: entry.oldPath,
+      area: _toArea(entry.area),
+      status: _toStatus(entry.status),
+      added: entry.added,
+      removed: entry.removed,
+      isBinary: entry.isBinary,
+      isLarge: entry.isLarge,
+    );
+  }
+
+  GitDiffResult _toDiffResult(rust.GitDiffResult result) {
+    return GitDiffResult(
+      truncated: result.truncated,
+      files: result.files
+          .map(
+            (file) => GitDiffFile(
+              path: file.path,
+              oldPath: file.oldPath,
+              area: _toArea(file.area),
+              status: _toStatus(file.status),
+              patch: file.patch,
+              added: file.added,
+              removed: file.removed,
+              isBinary: file.isBinary,
+              isLarge: file.isLarge,
+              truncated: file.truncated,
+            ),
+          )
+          .toList(growable: false),
+    );
+  }
+
+  GitChangeArea _toArea(rust.GitChangeArea area) {
+    return switch (area) {
+      rust.GitChangeArea.untracked => GitChangeArea.untracked,
+      rust.GitChangeArea.unstaged => GitChangeArea.unstaged,
+      rust.GitChangeArea.staged => GitChangeArea.staged,
+    };
+  }
+
+  rust.GitChangeArea _toRustArea(GitChangeArea area) {
+    return switch (area) {
+      GitChangeArea.untracked => rust.GitChangeArea.untracked,
+      GitChangeArea.unstaged => rust.GitChangeArea.unstaged,
+      GitChangeArea.staged => rust.GitChangeArea.staged,
+    };
+  }
+
+  GitChangeStatus _toStatus(rust.GitChangeStatus status) {
+    return switch (status) {
+      rust.GitChangeStatus.modified => GitChangeStatus.modified,
+      rust.GitChangeStatus.added => GitChangeStatus.added,
+      rust.GitChangeStatus.deleted => GitChangeStatus.deleted,
+      rust.GitChangeStatus.renamed => GitChangeStatus.renamed,
+      rust.GitChangeStatus.copied => GitChangeStatus.copied,
+      rust.GitChangeStatus.untracked => GitChangeStatus.untracked,
     };
   }
 }
