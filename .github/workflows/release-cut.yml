@@ -72,11 +72,7 @@ jobs:
           set -euo pipefail
           git fetch origin main --tags --quiet
 
-          latest_stable="$(git tag --list 'v[0-9]*' | grep -Ev -- '-rc\.' | sort -V | tail -n 1 || true)"
-          latest_stable="${latest_stable#v}"
-          if [[ -z "$latest_stable" ]]; then
-            latest_stable="0.1.0"
-          fi
+          latest_stable="$(git tag --list 'v[0-9]*' | dart tool/release/latest_stable_release.dart)"
 
           bump() {
             node - "$1" "$2" <<'NODE'

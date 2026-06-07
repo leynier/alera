@@ -1,7 +1,22 @@
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
+import 'package:alera/src/features/workbench/application/workspace_file_preview_kind.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:uuid/uuid.dart';
+
+class WorkspaceFileTabPathMoveResult {
+  const WorkspaceFileTabPathMoveResult({
+    required this.updatedTabs,
+    required this.closedTabIds,
+  });
+
+  final List<WorkspaceTabRecord> updatedTabs;
+  final List<String> closedTabIds;
+
+  List<String> get removedTabIds => closedTabIds;
+
+  bool get isEmpty => updatedTabs.isEmpty && closedTabIds.isEmpty;
+}
 
 class WorkspaceTabService {
   factory WorkspaceTabService({
@@ -59,10 +74,48 @@ class WorkspaceTabService {
     required String workspaceId,
     required String relativePath,
   }) async {
+    return _openOrCreateFileTab(
+      workspaceId: workspaceId,
+      relativePath: relativePath,
+      kind: WorkspaceTabKind.editor,
+    );
+  }
+
+  Future<WorkspaceTabRecord> openOrCreatePdfTab({
+    required String workspaceId,
+    required String relativePath,
+  }) async {
+    return _openOrCreateFileTab(
+      workspaceId: workspaceId,
+      relativePath: relativePath,
+      kind: WorkspaceTabKind.pdf,
+    );
+  }
+
+  Future<WorkspaceTabRecord> openOrCreateMarkdownViewerTab({
+    required String workspaceId,
+    required String relativePath,
+  }) async {
+    final normalizedPath = _normalizeRelativePath(relativePath);
+    if (!isWorkspaceMarkdownFilePath(normalizedPath)) {
+      throw StateError('Markdown viewer tabs require a .md file');
+    }
+    return _openOrCreateFileTab(
+      workspaceId: workspaceId,
+      relativePath: normalizedPath,
+      kind: WorkspaceTabKind.markdownViewer,
+    );
+  }
+
+  Future<WorkspaceTabRecord> openOrCreateMermanPreviewTab({
+    required String workspaceId,
+    required String relativePath,
+  }) async {
     final normalizedPath = _normalizeRelativePath(relativePath);
     final existing = await _repository.listWorkspaceTabs(workspaceId);
     for (final tab in existing) {
       if (tab.kind == WorkspaceTabKind.editor &&
+          tab.isMermanPreview &&
           tab.payload[workspaceTabFilePathPayloadKey] == normalizedPath) {
         return tab;
       }
@@ -71,11 +124,12 @@ class WorkspaceTabService {
       id: _uuid.v4(),
       workspaceId: workspaceId,
       kind: WorkspaceTabKind.editor,
-      title: _titleForPath(normalizedPath),
+      title: _previewTitleForPath(normalizedPath),
       createdAt: _now(),
       updatedAt: _now(),
       payload: <String, Object?>{
         workspaceTabFilePathPayloadKey: normalizedPath,
+        workspaceTabFileRolePayloadKey: workspaceTabFileRoleMermanPreview,
       },
     );
     await _repository.upsertWorkspaceTab(tab);
@@ -156,7 +210,7 @@ class WorkspaceTabService {
     return next;
   }
 
-  Future<List<WorkspaceTabRecord>> updateEditorPathsAfterMove({
+  Future<WorkspaceFileTabPathMoveResult> updateFileTabPathsAfterMove({
     required String workspaceId,
     required String oldRelativePath,
     required String newRelativePath,
@@ -165,9 +219,25 @@ class WorkspaceTabService {
     final newPath = _normalizeRelativePath(newRelativePath);
     final tabs = await _repository.listWorkspaceTabs(workspaceId);
     final updated = <WorkspaceTabRecord>[];
+    final closed = <String>[];
+    final fileBackedPaths = <String>{};
     for (final tab in tabs) {
-      if (tab.kind != WorkspaceTabKind.editor &&
-          tab.kind != WorkspaceTabKind.gitDiff) {
+      if (_isRetargetableFileBackedTab(tab) && !tab.isMermanPreview) {
+        final filePath = tab.filePath;
+        if (filePath != null) {
+          fileBackedPaths.add(
+            _replacePathPrefix(
+                  path: filePath,
+                  oldPath: oldPath,
+                  newPath: newPath,
+                ) ??
+                filePath,
+          );
+        }
+      }
+    }
+    for (final tab in tabs) {
+      if (!_isFileTabKind(tab.kind)) {
         continue;
       }
       if (tab.kind == WorkspaceTabKind.gitDiff &&
@@ -186,8 +256,38 @@ class WorkspaceTabService {
       if (nextPath == null || nextPath == filePath) {
         continue;
       }
+      final nextKind = _fileTabKindAfterPathMove(tab: tab, nextPath: nextPath);
+      if (tab.isMermanPreview && !isWorkspaceMermanFilePath(nextPath)) {
+        if (fileBackedPaths.contains(nextPath)) {
+          await _repository.removeWorkspaceTab(tab.id);
+          closed.add(tab.id);
+          continue;
+        }
+        final nextPayload = <String, Object?>{
+          ...tab.payload,
+          workspaceTabFilePathPayloadKey: nextPath,
+        }..remove(workspaceTabFileRolePayloadKey);
+        final next = tab.copyWith(
+          kind: _fileBackedKindForPath(nextPath),
+          title: _titleForPath(nextPath),
+          updatedAt: _now(),
+          payload: nextPayload,
+        );
+        await _repository.upsertWorkspaceTab(next);
+        updated.add(next);
+        fileBackedPaths.add(nextPath);
+        continue;
+      }
+      if (nextKind == null) {
+        await _repository.removeWorkspaceTab(tab.id);
+        closed.add(tab.id);
+        continue;
+      }
       final next = tab.copyWith(
-        title: tab.kind == WorkspaceTabKind.gitDiff
+        kind: nextKind,
+        title: tab.isMermanPreview
+            ? _previewTitleForPath(nextPath)
+            : tab.kind == WorkspaceTabKind.gitDiff
             ? _titleForGitDiff(
                 scope: tab.gitDiffScope ?? WorkspaceGitDiffScope.file,
                 path: nextPath,
@@ -203,7 +303,80 @@ class WorkspaceTabService {
       await _repository.upsertWorkspaceTab(next);
       updated.add(next);
     }
-    return updated;
+    return WorkspaceFileTabPathMoveResult(
+      updatedTabs: List<WorkspaceTabRecord>.unmodifiable(updated),
+      closedTabIds: List<String>.unmodifiable(closed),
+    );
+  }
+
+  Future<WorkspaceFileTabPathMoveResult> updateEditorPathsAfterMove({
+    required String workspaceId,
+    required String oldRelativePath,
+    required String newRelativePath,
+  }) {
+    return updateFileTabPathsAfterMove(
+      workspaceId: workspaceId,
+      oldRelativePath: oldRelativePath,
+      newRelativePath: newRelativePath,
+    );
+  }
+
+  Future<WorkspaceTabRecord> _openOrCreateFileTab({
+    required String workspaceId,
+    required String relativePath,
+    required WorkspaceTabKind kind,
+  }) async {
+    final normalizedPath = _normalizeRelativePath(relativePath);
+    final existing = await _repository.listWorkspaceTabs(workspaceId);
+    for (final tab in existing) {
+      if (tab.isMermanPreview ||
+          tab.payload[workspaceTabFilePathPayloadKey] != normalizedPath) {
+        continue;
+      }
+      if (tab.kind == kind) {
+        return tab;
+      }
+      if (!_canRetargetFileBackedTab(from: tab.kind, to: kind)) {
+        continue;
+      }
+      final next = tab.copyWith(kind: kind, updatedAt: _now());
+      await _repository.upsertWorkspaceTab(next);
+      return next;
+    }
+    final tab = WorkspaceTabRecord(
+      id: _uuid.v4(),
+      workspaceId: workspaceId,
+      kind: kind,
+      title: _titleForPath(normalizedPath),
+      createdAt: _now(),
+      updatedAt: _now(),
+      payload: <String, Object?>{
+        workspaceTabFilePathPayloadKey: normalizedPath,
+      },
+    );
+    await _repository.upsertWorkspaceTab(tab);
+    return tab;
+  }
+
+  bool _isFileTabKind(WorkspaceTabKind kind) {
+    return switch (kind) {
+      WorkspaceTabKind.editor ||
+      WorkspaceTabKind.markdownViewer ||
+      WorkspaceTabKind.pdf ||
+      WorkspaceTabKind.gitDiff => true,
+      WorkspaceTabKind.terminal || WorkspaceTabKind.browser => false,
+    };
+  }
+
+  bool _canRetargetFileBackedTab({
+    required WorkspaceTabKind from,
+    required WorkspaceTabKind to,
+  }) {
+    return switch ((from, to)) {
+      (WorkspaceTabKind.editor, WorkspaceTabKind.pdf) ||
+      (WorkspaceTabKind.pdf, WorkspaceTabKind.editor) => true,
+      _ => false,
+    };
   }
 
   int _nextOrdinal(List<WorkspaceTabRecord> tabs) {
@@ -237,6 +410,48 @@ class WorkspaceTabService {
   String _titleForPath(String path) {
     final parts = path.split('/');
     return parts.isEmpty ? path : parts.last;
+  }
+
+  String _previewTitleForPath(String path) {
+    return '${_titleForPath(path)} preview';
+  }
+
+  bool _isRetargetableFileBackedTab(WorkspaceTabRecord tab) {
+    return tab.kind == WorkspaceTabKind.editor ||
+        tab.kind == WorkspaceTabKind.pdf ||
+        tab.kind == WorkspaceTabKind.markdownViewer;
+  }
+
+  WorkspaceTabKind _fileBackedKindForPath(String path) {
+    if (isWorkspaceMarkdownFilePath(path)) {
+      return WorkspaceTabKind.markdownViewer;
+    }
+    if (isWorkspacePdfFilePath(path)) {
+      return WorkspaceTabKind.pdf;
+    }
+    return WorkspaceTabKind.editor;
+  }
+
+  WorkspaceTabKind? _fileTabKindAfterPathMove({
+    required WorkspaceTabRecord tab,
+    required String nextPath,
+  }) {
+    return switch (tab.kind) {
+      WorkspaceTabKind.gitDiff => WorkspaceTabKind.gitDiff,
+      WorkspaceTabKind.markdownViewer =>
+        isWorkspaceMarkdownFilePath(nextPath)
+            ? WorkspaceTabKind.markdownViewer
+            : null,
+      WorkspaceTabKind.editor =>
+        isWorkspacePdfFilePath(nextPath)
+            ? WorkspaceTabKind.pdf
+            : WorkspaceTabKind.editor,
+      WorkspaceTabKind.pdf =>
+        isWorkspacePdfFilePath(nextPath)
+            ? WorkspaceTabKind.pdf
+            : WorkspaceTabKind.editor,
+      WorkspaceTabKind.terminal || WorkspaceTabKind.browser => null,
+    };
   }
 
   String _titleForGitDiff({

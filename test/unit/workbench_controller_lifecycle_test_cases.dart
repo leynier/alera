@@ -30,6 +30,40 @@ void _registerWorkbenchControllerLifecycleTests() {
     },
   );
 
+  test(
+    'openFileTab upgrades a legacy PDF editor tab without duplicating it',
+    () async {
+      await _controller.bootstrap();
+      final workspace = await _selectMainWorkspace(_controller, _harness);
+
+      final legacyTab = await _controller.openEditorTab(
+        workspace: workspace,
+        relativePath: 'docs/guide.pdf',
+      );
+      await _flush();
+
+      expect(legacyTab.kind, WorkspaceTabKind.editor);
+
+      final openedTab = await _controller.openFileTab(
+        workspace: workspace,
+        relativePath: './docs/guide.pdf',
+      );
+      await _flush();
+
+      final tabs = _controller.state.tabsFor(workspace.id);
+      final pdfTabs = tabs
+          .where((tab) => tab.filePath == 'docs/guide.pdf')
+          .toList(growable: false);
+      expect(openedTab.id, legacyTab.id);
+      expect(openedTab.kind, WorkspaceTabKind.pdf);
+      expect(pdfTabs, hasLength(1));
+      expect(pdfTabs.single.id, legacyTab.id);
+      expect(pdfTabs.single.kind, WorkspaceTabKind.pdf);
+      expect(_controller.state.activeWorkspaceTab?.id, legacyTab.id);
+      expect(_controller.state.activeWorkspaceTab?.kind, WorkspaceTabKind.pdf);
+    },
+  );
+
   test('closing the last active tab deselects the workspace', () async {
     await _controller.bootstrap();
     final workspace = await _selectMainWorkspace(_controller, _harness);
@@ -116,6 +150,67 @@ void _registerWorkbenchControllerLifecycleTests() {
     expect(_controller.state.layoutFor(workspace.id)?.activeTabId, firstTab.id);
   });
 
+  test('opens markdown viewer tabs in the active group', () async {
+    await _controller.bootstrap();
+    final workspace = await _selectMainWorkspace(_controller, _harness);
+    final layout = _controller.state.layoutFor(workspace.id)!;
+
+    final tab = await _controller.openMarkdownViewerTab(
+      workspace: workspace,
+      relativePath: 'docs/readme.md',
+      targetGroupId: layout.activeGroupId,
+    );
+    await _flush();
+
+    expect(tab.kind, WorkspaceTabKind.markdownViewer);
+    expect(tab.filePath, 'docs/readme.md');
+    expect(_controller.state.activeWorkspaceTab?.id, tab.id);
+    expect(
+      _controller.state.layoutFor(workspace.id)?.groupIdForTab(tab.id),
+      layout.activeGroupId,
+    );
+  });
+
+  test('path sync closes markdown viewer tabs renamed away from md', () async {
+    await _controller.bootstrap();
+    final workspace = await _selectMainWorkspace(_controller, _harness);
+
+    final editorTab = await _controller.openEditorTab(
+      workspace: workspace,
+      relativePath: 'docs/readme.md',
+    );
+    final previewTab = await _controller.openMarkdownViewerTab(
+      workspace: workspace,
+      relativePath: 'docs/readme.md',
+    );
+    await _flush();
+
+    expect(_controller.state.activeWorkspaceTab?.id, previewTab.id);
+
+    await _controller.syncFileTabsAfterPathMove(
+      workspace: workspace,
+      oldRelativePath: 'docs/readme.md',
+      newRelativePath: 'docs/readme.txt',
+    );
+    await _flush();
+
+    final tabs = _controller.state.tabsFor(workspace.id);
+    expect(tabs.map((tab) => tab.id), isNot(contains(previewTab.id)));
+    expect(
+      tabs.singleWhere((tab) => tab.id == editorTab.id).filePath,
+      'docs/readme.txt',
+    );
+    expect(
+      _controller.state.layoutFor(workspace.id)?.groupIdForTab(previewTab.id),
+      isNull,
+    );
+    expect(_controller.state.activeWorkspaceTab?.id, isNot(previewTab.id));
+    final persistedTabs = await _harness.workbenchRepository.listWorkspaceTabs(
+      workspace.id,
+    );
+    expect(persistedTabs.map((tab) => tab.id), isNot(contains(previewTab.id)));
+  });
+
   test('renames project, workspace, and terminal tab in state', () async {
     await _controller.bootstrap();
     await _flushUntil(
@@ -149,6 +244,126 @@ void _registerWorkbenchControllerLifecycleTests() {
     expect(_controller.state.activeWorkspaceTab?.title, 'API server');
     expect(_controller.state.activeWorkspaceTab?.hasManualTitle, isTrue);
   });
+
+  test('opens merman preview as a separate tab from the editor', () async {
+    await _controller.bootstrap();
+    final workspace = await _selectMainWorkspace(_controller, _harness);
+
+    final editor = await _controller.openEditorTab(
+      workspace: workspace,
+      relativePath: 'docs/diagram.mmd',
+    );
+    final preview = await _controller.openMermanPreviewTab(
+      workspace: workspace,
+      relativePath: 'docs/diagram.mmd',
+    );
+    await _flush();
+
+    expect(editor.id, isNot(preview.id));
+    expect(editor.isMermanPreview, isFalse);
+    expect(preview.isMermanPreview, isTrue);
+    expect(preview.title, 'diagram.mmd preview');
+    expect(
+      _controller.state.tabsFor(workspace.id).map((tab) => tab.id),
+      containsAll(<String>[editor.id, preview.id]),
+    );
+    expect(_controller.state.activeWorkspaceTab?.id, preview.id);
+
+    final reopenedEditor = await _controller.openEditorTab(
+      workspace: workspace,
+      relativePath: 'docs/diagram.mmd',
+    );
+    await _flush();
+
+    expect(reopenedEditor.id, editor.id);
+    expect(_controller.state.activeWorkspaceTab?.id, editor.id);
+    expect(_controller.state.tabsFor(workspace.id), hasLength(3));
+  });
+
+  test(
+    'opening editor from preview recreates the editor tab if needed',
+    () async {
+      await _controller.bootstrap();
+      final workspace = await _selectMainWorkspace(_controller, _harness);
+
+      final editor = await _controller.openEditorTab(
+        workspace: workspace,
+        relativePath: 'docs/diagram.mmd',
+      );
+      final preview = await _controller.openMermanPreviewTab(
+        workspace: workspace,
+        relativePath: 'docs/diagram.mmd',
+      );
+      await _controller.closeWorkspaceTab(
+        workspace: workspace,
+        tabId: editor.id,
+      );
+      await _flush();
+
+      final recreated = await _controller.openEditorTab(
+        workspace: workspace,
+        relativePath: 'docs/diagram.mmd',
+      );
+      await _flush();
+
+      expect(recreated.id, isNot(editor.id));
+      expect(recreated.isMermanPreview, isFalse);
+      expect(_controller.state.activeWorkspaceTab?.id, recreated.id);
+      expect(
+        _controller.state.tabsFor(workspace.id).map((tab) => tab.id),
+        containsAll(<String>[preview.id, recreated.id]),
+      );
+    },
+  );
+
+  test(
+    'syncing a merman rename to text removes redundant preview tabs from state and layout',
+    () async {
+      await _controller.bootstrap();
+      final workspace = await _selectMainWorkspace(_controller, _harness);
+
+      final editor = await _controller.openEditorTab(
+        workspace: workspace,
+        relativePath: 'docs/diagram.mmd',
+      );
+      final preview = await _controller.openMermanPreviewTab(
+        workspace: workspace,
+        relativePath: 'docs/diagram.mmd',
+      );
+      await _flush();
+
+      await _controller.syncFileTabsAfterPathMove(
+        workspace: workspace,
+        oldRelativePath: 'docs/diagram.mmd',
+        newRelativePath: 'docs/diagram.txt',
+      );
+      await _flush();
+
+      final tabs = _controller.state.tabsFor(workspace.id);
+      expect(tabs.map((tab) => tab.id), isNot(contains(preview.id)));
+      expect(
+        tabs.singleWhere((tab) => tab.id == editor.id).filePath,
+        'docs/diagram.txt',
+      );
+      expect(
+        tabs.singleWhere((tab) => tab.id == editor.id).isMermanPreview,
+        isFalse,
+      );
+      final layout = _controller.state.layoutFor(workspace.id);
+      expect(
+        layout?.groups.values.expand((group) => group.tabIds),
+        isNot(contains(preview.id)),
+      );
+      expect(
+        _harness.workbenchRepository
+            .peekWorkbenchLayout(workspace.id)
+            ?.groups
+            .values
+            .expand((group) => group.tabIds),
+        isNot(contains(preview.id)),
+      );
+    },
+  );
 
   test(
     'deleting a workspace removes it from state without lingering',

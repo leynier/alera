@@ -32,5 +32,32 @@ void main() {
         WorkspaceFilePreviewKind.text,
       );
     });
+
+    test('classifies Merman diagram extensions as merman previews', () {
+      expect(
+        workspaceFilePreviewKindForPath('docs/flow.mermain'),
+        WorkspaceFilePreviewKind.merman,
+      );
+      expect(
+        workspaceFilePreviewKindForPath('docs/flow.MMD'),
+        WorkspaceFilePreviewKind.merman,
+      );
+      expect(
+        workspaceFilePreviewKindForPath('docs/flow.mermaid'),
+        WorkspaceFilePreviewKind.text,
+      );
+    });
+
+    test('classifies PDF extensions as PDF previews', () {
+      expect(
+        workspaceFilePreviewKindForPath('docs/spec.pdf'),
+        WorkspaceFilePreviewKind.pdf,
+      );
+      expect(
+        workspaceFilePreviewKindForPath('docs/WHITEPAPER.PDF'),
+        WorkspaceFilePreviewKind.pdf,
+      );
+      expect(isWorkspacePdfFilePath('docs/spec.pdf'), isTrue);
+    });
   });
 }

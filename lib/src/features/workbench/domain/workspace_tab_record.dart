@@ -7,6 +7,8 @@ part 'workspace_tab_record.mapper.dart';
 enum WorkspaceTabKind {
   terminal('terminal'),
   editor('editor'),
+  markdownViewer('markdownViewer'),
+  pdf('pdf'),
   gitDiff('gitDiff'),
   browser('browser');
 
@@ -33,6 +35,8 @@ enum WorkspaceTabKind {
 const String workspaceTabManualTitlePayloadKey = 'manualTitle';
 const String workspaceTabTerminalSessionIdPayloadKey = 'terminalSessionId';
 const String workspaceTabFilePathPayloadKey = 'filePath';
+const String workspaceTabFileRolePayloadKey = 'fileRole';
+const String workspaceTabFileRoleMermanPreview = 'mermanPreview';
 const String workspaceTabGitDiffScopePayloadKey = 'gitDiffScope';
 const String workspaceTabGitDiffAreaPayloadKey = 'gitDiffArea';
 
@@ -57,6 +61,9 @@ enum WorkspaceGitDiffScope {
     return null;
   }
 }
+
+bool isWorkspaceMarkdownFilePath(String path) =>
+    path.toLowerCase().endsWith('.md');
 
 @MappableClass()
 class WorkspaceTabRecord with WorkspaceTabRecordMappable {
@@ -88,6 +95,11 @@ class WorkspaceTabRecord with WorkspaceTabRecordMappable {
   String? get filePath {
     final value = payload[workspaceTabFilePathPayloadKey];
     return value is String && value.trim().isNotEmpty ? value : null;
+  }
+
+  bool get isMermanPreview {
+    return payload[workspaceTabFileRolePayloadKey] ==
+        workspaceTabFileRoleMermanPreview;
   }
 
   WorkspaceGitDiffScope? get gitDiffScope => WorkspaceGitDiffScope.fromJson(

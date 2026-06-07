@@ -15,9 +15,12 @@ import 'package:alera/src/features/workbench/application/workspace_file_preview_
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_surface.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_dialog_launchers.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_markdown_viewer_surface.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_editor_surface.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_git_diff_surface.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_image_preview_surface.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_merman_viewer_surface.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_pdf_viewer_surface.dart';
 import 'package:flutter/material.dart';
 
 part 'workspace_workbench_layout_view.dart';
@@ -28,6 +31,11 @@ part 'workspace_workbench_resize_handle.dart';
 
 typedef CreateTerminalTabCallback =
     Future<void> Function({String? targetGroupId});
+typedef OpenFileTabCallback =
+    Future<void> Function({
+      required String relativePath,
+      String? targetGroupId,
+    });
 typedef SelectWorkspaceTabCallback =
     void Function({required String groupId, required String tabId});
 typedef MoveWorkspaceTabCallback =
@@ -49,6 +57,7 @@ typedef UpdateWorkbenchSplitRatioCallback =
     void Function({required List<int> nodePath, required double ratio});
 typedef RenameWorkspaceTabCallback =
     Future<void> Function({required String tabId, required String title});
+typedef OpenWorkspaceFileCallback = Future<void> Function(String relativePath);
 
 @visibleForTesting
 int splitRatioFlexForTesting(double ratio) =>
@@ -145,10 +154,14 @@ class WorkspaceWorkbenchView extends StatelessWidget {
     required this.terminalRuntime,
     required this.agentStatuses,
     required this.onCreateTab,
+    required this.onOpenEditorTab,
+    required this.onOpenMarkdownViewerTab,
     required this.onSelectTab,
     required this.onCloseTab,
     required this.onCloseTabs,
     required this.onRenameTab,
+    required this.onOpenEditor,
+    required this.onOpenMermanPreview,
     required this.onMoveTab,
     required this.onSplitGroup,
     required this.onMergeGroup,
@@ -163,10 +176,14 @@ class WorkspaceWorkbenchView extends StatelessWidget {
   final TerminalRuntime terminalRuntime;
   final Map<String, AgentStatusEntry> agentStatuses;
   final CreateTerminalTabCallback onCreateTab;
+  final OpenFileTabCallback onOpenEditorTab;
+  final OpenFileTabCallback onOpenMarkdownViewerTab;
   final SelectWorkspaceTabCallback onSelectTab;
   final ValueChanged<String> onCloseTab;
   final ValueChanged<List<String>> onCloseTabs;
   final RenameWorkspaceTabCallback onRenameTab;
+  final OpenWorkspaceFileCallback onOpenEditor;
+  final OpenWorkspaceFileCallback onOpenMermanPreview;
   final MoveWorkspaceTabCallback onMoveTab;
   final SplitWorkbenchGroupCallback onSplitGroup;
   final MergeWorkbenchGroupCallback onMergeGroup;
@@ -190,10 +207,14 @@ class WorkspaceWorkbenchView extends StatelessWidget {
       terminalRuntime: terminalRuntime,
       agentStatuses: agentStatuses,
       onCreateTab: onCreateTab,
+      onOpenEditorTab: onOpenEditorTab,
+      onOpenMarkdownViewerTab: onOpenMarkdownViewerTab,
       onSelectTab: onSelectTab,
       onCloseTab: onCloseTab,
       onCloseTabs: onCloseTabs,
       onRenameTab: onRenameTab,
+      onOpenEditor: onOpenEditor,
+      onOpenMermanPreview: onOpenMermanPreview,
       onMoveTab: onMoveTab,
       onSplitGroup: onSplitGroup,
       onMergeGroup: onMergeGroup,

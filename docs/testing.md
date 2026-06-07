@@ -103,7 +103,7 @@ make cli-help
 
 `make cli-build` runs `cargo build --release -p alera-cli` and stages the single binary into `.dart_tool/alera/alera` (`.dart_tool/alera/alera.exe` on Windows); `make cli-help` runs the staged binary's `--help`. The Rust crate also has its own checks via `make rust-test` (`cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test`).
 
-The repository `makefile` exposes cross-platform debug targets around the same flow. `make help` lists available targets. For foreground host debugging, `make host-debug` and `make host-debug-observe` accept `ALERA_HOST_EMPTY_SHUTDOWN_SECONDS`, `ALERA_HOST_DETACHED_SHUTDOWN_SECONDS`, and `ALERA_HOST_SCROLLBACK_BYTES`, which are forwarded to `alera terminal-host`.
+The repository `makefile` exposes cross-platform debug targets around the same flow. `make help` lists available targets. For foreground host debugging, `make host-debug` accepts `ALERA_HOST_EMPTY_SHUTDOWN_SECONDS`, `ALERA_HOST_DETACHED_SHUTDOWN_SECONDS`, and `ALERA_HOST_SCROLLBACK_BYTES`, which are forwarded to `alera terminal-host`.
 
 ## Mocking
 

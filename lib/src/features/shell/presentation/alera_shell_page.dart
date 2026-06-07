@@ -156,7 +156,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                     onSetGitDiffViewMode: controller.setGitDiffViewMode,
                     onOpenFile: (relativePath) {
                       unawaited(
-                        controller.openEditorTab(
+                        controller.openFileTab(
                           workspace: workspace,
                           relativePath: relativePath,
                         ),
@@ -189,7 +189,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                       }());
                     },
                     onPathMoved: (oldRelativePath, newRelativePath) async {
-                      await controller.syncEditorTabsAfterPathMove(
+                      await controller.syncFileTabsAfterPathMove(
                         workspace: workspace,
                         oldRelativePath: oldRelativePath,
                         newRelativePath: newRelativePath,
@@ -242,6 +242,20 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
             .sessionFor(workspace: workspace, tab: tab)
             .requestFocus();
       },
+      onOpenEditorTab: ({required relativePath, targetGroupId}) async {
+        await controller.openEditorTab(
+          workspace: workspace,
+          relativePath: relativePath,
+          targetGroupId: targetGroupId,
+        );
+      },
+      onOpenMarkdownViewerTab: ({required relativePath, targetGroupId}) async {
+        await controller.openMarkdownViewerTab(
+          workspace: workspace,
+          relativePath: relativePath,
+          targetGroupId: targetGroupId,
+        );
+      },
       onSelectTab: ({required groupId, required tabId}) {
         controller.setActiveWorkspaceTab(
           workspaceId: workspace.id,
@@ -275,6 +289,18 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
       },
       onRenameTab: ({required tabId, required title}) async {
         await controller.renameWorkspaceTab(tabId: tabId, title: title);
+      },
+      onOpenEditor: (relativePath) async {
+        await controller.openEditorTab(
+          workspace: workspace,
+          relativePath: relativePath,
+        );
+      },
+      onOpenMermanPreview: (relativePath) async {
+        await controller.openMermanPreviewTab(
+          workspace: workspace,
+          relativePath: relativePath,
+        );
       },
       onMoveTab:
           ({required tabId, required targetGroupId, required zone}) async {

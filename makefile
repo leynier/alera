@@ -5,14 +5,13 @@ APP_DEVICE_ARG = $(if $(APP_DEVICE),--device "$(APP_DEVICE)",)
 ALERA_FLAVOR ?= dev
 ALERA_APP_ID ?= $(if $(filter release,$(ALERA_FLAVOR)),dev.leynier.alera,dev.leynier.alera.dev)
 ALERA_CLI_BUNDLE_DIR ?= .dart_tool/alera
-ALERA_CLI_DEBUG_PORT ?= 8181
 ALERA_CLI_DEBUG_TOKEN ?= dev-token
 ALERA_HOST_EMPTY_SHUTDOWN_SECONDS ?= 30
 ALERA_HOST_DETACHED_SHUTDOWN_SECONDS ?= 3600
 ALERA_HOST_SCROLLBACK_BYTES ?= 10000000
 ALERA_DEBUG_TOOL = tool/debug/alera_debug.dart
 
-.PHONY: help update-refs frb-generate rust-test cli-build cli-help host-debug host-debug-observe host-debug-wrapper app-debug app-debug-bundled-cli app-debug-host-observe debug-processes host-stop
+.PHONY: help update-refs frb-generate rust-test cli-build cli-help host-debug app-debug app-debug-bundled-cli debug-processes host-stop
 
 # List available make targets.
 help:
@@ -43,15 +42,7 @@ cli-help:
 
 # Run the terminal host in the foreground for direct stdout/stderr debugging.
 host-debug:
-	$(DART) $(ALERA_DEBUG_TOOL) host-debug --dart "$(DART)" --app-id "$(ALERA_APP_ID)" --debug-token "$(ALERA_CLI_DEBUG_TOKEN)" --host-empty-shutdown-seconds "$(ALERA_HOST_EMPTY_SHUTDOWN_SECONDS)" --host-detached-shutdown-seconds "$(ALERA_HOST_DETACHED_SHUTDOWN_SECONDS)" --host-scrollback-bytes "$(ALERA_HOST_SCROLLBACK_BYTES)"
-
-# Run the foreground terminal host with a Dart VM service for debugger attach.
-host-debug-observe:
-	$(DART) $(ALERA_DEBUG_TOOL) host-debug-observe --dart "$(DART)" --app-id "$(ALERA_APP_ID)" --debug-port "$(ALERA_CLI_DEBUG_PORT)" --debug-token "$(ALERA_CLI_DEBUG_TOKEN)" --host-empty-shutdown-seconds "$(ALERA_HOST_EMPTY_SHUTDOWN_SECONDS)" --host-detached-shutdown-seconds "$(ALERA_HOST_DETACHED_SHUTDOWN_SECONDS)" --host-scrollback-bytes "$(ALERA_HOST_SCROLLBACK_BYTES)"
-
-# Build a wrapper executable so the Flutter app launches the host with a Dart VM service.
-host-debug-wrapper:
-	$(DART) $(ALERA_DEBUG_TOOL) host-debug-wrapper --dart "$(DART)"
+	$(DART) $(ALERA_DEBUG_TOOL) host-debug --app-id "$(ALERA_APP_ID)" --debug-token "$(ALERA_CLI_DEBUG_TOKEN)" --host-empty-shutdown-seconds "$(ALERA_HOST_EMPTY_SHUTDOWN_SECONDS)" --host-detached-shutdown-seconds "$(ALERA_HOST_DETACHED_SHUTDOWN_SECONDS)" --host-scrollback-bytes "$(ALERA_HOST_SCROLLBACK_BYTES)"
 
 # Run the Flutter app with the normal development fallback for the CLI.
 app-debug:
@@ -59,11 +50,7 @@ app-debug:
 
 # Run the Flutter app against the locally compiled CLI bundle.
 app-debug-bundled-cli:
-	$(DART) $(ALERA_DEBUG_TOOL) app-debug-bundled-cli --dart "$(DART)" --flutter "$(FLUTTER)" $(APP_DEVICE_ARG) --alera-flavor "$(ALERA_FLAVOR)" --bundle-dir "$(ALERA_CLI_BUNDLE_DIR)"
-
-# Run the Flutter app while forcing its launched terminal host to expose a VM service.
-app-debug-host-observe:
-	$(DART) $(ALERA_DEBUG_TOOL) app-debug-host-observe --dart "$(DART)" --flutter "$(FLUTTER)" $(APP_DEVICE_ARG) --alera-flavor "$(ALERA_FLAVOR)" --debug-port "$(ALERA_CLI_DEBUG_PORT)"
+	$(DART) $(ALERA_DEBUG_TOOL) app-debug-bundled-cli --flutter "$(FLUTTER)" $(APP_DEVICE_ARG) --alera-flavor "$(ALERA_FLAVOR)" --bundle-dir "$(ALERA_CLI_BUNDLE_DIR)"
 
 # Inspect running Alera app and terminal-host processes.
 debug-processes:

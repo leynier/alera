@@ -10,10 +10,14 @@ class _WorkbenchLayoutView extends StatelessWidget {
     required this.terminalRuntime,
     required this.agentStatuses,
     required this.onCreateTab,
+    required this.onOpenEditorTab,
+    required this.onOpenMarkdownViewerTab,
     required this.onSelectTab,
     required this.onCloseTab,
     required this.onCloseTabs,
     required this.onRenameTab,
+    required this.onOpenEditor,
+    required this.onOpenMermanPreview,
     required this.onMoveTab,
     required this.onSplitGroup,
     required this.onMergeGroup,
@@ -29,10 +33,14 @@ class _WorkbenchLayoutView extends StatelessWidget {
   final TerminalRuntime terminalRuntime;
   final Map<String, AgentStatusEntry> agentStatuses;
   final CreateTerminalTabCallback onCreateTab;
+  final OpenFileTabCallback onOpenEditorTab;
+  final OpenFileTabCallback onOpenMarkdownViewerTab;
   final SelectWorkspaceTabCallback onSelectTab;
   final ValueChanged<String> onCloseTab;
   final ValueChanged<List<String>> onCloseTabs;
   final RenameWorkspaceTabCallback onRenameTab;
+  final OpenWorkspaceFileCallback onOpenEditor;
+  final OpenWorkspaceFileCallback onOpenMermanPreview;
   final MoveWorkspaceTabCallback onMoveTab;
   final SplitWorkbenchGroupCallback onSplitGroup;
   final MergeWorkbenchGroupCallback onMergeGroup;
@@ -51,10 +59,14 @@ class _WorkbenchLayoutView extends StatelessWidget {
         terminalRuntime: terminalRuntime,
         agentStatuses: agentStatuses,
         onCreateTab: onCreateTab,
+        onOpenEditorTab: onOpenEditorTab,
+        onOpenMarkdownViewerTab: onOpenMarkdownViewerTab,
         onSelectTab: onSelectTab,
         onCloseTab: onCloseTab,
         onCloseTabs: onCloseTabs,
         onRenameTab: onRenameTab,
+        onOpenEditor: onOpenEditor,
+        onOpenMermanPreview: onOpenMermanPreview,
         onMoveTab: onMoveTab,
         onSplitGroup: onSplitGroup,
         onMergeGroup: onMergeGroup,
@@ -70,10 +82,14 @@ class _WorkbenchLayoutView extends StatelessWidget {
       terminalRuntime: terminalRuntime,
       agentStatuses: agentStatuses,
       onCreateTab: onCreateTab,
+      onOpenEditorTab: onOpenEditorTab,
+      onOpenMarkdownViewerTab: onOpenMarkdownViewerTab,
       onSelectTab: onSelectTab,
       onCloseTab: onCloseTab,
       onCloseTabs: onCloseTabs,
       onRenameTab: onRenameTab,
+      onOpenEditor: onOpenEditor,
+      onOpenMermanPreview: onOpenMermanPreview,
       onMoveTab: onMoveTab,
       onSplitGroup: onSplitGroup,
       onMergeGroup: onMergeGroup,
@@ -93,10 +109,14 @@ class _WorkbenchSplitView extends StatelessWidget {
     required this.terminalRuntime,
     required this.agentStatuses,
     required this.onCreateTab,
+    required this.onOpenEditorTab,
+    required this.onOpenMarkdownViewerTab,
     required this.onSelectTab,
     required this.onCloseTab,
     required this.onCloseTabs,
     required this.onRenameTab,
+    required this.onOpenEditor,
+    required this.onOpenMermanPreview,
     required this.onMoveTab,
     required this.onSplitGroup,
     required this.onMergeGroup,
@@ -112,10 +132,14 @@ class _WorkbenchSplitView extends StatelessWidget {
   final TerminalRuntime terminalRuntime;
   final Map<String, AgentStatusEntry> agentStatuses;
   final CreateTerminalTabCallback onCreateTab;
+  final OpenFileTabCallback onOpenEditorTab;
+  final OpenFileTabCallback onOpenMarkdownViewerTab;
   final SelectWorkspaceTabCallback onSelectTab;
   final ValueChanged<String> onCloseTab;
   final ValueChanged<List<String>> onCloseTabs;
   final RenameWorkspaceTabCallback onRenameTab;
+  final OpenWorkspaceFileCallback onOpenEditor;
+  final OpenWorkspaceFileCallback onOpenMermanPreview;
   final MoveWorkspaceTabCallback onMoveTab;
   final SplitWorkbenchGroupCallback onSplitGroup;
   final MergeWorkbenchGroupCallback onMergeGroup;
@@ -134,10 +158,14 @@ class _WorkbenchSplitView extends StatelessWidget {
       terminalRuntime: terminalRuntime,
       agentStatuses: agentStatuses,
       onCreateTab: onCreateTab,
+      onOpenEditorTab: onOpenEditorTab,
+      onOpenMarkdownViewerTab: onOpenMarkdownViewerTab,
       onSelectTab: onSelectTab,
       onCloseTab: onCloseTab,
       onCloseTabs: onCloseTabs,
       onRenameTab: onRenameTab,
+      onOpenEditor: onOpenEditor,
+      onOpenMermanPreview: onOpenMermanPreview,
       onMoveTab: onMoveTab,
       onSplitGroup: onSplitGroup,
       onMergeGroup: onMergeGroup,
@@ -153,10 +181,14 @@ class _WorkbenchSplitView extends StatelessWidget {
       terminalRuntime: terminalRuntime,
       agentStatuses: agentStatuses,
       onCreateTab: onCreateTab,
+      onOpenEditorTab: onOpenEditorTab,
+      onOpenMarkdownViewerTab: onOpenMarkdownViewerTab,
       onSelectTab: onSelectTab,
       onCloseTab: onCloseTab,
       onCloseTabs: onCloseTabs,
       onRenameTab: onRenameTab,
+      onOpenEditor: onOpenEditor,
+      onOpenMermanPreview: onOpenMermanPreview,
       onMoveTab: onMoveTab,
       onSplitGroup: onSplitGroup,
       onMergeGroup: onMergeGroup,

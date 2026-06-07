@@ -88,6 +88,7 @@ void _registerTerminalSurfaceInteractionTests() {
         utf8.encode('\x1b]0;Runtime title\x07'),
       );
       await tester.pump();
+      flushTerminalOutputForTesting(session);
 
       expect(session.displayTitle, 'Runtime title');
 

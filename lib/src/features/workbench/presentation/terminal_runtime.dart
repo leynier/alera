@@ -14,6 +14,7 @@ import 'package:alera/src/shared/infra/uri/external_uri_launcher.dart';
 import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';

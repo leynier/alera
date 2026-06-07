@@ -5,6 +5,7 @@
 
 import 'api/agent_hooks.dart';
 import 'api/git.dart';
+import 'api/merman_viewer.dart';
 import 'api/workspace_files.dart';
 import 'api/workspace_search.dart';
 import 'dart:async';
@@ -199,6 +200,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<WorkspaceSearchMatch> dco_decode_list_workspace_search_match(
     dynamic raw,
   );
+
+  @protected
+  MermanViewerError dco_decode_merman_viewer_error(dynamic raw);
+
+  @protected
+  MermanViewerErrorKind dco_decode_merman_viewer_error_kind(dynamic raw);
+
+  @protected
+  MermanWorkspaceRender dco_decode_merman_workspace_render(dynamic raw);
 
   @protected
   String? dco_decode_opt_String(dynamic raw);
@@ -544,6 +554,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<WorkspaceSearchMatch> sse_decode_list_workspace_search_match(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  MermanViewerError sse_decode_merman_viewer_error(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  MermanViewerErrorKind sse_decode_merman_viewer_error_kind(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  MermanWorkspaceRender sse_decode_merman_workspace_render(
     SseDeserializer deserializer,
   );
 
@@ -985,6 +1010,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_workspace_search_match(
     List<WorkspaceSearchMatch> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_merman_viewer_error(
+    MermanViewerError self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_merman_viewer_error_kind(
+    MermanViewerErrorKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_merman_workspace_render(
+    MermanWorkspaceRender self,
     SseSerializer serializer,
   );
 

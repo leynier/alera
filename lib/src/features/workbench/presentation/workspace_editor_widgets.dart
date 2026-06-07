@@ -8,6 +8,7 @@ class _EditorFileBar extends StatelessWidget {
     required this.onViewDiff,
     required this.onSave,
     required this.onDiscard,
+    required this.onOpenPreview,
   });
 
   final String path;
@@ -16,6 +17,7 @@ class _EditorFileBar extends StatelessWidget {
   final VoidCallback? onViewDiff;
   final VoidCallback? onSave;
   final VoidCallback? onDiscard;
+  final VoidCallback? onOpenPreview;
 
   @override
   Widget build(BuildContext context) {
@@ -46,6 +48,15 @@ class _EditorFileBar extends StatelessWidget {
               ),
             ),
             const SizedBox(width: AleraTokens.space8),
+            if (onOpenPreview != null) ...<Widget>[
+              AleraIconButton(
+                tooltip: 'Open preview',
+                icon: Icons.visibility_outlined,
+                onPressed: onOpenPreview,
+                iconColor: color,
+              ),
+              const SizedBox(width: AleraTokens.space2),
+            ],
             AleraIconButton(
               tooltip: 'View diff',
               icon: Icons.difference_outlined,
@@ -66,6 +77,15 @@ class _EditorFileBar extends StatelessWidget {
               onPressed: onDiscard,
               iconColor: color,
             ),
+            if (onOpenPreview != null) ...<Widget>[
+              const SizedBox(width: AleraTokens.space2),
+              AleraIconButton(
+                tooltip: 'Open preview',
+                icon: Icons.preview_outlined,
+                onPressed: onOpenPreview,
+                iconColor: color,
+              ),
+            ],
           ],
         ),
       ),

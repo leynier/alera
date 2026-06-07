@@ -46,7 +46,24 @@ void feedTerminalInputForTesting(TerminalSessionHandle session, String data) {
 
 @visibleForTesting
 void writeTerminalOutputForTesting(TerminalSessionHandle session, String data) {
+  final handle = session as _XtermTerminalSessionHandle;
+  handle._handleTerminalOutput(data);
+  handle._flushPendingTerminalOutputNow();
+}
+
+@visibleForTesting
+void queueTerminalOutputForTesting(TerminalSessionHandle session, String data) {
   (session as _XtermTerminalSessionHandle)._handleTerminalOutput(data);
+}
+
+@visibleForTesting
+void flushTerminalOutputForTesting(TerminalSessionHandle session) {
+  (session as _XtermTerminalSessionHandle)._flushPendingTerminalOutputFrame();
+}
+
+@visibleForTesting
+int terminalOutputFrameCutoffForTesting(String value) {
+  return _terminalOutputFrameCutoff(value);
 }
 
 @visibleForTesting

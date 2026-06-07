@@ -10,9 +10,9 @@ use crate::terminal_host::session::Session;
 use super::{ServerActor, ServerCommand};
 
 impl ServerActor {
-    /// Parse and dispatch one client line, then write the response, faithfully
-    /// reproducing the Dart `_handleLine` control flow (including which failures
-    /// drop the connection versus return an error response).
+    /// Parse and dispatch one client line, then write the response. Malformed
+    /// messages without a request id drop the connection because there is no
+    /// response target.
     pub(super) async fn handle_line(&mut self, client_id: u64, line: String) {
         let decoded: Value = match serde_json::from_str(&line) {
             Ok(value) => value,
@@ -106,6 +106,7 @@ impl ServerActor {
                     .get("paused")
                     .and_then(Value::as_bool)
                     .unwrap_or(false);
+                self.flush_output_batch(&session_id);
                 let snapshot = if let Some(session) = self.sessions.get_mut(&session_id) {
                     session.set_output_paused(client_id, paused);
                     session.snapshot_payload()
@@ -117,6 +118,7 @@ impl ServerActor {
             "detach" => {
                 self.require_auth(client_id)?;
                 let session_id = self.require_session(payload)?;
+                self.flush_output_batch(&session_id);
                 if let Some(session) = self.sessions.get_mut(&session_id) {
                     session.detach(client_id);
                 }
@@ -126,6 +128,7 @@ impl ServerActor {
             "terminate" => {
                 self.require_auth(client_id)?;
                 let session_id = self.require_session(payload)?;
+                self.flush_output_batch(&session_id);
                 let store = self.store.clone();
                 if let Some(mut session) = self.sessions.remove(&session_id) {
                     session.terminate(true, &store).await;
@@ -146,6 +149,7 @@ impl ServerActor {
         let working_directory = require_string(payload, "workingDirectory")?;
 
         if self.sessions.contains_key(&session_id) {
+            self.flush_output_batch(&session_id);
             let session = self.sessions.get_mut(&session_id).expect("just checked");
             session.attach(client_id);
             return Ok(session.attachment_payload(false));
@@ -204,8 +208,8 @@ impl ServerActor {
     }
 }
 
-/// Validate the request envelope, matching the Dart ordering: the payload-object
-/// check precedes the id/type validity check.
+/// Validate the request envelope. The payload-object check precedes the id/type
+/// validity check to preserve the existing wire error order.
 fn extract_request(obj: &Map<String, Value>) -> HostResult<(String, Value)> {
     let payload = match obj.get("payload") {
         Some(value @ Value::Object(_)) => value.clone(),

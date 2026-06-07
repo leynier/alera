@@ -6,7 +6,7 @@ use serde_json::{json, Map, Value};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 
-/// Wire protocol version. Must stay in lockstep with the Dart host
+/// Wire protocol version. Must stay in lockstep with the Flutter client
 /// (`aleraTerminalHostProtocolVersion`).
 pub const PROTOCOL_VERSION: i64 = 2;
 
@@ -71,8 +71,8 @@ impl TerminalHostConfig {
 /// A shell launch request, mirroring `TerminalHostLaunch`.
 #[derive(Debug, Clone)]
 pub struct TerminalHostLaunch {
-    // Carried through the protocol for parity with the Dart launch; the host
-    // does not use the label when spawning.
+    // Carried through the protocol for display parity; the host does not use
+    // the label when spawning.
     #[allow(dead_code)]
     pub label: String,
     pub shell: String,
