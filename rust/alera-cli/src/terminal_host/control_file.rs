@@ -8,9 +8,8 @@ use crate::terminal_host::protocol::PROTOCOL_VERSION;
 
 /// Publishes the host's socket metadata to the control file the app reads.
 ///
-/// Matches the Dart `_writeControlFile`: the JSON is written to a sibling
-/// `<path>.tmp` and atomically renamed into place so the app never observes a
-/// partially written file.
+/// The JSON is written to a sibling `<path>.tmp` and atomically renamed into
+/// place so the app never observes a partially written file.
 pub fn write_control_file(path: &Path, port: u16, token: &str) -> std::io::Result<()> {
     let body = json!({
         "protocolVersion": PROTOCOL_VERSION,
@@ -28,8 +27,7 @@ pub fn write_control_file(path: &Path, port: u16, token: &str) -> std::io::Resul
     std::fs::rename(&temp, path)
 }
 
-/// Best-effort removal of the control file on shutdown, matching the Dart
-/// `_deleteControlFile` (errors are swallowed).
+/// Best-effort removal of the control file on shutdown; errors are swallowed.
 pub fn delete_control_file(path: &Path) {
     let _ = std::fs::remove_file(path);
 }

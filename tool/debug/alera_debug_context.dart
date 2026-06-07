@@ -75,47 +75,6 @@ final class _DebugContext {
     ], forwardStdin: true);
   }
 
-  // Runs the retained Dart reference host under a Dart VM service. The shipped
-  // sidecar is the Rust binary; this target exists only to debug the Dart
-  // reference implementation with a Dart debugger attached.
-  Future<int> hostDebug({required bool observe}) async {
-    final paths = _runtimePaths;
-    await paths.runtimeDir.create(recursive: true);
-    if (await paths.controlFile.exists()) {
-      await paths.controlFile.delete();
-    }
-    final arguments = <String>[
-      if (observe) '--observe=${_options.debugPort}/127.0.0.1',
-      'bin/alera.dart',
-      'terminal-host',
-      '--runtime-dir',
-      paths.runtimeDir.path,
-      '--control-file',
-      paths.controlFile.path,
-      '--token',
-      _options.debugToken,
-      '--empty-shutdown-delay-seconds',
-      _options.hostEmptyShutdownSeconds,
-      '--detached-session-shutdown-delay-seconds',
-      _options.hostDetachedShutdownSeconds,
-      '--scrollback-bytes',
-      _options.hostScrollbackBytes,
-    ];
-    return _run(_options.dartExecutable, arguments, forwardStdin: true);
-  }
-
-  Future<int> buildHostDebugWrapper() async {
-    final wrapper = File(_hostDebugWrapperPath);
-    await wrapper.parent.create(recursive: true);
-    return _run(_options.dartExecutable, <String>[
-      'compile',
-      'exe',
-      _join('tool', 'debug', 'alera_debug_host_wrapper.dart'),
-      '-o',
-      wrapper.path,
-    ]);
-  }
-
   Future<int> appDebug() async {
     await _prepareFlavor();
     return _run(
@@ -135,25 +94,6 @@ final class _DebugContext {
     }
     final environment = _flutterEnvironment();
     environment['ALERA_CLI_BUNDLE_DIR'] = _cliBundlePathFor(buildOutputDir);
-    return _run(
-      _options.flutterExecutable,
-      _flutterRunArguments(),
-      environment: environment,
-      forwardStdin: true,
-    );
-  }
-
-  Future<int> appDebugHostObserve() async {
-    await _prepareFlavor();
-    final wrapperExit = await buildHostDebugWrapper();
-    if (wrapperExit != 0) {
-      return wrapperExit;
-    }
-    final environment = _flutterEnvironment();
-    environment['ALERA_CLI_PATH'] = _hostDebugWrapperPath;
-    environment['ALERA_DEBUG_REPO_ROOT'] = _repoRoot;
-    environment['ALERA_DEBUG_DART'] = _options.dartExecutable;
-    environment['ALERA_CLI_DEBUG_PORT'] = _options.debugPort;
     return _run(
       _options.flutterExecutable,
       _flutterRunArguments(),
@@ -340,13 +280,5 @@ final class _DebugContext {
       return normalized;
     }
     return normalized.substring(separator + 1);
-  }
-
-  String get _hostDebugWrapperPath {
-    return _join(
-      _repoRoot,
-      '.dart_tool',
-      Platform.isWindows ? 'alera-debug-host.exe' : 'alera-debug-host',
-    );
   }
 }

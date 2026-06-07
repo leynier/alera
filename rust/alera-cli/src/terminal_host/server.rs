@@ -17,16 +17,20 @@ use crate::terminal_host::session::{PtyEvent, Session};
 
 mod requests;
 
-/// Delay before a debounced checkpoint write fires, matching the Dart host.
+/// Delay before a debounced checkpoint write fires.
 const CHECKPOINT_DELAY: Duration = Duration::from_secs(5);
 
+const OUTPUT_BATCH_DELAY: Duration = Duration::from_millis(8);
+const OUTPUT_BATCH_MAX_BYTES: usize = 64 * 1024;
+
 /// Messages processed serially by the single server actor. Every state mutation
-/// happens here, mirroring the Dart host's single-isolate event loop.
+/// happens here, which keeps session/client transitions deterministic.
 pub enum ServerCommand {
     ClientConnected { id: u64, handle: ClientHandle },
     ClientLine { id: u64, line: String },
     ClientDisconnected { id: u64 },
     Pty { session_id: String, event: PtyEvent },
+    OutputBatchTick { session_id: String, generation: u64 },
     CheckpointTick { session_id: String, generation: u64 },
     ShutdownTick { generation: u64 },
 }
@@ -38,7 +42,7 @@ struct ClientState {
 
 /// Run the persistent terminal host until it shuts down (idle timeout or the
 /// last session terminating). Binds a loopback socket, publishes the control
-/// file, and serves clients. Port of `AleraTerminalHostServer.run`.
+/// file, and serves clients.
 pub async fn run_terminal_host_server(
     runtime_dir: PathBuf,
     control_file_path: PathBuf,
@@ -132,6 +136,10 @@ impl ServerActor {
             ServerCommand::Pty { session_id, event } => {
                 self.handle_pty_event(session_id, event).await
             }
+            ServerCommand::OutputBatchTick {
+                session_id,
+                generation,
+            } => self.handle_output_batch_tick(session_id, generation),
             ServerCommand::CheckpointTick {
                 session_id,
                 generation,
@@ -147,20 +155,26 @@ impl ServerActor {
     async fn handle_pty_event(&mut self, session_id: String, pty_event: PtyEvent) {
         match pty_event {
             PtyEvent::Output(data) => {
-                let broadcast = self.sessions.get_mut(&session_id).map(|session| {
-                    let payload = session.append_output(&data);
-                    let arm = session.arm_checkpoint();
-                    let clients = session.output_clients();
-                    (event("output", payload), clients, arm)
+                let state = self.sessions.get_mut(&session_id).map(|session| {
+                    let output_generation = session.append_output(&data);
+                    let output_len = session.output_batch_len();
+                    let checkpoint_generation = session.arm_checkpoint();
+                    (output_generation, output_len, checkpoint_generation)
                 });
-                if let Some((frame, clients, arm)) = broadcast {
-                    self.broadcast(&clients, frame);
-                    if let Some(generation) = arm {
+                if let Some((output_generation, output_len, checkpoint_generation)) = state {
+                    if let Some(generation) = output_generation {
+                        self.spawn_output_batch_timer(session_id.clone(), generation);
+                    }
+                    if output_len >= OUTPUT_BATCH_MAX_BYTES {
+                        self.flush_output_batch(&session_id);
+                    }
+                    if let Some(generation) = checkpoint_generation {
                         self.spawn_checkpoint_timer(session_id, generation);
                     }
                 }
             }
             PtyEvent::Error(message) => {
+                self.flush_output_batch(&session_id);
                 if let Some(session) = self.sessions.get_mut(&session_id) {
                     let payload = session.error_payload(&message);
                     let clients: Vec<u64> = session.clients.iter().copied().collect();
@@ -172,6 +186,7 @@ impl ServerActor {
     }
 
     async fn handle_session_exit(&mut self, session_id: String, exit_code: i32) {
+        self.flush_output_batch(&session_id);
         let broadcast = self.sessions.get_mut(&session_id).and_then(|session| {
             let payload = session.handle_exit(exit_code)?;
             let clients: Vec<u64> = session.clients.iter().copied().collect();
@@ -183,6 +198,27 @@ impl ServerActor {
         self.broadcast(&clients, frame);
         self.immediate_checkpoint(&session_id).await;
         self.schedule_shutdown_if_idle();
+    }
+
+    fn handle_output_batch_tick(&mut self, session_id: String, generation: u64) {
+        let due = self
+            .sessions
+            .get(&session_id)
+            .is_some_and(|session| session.output_batch_due(generation));
+        if due {
+            self.flush_output_batch(&session_id);
+        }
+    }
+
+    fn flush_output_batch(&mut self, session_id: &str) {
+        let broadcast = self.sessions.get_mut(session_id).and_then(|session| {
+            let payload = session.flush_output_batch()?;
+            let clients = session.output_clients();
+            Some((event("output", payload), clients))
+        });
+        if let Some((frame, clients)) = broadcast {
+            self.broadcast(&clients, frame);
+        }
     }
 
     async fn handle_checkpoint_tick(&mut self, session_id: String, generation: u64) {
@@ -221,6 +257,7 @@ impl ServerActor {
         }
         let session_ids: Vec<String> = self.sessions.keys().cloned().collect();
         for session_id in session_ids {
+            self.flush_output_batch(&session_id);
             if let Some(session) = self.sessions.get_mut(&session_id) {
                 session.detach(client_id);
             }
@@ -274,6 +311,7 @@ impl ServerActor {
         let max_bytes = config.scrollback_bytes as usize;
         let session_ids: Vec<String> = self.sessions.keys().cloned().collect();
         for session_id in session_ids {
+            self.flush_output_batch(&session_id);
             if let Some(session) = self.sessions.get_mut(&session_id) {
                 session.set_max_bytes(max_bytes);
             }
@@ -306,6 +344,17 @@ impl ServerActor {
         tokio::spawn(async move {
             tokio::time::sleep(Duration::from_secs(seconds)).await;
             let _ = inbox.send(ServerCommand::ShutdownTick { generation });
+        });
+    }
+
+    fn spawn_output_batch_timer(&self, session_id: String, generation: u64) {
+        let inbox = self.inbox.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(OUTPUT_BATCH_DELAY).await;
+            let _ = inbox.send(ServerCommand::OutputBatchTick {
+                session_id,
+                generation,
+            });
         });
     }
 

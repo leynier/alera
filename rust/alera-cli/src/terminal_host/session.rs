@@ -10,7 +10,7 @@ use crate::terminal_host::history_store::{TerminalHostCheckpoint, TerminalHostHi
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::{encode_bytes, TerminalHostLaunch};
 
-/// Bytes read from the PTY per `read` call, matching the Dart host.
+/// Bytes read from the PTY per `read` call.
 const READ_CHUNK_BYTES: usize = 8192;
 
 /// A message produced by a session's PTY reader thread.
@@ -21,8 +21,7 @@ pub enum PtyEvent {
     Error(String),
 }
 
-/// A hosted terminal session. Port of the Dart `_TerminalHostSession`. The PTY
-/// is read on a dedicated OS thread (mirroring the Dart reader isolate); all
+/// A hosted terminal session. The PTY is read on a dedicated OS thread; all
 /// other state transitions are driven by the single server actor that owns this
 /// struct, so no internal locking is required.
 pub struct Session {
@@ -42,11 +41,14 @@ pub struct Session {
     terminated: bool,
     checkpoint_gen: u64,
     checkpoint_armed: bool,
+    output_batch: Vec<u8>,
+    output_batch_gen: u64,
+    output_batch_armed: bool,
 }
 
 impl Session {
     /// Spawn a fresh shell PTY, persist an initial checkpoint, and start the
-    /// reader thread. Port of `_TerminalHostSession.start`.
+    /// reader thread.
     #[allow(clippy::too_many_arguments)]
     pub async fn start(
         id: String,
@@ -72,16 +74,14 @@ impl Session {
 
         let mut command = CommandBuilder::new(&launch.shell);
         command.args(&launch.arguments);
-        // The Dart host always passes a (possibly empty) environment map, which
-        // makes the underlying portable_pty clear the inherited environment and
-        // apply only the provided entries. Replicate that exactly.
+        // Always pass the configured environment map explicitly so portable_pty
+        // clears the inherited environment and applies only these entries.
         command.env_clear();
         for (key, value) in &launch.environment {
             command.env(key, value);
         }
-        // The working directory is intentionally not applied to the child: the
-        // Dart host persists it but never sets it as the PTY cwd, so the child
-        // inherits this process's directory. Kept 1:1 on purpose.
+        // The working directory is persisted as session metadata; shell startup
+        // preparation owns any cwd changes that should happen inside the PTY.
 
         let child = pair
             .slave
@@ -117,6 +117,9 @@ impl Session {
             terminated: false,
             checkpoint_gen: 0,
             checkpoint_armed: false,
+            output_batch: Vec::new(),
+            output_batch_gen: 0,
+            output_batch_armed: false,
         };
         session.write_checkpoint(store, None).await?;
         spawn_reader(reader, child, on_event);
@@ -124,7 +127,7 @@ impl Session {
     }
 
     /// Rebuild a non-running session from a persisted checkpoint, or `None` if
-    /// there is no usable checkpoint. Port of `_TerminalHostSession.restoreExited`.
+    /// there is no usable checkpoint.
     pub async fn restore_exited(
         session_id: String,
         workspace_id: String,
@@ -158,6 +161,9 @@ impl Session {
             terminated: false,
             checkpoint_gen: 0,
             checkpoint_armed: false,
+            output_batch: Vec::new(),
+            output_batch_gen: 0,
+            output_batch_armed: false,
         })
     }
 
@@ -195,8 +201,7 @@ impl Session {
             .collect()
     }
 
-    /// Write input to the PTY. No-op when the session is not running, matching
-    /// the Dart `write`.
+    /// Write input to the PTY. No-op when the session is not running.
     pub fn write(&mut self, bytes: &[u8]) {
         if bytes.is_empty() || !self.running {
             return;
@@ -221,15 +226,40 @@ impl Session {
         }
     }
 
-    /// Append PTY output to the scrollback. Returns the `output` event payload
-    /// the caller should broadcast.
-    pub fn append_output(&mut self, data: &[u8]) -> Value {
+    /// Append PTY output to the scrollback and live-output batch. Returns a
+    /// timer generation when a delayed flush should be armed.
+    pub fn append_output(&mut self, data: &[u8]) -> Option<u64> {
         self.buffer.append(data);
-        json!({ "sessionId": self.id, "dataBase64": encode_bytes(data) })
+        self.output_batch.extend_from_slice(data);
+        if self.output_batch_armed {
+            None
+        } else {
+            self.output_batch_armed = true;
+            Some(self.output_batch_gen)
+        }
+    }
+
+    pub fn output_batch_len(&self) -> usize {
+        self.output_batch.len()
+    }
+
+    pub fn output_batch_due(&self, generation: u64) -> bool {
+        self.output_batch_armed && self.output_batch_gen == generation
+    }
+
+    pub fn flush_output_batch(&mut self) -> Option<Value> {
+        if self.output_batch.is_empty() {
+            self.output_batch_armed = false;
+            return None;
+        }
+        self.output_batch_gen = self.output_batch_gen.wrapping_add(1);
+        self.output_batch_armed = false;
+        let data = std::mem::take(&mut self.output_batch);
+        Some(json!({ "sessionId": self.id, "dataBase64": encode_bytes(&data) }))
     }
 
     /// Mark the session as exited. Returns the `exit` event payload to broadcast,
-    /// or `None` if the session had already exited. Port of `_handleExit`.
+    /// or `None` if the session had already exited.
     pub fn handle_exit(&mut self, exit_code: i32) -> Option<Value> {
         if !self.running {
             return None;
@@ -262,7 +292,7 @@ impl Session {
     }
 
     /// Terminate the session: kill the child, release the PTY, and either delete
-    /// or finalize the checkpoint. Port of `_TerminalHostSession.terminate`.
+    /// or finalize the checkpoint.
     pub async fn terminate(&mut self, remove_history: bool, store: &TerminalHostHistoryStore) {
         self.terminated = true;
         self.running = false;
@@ -273,6 +303,9 @@ impl Session {
         self.writer = None;
         self.master = None;
         self.checkpoint_armed = false;
+        self.output_batch.clear();
+        self.output_batch_armed = false;
+        self.output_batch_gen = self.output_batch_gen.wrapping_add(1);
         if remove_history {
             let _ = store.delete(&self.id).await;
         } else {
@@ -308,7 +341,7 @@ impl Session {
         self.checkpoint_armed = false;
     }
 
-    /// Persist the current session state. Port of `_writeCheckpoint`.
+    /// Persist the current session state.
     pub async fn write_checkpoint(
         &mut self,
         store: &TerminalHostHistoryStore,
@@ -336,7 +369,7 @@ impl Session {
 }
 
 /// Read the PTY on a dedicated thread, forwarding output and the final exit code
-/// through `on_event`. Mirrors the Dart `_terminalHostPtyReader` isolate.
+/// through `on_event`.
 fn spawn_reader(
     mut reader: Box<dyn Read + Send>,
     mut child: Box<dyn portable_pty::Child + Send + Sync>,
@@ -370,4 +403,65 @@ fn spawn_reader(
             on_event(PtyEvent::Exit(code));
         })
         .expect("failed to spawn pty reader thread");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_session() -> Session {
+        Session {
+            id: "session-1".to_string(),
+            workspace_id: "workspace-1".to_string(),
+            tab_id: "tab-1".to_string(),
+            working_directory: "/repo".to_string(),
+            clients: HashSet::new(),
+            output_paused_clients: HashSet::new(),
+            buffer: ScrollbackBuffer::new(1024, &[]),
+            running: true,
+            exit_code: None,
+            ended_at: None,
+            master: None,
+            writer: None,
+            killer: None,
+            terminated: false,
+            checkpoint_gen: 0,
+            checkpoint_armed: false,
+            output_batch: Vec::new(),
+            output_batch_gen: 0,
+            output_batch_armed: false,
+        }
+    }
+
+    #[test]
+    fn output_batch_coalesces_until_flush() {
+        let mut session = test_session();
+
+        assert_eq!(session.append_output(b"ab"), Some(0));
+        assert_eq!(session.append_output(b"cd"), None);
+        assert!(session.output_batch_due(0));
+
+        let payload = session.flush_output_batch().expect("batch");
+
+        assert_eq!(payload["sessionId"], "session-1");
+        assert_eq!(
+            payload["dataBase64"],
+            serde_json::Value::String(encode_bytes(b"abcd"))
+        );
+        assert_eq!(session.output_batch_len(), 0);
+        assert!(!session.output_batch_due(0));
+    }
+
+    #[test]
+    fn output_batch_empty_flush_disarms_timer() {
+        let mut session = test_session();
+
+        assert_eq!(session.append_output(b"a"), Some(0));
+        assert!(session.flush_output_batch().is_some());
+        assert!(session.flush_output_batch().is_none());
+
+        assert_eq!(session.append_output(b"b"), Some(1));
+        assert!(!session.output_batch_due(0));
+        assert!(session.output_batch_due(1));
+    }
 }

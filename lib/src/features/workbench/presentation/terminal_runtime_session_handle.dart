@@ -39,6 +39,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   final StreamController<List<int>> _ptyOutputController =
       StreamController<List<int>>();
   late final StreamSubscription<String> _decodedOutputSub;
+  final StringBuffer _pendingTerminalOutput = StringBuffer();
   TerminalPtySession? _ptySession;
   StreamSubscription<TerminalPtySessionEvent>? _ptySessionSub;
   Timer? _pendingPtyResizeTimer;
@@ -53,6 +54,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   bool _starting = false;
   bool _started = false;
   bool _running = false;
+  bool _terminalOutputFlushScheduled = false;
   String _title = '';
   String? _errorMessage;
   bool _visible = false;
@@ -416,6 +418,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
       return;
     }
     _running = false;
+    _flushPendingTerminalOutputNow();
     _writeToTerminal('\n[process exited: $exitCode]\n');
     notifyListeners();
     if (notifyRuntime && !_suppressedExitPtyGenerations.contains(generation)) {
@@ -459,7 +462,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   }
 
   void _handleTerminalOutput(String data) {
-    _writeToTerminal(data);
+    _queueTerminalOutput(data);
   }
 
   void _writeToTerminal(String data) {
@@ -469,10 +472,62 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     _terminal.write(data);
   }
 
+  void _queueTerminalOutput(String data) {
+    if (data.isEmpty || _disposed) {
+      return;
+    }
+    _pendingTerminalOutput.write(data);
+    _scheduleTerminalOutputFlush();
+  }
+
+  void _scheduleTerminalOutputFlush() {
+    if (_terminalOutputFlushScheduled || _disposed) {
+      return;
+    }
+    _terminalOutputFlushScheduled = true;
+    SchedulerBinding.instance.scheduleFrameCallback((_) {
+      _flushPendingTerminalOutputFrame();
+    });
+    SchedulerBinding.instance.ensureVisualUpdate();
+  }
+
+  void _flushPendingTerminalOutputFrame() {
+    _terminalOutputFlushScheduled = false;
+    if (_disposed) {
+      _clearPendingTerminalOutput();
+      return;
+    }
+    final pending = _pendingTerminalOutput.toString();
+    if (pending.isEmpty) {
+      return;
+    }
+    final cutoff = _terminalOutputFrameCutoff(pending);
+    _clearPendingTerminalOutput();
+    _writeToTerminal(pending.substring(0, cutoff));
+    if (cutoff < pending.length) {
+      _pendingTerminalOutput.write(pending.substring(cutoff));
+      _scheduleTerminalOutputFlush();
+    }
+  }
+
+  void _flushPendingTerminalOutputNow() {
+    if (_disposed || _pendingTerminalOutput.isEmpty) {
+      return;
+    }
+    final pending = _pendingTerminalOutput.toString();
+    _clearPendingTerminalOutput();
+    _writeToTerminal(pending);
+  }
+
+  void _clearPendingTerminalOutput() {
+    _pendingTerminalOutput.clear();
+  }
+
   void _replaceTerminalWithSnapshot(List<int> data) {
     if (_disposed) {
       return;
     }
+    _clearPendingTerminalOutput();
     final previousTerminal = _terminal;
     final viewWidth = previousTerminal.viewWidth;
     final viewHeight = previousTerminal.viewHeight;
@@ -564,6 +619,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     _visible = false;
     _osc8LinkTracker.dispose();
     _detachTerminal(_terminal);
+    _clearPendingTerminalOutput();
     unawaited(
       _stopPtySessionWithMode(suppressExit: true, terminate: terminatePty),
     );
@@ -580,3 +636,17 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     _focusNode.requestFocus();
   }
 }
+
+int _terminalOutputFrameCutoff(String value) {
+  if (value.length <= _terminalOutputMaxCharsPerFrame) {
+    return value.length;
+  }
+  var cutoff = _terminalOutputMaxCharsPerFrame;
+  final codeUnit = value.codeUnitAt(cutoff);
+  if (codeUnit >= 0xDC00 && codeUnit <= 0xDFFF) {
+    cutoff -= 1;
+  }
+  return cutoff;
+}
+
+const int _terminalOutputMaxCharsPerFrame = 64 * 1024;
