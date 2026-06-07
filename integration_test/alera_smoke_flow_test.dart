@@ -8,6 +8,7 @@ import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/shared/infra/git/git_backend.dart';
+import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:alera/src/shared/infra/git/git_worktree_entry.dart';
 import 'package:alera/src/shared/infra/storage/drift_database.dart';
@@ -167,6 +168,29 @@ class _E2eGitBackend implements GitBackend {
     required String url,
     required String destinationPath,
   }) async {}
+
+  @override
+  Future<GitStatusResult> status(String path) async =>
+      const GitStatusResult(entries: <GitChangeEntry>[]);
+
+  @override
+  Future<GitStatusResult> statusForPath({
+    required String path,
+    required String filePath,
+  }) async => const GitStatusResult(entries: <GitChangeEntry>[]);
+
+  @override
+  Future<GitDiffResult> diff({
+    required String path,
+    required String filePath,
+    required GitChangeArea area,
+  }) async => const GitDiffResult(files: <GitDiffFile>[]);
+
+  @override
+  Future<GitDiffResult> diffAll({
+    required String path,
+    String? filePath,
+  }) async => const GitDiffResult(files: <GitDiffFile>[]);
 }
 
 class _E2eTerminalRuntime implements TerminalRuntime {

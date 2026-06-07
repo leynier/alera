@@ -1,5 +1,7 @@
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
+import 'package:alera/src/features/workbench/application/workspace_file_preview_kind.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
+import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:uuid/uuid.dart';
 
 class WorkspaceTabService {
@@ -65,6 +67,17 @@ class WorkspaceTabService {
     );
   }
 
+  Future<WorkspaceTabRecord> openOrCreatePdfTab({
+    required String workspaceId,
+    required String relativePath,
+  }) async {
+    return _openOrCreateFileTab(
+      workspaceId: workspaceId,
+      relativePath: relativePath,
+      kind: WorkspaceTabKind.pdf,
+    );
+  }
+
   Future<WorkspaceTabRecord> openOrCreateMarkdownViewerTab({
     required String workspaceId,
     required String relativePath,
@@ -78,6 +91,52 @@ class WorkspaceTabService {
       relativePath: normalizedPath,
       kind: WorkspaceTabKind.markdownViewer,
     );
+  }
+
+  Future<WorkspaceTabRecord> openOrCreateGitDiffTab({
+    required String workspaceId,
+    String? relativePath,
+    GitChangeArea? area,
+    required WorkspaceGitDiffScope scope,
+  }) async {
+    final normalizedPath = relativePath == null
+        ? null
+        : _normalizeRelativePath(relativePath);
+    if (scope == WorkspaceGitDiffScope.file && area == null) {
+      throw StateError('Git diff file tabs require an area.');
+    }
+    if (scope != WorkspaceGitDiffScope.all && normalizedPath == null) {
+      throw StateError('Git diff file tabs require a file path.');
+    }
+    final existing = await _repository.listWorkspaceTabs(workspaceId);
+    for (final tab in existing) {
+      if (tab.kind != WorkspaceTabKind.gitDiff) {
+        continue;
+      }
+      if (tab.gitDiffScope == scope &&
+          tab.filePath == normalizedPath &&
+          tab.gitDiffArea == area) {
+        return tab;
+      }
+    }
+    final payload = <String, Object?>{
+      workspaceTabGitDiffScopePayloadKey: scope.key,
+      if (area != null) workspaceTabGitDiffAreaPayloadKey: area.key,
+    };
+    if (normalizedPath != null) {
+      payload[workspaceTabFilePathPayloadKey] = normalizedPath;
+    }
+    final tab = WorkspaceTabRecord(
+      id: _uuid.v4(),
+      workspaceId: workspaceId,
+      kind: WorkspaceTabKind.gitDiff,
+      title: _titleForGitDiff(scope: scope, path: normalizedPath, area: area),
+      createdAt: _now(),
+      updatedAt: _now(),
+      payload: payload,
+    );
+    await _repository.upsertWorkspaceTab(tab);
+    return tab;
   }
 
   Future<void> closeTab(String tabId) {
@@ -122,6 +181,10 @@ class WorkspaceTabService {
       if (!_isFileTabKind(tab.kind)) {
         continue;
       }
+      if (tab.kind == WorkspaceTabKind.gitDiff &&
+          tab.gitDiffArea == GitChangeArea.staged) {
+        continue;
+      }
       final filePath = tab.filePath;
       if (filePath == null) {
         continue;
@@ -134,14 +197,21 @@ class WorkspaceTabService {
       if (nextPath == null || nextPath == filePath) {
         continue;
       }
-      if (tab.kind == WorkspaceTabKind.markdownViewer &&
-          !isWorkspaceMarkdownFilePath(nextPath)) {
+      final nextKind = _fileTabKindAfterPathMove(tab: tab, nextPath: nextPath);
+      if (nextKind == null) {
         await _repository.removeWorkspaceTab(tab.id);
         closed.add(tab.id);
         continue;
       }
       final next = tab.copyWith(
-        title: _titleForPath(nextPath),
+        kind: nextKind,
+        title: tab.kind == WorkspaceTabKind.gitDiff
+            ? _titleForGitDiff(
+                scope: tab.gitDiffScope ?? WorkspaceGitDiffScope.file,
+                path: nextPath,
+                area: tab.gitDiffArea,
+              )
+            : _titleForPath(nextPath),
         updatedAt: _now(),
         payload: <String, Object?>{
           ...tab.payload,
@@ -165,10 +235,18 @@ class WorkspaceTabService {
     final normalizedPath = _normalizeRelativePath(relativePath);
     final existing = await _repository.listWorkspaceTabs(workspaceId);
     for (final tab in existing) {
-      if (tab.kind == kind &&
-          tab.payload[workspaceTabFilePathPayloadKey] == normalizedPath) {
+      if (tab.payload[workspaceTabFilePathPayloadKey] != normalizedPath) {
+        continue;
+      }
+      if (tab.kind == kind) {
         return tab;
       }
+      if (!_canRetargetFileBackedTab(from: tab.kind, to: kind)) {
+        continue;
+      }
+      final next = tab.copyWith(kind: kind, updatedAt: _now());
+      await _repository.upsertWorkspaceTab(next);
+      return next;
     }
     final tab = WorkspaceTabRecord(
       id: _uuid.v4(),
@@ -187,8 +265,22 @@ class WorkspaceTabService {
 
   bool _isFileTabKind(WorkspaceTabKind kind) {
     return switch (kind) {
-      WorkspaceTabKind.editor || WorkspaceTabKind.markdownViewer => true,
+      WorkspaceTabKind.editor ||
+      WorkspaceTabKind.markdownViewer ||
+      WorkspaceTabKind.pdf ||
+      WorkspaceTabKind.gitDiff => true,
       WorkspaceTabKind.terminal || WorkspaceTabKind.browser => false,
+    };
+  }
+
+  bool _canRetargetFileBackedTab({
+    required WorkspaceTabKind from,
+    required WorkspaceTabKind to,
+  }) {
+    return switch ((from, to)) {
+      (WorkspaceTabKind.editor, WorkspaceTabKind.pdf) ||
+      (WorkspaceTabKind.pdf, WorkspaceTabKind.editor) => true,
+      _ => false,
     };
   }
 
@@ -223,6 +315,41 @@ class WorkspaceTabService {
   String _titleForPath(String path) {
     final parts = path.split('/');
     return parts.isEmpty ? path : parts.last;
+  }
+
+  WorkspaceTabKind? _fileTabKindAfterPathMove({
+    required WorkspaceTabRecord tab,
+    required String nextPath,
+  }) {
+    return switch (tab.kind) {
+      WorkspaceTabKind.gitDiff => WorkspaceTabKind.gitDiff,
+      WorkspaceTabKind.markdownViewer =>
+        isWorkspaceMarkdownFilePath(nextPath)
+            ? WorkspaceTabKind.markdownViewer
+            : null,
+      WorkspaceTabKind.editor =>
+        isWorkspacePdfFilePath(nextPath)
+            ? WorkspaceTabKind.pdf
+            : WorkspaceTabKind.editor,
+      WorkspaceTabKind.pdf =>
+        isWorkspacePdfFilePath(nextPath)
+            ? WorkspaceTabKind.pdf
+            : WorkspaceTabKind.editor,
+      WorkspaceTabKind.terminal || WorkspaceTabKind.browser => null,
+    };
+  }
+
+  String _titleForGitDiff({
+    required WorkspaceGitDiffScope scope,
+    required String? path,
+    required GitChangeArea? area,
+  }) {
+    return switch (scope) {
+      WorkspaceGitDiffScope.all => 'All changes',
+      WorkspaceGitDiffScope.fileAll => '${_titleForPath(path!)} changes',
+      WorkspaceGitDiffScope.file =>
+        '${_titleForPath(path!)} ${area!.label.toLowerCase()}',
+    };
   }
 
   String? _replacePathPrefix({

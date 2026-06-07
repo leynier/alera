@@ -30,6 +30,40 @@ void _registerWorkbenchControllerLifecycleTests() {
     },
   );
 
+  test(
+    'openFileTab upgrades a legacy PDF editor tab without duplicating it',
+    () async {
+      await _controller.bootstrap();
+      final workspace = await _selectMainWorkspace(_controller, _harness);
+
+      final legacyTab = await _controller.openEditorTab(
+        workspace: workspace,
+        relativePath: 'docs/guide.pdf',
+      );
+      await _flush();
+
+      expect(legacyTab.kind, WorkspaceTabKind.editor);
+
+      final openedTab = await _controller.openFileTab(
+        workspace: workspace,
+        relativePath: './docs/guide.pdf',
+      );
+      await _flush();
+
+      final tabs = _controller.state.tabsFor(workspace.id);
+      final pdfTabs = tabs
+          .where((tab) => tab.filePath == 'docs/guide.pdf')
+          .toList(growable: false);
+      expect(openedTab.id, legacyTab.id);
+      expect(openedTab.kind, WorkspaceTabKind.pdf);
+      expect(pdfTabs, hasLength(1));
+      expect(pdfTabs.single.id, legacyTab.id);
+      expect(pdfTabs.single.kind, WorkspaceTabKind.pdf);
+      expect(_controller.state.activeWorkspaceTab?.id, legacyTab.id);
+      expect(_controller.state.activeWorkspaceTab?.kind, WorkspaceTabKind.pdf);
+    },
+  );
+
   test('closing the last active tab deselects the workspace', () async {
     await _controller.bootstrap();
     final workspace = await _selectMainWorkspace(_controller, _harness);
