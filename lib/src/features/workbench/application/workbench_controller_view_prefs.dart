@@ -182,6 +182,20 @@ mixin _WorkbenchControllerViewPrefs
     _updateViewPrefs(state.viewPrefs.copyWith(explorerMode: mode));
   }
 
+  void setActiveContextPanelTab(WorkbenchContextPanelTab tab) {
+    if (state.viewPrefs.activeContextPanelTab == tab) {
+      return;
+    }
+    _updateViewPrefs(state.viewPrefs.copyWith(activeContextPanelTab: tab));
+  }
+
+  void setGitDiffViewMode(GitDiffViewMode mode) {
+    if (state.viewPrefs.gitDiffViewMode == mode) {
+      return;
+    }
+    _updateViewPrefs(state.viewPrefs.copyWith(gitDiffViewMode: mode));
+  }
+
   void _updateViewPrefs(WorkbenchViewPrefs prefs) {
     state = state.copyWith(viewPrefs: prefs);
     unawaited(_persistViewPrefs());

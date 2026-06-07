@@ -1,4 +1,5 @@
 import 'package:dart_mappable/dart_mappable.dart';
+import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 
 part 'workspace_tab_record.mapper.dart';
 
@@ -6,6 +7,7 @@ part 'workspace_tab_record.mapper.dart';
 enum WorkspaceTabKind {
   terminal('terminal'),
   editor('editor'),
+  gitDiff('gitDiff'),
   browser('browser');
 
   const WorkspaceTabKind(this.key);
@@ -33,6 +35,30 @@ const String workspaceTabTerminalSessionIdPayloadKey = 'terminalSessionId';
 const String workspaceTabFilePathPayloadKey = 'filePath';
 const String workspaceTabFileRolePayloadKey = 'fileRole';
 const String workspaceTabFileRoleMermanPreview = 'mermanPreview';
+const String workspaceTabGitDiffScopePayloadKey = 'gitDiffScope';
+const String workspaceTabGitDiffAreaPayloadKey = 'gitDiffArea';
+
+enum WorkspaceGitDiffScope {
+  file('file'),
+  all('all'),
+  fileAll('fileAll');
+
+  const WorkspaceGitDiffScope(this.key);
+
+  final String key;
+
+  static WorkspaceGitDiffScope? fromJson(Object? value) {
+    if (value is! String) {
+      return null;
+    }
+    for (final scope in WorkspaceGitDiffScope.values) {
+      if (scope.key == value) {
+        return scope;
+      }
+    }
+    return null;
+  }
+}
 
 @MappableClass()
 class WorkspaceTabRecord with WorkspaceTabRecordMappable {
@@ -69,6 +95,23 @@ class WorkspaceTabRecord with WorkspaceTabRecordMappable {
   bool get isMermanPreview {
     return payload[workspaceTabFileRolePayloadKey] ==
         workspaceTabFileRoleMermanPreview;
+  }
+
+  WorkspaceGitDiffScope? get gitDiffScope => WorkspaceGitDiffScope.fromJson(
+    payload[workspaceTabGitDiffScopePayloadKey],
+  );
+
+  GitChangeArea? get gitDiffArea {
+    final value = payload[workspaceTabGitDiffAreaPayloadKey];
+    if (value is! String) {
+      return null;
+    }
+    for (final area in GitChangeArea.values) {
+      if (area.key == value) {
+        return area;
+      }
+    }
+    return null;
   }
 
   factory WorkspaceTabRecord.fromJson(Map<String, Object?> json) =>
