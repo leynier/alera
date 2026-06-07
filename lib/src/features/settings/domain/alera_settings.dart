@@ -1,4 +1,5 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_shortcut_settings.dart';
 import 'package:alera/src/features/settings/domain/editor_syntax_theme_catalog.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
@@ -209,18 +210,21 @@ class GeneralSettings with GeneralSettingsMappable {
 class AleraSettings with AleraSettingsMappable {
   const AleraSettings({
     required this.general,
+    this.aiTextGeneration = AiTextGenerationSettings.defaults,
     this.editor = EditorSettings.defaults,
     required this.terminal,
     required this.keyboard,
   });
 
   final GeneralSettings general;
+  final AiTextGenerationSettings aiTextGeneration;
   final EditorSettings editor;
   final TerminalSettings terminal;
   final KeyboardShortcutSettings keyboard;
 
   static const AleraSettings defaults = AleraSettings(
     general: GeneralSettings.defaults,
+    aiTextGeneration: AiTextGenerationSettings.defaults,
     editor: EditorSettings.defaults,
     terminal: TerminalSettings.defaults,
     keyboard: KeyboardShortcutSettings.defaults,

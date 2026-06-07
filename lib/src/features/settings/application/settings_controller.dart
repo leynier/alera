@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
 import 'package:alera/src/features/settings/application/settings_providers.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
@@ -34,6 +35,16 @@ class SettingsController extends _$SettingsController {
 
   Future<void> updateEditor(EditorSettings settings) async {
     await _save(state.copyWith(editor: settings));
+  }
+
+  Future<void> updateAiTextGeneration(AiTextGenerationSettings settings) async {
+    await _save(state.copyWith(aiTextGeneration: settings));
+  }
+
+  Future<void> resetAiTextGenerationSettings() async {
+    await _save(
+      state.copyWith(aiTextGeneration: AiTextGenerationSettings.defaults),
+    );
   }
 
   Future<void> resetEditorSettings() async {

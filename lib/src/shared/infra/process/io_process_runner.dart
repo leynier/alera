@@ -44,6 +44,7 @@ class IoProcessRunner implements ProcessRunner {
 
     return StartedProcess(
       stdinWrite: (data) => process.stdin.add(data),
+      stdinClose: process.stdin.close,
       stdout: process.stdout,
       stderr: process.stderr,
       pid: process.pid,

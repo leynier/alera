@@ -7,6 +7,7 @@ void _registerSettingsDialogCoreTests() {
     AleraSettings initialSettings = AleraSettings.defaults,
     Size surfaceSize = const Size(1200, 900),
     SystemFontService? fontService,
+    AiTextModelDiscoveryService? modelDiscoveryService,
   }) async {
     await tester.binding.setSurfaceSize(surfaceSize);
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -23,6 +24,9 @@ void _registerSettingsDialogCoreTests() {
               ]),
         ),
         aleraUpdateServiceProvider.overrideWithValue(_FakeUpdateService()),
+        aiTextModelDiscoveryServiceProvider.overrideWithValue(
+          modelDiscoveryService ?? const _FakeAiTextModelDiscoveryService(),
+        ),
         if (starController != null)
           gitHubStarControllerProvider.overrideWith(() => starController),
       ],
@@ -54,6 +58,11 @@ void _registerSettingsDialogCoreTests() {
 
   Future<void> selectEditorSectionLocal(WidgetTester tester) async {
     await tester.tap(find.text('Editor').first);
+    await tester.pump();
+  }
+
+  Future<void> selectAiTextSectionLocal(WidgetTester tester) async {
+    await tester.tap(find.text('AI text').first);
     await tester.pump();
   }
 
@@ -129,6 +138,144 @@ void _registerSettingsDialogCoreTests() {
     expect(
       container.read(settingsControllerProvider).editor.themeName,
       EditorSettings.defaults.themeName,
+    );
+  });
+
+  testWidgets('edits and resets AI text settings', (tester) async {
+    final container = await pumpSettingsDialogLocal(tester);
+    await selectAiTextSectionLocal(tester);
+
+    expect(find.text('AI text'), findsWidgets);
+    expect(find.text('Agent'), findsOneWidget);
+    expect(find.text('Model'), findsOneWidget);
+    expect(
+      tester
+          .widgetList<MouseRegion>(
+            find.descendant(
+              of: find.byKey(const ValueKey<String>('ai-text-agent-codex')),
+              matching: find.byType(MouseRegion),
+            ),
+          )
+          .first
+          .cursor,
+      SystemMouseCursors.click,
+    );
+    expect(
+      tester
+          .widgetList<MouseRegion>(
+            find.descendant(
+              of: find.byKey(
+                const ValueKey<String>('ai-text-model-codex-gpt-5.5'),
+              ),
+              matching: find.byType(MouseRegion),
+            ),
+          )
+          .first
+          .cursor,
+      SystemMouseCursors.click,
+    );
+    expect(
+      tester
+          .widgetList<MouseRegion>(
+            find.descendant(
+              of: find.byKey(const ValueKey<String>('ai-text-thinking-low')),
+              matching: find.byType(MouseRegion),
+            ),
+          )
+          .first
+          .cursor,
+      SystemMouseCursors.click,
+    );
+
+    await tester.tap(find.byKey(const ValueKey<String>('ai-text-agent-codex')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byType(AleraDropdownEntry<AiTextGenerationAgent>),
+      findsWidgets,
+    );
+    expect(
+      tester
+          .widgetList<AleraDropdownEntry<AiTextGenerationAgent>>(
+            find.byType(AleraDropdownEntry<AiTextGenerationAgent>),
+          )
+          .first
+          .enabled,
+      isTrue,
+    );
+    await tester.tap(find.text('Antigravity').last);
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(
+      container.read(settingsControllerProvider).aiTextGeneration.agent,
+      AiTextGenerationAgent.agy,
+    );
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(
+      container
+          .read(settingsControllerProvider)
+          .aiTextGeneration
+          .discoveredModelsFor(AiTextGenerationAgent.agy)
+          .map((model) => model.id),
+      contains('gpt-5.5'),
+    );
+
+    await tester.tap(find.text('Reset ai text'));
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(
+      container.read(settingsControllerProvider).aiTextGeneration.agent,
+      AiTextGenerationSettings.defaults.agent,
+    );
+    expect(find.text('Codex').last, findsOneWidget);
+
+    await tester.ensureVisible(find.text('Commit messages'));
+    expect(find.text('Pull request details'), findsNothing);
+    expect(find.text('Branch names'), findsNothing);
+    await tester.pump();
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Optional instructions').first,
+      'Use conventional commits.',
+    );
+    await selectTerminalSectionLocal(tester);
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(
+      container
+          .read(settingsControllerProvider)
+          .aiTextGeneration
+          .instructionsFor(AiTextGenerationOperation.commitMessage),
+      'Use conventional commits.',
+    );
+
+    await container
+        .read(settingsControllerProvider.notifier)
+        .resetAiTextGenerationSettings();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(
+      container.read(settingsControllerProvider).aiTextGeneration.agent,
+      AiTextGenerationSettings.defaults.agent,
+    );
+
+    await selectAiTextSectionLocal(tester);
+    await tester.pump();
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Optional instructions').first,
+      'Draft that should not survive reset.',
+    );
+    await tester.ensureVisible(find.text('Reset ai text', skipOffstage: false));
+    await tester.pump();
+    await tester.tap(find.text('Reset ai text'));
+    await tester.pump(const Duration(milliseconds: 50));
+    await selectTerminalSectionLocal(tester);
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(
+      container
+          .read(settingsControllerProvider)
+          .aiTextGeneration
+          .instructionsFor(AiTextGenerationOperation.commitMessage),
+      isEmpty,
     );
   });
 

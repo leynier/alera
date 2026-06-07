@@ -92,7 +92,10 @@ class _SettingsNavItem extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: onTap,
+        onTap: () {
+          FocusManager.instance.primaryFocus?.unfocus();
+          onTap();
+        },
         borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
         mouseCursor: SystemMouseCursors.click,
         child: Container(
@@ -161,7 +164,11 @@ class _SettingsContent extends StatelessWidget {
                 if (section.onReset != null) ...<Widget>[
                   const SizedBox(width: AleraTokens.space8),
                   TextButton(
-                    onPressed: () => section.onReset!(),
+                    onPressed: () async {
+                      FocusManager.instance.primaryFocus?.unfocus();
+                      await Future<void>.delayed(Duration.zero);
+                      await section.onReset!();
+                    },
                     child: Text('Reset ${section.title.toLowerCase()}'),
                   ),
                 ],

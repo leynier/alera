@@ -2,6 +2,10 @@ import 'dart:async';
 
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
+import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_providers.dart';
+import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_registry.dart';
+import 'package:alera/src/features/ai_text_generation/application/ai_text_model_discovery_service.dart';
+import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
 import 'package:alera/src/features/settings/application/settings_repository.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/domain/editor_syntax_theme_catalog.dart';
@@ -12,6 +16,7 @@ import 'package:alera/src/features/updater/application/update_service.dart';
 import 'package:alera/src/features/updater/domain/alera_update.dart';
 import 'package:alera/src/design_system/feedback/alera_color_swatch.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
+import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:file_selector_platform_interface/file_selector_platform_interface.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:flutter/gestures.dart';
@@ -31,6 +36,7 @@ Future<ProviderContainer> _pumpSettingsDialog(
   AleraSettings initialSettings = AleraSettings.defaults,
   Size surfaceSize = const Size(1200, 900),
   SystemFontService? fontService,
+  AiTextModelDiscoveryService? modelDiscoveryService,
 }) async {
   await tester.binding.setSurfaceSize(surfaceSize);
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -47,6 +53,9 @@ Future<ProviderContainer> _pumpSettingsDialog(
             ]),
       ),
       aleraUpdateServiceProvider.overrideWithValue(_FakeUpdateService()),
+      aiTextModelDiscoveryServiceProvider.overrideWithValue(
+        modelDiscoveryService ?? const _FakeAiTextModelDiscoveryService(),
+      ),
       if (starController != null)
         gitHubStarControllerProvider.overrideWith(() => starController),
     ],
