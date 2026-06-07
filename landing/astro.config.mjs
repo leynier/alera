@@ -1,6 +1,6 @@
 import { defineConfig } from 'astro/config';
 
 export default defineConfig({
-  site: 'https://alera.dev',
+  site: 'https://alera.build',
   output: 'static',
 });

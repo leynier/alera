@@ -11,7 +11,7 @@ This document defines governance only. It does not change runtime APIs, schemas,
 ## Project Shape
 
 - The site MUST remain an Astro static output project unless the user explicitly requests otherwise.
-- `astro.config.mjs` MUST keep `output: 'static'` and the canonical site URL `https://alera.dev`.
+- `astro.config.mjs` MUST keep `output: 'static'` and the canonical site URL `https://alera.build`.
 - Use the existing landing structure before adding new patterns:
   - `src/pages/index.astro` for page composition.
   - `src/layouts/Layout.astro` for document metadata, global imports, fonts, analytics, and page shell.
