@@ -218,5 +218,23 @@ void _registerWorkspaceWorkbenchViewHelperTests() {
       expect(workspaceTabUsesImagePreviewForTesting(textTab), isFalse);
       expect(workspaceTabUsesImagePreviewForTesting(svgTab), isFalse);
     });
+
+    test('identifies PDF tabs for PDF viewer routing', () {
+      final pdfTab = _tab(
+        'tab-1',
+        title: 'guide.pdf',
+        kind: WorkspaceTabKind.pdf,
+        filePath: 'docs/guide.pdf',
+      );
+      final editorTab = _tab(
+        'tab-2',
+        title: 'guide.pdf',
+        kind: WorkspaceTabKind.editor,
+        filePath: 'docs/guide.pdf',
+      );
+
+      expect(workspaceTabUsesPdfViewerForTesting(pdfTab), isTrue);
+      expect(workspaceTabUsesPdfViewerForTesting(editorTab), isFalse);
+    });
   });
 }

@@ -7,6 +7,7 @@ part 'workspace_tab_record.mapper.dart';
 enum WorkspaceTabKind {
   terminal('terminal'),
   editor('editor'),
+  pdf('pdf'),
   gitDiff('gitDiff'),
   browser('browser');
 

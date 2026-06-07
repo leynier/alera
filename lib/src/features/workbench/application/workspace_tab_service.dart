@@ -1,4 +1,5 @@
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
+import 'package:alera/src/features/workbench/application/workspace_file_preview_kind.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:uuid/uuid.dart';
@@ -59,18 +60,47 @@ class WorkspaceTabService {
     required String workspaceId,
     required String relativePath,
   }) async {
+    return _openOrCreateFileTab(
+      workspaceId: workspaceId,
+      relativePath: relativePath,
+      kind: WorkspaceTabKind.editor,
+    );
+  }
+
+  Future<WorkspaceTabRecord> openOrCreatePdfTab({
+    required String workspaceId,
+    required String relativePath,
+  }) async {
+    return _openOrCreateFileTab(
+      workspaceId: workspaceId,
+      relativePath: relativePath,
+      kind: WorkspaceTabKind.pdf,
+    );
+  }
+
+  Future<WorkspaceTabRecord> _openOrCreateFileTab({
+    required String workspaceId,
+    required String relativePath,
+    required WorkspaceTabKind kind,
+  }) async {
     final normalizedPath = _normalizeRelativePath(relativePath);
     final existing = await _repository.listWorkspaceTabs(workspaceId);
     for (final tab in existing) {
-      if (tab.kind == WorkspaceTabKind.editor &&
-          tab.payload[workspaceTabFilePathPayloadKey] == normalizedPath) {
+      if (!_isFileBackedTab(tab) ||
+          tab.payload[workspaceTabFilePathPayloadKey] != normalizedPath) {
+        continue;
+      }
+      if (tab.kind == kind) {
         return tab;
       }
+      final next = tab.copyWith(kind: kind, updatedAt: _now());
+      await _repository.upsertWorkspaceTab(next);
+      return next;
     }
     final tab = WorkspaceTabRecord(
       id: _uuid.v4(),
       workspaceId: workspaceId,
-      kind: WorkspaceTabKind.editor,
+      kind: kind,
       title: _titleForPath(normalizedPath),
       createdAt: _now(),
       updatedAt: _now(),
@@ -167,6 +197,7 @@ class WorkspaceTabService {
     final updated = <WorkspaceTabRecord>[];
     for (final tab in tabs) {
       if (tab.kind != WorkspaceTabKind.editor &&
+          tab.kind != WorkspaceTabKind.pdf &&
           tab.kind != WorkspaceTabKind.gitDiff) {
         continue;
       }
@@ -186,7 +217,11 @@ class WorkspaceTabService {
       if (nextPath == null || nextPath == filePath) {
         continue;
       }
+      final nextKind = isWorkspacePdfFilePath(nextPath)
+          ? WorkspaceTabKind.pdf
+          : WorkspaceTabKind.editor;
       final next = tab.copyWith(
+        kind: tab.kind == WorkspaceTabKind.gitDiff ? tab.kind : nextKind,
         title: tab.kind == WorkspaceTabKind.gitDiff
             ? _titleForGitDiff(
                 scope: tab.gitDiffScope ?? WorkspaceGitDiffScope.file,
@@ -237,6 +272,11 @@ class WorkspaceTabService {
   String _titleForPath(String path) {
     final parts = path.split('/');
     return parts.isEmpty ? path : parts.last;
+  }
+
+  bool _isFileBackedTab(WorkspaceTabRecord tab) {
+    return tab.kind == WorkspaceTabKind.editor ||
+        tab.kind == WorkspaceTabKind.pdf;
   }
 
   String _titleForGitDiff({
