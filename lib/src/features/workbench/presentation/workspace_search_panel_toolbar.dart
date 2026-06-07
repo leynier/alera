@@ -45,12 +45,6 @@ class _SearchToolbar extends StatelessWidget {
             ),
             const Spacer(),
             AleraIconButton(
-              tooltip: 'Refresh',
-              icon: state.loading ? Icons.hourglass_empty : Icons.refresh,
-              onPressed: state.hasQuery && !state.loading ? onRefresh : null,
-            ),
-            const SizedBox(width: AleraTokens.space2),
-            AleraIconButton(
               tooltip: 'Clear search results',
               icon: Icons.close,
               onPressed: canClear ? onClear : null,
@@ -76,22 +70,21 @@ class _SearchToolbar extends StatelessWidget {
             AleraIconButton(
               tooltip: state.viewAsTree ? 'View as list' : 'View as tree',
               icon: state.viewAsTree
-                  ? Icons.account_tree
+                  ? Icons.format_list_bulleted
                   : Icons.account_tree_outlined,
               onPressed: onToggleViewAsTree,
-              iconColor: state.viewAsTree
-                  ? AleraTokens.foreground
-                  : AleraTokens.foregroundMuted,
-              backgroundColor: state.viewAsTree
-                  ? AleraTokens.surfaceElevated
-                  : null,
-              borderColor: state.viewAsTree ? AleraTokens.border : null,
             ),
             const SizedBox(width: AleraTokens.space2),
             AleraIconButton(
               tooltip: allResultsCollapsed ? 'Expand all' : 'Collapse all',
               icon: allResultsCollapsed ? Icons.unfold_more : Icons.unfold_less,
               onPressed: hasResults ? onToggleAllResultsCollapsed : null,
+            ),
+            const SizedBox(width: AleraTokens.space2),
+            AleraIconButton(
+              tooltip: 'Refresh',
+              icon: state.loading ? Icons.hourglass_empty : Icons.refresh,
+              onPressed: state.hasQuery && !state.loading ? onRefresh : null,
             ),
           ],
         ),

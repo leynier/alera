@@ -6,6 +6,34 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets('search toolbar keeps refresh rightmost and toggles view icon', (
+    tester,
+  ) async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    await _pumpSearchPanel(
+      tester,
+      container: container,
+      workspace: _workspace(id: 'workspace-a', path: '/workspace-a'),
+    );
+
+    expect(find.byTooltip('View as tree'), findsOneWidget);
+    expect(find.byIcon(Icons.account_tree_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.format_list_bulleted), findsNothing);
+    expect(
+      tester.getCenter(find.byTooltip('Refresh')).dx,
+      greaterThan(tester.getCenter(find.byTooltip('Collapse all')).dx),
+    );
+
+    await tester.tap(find.byTooltip('View as tree'));
+    await tester.pump();
+
+    expect(find.byTooltip('View as list'), findsOneWidget);
+    expect(find.byIcon(Icons.account_tree_outlined), findsNothing);
+    expect(find.byIcon(Icons.format_list_bulleted), findsOneWidget);
+  });
+
   testWidgets('toggles search ignored files action in toolbar', (tester) async {
     final container = ProviderContainer();
     addTearDown(container.dispose);

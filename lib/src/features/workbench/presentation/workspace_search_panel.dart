@@ -155,7 +155,6 @@ class _WorkspaceSearchPanelState extends ConsumerState<WorkspaceSearchPanel> {
             ],
           ),
         ),
-        const Divider(height: 1, color: AleraTokens.borderSubtle),
         _SearchSummary(state: state),
         if (state.error case final error?)
           Padding(
@@ -172,6 +171,7 @@ class _WorkspaceSearchPanelState extends ConsumerState<WorkspaceSearchPanel> {
               ).textTheme.bodySmall?.copyWith(color: AleraTokens.error),
             ),
           ),
+        const Divider(height: 1, color: AleraTokens.borderSubtle),
         Expanded(
           child: rows.items.isEmpty
               ? _SearchEmptyState(state: state)
