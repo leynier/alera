@@ -212,12 +212,18 @@ fn git_status_lists_conflicted_files_as_unstaged_changes() {
     run_git(repo.path(), &["add", "README.md"]);
     run_git(repo.path(), &["commit", "-m", "main change"]);
 
-    let merge = std::process::Command::new("git")
-        .args(["merge", "feature"])
-        .current_dir(repo.path())
+    let merge = git_command(repo.path(), &["merge", "feature"])
         .status()
         .expect("git merge runs");
     assert!(!merge.success());
+    let unmerged = git_command(repo.path(), &["diff", "--name-only", "--diff-filter=U"])
+        .output()
+        .expect("git diff unmerged runs");
+    assert!(unmerged.status.success());
+    assert_eq!(
+        String::from_utf8_lossy(&unmerged.stdout).trim(),
+        "README.md"
+    );
 
     let status = git_status(path_str(repo.path())).unwrap();
     assert!(status.entries.iter().any(|entry| {

@@ -6,16 +6,20 @@ use std::process::Command;
 mod git_diff_edge_tests;
 
 fn run_git(dir: &Path, args: &[&str]) {
-    let status = Command::new("git")
+    let status = git_command(dir, args).status().expect("git command runs");
+    assert!(status.success(), "git {:?} failed", args);
+}
+
+fn git_command(dir: &Path, args: &[&str]) -> Command {
+    let mut command = Command::new("git");
+    command
         .args(args)
         .current_dir(dir)
         .env("GIT_AUTHOR_NAME", "Test")
         .env("GIT_AUTHOR_EMAIL", "test@example.com")
         .env("GIT_COMMITTER_NAME", "Test")
-        .env("GIT_COMMITTER_EMAIL", "test@example.com")
-        .status()
-        .expect("git command runs");
-    assert!(status.success(), "git {:?} failed", args);
+        .env("GIT_COMMITTER_EMAIL", "test@example.com");
+    command
 }
 
 fn init_repo() -> tempfile::TempDir {
