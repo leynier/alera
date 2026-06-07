@@ -5,6 +5,7 @@ class _EditorFileBar extends StatelessWidget {
     required this.path,
     required this.dirty,
     required this.saving,
+    required this.onViewDiff,
     required this.onSave,
     required this.onDiscard,
   });
@@ -12,6 +13,7 @@ class _EditorFileBar extends StatelessWidget {
   final String path;
   final bool dirty;
   final bool saving;
+  final VoidCallback? onViewDiff;
   final VoidCallback? onSave;
   final VoidCallback? onDiscard;
 
@@ -44,6 +46,13 @@ class _EditorFileBar extends StatelessWidget {
               ),
             ),
             const SizedBox(width: AleraTokens.space8),
+            AleraIconButton(
+              tooltip: 'View diff',
+              icon: Icons.difference_outlined,
+              onPressed: onViewDiff,
+              iconColor: color,
+            ),
+            const SizedBox(width: AleraTokens.space2),
             AleraIconButton(
               tooltip: saving ? 'Saving file' : 'Save file',
               icon: saving ? Icons.hourglass_empty : Icons.save_outlined,
