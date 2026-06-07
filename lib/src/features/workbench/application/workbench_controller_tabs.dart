@@ -58,6 +58,45 @@ mixin _WorkbenchControllerTabs
     }
   }
 
+  Future<WorkspaceTabRecord> openGitDiffTab({
+    required Workspace workspace,
+    String? relativePath,
+    GitChangeArea? area,
+    required WorkspaceGitDiffScope scope,
+    String? targetGroupId,
+  }) async {
+    try {
+      final previousTabs = state.tabsFor(workspace.id);
+      final layout = _layoutForMutation(workspace.id, previousTabs);
+      final tab = await _workspaceTabService.openOrCreateGitDiffTab(
+        workspaceId: workspace.id,
+        relativePath: relativePath,
+        area: area,
+        scope: scope,
+      );
+      final alreadyOpen = previousTabs.any(
+        (candidate) => candidate.id == tab.id,
+      );
+      final tabs = alreadyOpen
+          ? previousTabs
+          : <WorkspaceTabRecord>[...previousTabs, tab];
+      _setTabsForWorkspace(workspace.id, tabs);
+      final groupId = targetGroupId ?? layout.activeGroupId;
+      final nextLayout = alreadyOpen
+          ? layout.setActiveTab(
+              groupId: layout.groupIdForTab(tab.id) ?? groupId,
+              tabId: tab.id,
+            )
+          : layout.addTabToGroup(groupId: groupId, tabId: tab.id);
+      await _applyLayout(nextLayout.sanitize(tabs), persist: true);
+      state = state.copyWith(error: null);
+      return tab;
+    } catch (error) {
+      state = state.copyWith(error: error.toString());
+      rethrow;
+    }
+  }
+
   Future<void> closeWorkspaceTab({
     required Workspace workspace,
     required String tabId,
