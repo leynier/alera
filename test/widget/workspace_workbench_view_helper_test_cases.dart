@@ -206,8 +206,15 @@ void _registerWorkspaceWorkbenchViewHelperTests() {
         kind: WorkspaceTabKind.editor,
         filePath: 'assets/icon.svg',
       );
+      final icoTab = _tab(
+        'tab-4',
+        title: 'app.ico',
+        kind: WorkspaceTabKind.editor,
+        filePath: 'assets/app.ico',
+      );
 
       expect(workspaceTabUsesImagePreviewForTesting(imageTab), isTrue);
+      expect(workspaceTabUsesImagePreviewForTesting(icoTab), isTrue);
       expect(workspaceTabUsesImagePreviewForTesting(textTab), isFalse);
       expect(workspaceTabUsesImagePreviewForTesting(svgTab), isFalse);
     });

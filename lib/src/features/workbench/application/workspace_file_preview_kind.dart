@@ -9,6 +9,7 @@ const Set<String> workspaceImageFileExtensions = <String>{
   '.gif',
   '.webp',
   '.bmp',
+  '.ico',
 };
 
 WorkspaceFilePreviewKind workspaceFilePreviewKindForPath(String filePath) {
@@ -20,3 +21,6 @@ WorkspaceFilePreviewKind workspaceFilePreviewKindForPath(String filePath) {
 
 bool isWorkspaceImageFilePath(String filePath) =>
     workspaceFilePreviewKindForPath(filePath) == WorkspaceFilePreviewKind.image;
+
+bool isWorkspaceIcoFilePath(String filePath) =>
+    p.extension(filePath).toLowerCase() == '.ico';

@@ -12,6 +12,10 @@ void main() {
         workspaceFilePreviewKindForPath('docs/screenshots/app.jpeg'),
         WorkspaceFilePreviewKind.image,
       );
+      expect(
+        workspaceFilePreviewKindForPath('windows/app-icon.ico'),
+        WorkspaceFilePreviewKind.image,
+      );
     });
 
     test('keeps non-image extensions as text', () {

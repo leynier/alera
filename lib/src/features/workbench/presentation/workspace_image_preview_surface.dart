@@ -4,13 +4,16 @@ import 'dart:io';
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/icons/alera_file_icon.dart';
+import 'package:alera/src/features/workbench/application/workspace_file_preview_kind.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_editor_surface.dart';
 import 'package:alera/src/rust/api/workspace_files.dart' as native;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image/image.dart' as image_lib;
 
 class WorkspaceImagePreviewSurface extends ConsumerStatefulWidget {
   const WorkspaceImagePreviewSurface({
@@ -33,7 +36,7 @@ class _WorkspaceImagePreviewSurfaceState
     extends ConsumerState<WorkspaceImagePreviewSurface> {
   late final WorkspaceFileService _workspaceFiles;
   late final FocusNode _focusNode;
-  ResolvedWorkspaceFile? _resolvedFile;
+  _ResolvedPreviewImage? _resolvedImage;
   Object? _loadError;
   bool _loading = true;
   int _loadGeneration = 0;
@@ -83,8 +86,8 @@ class _WorkspaceImagePreviewSurfaceState
       content = const Center(child: CircularProgressIndicator());
     } else if (_loadError case final error?) {
       content = _ImagePreviewMessage(message: _messageFor(error));
-    } else if (_resolvedFile case final resolvedFile?) {
-      content = _ImagePreviewCanvas(file: resolvedFile);
+    } else if (_resolvedImage case final resolvedImage?) {
+      content = _ImagePreviewCanvas(resolvedImage: resolvedImage);
     } else {
       content = const _ImagePreviewMessage(message: 'Image cannot be opened');
     }
@@ -122,7 +125,7 @@ class _WorkspaceImagePreviewSurfaceState
     final filePath = widget.tab.filePath;
     if (filePath == null) {
       setState(() {
-        _resolvedFile = null;
+        _resolvedImage = null;
         _loadError = null;
         _loading = false;
       });
@@ -130,7 +133,7 @@ class _WorkspaceImagePreviewSurfaceState
     }
     final requestedFilePath = filePath;
     setState(() {
-      _resolvedFile = null;
+      _resolvedImage = null;
       _loadError = null;
       _loading = true;
     });
@@ -146,7 +149,18 @@ class _WorkspaceImagePreviewSurfaceState
       )) {
         return;
       }
-      await _evictImageProvider(resolvedFile);
+      final resolvedImage = await _resolvePreviewImage(
+        file: resolvedFile,
+        openedPath: requestedFilePath,
+      );
+      if (!_isCurrentLoad(
+        generation,
+        requestedWorkspacePath,
+        requestedFilePath,
+      )) {
+        return;
+      }
+      await resolvedImage.provider.evict();
       if (!_isCurrentLoad(
         generation,
         requestedWorkspacePath,
@@ -155,7 +169,7 @@ class _WorkspaceImagePreviewSurfaceState
         return;
       }
       setState(() {
-        _resolvedFile = resolvedFile;
+        _resolvedImage = resolvedImage;
         _loading = false;
       });
     } catch (error) {
@@ -167,14 +181,29 @@ class _WorkspaceImagePreviewSurfaceState
         return;
       }
       setState(() {
+        _resolvedImage = null;
         _loadError = error;
         _loading = false;
       });
     }
   }
 
-  Future<void> _evictImageProvider(ResolvedWorkspaceFile file) {
-    return FileImage(File(file.path)).evict();
+  Future<_ResolvedPreviewImage> _resolvePreviewImage({
+    required ResolvedWorkspaceFile file,
+    required String openedPath,
+  }) async {
+    if (workspaceImagePreviewUsesIcoDecoderForTesting(openedPath)) {
+      final bytes = await File(file.path).readAsBytes();
+      final pngBytes = await compute(
+        workspaceImagePreviewDecodeIcoToPngBytesForTesting,
+        bytes,
+      );
+      return _ResolvedPreviewImage(file: file, provider: MemoryImage(pngBytes));
+    }
+    return _ResolvedPreviewImage(
+      file: file,
+      provider: FileImage(File(file.path)),
+    );
   }
 
   bool _isCurrentLoad(int generation, String workspacePath, String filePath) {
@@ -237,13 +266,12 @@ class _ImagePreviewFileBar extends StatelessWidget {
 }
 
 class _ImagePreviewCanvas extends StatelessWidget {
-  const _ImagePreviewCanvas({required this.file});
+  const _ImagePreviewCanvas({required this.resolvedImage});
 
-  final ResolvedWorkspaceFile file;
+  final _ResolvedPreviewImage resolvedImage;
 
   @override
   Widget build(BuildContext context) {
-    final provider = FileImage(File(file.path));
     return ClipRect(
       child: InteractiveViewer(
         minScale: 0.25,
@@ -252,12 +280,18 @@ class _ImagePreviewCanvas extends StatelessWidget {
         child: Center(
           child: Padding(
             padding: const EdgeInsets.all(AleraTokens.space24),
-            child: Image(
-              key: workspaceImagePreviewCacheKeyForTesting(file),
-              image: provider,
-              fit: BoxFit.contain,
-              errorBuilder: (_, _, _) =>
-                  const _ImagePreviewMessage(message: 'Image cannot be opened'),
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: Image(
+                key: workspaceImagePreviewCacheKeyForTesting(
+                  resolvedImage.file,
+                ),
+                image: resolvedImage.provider,
+                fit: BoxFit.contain,
+                errorBuilder: (_, _, _) => const _ImagePreviewMessage(
+                  message: 'Image cannot be opened',
+                ),
+              ),
             ),
           ),
         ),
@@ -269,6 +303,49 @@ class _ImagePreviewCanvas extends StatelessWidget {
 @visibleForTesting
 Key workspaceImagePreviewCacheKeyForTesting(ResolvedWorkspaceFile file) {
   return ValueKey<String>('${file.path}:${file.modifiedMicros}:${file.length}');
+}
+
+@visibleForTesting
+bool workspaceImagePreviewUsesIcoDecoderForTesting(String openedPath) {
+  return isWorkspaceIcoFilePath(openedPath);
+}
+
+class _ResolvedPreviewImage {
+  const _ResolvedPreviewImage({required this.file, required this.provider});
+
+  final ResolvedWorkspaceFile file;
+  final ImageProvider<Object> provider;
+}
+
+@visibleForTesting
+Uint8List workspaceImagePreviewDecodeIcoToPngBytesForTesting(Uint8List bytes) {
+  final image = _decodeLargestIcoFrame(bytes) ?? image_lib.decodeImage(bytes);
+  if (image == null) {
+    throw const FormatException('ICO image cannot be decoded');
+  }
+  return image_lib.encodePng(image);
+}
+
+image_lib.Image? _decodeLargestIcoFrame(Uint8List bytes) {
+  final decoder = image_lib.IcoDecoder();
+  final info = decoder.startDecode(bytes);
+  if (info is! image_lib.IcoInfo || info.images.isEmpty) {
+    return null;
+  }
+
+  var largestFrame = 0;
+  var largestArea = 0;
+  for (var index = 0; index < info.images.length; index += 1) {
+    final image = info.images[index];
+    final width = image.width == 0 ? 256 : image.width;
+    final height = image.height == 0 ? 256 : image.height;
+    final area = width * height;
+    if (area > largestArea) {
+      largestArea = area;
+      largestFrame = index;
+    }
+  }
+  return decoder.decodeFrame(largestFrame);
 }
 
 class _ImagePreviewMessage extends StatelessWidget {
