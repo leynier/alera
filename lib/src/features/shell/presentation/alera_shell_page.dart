@@ -189,7 +189,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                       }());
                     },
                     onPathMoved: (oldRelativePath, newRelativePath) async {
-                      await controller.syncEditorTabsAfterPathMove(
+                      await controller.syncFileTabsAfterPathMove(
                         workspace: workspace,
                         oldRelativePath: oldRelativePath,
                         newRelativePath: newRelativePath,
@@ -241,6 +241,20 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
         terminalRuntime
             .sessionFor(workspace: workspace, tab: tab)
             .requestFocus();
+      },
+      onOpenEditorTab: ({required relativePath, targetGroupId}) async {
+        await controller.openEditorTab(
+          workspace: workspace,
+          relativePath: relativePath,
+          targetGroupId: targetGroupId,
+        );
+      },
+      onOpenMarkdownViewerTab: ({required relativePath, targetGroupId}) async {
+        await controller.openMarkdownViewerTab(
+          workspace: workspace,
+          relativePath: relativePath,
+          targetGroupId: targetGroupId,
+        );
       },
       onSelectTab: ({required groupId, required tabId}) {
         controller.setActiveWorkspaceTab(

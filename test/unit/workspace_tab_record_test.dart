@@ -20,7 +20,7 @@ void main() {
     final record = WorkspaceTabRecord(
       id: 'tab-1',
       workspaceId: 'workspace-1',
-      kind: WorkspaceTabKind.browser,
+      kind: WorkspaceTabKind.markdownViewer,
       title: 'Docs',
       createdAt: DateTime.utc(2026, 5, 25),
       updatedAt: DateTime.utc(2026, 5, 25, 1),
@@ -36,6 +36,12 @@ void main() {
 
     expect(restored, record);
     expect(restored.hasManualTitle, isTrue);
+  });
+
+  test('detects markdown file paths case-insensitively', () {
+    expect(isWorkspaceMarkdownFilePath('readme.md'), isTrue);
+    expect(isWorkspaceMarkdownFilePath('README.MD'), isTrue);
+    expect(isWorkspaceMarkdownFilePath('readme.markdown'), isFalse);
   });
 
   test('terminalSessionId uses payload value with tab id fallback', () {

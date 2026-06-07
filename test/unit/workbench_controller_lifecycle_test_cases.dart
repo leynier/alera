@@ -150,6 +150,67 @@ void _registerWorkbenchControllerLifecycleTests() {
     expect(_controller.state.layoutFor(workspace.id)?.activeTabId, firstTab.id);
   });
 
+  test('opens markdown viewer tabs in the active group', () async {
+    await _controller.bootstrap();
+    final workspace = await _selectMainWorkspace(_controller, _harness);
+    final layout = _controller.state.layoutFor(workspace.id)!;
+
+    final tab = await _controller.openMarkdownViewerTab(
+      workspace: workspace,
+      relativePath: 'docs/readme.md',
+      targetGroupId: layout.activeGroupId,
+    );
+    await _flush();
+
+    expect(tab.kind, WorkspaceTabKind.markdownViewer);
+    expect(tab.filePath, 'docs/readme.md');
+    expect(_controller.state.activeWorkspaceTab?.id, tab.id);
+    expect(
+      _controller.state.layoutFor(workspace.id)?.groupIdForTab(tab.id),
+      layout.activeGroupId,
+    );
+  });
+
+  test('path sync closes markdown viewer tabs renamed away from md', () async {
+    await _controller.bootstrap();
+    final workspace = await _selectMainWorkspace(_controller, _harness);
+
+    final editorTab = await _controller.openEditorTab(
+      workspace: workspace,
+      relativePath: 'docs/readme.md',
+    );
+    final previewTab = await _controller.openMarkdownViewerTab(
+      workspace: workspace,
+      relativePath: 'docs/readme.md',
+    );
+    await _flush();
+
+    expect(_controller.state.activeWorkspaceTab?.id, previewTab.id);
+
+    await _controller.syncFileTabsAfterPathMove(
+      workspace: workspace,
+      oldRelativePath: 'docs/readme.md',
+      newRelativePath: 'docs/readme.txt',
+    );
+    await _flush();
+
+    final tabs = _controller.state.tabsFor(workspace.id);
+    expect(tabs.map((tab) => tab.id), isNot(contains(previewTab.id)));
+    expect(
+      tabs.singleWhere((tab) => tab.id == editorTab.id).filePath,
+      'docs/readme.txt',
+    );
+    expect(
+      _controller.state.layoutFor(workspace.id)?.groupIdForTab(previewTab.id),
+      isNull,
+    );
+    expect(_controller.state.activeWorkspaceTab?.id, isNot(previewTab.id));
+    final persistedTabs = await _harness.workbenchRepository.listWorkspaceTabs(
+      workspace.id,
+    );
+    expect(persistedTabs.map((tab) => tab.id), isNot(contains(previewTab.id)));
+  });
+
   test('renames project, workspace, and terminal tab in state', () async {
     await _controller.bootstrap();
     await _flushUntil(

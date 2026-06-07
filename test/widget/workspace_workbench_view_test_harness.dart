@@ -38,6 +38,20 @@ Future<void> _pumpWorkbenchView(
               onCreateTab: ({String? targetGroupId}) async {
                 createdTabs.add(targetGroupId);
               },
+              onOpenEditorTab: ({required relativePath, targetGroupId}) async {
+                selectedTabs.add(
+                  _SelectedTabAction(targetGroupId ?? 'group-a', relativePath),
+                );
+              },
+              onOpenMarkdownViewerTab:
+                  ({required relativePath, targetGroupId}) async {
+                    selectedTabs.add(
+                      _SelectedTabAction(
+                        targetGroupId ?? 'group-a',
+                        relativePath,
+                      ),
+                    );
+                  },
               onSelectTab: ({required String groupId, required String tabId}) {
                 selectedTabs.add(_SelectedTabAction(groupId, tabId));
               },
