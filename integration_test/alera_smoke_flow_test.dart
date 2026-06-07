@@ -191,6 +191,47 @@ class _E2eGitBackend implements GitBackend {
     required String path,
     String? filePath,
   }) async => const GitDiffResult(files: <GitDiffFile>[]);
+
+  @override
+  Future<GitRepositoryState> repositoryState(String path) async =>
+      const GitRepositoryState(branch: 'HEAD');
+
+  @override
+  Future<void> stage({required String path, String? filePath}) async {}
+
+  @override
+  Future<void> unstage({required String path, String? filePath}) async {}
+
+  @override
+  Future<void> discard({required String path, String? filePath}) async {}
+
+  @override
+  Future<String> commit({
+    required String path,
+    required String message,
+  }) async => 'e2e';
+
+  @override
+  Future<void> fetch(String path) async {}
+
+  @override
+  Future<void> pull(String path) async {}
+
+  @override
+  Future<void> push(String path) async {}
+
+  @override
+  Future<List<GitStashEntry>> listStashes(String path) async =>
+      const <GitStashEntry>[];
+
+  @override
+  Future<void> stash(String path) async {}
+
+  @override
+  Future<void> stashPop({
+    required String path,
+    required int stashIndex,
+  }) async {}
 }
 
 class _E2eTerminalRuntime implements TerminalRuntime {

@@ -1,10 +1,21 @@
 part of 'workspace_git_diff_panel.dart';
 
 class _GitDiffTree extends StatefulWidget {
-  const _GitDiffTree({required this.rows, required this.onOpenGitDiff});
+  const _GitDiffTree({
+    required this.rows,
+    required this.busy,
+    required this.onOpenGitDiff,
+    required this.onStage,
+    required this.onUnstage,
+    required this.onDiscard,
+  });
 
   final List<GitChangeTreeRow> rows;
+  final bool busy;
   final OpenGitDiffTabCallback onOpenGitDiff;
+  final ValueChanged<GitChangeEntry> onStage;
+  final ValueChanged<GitChangeEntry> onUnstage;
+  final ValueChanged<GitChangeEntry> onDiscard;
 
   @override
   State<_GitDiffTree> createState() => _GitDiffTreeState();
@@ -45,6 +56,10 @@ class _GitDiffTreeState extends State<_GitDiffTree> {
       return _GitDiffFileRow(
         entry: entry,
         depth: row.depth,
+        busy: widget.busy,
+        onStage: widget.onStage,
+        onUnstage: widget.onUnstage,
+        onDiscard: widget.onDiscard,
         onTap: () => unawaited(
           widget.onOpenGitDiff(
             relativePath: entry.path,
@@ -131,12 +146,20 @@ class _GitDiffFileRow extends StatelessWidget {
     required this.entry,
     required this.depth,
     required this.onTap,
+    required this.busy,
+    required this.onStage,
+    required this.onUnstage,
+    required this.onDiscard,
     this.showRelativePath = false,
   });
 
   final GitChangeEntry entry;
   final int depth;
   final VoidCallback onTap;
+  final bool busy;
+  final ValueChanged<GitChangeEntry> onStage;
+  final ValueChanged<GitChangeEntry> onUnstage;
+  final ValueChanged<GitChangeEntry> onDiscard;
   final bool showRelativePath;
 
   @override
@@ -166,6 +189,60 @@ class _GitDiffFileRow extends StatelessWidget {
           _GitStatusLabel(status: entry.status),
           const SizedBox(width: AleraTokens.space6),
           _LineStats(added: entry.added, removed: entry.removed),
+          const SizedBox(width: AleraTokens.space4),
+          _GitFileActions(
+            entry: entry,
+            busy: busy,
+            onStage: onStage,
+            onUnstage: onUnstage,
+            onDiscard: onDiscard,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GitFileActions extends StatelessWidget {
+  const _GitFileActions({
+    required this.entry,
+    required this.busy,
+    required this.onStage,
+    required this.onUnstage,
+    required this.onDiscard,
+  });
+
+  final GitChangeEntry entry;
+  final bool busy;
+  final ValueChanged<GitChangeEntry> onStage;
+  final ValueChanged<GitChangeEntry> onUnstage;
+  final ValueChanged<GitChangeEntry> onDiscard;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 58,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: <Widget>[
+          if (entry.area == GitChangeArea.staged)
+            AleraIconButton(
+              tooltip: 'Unstage',
+              icon: Icons.remove,
+              onPressed: busy ? null : () => onUnstage(entry),
+            )
+          else
+            AleraIconButton(
+              tooltip: 'Stage',
+              icon: Icons.add,
+              onPressed: busy ? null : () => onStage(entry),
+            ),
+          if (entry.area != GitChangeArea.staged)
+            AleraIconButton(
+              tooltip: 'Discard',
+              icon: Icons.close,
+              onPressed: busy ? null : () => onDiscard(entry),
+            ),
         ],
       ),
     );

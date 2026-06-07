@@ -118,6 +118,65 @@ class RustGitBackend implements GitBackend {
         return _toDiffResult(result);
       });
 
+  @override
+  Future<GitRepositoryState> repositoryState(String path) => _guard(() async {
+    final state = await rust.gitRepositoryState(path: path);
+    return GitRepositoryState(
+      branch: state.branch,
+      upstream: state.upstream,
+      ahead: state.ahead,
+      behind: state.behind,
+      hasConflicts: state.hasConflicts,
+    );
+  });
+
+  @override
+  Future<void> stage({required String path, String? filePath}) =>
+      _guard(() => rust.gitStage(path: path, filePath: filePath));
+
+  @override
+  Future<void> unstage({required String path, String? filePath}) =>
+      _guard(() => rust.gitUnstage(path: path, filePath: filePath));
+
+  @override
+  Future<void> discard({required String path, String? filePath}) =>
+      _guard(() => rust.gitDiscard(path: path, filePath: filePath));
+
+  @override
+  Future<String> commit({required String path, required String message}) =>
+      _guard(() => rust.gitCommit(path: path, message: message));
+
+  @override
+  Future<void> fetch(String path) => _guard(() => rust.gitFetch(path: path));
+
+  @override
+  Future<void> pull(String path) => _guard(() => rust.gitPull(path: path));
+
+  @override
+  Future<void> push(String path) => _guard(() => rust.gitPush(path: path));
+
+  @override
+  Future<List<GitStashEntry>> listStashes(String path) => _guard(() async {
+    final entries = await rust.gitListStashes(path: path);
+    return entries
+        .map(
+          (entry) => GitStashEntry(
+            index: entry.index,
+            reference: entry.reference,
+            message: entry.message,
+            oid: entry.oid,
+          ),
+        )
+        .toList(growable: false);
+  });
+
+  @override
+  Future<void> stash(String path) => _guard(() => rust.gitStash(path: path));
+
+  @override
+  Future<void> stashPop({required String path, required int stashIndex}) =>
+      _guard(() => rust.gitStashPop(path: path, stashIndex: stashIndex));
+
   Future<T> _guard<T>(Future<T> Function() body) async {
     try {
       return await body();
@@ -144,6 +203,13 @@ class RustGitBackend implements GitBackend {
       rust.GitErrorKind.worktreeNotFound => WorktreeNotFoundException(context),
       rust.GitErrorKind.cloneFailed => CloneFailedException(context),
       rust.GitErrorKind.gitCli => GitCliException(context),
+      rust.GitErrorKind.detachedHead => DetachedHeadException(context),
+      rust.GitErrorKind.noUpstream => NoUpstreamException(context),
+      rust.GitErrorKind.remoteNotFound => RemoteNotFoundException(context),
+      rust.GitErrorKind.nothingToCommit => NothingToCommitException(context),
+      rust.GitErrorKind.workspaceScope => WorkspaceScopeException(context),
+      rust.GitErrorKind.missingIdentity => MissingIdentityException(context),
+      rust.GitErrorKind.conflict => GitConflictException(context),
       rust.GitErrorKind.internal => GitInternalException(context),
     };
   }

@@ -57,6 +57,41 @@ class GitCliException extends GitException {
   const GitCliException(super.context);
 }
 
+/// The current checkout is detached and the requested operation needs a branch.
+class DetachedHeadException extends GitException {
+  const DetachedHeadException(super.context);
+}
+
+/// The current branch does not have an upstream configured.
+class NoUpstreamException extends GitException {
+  const NoUpstreamException(super.context);
+}
+
+/// The requested remote does not exist.
+class RemoteNotFoundException extends GitException {
+  const RemoteNotFoundException(super.context);
+}
+
+/// There is nothing staged or stashed for the requested operation.
+class NothingToCommitException extends GitException {
+  const NothingToCommitException(super.context);
+}
+
+/// The requested workspace-scoped operation would affect hidden repo changes.
+class WorkspaceScopeException extends GitException {
+  const WorkspaceScopeException(super.context);
+}
+
+/// Git user.name or user.email is missing for commit authoring.
+class MissingIdentityException extends GitException {
+  const MissingIdentityException(super.context);
+}
+
+/// The repository has unresolved merge conflicts.
+class GitConflictException extends GitException {
+  const GitConflictException(super.context);
+}
+
 /// An unclassified libgit2 failure.
 class GitInternalException extends GitException {
   const GitInternalException(super.context);

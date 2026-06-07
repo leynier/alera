@@ -74,6 +74,22 @@ class FakeGitBackend implements GitBackend {
   GitStatusResult gitStatusResult = const GitStatusResult(entries: []);
   GitDiffResult gitDiffResult = const GitDiffResult(files: []);
   GitDiffResult gitDiffAllResult = const GitDiffResult(files: []);
+  GitRepositoryState gitRepositoryStateResult = const GitRepositoryState(
+    branch: 'main',
+  );
+  List<GitStashEntry> gitStashEntries = const <GitStashEntry>[];
+  String gitCommitOid = 'abc123';
+
+  GitException? statusError;
+  GitException? stageError;
+  GitException? unstageError;
+  GitException? discardError;
+  GitException? commitError;
+  GitException? fetchError;
+  GitException? pullError;
+  GitException? pushError;
+  GitException? stashError;
+  GitException? stashPopError;
 
   @override
   Future<bool> isGitRepository(String path) async {
@@ -217,6 +233,10 @@ class FakeGitBackend implements GitBackend {
   @override
   Future<GitStatusResult> status(String path) async {
     calls.add(GitBackendCall('status', <String, Object?>{'path': path}));
+    final error = statusError;
+    if (error != null) {
+      throw error;
+    }
     return gitStatusResult;
   }
 
@@ -267,5 +287,126 @@ class FakeGitBackend implements GitBackend {
       }),
     );
     return gitDiffAllResult;
+  }
+
+  @override
+  Future<GitRepositoryState> repositoryState(String path) async {
+    calls.add(
+      GitBackendCall('repositoryState', <String, Object?>{'path': path}),
+    );
+    return gitRepositoryStateResult;
+  }
+
+  @override
+  Future<void> stage({required String path, String? filePath}) async {
+    calls.add(
+      GitBackendCall('stage', <String, Object?>{
+        'path': path,
+        'filePath': filePath,
+      }),
+    );
+    final error = stageError;
+    if (error != null) {
+      throw error;
+    }
+  }
+
+  @override
+  Future<void> unstage({required String path, String? filePath}) async {
+    calls.add(
+      GitBackendCall('unstage', <String, Object?>{
+        'path': path,
+        'filePath': filePath,
+      }),
+    );
+    final error = unstageError;
+    if (error != null) {
+      throw error;
+    }
+  }
+
+  @override
+  Future<void> discard({required String path, String? filePath}) async {
+    calls.add(
+      GitBackendCall('discard', <String, Object?>{
+        'path': path,
+        'filePath': filePath,
+      }),
+    );
+    final error = discardError;
+    if (error != null) {
+      throw error;
+    }
+  }
+
+  @override
+  Future<String> commit({required String path, required String message}) async {
+    calls.add(
+      GitBackendCall('commit', <String, Object?>{
+        'path': path,
+        'message': message,
+      }),
+    );
+    final error = commitError;
+    if (error != null) {
+      throw error;
+    }
+    return gitCommitOid;
+  }
+
+  @override
+  Future<void> fetch(String path) async {
+    calls.add(GitBackendCall('fetch', <String, Object?>{'path': path}));
+    final error = fetchError;
+    if (error != null) {
+      throw error;
+    }
+  }
+
+  @override
+  Future<void> pull(String path) async {
+    calls.add(GitBackendCall('pull', <String, Object?>{'path': path}));
+    final error = pullError;
+    if (error != null) {
+      throw error;
+    }
+  }
+
+  @override
+  Future<void> push(String path) async {
+    calls.add(GitBackendCall('push', <String, Object?>{'path': path}));
+    final error = pushError;
+    if (error != null) {
+      throw error;
+    }
+  }
+
+  @override
+  Future<List<GitStashEntry>> listStashes(String path) async {
+    calls.add(GitBackendCall('listStashes', <String, Object?>{'path': path}));
+    return gitStashEntries;
+  }
+
+  @override
+  Future<void> stash(String path) async {
+    calls.add(GitBackendCall('stash', <String, Object?>{'path': path}));
+    final error = stashError;
+    if (error != null) {
+      throw error;
+    }
+  }
+
+  @override
+  Future<void> stashPop({required String path, required int stashIndex}) async {
+    calls.add(
+      GitBackendCall('stashPop', <String, Object?>{
+        'path': path,
+        'stashIndex': stashIndex,
+      }),
+    );
+    final error = stashPopError;
+    if (error != null) {
+      throw error;
+    }
   }
 }

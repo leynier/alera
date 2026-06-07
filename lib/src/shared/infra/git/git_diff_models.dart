@@ -40,6 +40,38 @@ class GitStatusResult {
   }
 }
 
+class GitRepositoryState {
+  const GitRepositoryState({
+    required this.branch,
+    this.upstream,
+    this.ahead = 0,
+    this.behind = 0,
+    this.hasConflicts = false,
+  });
+
+  final String branch;
+  final String? upstream;
+  final int ahead;
+  final int behind;
+  final bool hasConflicts;
+
+  bool get hasUpstream => upstream != null && upstream!.isNotEmpty;
+}
+
+class GitStashEntry {
+  const GitStashEntry({
+    required this.index,
+    required this.reference,
+    required this.message,
+    required this.oid,
+  });
+
+  final int index;
+  final String reference;
+  final String message;
+  final String oid;
+}
+
 class GitChangeGroup {
   const GitChangeGroup({
     required this.area,

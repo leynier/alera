@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `canonical`, `existing_worktree_admin_names`, `from_git2`, `has_configured_remote_for_tracking_branch`, `head_branch_name`, `is_path_occupied`, `new`, `open_repo`, `remote_tracking_upstream_name`, `split_clone_destination`, `unborn_branch_name`, `unique_worktree_admin_name`, `worktree_admin_name`
+// These functions are ignored because they are not marked as `pub`: `canonical`, `delete_workspace_relative_path`, `existing_worktree_admin_names`, `from_git2`, `from_io`, `git_cli_in_path`, `git_signature`, `has_configured_remote_for_tracking_branch`, `head_branch_name`, `is_path_occupied`, `new`, `open_repo`, `pathspec_string`, `reject_out_of_scope_staged_entries`, `reject_out_of_scope_stash_pop`, `reject_out_of_scope_tracked_changes`, `reject_tree_diff_out_of_scope`, `relative_path`, `remote_tracking_upstream_name`, `remove_index_path_if_present`, `repo_path_is_in_scope`, `repo_relative_path_from_workspace`, `repo_relative_path`, `repo_workdir_path_exists`, `repository_has_conflicts`, `scoped_pathspecs`, `split_clone_destination`, `stage_selected_path`, `stage_status_entries`, `stash_oid`, `unborn_branch_name`, `unique_worktree_admin_name`, `unstage_selected_path`, `unstage_status_entries`, `workspace_repo_relative_path`, `worktree_admin_name`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 Future<bool> isGitRepository({required String path}) =>
@@ -50,6 +50,42 @@ Future<GitDiffResult> gitDiff({
 
 Future<GitDiffResult> gitDiffAll({required String path, String? filePath}) =>
     RustLib.instance.api.crateApiGitGitDiffAll(path: path, filePath: filePath);
+
+Future<GitRepositoryState> gitRepositoryState({required String path}) =>
+    RustLib.instance.api.crateApiGitGitRepositoryState(path: path);
+
+Future<void> gitStage({required String path, String? filePath}) =>
+    RustLib.instance.api.crateApiGitGitStage(path: path, filePath: filePath);
+
+Future<void> gitUnstage({required String path, String? filePath}) =>
+    RustLib.instance.api.crateApiGitGitUnstage(path: path, filePath: filePath);
+
+Future<void> gitDiscard({required String path, String? filePath}) =>
+    RustLib.instance.api.crateApiGitGitDiscard(path: path, filePath: filePath);
+
+Future<String> gitCommit({required String path, required String message}) =>
+    RustLib.instance.api.crateApiGitGitCommit(path: path, message: message);
+
+Future<void> gitFetch({required String path}) =>
+    RustLib.instance.api.crateApiGitGitFetch(path: path);
+
+Future<void> gitPull({required String path}) =>
+    RustLib.instance.api.crateApiGitGitPull(path: path);
+
+Future<void> gitPush({required String path}) =>
+    RustLib.instance.api.crateApiGitGitPush(path: path);
+
+Future<List<GitStashEntry>> gitListStashes({required String path}) =>
+    RustLib.instance.api.crateApiGitGitListStashes(path: path);
+
+Future<void> gitStash({required String path}) =>
+    RustLib.instance.api.crateApiGitGitStash(path: path);
+
+Future<void> gitStashPop({required String path, required int stashIndex}) =>
+    RustLib.instance.api.crateApiGitGitStashPop(
+      path: path,
+      stashIndex: stashIndex,
+    );
 
 /// Creates `new_branch` from `source_branch` and adds a linked worktree at
 /// `path`. Mirrors `git worktree add -b <new_branch> <path> <source_branch>`.
@@ -346,7 +382,77 @@ enum GitErrorKind {
   worktreeNotFound,
   cloneFailed,
   gitCli,
+  detachedHead,
+  noUpstream,
+  remoteNotFound,
+  nothingToCommit,
+  conflict,
+  workspaceScope,
+  missingIdentity,
   internal,
+}
+
+class GitRepositoryState {
+  final String branch;
+  final String? upstream;
+  final int ahead;
+  final int behind;
+  final bool hasConflicts;
+
+  const GitRepositoryState({
+    required this.branch,
+    this.upstream,
+    required this.ahead,
+    required this.behind,
+    required this.hasConflicts,
+  });
+
+  @override
+  int get hashCode =>
+      branch.hashCode ^
+      upstream.hashCode ^
+      ahead.hashCode ^
+      behind.hashCode ^
+      hasConflicts.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GitRepositoryState &&
+          runtimeType == other.runtimeType &&
+          branch == other.branch &&
+          upstream == other.upstream &&
+          ahead == other.ahead &&
+          behind == other.behind &&
+          hasConflicts == other.hasConflicts;
+}
+
+class GitStashEntry {
+  final int index;
+  final String reference;
+  final String message;
+  final String oid;
+
+  const GitStashEntry({
+    required this.index,
+    required this.reference,
+    required this.message,
+    required this.oid,
+  });
+
+  @override
+  int get hashCode =>
+      index.hashCode ^ reference.hashCode ^ message.hashCode ^ oid.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GitStashEntry &&
+          runtimeType == other.runtimeType &&
+          index == other.index &&
+          reference == other.reference &&
+          message == other.message &&
+          oid == other.oid;
 }
 
 class GitStatusResult {

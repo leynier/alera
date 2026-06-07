@@ -120,6 +120,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   GitErrorKind dco_decode_git_error_kind(dynamic raw);
 
   @protected
+  GitRepositoryState dco_decode_git_repository_state(dynamic raw);
+
+  @protected
+  GitStashEntry dco_decode_git_stash_entry(dynamic raw);
+
+  @protected
   GitStatusResult dco_decode_git_status_result(dynamic raw);
 
   @protected
@@ -151,6 +157,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<GitDiffLine> dco_decode_list_git_diff_line(dynamic raw);
+
+  @protected
+  List<GitStashEntry> dco_decode_list_git_stash_entry(dynamic raw);
 
   @protected
   List<GitWorktreeEntry> dco_decode_list_git_worktree_entry(dynamic raw);
@@ -436,6 +445,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   GitErrorKind sse_decode_git_error_kind(SseDeserializer deserializer);
 
   @protected
+  GitRepositoryState sse_decode_git_repository_state(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  GitStashEntry sse_decode_git_stash_entry(SseDeserializer deserializer);
+
+  @protected
   GitStatusResult sse_decode_git_status_result(SseDeserializer deserializer);
 
   @protected
@@ -475,6 +492,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<GitDiffLine> sse_decode_list_git_diff_line(SseDeserializer deserializer);
+
+  @protected
+  List<GitStashEntry> sse_decode_list_git_stash_entry(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<GitWorktreeEntry> sse_decode_list_git_worktree_entry(
@@ -837,6 +859,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_git_error_kind(GitErrorKind self, SseSerializer serializer);
 
   @protected
+  void sse_encode_git_repository_state(
+    GitRepositoryState self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_git_stash_entry(GitStashEntry self, SseSerializer serializer);
+
+  @protected
   void sse_encode_git_status_result(
     GitStatusResult self,
     SseSerializer serializer,
@@ -890,6 +921,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_git_diff_line(
     List<GitDiffLine> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_git_stash_entry(
+    List<GitStashEntry> self,
     SseSerializer serializer,
   );
 
