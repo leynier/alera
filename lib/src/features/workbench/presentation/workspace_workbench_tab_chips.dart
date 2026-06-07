@@ -276,7 +276,11 @@ class _WorkspaceTabChip extends StatelessWidget {
                 const SizedBox(width: AleraTokens.space4),
                 ConstrainedBox(
                   constraints: BoxConstraints(
-                    maxWidth: tab.kind == WorkspaceTabKind.editor ? 180 : 92,
+                    maxWidth:
+                        tab.kind == WorkspaceTabKind.editor ||
+                            tab.kind == WorkspaceTabKind.pdf
+                        ? 180
+                        : 92,
                   ),
                   child: Text(
                     title,
@@ -334,6 +338,12 @@ class _WorkspaceTabLeadingIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     return switch (tab.kind) {
       WorkspaceTabKind.editor => AleraFileIcon(
+        pathOrName: tab.filePath ?? tab.title,
+        kind: AleraFileIconKind.file,
+        size: 12,
+        fallbackColor: color,
+      ),
+      WorkspaceTabKind.pdf => AleraFileIcon(
         pathOrName: tab.filePath ?? tab.title,
         kind: AleraFileIconKind.file,
         size: 12,

@@ -155,7 +155,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                     onSetExplorerMode: controller.setExplorerMode,
                     onOpenFile: (relativePath) {
                       unawaited(
-                        controller.openEditorTab(
+                        controller.openFileTab(
                           workspace: workspace,
                           relativePath: relativePath,
                         ),
