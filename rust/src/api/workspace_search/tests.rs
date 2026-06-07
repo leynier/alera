@@ -22,6 +22,7 @@ fn searches_literal_with_include_and_exclude() {
         use_regex: false,
         include_pattern: Some("*.dart".to_string()),
         exclude_pattern: Some("dist/**".to_string()),
+        include_ignored: false,
         max_results: None,
     })
     .unwrap();
@@ -43,6 +44,7 @@ fn previews_and_replaces_selected_match() {
         use_regex: false,
         include_pattern: None,
         exclude_pattern: None,
+        include_ignored: false,
         max_results: None,
     };
     let preview = preview_workspace_replace(WorkspaceReplaceOptions {
@@ -96,6 +98,7 @@ fn search_ignores_symlinked_files() {
         use_regex: false,
         include_pattern: None,
         exclude_pattern: None,
+        include_ignored: false,
         max_results: None,
     })
     .unwrap();
@@ -122,6 +125,7 @@ fn replace_all_does_not_write_symlinked_files() {
         use_regex: false,
         include_pattern: None,
         exclude_pattern: None,
+        include_ignored: false,
         max_results: None,
     };
 
@@ -153,6 +157,7 @@ fn replace_all_conflicts_on_files_missing_from_preview() {
         use_regex: false,
         include_pattern: Some("*.txt".to_string()),
         exclude_pattern: None,
+        include_ignored: false,
         max_results: None,
     };
     let preview = preview_workspace_replace(WorkspaceReplaceOptions {
@@ -212,6 +217,7 @@ fn replace_all_rejects_truncated_results_without_writing() {
         use_regex: false,
         include_pattern: None,
         exclude_pattern: None,
+        include_ignored: false,
         max_results: Some(1),
     };
     let preview = preview_workspace_replace(WorkspaceReplaceOptions {
@@ -264,6 +270,7 @@ fn selected_replace_reports_stale_missing_match_as_conflict() {
         use_regex: false,
         include_pattern: None,
         exclude_pattern: None,
+        include_ignored: false,
         max_results: None,
     };
     let preview = preview_workspace_replace(WorkspaceReplaceOptions {
@@ -307,6 +314,7 @@ fn selected_replace_reports_stale_missing_match_as_conflict() {
 #[test]
 fn protected_directories_are_pruned_before_walk() {
     let dir = tempdir().unwrap();
+    let nested_workspace = dir.path().join(".git/workspace");
 
     assert!(should_walk_entry(dir.path(), dir.path()));
     assert!(!should_walk_entry(dir.path(), &dir.path().join(".git")));
@@ -314,12 +322,22 @@ fn protected_directories_are_pruned_before_walk() {
         dir.path(),
         &dir.path().join(".git/objects")
     ));
+    assert!(should_walk_entry(&nested_workspace, &nested_workspace));
+    assert!(should_walk_entry(
+        &nested_workspace,
+        &nested_workspace.join("note.txt")
+    ));
+    assert!(!should_walk_entry(
+        &nested_workspace,
+        &nested_workspace.join("src/.git/config")
+    ));
 }
 
 #[test]
 fn preserve_case_leaves_caseless_matches_unchanged() {
     assert_eq!(preserve_case("123", "abc"), "abc");
     assert_eq!(preserve_case("ABC", "abc"), "ABC");
+    assert_eq!(preserve_case("Needle", "mixedCASE"), "Mixedcase");
 }
 
 #[test]
@@ -334,6 +352,7 @@ fn fixed_string_replacement_treats_dollar_as_literal() {
         use_regex: false,
         include_pattern: None,
         exclude_pattern: None,
+        include_ignored: false,
         max_results: None,
     };
     let preview = preview_workspace_replace(WorkspaceReplaceOptions {
@@ -380,6 +399,7 @@ fn regex_replacement_still_expands_captures() {
         use_regex: true,
         include_pattern: None,
         exclude_pattern: None,
+        include_ignored: false,
         max_results: None,
     };
     let preview = preview_workspace_replace(WorkspaceReplaceOptions {
@@ -408,6 +428,7 @@ fn whitespace_only_queries_are_searchable() {
         use_regex: false,
         include_pattern: None,
         exclude_pattern: None,
+        include_ignored: false,
         max_results: None,
     })
     .unwrap();
@@ -419,6 +440,7 @@ fn whitespace_only_queries_are_searchable() {
         use_regex: false,
         include_pattern: None,
         exclude_pattern: None,
+        include_ignored: false,
         max_results: None,
     })
     .unwrap();
@@ -441,6 +463,7 @@ fn windows_style_globs_preserve_backslash_separators() {
         use_regex: false,
         include_pattern: Some(r"src\*.dart".to_string()),
         exclude_pattern: None,
+        include_ignored: false,
         max_results: None,
     })
     .unwrap();

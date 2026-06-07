@@ -6,7 +6,8 @@ use ignore::WalkBuilder;
 use super::compile::CompiledSearch;
 use super::globs::matches_globs;
 use super::paths::{
-    content_token, is_protected, relative_string, safe_regular_file_metadata, should_walk_entry,
+    content_token, is_protected_relative_path, relative_string, safe_regular_file_metadata,
+    should_walk_entry,
 };
 use super::preview::replacement_for_slice;
 use super::{
@@ -31,6 +32,13 @@ pub(super) fn run_search(
         .git_exclude(true)
         .parents(true)
         .filter_entry(move |entry| should_walk_entry(&root, entry.path()));
+    if compiled.include_ignored {
+        walker
+            .ignore(false)
+            .git_global(false)
+            .git_ignore(false)
+            .git_exclude(false);
+    }
 
     for entry in walker.build() {
         if total_matches >= compiled.max_results {
@@ -42,7 +50,7 @@ pub(super) fn run_search(
             Err(_) => continue,
         };
         let path = entry.path();
-        if path == compiled.root || is_protected(path) {
+        if path == compiled.root {
             continue;
         }
         let file_type = match entry.file_type() {
@@ -56,6 +64,9 @@ pub(super) fn run_search(
             Some(path) => path,
             None => continue,
         };
+        if is_protected_relative_path(&relative_path) {
+            continue;
+        }
         if !matches_globs(&relative_path, &compiled.include, true)
             || matches_globs(&relative_path, &compiled.exclude, false)
         {

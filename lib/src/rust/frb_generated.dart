@@ -2133,8 +2133,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   WorkspaceSearchOptions dco_decode_workspace_search_options(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 8)
-      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
     return WorkspaceSearchOptions(
       workspacePath: dco_decode_String(arr[0]),
       query: dco_decode_String(arr[1]),
@@ -2143,7 +2143,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       useRegex: dco_decode_bool(arr[4]),
       includePattern: dco_decode_opt_String(arr[5]),
       excludePattern: dco_decode_opt_String(arr[6]),
-      maxResults: dco_decode_opt_box_autoadd_u_32(arr[7]),
+      includeIgnored: dco_decode_bool(arr[7]),
+      maxResults: dco_decode_opt_box_autoadd_u_32(arr[8]),
     );
   }
 
@@ -2952,6 +2953,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_useRegex = sse_decode_bool(deserializer);
     var var_includePattern = sse_decode_opt_String(deserializer);
     var var_excludePattern = sse_decode_opt_String(deserializer);
+    var var_includeIgnored = sse_decode_bool(deserializer);
     var var_maxResults = sse_decode_opt_box_autoadd_u_32(deserializer);
     return WorkspaceSearchOptions(
       workspacePath: var_workspacePath,
@@ -2961,6 +2963,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       useRegex: var_useRegex,
       includePattern: var_includePattern,
       excludePattern: var_excludePattern,
+      includeIgnored: var_includeIgnored,
       maxResults: var_maxResults,
     );
   }
@@ -3682,6 +3685,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self.useRegex, serializer);
     sse_encode_opt_String(self.includePattern, serializer);
     sse_encode_opt_String(self.excludePattern, serializer);
+    sse_encode_bool(self.includeIgnored, serializer);
     sse_encode_opt_box_autoadd_u_32(self.maxResults, serializer);
   }
 

@@ -63,4 +63,51 @@ void main() {
     expect(range.columnIndex, 2);
     expect(range.matchLength, 8);
   });
+
+  test('load request matcher rejects stale editor reads', () {
+    expect(
+      workspaceEditorLoadRequestMatches(
+        requestId: 2,
+        currentRequestId: 2,
+        workspacePath: '/repo/alera',
+        activeWorkspacePath: '/repo/alera',
+        filePath: 'lib/main.dart',
+        activeFilePath: 'lib/main.dart',
+      ),
+      isTrue,
+    );
+    expect(
+      workspaceEditorLoadRequestMatches(
+        requestId: 1,
+        currentRequestId: 2,
+        workspacePath: '/repo/alera',
+        activeWorkspacePath: '/repo/alera',
+        filePath: 'lib/main.dart',
+        activeFilePath: 'lib/main.dart',
+      ),
+      isFalse,
+    );
+    expect(
+      workspaceEditorLoadRequestMatches(
+        requestId: 2,
+        currentRequestId: 2,
+        workspacePath: '/repo/alera',
+        activeWorkspacePath: '/repo/other',
+        filePath: 'lib/main.dart',
+        activeFilePath: 'lib/main.dart',
+      ),
+      isFalse,
+    );
+    expect(
+      workspaceEditorLoadRequestMatches(
+        requestId: 2,
+        currentRequestId: 2,
+        workspacePath: '/repo/alera',
+        activeWorkspacePath: '/repo/alera',
+        filePath: 'lib/main.dart',
+        activeFilePath: 'lib/other.dart',
+      ),
+      isFalse,
+    );
+  });
 }

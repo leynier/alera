@@ -133,13 +133,11 @@ class _SearchPathParts {
   final String directory;
 
   factory _SearchPathParts.from(String relativePath) {
-    final splitIndex = relativePath.lastIndexOf(RegExp(r'[/\\]'));
-    if (splitIndex < 0) {
-      return _SearchPathParts(name: relativePath, directory: '');
-    }
+    final normalized = relativePath.replaceAll('\\', '/');
+    final directory = _searchPathContext.dirname(normalized);
     return _SearchPathParts(
-      name: relativePath.substring(splitIndex + 1),
-      directory: relativePath.substring(0, splitIndex),
+      name: _searchPathContext.basename(normalized),
+      directory: directory == '.' ? '' : directory,
     );
   }
 }
@@ -357,9 +355,9 @@ class _SearchMatchResultRow extends StatelessWidget {
               width: AleraTokens.space32,
               child: Text(
                 '${match.line}',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                style: _searchMonoBodySmall(
+                  context,
                   color: AleraTokens.foregroundFaint,
-                  fontFamily: 'JetBrains Mono',
                 ),
                 textAlign: TextAlign.right,
               ),
@@ -392,11 +390,11 @@ class _SearchMatchResultRow extends StatelessWidget {
     BuildContext context,
     native.WorkspaceSearchMatch match,
   ) {
-    final baseStyle = Theme.of(context).textTheme.bodySmall?.copyWith(
+    final baseStyle = _searchMonoBodySmall(
+      context,
       color: AleraTokens.foregroundMuted,
-      fontFamily: 'JetBrains Mono',
     );
-    final matchStyle = baseStyle?.copyWith(
+    final matchStyle = baseStyle.copyWith(
       color: AleraTokens.foreground,
       backgroundColor: AleraTokens.accentSubtle,
       fontWeight: FontWeight.w700,
@@ -420,17 +418,17 @@ class _SearchMatchResultRow extends StatelessWidget {
   ) {
     final text = match.lineContent.trimRight();
     final range = _clampedTextRange(text, _matchPreviewRange(match));
-    final baseStyle = Theme.of(context).textTheme.bodySmall?.copyWith(
+    final baseStyle = _searchMonoBodySmall(
+      context,
       color: AleraTokens.foregroundMuted,
-      fontFamily: 'JetBrains Mono',
     );
-    final oldStyle = baseStyle?.copyWith(
+    final oldStyle = baseStyle.copyWith(
       color: AleraTokens.error,
       backgroundColor: AleraTokens.onError,
       decoration: TextDecoration.lineThrough,
       decorationColor: AleraTokens.error,
     );
-    final newStyle = baseStyle?.copyWith(
+    final newStyle = baseStyle.copyWith(
       color: AleraTokens.success,
       fontWeight: FontWeight.w700,
     );
@@ -470,4 +468,10 @@ class _SearchMatchResultRow extends StatelessWidget {
     final end = range.end.clamp(start, text.length).toInt();
     return WorkspaceSearchTextRange(start: start, end: end);
   }
+}
+
+TextStyle _searchMonoBodySmall(BuildContext context, {required Color color}) {
+  return (Theme.of(context).textTheme.bodySmall ?? const TextStyle())
+      .merge(AleraTokens.monoStyle)
+      .copyWith(color: color);
 }

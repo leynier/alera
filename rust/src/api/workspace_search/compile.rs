@@ -17,6 +17,7 @@ pub(super) struct CompiledSearch {
     pub(super) replacement_regex: Regex,
     pub(super) include: Option<GlobSet>,
     pub(super) exclude: Option<GlobSet>,
+    pub(super) include_ignored: bool,
     pub(super) max_results: u32,
 }
 
@@ -66,6 +67,7 @@ pub(super) fn compile_search(
         replacement_regex,
         include: build_globs(options.include_pattern.as_deref(), false)?,
         exclude: build_globs(options.exclude_pattern.as_deref(), true)?,
+        include_ignored: options.include_ignored,
         max_results: options
             .max_results
             .unwrap_or(DEFAULT_MAX_RESULTS)

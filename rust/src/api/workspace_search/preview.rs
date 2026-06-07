@@ -74,7 +74,7 @@ pub(super) fn preserve_case(source: &str, replacement: &str) -> String {
     {
         let mut chars = replacement.chars();
         if let Some(first) = chars.next() {
-            return first.to_uppercase().collect::<String>() + chars.as_str();
+            return first.to_uppercase().collect::<String>() + &chars.as_str().to_lowercase();
         }
     }
     replacement.to_string()

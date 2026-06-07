@@ -6,6 +6,7 @@ class _SearchToolbar extends StatelessWidget {
     required this.allResultsCollapsed,
     required this.onRefresh,
     required this.onClear,
+    required this.onToggleIncludeIgnored,
     required this.onToggleViewAsTree,
     required this.onToggleAllResultsCollapsed,
   });
@@ -14,6 +15,7 @@ class _SearchToolbar extends StatelessWidget {
   final bool allResultsCollapsed;
   final VoidCallback onRefresh;
   final VoidCallback onClear;
+  final VoidCallback onToggleIncludeIgnored;
   final VoidCallback onToggleViewAsTree;
   final VoidCallback onToggleAllResultsCollapsed;
 
@@ -52,6 +54,23 @@ class _SearchToolbar extends StatelessWidget {
               tooltip: 'Clear search results',
               icon: Icons.close,
               onPressed: canClear ? onClear : null,
+            ),
+            const SizedBox(width: AleraTokens.space2),
+            AleraIconButton(
+              tooltip: state.includeIgnored
+                  ? 'Ignore ignored files'
+                  : 'Search ignored files',
+              icon: state.includeIgnored
+                  ? Icons.visibility_outlined
+                  : Icons.visibility_off_outlined,
+              onPressed: onToggleIncludeIgnored,
+              iconColor: state.includeIgnored
+                  ? AleraTokens.foreground
+                  : AleraTokens.foregroundMuted,
+              backgroundColor: state.includeIgnored
+                  ? AleraTokens.surfaceElevated
+                  : null,
+              borderColor: state.includeIgnored ? AleraTokens.border : null,
             ),
             const SizedBox(width: AleraTokens.space2),
             AleraIconButton(

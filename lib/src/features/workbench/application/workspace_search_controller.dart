@@ -67,6 +67,7 @@ class WorkspaceSearchState {
     this.wholeWord = false,
     this.useRegex = false,
     this.preserveCase = false,
+    this.includeIgnored = false,
     this.loading = false,
     this.replacing = false,
     this.viewAsTree = false,
@@ -83,6 +84,7 @@ class WorkspaceSearchState {
   final bool wholeWord;
   final bool useRegex;
   final bool preserveCase;
+  final bool includeIgnored;
   final bool loading;
   final bool replacing;
   final bool viewAsTree;
@@ -105,6 +107,7 @@ class WorkspaceSearchState {
     bool? wholeWord,
     bool? useRegex,
     bool? preserveCase,
+    bool? includeIgnored,
     bool? loading,
     bool? replacing,
     bool? viewAsTree,
@@ -121,6 +124,7 @@ class WorkspaceSearchState {
       wholeWord: wholeWord ?? this.wholeWord,
       useRegex: useRegex ?? this.useRegex,
       preserveCase: preserveCase ?? this.preserveCase,
+      includeIgnored: includeIgnored ?? this.includeIgnored,
       loading: loading ?? this.loading,
       replacing: replacing ?? this.replacing,
       viewAsTree: viewAsTree ?? this.viewAsTree,
@@ -218,6 +222,13 @@ class WorkspaceSearchController extends _$WorkspaceSearchController {
     _applySearchInputChange(
       workspacePath,
       state.copyWith(preserveCase: !state.preserveCase),
+    );
+  }
+
+  void toggleIncludeIgnored(String workspacePath) {
+    _applySearchInputChange(
+      workspacePath,
+      state.copyWith(includeIgnored: !state.includeIgnored),
     );
   }
 
@@ -376,6 +387,7 @@ class WorkspaceSearchController extends _$WorkspaceSearchController {
       useRegex: state.useRegex,
       includePattern: _nullablePattern(state.includePattern),
       excludePattern: _nullablePattern(state.excludePattern),
+      includeIgnored: state.includeIgnored,
       maxResults: _workspaceSearchMaxResults,
     );
   }

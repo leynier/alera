@@ -23,6 +23,7 @@ part 'workspace_editor_language_registry.dart';
 part 'workspace_editor_widgets.dart';
 part 'workspace_editor_focus.dart';
 part 'workspace_editor_reveal.dart';
+part 'workspace_editor_loading.dart';
 
 class WorkspaceEditorSurface extends ConsumerStatefulWidget {
   const WorkspaceEditorSurface({
@@ -55,6 +56,7 @@ class _WorkspaceEditorSurfaceState
   bool _loading = true;
   bool _saving = false;
   bool _stateRefreshQueued = false;
+  int _loadRequestId = 0;
 
   @override
   void initState() {
@@ -87,6 +89,7 @@ class _WorkspaceEditorSurfaceState
   void didUpdateWidget(covariant WorkspaceEditorSurface oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.tab.id != widget.tab.id ||
+        oldWidget.workspace.path != widget.workspace.path ||
         oldWidget.tab.filePath != widget.tab.filePath) {
       _replaceFocusNode();
       _editorSessions.unregister(oldWidget.tab.id, _sessionHandle);
@@ -200,41 +203,6 @@ class _WorkspaceEditorSurfaceState
         ],
       ),
     );
-  }
-
-  Future<void> _load() async {
-    final filePath = widget.tab.filePath;
-    if (filePath == null) {
-      return;
-    }
-    setState(() {
-      _loading = true;
-      _loadError = null;
-    });
-    try {
-      final tabSize = _currentEditorTabSize();
-      final file = await _workspaceFiles.readEditorTextFile(
-        workspacePath: widget.workspace.path,
-        relativePath: filePath,
-        tabSize: tabSize,
-      );
-      if (!mounted) {
-        return;
-      }
-      _document.acceptLoaded(file, tabSize: tabSize);
-      _controller.text = _document.currentText ?? '';
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      _document.acceptLoadError(error);
-      _loadError = error;
-    } finally {
-      if (mounted) {
-        setState(() => _loading = false);
-        _applyPendingReveal();
-      }
-    }
   }
 
   Future<void> _save() async {
@@ -365,6 +333,10 @@ class _WorkspaceEditorSurfaceState
     });
   }
 
+  void _setEditorState(VoidCallback update) {
+    setState(update);
+  }
+
   void _registerSession(String tabId) {
     _editorSessions.register(tabId, _sessionHandle);
   }
@@ -377,28 +349,6 @@ class _WorkspaceEditorSurfaceState
     SchedulerBinding.instance.addPostFrameCallback((_) {
       previous.dispose();
     });
-  }
-
-  void _restoreDocumentOrLoad() {
-    final filePath = widget.tab.filePath;
-    if (filePath == null) {
-      _loading = false;
-      return;
-    }
-    _document.attachFile(
-      workspacePath: widget.workspace.path,
-      relativePath: filePath,
-    );
-    if (_document.hasSnapshot) {
-      _controller.text = _document.currentText ?? '';
-      _loadError = _document.loadError;
-      _loading = false;
-      _applyPendingReveal();
-      return;
-    }
-    _loading = true;
-    _loadError = null;
-    unawaited(_load());
   }
 
   void _applyEditorSettings(int tabSize) {

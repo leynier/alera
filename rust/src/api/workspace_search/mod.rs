@@ -8,6 +8,8 @@ mod preview;
 mod replace;
 
 #[cfg(test)]
+mod ignore_tests;
+#[cfg(test)]
 mod replace_tests;
 #[cfg(test)]
 mod tests;
@@ -28,6 +30,7 @@ pub struct WorkspaceSearchOptions {
     pub use_regex: bool,
     pub include_pattern: Option<String>,
     pub exclude_pattern: Option<String>,
+    pub include_ignored: bool,
     pub max_results: Option<u32>,
 }
 

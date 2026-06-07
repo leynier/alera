@@ -1,5 +1,7 @@
 part of 'workspace_search_panel.dart';
 
+final p.Context _searchPathContext = p.Context(style: p.Style.posix);
+
 sealed class _SearchRow {
   const _SearchRow();
 }
@@ -79,7 +81,9 @@ List<_SearchRow> _treeRowsFrom(
     var directory = root;
     for (var index = 0; index < segments.length - 1; index += 1) {
       final name = segments[index];
-      final path = directory.path.isEmpty ? name : '${directory.path}/$name';
+      final path = directory.path.isEmpty
+          ? name
+          : _searchPathContext.join(directory.path, name);
       directory = directory.directories.putIfAbsent(
         name,
         () => _SearchTreeDirectory(name, path),
@@ -133,8 +137,9 @@ void _appendTreeRows(
 }
 
 List<String> _pathSegments(String relativePath) {
-  return relativePath
-      .split(RegExp(r'[/\\]'))
+  final normalized = relativePath.replaceAll('\\', '/');
+  return _searchPathContext
+      .split(normalized)
       .where((segment) => segment.isNotEmpty)
       .toList(growable: false);
 }

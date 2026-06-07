@@ -20,6 +20,7 @@ fn replace_reports_file_write_failures_as_conflicts() {
         use_regex: false,
         include_pattern: Some("*.txt".to_string()),
         exclude_pattern: None,
+        include_ignored: false,
         max_results: None,
     };
     let preview = preview_workspace_replace(WorkspaceReplaceOptions {
@@ -31,6 +32,16 @@ fn replace_reports_file_write_failures_as_conflicts() {
     let mut permissions = fs::metadata(&locked_path).unwrap().permissions();
     permissions.set_mode(0o444);
     fs::set_permissions(&locked_path, permissions).unwrap();
+    if fs::OpenOptions::new()
+        .write(true)
+        .open(&locked_path)
+        .is_ok()
+    {
+        let mut permissions = fs::metadata(&locked_path).unwrap().permissions();
+        permissions.set_mode(0o644);
+        fs::set_permissions(&locked_path, permissions).unwrap();
+        return;
+    }
 
     let replaced = replace_workspace_matches(WorkspaceReplaceRequest {
         options: WorkspaceReplaceOptions {

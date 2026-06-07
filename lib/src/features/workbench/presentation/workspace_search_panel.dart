@@ -11,6 +11,7 @@ import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/rust/api/workspace_search.dart' as native;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
 
 part 'workspace_search_panel_feedback.dart';
 part 'workspace_search_panel_inputs.dart';
@@ -105,6 +106,8 @@ class _WorkspaceSearchPanelState extends ConsumerState<WorkspaceSearchPanel> {
           onRefresh: () =>
               unawaited(controller.searchNow(widget.workspace.path)),
           onClear: controller.clearSearchResults,
+          onToggleIncludeIgnored: () =>
+              controller.toggleIncludeIgnored(widget.workspace.path),
           onToggleViewAsTree: controller.toggleViewAsTree,
           onToggleAllResultsCollapsed: controller.toggleAllResultsCollapsed,
         ),

@@ -257,7 +257,6 @@ class _SearchInlineToggleButton extends StatelessWidget {
     final style = Theme.of(context).textTheme.labelSmall?.copyWith(
       color: active ? AleraTokens.foreground : AleraTokens.foregroundMuted,
       fontWeight: active ? FontWeight.w700 : FontWeight.w600,
-      fontFamily: 'Inter',
     );
     return _SearchInlineButtonFrame(
       tooltip: tooltip,

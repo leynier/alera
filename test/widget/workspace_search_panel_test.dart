@@ -6,6 +6,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets('toggles search ignored files action in toolbar', (tester) async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    await _pumpSearchPanel(
+      tester,
+      container: container,
+      workspace: _workspace(id: 'workspace-a', path: '/workspace-a'),
+    );
+
+    expect(find.byTooltip('Search ignored files'), findsOneWidget);
+    expect(find.byTooltip('Ignore ignored files'), findsNothing);
+
+    await tester.tap(find.byIcon(Icons.visibility_off_outlined));
+    await tester.pump();
+
+    expect(find.byTooltip('Search ignored files'), findsNothing);
+    expect(find.byTooltip('Ignore ignored files'), findsOneWidget);
+  });
+
   testWidgets('shows active replacement and filters after workspace switch', (
     tester,
   ) async {
@@ -22,6 +42,7 @@ void main() {
     workspaceBController.setExcludePattern(workspaceB.path, 'build/**');
 
     await _pumpSearchPanel(tester, container: container, workspace: workspaceA);
+    await tester.pumpAndSettle();
 
     expect(find.byType(TextField), findsOneWidget);
     expect(_textFieldWithValue('replacement text'), findsNothing);
@@ -29,6 +50,7 @@ void main() {
     expect(_textFieldWithValue('build/**'), findsNothing);
 
     await _pumpSearchPanel(tester, container: container, workspace: workspaceB);
+    await tester.pumpAndSettle();
 
     expect(find.byType(TextField), findsNWidgets(4));
     expect(_textFieldWithValue('replacement text'), findsOneWidget);

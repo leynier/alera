@@ -6,8 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `add_glob`, `build_globs`, `clamp_line_context`, `compile_search`, `content_token`, `from_io`, `is_protected`, `locate_match_range`, `matches_globs`, `matches_in_file`, `new`, `preserve_case`, `preview_replacement`, `relative_string`, `replacement_for_slice`, `run_search`, `split_search_glob_patterns`, `workspace_root`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `CompiledSearch`, `LinePreview`
+// These functions are ignored because they are not marked as `pub`: `from_io`, `new`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 Future<WorkspaceSearchResult> searchWorkspace({
@@ -275,6 +274,7 @@ class WorkspaceSearchOptions {
   final bool useRegex;
   final String? includePattern;
   final String? excludePattern;
+  final bool includeIgnored;
   final int? maxResults;
 
   const WorkspaceSearchOptions({
@@ -285,6 +285,7 @@ class WorkspaceSearchOptions {
     required this.useRegex,
     this.includePattern,
     this.excludePattern,
+    required this.includeIgnored,
     this.maxResults,
   });
 
@@ -297,6 +298,7 @@ class WorkspaceSearchOptions {
       useRegex.hashCode ^
       includePattern.hashCode ^
       excludePattern.hashCode ^
+      includeIgnored.hashCode ^
       maxResults.hashCode;
 
   @override
@@ -311,6 +313,7 @@ class WorkspaceSearchOptions {
           useRegex == other.useRegex &&
           includePattern == other.includePattern &&
           excludePattern == other.excludePattern &&
+          includeIgnored == other.includeIgnored &&
           maxResults == other.maxResults;
 }
 

@@ -33,7 +33,7 @@ pub(super) fn resolve_replace_file(
     relative_path: &str,
 ) -> Result<(PathBuf, fs::Metadata), WorkspaceSearchError> {
     let path = root.join(relative_path);
-    if is_protected(&path) {
+    if is_protected_relative_path(relative_path) {
         return Err(WorkspaceSearchError::new(
             WorkspaceSearchErrorKind::OutsideWorkspace,
             relative_path,
@@ -44,7 +44,7 @@ pub(super) fn resolve_replace_file(
 }
 
 pub(super) fn should_walk_entry(root: &Path, path: &Path) -> bool {
-    path == root || !is_protected(path)
+    path == root || !is_protected_workspace_path(root, path)
 }
 
 pub(super) fn workspace_root(path: &str) -> Result<PathBuf, WorkspaceSearchError> {
@@ -66,8 +66,17 @@ pub(super) fn relative_string(root: &Path, path: &Path) -> Option<String> {
         .map(|path| path.to_string_lossy().replace('\\', "/"))
 }
 
-pub(super) fn is_protected(path: &Path) -> bool {
-    path.components().any(|component| match component {
+pub(super) fn is_protected_relative_path(relative_path: &str) -> bool {
+    relative_path
+        .split(['/', '\\'])
+        .any(|component| PROTECTED_NAMES.contains(&component))
+}
+
+fn is_protected_workspace_path(root: &Path, path: &Path) -> bool {
+    let Ok(relative_path) = path.strip_prefix(root) else {
+        return true;
+    };
+    relative_path.components().any(|component| match component {
         Component::Normal(name) => PROTECTED_NAMES.contains(&name.to_string_lossy().as_ref()),
         _ => false,
     })

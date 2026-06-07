@@ -286,8 +286,9 @@ class EditorSessionRegistry {
 
   void reveal(String tabId, WorkspaceEditorRevealTarget target) {
     final handle = _sessions[tabId];
-    if (handle != null) {
-      handle.reveal?.call(target);
+    final reveal = handle?.reveal;
+    if (reveal != null) {
+      reveal(target);
       return;
     }
     documentFor(tabId).pendingReveal = target;
@@ -318,8 +319,9 @@ class EditorSessionRegistry {
         continue;
       }
       final handle = _sessions[tabId];
-      if (handle != null) {
-        handle.reload?.call();
+      final reload = handle?.reload;
+      if (reload != null) {
+        reload();
       } else {
         document.clearSnapshot();
       }

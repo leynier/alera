@@ -2150,6 +2150,7 @@ impl SseDecode for crate::api::workspace_search::WorkspaceSearchOptions {
         let mut var_useRegex = <bool>::sse_decode(deserializer);
         let mut var_includePattern = <Option<String>>::sse_decode(deserializer);
         let mut var_excludePattern = <Option<String>>::sse_decode(deserializer);
+        let mut var_includeIgnored = <bool>::sse_decode(deserializer);
         let mut var_maxResults = <Option<u32>>::sse_decode(deserializer);
         return crate::api::workspace_search::WorkspaceSearchOptions {
             workspace_path: var_workspacePath,
@@ -2159,6 +2160,7 @@ impl SseDecode for crate::api::workspace_search::WorkspaceSearchOptions {
             use_regex: var_useRegex,
             include_pattern: var_includePattern,
             exclude_pattern: var_excludePattern,
+            include_ignored: var_includeIgnored,
             max_results: var_maxResults,
         };
     }
@@ -3048,6 +3050,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::workspace_search::WorkspaceSe
             self.use_regex.into_into_dart().into_dart(),
             self.include_pattern.into_into_dart().into_dart(),
             self.exclude_pattern.into_into_dart().into_dart(),
+            self.include_ignored.into_into_dart().into_dart(),
             self.max_results.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -3746,6 +3749,7 @@ impl SseEncode for crate::api::workspace_search::WorkspaceSearchOptions {
         <bool>::sse_encode(self.use_regex, serializer);
         <Option<String>>::sse_encode(self.include_pattern, serializer);
         <Option<String>>::sse_encode(self.exclude_pattern, serializer);
+        <bool>::sse_encode(self.include_ignored, serializer);
         <Option<u32>>::sse_encode(self.max_results, serializer);
     }
 }
