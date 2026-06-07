@@ -1,4 +1,5 @@
 import 'package:alera/src/rust/api/workspace_files.dart' as native;
+import 'package:flutter/foundation.dart';
 
 class WorkspaceFileService {
   const WorkspaceFileService();
@@ -260,6 +261,73 @@ class EditorSessionRegistry {
     await _sessions[tabId]?.discard();
   }
 
+  List<String> dirtyPathsFor({
+    required String workspacePath,
+    required Iterable<String> relativePaths,
+  }) {
+    final candidates = relativePaths.toSet();
+    final dirtyPaths = <String>{};
+    for (final entry in _documents.entries) {
+      final tabId = entry.key;
+      final document = entry.value;
+      final relativePath = document.relativePath;
+      if (document.workspacePath != workspacePath ||
+          relativePath == null ||
+          !candidates.contains(relativePath)) {
+        continue;
+      }
+      if (isDirty(tabId)) {
+        dirtyPaths.add(relativePath);
+      }
+    }
+    final sorted = dirtyPaths.toList()..sort();
+    return sorted;
+  }
+
+  void reveal(String tabId, WorkspaceEditorRevealTarget target) {
+    final handle = _sessions[tabId];
+    final reveal = handle?.reveal;
+    if (reveal != null) {
+      reveal(target);
+      return;
+    }
+    documentFor(tabId).pendingReveal = target;
+  }
+
+  WorkspaceEditorRevealTarget? takePendingReveal(String tabId) {
+    final document = _documents[tabId];
+    final target = document?.pendingReveal;
+    if (document != null) {
+      document.pendingReveal = null;
+    }
+    return target;
+  }
+
+  void reloadCleanFiles({
+    required String workspacePath,
+    required Iterable<String> relativePaths,
+  }) {
+    final candidates = relativePaths.toSet();
+    for (final entry in _documents.entries) {
+      final tabId = entry.key;
+      final document = entry.value;
+      final relativePath = document.relativePath;
+      if (document.workspacePath != workspacePath ||
+          relativePath == null ||
+          !candidates.contains(relativePath) ||
+          isDirty(tabId)) {
+        continue;
+      }
+      final handle = _sessions[tabId];
+      final reload = handle?.reload;
+      if (reload != null) {
+        reload();
+      } else {
+        document.clearSnapshot();
+      }
+    }
+  }
+
   void updateDocumentPathsAfterMove({
     required String workspacePath,
     required String oldRelativePath,
@@ -307,11 +375,27 @@ class EditorSessionHandle {
     required this.isDirty,
     required this.save,
     required this.discard,
+    this.reveal,
+    this.reload,
   });
 
   final bool Function() isDirty;
   final Future<void> Function() save;
   final Future<void> Function() discard;
+  final void Function(WorkspaceEditorRevealTarget target)? reveal;
+  final VoidCallback? reload;
+}
+
+class WorkspaceEditorRevealTarget {
+  const WorkspaceEditorRevealTarget({
+    required this.line,
+    required this.column,
+    required this.matchLength,
+  });
+
+  final int line;
+  final int column;
+  final int matchLength;
 }
 
 class EditorDocumentSession {
@@ -322,6 +406,7 @@ class EditorDocumentSession {
   String? currentText;
   String? contentToken;
   Object? loadError;
+  WorkspaceEditorRevealTarget? pendingReveal;
   int tabSize = 4;
 
   bool get hasSnapshot => currentText != null || loadError != null;
@@ -357,6 +442,14 @@ class EditorDocumentSession {
     currentText = null;
     contentToken = null;
     loadError = error;
+  }
+
+  void clearSnapshot() {
+    loadedRawText = null;
+    loadedText = null;
+    currentText = null;
+    contentToken = null;
+    loadError = null;
   }
 
   void updateCurrentText(String text) {

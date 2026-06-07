@@ -4,6 +4,7 @@ import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
+import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_dialog_launchers.dart';
 import 'package:flutter/material.dart';
@@ -31,6 +32,10 @@ class KeyboardCommandDispatcher {
         unawaited(
           showCreateWorkspaceFlow(context, ref, initialProject: project),
         );
+      case KeyboardActionId.findInFiles:
+        _showContextPanel(WorkbenchContextPanelTab.search);
+      case KeyboardActionId.replaceInFiles:
+        _showContextPanel(WorkbenchContextPanelTab.search);
       case KeyboardActionId.saveFile:
         _saveActiveEditor();
       case KeyboardActionId.newTerminalTab:
@@ -78,6 +83,16 @@ class KeyboardCommandDispatcher {
       final tab = await controller.createTerminalTab(workspace);
       runtime.sessionFor(workspace: workspace, tab: tab).requestFocus();
     }());
+  }
+
+  void _showContextPanel(WorkbenchContextPanelTab tab) {
+    final state = ref.read(workbenchControllerProvider);
+    if (state.activeWorkspace == null) {
+      return;
+    }
+    final controller = ref.read(workbenchControllerProvider.notifier);
+    controller.setContextPanelTab(tab);
+    controller.setRightSidebarVisible(true);
   }
 
   void _saveActiveEditor() {

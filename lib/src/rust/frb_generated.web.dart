@@ -9,6 +9,7 @@
 import 'api/agent_hooks.dart';
 import 'api/git.dart';
 import 'api/workspace_files.dart';
+import 'api/workspace_search.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'frb_generated.dart';
@@ -49,6 +50,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool dco_decode_bool(dynamic raw);
 
   @protected
+  int dco_decode_box_autoadd_u_32(dynamic raw);
+
+  @protected
   WorkspaceExplorerDirectoryChildren
   dco_decode_box_autoadd_workspace_explorer_directory_children(dynamic raw);
 
@@ -58,6 +62,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   WorkspaceFileGitStatus dco_decode_box_autoadd_workspace_file_git_status(
+    dynamic raw,
+  );
+
+  @protected
+  WorkspaceReplaceOptions dco_decode_box_autoadd_workspace_replace_options(
+    dynamic raw,
+  );
+
+  @protected
+  WorkspaceReplaceRequest dco_decode_box_autoadd_workspace_replace_request(
+    dynamic raw,
+  );
+
+  @protected
+  WorkspaceSearchOptions dco_decode_box_autoadd_workspace_search_options(
     dynamic raw,
   );
 
@@ -105,7 +124,29 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<WorkspaceFileEntry> dco_decode_list_workspace_file_entry(dynamic raw);
 
   @protected
+  List<WorkspaceReplaceConflict> dco_decode_list_workspace_replace_conflict(
+    dynamic raw,
+  );
+
+  @protected
+  List<WorkspaceReplaceFileExpectation>
+  dco_decode_list_workspace_replace_file_expectation(dynamic raw);
+
+  @protected
+  List<WorkspaceSearchFileResult> dco_decode_list_workspace_search_file_result(
+    dynamic raw,
+  );
+
+  @protected
+  List<WorkspaceSearchMatch> dco_decode_list_workspace_search_match(
+    dynamic raw,
+  );
+
+  @protected
   String? dco_decode_opt_String(dynamic raw);
+
+  @protected
+  int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
 
   @protected
   WorkspaceExplorerDirectoryChildren?
@@ -184,6 +225,46 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   WorkspaceFileKind dco_decode_workspace_file_kind(dynamic raw);
 
   @protected
+  WorkspaceReplaceConflict dco_decode_workspace_replace_conflict(dynamic raw);
+
+  @protected
+  WorkspaceReplaceFileExpectation dco_decode_workspace_replace_file_expectation(
+    dynamic raw,
+  );
+
+  @protected
+  WorkspaceReplaceOptions dco_decode_workspace_replace_options(dynamic raw);
+
+  @protected
+  WorkspaceReplacePreview dco_decode_workspace_replace_preview(dynamic raw);
+
+  @protected
+  WorkspaceReplaceRequest dco_decode_workspace_replace_request(dynamic raw);
+
+  @protected
+  WorkspaceReplaceResult dco_decode_workspace_replace_result(dynamic raw);
+
+  @protected
+  WorkspaceSearchError dco_decode_workspace_search_error(dynamic raw);
+
+  @protected
+  WorkspaceSearchErrorKind dco_decode_workspace_search_error_kind(dynamic raw);
+
+  @protected
+  WorkspaceSearchFileResult dco_decode_workspace_search_file_result(
+    dynamic raw,
+  );
+
+  @protected
+  WorkspaceSearchMatch dco_decode_workspace_search_match(dynamic raw);
+
+  @protected
+  WorkspaceSearchOptions dco_decode_workspace_search_options(dynamic raw);
+
+  @protected
+  WorkspaceSearchResult dco_decode_workspace_search_result(dynamic raw);
+
+  @protected
   WorkspaceTextFile dco_decode_workspace_text_file(dynamic raw);
 
   @protected
@@ -223,6 +304,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
+  int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
+
+  @protected
   WorkspaceExplorerDirectoryChildren
   sse_decode_box_autoadd_workspace_explorer_directory_children(
     SseDeserializer deserializer,
@@ -236,6 +320,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   WorkspaceFileGitStatus sse_decode_box_autoadd_workspace_file_git_status(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WorkspaceReplaceOptions sse_decode_box_autoadd_workspace_replace_options(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WorkspaceReplaceRequest sse_decode_box_autoadd_workspace_replace_request(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WorkspaceSearchOptions sse_decode_box_autoadd_workspace_search_options(
     SseDeserializer deserializer,
   );
 
@@ -293,7 +392,31 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<WorkspaceReplaceConflict> sse_decode_list_workspace_replace_conflict(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<WorkspaceReplaceFileExpectation>
+  sse_decode_list_workspace_replace_file_expectation(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<WorkspaceSearchFileResult> sse_decode_list_workspace_search_file_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<WorkspaceSearchMatch> sse_decode_list_workspace_search_match(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
+
+  @protected
+  int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
   WorkspaceExplorerDirectoryChildren?
@@ -388,6 +511,66 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  WorkspaceReplaceConflict sse_decode_workspace_replace_conflict(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WorkspaceReplaceFileExpectation sse_decode_workspace_replace_file_expectation(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WorkspaceReplaceOptions sse_decode_workspace_replace_options(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WorkspaceReplacePreview sse_decode_workspace_replace_preview(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WorkspaceReplaceRequest sse_decode_workspace_replace_request(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WorkspaceReplaceResult sse_decode_workspace_replace_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WorkspaceSearchError sse_decode_workspace_search_error(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WorkspaceSearchErrorKind sse_decode_workspace_search_error_kind(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WorkspaceSearchFileResult sse_decode_workspace_search_file_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WorkspaceSearchMatch sse_decode_workspace_search_match(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WorkspaceSearchOptions sse_decode_workspace_search_options(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WorkspaceSearchResult sse_decode_workspace_search_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   WorkspaceTextFile sse_decode_workspace_text_file(
     SseDeserializer deserializer,
   );
@@ -435,6 +618,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_workspace_explorer_directory_children(
     WorkspaceExplorerDirectoryChildren self,
     SseSerializer serializer,
@@ -449,6 +635,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_workspace_file_git_status(
     WorkspaceFileGitStatus self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_workspace_replace_options(
+    WorkspaceReplaceOptions self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_workspace_replace_request(
+    WorkspaceReplaceRequest self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_workspace_search_options(
+    WorkspaceSearchOptions self,
     SseSerializer serializer,
   );
 
@@ -516,7 +720,34 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_workspace_replace_conflict(
+    List<WorkspaceReplaceConflict> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_workspace_replace_file_expectation(
+    List<WorkspaceReplaceFileExpectation> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_workspace_search_file_result(
+    List<WorkspaceSearchFileResult> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_workspace_search_match(
+    List<WorkspaceSearchMatch> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_workspace_explorer_directory_children(
@@ -620,6 +851,78 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_workspace_file_kind(
     WorkspaceFileKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_workspace_replace_conflict(
+    WorkspaceReplaceConflict self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_workspace_replace_file_expectation(
+    WorkspaceReplaceFileExpectation self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_workspace_replace_options(
+    WorkspaceReplaceOptions self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_workspace_replace_preview(
+    WorkspaceReplacePreview self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_workspace_replace_request(
+    WorkspaceReplaceRequest self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_workspace_replace_result(
+    WorkspaceReplaceResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_workspace_search_error(
+    WorkspaceSearchError self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_workspace_search_error_kind(
+    WorkspaceSearchErrorKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_workspace_search_file_result(
+    WorkspaceSearchFileResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_workspace_search_match(
+    WorkspaceSearchMatch self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_workspace_search_options(
+    WorkspaceSearchOptions self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_workspace_search_result(
+    WorkspaceSearchResult self,
     SseSerializer serializer,
   );
 

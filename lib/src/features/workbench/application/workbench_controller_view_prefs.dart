@@ -168,6 +168,13 @@ mixin _WorkbenchControllerViewPrefs
     _updateViewPrefs(state.viewPrefs.copyWith(rightSidebarWidth: clamped));
   }
 
+  void setContextPanelTab(WorkbenchContextPanelTab tab) {
+    if (state.viewPrefs.activeContextPanelTab == tab) {
+      return;
+    }
+    _updateViewPrefs(state.viewPrefs.copyWith(activeContextPanelTab: tab));
+  }
+
   void setExplorerMode(WorkspaceExplorerMode mode) {
     if (state.viewPrefs.explorerMode == mode) {
       return;
