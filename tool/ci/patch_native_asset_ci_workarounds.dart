@@ -5,8 +5,10 @@ import 'package:path/path.dart' as p;
 
 const _packageName = 'pdfium_flutter';
 const _pdfiumDartPackageName = 'pdfium_dart';
+const _sqlitePackageName = 'sqlite3';
 const _podspecRelativePath = 'darwin/pdfium_flutter.podspec';
 const _pdfiumDartBuildHookRelativePath = 'hook/build.dart';
+const _sqliteDescriptionRelativePath = 'lib/src/hook/description.dart';
 const _upstreamHash =
     '948d9257f53f01cbed74b81bb8adc8758e52ac9390751772de7889026d32d5a1';
 const _observedHash =
@@ -46,6 +48,46 @@ const _pdfiumDartRetriedDownloadSnippet = '''
   if (response == null || response.statusCode != 200) {
     throw Exception('Failed to download PDFium: \$archiveUri');
   }
+''';
+const _sqliteDownloadSnippet = '''
+    final tmp = File('\${downloadedFile.path}.tmp');
+    await fetch(input, output, library).cast<List<int>>().pipe(tmp.openWrite());
+    tmp.renameSync(downloadedFile.path);
+    return downloadedFile;
+''';
+const _sqliteRetriedDownloadSnippet = '''
+    final tmp = File('\${downloadedFile.path}.tmp');
+    for (var attempt = 1; attempt <= 6; attempt++) {
+      try {
+        if (tmp.existsSync()) tmp.deleteSync();
+        await fetch(input, output, library)
+            .cast<List<int>>()
+            .pipe(tmp.openWrite());
+        tmp.renameSync(downloadedFile.path);
+        return downloadedFile;
+      } catch (error) {
+        if (attempt == 6) rethrow;
+        stderr.writeln(
+          'SQLite download attempt \$attempt failed: \$error',
+        );
+        await Future<void>.delayed(Duration(seconds: attempt * 10));
+      }
+    }
+
+    throw StateError('Failed to download SQLite: \${library.sourceFilename}');
+''';
+const _sqliteUriSnippet = '''
+    final uri = Uri.https(
+      'github.com',
+      'simolus3/sqlite3.dart/releases/download/\${releaseTag!}/\$filename',
+    );
+''';
+const _sqliteCacheBustedUriSnippet = '''
+    final uri = Uri.https(
+      'github.com',
+      'simolus3/sqlite3.dart/releases/download/\${releaseTag!}/\$filename',
+      {'ci_cache_bust': DateTime.now().microsecondsSinceEpoch.toString()},
+    );
 ''';
 
 void main() {
@@ -157,6 +199,91 @@ void main() {
     stdout.writeln(
       'Removed cached $_pdfiumDartPackageName hook output so CI recompiles it.',
     );
+  }
+
+  final sqlitePackage = _findPackage(typedPackages, _sqlitePackageName);
+  final sqliteRootUriValue = sqlitePackage['rootUri'] as String?;
+  if (sqliteRootUriValue == null) {
+    stderr.writeln(
+      'Package $_sqlitePackageName was not found in package_config.json.',
+    );
+    exitCode = 71;
+    return;
+  }
+
+  final sqliteRootUri = _asDirectoryUri(
+    packageConfigUri.resolve(sqliteRootUriValue),
+  );
+  final sqliteDescription = File(
+    p.fromUri(sqliteRootUri.resolve(_sqliteDescriptionRelativePath)),
+  );
+  if (!sqliteDescription.existsSync()) {
+    stderr.writeln(
+      'Missing $_sqlitePackageName hook description at '
+      '${sqliteDescription.path}.',
+    );
+    exitCode = 72;
+    return;
+  }
+
+  var currentSqliteDescription = sqliteDescription.readAsStringSync();
+  if (currentSqliteDescription.contains(_sqliteRetriedDownloadSnippet)) {
+    stdout.writeln(
+      '$_sqlitePackageName hook already retries SQLite downloads.',
+    );
+  } else if (!currentSqliteDescription.contains(_sqliteDownloadSnippet)) {
+    stderr.writeln(
+      '$_sqlitePackageName hook does not contain the expected download '
+      'snippet. Revisit the temporary SQLite retry patch.',
+    );
+    exitCode = 73;
+    return;
+  } else {
+    currentSqliteDescription = currentSqliteDescription.replaceAll(
+      _sqliteDownloadSnippet,
+      _sqliteRetriedDownloadSnippet,
+    );
+    sqliteDescription.writeAsStringSync(currentSqliteDescription);
+    stdout.writeln(
+      'Patched $_sqlitePackageName hook to retry SQLite downloads.',
+    );
+  }
+
+  currentSqliteDescription = sqliteDescription.readAsStringSync();
+  if (currentSqliteDescription.contains(_sqliteCacheBustedUriSnippet)) {
+    stdout.writeln(
+      '$_sqlitePackageName hook already cache-busts SQLite downloads.',
+    );
+  } else if (!currentSqliteDescription.contains(_sqliteUriSnippet)) {
+    stderr.writeln(
+      '$_sqlitePackageName hook does not contain the expected GitHub URI '
+      'snippet. Revisit the temporary SQLite cache-busting patch.',
+    );
+    exitCode = 74;
+    return;
+  } else {
+    sqliteDescription.writeAsStringSync(
+      currentSqliteDescription.replaceAll(
+        _sqliteUriSnippet,
+        _sqliteCacheBustedUriSnippet,
+      ),
+    );
+    stdout.writeln(
+      'Patched $_sqlitePackageName hook to cache-bust SQLite downloads.',
+    );
+  }
+
+  for (final path in [
+    p.join('.dart_tool', 'hooks_runner', _sqlitePackageName),
+    p.join('.dart_tool', 'hooks_runner', 'shared', _sqlitePackageName),
+  ]) {
+    final directory = Directory(path);
+    if (directory.existsSync()) {
+      directory.deleteSync(recursive: true);
+      stdout.writeln(
+        'Removed cached $_sqlitePackageName hook output at $path.',
+      );
+    }
   }
 }
 

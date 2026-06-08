@@ -175,8 +175,8 @@ jobs:
           restore-keys: |
             native-assets-${{ runner.os }}-${{ runner.arch }}-release-${{ matrix.platform }}-
 
-      - name: Patch PDFium CI workarounds
-        run: dart tool/ci/patch_pdfium_flutter_podspec.dart
+      - name: Patch native asset CI workarounds
+        run: dart tool/ci/patch_native_asset_ci_workarounds.dart
 
       # The native build hooks compile both the Rust terminal-host sidecar
       # (alera-cli) and the flutter_rust_bridge git library (alera_native).
