@@ -9,6 +9,7 @@ use ignore::WalkBuilder;
 
 mod editor_text;
 mod explorer_tree;
+mod source_control_watcher;
 mod watcher;
 
 use crate::frb_generated::StreamSink;
@@ -134,6 +135,16 @@ pub struct WorkspaceExplorerWatchBatch {
     pub coalesced_event_count: u32,
 }
 
+#[derive(Debug, Clone)]
+pub struct SourceControlWatcherHandle {
+    pub id: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct SourceControlWatchSignal {
+    pub coalesced_event_count: u32,
+}
+
 impl WorkspaceFileError {
     fn new(kind: WorkspaceFileErrorKind, context: impl Into<String>) -> Self {
         Self {
@@ -225,6 +236,23 @@ pub fn watch_workspace_explorer_events(
 
 pub fn stop_workspace_explorer_watcher(handle: WorkspaceExplorerWatcherHandle) {
     watcher::stop_workspace_explorer_watcher(handle);
+}
+
+pub fn start_source_control_watcher(
+    workspace_path: String,
+) -> Result<SourceControlWatcherHandle, WorkspaceFileError> {
+    source_control_watcher::start_source_control_watcher(workspace_path)
+}
+
+pub fn watch_source_control_events(
+    handle: SourceControlWatcherHandle,
+    sink: StreamSink<SourceControlWatchSignal>,
+) {
+    source_control_watcher::watch_source_control_events(handle, sink);
+}
+
+pub fn stop_source_control_watcher(handle: SourceControlWatcherHandle) {
+    source_control_watcher::stop_source_control_watcher(handle);
 }
 
 pub fn read_workspace_text_file(

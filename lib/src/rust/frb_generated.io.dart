@@ -30,6 +30,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   dco_decode_StreamSink_agent_hook_event_batch_dto_Sse(dynamic raw);
 
   @protected
+  RustStreamSink<SourceControlWatchSignal>
+  dco_decode_StreamSink_source_control_watch_signal_Sse(dynamic raw);
+
+  @protected
   RustStreamSink<WorkspaceExplorerWatchBatch>
   dco_decode_StreamSink_workspace_explorer_watch_batch_Sse(dynamic raw);
 
@@ -50,6 +54,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GitChangeEntry dco_decode_box_autoadd_git_change_entry(dynamic raw);
+
+  @protected
+  SourceControlWatcherHandle
+  dco_decode_box_autoadd_source_control_watcher_handle(dynamic raw);
 
   @protected
   int dco_decode_box_autoadd_u_32(dynamic raw);
@@ -229,6 +237,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  SourceControlWatchSignal dco_decode_source_control_watch_signal(dynamic raw);
+
+  @protected
+  SourceControlWatcherHandle dco_decode_source_control_watcher_handle(
+    dynamic raw,
+  );
+
+  @protected
   int dco_decode_u_16(dynamic raw);
 
   @protected
@@ -348,6 +364,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  RustStreamSink<SourceControlWatchSignal>
+  sse_decode_StreamSink_source_control_watch_signal_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   RustStreamSink<WorkspaceExplorerWatchBatch>
   sse_decode_StreamSink_workspace_explorer_watch_batch_Sse(
     SseDeserializer deserializer,
@@ -376,6 +398,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GitChangeEntry sse_decode_box_autoadd_git_change_entry(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SourceControlWatcherHandle
+  sse_decode_box_autoadd_source_control_watcher_handle(
     SseDeserializer deserializer,
   );
 
@@ -595,6 +623,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  SourceControlWatchSignal sse_decode_source_control_watch_signal(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SourceControlWatcherHandle sse_decode_source_control_watcher_handle(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   int sse_decode_u_16(SseDeserializer deserializer);
 
   @protected
@@ -753,6 +791,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_StreamSink_source_control_watch_signal_Sse(
+    RustStreamSink<SourceControlWatchSignal> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_StreamSink_workspace_explorer_watch_batch_Sse(
     RustStreamSink<WorkspaceExplorerWatchBatch> self,
     SseSerializer serializer,
@@ -785,6 +829,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_git_change_entry(
     GitChangeEntry self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_source_control_watcher_handle(
+    SourceControlWatcherHandle self,
     SseSerializer serializer,
   );
 
@@ -1052,6 +1102,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_workspace_file_git_status(
     WorkspaceFileGitStatus? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_source_control_watch_signal(
+    SourceControlWatchSignal self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_source_control_watcher_handle(
+    SourceControlWatcherHandle self,
     SseSerializer serializer,
   );
 

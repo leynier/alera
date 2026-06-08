@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:alera/src/features/workbench/application/source_control_watcher.dart';
+import 'package:alera/src/rust/api/workspace_files.dart' as native;
 import 'package:alera/src/shared/infra/git/git_backend.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_exception.dart';
@@ -64,8 +66,24 @@ enum WorkspaceSourceControlAction {
 @riverpod
 class WorkspaceSourceControlController
     extends _$WorkspaceSourceControlController {
+  static const Duration _watcherReloadDebounce = Duration(milliseconds: 250);
+
+  SourceControlWatcher? _watcher;
+  StreamSubscription<native.SourceControlWatchSignal>? _watchSubscription;
+  native.SourceControlWatcherHandle? _watcherHandle;
+  Timer? _watcherReloadDebounceTimer;
+  bool _watcherReloadInFlight = false;
+  bool _disposed = false;
+
   @override
   Future<WorkspaceSourceControlState> build(String workspacePath) {
+    // Capture the watcher now: `onDispose` runs in a lifecycle where reading
+    // providers via `ref` is disallowed.
+    _watcher = ref.read(sourceControlWatcherProvider);
+    ref.onDispose(_stopWatching);
+    // Best-effort: file watching keeps the panel live without blocking the
+    // initial load; manual refresh remains available if it fails to start.
+    unawaited(_startWatching());
     return _load();
   }
 
@@ -236,6 +254,72 @@ class WorkspaceSourceControlController
         state = AsyncError(error, stackTrace);
       }
       rethrow;
+    }
+  }
+
+  Future<void> _startWatching() async {
+    final watcher = _watcher;
+    if (watcher == null) {
+      return;
+    }
+    try {
+      final handle = await watcher.start(workspacePath: workspacePath);
+      if (_disposed) {
+        await watcher.stop(handle: handle);
+        return;
+      }
+      _watcherHandle = handle;
+      _watchSubscription = watcher
+          .events(handle: handle)
+          .listen((_) => _scheduleWatcherReload(), onError: (_) {});
+    } catch (_) {
+      // File watching is best-effort; explicit refresh still works.
+    }
+  }
+
+  void _stopWatching() {
+    _disposed = true;
+    _watcherReloadDebounceTimer?.cancel();
+    _watcherReloadDebounceTimer = null;
+    final subscription = _watchSubscription;
+    _watchSubscription = null;
+    unawaited(subscription?.cancel());
+    final handle = _watcherHandle;
+    _watcherHandle = null;
+    final watcher = _watcher;
+    if (handle != null && watcher != null) {
+      unawaited(watcher.stop(handle: handle));
+    }
+  }
+
+  void _scheduleWatcherReload() {
+    _watcherReloadDebounceTimer?.cancel();
+    _watcherReloadDebounceTimer = Timer(
+      _watcherReloadDebounce,
+      () => unawaited(_reloadFromWatcher()),
+    );
+  }
+
+  Future<void> _reloadFromWatcher() async {
+    if (_disposed || _watcherReloadInFlight) {
+      return;
+    }
+    // Defer while an action runs: `_run` reloads when it finishes, and skipping
+    // here avoids clobbering its optimistic busy state.
+    if (state.asData?.value.isBusy ?? false) {
+      return;
+    }
+    _watcherReloadInFlight = true;
+    try {
+      final next = await _load();
+      if (_disposed || (state.asData?.value.isBusy ?? false)) {
+        return;
+      }
+      state = AsyncData(next);
+    } catch (_) {
+      // Best-effort background refresh: keep the current state on failure.
+    } finally {
+      _watcherReloadInFlight = false;
     }
   }
 
