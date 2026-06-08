@@ -2,6 +2,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:xterm/xterm.dart';
 
 void main() {
+  test('xterm preserves Shift+Enter as CSI-u input', () {
+    final output = <String>[];
+    final terminal = Terminal(onOutput: output.add);
+
+    terminal.keyInput(TerminalKey.enter, shift: true);
+
+    expect(output, <String>['\x1b[13;2u']);
+  });
+
   test('xterm handles resize while scrollback and margins are active', () {
     final terminal = Terminal(maxLines: 120, reflowEnabled: false);
 
