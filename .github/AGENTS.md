@@ -9,6 +9,7 @@ This file applies to GitHub metadata and GitHub Actions workflows.
 - Release jobs must be reproducible from a clean checkout.
 - Build jobs must run on native runners for their platform.
 - Any job that builds the desktop app or runs the Linux desktop integration tests must set up the pinned Rust toolchain (matching `rust/rust-toolchain.toml`) and the Rust build cache before the Flutter build, because the native build hooks compile the Rust `alera` terminal-host sidecar via `cargo build --locked`. Keep this consistent across `pr.yml`, `desktop-build.yml`, and `release-cut.yml`.
+- Flutter jobs that can run native asset hooks must set up Zig 0.15.2, restore the native asset cache, patch the temporary PDFium podspec hash workaround, and run the native asset preflight before longer test/build commands. This keeps clean runners resilient when `ghostty_vte`, PDFium, or `portable_pty` prebuilt downloads are missing or transiently unavailable.
 - Pull request workflows must initialize required submodules before dependency resolution.
 - Do not expose partial releases to users.
 - Release automation must publish drafts first, verify required assets and update manifests, then publish public releases.
