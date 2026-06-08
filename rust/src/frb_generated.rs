@@ -38,7 +38,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1569074570;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1535239911;
 
 // Section: executor
 
@@ -1713,6 +1713,43 @@ fn wire__crate__api__agent_hooks__start_agent_hook_receiver_impl(
         },
     )
 }
+fn wire__crate__api__workspace_files__start_source_control_watcher_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "start_source_control_watcher",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_workspace_path = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::workspace_files::WorkspaceFileError>(
+                    (move || {
+                        let output_ok = crate::api::workspace_files::start_source_control_watcher(
+                            api_workspace_path,
+                        )?;
+                        Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__workspace_files__start_workspace_explorer_watcher_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -1778,6 +1815,43 @@ fn wire__crate__api__agent_hooks__stop_agent_hook_receiver_impl(
                 transform_result_sse::<_, ()>((move || {
                     let output_ok = Result::<_, ()>::Ok({
                         crate::api::agent_hooks::stop_agent_hook_receiver();
+                    })?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__workspace_files__stop_source_control_watcher_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "stop_source_control_watcher",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_handle = <crate::api::workspace_files::SourceControlWatcherHandle>::sse_decode(
+                &mut deserializer,
+            );
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok = Result::<_, ()>::Ok({
+                        crate::api::workspace_files::stop_source_control_watcher(api_handle);
                     })?;
                     Ok(output_ok)
                 })())
@@ -1897,6 +1971,49 @@ fn wire__crate__api__agent_hooks__watch_agent_hook_event_batches_impl(
                 transform_result_sse::<_, ()>((move || {
                     let output_ok = Result::<_, ()>::Ok({
                         crate::api::agent_hooks::watch_agent_hook_event_batches(api_sink);
+                    })?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__workspace_files__watch_source_control_events_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "watch_source_control_events",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_handle = <crate::api::workspace_files::SourceControlWatcherHandle>::sse_decode(
+                &mut deserializer,
+            );
+            let api_sink = <StreamSink<
+                crate::api::workspace_files::SourceControlWatchSignal,
+                flutter_rust_bridge::for_generated::SseCodec,
+            >>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok = Result::<_, ()>::Ok({
+                        crate::api::workspace_files::watch_source_control_events(
+                            api_handle, api_sink,
+                        );
                     })?;
                     Ok(output_ok)
                 })())
@@ -2059,6 +2176,19 @@ impl SseDecode for flutter_rust_bridge::for_generated::anyhow::Error {
 impl SseDecode
     for StreamSink<
         crate::api::agent_hooks::AgentHookEventBatchDto,
+        flutter_rust_bridge::for_generated::SseCodec,
+    >
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <String>::sse_decode(deserializer);
+        return StreamSink::deserialize(inner);
+    }
+}
+
+impl SseDecode
+    for StreamSink<
+        crate::api::workspace_files::SourceControlWatchSignal,
         flutter_rust_bridge::for_generated::SseCodec,
     >
 {
@@ -2771,6 +2901,24 @@ impl SseDecode for Option<crate::api::workspace_files::WorkspaceFileGitStatus> {
     }
 }
 
+impl SseDecode for crate::api::workspace_files::SourceControlWatchSignal {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_coalescedEventCount = <u32>::sse_decode(deserializer);
+        return crate::api::workspace_files::SourceControlWatchSignal {
+            coalesced_event_count: var_coalescedEventCount,
+        };
+    }
+}
+
+impl SseDecode for crate::api::workspace_files::SourceControlWatcherHandle {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        return crate::api::workspace_files::SourceControlWatcherHandle { id: var_id };
+    }
+}
+
 impl SseDecode for u16 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -3372,49 +3520,67 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        47 => wire__crate__api__workspace_files__start_workspace_explorer_watcher_impl(
+        47 => wire__crate__api__workspace_files__start_source_control_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        48 => wire__crate__api__agent_hooks__stop_agent_hook_receiver_impl(
+        48 => wire__crate__api__workspace_files__start_workspace_explorer_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        49 => wire__crate__api__workspace_files__stop_workspace_explorer_watcher_impl(
+        49 => wire__crate__api__agent_hooks__stop_agent_hook_receiver_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        50 => wire__crate__api__workspace_files__update_workspace_explorer_watcher_impl(
+        50 => wire__crate__api__workspace_files__stop_source_control_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        51 => wire__crate__api__agent_hooks__watch_agent_hook_event_batches_impl(
+        51 => wire__crate__api__workspace_files__stop_workspace_explorer_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        52 => wire__crate__api__workspace_files__watch_workspace_explorer_events_impl(
+        52 => wire__crate__api__workspace_files__update_workspace_explorer_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        53 => wire__crate__api__workspace_files__write_workspace_editor_text_file_impl(
+        53 => wire__crate__api__agent_hooks__watch_agent_hook_event_batches_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        54 => wire__crate__api__workspace_files__write_workspace_text_file_impl(
+        54 => wire__crate__api__workspace_files__watch_source_control_events_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        55 => wire__crate__api__workspace_files__watch_workspace_explorer_events_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        56 => wire__crate__api__workspace_files__write_workspace_editor_text_file_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        57 => wire__crate__api__workspace_files__write_workspace_text_file_impl(
             port,
             ptr,
             rust_vec_len,
@@ -3942,6 +4108,40 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::merman_viewer::MermanWorkspac
     for crate::api::merman_viewer::MermanWorkspaceRender
 {
     fn into_into_dart(self) -> crate::api::merman_viewer::MermanWorkspaceRender {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::workspace_files::SourceControlWatchSignal {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [self.coalesced_event_count.into_into_dart().into_dart()].into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::workspace_files::SourceControlWatchSignal
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::workspace_files::SourceControlWatchSignal>
+    for crate::api::workspace_files::SourceControlWatchSignal
+{
+    fn into_into_dart(self) -> crate::api::workspace_files::SourceControlWatchSignal {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::workspace_files::SourceControlWatcherHandle {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [self.id.into_into_dart().into_dart()].into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::workspace_files::SourceControlWatcherHandle
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::workspace_files::SourceControlWatcherHandle>
+    for crate::api::workspace_files::SourceControlWatcherHandle
+{
+    fn into_into_dart(self) -> crate::api::workspace_files::SourceControlWatcherHandle {
         self
     }
 }
@@ -4574,6 +4774,18 @@ impl SseEncode
 
 impl SseEncode
     for StreamSink<
+        crate::api::workspace_files::SourceControlWatchSignal,
+        flutter_rust_bridge::for_generated::SseCodec,
+    >
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        unimplemented!("")
+    }
+}
+
+impl SseEncode
+    for StreamSink<
         crate::api::workspace_files::WorkspaceExplorerWatchBatch,
         flutter_rust_bridge::for_generated::SseCodec,
     >
@@ -5131,6 +5343,20 @@ impl SseEncode for Option<crate::api::workspace_files::WorkspaceFileGitStatus> {
         if let Some(value) = self {
             <crate::api::workspace_files::WorkspaceFileGitStatus>::sse_encode(value, serializer);
         }
+    }
+}
+
+impl SseEncode for crate::api::workspace_files::SourceControlWatchSignal {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u32>::sse_encode(self.coalesced_event_count, serializer);
+    }
+}
+
+impl SseEncode for crate::api::workspace_files::SourceControlWatcherHandle {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
     }
 }
 

@@ -162,7 +162,7 @@ class _WorkspaceEditorSurfaceState
             enableLocalSuggestions: false,
             enableGuideLines: true,
             enableGutter: true,
-            enableGutterDivider: true,
+            enableGutterDivider: false,
             editorTheme: editorTheme,
             language: _languageForPath(filePath),
             tabSize: effectiveTabSize,

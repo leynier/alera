@@ -8,7 +8,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `content_token`, `copy_recursively`, `ensure_inside_existing_parent`, `ensure_not_descendant`, `entry_for_path`, `for_workspace`, `from_io`, `git_status_priority`, `has_visible_child`, `ignored_aware_children`, `is_protected_child_path`, `is_protected_relative_path`, `join_relative`, `merge_status`, `modified_millis`, `new`, `read_dir_children`, `reject_protected`, `relative_components`, `relative_string`, `resolve_existing_no_follow`, `resolve_existing`, `resolve_new_child`, `sanitize_name`, `status_for`, `status_from_git2`, `unique_copy_destination`, `workspace_root`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `GitStatusSnapshot`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 Future<List<WorkspaceFileEntry>> listWorkspaceChildren({
   required String workspacePath,
@@ -55,6 +55,24 @@ Stream<WorkspaceExplorerWatchBatch> watchWorkspaceExplorerEvents({
 Future<void> stopWorkspaceExplorerWatcher({
   required WorkspaceExplorerWatcherHandle handle,
 }) => RustLib.instance.api.crateApiWorkspaceFilesStopWorkspaceExplorerWatcher(
+  handle: handle,
+);
+
+Future<SourceControlWatcherHandle> startSourceControlWatcher({
+  required String workspacePath,
+}) => RustLib.instance.api.crateApiWorkspaceFilesStartSourceControlWatcher(
+  workspacePath: workspacePath,
+);
+
+Stream<SourceControlWatchSignal> watchSourceControlEvents({
+  required SourceControlWatcherHandle handle,
+}) => RustLib.instance.api.crateApiWorkspaceFilesWatchSourceControlEvents(
+  handle: handle,
+);
+
+Future<void> stopSourceControlWatcher({
+  required SourceControlWatcherHandle handle,
+}) => RustLib.instance.api.crateApiWorkspaceFilesStopSourceControlWatcher(
   handle: handle,
 );
 
@@ -169,6 +187,38 @@ Future<void> deleteWorkspaceEntry({
   relativePath: relativePath,
   useTrash: useTrash,
 );
+
+class SourceControlWatchSignal {
+  final int coalescedEventCount;
+
+  const SourceControlWatchSignal({required this.coalescedEventCount});
+
+  @override
+  int get hashCode => coalescedEventCount.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SourceControlWatchSignal &&
+          runtimeType == other.runtimeType &&
+          coalescedEventCount == other.coalescedEventCount;
+}
+
+class SourceControlWatcherHandle {
+  final String id;
+
+  const SourceControlWatcherHandle({required this.id});
+
+  @override
+  int get hashCode => id.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SourceControlWatcherHandle &&
+          runtimeType == other.runtimeType &&
+          id == other.id;
+}
 
 class WorkspaceEditorTextFile {
   final String rawContent;
