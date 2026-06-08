@@ -65,6 +65,22 @@ jobs:
       - name: Patch native asset CI workarounds
         run: dart tool/ci/patch_native_asset_ci_workarounds.dart
 
+      - name: Setup portable PTY prebuilt
+        if: matrix.platform == 'macos'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if dart run portable_pty:setup --platform macos-arm64; then
+              exit 0
+            fi
+            echo "portable_pty setup failed on attempt ${attempt}; retrying..."
+            sleep $((attempt * 10))
+          done
+          dart run portable_pty:setup --platform macos-arm64
+
       # The native build hooks compile both the Rust terminal-host sidecar
       # (alera-cli) and the flutter_rust_bridge git library (alera_native).
       - name: Setup Rust
