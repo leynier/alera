@@ -37,9 +37,7 @@ class FakeSourceControlWatcher extends SourceControlWatcher {
   }
 
   @override
-  Future<void> stop({
-    required native.SourceControlWatcherHandle handle,
-  }) async {
+  Future<void> stop({required native.SourceControlWatcherHandle handle}) async {
     stopCount += 1;
   }
 

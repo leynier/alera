@@ -67,7 +67,8 @@ void main() {
   });
 
   test('watch signals are deferred while an action is in flight', () async {
-    final backend = _BlockingFetchGitBackend()..gitStatusResult = _statusWith(1);
+    final backend = _BlockingFetchGitBackend()
+      ..gitStatusResult = _statusWith(1);
     final watcher = FakeSourceControlWatcher();
     addTearDown(watcher.dispose);
     final (container, controller) = await _boot(backend, watcher);
