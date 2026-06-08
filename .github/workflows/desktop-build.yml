@@ -46,6 +46,41 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.15.2
+
+      - name: Cache native assets
+        uses: actions/cache@v4
+        with:
+          path: |
+            .dart_tool/hooks_runner
+            .dart_tool/native_assets
+            .dart_tool/native_assets_builder
+          key: native-assets-${{ runner.os }}-${{ runner.arch }}-build-${{ matrix.platform }}-${{ hashFiles('pubspec.lock', 'third_party/dart_terminal/pkgs/vte/ghostty_vte/third_party/ghostty/build.zig.zon') }}
+          restore-keys: |
+            native-assets-${{ runner.os }}-${{ runner.arch }}-build-${{ matrix.platform }}-
+
+      - name: Patch native asset CI workarounds
+        run: dart tool/ci/patch_native_asset_ci_workarounds.dart
+
+      - name: Setup portable PTY prebuilt
+        if: matrix.platform == 'macos'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if dart run portable_pty:setup --platform macos-arm64; then
+              exit 0
+            fi
+            echo "portable_pty setup failed on attempt ${attempt}; retrying..."
+            sleep $((attempt * 10))
+          done
+          dart run portable_pty:setup --platform macos-arm64
+
       # The native build hooks compile both the Rust terminal-host sidecar
       # (alera-cli) and the flutter_rust_bridge git library (alera_native).
       - name: Setup Rust
@@ -58,6 +93,19 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: rust
+
+      - name: Native asset preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if flutter test test/unit/native_asset_preflight_test.dart --name "native asset package graph is available"; then
+              exit 0
+            fi
+            echo "Native asset preflight failed on attempt ${attempt}; retrying..."
+            sleep $((attempt * 10))
+          done
+          flutter test test/unit/native_asset_preflight_test.dart --name "native asset package graph is available"
 
       - name: Build desktop app
         run: flutter build ${{ matrix.platform }} --release --dart-define=ALERA_FLAVOR=release

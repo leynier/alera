@@ -2,7 +2,7 @@ name: Feature request
 description: Suggest an improvement for Alera
 title: "[Feature]: "
 labels:
-  - enhancement
+  - feature
 body:
   - type: textarea
     id: problem
