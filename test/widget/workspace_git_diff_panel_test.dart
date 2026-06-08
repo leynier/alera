@@ -6,6 +6,7 @@ import 'package:alera/src/features/ai_text_generation/application/ai_text_genera
 import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
+import 'package:alera/src/features/workbench/application/source_control_watcher.dart';
 import 'package:alera/src/features/workbench/application/workspace_source_control_controller.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
@@ -19,6 +20,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../unit/fake_git_backend.dart';
+import '../unit/fake_source_control_watcher.dart';
 
 void main() {
   testWidgets('git diff panel hides zero-valued line counts', (tester) async {
@@ -39,6 +41,9 @@ void main() {
       ProviderScope(
         overrides: [
           gitBackendProvider.overrideWithValue(backend),
+          sourceControlWatcherProvider.overrideWithValue(
+            FakeSourceControlWatcher(),
+          ),
           settingsControllerProvider.overrideWith(
             () => _PanelSettingsController(AleraSettings.defaults),
           ),
@@ -88,6 +93,9 @@ void main() {
       ProviderScope(
         overrides: [
           gitBackendProvider.overrideWithValue(backend),
+          sourceControlWatcherProvider.overrideWithValue(
+            FakeSourceControlWatcher(),
+          ),
           settingsControllerProvider.overrideWith(
             () => _PanelSettingsController(AleraSettings.defaults),
           ),
@@ -716,7 +724,12 @@ void main() {
     final backend = FakeGitBackend()
       ..gitRepositoryStateResult = const GitRepositoryState(branch: 'feature');
     final container = ProviderContainer(
-      overrides: [gitBackendProvider.overrideWithValue(backend)],
+      overrides: [
+        gitBackendProvider.overrideWithValue(backend),
+        sourceControlWatcherProvider.overrideWithValue(
+          FakeSourceControlWatcher(),
+        ),
+      ],
     );
     addTearDown(container.dispose);
     final provider = workspaceSourceControlControllerProvider('/tmp/project');
@@ -988,6 +1001,9 @@ Future<void> _pumpPanel(
     ProviderScope(
       overrides: [
         gitBackendProvider.overrideWithValue(backend),
+        sourceControlWatcherProvider.overrideWithValue(
+          FakeSourceControlWatcher(),
+        ),
         settingsControllerProvider.overrideWith(
           () => _PanelSettingsController(settings),
         ),

@@ -1,0 +1,126 @@
+import 'dart:async';
+
+import 'package:alera/src/features/workbench/application/source_control_watcher.dart';
+import 'package:alera/src/features/workbench/application/workspace_source_control_controller.dart';
+import 'package:alera/src/shared/infra/git/git_diff_models.dart';
+import 'package:alera/src/shared/infra/git/git_providers.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import 'fake_git_backend.dart';
+import 'fake_source_control_watcher.dart';
+
+const _workspacePath = '/tmp/workspace';
+
+GitStatusResult _statusWith(int entryCount) {
+  return GitStatusResult(
+    entries: <GitChangeEntry>[
+      for (var index = 0; index < entryCount; index += 1)
+        GitChangeEntry(
+          path: 'file_$index.dart',
+          area: GitChangeArea.unstaged,
+          status: GitChangeStatus.modified,
+          added: 1,
+          removed: 0,
+        ),
+    ],
+  );
+}
+
+Future<(ProviderContainer, WorkspaceSourceControlController)> _boot(
+  FakeGitBackend backend,
+  FakeSourceControlWatcher watcher,
+) async {
+  final container = ProviderContainer(
+    overrides: [
+      gitBackendProvider.overrideWithValue(backend),
+      sourceControlWatcherProvider.overrideWithValue(watcher),
+    ],
+  );
+  final provider = workspaceSourceControlControllerProvider(_workspacePath);
+  final subscription = container.listen(provider, (_, _) {});
+  addTearDown(subscription.close);
+  addTearDown(container.dispose);
+  await container.read(provider.future);
+  // Let the best-effort, unawaited watcher subscription attach.
+  await Future<void>.delayed(const Duration(milliseconds: 10));
+  return (container, container.read(provider.notifier));
+}
+
+void main() {
+  test('a watch signal reloads source control state', () async {
+    final backend = FakeGitBackend()..gitStatusResult = _statusWith(1);
+    final watcher = FakeSourceControlWatcher();
+    addTearDown(watcher.dispose);
+    final (container, _) = await _boot(backend, watcher);
+    final provider = workspaceSourceControlControllerProvider(_workspacePath);
+
+    expect(container.read(provider).requireValue.status.entries, hasLength(1));
+    expect(watcher.startCount, 1);
+
+    // Simulate an external change picked up by the native watcher.
+    backend.gitStatusResult = _statusWith(3);
+    watcher.emitChange();
+    await Future<void>.delayed(const Duration(milliseconds: 350));
+
+    expect(container.read(provider).requireValue.status.entries, hasLength(3));
+  });
+
+  test('watch signals are deferred while an action is in flight', () async {
+    final backend = _BlockingFetchGitBackend()
+      ..gitStatusResult = _statusWith(1);
+    final watcher = FakeSourceControlWatcher();
+    addTearDown(watcher.dispose);
+    final (container, controller) = await _boot(backend, watcher);
+    final provider = workspaceSourceControlControllerProvider(_workspacePath);
+
+    final fetchFuture = controller.fetch();
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+    expect(container.read(provider).requireValue.isBusy, isTrue);
+
+    // External change arrives mid-action: it must not reload yet.
+    backend.gitStatusResult = _statusWith(5);
+    watcher.emitChange();
+    await Future<void>.delayed(const Duration(milliseconds: 350));
+    expect(container.read(provider).requireValue.status.entries, hasLength(1));
+    expect(container.read(provider).requireValue.isBusy, isTrue);
+
+    // Action completes and reloads, surfacing the latest status.
+    backend.gate.complete();
+    await fetchFuture;
+    expect(container.read(provider).requireValue.isBusy, isFalse);
+    expect(container.read(provider).requireValue.status.entries, hasLength(5));
+  });
+
+  test('disposing the controller stops the watcher', () async {
+    final backend = FakeGitBackend()..gitStatusResult = _statusWith(0);
+    final watcher = FakeSourceControlWatcher();
+    addTearDown(watcher.dispose);
+    final container = ProviderContainer(
+      overrides: [
+        gitBackendProvider.overrideWithValue(backend),
+        sourceControlWatcherProvider.overrideWithValue(watcher),
+      ],
+    );
+    final provider = workspaceSourceControlControllerProvider(_workspacePath);
+    final subscription = container.listen(provider, (_, _) {});
+    await container.read(provider.future);
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+    expect(watcher.startCount, 1);
+
+    subscription.close();
+    container.dispose();
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+
+    expect(watcher.stopCount, 1);
+  });
+}
+
+class _BlockingFetchGitBackend extends FakeGitBackend {
+  final Completer<void> gate = Completer<void>();
+
+  @override
+  Future<void> fetch(String path) async {
+    await gate.future;
+  }
+}

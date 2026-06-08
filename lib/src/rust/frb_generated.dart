@@ -70,7 +70,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => 1569074570;
+  int get rustContentHash => -1535239911;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -286,12 +286,21 @@ abstract class RustLibApi extends BaseApi {
     required List<String> enabledAgents,
   });
 
+  Future<SourceControlWatcherHandle>
+  crateApiWorkspaceFilesStartSourceControlWatcher({
+    required String workspacePath,
+  });
+
   Future<WorkspaceExplorerWatcherHandle>
   crateApiWorkspaceFilesStartWorkspaceExplorerWatcher({
     required String workspacePath,
   });
 
   Future<void> crateApiAgentHooksStopAgentHookReceiver();
+
+  Future<void> crateApiWorkspaceFilesStopSourceControlWatcher({
+    required SourceControlWatcherHandle handle,
+  });
 
   Future<void> crateApiWorkspaceFilesStopWorkspaceExplorerWatcher({
     required WorkspaceExplorerWatcherHandle handle,
@@ -303,6 +312,11 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Stream<AgentHookEventBatchDto> crateApiAgentHooksWatchAgentHookEventBatches();
+
+  Stream<SourceControlWatchSignal>
+  crateApiWorkspaceFilesWatchSourceControlEvents({
+    required SourceControlWatcherHandle handle,
+  });
 
   Stream<WorkspaceExplorerWatchBatch>
   crateApiWorkspaceFilesWatchWorkspaceExplorerEvents({
@@ -1886,6 +1900,40 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<SourceControlWatcherHandle>
+  crateApiWorkspaceFilesStartSourceControlWatcher({
+    required String workspacePath,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(workspacePath, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 47,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_source_control_watcher_handle,
+          decodeErrorData: sse_decode_workspace_file_error,
+        ),
+        constMeta: kCrateApiWorkspaceFilesStartSourceControlWatcherConstMeta,
+        argValues: [workspacePath],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWorkspaceFilesStartSourceControlWatcherConstMeta =>
+      const TaskConstMeta(
+        debugName: "start_source_control_watcher",
+        argNames: ["workspacePath"],
+      );
+
+  @override
   Future<WorkspaceExplorerWatcherHandle>
   crateApiWorkspaceFilesStartWorkspaceExplorerWatcher({
     required String workspacePath,
@@ -1898,7 +1946,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 47,
+            funcId: 48,
             port: port_,
           );
         },
@@ -1930,7 +1978,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 48,
+            funcId: 49,
             port: port_,
           );
         },
@@ -1949,6 +1997,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "stop_agent_hook_receiver", argNames: []);
 
   @override
+  Future<void> crateApiWorkspaceFilesStopSourceControlWatcher({
+    required SourceControlWatcherHandle handle,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_source_control_watcher_handle(
+            handle,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 50,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiWorkspaceFilesStopSourceControlWatcherConstMeta,
+        argValues: [handle],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWorkspaceFilesStopSourceControlWatcherConstMeta =>
+      const TaskConstMeta(
+        debugName: "stop_source_control_watcher",
+        argNames: ["handle"],
+      );
+
+  @override
   Future<void> crateApiWorkspaceFilesStopWorkspaceExplorerWatcher({
     required WorkspaceExplorerWatcherHandle handle,
   }) {
@@ -1963,7 +2047,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 49,
+            funcId: 51,
             port: port_,
           );
         },
@@ -2002,7 +2086,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 50,
+            funcId: 52,
             port: port_,
           );
         },
@@ -2041,7 +2125,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 51,
+              funcId: 53,
               port: port_,
             );
           },
@@ -2062,6 +2146,51 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "watch_agent_hook_event_batches",
         argNames: ["sink"],
+      );
+
+  @override
+  Stream<SourceControlWatchSignal>
+  crateApiWorkspaceFilesWatchSourceControlEvents({
+    required SourceControlWatcherHandle handle,
+  }) {
+    final sink = RustStreamSink<SourceControlWatchSignal>();
+    unawaited(
+      handler.executeNormal(
+        NormalTask(
+          callFfi: (port_) {
+            final serializer = SseSerializer(generalizedFrbRustBinding);
+            sse_encode_box_autoadd_source_control_watcher_handle(
+              handle,
+              serializer,
+            );
+            sse_encode_StreamSink_source_control_watch_signal_Sse(
+              sink,
+              serializer,
+            );
+            pdeCallFfi(
+              generalizedFrbRustBinding,
+              serializer,
+              funcId: 54,
+              port: port_,
+            );
+          },
+          codec: SseCodec(
+            decodeSuccessData: sse_decode_unit,
+            decodeErrorData: null,
+          ),
+          constMeta: kCrateApiWorkspaceFilesWatchSourceControlEventsConstMeta,
+          argValues: [handle, sink],
+          apiImpl: this,
+        ),
+      ),
+    );
+    return sink.stream;
+  }
+
+  TaskConstMeta get kCrateApiWorkspaceFilesWatchSourceControlEventsConstMeta =>
+      const TaskConstMeta(
+        debugName: "watch_source_control_events",
+        argNames: ["handle", "sink"],
       );
 
   @override
@@ -2086,7 +2215,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 52,
+              funcId: 55,
               port: port_,
             );
           },
@@ -2138,7 +2267,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 53,
+            funcId: 56,
             port: port_,
           );
         },
@@ -2198,7 +2327,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 54,
+            funcId: 57,
             port: port_,
           );
         },
@@ -2240,6 +2369,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   RustStreamSink<AgentHookEventBatchDto>
   dco_decode_StreamSink_agent_hook_event_batch_dto_Sse(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    throw UnimplementedError();
+  }
+
+  @protected
+  RustStreamSink<SourceControlWatchSignal>
+  dco_decode_StreamSink_source_control_watch_signal_Sse(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     throw UnimplementedError();
   }
@@ -2306,6 +2442,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   GitChangeEntry dco_decode_box_autoadd_git_change_entry(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_git_change_entry(raw);
+  }
+
+  @protected
+  SourceControlWatcherHandle
+  dco_decode_box_autoadd_source_control_watcher_handle(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_source_control_watcher_handle(raw);
   }
 
   @protected
@@ -2765,6 +2908,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SourceControlWatchSignal dco_decode_source_control_watch_signal(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 1)
+      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
+    return SourceControlWatchSignal(
+      coalescedEventCount: dco_decode_u_32(arr[0]),
+    );
+  }
+
+  @protected
+  SourceControlWatcherHandle dco_decode_source_control_watcher_handle(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 1)
+      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
+    return SourceControlWatcherHandle(id: dco_decode_String(arr[0]));
+  }
+
+  @protected
   int dco_decode_u_16(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
@@ -3153,6 +3318,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  RustStreamSink<SourceControlWatchSignal>
+  sse_decode_StreamSink_source_control_watch_signal_Sse(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    throw UnimplementedError('Unreachable ()');
+  }
+
+  @protected
   RustStreamSink<WorkspaceExplorerWatchBatch>
   sse_decode_StreamSink_workspace_explorer_watch_batch_Sse(
     SseDeserializer deserializer,
@@ -3227,6 +3401,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_git_change_entry(deserializer));
+  }
+
+  @protected
+  SourceControlWatcherHandle
+  sse_decode_box_autoadd_source_control_watcher_handle(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_source_control_watcher_handle(deserializer));
   }
 
   @protected
@@ -3843,6 +4026,26 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SourceControlWatchSignal sse_decode_source_control_watch_signal(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_coalescedEventCount = sse_decode_u_32(deserializer);
+    return SourceControlWatchSignal(
+      coalescedEventCount: var_coalescedEventCount,
+    );
+  }
+
+  @protected
+  SourceControlWatcherHandle sse_decode_source_control_watcher_handle(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    return SourceControlWatcherHandle(id: var_id);
+  }
+
+  @protected
   int sse_decode_u_16(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getUint16();
@@ -4305,6 +4508,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_StreamSink_source_control_watch_signal_Sse(
+    RustStreamSink<SourceControlWatchSignal> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(
+      self.setupAndSerialize(
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_source_control_watch_signal,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+      ),
+      serializer,
+    );
+  }
+
+  @protected
   void sse_encode_StreamSink_workspace_explorer_watch_batch_Sse(
     RustStreamSink<WorkspaceExplorerWatchBatch> self,
     SseSerializer serializer,
@@ -4375,6 +4595,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_git_change_entry(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_source_control_watcher_handle(
+    SourceControlWatcherHandle self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_source_control_watcher_handle(self, serializer);
   }
 
   @protected
@@ -4920,6 +5149,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     if (self != null) {
       sse_encode_box_autoadd_workspace_file_git_status(self, serializer);
     }
+  }
+
+  @protected
+  void sse_encode_source_control_watch_signal(
+    SourceControlWatchSignal self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self.coalescedEventCount, serializer);
+  }
+
+  @protected
+  void sse_encode_source_control_watcher_handle(
+    SourceControlWatcherHandle self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
   }
 
   @protected
