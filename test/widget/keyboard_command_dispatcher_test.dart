@@ -327,9 +327,6 @@ void main() {
 
     dispatcher.dispatch(KeyboardActionId.createWorkspace);
     await tester.pumpAndSettle();
-    expect(
-      find.widgetWithText(FilledButton, 'Create workspace'),
-      findsOneWidget,
-    );
+    expect(find.widgetWithText(FilledButton, 'Continue'), findsOneWidget);
   });
 }
