@@ -5,9 +5,11 @@ import 'package:path/path.dart' as p;
 
 const _packageName = 'pdfium_flutter';
 const _pdfiumDartPackageName = 'pdfium_dart';
+const _portablePtyPackageName = 'portable_pty';
 const _sqlitePackageName = 'sqlite3';
 const _podspecRelativePath = 'darwin/pdfium_flutter.podspec';
 const _pdfiumDartBuildHookRelativePath = 'hook/build.dart';
+const _portablePtyBuildHookRelativePath = 'hook/build.dart';
 const _sqliteDescriptionRelativePath = 'lib/src/hook/description.dart';
 const _upstreamHash =
     '948d9257f53f01cbed74b81bb8adc8758e52ac9390751772de7889026d32d5a1';
@@ -54,6 +56,18 @@ const _pdfiumDartRetriedDownloadSnippet = '''
   if (response == null || response.statusCode != 200) {
     throw Exception('Failed to download PDFium: \$archiveUri');
   }
+''';
+const _portablePtyNarrowCatchSnippet = '''
+      } on Exception catch (e) {
+        _warn('Download failed: \$e');
+        _warn('Falling back to build from source.');
+      }
+''';
+const _portablePtyBroadCatchSnippet = '''
+      } catch (e) {
+        _warn('Download failed: \$e');
+        _warn('Falling back to build from source.');
+      }
 ''';
 const _sqliteDownloadSnippet = '''
     final tmp = File('\${downloadedFile.path}.tmp');
@@ -226,6 +240,73 @@ void main() {
     stdout.writeln(
       'Removed cached $_pdfiumDartPackageName hook output so CI recompiles it.',
     );
+  }
+
+  final portablePtyPackage = _findPackage(
+    typedPackages,
+    _portablePtyPackageName,
+  );
+  final portablePtyRootUriValue = portablePtyPackage['rootUri'] as String?;
+  if (portablePtyRootUriValue == null) {
+    stderr.writeln(
+      'Package $_portablePtyPackageName was not found in package_config.json.',
+    );
+    exitCode = 76;
+    return;
+  }
+
+  final portablePtyRootUri = _asDirectoryUri(
+    packageConfigUri.resolve(portablePtyRootUriValue),
+  );
+  final portablePtyBuildHook = File(
+    p.fromUri(portablePtyRootUri.resolve(_portablePtyBuildHookRelativePath)),
+  );
+  if (!portablePtyBuildHook.existsSync()) {
+    stderr.writeln(
+      'Missing $_portablePtyPackageName build hook at '
+      '${portablePtyBuildHook.path}.',
+    );
+    exitCode = 77;
+    return;
+  }
+
+  final currentPortablePtyBuildHook = portablePtyBuildHook.readAsStringSync();
+  if (currentPortablePtyBuildHook.contains(_portablePtyBroadCatchSnippet)) {
+    stdout.writeln(
+      '$_portablePtyPackageName build hook already falls back after all download errors.',
+    );
+  } else if (!currentPortablePtyBuildHook.contains(
+    _portablePtyNarrowCatchSnippet,
+  )) {
+    stderr.writeln(
+      '$_portablePtyPackageName build hook does not contain the expected '
+      'download fallback snippet. Revisit the temporary PTY fallback patch.',
+    );
+    exitCode = 78;
+    return;
+  } else {
+    portablePtyBuildHook.writeAsStringSync(
+      currentPortablePtyBuildHook.replaceAll(
+        _portablePtyNarrowCatchSnippet,
+        _portablePtyBroadCatchSnippet,
+      ),
+    );
+    stdout.writeln(
+      'Patched $_portablePtyPackageName build hook to fall back after all download errors.',
+    );
+  }
+
+  for (final path in [
+    p.join('.dart_tool', 'hooks_runner', _portablePtyPackageName),
+    p.join('.dart_tool', 'hooks_runner', 'shared', _portablePtyPackageName),
+  ]) {
+    final directory = Directory(path);
+    if (directory.existsSync()) {
+      directory.deleteSync(recursive: true);
+      stdout.writeln(
+        'Removed cached $_portablePtyPackageName hook output at $path.',
+      );
+    }
   }
 
   final sqlitePackage = _findPackage(typedPackages, _sqlitePackageName);
