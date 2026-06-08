@@ -52,12 +52,14 @@ abstract final class AleraIcons {
   static const IconData collapseAll = LucideIcons.chevronsDownUp;
   static const IconData arrowUp = LucideIcons.arrowUp;
   static const IconData arrowDown = LucideIcons.arrowDown;
+  static const IconData back = LucideIcons.arrowLeft;
   static const IconData more = LucideIcons.ellipsis;
 
   // Files and folders
   static const IconData folder = LucideIcons.folder;
   static const IconData folderOpen = LucideIcons.folderOpen;
   static const IconData newFolder = LucideIcons.folderPlus;
+  static const IconData folderOff = LucideIcons.folderX;
   // Project/workspace pickers: a project is a git folder.
   static const IconData folderSpecial = LucideIcons.folderGit2;
   static const IconData file = LucideIcons.fileText;

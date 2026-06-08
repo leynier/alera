@@ -135,6 +135,11 @@ void main() {
 
     await tester.tap(find.text('New workspace').first);
     await tester.pumpAndSettle();
+
+    // Tap Continue to go to Step 2
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+
     expect(
       find.widgetWithText(FilledButton, 'Create workspace'),
       findsOneWidget,
