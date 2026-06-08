@@ -37,3 +37,6 @@ macos/Runner/Configs/Flavor.xcconfig
 
 # Rust
 /rust/target/
+
+# Alchemist golden failure diffs (transient)
+test/golden/failures/

@@ -79,14 +79,14 @@ class _LeftColumn extends ConsumerWidget {
           child: Column(
             children: [
               _ActionRow(
-                icon: Icons.create_new_folder_outlined,
+                icon: AleraIcons.newFolder,
                 title: 'Add project',
                 description: 'Open a local folder or clone a repository',
                 onTap: () => unawaited(showAddProjectFlow(context, ref)),
               ),
               const Divider(height: 1, color: AleraTokens.borderSubtle),
               _ActionRow(
-                icon: Icons.alt_route_outlined,
+                icon: AleraIcons.gitFork,
                 title: 'New workspace',
                 description: 'Create a linked workspace for active Git project',
                 enabled: hasGitProjects,
@@ -94,7 +94,7 @@ class _LeftColumn extends ConsumerWidget {
               ),
               const Divider(height: 1, color: AleraTokens.borderSubtle),
               _ActionRow(
-                icon: Icons.settings_outlined,
+                icon: AleraIcons.settings,
                 title: 'Open settings',
                 description: 'Configure keyboard shortcuts and preferences',
                 onTap: () => unawaited(openSettingsDialog(context)),
@@ -133,7 +133,7 @@ class _RightColumn extends ConsumerWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       const Icon(
-                        Icons.folder_open,
+                        AleraIcons.folderOpen,
                         size: 36,
                         color: AleraTokens.foregroundFaint,
                       ),
@@ -155,7 +155,7 @@ class _RightColumn extends ConsumerWidget {
                       FilledButton.icon(
                         onPressed: () =>
                             unawaited(showAddProjectFlow(context, ref)),
-                        icon: const Icon(Icons.add, size: 16),
+                        icon: const Icon(AleraIcons.add, size: 16),
                         label: const Text('Add project'),
                       ),
                     ],
@@ -179,7 +179,7 @@ class _RightColumn extends ConsumerWidget {
                           Row(
                             children: [
                               Icon(
-                                Icons.folder_outlined,
+                                AleraIcons.folder,
                                 size: 18,
                                 color: AleraTokens.accent,
                               ),

@@ -35,19 +35,19 @@ class _ExplorerToolbar extends StatelessWidget {
             const Spacer(),
             AleraIconButton(
               tooltip: 'New file',
-              icon: Icons.note_add_outlined,
+              icon: AleraIcons.newFile,
               onPressed: onNewFile,
             ),
             const SizedBox(width: AleraTokens.space2),
             AleraIconButton(
               tooltip: 'New folder',
-              icon: Icons.create_new_folder_outlined,
+              icon: AleraIcons.newFolder,
               onPressed: onNewFolder,
             ),
             const SizedBox(width: AleraTokens.space2),
             AleraIconButton(
               tooltip: 'Save all files',
-              icon: Icons.save_outlined,
+              icon: AleraIcons.save,
               onPressed: onSaveAll,
             ),
             const SizedBox(width: AleraTokens.space2),
@@ -56,20 +56,20 @@ class _ExplorerToolbar extends StatelessWidget {
                   ? 'Show ignored files'
                   : 'Hide ignored files',
               icon: mode == WorkspaceExplorerMode.hideIgnored
-                  ? Icons.visibility_off_outlined
-                  : Icons.visibility_outlined,
+                  ? AleraIcons.hidden
+                  : AleraIcons.visible,
               onPressed: onToggleMode,
             ),
             const SizedBox(width: AleraTokens.space2),
             AleraIconButton(
               tooltip: 'Collapse all',
-              icon: Icons.unfold_less,
+              icon: AleraIcons.collapseAll,
               onPressed: onCollapseAll,
             ),
             const SizedBox(width: AleraTokens.space2),
             AleraIconButton(
               tooltip: 'Refresh',
-              icon: loading ? Icons.hourglass_empty : Icons.refresh,
+              icon: loading ? AleraIcons.loading : AleraIcons.refresh,
               onPressed: loading ? null : onRefresh,
             ),
           ],
@@ -273,70 +273,70 @@ class _ExplorerMenuDelegate extends tree.ContextMenuDelegate {
           AleraDropdownEntry<_ExplorerAction>(
             value: _ExplorerAction.newFile,
             label: 'New file',
-            leading: Icon(Icons.note_add_outlined, size: 16),
+            leading: Icon(AleraIcons.newFile, size: 16),
           ),
           AleraDropdownEntry<_ExplorerAction>(
             value: _ExplorerAction.newFolder,
             label: 'New folder',
-            leading: Icon(Icons.create_new_folder_outlined, size: 16),
+            leading: Icon(AleraIcons.newFolder, size: 16),
           ),
           AleraDropdownEntry<_ExplorerAction>(
             value: _ExplorerAction.copy,
             label: 'Copy',
-            leading: Icon(Icons.copy_outlined, size: 16),
+            leading: Icon(AleraIcons.copy, size: 16),
           ),
           AleraDropdownEntry<_ExplorerAction>(
             value: _ExplorerAction.cut,
             label: 'Cut',
-            leading: Icon(Icons.content_cut, size: 16),
+            leading: Icon(AleraIcons.cut, size: 16),
           ),
           AleraDropdownEntry<_ExplorerAction>(
             value: _ExplorerAction.paste,
             label: 'Paste',
-            leading: Icon(Icons.content_paste, size: 16),
+            leading: Icon(AleraIcons.paste, size: 16),
           ),
           AleraDropdownEntry<_ExplorerAction>(
             value: _ExplorerAction.copyPath,
             label: 'Copy path',
-            leading: Icon(Icons.content_copy, size: 16),
+            leading: Icon(AleraIcons.copy, size: 16),
           ),
           AleraDropdownEntry<_ExplorerAction>(
             value: _ExplorerAction.copyRelativePath,
             label: 'Copy relative path',
-            leading: Icon(Icons.content_copy_outlined, size: 16),
+            leading: Icon(AleraIcons.copy, size: 16),
           ),
           AleraDropdownEntry<_ExplorerAction>(
             value: _ExplorerAction.duplicate,
             label: 'Duplicate',
-            leading: Icon(Icons.control_point_duplicate_outlined, size: 16),
+            leading: Icon(AleraIcons.duplicate, size: 16),
           ),
           AleraDropdownEntry<_ExplorerAction>(
             value: _ExplorerAction.reveal,
             label: 'Reveal in Finder',
-            leading: Icon(Icons.open_in_new, size: 16),
+            leading: Icon(AleraIcons.external, size: 16),
           ),
           PopupMenuDivider(height: AleraTokens.space8),
           AleraDropdownEntry<_ExplorerAction>(
             value: _ExplorerAction.rename,
             label: 'Rename',
-            leading: Icon(Icons.edit_outlined, size: 16),
+            leading: Icon(AleraIcons.edit, size: 16),
           ),
           PopupMenuDivider(height: AleraTokens.space8),
           AleraDropdownEntry<_ExplorerAction>(
             value: _ExplorerAction.collapse,
             label: 'Collapse folder',
-            leading: Icon(Icons.keyboard_arrow_right, size: 16),
+            leading: Icon(AleraIcons.chevronRight, size: 16),
           ),
           AleraDropdownEntry<_ExplorerAction>(
             value: _ExplorerAction.refresh,
             label: 'Refresh',
-            leading: Icon(Icons.refresh, size: 16),
+            leading: Icon(AleraIcons.refresh, size: 16),
           ),
           PopupMenuDivider(height: AleraTokens.space8),
           AleraDropdownEntry<_ExplorerAction>(
             value: _ExplorerAction.delete,
             label: 'Delete',
-            leading: Icon(Icons.delete_outline, size: 16),
+            leading: Icon(AleraIcons.delete, size: 16),
           ),
         ],
       );
@@ -384,12 +384,12 @@ class _ExplorerBackgroundMenu extends StatelessWidget {
           AleraDropdownEntry<_ExplorerAction>(
             value: _ExplorerAction.newFile,
             label: 'New file',
-            leading: Icon(Icons.note_add_outlined, size: 16),
+            leading: Icon(AleraIcons.newFile, size: 16),
           ),
           AleraDropdownEntry<_ExplorerAction>(
             value: _ExplorerAction.newFolder,
             label: 'New folder',
-            leading: Icon(Icons.create_new_folder_outlined, size: 16),
+            leading: Icon(AleraIcons.newFolder, size: 16),
           ),
         ],
       );

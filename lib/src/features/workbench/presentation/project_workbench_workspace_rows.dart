@@ -65,14 +65,14 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
       items: <PopupMenuEntry<String>>[
         const AleraDropdownEntry<String>(
           value: _renameAction,
-          leading: Icon(Icons.edit_outlined, size: 16),
+          leading: Icon(AleraIcons.edit, size: 16),
           label: 'Rename',
         ),
         const PopupMenuDivider(height: AleraTokens.space8),
         AleraDropdownEntry<String>(
           value: _openFolderAction,
           leading: const Icon(
-            Icons.folder_open,
+            AleraIcons.folderOpen,
             size: 16,
             color: AleraTokens.foreground,
           ),
@@ -80,14 +80,18 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
         ),
         const AleraDropdownEntry<String>(
           value: _copyPathAction,
-          leading: Icon(Icons.copy, size: 16, color: AleraTokens.foreground),
+          leading: Icon(
+            AleraIcons.copy,
+            size: 16,
+            color: AleraTokens.foreground,
+          ),
           label: 'Copy path',
         ),
         const PopupMenuDivider(height: AleraTokens.space8),
         const AleraDropdownEntry<String>(
           value: _sleepAction,
           leading: Icon(
-            Icons.bedtime_outlined,
+            AleraIcons.theme,
             size: 16,
             color: AleraTokens.foreground,
           ),
@@ -96,7 +100,7 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
         AleraDropdownEntry<String>(
           value: _removeAction,
           leading: Icon(
-            Icons.delete_outline,
+            AleraIcons.delete,
             size: 16,
             color: widget.onDelete != null
                 ? AleraTokens.foreground
@@ -242,8 +246,8 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                             : 'Show agent runs',
                         onPressed: widget.onToggleExpanded,
                         icon: widget.expanded
-                            ? Icons.keyboard_arrow_up
-                            : Icons.keyboard_arrow_down,
+                            ? AleraIcons.chevronUp
+                            : AleraIcons.chevronDown,
                         iconSize: 14,
                         minSize: 24,
                       ),
@@ -260,7 +264,7 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                             child: AleraIconButton(
                               tooltip: 'Remove workspace',
                               onPressed: widget.onDelete!,
-                              icon: Icons.delete_outline,
+                              icon: AleraIcons.delete,
                               iconSize: 14,
                               minSize: 24,
                             ),

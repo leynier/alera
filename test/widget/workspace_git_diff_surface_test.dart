@@ -1,5 +1,6 @@
 import 'package:alera/src/app/providers.dart'
     show WorkbenchController, workbenchControllerProvider;
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
@@ -273,7 +274,7 @@ Future<void> _pumpDiffSurface(
 
 IconButton _openFileButton(WidgetTester tester) {
   final finder = find.ancestor(
-    of: find.byIcon(Icons.open_in_new),
+    of: find.byIcon(AleraIcons.external),
     matching: find.byType(IconButton),
   );
   return tester.widget<IconButton>(finder);

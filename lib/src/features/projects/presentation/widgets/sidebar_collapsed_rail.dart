@@ -1,5 +1,6 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:flutter/material.dart';
 
@@ -45,7 +46,7 @@ class SidebarCollapsedRail extends StatelessWidget {
           Center(
             child: AleraIconButton(
               tooltip: 'Add project',
-              icon: Icons.create_new_folder_outlined,
+              icon: AleraIcons.newFolder,
               iconSize: 14,
               borderColor: AleraTokens.borderSubtle,
               onPressed: onAddProject,

@@ -307,7 +307,7 @@ class _AiTextModelRow extends StatelessWidget {
             const SizedBox(width: AleraTokens.space8),
             AleraIconButton(
               tooltip: 'Refresh models',
-              icon: discovering ? Icons.sync : Icons.refresh,
+              icon: discovering ? AleraIcons.sync : AleraIcons.refresh,
               onPressed: discovering ? null : onRefreshModels,
             ),
           ],
@@ -388,7 +388,7 @@ class _AiTextSelectField<T> extends StatelessWidget {
               isFocused: false,
               decoration: const InputDecoration(
                 isDense: true,
-                suffixIcon: Icon(Icons.expand_more, size: 18),
+                suffixIcon: Icon(AleraIcons.chevronDown, size: 18),
               ),
               child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
             ),

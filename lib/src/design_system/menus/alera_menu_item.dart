@@ -1,4 +1,5 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:flutter/material.dart';
 
 /// Row used inside picker/autocomplete popovers. Renders three states:
@@ -60,7 +61,7 @@ class AleraMenuItem extends StatelessWidget {
                   child:
                       leading ??
                       (selected
-                          ? const Icon(Icons.check, size: 14)
+                          ? const Icon(AleraIcons.check, size: 14)
                           : const SizedBox.shrink()),
                 ),
                 const SizedBox(width: AleraTokens.space6),

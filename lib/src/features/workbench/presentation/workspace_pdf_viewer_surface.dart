@@ -5,6 +5,7 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/icons/alera_file_icon.dart';
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
@@ -454,7 +455,7 @@ class _PdfToolbar extends StatelessWidget {
           children: <Widget>[
             AleraIconButton(
               tooltip: outlineOpen ? 'Hide outline' : 'Show outline',
-              icon: Icons.toc,
+              icon: AleraIcons.outline,
               onPressed: outlineEnabled ? onToggleOutline : null,
               iconColor: outlineOpen
                   ? AleraTokens.accent
@@ -467,19 +468,19 @@ class _PdfToolbar extends StatelessWidget {
                 controller: searchController,
                 dense: true,
                 hintText: 'Search PDF',
-                prefixIcon: Icons.search,
+                prefixIcon: AleraIcons.search,
                 onChanged: onSearchChanged,
               ),
             ),
             const SizedBox(width: AleraTokens.space6),
             AleraIconButton(
               tooltip: 'Previous match',
-              icon: Icons.keyboard_arrow_up,
+              icon: AleraIcons.chevronUp,
               onPressed: searcher?.hasMatches == true ? onPreviousMatch : null,
             ),
             AleraIconButton(
               tooltip: 'Next match',
-              icon: Icons.keyboard_arrow_down,
+              icon: AleraIcons.chevronDown,
               onPressed: searcher?.hasMatches == true ? onNextMatch : null,
             ),
             const SizedBox(width: AleraTokens.space8),
@@ -500,7 +501,7 @@ class _PdfToolbar extends StatelessWidget {
             const SizedBox(width: AleraTokens.space12),
             AleraIconButton(
               tooltip: 'Zoom out',
-              icon: Icons.remove,
+              icon: AleraIcons.remove,
               onPressed: zoom == null ? null : onZoomOut,
             ),
             Text(
@@ -512,7 +513,7 @@ class _PdfToolbar extends StatelessWidget {
             ),
             AleraIconButton(
               tooltip: 'Zoom in',
-              icon: Icons.add,
+              icon: AleraIcons.add,
               onPressed: zoom == null ? null : onZoomIn,
             ),
           ],
@@ -649,7 +650,7 @@ class _PdfOutlinePanel extends StatelessWidget {
                     ),
                     AleraIconButton(
                       tooltip: 'Hide outline',
-                      icon: Icons.close,
+                      icon: AleraIcons.close,
                       onPressed: onClose,
                     ),
                   ],

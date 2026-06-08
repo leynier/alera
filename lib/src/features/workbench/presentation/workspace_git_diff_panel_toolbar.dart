@@ -86,7 +86,7 @@ class _SourceControlToolbar extends StatelessWidget {
               ],
               AleraIconButton(
                 tooltip: 'All changes',
-                icon: Icons.difference_outlined,
+                icon: AleraIcons.diff,
                 onPressed: busy ? null : onOpenAll,
               ),
               const SizedBox(width: AleraTokens.space2),
@@ -95,8 +95,8 @@ class _SourceControlToolbar extends StatelessWidget {
                     ? 'Show flat list'
                     : 'Show tree',
                 icon: viewMode == GitDiffViewMode.tree
-                    ? Icons.view_list_outlined
-                    : Icons.account_tree_outlined,
+                    ? AleraIcons.listView
+                    : AleraIcons.gitGraph,
                 onPressed: busy
                     ? null
                     : () => onViewModeChanged(
@@ -108,21 +108,21 @@ class _SourceControlToolbar extends StatelessWidget {
               const SizedBox(width: AleraTokens.space2),
               AleraIconButton(
                 tooltip: filterVisible ? 'Hide file filter' : 'Search files',
-                icon: Icons.search,
+                icon: AleraIcons.search,
                 onPressed: busy ? null : onToggleFilter,
               ),
               const SizedBox(width: AleraTokens.space2),
               AleraIconButton(
                 tooltip: allCollapsed ? 'Expand all' : 'Collapse all',
                 icon: allCollapsed
-                    ? Icons.unfold_more_outlined
-                    : Icons.unfold_less_outlined,
+                    ? AleraIcons.expandAll
+                    : AleraIcons.collapseAll,
                 onPressed: busy ? null : onToggleCollapseAll,
               ),
               const SizedBox(width: AleraTokens.space2),
               AleraIconButton(
                 tooltip: 'Refresh',
-                icon: Icons.refresh,
+                icon: AleraIcons.refresh,
                 onPressed: busy ? null : onRefresh,
               ),
             ],
@@ -342,9 +342,7 @@ class _AiCommitMessageButtonState extends State<_AiCommitMessageButton> {
                     ),
                   )
                 : Icon(
-                    showingStop
-                        ? Icons.stop_circle_outlined
-                        : Icons.auto_awesome,
+                    showingStop ? AleraIcons.stop : AleraIcons.ai,
                     key: ValueKey<String>(
                       showingStop ? 'ai-commit-stop' : 'ai-commit-generate',
                     ),
@@ -488,7 +486,7 @@ class _PrimaryActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final action = this.action;
     final label = action == null ? 'Fetch' : _actionLabel(action);
-    final icon = action == null ? Icons.download_outlined : _actionIcon(action);
+    final icon = action == null ? AleraIcons.download : _actionIcon(action);
     final enabled = onPressed != null && !busy;
     final textStyle = Theme.of(
       context,
@@ -542,7 +540,7 @@ class _PrimaryActionButton extends StatelessWidget {
                             width: 34,
                             height: _height,
                             child: Icon(
-                              Icons.expand_more,
+                              AleraIcons.chevronDown,
                               size: 17,
                               color: AleraTokens.onAccent,
                             ),
@@ -603,88 +601,88 @@ class _PrimaryActionButton extends StatelessWidget {
         value: _SourceControlMenuAction.commit,
         label: 'Commit',
         enabled: hasStaged && !hasConflicts,
-        leading: const Icon(Icons.check, size: 16),
+        leading: const Icon(AleraIcons.check, size: 16),
       ),
       AleraDropdownEntry<_SourceControlMenuAction>(
         value: _SourceControlMenuAction.commitPush,
         label: 'Commit & push',
         enabled: hasStaged && !hasConflicts,
-        leading: const Icon(Icons.north, size: 16),
+        leading: const Icon(AleraIcons.arrowUp, size: 16),
       ),
       AleraDropdownEntry<_SourceControlMenuAction>(
         value: _SourceControlMenuAction.commitSync,
         label: 'Commit & sync',
         enabled: hasStaged && !hasConflicts && hasUpstream,
-        leading: const Icon(Icons.sync, size: 16),
+        leading: const Icon(AleraIcons.sync, size: 16),
       ),
       AleraDropdownEntry<_SourceControlMenuAction>(
         value: _SourceControlMenuAction.amend,
         label: 'Commit amend',
         enabled: hasStaged && !hasConflicts && hasHeadCommit,
-        leading: const Icon(Icons.edit_outlined, size: 16),
+        leading: const Icon(AleraIcons.edit, size: 16),
       ),
       const PopupMenuDivider(height: AleraTokens.space8),
       AleraDropdownEntry<_SourceControlMenuAction>(
         value: _SourceControlMenuAction.stageAll,
         label: 'Stage all',
         enabled: state?.hasUnstagedOrUntrackedChanges ?? false,
-        leading: const Icon(Icons.add, size: 16),
+        leading: const Icon(AleraIcons.add, size: 16),
       ),
       AleraDropdownEntry<_SourceControlMenuAction>(
         value: _SourceControlMenuAction.unstageAll,
         label: 'Unstage all',
         enabled: hasStaged,
-        leading: const Icon(Icons.remove, size: 16),
+        leading: const Icon(AleraIcons.remove, size: 16),
       ),
       AleraDropdownEntry<_SourceControlMenuAction>(
         value: _SourceControlMenuAction.discardAll,
         label: 'Discard all',
         enabled: hasDiscardable,
-        leading: const Icon(Icons.close, size: 16),
+        leading: const Icon(AleraIcons.close, size: 16),
       ),
       const PopupMenuDivider(height: AleraTokens.space8),
       AleraDropdownEntry<_SourceControlMenuAction>(
         value: _SourceControlMenuAction.fetch,
         label: 'Fetch',
         enabled: hasData,
-        leading: const Icon(Icons.download_outlined, size: 16),
+        leading: const Icon(AleraIcons.download, size: 16),
       ),
       AleraDropdownEntry<_SourceControlMenuAction>(
         value: _SourceControlMenuAction.pull,
         label: 'Pull',
         enabled: hasData,
-        leading: const Icon(Icons.south, size: 16),
+        leading: const Icon(AleraIcons.arrowDown, size: 16),
       ),
       AleraDropdownEntry<_SourceControlMenuAction>(
         value: _SourceControlMenuAction.push,
         label: 'Push',
         enabled: hasData && !hasConflicts,
-        leading: const Icon(Icons.north, size: 16),
+        leading: const Icon(AleraIcons.arrowUp, size: 16),
       ),
       AleraDropdownEntry<_SourceControlMenuAction>(
         value: _SourceControlMenuAction.sync,
         label: 'Sync',
         enabled: hasData && !hasConflicts && hasUpstream,
-        leading: const Icon(Icons.sync, size: 16),
+        leading: const Icon(AleraIcons.sync, size: 16),
       ),
       AleraDropdownEntry<_SourceControlMenuAction>(
         value: _SourceControlMenuAction.publishBranch,
         label: 'Publish branch',
         enabled: canPublish,
-        leading: const Icon(Icons.cloud_upload_outlined, size: 16),
+        leading: const Icon(AleraIcons.cloudUpload, size: 16),
       ),
       const PopupMenuDivider(height: AleraTokens.space8),
       AleraDropdownEntry<_SourceControlMenuAction>(
         value: _SourceControlMenuAction.stash,
         label: 'Stash',
         enabled: hasStashable,
-        leading: const Icon(Icons.inventory_2_outlined, size: 16),
+        leading: const Icon(AleraIcons.package, size: 16),
       ),
       AleraDropdownEntry<_SourceControlMenuAction>(
         value: _SourceControlMenuAction.stashPop,
         label: 'Stash pop',
         enabled: hasStashes,
-        leading: const Icon(Icons.unarchive_outlined, size: 16),
+        leading: const Icon(AleraIcons.unarchive, size: 16),
       ),
     ];
   }
@@ -711,21 +709,21 @@ class _PrimaryActionButton extends StatelessWidget {
 
   IconData _actionIcon(_SourceControlMenuAction action) {
     return switch (action) {
-      _SourceControlMenuAction.commit => Icons.check,
-      _SourceControlMenuAction.amend => Icons.edit_outlined,
+      _SourceControlMenuAction.commit => AleraIcons.check,
+      _SourceControlMenuAction.amend => AleraIcons.edit,
       _SourceControlMenuAction.commitPush ||
-      _SourceControlMenuAction.push => Icons.north,
+      _SourceControlMenuAction.push => AleraIcons.arrowUp,
       _SourceControlMenuAction.commitSync ||
-      _SourceControlMenuAction.sync => Icons.sync,
-      _SourceControlMenuAction.stageAll => Icons.add,
-      _SourceControlMenuAction.unstageAll => Icons.remove,
-      _SourceControlMenuAction.discardAll => Icons.close,
-      _SourceControlMenuAction.fetch => Icons.download_outlined,
-      _SourceControlMenuAction.pull => Icons.south,
-      _SourceControlMenuAction.publishBranch => Icons.cloud_upload_outlined,
-      _SourceControlMenuAction.stash => Icons.inventory_2_outlined,
-      _SourceControlMenuAction.stashPop => Icons.unarchive_outlined,
-      _SourceControlMenuAction.refresh => Icons.refresh,
+      _SourceControlMenuAction.sync => AleraIcons.sync,
+      _SourceControlMenuAction.stageAll => AleraIcons.add,
+      _SourceControlMenuAction.unstageAll => AleraIcons.remove,
+      _SourceControlMenuAction.discardAll => AleraIcons.close,
+      _SourceControlMenuAction.fetch => AleraIcons.download,
+      _SourceControlMenuAction.pull => AleraIcons.arrowDown,
+      _SourceControlMenuAction.publishBranch => AleraIcons.cloudUpload,
+      _SourceControlMenuAction.stash => AleraIcons.package,
+      _SourceControlMenuAction.stashPop => AleraIcons.unarchive,
+      _SourceControlMenuAction.refresh => AleraIcons.refresh,
     };
   }
 }

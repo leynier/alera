@@ -32,7 +32,7 @@ Widget aleraPreviewSurface(Widget child) => ProviderScope(
 /// @AleraPreview(name: 'Default', group: 'Icon button')
 /// Widget aleraIconButtonPreview() => AleraIconButton(
 ///   tooltip: 'Close',
-///   icon: Icons.close,
+///   icon: AleraIcons.close,
 ///   onPressed: () {},
 /// );
 /// ```

@@ -4,6 +4,7 @@ import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/icons/alera_file_icon.dart';
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
@@ -242,13 +243,13 @@ class _MermanViewerFileBar extends StatelessWidget {
             const SizedBox(width: AleraTokens.space8),
             AleraIconButton(
               tooltip: 'Open editor',
-              icon: Icons.edit_outlined,
+              icon: AleraIcons.edit,
               onPressed: onOpenEditor,
             ),
             const SizedBox(width: AleraTokens.space2),
             AleraIconButton(
               tooltip: loading ? 'Loading preview' : 'Refresh',
-              icon: loading ? Icons.hourglass_empty : Icons.refresh,
+              icon: loading ? AleraIcons.loading : AleraIcons.refresh,
               onPressed: onRefresh,
             ),
           ],

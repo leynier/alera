@@ -1,3 +1,4 @@
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/workbench/application/workspace_search_controller.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_search_panel.dart';
@@ -19,8 +20,8 @@ void main() {
     );
 
     expect(find.byTooltip('View as tree'), findsOneWidget);
-    expect(find.byIcon(Icons.account_tree_outlined), findsOneWidget);
-    expect(find.byIcon(Icons.format_list_bulleted), findsNothing);
+    expect(find.byIcon(AleraIcons.gitGraph), findsOneWidget);
+    expect(find.byIcon(AleraIcons.listView), findsNothing);
     expect(
       tester.getCenter(find.byTooltip('Refresh')).dx,
       greaterThan(tester.getCenter(find.byTooltip('Collapse all')).dx),
@@ -30,8 +31,8 @@ void main() {
     await tester.pump();
 
     expect(find.byTooltip('View as list'), findsOneWidget);
-    expect(find.byIcon(Icons.account_tree_outlined), findsNothing);
-    expect(find.byIcon(Icons.format_list_bulleted), findsOneWidget);
+    expect(find.byIcon(AleraIcons.gitGraph), findsNothing);
+    expect(find.byIcon(AleraIcons.listView), findsOneWidget);
   });
 
   testWidgets('toggles search ignored files action in toolbar', (tester) async {
@@ -47,7 +48,7 @@ void main() {
     expect(find.byTooltip('Search ignored files'), findsOneWidget);
     expect(find.byTooltip('Ignore ignored files'), findsNothing);
 
-    await tester.tap(find.byIcon(Icons.visibility_off_outlined));
+    await tester.tap(find.byIcon(AleraIcons.hidden));
     await tester.pump();
 
     expect(find.byTooltip('Search ignored files'), findsNothing);

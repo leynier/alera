@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_providers.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_registry.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_model_discovery_service.dart';
@@ -98,7 +99,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         id: 'general',
         title: 'General',
         description: 'Storage and integrations.',
-        icon: Icons.tune,
+        icon: AleraIcons.tune,
         entries: _generalSearchEntries,
         builder: (_) => _GeneralSettingsPane(general: settings.general),
       ),
@@ -106,7 +107,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         id: 'editor',
         title: 'Editor',
         description: 'Code editor defaults.',
-        icon: Icons.code,
+        icon: AleraIcons.code,
         entries: _editorSearchEntries,
         onReset: controller.resetEditorSettings,
         builder: (_) => _EditorSettingsPane(
@@ -118,7 +119,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         id: 'aiText',
         title: 'AI text',
         description: 'AI-generated source control text.',
-        icon: Icons.auto_awesome,
+        icon: AleraIcons.ai,
         entries: _aiTextSearchEntries,
         onReset: controller.resetAiTextGenerationSettings,
         builder: (_) => _AiTextSettingsPane(
@@ -130,7 +131,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         id: 'terminal',
         title: 'Terminal',
         description: 'Appearance defaults for new terminal sessions.',
-        icon: Icons.terminal,
+        icon: AleraIcons.terminal,
         entries: _terminalSearchEntries,
         onReset: controller.resetTerminalSettings,
         builder: (_) => _TerminalSettingsPane(
@@ -143,7 +144,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         id: 'keyboard',
         title: 'Keyboard',
         description: 'Shortcuts and key bindings.',
-        icon: Icons.keyboard,
+        icon: AleraIcons.keyboard,
         entries: _keyboardSearchEntries,
         onReset: controller.resetKeyboardShortcuts,
         builder: (_) => const KeyboardSettingsPane(),

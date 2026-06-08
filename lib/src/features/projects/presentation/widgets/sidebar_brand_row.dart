@@ -1,6 +1,7 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/core/build_flavor.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:flutter/material.dart';
 
 class SidebarBrandRow extends StatelessWidget {
@@ -24,7 +25,7 @@ class SidebarBrandRow extends StatelessWidget {
     final toggle = AleraIconButton(
       tooltip: collapsed ? 'Expand sidebar' : 'Collapse sidebar',
       onPressed: onToggleCollapsed,
-      icon: collapsed ? Icons.view_sidebar : Icons.view_sidebar_outlined,
+      icon: collapsed ? AleraIcons.sidebarToggle : AleraIcons.sidebarToggle,
     );
     if (collapsed) {
       return SizedBox(
@@ -50,7 +51,7 @@ class SidebarBrandRow extends StatelessWidget {
             AleraIconButton(
               tooltip: 'Add project',
               onPressed: onAddProject!,
-              icon: Icons.create_new_folder_outlined,
+              icon: AleraIcons.newFolder,
             ),
             const SizedBox(width: AleraTokens.space4),
           ],

@@ -1,6 +1,7 @@
 import 'dart:io' show Directory, File, FileSystemException;
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_markdown_uri_policy.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
@@ -226,7 +227,7 @@ class _MarkdownViewerImagePlaceholder extends StatelessWidget {
         borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
       ),
       child: const Icon(
-        Icons.image_not_supported_outlined,
+        AleraIcons.imageError,
         color: AleraTokens.foregroundMuted,
         size: 20,
       ),

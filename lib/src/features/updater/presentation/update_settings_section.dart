@@ -1,6 +1,7 @@
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/feedback/alera_status_indicator.dart';
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/updater/domain/alera_update.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -62,7 +63,7 @@ class UpdateSettingsSection extends ConsumerWidget {
                 children: <Widget>[
                   OutlinedButton.icon(
                     onPressed: state.isBusy ? null : controller.checkForUpdates,
-                    icon: const Icon(Icons.refresh, size: 16),
+                    icon: const Icon(AleraIcons.refresh, size: 16),
                     label: Text(
                       state.status == AleraUpdateStatus.checking
                           ? 'Checking'
@@ -72,19 +73,19 @@ class UpdateSettingsSection extends ConsumerWidget {
                   if (state.status == AleraUpdateStatus.manualDownloadRequired)
                     FilledButton.icon(
                       onPressed: controller.openDownloadPage,
-                      icon: const Icon(Icons.open_in_new, size: 16),
+                      icon: const Icon(AleraIcons.external, size: 16),
                       label: const Text('Download manually'),
                     ),
                   if (state.status == AleraUpdateStatus.available)
                     FilledButton.icon(
                       onPressed: controller.installLatest,
-                      icon: const Icon(Icons.download, size: 16),
+                      icon: const Icon(AleraIcons.download, size: 16),
                       label: const Text('Download update'),
                     ),
                   if (state.status == AleraUpdateStatus.downloaded)
                     FilledButton.icon(
                       onPressed: controller.restartApp,
-                      icon: const Icon(Icons.restart_alt, size: 16),
+                      icon: const Icon(AleraIcons.restart, size: 16),
                       label: const Text('Restart Alera'),
                     ),
                 ],
@@ -165,13 +166,13 @@ Color _colorForStatus(AleraUpdateStatus status) {
 
 IconData _iconForStatus(AleraUpdateStatus status) {
   return switch (status) {
-    AleraUpdateStatus.checking => Icons.sync,
-    AleraUpdateStatus.notAvailable => Icons.check,
-    AleraUpdateStatus.manualDownloadRequired => Icons.download_for_offline,
-    AleraUpdateStatus.available => Icons.system_update_alt,
-    AleraUpdateStatus.downloading => Icons.downloading,
-    AleraUpdateStatus.downloaded => Icons.restart_alt,
-    AleraUpdateStatus.error => Icons.error_outline,
-    AleraUpdateStatus.idle => Icons.info_outline,
+    AleraUpdateStatus.checking => AleraIcons.sync,
+    AleraUpdateStatus.notAvailable => AleraIcons.check,
+    AleraUpdateStatus.manualDownloadRequired => AleraIcons.downloadOffline,
+    AleraUpdateStatus.available => AleraIcons.updateAvailable,
+    AleraUpdateStatus.downloading => AleraIcons.downloading,
+    AleraUpdateStatus.downloaded => AleraIcons.restart,
+    AleraUpdateStatus.error => AleraIcons.error,
+    AleraUpdateStatus.idle => AleraIcons.info,
   };
 }

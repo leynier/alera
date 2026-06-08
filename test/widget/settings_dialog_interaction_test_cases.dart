@@ -8,24 +8,29 @@ void _registerSettingsDialogAdvancedTests() {
     await _selectTerminalSection(tester);
     final before = container.read(settingsControllerProvider).terminal;
 
+    // Scope to the i-th number field: the up/down chevrons are shared with
+    // expander rows, so a global icon index would no longer be unique.
     Future<void> tapStepper(IconData icon, int index) async {
-      final finder = find.byIcon(icon).at(index);
+      final finder = find.descendant(
+        of: find.byType(AleraNumberField).at(index),
+        matching: find.byIcon(icon),
+      );
       await tester.ensureVisible(finder);
       await tester.pumpAndSettle();
       await tester.tap(finder);
       await tester.pump(const Duration(milliseconds: 50));
     }
 
-    await tapStepper(Icons.keyboard_arrow_up, 1);
-    await tapStepper(Icons.keyboard_arrow_up, 2);
-    await tapStepper(Icons.keyboard_arrow_down, 3);
-    await tapStepper(Icons.keyboard_arrow_down, 4);
-    await tapStepper(Icons.keyboard_arrow_up, 5);
-    await tapStepper(Icons.keyboard_arrow_up, 6);
-    await tapStepper(Icons.keyboard_arrow_up, 7);
-    await tapStepper(Icons.keyboard_arrow_up, 8);
-    await tapStepper(Icons.keyboard_arrow_up, 9);
-    await tapStepper(Icons.keyboard_arrow_up, 10);
+    await tapStepper(AleraIcons.chevronUp, 1);
+    await tapStepper(AleraIcons.chevronUp, 2);
+    await tapStepper(AleraIcons.chevronDown, 3);
+    await tapStepper(AleraIcons.chevronDown, 4);
+    await tapStepper(AleraIcons.chevronUp, 5);
+    await tapStepper(AleraIcons.chevronUp, 6);
+    await tapStepper(AleraIcons.chevronUp, 7);
+    await tapStepper(AleraIcons.chevronUp, 8);
+    await tapStepper(AleraIcons.chevronUp, 9);
+    await tapStepper(AleraIcons.chevronUp, 10);
 
     Future<void> setSwatchColor(int index, Color color) async {
       final swatch = find.byType(AleraColorSwatch).at(index);

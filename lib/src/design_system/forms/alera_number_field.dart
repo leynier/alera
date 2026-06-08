@@ -1,4 +1,5 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:flutter/material.dart';
 
 const double _kStepperIconSize = 14;
@@ -103,14 +104,14 @@ class _AleraNumberFieldState extends State<AleraNumberField> {
             children: <Widget>[
               Expanded(
                 child: _StepperButton(
-                  icon: Icons.keyboard_arrow_up,
+                  icon: AleraIcons.chevronUp,
                   position: _StepperPosition.top,
                   onPressed: () => _step(widget.step),
                 ),
               ),
               Expanded(
                 child: _StepperButton(
-                  icon: Icons.keyboard_arrow_down,
+                  icon: AleraIcons.chevronDown,
                   position: _StepperPosition.bottom,
                   onPressed: () => _step(-widget.step),
                 ),

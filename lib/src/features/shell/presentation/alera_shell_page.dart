@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/features/keyboard/presentation/keyboard_shortcuts_scope.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
@@ -55,11 +56,7 @@ class _ShellError extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              const Icon(
-                Icons.error_outline,
-                color: AleraTokens.error,
-                size: 32,
-              ),
+              const Icon(AleraIcons.error, color: AleraTokens.error, size: 32),
               const SizedBox(height: AleraTokens.space12),
               Text(
                 'Failed to open the local database',

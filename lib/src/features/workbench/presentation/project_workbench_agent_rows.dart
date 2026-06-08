@@ -119,7 +119,7 @@ class _AgentRunRowState extends State<_AgentRunRow> {
                         child: AleraIconButton(
                           tooltip: 'Close terminal',
                           onPressed: widget.onClose,
-                          icon: Icons.close,
+                          icon: AleraIcons.close,
                           iconSize: 12,
                           minSize: 22,
                           borderRadius: AleraTokens.radiusSm,
@@ -170,12 +170,12 @@ class _AgentRunStateIndicator extends StatelessWidget {
       );
     }
     final icon = status.interrupted == true
-        ? Icons.cancel_outlined
+        ? AleraIcons.cancel
         : switch (status.state) {
-            AgentStatusState.done => Icons.check_circle_outline,
+            AgentStatusState.done => AleraIcons.success,
             AgentStatusState.waiting ||
-            AgentStatusState.blocked => Icons.notifications_active_outlined,
-            AgentStatusState.working => Icons.sync, // coverage:ignore-line
+            AgentStatusState.blocked => AleraIcons.notifications,
+            AgentStatusState.working => AleraIcons.sync, // coverage:ignore-line
           };
     return Icon(icon, size: size, color: color);
   }

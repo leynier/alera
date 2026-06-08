@@ -12,6 +12,7 @@ import 'package:alera/src/design_system/forms/alera_number_field.dart';
 import 'package:alera/src/design_system/forms/alera_search_field.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/forms/alera_color_picker.dart';
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_section_header.dart';
 import 'package:alera/src/design_system/menus/alera_menu_item.dart';
 import 'package:alera/src/design_system/surfaces/alera_panel.dart';
@@ -27,13 +28,13 @@ Widget galleryButtonsAndChips() => Wrap(
   runSpacing: AleraTokens.space12,
   crossAxisAlignment: WrapCrossAlignment.center,
   children: <Widget>[
-    AleraIconButton(tooltip: 'Add', icon: Icons.add, onPressed: () {}),
+    AleraIconButton(tooltip: 'Add', icon: AleraIcons.add, onPressed: () {}),
     AleraSegmentedButton<int>(
       selected: 0,
       onSelectionChanged: (_) {},
       segments: const <ButtonSegment<int>>[
-        ButtonSegment<int>(value: 0, icon: Icon(Icons.crop_square)),
-        ButtonSegment<int>(value: 1, icon: Icon(Icons.text_fields)),
+        ButtonSegment<int>(value: 0, icon: Icon(AleraIcons.square)),
+        ButtonSegment<int>(value: 1, icon: Icon(AleraIcons.text)),
       ],
     ),
     const AleraBadge(label: 'primary'),
@@ -74,7 +75,7 @@ Widget galleryFeedback() => Column(
         const AleraStatusDot(active: false),
         const SizedBox(width: AleraTokens.space12),
         const AleraStatusIndicator(
-          icon: Icons.check,
+          icon: AleraIcons.check,
           color: AleraTokens.success,
         ),
         const SizedBox(width: AleraTokens.space12),
@@ -82,7 +83,7 @@ Widget galleryFeedback() => Column(
       ],
     ),
     const SizedBox(height: AleraTokens.space24),
-    const AleraEmptyState(icon: Icons.search_off, message: 'No results.'),
+    const AleraEmptyState(icon: AleraIcons.searchOff, message: 'No results.'),
   ],
 );
 
@@ -91,7 +92,10 @@ Widget gallerySurfaces() => Column(
   mainAxisSize: MainAxisSize.min,
   crossAxisAlignment: CrossAxisAlignment.stretch,
   children: <Widget>[
-    const AleraSectionHeader(label: 'Workspace', leadingIcon: Icons.folder),
+    const AleraSectionHeader(
+      label: 'Workspace',
+      leadingIcon: AleraIcons.folder,
+    ),
     const SizedBox(height: AleraTokens.space8),
     const AleraPanel(
       children: <Widget>[

@@ -1,6 +1,7 @@
 import 'dart:io' show Directory, File, FileSystemException, Link;
 
 import 'package:alera/src/app/providers.dart';
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
@@ -434,7 +435,7 @@ void main() {
     await _pumpLoadedMarkdown(tester);
 
     expect(find.byType(Image), findsNothing);
-    expect(find.byIcon(Icons.image_not_supported_outlined), findsOneWidget);
+    expect(find.byIcon(AleraIcons.imageError), findsOneWidget);
   });
 }
 

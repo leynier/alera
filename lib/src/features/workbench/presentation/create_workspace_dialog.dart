@@ -4,6 +4,7 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/forms/alera_search_field.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/design_system/menus/alera_menu_item.dart';
 import 'package:alera/src/design_system/surfaces/alera_panel.dart';
@@ -302,14 +303,14 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
             mainAxisSize: MainAxisSize.min,
             children: [
               AleraEmptyState(
-                icon: Icons.folder_off_outlined,
+                icon: AleraIcons.folderOff,
                 title: 'No Git projects yet',
                 message:
                     'Linked workspaces require a Git project. Add one to get started.',
                 action: widget.onAddProject != null
                     ? FilledButton.icon(
                         onPressed: widget.onAddProject,
-                        icon: const Icon(Icons.add, size: 16),
+                        icon: const Icon(AleraIcons.add, size: 16),
                         label: const Text('Add Git project'),
                       )
                     : null,
@@ -340,7 +341,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
               children: <Widget>[
                 if (!isStep1 && !_creating) ...[
                   IconButton(
-                    icon: const Icon(Icons.arrow_back, size: 20),
+                    icon: const Icon(AleraIcons.back, size: 20),
                     color: AleraTokens.foregroundMuted,
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
@@ -353,7 +354,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                   ),
                   const SizedBox(width: AleraTokens.space12),
                 ],
-                const Icon(Icons.alt_route_outlined, color: AleraTokens.accent),
+                const Icon(AleraIcons.gitFork, color: AleraTokens.accent),
                 const SizedBox(width: AleraTokens.space8),
                 Expanded(
                   child: Text(
@@ -399,7 +400,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Icon(
-                      Icons.error_outline,
+                      AleraIcons.error,
                       color: AleraTokens.error,
                       size: 16,
                     ),
@@ -482,7 +483,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                                       const SizedBox(width: AleraTokens.space8),
                                       IconButton(
                                         icon: const Icon(
-                                          Icons.refresh,
+                                          AleraIcons.refresh,
                                           size: 16,
                                         ),
                                         onPressed: () {
@@ -657,7 +658,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
                                             Icon(
-                                              Icons.link,
+                                              AleraIcons.link,
                                               size: 10,
                                               color: AleraTokens.accent
                                                   .withValues(alpha: 0.7),
@@ -707,7 +708,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                                     Row(
                                       children: [
                                         Icon(
-                                          Icons.folder_outlined,
+                                          AleraIcons.folder,
                                           size: 14,
                                           color: AleraTokens.foregroundMuted
                                               .withValues(alpha: 0.7),
@@ -731,7 +732,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                                     Row(
                                       children: [
                                         Icon(
-                                          Icons.alt_route,
+                                          AleraIcons.gitFork,
                                           size: 14,
                                           color: AleraTokens.foregroundMuted
                                               .withValues(alpha: 0.7),
@@ -755,7 +756,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                                     Row(
                                       children: [
                                         Icon(
-                                          Icons.terminal_outlined,
+                                          AleraIcons.terminal,
                                           size: 14,
                                           color: AleraTokens.foregroundMuted
                                               .withValues(alpha: 0.7),

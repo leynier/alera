@@ -176,7 +176,7 @@ class _SettingsContent extends StatelessWidget {
                 AleraIconButton(
                   tooltip: 'Close',
                   onPressed: onClose,
-                  icon: Icons.close,
+                  icon: AleraIcons.close,
                   minSize: 34,
                 ),
               ],

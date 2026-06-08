@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/badges/alera_badge.dart';
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/surfaces/hover_container.dart';
 import 'package:alera/src/features/keyboard/application/keybinding_resolver.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';

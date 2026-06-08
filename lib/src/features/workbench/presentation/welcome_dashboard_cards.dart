@@ -88,7 +88,7 @@ class _ActionRow extends StatelessWidget {
             ),
             const SizedBox(width: AleraTokens.space8),
             const Icon(
-              Icons.chevron_right,
+              AleraIcons.chevronRight,
               size: 16,
               color: AleraTokens.foregroundFaint,
             ),

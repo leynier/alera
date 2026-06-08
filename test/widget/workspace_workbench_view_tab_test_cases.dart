@@ -237,7 +237,7 @@ void _registerWorkspaceWorkbenchViewTabTests() {
       updatedRatios: updatedRatios,
     );
 
-    expect(find.byIcon(Icons.public), findsOneWidget);
+    expect(find.byIcon(AleraIcons.public), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
   });
 
@@ -372,7 +372,7 @@ void _registerWorkspaceWorkbenchViewTabTests() {
       size: const Size(720, 280),
     );
 
-    expect(find.byIcon(Icons.fork_right_outlined), findsOneWidget);
+    expect(find.byIcon(AleraIcons.gitBranch), findsOneWidget);
     expect(_tabTitleMaxWidth(tester, editorTab.title), 180);
     expect(_tabTitleMaxWidth(tester, gitDiffTab.title), 180);
   });

@@ -186,7 +186,7 @@ class _SortPopupButton extends StatelessWidget {
               ),
               const SizedBox(width: AleraTokens.space4),
               const Icon(
-                Icons.keyboard_arrow_down,
+                AleraIcons.chevronDown,
                 size: 14,
                 color: AleraTokens.foregroundFaint,
               ),

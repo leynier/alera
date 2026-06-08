@@ -293,7 +293,7 @@ class _FontAutocompleteSettingRowState
                   if (_controller.text.isNotEmpty)
                     AleraIconButton(
                       tooltip: 'Clear',
-                      icon: Icons.cancel_outlined,
+                      icon: AleraIcons.cancel,
                       iconSize: 16,
                       minSize: 28,
                       onPressed: () {
@@ -304,7 +304,7 @@ class _FontAutocompleteSettingRowState
                     ),
                   AleraIconButton(
                     tooltip: 'Fonts',
-                    icon: _open ? Icons.expand_less : Icons.expand_more,
+                    icon: _open ? AleraIcons.chevronUp : AleraIcons.chevronDown,
                     iconSize: 18,
                     minSize: 28,
                     onPressed: () {
