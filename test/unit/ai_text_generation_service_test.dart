@@ -7,6 +7,7 @@ import 'package:alera/src/features/ai_text_generation/application/ai_text_genera
 import 'package:alera/src/features/ai_text_generation/application/ai_text_model_discovery_service.dart';
 import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
+import 'package:alera/src/shared/infra/process/command_environment_resolver.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -103,6 +104,45 @@ Claude Sonnet 4.6 (Thinking)
       expect(runner.stdinText, contains('feature/ai-text'));
       expect(runner.stdinClosed, isTrue);
     });
+
+    test(
+      'starts commit message agents with resolved command environment',
+      () async {
+        final git = FakeGitBackend()
+          ..gitRepositoryStateResult = const GitRepositoryState(
+            branch: 'feature/ai-text',
+          )
+          ..gitStatusResult = const GitStatusResult(
+            entries: <GitChangeEntry>[
+              GitChangeEntry(
+                path: 'lib/foo.dart',
+                area: GitChangeArea.staged,
+                status: GitChangeStatus.modified,
+              ),
+            ],
+          );
+        final runner = _FakeProcessRunner(stdout: 'feat: add ai text\n');
+        final service = CliAiTextGenerationService(
+          gitBackend: git,
+          processRunner: runner,
+          commandEnvironmentResolver: const _FakeCommandEnvironmentResolver(
+            value: <String, String>{'PATH': '/shell/bin:/usr/bin'},
+          ),
+        );
+
+        await service.generate(
+          const AiTextGenerationRequest(
+            operation: AiTextGenerationOperation.commitMessage,
+            workspacePath: '/repo',
+            settings: AiTextGenerationSettings(
+              agent: AiTextGenerationAgent.agy,
+            ),
+          ),
+        );
+
+        expect(runner.environment, containsPair('PATH', '/shell/bin:/usr/bin'));
+      },
+    );
 
     test('generates commit message with amp without archived flag', () async {
       final git = FakeGitBackend()
@@ -212,6 +252,25 @@ Claude Sonnet 4.6 (Thinking)
       expect(runner.executable, 'agy');
       expect(runner.arguments, <String>['models']);
     });
+
+    test(
+      'discovers dynamic models with resolved command environment',
+      () async {
+        final runner = _FakeProcessRunner(
+          stdout: 'Gemini 3.5 Flash (Medium)\n',
+        );
+        final service = CliAiTextModelDiscoveryService(
+          processRunner: runner,
+          commandEnvironmentResolver: const _FakeCommandEnvironmentResolver(
+            value: <String, String>{'PATH': '/shell/bin:/usr/bin'},
+          ),
+        );
+
+        await service.discover(AiTextGenerationAgent.agy);
+
+        expect(runner.environment, containsPair('PATH', '/shell/bin:/usr/bin'));
+      },
+    );
 
     test('discovers pi models from stderr on successful exit', () async {
       final runner = _FakeProcessRunner(
@@ -568,6 +627,7 @@ class _FakeProcessRunner implements ProcessRunner {
   bool killed = false;
   String? executable;
   List<String> arguments = const <String>[];
+  Map<String, String>? environment;
   final StringBuffer _stdin = StringBuffer();
 
   String get stdinText => _stdin.toString();
@@ -593,6 +653,9 @@ class _FakeProcessRunner implements ProcessRunner {
     startCount += 1;
     this.executable = executable;
     this.arguments = List<String>.from(arguments);
+    this.environment = environment == null
+        ? null
+        : Map<String, String>.from(environment);
     return StartedProcess(
       stdinWrite: (data) => _stdin.write(utf8.decode(data)),
       stdinClose: () => stdinClosed = true,
@@ -612,6 +675,19 @@ class _FakeProcessRunner implements ProcessRunner {
         return true;
       },
     );
+  }
+}
+
+class _FakeCommandEnvironmentResolver implements CommandEnvironmentResolver {
+  const _FakeCommandEnvironmentResolver({
+    this.value = const <String, String>{'PATH': '/usr/bin'},
+  });
+
+  final Map<String, String> value;
+
+  @override
+  Future<Map<String, String>> environment() async {
+    return Map<String, String>.from(value);
   }
 }
 

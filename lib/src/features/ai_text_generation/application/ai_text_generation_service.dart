@@ -6,6 +6,7 @@ import 'package:alera/src/features/ai_text_generation/application/ai_text_genera
 import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
 import 'package:alera/src/shared/infra/git/git_backend.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
+import 'package:alera/src/shared/infra/process/command_environment_resolver.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 
 const int maxArgvPromptBytes = 24000;
@@ -52,10 +53,13 @@ class CliAiTextGenerationService implements AiTextGenerationService {
   CliAiTextGenerationService({
     required this.gitBackend,
     required this.processRunner,
-  });
+    CommandEnvironmentResolver? commandEnvironmentResolver,
+  }) : commandEnvironmentResolver =
+           commandEnvironmentResolver ?? UserCommandEnvironmentResolver();
 
   final GitBackend gitBackend;
   final ProcessRunner processRunner;
+  final CommandEnvironmentResolver commandEnvironmentResolver;
   final Map<String, StartedProcess> _running = <String, StartedProcess>{};
   final Set<String> _pending = <String>{};
   final Set<String> _canceled = <String>{};
@@ -80,12 +84,17 @@ class CliAiTextGenerationService implements AiTextGenerationService {
         throw const AiTextGenerationCanceledException();
       }
       final plan = _planCommand(request.settings, prompt);
+      final environment = await commandEnvironmentResolver.environment();
+      if (_canceled.contains(key)) {
+        throw const AiTextGenerationCanceledException();
+      }
       final StartedProcess process;
       try {
         process = await processRunner.start(
           plan.binary,
           plan.args,
           workingDirectory: request.workspacePath,
+          environment: environment,
         );
       } catch (_) {
         throw AiTextGenerationException(
