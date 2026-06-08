@@ -13,6 +13,12 @@ const _upstreamHash =
     '948d9257f53f01cbed74b81bb8adc8758e52ac9390751772de7889026d32d5a1';
 const _observedHash =
     'bef140a1a96994029153dca8c00b1750b9a5a764fb9db2dc68d7bb40e8a29e8a';
+const _pdfiumPodspecCurlSnippet = '''
+      curl -L -o pdfium.zip "#{PDFIUM_URL}"
+''';
+const _pdfiumPodspecRetriedCurlSnippet = '''
+      curl --fail --location --retry 6 --retry-all-errors --retry-delay 10 --output pdfium.zip "#{PDFIUM_URL}"
+''';
 const _pdfiumDartDownloadSnippet = '''
   final response = await http.Client().get(archiveUri);
   if (response.statusCode != 200) {
@@ -124,22 +130,43 @@ void main() {
   }
 
   final current = podspec.readAsStringSync();
-  if (current.contains(_observedHash)) {
+  var patchedPodspec = current;
+  if (patchedPodspec.contains(_observedHash)) {
+    patchedPodspec = patchedPodspec.replaceAll(_observedHash, _upstreamHash);
     stdout.writeln(
-      '$_packageName podspec already uses the observed PDFium hash.',
+      'Restored $_packageName podspec to the upstream PDFium ZIP hash.',
     );
-  } else if (!current.contains(_upstreamHash)) {
+  }
+  if (!patchedPodspec.contains(_upstreamHash)) {
     stderr.writeln(
       '$_packageName podspec does not contain the expected upstream hash. '
       'Revisit the temporary PDFium hash patch.',
     );
     exitCode = 67;
     return;
-  } else {
-    podspec.writeAsStringSync(current.replaceAll(_upstreamHash, _observedHash));
+  }
+  if (patchedPodspec.contains(_pdfiumPodspecRetriedCurlSnippet)) {
     stdout.writeln(
-      'Patched $_packageName podspec PDFium hash for clean CI builds.',
+      '$_packageName podspec already retries PDFium ZIP downloads.',
     );
+  } else if (!patchedPodspec.contains(_pdfiumPodspecCurlSnippet)) {
+    stderr.writeln(
+      '$_packageName podspec does not contain the expected PDFium curl '
+      'snippet. Revisit the temporary PDFium retry patch.',
+    );
+    exitCode = 75;
+    return;
+  } else {
+    patchedPodspec = patchedPodspec.replaceAll(
+      _pdfiumPodspecCurlSnippet,
+      _pdfiumPodspecRetriedCurlSnippet,
+    );
+    stdout.writeln(
+      'Patched $_packageName podspec to retry PDFium ZIP downloads.',
+    );
+  }
+  if (patchedPodspec != current) {
+    podspec.writeAsStringSync(patchedPodspec);
   }
 
   final pdfiumDartPackage = _findPackage(typedPackages, _pdfiumDartPackageName);
