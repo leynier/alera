@@ -1,4 +1,5 @@
 import 'package:alera/src/design_system/icons/alera_file_icon.dart';
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -32,7 +33,7 @@ void main() {
     expect(picture.bytesLoader, directoryToIcon('src', isExpanded: true));
   });
 
-  testWidgets('keeps symlink and generic fallbacks as material icons', (
+  testWidgets('keeps symlink and generic fallbacks as lucide icons', (
     tester,
   ) async {
     await _pumpIcon(
@@ -46,8 +47,8 @@ void main() {
       ),
     );
 
-    expect(find.byIcon(Icons.link), findsOneWidget);
-    expect(find.byIcon(Icons.insert_drive_file_outlined), findsOneWidget);
+    expect(find.byIcon(AleraIcons.link), findsOneWidget);
+    expect(find.byIcon(AleraIcons.fileGeneric), findsOneWidget);
     expect(find.byType(SvgPicture), findsNothing);
   });
 }

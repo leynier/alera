@@ -180,7 +180,7 @@ class _GitDiffGroupHeader extends StatelessWidget {
       child: Row(
         children: <Widget>[
           Icon(
-            collapsed ? Icons.chevron_right : Icons.expand_more,
+            collapsed ? AleraIcons.chevronRight : AleraIcons.chevronDown,
             size: 14,
             color: AleraTokens.foregroundMuted,
           ),

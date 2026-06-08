@@ -1,4 +1,5 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:flutter/material.dart';
 
 /// [PopupMenuEntry] styled for Alera popovers: tokenized radius/padding, a
@@ -68,7 +69,7 @@ class _AleraDropdownEntryState<T> extends State<AleraDropdownEntry<T>> {
               ),
               if (widget.selected)
                 const Icon(
-                  Icons.check,
+                  AleraIcons.check,
                   size: 16,
                   color: AleraTokens.foreground,
                 ),

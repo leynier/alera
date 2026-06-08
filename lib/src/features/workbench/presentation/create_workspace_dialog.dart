@@ -2,6 +2,7 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/forms/alera_search_field.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/design_system/menus/alera_menu_item.dart';
 import 'package:alera/src/design_system/surfaces/alera_panel.dart';
@@ -212,10 +213,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
           children: <Widget>[
             Row(
               children: <Widget>[
-                const Icon(
-                  Icons.account_tree_outlined,
-                  color: AleraTokens.accent,
-                ),
+                const Icon(AleraIcons.gitGraph, color: AleraTokens.accent),
                 const SizedBox(width: AleraTokens.space8),
                 Text('New workspace', style: theme.textTheme.titleLarge),
               ],

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -104,7 +105,7 @@ class _AleraSearchFieldState extends State<AleraSearchField> {
         ? IconButton(
             tooltip: 'Clear',
             icon: const Icon(
-              Icons.close,
+              AleraIcons.close,
               size: 12,
               color: AleraTokens.foregroundFaint,
             ),
@@ -126,7 +127,7 @@ class _AleraSearchFieldState extends State<AleraSearchField> {
         autofocus: widget.autofocus,
         dense: widget.dense,
         hintText: widget.hintText,
-        prefixIcon: Icons.search,
+        prefixIcon: AleraIcons.search,
         suffix: clearButton,
         onChanged: _handleChange,
       ),

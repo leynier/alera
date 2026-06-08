@@ -296,7 +296,7 @@ class _StarButton extends StatelessWidget {
                   color: AleraTokens.foreground,
                 ),
               )
-            : const Icon(Icons.star_outline, size: 16),
+            : const Icon(AleraIcons.star, size: 16),
         label: Text(label),
       ),
     );
@@ -317,7 +317,7 @@ class _StarThanks extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            const Icon(Icons.star, size: 16, color: AleraTokens.warning),
+            const Icon(AleraIcons.star, size: 16, color: AleraTokens.warning),
             const SizedBox(width: AleraTokens.space6),
             Text(
               'Thanks for the support!',
@@ -450,7 +450,7 @@ class _WorkspaceDirectoryRowState extends State<_WorkspaceDirectoryRow> {
               const SizedBox(width: AleraTokens.space8),
               OutlinedButton.icon(
                 onPressed: _browse,
-                icon: const Icon(Icons.folder_open, size: 16),
+                icon: const Icon(AleraIcons.folderOpen, size: 16),
                 label: const Text('Browse'),
               ),
             ],

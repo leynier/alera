@@ -4,6 +4,7 @@ import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/buttons/alera_segmented_button.dart';
 import 'package:alera/src/design_system/chips/alera_chip.dart';
 import 'package:alera/src/design_system/forms/alera_setting_row.dart';
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/design_system/surfaces/alera_panel.dart';
 import 'package:alera/src/features/keyboard/application/keybinding_resolver.dart';
@@ -262,14 +263,14 @@ class _ShortcutBindingRow extends StatelessWidget {
           const SizedBox(width: AleraTokens.space8),
           AleraIconButton(
             tooltip: recording ? 'Stop recording' : 'Change shortcut',
-            icon: recording ? Icons.close : Icons.keyboard,
+            icon: recording ? AleraIcons.close : AleraIcons.keyboard,
             onPressed: onRecordToggle,
           ),
           if (onReset != null) ...<Widget>[
             const SizedBox(width: AleraTokens.space2),
             AleraIconButton(
               tooltip: 'Reset to default',
-              icon: Icons.settings_backup_restore,
+              icon: AleraIcons.restore,
               onPressed: onReset!,
             ),
           ],
@@ -277,7 +278,7 @@ class _ShortcutBindingRow extends StatelessWidget {
             const SizedBox(width: AleraTokens.space2),
             AleraIconButton(
               tooltip: 'Disable shortcut',
-              icon: Icons.block,
+              icon: AleraIcons.blocked,
               onPressed: onDisable!,
             ),
           ],

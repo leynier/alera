@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/projects/application/project_providers.dart';
 import 'package:alera/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
@@ -469,7 +470,7 @@ void main() {
     expect(find.byTooltip('Explorer'), findsOneWidget);
     expect(find.byTooltip('Search'), findsOneWidget);
     expect(find.byTooltip('Source Control'), findsOneWidget);
-    expect(find.byIcon(Icons.fork_right_outlined), findsOneWidget);
+    expect(find.byIcon(AleraIcons.gitBranch), findsOneWidget);
     expect(
       tester.getTopLeft(find.byTooltip('Explorer')).dy,
       lessThan(tester.getTopLeft(find.byTooltip('Search')).dy),
@@ -506,7 +507,7 @@ void main() {
 
     expect(find.byTooltip('Expand panel'), findsNothing);
     expect(find.byTooltip('Collapse panel'), findsOneWidget);
-    expect(find.byIcon(Icons.fork_right_outlined), findsOneWidget);
+    expect(find.byIcon(AleraIcons.gitBranch), findsOneWidget);
     expect(find.byType(WorkspaceExplorer), findsOneWidget);
   });
 }

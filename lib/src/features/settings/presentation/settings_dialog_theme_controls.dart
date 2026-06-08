@@ -211,7 +211,7 @@ class _NoSettingsResults extends StatelessWidget {
           child: AleraIconButton(
             tooltip: 'Close',
             onPressed: onClose,
-            icon: Icons.close,
+            icon: AleraIcons.close,
             minSize: 28,
           ),
         ),

@@ -169,13 +169,13 @@ class _WorkspaceTabChip extends StatelessWidget {
         const AleraDropdownEntry<_TabMenuAction>(
           value: _TabMenuAction.close,
           label: 'Close',
-          leading: Icon(Icons.close, size: 16),
+          leading: Icon(AleraIcons.close, size: 16),
         ),
         AleraDropdownEntry<_TabMenuAction>(
           value: _TabMenuAction.closeOthers,
           label: 'Close others',
           leading: Icon(
-            Icons.tab_unselected,
+            AleraIcons.tabUnselected,
             size: 16,
             color: closeOthers.isEmpty
                 ? AleraTokens.foregroundFaint
@@ -187,7 +187,7 @@ class _WorkspaceTabChip extends StatelessWidget {
           value: _TabMenuAction.closeRight,
           label: 'Close tabs to the right',
           leading: Icon(
-            Icons.keyboard_tab,
+            AleraIcons.tab,
             size: 16,
             color: closeRight.isEmpty
                 ? AleraTokens.foregroundFaint
@@ -199,7 +199,7 @@ class _WorkspaceTabChip extends StatelessWidget {
         const AleraDropdownEntry<_TabMenuAction>(
           value: _TabMenuAction.changeTitle,
           label: 'Change title',
-          leading: Icon(Icons.edit_outlined, size: 16),
+          leading: Icon(AleraIcons.edit, size: 16),
         ),
       ],
     );
@@ -298,7 +298,7 @@ class _WorkspaceTabChip extends StatelessWidget {
                   child: const Padding(
                     padding: EdgeInsets.all(2),
                     child: Icon(
-                      Icons.close,
+                      AleraIcons.close,
                       size: 12,
                       color: AleraTokens.foregroundMuted,
                     ),
@@ -342,12 +342,20 @@ class _WorkspaceTabLeadingIcon extends StatelessWidget {
         fallbackColor: color,
       ),
       WorkspaceTabKind.gitDiff => Icon(
-        Icons.fork_right_outlined,
+        AleraIcons.gitBranch,
         size: 12,
         color: color,
       ),
-      WorkspaceTabKind.terminal => Icon(Icons.terminal, size: 12, color: color),
-      WorkspaceTabKind.browser => Icon(Icons.public, size: 12, color: color),
+      WorkspaceTabKind.terminal => Icon(
+        AleraIcons.terminal,
+        size: 12,
+        color: color,
+      ),
+      WorkspaceTabKind.browser => Icon(
+        AleraIcons.public,
+        size: 12,
+        color: color,
+      ),
     };
   }
 }

@@ -114,7 +114,7 @@ class _WorkspaceSearchInputs extends StatelessWidget {
                           ),
                           _SearchInlineIconButton(
                             tooltip: 'Replace all',
-                            icon: Icons.done_all,
+                            icon: AleraIcons.doneAll,
                             active: false,
                             onPressed: canReplaceAll ? onReplaceAll : null,
                           ),
@@ -132,7 +132,7 @@ class _WorkspaceSearchInputs extends StatelessWidget {
           alignment: Alignment.centerRight,
           child: _SearchInlineIconButton(
             tooltip: detailsVisible ? 'Hide details' : 'Show details',
-            icon: Icons.more_horiz,
+            icon: AleraIcons.more,
             active: detailsActive,
             onPressed: onToggleDetails,
           ),
@@ -141,14 +141,14 @@ class _WorkspaceSearchInputs extends StatelessWidget {
           _SearchDetailField(
             hintText: 'Files to include',
             controller: includeController,
-            icon: Icons.view_module_outlined,
+            icon: AleraIcons.gridView,
             onChanged: onIncludeChanged,
           ),
           const SizedBox(height: AleraTokens.space6),
           _SearchDetailField(
             hintText: 'Files to exclude',
             controller: excludeController,
-            icon: Icons.manage_search_outlined,
+            icon: AleraIcons.searchManage,
             onChanged: onExcludeChanged,
           ),
         ],
@@ -229,7 +229,7 @@ class _SearchChevronButton extends StatelessWidget {
         child: SizedBox.square(
           dimension: AleraTokens.space16,
           child: Icon(
-            expanded ? Icons.keyboard_arrow_down : Icons.chevron_right,
+            expanded ? AleraIcons.chevronDown : AleraIcons.chevronRight,
             size: 16,
             color: AleraTokens.foregroundMuted,
           ),

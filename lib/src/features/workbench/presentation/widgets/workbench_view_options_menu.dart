@@ -6,6 +6,7 @@ import 'package:alera/src/design_system/buttons/alera_segmented_button.dart';
 import 'package:alera/src/design_system/chips/alera_chip.dart';
 import 'package:alera/src/design_system/feedback/alera_status_dot.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/design_system/layout/alera_dialog_header.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
@@ -38,7 +39,7 @@ class WorkbenchViewOptionsButton extends ConsumerWidget {
         AleraIconButton(
           tooltip: 'View options',
           onPressed: () => _showOptions(context),
-          icon: Icons.tune,
+          icon: AleraIcons.tune,
         ),
         if (hasFilters) const Positioned(right: 6, top: 6, child: _ActiveDot()),
       ],
@@ -210,7 +211,7 @@ class _WorkbenchViewOptionsPanelState
           const SizedBox(height: AleraTokens.space8),
           AleraTextField(
             dense: true,
-            prefixIcon: Icons.add,
+            prefixIcon: AleraIcons.add,
             hintText: 'Add project…',
             controller: _searchController,
             onSubmitted: (_) => _addFirstMatch(availableProjects),

@@ -1,6 +1,7 @@
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/workbench/application/workbench_listing.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/presentation/widgets/workbench_view_options_menu.dart';
@@ -81,7 +82,7 @@ class WorkbenchSidebarToolbar extends ConsumerWidget {
           AleraIconButton(
             tooltip: allCollapsed ? 'Expand all' : 'Collapse all',
             onPressed: canCollapse ? controller.toggleCollapseAll : () {},
-            icon: allCollapsed ? Icons.unfold_more : Icons.unfold_less,
+            icon: allCollapsed ? AleraIcons.expandAll : AleraIcons.collapseAll,
           ),
           const SizedBox(width: AleraTokens.space2),
           AleraIconButton(
@@ -89,7 +90,7 @@ class WorkbenchSidebarToolbar extends ConsumerWidget {
                 ? 'New workspace'
                 : 'Add a Git project first',
             onPressed: hasGitProjects ? onAddWorkspace : () {},
-            icon: Icons.add,
+            icon: AleraIcons.add,
           ),
         ],
       ),

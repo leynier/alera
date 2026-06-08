@@ -98,11 +98,19 @@ Motion:
 - For long-running actions, reserve control width up front when labels/icons can change.
 - Prefer disabled state for short work and stage labels/progress for multi-step work.
 
+## Iconography
+
+Icons come from Lucide (`lucide_icons_flutter`), the same family Orca uses and the de-facto standard for modern developer tooling. Reference icons by semantic role through `AleraIcons` (e.g. `AleraIcons.delete`, `AleraIcons.gitBranch`), never raw `Icons.*` or `LucideIcons.*` at call sites.
+
+- `AleraIcons` (`lib/src/design_system/icons/alera_icons.dart`) is the single source of truth and the only entry point to `lucide_icons_flutter`. Add a new semantic role there rather than reaching for a glyph at the call site.
+- File-type icons in the explorer keep using `vscode_material_icon_theme` (the VSCode standard for file trees) via `AleraFileIcon`; its fallbacks resolve through `AleraIcons`.
+
 ## Reference Paths
 
 | Area | Reference paths |
 | --- | --- |
 | Tokens and theme | `lib/src/app/theme/alera_tokens.dart`, `lib/src/app/theme/alera_dark_theme.dart` |
+| Iconography | `lib/src/design_system/icons/alera_icons.dart`, `lib/src/design_system/icons/alera_file_icon.dart` |
 | Primary/secondary buttons | `lib/src/features/shell/presentation/alera_shell_page.dart`, `lib/src/features/workbench/presentation/project_workbench_sidebar.dart`, `lib/src/features/workbench/presentation/create_workspace_dialog.dart` |
 | Inline micro-actions | `lib/src/design_system/buttons/alera_icon_button.dart`, `lib/src/features/workbench/presentation/project_workbench_sidebar.dart` |
 | Status colors | `lib/src/design_system/feedback/alera_status_dot.dart`, `lib/src/features/workbench/presentation/terminal_surface.dart` |
@@ -123,6 +131,7 @@ Components are **presentational**: they take data and callbacks as parameters an
 | Forms | `AleraTextField`, `AleraSearchField`, `AleraNumberField`, `AleraSettingRow` |
 | Layout | `AleraSectionHeader`, `AleraDialog`, `AleraDialogHeader`, `AleraConfirmDialog` |
 | Menus | `AleraDropdownEntry`, `AleraMenuItem` |
+| Iconography | `AleraIcons`, `AleraFileIcon` |
 
 ## Widget Previews
 

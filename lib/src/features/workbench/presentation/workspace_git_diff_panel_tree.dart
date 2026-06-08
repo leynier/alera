@@ -130,7 +130,7 @@ class _GitDiffDirectoryRow extends StatelessWidget {
       child: Row(
         children: <Widget>[
           Icon(
-            collapsed ? Icons.chevron_right : Icons.expand_more,
+            collapsed ? AleraIcons.chevronRight : AleraIcons.chevronDown,
             size: 14,
             color: AleraTokens.foregroundMuted,
           ),
@@ -259,19 +259,19 @@ class _GitFileActions extends StatelessWidget {
           if (entry.area == GitChangeArea.staged)
             AleraIconButton(
               tooltip: 'Unstage',
-              icon: Icons.remove,
+              icon: AleraIcons.remove,
               onPressed: busy ? null : () => onUnstage(entry),
             )
           else
             AleraIconButton(
               tooltip: 'Stage',
-              icon: Icons.add,
+              icon: AleraIcons.add,
               onPressed: busy ? null : () => onStage(entry),
             ),
           if (entry.area != GitChangeArea.staged)
             AleraIconButton(
               tooltip: 'Discard',
-              icon: Icons.close,
+              icon: AleraIcons.close,
               onPressed: busy ? null : () => onDiscard(entry),
             ),
         ],
@@ -305,19 +305,19 @@ class _AreaActions extends StatelessWidget {
           if (area == GitChangeArea.staged)
             AleraIconButton(
               tooltip: 'Unstage',
-              icon: Icons.remove,
+              icon: AleraIcons.remove,
               onPressed: busy ? null : onUnstage,
             )
           else
             AleraIconButton(
               tooltip: 'Stage',
-              icon: Icons.add,
+              icon: AleraIcons.add,
               onPressed: busy ? null : onStage,
             ),
           if (area != GitChangeArea.staged)
             AleraIconButton(
               tooltip: 'Discard',
-              icon: Icons.close,
+              icon: AleraIcons.close,
               onPressed: busy ? null : onDiscard,
             ),
         ],

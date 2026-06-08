@@ -1,5 +1,6 @@
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
@@ -89,7 +90,7 @@ void main() {
       });
       expect(tester.widget<TextField>(field).controller?.text, isEmpty);
 
-      await tester.tap(find.byIcon(Icons.close).last);
+      await tester.tap(find.byIcon(AleraIcons.close).last);
       await tester.pumpAndSettle();
 
       expect(controller.state.viewPrefs.selectedProjectIds, isEmpty);

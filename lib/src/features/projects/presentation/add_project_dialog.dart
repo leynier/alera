@@ -3,6 +3,7 @@ import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/buttons/alera_segmented_button.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
@@ -221,7 +222,7 @@ class _AddProjectDialogState extends State<AddProjectDialog> {
             Row(
               children: <Widget>[
                 const Icon(
-                  Icons.folder_special_outlined,
+                  AleraIcons.folderSpecial,
                   size: 18,
                   color: AleraTokens.accent,
                 ),
@@ -247,12 +248,12 @@ class _AddProjectDialogState extends State<AddProjectDialog> {
                       segments: const <ButtonSegment<_AddProjectMode>>[
                         ButtonSegment<_AddProjectMode>(
                           value: _AddProjectMode.localFolder,
-                          icon: Icon(Icons.folder_open, size: 16),
+                          icon: Icon(AleraIcons.folderOpen, size: 16),
                           label: Text('Local folder'),
                         ),
                         ButtonSegment<_AddProjectMode>(
                           value: _AddProjectMode.cloneFromUrl,
-                          icon: Icon(Icons.cloud_download_outlined, size: 16),
+                          icon: Icon(AleraIcons.cloudDownload, size: 16),
                           label: Text('Clone from URL'),
                         ),
                       ],
@@ -345,7 +346,7 @@ class _LocalFolderFields extends StatelessWidget {
           hintText: '/path/to/project',
           suffix: AleraIconButton(
             tooltip: 'Browse',
-            icon: Icons.folder_open,
+            icon: AleraIcons.folderOpen,
             iconSize: 18,
             onPressed: onBrowse,
           ),
@@ -412,7 +413,7 @@ class _CloneFromUrlFields extends StatelessWidget {
           hintText: '/path/to/repository',
           suffix: AleraIconButton(
             tooltip: 'Choose parent folder',
-            icon: Icons.create_new_folder_outlined,
+            icon: AleraIcons.newFolder,
             iconSize: 18,
             onPressed: onBrowseParent,
           ),

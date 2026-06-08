@@ -5,6 +5,7 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/icons/alera_file_icon.dart';
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
@@ -327,13 +328,13 @@ class _MarkdownViewerFileBar extends StatelessWidget {
             const SizedBox(width: AleraTokens.space8),
             AleraIconButton(
               tooltip: loading ? 'Refreshing preview' : 'Refresh preview',
-              icon: loading ? Icons.hourglass_empty : Icons.refresh,
+              icon: loading ? AleraIcons.loading : AleraIcons.refresh,
               onPressed: loading ? null : onRefresh,
             ),
             const SizedBox(width: AleraTokens.space2),
             AleraIconButton(
               tooltip: 'Open source file',
-              icon: Icons.code,
+              icon: AleraIcons.code,
               onPressed: onOpenEditor,
             ),
           ],

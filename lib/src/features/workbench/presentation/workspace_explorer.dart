@@ -6,6 +6,7 @@ import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/icons/alera_file_icon.dart';
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
@@ -170,7 +171,7 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
       child: InkWell(
         onTap: () => unawaited(_toggleDirectory(node)),
         child: Icon(
-          expanded ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_right,
+          expanded ? AleraIcons.chevronDown : AleraIcons.chevronRight,
           size: 16,
           color: AleraTokens.foregroundMuted,
         ),

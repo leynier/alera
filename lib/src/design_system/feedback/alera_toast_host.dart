@@ -3,6 +3,7 @@ import 'dart:collection';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:flutter/material.dart';
 
 class AleraToastHost extends StatefulWidget {
@@ -195,11 +196,11 @@ class _ToastCard extends StatelessWidget {
   IconData _iconForTone(AleraToastTone tone) {
     switch (tone) {
       case AleraToastTone.success:
-        return Icons.check_circle_outline;
+        return AleraIcons.success;
       case AleraToastTone.error:
-        return Icons.error_outline;
+        return AleraIcons.error;
       case AleraToastTone.info:
-        return Icons.info_outline;
+        return AleraIcons.info;
     }
   }
 

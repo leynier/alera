@@ -46,7 +46,7 @@ class _SearchToolbar extends StatelessWidget {
             const Spacer(),
             AleraIconButton(
               tooltip: 'Clear search results',
-              icon: Icons.close,
+              icon: AleraIcons.close,
               onPressed: canClear ? onClear : null,
             ),
             const SizedBox(width: AleraTokens.space2),
@@ -55,8 +55,8 @@ class _SearchToolbar extends StatelessWidget {
                   ? 'Ignore ignored files'
                   : 'Search ignored files',
               icon: state.includeIgnored
-                  ? Icons.visibility_outlined
-                  : Icons.visibility_off_outlined,
+                  ? AleraIcons.visible
+                  : AleraIcons.hidden,
               onPressed: onToggleIncludeIgnored,
               iconColor: state.includeIgnored
                   ? AleraTokens.foreground
@@ -70,20 +70,22 @@ class _SearchToolbar extends StatelessWidget {
             AleraIconButton(
               tooltip: state.viewAsTree ? 'View as list' : 'View as tree',
               icon: state.viewAsTree
-                  ? Icons.format_list_bulleted
-                  : Icons.account_tree_outlined,
+                  ? AleraIcons.listView
+                  : AleraIcons.gitGraph,
               onPressed: onToggleViewAsTree,
             ),
             const SizedBox(width: AleraTokens.space2),
             AleraIconButton(
               tooltip: allResultsCollapsed ? 'Expand all' : 'Collapse all',
-              icon: allResultsCollapsed ? Icons.unfold_more : Icons.unfold_less,
+              icon: allResultsCollapsed
+                  ? AleraIcons.expandAll
+                  : AleraIcons.collapseAll,
               onPressed: hasResults ? onToggleAllResultsCollapsed : null,
             ),
             const SizedBox(width: AleraTokens.space2),
             AleraIconButton(
               tooltip: 'Refresh',
-              icon: state.loading ? Icons.hourglass_empty : Icons.refresh,
+              icon: state.loading ? AleraIcons.loading : AleraIcons.refresh,
               onPressed: state.hasQuery && !state.loading ? onRefresh : null,
             ),
           ],

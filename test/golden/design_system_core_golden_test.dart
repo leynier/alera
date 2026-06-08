@@ -6,6 +6,7 @@ import 'package:alera/src/design_system/buttons/alera_segmented_button.dart';
 import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/feedback/alera_status_indicator.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/surfaces/alera_panel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -59,7 +60,7 @@ class _ActionsScenario extends StatelessWidget {
             children: <Widget>[
               AleraIconButton(
                 tooltip: 'New terminal',
-                icon: Icons.add,
+                icon: AleraIcons.add,
                 backgroundColor: AleraTokens.surfaceVariant,
                 borderColor: AleraTokens.border,
                 onPressed: () {},
@@ -67,13 +68,13 @@ class _ActionsScenario extends StatelessWidget {
               const SizedBox(width: AleraTokens.space8),
               AleraIconButton(
                 tooltip: 'Settings',
-                icon: Icons.settings_outlined,
+                icon: AleraIcons.settings,
                 onPressed: () {},
               ),
               const SizedBox(width: AleraTokens.space12),
               FilledButton.icon(
                 onPressed: () {},
-                icon: const Icon(Icons.folder_open, size: 16),
+                icon: const Icon(AleraIcons.folderOpen, size: 16),
                 label: const Text('Add project'),
               ),
             ],
@@ -81,7 +82,7 @@ class _ActionsScenario extends StatelessWidget {
           const SizedBox(height: AleraTokens.space16),
           OutlinedButton.icon(
             onPressed: null,
-            icon: const Icon(Icons.alt_route_outlined, size: 16),
+            icon: const Icon(AleraIcons.gitFork, size: 16),
             label: const Text('New workspace'),
           ),
           const SizedBox(height: AleraTokens.space16),
@@ -92,12 +93,12 @@ class _ActionsScenario extends StatelessWidget {
             segments: const <ButtonSegment<_WorkbenchMode>>[
               ButtonSegment<_WorkbenchMode>(
                 value: _WorkbenchMode.projects,
-                icon: Icon(Icons.folder_outlined, size: 16),
+                icon: Icon(AleraIcons.folder, size: 16),
                 label: Text('Projects'),
               ),
               ButtonSegment<_WorkbenchMode>(
                 value: _WorkbenchMode.terminals,
-                icon: Icon(Icons.terminal, size: 16),
+                icon: Icon(AleraIcons.terminal, size: 16),
                 label: Text('Terminals'),
               ),
             ],
@@ -119,7 +120,7 @@ class _FormsPanelScenario extends StatelessWidget {
         children: const <Widget>[
           AleraTextField(
             dense: true,
-            prefixIcon: Icons.search,
+            prefixIcon: AleraIcons.search,
             hintText: 'Search projects',
           ),
           SizedBox(height: AleraTokens.space12),
@@ -131,12 +132,12 @@ class _FormsPanelScenario extends StatelessWidget {
           AleraPanel(
             children: <Widget>[
               _PanelRow(
-                icon: Icons.folder_outlined,
+                icon: AleraIcons.folder,
                 title: 'Alera',
                 subtitle: '/projects/alera',
               ),
               _PanelRow(
-                icon: Icons.terminal,
+                icon: AleraIcons.terminal,
                 title: 'Terminal 1',
                 subtitle: 'Running',
               ),
@@ -179,7 +180,7 @@ class _StatusScenario extends StatelessWidget {
           Row(
             children: const <Widget>[
               AleraStatusIndicator(
-                icon: Icons.check,
+                icon: AleraIcons.check,
                 color: AleraTokens.success,
               ),
               SizedBox(width: AleraTokens.space8),
@@ -189,7 +190,7 @@ class _StatusScenario extends StatelessWidget {
               ),
               SizedBox(width: AleraTokens.space8),
               AleraStatusIndicator(
-                icon: Icons.error_outline,
+                icon: AleraIcons.error,
                 color: AleraTokens.error,
               ),
             ],
@@ -207,7 +208,7 @@ class _EmptyStateScenario extends StatelessWidget {
   Widget build(BuildContext context) {
     return const AleraGoldenScenarioSurface(
       child: AleraEmptyState(
-        icon: Icons.folder_open,
+        icon: AleraIcons.folderOpen,
         title: 'No projects yet',
         message: 'Add a local folder or clone a repository to get started.',
         action: FilledButton(onPressed: null, child: Text('Add project')),

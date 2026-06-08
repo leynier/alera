@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_providers.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_service.dart';
 import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
@@ -185,7 +186,7 @@ void main() {
     final dropdownToggle = find.ancestor(
       of: find.descendant(
         of: splitButton,
-        matching: find.byIcon(Icons.expand_more),
+        matching: find.byIcon(AleraIcons.chevronDown),
       ),
       matching: find.byType(InkWell),
     );
@@ -624,7 +625,7 @@ void main() {
 
     expect(find.text('Generating with AI'), findsOneWidget);
     expect(find.byTooltip('Stop generating commit message'), findsOneWidget);
-    expect(find.byIcon(Icons.stop_circle_outlined), findsNothing);
+    expect(find.byIcon(AleraIcons.stop), findsNothing);
     expect(tester.widget<TextField>(_messageField()).enabled, isFalse);
     expect(_messageEditable(tester).controller.text, isEmpty);
 
@@ -635,7 +636,7 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 150));
 
-    expect(find.byIcon(Icons.stop_circle_outlined), findsOneWidget);
+    expect(find.byIcon(AleraIcons.stop), findsOneWidget);
     await gesture.removePointer();
 
     service.completeAt(1, 'feat: workspace b message');

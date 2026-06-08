@@ -1,4 +1,5 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:flutter/material.dart';
 
 /// Compact label chip.
@@ -82,7 +83,7 @@ class _AleraChipState extends State<AleraChip> {
               child: const Padding(
                 padding: EdgeInsets.all(AleraTokens.space2),
                 child: Icon(
-                  Icons.close,
+                  AleraIcons.close,
                   size: 12,
                   color: AleraTokens.foregroundMuted,
                 ),

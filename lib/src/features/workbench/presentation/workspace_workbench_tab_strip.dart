@@ -199,7 +199,7 @@ class _PaneMenuButton extends StatelessWidget {
     return AleraIconButton(
       tooltip: 'Pane actions',
       onPressed: () => unawaited(_openMenu(context)),
-      icon: Icons.more_horiz,
+      icon: AleraIcons.more,
       minSize: 28,
     );
   }
@@ -266,7 +266,7 @@ class _NewTerminalButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return AleraIconButton(
       tooltip: 'New terminal',
-      icon: Icons.add,
+      icon: AleraIcons.add,
       iconSize: 16,
       minSize: 28,
       hoverColor: AleraTokens.surfaceElevated,

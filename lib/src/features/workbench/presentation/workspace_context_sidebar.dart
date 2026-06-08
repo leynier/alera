@@ -1,5 +1,6 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_explorer.dart';
@@ -123,7 +124,7 @@ class _CollapsedContextRail extends StatelessWidget {
             tab: WorkbenchContextPanelTab.explorer,
             activeTab: activeTab,
             tooltip: 'Explorer',
-            icon: Icons.file_copy_outlined,
+            icon: AleraIcons.copyFiles,
             onPressed: () => onOpenTab(WorkbenchContextPanelTab.explorer),
           ),
           const SizedBox(height: AleraTokens.space6),
@@ -131,7 +132,7 @@ class _CollapsedContextRail extends StatelessWidget {
             tab: WorkbenchContextPanelTab.search,
             activeTab: activeTab,
             tooltip: 'Search',
-            icon: Icons.search_rounded,
+            icon: AleraIcons.search,
             onPressed: () => onOpenTab(WorkbenchContextPanelTab.search),
           ),
           const SizedBox(height: AleraTokens.space6),
@@ -139,7 +140,7 @@ class _CollapsedContextRail extends StatelessWidget {
             tab: WorkbenchContextPanelTab.gitDiff,
             activeTab: activeTab,
             tooltip: 'Source Control',
-            icon: Icons.fork_right_outlined,
+            icon: AleraIcons.gitBranch,
             onPressed: () => onOpenTab(WorkbenchContextPanelTab.gitDiff),
           ),
           const Spacer(),
@@ -147,7 +148,7 @@ class _CollapsedContextRail extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: AleraTokens.space8),
             child: AleraIconButton(
               tooltip: 'Expand panel',
-              icon: Icons.keyboard_double_arrow_left,
+              icon: AleraIcons.chevronsLeft,
               onPressed: onToggleVisible,
             ),
           ),
@@ -185,7 +186,7 @@ class _ContextTabHeader extends StatelessWidget {
                 tab: WorkbenchContextPanelTab.explorer,
                 activeTab: activeTab,
                 tooltip: 'Explorer',
-                icon: Icons.file_copy_outlined,
+                icon: AleraIcons.copyFiles,
                 onPressed: () =>
                     onSetActiveTab(WorkbenchContextPanelTab.explorer),
               ),
@@ -194,7 +195,7 @@ class _ContextTabHeader extends StatelessWidget {
                 tab: WorkbenchContextPanelTab.search,
                 activeTab: activeTab,
                 tooltip: 'Search',
-                icon: Icons.search_rounded,
+                icon: AleraIcons.search,
                 onPressed: () =>
                     onSetActiveTab(WorkbenchContextPanelTab.search),
               ),
@@ -203,14 +204,14 @@ class _ContextTabHeader extends StatelessWidget {
                 tab: WorkbenchContextPanelTab.gitDiff,
                 activeTab: activeTab,
                 tooltip: 'Source Control',
-                icon: Icons.fork_right_outlined,
+                icon: AleraIcons.gitBranch,
                 onPressed: () =>
                     onSetActiveTab(WorkbenchContextPanelTab.gitDiff),
               ),
               const Spacer(),
               AleraIconButton(
                 tooltip: 'Collapse panel',
-                icon: Icons.keyboard_double_arrow_right,
+                icon: AleraIcons.chevronsRight,
                 onPressed: onToggleVisible,
               ),
             ],

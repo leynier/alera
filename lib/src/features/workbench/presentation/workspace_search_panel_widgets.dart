@@ -182,7 +182,7 @@ class _SearchFileResultRow extends StatelessWidget {
         child: Row(
           children: <Widget>[
             Icon(
-              collapsed ? Icons.chevron_right : Icons.expand_more,
+              collapsed ? AleraIcons.chevronRight : AleraIcons.chevronDown,
               size: 16,
               color: AleraTokens.foregroundMuted,
             ),
@@ -232,7 +232,7 @@ class _SearchFileResultRow extends StatelessWidget {
             const SizedBox(width: AleraTokens.space4),
             AleraIconButton(
               tooltip: 'Replace in file',
-              icon: Icons.find_replace,
+              icon: AleraIcons.findReplace,
               onPressed: replacing ? null : onReplaceFile,
               minSize: AleraTokens.space24,
               iconSize: 14,
@@ -275,7 +275,7 @@ class _SearchDirectoryResultRow extends StatelessWidget {
         child: Row(
           children: <Widget>[
             Icon(
-              collapsed ? Icons.chevron_right : Icons.expand_more,
+              collapsed ? AleraIcons.chevronRight : AleraIcons.chevronDown,
               size: 16,
               color: AleraTokens.foregroundMuted,
             ),
@@ -375,7 +375,7 @@ class _SearchMatchResultRow extends StatelessWidget {
             const SizedBox(width: AleraTokens.space4),
             AleraIconButton(
               tooltip: 'Replace match',
-              icon: Icons.find_replace,
+              icon: AleraIcons.findReplace,
               onPressed: replacing ? null : onReplace,
               minSize: AleraTokens.space24,
               iconSize: 14,

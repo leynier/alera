@@ -193,13 +193,13 @@ class _ProjectHeaderTileState extends State<_ProjectHeaderTile> {
       items: <PopupMenuEntry<String>>[
         const AleraDropdownEntry<String>(
           value: 'rename',
-          leading: Icon(Icons.edit_outlined, size: 16),
+          leading: Icon(AleraIcons.edit, size: 16),
           label: 'Rename',
         ),
         AleraDropdownEntry<String>(
           value: 'new-workspace',
           leading: Icon(
-            Icons.add,
+            AleraIcons.add,
             size: 16,
             color: widget.onCreateWorkspace == null
                 ? AleraTokens.foregroundFaint
@@ -211,7 +211,7 @@ class _ProjectHeaderTileState extends State<_ProjectHeaderTile> {
         const PopupMenuDivider(height: AleraTokens.space8),
         const AleraDropdownEntry<String>(
           value: 'remove',
-          leading: Icon(Icons.delete_outline, size: 16),
+          leading: Icon(AleraIcons.delete, size: 16),
           label: 'Remove project',
         ),
       ],
@@ -251,7 +251,7 @@ class _ProjectHeaderTileState extends State<_ProjectHeaderTile> {
             child: Row(
               children: <Widget>[
                 Icon(
-                  widget.expanded ? Icons.folder_open : Icons.folder_outlined,
+                  widget.expanded ? AleraIcons.folderOpen : AleraIcons.folder,
                   size: 14,
                   color: AleraTokens.foregroundMuted,
                 ),
@@ -280,8 +280,8 @@ class _ProjectHeaderTileState extends State<_ProjectHeaderTile> {
                 const SizedBox(width: AleraTokens.space4),
                 Icon(
                   widget.expanded
-                      ? Icons.keyboard_arrow_up
-                      : Icons.keyboard_arrow_down,
+                      ? AleraIcons.chevronUp
+                      : AleraIcons.chevronDown,
                   size: 14,
                   color: AleraTokens.foregroundMuted,
                 ),
@@ -290,7 +290,7 @@ class _ProjectHeaderTileState extends State<_ProjectHeaderTile> {
                   AleraIconButton(
                     tooltip: 'New workspace in this project',
                     onPressed: widget.onCreateWorkspace!,
-                    icon: Icons.add,
+                    icon: AleraIcons.add,
                     iconSize: 14,
                     minSize: 24,
                   ),

@@ -51,7 +51,7 @@ class _EditorFileBar extends StatelessWidget {
             if (onOpenPreview != null) ...<Widget>[
               AleraIconButton(
                 tooltip: 'Open preview',
-                icon: Icons.visibility_outlined,
+                icon: AleraIcons.visible,
                 onPressed: onOpenPreview,
                 iconColor: color,
               ),
@@ -59,21 +59,21 @@ class _EditorFileBar extends StatelessWidget {
             ],
             AleraIconButton(
               tooltip: 'View diff',
-              icon: Icons.difference_outlined,
+              icon: AleraIcons.diff,
               onPressed: onViewDiff,
               iconColor: color,
             ),
             const SizedBox(width: AleraTokens.space2),
             AleraIconButton(
               tooltip: saving ? 'Saving file' : 'Save file',
-              icon: saving ? Icons.hourglass_empty : Icons.save_outlined,
+              icon: saving ? AleraIcons.loading : AleraIcons.save,
               onPressed: onSave,
               iconColor: color,
             ),
             const SizedBox(width: AleraTokens.space2),
             AleraIconButton(
               tooltip: 'Discard changes',
-              icon: Icons.restore,
+              icon: AleraIcons.restore,
               onPressed: onDiscard,
               iconColor: color,
             ),
@@ -81,7 +81,7 @@ class _EditorFileBar extends StatelessWidget {
               const SizedBox(width: AleraTokens.space2),
               AleraIconButton(
                 tooltip: 'Open preview',
-                icon: Icons.preview_outlined,
+                icon: AleraIcons.preview,
                 onPressed: onOpenPreview,
                 iconColor: color,
               ),

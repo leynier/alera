@@ -4,6 +4,7 @@ import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/icons/alera_file_icon.dart';
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
@@ -216,13 +217,13 @@ class _GitDiffBar extends StatelessWidget {
               tooltip: onOpenFile == null
                   ? 'File is not available in working tree'
                   : 'Open file',
-              icon: Icons.open_in_new,
+              icon: AleraIcons.external,
               onPressed: onOpenFile,
             ),
             const SizedBox(width: AleraTokens.space2),
             AleraIconButton(
               tooltip: 'Refresh',
-              icon: Icons.refresh,
+              icon: AleraIcons.refresh,
               onPressed: onRefresh,
             ),
           ],

@@ -58,7 +58,7 @@ class _ProjectPicker extends StatelessWidget {
               subtitle: project.repoPath,
               selected: selected,
               leading: Icon(
-                selected ? Icons.radio_button_checked : Icons.radio_button_off,
+                selected ? AleraIcons.radioOn : AleraIcons.radioOff,
                 size: 16,
                 color: selected
                     ? AleraTokens.accent
@@ -129,7 +129,7 @@ class _SourceBranchPicker extends StatelessWidget {
               label: branch,
               selected: selected,
               leading: Icon(
-                selected ? Icons.check_circle : Icons.circle_outlined,
+                selected ? AleraIcons.success : AleraIcons.circle,
                 size: 16,
                 color: selected
                     ? AleraTokens.accent
