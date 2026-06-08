@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_registry.dart';
 import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
+import 'package:alera/src/shared/infra/process/command_environment_resolver.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 
 const int aiTextModelDiscoveryTimeoutSeconds = 60;
@@ -29,9 +30,14 @@ abstract interface class AiTextModelDiscoveryService {
 }
 
 class CliAiTextModelDiscoveryService implements AiTextModelDiscoveryService {
-  const CliAiTextModelDiscoveryService({required this.processRunner});
+  CliAiTextModelDiscoveryService({
+    required this.processRunner,
+    CommandEnvironmentResolver? commandEnvironmentResolver,
+  }) : commandEnvironmentResolver =
+           commandEnvironmentResolver ?? UserCommandEnvironmentResolver();
 
   final ProcessRunner processRunner;
+  final CommandEnvironmentResolver commandEnvironmentResolver;
 
   @override
   Future<AiTextModelDiscoveryResult> discover(
@@ -53,7 +59,11 @@ class CliAiTextModelDiscoveryService implements AiTextModelDiscoveryService {
 
     final StartedProcess process;
     try {
-      process = await processRunner.start(spec.binary, spec.modelsCommand!);
+      process = await processRunner.start(
+        spec.binary,
+        spec.modelsCommand!,
+        environment: await commandEnvironmentResolver.environment(),
+      );
     } catch (_) {
       return AiTextModelDiscoveryResult(
         success: false,
