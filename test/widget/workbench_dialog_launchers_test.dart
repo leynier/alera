@@ -7,9 +7,12 @@ import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_dialog_launchers.dart';
+import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../unit/fake_git_backend.dart';
 
 void main() {
   group('workbench dialog launchers', () {
@@ -201,7 +204,7 @@ void main() {
     });
 
     testWidgets(
-      'showCreateWorkspaceFlow warns when no git project is available',
+      'showCreateWorkspaceFlow shows an empty state when no git project is available',
       (tester) async {
         final controller = _DialogLaunchersTestController(
           WorkbenchState(
@@ -220,8 +223,11 @@ void main() {
         await tester.tap(find.text('Open'));
         await tester.pumpAndSettle();
 
+        expect(find.text('No Git projects yet'), findsOneWidget);
         expect(
-          find.text('Linked workspaces require a Git project.'),
+          find.text(
+            'Linked workspaces require a Git project. Add one to get started.',
+          ),
           findsOneWidget,
         );
         expect(controller.createdWorkspaceCall, isNull);
@@ -244,10 +250,13 @@ void main() {
 
         await tester.tap(find.text('Open'));
         await tester.pumpAndSettle();
+        await tester.tap(find.text('Continue'));
+        await tester.pumpAndSettle();
         await tester.enterText(
-          find.widgetWithText(TextField, 'New branch name'),
+          find.widgetWithText(TextField, 'New branch name *'),
           'feature/coverage',
         );
+        await tester.pumpAndSettle();
         await tester.tap(find.text('Create workspace'));
         await tester.pumpAndSettle();
 
@@ -280,10 +289,13 @@ void main() {
 
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
+      await tester.tap(find.text('Continue'));
+      await tester.pumpAndSettle();
       await tester.enterText(
-        find.widgetWithText(TextField, 'New branch name'),
+        find.widgetWithText(TextField, 'New branch name *'),
         'feature/error',
       );
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Create workspace'));
       await tester.pumpAndSettle();
 
@@ -301,6 +313,7 @@ Future<void> _pumpFlowHarness(
     ProviderScope(
       overrides: [
         workbenchControllerProvider.overrideWith(() => controller),
+        gitBackendProvider.overrideWithValue(FakeGitBackend()),
         settingsControllerProvider.overrideWith(
           () => _DialogLaunchersSettingsController(AleraSettings.defaults),
         ),
