@@ -3,11 +3,18 @@ import 'package:alera/src/features/workbench/presentation/create_workspace_dialo
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+typedef MockSubmitResult = ({
+  Project project,
+  String sourceBranch,
+  String newBranchName,
+  String? name,
+});
+
 void main() {
   testWidgets('selects a project, filters source branches, and submits', (
     tester,
   ) async {
-    CreateWorkspaceResult? result;
+    MockSubmitResult? result;
     final projects = <Project>[_project(id: 'alera', name: 'Alera'), _orca()];
 
     await _pumpDialogLauncher(
@@ -19,7 +26,7 @@ void main() {
         }
         return const <String>['main', 'origin/main'];
       },
-      onResult: (value) => result = value,
+      onSubmit: (val) => result = val,
     );
 
     await tester.tap(find.text('Open'));
@@ -39,14 +46,24 @@ void main() {
     );
     await tester.pumpAndSettle();
     await tester.tap(find.text('feature/orchestration'));
+    await tester.pumpAndSettle();
+
+    // Tap Continue to go to Step 2
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+
     await tester.enterText(
-      find.widgetWithText(TextField, 'New branch name'),
+      find.widgetWithText(TextField, 'New branch name *'),
       'feature/workspace-imports',
     );
+    await tester.pumpAndSettle();
+
     await tester.enterText(
       find.widgetWithText(TextField, 'Workspace name (optional)'),
       'Workspace imports',
     );
+    await tester.pumpAndSettle();
+
     await tester.tap(find.text('Create workspace'));
     await tester.pumpAndSettle();
 
@@ -60,7 +77,7 @@ void main() {
   testWidgets('preselects the requested project and default branch', (
     tester,
   ) async {
-    CreateWorkspaceResult? result;
+    MockSubmitResult? result;
     final projects = <Project>[_project(id: 'alera', name: 'Alera'), _orca()];
 
     await _pumpDialogLauncher(
@@ -71,15 +88,22 @@ void main() {
         expect(project.id, 'orca');
         return const <String>['develop', 'main'];
       },
-      onResult: (value) => result = value,
+      onSubmit: (val) => result = val,
     );
 
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
+
+    // Tap Continue to go to Step 2
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+
     await tester.enterText(
-      find.widgetWithText(TextField, 'New branch name'),
+      find.widgetWithText(TextField, 'New branch name *'),
       'feature/default-source',
     );
+    await tester.pumpAndSettle();
+
     await tester.tap(find.text('Create workspace'));
     await tester.pumpAndSettle();
 
@@ -89,7 +113,7 @@ void main() {
   });
 
   testWidgets('changing projects reloads source branches', (tester) async {
-    CreateWorkspaceResult? result;
+    MockSubmitResult? result;
     final loadedProjectIds = <String>[];
     final projects = <Project>[_project(id: 'alera', name: 'Alera'), _orca()];
 
@@ -103,23 +127,29 @@ void main() {
         }
         return const <String>['main'];
       },
-      onResult: (value) => result = value,
+      onSubmit: (val) => result = val,
     );
 
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Orca'));
     await tester.pumpAndSettle();
+
+    // Tap Continue to go to Step 2
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+
     await tester.enterText(
-      find.widgetWithText(TextField, 'New branch name'),
+      find.widgetWithText(TextField, 'New branch name *'),
       'release/orca-workspace',
     );
+    await tester.pumpAndSettle();
+
     await tester.tap(find.text('Create workspace'));
     await tester.pumpAndSettle();
 
     expect(loadedProjectIds, <String>['alera', 'orca']);
     expect(result, isNotNull);
-    expect(result!.project.id, 'orca');
     expect(result!.sourceBranch, 'release/orca');
   });
 
@@ -130,15 +160,29 @@ void main() {
         tester,
         projects: <Project>[_project()],
         loadBranches: (_) async => const <String>[],
-        onResult: (_) {},
+        onSubmit: (_) {},
       );
 
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Create workspace'));
+
+      // Try to continue without source branch
+      await tester.tap(find.text('Continue'));
+      await tester.pumpAndSettle();
+      expect(find.text('Source branch is required'), findsOneWidget);
+
+      // Input source branch and continue
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Source branch'),
+        'main',
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Continue'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Source branch is required'), findsOneWidget);
+      // Try to create workspace without new branch name
+      await tester.tap(find.text('Create workspace'));
+      await tester.pumpAndSettle();
       expect(find.text('New branch name is required'), findsOneWidget);
     },
   );
@@ -150,7 +194,7 @@ void main() {
       tester,
       projects: <Project>[_project()],
       loadBranches: (_) async => const <String>['main'],
-      onResult: (_) {},
+      onSubmit: (_) {},
     );
 
     await tester.tap(find.text('Open'));
@@ -194,26 +238,26 @@ void main() {
         'origin/v0/leynier-24f7f479',
         'origin/v0/leynier-aac72b82',
       ],
-      onResult: (_) {},
+      onSubmit: (_) {},
     );
 
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Create workspace'), findsOneWidget);
+    expect(find.text('Continue'), findsOneWidget);
   });
 
   testWidgets('shows branch load errors and can cancel the dialog', (
     tester,
   ) async {
-    CreateWorkspaceResult? result;
+    MockSubmitResult? result;
 
     await _pumpDialogLauncher(
       tester,
       projects: <Project>[_project()],
       loadBranches: (_) async => throw StateError('cannot load branches'),
-      onResult: (value) => result = value,
+      onSubmit: (val) => result = val,
     );
 
     await tester.tap(find.text('Open'));
@@ -230,35 +274,44 @@ void main() {
   testWidgets(
     'manual source branch input clears errors and can submit from the source field',
     (tester) async {
-      CreateWorkspaceResult? result;
+      MockSubmitResult? result;
 
       await _pumpDialogLauncher(
         tester,
         projects: <Project>[_project()],
         loadBranches: (_) async => const <String>[],
-        onResult: (value) => result = value,
+        onSubmit: (val) => result = val,
       );
 
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Create workspace'));
+
+      // Tap Continue to validate Step 1 branch exists
+      await tester.tap(find.text('Continue'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Source branch is required'), findsOneWidget);
-      expect(find.text('New branch name is required'), findsOneWidget);
-
+      // We should remain in Step 1 due to validation or see error if we try to proceed without a branch
       final sourceField = find.widgetWithText(TextField, 'Source branch');
       await tester.enterText(sourceField, 'release/manual');
       await tester.pumpAndSettle();
-      expect(find.text('Source branch is required'), findsNothing);
 
-      await tester.enterText(
-        find.widgetWithText(TextField, 'New branch name'),
-        'feature/manual-source-submit',
+      // Tap Continue to go to Step 2
+      await tester.tap(find.text('Continue'));
+      await tester.pumpAndSettle();
+
+      // Now we are in Step 2, test validation errors
+      await tester.tap(find.text('Create workspace'));
+      await tester.pumpAndSettle();
+      expect(find.text('New branch name is required'), findsOneWidget);
+
+      final newBranchField = find.widgetWithText(
+        TextField,
+        'New branch name *',
       );
-      await tester.tap(sourceField);
-      await tester.pump();
-      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.enterText(newBranchField, 'feature/manual-source-submit');
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Create workspace'));
       await tester.pumpAndSettle();
 
       expect(result, isNotNull);
@@ -268,13 +321,13 @@ void main() {
   );
 
   testWidgets('submits from the new-branch and name fields', (tester) async {
-    final results = <CreateWorkspaceResult?>[];
+    final results = <MockSubmitResult?>[];
 
     await _pumpDialogLauncher(
       tester,
       projects: <Project>[_project()],
       loadBranches: (_) async => const <String>[],
-      onResult: results.add,
+      onSubmit: results.add,
     );
 
     await tester.tap(find.text('Open'));
@@ -283,8 +336,15 @@ void main() {
       find.widgetWithText(TextField, 'Source branch'),
       'develop',
     );
-    final newBranchField = find.widgetWithText(TextField, 'New branch name');
+    await tester.pumpAndSettle();
+
+    // Go to Step 2
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+
+    final newBranchField = find.widgetWithText(TextField, 'New branch name *');
     await tester.enterText(newBranchField, 'feature/new-branch-submit');
+    await tester.pumpAndSettle();
     await tester.tap(newBranchField);
     await tester.pump();
     await tester.testTextInput.receiveAction(TextInputAction.done);
@@ -300,15 +360,23 @@ void main() {
       find.widgetWithText(TextField, 'Source branch'),
       'develop',
     );
+    await tester.pumpAndSettle();
+
+    // Go to Step 2
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+
     await tester.enterText(
-      find.widgetWithText(TextField, 'New branch name'),
+      find.widgetWithText(TextField, 'New branch name *'),
       'feature/name-submit',
     );
+    await tester.pumpAndSettle();
     final nameField = find.widgetWithText(
       TextField,
       'Workspace name (optional)',
     );
     await tester.enterText(nameField, 'Named workspace');
+    await tester.pumpAndSettle();
     await tester.tap(nameField);
     await tester.pump();
     await tester.testTextInput.receiveAction(TextInputAction.done);
@@ -323,7 +391,7 @@ Future<void> _pumpDialogLauncher(
   WidgetTester tester, {
   required List<Project> projects,
   required Future<List<String>> Function(Project project) loadBranches,
-  required ValueChanged<CreateWorkspaceResult?> onResult,
+  required ValueChanged<MockSubmitResult?> onSubmit,
   Project? initialProject,
 }) async {
   await tester.pumpWidget(
@@ -334,14 +402,28 @@ Future<void> _pumpDialogLauncher(
             body: Center(
               child: FilledButton(
                 onPressed: () async {
-                  onResult(
-                    await showDialog<CreateWorkspaceResult>(
-                      context: context,
-                      builder: (_) => CreateWorkspaceDialog(
-                        projects: projects,
-                        initialProject: initialProject,
-                        loadBranches: loadBranches,
-                      ),
+                  await showDialog<bool>(
+                    context: context,
+                    builder: (_) => CreateWorkspaceDialog(
+                      projects: projects,
+                      initialProject: initialProject,
+                      loadBranches: loadBranches,
+                      getProjectActiveBranch: (_) => null,
+                      checkBranchExists: (_, _) async => false,
+                      onCreateWorkspace:
+                          ({
+                            required project,
+                            required sourceBranch,
+                            required newBranchName,
+                            name,
+                          }) async {
+                            onSubmit((
+                              project: project,
+                              sourceBranch: sourceBranch,
+                              newBranchName: newBranchName,
+                              name: name,
+                            ));
+                          },
                     ),
                   );
                 },

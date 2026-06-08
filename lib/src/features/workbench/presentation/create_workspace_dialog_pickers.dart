@@ -8,6 +8,7 @@ class _ProjectPicker extends StatelessWidget {
     required this.controller,
     required this.onQueryChanged,
     required this.onSelectProject,
+    required this.getProjectActiveBranch,
   });
 
   final List<Project> projects;
@@ -16,6 +17,7 @@ class _ProjectPicker extends StatelessWidget {
   final TextEditingController controller;
   final ValueChanged<String> onQueryChanged;
   final ValueChanged<Project> onSelectProject;
+  final String? Function(Project project) getProjectActiveBranch;
 
   @override
   Widget build(BuildContext context) {
@@ -46,16 +48,20 @@ class _ProjectPicker extends StatelessWidget {
         ),
         const SizedBox(height: AleraTokens.space8),
         _PickerPanel(
-          maxHeight: 128,
+          maxHeight: 200,
           isEmpty: filtered.isEmpty,
           emptyMessage: 'No projects match "$query"',
           itemCount: filtered.length,
           itemBuilder: (context, index) {
             final project = filtered[index];
             final selected = project.id == selectedProject?.id;
+            final activeBranch = getProjectActiveBranch(project);
+            final subtitle =
+                project.repoPath +
+                (activeBranch != null ? '  •  ($activeBranch)' : '');
             return AleraMenuItem(
               label: project.name,
-              subtitle: project.repoPath,
+              subtitle: subtitle,
               selected: selected,
               leading: Icon(
                 selected ? Icons.radio_button_checked : Icons.radio_button_off,
@@ -118,15 +124,22 @@ class _SourceBranchPicker extends StatelessWidget {
         ),
         const SizedBox(height: AleraTokens.space8),
         _PickerPanel(
-          maxHeight: 144,
+          maxHeight: 240,
           isEmpty: filtered.isEmpty,
           emptyMessage: 'No source branches match "$query"',
           itemCount: filtered.length,
           itemBuilder: (context, index) {
             final branch = filtered[index];
             final selected = branch == selectedBranch;
+            final isDefault = const <String>[
+              'main',
+              'origin/main',
+              'master',
+              'origin/master',
+            ].contains(branch);
+            final label = branch + (isDefault ? ' (default)' : '');
             return AleraMenuItem(
-              label: branch,
+              label: label,
               selected: selected,
               leading: Icon(
                 selected ? Icons.check_circle : Icons.circle_outlined,

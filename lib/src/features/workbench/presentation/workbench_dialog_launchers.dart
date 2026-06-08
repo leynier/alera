@@ -9,6 +9,7 @@ import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/presentation/add_project_dialog.dart';
 import 'package:alera/src/features/settings/presentation/settings_dialog.dart';
 import 'package:alera/src/features/workbench/presentation/create_workspace_dialog.dart';
+import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -201,51 +202,63 @@ Future<void> showCreateWorkspaceFlow(
       .projects
       .where((project) => project.supportsLinkedWorkspaces)
       .toList(growable: false);
-  if (projects.isEmpty) {
-    AleraToast.show(
-      context,
-      message: 'Linked workspaces require a Git project.',
-      tone: AleraToastTone.info,
-    );
-    return;
-  }
+
   final resolvedInitialProject =
       initialProject?.supportsLinkedWorkspaces == true ? initialProject : null;
 
-  final result = await showDialog<CreateWorkspaceResult>(
+  final success = await showDialog<bool>(
     context: context,
     builder: (_) => CreateWorkspaceDialog(
       projects: projects,
       initialProject: resolvedInitialProject,
       loadBranches: controller.listSourceBranches,
+      getProjectActiveBranch: (project) {
+        final state = ref.read(workbenchControllerProvider);
+        final workspaces = state.workspacesFor(project.id);
+        if (workspaces.isEmpty) return null;
+        try {
+          final activeWorkspace = workspaces.firstWhere(
+            (w) => w.id == state.activeWorkspaceId,
+            orElse: () => workspaces.firstWhere(
+              (w) => w.isMain,
+              orElse: () => workspaces.first,
+            ),
+          );
+          return activeWorkspace.branch;
+        } catch (_) {
+          return null;
+        }
+      },
+      checkBranchExists: (project, branchName) async {
+        final gitBackend = ref.read(gitBackendProvider);
+        return gitBackend.branchExists(project.repoPath, branchName);
+      },
+      onCreateWorkspace:
+          ({
+            required project,
+            required sourceBranch,
+            required newBranchName,
+            name,
+          }) async {
+            await controller.createWorkspace(
+              project: project,
+              sourceBranch: sourceBranch,
+              newBranchName: newBranchName,
+              name: name,
+            );
+          },
+      onAddProject: () {
+        Navigator.of(context).pop();
+        unawaited(showAddProjectFlow(context, ref));
+      },
     ),
   );
-  if (result == null || !context.mounted) {
-    return;
-  }
-  try {
-    await controller.createWorkspace(
-      project: result.project,
-      sourceBranch: result.sourceBranch,
-      newBranchName: result.newBranchName,
-      name: result.name,
-    );
-    if (!context.mounted) {
-      return;
-    }
+
+  if (success == true && context.mounted) {
     AleraToast.show(
       context,
       message: 'Workspace created',
       tone: AleraToastTone.success,
-    );
-  } catch (error) {
-    if (!context.mounted) {
-      return;
-    }
-    AleraToast.show(
-      context,
-      message: error.toString(),
-      tone: AleraToastTone.error,
     );
   }
 }
