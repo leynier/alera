@@ -2,13 +2,17 @@
 
 Alera release builds are expected to be trusted before they are published publicly. The release workflow builds the desktop bundle for each platform, signs or packages the platform artifact, emits a signed schema v2 update manifest, and uploads both GitHub Release assets and R2 update indexes.
 
+## Platform signing is conditional
+
+Platform code-signing (macOS Developer ID, Windows Authenticode) runs only when its credentials are configured as repository secrets. When they are absent the release job logs a warning and ships an unsigned platform artifact instead of failing. This is independent of update-manifest signing: the Ed25519 manifest below is always signed, so update integrity holds even for unsigned platform bundles. Configuring the relevant secrets re-enables signing automatically with no workflow change.
+
 ## macOS
 
-Production macOS artifacts must contain a Developer ID signed and notarized `Alera.app`. The release job signs the bundled Rust sidecar under `Contents/Resources/alera/`, signs the app bundle with hardened runtime, submits it to Apple notarization, staples the ticket, and verifies the result with `codesign`, `stapler`, and `spctl`.
+Production macOS artifacts should contain a Developer ID signed and notarized `Alera.app`. When the `APPLE_*` credentials are present, the release job signs the bundled Rust sidecar under `Contents/Resources/alera/`, signs the app bundle with hardened runtime, submits it to Apple notarization, staples the ticket, and verifies the result with `codesign`, `stapler`, and `spctl`. While Apple credentials are not configured, the macOS bundle ships unsigned and users must allow it through Gatekeeper (right-click → Open, or `xattr -dr com.apple.quarantine`).
 
 ## Windows
 
-Production Windows artifacts must be Authenticode signed. The release job signs every executable payload in the bundle, including the Rust sidecar under `resources/alera/`, and verifies each signed file with `signtool verify /pa /all`. Windows SmartScreen reputation can still take time to accrue for a new publisher or certificate even when Authenticode verification succeeds.
+Production Windows artifacts should be Authenticode signed. When the `WINDOWS_CERTIFICATE_*` credentials are present, the release job signs every executable payload in the bundle, including the Rust sidecar under `resources/alera/`, and verifies each signed file with `signtool verify /pa /all`. Windows SmartScreen reputation can still take time to accrue for a new publisher or certificate even when Authenticode verification succeeds. While the certificate is not configured, the Windows bundle ships unsigned and SmartScreen reports an unknown publisher; the planned trusted path is a free SignPath Foundation certificate for this MIT-licensed project.
 
 ## Linux
 

@@ -248,7 +248,20 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
         run: |
           set -euo pipefail
-          bash tool/release/sign_macos.sh "$BUNDLE_DIR" "$BUNDLE_DIR/Alera.app"
+          # macOS Developer ID signing/notarization is optional: when the Apple
+          # credentials are absent the bundle ships unsigned (users must allow it
+          # through Gatekeeper). The Ed25519 update manifest is still signed, so
+          # update integrity is unaffected. See docs/release-trust.md.
+          if [[ -n "${APPLE_DEVELOPER_ID_APPLICATION:-}" \
+            && -n "${APPLE_DEVELOPER_ID_TEAM_ID:-}" \
+            && -n "${APPLE_CERTIFICATE_P12_BASE64:-}" \
+            && -n "${APPLE_CERTIFICATE_PASSWORD:-}" \
+            && -n "${APPLE_ID:-}" \
+            && -n "${APPLE_APP_SPECIFIC_PASSWORD:-}" ]]; then
+            bash tool/release/sign_macos.sh "$BUNDLE_DIR" "$BUNDLE_DIR/Alera.app"
+          else
+            echo "::warning::Apple Developer ID credentials are not configured; packaging an unsigned macOS release."
+          fi
           tar -czf "release-assets/alera-${RELEASE_VERSION}-macos.tar.gz" -C "$BUNDLE_DIR" .
 
       - name: Sign and package Windows release
@@ -260,7 +273,15 @@ jobs:
           WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
           WINDOWS_TIMESTAMP_URL: ${{ vars.WINDOWS_TIMESTAMP_URL }}
         run: |
-          pwsh -NoProfile -File tool/release/sign_windows.ps1 -BundleDir "$env:BUNDLE_DIR"
+          # Authenticode signing is optional: when the certificate is absent the
+          # bundle ships unsigned (SmartScreen shows an unknown publisher). The
+          # Ed25519 update manifest is still signed. See docs/release-trust.md.
+          if (-not [string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PFX_BASE64) -and `
+              -not [string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PASSWORD)) {
+            pwsh -NoProfile -File tool/release/sign_windows.ps1 -BundleDir "$env:BUNDLE_DIR"
+          } else {
+            Write-Output "::warning::Windows code-signing certificate is not configured; packaging an unsigned Windows release."
+          }
           tar -czf "release-assets/alera-$env:RELEASE_VERSION-windows.tar.gz" -C "$env:BUNDLE_DIR" .
 
       - name: Package stable Linux release
