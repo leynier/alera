@@ -30,9 +30,6 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Patch PDFium podspec
-        run: dart tool/ci/patch_pdfium_flutter_podspec.dart
-
       - name: Setup Zig
         uses: mlugg/setup-zig@v2
         with:
@@ -48,6 +45,9 @@ jobs:
           key: native-assets-${{ runner.os }}-${{ runner.arch }}-flutter-${{ hashFiles('pubspec.lock', 'third_party/dart_terminal/pkgs/vte/ghostty_vte/third_party/ghostty/build.zig.zon') }}
           restore-keys: |
             native-assets-${{ runner.os }}-${{ runner.arch }}-flutter-
+
+      - name: Patch PDFium CI workarounds
+        run: dart tool/ci/patch_pdfium_flutter_podspec.dart
 
       - name: Native asset preflight
         shell: bash
@@ -103,9 +103,6 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Patch PDFium podspec
-        run: dart tool/ci/patch_pdfium_flutter_podspec.dart
-
       - name: Setup Zig
         uses: mlugg/setup-zig@v2
         with:
@@ -121,6 +118,9 @@ jobs:
           key: native-assets-${{ runner.os }}-${{ runner.arch }}-golden-${{ hashFiles('pubspec.lock', 'third_party/dart_terminal/pkgs/vte/ghostty_vte/third_party/ghostty/build.zig.zon') }}
           restore-keys: |
             native-assets-${{ runner.os }}-${{ runner.arch }}-golden-
+
+      - name: Patch PDFium CI workarounds
+        run: dart tool/ci/patch_pdfium_flutter_podspec.dart
 
       - name: Native asset preflight
         shell: bash
@@ -162,9 +162,6 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Patch PDFium podspec
-        run: dart tool/ci/patch_pdfium_flutter_podspec.dart
-
       - name: Setup Zig
         uses: mlugg/setup-zig@v2
         with:
@@ -180,6 +177,9 @@ jobs:
           key: native-assets-${{ runner.os }}-${{ runner.arch }}-desktop-e2e-${{ hashFiles('pubspec.lock', 'third_party/dart_terminal/pkgs/vte/ghostty_vte/third_party/ghostty/build.zig.zon') }}
           restore-keys: |
             native-assets-${{ runner.os }}-${{ runner.arch }}-desktop-e2e-
+
+      - name: Patch PDFium CI workarounds
+        run: dart tool/ci/patch_pdfium_flutter_podspec.dart
 
       # The Linux build hook compiles the Rust terminal-host sidecar via cargo.
       - name: Setup Rust
