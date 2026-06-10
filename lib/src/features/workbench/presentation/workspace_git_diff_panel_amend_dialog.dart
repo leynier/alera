@@ -28,7 +28,7 @@ class _AmendCommitDialogState extends State<_AmendCommitDialog> {
   void _submit() {
     final message = _controller.text.trim();
     if (message.isEmpty) {
-      setState(() => _errorText = 'Message is required');
+      setState(() => _errorText = 'Message Is Required');
       return;
     }
     Navigator.of(context).pop(message);
@@ -45,7 +45,7 @@ class _AmendCommitDialogState extends State<_AmendCommitDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            Text('Amend commit', style: theme.textTheme.titleMedium),
+            Text('Amend Commit', style: theme.textTheme.titleMedium),
             const SizedBox(height: AleraTokens.space16),
             TextField(
               controller: _controller,

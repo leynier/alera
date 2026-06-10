@@ -50,17 +50,17 @@ void main() {
     await pumpPane(tester);
 
     expect(find.text('Behavior'), findsOneWidget);
-    expect(find.text('New terminal tab'), findsOneWidget);
-    expect(find.text('Close tab'), findsOneWidget);
-    expect(find.text('Split right'), findsOneWidget);
-    expect(find.text('App first'), findsOneWidget);
-    expect(find.text('Terminal first'), findsOneWidget);
+    expect(find.text('New Terminal Tab'), findsOneWidget);
+    expect(find.text('Close Tab'), findsOneWidget);
+    expect(find.text('Split Right'), findsOneWidget);
+    expect(find.text('App First'), findsOneWidget);
+    expect(find.text('Terminal First'), findsOneWidget);
   });
 
   testWidgets('changing the terminal policy persists', (tester) async {
     final container = await pumpPane(tester);
 
-    await tester.tap(find.text('Terminal first'));
+    await tester.tap(find.text('Terminal First'));
     await tester.pump();
 
     expect(keyboardOf(container).policy, TerminalShortcutPolicy.terminalFirst);
@@ -69,15 +69,15 @@ void main() {
   testWidgets('recording a free chord saves an override', (tester) async {
     final container = await pumpPane(tester);
 
-    // Enter recording mode for "New terminal tab".
+    // Enter recording mode for "New Terminal Tab".
     final row = find.ancestor(
-      of: find.text('New terminal tab'),
+      of: find.text('New Terminal Tab'),
       matching: find.byType(Row),
     );
     await tester.tap(
       find.descendant(
         of: row.first,
-        matching: find.byTooltip('Change shortcut'),
+        matching: find.byTooltip('Change Shortcut'),
       ),
     );
     await tester.pump();
@@ -101,15 +101,15 @@ void main() {
   ) async {
     final container = await pumpPane(tester);
 
-    // Record Ctrl+W for "New terminal tab"; Ctrl+W already maps to "Close tab".
+    // Record Ctrl+W for "New Terminal Tab"; Ctrl+W already maps to "Close Tab".
     final row = find.ancestor(
-      of: find.text('New terminal tab'),
+      of: find.text('New Terminal Tab'),
       matching: find.byType(Row),
     );
     await tester.tap(
       find.descendant(
         of: row.first,
-        matching: find.byTooltip('Change shortcut'),
+        matching: find.byTooltip('Change Shortcut'),
       ),
     );
     await tester.pump();
@@ -120,7 +120,7 @@ void main() {
     await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
     await tester.pump();
 
-    expect(find.text('Shortcut already in use'), findsOneWidget);
+    expect(find.text('Shortcut Already in Use'), findsOneWidget);
 
     await tester.tap(find.text('Reassign'));
     await tester.pumpAndSettle();
@@ -142,7 +142,7 @@ void main() {
       await pumpPane(tester);
 
       final row = find.ancestor(
-        of: find.text('New terminal tab'),
+        of: find.text('New Terminal Tab'),
         matching: find.byType(Row),
       );
 
@@ -150,29 +150,29 @@ void main() {
         await tester.tap(
           find.descendant(
             of: row.first,
-            matching: find.byTooltip('Change shortcut'),
+            matching: find.byTooltip('Change Shortcut'),
           ),
         );
         await tester.pump();
       }
 
       await startRecording();
-      expect(find.text('Press keys… (Esc to cancel)'), findsOneWidget);
+      expect(find.text('Press Keys… (Esc to Cancel)'), findsOneWidget);
 
       await tester.tap(
         find.descendant(
           of: row.first,
-          matching: find.byTooltip('Stop recording'),
+          matching: find.byTooltip('Stop Recording'),
         ),
       );
       await tester.pump();
-      expect(find.text('Press keys… (Esc to cancel)'), findsNothing);
+      expect(find.text('Press Keys… (Esc to Cancel)'), findsNothing);
 
       await startRecording();
       await tester.sendKeyDownEvent(LogicalKeyboardKey.escape);
       await tester.sendKeyUpEvent(LogicalKeyboardKey.escape);
       await tester.pump();
-      expect(find.text('Press keys… (Esc to cancel)'), findsNothing);
+      expect(find.text('Press Keys… (Esc to Cancel)'), findsNothing);
 
       await startRecording();
       await tester.sendKeyDownEvent(LogicalKeyboardKey.keyA);
@@ -198,13 +198,13 @@ void main() {
     final container = await pumpPane(tester, initialSettings: initialSettings);
 
     final newTabRow = find.ancestor(
-      of: find.text('New terminal tab'),
+      of: find.text('New Terminal Tab'),
       matching: find.byType(Row),
     );
     await tester.tap(
       find.descendant(
         of: newTabRow.first,
-        matching: find.byTooltip('Reset to default'),
+        matching: find.byTooltip('Reset to Default'),
       ),
     );
     await tester.pump();
@@ -215,13 +215,13 @@ void main() {
     );
 
     final closeTabRow = find.ancestor(
-      of: find.text('Close tab'),
+      of: find.text('Close Tab'),
       matching: find.byType(Row),
     );
     await tester.tap(
       find.descendant(
         of: closeTabRow.first,
-        matching: find.byTooltip('Disable shortcut'),
+        matching: find.byTooltip('Disable Shortcut'),
       ),
     );
     await tester.pump();

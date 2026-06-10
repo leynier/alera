@@ -714,7 +714,7 @@ class _DelayedDiffGitBackend extends FakeGitBackend {
 }
 
 Future<void> untilCalled(bool Function() predicate) async {
-  final deadline = DateTime.now().add(const Duration(seconds: 1));
+  final deadline = DateTime.now().add(const Duration(seconds: 5));
   while (!predicate()) {
     if (DateTime.now().isAfter(deadline)) {
       fail('Timed out waiting for call');

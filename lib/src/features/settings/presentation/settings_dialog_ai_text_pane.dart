@@ -58,7 +58,7 @@ class _AiTextSettingsPaneState extends ConsumerState<_AiTextSettingsPane> {
               'Local agent CLIs generate text from source control context.',
           children: <Widget>[
             _SwitchSettingRow(
-              title: 'Enable AI text',
+              title: 'Enable AI Text',
               description: 'Show generation actions in source control.',
               value: widget.settings.enabled,
               onChanged: (value) =>
@@ -71,7 +71,7 @@ class _AiTextSettingsPaneState extends ConsumerState<_AiTextSettingsPane> {
             ),
             if (agent == AiTextGenerationAgent.custom)
               _TextSettingRow(
-                title: 'Custom command',
+                title: 'Custom Command',
                 description:
                     'Use {prompt} to pass the prompt as an argument; otherwise Alera sends it on stdin.',
                 value: settings.customCommand,

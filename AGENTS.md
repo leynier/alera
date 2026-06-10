@@ -125,7 +125,7 @@ When planning is needed, use a spec-driven development flow. Do not jump straigh
 - Flutter UI values MUST come from `AleraTokens` and `ThemeData`.
 - New UI code MUST NOT introduce ad-hoc visual literals for color, spacing, radius, duration, or typography when an existing token/theme value covers the role.
 - `Colors.transparent` MAY be used only for explicit transparent states.
-- Visible UI copy MUST use sentence case.
+- Visible UI copy MUST use title case (e.g., "New Workspace", "AI Text").
 - The active app theme strategy SHALL remain dark-mode-only in this version.
 - Typography MUST remain fixed to Inter for general text and JetBrains Mono for monospaced text.
 - The canonical design-system reference is `docs/ui-styleguide.md`.

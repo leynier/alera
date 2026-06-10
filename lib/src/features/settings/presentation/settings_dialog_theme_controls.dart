@@ -117,7 +117,7 @@ class _CursorShapeRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AleraSettingRow(
-      title: 'Cursor shape',
+      title: 'Cursor Shape',
       description: 'Cursor style for new terminal sessions.',
       child: AleraSegmentedButton<TerminalCursorShape>(
         selected: value,

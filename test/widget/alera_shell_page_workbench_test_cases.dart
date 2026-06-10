@@ -20,7 +20,7 @@ void _registerAleraShellWorkbenchTests() {
       findsNothing,
     );
     expect(find.text('/repo/alera'), findsNothing);
-    expect(find.widgetWithText(OutlinedButton, 'Add project'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'Add Project'), findsOneWidget);
     expect(find.byTooltip('Settings'), findsOneWidget);
   });
 
@@ -169,8 +169,8 @@ void _registerAleraShellWorkbenchTests() {
   ) async {
     await _pumpShell(tester, state: const WorkbenchState(bootstrapped: true));
 
-    expect(find.text('No projects yet'), findsAtLeastNWidgets(1));
-    expect(find.widgetWithText(FilledButton, 'Add project'), findsOneWidget);
+    expect(find.text('No Projects Yet'), findsAtLeastNWidgets(1));
+    expect(find.widgetWithText(FilledButton, 'Add Project'), findsOneWidget);
   });
 
   testWidgets('shell shows the empty state when no workspace is selected', (
@@ -182,7 +182,7 @@ void _registerAleraShellWorkbenchTests() {
     );
 
     expect(find.text('Welcome to Alera'), findsOneWidget);
-    expect(find.text('Projects & workspaces'), findsOneWidget);
+    expect(find.text('Projects & Workspaces'), findsOneWidget);
     expect(find.text('Main'), findsAtLeastNWidgets(1));
     expect(find.byTooltip('New terminal'), findsNothing);
   });
@@ -317,14 +317,14 @@ void _registerAleraShellWorkbenchTests() {
 
     expect(find.text('Rename'), findsOneWidget);
     expect(find.text('Open in Finder'), findsOneWidget);
-    expect(find.text('Copy path'), findsOneWidget);
+    expect(find.text('Copy Path'), findsOneWidget);
     expect(find.text('Sleep'), findsOneWidget);
     expect(find.text('Remove'), findsOneWidget);
 
     await tester.tap(find.text('Remove'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Remove workspace?'), findsNothing);
+    expect(find.text('Remove Workspace?'), findsNothing);
   });
 
   testWidgets('workspace context menu sleep closes live sessions only', (
@@ -401,9 +401,9 @@ void _registerAleraShellWorkbenchTests() {
   ) async {
     await _pumpShell(tester, state: _populatedWorkbenchState());
 
-    await tester.tap(find.widgetWithText(OutlinedButton, 'Add project'));
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Add Project'));
     await tester.pumpAndSettle();
 
-    expect(find.widgetWithText(TextField, 'Project path'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Project Path'), findsOneWidget);
   });
 }

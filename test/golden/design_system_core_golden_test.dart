@@ -121,11 +121,11 @@ class _FormsPanelScenario extends StatelessWidget {
           AleraTextField(
             dense: true,
             prefixIcon: AleraIcons.search,
-            hintText: 'Search projects',
+            hintText: 'Search Projects',
           ),
           SizedBox(height: AleraTokens.space12),
           AleraTextField(
-            labelText: 'Workspace name',
+            labelText: 'Workspace Name',
             hintText: 'feature/refactor-terminal',
           ),
           SizedBox(height: AleraTokens.space16),

@@ -14,9 +14,9 @@ enum AiTextGenerationOperation {
   final String key;
 
   String get label => switch (this) {
-    AiTextGenerationOperation.commitMessage => 'Commit messages',
-    AiTextGenerationOperation.pullRequestDetails => 'Pull request details',
-    AiTextGenerationOperation.branchName => 'Branch names',
+    AiTextGenerationOperation.commitMessage => 'Commit Messages',
+    AiTextGenerationOperation.pullRequestDetails => 'Pull Request Details',
+    AiTextGenerationOperation.branchName => 'Branch Names',
   };
 }
 
@@ -45,7 +45,7 @@ enum AiTextGenerationAgent {
     AiTextGenerationAgent.opencode => 'OpenCode',
     AiTextGenerationAgent.pi => 'Pi',
     AiTextGenerationAgent.amp => 'Amp',
-    AiTextGenerationAgent.custom => 'Custom command',
+    AiTextGenerationAgent.custom => 'Custom Command',
   };
 
   AgentType? get agentType => switch (this) {

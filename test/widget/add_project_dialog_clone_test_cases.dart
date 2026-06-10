@@ -13,7 +13,7 @@ void _registerAddProjectDialogCloneTests() {
 
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Clone from URL'));
+    await tester.tap(find.text('Clone From URL'));
     await tester.pumpAndSettle();
     await tester.enterText(
       find.widgetWithText(TextField, 'Git URL'),
@@ -21,13 +21,13 @@ void _registerAddProjectDialogCloneTests() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Choose parent folder'));
+    await tester.tap(find.byTooltip('Choose Parent Folder'));
     await tester.pumpAndSettle();
 
     expect(
       tester
           .widget<TextField>(
-            find.widgetWithText(TextField, 'Destination folder'),
+            find.widgetWithText(TextField, 'Destination Folder'),
           )
           .controller
           ?.text,
@@ -35,7 +35,7 @@ void _registerAddProjectDialogCloneTests() {
     );
     expect(
       fakePlatform.requests.single.confirmButtonText,
-      'Select parent folder',
+      'Select Parent Folder',
     );
     expect(fakePlatform.requests.single.canCreateDirectories, isTrue);
   });
@@ -55,9 +55,9 @@ void _registerAddProjectDialogCloneTests() {
 
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Clone from URL'));
+    await tester.tap(find.text('Clone From URL'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Choose parent folder'));
+    await tester.tap(find.byTooltip('Choose Parent Folder'));
     await tester.pump();
 
     expect(toasts, hasLength(1));
@@ -74,14 +74,14 @@ void _registerAddProjectDialogCloneTests() {
 
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Clone from URL'));
+    await tester.tap(find.text('Clone From URL'));
     await tester.pumpAndSettle();
     await tester.enterText(
       find.widgetWithText(TextField, 'Git URL'),
       'https://github.com/acme/from-url.git',
     );
     await tester.enterText(
-      find.widgetWithText(TextField, 'Destination folder'),
+      find.widgetWithText(TextField, 'Destination Folder'),
       '/projects/from-url',
     );
     await tester.tap(find.widgetWithText(TextField, 'Git URL'));
@@ -105,17 +105,17 @@ void _registerAddProjectDialogCloneTests() {
 
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Clone from URL'));
+    await tester.tap(find.text('Clone From URL'));
     await tester.pumpAndSettle();
     await tester.enterText(
       find.widgetWithText(TextField, 'Git URL'),
       'https://github.com/acme/from-destination.git',
     );
     await tester.enterText(
-      find.widgetWithText(TextField, 'Destination folder'),
+      find.widgetWithText(TextField, 'Destination Folder'),
       '/projects/from-destination',
     );
-    await tester.tap(find.widgetWithText(TextField, 'Destination folder'));
+    await tester.tap(find.widgetWithText(TextField, 'Destination Folder'));
     await tester.pump();
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
@@ -131,7 +131,7 @@ void _registerAddProjectDialogCloneTests() {
 
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Clone from URL'));
+      await tester.tap(find.text('Clone From URL'));
       await tester.pumpAndSettle();
       await tester.enterText(
         find.widgetWithText(TextField, 'Git URL'),
@@ -142,20 +142,20 @@ void _registerAddProjectDialogCloneTests() {
       expect(
         tester
             .widget<TextField>(
-              find.widgetWithText(TextField, 'Display name (optional)'),
+              find.widgetWithText(TextField, 'Display Name (Optional)'),
             )
             .controller
             ?.text,
         'cleared',
       );
 
-      await tester.tap(find.text('Local folder'));
+      await tester.tap(find.text('Local Folder'));
       await tester.pumpAndSettle();
 
       expect(
         tester
             .widget<TextField>(
-              find.widgetWithText(TextField, 'Display name (optional)'),
+              find.widgetWithText(TextField, 'Display Name (Optional)'),
             )
             .controller
             ?.text,
@@ -174,17 +174,17 @@ void _registerAddProjectDialogCloneTests() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
       await tester.enterText(
-        find.widgetWithText(TextField, 'Project path'),
+        find.widgetWithText(TextField, 'Project Path'),
         '/projects/manual-name',
       );
       await tester.pumpAndSettle();
       await tester.enterText(
-        find.widgetWithText(TextField, 'Display name (optional)'),
+        find.widgetWithText(TextField, 'Display Name (Optional)'),
         'Pinned name',
       );
       await tester.pumpAndSettle();
       await tester.enterText(
-        find.widgetWithText(TextField, 'Project path'),
+        find.widgetWithText(TextField, 'Project Path'),
         '/projects/manual-name-renamed',
       );
       await tester.pumpAndSettle();
@@ -192,7 +192,7 @@ void _registerAddProjectDialogCloneTests() {
       expect(
         tester
             .widget<TextField>(
-              find.widgetWithText(TextField, 'Display name (optional)'),
+              find.widgetWithText(TextField, 'Display Name (Optional)'),
             )
             .controller
             ?.text,
@@ -200,7 +200,7 @@ void _registerAddProjectDialogCloneTests() {
       );
 
       await tester.tap(
-        find.widgetWithText(TextField, 'Display name (optional)'),
+        find.widgetWithText(TextField, 'Display Name (Optional)'),
       );
       await tester.pump();
       await tester.testTextInput.receiveAction(TextInputAction.done);

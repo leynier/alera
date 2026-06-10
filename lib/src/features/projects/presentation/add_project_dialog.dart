@@ -75,7 +75,7 @@ class _AddProjectDialogState extends State<AddProjectDialog> {
   Future<void> _browseLocalFolder() async {
     try {
       final selected = await getDirectoryPath(
-        confirmButtonText: 'Select folder',
+        confirmButtonText: 'Select Folder',
         canCreateDirectories: true,
       );
       if (!mounted || selected == null || selected.trim().isEmpty) {
@@ -95,7 +95,7 @@ class _AddProjectDialogState extends State<AddProjectDialog> {
   Future<void> _browseCloneParentFolder() async {
     try {
       final selected = await getDirectoryPath(
-        confirmButtonText: 'Select parent folder',
+        confirmButtonText: 'Select Parent Folder',
         canCreateDirectories: true,
       );
       if (!mounted || selected == null || selected.trim().isEmpty) {
@@ -227,7 +227,7 @@ class _AddProjectDialogState extends State<AddProjectDialog> {
                   color: AleraTokens.accent,
                 ),
                 const SizedBox(width: AleraTokens.space8),
-                Text('Add project', style: theme.textTheme.titleLarge),
+                Text('Add Project', style: theme.textTheme.titleLarge),
               ],
             ),
             const SizedBox(height: AleraTokens.space16),
@@ -249,12 +249,12 @@ class _AddProjectDialogState extends State<AddProjectDialog> {
                         ButtonSegment<_AddProjectMode>(
                           value: _AddProjectMode.localFolder,
                           icon: Icon(AleraIcons.folderOpen, size: 16),
-                          label: Text('Local folder'),
+                          label: Text('Local Folder'),
                         ),
                         ButtonSegment<_AddProjectMode>(
                           value: _AddProjectMode.cloneFromUrl,
                           icon: Icon(AleraIcons.cloudDownload, size: 16),
-                          label: Text('Clone from URL'),
+                          label: Text('Clone From URL'),
                         ),
                       ],
                     ),
@@ -298,7 +298,7 @@ class _AddProjectDialogState extends State<AddProjectDialog> {
                 const SizedBox(width: AleraTokens.space8),
                 FilledButton(
                   onPressed: _canSubmit ? _submit : null,
-                  child: const Text('Add project'),
+                  child: const Text('Add Project'),
                 ),
               ],
             ),
@@ -342,7 +342,7 @@ class _LocalFolderFields extends StatelessWidget {
         AleraTextField(
           controller: pathController,
           autofocus: true,
-          labelText: 'Project path',
+          labelText: 'Project Path',
           hintText: '/path/to/project',
           suffix: AleraIconButton(
             tooltip: 'Browse',
@@ -409,10 +409,10 @@ class _CloneFromUrlFields extends StatelessWidget {
         const SizedBox(height: AleraTokens.space12),
         AleraTextField(
           controller: destinationController,
-          labelText: 'Destination folder',
+          labelText: 'Destination Folder',
           hintText: '/path/to/repository',
           suffix: AleraIconButton(
-            tooltip: 'Choose parent folder',
+            tooltip: 'Choose Parent Folder',
             icon: AleraIcons.newFolder,
             iconSize: 18,
             onPressed: onBrowseParent,
@@ -446,7 +446,7 @@ class _DisplayNameField extends StatelessWidget {
   Widget build(BuildContext context) {
     return AleraTextField(
       controller: controller,
-      labelText: 'Display name (optional)',
+      labelText: 'Display Name (Optional)',
       onChanged: (_) => onChanged(),
       onSubmitted: (_) => onSubmitted(),
     );

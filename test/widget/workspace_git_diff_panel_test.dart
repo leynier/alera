@@ -143,7 +143,7 @@ void main() {
     await _pumpPanel(tester, backend: backend);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Stage all'));
+    await tester.tap(find.text('Stage All'));
     await tester.pumpAndSettle();
 
     expect(
@@ -174,7 +174,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final splitButton = find.ancestor(
-      of: find.text('Stage all'),
+      of: find.text('Stage All'),
       matching: find.byWidgetPredicate(
         (widget) => widget is SizedBox && widget.height == 28,
       ),
@@ -183,7 +183,7 @@ void main() {
     expect(tester.getSize(splitButton).height, 28);
 
     final primaryAction = find.ancestor(
-      of: find.text('Stage all'),
+      of: find.text('Stage All'),
       matching: find.byType(InkWell),
     );
     expect(
@@ -468,10 +468,10 @@ void main() {
 
     await tester.tap(find.byTooltip('Source control actions'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Commit amend'));
+    await tester.tap(find.text('Commit Amend'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Amend commit'), findsOneWidget);
+    expect(find.text('Amend Commit'), findsOneWidget);
     final amendField = find.byWidgetPredicate(
       (widget) =>
           widget is TextField &&
@@ -516,14 +516,14 @@ void main() {
 
     await tester.tap(find.byTooltip('Source control actions'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Commit amend'));
+    await tester.tap(find.text('Commit Amend'));
     await tester.pumpAndSettle();
 
     expect(
       backend.calls.where((call) => call.method == 'amendCommit'),
       isEmpty,
     );
-    expect(find.text('Amend commit'), findsNothing);
+    expect(find.text('Amend Commit'), findsNothing);
   });
 
   testWidgets('failed commit keeps the typed message', (tester) async {
@@ -790,7 +790,7 @@ void main() {
 
     await tester.tap(find.byTooltip('Source control actions'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Stash pop'));
+    await tester.tap(find.text('Stash Pop'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('stash@{0}'));
     await tester.pumpAndSettle();

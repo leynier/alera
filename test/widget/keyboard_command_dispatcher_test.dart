@@ -321,7 +321,7 @@ void main() {
 
     dispatcher.dispatch(KeyboardActionId.addProject);
     await tester.pumpAndSettle();
-    expect(find.widgetWithText(TextField, 'Project path'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Project Path'), findsOneWidget);
     Navigator.of(harness.context).pop();
     await tester.pumpAndSettle();
 

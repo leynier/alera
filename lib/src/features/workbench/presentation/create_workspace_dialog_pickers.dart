@@ -43,14 +43,14 @@ class _ProjectPicker extends StatelessWidget {
         const SizedBox(height: AleraTokens.space8),
         AleraSearchField(
           controller: controller,
-          hintText: 'Search projects',
+          hintText: 'Search Projects',
           onChanged: onQueryChanged,
         ),
         const SizedBox(height: AleraTokens.space8),
         _PickerPanel(
           maxHeight: 200,
           isEmpty: filtered.isEmpty,
-          emptyMessage: 'No projects match "$query"',
+          emptyMessage: 'No Projects Match "$query"',
           itemCount: filtered.length,
           itemBuilder: (context, index) {
             final project = filtered[index];
@@ -111,7 +111,7 @@ class _SourceBranchPicker extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Text(
-          'Source branch',
+          'Source Branch',
           style: theme.textTheme.labelMedium?.copyWith(
             color: AleraTokens.foregroundMuted,
           ),
@@ -119,14 +119,14 @@ class _SourceBranchPicker extends StatelessWidget {
         const SizedBox(height: AleraTokens.space8),
         AleraSearchField(
           controller: controller,
-          hintText: 'Search source branches',
+          hintText: 'Search Source Branches',
           onChanged: onQueryChanged,
         ),
         const SizedBox(height: AleraTokens.space8),
         _PickerPanel(
           maxHeight: 240,
           isEmpty: filtered.isEmpty,
-          emptyMessage: 'No source branches match "$query"',
+          emptyMessage: 'No Source Branches Match "$query"',
           itemCount: filtered.length,
           itemBuilder: (context, index) {
             final branch = filtered[index];
@@ -217,7 +217,7 @@ class _LoadingBranches extends StatelessWidget {
               ),
               const SizedBox(width: AleraTokens.space8),
               Text(
-                'Loading source branches',
+                'Loading Source Branches',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: AleraTokens.foregroundMuted,
                 ),

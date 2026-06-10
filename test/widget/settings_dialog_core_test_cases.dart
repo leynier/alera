@@ -62,7 +62,7 @@ void _registerSettingsDialogCoreTests() {
   }
 
   Future<void> selectAiTextSectionLocal(WidgetTester tester) async {
-    await tester.tap(find.text('AI text').first);
+    await tester.tap(find.text('AI Text').first);
     await tester.pump();
   }
 
@@ -76,16 +76,16 @@ void _registerSettingsDialogCoreTests() {
     await selectTerminalSectionLocal(tester);
 
     expect(find.text('Terminal'), findsWidgets);
-    expect(find.text('Font family'), findsOneWidget);
-    expect(find.text('Theme preset'), findsOneWidget);
-    expect(find.text('Scrollback lines'), findsOneWidget);
+    expect(find.text('Font Family'), findsOneWidget);
+    expect(find.text('Theme Preset'), findsOneWidget);
+    expect(find.text('Scrollback Lines'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField).first, 'cursor');
     await tester.pump();
 
     expect(find.text('Terminal'), findsWidgets);
-    expect(find.text('Cursor shape'), findsOneWidget);
-    expect(find.text('Cursor opacity'), findsOneWidget);
+    expect(find.text('Cursor Shape'), findsOneWidget);
+    expect(find.text('Cursor Opacity'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField).first, 'missing setting');
     await tester.pump();
@@ -98,8 +98,8 @@ void _registerSettingsDialogCoreTests() {
     await selectEditorSectionLocal(tester);
 
     expect(find.text('Editor'), findsWidgets);
-    expect(find.text('Tab size'), findsOneWidget);
-    expect(find.text('Theme preset'), findsOneWidget);
+    expect(find.text('Tab Size'), findsOneWidget);
+    expect(find.text('Theme Preset'), findsOneWidget);
     expect(container.read(settingsControllerProvider).editor.tabSize, 4);
     expect(
       container.read(settingsControllerProvider).editor.themeName,
@@ -119,7 +119,7 @@ void _registerSettingsDialogCoreTests() {
       EditorSyntaxThemeNames.monokai,
     );
 
-    await tester.ensureVisible(find.text('Tab size'));
+    await tester.ensureVisible(find.text('Tab Size'));
     await tester.pump();
 
     await tester.enterText(find.byType(TextField).last, '2');
@@ -128,7 +128,7 @@ void _registerSettingsDialogCoreTests() {
 
     expect(container.read(settingsControllerProvider).editor.tabSize, 2);
 
-    await tester.tap(find.text('Reset editor'));
+    await tester.tap(find.text('Reset Editor'));
     await tester.pump(const Duration(milliseconds: 50));
 
     expect(
@@ -145,7 +145,7 @@ void _registerSettingsDialogCoreTests() {
     final container = await pumpSettingsDialogLocal(tester);
     await selectAiTextSectionLocal(tester);
 
-    expect(find.text('AI text'), findsWidgets);
+    expect(find.text('AI Text'), findsWidgets);
     expect(find.text('Agent'), findsOneWidget);
     expect(find.text('Model'), findsOneWidget);
     expect(
@@ -219,7 +219,7 @@ void _registerSettingsDialogCoreTests() {
       contains('gpt-5.5'),
     );
 
-    await tester.tap(find.text('Reset ai text'));
+    await tester.tap(find.text('Reset AI Text'));
     await tester.pump(const Duration(milliseconds: 50));
 
     expect(
@@ -228,9 +228,9 @@ void _registerSettingsDialogCoreTests() {
     );
     expect(find.text('Codex').last, findsOneWidget);
 
-    await tester.ensureVisible(find.text('Commit messages'));
-    expect(find.text('Pull request details'), findsNothing);
-    expect(find.text('Branch names'), findsNothing);
+    await tester.ensureVisible(find.text('Commit Messages'));
+    expect(find.text('Pull Request Details'), findsNothing);
+    expect(find.text('Branch Names'), findsNothing);
     await tester.pump();
     await tester.enterText(
       find.widgetWithText(TextField, 'Optional instructions').first,
@@ -263,9 +263,9 @@ void _registerSettingsDialogCoreTests() {
       find.widgetWithText(TextField, 'Optional instructions').first,
       'Draft that should not survive reset.',
     );
-    await tester.ensureVisible(find.text('Reset ai text', skipOffstage: false));
+    await tester.ensureVisible(find.text('Reset AI Text', skipOffstage: false));
     await tester.pump();
-    await tester.tap(find.text('Reset ai text'));
+    await tester.tap(find.text('Reset AI Text'));
     await tester.pump(const Duration(milliseconds: 50));
     await selectTerminalSectionLocal(tester);
     await tester.pump(const Duration(milliseconds: 50));
@@ -316,7 +316,7 @@ void _registerSettingsDialogCoreTests() {
       TerminalCursorShape.bar,
     );
 
-    await tester.ensureVisible(find.text('Blinking cursor'));
+    await tester.ensureVisible(find.text('Blinking Cursor'));
     await tester.pump();
     await tester.tap(find.byType(Switch).first);
     await tester.pump(const Duration(milliseconds: 50));
@@ -326,7 +326,7 @@ void _registerSettingsDialogCoreTests() {
       isTrue,
     );
 
-    await tester.ensureVisible(find.text('Theme preset'));
+    await tester.ensureVisible(find.text('Theme Preset'));
     await tester.pump();
     await tester.enterText(
       find.byKey(const ValueKey<String>('terminal-theme-search-field')),
@@ -343,7 +343,7 @@ void _registerSettingsDialogCoreTests() {
 
     await tester.dragFrom(const Offset(500, 240), const Offset(0, 1000));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Reset terminal'));
+    await tester.tap(find.text('Reset Terminal'));
     await tester.pump(const Duration(milliseconds: 50));
 
     expect(
@@ -383,15 +383,15 @@ void _registerSettingsDialogCoreTests() {
       find.byKey(const ValueKey<String>('terminal-theme-search-field')),
       findsOneWidget,
     );
-    expect(find.text('Theme preset'), findsOneWidget);
+    expect(find.text('Theme Preset'), findsOneWidget);
   });
 
   testWidgets('edits destructive confirmation settings', (tester) async {
     final container = await pumpSettingsDialogLocal(tester);
 
     expect(find.text('Safety'), findsOneWidget);
-    expect(find.text('Confirm project removal'), findsOneWidget);
-    expect(find.text('Confirm workspace removal'), findsOneWidget);
+    expect(find.text('Confirm Project Removal'), findsOneWidget);
+    expect(find.text('Confirm Workspace Removal'), findsOneWidget);
 
     await tester.tap(find.byType(Switch).at(0));
     await tester.pump(const Duration(milliseconds: 50));
@@ -415,8 +415,8 @@ void _registerSettingsDialogCoreTests() {
     await tester.enterText(find.byType(TextField).first, 'destructive');
     await tester.pump();
 
-    expect(find.text('Confirm project removal'), findsOneWidget);
-    expect(find.text('Confirm workspace removal'), findsOneWidget);
+    expect(find.text('Confirm Project Removal'), findsOneWidget);
+    expect(find.text('Confirm Workspace Removal'), findsOneWidget);
   });
 
   testWidgets('edits agent status notification and awake settings', (
@@ -424,47 +424,47 @@ void _registerSettingsDialogCoreTests() {
   ) async {
     final container = await pumpSettingsDialogLocal(tester);
 
-    await tester.ensureVisible(find.text('Agent status notifications'));
+    await tester.ensureVisible(find.text('Agent Status Notifications'));
     await tester.pump();
 
-    expect(find.text('Codex hooks'), findsOneWidget);
-    expect(find.text('Claude Code hooks'), findsOneWidget);
-    expect(find.text('GitHub Copilot hooks'), findsOneWidget);
-    expect(find.text('Cursor hooks'), findsOneWidget);
-    expect(find.text('Antigravity hooks'), findsOneWidget);
-    expect(find.text('OpenCode hooks'), findsOneWidget);
-    expect(find.text('Pi hooks'), findsOneWidget);
-    expect(find.text('Amp hooks'), findsOneWidget);
-    expect(find.text('Agent status notifications'), findsOneWidget);
+    expect(find.text('Codex Hooks'), findsOneWidget);
+    expect(find.text('Claude Code Hooks'), findsOneWidget);
+    expect(find.text('GitHub Copilot Hooks'), findsOneWidget);
+    expect(find.text('Cursor Hooks'), findsOneWidget);
+    expect(find.text('Antigravity Hooks'), findsOneWidget);
+    expect(find.text('OpenCode Hooks'), findsOneWidget);
+    expect(find.text('Pi Hooks'), findsOneWidget);
+    expect(find.text('Amp Hooks'), findsOneWidget);
+    expect(find.text('Agent Status Notifications'), findsOneWidget);
     expect(
-      find.text('Keep computer awake while agents are working'),
+      find.text('Keep Computer Awake While Agents Are Working'),
       findsOneWidget,
     );
 
-    await tester.ensureVisible(find.text('Codex hooks'));
+    await tester.ensureVisible(find.text('Codex Hooks'));
     await tester.pump();
     await tester.tap(find.byType(Switch).at(2));
     await tester.pump(const Duration(milliseconds: 50));
     for (final entry in const <({String label, int switchIndex})>[
-      (label: 'Claude Code hooks', switchIndex: 3),
-      (label: 'GitHub Copilot hooks', switchIndex: 4),
-      (label: 'Cursor hooks', switchIndex: 5),
-      (label: 'Antigravity hooks', switchIndex: 6),
-      (label: 'OpenCode hooks', switchIndex: 7),
-      (label: 'Pi hooks', switchIndex: 8),
-      (label: 'Amp hooks', switchIndex: 9),
+      (label: 'Claude Code Hooks', switchIndex: 3),
+      (label: 'GitHub Copilot Hooks', switchIndex: 4),
+      (label: 'Cursor Hooks', switchIndex: 5),
+      (label: 'Antigravity Hooks', switchIndex: 6),
+      (label: 'OpenCode Hooks', switchIndex: 7),
+      (label: 'Pi Hooks', switchIndex: 8),
+      (label: 'Amp Hooks', switchIndex: 9),
     ]) {
       await tester.ensureVisible(find.text(entry.label));
       await tester.pump();
       await tester.tap(find.byType(Switch).at(entry.switchIndex));
       await tester.pump(const Duration(milliseconds: 50));
     }
-    await tester.ensureVisible(find.text('Agent status notifications'));
+    await tester.ensureVisible(find.text('Agent Status Notifications'));
     await tester.pump();
     await tester.tap(find.byType(Switch).at(10));
     await tester.pump(const Duration(milliseconds: 50));
     await tester.ensureVisible(
-      find.text('Keep computer awake while agents are working'),
+      find.text('Keep Computer Awake While Agents Are Working'),
     );
     await tester.pump();
     await tester.tap(find.byType(Switch).at(11));
@@ -536,13 +536,13 @@ void _registerSettingsDialogCoreTests() {
     await tester.enterText(find.byType(TextField).first, 'notification');
     await tester.pump();
 
-    expect(find.text('Agent status notifications'), findsOneWidget);
+    expect(find.text('Agent Status Notifications'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField).first, 'awake');
     await tester.pump();
 
     expect(
-      find.text('Keep computer awake while agents are working'),
+      find.text('Keep Computer Awake While Agents Are Working'),
       findsOneWidget,
     );
   });
@@ -576,7 +576,7 @@ void _registerSettingsDialogCoreTests() {
     await tester.pumpAndSettle();
 
     // Verify the dialog has opened
-    expect(find.text('Foreground color'), findsWidgets); // dialog title
+    expect(find.text('Foreground Color'), findsWidgets); // dialog title
     expect(find.byType(ColorPicker), findsOneWidget);
 
     // Simulate changing color in the picker to #112233

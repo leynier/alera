@@ -67,7 +67,7 @@ void _registerAleraShellSidebarActionTests() {
     await tester.tap(find.text('Rename'));
     await tester.pumpAndSettle();
     await tester.enterText(
-      find.widgetWithText(TextField, 'Project name'),
+      find.widgetWithText(TextField, 'Project Name'),
       '  Renamed Alera  ',
     );
     await tester.tap(find.text('Rename'));
@@ -91,7 +91,7 @@ void _registerAleraShellSidebarActionTests() {
     await tester.tap(find.text('Rename'));
     await tester.pumpAndSettle();
     await tester.enterText(
-      find.widgetWithText(TextField, 'Workspace name'),
+      find.widgetWithText(TextField, 'Workspace Name'),
       '  Backend API  ',
     );
     await tester.tap(find.text('Rename'));
@@ -132,7 +132,7 @@ void _registerAleraShellSidebarActionTests() {
       buttons: kSecondaryMouseButton,
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Copy path'));
+    await tester.tap(find.text('Copy Path'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
@@ -280,7 +280,7 @@ void _registerAleraShellSidebarActionTests() {
       },
     );
 
-    expect(find.textContaining('2 agent runs'), findsOneWidget);
+    expect(find.textContaining('2 Agent Runs'), findsOneWidget);
   });
 
   testWidgets('closing a sidebar agent row closes the runtime tab', (
@@ -366,7 +366,7 @@ void _registerAleraShellSidebarActionTests() {
       containsAll(<String>['workspace-1', 'workspace-2']),
     );
     expect(harness.controller.state.projects, isEmpty);
-    expect(find.text('No projects yet'), findsAtLeastNWidgets(1));
+    expect(find.text('No Projects Yet'), findsAtLeastNWidgets(1));
   });
 
   testWidgets(

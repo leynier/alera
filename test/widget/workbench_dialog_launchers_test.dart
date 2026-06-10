@@ -41,8 +41,8 @@ void main() {
           onPressed: (context, _) async {
             result = await showRenameDialog(
               context,
-              title: 'Rename project',
-              labelText: 'Project name',
+              title: 'Rename Project',
+              labelText: 'Project Name',
               initialValue: 'Alera',
               confirmLabel: 'Rename',
             );
@@ -55,7 +55,7 @@ void main() {
         await tester.enterText(find.byType(TextField), '   ');
         await tester.tap(find.text('Rename'));
         await tester.pumpAndSettle();
-        expect(find.text('Project name is required'), findsOneWidget);
+        expect(find.text('Project Name Is Required'), findsOneWidget);
 
         await tester.enterText(find.byType(TextField), '  Workspace tools  ');
         await tester.tap(find.text('Rename'));
@@ -77,15 +77,15 @@ void main() {
         onPressed: (context, _) async {
           submitted = await showRenameDialog(
             context,
-            title: 'Rename project',
-            labelText: 'Project name',
+            title: 'Rename Project',
+            labelText: 'Project Name',
             initialValue: 'Alera',
             confirmLabel: 'Rename',
           );
           cancelled = await showRenameDialog(
             context,
-            title: 'Rename project',
-            labelText: 'Project name',
+            title: 'Rename Project',
+            labelText: 'Project Name',
             initialValue: 'Alera',
             confirmLabel: 'Rename',
           );
@@ -122,16 +122,16 @@ void main() {
         await tester.tap(find.text('Open'));
         await tester.pumpAndSettle();
         await tester.enterText(
-          find.widgetWithText(TextField, 'Project path'),
+          find.widgetWithText(TextField, 'Project Path'),
           '/projects/notes',
         );
         await tester.pumpAndSettle();
-        await tester.tap(find.widgetWithText(FilledButton, 'Add project'));
+        await tester.tap(find.widgetWithText(FilledButton, 'Add Project'));
         await tester.pumpAndSettle();
 
         expect(controller.addedLocalPath, '/projects/notes');
         expect(controller.addedLocalName, 'notes');
-        expect(find.text('Project added'), findsOneWidget);
+        expect(find.text('Project Added'), findsOneWidget);
       },
     );
 
@@ -150,21 +150,21 @@ void main() {
 
         await tester.tap(find.text('Open'));
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Clone from URL'));
+        await tester.tap(find.text('Clone From URL'));
         await tester.pumpAndSettle();
         await tester.enterText(
           find.widgetWithText(TextField, 'Git URL'),
           'https://github.com/acme/alera.git',
         );
         await tester.enterText(
-          find.widgetWithText(TextField, 'Destination folder'),
+          find.widgetWithText(TextField, 'Destination Folder'),
           '/projects/alera',
         );
         await tester.pumpAndSettle();
-        await tester.tap(find.widgetWithText(FilledButton, 'Add project'));
+        await tester.tap(find.widgetWithText(FilledButton, 'Add Project'));
         await tester.pump();
 
-        expect(find.text('Cloning repository…'), findsOneWidget);
+        expect(find.text('Cloning Repository…'), findsOneWidget);
 
         controller.cloneCompleter!.complete(_project('project-clone', 'Alera'));
         await tester.pumpAndSettle();
@@ -174,7 +174,7 @@ void main() {
           destinationPath: '/projects/alera',
           name: 'alera',
         ));
-        expect(find.text('Project cloned'), findsOneWidget);
+        expect(find.text('Project Cloned'), findsOneWidget);
       },
     );
 
@@ -193,11 +193,11 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
       await tester.enterText(
-        find.widgetWithText(TextField, 'Project path'),
+        find.widgetWithText(TextField, 'Project Path'),
         '/projects/broken',
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(FilledButton, 'Add project'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Add Project'));
       await tester.pumpAndSettle();
 
       expect(find.text('Exception: Could not add project'), findsOneWidget);
@@ -223,7 +223,7 @@ void main() {
         await tester.tap(find.text('Open'));
         await tester.pumpAndSettle();
 
-        expect(find.text('No Git projects yet'), findsOneWidget);
+        expect(find.text('No Git Projects Yet'), findsOneWidget);
         expect(
           find.text(
             'Linked workspaces require a Git project. Add one to get started.',
@@ -253,11 +253,11 @@ void main() {
         await tester.tap(find.text('Continue'));
         await tester.pumpAndSettle();
         await tester.enterText(
-          find.widgetWithText(TextField, 'New branch name *'),
+          find.widgetWithText(TextField, 'New Branch Name *'),
           'feature/coverage',
         );
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Create workspace'));
+        await tester.tap(find.text('Create Workspace'));
         await tester.pumpAndSettle();
 
         expect(controller.createdWorkspaceCall, (
@@ -266,7 +266,7 @@ void main() {
           newBranchName: 'feature/coverage',
           name: 'feature/coverage',
         ));
-        expect(find.text('Workspace created'), findsOneWidget);
+        expect(find.text('Workspace Created'), findsOneWidget);
       },
     );
 
@@ -292,11 +292,11 @@ void main() {
       await tester.tap(find.text('Continue'));
       await tester.pumpAndSettle();
       await tester.enterText(
-        find.widgetWithText(TextField, 'New branch name *'),
+        find.widgetWithText(TextField, 'New Branch Name *'),
         'feature/error',
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Create workspace'));
+      await tester.tap(find.text('Create Workspace'));
       await tester.pumpAndSettle();
 
       expect(find.text('Exception: Workspace failed'), findsOneWidget);

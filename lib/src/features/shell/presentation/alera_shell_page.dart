@@ -356,8 +356,8 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
       context: context,
       builder: (context) => AleraConfirmDialog(
         title: dirty.length == 1
-            ? 'Close unsaved editor?'
-            : 'Close unsaved editors?',
+            ? 'Close Unsaved Editor?'
+            : 'Close Unsaved Editors?',
         message: dirty.length == 1
             ? '${dirty.first} has unsaved changes.'
             : '${dirty.length} editor tabs have unsaved changes.',

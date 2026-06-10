@@ -200,7 +200,7 @@ class _ProjectWorkbenchSidebarState
     ref.read(terminalRuntimeProvider).closeWorkspace(workspace.id);
     AleraToast.show(
       context,
-      message: 'Workspace slept',
+      message: 'Workspace Slept',
       tone: AleraToastTone.success,
     );
   }
@@ -208,8 +208,8 @@ class _ProjectWorkbenchSidebarState
   Future<void> _renameProject(Project project) async {
     final name = await showRenameDialog(
       context,
-      title: 'Rename project',
-      labelText: 'Project name',
+      title: 'Rename Project',
+      labelText: 'Project Name',
       initialValue: project.name,
       confirmLabel: 'Rename',
     );
@@ -225,7 +225,7 @@ class _ProjectWorkbenchSidebarState
       }
       AleraToast.show(
         context,
-        message: 'Project renamed',
+        message: 'Project Renamed',
         tone: AleraToastTone.success,
       );
     } catch (error) {
@@ -243,8 +243,8 @@ class _ProjectWorkbenchSidebarState
   Future<void> _renameWorkspace(Workspace workspace) async {
     final name = await showRenameDialog(
       context,
-      title: 'Rename workspace',
-      labelText: 'Workspace name',
+      title: 'Rename Workspace',
+      labelText: 'Workspace Name',
       initialValue: workspace.name,
       confirmLabel: 'Rename',
     );
@@ -260,7 +260,7 @@ class _ProjectWorkbenchSidebarState
       }
       AleraToast.show(
         context,
-        message: 'Workspace renamed',
+        message: 'Workspace Renamed',
         tone: AleraToastTone.success,
       );
     } catch (error) {
@@ -288,7 +288,7 @@ class _ProjectWorkbenchSidebarState
         ? await showDialog<bool>(
             context: context,
             builder: (_) => AleraConfirmDialog(
-              title: 'Remove workspace?',
+              title: 'Remove Workspace?',
               message: branch == null || branch.isEmpty
                   ? 'This removes the worktree for "${workspace.name}".'
                   : 'This removes the worktree for "${workspace.name}" and deletes '
@@ -313,7 +313,7 @@ class _ProjectWorkbenchSidebarState
       }
       AleraToast.show(
         context,
-        message: 'Workspace removed',
+        message: 'Workspace Removed',
         tone: AleraToastTone.success,
       );
     } catch (error) {
@@ -337,7 +337,7 @@ class _ProjectWorkbenchSidebarState
         ? await showDialog<bool>(
             context: context,
             builder: (_) => AleraConfirmDialog(
-              title: 'Remove project?',
+              title: 'Remove Project?',
               message:
                   'This unregisters "${project.name}" and deletes its workspace '
                   'metadata. Repository files on disk are not deleted.',
@@ -365,7 +365,7 @@ class _ProjectWorkbenchSidebarState
       }
       AleraToast.show(
         context,
-        message: 'Project removed',
+        message: 'Project Removed',
         tone: AleraToastTone.success,
       );
     } catch (error) {
