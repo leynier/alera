@@ -1,4 +1,4 @@
-# codweft-workflow-version: v0.4.5
+# codweft-workflow-version: v0.4.6
 name: codweft
 
 run-name: codweft-${{ inputs.codweft_command_id }}-${{ inputs.command }}
@@ -58,7 +58,7 @@ permissions:
 
 jobs:
   codweft:
-    uses: codweft/github-actions/.github/workflows/codweft-runner.yml@v0.4.5
+    uses: codweft/github-actions/.github/workflows/codweft-runner.yml@v0.4.6
     with:
       codweft_job_id: ${{ inputs.codweft_job_id }}
       codweft_command_id: ${{ inputs.codweft_command_id }}
