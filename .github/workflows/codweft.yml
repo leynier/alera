@@ -1,0 +1,71 @@
+# codweft-workflow-version: v0.4.6
+name: codweft
+
+run-name: codweft-${{ inputs.codweft_command_id }}-${{ inputs.command }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      codweft_command_id:
+        description: Codweft command correlation id
+        required: true
+        type: string
+      codweft_job_id:
+        description: Codweft execution job id
+        required: true
+        type: string
+      codweft_bootstrap_nonce:
+        description: One-time Codweft runner bootstrap nonce
+        required: true
+        type: string
+      command:
+        description: Command to run
+        required: true
+        type: choice
+        options:
+          - review
+          - fix
+          - implement
+          - resolve-conflicts
+          - task
+      issue_number:
+        description: Target issue number when applicable
+        required: false
+        type: string
+        default: ""
+      pr_number:
+        description: Target pull request number when applicable
+        required: false
+        type: string
+        default: ""
+      instruction:
+        description: Original Codweft instruction
+        required: false
+        type: string
+        default: ""
+      source_url:
+        description: GitHub comment URL that triggered the command
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  actions: write
+  id-token: write
+
+jobs:
+  codweft:
+    uses: codweft/github-actions/.github/workflows/codweft-runner.yml@v0.4.6
+    with:
+      codweft_job_id: ${{ inputs.codweft_job_id }}
+      codweft_command_id: ${{ inputs.codweft_command_id }}
+      codweft_bootstrap_nonce: ${{ inputs.codweft_bootstrap_nonce }}
+      command: ${{ inputs.command }}
+      issue_number: ${{ inputs.issue_number }}
+      pr_number: ${{ inputs.pr_number }}
+      instruction: ${{ inputs.instruction }}
+      source_url: ${{ inputs.source_url }}
+      codweft_api_origin: https://codweft.com
