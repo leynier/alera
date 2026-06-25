@@ -28,7 +28,7 @@ class _EditorSettingsPane extends StatelessWidget {
           description: 'Defaults used by editor tabs.',
           children: <Widget>[
             _IntegerSettingRow(
-              title: 'Tab size',
+              title: 'Tab Size',
               description: 'Spaces inserted when pressing Tab.',
               value: settings.tabSize,
               min: 1,
@@ -117,7 +117,7 @@ class _EditorThemePickerSettingState extends State<_EditorThemePickerSetting> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
-            'Theme preset',
+            'Theme Preset',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: AleraTokens.foreground,
               fontWeight: FontWeight.w500,

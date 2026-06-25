@@ -37,9 +37,9 @@ Widget galleryButtonsAndChips() => Wrap(
         ButtonSegment<int>(value: 1, icon: Icon(AleraIcons.text)),
       ],
     ),
-    const AleraBadge(label: 'primary'),
-    const AleraChip(label: 'alera'),
-    AleraChip(label: 'removable', onRemove: () {}),
+    const AleraBadge(label: 'Primary'),
+    const AleraChip(label: 'Alera'),
+    AleraChip(label: 'Removable', onRemove: () {}),
   ],
 );
 
@@ -48,7 +48,7 @@ Widget galleryInputs() => Column(
   mainAxisSize: MainAxisSize.min,
   crossAxisAlignment: CrossAxisAlignment.stretch,
   children: <Widget>[
-    const AleraTextField(hintText: 'Workspace name'),
+    const AleraTextField(hintText: 'Workspace Name'),
     const SizedBox(height: AleraTokens.space12),
     const AleraSearchField(hintText: 'Search'),
     const SizedBox(height: AleraTokens.space12),

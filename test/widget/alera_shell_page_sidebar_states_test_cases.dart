@@ -63,7 +63,7 @@ void _registerAleraShellSidebarStateTests() {
 
     expect(find.text(prompt), findsOneWidget);
 
-    final toggles = find.byTooltip('Hide agent runs');
+    final toggles = find.byTooltip('Hide Agent Runs');
     final workspaceCenter = tester.getCenter(find.text('Feature login').first);
     var toggleIndex = 0;
     var bestDistance = double.infinity;
@@ -174,7 +174,7 @@ void _registerAleraShellSidebarStateTests() {
       ),
     );
 
-    expect(find.textContaining('Local folder'), findsOneWidget);
+    expect(find.textContaining('Local Folder'), findsOneWidget);
   });
 
   testWidgets('flat workspace grouping shows project chips on workspace rows', (
@@ -219,7 +219,7 @@ void _registerAleraShellSidebarStateTests() {
     await tester.tap(find.text('Rename'));
     await tester.pumpAndSettle();
     await tester.enterText(
-      find.widgetWithText(TextField, 'Project name'),
+      find.widgetWithText(TextField, 'Project Name'),
       'New',
     );
     await tester.tap(find.text('Rename'));
@@ -254,7 +254,7 @@ void _registerAleraShellSidebarStateTests() {
     await tester.tap(find.text('Rename'));
     await tester.pumpAndSettle();
     await tester.enterText(
-      find.widgetWithText(TextField, 'Workspace name'),
+      find.widgetWithText(TextField, 'Workspace Name'),
       'Renamed',
     );
     await tester.tap(find.text('Rename'));
@@ -317,7 +317,7 @@ void _registerAleraShellSidebarStateTests() {
       buttons: kSecondaryMouseButton,
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Remove project'));
+    await tester.tap(find.text('Remove Project'));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Remove'));
     await tester.pump();

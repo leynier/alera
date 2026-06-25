@@ -223,10 +223,10 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
     final name = _nameController.text.trim();
 
     final sourceBranchError = sourceBranch.isEmpty
-        ? 'Source branch is required'
+        ? 'Source Branch Is Required'
         : null;
     final newBranchError = newBranchName.isEmpty
-        ? 'New branch name is required'
+        ? 'New Branch Name Is Required'
         : null;
 
     if (sourceBranchError != null || newBranchError != null) {
@@ -304,14 +304,14 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
             children: [
               AleraEmptyState(
                 icon: AleraIcons.folderOff,
-                title: 'No Git projects yet',
+                title: 'No Git Projects Yet',
                 message:
                     'Linked workspaces require a Git project. Add one to get started.',
                 action: widget.onAddProject != null
                     ? FilledButton.icon(
                         onPressed: widget.onAddProject,
                         icon: const Icon(AleraIcons.add, size: 16),
-                        label: const Text('Add Git project'),
+                        label: const Text('Add Git Project'),
                       )
                     : null,
               ),
@@ -359,8 +359,8 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                 Expanded(
                   child: Text(
                     isStep1
-                        ? 'New workspace — Selection'
-                        : 'New workspace — Settings',
+                        ? 'New Workspace — Selection'
+                        : 'New Workspace — Settings',
                     overflow: TextOverflow.ellipsis,
                     maxLines: 1,
                     style: theme.textTheme.titleMedium?.copyWith(
@@ -499,7 +499,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                                 AleraTextField(
                                   controller: _sourceBranchController,
                                   autofocus: true,
-                                  labelText: 'Source branch',
+                                  labelText: 'Source Branch',
                                   hintText: 'e.g. main',
                                   errorText: _sourceBranchError,
                                   onChanged: (_) {
@@ -572,7 +572,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                                             right: AleraTokens.space12,
                                           ),
                                           child: Text(
-                                            'Source branch:',
+                                            'Source Branch:',
                                             style: theme.textTheme.labelMedium
                                                 ?.copyWith(
                                                   color: AleraTokens
@@ -599,7 +599,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                                 controller: _newBranchController,
                                 autofocus: true,
                                 enabled: !_creating,
-                                labelText: 'New branch name *',
+                                labelText: 'New Branch Name *',
                                 hintText: 'e.g. feature/terminal-tabs',
                                 errorText:
                                     _newBranchError ?? _branchValidationError,
@@ -623,7 +623,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                                     child: AleraTextField(
                                       controller: _nameController,
                                       enabled: !_creating,
-                                      labelText: 'Workspace name (optional)',
+                                      labelText: 'Workspace Name (Optional)',
                                       onChanged: (value) {
                                         setState(() {
                                           _nameTouched = value.isNotEmpty;
@@ -817,7 +817,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                             if (sourceBranch.isEmpty) {
                               setState(() {
                                 _sourceBranchError =
-                                    'Source branch is required';
+                                    'Source Branch Is Required';
                               });
                               return;
                             }
@@ -839,13 +839,13 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                                 .trim();
                             if (newBranchName.isEmpty) {
                               setState(() {
-                                _newBranchError = 'New branch name is required';
+                                _newBranchError = 'New Branch Name Is Required';
                               });
                               return;
                             }
                             _submit();
                           },
-                    child: Text(_creating ? 'Creating...' : 'Create workspace'),
+                    child: Text(_creating ? 'Creating...' : 'Create Workspace'),
                   ),
               ],
             ),

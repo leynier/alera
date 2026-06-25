@@ -68,7 +68,7 @@ class _ThemePickerSettingState extends State<_ThemePickerSetting> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
-            'Theme preset',
+            'Theme Preset',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: AleraTokens.foreground,
               fontWeight: FontWeight.w500,

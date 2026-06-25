@@ -158,16 +158,16 @@ class WorkspaceService {
   }) async {
     if (!project.supportsLinkedWorkspaces) {
       throw WorkspaceException(
-        'Linked workspaces require a Git repository project',
+        'Linked Workspaces Require a Git Repository Project',
       );
     }
     final normalizedSource = sourceBranch.trim();
     final normalizedBranch = newBranchName.trim();
     if (normalizedSource.isEmpty) {
-      throw WorkspaceException('Source branch is required');
+      throw WorkspaceException('Source Branch Is Required');
     }
     if (normalizedBranch.isEmpty) {
-      throw WorkspaceException('New branch name is required');
+      throw WorkspaceException('New Branch Name Is Required');
     }
 
     await _validateBranchName(normalizedBranch);
@@ -253,7 +253,7 @@ class WorkspaceService {
     if (deleteBranch) {
       final branch = workspace.branch;
       if (branch == null || branch.isEmpty) {
-        throw WorkspaceException('Workspace branch is required');
+        throw WorkspaceException('Workspace Branch Is Required');
       }
       try {
         await _gitBackend.deleteBranch(

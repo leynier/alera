@@ -85,7 +85,7 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
             size: 16,
             color: AleraTokens.foreground,
           ),
-          label: 'Copy path',
+          label: 'Copy Path',
         ),
         const PopupMenuDivider(height: AleraTokens.space8),
         const AleraDropdownEntry<String>(
@@ -131,19 +131,19 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
       if (branch != null && branch.isNotEmpty)
         branch
       else if (widget.project.isFolder)
-        'Local folder'
+        'Local Folder'
       else
-        'Git repository',
+        'Git Repository',
     ];
     final source = widget.workspace.sourceBranch;
     if (!widget.workspace.isMain && source != null && source.isNotEmpty) {
-      parts.add('base: $source');
+      parts.add('Base: $source');
     }
     if (widget.agentRunCount > 0) {
       parts.add(
         widget.agentRunCount == 1
-            ? '1 agent run'
-            : '${widget.agentRunCount} agent runs',
+            ? '1 Agent Run'
+            : '${widget.agentRunCount} Agent Runs',
       );
     }
     return parts.join(' · ');
@@ -211,7 +211,7 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                               ),
                               if (widget.workspace.isMain) ...<Widget>[
                                 const SizedBox(width: AleraTokens.space6),
-                                const AleraBadge(label: 'primary'),
+                                const AleraBadge(label: 'Primary'),
                               ],
                             ],
                           ),
@@ -242,8 +242,8 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                     if (widget.agentRunCount > 0)
                       AleraIconButton(
                         tooltip: widget.expanded
-                            ? 'Hide agent runs'
-                            : 'Show agent runs',
+                            ? 'Hide Agent Runs'
+                            : 'Show Agent Runs',
                         onPressed: widget.onToggleExpanded,
                         icon: widget.expanded
                             ? AleraIcons.chevronUp
@@ -262,7 +262,7 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                               left: AleraTokens.space2,
                             ),
                             child: AleraIconButton(
-                              tooltip: 'Remove workspace',
+                              tooltip: 'Remove Workspace',
                               onPressed: widget.onDelete!,
                               icon: AleraIcons.delete,
                               iconSize: 14,

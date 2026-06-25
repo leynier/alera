@@ -29,7 +29,7 @@ void _registerWorkspaceWorkbenchViewTabTests() {
     );
 
     await _openTabContextMenu(tester, 'Terminal 2');
-    await tester.tap(find.text('Close others'));
+    await tester.tap(find.text('Close Others'));
     await tester.pumpAndSettle();
 
     expect(closedTabGroups, <List<String>>[
@@ -37,7 +37,7 @@ void _registerWorkspaceWorkbenchViewTabTests() {
     ]);
 
     await _openTabContextMenu(tester, 'Terminal 2');
-    await tester.tap(find.text('Close tabs to the right'));
+    await tester.tap(find.text('Close Tabs to the Right'));
     await tester.pumpAndSettle();
 
     expect(closedTabGroups, <List<String>>[
@@ -75,16 +75,16 @@ void _registerWorkspaceWorkbenchViewTabTests() {
     );
 
     await _openTabContextMenu(tester, 'Terminal 2');
-    await tester.tap(find.text('Change title'));
+    await tester.tap(find.text('Change Title'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).last, 'Renamed terminal');
-    await tester.tap(find.text('Change title').last);
+    await tester.tap(find.text('Change Title').last);
     await tester.pumpAndSettle();
 
     expect(renamedTabs, <String>['Renamed terminal']);
 
     await _openTabContextMenu(tester, 'Terminal 2');
-    await tester.tap(find.text('Split right'));
+    await tester.tap(find.text('Split Right'));
     await tester.pumpAndSettle();
 
     expect(
@@ -121,7 +121,7 @@ void _registerWorkspaceWorkbenchViewTabTests() {
       updatedRatios: updatedRatios,
     );
 
-    for (final label in <String>['Split up', 'Split down', 'Split left']) {
+    for (final label in <String>['Split Up', 'Split Down', 'Split Left']) {
       await _openTabContextMenu(tester, 'Terminal 2');
       await tester.tap(find.text(label));
       await tester.pumpAndSettle();

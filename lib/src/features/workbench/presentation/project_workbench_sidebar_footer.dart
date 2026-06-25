@@ -9,12 +9,12 @@ class _EmptyProjectsView extends StatelessWidget {
   Widget build(BuildContext context) {
     return AleraEmptyState(
       icon: AleraIcons.folder,
-      title: 'No projects yet',
+      title: 'No Projects Yet',
       message: 'Add a git repository to create workspaces with terminal tabs.',
       action: FilledButton.icon(
         onPressed: onAddProject,
         icon: const Icon(AleraIcons.add, size: 16),
-        label: const Text('Add your first project'),
+        label: const Text('Add Your First Project'),
       ),
     );
   }
@@ -45,7 +45,7 @@ class _SidebarFooter extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: onAddProject,
                 icon: const Icon(AleraIcons.newFolder),
-                label: const Text('Add project'),
+                label: const Text('Add Project'),
               ),
               const Spacer(),
               _FooterIconButton(

@@ -21,16 +21,16 @@ void main() {
     );
 
     expect(find.text(kAleraAppName), findsOneWidget);
-    expect(find.byTooltip('Add project'), findsOneWidget);
-    expect(find.byTooltip('Collapse sidebar'), findsOneWidget);
-    expect(find.byTooltip('Expand sidebar'), findsNothing);
+    expect(find.byTooltip('Add Project'), findsOneWidget);
+    expect(find.byTooltip('Collapse Sidebar'), findsOneWidget);
+    expect(find.byTooltip('Expand Sidebar'), findsNothing);
 
-    final addRect = tester.getRect(find.byTooltip('Add project'));
-    final collapseRect = tester.getRect(find.byTooltip('Collapse sidebar'));
+    final addRect = tester.getRect(find.byTooltip('Add Project'));
+    final collapseRect = tester.getRect(find.byTooltip('Collapse Sidebar'));
     expect(addRect.right, lessThanOrEqualTo(collapseRect.left));
 
-    await tester.tap(find.byTooltip('Add project'));
-    await tester.tap(find.byTooltip('Collapse sidebar'));
+    await tester.tap(find.byTooltip('Add Project'));
+    await tester.tap(find.byTooltip('Collapse Sidebar'));
 
     expect(addProjectTaps, 1);
     expect(collapseTaps, 1);
@@ -51,11 +51,11 @@ void main() {
     );
 
     expect(find.text(kAleraAppName), findsNothing);
-    expect(find.byTooltip('Add project'), findsNothing);
-    expect(find.byTooltip('Collapse sidebar'), findsNothing);
-    expect(find.byTooltip('Expand sidebar'), findsOneWidget);
+    expect(find.byTooltip('Add Project'), findsNothing);
+    expect(find.byTooltip('Collapse Sidebar'), findsNothing);
+    expect(find.byTooltip('Expand Sidebar'), findsOneWidget);
 
-    await tester.tap(find.byTooltip('Expand sidebar'));
+    await tester.tap(find.byTooltip('Expand Sidebar'));
 
     expect(addProjectTaps, 0);
     expect(expandTaps, 1);

@@ -165,11 +165,11 @@ void _registerSettingsDialogAdvancedTests() {
 
     await tester.tap(find.text('Keyboard').first);
     await tester.pump();
-    expect(find.text('When a terminal is focused'), findsOneWidget);
+    expect(find.text('When a Terminal Is Focused'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField).first, 'confirm');
     await tester.pump();
-    expect(find.text('Confirm project removal'), findsOneWidget);
+    expect(find.text('Confirm Project Removal'), findsOneWidget);
 
     await tester.tap(find.byTooltip('Close'));
     await tester.pumpAndSettle();

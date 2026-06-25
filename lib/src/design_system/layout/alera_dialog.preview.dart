@@ -14,7 +14,7 @@ WidgetBuilder aleraDialogPreview() =>
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            AleraDialogHeader(title: 'Create workspace', onClose: () {}),
+            AleraDialogHeader(title: 'Create Workspace', onClose: () {}),
             const SizedBox(height: AleraTokens.space16),
             Text(
               'Dialog body content goes here.',

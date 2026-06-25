@@ -62,7 +62,7 @@ class _ExplorerToolbar extends StatelessWidget {
             ),
             const SizedBox(width: AleraTokens.space2),
             AleraIconButton(
-              tooltip: 'Collapse all',
+              tooltip: 'Collapse All',
               icon: AleraIcons.collapseAll,
               onPressed: onCollapseAll,
             ),

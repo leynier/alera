@@ -311,7 +311,7 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
 
     await tester.tap(find.byTooltip('Pane actions').first);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Split right'));
+    await tester.tap(find.text('Split Right'));
     await tester.pumpAndSettle();
 
     expect(splitGroups, <_SplitGroupAction>[
@@ -320,7 +320,7 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
 
     await tester.tap(find.byTooltip('Pane actions').first);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Close split'));
+    await tester.tap(find.text('Close Split'));
     await tester.pumpAndSettle();
 
     expect(mergedGroups, <String>['group-a']);
@@ -348,7 +348,7 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
       updatedRatios: updatedRatios,
     );
 
-    for (final label in <String>['Split down', 'Split left', 'Split up']) {
+    for (final label in <String>['Split Down', 'Split Left', 'Split Up']) {
       await tester.tap(find.byTooltip('Pane actions').first);
       await tester.pumpAndSettle();
       await tester.tap(find.text(label));
@@ -391,7 +391,7 @@ void _registerWorkspaceWorkbenchViewPaneTests() {
       updatedRatios: updatedRatios,
     );
 
-    await tester.tap(find.byTooltip('New terminal'));
+    await tester.tap(find.byTooltip('New Terminal'));
     await tester.pump();
     await tester.tap(find.text('Terminal 1'));
     await tester.pump();

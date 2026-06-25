@@ -79,6 +79,12 @@ add_dependencies(${BINARY_NAME} alera_cli_sidecar)
 # them to the application.
 include(flutter/generated_plugins.cmake)
 
+if(TARGET flutter_local_notifications_windows)
+  # MSVC 14.51 treats this plugin's current experimental coroutine header usage
+  # as a hard error unless the compatibility warning is explicitly silenced.
+  target_compile_definitions(flutter_local_notifications_windows PRIVATE
+    "_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS")
+endif()
 
 # === Installation ===
 # Support files are copied into place next to the executable, so that it can

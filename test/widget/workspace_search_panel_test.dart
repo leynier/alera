@@ -24,7 +24,7 @@ void main() {
     expect(find.byIcon(AleraIcons.listView), findsNothing);
     expect(
       tester.getCenter(find.byTooltip('Refresh')).dx,
-      greaterThan(tester.getCenter(find.byTooltip('Collapse all')).dx),
+      greaterThan(tester.getCenter(find.byTooltip('Collapse All')).dx),
     );
 
     await tester.tap(find.byTooltip('View as tree'));

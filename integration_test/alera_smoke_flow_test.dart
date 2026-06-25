@@ -63,9 +63,9 @@ void main() {
       ),
     );
 
-    await _pumpUntilFound(tester, find.text('No projects yet'));
+    await _pumpUntilFound(tester, find.text('No Projects Yet'));
 
-    await tester.tap(find.text('Add project').last);
+    await tester.tap(find.text('Add Project').last);
     await _pumpUntilFound(tester, find.byType(AddProjectDialog));
 
     final projectPathField = find.descendant(
@@ -77,7 +77,7 @@ void main() {
 
     final submitButton = find.descendant(
       of: find.byType(AddProjectDialog),
-      matching: find.widgetWithText(FilledButton, 'Add project'),
+      matching: find.widgetWithText(FilledButton, 'Add Project'),
     );
     await tester.tap(submitButton);
 
@@ -86,10 +86,10 @@ void main() {
     await tester.ensureVisible(find.text('Main').last);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Main').last);
-    await _pumpUntilFound(tester, find.byTooltip('New terminal'));
+    await _pumpUntilFound(tester, find.byTooltip('New Terminal'));
     await _pumpUntilFound(tester, find.text('E2E terminal: Terminal 1'));
 
-    await tester.tap(find.byTooltip('New terminal').first);
+    await tester.tap(find.byTooltip('New Terminal').first);
     await _pumpUntilFound(tester, find.text('E2E terminal: Terminal 2'));
 
     expect(

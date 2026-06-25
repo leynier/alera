@@ -73,21 +73,21 @@ class _LeftColumn extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _SectionTitle(title: 'Quick start'),
+        _SectionTitle(title: 'Quick Start'),
         const SizedBox(height: AleraTokens.space12),
         _DashboardCard(
           child: Column(
             children: [
               _ActionRow(
                 icon: AleraIcons.newFolder,
-                title: 'Add project',
+                title: 'Add Project',
                 description: 'Open a local folder or clone a repository',
                 onTap: () => unawaited(showAddProjectFlow(context, ref)),
               ),
               const Divider(height: 1, color: AleraTokens.borderSubtle),
               _ActionRow(
                 icon: AleraIcons.gitFork,
-                title: 'New workspace',
+                title: 'New Workspace',
                 description: 'Create a linked workspace for active Git project',
                 enabled: hasGitProjects,
                 onTap: () => unawaited(showCreateWorkspaceFlow(context, ref)),
@@ -95,7 +95,7 @@ class _LeftColumn extends ConsumerWidget {
               const Divider(height: 1, color: AleraTokens.borderSubtle),
               _ActionRow(
                 icon: AleraIcons.settings,
-                title: 'Open settings',
+                title: 'Open Settings',
                 description: 'Configure keyboard shortcuts and preferences',
                 onTap: () => unawaited(openSettingsDialog(context)),
               ),
@@ -103,7 +103,7 @@ class _LeftColumn extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: AleraTokens.space32),
-        _SectionTitle(title: 'Keyboard shortcuts'),
+        _SectionTitle(title: 'Keyboard Shortcuts'),
         const SizedBox(height: AleraTokens.space12),
         _ShortcutsCard(),
       ],
@@ -123,7 +123,7 @@ class _RightColumn extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _SectionTitle(title: 'Projects & workspaces'),
+        _SectionTitle(title: 'Projects & Workspaces'),
         const SizedBox(height: AleraTokens.space12),
         _DashboardCard(
           child: projects.isEmpty
@@ -139,7 +139,7 @@ class _RightColumn extends ConsumerWidget {
                       ),
                       const SizedBox(height: AleraTokens.space16),
                       Text(
-                        'No projects registered yet',
+                        'No Projects Registered Yet',
                         style: Theme.of(context).textTheme.titleMedium
                             ?.copyWith(color: AleraTokens.foregroundMuted),
                       ),
@@ -156,7 +156,7 @@ class _RightColumn extends ConsumerWidget {
                         onPressed: () =>
                             unawaited(showAddProjectFlow(context, ref)),
                         icon: const Icon(AleraIcons.add, size: 16),
-                        label: const Text('Add project'),
+                        label: const Text('Add Project'),
                       ),
                     ],
                   ),
@@ -204,7 +204,7 @@ class _RightColumn extends ConsumerWidget {
                                 top: AleraTokens.space4,
                               ),
                               child: Text(
-                                'No workspaces for this project',
+                                'No Workspaces for This Project',
                                 style: Theme.of(context).textTheme.bodySmall
                                     ?.copyWith(
                                       color: AleraTokens.foregroundFaint,
@@ -311,7 +311,7 @@ class _RightColumn extends ConsumerWidget {
                                             const SizedBox(
                                               width: AleraTokens.space8,
                                             ),
-                                            const AleraBadge(label: 'primary'),
+                                            const AleraBadge(label: 'Primary'),
                                           ],
                                         ],
                                       ),

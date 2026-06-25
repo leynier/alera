@@ -67,20 +67,20 @@ class UpdateSettingsSection extends ConsumerWidget {
                     label: Text(
                       state.status == AleraUpdateStatus.checking
                           ? 'Checking'
-                          : 'Check for updates',
+                          : 'Check for Updates',
                     ),
                   ),
                   if (state.status == AleraUpdateStatus.manualDownloadRequired)
                     FilledButton.icon(
                       onPressed: controller.openDownloadPage,
                       icon: const Icon(AleraIcons.external, size: 16),
-                      label: const Text('Download manually'),
+                      label: const Text('Download Manually'),
                     ),
                   if (state.status == AleraUpdateStatus.available)
                     FilledButton.icon(
                       onPressed: controller.installLatest,
                       icon: const Icon(AleraIcons.download, size: 16),
-                      label: const Text('Download update'),
+                      label: const Text('Download Update'),
                     ),
                   if (state.status == AleraUpdateStatus.downloaded)
                     FilledButton.icon(
@@ -141,14 +141,14 @@ class _UpdateStatusCopy extends StatelessWidget {
 
   String _titleForStatus(AleraUpdateStatus status) {
     return switch (status) {
-      AleraUpdateStatus.idle => 'Update status',
-      AleraUpdateStatus.checking => 'Checking for updates',
-      AleraUpdateStatus.notAvailable => 'No update available',
-      AleraUpdateStatus.manualDownloadRequired => 'Manual update available',
-      AleraUpdateStatus.available => 'Update available',
-      AleraUpdateStatus.downloading => 'Downloading update',
-      AleraUpdateStatus.downloaded => 'Restart required',
-      AleraUpdateStatus.error => 'Update check failed',
+      AleraUpdateStatus.idle => 'Update Status',
+      AleraUpdateStatus.checking => 'Checking for Updates',
+      AleraUpdateStatus.notAvailable => 'No Update Available',
+      AleraUpdateStatus.manualDownloadRequired => 'Manual Update Available',
+      AleraUpdateStatus.available => 'Update Available',
+      AleraUpdateStatus.downloading => 'Downloading Update',
+      AleraUpdateStatus.downloaded => 'Restart Required',
+      AleraUpdateStatus.error => 'Update Check Failed',
     };
   }
 }

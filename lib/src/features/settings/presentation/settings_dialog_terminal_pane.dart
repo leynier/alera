@@ -22,7 +22,7 @@ class _TerminalSettingsPane extends StatelessWidget {
           description: 'Default terminal typography for new sessions.',
           children: <Widget>[
             _FontAutocompleteSettingRow(
-              title: 'Font family',
+              title: 'Font Family',
               description: 'Typeface used in new terminal sessions.',
               value: settings.fontFamily,
               suggestions: fontSuggestions,
@@ -30,7 +30,7 @@ class _TerminalSettingsPane extends StatelessWidget {
                   onChanged(settings.copyWith(fontFamily: value)),
             ),
             _NumberSettingRow(
-              title: 'Font size',
+              title: 'Font Size',
               description: 'Text size used in new terminal sessions.',
               value: settings.fontSize,
               min: 8,
@@ -41,7 +41,7 @@ class _TerminalSettingsPane extends StatelessWidget {
                   onChanged(settings.copyWith(fontSize: value)),
             ),
             _IntegerSettingRow(
-              title: 'Font weight',
+              title: 'Font Weight',
               description: 'Weight used for terminal text.',
               value: settings.fontWeight,
               min: 100,
@@ -51,7 +51,7 @@ class _TerminalSettingsPane extends StatelessWidget {
                   onChanged(settings.copyWith(fontWeight: value)),
             ),
             _NumberSettingRow(
-              title: 'Line height',
+              title: 'Line Height',
               description: 'Vertical spacing for terminal rows.',
               value: settings.lineHeight,
               min: 0.8,
@@ -73,14 +73,14 @@ class _TerminalSettingsPane extends StatelessWidget {
                   onChanged(settings.copyWith(cursorShape: value)),
             ),
             _SwitchSettingRow(
-              title: 'Blinking cursor',
+              title: 'Blinking Cursor',
               description: 'Blink the cursor while the terminal has focus.',
               value: settings.cursorBlink,
               onChanged: (value) =>
                   onChanged(settings.copyWith(cursorBlink: value)),
             ),
             _NumberSettingRow(
-              title: 'Cursor opacity',
+              title: 'Cursor Opacity',
               description: 'Opacity of the terminal cursor.',
               value: settings.cursorOpacity,
               min: 0,
@@ -102,7 +102,7 @@ class _TerminalSettingsPane extends StatelessWidget {
                   onChanged(settings.copyWith(themeName: value)),
             ),
             _NumberSettingRow(
-              title: 'Background opacity',
+              title: 'Background Opacity',
               description: 'Opacity of the terminal background.',
               value: settings.backgroundOpacity,
               min: 0,
@@ -112,7 +112,7 @@ class _TerminalSettingsPane extends StatelessWidget {
                   onChanged(settings.copyWith(backgroundOpacity: value)),
             ),
             _NumberSettingRow(
-              title: 'Horizontal padding',
+              title: 'Horizontal Padding',
               description: 'Horizontal spacing around the terminal grid.',
               value: settings.paddingX,
               min: 0,
@@ -123,7 +123,7 @@ class _TerminalSettingsPane extends StatelessWidget {
                   onChanged(settings.copyWith(paddingX: value)),
             ),
             _NumberSettingRow(
-              title: 'Vertical padding',
+              title: 'Vertical Padding',
               description: 'Vertical spacing around the terminal grid.',
               value: settings.paddingY,
               min: 0,
@@ -134,7 +134,7 @@ class _TerminalSettingsPane extends StatelessWidget {
                   onChanged(settings.copyWith(paddingY: value)),
             ),
             _HexColorSettingRow(
-              title: 'Foreground color',
+              title: 'Foreground Color',
               description: 'Override the terminal text color.',
               value: overrides.foreground,
               fallback: '#f5f5f5',
@@ -145,7 +145,7 @@ class _TerminalSettingsPane extends StatelessWidget {
               ),
             ),
             _HexColorSettingRow(
-              title: 'Background color',
+              title: 'Background Color',
               description: 'Override the terminal background color.',
               value: overrides.background,
               fallback: '#101010',
@@ -156,7 +156,7 @@ class _TerminalSettingsPane extends StatelessWidget {
               ),
             ),
             _HexColorSettingRow(
-              title: 'Cursor color',
+              title: 'Cursor Color',
               description: 'Override the terminal cursor color.',
               value: overrides.cursor,
               fallback: '#e0e0e0',
@@ -167,7 +167,7 @@ class _TerminalSettingsPane extends StatelessWidget {
               ),
             ),
             _HexColorSettingRow(
-              title: 'Selection color',
+              title: 'Selection Color',
               description: 'Override the terminal selection color.',
               value: overrides.selection,
               fallback: '#3e4451',
@@ -186,7 +186,7 @@ class _TerminalSettingsPane extends StatelessWidget {
               'History, detached host lifetime and double-click selection behavior.',
           children: <Widget>[
             _IntegerSettingRow(
-              title: 'Scrollback lines',
+              title: 'Scrollback Lines',
               description: 'Maximum terminal history retained per session.',
               value: settings.scrollbackLines,
               min: 100,
@@ -196,7 +196,7 @@ class _TerminalSettingsPane extends StatelessWidget {
                   onChanged(settings.copyWith(scrollbackLines: value)),
             ),
             _IntegerSettingRow(
-              title: 'Host scrollback size',
+              title: 'Host Scrollback Size',
               description:
                   'Maximum host-side terminal output retained per session.',
               value: settings.hostScrollbackBytes ~/ (1000 * 1000),
@@ -209,7 +209,7 @@ class _TerminalSettingsPane extends StatelessWidget {
               ),
             ),
             _IntegerSettingRow(
-              title: 'Empty host shutdown',
+              title: 'Empty Host Shutdown',
               description:
                   'Seconds to keep the host alive after the app closes with no running sessions.',
               value: settings.hostEmptyShutdownDelaySeconds,
@@ -222,7 +222,7 @@ class _TerminalSettingsPane extends StatelessWidget {
               ),
             ),
             _IntegerSettingRow(
-              title: 'Detached session shutdown',
+              title: 'Detached Session Shutdown',
               description:
                   'Seconds to keep detached running sessions alive after the app closes.',
               value: settings.hostDetachedSessionShutdownDelaySeconds,
@@ -237,7 +237,7 @@ class _TerminalSettingsPane extends StatelessWidget {
               ),
             ),
             _TextSettingRow(
-              title: 'Word separators',
+              title: 'Word Separators',
               description: 'Characters that break double-click word selection.',
               value: settings.wordSeparators ?? '',
               trimValue: false,

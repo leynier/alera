@@ -242,13 +242,13 @@ class _MermanViewerFileBar extends StatelessWidget {
             ),
             const SizedBox(width: AleraTokens.space8),
             AleraIconButton(
-              tooltip: 'Open editor',
+              tooltip: 'Open Editor',
               icon: AleraIcons.edit,
               onPressed: onOpenEditor,
             ),
             const SizedBox(width: AleraTokens.space2),
             AleraIconButton(
-              tooltip: loading ? 'Loading preview' : 'Refresh',
+              tooltip: loading ? 'Loading Preview' : 'Refresh',
               icon: loading ? AleraIcons.loading : AleraIcons.refresh,
               onPressed: onRefresh,
             ),

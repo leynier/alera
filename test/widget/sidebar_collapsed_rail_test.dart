@@ -23,7 +23,7 @@ void main() {
     );
 
     expect(find.byTooltip('Add a project first'), findsNothing);
-    expect(find.byTooltip('Add project'), findsOneWidget);
+    expect(find.byTooltip('Add Project'), findsOneWidget);
     expect(
       find.byWidgetPredicate(
         (widget) =>
@@ -32,7 +32,7 @@ void main() {
       findsAtLeastNWidgets(1),
     );
 
-    await tester.tap(find.byTooltip('Add project'));
+    await tester.tap(find.byTooltip('Add Project'));
 
     expect(addProjectTaps, 1);
   });

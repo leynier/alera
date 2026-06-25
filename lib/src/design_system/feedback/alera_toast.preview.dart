@@ -17,7 +17,7 @@ WidgetBuilder aleraToastPreview() =>
               FilledButton(
                 onPressed: () => AleraToast.show(
                   context,
-                  message: 'Workspace created',
+                  message: 'Workspace Created',
                   tone: AleraToastTone.success,
                 ),
                 child: const Text('Success'),
@@ -25,7 +25,7 @@ WidgetBuilder aleraToastPreview() =>
               FilledButton(
                 onPressed: () => AleraToast.show(
                   context,
-                  message: 'Something went wrong',
+                  message: 'Something Went Wrong',
                   tone: AleraToastTone.error,
                 ),
                 child: const Text('Error'),
@@ -33,7 +33,7 @@ WidgetBuilder aleraToastPreview() =>
               FilledButton(
                 onPressed: () => AleraToast.show(
                   context,
-                  message: 'Heads up',
+                  message: 'Heads Up',
                   tone: AleraToastTone.info,
                 ),
                 child: const Text('Info'),

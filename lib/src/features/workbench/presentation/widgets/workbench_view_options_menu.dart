@@ -157,9 +157,9 @@ class _WorkbenchViewOptionsPanelState
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          AleraDialogHeader(title: 'View options', onClose: widget.onDismiss),
+          AleraDialogHeader(title: 'View Options', onClose: widget.onDismiss),
           const SizedBox(height: AleraTokens.space12),
-          _SectionLabel(text: 'Group by'),
+          _SectionLabel(text: 'Group By'),
           const SizedBox(height: AleraTokens.space6),
           _GroupBySegmented(
             value: prefs.groupBy,
@@ -168,8 +168,8 @@ class _WorkbenchViewOptionsPanelState
           const SizedBox(height: AleraTokens.space12),
           _SortRow(
             label: prefs.groupBy == WorkbenchGroupBy.project
-                ? 'Sort projects by'
-                : 'Sort workspaces by',
+                ? 'Sort Projects By'
+                : 'Sort Workspaces By',
             value: prefs.groupBy == WorkbenchGroupBy.project
                 ? prefs.projectSort
                 : prefs.workspaceSort,
@@ -180,7 +180,7 @@ class _WorkbenchViewOptionsPanelState
           if (prefs.groupBy == WorkbenchGroupBy.project) ...<Widget>[
             const SizedBox(height: AleraTokens.space8),
             _SortRow(
-              label: 'Then by',
+              label: 'Then By',
               value: prefs.workspaceSort,
               onChanged: controller.setWorkspaceSort,
             ),
@@ -212,7 +212,7 @@ class _WorkbenchViewOptionsPanelState
           AleraTextField(
             dense: true,
             prefixIcon: AleraIcons.add,
-            hintText: 'Add project…',
+            hintText: 'Add Project…',
             controller: _searchController,
             onSubmitted: (_) => _addFirstMatch(availableProjects),
           ),

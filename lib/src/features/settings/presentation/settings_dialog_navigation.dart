@@ -169,7 +169,7 @@ class _SettingsContent extends StatelessWidget {
                       await Future<void>.delayed(Duration.zero);
                       await section.onReset!();
                     },
-                    child: Text('Reset ${section.title.toLowerCase()}'),
+                    child: Text('Reset ${section.title}'),
                   ),
                 ],
                 const SizedBox(width: AleraTokens.space4),

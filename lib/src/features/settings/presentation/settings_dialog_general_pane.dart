@@ -28,7 +28,7 @@ class _GeneralSettingsPane extends ConsumerWidget {
               'Confirmation prompts for destructive workspace actions.',
           children: <Widget>[
             _SwitchSettingRow(
-              title: 'Confirm project removal',
+              title: 'Confirm Project Removal',
               description:
                   'Ask before unregistering a project and deleting its workspace metadata.',
               value: general.confirmProjectRemoval,
@@ -37,7 +37,7 @@ class _GeneralSettingsPane extends ConsumerWidget {
                   .setConfirmProjectRemoval(value),
             ),
             _SwitchSettingRow(
-              title: 'Confirm workspace removal',
+              title: 'Confirm Workspace Removal',
               description:
                   'Ask before removing a linked workspace and deleting its branch.',
               value: general.confirmWorkspaceRemoval,
@@ -53,7 +53,7 @@ class _GeneralSettingsPane extends ConsumerWidget {
           description: 'Managed hooks let terminal tabs show agent state.',
           children: <Widget>[
             _SwitchSettingRow(
-              title: 'Codex hooks',
+              title: 'Codex Hooks',
               description:
                   'Use an Alera-managed Codex runtime home with status hooks.',
               value: general.agentStatusHooks.codex,
@@ -62,7 +62,7 @@ class _GeneralSettingsPane extends ConsumerWidget {
                   .setAgentStatusHookEnabled(AgentType.codex, value),
             ),
             _SwitchSettingRow(
-              title: 'Claude Code hooks',
+              title: 'Claude Code Hooks',
               description:
                   'Use an Alera-managed Claude Code config with status hooks.',
               value: general.agentStatusHooks.claude,
@@ -71,7 +71,7 @@ class _GeneralSettingsPane extends ConsumerWidget {
                   .setAgentStatusHookEnabled(AgentType.claude, value),
             ),
             _SwitchSettingRow(
-              title: 'GitHub Copilot hooks',
+              title: 'GitHub Copilot Hooks',
               description: 'Use an Alera-managed GitHub Copilot home overlay.',
               value: general.agentStatusHooks.copilot,
               onChanged: (value) => ref
@@ -79,7 +79,7 @@ class _GeneralSettingsPane extends ConsumerWidget {
                   .setAgentStatusHookEnabled(AgentType.copilot, value),
             ),
             _SwitchSettingRow(
-              title: 'Cursor hooks',
+              title: 'Cursor Hooks',
               description: 'Use an Alera-managed Cursor Agent plugin wrapper.',
               value: general.agentStatusHooks.cursor,
               onChanged: (value) => ref
@@ -87,7 +87,7 @@ class _GeneralSettingsPane extends ConsumerWidget {
                   .setAgentStatusHookEnabled(AgentType.cursor, value),
             ),
             _SwitchSettingRow(
-              title: 'Antigravity hooks',
+              title: 'Antigravity Hooks',
               description:
                   'Install Alera-managed Antigravity hooks for the agy CLI. Disable to remove only Alera-managed hook entries.',
               value: general.agentStatusHooks.agy,
@@ -96,7 +96,7 @@ class _GeneralSettingsPane extends ConsumerWidget {
                   .setAgentStatusHookEnabled(AgentType.agy, value),
             ),
             _SwitchSettingRow(
-              title: 'OpenCode hooks',
+              title: 'OpenCode Hooks',
               description:
                   'Use an Alera-managed OpenCode config overlay with status plugin.',
               value: general.agentStatusHooks.opencode,
@@ -105,7 +105,7 @@ class _GeneralSettingsPane extends ConsumerWidget {
                   .setAgentStatusHookEnabled(AgentType.opencode, value),
             ),
             _SwitchSettingRow(
-              title: 'Pi hooks',
+              title: 'Pi Hooks',
               description:
                   'Use an Alera-managed Pi agent overlay with status extension.',
               value: general.agentStatusHooks.pi,
@@ -114,7 +114,7 @@ class _GeneralSettingsPane extends ConsumerWidget {
                   .setAgentStatusHookEnabled(AgentType.pi, value),
             ),
             _SwitchSettingRow(
-              title: 'Amp hooks',
+              title: 'Amp Hooks',
               description: 'Use an Alera-managed Amp config overlay.',
               value: general.agentStatusHooks.amp,
               onChanged: (value) => ref
@@ -122,7 +122,7 @@ class _GeneralSettingsPane extends ConsumerWidget {
                   .setAgentStatusHookEnabled(AgentType.amp, value),
             ),
             _SwitchSettingRow(
-              title: 'Agent status notifications',
+              title: 'Agent Status Notifications',
               description:
                   'Show native notifications when an agent needs attention or finishes.',
               value: general.agentStatusNotificationsEnabled,
@@ -131,7 +131,7 @@ class _GeneralSettingsPane extends ConsumerWidget {
                   .setAgentStatusNotificationsEnabled(value),
             ),
             _SwitchSettingRow(
-              title: 'Keep computer awake while agents are working',
+              title: 'Keep Computer Awake While Agents Are Working',
               description: _agentAwakeSettingDescription(
                 Theme.of(context).platform,
               ),
@@ -420,7 +420,7 @@ class _WorkspaceDirectoryRowState extends State<_WorkspaceDirectoryRow> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
-            'Workspace directory',
+            'Workspace Directory',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: AleraTokens.foreground,
               fontWeight: FontWeight.w500,

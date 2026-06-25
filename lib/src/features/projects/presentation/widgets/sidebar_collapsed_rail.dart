@@ -45,7 +45,7 @@ class SidebarCollapsedRail extends StatelessWidget {
           ),
           Center(
             child: AleraIconButton(
-              tooltip: 'Add project',
+              tooltip: 'Add Project',
               icon: AleraIcons.newFolder,
               iconSize: 14,
               borderColor: AleraTokens.borderSubtle,

@@ -23,7 +23,7 @@ class SidebarBrandRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final toggle = AleraIconButton(
-      tooltip: collapsed ? 'Expand sidebar' : 'Collapse sidebar',
+      tooltip: collapsed ? 'Expand Sidebar' : 'Collapse Sidebar',
       onPressed: onToggleCollapsed,
       icon: collapsed ? AleraIcons.sidebarToggle : AleraIcons.sidebarToggle,
     );
@@ -49,7 +49,7 @@ class SidebarBrandRow extends StatelessWidget {
           ),
           if (onAddProject != null) ...<Widget>[
             AleraIconButton(
-              tooltip: 'Add project',
+              tooltip: 'Add Project',
               onPressed: onAddProject!,
               icon: AleraIcons.newFolder,
             ),

@@ -142,7 +142,7 @@ class KeybindingDefinition {
 const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
   KeybindingDefinition(
     id: KeyboardActionId.openSettings,
-    label: 'Open settings',
+    label: 'Open Settings',
     group: KeyboardActionGroup.global,
     description: 'Open the settings dialog.',
     defaultBindings: PlatformBindings.uniform(<String>['Mod+Comma']),
@@ -151,7 +151,7 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
   ),
   KeybindingDefinition(
     id: KeyboardActionId.addProject,
-    label: 'Add project',
+    label: 'Add Project',
     group: KeyboardActionGroup.global,
     description: 'Open the add-project dialog.',
     defaultBindings: PlatformBindings.uniform(<String>['Mod+Shift+O']),
@@ -160,7 +160,7 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
   ),
   KeybindingDefinition(
     id: KeyboardActionId.toggleSidebar,
-    label: 'Toggle sidebar',
+    label: 'Toggle Sidebar',
     group: KeyboardActionGroup.global,
     description: 'Collapse or expand the project sidebar.',
     defaultBindings: PlatformBindings.uniform(<String>['Mod+B']),
@@ -169,7 +169,7 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
   ),
   KeybindingDefinition(
     id: KeyboardActionId.createWorkspace,
-    label: 'New workspace',
+    label: 'New Workspace',
     group: KeyboardActionGroup.workspace,
     description: 'Create a linked workspace for the active Git project.',
     defaultBindings: PlatformBindings.uniform(<String>['Mod+Shift+N']),
@@ -178,7 +178,7 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
   ),
   KeybindingDefinition(
     id: KeyboardActionId.findInFiles,
-    label: 'Find in files',
+    label: 'Find in Files',
     group: KeyboardActionGroup.workspace,
     description: 'Open workspace search.',
     defaultBindings: PlatformBindings.uniform(<String>['Mod+Shift+F']),
@@ -187,7 +187,7 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
   ),
   KeybindingDefinition(
     id: KeyboardActionId.replaceInFiles,
-    label: 'Replace in files',
+    label: 'Replace in Files',
     group: KeyboardActionGroup.workspace,
     description: 'Open workspace search and replace.',
     defaultBindings: PlatformBindings.uniform(<String>['Mod+Shift+H']),
@@ -196,7 +196,7 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
   ),
   KeybindingDefinition(
     id: KeyboardActionId.saveFile,
-    label: 'Save file',
+    label: 'Save File',
     group: KeyboardActionGroup.workspace,
     description: 'Save the active editor file.',
     defaultBindings: PlatformBindings.uniform(<String>['Mod+S']),
@@ -204,7 +204,7 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
   ),
   KeybindingDefinition(
     id: KeyboardActionId.newTerminalTab,
-    label: 'New terminal tab',
+    label: 'New Terminal Tab',
     group: KeyboardActionGroup.tabs,
     description: 'Open a terminal tab in the active workspace.',
     defaultBindings: PlatformBindings.uniform(<String>['Mod+T']),
@@ -212,14 +212,14 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
   ),
   KeybindingDefinition(
     id: KeyboardActionId.closeTab,
-    label: 'Close tab',
+    label: 'Close Tab',
     group: KeyboardActionGroup.tabs,
     description: 'Close the active terminal tab.',
     defaultBindings: PlatformBindings.uniform(<String>['Mod+W']),
   ),
   KeybindingDefinition(
     id: KeyboardActionId.nextTab,
-    label: 'Next tab',
+    label: 'Next Tab',
     group: KeyboardActionGroup.tabs,
     description: 'Select the next tab in the active pane.',
     defaultBindings: PlatformBindings(
@@ -230,7 +230,7 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
   ),
   KeybindingDefinition(
     id: KeyboardActionId.previousTab,
-    label: 'Previous tab',
+    label: 'Previous Tab',
     group: KeyboardActionGroup.tabs,
     description: 'Select the previous tab in the active pane.',
     defaultBindings: PlatformBindings(
@@ -241,70 +241,70 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
   ),
   KeybindingDefinition(
     id: KeyboardActionId.goToTab1,
-    label: 'Go to tab 1',
+    label: 'Go to Tab 1',
     group: KeyboardActionGroup.tabs,
     description: 'Select the first tab in the active pane.',
     defaultBindings: PlatformBindings.uniform(<String>['Mod+1']),
   ),
   KeybindingDefinition(
     id: KeyboardActionId.goToTab2,
-    label: 'Go to tab 2',
+    label: 'Go to Tab 2',
     group: KeyboardActionGroup.tabs,
     description: 'Select the second tab in the active pane.',
     defaultBindings: PlatformBindings.uniform(<String>['Mod+2']),
   ),
   KeybindingDefinition(
     id: KeyboardActionId.goToTab3,
-    label: 'Go to tab 3',
+    label: 'Go to Tab 3',
     group: KeyboardActionGroup.tabs,
     description: 'Select the third tab in the active pane.',
     defaultBindings: PlatformBindings.uniform(<String>['Mod+3']),
   ),
   KeybindingDefinition(
     id: KeyboardActionId.goToTab4,
-    label: 'Go to tab 4',
+    label: 'Go to Tab 4',
     group: KeyboardActionGroup.tabs,
     description: 'Select the fourth tab in the active pane.',
     defaultBindings: PlatformBindings.uniform(<String>['Mod+4']),
   ),
   KeybindingDefinition(
     id: KeyboardActionId.goToTab5,
-    label: 'Go to tab 5',
+    label: 'Go to Tab 5',
     group: KeyboardActionGroup.tabs,
     description: 'Select the fifth tab in the active pane.',
     defaultBindings: PlatformBindings.uniform(<String>['Mod+5']),
   ),
   KeybindingDefinition(
     id: KeyboardActionId.goToTab6,
-    label: 'Go to tab 6',
+    label: 'Go to Tab 6',
     group: KeyboardActionGroup.tabs,
     description: 'Select the sixth tab in the active pane.',
     defaultBindings: PlatformBindings.uniform(<String>['Mod+6']),
   ),
   KeybindingDefinition(
     id: KeyboardActionId.goToTab7,
-    label: 'Go to tab 7',
+    label: 'Go to Tab 7',
     group: KeyboardActionGroup.tabs,
     description: 'Select the seventh tab in the active pane.',
     defaultBindings: PlatformBindings.uniform(<String>['Mod+7']),
   ),
   KeybindingDefinition(
     id: KeyboardActionId.goToTab8,
-    label: 'Go to tab 8',
+    label: 'Go to Tab 8',
     group: KeyboardActionGroup.tabs,
     description: 'Select the eighth tab in the active pane.',
     defaultBindings: PlatformBindings.uniform(<String>['Mod+8']),
   ),
   KeybindingDefinition(
     id: KeyboardActionId.goToTab9,
-    label: 'Go to last tab',
+    label: 'Go to Last Tab',
     group: KeyboardActionGroup.tabs,
     description: 'Select the last tab in the active pane.',
     defaultBindings: PlatformBindings.uniform(<String>['Mod+9']),
   ),
   KeybindingDefinition(
     id: KeyboardActionId.splitRight,
-    label: 'Split right',
+    label: 'Split Right',
     group: KeyboardActionGroup.panes,
     description: 'Split the active pane to the right with a new terminal.',
     defaultBindings: PlatformBindings(
@@ -316,7 +316,7 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
   ),
   KeybindingDefinition(
     id: KeyboardActionId.splitDown,
-    label: 'Split down',
+    label: 'Split Down',
     group: KeyboardActionGroup.panes,
     description: 'Split the active pane downward with a new terminal.',
     defaultBindings: PlatformBindings(
@@ -328,7 +328,7 @@ const List<KeybindingDefinition> keybindingDefinitions = <KeybindingDefinition>[
   ),
   KeybindingDefinition(
     id: KeyboardActionId.closeSplit,
-    label: 'Close split',
+    label: 'Close Split',
     group: KeyboardActionGroup.panes,
     description: 'Merge the active pane back into its sibling.',
     defaultBindings: PlatformBindings.uniform(<String>['Mod+Shift+W']),

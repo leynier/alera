@@ -44,22 +44,22 @@ void main() {
       );
 
       expect(find.text('Welcome to Alera'), findsOneWidget);
-      expect(find.text('No projects registered yet'), findsOneWidget);
+      expect(find.text('No Projects Registered Yet'), findsOneWidget);
 
-      await tester.tap(find.text('Add project').first);
+      await tester.tap(find.text('Add Project').first);
       await tester.pumpAndSettle();
-      expect(find.widgetWithText(TextField, 'Project path'), findsOneWidget);
+      expect(find.widgetWithText(TextField, 'Project Path'), findsOneWidget);
       await tester.tap(find.text('Cancel').first);
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Add project').last);
-      await tester.tap(find.text('Add project').last);
+      await tester.ensureVisible(find.text('Add Project').last);
+      await tester.tap(find.text('Add Project').last);
       await tester.pumpAndSettle();
-      expect(find.widgetWithText(TextField, 'Project path'), findsOneWidget);
+      expect(find.widgetWithText(TextField, 'Project Path'), findsOneWidget);
       await tester.tap(find.text('Cancel').first);
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Open settings').first);
+      await tester.tap(find.text('Open Settings').first);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
       expect(find.text('General'), findsWidgets);
@@ -123,17 +123,17 @@ void main() {
       ),
     );
 
-    expect(find.text('Projects & workspaces'), findsOneWidget);
+    expect(find.text('Projects & Workspaces'), findsOneWidget);
     expect(find.text('Alera'), findsAtLeastNWidgets(1));
     expect(find.text('Main'), findsAtLeastNWidgets(1));
     expect(find.text('Docs'), findsOneWidget);
-    expect(find.text('No workspaces for this project'), findsOneWidget);
+    expect(find.text('No Workspaces for This Project'), findsOneWidget);
 
     await tester.tap(find.text('Main').first);
     await tester.pumpAndSettle();
     expect(controller.selectedWorkspaceIds, <String>['workspace-1']);
 
-    await tester.tap(find.text('New workspace').first);
+    await tester.tap(find.text('New Workspace').first);
     await tester.pumpAndSettle();
 
     // Tap Continue to go to Step 2
@@ -141,7 +141,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.widgetWithText(FilledButton, 'Create workspace'),
+      find.widgetWithText(FilledButton, 'Create Workspace'),
       findsOneWidget,
     );
   });

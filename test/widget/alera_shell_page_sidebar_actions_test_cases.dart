@@ -6,7 +6,7 @@ void _registerAleraShellSidebarActionTests() {
     (tester) async {
       await _pumpShell(tester, state: _populatedWorkbenchState());
 
-      await tester.tap(find.byTooltip('New workspace'));
+      await tester.tap(find.byTooltip('New Workspace'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
@@ -67,7 +67,7 @@ void _registerAleraShellSidebarActionTests() {
     await tester.tap(find.text('Rename'));
     await tester.pumpAndSettle();
     await tester.enterText(
-      find.widgetWithText(TextField, 'Project name'),
+      find.widgetWithText(TextField, 'Project Name'),
       '  Renamed Alera  ',
     );
     await tester.tap(find.text('Rename'));
@@ -91,7 +91,7 @@ void _registerAleraShellSidebarActionTests() {
     await tester.tap(find.text('Rename'));
     await tester.pumpAndSettle();
     await tester.enterText(
-      find.widgetWithText(TextField, 'Workspace name'),
+      find.widgetWithText(TextField, 'Workspace Name'),
       '  Backend API  ',
     );
     await tester.tap(find.text('Rename'));
@@ -132,7 +132,7 @@ void _registerAleraShellSidebarActionTests() {
       buttons: kSecondaryMouseButton,
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Copy path'));
+    await tester.tap(find.text('Copy Path'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
@@ -280,7 +280,7 @@ void _registerAleraShellSidebarActionTests() {
       },
     );
 
-    expect(find.textContaining('2 agent runs'), findsOneWidget);
+    expect(find.textContaining('2 Agent Runs'), findsOneWidget);
   });
 
   testWidgets('closing a sidebar agent row closes the runtime tab', (
@@ -355,7 +355,7 @@ void _registerAleraShellSidebarActionTests() {
       buttons: kSecondaryMouseButton,
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Remove project'));
+    await tester.tap(find.text('Remove Project'));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Remove'));
     await tester.pump();
@@ -366,7 +366,7 @@ void _registerAleraShellSidebarActionTests() {
       containsAll(<String>['workspace-1', 'workspace-2']),
     );
     expect(harness.controller.state.projects, isEmpty);
-    expect(find.text('No projects yet'), findsAtLeastNWidgets(1));
+    expect(find.text('No Projects Yet'), findsAtLeastNWidgets(1));
   });
 
   testWidgets(
@@ -434,13 +434,13 @@ void _registerAleraShellSidebarActionTests() {
       buttons: kSecondaryMouseButton,
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Change title'));
+    await tester.tap(find.text('Change Title'));
     await tester.pumpAndSettle();
     await tester.enterText(
-      find.widgetWithText(TextField, 'Terminal title'),
+      find.widgetWithText(TextField, 'Terminal Title'),
       '  Renamed tab  ',
     );
-    await tester.tap(find.text('Change title').last);
+    await tester.tap(find.text('Change Title').last);
     await tester.pumpAndSettle();
 
     expect(
@@ -456,7 +456,7 @@ void _registerAleraShellSidebarActionTests() {
 
     await tester.tap(find.byTooltip('Pane actions').first);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Split right'));
+    await tester.tap(find.text('Split Right'));
     await tester.pumpAndSettle();
 
     expect(harness.runtime.totalFocusRequests, 1);
@@ -470,7 +470,7 @@ void _registerAleraShellSidebarActionTests() {
 
     await tester.tap(find.byTooltip('Pane actions').first);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Close split'));
+    await tester.tap(find.text('Close Split'));
     await tester.pumpAndSettle();
 
     expect(
@@ -502,7 +502,7 @@ void _registerAleraShellSidebarActionTests() {
   ) async {
     await _pumpShell(tester, state: _populatedWorkbenchState());
 
-    await tester.tap(find.byTooltip('Collapse sidebar'));
+    await tester.tap(find.byTooltip('Collapse Sidebar'));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Settings'));
     await tester.pump();
@@ -514,13 +514,13 @@ void _registerAleraShellSidebarActionTests() {
   testWidgets('collapsed brand row can expand the sidebar', (tester) async {
     final harness = await _pumpShell(tester, state: _populatedWorkbenchState());
 
-    await tester.tap(find.byTooltip('Collapse sidebar'));
+    await tester.tap(find.byTooltip('Collapse Sidebar'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Expand sidebar'));
+    await tester.tap(find.byTooltip('Expand Sidebar'));
     await tester.pumpAndSettle();
 
     expect(harness.controller.state.collapsed, isFalse);
-    expect(find.byTooltip('Collapse sidebar'), findsOneWidget);
+    expect(find.byTooltip('Collapse Sidebar'), findsOneWidget);
   });
 
   testWidgets('project header quick action opens create workspace dialog', (
@@ -528,7 +528,7 @@ void _registerAleraShellSidebarActionTests() {
   ) async {
     await _pumpShell(tester, state: _populatedWorkbenchState());
 
-    await tester.tap(find.byTooltip('New workspace in this project'));
+    await tester.tap(find.byTooltip('New Workspace in This Project'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
@@ -548,7 +548,7 @@ void _registerAleraShellSidebarActionTests() {
       buttons: kSecondaryMouseButton,
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('New workspace'));
+    await tester.tap(find.text('New Workspace'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 

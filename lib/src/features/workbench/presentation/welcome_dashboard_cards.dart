@@ -108,12 +108,12 @@ class _ShortcutsCard extends ConsumerWidget {
     final resolver = KeybindingResolver(settings: keyboard);
 
     final shortcuts = [
-      (KeyboardActionId.addProject, 'Add project'),
-      (KeyboardActionId.createWorkspace, 'New workspace'),
-      (KeyboardActionId.toggleSidebar, 'Toggle sidebar'),
-      (KeyboardActionId.newTerminalTab, 'New terminal tab'),
-      (KeyboardActionId.openSettings, 'Open settings'),
-      (KeyboardActionId.splitRight, 'Split right'),
+      (KeyboardActionId.addProject, 'Add Project'),
+      (KeyboardActionId.createWorkspace, 'New Workspace'),
+      (KeyboardActionId.toggleSidebar, 'Toggle Sidebar'),
+      (KeyboardActionId.newTerminalTab, 'New Terminal Tab'),
+      (KeyboardActionId.openSettings, 'Open Settings'),
+      (KeyboardActionId.splitRight, 'Split Right'),
     ];
 
     return _DashboardCard(

@@ -76,7 +76,7 @@ class _SearchToolbar extends StatelessWidget {
             ),
             const SizedBox(width: AleraTokens.space2),
             AleraIconButton(
-              tooltip: allResultsCollapsed ? 'Expand all' : 'Collapse all',
+              tooltip: allResultsCollapsed ? 'Expand All' : 'Collapse All',
               icon: allResultsCollapsed
                   ? AleraIcons.expandAll
                   : AleraIcons.collapseAll,

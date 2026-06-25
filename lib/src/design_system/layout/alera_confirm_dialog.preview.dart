@@ -4,12 +4,12 @@ import 'package:flutter/material.dart';
 
 @AleraPreview(
   name: 'Destructive',
-  group: 'Confirm dialog',
+  group: 'Confirm Dialog',
   size: Size(460, 260),
 )
 WidgetBuilder aleraConfirmDialogPreview() =>
     (context) => const AleraConfirmDialog(
-      title: 'Remove workspace?',
+      title: 'Remove Workspace?',
       message: 'This removes the worktree and deletes its branch.',
       confirmLabel: 'Remove',
       destructive: true,

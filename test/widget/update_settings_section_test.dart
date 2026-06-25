@@ -14,8 +14,8 @@ void main() {
         final controller = _FakeUpdateController(_state());
         await _pumpSection(tester, controller);
 
-        expect(find.text('Update status'), findsOneWidget);
-        expect(find.text('Check for updates'), findsOneWidget);
+        expect(find.text('Update Status'), findsOneWidget);
+        expect(find.text('Check for Updates'), findsOneWidget);
 
         controller.setState(
           _state(
@@ -24,7 +24,7 @@ void main() {
           ),
         );
         await tester.pump();
-        expect(find.text('Checking for updates'), findsOneWidget);
+        expect(find.text('Checking for Updates'), findsOneWidget);
         expect(find.text('Checking'), findsOneWidget);
 
         controller.setState(
@@ -35,7 +35,7 @@ void main() {
           ),
         );
         await tester.pump();
-        expect(find.text('No update available'), findsOneWidget);
+        expect(find.text('No Update Available'), findsOneWidget);
         expect(find.text('Version 1.2.3 - Build 123'), findsOneWidget);
         expect(find.text('Alera is up to date.'), findsOneWidget);
 
@@ -47,8 +47,8 @@ void main() {
           ),
         );
         await tester.pump();
-        expect(find.text('Manual update available'), findsOneWidget);
-        expect(find.text('Download manually'), findsOneWidget);
+        expect(find.text('Manual Update Available'), findsOneWidget);
+        expect(find.text('Download Manually'), findsOneWidget);
 
         controller.setState(
           _state(
@@ -58,8 +58,8 @@ void main() {
           ),
         );
         await tester.pump();
-        expect(find.text('Update available'), findsOneWidget);
-        expect(find.text('Download update'), findsOneWidget);
+        expect(find.text('Update Available'), findsOneWidget);
+        expect(find.text('Download Update'), findsOneWidget);
 
         controller.setState(
           _state(
@@ -70,7 +70,7 @@ void main() {
           ),
         );
         await tester.pump();
-        expect(find.text('Downloading update'), findsOneWidget);
+        expect(find.text('Downloading Update'), findsOneWidget);
         expect(find.byType(LinearProgressIndicator), findsOneWidget);
 
         controller.setState(
@@ -82,7 +82,7 @@ void main() {
           ),
         );
         await tester.pump();
-        expect(find.text('Restart required'), findsOneWidget);
+        expect(find.text('Restart Required'), findsOneWidget);
         expect(find.text('Restart Alera'), findsOneWidget);
 
         controller.setState(
@@ -93,7 +93,7 @@ void main() {
           ),
         );
         await tester.pump();
-        expect(find.text('Update check failed'), findsOneWidget);
+        expect(find.text('Update Check Failed'), findsOneWidget);
         expect(find.text('Update check failed: boom'), findsOneWidget);
       },
     );
@@ -104,7 +104,7 @@ void main() {
       final controller = _FakeUpdateController(_state());
       await _pumpSection(tester, controller);
 
-      await tester.tap(find.text('Check for updates'));
+      await tester.tap(find.text('Check for Updates'));
       await tester.pump();
       expect(controller.checkForUpdatesCalls, 1);
 
@@ -115,7 +115,7 @@ void main() {
         ),
       );
       await tester.pump();
-      await tester.tap(find.text('Download manually'));
+      await tester.tap(find.text('Download Manually'));
       await tester.pump();
       expect(controller.openDownloadPageCalls, 1);
 
@@ -123,7 +123,7 @@ void main() {
         _state(status: AleraUpdateStatus.available, latest: _latest()),
       );
       await tester.pump();
-      await tester.tap(find.text('Download update'));
+      await tester.tap(find.text('Download Update'));
       await tester.pump();
       expect(controller.installLatestCalls, 1);
 

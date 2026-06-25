@@ -4,11 +4,11 @@ import 'package:alera/src/design_system/badges/alera_badge.dart';
 import 'package:flutter/material.dart';
 
 @AleraPreview(name: 'Neutral', group: 'Badge')
-Widget aleraBadgePreview() => const AleraBadge(label: 'primary');
+Widget aleraBadgePreview() => const AleraBadge(label: 'Primary');
 
 @AleraPreview(name: 'Success', group: 'Badge')
 Widget aleraBadgeSuccessPreview() => const AleraBadge(
-  label: 'active',
+  label: 'Active',
   color: AleraTokens.accentSubtle,
   foregroundColor: AleraTokens.success,
 );

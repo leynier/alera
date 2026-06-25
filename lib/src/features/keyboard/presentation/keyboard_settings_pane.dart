@@ -116,7 +116,7 @@ class _KeyboardSettingsPaneState extends ConsumerState<KeyboardSettingsPane> {
     final result = await showDialog<bool>(
       context: context,
       builder: (_) => AleraConfirmDialog(
-        title: 'Shortcut already in use',
+        title: 'Shortcut Already in Use',
         message:
             '${chord.format(isMacOS: _isMacOS)} is assigned to '
             '"$conflictLabel". Reassign it to "$targetLabel"?',
@@ -152,7 +152,7 @@ class _KeyboardSettingsPaneState extends ConsumerState<KeyboardSettingsPane> {
       description: 'How shortcuts behave while a terminal is focused.',
       children: <Widget>[
         AleraSettingRow(
-          title: 'When a terminal is focused',
+          title: 'When a Terminal Is Focused',
           description:
               'App first lets Alera capture combinations the shell would '
               'otherwise receive. Terminal first defers to the shell.',
@@ -165,11 +165,11 @@ class _KeyboardSettingsPaneState extends ConsumerState<KeyboardSettingsPane> {
             segments: const <ButtonSegment<TerminalShortcutPolicy>>[
               ButtonSegment<TerminalShortcutPolicy>(
                 value: TerminalShortcutPolicy.appFirst,
-                label: Text('App first'),
+                label: Text('App First'),
               ),
               ButtonSegment<TerminalShortcutPolicy>(
                 value: TerminalShortcutPolicy.terminalFirst,
-                label: Text('Terminal first'),
+                label: Text('Terminal First'),
               ),
             ],
           ),
@@ -262,14 +262,14 @@ class _ShortcutBindingRow extends StatelessWidget {
           Expanded(child: _bindingDisplay(context)),
           const SizedBox(width: AleraTokens.space8),
           AleraIconButton(
-            tooltip: recording ? 'Stop recording' : 'Change shortcut',
+            tooltip: recording ? 'Stop Recording' : 'Change Shortcut',
             icon: recording ? AleraIcons.close : AleraIcons.keyboard,
             onPressed: onRecordToggle,
           ),
           if (onReset != null) ...<Widget>[
             const SizedBox(width: AleraTokens.space2),
             AleraIconButton(
-              tooltip: 'Reset to default',
+              tooltip: 'Reset to Default',
               icon: AleraIcons.restore,
               onPressed: onReset!,
             ),
@@ -277,7 +277,7 @@ class _ShortcutBindingRow extends StatelessWidget {
           if (onDisable != null) ...<Widget>[
             const SizedBox(width: AleraTokens.space2),
             AleraIconButton(
-              tooltip: 'Disable shortcut',
+              tooltip: 'Disable Shortcut',
               icon: AleraIcons.blocked,
               onPressed: onDisable!,
             ),
@@ -291,7 +291,7 @@ class _ShortcutBindingRow extends StatelessWidget {
     final theme = Theme.of(context);
     if (recording) {
       return Text(
-        'Press keys… (Esc to cancel)',
+        'Press Keys… (Esc to Cancel)',
         textAlign: TextAlign.right,
         style: theme.textTheme.bodySmall?.copyWith(color: AleraTokens.accent),
       );

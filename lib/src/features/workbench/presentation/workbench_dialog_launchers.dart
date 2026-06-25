@@ -62,13 +62,13 @@ Future<void> showAddProjectFlow(BuildContext context, WidgetRef ref) async {
         }
         AleraToast.show(
           context,
-          message: 'Project added',
+          message: 'Project Added',
           tone: AleraToastTone.success,
         );
       case CloneProjectResult():
         await _runWithProgress(
           context,
-          message: 'Cloning repository…',
+          message: 'Cloning Repository…',
           action: () => controller.cloneProject(
             gitUrl: result.gitUrl,
             destinationPath: result.destinationPath,
@@ -80,7 +80,7 @@ Future<void> showAddProjectFlow(BuildContext context, WidgetRef ref) async {
         }
         AleraToast.show(
           context,
-          message: 'Project cloned',
+          message: 'Project Cloned',
           tone: AleraToastTone.success,
         );
     }
@@ -136,7 +136,7 @@ class _RenameDialogState extends State<_RenameDialog> {
   void _submit() {
     final value = _controller.text.trim();
     if (value.isEmpty) {
-      setState(() => _errorText = '${widget.labelText} is required');
+      setState(() => _errorText = '${widget.labelText} Is Required');
       return;
     }
     Navigator.of(context).pop(value);
@@ -257,7 +257,7 @@ Future<void> showCreateWorkspaceFlow(
   if (success == true && context.mounted) {
     AleraToast.show(
       context,
-      message: 'Workspace created',
+      message: 'Workspace Created',
       tone: AleraToastTone.success,
     );
   }

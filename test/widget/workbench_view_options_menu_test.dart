@@ -30,14 +30,14 @@ void main() {
       await tester.tap(_viewOptionsButton());
       await tester.pumpAndSettle();
 
-      expect(find.text('View options'), findsOneWidget);
-      expect(find.text('Sort projects by'), findsOneWidget);
+      expect(find.text('View Options'), findsOneWidget);
+      expect(find.text('Sort Projects By'), findsOneWidget);
 
       await tester.tap(find.text('None'));
       await tester.pumpAndSettle();
 
       expect(controller.state.viewPrefs.groupBy, WorkbenchGroupBy.none);
-      expect(find.text('Sort workspaces by'), findsOneWidget);
+      expect(find.text('Sort Workspaces By'), findsOneWidget);
 
       await tester.tap(find.text('Name').last);
       await tester.pumpAndSettle();
@@ -106,11 +106,11 @@ void main() {
 
       await tester.tap(_viewOptionsButton());
       await tester.pumpAndSettle();
-      expect(find.text('No projects yet'), findsOneWidget);
+      expect(find.text('No Projects Yet'), findsOneWidget);
 
       await tester.tap(find.byTooltip('Close'));
       await tester.pumpAndSettle();
-      expect(find.text('View options'), findsNothing);
+      expect(find.text('View Options'), findsNothing);
 
       final filteredController = _ViewOptionsTestController(
         WorkbenchState(projects: <Project>[_project('project-1', 'Alera')]),
@@ -122,7 +122,7 @@ void main() {
 
       await tester.enterText(find.byType(TextField).last, 'missing');
       await tester.pumpAndSettle();
-      expect(find.text('No projects match "missing"'), findsOneWidget);
+      expect(find.text('No Projects Match "missing"'), findsOneWidget);
     });
 
     testWidgets('available project rows animate their hover state', (

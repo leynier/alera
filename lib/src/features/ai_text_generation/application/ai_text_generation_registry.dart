@@ -91,14 +91,14 @@ const List<AiThinkingLevel> openAiThinkingLevels = <AiThinkingLevel>[
   AiThinkingLevel(id: 'low', label: 'Low'),
   AiThinkingLevel(id: 'medium', label: 'Medium'),
   AiThinkingLevel(id: 'high', label: 'High'),
-  AiThinkingLevel(id: 'xhigh', label: 'Extra high'),
+  AiThinkingLevel(id: 'xhigh', label: 'Extra High'),
 ];
 
 const List<AiThinkingLevel> claudeThinkingLevels = <AiThinkingLevel>[
   AiThinkingLevel(id: 'low', label: 'Low'),
   AiThinkingLevel(id: 'medium', label: 'Medium'),
   AiThinkingLevel(id: 'high', label: 'High'),
-  AiThinkingLevel(id: 'xhigh', label: 'Extra high'),
+  AiThinkingLevel(id: 'xhigh', label: 'Extra High'),
   AiThinkingLevel(id: 'max', label: 'Max'),
 ];
 

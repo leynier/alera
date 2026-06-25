@@ -117,7 +117,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
       ),
       _SettingsSectionData(
         id: 'aiText',
-        title: 'AI text',
+        title: 'AI Text',
         description: 'AI-generated source control text.',
         icon: AleraIcons.ai,
         entries: _aiTextSearchEntries,
@@ -248,62 +248,62 @@ class _SettingsSearchEntry {
 
 const List<_SettingsSearchEntry> _generalSearchEntries = <_SettingsSearchEntry>[
   _SettingsSearchEntry(
-    title: 'Workspace directory',
+    title: 'Workspace Directory',
     description: 'Where new linked workspaces are created on disk.',
     keywords: <String>['worktree', 'folder', 'location', 'path'],
   ),
   _SettingsSearchEntry(
-    title: 'Confirm project removal',
+    title: 'Confirm Project Removal',
     description: 'Ask before unregistering a project.',
     keywords: <String>['safety', 'destructive', 'remove', 'delete'],
   ),
   _SettingsSearchEntry(
-    title: 'Confirm workspace removal',
+    title: 'Confirm Workspace Removal',
     description: 'Ask before removing a workspace worktree.',
     keywords: <String>['safety', 'destructive', 'remove', 'delete'],
   ),
   _SettingsSearchEntry(
-    title: 'Codex hooks',
+    title: 'Codex Hooks',
     description: 'Use Alera-managed Codex runtime hooks.',
     keywords: <String>['codex', 'agent', 'status', 'hooks'],
   ),
   _SettingsSearchEntry(
-    title: 'Claude Code hooks',
+    title: 'Claude Code Hooks',
     description: 'Use an Alera-managed Claude Code config with status hooks.',
     keywords: <String>['claude', 'agent', 'status', 'hooks'],
   ),
   _SettingsSearchEntry(
-    title: 'GitHub Copilot hooks',
+    title: 'GitHub Copilot Hooks',
     description: 'Use an Alera-managed GitHub Copilot home overlay.',
     keywords: <String>['copilot', 'github', 'agent', 'status', 'hooks'],
   ),
   _SettingsSearchEntry(
-    title: 'Cursor hooks',
+    title: 'Cursor Hooks',
     description: 'Use an Alera-managed Cursor Agent plugin wrapper.',
     keywords: <String>['cursor', 'agent', 'status', 'hooks', 'cli'],
   ),
   _SettingsSearchEntry(
-    title: 'Antigravity hooks',
+    title: 'Antigravity Hooks',
     description: 'Install managed Antigravity hooks for the agy CLI.',
     keywords: <String>['antigravity', 'agy', 'agent', 'status', 'hooks'],
   ),
   _SettingsSearchEntry(
-    title: 'OpenCode hooks',
+    title: 'OpenCode Hooks',
     description: 'Install managed OpenCode status plugin.',
     keywords: <String>['opencode', 'agent', 'status', 'hooks', 'plugin'],
   ),
   _SettingsSearchEntry(
-    title: 'Pi hooks',
+    title: 'Pi Hooks',
     description: 'Install managed Pi status extension.',
     keywords: <String>['pi', 'agent', 'status', 'hooks', 'extension'],
   ),
   _SettingsSearchEntry(
-    title: 'Amp hooks',
+    title: 'Amp Hooks',
     description: 'Use an Alera-managed Amp config overlay.',
     keywords: <String>['amp', 'agent', 'status', 'hooks', 'plugin'],
   ),
   _SettingsSearchEntry(
-    title: 'Agent status notifications',
+    title: 'Agent Status Notifications',
     description: 'Show native notifications when agents need attention.',
     keywords: <String>[
       'codex',
@@ -321,7 +321,7 @@ const List<_SettingsSearchEntry> _generalSearchEntries = <_SettingsSearchEntry>[
     ],
   ),
   _SettingsSearchEntry(
-    title: 'Keep computer awake while agents are working',
+    title: 'Keep Computer Awake While Agents Are Working',
     description: 'Keep this computer and display awake during agent work.',
     keywords: <String>[
       'awake',
@@ -348,7 +348,7 @@ const List<_SettingsSearchEntry> _generalSearchEntries = <_SettingsSearchEntry>[
 const List<_SettingsSearchEntry> _keyboardSearchEntries =
     <_SettingsSearchEntry>[
       _SettingsSearchEntry(
-        title: 'Keyboard shortcuts',
+        title: 'Keyboard Shortcuts',
         description: 'View and remap app-wide key bindings.',
         keywords: <String>[
           'shortcut',
@@ -359,7 +359,7 @@ const List<_SettingsSearchEntry> _keyboardSearchEntries =
         ],
       ),
       _SettingsSearchEntry(
-        title: 'Terminal shortcut behavior',
+        title: 'Terminal Shortcut Behavior',
         description:
             'Choose whether app shortcuts win while a terminal is '
             'focused.',
@@ -369,12 +369,12 @@ const List<_SettingsSearchEntry> _keyboardSearchEntries =
 
 const List<_SettingsSearchEntry> _editorSearchEntries = <_SettingsSearchEntry>[
   _SettingsSearchEntry(
-    title: 'Theme preset',
+    title: 'Theme Preset',
     description: 'Syntax highlighting theme used by editor tabs.',
     keywords: <String>['syntax', 'highlight', 'highlighting', 'color', 'code'],
   ),
   _SettingsSearchEntry(
-    title: 'Tab size',
+    title: 'Tab Size',
     description: 'Spaces inserted when pressing Tab in editor tabs.',
     keywords: <String>['indent', 'indentation', 'spaces', 'code'],
   ),
@@ -382,12 +382,12 @@ const List<_SettingsSearchEntry> _editorSearchEntries = <_SettingsSearchEntry>[
 
 const List<_SettingsSearchEntry> _aiTextSearchEntries = <_SettingsSearchEntry>[
   _SettingsSearchEntry(
-    title: 'AI text generation',
+    title: 'AI Text Generation',
     description: 'Generate source control text with local agent CLIs.',
     keywords: <String>['ai', 'commit', 'pull request', 'branch'],
   ),
   _SettingsSearchEntry(
-    title: 'AI text agent',
+    title: 'AI Text Agent',
     description: 'Choose the CLI used for generated text.',
     keywords: <String>[
       'codex',
@@ -403,7 +403,7 @@ const List<_SettingsSearchEntry> _aiTextSearchEntries = <_SettingsSearchEntry>[
     ],
   ),
   _SettingsSearchEntry(
-    title: 'AI text instructions',
+    title: 'AI Text Instructions',
     description: 'Commit message instructions for generated text.',
     keywords: <String>['prompt', 'instructions', 'commit message'],
   ),
@@ -412,89 +412,89 @@ const List<_SettingsSearchEntry> _aiTextSearchEntries = <_SettingsSearchEntry>[
 const List<_SettingsSearchEntry>
 _terminalSearchEntries = <_SettingsSearchEntry>[
   _SettingsSearchEntry(
-    title: 'Font family',
+    title: 'Font Family',
     description: 'Typeface used in new terminal sessions.',
     keywords: <String>['monospace', 'jetbrains', 'typeface'],
   ),
   _SettingsSearchEntry(
-    title: 'Font size',
+    title: 'Font Size',
     description: 'Text size used in new terminal sessions.',
     keywords: <String>['terminal text', 'zoom'],
   ),
   _SettingsSearchEntry(
-    title: 'Font weight',
+    title: 'Font Weight',
     description: 'Weight used for terminal text.',
     keywords: <String>['terminal text', 'bold'],
   ),
   _SettingsSearchEntry(
-    title: 'Line height',
+    title: 'Line Height',
     description: 'Vertical spacing for terminal rows.',
     keywords: <String>['spacing', 'rows'],
   ),
   _SettingsSearchEntry(
-    title: 'Theme preset',
+    title: 'Theme Preset',
     description: 'Built-in terminal color theme.',
     keywords: <String>['color', 'appearance', 'palette'],
   ),
   _SettingsSearchEntry(
-    title: 'Background opacity',
+    title: 'Background Opacity',
     description: 'Opacity of the terminal background.',
     keywords: <String>['transparent', 'alpha'],
   ),
   _SettingsSearchEntry(
-    title: 'Horizontal padding',
+    title: 'Horizontal Padding',
     description: 'Horizontal spacing around the terminal grid.',
     keywords: <String>['inset', 'space'],
   ),
   _SettingsSearchEntry(
-    title: 'Vertical padding',
+    title: 'Vertical Padding',
     description: 'Vertical spacing around the terminal grid.',
     keywords: <String>['inset', 'space'],
   ),
   _SettingsSearchEntry(
-    title: 'Cursor shape',
+    title: 'Cursor Shape',
     description: 'Cursor style for new terminal sessions.',
     keywords: <String>['caret', 'block', 'bar', 'underline'],
   ),
   _SettingsSearchEntry(
-    title: 'Blinking cursor',
+    title: 'Blinking Cursor',
     description: 'Blink the terminal cursor while focused.',
     keywords: <String>['caret', 'blink'],
   ),
   _SettingsSearchEntry(
-    title: 'Cursor opacity',
+    title: 'Cursor Opacity',
     description: 'Opacity of the terminal cursor.',
     keywords: <String>['caret', 'alpha'],
   ),
   _SettingsSearchEntry(
-    title: 'Color overrides',
+    title: 'Color Overrides',
     description: 'Override core terminal colors.',
     keywords: <String>['foreground', 'background', 'selection', 'cursor'],
   ),
   _SettingsSearchEntry(
-    title: 'Scrollback lines',
+    title: 'Scrollback Lines',
     description: 'Maximum terminal history retained per session.',
     keywords: <String>['history', 'buffer'],
   ),
   _SettingsSearchEntry(
-    title: 'Host scrollback size',
+    title: 'Host Scrollback Size',
     description: 'Maximum host-side terminal output retained per session.',
     keywords: <String>['history', 'buffer', 'memory', 'host'],
   ),
   _SettingsSearchEntry(
-    title: 'Empty host shutdown',
+    title: 'Empty Host Shutdown',
     description:
         'Stop the terminal host after the app closes with no sessions.',
     keywords: <String>['host', 'sidecar', 'lifetime', 'timeout'],
   ),
   _SettingsSearchEntry(
-    title: 'Detached session shutdown',
+    title: 'Detached Session Shutdown',
     description:
         'Stop detached running terminal sessions after the app stays closed.',
     keywords: <String>['host', 'sidecar', 'session', 'timeout'],
   ),
   _SettingsSearchEntry(
-    title: 'Word separators',
+    title: 'Word Separators',
     description: 'Characters that break double-click word selection.',
     keywords: <String>['boundary', 'selection', 'double click'],
   ),
