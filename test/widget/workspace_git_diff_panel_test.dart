@@ -353,7 +353,7 @@ void main() {
     await _pumpPanel(tester, backend: backend);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Source control actions'));
+    await tester.tap(find.byTooltip('Source Control Actions'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Push'));
     await tester.pumpAndSettle();
@@ -405,7 +405,7 @@ void main() {
     await _pumpPanel(tester, backend: backend);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Source control actions'));
+    await tester.tap(find.byTooltip('Source Control Actions'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Stash'));
     await tester.pumpAndSettle();
@@ -466,7 +466,7 @@ void main() {
     await _pumpPanel(tester, backend: backend);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Source control actions'));
+    await tester.tap(find.byTooltip('Source Control Actions'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Commit Amend'));
     await tester.pumpAndSettle();
@@ -514,7 +514,7 @@ void main() {
     await _pumpPanel(tester, backend: backend);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Source control actions'));
+    await tester.tap(find.byTooltip('Source Control Actions'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Commit Amend'));
     await tester.pumpAndSettle();
@@ -758,7 +758,7 @@ void main() {
       await _pumpPanel(tester, backend: backend);
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byTooltip('Source control actions'));
+      await tester.tap(find.byTooltip('Source Control Actions'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Sync'));
       await tester.pumpAndSettle();
@@ -788,7 +788,7 @@ void main() {
     await _pumpPanel(tester, backend: backend);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Source control actions'));
+    await tester.tap(find.byTooltip('Source Control Actions'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Stash Pop'));
     await tester.pumpAndSettle();
@@ -925,13 +925,13 @@ void main() {
 
     expect(find.text('lib/dirty.dart'), findsOneWidget);
 
-    await tester.tap(find.byTooltip('Collapse all'));
+    await tester.tap(find.byTooltip('Collapse All'));
     await tester.pumpAndSettle();
 
     expect(find.text('Unstaged'), findsOneWidget);
     expect(find.text('lib/dirty.dart'), findsNothing);
 
-    await tester.tap(find.byTooltip('Expand all'));
+    await tester.tap(find.byTooltip('Expand All'));
     await tester.pumpAndSettle();
 
     expect(find.text('lib/dirty.dart'), findsOneWidget);

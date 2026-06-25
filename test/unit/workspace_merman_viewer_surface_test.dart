@@ -54,11 +54,11 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      expect(find.byTooltip('Open editor'), findsOneWidget);
+      expect(find.byTooltip('Open Editor'), findsOneWidget);
       expect(find.byTooltip('Refresh'), findsOneWidget);
       expect(service.renderCalls, 1);
 
-      await tester.tap(find.byTooltip('Open editor'));
+      await tester.tap(find.byTooltip('Open Editor'));
       expect(openedEditors, <String>['docs/diagram.mmd']);
 
       await tester.tap(find.byTooltip('Refresh'));

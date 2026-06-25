@@ -317,7 +317,7 @@ void _registerAleraShellSidebarStateTests() {
       buttons: kSecondaryMouseButton,
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Remove project'));
+    await tester.tap(find.text('Remove Project'));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Remove'));
     await tester.pump();

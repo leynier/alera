@@ -147,22 +147,22 @@ class _WorkspaceTabChip extends StatelessWidget {
       items: <PopupMenuEntry<_TabMenuAction>>[
         const AleraDropdownEntry<_TabMenuAction>(
           value: _TabMenuAction.splitUp,
-          label: 'Split up',
+          label: 'Split Up',
           leading: _SplitDirectionGlyph(zone: WorkbenchDropZone.up),
         ),
         const AleraDropdownEntry<_TabMenuAction>(
           value: _TabMenuAction.splitDown,
-          label: 'Split down',
+          label: 'Split Down',
           leading: _SplitDirectionGlyph(zone: WorkbenchDropZone.down),
         ),
         const AleraDropdownEntry<_TabMenuAction>(
           value: _TabMenuAction.splitLeft,
-          label: 'Split left',
+          label: 'Split Left',
           leading: _SplitDirectionGlyph(zone: WorkbenchDropZone.left),
         ),
         const AleraDropdownEntry<_TabMenuAction>(
           value: _TabMenuAction.splitRight,
-          label: 'Split right',
+          label: 'Split Right',
           leading: _SplitDirectionGlyph(zone: WorkbenchDropZone.right),
         ),
         const PopupMenuDivider(height: AleraTokens.space8),
@@ -173,7 +173,7 @@ class _WorkspaceTabChip extends StatelessWidget {
         ),
         AleraDropdownEntry<_TabMenuAction>(
           value: _TabMenuAction.closeOthers,
-          label: 'Close others',
+          label: 'Close Others',
           leading: Icon(
             AleraIcons.tabUnselected,
             size: 16,
@@ -185,7 +185,7 @@ class _WorkspaceTabChip extends StatelessWidget {
         ),
         AleraDropdownEntry<_TabMenuAction>(
           value: _TabMenuAction.closeRight,
-          label: 'Close tabs to the right',
+          label: 'Close Tabs to the Right',
           leading: Icon(
             AleraIcons.tab,
             size: 16,
@@ -198,7 +198,7 @@ class _WorkspaceTabChip extends StatelessWidget {
         const PopupMenuDivider(height: AleraTokens.space8),
         const AleraDropdownEntry<_TabMenuAction>(
           value: _TabMenuAction.changeTitle,
-          label: 'Change title',
+          label: 'Change Title',
           leading: Icon(AleraIcons.edit, size: 16),
         ),
       ],
@@ -224,10 +224,10 @@ class _WorkspaceTabChip extends StatelessWidget {
       case _TabMenuAction.changeTitle:
         final title = await showRenameDialog(
           context,
-          title: 'Change terminal title',
-          labelText: 'Terminal title',
+          title: 'Change Terminal Title',
+          labelText: 'Terminal Title',
           initialValue: terminalSession?.displayTitle ?? tab.title,
-          confirmLabel: 'Change title',
+          confirmLabel: 'Change Title',
         );
         if (title != null) {
           onRename(title);

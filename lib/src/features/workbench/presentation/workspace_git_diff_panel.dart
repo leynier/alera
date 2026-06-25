@@ -262,7 +262,7 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AleraConfirmDialog(
-        title: filePath == null ? 'Discard all changes?' : 'Discard changes?',
+        title: filePath == null ? 'Discard All Changes?' : 'Discard Changes?',
         message: filePath == null
             ? 'This permanently discards unstaged and untracked changes in this workspace.'
             : 'This permanently discards unstaged and untracked changes in "$filePath".',
@@ -289,7 +289,7 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AleraConfirmDialog(
-        title: 'Discard changes?',
+        title: 'Discard Changes?',
         message: 'This permanently discards changes in "$target".',
         confirmLabel: 'Discard',
         destructive: true,
@@ -308,7 +308,7 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AleraConfirmDialog(
-        title: 'Discard changes?',
+        title: 'Discard Changes?',
         message:
             'This permanently discards unstaged and untracked changes in "${entry.path}".',
         confirmLabel: 'Discard',

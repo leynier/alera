@@ -149,29 +149,29 @@ class _PaneMenuButton extends StatelessWidget {
       items: <PopupMenuEntry<_PaneMenuAction>>[
         const AleraDropdownEntry<_PaneMenuAction>(
           value: _PaneMenuAction.splitRight,
-          label: 'Split right',
+          label: 'Split Right',
           leading: _SplitDirectionGlyph(zone: WorkbenchDropZone.right),
         ),
         const AleraDropdownEntry<_PaneMenuAction>(
           value: _PaneMenuAction.splitDown,
-          label: 'Split down',
+          label: 'Split Down',
           leading: _SplitDirectionGlyph(zone: WorkbenchDropZone.down),
         ),
         const AleraDropdownEntry<_PaneMenuAction>(
           value: _PaneMenuAction.splitLeft,
-          label: 'Split left',
+          label: 'Split Left',
           leading: _SplitDirectionGlyph(zone: WorkbenchDropZone.left),
         ),
         const AleraDropdownEntry<_PaneMenuAction>(
           value: _PaneMenuAction.splitUp,
-          label: 'Split up',
+          label: 'Split Up',
           leading: _SplitDirectionGlyph(zone: WorkbenchDropZone.up),
         ),
         if (canCloseSplit) const PopupMenuDivider(height: AleraTokens.space8),
         if (canCloseSplit)
           const AleraDropdownEntry<_PaneMenuAction>(
             value: _PaneMenuAction.closeSplit,
-            label: 'Close split',
+            label: 'Close Split',
           ),
       ],
     );
@@ -265,7 +265,7 @@ class _NewTerminalButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AleraIconButton(
-      tooltip: 'New terminal',
+      tooltip: 'New Terminal',
       icon: AleraIcons.add,
       iconSize: 16,
       minSize: 28,

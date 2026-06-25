@@ -6,8 +6,8 @@ void _registerAleraShellWorkbenchTests() {
   ) async {
     await _pumpShell(tester, state: _populatedWorkbenchState());
 
-    expect(find.byTooltip('New terminal'), findsOneWidget);
-    expect(find.text('New terminal'), findsNothing);
+    expect(find.byTooltip('New Terminal'), findsOneWidget);
+    expect(find.text('New Terminal'), findsNothing);
     expect(
       find.byKey(const ValueKey<String>('fake-terminal-tab-1')),
       findsOneWidget,
@@ -59,7 +59,7 @@ void _registerAleraShellWorkbenchTests() {
   ) async {
     await _pumpShell(tester, state: _splitWorkbenchState());
 
-    expect(find.byTooltip('New terminal'), findsNWidgets(2));
+    expect(find.byTooltip('New Terminal'), findsNWidgets(2));
     expect(
       find.byKey(const ValueKey<String>('fake-terminal-tab-1')),
       findsOneWidget,
@@ -106,7 +106,7 @@ void _registerAleraShellWorkbenchTests() {
 
     final tabs = find.byWidgetPredicate((widget) => widget is Draggable);
     expect(tabs, findsNWidgets(2));
-    expect(find.byTooltip('New terminal'), findsOneWidget);
+    expect(find.byTooltip('New Terminal'), findsOneWidget);
 
     final secondTabStart = tester.getTopLeft(tabs.at(1)) + const Offset(24, 20);
     final terminalRect = tester.getRect(
@@ -122,7 +122,7 @@ void _registerAleraShellWorkbenchTests() {
     await gesture.up();
     await tester.pumpAndSettle();
 
-    expect(find.byTooltip('New terminal'), findsNWidgets(2));
+    expect(find.byTooltip('New Terminal'), findsNWidgets(2));
     expect(
       find.byKey(const ValueKey<String>('fake-terminal-tab-1')),
       findsOneWidget,
@@ -145,16 +145,16 @@ void _registerAleraShellWorkbenchTests() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Split up'), findsOneWidget);
-    expect(find.text('Split down'), findsOneWidget);
-    expect(find.text('Split left'), findsOneWidget);
-    expect(find.text('Split right'), findsOneWidget);
+    expect(find.text('Split Up'), findsOneWidget);
+    expect(find.text('Split Down'), findsOneWidget);
+    expect(find.text('Split Left'), findsOneWidget);
+    expect(find.text('Split Right'), findsOneWidget);
     expect(find.text('Close'), findsOneWidget);
-    expect(find.text('Close others'), findsOneWidget);
-    expect(find.text('Close tabs to the right'), findsOneWidget);
-    expect(find.text('Change title'), findsOneWidget);
+    expect(find.text('Close Others'), findsOneWidget);
+    expect(find.text('Close Tabs to the Right'), findsOneWidget);
+    expect(find.text('Change Title'), findsOneWidget);
 
-    await tester.tap(find.text('Close tabs to the right'));
+    await tester.tap(find.text('Close Tabs to the Right'));
     await tester.pumpAndSettle();
 
     expect(harness.runtime.closedTabIds, <String>['tab-2']);
@@ -184,7 +184,7 @@ void _registerAleraShellWorkbenchTests() {
     expect(find.text('Welcome to Alera'), findsOneWidget);
     expect(find.text('Projects & Workspaces'), findsOneWidget);
     expect(find.text('Main'), findsAtLeastNWidgets(1));
-    expect(find.byTooltip('New terminal'), findsNothing);
+    expect(find.byTooltip('New Terminal'), findsNothing);
   });
 
   testWidgets('terminal exit closes its tab and activates the remaining tab', (
@@ -252,7 +252,7 @@ void _registerAleraShellWorkbenchTests() {
   ) async {
     final harness = await _pumpShell(tester, state: _populatedWorkbenchState());
 
-    await tester.tap(find.byTooltip('New terminal'));
+    await tester.tap(find.byTooltip('New Terminal'));
     // First pump runs the await chain; the second pump runs the
     // post-frame callback that requestFocus() defers to.
     await tester.pump();
@@ -359,17 +359,17 @@ void _registerAleraShellWorkbenchTests() {
   ) async {
     final harness = await _pumpShell(tester, state: _populatedWorkbenchState());
 
-    await tester.tap(find.byTooltip('Collapse sidebar'));
+    await tester.tap(find.byTooltip('Collapse Sidebar'));
     await tester.pumpAndSettle();
 
     expect(harness.controller.state.collapsed, isTrue);
-    expect(find.byTooltip('Expand sidebar'), findsOneWidget);
+    expect(find.byTooltip('Expand Sidebar'), findsOneWidget);
 
     await tester.tap(find.text('A'));
     await tester.pumpAndSettle();
 
     expect(harness.controller.state.collapsed, isFalse);
-    expect(find.byTooltip('Collapse sidebar'), findsOneWidget);
+    expect(find.byTooltip('Collapse Sidebar'), findsOneWidget);
   });
 
   testWidgets('sidebar search shows the empty-results state', (tester) async {

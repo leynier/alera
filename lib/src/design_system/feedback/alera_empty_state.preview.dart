@@ -3,11 +3,11 @@ import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:flutter/material.dart';
 
-@AleraPreview(name: 'Message only', group: 'Empty state')
+@AleraPreview(name: 'Message only', group: 'Empty State')
 Widget aleraEmptyStatePreview() =>
     const AleraEmptyState(message: 'No settings found.');
 
-@AleraPreview(name: 'With icon', group: 'Empty state')
+@AleraPreview(name: 'With icon', group: 'Empty State')
 Widget aleraEmptyStateIconPreview() => const AleraEmptyState(
   icon: AleraIcons.searchOff,
   title: 'No matching results',

@@ -80,15 +80,15 @@ class WorkbenchSidebarToolbar extends ConsumerWidget {
           const WorkbenchViewOptionsButton(),
           const SizedBox(width: AleraTokens.space2),
           AleraIconButton(
-            tooltip: allCollapsed ? 'Expand all' : 'Collapse all',
+            tooltip: allCollapsed ? 'Expand All' : 'Collapse All',
             onPressed: canCollapse ? controller.toggleCollapseAll : () {},
             icon: allCollapsed ? AleraIcons.expandAll : AleraIcons.collapseAll,
           ),
           const SizedBox(width: AleraTokens.space2),
           AleraIconButton(
             tooltip: hasGitProjects
-                ? 'New workspace'
-                : 'Add a Git project first',
+                ? 'New Workspace'
+                : 'Add a Git Project First',
             onPressed: hasGitProjects ? onAddWorkspace : () {},
             icon: AleraIcons.add,
           ),

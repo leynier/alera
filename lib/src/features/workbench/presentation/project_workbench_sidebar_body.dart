@@ -205,14 +205,14 @@ class _ProjectHeaderTileState extends State<_ProjectHeaderTile> {
                 ? AleraTokens.foregroundFaint
                 : AleraTokens.foreground,
           ),
-          label: 'New workspace',
+          label: 'New Workspace',
           enabled: widget.onCreateWorkspace != null,
         ),
         const PopupMenuDivider(height: AleraTokens.space8),
         const AleraDropdownEntry<String>(
           value: 'remove',
           leading: Icon(AleraIcons.delete, size: 16),
-          label: 'Remove project',
+          label: 'Remove Project',
         ),
       ],
     );
@@ -288,7 +288,7 @@ class _ProjectHeaderTileState extends State<_ProjectHeaderTile> {
                 if (widget.onCreateWorkspace != null) ...<Widget>[
                   const SizedBox(width: AleraTokens.space2),
                   AleraIconButton(
-                    tooltip: 'New workspace in this project',
+                    tooltip: 'New Workspace in This Project',
                     onPressed: widget.onCreateWorkspace!,
                     icon: AleraIcons.add,
                     iconSize: 14,

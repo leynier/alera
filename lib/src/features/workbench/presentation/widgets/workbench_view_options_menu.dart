@@ -212,7 +212,7 @@ class _WorkbenchViewOptionsPanelState
           AleraTextField(
             dense: true,
             prefixIcon: AleraIcons.add,
-            hintText: 'Add project…',
+            hintText: 'Add Project…',
             controller: _searchController,
             onSubmitted: (_) => _addFirstMatch(availableProjects),
           ),

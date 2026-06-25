@@ -28,15 +28,15 @@ void main() {
           children: <Widget>[
             GoldenTestScenario(name: 'Actions', child: _ActionsScenario()),
             GoldenTestScenario(
-              name: 'Forms and panels',
+              name: 'Forms and Panels',
               child: _FormsPanelScenario(),
             ),
             GoldenTestScenario(
-              name: 'Badges and status',
+              name: 'Badges and Status',
               child: _StatusScenario(),
             ),
             GoldenTestScenario(
-              name: 'Empty state',
+              name: 'Empty State',
               child: _EmptyStateScenario(),
             ),
           ],
@@ -59,7 +59,7 @@ class _ActionsScenario extends StatelessWidget {
           Row(
             children: <Widget>[
               AleraIconButton(
-                tooltip: 'New terminal',
+                tooltip: 'New Terminal',
                 icon: AleraIcons.add,
                 backgroundColor: AleraTokens.surfaceVariant,
                 borderColor: AleraTokens.border,
@@ -75,7 +75,7 @@ class _ActionsScenario extends StatelessWidget {
               FilledButton.icon(
                 onPressed: () {},
                 icon: const Icon(AleraIcons.folderOpen, size: 16),
-                label: const Text('Add project'),
+                label: const Text('Add Project'),
               ),
             ],
           ),
@@ -83,7 +83,7 @@ class _ActionsScenario extends StatelessWidget {
           OutlinedButton.icon(
             onPressed: null,
             icon: const Icon(AleraIcons.gitFork, size: 16),
-            label: const Text('New workspace'),
+            label: const Text('New Workspace'),
           ),
           const SizedBox(height: AleraTokens.space16),
           AleraSegmentedButton<_WorkbenchMode>(
@@ -163,14 +163,14 @@ class _StatusScenario extends StatelessWidget {
             spacing: AleraTokens.space8,
             runSpacing: AleraTokens.space8,
             children: <Widget>[
-              const AleraBadge(label: 'primary'),
+              const AleraBadge(label: 'Primary'),
               const AleraBadge(
-                label: 'synced',
+                label: 'Synced',
                 color: AleraTokens.accentSubtle,
                 foregroundColor: AleraTokens.foreground,
               ),
               AleraBadge(
-                label: 'review',
+                label: 'Review',
                 color: AleraTokens.info.withAlpha(26),
                 foregroundColor: AleraTokens.info,
               ),
@@ -209,9 +209,9 @@ class _EmptyStateScenario extends StatelessWidget {
     return const AleraGoldenScenarioSurface(
       child: AleraEmptyState(
         icon: AleraIcons.folderOpen,
-        title: 'No projects yet',
+        title: 'No Projects Yet',
         message: 'Add a local folder or clone a repository to get started.',
-        action: FilledButton(onPressed: null, child: Text('Add project')),
+        action: FilledButton(onPressed: null, child: Text('Add Project')),
       ),
     );
   }

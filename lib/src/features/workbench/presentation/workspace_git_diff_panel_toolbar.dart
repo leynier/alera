@@ -113,7 +113,7 @@ class _SourceControlToolbar extends StatelessWidget {
               ),
               const SizedBox(width: AleraTokens.space2),
               AleraIconButton(
-                tooltip: allCollapsed ? 'Expand all' : 'Collapse all',
+                tooltip: allCollapsed ? 'Expand All' : 'Collapse All',
                 icon: allCollapsed
                     ? AleraIcons.expandAll
                     : AleraIcons.collapseAll,
@@ -528,7 +528,7 @@ class _PrimaryActionButton extends StatelessWidget {
                     color: AleraTokens.onAccent.withValues(alpha: 0.18),
                   ),
                   Tooltip(
-                    message: 'Source control actions',
+                    message: 'Source Control Actions',
                     child: Builder(
                       builder: (context) {
                         return InkWell(
