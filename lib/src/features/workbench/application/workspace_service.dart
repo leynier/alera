@@ -200,6 +200,18 @@ class WorkspaceService {
       );
     }
 
+    try {
+      await _gitBackend.refreshSourceBranch(
+        repoPath: project.repoPath,
+        sourceBranch: normalizedSource,
+      );
+    } on GitException catch (error) {
+      throw WorkspaceException(
+        'git source branch refresh failed',
+        stderr: error.context,
+      );
+    }
+
     final parent = Directory(p.dirname(workspacePath));
     if (!parent.existsSync()) {
       parent.createSync(recursive: true);

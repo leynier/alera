@@ -147,6 +147,12 @@ class _E2eGitBackend implements GitBackend {
   }) async {}
 
   @override
+  Future<void> refreshSourceBranch({
+    required String repoPath,
+    required String sourceBranch,
+  }) async {}
+
+  @override
   Future<void> removeWorktree({
     required String repoPath,
     required String path,

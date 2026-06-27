@@ -91,6 +91,7 @@ class FakeGitBackend implements GitBackend {
   GitException? amendCommitError;
   GitException? fetchError;
   GitException? pullError;
+  GitException? refreshSourceBranchError;
   GitException? pushError;
   GitException? stashError;
   GitException? stashPopError;
@@ -164,6 +165,23 @@ class FakeGitBackend implements GitBackend {
     );
     if (failingWorktreeAddBranches.contains(targetBranch)) {
       throw const GitInternalException('add failed');
+    }
+  }
+
+  @override
+  Future<void> refreshSourceBranch({
+    required String repoPath,
+    required String sourceBranch,
+  }) async {
+    calls.add(
+      GitBackendCall('refreshSourceBranch', <String, Object?>{
+        'repoPath': repoPath,
+        'sourceBranch': sourceBranch,
+      }),
+    );
+    final error = refreshSourceBranchError;
+    if (error != null) {
+      throw error;
     }
   }
 
