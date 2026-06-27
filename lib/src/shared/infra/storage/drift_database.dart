@@ -7,7 +7,7 @@ import 'package:path_provider/path_provider.dart';
 
 part 'drift_database.g.dart';
 
-const int aleraSchemaVersion = 1;
+const int aleraSchemaVersion = 2;
 const String aleraDatabaseFileName = 'alera.sqlite';
 
 class ProjectsTable extends Table {
@@ -33,6 +33,8 @@ class WorkspacesTable extends Table {
   TextColumn get kind => text()();
   TextColumn get status => text()();
   TextColumn get sourceBranch => text().nullable()();
+  BoolColumn get reusesExistingBranch =>
+      boolean().withDefault(const Constant(false))();
 
   @override
   Set<Column<Object>> get primaryKey => <Column<Object>>{id};
@@ -112,7 +114,14 @@ class AleraDatabase extends _$AleraDatabase {
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (Migrator m) => m.createAll(),
-    onUpgrade: (Migrator m, int from, int to) async {},
+    onUpgrade: (Migrator m, int from, int to) async {
+      if (from < 2 && to >= 2) {
+        await m.addColumn(
+          workspacesTable,
+          workspacesTable.reusesExistingBranch,
+        );
+      }
+    },
   );
 }
 

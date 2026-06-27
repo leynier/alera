@@ -21,6 +21,7 @@ class Workspace with WorkspaceMappable {
     required this.status,
     this.branch,
     this.sourceBranch,
+    this.reusesExistingBranch = false,
   });
 
   final String id;
@@ -33,6 +34,7 @@ class Workspace with WorkspaceMappable {
   final WorkspaceKind kind;
   final WorkspaceStatus status;
   final String? sourceBranch;
+  final bool reusesExistingBranch;
 
   bool get isMain => kind == WorkspaceKind.main;
 

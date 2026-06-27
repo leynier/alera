@@ -2,20 +2,12 @@ use std::path::Path;
 
 use anyhow::Result;
 use chrono::{DateTime, SecondsFormat, TimeZone, Utc};
-use sea_orm::sea_query::OnConflict;
-use sea_orm::{
-    ColumnTrait, ConnectionTrait, DatabaseConnection, EntityTrait, QueryFilter, Set,
-    SqlxSqliteConnector, Statement,
-};
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous};
-
-use crate::terminal_host::checkpoint_entity::{ActiveModel, Column, Entity as Checkpoints, Model};
+use sqlx::{Row, SqlitePool};
 
 pub const HISTORY_DATABASE_FILE_NAME: &str = "terminal_history.sqlite";
 
-/// Schema for the checkpoints table. Keep this stable so existing terminal
-/// history databases remain readable.
-const CREATE_TABLE_SQL: &str = "\
+const CREATE_CHECKPOINTS_TABLE_SQL: &str = "\
 CREATE TABLE IF NOT EXISTS checkpoints (\n\
   sessionId TEXT PRIMARY KEY,\n\
   workspaceId TEXT NOT NULL,\n\
@@ -24,11 +16,22 @@ CREATE TABLE IF NOT EXISTS checkpoints (\n\
   running INTEGER NOT NULL,\n\
   exitCode INTEGER,\n\
   endedAt TEXT,\n\
-  updatedAt TEXT NOT NULL,\n\
-  buffer BLOB NOT NULL\n\
+  updatedAt TEXT NOT NULL\n\
 );";
 
-/// A persisted terminal session snapshot.
+const CREATE_OUTPUT_CHUNKS_TABLE_SQL: &str = "\
+CREATE TABLE IF NOT EXISTS outputChunks (\n\
+  id INTEGER PRIMARY KEY AUTOINCREMENT,\n\
+  sessionId TEXT NOT NULL,\n\
+  sequence INTEGER NOT NULL,\n\
+  createdAt TEXT NOT NULL,\n\
+  data BLOB NOT NULL\n\
+);";
+
+const CREATE_OUTPUT_CHUNKS_SESSION_INDEX_SQL: &str = "\
+CREATE INDEX IF NOT EXISTS outputChunksSessionIdSequenceIdx\n\
+ON outputChunks(sessionId, sequence, id);";
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct TerminalHostCheckpoint {
     pub session_id: String,
@@ -42,47 +45,12 @@ pub struct TerminalHostCheckpoint {
     pub buffer: Vec<u8>,
 }
 
-impl TerminalHostCheckpoint {
-    fn from_model(model: Model) -> Self {
-        TerminalHostCheckpoint {
-            session_id: model.session_id,
-            workspace_id: model.workspace_id,
-            tab_id: model.tab_id,
-            working_directory: model.working_directory,
-            running: model.running == 1,
-            exit_code: model.exit_code,
-            ended_at: parse_timestamp(model.ended_at.as_deref()),
-            updated_at: parse_timestamp(Some(model.updated_at.as_str()))
-                .unwrap_or_else(|| Utc.timestamp_opt(0, 0).single().expect("epoch is valid")),
-            buffer: model.buffer,
-        }
-    }
-
-    fn into_active_model(self) -> ActiveModel {
-        ActiveModel {
-            session_id: Set(self.session_id),
-            workspace_id: Set(self.workspace_id),
-            tab_id: Set(self.tab_id),
-            working_directory: Set(self.working_directory),
-            running: Set(if self.running { 1 } else { 0 }),
-            exit_code: Set(self.exit_code),
-            ended_at: Set(self.ended_at.map(format_timestamp)),
-            updated_at: Set(format_timestamp(self.updated_at)),
-            buffer: Set(self.buffer),
-        }
-    }
-}
-
-/// SQLite-backed checkpoint store. Cloneable so PTY sessions and the server can
-/// share the same connection pool (SeaORM wraps an `Arc` pool internally).
 #[derive(Clone)]
 pub struct TerminalHostHistoryStore {
-    db: DatabaseConnection,
+    pool: SqlitePool,
 }
 
 impl TerminalHostHistoryStore {
-    /// Open (creating if needed) the history database under `runtime_dir`,
-    /// applying the host pragmas and ensuring the schema exists.
     pub async fn open(runtime_dir: &Path) -> Result<Self> {
         if !runtime_dir.exists() {
             std::fs::create_dir_all(runtime_dir)?;
@@ -94,61 +62,232 @@ impl TerminalHostHistoryStore {
             .journal_mode(SqliteJournalMode::Wal)
             .synchronous(SqliteSynchronous::Normal);
         let pool = SqlitePoolOptions::new().connect_with(options).await?;
-        let db = SqlxSqliteConnector::from_sqlx_sqlite_pool(pool);
-        db.execute(Statement::from_string(
-            db.get_database_backend(),
-            CREATE_TABLE_SQL.to_string(),
-        ))
+        destroy_legacy_checkpoint_schema(&pool).await?;
+        destroy_unsequenced_output_chunks_schema(&pool).await?;
+        sqlx::query(CREATE_CHECKPOINTS_TABLE_SQL)
+            .execute(&pool)
+            .await?;
+        sqlx::query(CREATE_OUTPUT_CHUNKS_TABLE_SQL)
+            .execute(&pool)
+            .await?;
+        sqlx::query(CREATE_OUTPUT_CHUNKS_SESSION_INDEX_SQL)
+            .execute(&pool)
+            .await?;
+        Ok(TerminalHostHistoryStore { pool })
+    }
+
+    pub async fn read(
+        &self,
+        session_id: &str,
+        max_bytes: usize,
+    ) -> Result<Option<TerminalHostCheckpoint>> {
+        self.trim_session(session_id, max_bytes).await?;
+        let row = sqlx::query(
+            "SELECT sessionId, workspaceId, tabId, workingDirectory, running, exitCode, \
+             endedAt, updatedAt FROM checkpoints WHERE sessionId = ?",
+        )
+        .bind(session_id)
+        .fetch_optional(&self.pool)
         .await?;
-        Ok(TerminalHostHistoryStore { db })
+        let Some(row) = row else {
+            return Ok(None);
+        };
+        let buffer = self.read_buffer(session_id).await?;
+        let ended_at: Option<String> = row.try_get("endedAt")?;
+        let updated_at: String = row.try_get("updatedAt")?;
+        Ok(Some(TerminalHostCheckpoint {
+            session_id: row.try_get("sessionId")?,
+            workspace_id: row.try_get("workspaceId")?,
+            tab_id: row.try_get("tabId")?,
+            working_directory: row.try_get("workingDirectory")?,
+            running: row.try_get::<i64, _>("running")? == 1,
+            exit_code: row.try_get("exitCode")?,
+            ended_at: parse_timestamp(ended_at.as_deref()),
+            updated_at: parse_timestamp(Some(updated_at.as_str()))
+                .unwrap_or_else(|| Utc.timestamp_opt(0, 0).single().expect("epoch is valid")),
+            buffer,
+        }))
     }
 
-    pub async fn read(&self, session_id: &str) -> Result<Option<TerminalHostCheckpoint>> {
-        let model = Checkpoints::find_by_id(session_id.to_string())
-            .one(&self.db)
-            .await?;
-        Ok(model.map(TerminalHostCheckpoint::from_model))
-    }
-
-    /// Insert or replace a checkpoint.
     pub async fn upsert(&self, checkpoint: TerminalHostCheckpoint) -> Result<()> {
-        Checkpoints::insert(checkpoint.into_active_model())
-            .on_conflict(
-                OnConflict::column(Column::SessionId)
-                    .update_columns([
-                        Column::WorkspaceId,
-                        Column::TabId,
-                        Column::WorkingDirectory,
-                        Column::Running,
-                        Column::ExitCode,
-                        Column::EndedAt,
-                        Column::UpdatedAt,
-                        Column::Buffer,
-                    ])
-                    .to_owned(),
-            )
-            .exec(&self.db)
-            .await?;
+        sqlx::query(
+            "INSERT INTO checkpoints \
+             (sessionId, workspaceId, tabId, workingDirectory, running, exitCode, endedAt, updatedAt) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?) \
+             ON CONFLICT(sessionId) DO UPDATE SET \
+             workspaceId = excluded.workspaceId, \
+             tabId = excluded.tabId, \
+             workingDirectory = excluded.workingDirectory, \
+             running = excluded.running, \
+             exitCode = excluded.exitCode, \
+             endedAt = excluded.endedAt, \
+             updatedAt = excluded.updatedAt",
+        )
+        .bind(checkpoint.session_id)
+        .bind(checkpoint.workspace_id)
+        .bind(checkpoint.tab_id)
+        .bind(checkpoint.working_directory)
+        .bind(if checkpoint.running { 1_i64 } else { 0_i64 })
+        .bind(checkpoint.exit_code.map(i64::from))
+        .bind(checkpoint.ended_at.map(format_timestamp))
+        .bind(format_timestamp(checkpoint.updated_at))
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn append_output(&self, session_id: &str, sequence: i64, data: &[u8]) -> Result<()> {
+        if data.is_empty() {
+            return Ok(());
+        }
+        sqlx::query(
+            "INSERT INTO outputChunks (sessionId, sequence, createdAt, data) \
+             SELECT ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM checkpoints WHERE sessionId = ?)",
+        )
+        .bind(session_id)
+        .bind(sequence)
+        .bind(format_timestamp(Utc::now()))
+        .bind(data)
+        .bind(session_id)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn trim_session(&self, session_id: &str, max_bytes: usize) -> Result<()> {
+        let rows = sqlx::query(
+            "SELECT id, sequence, length(data) AS byteLen FROM outputChunks \
+             WHERE sessionId = ? ORDER BY sequence DESC, id DESC",
+        )
+        .bind(session_id)
+        .fetch_all(&self.pool)
+        .await?;
+        let mut kept = 0usize;
+        for row in rows {
+            let id: i64 = row.try_get("id")?;
+            let sequence: i64 = row.try_get("sequence")?;
+            let byte_len: i64 = row.try_get("byteLen")?;
+            let byte_len = byte_len.max(0) as usize;
+            if kept.saturating_add(byte_len) <= max_bytes {
+                kept = kept.saturating_add(byte_len);
+                continue;
+            }
+            let remaining = max_bytes.saturating_sub(kept);
+            if remaining > 0 {
+                let data: Vec<u8> = sqlx::query("SELECT data FROM outputChunks WHERE id = ?")
+                    .bind(id)
+                    .fetch_one(&self.pool)
+                    .await?
+                    .try_get("data")?;
+                let tail_start = data.len().saturating_sub(remaining);
+                let tail = data[tail_start..].to_vec();
+                sqlx::query("UPDATE outputChunks SET data = ? WHERE id = ?")
+                    .bind(tail)
+                    .bind(id)
+                    .execute(&self.pool)
+                    .await?;
+                sqlx::query(
+                    "DELETE FROM outputChunks \
+                     WHERE sessionId = ? AND (sequence < ? OR (sequence = ? AND id < ?))",
+                )
+                .bind(session_id)
+                .bind(sequence)
+                .bind(sequence)
+                .bind(id)
+                .execute(&self.pool)
+                .await?;
+            } else {
+                sqlx::query(
+                    "DELETE FROM outputChunks \
+                     WHERE sessionId = ? AND (sequence < ? OR (sequence = ? AND id <= ?))",
+                )
+                .bind(session_id)
+                .bind(sequence)
+                .bind(sequence)
+                .bind(id)
+                .execute(&self.pool)
+                .await?;
+            }
+            break;
+        }
         Ok(())
     }
 
     pub async fn delete(&self, session_id: &str) -> Result<()> {
-        Checkpoints::delete_many()
-            .filter(Column::SessionId.eq(session_id))
-            .exec(&self.db)
+        sqlx::query("DELETE FROM outputChunks WHERE sessionId = ?")
+            .bind(session_id)
+            .execute(&self.pool)
+            .await?;
+        sqlx::query("DELETE FROM checkpoints WHERE sessionId = ?")
+            .bind(session_id)
+            .execute(&self.pool)
             .await?;
         Ok(())
     }
+
+    async fn read_buffer(&self, session_id: &str) -> Result<Vec<u8>> {
+        let rows = sqlx::query(
+            "SELECT data FROM outputChunks WHERE sessionId = ? ORDER BY sequence ASC, id ASC",
+        )
+        .bind(session_id)
+        .fetch_all(&self.pool)
+        .await?;
+        let total_len = rows
+            .iter()
+            .filter_map(|row| row.try_get::<Vec<u8>, _>("data").ok())
+            .map(|data| data.len())
+            .sum();
+        let mut buffer = Vec::with_capacity(total_len);
+        for row in rows {
+            let data: Vec<u8> = row.try_get("data")?;
+            buffer.extend_from_slice(&data);
+        }
+        Ok(buffer)
+    }
 }
 
-/// Format a UTC instant the way Dart's `DateTime.toIso8601String()` does for UTC
-/// values (millisecond precision, trailing `Z`).
+async fn destroy_legacy_checkpoint_schema(pool: &SqlitePool) -> Result<()> {
+    let rows = sqlx::query("PRAGMA table_info(checkpoints)")
+        .fetch_all(pool)
+        .await?;
+    let has_legacy_buffer = rows.iter().any(|row| {
+        row.try_get::<String, _>("name")
+            .is_ok_and(|name| name == "buffer")
+    });
+    if has_legacy_buffer {
+        sqlx::query("DROP TABLE IF EXISTS checkpoints")
+            .execute(pool)
+            .await?;
+        sqlx::query("DROP TABLE IF EXISTS outputChunks")
+            .execute(pool)
+            .await?;
+    }
+    Ok(())
+}
+
+async fn destroy_unsequenced_output_chunks_schema(pool: &SqlitePool) -> Result<()> {
+    let rows = sqlx::query("PRAGMA table_info(outputChunks)")
+        .fetch_all(pool)
+        .await?;
+    if rows.is_empty() {
+        return Ok(());
+    }
+    let has_sequence = rows.iter().any(|row| {
+        row.try_get::<String, _>("name")
+            .is_ok_and(|name| name == "sequence")
+    });
+    if !has_sequence {
+        sqlx::query("DROP TABLE IF EXISTS outputChunks")
+            .execute(pool)
+            .await?;
+    }
+    Ok(())
+}
+
 fn format_timestamp(value: DateTime<Utc>) -> String {
     value.to_rfc3339_opts(SecondsFormat::Millis, true)
 }
 
-/// Tolerant parse matching Dart's `DateTime.tryParse`: an absent or unparseable
-/// value yields `None`.
 fn parse_timestamp(value: Option<&str>) -> Option<DateTime<Utc>> {
     let value = value?;
     if value.is_empty() {
@@ -173,85 +312,122 @@ mod tests {
             exit_code: None,
             ended_at: None,
             updated_at: Utc.timestamp_opt(1_700_000_000, 123_000_000).unwrap(),
-            buffer: vec![0, 159, 146, 150, b'h', b'i'],
+            buffer: Vec::new(),
         }
     }
 
     #[tokio::test]
-    async fn upsert_then_read_round_trips() {
+    async fn upsert_append_then_read_round_trips_incremental_chunks() {
         let dir = tempfile::tempdir().unwrap();
         let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
 
-        assert!(store.read("missing").await.unwrap().is_none());
+        assert!(store.read("missing", 1024).await.unwrap().is_none());
 
         let checkpoint = sample("s1");
         store.upsert(checkpoint.clone()).await.unwrap();
-        let read = store.read("s1").await.unwrap().unwrap();
-        assert_eq!(read, checkpoint);
+        store.append_output("s1", 0, b"hello ").await.unwrap();
+        store.append_output("s1", 1, b"world").await.unwrap();
+
+        let read = store.read("s1", 1024).await.unwrap().unwrap();
+        assert_eq!(read.session_id, checkpoint.session_id);
+        assert_eq!(read.workspace_id, checkpoint.workspace_id);
+        assert_eq!(read.buffer, b"hello world");
     }
 
     #[tokio::test]
-    async fn upsert_replaces_existing_row() {
-        let dir = tempfile::tempdir().unwrap();
-        let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
-
-        store.upsert(sample("s1")).await.unwrap();
-        let mut exited = sample("s1");
-        exited.running = false;
-        exited.exit_code = Some(0);
-        exited.ended_at = Some(Utc.timestamp_opt(1_700_000_100, 0).unwrap());
-        store.upsert(exited.clone()).await.unwrap();
-
-        let read = store.read("s1").await.unwrap().unwrap();
-        assert_eq!(read, exited);
-        assert!(!read.running);
-        assert_eq!(read.exit_code, Some(0));
-    }
-
-    #[tokio::test]
-    async fn delete_removes_row() {
+    async fn read_orders_chunks_by_sequence_not_insert_order() {
         let dir = tempfile::tempdir().unwrap();
         let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
         store.upsert(sample("s1")).await.unwrap();
-        store.delete("s1").await.unwrap();
-        assert!(store.read("s1").await.unwrap().is_none());
-        // Deleting a missing row is a no-op.
-        store.delete("s1").await.unwrap();
+
+        store.append_output("s1", 1, b"world").await.unwrap();
+        store.append_output("s1", 0, b"hello ").await.unwrap();
+
+        let read = store.read("s1", 1024).await.unwrap().unwrap();
+        assert_eq!(read.buffer, b"hello world");
     }
 
     #[tokio::test]
-    async fn on_disk_format_matches_dart_expectations() {
-        // Verifies the raw column encoding: running as an INTEGER 1,
-        // timestamps as ISO8601 text ending in Z, buffer as a BLOB.
+    async fn append_output_trims_oldest_bytes() {
         let dir = tempfile::tempdir().unwrap();
         let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
-        let mut checkpoint = sample("s1");
-        checkpoint.ended_at = Some(Utc.timestamp_opt(1_700_000_100, 0).unwrap());
-        store.upsert(checkpoint).await.unwrap();
+        store.upsert(sample("s1")).await.unwrap();
 
-        let backend = store.db.get_database_backend();
-        let row = store
-            .db
-            .query_one(Statement::from_string(
-                backend,
-                "SELECT running, updatedAt, endedAt, typeof(buffer) AS buffer_type, \
-                 length(buffer) AS buffer_len FROM checkpoints WHERE sessionId = 's1';"
-                    .to_string(),
-            ))
+        store.append_output("s1", 0, b"abc").await.unwrap();
+        store.append_output("s1", 1, b"de").await.unwrap();
+        store.append_output("s1", 2, b"fg").await.unwrap();
+
+        let read = store.read("s1", 5).await.unwrap().unwrap();
+        assert_eq!(read.buffer, b"cdefg");
+    }
+
+    #[tokio::test]
+    async fn append_output_keeps_tail_of_single_oversized_chunk() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
+        store.upsert(sample("s1")).await.unwrap();
+
+        store.append_output("s1", 0, b"abcdefg").await.unwrap();
+
+        let read = store.read("s1", 3).await.unwrap().unwrap();
+        assert_eq!(read.buffer, b"efg");
+    }
+
+    #[tokio::test]
+    async fn shrinking_session_limit_trims_existing_chunks() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
+        store.upsert(sample("s1")).await.unwrap();
+        store.append_output("s1", 0, b"abcdefgh").await.unwrap();
+
+        store.trim_session("s1", 3).await.unwrap();
+
+        let read = store.read("s1", 3).await.unwrap().unwrap();
+        assert_eq!(read.buffer, b"fgh");
+    }
+
+    #[tokio::test]
+    async fn delete_removes_metadata_and_chunks() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
+        store.upsert(sample("s1")).await.unwrap();
+        store.append_output("s1", 0, b"hello").await.unwrap();
+
+        store.delete("s1").await.unwrap();
+
+        assert!(store.read("s1", 1024).await.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn legacy_buffer_checkpoint_schema_is_destroyed() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join(HISTORY_DATABASE_FILE_NAME);
+        let options = SqliteConnectOptions::new()
+            .filename(&path)
+            .create_if_missing(true);
+        let pool = SqlitePoolOptions::new()
+            .connect_with(options)
             .await
-            .unwrap()
             .unwrap();
+        sqlx::query("CREATE TABLE checkpoints (sessionId TEXT PRIMARY KEY, buffer BLOB NOT NULL)")
+            .execute(&pool)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO checkpoints (sessionId, buffer) VALUES ('old', x'4142')")
+            .execute(&pool)
+            .await
+            .unwrap();
+        drop(pool);
 
-        let running: i32 = row.try_get("", "running").unwrap();
-        let updated_at: String = row.try_get("", "updatedAt").unwrap();
-        let ended_at: String = row.try_get("", "endedAt").unwrap();
-        let buffer_type: String = row.try_get("", "buffer_type").unwrap();
-        let buffer_len: i32 = row.try_get("", "buffer_len").unwrap();
+        let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
 
-        assert_eq!(running, 1);
-        assert!(updated_at.ends_with('Z'), "got {updated_at}");
-        assert!(ended_at.ends_with('Z'), "got {ended_at}");
-        assert_eq!(buffer_type, "blob");
-        assert_eq!(buffer_len, 6);
+        assert!(store.read("old", 1024).await.unwrap().is_none());
+        let columns = sqlx::query("PRAGMA table_info(checkpoints)")
+            .fetch_all(&store.pool)
+            .await
+            .unwrap();
+        assert!(!columns
+            .iter()
+            .any(|row| row.try_get::<String, _>("name").unwrap() == "buffer"));
     }
 }

@@ -154,6 +154,7 @@ class WorkspaceService {
     required Project project,
     required String sourceBranch,
     required String newBranchName,
+    bool reuseExistingBranch = false,
     String? name,
   }) async {
     if (!project.supportsLinkedWorkspaces) {
@@ -171,8 +172,12 @@ class WorkspaceService {
     }
 
     await _validateBranchName(normalizedBranch);
-    await _ensureSourceBranchExists(project, normalizedSource);
-    await _ensureNewBranchDoesNotExist(project, normalizedBranch);
+    if (reuseExistingBranch) {
+      await _ensureTargetBranchExists(project, normalizedBranch);
+    } else {
+      await _ensureSourceBranchExists(project, normalizedSource);
+      await _ensureNewBranchDoesNotExist(project, normalizedBranch);
+    }
 
     final workspaces = await _repository.listWorkspaces(project.id);
     if (workspaces.any(
@@ -203,9 +208,10 @@ class WorkspaceService {
     try {
       await _gitBackend.createWorktree(
         repoPath: project.repoPath,
-        newBranch: normalizedBranch,
+        targetBranch: normalizedBranch,
         path: workspacePath,
         sourceBranch: normalizedSource,
+        reuseExistingBranch: reuseExistingBranch,
       );
     } on GitException catch (error) {
       throw WorkspaceException(
@@ -224,7 +230,8 @@ class WorkspaceService {
       updatedAt: _now(),
       kind: WorkspaceKind.linked,
       status: WorkspaceStatus.active,
-      sourceBranch: normalizedSource,
+      sourceBranch: reuseExistingBranch ? null : normalizedSource,
+      reusesExistingBranch: reuseExistingBranch,
     );
     await _repository.upsertWorkspace(workspace);
     return workspace;
@@ -250,7 +257,8 @@ class WorkspaceService {
         stderr: error.context,
       );
     }
-    if (deleteBranch) {
+    final shouldDeleteBranch = deleteBranch && !workspace.reusesExistingBranch;
+    if (shouldDeleteBranch) {
       final branch = workspace.branch;
       if (branch == null || branch.isEmpty) {
         throw WorkspaceException('Workspace Branch Is Required');
@@ -344,6 +352,16 @@ class WorkspaceService {
     final exists = await _gitBackend.branchExists(project.repoPath, branchName);
     if (exists) {
       throw WorkspaceException('Branch "$branchName" already exists');
+    }
+  }
+
+  Future<void> _ensureTargetBranchExists(
+    Project project,
+    String branchName,
+  ) async {
+    final exists = await _gitBackend.branchExists(project.repoPath, branchName);
+    if (!exists) {
+      throw WorkspaceException('Branch "$branchName" does not exist');
     }
   }
 

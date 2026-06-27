@@ -92,6 +92,39 @@ void main() {
     expect(container.read(provider).requireValue.status.entries, hasLength(5));
   });
 
+  test(
+    'watch signals queue a trailing reload while one is in flight',
+    () async {
+      final backend = _BlockingStatusGitBackend()
+        ..gitStatusResult = _statusWith(1);
+      final watcher = FakeSourceControlWatcher();
+      addTearDown(watcher.dispose);
+      final (container, _) = await _boot(backend, watcher);
+      final provider = workspaceSourceControlControllerProvider(_workspacePath);
+      final gate = Completer<void>();
+
+      backend.statusGates.add(gate);
+      backend.gitStatusResult = _statusWith(2);
+      watcher.emitChange();
+      await Future<void>.delayed(const Duration(milliseconds: 350));
+
+      backend.gitStatusResult = _statusWith(3);
+      watcher.emitChange();
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      gate.complete();
+      await Future<void>.delayed(const Duration(milliseconds: 450));
+
+      expect(
+        container.read(provider).requireValue.status.entries,
+        hasLength(3),
+      );
+      expect(
+        backend.calls.where((call) => call.method == 'status').length,
+        greaterThanOrEqualTo(3),
+      );
+    },
+  );
+
   test('disposing the controller stops the watcher', () async {
     final backend = FakeGitBackend()..gitStatusResult = _statusWith(0);
     final watcher = FakeSourceControlWatcher();
@@ -122,5 +155,19 @@ class _BlockingFetchGitBackend extends FakeGitBackend {
   @override
   Future<void> fetch(String path) async {
     await gate.future;
+  }
+}
+
+class _BlockingStatusGitBackend extends FakeGitBackend {
+  final List<Completer<void>> statusGates = <Completer<void>>[];
+
+  @override
+  Future<GitStatusResult> status(String path) async {
+    calls.add(GitBackendCall('status', <String, Object?>{'path': path}));
+    final result = gitStatusResult;
+    if (statusGates.isNotEmpty) {
+      await statusGates.removeAt(0).future;
+    }
+    return result;
   }
 }
