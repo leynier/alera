@@ -162,6 +162,7 @@ fn creates_lists_and_removes_worktree() {
         "feature".to_string(),
         worktree_path.clone(),
         "main".to_string(),
+        false,
     )
     .unwrap();
 
@@ -179,6 +180,67 @@ fn creates_lists_and_removes_worktree() {
 }
 
 #[test]
+fn creates_worktree_from_existing_branch() {
+    let repo = init_repo();
+    run_git(repo.path(), &["branch", "feature/existing"]);
+    let worktree_base = tempfile::tempdir().expect("tempdir");
+    let worktree_path = path_str(&worktree_base.path().join("existing"));
+
+    create_worktree(
+        path_str(repo.path()),
+        "feature/existing".to_string(),
+        worktree_path.clone(),
+        "main".to_string(),
+        true,
+    )
+    .unwrap();
+
+    assert_eq!(current_branch(worktree_path).unwrap(), "feature/existing");
+}
+
+#[test]
+fn rejects_missing_existing_branch_for_reused_worktree() {
+    let repo = init_repo();
+    let worktree_base = tempfile::tempdir().expect("tempdir");
+    let worktree_path = path_str(&worktree_base.path().join("missing"));
+
+    let error = create_worktree(
+        path_str(repo.path()),
+        "feature/missing".to_string(),
+        worktree_path,
+        "main".to_string(),
+        true,
+    )
+    .unwrap_err();
+
+    assert!(matches!(error.kind, GitErrorKind::BranchNotFound));
+}
+
+#[test]
+fn removes_worktree_metadata_when_checkout_directory_is_missing() {
+    let repo = init_repo();
+    let worktree_base = tempfile::tempdir().expect("tempdir");
+    let worktree_path = path_str(&worktree_base.path().join("feature-missing-dir"));
+
+    create_worktree(
+        path_str(repo.path()),
+        "feature/missing-dir".to_string(),
+        worktree_path.clone(),
+        "main".to_string(),
+        false,
+    )
+    .unwrap();
+    std::fs::remove_dir_all(&worktree_path).expect("remove checkout dir");
+
+    remove_worktree(path_str(repo.path()), worktree_path, true).unwrap();
+
+    let worktrees = list_worktrees(path_str(repo.path())).unwrap();
+    assert!(!worktrees
+        .iter()
+        .any(|entry| entry.branch == "feature/missing-dir"));
+}
+
+#[test]
 fn rejects_duplicate_branch() {
     let repo = init_repo();
     run_git(repo.path(), &["branch", "feature"]);
@@ -189,6 +251,7 @@ fn rejects_duplicate_branch() {
         "feature".to_string(),
         worktree_path,
         "main".to_string(),
+        false,
     )
     .unwrap_err();
     assert!(matches!(error.kind, GitErrorKind::BranchAlreadyExists));
@@ -294,6 +357,7 @@ fn creates_worktree_from_remote_tracking_branch() {
         "local-feature".to_string(),
         worktree_path,
         "origin/feature".to_string(),
+        false,
     )
     .unwrap();
 
@@ -342,6 +406,7 @@ fn refresh_source_branch_fetches_remote_tracking_source() {
         "feature/from-remote".to_string(),
         path_str(&worktree_path),
         "origin/main".to_string(),
+        false,
     )
     .unwrap();
     assert!(worktree_path.join("remote.txt").exists());
@@ -463,6 +528,7 @@ fn refresh_source_branch_fast_forwards_non_current_local_source() {
         "from-local-feature".to_string(),
         path_str(&worktree_path),
         "feature".to_string(),
+        false,
     )
     .unwrap();
     assert_eq!(
@@ -537,6 +603,7 @@ fn rolls_back_branch_when_worktree_fails() {
         "feature".to_string(),
         worktree_path.clone(),
         "main".to_string(),
+        false,
     )
     .unwrap_err();
     assert!(!matches!(error.kind, GitErrorKind::BranchAlreadyExists));
@@ -548,6 +615,7 @@ fn rolls_back_branch_when_worktree_fails() {
         "feature".to_string(),
         worktree_path,
         "main".to_string(),
+        false,
     )
     .unwrap();
     assert!(branch_exists(path_str(repo.path()), "feature".to_string()).unwrap());
@@ -566,6 +634,7 @@ fn creates_same_basename_worktrees_under_different_parents() {
         "feature-a".to_string(),
         path_a.clone(),
         "main".to_string(),
+        false,
     )
     .unwrap();
     create_worktree(
@@ -573,6 +642,7 @@ fn creates_same_basename_worktrees_under_different_parents() {
         "feature-b".to_string(),
         path_b.clone(),
         "main".to_string(),
+        false,
     )
     .unwrap();
 

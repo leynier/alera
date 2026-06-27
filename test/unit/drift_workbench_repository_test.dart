@@ -31,6 +31,7 @@ void main() {
           kind: WorkspaceKind.linked,
           branch: 'feature/a',
           sourceBranch: 'main',
+          reusesExistingBranch: true,
         );
         final linkedLate = _workspace(
           id: 'workspace-linked-late',
@@ -67,6 +68,7 @@ void main() {
         expect(watched, listed);
         expect(listed.first.branch, isNull);
         expect(listed.first.sourceBranch, isNull);
+        expect(listed[1].reusesExistingBranch, isTrue);
       },
     );
 
@@ -337,6 +339,7 @@ Workspace _workspace({
   WorkspaceStatus status = WorkspaceStatus.active,
   String? branch = 'main',
   String? sourceBranch,
+  bool reusesExistingBranch = false,
 }) {
   return Workspace(
     id: id,
@@ -349,6 +352,7 @@ Workspace _workspace({
     updatedAt: now,
     kind: kind,
     status: status,
+    reusesExistingBranch: reusesExistingBranch,
   );
 }
 
@@ -381,6 +385,7 @@ Future<void> _insertWorkspace(AleraDatabase db, Workspace workspace) {
           kind: workspace.kind.name,
           status: workspace.status.name,
           sourceBranch: Value(workspace.sourceBranch),
+          reusesExistingBranch: Value(workspace.reusesExistingBranch),
         ),
       );
 }

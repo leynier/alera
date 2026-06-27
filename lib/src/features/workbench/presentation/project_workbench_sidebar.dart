@@ -280,6 +280,7 @@ class _ProjectWorkbenchSidebarState
       return;
     }
     final branch = workspace.branch;
+    final deleteBranch = !workspace.reusesExistingBranch;
     final shouldConfirm = ref
         .read(settingsControllerProvider)
         .general
@@ -289,7 +290,7 @@ class _ProjectWorkbenchSidebarState
             context: context,
             builder: (_) => AleraConfirmDialog(
               title: 'Remove Workspace?',
-              message: branch == null || branch.isEmpty
+              message: !deleteBranch || branch == null || branch.isEmpty
                   ? 'This removes the worktree for "${workspace.name}".'
                   : 'This removes the worktree for "${workspace.name}" and deletes '
                         'branch "$branch".',
@@ -304,7 +305,11 @@ class _ProjectWorkbenchSidebarState
     try {
       await ref
           .read(workbenchControllerProvider.notifier)
-          .deleteWorkspace(project: project, workspace: workspace);
+          .deleteWorkspace(
+            project: project,
+            workspace: workspace,
+            deleteBranch: deleteBranch,
+          );
       // Only dispose the live terminal sessions once the worktree was actually
       // removed, so a failed git removal doesn't orphan a still-valid workspace.
       ref.read(terminalRuntimeProvider).closeWorkspace(workspace.id);

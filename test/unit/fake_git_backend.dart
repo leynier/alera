@@ -52,7 +52,7 @@ class FakeGitBackend implements GitBackend {
   /// When set, [listWorktrees] throws (callers treat the listing as untrusted).
   bool worktreeListFails = false;
 
-  /// New-branch names whose [createWorktree] should fail.
+  /// Target branch names whose [createWorktree] should fail.
   final Set<String> failingWorktreeAddBranches = <String>{};
 
   /// Worktree paths whose [removeWorktree] should fail.
@@ -149,19 +149,21 @@ class FakeGitBackend implements GitBackend {
   @override
   Future<void> createWorktree({
     required String repoPath,
-    required String newBranch,
+    required String targetBranch,
     required String path,
     required String sourceBranch,
+    bool reuseExistingBranch = false,
   }) async {
     calls.add(
       GitBackendCall('createWorktree', <String, Object?>{
         'repoPath': repoPath,
-        'newBranch': newBranch,
+        'targetBranch': targetBranch,
         'path': path,
         'sourceBranch': sourceBranch,
+        'reuseExistingBranch': reuseExistingBranch,
       }),
     );
-    if (failingWorktreeAddBranches.contains(newBranch)) {
+    if (failingWorktreeAddBranches.contains(targetBranch)) {
       throw const GitInternalException('add failed');
     }
   }

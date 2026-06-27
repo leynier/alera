@@ -7,6 +7,7 @@ use anyhow::Result;
 use serde_json::Value;
 use tokio::net::TcpListener;
 use tokio::sync::mpsc::{self, UnboundedSender};
+use tokio::task::JoinHandle;
 
 use crate::terminal_host::client::{connection_loop, ClientHandle};
 use crate::terminal_host::control_file;
@@ -67,6 +68,7 @@ pub async fn run_terminal_host_server(
         store,
         sessions: HashMap::new(),
         clients: HashMap::new(),
+        pending_output_writes: HashMap::new(),
         inbox,
         shutdown_gen: 0,
         disposed: false,
@@ -114,6 +116,7 @@ struct ServerActor {
     store: TerminalHostHistoryStore,
     sessions: HashMap<String, Session>,
     clients: HashMap<u64, ClientState>,
+    pending_output_writes: HashMap<String, Vec<JoinHandle<()>>>,
     inbox: UnboundedSender<ServerCommand>,
     shutdown_gen: u64,
     disposed: bool,
@@ -212,29 +215,68 @@ impl ServerActor {
 
     fn flush_output_batch(&mut self, session_id: &str) {
         let broadcast = self.sessions.get_mut(session_id).and_then(|session| {
-            let payload = session.flush_output_batch()?;
+            let batch = session.flush_output_batch()?;
             let clients = session.output_clients();
-            Some((event("output", payload), clients))
+            Some((
+                event("output", batch.payload),
+                batch.sequence,
+                batch.data,
+                clients,
+            ))
         });
-        if let Some((frame, clients)) = broadcast {
+        if let Some((frame, sequence, data, clients)) = broadcast {
             self.broadcast(&clients, frame);
+            self.persist_output_batch(session_id.to_string(), sequence, data);
         }
     }
 
     async fn handle_checkpoint_tick(&mut self, session_id: String, generation: u64) {
         let store = self.store.clone();
-        if let Some(session) = self.sessions.get_mut(&session_id) {
-            if session.checkpoint_due(generation) {
+        let due = self
+            .sessions
+            .get_mut(&session_id)
+            .is_some_and(|session| session.checkpoint_due(generation));
+        if due {
+            self.await_output_writes(&session_id).await;
+            if let Some(session) = self.sessions.get_mut(&session_id) {
                 let _ = session.write_checkpoint(&store, None).await;
             }
+            let _ = store
+                .trim_session(&session_id, self.config.scrollback_bytes as usize)
+                .await;
         }
     }
 
     async fn immediate_checkpoint(&mut self, session_id: &str) {
         let store = self.store.clone();
+        self.await_output_writes(session_id).await;
         if let Some(session) = self.sessions.get_mut(session_id) {
             session.invalidate_checkpoint();
             let _ = session.write_checkpoint(&store, None).await;
+            let _ = store
+                .trim_session(session_id, self.config.scrollback_bytes as usize)
+                .await;
+        }
+    }
+
+    fn persist_output_batch(&mut self, session_id: String, sequence: i64, data: Vec<u8>) {
+        let store = self.store.clone();
+        let task_session_id = session_id.clone();
+        let handle = tokio::spawn(async move {
+            let _ = store.append_output(&task_session_id, sequence, &data).await;
+        });
+        self.pending_output_writes
+            .entry(session_id)
+            .or_default()
+            .push(handle);
+    }
+
+    async fn await_output_writes(&mut self, session_id: &str) {
+        let Some(handles) = self.pending_output_writes.remove(session_id) else {
+            return;
+        };
+        for handle in handles {
+            let _ = handle.await;
         }
     }
 
@@ -315,6 +357,8 @@ impl ServerActor {
             if let Some(session) = self.sessions.get_mut(&session_id) {
                 session.set_max_bytes(max_bytes);
             }
+            self.await_output_writes(&session_id).await;
+            let _ = self.store.trim_session(&session_id, max_bytes).await;
             self.immediate_checkpoint(&session_id).await;
         }
         self.schedule_shutdown_if_idle();
@@ -380,6 +424,8 @@ impl ServerActor {
         let store = self.store.clone();
         let session_ids: Vec<String> = self.sessions.keys().cloned().collect();
         for session_id in session_ids {
+            self.flush_output_batch(&session_id);
+            self.await_output_writes(&session_id).await;
             if let Some(mut session) = self.sessions.remove(&session_id) {
                 session.terminate(false, &store).await;
             }

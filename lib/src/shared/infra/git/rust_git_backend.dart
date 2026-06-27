@@ -34,15 +34,17 @@ class RustGitBackend implements GitBackend {
   @override
   Future<void> createWorktree({
     required String repoPath,
-    required String newBranch,
+    required String targetBranch,
     required String path,
     required String sourceBranch,
+    bool reuseExistingBranch = false,
   }) => _guard(
     () => rust.createWorktree(
       repoPath: repoPath,
-      newBranch: newBranch,
+      targetBranch: targetBranch,
       path: path,
       sourceBranch: sourceBranch,
+      reuseExistingBranch: reuseExistingBranch,
     ),
   );
 

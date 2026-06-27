@@ -112,9 +112,10 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void> crateApiGitCreateWorktree({
     required String repoPath,
-    required String newBranch,
+    required String targetBranch,
     required String path,
     required String sourceBranch,
+    required bool reuseExistingBranch,
   });
 
   Future<String> crateApiGitCurrentBranch({required String path});
@@ -539,18 +540,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @override
   Future<void> crateApiGitCreateWorktree({
     required String repoPath,
-    required String newBranch,
+    required String targetBranch,
     required String path,
     required String sourceBranch,
+    required bool reuseExistingBranch,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(repoPath, serializer);
-          sse_encode_String(newBranch, serializer);
+          sse_encode_String(targetBranch, serializer);
           sse_encode_String(path, serializer);
           sse_encode_String(sourceBranch, serializer);
+          sse_encode_bool(reuseExistingBranch, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -563,7 +566,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_git_error,
         ),
         constMeta: kCrateApiGitCreateWorktreeConstMeta,
-        argValues: [repoPath, newBranch, path, sourceBranch],
+        argValues: [
+          repoPath,
+          targetBranch,
+          path,
+          sourceBranch,
+          reuseExistingBranch,
+        ],
         apiImpl: this,
       ),
     );
@@ -571,7 +580,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiGitCreateWorktreeConstMeta => const TaskConstMeta(
     debugName: "create_worktree",
-    argNames: ["repoPath", "newBranch", "path", "sourceBranch"],
+    argNames: [
+      "repoPath",
+      "targetBranch",
+      "path",
+      "sourceBranch",
+      "reuseExistingBranch",
+    ],
   );
 
   @override

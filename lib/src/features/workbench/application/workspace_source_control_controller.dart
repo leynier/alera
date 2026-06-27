@@ -73,6 +73,7 @@ class WorkspaceSourceControlController
   native.SourceControlWatcherHandle? _watcherHandle;
   Timer? _watcherReloadDebounceTimer;
   bool _watcherReloadInFlight = false;
+  bool _watcherReloadQueued = false;
   bool _disposed = false;
 
   @override
@@ -254,6 +255,8 @@ class WorkspaceSourceControlController
         state = AsyncError(error, stackTrace);
       }
       rethrow;
+    } finally {
+      _scheduleQueuedWatcherReload();
     }
   }
 
@@ -279,6 +282,7 @@ class WorkspaceSourceControlController
 
   void _stopWatching() {
     _disposed = true;
+    _watcherReloadQueued = false;
     _watcherReloadDebounceTimer?.cancel();
     _watcherReloadDebounceTimer = null;
     final subscription = _watchSubscription;
@@ -301,12 +305,17 @@ class WorkspaceSourceControlController
   }
 
   Future<void> _reloadFromWatcher() async {
-    if (_disposed || _watcherReloadInFlight) {
+    if (_disposed) {
+      return;
+    }
+    if (_watcherReloadInFlight) {
+      _watcherReloadQueued = true;
       return;
     }
     // Defer while an action runs: `_run` reloads when it finishes, and skipping
     // here avoids clobbering its optimistic busy state.
     if (state.asData?.value.isBusy ?? false) {
+      _watcherReloadQueued = true;
       return;
     }
     _watcherReloadInFlight = true;
@@ -320,7 +329,16 @@ class WorkspaceSourceControlController
       // Best-effort background refresh: keep the current state on failure.
     } finally {
       _watcherReloadInFlight = false;
+      _scheduleQueuedWatcherReload();
     }
+  }
+
+  void _scheduleQueuedWatcherReload() {
+    if (_disposed || !_watcherReloadQueued) {
+      return;
+    }
+    _watcherReloadQueued = false;
+    _scheduleWatcherReload();
   }
 
   Future<WorkspaceSourceControlState?> _recoverAfterFailure(

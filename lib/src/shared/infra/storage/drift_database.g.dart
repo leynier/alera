@@ -514,6 +514,20 @@ class $WorkspacesTableTable extends WorkspacesTable
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _reusesExistingBranchMeta =
+      const VerificationMeta('reusesExistingBranch');
+  @override
+  late final GeneratedColumn<bool> reusesExistingBranch = GeneratedColumn<bool>(
+    'reuses_existing_branch',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("reuses_existing_branch" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -526,6 +540,7 @@ class $WorkspacesTableTable extends WorkspacesTable
     kind,
     status,
     sourceBranch,
+    reusesExistingBranch,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -615,6 +630,15 @@ class $WorkspacesTableTable extends WorkspacesTable
         ),
       );
     }
+    if (data.containsKey('reuses_existing_branch')) {
+      context.handle(
+        _reusesExistingBranchMeta,
+        reusesExistingBranch.isAcceptableOrUnknown(
+          data['reuses_existing_branch']!,
+          _reusesExistingBranchMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -664,6 +688,10 @@ class $WorkspacesTableTable extends WorkspacesTable
         DriftSqlType.string,
         data['${effectivePrefix}source_branch'],
       ),
+      reusesExistingBranch: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}reuses_existing_branch'],
+      )!,
     );
   }
 
@@ -685,6 +713,7 @@ class WorkspacesTableData extends DataClass
   final String kind;
   final String status;
   final String? sourceBranch;
+  final bool reusesExistingBranch;
   const WorkspacesTableData({
     required this.id,
     required this.projectId,
@@ -696,6 +725,7 @@ class WorkspacesTableData extends DataClass
     required this.kind,
     required this.status,
     this.sourceBranch,
+    required this.reusesExistingBranch,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -714,6 +744,7 @@ class WorkspacesTableData extends DataClass
     if (!nullToAbsent || sourceBranch != null) {
       map['source_branch'] = Variable<String>(sourceBranch);
     }
+    map['reuses_existing_branch'] = Variable<bool>(reusesExistingBranch);
     return map;
   }
 
@@ -733,6 +764,7 @@ class WorkspacesTableData extends DataClass
       sourceBranch: sourceBranch == null && nullToAbsent
           ? const Value.absent()
           : Value(sourceBranch),
+      reusesExistingBranch: Value(reusesExistingBranch),
     );
   }
 
@@ -752,6 +784,9 @@ class WorkspacesTableData extends DataClass
       kind: serializer.fromJson<String>(json['kind']),
       status: serializer.fromJson<String>(json['status']),
       sourceBranch: serializer.fromJson<String?>(json['sourceBranch']),
+      reusesExistingBranch: serializer.fromJson<bool>(
+        json['reusesExistingBranch'],
+      ),
     );
   }
   @override
@@ -768,6 +803,7 @@ class WorkspacesTableData extends DataClass
       'kind': serializer.toJson<String>(kind),
       'status': serializer.toJson<String>(status),
       'sourceBranch': serializer.toJson<String?>(sourceBranch),
+      'reusesExistingBranch': serializer.toJson<bool>(reusesExistingBranch),
     };
   }
 
@@ -782,6 +818,7 @@ class WorkspacesTableData extends DataClass
     String? kind,
     String? status,
     Value<String?> sourceBranch = const Value.absent(),
+    bool? reusesExistingBranch,
   }) => WorkspacesTableData(
     id: id ?? this.id,
     projectId: projectId ?? this.projectId,
@@ -793,6 +830,7 @@ class WorkspacesTableData extends DataClass
     kind: kind ?? this.kind,
     status: status ?? this.status,
     sourceBranch: sourceBranch.present ? sourceBranch.value : this.sourceBranch,
+    reusesExistingBranch: reusesExistingBranch ?? this.reusesExistingBranch,
   );
   WorkspacesTableData copyWithCompanion(WorkspacesTableCompanion data) {
     return WorkspacesTableData(
@@ -808,6 +846,9 @@ class WorkspacesTableData extends DataClass
       sourceBranch: data.sourceBranch.present
           ? data.sourceBranch.value
           : this.sourceBranch,
+      reusesExistingBranch: data.reusesExistingBranch.present
+          ? data.reusesExistingBranch.value
+          : this.reusesExistingBranch,
     );
   }
 
@@ -823,7 +864,8 @@ class WorkspacesTableData extends DataClass
           ..write('updatedAt: $updatedAt, ')
           ..write('kind: $kind, ')
           ..write('status: $status, ')
-          ..write('sourceBranch: $sourceBranch')
+          ..write('sourceBranch: $sourceBranch, ')
+          ..write('reusesExistingBranch: $reusesExistingBranch')
           ..write(')'))
         .toString();
   }
@@ -840,6 +882,7 @@ class WorkspacesTableData extends DataClass
     kind,
     status,
     sourceBranch,
+    reusesExistingBranch,
   );
   @override
   bool operator ==(Object other) =>
@@ -854,7 +897,8 @@ class WorkspacesTableData extends DataClass
           other.updatedAt == this.updatedAt &&
           other.kind == this.kind &&
           other.status == this.status &&
-          other.sourceBranch == this.sourceBranch);
+          other.sourceBranch == this.sourceBranch &&
+          other.reusesExistingBranch == this.reusesExistingBranch);
 }
 
 class WorkspacesTableCompanion extends UpdateCompanion<WorkspacesTableData> {
@@ -868,6 +912,7 @@ class WorkspacesTableCompanion extends UpdateCompanion<WorkspacesTableData> {
   final Value<String> kind;
   final Value<String> status;
   final Value<String?> sourceBranch;
+  final Value<bool> reusesExistingBranch;
   final Value<int> rowid;
   const WorkspacesTableCompanion({
     this.id = const Value.absent(),
@@ -880,6 +925,7 @@ class WorkspacesTableCompanion extends UpdateCompanion<WorkspacesTableData> {
     this.kind = const Value.absent(),
     this.status = const Value.absent(),
     this.sourceBranch = const Value.absent(),
+    this.reusesExistingBranch = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   WorkspacesTableCompanion.insert({
@@ -893,6 +939,7 @@ class WorkspacesTableCompanion extends UpdateCompanion<WorkspacesTableData> {
     required String kind,
     required String status,
     this.sourceBranch = const Value.absent(),
+    this.reusesExistingBranch = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        projectId = Value(projectId),
@@ -913,6 +960,7 @@ class WorkspacesTableCompanion extends UpdateCompanion<WorkspacesTableData> {
     Expression<String>? kind,
     Expression<String>? status,
     Expression<String>? sourceBranch,
+    Expression<bool>? reusesExistingBranch,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -926,6 +974,8 @@ class WorkspacesTableCompanion extends UpdateCompanion<WorkspacesTableData> {
       if (kind != null) 'kind': kind,
       if (status != null) 'status': status,
       if (sourceBranch != null) 'source_branch': sourceBranch,
+      if (reusesExistingBranch != null)
+        'reuses_existing_branch': reusesExistingBranch,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -941,6 +991,7 @@ class WorkspacesTableCompanion extends UpdateCompanion<WorkspacesTableData> {
     Value<String>? kind,
     Value<String>? status,
     Value<String?>? sourceBranch,
+    Value<bool>? reusesExistingBranch,
     Value<int>? rowid,
   }) {
     return WorkspacesTableCompanion(
@@ -954,6 +1005,7 @@ class WorkspacesTableCompanion extends UpdateCompanion<WorkspacesTableData> {
       kind: kind ?? this.kind,
       status: status ?? this.status,
       sourceBranch: sourceBranch ?? this.sourceBranch,
+      reusesExistingBranch: reusesExistingBranch ?? this.reusesExistingBranch,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -991,6 +1043,11 @@ class WorkspacesTableCompanion extends UpdateCompanion<WorkspacesTableData> {
     if (sourceBranch.present) {
       map['source_branch'] = Variable<String>(sourceBranch.value);
     }
+    if (reusesExistingBranch.present) {
+      map['reuses_existing_branch'] = Variable<bool>(
+        reusesExistingBranch.value,
+      );
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1010,6 +1067,7 @@ class WorkspacesTableCompanion extends UpdateCompanion<WorkspacesTableData> {
           ..write('kind: $kind, ')
           ..write('status: $status, ')
           ..write('sourceBranch: $sourceBranch, ')
+          ..write('reusesExistingBranch: $reusesExistingBranch, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -2389,6 +2447,7 @@ typedef $$WorkspacesTableTableCreateCompanionBuilder =
       required String kind,
       required String status,
       Value<String?> sourceBranch,
+      Value<bool> reusesExistingBranch,
       Value<int> rowid,
     });
 typedef $$WorkspacesTableTableUpdateCompanionBuilder =
@@ -2403,6 +2462,7 @@ typedef $$WorkspacesTableTableUpdateCompanionBuilder =
       Value<String> kind,
       Value<String> status,
       Value<String?> sourceBranch,
+      Value<bool> reusesExistingBranch,
       Value<int> rowid,
     });
 
@@ -2462,6 +2522,11 @@ class $$WorkspacesTableTableFilterComposer
 
   ColumnFilters<String> get sourceBranch => $composableBuilder(
     column: $table.sourceBranch,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get reusesExistingBranch => $composableBuilder(
+    column: $table.reusesExistingBranch,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -2524,6 +2589,11 @@ class $$WorkspacesTableTableOrderingComposer
     column: $table.sourceBranch,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get reusesExistingBranch => $composableBuilder(
+    column: $table.reusesExistingBranch,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$WorkspacesTableTableAnnotationComposer
@@ -2564,6 +2634,11 @@ class $$WorkspacesTableTableAnnotationComposer
 
   GeneratedColumn<String> get sourceBranch => $composableBuilder(
     column: $table.sourceBranch,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get reusesExistingBranch => $composableBuilder(
+    column: $table.reusesExistingBranch,
     builder: (column) => column,
   );
 }
@@ -2615,6 +2690,7 @@ class $$WorkspacesTableTableTableManager
                 Value<String> kind = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<String?> sourceBranch = const Value.absent(),
+                Value<bool> reusesExistingBranch = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => WorkspacesTableCompanion(
                 id: id,
@@ -2627,6 +2703,7 @@ class $$WorkspacesTableTableTableManager
                 kind: kind,
                 status: status,
                 sourceBranch: sourceBranch,
+                reusesExistingBranch: reusesExistingBranch,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -2641,6 +2718,7 @@ class $$WorkspacesTableTableTableManager
                 required String kind,
                 required String status,
                 Value<String?> sourceBranch = const Value.absent(),
+                Value<bool> reusesExistingBranch = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => WorkspacesTableCompanion.insert(
                 id: id,
@@ -2653,6 +2731,7 @@ class $$WorkspacesTableTableTableManager
                 kind: kind,
                 status: status,
                 sourceBranch: sourceBranch,
+                reusesExistingBranch: reusesExistingBranch,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

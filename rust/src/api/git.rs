@@ -260,9 +260,20 @@ fn existing_worktree_admin_names(repo: &Repository) -> std::collections::HashSet
 }
 
 fn canonical(path: &str) -> String {
-    std::fs::canonicalize(path)
-        .map(|resolved| resolved.to_string_lossy().to_string())
-        .unwrap_or_else(|_| path.trim_end_matches('/').to_string())
+    let target = Path::new(path);
+    if let Ok(resolved) = std::fs::canonicalize(target) {
+        return resolved.to_string_lossy().trim_end_matches('/').to_string();
+    }
+    if let (Some(parent), Some(name)) = (target.parent(), target.file_name()) {
+        if let Ok(resolved_parent) = std::fs::canonicalize(parent) {
+            return resolved_parent
+                .join(name)
+                .to_string_lossy()
+                .trim_end_matches('/')
+                .to_string();
+        }
+    }
+    path.trim_end_matches('/').to_string()
 }
 
 pub fn is_git_repository(path: String) -> Result<bool, GitError> {
@@ -1352,13 +1363,15 @@ fn has_configured_remote_for_tracking_branch(
     Ok(configured_remote_for_tracking_branch(repo, remote_branch)?.is_some())
 }
 
-/// Creates `new_branch` from `source_branch` and adds a linked worktree at
-/// `path`. Mirrors `git worktree add -b <new_branch> <path> <source_branch>`.
+/// Adds a linked worktree at `path` for `target_branch`. By default this creates
+/// `target_branch` from `source_branch`; when `reuse_existing_branch` is true,
+/// `target_branch` must already exist locally.
 pub fn create_worktree(
     repo_path: String,
-    new_branch: String,
+    target_branch: String,
     path: String,
     source_branch: String,
+    reuse_existing_branch: bool,
 ) -> Result<(), GitError> {
     let repo = open_repo(&repo_path)?;
 
@@ -1367,6 +1380,32 @@ pub fn create_worktree(
     // or worktree admin entry that would make a later retry fail.
     if is_path_occupied(&path) {
         return Err(GitError::new(GitErrorKind::WorktreeAlreadyExists, path));
+    }
+
+    if reuse_existing_branch {
+        let branch = repo
+            .find_branch(&target_branch, BranchType::Local)
+            .map_err(|error| match error.code() {
+                ErrorCode::NotFound => {
+                    GitError::new(GitErrorKind::BranchNotFound, target_branch.clone())
+                }
+                _ => GitError::from_git2(error),
+            })?;
+        let worktree_result = {
+            let reference = branch.into_reference();
+            let mut options = WorktreeAddOptions::new();
+            options.reference(Some(&reference));
+            let admin_name = unique_worktree_admin_name(&repo, &path);
+            repo.worktree(&admin_name, Path::new(&path), Some(&options))
+        };
+        return worktree_result
+            .map(|_| ())
+            .map_err(|error| match error.code() {
+                ErrorCode::Exists => {
+                    GitError::new(GitErrorKind::WorktreeAlreadyExists, path.clone())
+                }
+                _ => GitError::from_git2(error),
+            });
     }
 
     // Resolve the source as any committish (local branch, remote-tracking ref
@@ -1379,13 +1418,13 @@ pub fn create_worktree(
 
     let upstream_name = remote_tracking_upstream_name(&repo, &source_branch)?;
     let mut branch =
-        repo.branch(&new_branch, &source_commit, false)
+        repo.branch(&target_branch, &source_commit, false)
             .map_err(|error| match error.code() {
                 ErrorCode::Exists => {
-                    GitError::new(GitErrorKind::BranchAlreadyExists, new_branch.clone())
+                    GitError::new(GitErrorKind::BranchAlreadyExists, target_branch.clone())
                 }
                 ErrorCode::InvalidSpec => {
-                    GitError::new(GitErrorKind::InvalidBranchName, new_branch.clone())
+                    GitError::new(GitErrorKind::InvalidBranchName, target_branch.clone())
                 }
                 _ => GitError::from_git2(error),
             })?;
@@ -1408,7 +1447,7 @@ pub fn create_worktree(
         // The branch was created above; if the worktree could not be added the
         // whole action failed, so roll the branch back to keep it atomic and
         // let a retry succeed instead of hitting BranchAlreadyExists.
-        if let Ok(mut created) = repo.find_branch(&new_branch, BranchType::Local) {
+        if let Ok(mut created) = repo.find_branch(&target_branch, BranchType::Local) {
             let _ = created.delete();
         }
         return Err(match error.code() {
@@ -1455,9 +1494,16 @@ pub fn remove_worktree(repo_path: String, path: String, force: bool) -> Result<(
 
     let mut options = WorktreePruneOptions::new();
     options.valid(true).working_tree(true).locked(force);
-    worktree
-        .prune(Some(&mut options))
-        .map_err(GitError::from_git2)?;
+    if let Err(error) = worktree.prune(Some(&mut options)) {
+        if Path::new(&path).exists() {
+            return Err(GitError::from_git2(error));
+        }
+        let mut metadata_options = WorktreePruneOptions::new();
+        metadata_options.locked(force);
+        worktree
+            .prune(Some(&mut metadata_options))
+            .map_err(GitError::from_git2)?;
+    }
     Ok(())
 }
 
