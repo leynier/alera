@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/buttons/alera_segmented_button.dart';
 import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/forms/alera_search_field.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
@@ -22,6 +23,7 @@ class CreateWorkspaceDialog extends StatefulWidget {
     required this.onCreateWorkspace,
     required this.checkBranchExists,
     required this.getProjectActiveBranch,
+    required this.getProjectWorkspaceBranches,
     this.initialProject,
     this.onAddProject,
   });
@@ -33,12 +35,14 @@ class CreateWorkspaceDialog extends StatefulWidget {
     required Project project,
     required String sourceBranch,
     required String newBranchName,
+    required bool reuseExistingBranch,
     String? name,
   })
   onCreateWorkspace;
   final Future<bool> Function(Project project, String branchName)
   checkBranchExists;
   final String? Function(Project project) getProjectActiveBranch;
+  final Set<String> Function(Project project) getProjectWorkspaceBranches;
   final VoidCallback? onAddProject;
 
   @override
@@ -55,6 +59,9 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
 
   Project? _selectedProject;
   List<String> _branches = const <String>[];
+  List<String> _localBranches = const <String>[];
+  bool _localBranchesLoaded = false;
+  bool _loadingLocalBranches = false;
   String? _selectedSourceBranch;
   bool _nameTouched = false;
   bool _loadingBranches = false;
@@ -63,6 +70,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
   String _branchQuery = '';
   String? _sourceBranchError;
   String? _newBranchError;
+  bool _reuseExistingBranch = false;
 
   // New state fields for 2-step flow and inline creation
   int _currentStep = 1; // 1: Selection, 2: Config/Preview
@@ -125,11 +133,56 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
     return branches.first;
   }
 
+  Future<List<String>> _filterLocalBranches(
+    Project project,
+    List<String> branches,
+  ) async {
+    final workspaceBranches = widget
+        .getProjectWorkspaceBranches(project)
+        .map((branch) => branch.trim())
+        .where((branch) => branch.isNotEmpty)
+        .toSet();
+    final results = await Future.wait(
+      branches.map((branch) async {
+        try {
+          return (
+            branch: branch,
+            isLocal: await widget.checkBranchExists(project, branch),
+          );
+        } catch (_) {
+          return (branch: branch, isLocal: false);
+        }
+      }),
+    );
+    return <String>[
+      for (final result in results)
+        if (result.isLocal && !workspaceBranches.contains(result.branch))
+          result.branch,
+    ];
+  }
+
+  List<String> _branchesForMode(bool reuseExistingBranch) {
+    return reuseExistingBranch ? _localBranches : _branches;
+  }
+
+  String? _pickBranchForMode(bool reuseExistingBranch) {
+    final availableBranches = _branchesForMode(reuseExistingBranch);
+    final currentBranch =
+        (_selectedSourceBranch ?? _sourceBranchController.text).trim();
+    if (currentBranch.isNotEmpty && availableBranches.contains(currentBranch)) {
+      return currentBranch;
+    }
+    return _pickDefaultSourceBranch(availableBranches);
+  }
+
   Future<void> _loadBranches(Project project) async {
     setState(() {
       _loadingBranches = true;
       _branchesError = null;
       _branches = const <String>[];
+      _localBranches = const <String>[];
+      _localBranchesLoaded = false;
+      _loadingLocalBranches = false;
       _selectedSourceBranch = null;
       _sourceBranchController.clear();
       _branchSearchController.clear();
@@ -140,15 +193,26 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
       if (!mounted || _selectedProject?.id != project.id) {
         return;
       }
-      final defaultBranch = _pickDefaultSourceBranch(branches);
+      final defaultBranch = _pickDefaultSourceBranch(
+        _reuseExistingBranch ? const <String>[] : branches,
+      );
       setState(() {
         _branches = branches;
         _selectedSourceBranch = defaultBranch;
         if (defaultBranch != null) {
           _sourceBranchController.text = defaultBranch;
+          if (_reuseExistingBranch) {
+            _newBranchController.text = defaultBranch;
+            if (!_nameTouched) {
+              _nameController.text = defaultBranch;
+            }
+          }
         }
         _loadingBranches = false;
       });
+      if (_reuseExistingBranch) {
+        unawaited(_loadLocalBranches(project));
+      }
     } catch (error) {
       if (!mounted || _selectedProject?.id != project.id) {
         return;
@@ -158,6 +222,43 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
         _loadingBranches = false;
       });
     }
+  }
+
+  Future<void> _loadLocalBranches(Project project) async {
+    if (_localBranchesLoaded || _loadingLocalBranches || _loadingBranches) {
+      return;
+    }
+    setState(() {
+      _loadingLocalBranches = true;
+    });
+    final localBranches = await _filterLocalBranches(project, _branches);
+    if (!mounted || _selectedProject?.id != project.id) {
+      return;
+    }
+    final selectedBranch = _reuseExistingBranch
+        ? _pickDefaultSourceBranch(localBranches)
+        : _selectedSourceBranch;
+    setState(() {
+      _localBranches = localBranches;
+      _localBranchesLoaded = true;
+      _loadingLocalBranches = false;
+      if (_reuseExistingBranch) {
+        _selectedSourceBranch = selectedBranch;
+        if (selectedBranch == null) {
+          _sourceBranchController.clear();
+          _newBranchController.clear();
+          if (!_nameTouched) {
+            _nameController.clear();
+          }
+        } else {
+          _sourceBranchController.text = selectedBranch;
+          _newBranchController.text = selectedBranch;
+          if (!_nameTouched) {
+            _nameController.text = selectedBranch;
+          }
+        }
+      }
+    });
   }
 
   void _selectProject(Project project) {
@@ -176,7 +277,55 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
       _selectedSourceBranch = branch;
       _sourceBranchController.text = branch;
       _sourceBranchError = null;
+      if (_reuseExistingBranch) {
+        _newBranchController.text = branch;
+        if (!_nameTouched) {
+          _nameController.text = branch;
+        }
+      }
     });
+  }
+
+  void _setReuseExistingBranch(bool value) {
+    if (_reuseExistingBranch == value) {
+      return;
+    }
+    _validationDebounce?.cancel();
+    final selectedBranch = value && !_localBranchesLoaded
+        ? null
+        : _pickBranchForMode(value);
+    setState(() {
+      _reuseExistingBranch = value;
+      _selectedSourceBranch = selectedBranch;
+      _sourceBranchError = null;
+      _newBranchError = null;
+      _branchValidationError = null;
+      _isValidatingBranch = false;
+      _branchSearchController.clear();
+      _branchQuery = '';
+      if (selectedBranch == null) {
+        _sourceBranchController.clear();
+      } else {
+        _sourceBranchController.text = selectedBranch;
+      }
+      if (value) {
+        _newBranchController.text = selectedBranch ?? '';
+        if (!_nameTouched) {
+          _nameController.text = selectedBranch ?? '';
+        }
+      } else {
+        _newBranchController.clear();
+        if (!_nameTouched) {
+          _nameController.clear();
+        }
+      }
+    });
+    if (value) {
+      final project = _selectedProject;
+      if (project != null) {
+        unawaited(_loadLocalBranches(project));
+      }
+    }
   }
 
   void _onNewBranchChanged(String value) {
@@ -201,7 +350,9 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
         final exists = await widget.checkBranchExists(project, trimmed);
         if (!mounted || _newBranchController.text.trim() != trimmed) return;
         setState(() {
-          if (exists) {
+          if (_reuseExistingBranch && !exists) {
+            _branchValidationError = 'Branch "$trimmed" Does Not Exist';
+          } else if (!_reuseExistingBranch && exists) {
             _branchValidationError = 'Branch "$trimmed" already exists';
           }
           _isValidatingBranch = false;
@@ -220,14 +371,14 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
     }
     final sourceBranch = (_selectedSourceBranch ?? _sourceBranchController.text)
         .trim();
-    final newBranchName = _newBranchController.text.trim();
+    final newBranchName = _targetBranchName(sourceBranch);
     final name = _nameController.text.trim();
 
     final sourceBranchError = sourceBranch.isEmpty
-        ? 'Source Branch Is Required'
+        ? _sourceBranchRequiredError()
         : null;
     final newBranchError = newBranchName.isEmpty
-        ? 'New Branch Name Is Required'
+        ? _targetBranchRequiredError()
         : null;
 
     if (sourceBranchError != null || newBranchError != null) {
@@ -252,6 +403,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
         project: project,
         sourceBranch: sourceBranch,
         newBranchName: newBranchName,
+        reuseExistingBranch: _reuseExistingBranch,
         name: name.isEmpty ? null : name,
       );
       if (mounted) {
@@ -265,6 +417,41 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
         });
       }
     }
+  }
+
+  String _targetBranchName(String sourceBranch) {
+    if (_reuseExistingBranch) {
+      return sourceBranch;
+    }
+    return _newBranchController.text.trim();
+  }
+
+  String _sourceBranchRequiredError() {
+    return _reuseExistingBranch
+        ? 'Existing Branch Is Required'
+        : 'Source Branch Is Required';
+  }
+
+  String _targetBranchRequiredError() {
+    return _reuseExistingBranch
+        ? 'Existing Branch Is Required'
+        : 'New Branch Name Is Required';
+  }
+
+  String _branchPickerLabel() {
+    return _reuseExistingBranch ? 'Existing Branch' : 'Source Branch';
+  }
+
+  String _branchSearchHint() {
+    return _reuseExistingBranch
+        ? 'Search Existing Branches'
+        : 'Search Source Branches';
+  }
+
+  String _emptyBranchesMessage() {
+    return _reuseExistingBranch
+        ? 'No Existing Branches Match "$_branchQuery"'
+        : 'No Source Branches Match "$_branchQuery"';
   }
 
   String _slugify(String input) {
@@ -294,6 +481,9 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final selectedProject = _selectedProject;
+    final visibleBranches = _branchesForMode(_reuseExistingBranch);
+    final loadingBranchChoices =
+        _loadingBranches || (_reuseExistingBranch && _loadingLocalBranches);
 
     if (widget.projects.isEmpty) {
       return AleraDialog(
@@ -455,11 +645,29 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                                     widget.getProjectActiveBranch,
                               ),
                               const SizedBox(height: AleraTokens.space16),
-                              if (_loadingBranches)
+                              AleraSegmentedButton<bool>(
+                                segments: const <ButtonSegment<bool>>[
+                                  ButtonSegment<bool>(
+                                    value: false,
+                                    label: Text('New Branch'),
+                                  ),
+                                  ButtonSegment<bool>(
+                                    value: true,
+                                    label: Text('Existing Branch'),
+                                  ),
+                                ],
+                                selected: _reuseExistingBranch,
+                                onSelectionChanged: _setReuseExistingBranch,
+                              ),
+                              const SizedBox(height: AleraTokens.space16),
+                              if (loadingBranchChoices)
                                 const _LoadingBranches()
-                              else if (_branches.isNotEmpty)
+                              else if (visibleBranches.isNotEmpty)
                                 _SourceBranchPicker(
-                                  branches: _branches,
+                                  label: _branchPickerLabel(),
+                                  searchHint: _branchSearchHint(),
+                                  emptyMessage: _emptyBranchesMessage(),
+                                  branches: visibleBranches,
                                   selectedBranch: _selectedSourceBranch,
                                   query: _branchQuery,
                                   controller: _branchSearchController,
@@ -500,11 +708,22 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                                 AleraTextField(
                                   controller: _sourceBranchController,
                                   autofocus: true,
-                                  labelText: 'Source Branch',
+                                  labelText: _branchPickerLabel(),
                                   hintText: 'e.g. main',
                                   errorText: _sourceBranchError,
                                   onChanged: (_) {
-                                    setState(() => _sourceBranchError = null);
+                                    setState(() {
+                                      _sourceBranchError = null;
+                                      if (_reuseExistingBranch) {
+                                        final branch = _sourceBranchController
+                                            .text
+                                            .trim();
+                                        _newBranchController.text = branch;
+                                        if (!_nameTouched) {
+                                          _nameController.text = branch;
+                                        }
+                                      }
+                                    });
                                   },
                                 ),
                               ],
@@ -573,7 +792,9 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                                             right: AleraTokens.space12,
                                           ),
                                           child: Text(
-                                            'Source Branch:',
+                                            _reuseExistingBranch
+                                                ? 'Existing Branch:'
+                                                : 'Source Branch:',
                                             style: theme.textTheme.labelMedium
                                                 ?.copyWith(
                                                   color: AleraTokens
@@ -596,26 +817,34 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                                 ),
                               ),
                               const SizedBox(height: AleraTokens.space16),
-                              AleraTextField(
-                                controller: _newBranchController,
-                                autofocus: true,
-                                enabled: !_creating,
-                                labelText: 'New Branch Name *',
-                                hintText: 'e.g. feature/terminal-tabs',
-                                errorText:
-                                    _newBranchError ?? _branchValidationError,
-                                suffix: _isValidatingBranch
-                                    ? const SizedBox(
-                                        width: 12,
-                                        height: 12,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 1.5,
-                                        ),
-                                      )
-                                    : null,
-                                onChanged: _onNewBranchChanged,
-                                onSubmitted: (_) => _submit(),
-                              ),
+                              if (_reuseExistingBranch)
+                                AleraTextField(
+                                  controller: _newBranchController,
+                                  enabled: false,
+                                  labelText: 'Existing Branch *',
+                                  errorText: _newBranchError,
+                                )
+                              else
+                                AleraTextField(
+                                  controller: _newBranchController,
+                                  autofocus: true,
+                                  enabled: !_creating,
+                                  labelText: 'New Branch Name *',
+                                  hintText: 'e.g. feature/terminal-tabs',
+                                  errorText:
+                                      _newBranchError ?? _branchValidationError,
+                                  suffix: _isValidatingBranch
+                                      ? const SizedBox(
+                                          width: 12,
+                                          height: 12,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 1.5,
+                                          ),
+                                        )
+                                      : null,
+                                  onChanged: _onNewBranchChanged,
+                                  onSubmitted: (_) => _submit(),
+                                ),
                               const SizedBox(height: AleraTokens.space12),
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -741,7 +970,9 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                                         const SizedBox(width: 6),
                                         Expanded(
                                           child: Text(
-                                            'Branch: ${_newBranchController.text.isEmpty ? "<new-branch>" : _newBranchController.text} ← from ${(_selectedSourceBranch ?? _sourceBranchController.text).isEmpty ? "<source>" : (_selectedSourceBranch ?? _sourceBranchController.text)}',
+                                            _reuseExistingBranch
+                                                ? 'Branch: ${(_selectedSourceBranch ?? _sourceBranchController.text).isEmpty ? "<existing-branch>" : (_selectedSourceBranch ?? _sourceBranchController.text)}'
+                                                : 'Branch: ${_newBranchController.text.isEmpty ? "<new-branch>" : _newBranchController.text} ← from ${(_selectedSourceBranch ?? _sourceBranchController.text).isEmpty ? "<source>" : (_selectedSourceBranch ?? _sourceBranchController.text)}',
                                             overflow: TextOverflow.ellipsis,
                                             style: AleraTokens.monoStyle
                                                 .copyWith(
@@ -818,7 +1049,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                             if (sourceBranch.isEmpty) {
                               setState(() {
                                 _sourceBranchError =
-                                    'Source Branch Is Required';
+                                    _sourceBranchRequiredError();
                               });
                               return;
                             }
@@ -836,11 +1067,16 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                             _branchValidationError != null
                         ? null
                         : () {
-                            final newBranchName = _newBranchController.text
-                                .trim();
-                            if (newBranchName.isEmpty) {
+                            final sourceBranch =
+                                (_selectedSourceBranch ??
+                                        _sourceBranchController.text)
+                                    .trim();
+                            final targetBranch = _targetBranchName(
+                              sourceBranch,
+                            );
+                            if (targetBranch.isEmpty) {
                               setState(() {
-                                _newBranchError = 'New Branch Name Is Required';
+                                _newBranchError = _targetBranchRequiredError();
                               });
                               return;
                             }

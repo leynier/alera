@@ -129,6 +129,7 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 let session_id = self.require_session(payload)?;
                 self.flush_output_batch(&session_id);
+                self.await_output_writes(&session_id).await;
                 let store = self.store.clone();
                 if let Some(mut session) = self.sessions.remove(&session_id) {
                     session.terminate(true, &store).await;

@@ -140,9 +140,10 @@ class _E2eGitBackend implements GitBackend {
   @override
   Future<void> createWorktree({
     required String repoPath,
-    required String newBranch,
+    required String targetBranch,
     required String path,
     required String sourceBranch,
+    bool reuseExistingBranch = false,
   }) async {}
 
   @override

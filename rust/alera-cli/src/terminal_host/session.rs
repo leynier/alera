@@ -21,6 +21,12 @@ pub enum PtyEvent {
     Error(String),
 }
 
+pub struct OutputBatch {
+    pub payload: Value,
+    pub data: Vec<u8>,
+    pub sequence: i64,
+}
+
 /// A hosted terminal session. The PTY is read on a dedicated OS thread; all
 /// other state transitions are driven by the single server actor that owns this
 /// struct, so no internal locking is required.
@@ -44,6 +50,7 @@ pub struct Session {
     output_batch: Vec<u8>,
     output_batch_gen: u64,
     output_batch_armed: bool,
+    output_batch_sequence: i64,
 }
 
 impl Session {
@@ -120,6 +127,7 @@ impl Session {
             output_batch: Vec::new(),
             output_batch_gen: 0,
             output_batch_armed: false,
+            output_batch_sequence: 0,
         };
         session.write_checkpoint(store, None).await?;
         spawn_reader(reader, child, on_event);
@@ -135,7 +143,7 @@ impl Session {
         store: &TerminalHostHistoryStore,
         max_bytes: usize,
     ) -> Option<Session> {
-        let checkpoint = match store.read(&session_id).await {
+        let checkpoint = match store.read(&session_id, max_bytes).await {
             Ok(Some(checkpoint)) => checkpoint,
             _ => return None,
         };
@@ -164,6 +172,7 @@ impl Session {
             output_batch: Vec::new(),
             output_batch_gen: 0,
             output_batch_armed: false,
+            output_batch_sequence: 0,
         })
     }
 
@@ -247,7 +256,7 @@ impl Session {
         self.output_batch_armed && self.output_batch_gen == generation
     }
 
-    pub fn flush_output_batch(&mut self) -> Option<Value> {
+    pub fn flush_output_batch(&mut self) -> Option<OutputBatch> {
         if self.output_batch.is_empty() {
             self.output_batch_armed = false;
             return None;
@@ -255,7 +264,14 @@ impl Session {
         self.output_batch_gen = self.output_batch_gen.wrapping_add(1);
         self.output_batch_armed = false;
         let data = std::mem::take(&mut self.output_batch);
-        Some(json!({ "sessionId": self.id, "dataBase64": encode_bytes(&data) }))
+        let sequence = self.output_batch_sequence;
+        self.output_batch_sequence = self.output_batch_sequence.wrapping_add(1);
+        let payload = json!({ "sessionId": self.id, "dataBase64": encode_bytes(&data) });
+        Some(OutputBatch {
+            payload,
+            data,
+            sequence,
+        })
     }
 
     /// Mark the session as exited. Returns the `exit` event payload to broadcast,
@@ -359,7 +375,7 @@ impl Session {
             exit_code: self.exit_code,
             ended_at: self.ended_at,
             updated_at: Utc::now(),
-            buffer: self.buffer.to_bytes(),
+            buffer: Vec::new(),
         };
         store
             .upsert(checkpoint)
@@ -430,6 +446,7 @@ mod tests {
             output_batch: Vec::new(),
             output_batch_gen: 0,
             output_batch_armed: false,
+            output_batch_sequence: 0,
         }
     }
 
@@ -441,13 +458,15 @@ mod tests {
         assert_eq!(session.append_output(b"cd"), None);
         assert!(session.output_batch_due(0));
 
-        let payload = session.flush_output_batch().expect("batch");
+        let batch = session.flush_output_batch().expect("batch");
 
-        assert_eq!(payload["sessionId"], "session-1");
+        assert_eq!(batch.payload["sessionId"], "session-1");
         assert_eq!(
-            payload["dataBase64"],
+            batch.payload["dataBase64"],
             serde_json::Value::String(encode_bytes(b"abcd"))
         );
+        assert_eq!(batch.data, b"abcd");
+        assert_eq!(batch.sequence, 0);
         assert_eq!(session.output_batch_len(), 0);
         assert!(!session.output_batch_due(0));
     }
@@ -457,11 +476,12 @@ mod tests {
         let mut session = test_session();
 
         assert_eq!(session.append_output(b"a"), Some(0));
-        assert!(session.flush_output_batch().is_some());
+        assert_eq!(session.flush_output_batch().expect("batch").sequence, 0);
         assert!(session.flush_output_batch().is_none());
 
         assert_eq!(session.append_output(b"b"), Some(1));
         assert!(!session.output_batch_due(0));
         assert!(session.output_batch_due(1));
+        assert_eq!(session.flush_output_batch().expect("batch").sequence, 1);
     }
 }

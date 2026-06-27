@@ -9,6 +9,7 @@ typedef MockSubmitResult = ({
   Project project,
   String sourceBranch,
   String newBranchName,
+  bool reuseExistingBranch,
   String? name,
 });
 
@@ -73,6 +74,7 @@ void main() {
     expect(result!.project.id, 'orca');
     expect(result!.sourceBranch, 'feature/orchestration');
     expect(result!.newBranchName, 'feature/workspace-imports');
+    expect(result!.reuseExistingBranch, isFalse);
     expect(result!.name, 'Workspace imports');
   });
 
@@ -112,6 +114,116 @@ void main() {
     expect(result, isNotNull);
     expect(result!.project.id, 'orca');
     expect(result!.sourceBranch, 'main');
+  });
+
+  testWidgets('can create a workspace from an existing branch', (tester) async {
+    MockSubmitResult? result;
+
+    await _pumpDialogLauncher(
+      tester,
+      projects: <Project>[_project()],
+      loadBranches: (_) async => const <String>[
+        'main',
+        'origin/main',
+        'feature/reuse-me',
+      ],
+      existingBranches: const <String>{'main', 'feature/reuse-me'},
+      onSubmit: (val) => result = val,
+    );
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Existing Branch'));
+    await tester.pumpAndSettle();
+    expect(find.text('origin/main (default)'), findsNothing);
+    await tester.tap(find.text('feature/reuse-me'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(TextField, 'Existing Branch *'), findsOneWidget);
+
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Workspace Name (Optional)'),
+      'Reuse me',
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Create Workspace'));
+    await tester.pumpAndSettle();
+
+    expect(result, isNotNull);
+    expect(result!.sourceBranch, 'feature/reuse-me');
+    expect(result!.newBranchName, 'feature/reuse-me');
+    expect(result!.reuseExistingBranch, isTrue);
+    expect(result!.name, 'Reuse me');
+  });
+
+  testWidgets('does not default existing branch to active project branch', (
+    tester,
+  ) async {
+    MockSubmitResult? result;
+
+    await _pumpDialogLauncher(
+      tester,
+      projects: <Project>[_project()],
+      loadBranches: (_) async => const <String>[
+        'main',
+        'develop',
+        'feature/reuse-me',
+      ],
+      existingBranches: const <String>{'main', 'develop', 'feature/reuse-me'},
+      getProjectActiveBranch: (_) => 'main',
+      getProjectWorkspaceBranches: (_) => const <String>{'main', 'develop'},
+      onSubmit: (val) => result = val,
+    );
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Existing Branch'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('feature/reuse-me'), findsOneWidget);
+    expect(find.text('main (default)'), findsNothing);
+    expect(find.text('develop'), findsNothing);
+
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Create Workspace'));
+    await tester.pumpAndSettle();
+
+    expect(result, isNotNull);
+    expect(result!.sourceBranch, 'feature/reuse-me');
+    expect(result!.newBranchName, 'feature/reuse-me');
+    expect(result!.reuseExistingBranch, isTrue);
+  });
+
+  testWidgets('defers local branch probes until existing branch mode', (
+    tester,
+  ) async {
+    var branchExistsCalls = 0;
+
+    await _pumpDialogLauncher(
+      tester,
+      projects: <Project>[_project()],
+      loadBranches: (_) async => const <String>['main', 'origin/main'],
+      checkBranchExists: (_, branch) async {
+        branchExistsCalls += 1;
+        return branch == 'main';
+      },
+      onSubmit: (_) {},
+    );
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+
+    expect(branchExistsCalls, 0);
+
+    await tester.tap(find.text('Existing Branch'));
+    await tester.pumpAndSettle();
+
+    expect(branchExistsCalls, 2);
+    expect(find.text('main (default)'), findsOneWidget);
+    expect(find.text('origin/main (default)'), findsNothing);
   });
 
   testWidgets('changing projects reloads source branches', (tester) async {
@@ -395,6 +507,10 @@ Future<void> _pumpDialogLauncher(
   required Future<List<String>> Function(Project project) loadBranches,
   required ValueChanged<MockSubmitResult?> onSubmit,
   Project? initialProject,
+  Set<String> existingBranches = const <String>{},
+  Future<bool> Function(Project project, String branch)? checkBranchExists,
+  String? Function(Project project)? getProjectActiveBranch,
+  Set<String> Function(Project project)? getProjectWorkspaceBranches,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -410,19 +526,35 @@ Future<void> _pumpDialogLauncher(
                       projects: projects,
                       initialProject: initialProject,
                       loadBranches: loadBranches,
-                      getProjectActiveBranch: (_) => null,
-                      checkBranchExists: (_, _) async => false,
+                      getProjectActiveBranch:
+                          getProjectActiveBranch ?? ((_) => null),
+                      getProjectWorkspaceBranches:
+                          getProjectWorkspaceBranches ??
+                          ((project) {
+                            final activeBranch = getProjectActiveBranch?.call(
+                              project,
+                            );
+                            return activeBranch == null
+                                ? const <String>{}
+                                : <String>{activeBranch};
+                          }),
+                      checkBranchExists:
+                          checkBranchExists ??
+                          (_, branch) async =>
+                              existingBranches.contains(branch),
                       onCreateWorkspace:
                           ({
                             required project,
                             required sourceBranch,
                             required newBranchName,
+                            required reuseExistingBranch,
                             name,
                           }) async {
                             onSubmit((
                               project: project,
                               sourceBranch: sourceBranch,
                               newBranchName: newBranchName,
+                              reuseExistingBranch: reuseExistingBranch,
                               name: name,
                             ));
                             return WorkspaceCreationResult(

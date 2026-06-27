@@ -261,17 +261,19 @@ fn wire__crate__api__git__create_worktree_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_repo_path = <String>::sse_decode(&mut deserializer);
-            let api_new_branch = <String>::sse_decode(&mut deserializer);
+            let api_target_branch = <String>::sse_decode(&mut deserializer);
             let api_path = <String>::sse_decode(&mut deserializer);
             let api_source_branch = <String>::sse_decode(&mut deserializer);
+            let api_reuse_existing_branch = <bool>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, crate::api::git::GitError>((move || {
                     let output_ok = crate::api::git::create_worktree(
                         api_repo_path,
-                        api_new_branch,
+                        api_target_branch,
                         api_path,
                         api_source_branch,
+                        api_reuse_existing_branch,
                     )?;
                     Ok(output_ok)
                 })())

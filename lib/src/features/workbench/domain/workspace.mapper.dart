@@ -156,6 +156,13 @@ class WorkspaceMapper extends ClassMapperBase<Workspace> {
     _$sourceBranch,
     opt: true,
   );
+  static bool _$reusesExistingBranch(Workspace v) => v.reusesExistingBranch;
+  static const Field<Workspace, bool> _f$reusesExistingBranch = Field(
+    'reusesExistingBranch',
+    _$reusesExistingBranch,
+    opt: true,
+    def: false,
+  );
 
   @override
   final MappableFields<Workspace> fields = const {
@@ -169,6 +176,7 @@ class WorkspaceMapper extends ClassMapperBase<Workspace> {
     #status: _f$status,
     #branch: _f$branch,
     #sourceBranch: _f$sourceBranch,
+    #reusesExistingBranch: _f$reusesExistingBranch,
   };
 
   static Workspace _instantiate(DecodingData data) {
@@ -183,6 +191,7 @@ class WorkspaceMapper extends ClassMapperBase<Workspace> {
       status: data.dec(_f$status),
       branch: data.dec(_f$branch),
       sourceBranch: data.dec(_f$sourceBranch),
+      reusesExistingBranch: data.dec(_f$reusesExistingBranch),
     );
   }
 
@@ -256,6 +265,7 @@ abstract class WorkspaceCopyWith<$R, $In extends Workspace, $Out>
     WorkspaceStatus? status,
     String? branch,
     String? sourceBranch,
+    bool? reusesExistingBranch,
   });
   WorkspaceCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
 }
@@ -280,6 +290,7 @@ class _WorkspaceCopyWithImpl<$R, $Out>
     WorkspaceStatus? status,
     Object? branch = $none,
     Object? sourceBranch = $none,
+    bool? reusesExistingBranch,
   }) => $apply(
     FieldCopyWithData({
       if (id != null) #id: id,
@@ -292,6 +303,8 @@ class _WorkspaceCopyWithImpl<$R, $Out>
       if (status != null) #status: status,
       if (branch != $none) #branch: branch,
       if (sourceBranch != $none) #sourceBranch: sourceBranch,
+      if (reusesExistingBranch != null)
+        #reusesExistingBranch: reusesExistingBranch,
     }),
   );
   @override
@@ -306,6 +319,10 @@ class _WorkspaceCopyWithImpl<$R, $Out>
     status: data.get(#status, or: $value.status),
     branch: data.get(#branch, or: $value.branch),
     sourceBranch: data.get(#sourceBranch, or: $value.sourceBranch),
+    reusesExistingBranch: data.get(
+      #reusesExistingBranch,
+      or: $value.reusesExistingBranch,
+    ),
   );
 
   @override

@@ -134,6 +134,7 @@ void _registerWorkspaceServiceCoreTests() {
       expect(workspace.kind, WorkspaceKind.linked);
       expect(workspace.sourceBranch, 'origin/main');
       expect(workspace.branch, 'feature/terminal-tabs');
+      expect(workspace.reusesExistingBranch, isFalse);
       expect(workspace.name, 'feature/terminal-tabs');
       expect(workspace.path, contains('project-1'));
       final createCall = gitBackend.calls.lastWhere(
@@ -141,12 +142,41 @@ void _registerWorkspaceServiceCoreTests() {
       );
       expect(createCall.args, <String, Object?>{
         'repoPath': project.repoPath,
-        'newBranch': 'feature/terminal-tabs',
+        'targetBranch': 'feature/terminal-tabs',
         'path': workspace.path,
         'sourceBranch': 'origin/main',
+        'reuseExistingBranch': false,
       });
     },
   );
+
+  test('createLinkedWorkspace can reuse an existing local branch', () async {
+    gitBackend.sourceBranches = <String>['main', 'feature/existing'];
+
+    final workspace = (await service.createLinkedWorkspace(
+      project: project,
+      sourceBranch: 'feature/existing',
+      newBranchName: 'feature/existing',
+      reuseExistingBranch: true,
+      name: 'Existing workspace',
+    )).workspace;
+
+    expect(workspace.kind, WorkspaceKind.linked);
+    expect(workspace.sourceBranch, isNull);
+    expect(workspace.branch, 'feature/existing');
+    expect(workspace.reusesExistingBranch, isTrue);
+    expect(workspace.name, 'Existing workspace');
+    final createCall = gitBackend.calls.lastWhere(
+      (call) => call.method == 'createWorktree',
+    );
+    expect(createCall.args, <String, Object?>{
+      'repoPath': project.repoPath,
+      'targetBranch': 'feature/existing',
+      'path': workspace.path,
+      'sourceBranch': 'feature/existing',
+      'reuseExistingBranch': true,
+    });
+  });
 
   test('createLinkedWorkspace rejects a blank source branch', () async {
     await expectLater(
@@ -208,6 +238,16 @@ void _registerWorkspaceServiceCoreTests() {
           project: project,
           sourceBranch: 'main',
           newBranchName: 'feature/existing',
+        ),
+        throwsA(isA<WorkspaceException>()),
+      );
+
+      await expectLater(
+        service.createLinkedWorkspace(
+          project: project,
+          sourceBranch: 'feature/missing-existing',
+          newBranchName: 'feature/missing-existing',
+          reuseExistingBranch: true,
         ),
         throwsA(isA<WorkspaceException>()),
       );

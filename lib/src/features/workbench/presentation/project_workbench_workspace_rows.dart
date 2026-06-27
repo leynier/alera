@@ -136,7 +136,10 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
         'Git Repository',
     ];
     final source = widget.workspace.sourceBranch;
-    if (!widget.workspace.isMain && source != null && source.isNotEmpty) {
+    if (!widget.workspace.isMain &&
+        !widget.workspace.reusesExistingBranch &&
+        source != null &&
+        source.isNotEmpty) {
       parts.add('Base: $source');
     }
     if (widget.agentRunCount > 0) {

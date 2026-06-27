@@ -25,13 +25,15 @@ abstract interface class GitBackend {
   /// Whether [name] is a valid git branch name.
   Future<bool> isValidBranchName(String name);
 
-  /// Creates [newBranch] from [sourceBranch] and adds a linked worktree at
-  /// [path].
+  /// Adds a linked worktree at [path] for [targetBranch]. By default the target
+  /// branch is created from [sourceBranch]; when [reuseExistingBranch] is true
+  /// the target must already exist locally.
   Future<void> createWorktree({
     required String repoPath,
-    required String newBranch,
+    required String targetBranch,
     required String path,
     required String sourceBranch,
+    bool reuseExistingBranch = false,
   });
 
   /// Removes the worktree whose checkout lives at [path], deleting its working

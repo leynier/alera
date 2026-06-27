@@ -6,7 +6,7 @@ This document records the current product and code naming used by Alera. It is i
 
 - `Project`: a local project path registered in Alera. It can be an existing local folder or a Git repository cloned from a URL; only Git-backed projects support linked workspaces.
 - `Workspace`: a working context inside a project. A workspace points at one filesystem path and may point at one Git branch. The primary workspace points at the registered project path; linked workspaces point at Git worktrees and exist only for Git-backed projects.
-- `Worktree`: the Git mechanism used to create an isolated checkout for a linked workspace. Use this term only for Git/filesystem behavior, not for the Alera UI container. Folder-only projects do not use worktrees.
+- `Worktree`: the Git mechanism used to create an isolated checkout for a linked workspace. Alera can create a new local branch from a source branch or attach a workspace to an existing local branch. Use this term only for Git/filesystem behavior, not for the Alera UI container. Folder-only projects do not use worktrees.
 - `Workbench`: the main interactive area for an active workspace. It owns pane layout, active group selection, and workspace tabs. A project may be active while no workspace is selected; in that state the shell shows an empty workspace surface and workspace-scoped panels should render without workspace context.
 - `WorkbenchPaneGroup`: one pane in the split layout. It contains an ordered list of workspace tab ids and one active tab id.
 - `WorkspaceTab`: the domain concept for a tab inside a workspace. It is intentionally broader than terminal because tabs can represent terminals, editors, markdown previews, browsers, or other workspace surfaces.
@@ -29,7 +29,7 @@ Alera persists projects, workspaces, workspace tabs, workbench layouts, settings
 
 Project-specific worktree setup config is stored separately from global app settings. UI overrides live in the Drift project-config table and take precedence over a repo-root `alera.toml`; see `docs/worktree-setup-config.md`.
 
-Terminal workspace tabs store their durable `terminalSessionId` in the tab `payloadJson`. The terminal host stores runtime socket metadata and terminal checkpoints under the application support directory, outside Drift, so app/window close can detach from PTYs without killing running commands.
+Terminal workspace tabs store their durable `terminalSessionId` in the tab `payloadJson`. The terminal host stores runtime socket metadata and terminal checkpoint metadata under the application support directory, outside Drift, so app/window close can detach from PTYs without killing running commands.
 
 Legacy pre-Drift stores are no longer read or migrated.
 
@@ -45,7 +45,7 @@ The shell eagerly starts the terminal host after the local database is available
 
 The host stays alive only while it is useful. When all app clients disconnect and no PTYs are running, it stops after the configured empty-host delay, which defaults to 30 seconds. When app clients disconnect while PTYs are still running, it keeps those detached sessions alive for the configured detached-session delay, which defaults to one hour; if the app does not reconnect in time, the host terminates the PTYs and writes final checkpoints before exiting. On exit, the host removes its `host.json` control file so the next app launch cannot attach to stale socket metadata.
 
-Host-side scrollback is bounded separately from the xterm row scrollback used for rendering. Each terminal session keeps a byte-limited chunk buffer, defaulting to 10 MB per session, and checkpoints that buffer about every five seconds plus immediately on detach, exit, configuration trimming, and host shutdown. This keeps detached-session resume useful without allowing terminal output to grow memory without bound.
+Host-side scrollback is bounded separately from the xterm row scrollback used for rendering. Each terminal session keeps a byte-limited in-memory buffer, defaulting to 10 MB per session, while the terminal host persists output incrementally as ordered SQLite `outputChunks`. Checkpoints persist session metadata about every five seconds plus immediately on detach, exit, configuration trimming, and host shutdown; scrollback restore reconstructs the byte buffer from the retained output chunks. Databases that still use the older checkpoint `buffer` column are reset to the chunked schema instead of migrated, so old detached scrollback is discarded on first open after the schema change.
 
 Terminal output delivery is scoped per connected app client. When a terminal surface is hidden, the app sends `setOutputPaused` for that `terminalSessionId`; the host keeps the PTY and byte buffer running but stops streaming `output` frames to that client. When the surface becomes visible again, the host resumes output delivery and returns the current byte-buffer snapshot so the app can replace the local terminal buffer before live output continues. Exit and error events are still delivered while output is paused.
 

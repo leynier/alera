@@ -265,6 +265,7 @@ void main() {
           project: project,
           sourceBranch: 'main',
           newBranchName: 'feature/coverage',
+          reuseExistingBranch: false,
           name: 'feature/coverage',
         ));
         expect(find.text('Workspace Created'), findsOneWidget);
@@ -391,7 +392,13 @@ class _DialogLaunchersTestController extends WorkbenchController {
   ({String gitUrl, String destinationPath, String? name})? clonedProjectCall;
   List<String> sourceBranches = const <String>['main'];
   Exception? createWorkspaceError;
-  ({Project project, String sourceBranch, String newBranchName, String? name})?
+  ({
+    Project project,
+    String sourceBranch,
+    String newBranchName,
+    bool reuseExistingBranch,
+    String? name,
+  })?
   createdWorkspaceCall;
 
   @override
@@ -437,6 +444,7 @@ class _DialogLaunchersTestController extends WorkbenchController {
     required Project project,
     required String sourceBranch,
     required String newBranchName,
+    bool reuseExistingBranch = false,
     String? name,
   }) async {
     if (createWorkspaceError case final Exception error) {
@@ -446,6 +454,7 @@ class _DialogLaunchersTestController extends WorkbenchController {
       project: project,
       sourceBranch: sourceBranch,
       newBranchName: newBranchName,
+      reuseExistingBranch: reuseExistingBranch,
       name: name,
     );
     return WorkspaceCreationResult(

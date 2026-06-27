@@ -230,6 +230,15 @@ Future<void> showCreateWorkspaceFlow(
           return null;
         }
       },
+      getProjectWorkspaceBranches: (project) {
+        final state = ref.read(workbenchControllerProvider);
+        return state
+            .workspacesFor(project.id)
+            .where((workspace) => workspace.isActive)
+            .map((workspace) => workspace.branch?.trim() ?? '')
+            .where((branch) => branch.isNotEmpty)
+            .toSet();
+      },
       checkBranchExists: (project, branchName) async {
         final gitBackend = ref.read(gitBackendProvider);
         return gitBackend.branchExists(project.repoPath, branchName);
@@ -239,12 +248,14 @@ Future<void> showCreateWorkspaceFlow(
             required project,
             required sourceBranch,
             required newBranchName,
+            required reuseExistingBranch,
             name,
           }) async {
             return controller.createWorkspace(
               project: project,
               sourceBranch: sourceBranch,
               newBranchName: newBranchName,
+              reuseExistingBranch: reuseExistingBranch,
               name: name,
             );
           },

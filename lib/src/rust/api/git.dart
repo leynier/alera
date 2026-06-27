@@ -125,18 +125,21 @@ Future<void> gitStashPop({required String path, required int stashIndex}) =>
       stashIndex: stashIndex,
     );
 
-/// Creates `new_branch` from `source_branch` and adds a linked worktree at
-/// `path`. Mirrors `git worktree add -b <new_branch> <path> <source_branch>`.
+/// Adds a linked worktree at `path` for `target_branch`. By default this creates
+/// `target_branch` from `source_branch`; when `reuse_existing_branch` is true,
+/// `target_branch` must already exist locally.
 Future<void> createWorktree({
   required String repoPath,
-  required String newBranch,
+  required String targetBranch,
   required String path,
   required String sourceBranch,
+  required bool reuseExistingBranch,
 }) => RustLib.instance.api.crateApiGitCreateWorktree(
   repoPath: repoPath,
-  newBranch: newBranch,
+  targetBranch: targetBranch,
   path: path,
   sourceBranch: sourceBranch,
+  reuseExistingBranch: reuseExistingBranch,
 );
 
 /// Removes the worktree whose checkout lives at `path`, deleting the working

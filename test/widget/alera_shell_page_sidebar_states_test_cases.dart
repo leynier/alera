@@ -120,6 +120,29 @@ void _registerAleraShellSidebarStateTests() {
     expect(find.textContaining('deletes branch'), findsNothing);
   });
 
+  testWidgets('reused branch workspaces do not show base branch labels', (
+    tester,
+  ) async {
+    final seeded = _linkedWorkbenchState();
+    final workspaces = seeded.workspacesFor('project-1');
+    final reusedState = seeded.copyWith(
+      workspacesByProject: <String, List<Workspace>>{
+        'project-1': <Workspace>[
+          workspaces.first,
+          workspaces.last.copyWith(
+            sourceBranch: 'feature/login',
+            reusesExistingBranch: true,
+          ),
+        ],
+      },
+    );
+
+    await _pumpShell(tester, state: reusedState);
+
+    expect(find.textContaining('feature/login'), findsOneWidget);
+    expect(find.textContaining('Base:'), findsNothing);
+  });
+
   testWidgets('project header tap toggles the collapsed project state', (
     tester,
   ) async {
