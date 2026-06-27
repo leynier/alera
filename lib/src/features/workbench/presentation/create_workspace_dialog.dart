@@ -9,6 +9,7 @@ import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/design_system/menus/alera_menu_item.dart';
 import 'package:alera/src/design_system/surfaces/alera_panel.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
 import 'package:flutter/material.dart';
 
 part 'create_workspace_dialog_pickers.dart';
@@ -28,7 +29,7 @@ class CreateWorkspaceDialog extends StatefulWidget {
   final List<Project> projects;
   final Project? initialProject;
   final Future<List<String>> Function(Project project) loadBranches;
-  final Future<void> Function({
+  final Future<WorkspaceCreationResult> Function({
     required Project project,
     required String sourceBranch,
     required String newBranchName,
@@ -247,14 +248,14 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
     });
 
     try {
-      await widget.onCreateWorkspace(
+      final result = await widget.onCreateWorkspace(
         project: project,
         sourceBranch: sourceBranch,
         newBranchName: newBranchName,
         name: name.isEmpty ? null : name,
       );
       if (mounted) {
-        Navigator.of(context).pop(true);
+        Navigator.of(context).pop(result);
       }
     } catch (error) {
       if (mounted) {

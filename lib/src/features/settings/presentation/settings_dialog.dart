@@ -7,6 +7,9 @@ import 'package:alera/src/features/ai_text_generation/application/ai_text_genera
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_registry.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_model_discovery_service.dart';
 import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
+import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/projects/domain/project_config.dart';
+import 'package:alera/src/features/projects/domain/project_config_paths.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/buttons/alera_segmented_button.dart';
 import 'package:alera/src/design_system/feedback/alera_color_swatch.dart';
@@ -33,6 +36,7 @@ import 'package:flutter/services.dart';
 
 part 'settings_dialog_navigation.dart';
 part 'settings_dialog_general_pane.dart';
+part 'settings_dialog_projects_pane.dart';
 part 'settings_dialog_ai_text_pane.dart';
 part 'settings_dialog_editor_pane.dart';
 part 'settings_dialog_terminal_pane.dart';
@@ -102,6 +106,14 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         icon: AleraIcons.tune,
         entries: _generalSearchEntries,
         builder: (_) => _GeneralSettingsPane(general: settings.general),
+      ),
+      _SettingsSectionData(
+        id: 'projects',
+        title: 'Projects',
+        description: 'Per-Project Workspace Setup.',
+        icon: AleraIcons.folderSpecial,
+        entries: _projectSearchEntries,
+        builder: (_) => const _ProjectSettingsPane(),
       ),
       _SettingsSectionData(
         id: 'editor',
@@ -342,6 +354,22 @@ const List<_SettingsSearchEntry> _generalSearchEntries = <_SettingsSearchEntry>[
     title: 'Star Alera on GitHub',
     description: 'Show your support for the project.',
     keywords: <String>['support', 'github', 'star'],
+  ),
+];
+
+const List<_SettingsSearchEntry> _projectSearchEntries = <_SettingsSearchEntry>[
+  _SettingsSearchEntry(
+    title: 'Project Worktree Setup',
+    description: 'Copy Files And Run Setup Commands For Linked Workspaces.',
+    keywords: <String>[
+      'project',
+      'repo',
+      'worktree',
+      'workspace',
+      'copy',
+      'setup',
+      'alera.toml',
+    ],
   ),
 ];
 

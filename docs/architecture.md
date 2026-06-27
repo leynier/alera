@@ -27,6 +27,8 @@ This document records the current product and code naming used by Alera. It is i
 
 Alera persists projects, workspaces, workspace tabs, workbench layouts, settings, and view preferences in the Drift/SQLite schema defined in `lib/src/shared/infra/storage/drift_database.dart`.
 
+Project-specific worktree setup config is stored separately from global app settings. UI overrides live in the Drift project-config table and take precedence over a repo-root `alera.toml`; see `docs/worktree-setup-config.md`.
+
 Terminal workspace tabs store their durable `terminalSessionId` in the tab `payloadJson`. The terminal host stores runtime socket metadata and terminal checkpoints under the application support directory, outside Drift, so app/window close can detach from PTYs without killing running commands.
 
 Legacy pre-Drift stores are no longer read or migrated.

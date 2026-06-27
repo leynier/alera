@@ -101,11 +101,11 @@ void _registerWorkbenchControllerViewPrefsTests() {
   test('view-pref mutators update state and persist changes', () async {
     await _controller.bootstrap();
     final mainWorkspace = await _selectMainWorkspace(_controller, _harness);
-    final linkedWorkspace = await _controller.createWorkspace(
+    final linkedWorkspace = (await _controller.createWorkspace(
       project: _harness.project,
       sourceBranch: 'main',
       newBranchName: 'feature/view-prefs',
-    );
+    )).workspace;
     await _flush();
 
     _controller.toggleCollapseAll();
@@ -201,11 +201,11 @@ void _registerWorkbenchControllerViewPrefsTests() {
     () async {
       await _controller.bootstrap();
       await _selectMainWorkspace(_controller, _harness);
-      final linkedWorkspace = await _controller.createWorkspace(
+      final linkedWorkspace = (await _controller.createWorkspace(
         project: _harness.project,
         sourceBranch: 'main',
         newBranchName: 'feature/remove-expanded',
-      );
+      )).workspace;
       await _flush();
 
       expect(

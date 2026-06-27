@@ -57,6 +57,7 @@ class _WorkbenchHarness {
       repository: workbenchRepository,
       now: () => DateTime.utc(2026, 5, 22, 1),
     );
+    worktreeSetupRunner = _FakeWorktreeSetupRunner();
     final settings = AleraSettings.defaults.copyWith(
       general: AleraSettings.defaults.general.copyWith(
         workspaceDirectory: p.join(tempDir.path, 'workspaces'),
@@ -68,8 +69,15 @@ class _WorkbenchHarness {
         projectRepositoryProvider.overrideWithValue(projectRepository),
         workbenchRepositoryProvider.overrideWithValue(workbenchRepository),
         projectServiceProvider.overrideWithValue(projectService),
+        projectConfigServiceProvider.overrideWithValue(
+          ProjectConfigService(
+            repository: FakeProjectConfigRepository(),
+            fileStore: FakeProjectConfigFileStore(),
+          ),
+        ),
         projectsServiceProvider.overrideWithValue(projectsService),
         workspaceTabServiceProvider.overrideWithValue(workspaceTabService),
+        worktreeSetupRunnerProvider.overrideWithValue(worktreeSetupRunner),
         workbenchViewPrefsRepositoryProvider.overrideWithValue(
           viewPrefsRepository,
         ),
@@ -85,6 +93,7 @@ class _WorkbenchHarness {
   late final _FakeWorkbenchRepository workbenchRepository;
   late final FakeGitBackend gitBackend;
   late final _FakeWorkbenchViewPrefsRepository viewPrefsRepository;
+  late final _FakeWorktreeSetupRunner worktreeSetupRunner;
   late final ProviderContainer container;
   late final WorkbenchController _controller;
 
@@ -134,6 +143,22 @@ class _FakeWorkbenchViewPrefsRepository
       throw error;
     }
     this.prefs = prefs;
+  }
+}
+
+class _FakeWorktreeSetupRunner implements WorktreeSetupRunner {
+  WorktreeSetupReport report = WorktreeSetupReport.empty;
+  final List<({Project project, Workspace workspace, ProjectConfig config})>
+  calls = <({Project project, Workspace workspace, ProjectConfig config})>[];
+
+  @override
+  Future<WorktreeSetupReport> run({
+    required Project project,
+    required Workspace workspace,
+    required ProjectConfig config,
+  }) async {
+    calls.add((project: project, workspace: workspace, config: config));
+    return report;
   }
 }
 

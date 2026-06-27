@@ -38,6 +38,7 @@ dependencies:
   window_manager: ^0.5.1
   crypto: ^3.0.6
   cryptography: ^2.7.0
+  toml: ^0.18.0
   alera_native:
     path: rust_builder
   flutter_rust_bridge: 2.12.0

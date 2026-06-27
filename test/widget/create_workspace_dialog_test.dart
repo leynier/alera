@@ -1,4 +1,6 @@
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
 import 'package:alera/src/features/workbench/presentation/create_workspace_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -402,7 +404,7 @@ Future<void> _pumpDialogLauncher(
             body: Center(
               child: FilledButton(
                 onPressed: () async {
-                  await showDialog<bool>(
+                  await showDialog<WorkspaceCreationResult>(
                     context: context,
                     builder: (_) => CreateWorkspaceDialog(
                       projects: projects,
@@ -423,6 +425,21 @@ Future<void> _pumpDialogLauncher(
                               newBranchName: newBranchName,
                               name: name,
                             ));
+                            return WorkspaceCreationResult(
+                              workspace: Workspace(
+                                id: 'workspace-1',
+                                projectId: project.id,
+                                name: name ?? newBranchName,
+                                branch: newBranchName,
+                                sourceBranch: sourceBranch,
+                                path: project.repoPath,
+                                createdAt: DateTime.utc(2026, 6, 27),
+                                updatedAt: DateTime.utc(2026, 6, 27),
+                                kind: WorkspaceKind.linked,
+                                status: WorkspaceStatus.active,
+                              ),
+                              setupReport: WorktreeSetupReport.empty,
+                            );
                           },
                     ),
                   );

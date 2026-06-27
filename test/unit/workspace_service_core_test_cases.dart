@@ -124,11 +124,12 @@ void _registerWorkspaceServiceCoreTests() {
     () async {
       gitBackend.sourceBranches = <String>['main', 'origin/main'];
 
-      final workspace = await service.createLinkedWorkspace(
+      final result = await service.createLinkedWorkspace(
         project: project,
         sourceBranch: 'origin/main',
         newBranchName: 'feature/terminal-tabs',
       );
+      final workspace = result.workspace;
 
       expect(workspace.kind, WorkspaceKind.linked);
       expect(workspace.sourceBranch, 'origin/main');
@@ -228,6 +229,36 @@ void _registerWorkspaceServiceCoreTests() {
   });
 
   test(
+    'createLinkedWorkspace keeps the workspace when setup config fails',
+    () async {
+      gitBackend.sourceBranches = <String>['main'];
+      service = WorkspaceService(
+        repository: repository,
+        projectService: ProjectService(gitBackend),
+        gitBackend: gitBackend,
+        workspaceRoot: WorkspaceRoot(
+          override: p.join(tempDir.path, 'workspaces'),
+        ),
+        projectConfigReader: const _FailingProjectConfigReader(),
+        now: () => DateTime.utc(2026, 5, 20, 12),
+      );
+
+      final result = await service.createLinkedWorkspace(
+        project: project,
+        sourceBranch: 'main',
+        newBranchName: 'feature/setup-warning',
+      );
+
+      expect(result.hasSetupWarnings, isTrue);
+      expect(
+        result.setupReport.steps.single.kind,
+        WorktreeSetupStepKind.config,
+      );
+      expect(repository.workspaces.single.id, result.workspace.id);
+    },
+  );
+
+  test(
     'createLinkedWorkspace rejects duplicate branches, paths, and invalid slugs',
     () async {
       gitBackend.sourceBranches = <String>['main'];
@@ -300,11 +331,11 @@ void _registerWorkspaceServiceCoreTests() {
       gitBackend.headBranch = 'main';
       gitBackend.sourceBranches = <String>['main'];
       final mainWorkspace = await service.ensureMainWorkspace(project);
-      final linkedWorkspace = await service.createLinkedWorkspace(
+      final linkedWorkspace = (await service.createLinkedWorkspace(
         project: project,
         sourceBranch: 'main',
         newBranchName: 'feature/remove-me',
-      );
+      )).workspace;
       gitBackend.liveBranchByPath = <String, String>{project.repoPath: 'main'};
 
       final workspaces = await service.reconcile(project);
@@ -333,11 +364,11 @@ void _registerWorkspaceServiceCoreTests() {
       gitBackend.headBranch = 'main';
       gitBackend.sourceBranches = <String>['main'];
       final mainWorkspace = await service.ensureMainWorkspace(project);
-      final linkedWorkspace = await service.createLinkedWorkspace(
+      final linkedWorkspace = (await service.createLinkedWorkspace(
         project: project,
         sourceBranch: 'main',
         newBranchName: 'feature/keep-me',
-      );
+      )).workspace;
       gitBackend.worktreeListFails = true;
 
       final workspaces = await service.reconcile(project);
@@ -355,11 +386,11 @@ void _registerWorkspaceServiceCoreTests() {
       gitBackend.headBranch = 'main';
       gitBackend.sourceBranches = <String>['main'];
       await service.ensureMainWorkspace(project);
-      final linkedWorkspace = await service.createLinkedWorkspace(
+      final linkedWorkspace = (await service.createLinkedWorkspace(
         project: project,
         sourceBranch: 'main',
         newBranchName: 'feature/live-rename',
-      );
+      )).workspace;
       gitBackend.liveBranchByPath = <String, String>{
         project.repoPath: 'main',
         linkedWorkspace.path: 'feature/live-updated',
@@ -382,11 +413,11 @@ void _registerWorkspaceServiceCoreTests() {
       gitBackend.headBranch = 'main';
       gitBackend.sourceBranches = <String>['main'];
       await service.ensureMainWorkspace(project);
-      final linkedWorkspace = await service.createLinkedWorkspace(
+      final linkedWorkspace = (await service.createLinkedWorkspace(
         project: project,
         sourceBranch: 'main',
         newBranchName: 'feature/cannot-prune',
-      );
+      )).workspace;
       gitBackend.liveBranchByPath = <String, String>{
         linkedWorkspace.path: 'feature/cannot-prune',
       };

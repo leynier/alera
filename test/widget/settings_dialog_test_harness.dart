@@ -46,6 +46,37 @@ class _FakeSettingsRepository implements SettingsRepository {
   }
 }
 
+class _FakeProjectRepository implements ProjectRepository {
+  _FakeProjectRepository(this._projects);
+
+  final List<Project> _projects;
+
+  @override
+  Future<Project> add(Project project) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<List<Project>> listAll() async {
+    return _projects;
+  }
+
+  @override
+  Future<void> remove(String projectId) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Project> update(Project project) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Stream<List<Project>> watchAll() async* {
+    yield _projects;
+  }
+}
+
 class _FakeSystemFontService implements SystemFontService {
   const _FakeSystemFontService(this.fonts);
 

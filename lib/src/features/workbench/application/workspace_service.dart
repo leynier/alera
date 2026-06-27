@@ -1,9 +1,12 @@
 import 'dart:io';
 
 import 'package:alera/src/features/projects/application/project_service.dart';
+import 'package:alera/src/features/projects/application/project_config_service.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
+import 'package:alera/src/features/workbench/application/worktree_setup_service.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
 import 'package:alera/src/shared/infra/git/git_backend.dart';
 import 'package:alera/src/shared/infra/git/git_exception.dart';
 import 'package:alera/src/shared/infra/git/git_worktree_entry.dart';
@@ -57,6 +60,8 @@ class WorkspaceService {
     required ProjectService projectService,
     required GitBackend gitBackend,
     WorkspaceRoot? workspaceRoot,
+    ProjectConfigReader? projectConfigReader,
+    WorktreeSetupRunner? worktreeSetupRunner,
     Uuid? uuid,
     DateTime Function()? now,
   }) {
@@ -65,6 +70,8 @@ class WorkspaceService {
       projectService,
       gitBackend,
       workspaceRoot ?? WorkspaceRoot(),
+      projectConfigReader ?? const NoopProjectConfigReader(),
+      worktreeSetupRunner ?? const NoopWorktreeSetupRunner(),
       uuid ?? const Uuid(),
       now ?? _defaultNow,
     );
@@ -75,6 +82,8 @@ class WorkspaceService {
     this._projectService,
     this._gitBackend,
     this._workspaceRoot,
+    this._projectConfigReader,
+    this._worktreeSetupRunner,
     this._uuid,
     this._now,
   );
@@ -83,6 +92,8 @@ class WorkspaceService {
   final ProjectService _projectService;
   final GitBackend _gitBackend;
   final WorkspaceRoot _workspaceRoot;
+  final ProjectConfigReader _projectConfigReader;
+  final WorktreeSetupRunner _worktreeSetupRunner;
   final Uuid _uuid;
   final DateTime Function() _now;
 
@@ -150,7 +161,7 @@ class WorkspaceService {
     return next;
   }
 
-  Future<Workspace> createLinkedWorkspace({
+  Future<WorkspaceCreationResult> createLinkedWorkspace({
     required Project project,
     required String sourceBranch,
     required String newBranchName,
@@ -227,7 +238,39 @@ class WorkspaceService {
       sourceBranch: normalizedSource,
     );
     await _repository.upsertWorkspace(workspace);
-    return workspace;
+    final setupReport = await _runWorktreeSetup(
+      project: project,
+      workspace: workspace,
+    );
+    return WorkspaceCreationResult(
+      workspace: workspace,
+      setupReport: setupReport,
+    );
+  }
+
+  Future<WorktreeSetupReport> _runWorktreeSetup({
+    required Project project,
+    required Workspace workspace,
+  }) async {
+    final effective = await _projectConfigReader.resolve(project);
+    final error = effective.error;
+    if (error != null) {
+      return WorktreeSetupReport(
+        steps: <WorktreeSetupStepReport>[
+          WorktreeSetupStepReport(
+            kind: WorktreeSetupStepKind.config,
+            label: 'alera.toml',
+            succeeded: false,
+            message: error.toString(),
+          ),
+        ],
+      );
+    }
+    return _worktreeSetupRunner.run(
+      project: project,
+      workspace: workspace,
+      config: effective.config,
+    );
   }
 
   Future<void> removeWorkspace({

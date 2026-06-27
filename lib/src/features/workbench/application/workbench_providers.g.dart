@@ -250,6 +250,54 @@ final class WorkspaceSearchServiceProvider
 String _$workspaceSearchServiceHash() =>
     r'd4b42d3d093dad896f72742e1ba91f7a5e556d67';
 
+@ProviderFor(worktreeSetupRunner)
+final worktreeSetupRunnerProvider = WorktreeSetupRunnerProvider._();
+
+final class WorktreeSetupRunnerProvider
+    extends
+        $FunctionalProvider<
+          WorktreeSetupRunner,
+          WorktreeSetupRunner,
+          WorktreeSetupRunner
+        >
+    with $Provider<WorktreeSetupRunner> {
+  WorktreeSetupRunnerProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'worktreeSetupRunnerProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$worktreeSetupRunnerHash();
+
+  @$internal
+  @override
+  $ProviderElement<WorktreeSetupRunner> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  WorktreeSetupRunner create(Ref ref) {
+    return worktreeSetupRunner(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(WorktreeSetupRunner value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<WorktreeSetupRunner>(value),
+    );
+  }
+}
+
+String _$worktreeSetupRunnerHash() =>
+    r'742cf23dff3e2a22adbe0a22b7dd37c0dcf66411';
+
 @ProviderFor(editorSessionRegistry)
 final editorSessionRegistryProvider = EditorSessionRegistryProvider._();
 
@@ -342,7 +390,7 @@ final class WorkspaceServiceProvider
   }
 }
 
-String _$workspaceServiceHash() => r'f9d3d65d61dcdf4f8edb8155472273e603fa04f0';
+String _$workspaceServiceHash() => r'f4f86832bcae482b01ea00e9a0171d2978eb1403';
 
 @ProviderFor(terminalHostClient)
 final terminalHostClientProvider = TerminalHostClientProvider._();

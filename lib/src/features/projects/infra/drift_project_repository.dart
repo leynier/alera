@@ -65,6 +65,9 @@ class DriftProjectRepository implements ProjectRepository {
       await (_db.delete(
         _db.projectsTable,
       )..where((table) => table.id.equals(projectId))).go();
+      await (_db.delete(
+        _db.projectConfigsTable,
+      )..where((table) => table.projectId.equals(projectId))).go();
     });
   }
 }

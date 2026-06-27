@@ -8,6 +8,7 @@ import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/presentation/add_project_dialog.dart';
 import 'package:alera/src/features/settings/presentation/settings_dialog.dart';
+import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
 import 'package:alera/src/features/workbench/presentation/create_workspace_dialog.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:flutter/material.dart';
@@ -206,7 +207,7 @@ Future<void> showCreateWorkspaceFlow(
   final resolvedInitialProject =
       initialProject?.supportsLinkedWorkspaces == true ? initialProject : null;
 
-  final success = await showDialog<bool>(
+  final result = await showDialog<WorkspaceCreationResult>(
     context: context,
     builder: (_) => CreateWorkspaceDialog(
       projects: projects,
@@ -240,7 +241,7 @@ Future<void> showCreateWorkspaceFlow(
             required newBranchName,
             name,
           }) async {
-            await controller.createWorkspace(
+            return controller.createWorkspace(
               project: project,
               sourceBranch: sourceBranch,
               newBranchName: newBranchName,
@@ -254,7 +255,17 @@ Future<void> showCreateWorkspaceFlow(
     ),
   );
 
-  if (success == true && context.mounted) {
+  if (result != null && context.mounted) {
+    if (result.hasSetupWarnings) {
+      AleraToast.show(
+        context,
+        message:
+            'Workspace Created With Setup Warnings: ${result.setupReport.summary}',
+        tone: AleraToastTone.error,
+        duration: const Duration(seconds: 6),
+      );
+      return;
+    }
     AleraToast.show(
       context,
       message: 'Workspace Created',
