@@ -436,12 +436,12 @@ void main() {
         _commandsFor(bundle, 'PostToolUse').single,
         contains('alera-agy-hook.sh'),
       );
-      expect(
-        File(
-          p.join(home.path, '.alera', 'agent-hooks', 'alera-agy-hook.sh'),
-        ).readAsStringSync(),
-        contains('/hook/agy'),
-      );
+      final script = File(
+        p.join(home.path, '.alera', 'agent-hooks', 'alera-agy-hook.sh'),
+      ).readAsStringSync();
+      expect(script, contains('/hook/agy'));
+      expect(script, contains(r'case "$ALERA_AGY_EVENT" in'));
+      expect(script, contains("payload='{}'"));
     });
 
     test('installs AGY wrapper scripts on Windows', () {
@@ -472,7 +472,7 @@ void main() {
         File(
           p.join(home.path, '.alera', 'agent-hooks', 'alera-agy-hook.cmd'),
         ).readAsStringSync(),
-        contains('/hook/agy'),
+        allOf(contains('/hook/agy'), contains("-ieq 'Stop'")),
       );
     });
 

@@ -304,6 +304,34 @@ void main() {
       expect(entry.prompt, 'fix test');
       expect(entry.toolName, 'ask_question');
       expect(entry.toolInput, 'Which file?');
+
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.agy,
+          hookEventName: 'PostInvocation',
+          payload: <String, Object?>{},
+        ),
+      );
+
+      final postInvocationEntry = container.read(
+        agentStatusControllerProvider,
+      )['session-1']!;
+      expect(postInvocationEntry.state, AgentStatusState.working);
+      expect(postInvocationEntry.prompt, 'fix test');
+
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.agy,
+          hookEventName: 'Stop',
+          payload: <String, Object?>{},
+        ),
+      );
+
+      final stoppedEntry = container.read(
+        agentStatusControllerProvider,
+      )['session-1']!;
+      expect(stoppedEntry.state, AgentStatusState.done);
+      expect(stoppedEntry.prompt, 'fix test');
     });
 
     test('normalizes Cursor tool, waiting, done, and response states', () {
