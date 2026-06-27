@@ -34,6 +34,12 @@ abstract interface class GitBackend {
     required String sourceBranch,
   });
 
+  /// Refreshes [sourceBranch] before it is used as a linked-workspace source.
+  Future<void> refreshSourceBranch({
+    required String repoPath,
+    required String sourceBranch,
+  });
+
   /// Removes the worktree whose checkout lives at [path], deleting its working
   /// tree files when [force] is set.
   Future<void> removeWorktree({

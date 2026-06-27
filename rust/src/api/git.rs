@@ -619,6 +619,48 @@ pub fn git_pull(path: String) -> Result<(), GitError> {
     git_cli_in_path(&path, &["pull"])
 }
 
+pub fn refresh_source_branch(repo_path: String, source_branch: String) -> Result<(), GitError> {
+    let repo = open_repo(&repo_path)?;
+
+    if let Some(remote_branch) = find_remote_tracking_branch_name(&repo, &source_branch)? {
+        let remote = configured_remote_for_tracking_branch(&repo, &remote_branch)?
+            .ok_or_else(|| GitError::new(GitErrorKind::RemoteNotFound, remote_branch.clone()))?;
+        return git_fetch_remote(&repo_path, &remote);
+    }
+
+    let branch = repo
+        .find_branch(&source_branch, BranchType::Local)
+        .map_err(|error| match error.code() {
+            ErrorCode::NotFound => {
+                GitError::new(GitErrorKind::BranchNotFound, source_branch.clone())
+            }
+            _ => GitError::from_git2(error),
+        })?;
+    let upstream_name = match branch.upstream() {
+        Ok(upstream) => upstream
+            .name()
+            .map_err(GitError::from_git2)?
+            .map(ToString::to_string),
+        Err(error) if error.code() == ErrorCode::NotFound => return Ok(()),
+        Err(error) => return Err(GitError::from_git2(error)),
+    };
+    let Some(upstream_name) = upstream_name else {
+        return Ok(());
+    };
+    let Some(remote) = configured_remote_for_tracking_branch(&repo, &upstream_name)? else {
+        return Ok(());
+    };
+    let checked_out_path = checkout_path_for_branch(&repo, &source_branch)?;
+    drop(branch);
+
+    if let Some(path) = checked_out_path {
+        return git_pull_ff_only(path);
+    }
+
+    git_fetch_remote(&repo_path, &remote)?;
+    fast_forward_local_branch(&repo_path, &source_branch, &upstream_name)
+}
+
 pub fn git_push(path: String) -> Result<(), GitError> {
     let repo = open_repo(&path)?;
     let state = git_repository_state(path.clone())?;
@@ -1129,6 +1171,151 @@ fn git_cli_in_path(path: &str, args: &[&str]) -> Result<(), GitError> {
         .map_err(|error| GitError::new(GitErrorKind::GitCli, error.to_string()))
 }
 
+fn git_fetch_remote(path: &str, remote: &str) -> Result<(), GitError> {
+    git_cli_in_path(path, &["fetch", "--prune", remote])
+}
+
+fn git_pull_ff_only(path: String) -> Result<(), GitError> {
+    git_cli_in_path(&path, &["pull", "--ff-only"])
+}
+
+fn find_remote_tracking_branch_name(
+    repo: &Repository,
+    source_branch: &str,
+) -> Result<Option<String>, GitError> {
+    let mut candidates = vec![source_branch];
+    if let Some(stripped) = source_branch.strip_prefix("refs/remotes/") {
+        candidates.push(stripped);
+    }
+
+    for candidate in candidates {
+        match repo.find_branch(candidate, BranchType::Remote) {
+            Ok(branch) => {
+                return Ok(branch
+                    .name()
+                    .map_err(GitError::from_git2)?
+                    .map(ToString::to_string));
+            }
+            Err(error) if error.code() == ErrorCode::NotFound => {}
+            Err(error) => return Err(GitError::from_git2(error)),
+        }
+    }
+
+    Ok(None)
+}
+
+fn configured_remote_for_tracking_branch(
+    repo: &Repository,
+    remote_branch: &str,
+) -> Result<Option<String>, GitError> {
+    let remotes = repo.remotes().map_err(GitError::from_git2)?;
+    for remote in remotes.iter() {
+        let Some(remote) = remote.map_err(GitError::from_git2)? else {
+            continue;
+        };
+        if let Some(remainder) = remote_branch.strip_prefix(remote) {
+            if remainder.starts_with('/') {
+                return Ok(Some(remote.to_string()));
+            }
+        }
+    }
+    Ok(None)
+}
+
+fn checkout_path_for_branch(
+    repo: &Repository,
+    branch_name: &str,
+) -> Result<Option<String>, GitError> {
+    if head_branch_name(repo) == branch_name {
+        if let Some(workdir) = repo.workdir() {
+            return Ok(Some(workdir.to_string_lossy().to_string()));
+        }
+    }
+
+    let names = repo.worktrees().map_err(GitError::from_git2)?;
+    for entry in names.iter() {
+        let Some(name) = entry.map_err(GitError::from_git2)? else {
+            continue;
+        };
+        let worktree = repo.find_worktree(name).map_err(GitError::from_git2)?;
+        let path = worktree.path();
+        let Ok(worktree_repo) = Repository::open(path) else {
+            continue;
+        };
+        if head_branch_name(&worktree_repo) == branch_name {
+            return Ok(Some(path.to_string_lossy().to_string()));
+        }
+    }
+
+    Ok(None)
+}
+
+fn fast_forward_local_branch(
+    repo_path: &str,
+    branch_name: &str,
+    upstream_name: &str,
+) -> Result<(), GitError> {
+    let repo = open_repo(repo_path)?;
+    let branch = repo
+        .find_branch(branch_name, BranchType::Local)
+        .map_err(|error| match error.code() {
+            ErrorCode::NotFound => GitError::new(GitErrorKind::BranchNotFound, branch_name),
+            _ => GitError::from_git2(error),
+        })?;
+    let upstream = repo
+        .find_branch(upstream_name, BranchType::Remote)
+        .map_err(|error| match error.code() {
+            ErrorCode::NotFound => GitError::new(GitErrorKind::BranchNotFound, upstream_name),
+            _ => GitError::from_git2(error),
+        })?;
+    let local_oid = branch
+        .get()
+        .target()
+        .ok_or_else(|| GitError::new(GitErrorKind::Internal, branch_name))?;
+    let upstream_oid = upstream
+        .get()
+        .target()
+        .ok_or_else(|| GitError::new(GitErrorKind::Internal, upstream_name))?;
+    if local_oid == upstream_oid {
+        return Ok(());
+    }
+
+    if repo
+        .graph_descendant_of(upstream_oid, local_oid)
+        .map_err(GitError::from_git2)?
+    {
+        let reference_name = branch
+            .get()
+            .name()
+            .map_err(GitError::from_git2)?
+            .to_string();
+        drop(upstream);
+        drop(branch);
+        let mut reference = repo
+            .find_reference(&reference_name)
+            .map_err(GitError::from_git2)?;
+        reference
+            .set_target(
+                upstream_oid,
+                "fast-forward source branch before worktree creation",
+            )
+            .map_err(GitError::from_git2)?;
+        return Ok(());
+    }
+
+    if repo
+        .graph_descendant_of(local_oid, upstream_oid)
+        .map_err(GitError::from_git2)?
+    {
+        return Ok(());
+    }
+
+    Err(GitError::new(
+        GitErrorKind::Conflict,
+        format!("source branch \"{branch_name}\" has diverged from \"{upstream_name}\""),
+    ))
+}
+
 fn remote_tracking_upstream_name(
     repo: &Repository,
     source_branch: &str,
@@ -1162,18 +1349,7 @@ fn has_configured_remote_for_tracking_branch(
     repo: &Repository,
     remote_branch: &str,
 ) -> Result<bool, GitError> {
-    let remotes = repo.remotes().map_err(GitError::from_git2)?;
-    for remote in remotes.iter() {
-        let Some(remote) = remote.map_err(GitError::from_git2)? else {
-            continue;
-        };
-        if let Some(remainder) = remote_branch.strip_prefix(remote) {
-            if remainder.starts_with('/') {
-                return Ok(true);
-            }
-        }
-    }
-    Ok(false)
+    Ok(configured_remote_for_tracking_branch(repo, remote_branch)?.is_some())
 }
 
 /// Creates `new_branch` from `source_branch` and adds a linked worktree at

@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `canonical`, `commit_parent_commits`, `current_head_commit`, `delete_workspace_relative_path`, `discard_status_entries`, `entries_for_area_and_scope`, `existing_worktree_admin_names`, `from_git2`, `from_io`, `git_cli_in_path`, `git_signature`, `has_configured_remote_for_tracking_branch`, `head_branch_name`, `is_path_occupied`, `merge_head_oids`, `new`, `open_repo`, `pathspec_string`, `reject_out_of_scope_staged_entries`, `reject_out_of_scope_stash_pop`, `reject_out_of_scope_tracked_changes`, `reject_tree_diff_out_of_scope`, `relative_path`, `remote_tracking_upstream_name`, `remove_index_path_if_present`, `repo_path_is_in_scope`, `repo_relative_path_from_workspace`, `repo_relative_path`, `repo_workdir_path_exists`, `repository_has_conflicts`, `scoped_pathspecs`, `split_clone_destination`, `stage_selected_path`, `stage_status_entries`, `stash_oid`, `unborn_branch_name`, `unique_worktree_admin_name`, `unstage_selected_path`, `unstage_status_entries`, `workspace_path_is_in_scope`, `workspace_repo_relative_path`, `worktree_admin_name`
+// These functions are ignored because they are not marked as `pub`: `canonical`, `checkout_path_for_branch`, `commit_parent_commits`, `configured_remote_for_tracking_branch`, `current_head_commit`, `delete_workspace_relative_path`, `discard_status_entries`, `entries_for_area_and_scope`, `existing_worktree_admin_names`, `fast_forward_local_branch`, `find_remote_tracking_branch_name`, `from_git2`, `from_io`, `git_cli_in_path`, `git_fetch_remote`, `git_signature`, `has_configured_remote_for_tracking_branch`, `head_branch_name`, `is_path_occupied`, `merge_head_oids`, `new`, `open_repo`, `pathspec_string`, `reject_out_of_scope_staged_entries`, `reject_out_of_scope_stash_pop`, `reject_out_of_scope_tracked_changes`, `reject_tree_diff_out_of_scope`, `relative_path`, `remote_tracking_upstream_name`, `remove_index_path_if_present`, `repo_path_is_in_scope`, `repo_relative_path_from_workspace`, `repo_relative_path`, `repo_workdir_path_exists`, `repository_has_conflicts`, `scoped_pathspecs`, `split_clone_destination`, `stage_selected_path`, `stage_status_entries`, `stash_oid`, `unborn_branch_name`, `unique_worktree_admin_name`, `unstage_selected_path`, `unstage_status_entries`, `workspace_path_is_in_scope`, `workspace_repo_relative_path`, `worktree_admin_name`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 Future<bool> isGitRepository({required String path}) =>
@@ -109,6 +109,14 @@ Future<void> gitFetch({required String path}) =>
 
 Future<void> gitPull({required String path}) =>
     RustLib.instance.api.crateApiGitGitPull(path: path);
+
+Future<void> refreshSourceBranch({
+  required String repoPath,
+  required String sourceBranch,
+}) => RustLib.instance.api.crateApiGitRefreshSourceBranch(
+  repoPath: repoPath,
+  sourceBranch: sourceBranch,
+);
 
 Future<void> gitPush({required String path}) =>
     RustLib.instance.api.crateApiGitGitPush(path: path);
