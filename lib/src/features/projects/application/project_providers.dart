@@ -1,7 +1,13 @@
 import 'package:alera/src/features/projects/application/project_repository.dart';
 import 'package:alera/src/features/projects/application/project_service.dart';
+import 'package:alera/src/features/projects/application/project_config_repository.dart';
+import 'package:alera/src/features/projects/application/project_config_service.dart';
 import 'package:alera/src/features/projects/application/projects_service.dart';
+import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/projects/domain/project_config.dart';
+import 'package:alera/src/features/projects/infra/drift_project_config_repository.dart';
 import 'package:alera/src/features/projects/infra/drift_project_repository.dart';
+import 'package:alera/src/features/projects/infra/project_config_toml_file_store.dart';
 import 'package:alera/src/features/workbench/application/workspace_folder_opener.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:alera/src/shared/infra/process/process_providers.dart';
@@ -25,6 +31,36 @@ ProjectRepository projectRepository(Ref ref) {
   final dbAsync = ref.watch(aleraDatabaseProvider);
   final db = dbAsync.requireValue;
   return DriftProjectRepository(db);
+}
+
+@Riverpod(keepAlive: true)
+Stream<List<Project>> projectList(Ref ref) {
+  return ref.watch(projectRepositoryProvider).watchAll();
+}
+
+@Riverpod(keepAlive: true)
+ProjectConfigRepository projectConfigRepository(Ref ref) {
+  final dbAsync = ref.watch(aleraDatabaseProvider);
+  final db = dbAsync.requireValue;
+  return DriftProjectConfigRepository(db);
+}
+
+@Riverpod(keepAlive: true)
+ProjectConfigFileStore projectConfigFileStore(Ref ref) {
+  return const TomlProjectConfigFileStore();
+}
+
+@Riverpod(keepAlive: true)
+ProjectConfigService projectConfigService(Ref ref) {
+  return ProjectConfigService(
+    repository: ref.watch(projectConfigRepositoryProvider),
+    fileStore: ref.watch(projectConfigFileStoreProvider),
+  );
+}
+
+@Riverpod(keepAlive: true)
+Stream<Map<String, ProjectConfig>> projectConfigOverrides(Ref ref) {
+  return ref.watch(projectConfigServiceProvider).watchUiOverrides();
 }
 
 @Riverpod(keepAlive: true)

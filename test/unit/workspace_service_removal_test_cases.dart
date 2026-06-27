@@ -5,11 +5,11 @@ void _registerWorkspaceServiceRemovalTests() {
     'removeWorkspace deletes the workspace and cascades its workspace tabs',
     () async {
       gitBackend.sourceBranches = <String>['main'];
-      final linkedWorkspace = await service.createLinkedWorkspace(
+      final linkedWorkspace = (await service.createLinkedWorkspace(
         project: project,
         sourceBranch: 'main',
         newBranchName: 'feature/with-tabs',
-      );
+      )).workspace;
       await repository.upsertWorkspaceTab(
         WorkspaceTabRecord(
           id: 'tab-1',
@@ -51,11 +51,11 @@ void _registerWorkspaceServiceRemovalTests() {
 
   test('removeWorkspace keeps the branch when deleteBranch is false', () async {
     gitBackend.sourceBranches = <String>['main'];
-    final linkedWorkspace = await service.createLinkedWorkspace(
+    final linkedWorkspace = (await service.createLinkedWorkspace(
       project: project,
       sourceBranch: 'main',
       newBranchName: 'feature/keep-branch',
-    );
+    )).workspace;
 
     await service.removeWorkspace(
       project: project,
@@ -77,12 +77,12 @@ void _registerWorkspaceServiceRemovalTests() {
 
   test('removeWorkspace keeps reused existing branches by default', () async {
     gitBackend.sourceBranches = <String>['main', 'feature/reused'];
-    final linkedWorkspace = await service.createLinkedWorkspace(
+    final linkedWorkspace = (await service.createLinkedWorkspace(
       project: project,
       sourceBranch: 'feature/reused',
       newBranchName: 'feature/reused',
       reuseExistingBranch: true,
-    );
+    )).workspace;
 
     await service.removeWorkspace(
       project: project,
@@ -104,11 +104,11 @@ void _registerWorkspaceServiceRemovalTests() {
 
   test('removeWorkspace surfaces git worktree removal failures', () async {
     gitBackend.sourceBranches = <String>['main'];
-    final linkedWorkspace = await service.createLinkedWorkspace(
+    final linkedWorkspace = (await service.createLinkedWorkspace(
       project: project,
       sourceBranch: 'main',
       newBranchName: 'feature/remove-failure',
-    );
+    )).workspace;
     gitBackend.failingWorktreeRemovePaths.add(linkedWorkspace.path);
 
     await expectLater(
@@ -123,11 +123,11 @@ void _registerWorkspaceServiceRemovalTests() {
 
   test('removeWorkspace surfaces git branch deletion failures', () async {
     gitBackend.sourceBranches = <String>['main'];
-    final linkedWorkspace = await service.createLinkedWorkspace(
+    final linkedWorkspace = (await service.createLinkedWorkspace(
       project: project,
       sourceBranch: 'main',
       newBranchName: 'feature/branch-failure',
-    );
+    )).workspace;
     gitBackend.failingBranchDeletes.add('feature/branch-failure');
 
     await expectLater(

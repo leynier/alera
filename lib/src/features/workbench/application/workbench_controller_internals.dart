@@ -8,14 +8,7 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
 
   WorkbenchRepository get _repository => ref.read(workbenchRepositoryProvider);
 
-  WorkspaceService get _workspaceService => WorkspaceService(
-    repository: ref.read(workbenchRepositoryProvider),
-    projectService: ref.read(projectServiceProvider),
-    gitBackend: ref.read(gitBackendProvider),
-    workspaceRoot: WorkspaceRoot(
-      override: ref.read(settingsControllerProvider).general.workspaceDirectory,
-    ),
-  );
+  WorkspaceService get _workspaceService => ref.read(workspaceServiceProvider);
 
   WorkspaceTabService get _workspaceTabService =>
       ref.read(workspaceTabServiceProvider);

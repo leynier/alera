@@ -7,6 +7,10 @@ import 'package:alera/src/features/ai_text_generation/application/ai_text_genera
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_registry.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_model_discovery_service.dart';
 import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
+import 'package:alera/src/features/projects/application/project_repository.dart';
+import 'package:alera/src/features/projects/application/project_config_service.dart';
+import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/projects/domain/project_config.dart';
 import 'package:alera/src/features/settings/application/settings_repository.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/domain/editor_syntax_theme_catalog.dart';
@@ -28,6 +32,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
+import '../unit/fake_project_config.dart';
+
 part 'settings_dialog_core_test_cases.dart';
 part 'settings_dialog_interaction_test_cases.dart';
 part 'settings_dialog_test_harness.dart';
@@ -39,6 +45,7 @@ Future<ProviderContainer> _pumpSettingsDialog(
   Size surfaceSize = const Size(1200, 900),
   SystemFontService? fontService,
   AiTextModelDiscoveryService? modelDiscoveryService,
+  List<dynamic> extraOverrides = const <dynamic>[],
 }) async {
   await tester.binding.setSurfaceSize(surfaceSize);
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -60,6 +67,7 @@ Future<ProviderContainer> _pumpSettingsDialog(
       ),
       if (starController != null)
         gitHubStarControllerProvider.overrideWith(() => starController),
+      ...extraOverrides,
     ],
   );
   addTearDown(container.dispose);

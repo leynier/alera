@@ -18,6 +18,7 @@ import 'package:alera/src/features/agent_status/infra/codex_runtime_home_service
 import 'package:alera/src/features/agent_status/infra/desktop_agent_status_notification_service.dart';
 import 'package:alera/src/features/agent_status/infra/managed_agent_hook_installer.dart';
 import 'package:alera/src/features/agent_status/infra/window_manager_agent_window_activator.dart';
+import 'package:alera/src/features/projects/application/project_config_service.dart';
 import 'package:alera/src/features/projects/application/project_service.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
@@ -42,6 +43,7 @@ import 'package:path_provider_platform_interface/path_provider_platform_interfac
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 import 'fake_git_backend.dart';
+import 'fake_project_config.dart';
 
 part 'app_providers_test_harness.dart';
 
@@ -78,16 +80,22 @@ void main() {
             projectServiceProvider.overrideWithValue(
               ProjectService(gitBackend),
             ),
+            projectConfigServiceProvider.overrideWithValue(
+              ProjectConfigService(
+                repository: FakeProjectConfigRepository(),
+                fileStore: FakeProjectConfigFileStore(),
+              ),
+            ),
           ],
         );
         addTearDown(container.dispose);
 
         final service = container.read(workspaceServiceProvider);
-        final workspace = await service.createLinkedWorkspace(
+        final workspace = (await service.createLinkedWorkspace(
           project: project,
           sourceBranch: 'main',
           newBranchName: 'feature/coverage',
-        );
+        )).workspace;
 
         expect(
           workspace.path,

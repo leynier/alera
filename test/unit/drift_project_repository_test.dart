@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/infra/drift_project_repository.dart';
+import 'package:alera/src/features/projects/infra/drift_project_config_repository.dart';
+import 'package:alera/src/features/projects/domain/project_config.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
@@ -45,6 +47,7 @@ void main() {
         final db = AleraDatabase(executor: NativeDatabase.memory());
         addTearDown(db.close);
         final repository = DriftProjectRepository(db);
+        final configRepository = DriftProjectConfigRepository(db);
         final now = DateTime.utc(2026, 5, 23);
         final project = _project('project-1', now);
         final otherProject = _project('project-2', now);
@@ -67,6 +70,20 @@ void main() {
 
         await repository.add(project);
         await repository.add(otherProject);
+        await configRepository.save(
+          projectId: project.id,
+          config: const ProjectConfig(
+            worktree: WorktreeSetupConfig(setup: <String>['make bootstrap']),
+          ),
+          updatedAt: now,
+        );
+        await configRepository.save(
+          projectId: otherProject.id,
+          config: const ProjectConfig(
+            worktree: WorktreeSetupConfig(setup: <String>['make keep']),
+          ),
+          updatedAt: now,
+        );
         await _insertWorkspace(db, workspace);
         await _insertWorkspace(db, otherWorkspace);
         await _insertWorkspaceTab(db, tab);
@@ -89,10 +106,15 @@ void main() {
         await repository.remove(project.id);
 
         expect(await _projectRow(db, project.id), isNull);
+        expect(await configRepository.findByProjectId(project.id), isNull);
         expect(await _workspaceRow(db, workspace.id), isNull);
         expect(await _workspaceTabRow(db, tab.id), isNull);
         expect(await _workbenchLayoutRow(db, workspace.id), isNull);
         expect(await _projectRow(db, otherProject.id), isNotNull);
+        expect(
+          await configRepository.findByProjectId(otherProject.id),
+          isNotNull,
+        );
         expect(await _workspaceRow(db, otherWorkspace.id), isNotNull);
         expect(await _workspaceTabRow(db, otherTab.id), isNotNull);
         expect(await _workbenchLayoutRow(db, otherWorkspace.id), isNotNull);

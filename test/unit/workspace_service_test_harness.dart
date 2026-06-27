@@ -125,3 +125,16 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
   Stream<List<Workspace>> watchWorkspaces(String projectId) =>
       const Stream<List<Workspace>>.empty();
 }
+
+class _FailingProjectConfigReader implements ProjectConfigReader {
+  const _FailingProjectConfigReader();
+
+  @override
+  Future<EffectiveProjectConfig> resolve(Project project) async {
+    return EffectiveProjectConfig(
+      config: ProjectConfig.empty,
+      origin: ProjectConfigOrigin.repoFile,
+      error: ProjectConfigException('Invalid Config'),
+    );
+  }
+}

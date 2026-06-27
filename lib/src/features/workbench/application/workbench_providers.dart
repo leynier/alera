@@ -14,6 +14,7 @@ import 'package:alera/src/features/workbench/application/workspace_file_service.
 import 'package:alera/src/features/workbench/application/workspace_search_service.dart';
 import 'package:alera/src/features/workbench/application/workspace_service.dart';
 import 'package:alera/src/features/workbench/application/workspace_tab_service.dart';
+import 'package:alera/src/features/workbench/application/worktree_setup_service.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/infra/drift_workbench_repository.dart';
@@ -24,6 +25,7 @@ import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_p
 import 'package:alera/src/features/workbench/infra/terminal_shell_startup_preparer.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
+import 'package:alera/src/shared/infra/process/process_providers.dart';
 import 'package:alera/src/shared/infra/storage/storage_providers.dart';
 import 'package:alera/src/shared/infra/uri/uri_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -63,6 +65,11 @@ WorkspaceSearchService workspaceSearchService(Ref ref) {
 }
 
 @Riverpod(keepAlive: true)
+WorktreeSetupRunner worktreeSetupRunner(Ref ref) {
+  return WorktreeSetupService(processRunner: ref.watch(processRunnerProvider));
+}
+
+@Riverpod(keepAlive: true)
 EditorSessionRegistry editorSessionRegistry(Ref ref) {
   final registry = EditorSessionRegistry();
   ref.onDispose(registry.dispose);
@@ -79,6 +86,8 @@ WorkspaceService workspaceService(Ref ref) {
     projectService: ref.watch(projectServiceProvider),
     gitBackend: ref.watch(gitBackendProvider),
     workspaceRoot: WorkspaceRoot(override: override),
+    projectConfigReader: ref.watch(projectConfigServiceProvider),
+    worktreeSetupRunner: ref.watch(worktreeSetupRunnerProvider),
   );
 }
 

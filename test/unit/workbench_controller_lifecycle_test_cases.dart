@@ -30,6 +30,37 @@ void _registerWorkbenchControllerLifecycleTests() {
     },
   );
 
+  test('createWorkspace returns injected worktree setup warnings', () async {
+    await _controller.bootstrap();
+    const report = WorktreeSetupReport(
+      steps: <WorktreeSetupStepReport>[
+        WorktreeSetupStepReport(
+          kind: WorktreeSetupStepKind.command,
+          label: 'make bootstrap',
+          succeeded: false,
+          message: 'failed',
+        ),
+      ],
+    );
+    _harness.worktreeSetupRunner.report = report;
+
+    final result = await _controller.createWorkspace(
+      project: _harness.project,
+      sourceBranch: 'main',
+      newBranchName: 'feature/setup-report',
+    );
+    await _flush();
+
+    expect(result.setupReport, same(report));
+    expect(result.hasSetupWarnings, isTrue);
+    expect(_harness.worktreeSetupRunner.calls, hasLength(1));
+    expect(
+      _harness.worktreeSetupRunner.calls.single.workspace.id,
+      result.workspace.id,
+    );
+    expect(_controller.state.activeWorkspaceId, result.workspace.id);
+  });
+
   test(
     'openFileTab upgrades a legacy PDF editor tab without duplicating it',
     () async {
@@ -101,11 +132,11 @@ void _registerWorkbenchControllerLifecycleTests() {
       await _controller.bootstrap();
       final mainWorkspace = await _selectMainWorkspace(_controller, _harness);
 
-      final linked = await _controller.createWorkspace(
+      final linked = (await _controller.createWorkspace(
         project: _harness.project,
         sourceBranch: 'main',
         newBranchName: 'feature/inactive-close',
-      );
+      )).workspace;
       await _flush();
       final linkedTab = _controller.state.activeWorkspaceTab!;
 
@@ -376,11 +407,11 @@ void _registerWorkbenchControllerLifecycleTests() {
           .workspacesFor(_harness.project.id)
           .single;
 
-      final linked = await _controller.createWorkspace(
+      final linked = (await _controller.createWorkspace(
         project: _harness.project,
         sourceBranch: 'main',
         newBranchName: 'feature/delete-me',
-      );
+      )).workspace;
       await _flush();
       expect(
         _controller.state.workspacesFor(_harness.project.id).map((w) => w.id),
@@ -408,11 +439,11 @@ void _registerWorkbenchControllerLifecycleTests() {
         () => _controller.state.workspacesFor(_harness.project.id).isNotEmpty,
       );
 
-      final linked = await _controller.createWorkspace(
+      final linked = (await _controller.createWorkspace(
         project: _harness.project,
         sourceBranch: 'main',
         newBranchName: 'feature/active',
-      );
+      )).workspace;
       await _flush();
       expect(_controller.state.activeWorkspaceId, linked.id);
       expect(_controller.state.activeProjectId, _harness.project.id);

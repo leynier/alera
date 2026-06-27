@@ -6,6 +6,7 @@ import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_dialog_launchers.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:flutter/material.dart';
@@ -439,7 +440,7 @@ class _DialogLaunchersTestController extends WorkbenchController {
   }
 
   @override
-  Future<Workspace> createWorkspace({
+  Future<WorkspaceCreationResult> createWorkspace({
     required Project project,
     required String sourceBranch,
     required String newBranchName,
@@ -456,10 +457,13 @@ class _DialogLaunchersTestController extends WorkbenchController {
       reuseExistingBranch: reuseExistingBranch,
       name: name,
     );
-    return _workspace(
-      id: 'workspace-created',
-      projectId: project.id,
-      name: name ?? newBranchName,
+    return WorkspaceCreationResult(
+      workspace: _workspace(
+        id: 'workspace-created',
+        projectId: project.id,
+        name: name ?? newBranchName,
+      ),
+      setupReport: WorktreeSetupReport.empty,
     );
   }
 }

@@ -73,7 +73,7 @@ mixin _WorkbenchControllerProjects
     }
   }
 
-  Future<Workspace> createWorkspace({
+  Future<WorkspaceCreationResult> createWorkspace({
     required Project project,
     required String sourceBranch,
     required String newBranchName,
@@ -81,16 +81,16 @@ mixin _WorkbenchControllerProjects
     String? name,
   }) async {
     try {
-      final workspace = await _workspaceService.createLinkedWorkspace(
+      final result = await _workspaceService.createLinkedWorkspace(
         project: project,
         sourceBranch: sourceBranch,
         newBranchName: newBranchName,
         reuseExistingBranch: reuseExistingBranch,
         name: name,
       );
-      await selectWorkspace(project: project, workspace: workspace);
+      await selectWorkspace(project: project, workspace: result.workspace);
       state = state.copyWith(error: null);
-      return workspace;
+      return result;
     } catch (error) {
       state = state.copyWith(error: error.toString());
       rethrow;

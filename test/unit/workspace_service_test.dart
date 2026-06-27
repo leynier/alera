@@ -4,12 +4,15 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:alera/src/features/projects/application/project_service.dart';
+import 'package:alera/src/features/projects/application/project_config_service.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/projects/domain/project_config.dart';
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
 import 'package:alera/src/features/workbench/application/workspace_service.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
 import 'package:alera/src/shared/infra/git/git_exception.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;

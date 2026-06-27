@@ -2180,6 +2180,280 @@ class AppSettingsTableCompanion extends UpdateCompanion<AppSettingsTableData> {
   }
 }
 
+class $ProjectConfigsTableTable extends ProjectConfigsTable
+    with TableInfo<$ProjectConfigsTableTable, ProjectConfigsTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ProjectConfigsTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _projectIdMeta = const VerificationMeta(
+    'projectId',
+  );
+  @override
+  late final GeneratedColumn<String> projectId = GeneratedColumn<String>(
+    'project_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _dataJsonMeta = const VerificationMeta(
+    'dataJson',
+  );
+  @override
+  late final GeneratedColumn<String> dataJson = GeneratedColumn<String>(
+    'data_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [projectId, dataJson, updatedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'project_configs_table';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ProjectConfigsTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('project_id')) {
+      context.handle(
+        _projectIdMeta,
+        projectId.isAcceptableOrUnknown(data['project_id']!, _projectIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_projectIdMeta);
+    }
+    if (data.containsKey('data_json')) {
+      context.handle(
+        _dataJsonMeta,
+        dataJson.isAcceptableOrUnknown(data['data_json']!, _dataJsonMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dataJsonMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {projectId};
+  @override
+  ProjectConfigsTableData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ProjectConfigsTableData(
+      projectId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}project_id'],
+      )!,
+      dataJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}data_json'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $ProjectConfigsTableTable createAlias(String alias) {
+    return $ProjectConfigsTableTable(attachedDatabase, alias);
+  }
+}
+
+class ProjectConfigsTableData extends DataClass
+    implements Insertable<ProjectConfigsTableData> {
+  final String projectId;
+  final String dataJson;
+  final DateTime updatedAt;
+  const ProjectConfigsTableData({
+    required this.projectId,
+    required this.dataJson,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['project_id'] = Variable<String>(projectId);
+    map['data_json'] = Variable<String>(dataJson);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  ProjectConfigsTableCompanion toCompanion(bool nullToAbsent) {
+    return ProjectConfigsTableCompanion(
+      projectId: Value(projectId),
+      dataJson: Value(dataJson),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory ProjectConfigsTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ProjectConfigsTableData(
+      projectId: serializer.fromJson<String>(json['projectId']),
+      dataJson: serializer.fromJson<String>(json['dataJson']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'projectId': serializer.toJson<String>(projectId),
+      'dataJson': serializer.toJson<String>(dataJson),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  ProjectConfigsTableData copyWith({
+    String? projectId,
+    String? dataJson,
+    DateTime? updatedAt,
+  }) => ProjectConfigsTableData(
+    projectId: projectId ?? this.projectId,
+    dataJson: dataJson ?? this.dataJson,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  ProjectConfigsTableData copyWithCompanion(ProjectConfigsTableCompanion data) {
+    return ProjectConfigsTableData(
+      projectId: data.projectId.present ? data.projectId.value : this.projectId,
+      dataJson: data.dataJson.present ? data.dataJson.value : this.dataJson,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ProjectConfigsTableData(')
+          ..write('projectId: $projectId, ')
+          ..write('dataJson: $dataJson, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(projectId, dataJson, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ProjectConfigsTableData &&
+          other.projectId == this.projectId &&
+          other.dataJson == this.dataJson &&
+          other.updatedAt == this.updatedAt);
+}
+
+class ProjectConfigsTableCompanion
+    extends UpdateCompanion<ProjectConfigsTableData> {
+  final Value<String> projectId;
+  final Value<String> dataJson;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const ProjectConfigsTableCompanion({
+    this.projectId = const Value.absent(),
+    this.dataJson = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ProjectConfigsTableCompanion.insert({
+    required String projectId,
+    required String dataJson,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : projectId = Value(projectId),
+       dataJson = Value(dataJson),
+       updatedAt = Value(updatedAt);
+  static Insertable<ProjectConfigsTableData> custom({
+    Expression<String>? projectId,
+    Expression<String>? dataJson,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (projectId != null) 'project_id': projectId,
+      if (dataJson != null) 'data_json': dataJson,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ProjectConfigsTableCompanion copyWith({
+    Value<String>? projectId,
+    Value<String>? dataJson,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return ProjectConfigsTableCompanion(
+      projectId: projectId ?? this.projectId,
+      dataJson: dataJson ?? this.dataJson,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (projectId.present) {
+      map['project_id'] = Variable<String>(projectId.value);
+    }
+    if (dataJson.present) {
+      map['data_json'] = Variable<String>(dataJson.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ProjectConfigsTableCompanion(')
+          ..write('projectId: $projectId, ')
+          ..write('dataJson: $dataJson, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AleraDatabase extends GeneratedDatabase {
   _$AleraDatabase(QueryExecutor e) : super(e);
   $AleraDatabaseManager get managers => $AleraDatabaseManager(this);
@@ -2196,6 +2470,8 @@ abstract class _$AleraDatabase extends GeneratedDatabase {
   late final $AppSettingsTableTable appSettingsTable = $AppSettingsTableTable(
     this,
   );
+  late final $ProjectConfigsTableTable projectConfigsTable =
+      $ProjectConfigsTableTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2207,6 +2483,7 @@ abstract class _$AleraDatabase extends GeneratedDatabase {
     workbenchLayoutsTable,
     workbenchViewPrefsTable,
     appSettingsTable,
+    projectConfigsTable,
   ];
 }
 
@@ -3475,6 +3752,184 @@ typedef $$AppSettingsTableTableProcessedTableManager =
       AppSettingsTableData,
       PrefetchHooks Function()
     >;
+typedef $$ProjectConfigsTableTableCreateCompanionBuilder =
+    ProjectConfigsTableCompanion Function({
+      required String projectId,
+      required String dataJson,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$ProjectConfigsTableTableUpdateCompanionBuilder =
+    ProjectConfigsTableCompanion Function({
+      Value<String> projectId,
+      Value<String> dataJson,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$ProjectConfigsTableTableFilterComposer
+    extends Composer<_$AleraDatabase, $ProjectConfigsTableTable> {
+  $$ProjectConfigsTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get projectId => $composableBuilder(
+    column: $table.projectId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get dataJson => $composableBuilder(
+    column: $table.dataJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ProjectConfigsTableTableOrderingComposer
+    extends Composer<_$AleraDatabase, $ProjectConfigsTableTable> {
+  $$ProjectConfigsTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get projectId => $composableBuilder(
+    column: $table.projectId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get dataJson => $composableBuilder(
+    column: $table.dataJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ProjectConfigsTableTableAnnotationComposer
+    extends Composer<_$AleraDatabase, $ProjectConfigsTableTable> {
+  $$ProjectConfigsTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get projectId =>
+      $composableBuilder(column: $table.projectId, builder: (column) => column);
+
+  GeneratedColumn<String> get dataJson =>
+      $composableBuilder(column: $table.dataJson, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$ProjectConfigsTableTableTableManager
+    extends
+        RootTableManager<
+          _$AleraDatabase,
+          $ProjectConfigsTableTable,
+          ProjectConfigsTableData,
+          $$ProjectConfigsTableTableFilterComposer,
+          $$ProjectConfigsTableTableOrderingComposer,
+          $$ProjectConfigsTableTableAnnotationComposer,
+          $$ProjectConfigsTableTableCreateCompanionBuilder,
+          $$ProjectConfigsTableTableUpdateCompanionBuilder,
+          (
+            ProjectConfigsTableData,
+            BaseReferences<
+              _$AleraDatabase,
+              $ProjectConfigsTableTable,
+              ProjectConfigsTableData
+            >,
+          ),
+          ProjectConfigsTableData,
+          PrefetchHooks Function()
+        > {
+  $$ProjectConfigsTableTableTableManager(
+    _$AleraDatabase db,
+    $ProjectConfigsTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ProjectConfigsTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ProjectConfigsTableTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$ProjectConfigsTableTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> projectId = const Value.absent(),
+                Value<String> dataJson = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ProjectConfigsTableCompanion(
+                projectId: projectId,
+                dataJson: dataJson,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String projectId,
+                required String dataJson,
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => ProjectConfigsTableCompanion.insert(
+                projectId: projectId,
+                dataJson: dataJson,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ProjectConfigsTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AleraDatabase,
+      $ProjectConfigsTableTable,
+      ProjectConfigsTableData,
+      $$ProjectConfigsTableTableFilterComposer,
+      $$ProjectConfigsTableTableOrderingComposer,
+      $$ProjectConfigsTableTableAnnotationComposer,
+      $$ProjectConfigsTableTableCreateCompanionBuilder,
+      $$ProjectConfigsTableTableUpdateCompanionBuilder,
+      (
+        ProjectConfigsTableData,
+        BaseReferences<
+          _$AleraDatabase,
+          $ProjectConfigsTableTable,
+          ProjectConfigsTableData
+        >,
+      ),
+      ProjectConfigsTableData,
+      PrefetchHooks Function()
+    >;
 
 class $AleraDatabaseManager {
   final _$AleraDatabase _db;
@@ -3494,4 +3949,6 @@ class $AleraDatabaseManager {
       );
   $$AppSettingsTableTableTableManager get appSettingsTable =>
       $$AppSettingsTableTableTableManager(_db, _db.appSettingsTable);
+  $$ProjectConfigsTableTableTableManager get projectConfigsTable =>
+      $$ProjectConfigsTableTableTableManager(_db, _db.projectConfigsTable);
 }

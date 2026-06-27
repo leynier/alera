@@ -20,6 +20,7 @@ void main() {
       final layouts = db.workbenchLayoutsTable;
       final viewPrefs = db.workbenchViewPrefsTable;
       final settings = db.appSettingsTable;
+      final projectConfigs = db.projectConfigsTable;
 
       expect(projects.id, isNotNull);
       expect(projects.name, isNotNull);
@@ -62,6 +63,11 @@ void main() {
       expect(settings.id, isNotNull);
       expect(settings.dataJson, isNotNull);
       expect(settings.primaryKey, hasLength(1));
+
+      expect(projectConfigs.projectId, isNotNull);
+      expect(projectConfigs.dataJson, isNotNull);
+      expect(projectConfigs.updatedAt, isNotNull);
+      expect(projectConfigs.primaryKey, hasLength(1));
     });
 
     test('exposes schema version and migration hooks', () async {
@@ -92,6 +98,7 @@ void main() {
           'workbench_layouts_table',
           'workbench_view_prefs_table',
           'app_settings_table',
+          'project_configs_table',
         ]),
       );
     });
