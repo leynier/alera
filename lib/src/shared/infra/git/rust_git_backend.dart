@@ -49,6 +49,17 @@ class RustGitBackend implements GitBackend {
   );
 
   @override
+  Future<void> refreshSourceBranch({
+    required String repoPath,
+    required String sourceBranch,
+  }) => _guard(
+    () => rust.refreshSourceBranch(
+      repoPath: repoPath,
+      sourceBranch: sourceBranch,
+    ),
+  );
+
+  @override
   Future<void> removeWorktree({
     required String repoPath,
     required String path,

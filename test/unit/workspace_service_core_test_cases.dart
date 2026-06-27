@@ -137,6 +137,23 @@ void _registerWorkspaceServiceCoreTests() {
       expect(workspace.reusesExistingBranch, isFalse);
       expect(workspace.name, 'feature/terminal-tabs');
       expect(workspace.path, contains('project-1'));
+      expect(
+        gitBackend.calls.map((call) => call.method),
+        containsAllInOrder(<String>[
+          'isValidBranchName',
+          'listBranches',
+          'branchExists',
+          'refreshSourceBranch',
+          'createWorktree',
+        ]),
+      );
+      final refreshCall = gitBackend.calls.lastWhere(
+        (call) => call.method == 'refreshSourceBranch',
+      );
+      expect(refreshCall.args, <String, Object?>{
+        'repoPath': project.repoPath,
+        'sourceBranch': 'origin/main',
+      });
       final createCall = gitBackend.calls.lastWhere(
         (call) => call.method == 'createWorktree',
       );
@@ -147,6 +164,45 @@ void _registerWorkspaceServiceCoreTests() {
         'sourceBranch': 'origin/main',
         'reuseExistingBranch': false,
       });
+    },
+  );
+
+  test(
+    'createLinkedWorkspace surfaces source branch refresh failures',
+    () async {
+      gitBackend.sourceBranches = <String>['main'];
+      gitBackend.refreshSourceBranchError = const GitCliException(
+        'pull failed',
+      );
+
+      await expectLater(
+        service.createLinkedWorkspace(
+          project: project,
+          sourceBranch: 'main',
+          newBranchName: 'feature/refresh-failure',
+        ),
+        throwsA(
+          isA<WorkspaceException>()
+              .having(
+                (error) => error.message,
+                'message',
+                'git source branch refresh failed',
+              )
+              .having((error) => error.stderr, 'stderr', 'pull failed'),
+        ),
+      );
+
+      expect(
+        gitBackend.calls.map((call) => call.method),
+        isNot(contains('createWorktree')),
+      );
+      expect(repository.workspaces, isEmpty);
+      expect(
+        Directory(
+          p.join(tempDir.path, 'workspaces', 'repo-project-1'),
+        ).existsSync(),
+        isFalse,
+      );
     },
   );
 

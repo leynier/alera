@@ -38,7 +38,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1535239911;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1983816553;
 
 // Section: executor
 
@@ -1447,6 +1447,41 @@ fn wire__crate__api__workspace_files__read_workspace_text_file_impl(
                         Ok(output_ok)
                     })(),
                 )
+            }
+        },
+    )
+}
+fn wire__crate__api__git__refresh_source_branch_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "refresh_source_branch",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_repo_path = <String>::sse_decode(&mut deserializer);
+            let api_source_branch = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::git::GitError>((move || {
+                    let output_ok =
+                        crate::api::git::refresh_source_branch(api_repo_path, api_source_branch)?;
+                    Ok(output_ok)
+                })())
             }
         },
     )
@@ -3485,104 +3520,105 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        40 => wire__crate__api__git__remove_worktree_impl(port, ptr, rust_vec_len, data_len),
-        41 => wire__crate__api__workspace_files__rename_workspace_entry_impl(
+        40 => wire__crate__api__git__refresh_source_branch_impl(port, ptr, rust_vec_len, data_len),
+        41 => wire__crate__api__git__remove_worktree_impl(port, ptr, rust_vec_len, data_len),
+        42 => wire__crate__api__workspace_files__rename_workspace_entry_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        42 => wire__crate__api__merman_viewer__render_merman_workspace_file_impl(
+        43 => wire__crate__api__merman_viewer__render_merman_workspace_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        43 => wire__crate__api__workspace_search__replace_workspace_matches_impl(
+        44 => wire__crate__api__workspace_search__replace_workspace_matches_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        44 => wire__crate__api__workspace_search__search_workspace_impl(
+        45 => wire__crate__api__workspace_search__search_workspace_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        45 => wire__crate__api__agent_hooks__set_agent_hook_enabled_agents_impl(
+        46 => wire__crate__api__agent_hooks__set_agent_hook_enabled_agents_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        46 => wire__crate__api__agent_hooks__start_agent_hook_receiver_impl(
+        47 => wire__crate__api__agent_hooks__start_agent_hook_receiver_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        47 => wire__crate__api__workspace_files__start_source_control_watcher_impl(
+        48 => wire__crate__api__workspace_files__start_source_control_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        48 => wire__crate__api__workspace_files__start_workspace_explorer_watcher_impl(
+        49 => wire__crate__api__workspace_files__start_workspace_explorer_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        49 => wire__crate__api__agent_hooks__stop_agent_hook_receiver_impl(
+        50 => wire__crate__api__agent_hooks__stop_agent_hook_receiver_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        50 => wire__crate__api__workspace_files__stop_source_control_watcher_impl(
+        51 => wire__crate__api__workspace_files__stop_source_control_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        51 => wire__crate__api__workspace_files__stop_workspace_explorer_watcher_impl(
+        52 => wire__crate__api__workspace_files__stop_workspace_explorer_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        52 => wire__crate__api__workspace_files__update_workspace_explorer_watcher_impl(
+        53 => wire__crate__api__workspace_files__update_workspace_explorer_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        53 => wire__crate__api__agent_hooks__watch_agent_hook_event_batches_impl(
+        54 => wire__crate__api__agent_hooks__watch_agent_hook_event_batches_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        54 => wire__crate__api__workspace_files__watch_source_control_events_impl(
+        55 => wire__crate__api__workspace_files__watch_source_control_events_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        55 => wire__crate__api__workspace_files__watch_workspace_explorer_events_impl(
+        56 => wire__crate__api__workspace_files__watch_workspace_explorer_events_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        56 => wire__crate__api__workspace_files__write_workspace_editor_text_file_impl(
+        57 => wire__crate__api__workspace_files__write_workspace_editor_text_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        57 => wire__crate__api__workspace_files__write_workspace_text_file_impl(
+        58 => wire__crate__api__workspace_files__write_workspace_text_file_impl(
             port,
             ptr,
             rust_vec_len,
