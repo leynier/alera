@@ -75,6 +75,33 @@ void _registerWorkspaceServiceRemovalTests() {
     );
   });
 
+  test('removeWorkspace keeps reused existing branches by default', () async {
+    gitBackend.sourceBranches = <String>['main', 'feature/reused'];
+    final linkedWorkspace = await service.createLinkedWorkspace(
+      project: project,
+      sourceBranch: 'feature/reused',
+      newBranchName: 'feature/reused',
+      reuseExistingBranch: true,
+    );
+
+    await service.removeWorkspace(
+      project: project,
+      workspace: linkedWorkspace,
+      deleteBranch: true,
+    );
+
+    expect(
+      gitBackend.calls.any((call) => call.method == 'deleteBranch'),
+      isFalse,
+    );
+    expect(
+      repository.workspaces.any(
+        (workspace) => workspace.id == linkedWorkspace.id,
+      ),
+      isFalse,
+    );
+  });
+
   test('removeWorkspace surfaces git worktree removal failures', () async {
     gitBackend.sourceBranches = <String>['main'];
     final linkedWorkspace = await service.createLinkedWorkspace(

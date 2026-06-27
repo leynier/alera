@@ -77,6 +77,7 @@ mixin _WorkbenchControllerProjects
     required Project project,
     required String sourceBranch,
     required String newBranchName,
+    bool reuseExistingBranch = false,
     String? name,
   }) async {
     try {
@@ -84,6 +85,7 @@ mixin _WorkbenchControllerProjects
         project: project,
         sourceBranch: sourceBranch,
         newBranchName: newBranchName,
+        reuseExistingBranch: reuseExistingBranch,
         name: name,
       );
       await selectWorkspace(project: project, workspace: workspace);

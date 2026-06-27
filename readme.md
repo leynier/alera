@@ -62,7 +62,7 @@ Alera is in active development. These are the features shipping **right now**:
 
 ### 🗂️ Project & workspace registry
 
-Register existing local folders or clone Git repositories from one place. Git-backed projects can spin up multiple **workspaces** backed by real Git worktrees: one branch, one task, one experiment per workspace, fully isolated.
+Register existing local folders or clone Git repositories from one place. Git-backed projects can spin up multiple **workspaces** backed by real Git worktrees: create a branch from a source branch or reuse an existing local branch, one task or experiment per workspace, fully isolated.
 
 ### 🌳 Worktree-native workflow
 

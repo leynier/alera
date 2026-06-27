@@ -81,6 +81,9 @@ class _ProjectPicker extends StatelessWidget {
 
 class _SourceBranchPicker extends StatelessWidget {
   const _SourceBranchPicker({
+    required this.label,
+    required this.searchHint,
+    required this.emptyMessage,
     required this.branches,
     required this.selectedBranch,
     required this.query,
@@ -89,6 +92,9 @@ class _SourceBranchPicker extends StatelessWidget {
     required this.onSelectBranch,
   });
 
+  final String label;
+  final String searchHint;
+  final String emptyMessage;
   final List<String> branches;
   final String? selectedBranch;
   final String query;
@@ -111,7 +117,7 @@ class _SourceBranchPicker extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Text(
-          'Source Branch',
+          label,
           style: theme.textTheme.labelMedium?.copyWith(
             color: AleraTokens.foregroundMuted,
           ),
@@ -119,14 +125,14 @@ class _SourceBranchPicker extends StatelessWidget {
         const SizedBox(height: AleraTokens.space8),
         AleraSearchField(
           controller: controller,
-          hintText: 'Search Source Branches',
+          hintText: searchHint,
           onChanged: onQueryChanged,
         ),
         const SizedBox(height: AleraTokens.space8),
         _PickerPanel(
           maxHeight: 240,
           isEmpty: filtered.isEmpty,
-          emptyMessage: 'No Source Branches Match "$query"',
+          emptyMessage: emptyMessage,
           itemCount: filtered.length,
           itemBuilder: (context, index) {
             final branch = filtered[index];
