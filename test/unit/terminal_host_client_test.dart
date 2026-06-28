@@ -147,6 +147,129 @@ void main() {
   });
 
   test(
+    'shares an in-flight launch when terminal warmup starts first',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'alera-host-client-terminal-runtime-race-',
+      );
+      addTearDown(() async {
+        if (await tempDir.exists()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+      final server = await _TerminalHostTestServer.start();
+      addTearDown(server.dispose);
+      final publishGate = Completer<void>();
+      final launcher = _FakeTerminalHostLauncher(
+        server: server,
+        beforePublish: publishGate.future,
+      );
+      final client = SocketTerminalHostClient(
+        launcher: launcher,
+        applicationSupportDirectory: () async => tempDir,
+      );
+      addTearDown(client.dispose);
+
+      final warmup = client.ensureStarted(config: TerminalHostConfig.defaults);
+      await _waitForLauncherStart(launcher);
+      final runtimeRequest = client.runtimeRequest('project.list');
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      expect(launcher.starts, 1);
+
+      publishGate.complete();
+      await Future.wait(<Future<Object?>>[warmup, runtimeRequest]);
+
+      expect(launcher.starts, 1);
+      expect(
+        server.requestTypes,
+        containsAll(<String>['hello', 'configure', 'project.list']),
+      );
+    },
+  );
+
+  test('shares an in-flight launch when runtime access starts first', () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'alera-host-client-runtime-terminal-race-',
+    );
+    addTearDown(() async {
+      if (await tempDir.exists()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+    final server = await _TerminalHostTestServer.start();
+    addTearDown(server.dispose);
+    final publishGate = Completer<void>();
+    final launcher = _FakeTerminalHostLauncher(
+      server: server,
+      beforePublish: publishGate.future,
+    );
+    final client = SocketTerminalHostClient(
+      launcher: launcher,
+      applicationSupportDirectory: () async => tempDir,
+    );
+    addTearDown(client.dispose);
+
+    final runtimeRequest = client.runtimeRequest('project.list');
+    await _waitForLauncherStart(launcher);
+    final warmup = client.ensureStarted(config: TerminalHostConfig.defaults);
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+
+    expect(launcher.starts, 1);
+
+    publishGate.complete();
+    await Future.wait(<Future<Object?>>[runtimeRequest, warmup]);
+
+    expect(launcher.starts, 1);
+    expect(
+      server.requestTypes,
+      containsAll(<String>['hello', 'project.list', 'configure']),
+    );
+  });
+
+  test('only forwards runtime change events to runtimeEvents', () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'alera-host-client-runtime-events-',
+    );
+    addTearDown(() async {
+      if (await tempDir.exists()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+    final server = await _TerminalHostTestServer.start();
+    addTearDown(server.dispose);
+    final client = SocketTerminalHostClient(
+      launcher: _FakeTerminalHostLauncher(server: server),
+      applicationSupportDirectory: () async => tempDir,
+    );
+    addTearDown(client.dispose);
+
+    await client.ensureStarted(config: TerminalHostConfig.defaults);
+    final outputEvent = client.events
+        .where((event) => event is TerminalHostOutputEvent)
+        .cast<TerminalHostOutputEvent>()
+        .first;
+    final runtimeEvent = client.runtimeEvents.first;
+
+    server.send(<String, Object?>{
+      'event': 'output',
+      'payload': <String, Object?>{
+        'sessionId': 'session-1',
+        'dataBase64': encodeTerminalHostBytes(<int>[65]),
+      },
+    });
+    server.send(<String, Object?>{
+      'event': 'projectsChanged',
+      'payload': <String, Object?>{'projectId': 'project-1'},
+    });
+
+    expect((await outputEvent).data, <int>[65]);
+    final event = await runtimeEvent;
+    expect(event.name, 'projectsChanged');
+    expect(event.payload, <String, Object?>{'projectId': 'project-1'});
+  });
+
+  test(
     'configure updates connected hosts but does not start idle ones',
     () async {
       final idleTempDir = await Directory.systemTemp.createTemp(
@@ -304,6 +427,149 @@ void main() {
     },
   );
 
+  test('deletes stale legacy controls without runtime capability', () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'alera-host-client-legacy-control-',
+    );
+    addTearDown(() async {
+      if (await tempDir.exists()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+    await _writeControlFile(
+      tempDir: tempDir,
+      port: 1,
+      token: 'legacy-token',
+      includeRuntimeCapability: false,
+    );
+    final client = SocketTerminalHostClient(
+      launcher: _NoopTerminalHostLauncher(),
+      applicationSupportDirectory: () async => tempDir,
+      startupTimeout: Duration.zero,
+    );
+    addTearDown(client.dispose);
+
+    await expectLater(client.detach('session-1'), throwsA(isA<StateError>()));
+
+    expect(
+      await File(p.join(tempDir.path, 'terminal_host', 'host.json')).exists(),
+      isFalse,
+    );
+  });
+
+  test('reuses a live legacy control for terminal requests', () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'alera-host-client-legacy-terminal-',
+    );
+    addTearDown(() async {
+      if (await tempDir.exists()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+    final server = await _TerminalHostTestServer.start();
+    addTearDown(server.dispose);
+    await _writeControlFile(
+      tempDir: tempDir,
+      port: server.port,
+      token: 'legacy-token',
+      includeRuntimeCapability: false,
+    );
+    final launcher = _FakeTerminalHostLauncher(server: server);
+    final client = SocketTerminalHostClient(
+      launcher: launcher,
+      applicationSupportDirectory: () async => tempDir,
+    );
+    addTearDown(client.dispose);
+
+    await client.ensureStarted(config: TerminalHostConfig.defaults);
+
+    expect(launcher.starts, 0);
+    expect(server.requestTypes, <String>['hello', 'configure']);
+    expect(
+      await File(p.join(tempDir.path, 'terminal_host', 'host.json')).exists(),
+      isTrue,
+    );
+  });
+
+  test(
+    'starts a separate runtime host when terminal control is live legacy',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'alera-host-client-legacy-runtime-',
+      );
+      addTearDown(() async {
+        if (await tempDir.exists()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+      final legacyServer = await _TerminalHostTestServer.start();
+      addTearDown(legacyServer.dispose);
+      final runtimeServer = await _TerminalHostTestServer.start();
+      addTearDown(runtimeServer.dispose);
+      await _writeControlFile(
+        tempDir: tempDir,
+        port: legacyServer.port,
+        token: 'legacy-token',
+        includeRuntimeCapability: false,
+      );
+      final launcher = _FakeTerminalHostLauncher(server: runtimeServer);
+      final client = SocketTerminalHostClient(
+        launcher: launcher,
+        applicationSupportDirectory: () async => tempDir,
+      );
+      addTearDown(client.dispose);
+
+      await client.detach('session-1');
+      await client.runtimeRequest('project.list');
+
+      expect(launcher.starts, 1);
+      expect(
+        launcher.controlFilePaths.single,
+        p.join(tempDir.path, 'terminal_host', 'runtime-host.json'),
+      );
+      expect(legacyServer.requestTypes, <String>['hello', 'detach']);
+      expect(runtimeServer.requestTypes, <String>['hello', 'project.list']);
+      expect(
+        await File(p.join(tempDir.path, 'terminal_host', 'host.json')).exists(),
+        isTrue,
+      );
+      expect(
+        await File(
+          p.join(tempDir.path, 'terminal_host', 'runtime-host.json'),
+        ).exists(),
+        isTrue,
+      );
+    },
+  );
+
+  test(
+    'reuses a runtime control for terminal requests when no legacy exists',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'alera-host-client-runtime-first-',
+      );
+      addTearDown(() async {
+        if (await tempDir.exists()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+      final server = await _TerminalHostTestServer.start();
+      addTearDown(server.dispose);
+      final launcher = _FakeTerminalHostLauncher(server: server);
+      final client = SocketTerminalHostClient(
+        launcher: launcher,
+        applicationSupportDirectory: () async => tempDir,
+      );
+      addTearDown(client.dispose);
+
+      await client.runtimeRequest('project.list');
+      await client.detach('session-1');
+
+      expect(launcher.starts, 1);
+      expect(server.requestTypes, <String>['hello', 'project.list', 'detach']);
+    },
+  );
+
   test('rejects requests after disposal', () async {
     final client = SocketTerminalHostClient(
       launcher: _NoopTerminalHostLauncher(),
@@ -333,28 +599,43 @@ GhosttyTerminalShellLaunch _launch({String? setupCommand}) {
   );
 }
 
+Future<void> _waitForLauncherStart(_FakeTerminalHostLauncher launcher) async {
+  final deadline = DateTime.now().add(const Duration(seconds: 1));
+  while (launcher.starts == 0 && DateTime.now().isBefore(deadline)) {
+    await Future<void>.delayed(const Duration(milliseconds: 1));
+  }
+  expect(launcher.starts, greaterThan(0));
+}
+
 Future<void> _writeControlFile({
   required Directory tempDir,
   required int port,
   required String token,
+  bool includeRuntimeCapability = true,
 }) async {
   final runtimeDir = Directory(p.join(tempDir.path, 'terminal_host'));
   await runtimeDir.create(recursive: true);
-  await File(p.join(runtimeDir.path, 'host.json')).writeAsString(
-    jsonEncode(<String, Object?>{
-      'protocolVersion': aleraTerminalHostProtocolVersion,
-      'port': port,
-      'token': token,
-    }),
-  );
+  final payload = <String, Object?>{
+    'protocolVersion': aleraTerminalHostProtocolVersion,
+    'port': port,
+    'token': token,
+  };
+  if (includeRuntimeCapability) {
+    payload['runtimeCapabilities'] = <String>[aleraRuntimeHostCapability];
+  }
+  await File(
+    p.join(runtimeDir.path, 'host.json'),
+  ).writeAsString(jsonEncode(payload));
 }
 
 final class _FakeTerminalHostLauncher implements TerminalHostProcessLauncher {
-  _FakeTerminalHostLauncher({required this.server});
+  _FakeTerminalHostLauncher({required this.server, this.beforePublish});
 
   final _TerminalHostTestServer server;
+  final Future<void>? beforePublish;
   int starts = 0;
   final List<TerminalHostConfig> configs = <TerminalHostConfig>[];
+  final List<String> controlFilePaths = <String>[];
 
   @override
   Future<void> start({
@@ -365,13 +646,16 @@ final class _FakeTerminalHostLauncher implements TerminalHostProcessLauncher {
   }) async {
     starts += 1;
     configs.add(config);
+    controlFilePaths.add(controlFilePath);
     server.token = token;
+    await beforePublish;
     await File(controlFilePath).parent.create(recursive: true);
     await File(controlFilePath).writeAsString(
       jsonEncode(<String, Object?>{
         'protocolVersion': aleraTerminalHostProtocolVersion,
         'port': server.port,
         'token': token,
+        'runtimeCapabilities': <String>[aleraRuntimeHostCapability],
       }),
     );
   }

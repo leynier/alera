@@ -283,6 +283,44 @@ jobs:
           echo "BUNDLE_DIR=$bundle_dir" >>"$GITHUB_ENV"
           echo "ASSET_DIR=$asset_dir" >>"$GITHUB_ENV"
 
+      - name: Package standalone runtime sidecar
+        shell: bash
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          RELEASE_VERSION: ${{ needs.cut.outputs.release_version }}
+        run: |
+          set -euo pipefail
+          cargo build --manifest-path rust/Cargo.toml --locked -p alera-cli --release
+          arch="$(printf '%s' "${RUNNER_ARCH:-unknown}" | tr '[:upper:]' '[:lower:]')"
+          bin_name="alera"
+          if [[ "$PLATFORM" == "windows" ]]; then
+            bin_name="alera.exe"
+          fi
+          binary_path="rust/target/release/${bin_name}"
+          if [[ ! -f "$binary_path" ]]; then
+            echo "::error::Missing runtime sidecar binary at $binary_path"
+            exit 1
+          fi
+          package_dir="$(mktemp -d)"
+          cp "$binary_path" "$package_dir/$bin_name"
+          cat >"$package_dir/runtime-manifest.json" <<JSON
+          {
+            "name": "alera-runtime",
+            "version": "$RELEASE_VERSION",
+            "platform": "$PLATFORM",
+            "arch": "$arch",
+            "entrypoint": "$bin_name"
+          }
+          JSON
+          asset="release-assets/alera-runtime-${RELEASE_VERSION}-${PLATFORM}-${arch}.tar.gz"
+          tar -czf "$asset" -C "$package_dir" .
+          asset_name="$(basename "$asset")"
+          if command -v shasum >/dev/null 2>&1; then
+            (cd release-assets && shasum -a 256 "$asset_name") >"${asset}.sha256"
+          else
+            (cd release-assets && sha256sum "$asset_name") >"${asset}.sha256"
+          fi
+
       - name: Sign and package macOS release
         if: matrix.platform == 'macos'
         shell: bash
@@ -356,7 +394,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cp -R release-assets/. "$ASSET_DIR/"
+          shopt -s nullglob
+          for asset in release-assets/*; do
+            name="$(basename "$asset")"
+            # Runtime sidecars are GitHub release assets, not desktop updater artifacts.
+            if [[ "$name" == alera-runtime-* ]]; then
+              continue
+            fi
+            cp "$asset" "$ASSET_DIR/"
+          done
 
       - name: Upload updater artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

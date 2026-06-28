@@ -16,10 +16,12 @@ void main() {
     late _FakeProjectRepository repository;
     late FakeGitBackend gitBackend;
     late ProjectsService service;
+    late List<String> removedConfigProjectIds;
 
     setUp(() {
       tempDir = Directory.systemTemp.createTempSync('alera-projects-test-');
       repository = _FakeProjectRepository();
+      removedConfigProjectIds = <String>[];
       gitBackend = FakeGitBackend()
         // Folders without a `.git` entry are plain folders, and a successful
         // clone materialises a `.git` so the destination validates as a repo.
@@ -29,6 +31,9 @@ void main() {
       service = ProjectsService(
         projectService: ProjectService(gitBackend),
         projectRepository: repository,
+        removeProjectConfigOverride: (projectId) async {
+          removedConfigProjectIds.add(projectId);
+        },
         now: () => DateTime.utc(2026, 5, 25, 12),
       );
     });
@@ -214,20 +219,24 @@ void main() {
       );
     });
 
-    test('removeProject delegates to the repository', () async {
-      final project = Project(
-        id: 'project-1',
-        name: 'Existing',
-        repoPath: p.join(tempDir.path, 'repo'),
-        createdAt: DateTime.utc(2026, 5, 24),
-        updatedAt: DateTime.utc(2026, 5, 24),
-      );
-      await repository.add(project);
+    test(
+      'removeProject delegates to the repository and clears config',
+      () async {
+        final project = Project(
+          id: 'project-1',
+          name: 'Existing',
+          repoPath: p.join(tempDir.path, 'repo'),
+          createdAt: DateTime.utc(2026, 5, 24),
+          updatedAt: DateTime.utc(2026, 5, 24),
+        );
+        await repository.add(project);
 
-      await service.removeProject(project.id);
+        await service.removeProject(project.id);
 
-      expect(repository.projects, isEmpty);
-    });
+        expect(repository.projects, isEmpty);
+        expect(removedConfigProjectIds, <String>[project.id]);
+      },
+    );
 
     test('legacy project JSON without kind remains Git-backed', () {
       final now = DateTime.utc(2026, 5, 25);

@@ -10,6 +10,7 @@ name = "alera"
 path = "src/main.rs"
 
 [dependencies]
+alera-core = { path = "../alera-core" }
 clap = { version = "4", features = ["derive"] }
 tokio = { version = "1", features = [
     "rt-multi-thread",
@@ -31,6 +32,7 @@ sqlx = { version = "0.8", default-features = false, features = [
 ] }
 anyhow = "1"
 thiserror = "2"
+uuid = { version = "1", features = ["v4"] }
 
 [dev-dependencies]
 tempfile = "3"

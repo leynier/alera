@@ -3,6 +3,7 @@ use std::net::Ipv4Addr;
 use std::path::PathBuf;
 use std::time::Duration;
 
+use alera_core::runtime::RuntimeStore;
 use anyhow::Result;
 use serde_json::Value;
 use tokio::net::TcpListener;
@@ -54,6 +55,7 @@ pub async fn run_terminal_host_server(
         std::fs::create_dir_all(&runtime_dir)?;
     }
     let store = TerminalHostHistoryStore::open(&runtime_dir).await?;
+    let runtime_store = RuntimeStore::open(&runtime_dir).await?;
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let port = listener.local_addr()?.port();
     control_file::write_control_file(&control_file_path, port, &token)?;
@@ -66,6 +68,7 @@ pub async fn run_terminal_host_server(
         token,
         config,
         store,
+        runtime_store,
         sessions: HashMap::new(),
         clients: HashMap::new(),
         pending_output_writes: HashMap::new(),
@@ -114,6 +117,7 @@ struct ServerActor {
     token: String,
     config: TerminalHostConfig,
     store: TerminalHostHistoryStore,
+    runtime_store: RuntimeStore,
     sessions: HashMap<String, Session>,
     clients: HashMap<u64, ClientState>,
     pending_output_writes: HashMap<String, Vec<JoinHandle<()>>>,
@@ -280,6 +284,55 @@ impl ServerActor {
         }
     }
 
+    pub(super) async fn terminate_sessions_for_tab(&mut self, tab_id: &str) {
+        let session_ids: Vec<String> = self
+            .sessions
+            .iter()
+            .filter(|(_, session)| session.tab_id == tab_id)
+            .map(|(session_id, _)| session_id.clone())
+            .collect();
+        self.terminate_sessions(session_ids).await;
+    }
+
+    pub(super) async fn terminate_sessions_for_workspace(&mut self, workspace_id: &str) {
+        let session_ids: Vec<String> = self
+            .sessions
+            .iter()
+            .filter(|(_, session)| session.workspace_id == workspace_id)
+            .map(|(session_id, _)| session_id.clone())
+            .collect();
+        self.terminate_sessions(session_ids).await;
+    }
+
+    pub(super) async fn terminate_sessions_for_workspaces(&mut self, workspace_ids: &[String]) {
+        let session_ids: Vec<String> = self
+            .sessions
+            .iter()
+            .filter(|(_, session)| {
+                workspace_ids
+                    .iter()
+                    .any(|workspace_id| workspace_id == &session.workspace_id)
+            })
+            .map(|(session_id, _)| session_id.clone())
+            .collect();
+        self.terminate_sessions(session_ids).await;
+    }
+
+    async fn terminate_sessions(&mut self, session_ids: Vec<String>) {
+        if session_ids.is_empty() {
+            return;
+        }
+        let store = self.store.clone();
+        for session_id in session_ids {
+            self.flush_output_batch(&session_id);
+            self.await_output_writes(&session_id).await;
+            if let Some(mut session) = self.sessions.remove(&session_id) {
+                session.terminate(true, &store).await;
+            }
+        }
+        self.schedule_shutdown_if_idle();
+    }
+
     fn spawn_checkpoint_timer(&self, session_id: String, generation: u64) {
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
@@ -319,6 +372,14 @@ impl ServerActor {
     fn broadcast(&self, client_ids: &[u64], message: Value) {
         for id in client_ids {
             if let Some(client) = self.clients.get(id) {
+                let _ = client.handle.out.send(message.clone());
+            }
+        }
+    }
+
+    pub(super) fn broadcast_authenticated(&self, message: Value) {
+        for client in self.clients.values() {
+            if client.authenticated {
                 let _ = client.handle.out.send(message.clone());
             }
         }

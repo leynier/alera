@@ -59,7 +59,7 @@ final class _DebugContext {
       await paths.controlFile.delete();
     }
     return _run(_cliExecutablePath, <String>[
-      'terminal-host',
+      'runtime-host',
       '--runtime-dir',
       paths.runtimeDir.path,
       '--control-file',
@@ -116,7 +116,7 @@ final class _DebugContext {
 
     final outputDir = _windowsSideBySideCliBuildOutputPath();
     stdout.writeln(
-      'Bundled terminal host is still running from ${_options.bundleDir}; '
+      'Bundled runtime host is still running from ${_options.bundleDir}; '
       'building a fresh Windows bundle at $outputDir.',
     );
     return outputDir;
@@ -124,7 +124,8 @@ final class _DebugContext {
 
   bool _isCliBundleTerminalHostProcess(_ProcessInfo process) {
     final commandLine = _normalizeProcessText(process.commandLine);
-    return commandLine.contains('terminal-host') &&
+    return (commandLine.contains('runtime-host') ||
+            commandLine.contains('terminal-host')) &&
         _containsNormalizedPathRoot(
           commandLine,
           _normalizeProcessText(_cliBuildOutputPath),
@@ -171,7 +172,7 @@ final class _DebugContext {
     final processes = await _listProcesses();
     final matches = processes.where(_isAleraProcess).toList();
     if (matches.isEmpty) {
-      stdout.writeln('No Alera app or terminal-host processes found.');
+      stdout.writeln('No Alera app or runtime-host processes found.');
     } else {
       for (final process in matches) {
         stdout.writeln('${process.pid} ${process.commandLine}');
@@ -190,13 +191,13 @@ final class _DebugContext {
     final controlFile = _runtimePaths.controlFile;
     if (!await controlFile.exists()) {
       stdout.writeln(
-        'No terminal host control file found at ${controlFile.path}.',
+        'No runtime host control file found at ${controlFile.path}.',
       );
       return 0;
     }
     final decoded = jsonDecode(await controlFile.readAsString());
     if (decoded is! Map || decoded['pid'] is! int) {
-      stderr.writeln('Terminal host control file does not contain a pid.');
+      stderr.writeln('Runtime host control file does not contain a pid.');
       return 1;
     }
     final pid = decoded['pid'] as int;
@@ -204,8 +205,8 @@ final class _DebugContext {
     await controlFile.delete();
     stdout.writeln(
       stopped
-          ? 'Stopped terminal host pid $pid and removed ${controlFile.path}.'
-          : 'Terminal host pid $pid was not running; removed stale ${controlFile.path}.',
+          ? 'Stopped runtime host pid $pid and removed ${controlFile.path}.'
+          : 'Runtime host pid $pid was not running; removed stale ${controlFile.path}.',
     );
     return 0;
   }
@@ -213,7 +214,8 @@ final class _DebugContext {
   bool _isAleraProcess(_ProcessInfo process) {
     final commandLine = process.commandLine;
     final normalized = _normalizeSeparators(commandLine);
-    return commandLine.contains('alera terminal-host') ||
+    return commandLine.contains('alera runtime-host') ||
+        commandLine.contains('alera terminal-host') ||
         normalized.contains('/alera/alera') ||
         normalized.contains('/.dart_tool/alera/alera') ||
         normalized.contains('/Alera.app/Contents/MacOS/Alera') ||

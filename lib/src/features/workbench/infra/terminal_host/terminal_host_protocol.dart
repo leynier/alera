@@ -4,7 +4,9 @@ import 'dart:typed_data';
 const int aleraTerminalHostProtocolVersion = 2;
 const String aleraCliExecutableName = 'alera';
 const String aleraCliWindowsExecutableName = 'alera.exe';
+const String aleraRuntimeHostCommand = 'runtime-host';
 const String aleraTerminalHostCommand = 'terminal-host';
+const String aleraRuntimeHostCapability = 'runtimeStore';
 const int defaultTerminalHostEmptyShutdownDelaySeconds = 30;
 const int defaultTerminalHostDetachedSessionShutdownDelaySeconds = 60 * 60;
 const int defaultTerminalHostScrollbackBytes = 10 * 1000 * 1000;
@@ -131,4 +133,20 @@ Map<String, String> asTerminalHostStringMap(Object? value) {
       if (entry.key is String && entry.value is String)
         entry.key as String: entry.value as String,
   };
+}
+
+final class RuntimeHostEvent {
+  const RuntimeHostEvent(this.name, this.payload);
+
+  final String name;
+  final Map<String, Object?> payload;
+}
+
+abstract interface class RuntimeHostClient {
+  Stream<RuntimeHostEvent> get runtimeEvents;
+
+  Future<Object?> runtimeRequest(
+    String type, [
+    Map<String, Object?> payload = const <String, Object?>{},
+  ]);
 }

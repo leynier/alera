@@ -55,7 +55,7 @@ final class WorkbenchRepositoryProvider
 }
 
 String _$workbenchRepositoryHash() =>
-    r'a62f2a4b079041a3cef73c1d72aec8b378c2fdb3';
+    r'382cb08ed64259de6254c2daeb3c0e6d23bd57ef';
 
 @ProviderFor(workbenchViewPrefsRepository)
 final workbenchViewPrefsRepositoryProvider =
@@ -438,7 +438,7 @@ final class TerminalHostClientProvider
 }
 
 String _$terminalHostClientHash() =>
-    r'ea5b5cddf9edea11464a47a5d5f469cc3fe17029';
+    r'0c632a18c8f5ecdf6402c92ab03d6448bd861c80';
 
 @ProviderFor(terminalHostWarmupCoordinator)
 final terminalHostWarmupCoordinatorProvider =

@@ -97,6 +97,74 @@ fn handshake(writer: &mut TcpStream, reader: &mut BufReader<TcpStream>, token: &
     assert_eq!(hello["ok"], json!(true), "handshake rejected: {hello}");
 }
 
+fn create_long_running_session(
+    writer: &mut TcpStream,
+    reader: &mut BufReader<TcpStream>,
+    id: i64,
+    session_id: &str,
+    workspace_id: &str,
+    tab_id: &str,
+) {
+    send(
+        writer,
+        json!({
+            "id": id,
+            "type": "createOrAttach",
+            "payload": {
+                "sessionId": session_id,
+                "workspaceId": workspace_id,
+                "tabId": tab_id,
+                "workingDirectory": "/tmp",
+                "launch": {
+                    "shell": "/bin/sh",
+                    "arguments": ["-c", "sleep 30"],
+                    "environment": {"PATH": "/usr/bin:/bin", "TERM": "xterm"}
+                },
+                "cols": 80,
+                "rows": 24
+            }
+        }),
+    );
+    let created = read_response(reader, id);
+    assert_eq!(
+        created["ok"],
+        json!(true),
+        "createOrAttach failed: {created}"
+    );
+    assert_eq!(created["payload"]["running"], json!(true));
+}
+
+fn assert_session_is_not_attached(
+    writer: &mut TcpStream,
+    reader: &mut BufReader<TcpStream>,
+    id: i64,
+    session_id: &str,
+) {
+    send(
+        writer,
+        json!({
+            "id": id,
+            "type": "write",
+            "payload": {
+                "sessionId": session_id,
+                "dataBase64": STANDARD.encode(b"ignored")
+            }
+        }),
+    );
+    let write = read_response(reader, id);
+    assert_eq!(
+        write["ok"],
+        json!(false),
+        "write unexpectedly succeeded: {write}"
+    );
+    assert!(
+        write["error"]
+            .as_str()
+            .is_some_and(|error| error.contains("Terminal session is not attached")),
+        "unexpected write error: {write}"
+    );
+}
+
 /// Spawn a host against the given runtime dir / control file and wait until it
 /// publishes its loopback port.
 fn spawn_host(
@@ -287,6 +355,67 @@ fn full_protocol_sequence() {
 }
 
 #[test]
+fn runtime_tab_remove_terminates_active_session() {
+    let dir = tempfile::tempdir().unwrap();
+    let control_path = dir.path().join("runtime-host.json");
+    let token = "test-token";
+    let (_guard, port) = spawn_host(dir.path(), &control_path, token);
+    let (mut writer, mut reader) = connect(port);
+    handshake(&mut writer, &mut reader, token);
+
+    create_long_running_session(&mut writer, &mut reader, 1, "s-runtime-tab", "w1", "t1");
+
+    send(
+        &mut writer,
+        json!({
+            "id": 2,
+            "type": "tab.remove",
+            "payload": {"id": "t1"}
+        }),
+    );
+    let removed = read_response(&mut reader, 2);
+    assert_eq!(removed["ok"], json!(true), "tab.remove failed: {removed}");
+
+    assert_session_is_not_attached(&mut writer, &mut reader, 3, "s-runtime-tab");
+}
+
+#[test]
+fn runtime_workspace_remove_terminates_active_sessions() {
+    let dir = tempfile::tempdir().unwrap();
+    let control_path = dir.path().join("runtime-host.json");
+    let token = "test-token";
+    let (_guard, port) = spawn_host(dir.path(), &control_path, token);
+    let (mut writer, mut reader) = connect(port);
+    handshake(&mut writer, &mut reader, token);
+
+    create_long_running_session(
+        &mut writer,
+        &mut reader,
+        1,
+        "s-runtime-workspace",
+        "w1",
+        "t1",
+    );
+
+    send(
+        &mut writer,
+        json!({
+            "id": 2,
+            "type": "workspace.remove",
+            "payload": {"id": "w1", "cascadeTabs": true}
+        }),
+    );
+    let removed = read_response(&mut reader, 2);
+    assert_eq!(
+        removed["ok"],
+        json!(true),
+        "workspace.remove failed: {removed}"
+    );
+
+    assert_session_is_not_attached(&mut writer, &mut reader, 3, "s-runtime-workspace");
+}
+
+#[test]
 fn pauses_output_per_client_and_resumes_from_snapshot() {
     let dir = tempfile::tempdir().unwrap();
     let control_path = dir.path().join("host.json");
@@ -398,6 +527,149 @@ fn pauses_output_per_client_and_resumes_from_snapshot() {
     assert!(
         String::from_utf8_lossy(&snapshot).contains("GOT:abc"),
         "resume snapshot should include hidden output"
+    );
+}
+
+#[test]
+fn cli_mutations_use_running_runtime_host() {
+    let dir = tempfile::tempdir().unwrap();
+    let control_path = dir.path().join("host.json");
+    let token = "cli-token";
+    let (_guard, port) = spawn_host(dir.path(), &control_path, token);
+
+    let (mut writer, mut reader) = connect(port);
+    handshake(&mut writer, &mut reader, token);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_alera"))
+        .args([
+            "project",
+            "--runtime-dir",
+            dir.path().to_str().unwrap(),
+            "--json",
+            "add",
+            "--id",
+            "cli-project",
+            "--name",
+            "CLI Project",
+            "--repo-path",
+            dir.path().to_str().unwrap(),
+        ])
+        .output()
+        .expect("failed to run alera project add");
+    assert!(
+        output.status.success(),
+        "project add failed: stdout={} stderr={}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let project: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(project["id"], json!("cli-project"));
+
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        assert!(Instant::now() < deadline, "never observed projectsChanged");
+        let message = read_message(&mut reader);
+        if message.get("event").and_then(Value::as_str) == Some("projectsChanged") {
+            break;
+        }
+    }
+}
+
+#[test]
+fn cli_mutations_use_alternate_runtime_host_control_after_legacy_host_json() {
+    let dir = tempfile::tempdir().unwrap();
+    let runtime_control_path = dir.path().join("runtime-host.json");
+    let token = "alternate-cli-token";
+    let (_guard, port) = spawn_host(dir.path(), &runtime_control_path, token);
+    std::fs::write(
+        dir.path().join("host.json"),
+        json!({
+            "protocolVersion": 2,
+            "port": 1,
+            "token": "legacy-token"
+        })
+        .to_string(),
+    )
+    .unwrap();
+
+    let (mut writer, mut reader) = connect(port);
+    handshake(&mut writer, &mut reader, token);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_alera"))
+        .args([
+            "project",
+            "--runtime-dir",
+            dir.path().to_str().unwrap(),
+            "--json",
+            "add",
+            "--id",
+            "alternate-cli-project",
+            "--name",
+            "Alternate CLI Project",
+            "--repo-path",
+            dir.path().to_str().unwrap(),
+        ])
+        .output()
+        .expect("failed to run alera project add");
+    assert!(
+        output.status.success(),
+        "project add failed: stdout={} stderr={}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let project: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(project["id"], json!("alternate-cli-project"));
+
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        assert!(Instant::now() < deadline, "never observed projectsChanged");
+        let message = read_message(&mut reader);
+        if message.get("event").and_then(Value::as_str) == Some("projectsChanged") {
+            break;
+        }
+    }
+}
+
+#[test]
+fn cli_rejects_unknown_tab_kind() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_alera"))
+        .args([
+            "tab",
+            "--runtime-dir",
+            dir.path().to_str().unwrap(),
+            "--json",
+            "create",
+            "--workspace-id",
+            "workspace-1",
+            "--title",
+            "Broken",
+            "--kind",
+            "typo",
+        ])
+        .output()
+        .expect("failed to run alera tab create");
+
+    assert_eq!(
+        output.status.code(),
+        Some(64),
+        "tab create should fail as a usage error: stdout={} stderr={}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        output.stdout.is_empty(),
+        "invalid tab creation should not print JSON"
+    );
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("Unsupported tab kind"),
+        "stderr should explain the invalid tab kind: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        !dir.path().join("runtime.sqlite").exists(),
+        "invalid tab creation should not open or mutate the runtime store"
     );
 }
 

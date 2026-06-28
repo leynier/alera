@@ -29,7 +29,7 @@ Shared components live in `lib/src/design_system/` (prefixed `Alera`) with co-lo
 
 ## Debugging The App And CLI
 
-Alera runs as a Flutter desktop app plus a bundled Dart CLI named `alera`. The app owns UI state and terminal surfaces; the CLI sidecar runs `alera terminal-host`, owns the long-lived PTY sessions, writes host control metadata, and keeps terminal checkpoints alive after the app is closed.
+Alera runs as a Flutter desktop app plus a bundled Rust CLI named `alera`. The app owns UI state and terminal surfaces; the CLI sidecar runs `alera runtime-host`, owns runtime Projects/Workspaces/Tabs graph state plus long-lived PTY sessions, writes host control metadata, and keeps terminal checkpoints alive after the app is closed. `alera terminal-host` is kept as a compatibility alias.
 
 Use the lowercase repository `makefile` for the standard debug flows. These targets intentionally call Dart tooling instead of inline shell snippets, so the same commands work from PowerShell 7 on Windows and from normal Linux/macOS shells:
 
@@ -47,11 +47,11 @@ make debug-processes
 
 `make app-debug` runs `flutter run` for the current desktop platform (`macos`, `windows`, or `linux`) with the normal development fallback for the CLI. Override the device with `APP_DEVICE=<flutter-device-id>` when targeting a different Flutter desktop device. `make cli-build` compiles the sidecar into `.dart_tool/alera`, and `make app-debug-bundled-cli` runs the app while forcing it to resolve that compiled CLI bundle. Use this when validating behavior closer to a packaged app.
 
-`make help` lists the available repository targets. `make host-debug` runs `alera terminal-host` in the foreground using the platform app-support runtime directory so stdout/stderr stay visible. `make host-debug-observe` does the same with a Dart VM service on `127.0.0.1:8181` for debugger attach. If a platform's app-support location differs from the default, set `ALERA_APP_SUPPORT_DIR` before running the target. Foreground host runs accept `ALERA_HOST_EMPTY_SHUTDOWN_SECONDS`, `ALERA_HOST_DETACHED_SHUTDOWN_SECONDS`, and `ALERA_HOST_SCROLLBACK_BYTES`; these are forwarded to `alera terminal-host` for lifecycle and scrollback debugging.
+`make help` lists the available repository targets. `make host-debug` runs the runtime host in the foreground using the platform app-support runtime directory so stdout/stderr stay visible. `make host-debug-observe` does the same with a Dart VM service on `127.0.0.1:8181` for debugger attach. If a platform's app-support location differs from the default, set `ALERA_APP_SUPPORT_DIR` before running the target. Foreground host runs accept `ALERA_HOST_EMPTY_SHUTDOWN_SECONDS`, `ALERA_HOST_DETACHED_SHUTDOWN_SECONDS`, and `ALERA_HOST_SCROLLBACK_BYTES`; these are forwarded to the runtime host for lifecycle and scrollback debugging.
 
 `make app-debug-host-observe` generates `.dart_tool/alera-debug-host` (or `.exe` on Windows) and runs the Flutter app with `ALERA_CLI_PATH` pointing to that wrapper. Use it when the bug only appears when the app launches the host itself. Avoid `--pause-isolates-on-start` unless you also raise the app startup timeout, because the app waits for the host control file before attaching terminal sessions.
 
-Use `make debug-processes` to confirm process separation. During a healthy app run, the UI process should be the Flutter app and the persistent sidecar should be a separate `alera terminal-host` process. Use `make host-stop` only when intentionally ending the current debug host for this app id.
+Use `make debug-processes` to confirm process separation. During a healthy app run, the UI process should be the Flutter app and the persistent sidecar should be a separate `alera runtime-host` process; `alera terminal-host` may appear only for older launchers or compatibility checks. Use `make host-stop` only when intentionally ending the current debug host for this app id.
 
 For landing page work:
 

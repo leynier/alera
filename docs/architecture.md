@@ -10,7 +10,9 @@ This document records the current product and code naming used by Alera. It is i
 - `Workbench`: the main interactive area for an active workspace. It owns pane layout, active group selection, and workspace tabs. A project may be active while no workspace is selected; in that state the shell shows an empty workspace surface and workspace-scoped panels should render without workspace context.
 - `WorkbenchPaneGroup`: one pane in the split layout. It contains an ordered list of workspace tab ids and one active tab id.
 - `WorkspaceTab`: the domain concept for a tab inside a workspace. It is intentionally broader than terminal because tabs can represent terminals, editors, markdown previews, browsers, or other workspace surfaces.
-- `TerminalSession`: the runtime process/PTY state attached to a terminal workspace tab. Terminal sessions are owned by the durable terminal host and are reattached by `terminalSessionId`; they are not persisted tab records.
+- `TerminalSession`: the runtime process/PTY state attached to a terminal workspace tab. Terminal sessions are owned by the durable runtime host and are reattached by `terminalSessionId`; they are not persisted tab records.
+- `WorkspaceRelation`: a runtime-owned parent/child relationship between two workspaces. Relations are global and may cross projects or hosts. A relation stores both workspace ids and workspace instance ids so stale reused ids can be detected by clients and future migrations.
+- `WorkspaceTag`: a runtime-owned global label that can be assigned to multiple workspaces independently from parent/child relations.
 - `SidebarAgentRunRow`: the sidebar projection for supported agent executions detected inside terminal workspace tabs. The sidebar does not render terminal tabs that have no current agent status.
 - `AgentRun`: the in-memory UI projection of a supported agent status matched to a terminal workspace tab. It is not a persisted storage model.
 - `Design system`: the shared, presentational widget library in `lib/src/design_system/`, prefixed `Alera`, with co-located widget previews. See `docs/ui-styleguide.md`.
@@ -25,23 +27,29 @@ This document records the current product and code naming used by Alera. It is i
 
 ## Persistence
 
-Alera persists projects, workspaces, workspace tabs, workbench layouts, settings, and view preferences in the Drift/SQLite schema defined in `lib/src/shared/infra/storage/drift_database.dart`.
+Alera persists runtime-owned projects, workspaces, workspace tabs, workbench layouts, workspace tags, workspace relations, and SSH targets in the Rust runtime database `runtime.sqlite` under the active runtime profile directory. The Rust store lives in `rust/alera-core` and is reached by the Flutter app through the `alera runtime-host` JSON socket protocol.
+
+Drift/SQLite remains active for app settings, view preferences, and project config overrides in `lib/src/shared/infra/storage/drift_database.dart`. Old Drift project/workspace/tab/layout rows are intentionally left untouched but are no longer authoritative for those domains.
 
 Project-specific worktree setup config is stored separately from global app settings. UI overrides live in the Drift project-config table and take precedence over a repo-root `alera.toml`; see `docs/worktree-setup-config.md`.
 
-Terminal workspace tabs store their durable `terminalSessionId` in the tab `payloadJson`. The terminal host stores runtime socket metadata and terminal checkpoint metadata under the application support directory, outside Drift, so app/window close can detach from PTYs without killing running commands.
+Terminal workspace tabs store their durable `terminalSessionId` in the tab payload. The runtime host stores socket metadata, terminal checkpoint metadata, and bounded output chunks under the active runtime profile directory, outside Drift, so app/window close can detach from PTYs without killing running commands.
 
 Legacy pre-Drift stores are no longer read or migrated.
 
 ## CLI Sidecar
 
-Alera ships a separate Rust CLI named `alera` for non-UI background work. The desktop app launches `alera terminal-host` as a detached sidecar process instead of relaunching the Flutter app executable, so closing the app window detaches from terminal PTYs without creating another dock/taskbar app instance.
+Alera ships a separate Rust CLI named `alera` for non-UI background work. The desktop app launches `alera runtime-host` as a detached sidecar process instead of relaunching the Flutter app executable, so closing the app window detaches from terminal PTYs without creating another dock/taskbar app instance. `alera terminal-host` remains a compatibility alias for existing debug scripts and older launchers.
 
-The CLI is the Rust crate under `rust/` (`rust/alera-cli`, binary `alera`) and speaks the terminal socket protocol, `host.json` control file, and SQLite checkpoint schema. Release and desktop builds compile it with `cargo build --locked` from the native build hooks (`linux/CMakeLists.txt`, `windows/CMakeLists.txt`, and the macOS "Build Alera CLI Sidecar" Xcode phase); a Release app build produces `--release`, other configs build debug. The single binary is installed into `Contents/Resources/alera/alera` on macOS and `resources/alera/alera[.exe]` next to the app executable on Linux and Windows.
+The CLI is the Rust crate under `rust/` (`rust/alera-cli`, binary `alera`) and speaks the runtime socket protocol, `host.json` control file, runtime SQLite schema, and terminal checkpoint schema. Release and desktop builds compile it with `cargo build --locked` from the native build hooks (`linux/CMakeLists.txt`, `windows/CMakeLists.txt`, and the macOS "Build Alera CLI Sidecar" Xcode phase); a Release app build produces `--release`, other configs build debug. The single binary is installed into `Contents/Resources/alera/alera` on macOS and `resources/alera/alera[.exe]` next to the app executable on Linux and Windows.
+
+The release workflow also publishes standalone runtime sidecar archives named `alera-runtime-<version>-<platform>-<arch>.tar.gz` with `.sha256` files. SSH bootstrap uses those artifacts to install a remote runtime without depending on the desktop app bundle.
 
 The app resolves the sidecar through `AleraCliResolver`, which honors `ALERA_CLI_PATH` first and then searches the bundled `resources/alera/` locations. When no compiled sidecar is present (pure source checkout), development builds fall back to `cargo run -p alera-cli` to build and run the Rust host from source.
 
-The shell eagerly starts the terminal host after the local database is available, before the first terminal tab is created. The app passes the current host lifecycle and host scrollback settings when launching `alera terminal-host`, then sends a `configure` request whenever terminal settings change so an already-running host updates without requiring an app restart.
+The shell eagerly starts the runtime host before the first terminal tab is created and before RPC-backed repository streams need data. The app passes the current host lifecycle and host scrollback settings when launching `alera runtime-host`, then sends a `configure` request whenever terminal settings change so an already-running host updates without requiring an app restart.
+
+The CLI can operate the same runtime-owned state for agents and automation. The first implemented command groups are `runtime`, `project`, `workspace`, `tag`, `tab`, and `ssh-target`. They accept `--runtime-dir` to target a specific profile directory; when omitted, the CLI uses `ALERA_RUNTIME_DIR` or `~/.alera/runtime`.
 
 The host stays alive only while it is useful. When all app clients disconnect and no PTYs are running, it stops after the configured empty-host delay, which defaults to 30 seconds. When app clients disconnect while PTYs are still running, it keeps those detached sessions alive for the configured detached-session delay, which defaults to one hour; if the app does not reconnect in time, the host terminates the PTYs and writes final checkpoints before exiting. On exit, the host removes its `host.json` control file so the next app launch cannot attach to stale socket metadata.
 

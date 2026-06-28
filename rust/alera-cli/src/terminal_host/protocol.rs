@@ -9,6 +9,7 @@ use crate::terminal_host::host_error::{HostError, HostResult};
 /// Wire protocol version. Must stay in lockstep with the Flutter client
 /// (`aleraTerminalHostProtocolVersion`).
 pub const PROTOCOL_VERSION: i64 = 2;
+pub const RUNTIME_HOST_CAPABILITY: &str = "runtimeStore";
 
 // Retained for the later packaging/resolver phase (sidecar discovery).
 #[allow(dead_code)]

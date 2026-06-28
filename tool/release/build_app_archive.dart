@@ -11,6 +11,7 @@ const _ignoredSuffixes = <String>[
   '.sig',
   '.sigstore',
 ];
+const _ignoredPrefixes = <String>['alera-runtime-'];
 
 void main(List<String> args) {
   final outputPath = args.isEmpty ? 'public/app-archive.json' : args.first;
@@ -103,7 +104,9 @@ void main(List<String> args) {
 }
 
 bool _isSidecarFile(String path) {
-  return _ignoredSuffixes.any(path.endsWith);
+  final name = p.basename(path);
+  return _ignoredSuffixes.any(name.endsWith) ||
+      _ignoredPrefixes.any(name.startsWith);
 }
 
 String _installerKindFor(String fileName) {

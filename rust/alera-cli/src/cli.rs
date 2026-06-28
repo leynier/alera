@@ -1,4 +1,4 @@
-use clap::{Args, Parser, Subcommand};
+use clap::{Args, Parser, Subcommand, ValueEnum};
 
 use crate::terminal_host::protocol::{
     DEFAULT_DETACHED_SESSION_SHUTDOWN_DELAY_SECONDS, DEFAULT_EMPTY_SHUTDOWN_DELAY_SECONDS,
@@ -19,13 +19,36 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
+    /// Run the persistent runtime host sidecar.
+    #[command(name = RUNTIME_HOST_COMMAND)]
+    RuntimeHost(TerminalHostArgs),
+
     /// Run the persistent terminal host sidecar.
     #[command(name = TERMINAL_HOST_COMMAND)]
     TerminalHost(TerminalHostArgs),
+
+    /// Inspect or operate the local Alera runtime profile.
+    Runtime(RuntimeCommand),
+
+    /// Create, list, update, and remove runtime-owned projects.
+    Project(ProjectCommand),
+
+    /// Create, list, tag, relate, and remove runtime-owned workspaces.
+    Workspace(WorkspaceCommand),
+
+    /// Manage global workspace tags.
+    Tag(TagCommand),
+
+    /// Manage runtime-owned workspace tabs.
+    Tab(TabCommand),
+
+    /// Manage SSH targets known by the Home Runtime.
+    #[command(name = "ssh-target")]
+    SshTarget(SshTargetCommand),
 }
 
-/// Arguments for `alera terminal-host`. Names and defaults match the Dart
-/// `AleraTerminalHostCommand` exactly so the app launcher needs no changes.
+/// Arguments for `alera runtime-host` and `alera terminal-host`. Names and
+/// defaults match the Dart launcher so the app can keep using the same sidecar.
 #[derive(Debug, Args)]
 pub struct TerminalHostArgs {
     /// Directory used for host control and terminal checkpoints.
@@ -67,3 +90,280 @@ pub struct TerminalHostArgs {
     )]
     pub scrollback_bytes: u64,
 }
+
+#[derive(Debug, Args, Clone)]
+pub struct RuntimeDirArgs {
+    /// Runtime profile directory. Defaults to ALERA_RUNTIME_DIR or ~/.alera/runtime.
+    #[arg(long = "runtime-dir", value_name = "path")]
+    pub runtime_dir: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct OutputArgs {
+    /// Print machine-readable JSON.
+    #[arg(long = "json")]
+    pub json: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct RuntimeCommand {
+    #[command(flatten)]
+    pub runtime: RuntimeDirArgs,
+    #[command(flatten)]
+    pub output: OutputArgs,
+    #[command(subcommand)]
+    pub action: RuntimeAction,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum RuntimeAction {
+    /// Show runtime database and profile status.
+    Status,
+}
+
+#[derive(Debug, Args)]
+pub struct ProjectCommand {
+    #[command(flatten)]
+    pub runtime: RuntimeDirArgs,
+    #[command(flatten)]
+    pub output: OutputArgs,
+    #[command(subcommand)]
+    pub action: ProjectAction,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum ProjectAction {
+    /// List all projects.
+    List,
+    /// Register a local project path.
+    Add(ProjectAddArgs),
+    /// Remove a project and runtime-owned child records.
+    Remove(IdArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct ProjectAddArgs {
+    #[arg(long)]
+    pub id: Option<String>,
+    #[arg(long)]
+    pub name: String,
+    #[arg(long = "repo-path")]
+    pub repo_path: String,
+    #[arg(long, value_enum, default_value_t = ProjectKindArg::GitRepository)]
+    pub kind: ProjectKindArg,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub enum ProjectKindArg {
+    GitRepository,
+    Folder,
+}
+
+#[derive(Debug, Args)]
+pub struct WorkspaceCommand {
+    #[command(flatten)]
+    pub runtime: RuntimeDirArgs,
+    #[command(flatten)]
+    pub output: OutputArgs,
+    #[command(subcommand)]
+    pub action: WorkspaceAction,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum WorkspaceAction {
+    /// List workspaces for one project or all projects.
+    List(WorkspaceListArgs),
+    /// Register a workspace record.
+    Add(WorkspaceAddArgs),
+    /// Remove a workspace record and related runtime records.
+    Remove(IdArgs),
+    /// Add a parent/child relationship.
+    Link(WorkspaceLinkArgs),
+    /// Remove a parent/child relationship.
+    Unlink(WorkspaceLinkArgs),
+    /// Assign a tag to a workspace.
+    Tag(WorkspaceTagArgs),
+    /// Remove a tag from a workspace.
+    Untag(WorkspaceTagArgs),
+    /// Preview opt-in cascade targets.
+    CascadePreview(CascadePreviewArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct WorkspaceListArgs {
+    #[arg(long = "project-id")]
+    pub project_id: Option<String>,
+    #[arg(long)]
+    pub all: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct WorkspaceAddArgs {
+    #[arg(long)]
+    pub id: Option<String>,
+    #[arg(long = "instance-id")]
+    pub instance_id: Option<String>,
+    #[arg(long = "host-id")]
+    pub host_id: Option<String>,
+    #[arg(long = "project-id")]
+    pub project_id: String,
+    #[arg(long)]
+    pub name: String,
+    #[arg(long)]
+    pub path: String,
+    #[arg(long)]
+    pub branch: Option<String>,
+    #[arg(long = "source-branch")]
+    pub source_branch: Option<String>,
+    #[arg(long, value_enum, default_value_t = WorkspaceKindArg::Linked)]
+    pub kind: WorkspaceKindArg,
+    #[arg(long = "reuse-existing-branch")]
+    pub reuses_existing_branch: bool,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub enum WorkspaceKindArg {
+    Main,
+    Linked,
+}
+
+#[derive(Debug, Args)]
+pub struct WorkspaceLinkArgs {
+    #[arg(long = "parent-workspace-id")]
+    pub parent_workspace_id: String,
+    #[arg(long = "child-workspace-id")]
+    pub child_workspace_id: String,
+}
+
+#[derive(Debug, Args)]
+pub struct WorkspaceTagArgs {
+    #[arg(long = "workspace-id")]
+    pub workspace_id: String,
+    #[arg(long = "tag-id")]
+    pub tag_id: String,
+}
+
+#[derive(Debug, Args)]
+pub struct CascadePreviewArgs {
+    #[arg(long = "workspace-id")]
+    pub workspace_ids: Vec<String>,
+    #[arg(long = "tag-id")]
+    pub tag_ids: Vec<String>,
+    #[arg(long = "descendants")]
+    pub include_descendants: bool,
+    #[arg(long = "tags")]
+    pub include_tags: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct TagCommand {
+    #[command(flatten)]
+    pub runtime: RuntimeDirArgs,
+    #[command(flatten)]
+    pub output: OutputArgs,
+    #[command(subcommand)]
+    pub action: TagAction,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum TagAction {
+    List,
+    Upsert(TagUpsertArgs),
+    Remove(IdArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct TagUpsertArgs {
+    #[arg(long)]
+    pub id: Option<String>,
+    #[arg(long)]
+    pub name: String,
+    #[arg(long)]
+    pub color: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct TabCommand {
+    #[command(flatten)]
+    pub runtime: RuntimeDirArgs,
+    #[command(flatten)]
+    pub output: OutputArgs,
+    #[command(subcommand)]
+    pub action: TabAction,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum TabAction {
+    List(WorkspaceIdArgs),
+    Create(TabCreateArgs),
+    Remove(IdArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct TabCreateArgs {
+    #[arg(long = "workspace-id")]
+    pub workspace_id: String,
+    #[arg(long)]
+    pub title: String,
+    #[arg(long, default_value = "terminal")]
+    pub kind: String,
+}
+
+#[derive(Debug, Args)]
+pub struct SshTargetCommand {
+    #[command(flatten)]
+    pub runtime: RuntimeDirArgs,
+    #[command(flatten)]
+    pub output: OutputArgs,
+    #[command(subcommand)]
+    pub action: SshTargetAction,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum SshTargetAction {
+    List,
+    Add(SshTargetAddArgs),
+    Remove(IdArgs),
+    BootstrapPlan(IdArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct SshTargetAddArgs {
+    #[arg(long)]
+    pub id: Option<String>,
+    #[arg(long)]
+    pub alias: String,
+    #[arg(long)]
+    pub host: String,
+    #[arg(long, default_value_t = 22)]
+    pub port: i64,
+    #[arg(long)]
+    pub username: String,
+    #[arg(long)]
+    pub platform: Option<String>,
+    #[arg(long)]
+    pub arch: Option<String>,
+    #[arg(long = "auth", value_enum, default_value_t = SshAuthKindArg::Agent)]
+    pub auth_kind: SshAuthKindArg,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub enum SshAuthKindArg {
+    Password,
+    Key,
+    Agent,
+}
+
+#[derive(Debug, Args)]
+pub struct IdArgs {
+    #[arg(long)]
+    pub id: String,
+}
+
+#[derive(Debug, Args)]
+pub struct WorkspaceIdArgs {
+    #[arg(long = "workspace-id")]
+    pub workspace_id: String,
+}
+
+pub const RUNTIME_HOST_COMMAND: &str = "runtime-host";

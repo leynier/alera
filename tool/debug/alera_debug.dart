@@ -56,10 +56,10 @@ Commands:
   help                      List available make/debug commands.
   cli-build                 Build the Rust alera CLI sidecar (cargo).
   cli-help                  Build the sidecar and print alera --help.
-  host-debug                Run the Rust alera terminal-host in the foreground.
+  host-debug                Run the Rust alera runtime-host in the foreground.
   app-debug                 Run the Flutter desktop app.
   app-debug-bundled-cli     Run the app against the compiled CLI bundle.
   debug-processes           List likely Alera UI and host processes.
-  host-stop                 Stop the current terminal host from host.json.
+  host-stop                 Stop the current runtime host from host.json.
 ''');
 }

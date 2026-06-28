@@ -53,8 +53,20 @@ void main() {
         _writeArtifact(
           temp,
           'stable',
+          '1.2.3+99-macos',
+          'alera-runtime-1.2.3-macos-x64.tar.gz',
+        );
+        _writeArtifact(
+          temp,
+          'stable',
           '1.2.3+99-windows',
           'alera-1.2.3-windows.tar.gz',
+        );
+        _writeArtifact(
+          temp,
+          'stable',
+          '1.2.3+99-windows',
+          'alera-runtime-1.2.3-windows-x64.tar.gz',
         );
         _writeArtifact(
           temp,
@@ -67,6 +79,12 @@ void main() {
           'stable',
           '1.2.3+99-linux',
           'alera-1.2.3-linux.rpm',
+        );
+        _writeArtifact(
+          temp,
+          'stable',
+          '1.2.3+99-linux',
+          'alera-runtime-1.2.3-linux-x64.tar.gz',
         );
         final output = p.join(temp.path, 'public', 'app-archive.json');
         final keys = await _signingKeys(seed: 4);
@@ -90,6 +108,10 @@ void main() {
         final manifest = jsonDecode(File(output).readAsStringSync()) as Map;
         final items = manifest['items'] as List;
         expect(items, hasLength(4));
+        expect(
+          items.cast<Map>().map((item) => item['url'] as String),
+          isNot(contains(contains('alera-runtime-'))),
+        );
         for (final item in items.cast<Map>()) {
           expect(item, contains('url'));
           expect(item, contains('platform'));

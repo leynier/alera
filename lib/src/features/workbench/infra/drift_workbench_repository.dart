@@ -216,6 +216,7 @@ Workspace _workspaceFromRow(WorkspacesTableData row) {
     branch: row.branch?.isEmpty ?? true ? null : row.branch,
     sourceBranch: row.sourceBranch?.isEmpty ?? true ? null : row.sourceBranch,
     reusesExistingBranch: row.reusesExistingBranch,
+    hostId: 'local',
   );
 }
 

@@ -22,6 +22,12 @@ class Workspace with WorkspaceMappable {
     this.branch,
     this.sourceBranch,
     this.reusesExistingBranch = false,
+    this.instanceId,
+    this.hostId = 'local',
+    this.tagIds = const <String>[],
+    this.tagNames = const <String>[],
+    this.parentWorkspaceId,
+    this.childCount = 0,
   });
 
   final String id;
@@ -35,6 +41,12 @@ class Workspace with WorkspaceMappable {
   final WorkspaceStatus status;
   final String? sourceBranch;
   final bool reusesExistingBranch;
+  final String? instanceId;
+  final String hostId;
+  final List<String> tagIds;
+  final List<String> tagNames;
+  final String? parentWorkspaceId;
+  final int childCount;
 
   bool get isMain => kind == WorkspaceKind.main;
 

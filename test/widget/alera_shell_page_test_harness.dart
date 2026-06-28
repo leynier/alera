@@ -74,12 +74,24 @@ class _ShellTestWorkbenchController extends WorkbenchController {
     required Workspace workspace,
     required String tabId,
   }) async {
+    await closeWorkspaceTabs(workspace: workspace, tabIds: <String>[tabId]);
+  }
+
+  @override
+  Future<void> closeWorkspaceTabs({
+    required Workspace workspace,
+    required List<String> tabIds,
+  }) async {
     if (closeWorkspaceTabFailure case final Object failure) {
       throw failure;
     }
+    final ids = tabIds.toSet();
+    if (ids.isEmpty) {
+      return;
+    }
     final remaining = state
         .tabsFor(workspace.id)
-        .where((tab) => tab.id != tabId)
+        .where((tab) => !ids.contains(tab.id))
         .toList(growable: false);
     final nextActiveTabIdByWorkspace = <String, String>{
       ...state.activeTabIdByWorkspace,
@@ -101,11 +113,107 @@ class _ShellTestWorkbenchController extends WorkbenchController {
       activeTabIdByWorkspace: nextActiveTabIdByWorkspace,
       layoutByWorkspace: <String, WorkbenchLayout>{
         ...state.layoutByWorkspace,
-        workspace.id: WorkbenchLayout.single(
-          workspaceId: workspace.id,
-          tabIds: <String>[for (final tab in remaining) tab.id],
+        workspace.id: _layoutAfterClosing(
+          workspace: workspace,
+          remaining: remaining,
+          closedTabIds: ids,
         ),
       },
+    );
+  }
+
+  @override
+  Future<WorkspaceTabRecord> createTerminalTab(
+    Workspace workspace, {
+    String? targetGroupId,
+  }) async {
+    final tabs = state.tabsFor(workspace.id);
+    final tab = _newTerminalTab(workspace.id, tabs.length + 1);
+    final nextTabs = <WorkspaceTabRecord>[...tabs, tab];
+    _setTabsForWorkspace(workspace.id, nextTabs);
+    final layout = _layoutForWorkspace(workspace.id, tabs);
+    final groupId = targetGroupId ?? layout.activeGroupId;
+    _applyLayout(
+      layout.addTabToGroup(groupId: groupId, tabId: tab.id).sanitize(nextTabs),
+    );
+    return tab;
+  }
+
+  @override
+  Future<WorkspaceTabRecord> splitWorkbenchGroupWithTerminal({
+    required Workspace workspace,
+    required String groupId,
+    required WorkbenchDropZone zone,
+  }) async {
+    final tabs = state.tabsFor(workspace.id);
+    final tab = _newTerminalTab(workspace.id, tabs.length + 1);
+    final nextTabs = <WorkspaceTabRecord>[...tabs, tab];
+    _setTabsForWorkspace(workspace.id, nextTabs);
+    final layout = _layoutForWorkspace(workspace.id, tabs);
+    _applyLayout(
+      layout
+          .splitWithGroup(
+            targetGroupId: groupId,
+            zone: zone,
+            newGroup: WorkbenchPaneGroup(
+              id: _newPaneGroupId(),
+              tabIds: <String>[tab.id],
+              activeTabId: tab.id,
+            ),
+          )
+          .sanitize(nextTabs),
+    );
+    return tab;
+  }
+
+  @override
+  Future<void> moveWorkspaceTab({
+    required String workspaceId,
+    required String tabId,
+    required String targetGroupId,
+    required WorkbenchDropZone zone,
+    int? index,
+  }) async {
+    final tabs = state.tabsFor(workspaceId);
+    _applyLayout(
+      _layoutForWorkspace(workspaceId, tabs)
+          .moveTab(
+            tabId: tabId,
+            targetGroupId: targetGroupId,
+            zone: zone,
+            newGroupId: _newPaneGroupId(),
+            index: index,
+          )
+          .sanitize(tabs),
+    );
+  }
+
+  @override
+  Future<void> mergeWorkbenchGroupIntoSibling({
+    required String workspaceId,
+    required String groupId,
+  }) async {
+    final tabs = state.tabsFor(workspaceId);
+    _applyLayout(
+      _layoutForWorkspace(
+        workspaceId,
+        tabs,
+      ).mergeGroupIntoSibling(groupId).sanitize(tabs),
+    );
+  }
+
+  @override
+  void updateWorkbenchSplitRatio({
+    required String workspaceId,
+    required List<int> nodePath,
+    required double ratio,
+  }) {
+    final tabs = state.tabsFor(workspaceId);
+    _applyLayout(
+      _layoutForWorkspace(
+        workspaceId,
+        tabs,
+      ).updateSplitRatio(nodePath, ratio).sanitize(tabs),
     );
   }
 
@@ -281,6 +389,84 @@ class _ShellTestWorkbenchController extends WorkbenchController {
         if (layout != null)
           workspaceId: layout.setActiveTab(groupId: groupId, tabId: tabId),
       },
+    );
+  }
+
+  int _nextPaneIndex = 1;
+
+  WorkspaceTabRecord _newTerminalTab(String workspaceId, int ordinal) {
+    final now = DateTime.utc(2026, 5, 22);
+    final existingIds = state.tabsFor(workspaceId).map((tab) => tab.id).toSet();
+    var candidate = ordinal;
+    var id = 'tab-$candidate';
+    while (existingIds.contains(id)) {
+      candidate += 1;
+      id = 'tab-$candidate';
+    }
+    return WorkspaceTabRecord(
+      id: id,
+      workspaceId: workspaceId,
+      title: 'Terminal $candidate',
+      createdAt: now,
+      updatedAt: now,
+    );
+  }
+
+  String _newPaneGroupId() => 'pane-${_nextPaneIndex++}';
+
+  WorkbenchLayout _layoutForWorkspace(
+    String workspaceId,
+    List<WorkspaceTabRecord> tabs,
+  ) {
+    return (state.layoutFor(workspaceId) ??
+            WorkbenchLayout.single(
+              workspaceId: workspaceId,
+              tabIds: <String>[for (final tab in tabs) tab.id],
+            ))
+        .sanitize(tabs);
+  }
+
+  WorkbenchLayout _layoutAfterClosing({
+    required Workspace workspace,
+    required List<WorkspaceTabRecord> remaining,
+    required Set<String> closedTabIds,
+  }) {
+    if (remaining.isEmpty) {
+      return WorkbenchLayout.single(
+        workspaceId: workspace.id,
+        tabIds: const <String>[],
+      );
+    }
+    var layout = _layoutForWorkspace(workspace.id, remaining);
+    for (final tabId in closedTabIds) {
+      layout = layout.removeTab(tabId);
+    }
+    return layout.sanitize(remaining);
+  }
+
+  void _setTabsForWorkspace(String workspaceId, List<WorkspaceTabRecord> tabs) {
+    state = state.copyWith(
+      tabsByWorkspace: <String, List<WorkspaceTabRecord>>{
+        ...state.tabsByWorkspace,
+        workspaceId: tabs,
+      },
+    );
+  }
+
+  void _applyLayout(WorkbenchLayout layout) {
+    final activeTabs = <String, String>{...state.activeTabIdByWorkspace};
+    final activeTabId = layout.activeTabId;
+    if (activeTabId == null) {
+      activeTabs.remove(layout.workspaceId);
+    } else {
+      activeTabs[layout.workspaceId] = activeTabId;
+    }
+    state = state.copyWith(
+      layoutByWorkspace: <String, WorkbenchLayout>{
+        ...state.layoutByWorkspace,
+        layout.workspaceId: layout,
+      },
+      activeTabIdByWorkspace: activeTabs,
     );
   }
 }

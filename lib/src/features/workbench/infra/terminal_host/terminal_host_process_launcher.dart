@@ -37,7 +37,7 @@ final class DefaultTerminalHostProcessLauncher
       command.executable,
       <String>[
         ...command.prefixArguments,
-        aleraTerminalHostCommand,
+        aleraRuntimeHostCommand,
         '--runtime-dir',
         runtimeDir,
         '--control-file',

@@ -163,6 +163,46 @@ class WorkspaceMapper extends ClassMapperBase<Workspace> {
     opt: true,
     def: false,
   );
+  static String? _$instanceId(Workspace v) => v.instanceId;
+  static const Field<Workspace, String> _f$instanceId = Field(
+    'instanceId',
+    _$instanceId,
+    opt: true,
+  );
+  static String _$hostId(Workspace v) => v.hostId;
+  static const Field<Workspace, String> _f$hostId = Field(
+    'hostId',
+    _$hostId,
+    opt: true,
+    def: 'local',
+  );
+  static List<String> _$tagIds(Workspace v) => v.tagIds;
+  static const Field<Workspace, List<String>> _f$tagIds = Field(
+    'tagIds',
+    _$tagIds,
+    opt: true,
+    def: const <String>[],
+  );
+  static List<String> _$tagNames(Workspace v) => v.tagNames;
+  static const Field<Workspace, List<String>> _f$tagNames = Field(
+    'tagNames',
+    _$tagNames,
+    opt: true,
+    def: const <String>[],
+  );
+  static String? _$parentWorkspaceId(Workspace v) => v.parentWorkspaceId;
+  static const Field<Workspace, String> _f$parentWorkspaceId = Field(
+    'parentWorkspaceId',
+    _$parentWorkspaceId,
+    opt: true,
+  );
+  static int _$childCount(Workspace v) => v.childCount;
+  static const Field<Workspace, int> _f$childCount = Field(
+    'childCount',
+    _$childCount,
+    opt: true,
+    def: 0,
+  );
 
   @override
   final MappableFields<Workspace> fields = const {
@@ -177,6 +217,12 @@ class WorkspaceMapper extends ClassMapperBase<Workspace> {
     #branch: _f$branch,
     #sourceBranch: _f$sourceBranch,
     #reusesExistingBranch: _f$reusesExistingBranch,
+    #instanceId: _f$instanceId,
+    #hostId: _f$hostId,
+    #tagIds: _f$tagIds,
+    #tagNames: _f$tagNames,
+    #parentWorkspaceId: _f$parentWorkspaceId,
+    #childCount: _f$childCount,
   };
 
   static Workspace _instantiate(DecodingData data) {
@@ -192,6 +238,12 @@ class WorkspaceMapper extends ClassMapperBase<Workspace> {
       branch: data.dec(_f$branch),
       sourceBranch: data.dec(_f$sourceBranch),
       reusesExistingBranch: data.dec(_f$reusesExistingBranch),
+      instanceId: data.dec(_f$instanceId),
+      hostId: data.dec(_f$hostId),
+      tagIds: data.dec(_f$tagIds),
+      tagNames: data.dec(_f$tagNames),
+      parentWorkspaceId: data.dec(_f$parentWorkspaceId),
+      childCount: data.dec(_f$childCount),
     );
   }
 
@@ -254,6 +306,8 @@ extension WorkspaceValueCopy<$R, $Out> on ObjectCopyWith<$R, Workspace, $Out> {
 
 abstract class WorkspaceCopyWith<$R, $In extends Workspace, $Out>
     implements ClassCopyWith<$R, $In, $Out> {
+  ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>> get tagIds;
+  ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>> get tagNames;
   $R call({
     String? id,
     String? projectId,
@@ -266,6 +320,12 @@ abstract class WorkspaceCopyWith<$R, $In extends Workspace, $Out>
     String? branch,
     String? sourceBranch,
     bool? reusesExistingBranch,
+    String? instanceId,
+    String? hostId,
+    List<String>? tagIds,
+    List<String>? tagNames,
+    String? parentWorkspaceId,
+    int? childCount,
   });
   WorkspaceCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
 }
@@ -279,6 +339,20 @@ class _WorkspaceCopyWithImpl<$R, $Out>
   late final ClassMapperBase<Workspace> $mapper =
       WorkspaceMapper.ensureInitialized();
   @override
+  ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>> get tagIds =>
+      ListCopyWith(
+        $value.tagIds,
+        (v, t) => ObjectCopyWith(v, $identity, t),
+        (v) => call(tagIds: v),
+      );
+  @override
+  ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>> get tagNames =>
+      ListCopyWith(
+        $value.tagNames,
+        (v, t) => ObjectCopyWith(v, $identity, t),
+        (v) => call(tagNames: v),
+      );
+  @override
   $R call({
     String? id,
     String? projectId,
@@ -291,6 +365,12 @@ class _WorkspaceCopyWithImpl<$R, $Out>
     Object? branch = $none,
     Object? sourceBranch = $none,
     bool? reusesExistingBranch,
+    Object? instanceId = $none,
+    String? hostId,
+    List<String>? tagIds,
+    List<String>? tagNames,
+    Object? parentWorkspaceId = $none,
+    int? childCount,
   }) => $apply(
     FieldCopyWithData({
       if (id != null) #id: id,
@@ -305,6 +385,12 @@ class _WorkspaceCopyWithImpl<$R, $Out>
       if (sourceBranch != $none) #sourceBranch: sourceBranch,
       if (reusesExistingBranch != null)
         #reusesExistingBranch: reusesExistingBranch,
+      if (instanceId != $none) #instanceId: instanceId,
+      if (hostId != null) #hostId: hostId,
+      if (tagIds != null) #tagIds: tagIds,
+      if (tagNames != null) #tagNames: tagNames,
+      if (parentWorkspaceId != $none) #parentWorkspaceId: parentWorkspaceId,
+      if (childCount != null) #childCount: childCount,
     }),
   );
   @override
@@ -323,6 +409,15 @@ class _WorkspaceCopyWithImpl<$R, $Out>
       #reusesExistingBranch,
       or: $value.reusesExistingBranch,
     ),
+    instanceId: data.get(#instanceId, or: $value.instanceId),
+    hostId: data.get(#hostId, or: $value.hostId),
+    tagIds: data.get(#tagIds, or: $value.tagIds),
+    tagNames: data.get(#tagNames, or: $value.tagNames),
+    parentWorkspaceId: data.get(
+      #parentWorkspaceId,
+      or: $value.parentWorkspaceId,
+    ),
+    childCount: data.get(#childCount, or: $value.childCount),
   );
 
   @override

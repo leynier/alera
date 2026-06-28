@@ -17,8 +17,8 @@ import 'package:alera/src/features/workbench/application/workspace_tab_service.d
 import 'package:alera/src/features/workbench/application/worktree_setup_service.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
-import 'package:alera/src/features/workbench/infra/drift_workbench_repository.dart';
 import 'package:alera/src/features/workbench/infra/drift_workbench_view_prefs_repository.dart';
+import 'package:alera/src/features/workbench/infra/runtime_workbench_repository.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_pty_session.dart';
@@ -26,6 +26,8 @@ import 'package:alera/src/features/workbench/infra/terminal_shell_startup_prepar
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:alera/src/shared/infra/process/process_providers.dart';
+import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
+import 'package:alera/src/shared/infra/runtime/runtime_state_migration.dart';
 import 'package:alera/src/shared/infra/storage/storage_providers.dart';
 import 'package:alera/src/shared/infra/uri/uri_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -35,9 +37,10 @@ part 'workbench_providers.g.dart';
 
 @Riverpod(keepAlive: true)
 WorkbenchRepository workbenchRepository(Ref ref) {
-  final dbAsync = ref.watch(aleraDatabaseProvider);
-  final db = dbAsync.requireValue;
-  return DriftWorkbenchRepository(db);
+  return RuntimeWorkbenchRepository(
+    ref.watch(runtimeHostClientProvider),
+    beforeAccess: ref.watch(runtimeStateMigrationProvider).ensureMigrated,
+  );
 }
 
 @Riverpod(keepAlive: true)
@@ -96,7 +99,10 @@ TerminalHostClient terminalHostClient(Ref ref) {
   final initialConfig = _terminalHostConfigFor(
     ref.read(settingsControllerProvider).terminal,
   );
-  final client = SocketTerminalHostClient(initialConfig: initialConfig);
+  final client = ref.watch(runtimeHostClientProvider);
+  unawaited(
+    client.configure(initialConfig).catchError(_ignoreProviderAsyncError),
+  );
   ref.listen<TerminalSettings>(
     settingsControllerProvider.select((settings) => settings.terminal),
     (_, next) {

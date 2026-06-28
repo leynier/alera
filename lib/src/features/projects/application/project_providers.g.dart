@@ -143,7 +143,7 @@ final class ProjectRepositoryProvider
   }
 }
 
-String _$projectRepositoryHash() => r'e98deabcc5b6751754493b997b38927f13a3cd20';
+String _$projectRepositoryHash() => r'b4b7463c17f617fdbee9bd3d53f3e60db761ada9';
 
 @ProviderFor(projectList)
 final projectListProvider = ProjectListProvider._();
@@ -410,4 +410,4 @@ final class ProjectsServiceProvider
   }
 }
 
-String _$projectsServiceHash() => r'd92fe6a944980f570a0b9c0095dd7f6eed80ac58';
+String _$projectsServiceHash() => r'ec2992f681ee8e948bc068961efc34656f219b8a';

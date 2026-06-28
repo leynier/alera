@@ -8,6 +8,7 @@ class ProjectsService {
   ProjectsService({
     required this._projectService,
     required this._projectRepository,
+    this.removeProjectConfigOverride,
     Uuid? uuid,
     DateTime Function()? now,
   }) : _uuid = uuid ?? const Uuid(),
@@ -15,6 +16,7 @@ class ProjectsService {
 
   final ProjectService _projectService;
   final ProjectRepository _projectRepository;
+  final Future<void> Function(String projectId)? removeProjectConfigOverride;
   final Uuid _uuid;
   final DateTime Function() _now;
 
@@ -141,5 +143,6 @@ class ProjectsService {
 
   Future<void> removeProject(String projectId) async {
     await _projectRepository.remove(projectId);
+    await removeProjectConfigOverride?.call(projectId);
   }
 }

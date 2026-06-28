@@ -1109,8 +1109,13 @@ void main() {
           'alera-app-providers-',
         );
         addTearDown(() async {
-          if (await tempDir.exists()) {
-            await tempDir.delete(recursive: true);
+          try {
+            if (await tempDir.exists()) {
+              await tempDir.delete(recursive: true);
+            }
+          } on PathNotFoundException {
+            // Some provider disposal paths can race the test cleanup after the
+            // fake app-support directory has already been removed.
           }
         });
         final previousPlatform = PathProviderPlatform.instance;

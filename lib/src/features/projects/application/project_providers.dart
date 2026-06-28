@@ -6,11 +6,13 @@ import 'package:alera/src/features/projects/application/projects_service.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/domain/project_config.dart';
 import 'package:alera/src/features/projects/infra/drift_project_config_repository.dart';
-import 'package:alera/src/features/projects/infra/drift_project_repository.dart';
 import 'package:alera/src/features/projects/infra/project_config_toml_file_store.dart';
+import 'package:alera/src/features/projects/infra/runtime_project_repository.dart';
 import 'package:alera/src/features/workbench/application/workspace_folder_opener.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:alera/src/shared/infra/process/process_providers.dart';
+import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
+import 'package:alera/src/shared/infra/runtime/runtime_state_migration.dart';
 import 'package:alera/src/shared/infra/storage/storage_providers.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -28,9 +30,10 @@ ProjectService projectService(Ref ref) {
 
 @Riverpod(keepAlive: true)
 ProjectRepository projectRepository(Ref ref) {
-  final dbAsync = ref.watch(aleraDatabaseProvider);
-  final db = dbAsync.requireValue;
-  return DriftProjectRepository(db);
+  return RuntimeProjectRepository(
+    ref.watch(runtimeHostClientProvider),
+    beforeAccess: ref.watch(runtimeStateMigrationProvider).ensureMigrated,
+  );
 }
 
 @Riverpod(keepAlive: true)
@@ -68,5 +71,8 @@ ProjectsService projectsService(Ref ref) {
   return ProjectsService(
     projectService: ref.watch(projectServiceProvider),
     projectRepository: ref.watch(projectRepositoryProvider),
+    removeProjectConfigOverride: ref
+        .watch(projectConfigServiceProvider)
+        .removeUiOverride,
   );
 }

@@ -40,7 +40,7 @@ cli-build:
 cli-help:
 	$(DART) $(ALERA_DEBUG_TOOL) cli-help --cargo "$(CARGO)" --bundle-dir "$(ALERA_CLI_BUNDLE_DIR)"
 
-# Run the terminal host in the foreground for direct stdout/stderr debugging.
+# Run the runtime host in the foreground for direct stdout/stderr debugging.
 host-debug:
 	$(DART) $(ALERA_DEBUG_TOOL) host-debug --app-id "$(ALERA_APP_ID)" --debug-token "$(ALERA_CLI_DEBUG_TOKEN)" --host-empty-shutdown-seconds "$(ALERA_HOST_EMPTY_SHUTDOWN_SECONDS)" --host-detached-shutdown-seconds "$(ALERA_HOST_DETACHED_SHUTDOWN_SECONDS)" --host-scrollback-bytes "$(ALERA_HOST_SCROLLBACK_BYTES)"
 
@@ -52,7 +52,7 @@ app-debug:
 app-debug-bundled-cli:
 	$(DART) $(ALERA_DEBUG_TOOL) app-debug-bundled-cli --flutter "$(FLUTTER)" $(APP_DEVICE_ARG) --alera-flavor "$(ALERA_FLAVOR)" --bundle-dir "$(ALERA_CLI_BUNDLE_DIR)"
 
-# Inspect running Alera app and terminal-host processes.
+# Inspect running Alera app and runtime-host processes.
 debug-processes:
 	$(DART) $(ALERA_DEBUG_TOOL) debug-processes --app-id "$(ALERA_APP_ID)"
 

@@ -103,7 +103,9 @@ make cli-help
 
 `make cli-build` runs `cargo build --release -p alera-cli` and stages the single binary into `.dart_tool/alera/alera` (`.dart_tool/alera/alera.exe` on Windows); `make cli-help` runs the staged binary's `--help`. The Rust crate also has its own checks via `make rust-test` (`cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test`).
 
-The repository `makefile` exposes cross-platform debug targets around the same flow. `make help` lists available targets. For foreground host debugging, `make host-debug` accepts `ALERA_HOST_EMPTY_SHUTDOWN_SECONDS`, `ALERA_HOST_DETACHED_SHUTDOWN_SECONDS`, and `ALERA_HOST_SCROLLBACK_BYTES`, which are forwarded to `alera terminal-host`.
+The repository `makefile` exposes cross-platform debug targets around the same flow. `make help` lists available targets. For foreground host debugging, `make host-debug` accepts `ALERA_HOST_EMPTY_SHUTDOWN_SECONDS`, `ALERA_HOST_DETACHED_SHUTDOWN_SECONDS`, and `ALERA_HOST_SCROLLBACK_BYTES`, which are forwarded to the runtime host. `alera terminal-host` remains a compatibility alias, but new product behavior should be validated through `alera runtime-host` and the `project`, `workspace`, `tag`, `tab`, and `ssh-target` CLI groups.
+
+Runtime-owned Projects, Workspaces, Tabs, Layouts, tags, relations, and SSH targets should include Rust store tests plus Dart repository/provider tests. Relation tests must cover self-link rejection, cycle prevention, cross-project links, tag assignment, and cascade previews for descendants and tags. SSH target tests should use fakes or local fixtures unless the test is explicitly marked as a manual remote-host smoke.
 
 ## Mocking
 
