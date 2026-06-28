@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
-import 'package:alera/src/design_system/badges/alera_badge.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/surfaces/hover_container.dart';
 import 'package:alera/src/features/keyboard/application/keybinding_resolver.dart';
@@ -11,6 +10,7 @@ import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_dialog_launchers.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_graph_indicators.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

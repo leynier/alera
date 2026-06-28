@@ -304,14 +304,26 @@ class _RightColumn extends ConsumerWidget {
                                                             .foregroundFaint,
                                                       ),
                                                 ),
+                                                if (WorkspaceGraphChips.hasContent(
+                                                  ws,
+                                                )) ...[
+                                                  const SizedBox(
+                                                    height: AleraTokens.space6,
+                                                  ),
+                                                  WorkspaceGraphChips(
+                                                    workspace: ws,
+                                                  ),
+                                                ],
                                               ],
                                             ),
                                           ),
-                                          if (ws.isMain) ...[
+                                          if (WorkspaceRoleBadge.hasRole(
+                                            ws,
+                                          )) ...[
                                             const SizedBox(
                                               width: AleraTokens.space8,
                                             ),
-                                            const AleraBadge(label: 'Primary'),
+                                            WorkspaceRoleBadge(workspace: ws),
                                           ],
                                         ],
                                       ),

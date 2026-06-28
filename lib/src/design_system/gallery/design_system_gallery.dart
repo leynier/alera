@@ -39,6 +39,11 @@ Widget galleryButtonsAndChips() => Wrap(
     ),
     const AleraBadge(label: 'Primary'),
     const AleraChip(label: 'Alera'),
+    const AleraChip(
+      label: '#frontend',
+      leading: AleraIcons.tag,
+      tooltip: 'frontend',
+    ),
     AleraChip(label: 'Removable', onRemove: () {}),
   ],
 );

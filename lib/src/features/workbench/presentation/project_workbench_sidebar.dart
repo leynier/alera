@@ -6,7 +6,6 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_brand_row.dart';
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_collapsed_rail.dart';
-import 'package:alera/src/design_system/badges/alera_badge.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/chips/alera_chip.dart';
 import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
@@ -24,6 +23,7 @@ import 'package:alera/src/features/workbench/application/workspace_agent_status_
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_dialog_launchers.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_graph_indicators.dart';
 import 'package:alera/src/features/workbench/presentation/widgets/workbench_sidebar_toolbar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

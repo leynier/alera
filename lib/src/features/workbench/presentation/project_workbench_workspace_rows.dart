@@ -152,53 +152,11 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
     return parts.join(' · ');
   }
 
-  List<Widget> _buildGraphChips() {
-    final chips = <Widget>[];
-    if (widget.workspace.hostId.trim().isNotEmpty &&
-        widget.workspace.hostId != 'local') {
-      chips.add(AleraChip(label: widget.workspace.hostId));
-    }
-    if (widget.workspace.parentWorkspaceId != null) {
-      chips.add(const AleraChip(label: 'Child'));
-    }
-    if (widget.workspace.childCount > 0) {
-      chips.add(
-        AleraChip(
-          label: widget.workspace.childCount == 1
-              ? '1 Child'
-              : '${widget.workspace.childCount} Children',
-        ),
-      );
-    }
-    final tagLabels = widget.workspace.tagNames.isNotEmpty
-        ? widget.workspace.tagNames
-        : widget.workspace.tagIds;
-    for (final tagLabel in tagLabels.take(3)) {
-      final label = _shortGraphLabel(tagLabel.trim());
-      if (label.isNotEmpty) {
-        chips.add(AleraChip(label: '#$label'));
-      }
-    }
-    final hiddenTagCount = tagLabels.length - 3;
-    if (hiddenTagCount > 0) {
-      chips.add(AleraChip(label: '+$hiddenTagCount Tags'));
-    }
-    return chips;
-  }
-
-  String _shortGraphLabel(String value) {
-    if (value.length <= 18) {
-      return value;
-    }
-    return '${value.substring(0, 15)}...';
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isActive = widget.isActive;
     final actionsVisible = _hovered || isActive;
-    final graphChips = _buildGraphChips();
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
@@ -254,9 +212,11 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                                   ),
                                 ),
                               ),
-                              if (widget.workspace.isMain) ...<Widget>[
+                              if (WorkspaceRoleBadge.hasRole(
+                                widget.workspace,
+                              )) ...<Widget>[
                                 const SizedBox(width: AleraTokens.space6),
-                                const AleraBadge(label: 'Primary'),
+                                WorkspaceRoleBadge(workspace: widget.workspace),
                               ],
                             ],
                           ),
@@ -281,13 +241,11 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                               ),
                             ],
                           ),
-                          if (graphChips.isNotEmpty) ...<Widget>[
+                          if (WorkspaceGraphChips.hasContent(
+                            widget.workspace,
+                          )) ...<Widget>[
                             const SizedBox(height: AleraTokens.space6),
-                            Wrap(
-                              spacing: AleraTokens.space4,
-                              runSpacing: AleraTokens.space4,
-                              children: graphChips,
-                            ),
+                            WorkspaceGraphChips(workspace: widget.workspace),
                           ],
                         ],
                       ),

@@ -70,6 +70,10 @@ abstract final class AleraIcons {
   static const IconData link = LucideIcons.link;
   static const IconData unarchive = LucideIcons.archiveRestore;
 
+  // Workspace graph
+  static const IconData host = LucideIcons.server;
+  static const IconData tag = LucideIcons.tag;
+
   // Git / version control
   static const IconData gitBranch = LucideIcons.gitBranch;
   static const IconData gitGraph = LucideIcons.gitGraph;
