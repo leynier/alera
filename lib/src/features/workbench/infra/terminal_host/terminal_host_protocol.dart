@@ -1,12 +1,13 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-const int aleraTerminalHostProtocolVersion = 2;
+const int aleraTerminalHostProtocolVersion = 3;
 const String aleraCliExecutableName = 'alera';
 const String aleraCliWindowsExecutableName = 'alera.exe';
 const String aleraRuntimeHostCommand = 'runtime-host';
 const String aleraTerminalHostCommand = 'terminal-host';
 const String aleraRuntimeHostCapability = 'runtimeStore';
+const String aleraRuntimeHostBootstrapCapability = 'sshTargetBootstrap';
 const int defaultTerminalHostEmptyShutdownDelaySeconds = 30;
 const int defaultTerminalHostDetachedSessionShutdownDelaySeconds = 60 * 60;
 const int defaultTerminalHostScrollbackBytes = 10 * 1000 * 1000;

@@ -10,6 +10,8 @@ import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/domain/project_config.dart';
 import 'package:alera/src/features/projects/domain/project_config_paths.dart';
+import 'package:alera/src/features/remote_hosts/application/ssh_target_providers.dart';
+import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/buttons/alera_segmented_button.dart';
 import 'package:alera/src/design_system/feedback/alera_color_swatch.dart';
@@ -37,6 +39,7 @@ import 'package:flutter/services.dart';
 part 'settings_dialog_navigation.dart';
 part 'settings_dialog_general_pane.dart';
 part 'settings_dialog_projects_pane.dart';
+part 'settings_dialog_remote_hosts_pane.dart';
 part 'settings_dialog_ai_text_pane.dart';
 part 'settings_dialog_editor_pane.dart';
 part 'settings_dialog_terminal_pane.dart';
@@ -114,6 +117,14 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         icon: AleraIcons.folderSpecial,
         entries: _projectSearchEntries,
         builder: (_) => const _ProjectSettingsPane(),
+      ),
+      _SettingsSectionData(
+        id: 'remoteHosts',
+        title: 'Remote Hosts',
+        description: 'SSH runtime targets.',
+        icon: AleraIcons.host,
+        entries: _remoteHostSearchEntries,
+        builder: (_) => const _RemoteHostSettingsPane(),
       ),
       _SettingsSectionData(
         id: 'editor',
@@ -372,6 +383,22 @@ const List<_SettingsSearchEntry> _projectSearchEntries = <_SettingsSearchEntry>[
     ],
   ),
 ];
+
+const List<_SettingsSearchEntry> _remoteHostSearchEntries =
+    <_SettingsSearchEntry>[
+      _SettingsSearchEntry(
+        title: 'Remote Hosts',
+        description: 'Manage SSH targets and remote runtime bootstrap.',
+        keywords: <String>[
+          'ssh',
+          'remote',
+          'host',
+          'runtime',
+          'bootstrap',
+          'mobile',
+        ],
+      ),
+    ];
 
 const List<_SettingsSearchEntry> _keyboardSearchEntries =
     <_SettingsSearchEntry>[

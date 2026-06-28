@@ -186,3 +186,121 @@ class _DirectoryRequest {
   final String? confirmButtonText;
   final bool? canCreateDirectories;
 }
+
+class _FakeRuntimeHostClient implements RuntimeHostClient {
+  _FakeRuntimeHostClient(
+    this.targets, {
+    this.bootstrapPlanGate,
+    this.bootstrapStartGate,
+    this.bootstrapCancelGate,
+  });
+
+  final List<SshTarget> targets;
+  final Completer<void>? bootstrapPlanGate;
+  final Completer<void>? bootstrapStartGate;
+  final Completer<void>? bootstrapCancelGate;
+  final List<_RuntimeRequest> requests = <_RuntimeRequest>[];
+  final StreamController<RuntimeHostEvent> _events =
+      StreamController<RuntimeHostEvent>.broadcast();
+
+  @override
+  Stream<RuntimeHostEvent> get runtimeEvents => _events.stream;
+
+  void emitSshTargetsChanged() {
+    _events.add(
+      const RuntimeHostEvent('sshTargetsChanged', <String, Object?>{}),
+    );
+  }
+
+  @override
+  Future<Object?> runtimeRequest(
+    String type, [
+    Map<String, Object?> payload = const <String, Object?>{},
+  ]) async {
+    requests.add(_RuntimeRequest(type, Map<String, Object?>.from(payload)));
+    switch (type) {
+      case 'sshTarget.list':
+        return <Map<String, Object?>>[
+          for (final target in targets) target.toJson(),
+        ];
+      case 'sshTarget.upsert':
+        final target = SshTarget.fromJson(payload);
+        final index = targets.indexWhere((item) => item.id == target.id);
+        if (index == -1) {
+          targets.add(target);
+        } else {
+          targets[index] = target;
+        }
+        _events.add(
+          const RuntimeHostEvent('sshTargetsChanged', <String, Object?>{}),
+        );
+        return target.toJson();
+      case 'sshTarget.bootstrap.plan':
+        await bootstrapPlanGate?.future;
+        return <String, Object?>{
+          'targetId': payload['targetId'],
+          'platform': payload['platform'] ?? 'linux',
+          'arch': payload['arch'] ?? 'x64',
+          'installDir':
+              payload['installDir'] ?? '/opt/alera/${payload['targetId']}',
+          'channel': payload['channel'] ?? 'stable',
+          'artifactSource': 'runtime-archive',
+          'trust': 'signedArchive',
+          'version': payload['version'],
+          'steps': <String>['Download Runtime'],
+        };
+      case 'sshTarget.bootstrap.start':
+        await bootstrapStartGate?.future;
+        return <String, Object?>{
+          'jobId': 'job-1',
+          'targetId': payload['targetId'],
+          'status': 'installing',
+        };
+      case 'sshTarget.bootstrap.cancel':
+        await bootstrapCancelGate?.future;
+        final targetId = payload['id'] as String;
+        final index = targets.indexWhere((target) => target.id == targetId);
+        if (index == -1) {
+          throw StateError('ssh target not found: $targetId');
+        }
+        final target = targets[index];
+        final cancelled = SshTarget(
+          id: target.id,
+          alias: target.alias,
+          host: target.host,
+          port: target.port,
+          username: target.username,
+          platform: target.platform,
+          arch: target.arch,
+          authKind: target.authKind,
+          createdAt: target.createdAt,
+          updatedAt: target.updatedAt,
+          lastStatus: target.lastStatus,
+          installDir: target.installDir,
+          runtimeVersion: target.runtimeVersion,
+          runtimePlatform: target.runtimePlatform,
+          runtimeArch: target.runtimeArch,
+          bootstrapStatus: SshBootstrapStatus.cancelled,
+          lastBootstrapAt: target.lastBootstrapAt,
+          lastCheckedAt: target.lastCheckedAt,
+          lastError: null,
+        );
+        targets[index] = cancelled;
+        _events.add(
+          const RuntimeHostEvent('sshTargetsChanged', <String, Object?>{}),
+        );
+        return cancelled.toJson();
+      default:
+        throw UnimplementedError(type);
+    }
+  }
+
+  Future<void> dispose() => _events.close();
+}
+
+class _RuntimeRequest {
+  const _RuntimeRequest(this.type, this.payload);
+
+  final String type;
+  final Map<String, Object?> payload;
+}

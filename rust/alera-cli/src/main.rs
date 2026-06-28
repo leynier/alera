@@ -1,5 +1,7 @@
 mod cli;
+mod runtime_archive;
 mod runtime_host_client;
+mod ssh_bootstrap;
 mod terminal_host;
 
 use std::future::Future;
@@ -14,17 +16,21 @@ use chrono::Utc;
 use clap::Parser;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use serde_json::json;
+use serde_json::{json, Value};
 use uuid::Uuid;
 
 use crate::cli::TerminalHostArgs;
 use crate::cli::{
     CascadePreviewArgs, Cli, Command, IdArgs, ProjectAction, ProjectAddArgs, ProjectCommand,
     ProjectKindArg, RuntimeAction, RuntimeCommand, RuntimeDirArgs, SshAuthKindArg, SshTargetAction,
-    SshTargetAddArgs, SshTargetCommand, TabAction, TabCommand, TabCreateArgs, WorkspaceAction,
-    WorkspaceAddArgs, WorkspaceCommand, WorkspaceKindArg,
+    SshTargetAddArgs, SshTargetBootstrapArgs, SshTargetBootstrapPlanArgs, SshTargetCommand,
+    SshTargetStatusArgs, TabAction, TabCommand, TabCreateArgs, WorkspaceAction, WorkspaceAddArgs,
+    WorkspaceCommand, WorkspaceKindArg,
 };
 use crate::runtime_host_client::RuntimeHostRpcClient;
+use crate::ssh_bootstrap::{
+    build_ssh_bootstrap_plan, new_bootstrap_job_id, run_ssh_bootstrap, SshTargetBootstrapRequest,
+};
 use crate::terminal_host::protocol::TerminalHostConfig;
 use crate::terminal_host::server::run_terminal_host_server;
 
@@ -421,12 +427,7 @@ async fn run_ssh_target_command(command: SshTargetCommand) -> i32 {
         },
         SshTargetAction::Add(args) => {
             let target = ssh_target_from_args(args);
-            let fallback_target = target.clone();
-            match runtime_host_or_store(&runtime, "sshTarget.upsert", &target, |store| async move {
-                store.upsert_ssh_target(fallback_target).await
-            })
-            .await
-            {
+            match upsert_ssh_target_from_cli(&runtime, target).await {
                 Ok(target) => print_value(&target, json_output, "ssh target saved"),
                 Err(error) => return print_error(error),
             }
@@ -450,38 +451,108 @@ async fn run_ssh_target_command(command: SshTargetCommand) -> i32 {
                 Err(error) => return print_error(error),
             }
         }
-        SshTargetAction::BootstrapPlan(IdArgs { id }) => {
+        SshTargetAction::Status(SshTargetStatusArgs { id }) => {
             let store = match open_store(&runtime).await {
                 Ok(store) => store,
                 Err(error) => return print_error(error),
             };
-            let targets = match store.list_ssh_targets().await {
-                Ok(targets) => targets,
+            let value = if let Some(id) = id {
+                match store.find_ssh_target(&id).await {
+                    Ok(Some(target)) => json!(target),
+                    Ok(None) => {
+                        eprintln!("ssh target not found: {id}");
+                        return 1;
+                    }
+                    Err(error) => return print_error(error),
+                }
+            } else {
+                match store.list_ssh_targets().await {
+                    Ok(targets) => json!(targets),
+                    Err(error) => return print_error(error),
+                }
+            };
+            print_value(&value, json_output, "ssh target status ready");
+        }
+        SshTargetAction::BootstrapPlan(args) => {
+            let request = match ssh_bootstrap_request_from_plan_args(args) {
+                Ok(request) => request,
                 Err(error) => return print_error(error),
             };
-            let Some(target) = targets.into_iter().find(|target| target.id == id) else {
-                eprintln!("ssh target not found: {id}");
-                return 1;
+            let fallback_request = request.clone();
+            let value = match runtime_host_or_store(
+                &runtime,
+                "sshTarget.bootstrap.plan",
+                &request,
+                |store| async move { build_ssh_bootstrap_plan(&store, &fallback_request).await },
+            )
+            .await
+            {
+                Ok(plan) => plan,
+                Err(error) => return print_error(error),
             };
-            let remote_dir = if target.platform.as_deref() == Some("windows") {
-                "%LOCALAPPDATA%\\Alera\\runtime".to_string()
+            print_value(&value, json_output, "ssh bootstrap plan ready");
+        }
+        SshTargetAction::Bootstrap(args) => {
+            let request = match ssh_bootstrap_request_from_args(args) {
+                Ok(request) => request,
+                Err(error) => return print_error(error),
+            };
+            let payload = request.clone();
+            let value: Value = if let Some(mut client) =
+                match RuntimeHostRpcClient::connect(&runtime_dir(&runtime)).await {
+                    Ok(client) => client,
+                    Err(error) => return print_error(error),
+                } {
+                match client
+                    .request_value("sshTarget.bootstrap.start", &payload)
+                    .await
+                {
+                    Ok(value) => value,
+                    Err(error) => return print_error(error),
+                }
             } else {
-                "~/.alera/runtime".to_string()
+                let store = match open_store(&runtime).await {
+                    Ok(store) => store,
+                    Err(error) => return print_error(error),
+                };
+                let cache_dir = runtime_dir(&runtime).join("runtime-artifacts");
+                let job_id = new_bootstrap_job_id();
+                match run_ssh_bootstrap(store, cache_dir, request, job_id, |progress| {
+                    if json_output {
+                        eprintln!(
+                            "{}",
+                            serde_json::to_string(&progress).unwrap_or_else(|_| "{}".to_string())
+                        );
+                    } else {
+                        eprintln!("{}", progress.message);
+                    }
+                })
+                .await
+                {
+                    Ok(target) => json!(target),
+                    Err(error) => return print_error(error),
+                }
             };
-            print_value(
-                &json!({
-                    "targetId": target.id,
-                    "alias": target.alias,
-                    "host": target.host,
-                    "port": target.port,
-                    "username": target.username,
-                    "remoteInstallDir": remote_dir,
-                    "artifactPattern": "alera-runtime-<version>-<os>-<arch>",
-                    "status": "planned",
-                }),
-                json_output,
-                "ssh bootstrap plan ready",
-            );
+            print_value(&value, json_output, "ssh bootstrap started");
+        }
+        SshTargetAction::BootstrapCancel(IdArgs { id }) => {
+            let payload = json!({ "id": id });
+            let value: Value = if let Some(mut client) =
+                match RuntimeHostRpcClient::connect(&runtime_dir(&runtime)).await {
+                    Ok(client) => client,
+                    Err(error) => return print_error(error),
+                } {
+                match client
+                    .request_value("sshTarget.bootstrap.cancel", &payload)
+                    .await
+                {
+                    Ok(value) => value,
+                    Err(error) => return print_error(error),
+                }
+            } else {
+                return print_error("no active runtime host bootstrap job is available to cancel");
+            };
+            print_value(&value, json_output, "ssh bootstrap cancelled");
         }
     }
     0
@@ -502,6 +573,49 @@ where
         return client.request(request_type, payload).await;
     }
     store_operation(open_store(args).await?).await
+}
+
+async fn upsert_ssh_target_from_cli(
+    args: &RuntimeDirArgs,
+    mut target: SshTarget,
+) -> anyhow::Result<SshTarget> {
+    if let Some(mut client) = RuntimeHostRpcClient::connect(&runtime_dir(args)).await? {
+        preserve_ssh_target_install_dir_from_runtime(&mut client, &mut target).await?;
+        return client.request("sshTarget.upsert", &target).await;
+    }
+    let store = open_store(args).await?;
+    preserve_ssh_target_install_dir_from_store(&store, &mut target).await?;
+    store.upsert_ssh_target(target).await
+}
+
+async fn preserve_ssh_target_install_dir_from_runtime(
+    client: &mut RuntimeHostRpcClient,
+    target: &mut SshTarget,
+) -> anyhow::Result<()> {
+    if target.install_dir.is_some() {
+        return Ok(());
+    }
+    let targets: Vec<SshTarget> = client.request("sshTarget.list", &json!({})).await?;
+    if let Some(existing) = targets
+        .into_iter()
+        .find(|existing| existing.id == target.id)
+    {
+        target.install_dir = existing.install_dir;
+    }
+    Ok(())
+}
+
+async fn preserve_ssh_target_install_dir_from_store(
+    store: &RuntimeStore,
+    target: &mut SshTarget,
+) -> anyhow::Result<()> {
+    if target.install_dir.is_some() {
+        return Ok(());
+    }
+    if let Some(existing) = store.find_ssh_target(&target.id).await? {
+        target.install_dir = existing.install_dir;
+    }
+    Ok(())
 }
 
 async fn runtime_host_or_store_unit<P, Fut>(
@@ -630,6 +744,66 @@ fn ssh_target_from_args(args: SshTargetAddArgs) -> SshTarget {
         created_at: now,
         updated_at: now,
         last_status: None,
+        install_dir: None,
+        runtime_version: None,
+        runtime_platform: None,
+        runtime_arch: None,
+        bootstrap_status: Default::default(),
+        last_bootstrap_at: None,
+        last_checked_at: None,
+        last_error: None,
+    }
+}
+
+fn ssh_bootstrap_request_from_plan_args(
+    args: SshTargetBootstrapPlanArgs,
+) -> anyhow::Result<SshTargetBootstrapRequest> {
+    Ok(SshTargetBootstrapRequest {
+        target_id: args.id,
+        channel: args.channel,
+        version: args.version,
+        install_dir: args.install_dir,
+        platform: args.platform,
+        arch: args.arch,
+        archive_url: args.archive_url,
+        archive_path: host_accessible_optional_path(args.archive_path)?,
+        artifact_path: host_accessible_optional_path(args.artifact_path)?,
+        manifest_public_key: args.manifest_public_key,
+    })
+}
+
+fn ssh_bootstrap_request_from_args(
+    args: SshTargetBootstrapArgs,
+) -> anyhow::Result<SshTargetBootstrapRequest> {
+    Ok(SshTargetBootstrapRequest {
+        target_id: args.id,
+        channel: args.channel,
+        version: args.version,
+        install_dir: args.install_dir,
+        platform: args.platform,
+        arch: args.arch,
+        archive_url: args.archive_url,
+        archive_path: host_accessible_optional_path(args.archive_path)?,
+        artifact_path: host_accessible_optional_path(args.artifact_path)?,
+        manifest_public_key: args.manifest_public_key,
+    })
+}
+
+fn host_accessible_optional_path(value: Option<String>) -> anyhow::Result<Option<PathBuf>> {
+    value
+        .map(|path| {
+            std::env::current_dir().map(|current_dir| host_accessible_path(path, &current_dir))
+        })
+        .transpose()
+        .map_err(Into::into)
+}
+
+fn host_accessible_path(value: String, current_dir: &Path) -> PathBuf {
+    let path = PathBuf::from(value);
+    if path.is_absolute() {
+        path
+    } else {
+        current_dir.join(path)
     }
 }
 
@@ -661,4 +835,27 @@ fn print_value<T: Serialize>(value: &T, json_output: bool, message: &str) {
 fn print_error(error: impl std::fmt::Display) -> i32 {
     eprintln!("{error}");
     1
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn host_accessible_path_resolves_relative_paths_against_current_dir() {
+        let current_dir = std::env::temp_dir().join("alera-cli-path-test");
+        let resolved = host_accessible_path("runtime/archive.json".to_string(), &current_dir);
+
+        assert_eq!(resolved, current_dir.join("runtime/archive.json"));
+    }
+
+    #[test]
+    fn host_accessible_path_keeps_absolute_paths() {
+        let current_dir = Path::new("ignored");
+        let absolute_path = std::env::temp_dir().join("alera-runtime.tar.gz");
+        let resolved =
+            host_accessible_path(absolute_path.to_string_lossy().into_owned(), current_dir);
+
+        assert_eq!(resolved, absolute_path);
+    }
 }

@@ -9,8 +9,9 @@ use thiserror::Error;
 use uuid::Uuid;
 
 use super::{
-    CascadePreview, Project, ProjectKind, SshAuthKind, SshTarget, WorkbenchLayoutRecord, Workspace,
-    WorkspaceKind, WorkspaceRelation, WorkspaceStatus, WorkspaceTabRecord, WorkspaceTag,
+    CascadePreview, Project, ProjectKind, SshAuthKind, SshBootstrapStatus, SshTarget,
+    WorkbenchLayoutRecord, Workspace, WorkspaceKind, WorkspaceRelation, WorkspaceStatus,
+    WorkspaceTabRecord, WorkspaceTag,
 };
 
 pub const RUNTIME_DATABASE_FILE_NAME: &str = "runtime.sqlite";
@@ -25,6 +26,15 @@ pub enum RuntimeStoreError {
 #[derive(Clone)]
 pub struct RuntimeStore {
     pool: SqlitePool,
+}
+
+pub struct SshTargetBootstrapStateUpdate<'a> {
+    pub status: SshBootstrapStatus,
+    pub install_dir: Option<&'a str>,
+    pub runtime_version: Option<&'a str>,
+    pub runtime_platform: Option<&'a str>,
+    pub runtime_arch: Option<&'a str>,
+    pub last_error: Option<&'a str>,
 }
 
 impl RuntimeStore {
@@ -51,6 +61,44 @@ impl RuntimeStore {
     async fn migrate(&self) -> Result<()> {
         for statement in RUNTIME_SCHEMA {
             sqlx::query(statement).execute(&self.pool).await?;
+        }
+        self.ensure_column("sshTargets", "installDir", "TEXT")
+            .await?;
+        self.ensure_column("sshTargets", "runtimeVersion", "TEXT")
+            .await?;
+        self.ensure_column("sshTargets", "runtimePlatform", "TEXT")
+            .await?;
+        self.ensure_column("sshTargets", "runtimeArch", "TEXT")
+            .await?;
+        self.ensure_column(
+            "sshTargets",
+            "bootstrapStatus",
+            "TEXT NOT NULL DEFAULT 'notInstalled'",
+        )
+        .await?;
+        self.ensure_column("sshTargets", "lastBootstrapAt", "TEXT")
+            .await?;
+        self.ensure_column("sshTargets", "lastCheckedAt", "TEXT")
+            .await?;
+        self.ensure_column("sshTargets", "lastError", "TEXT")
+            .await?;
+        Ok(())
+    }
+
+    async fn ensure_column(&self, table: &str, column: &str, definition: &str) -> Result<()> {
+        let rows = sqlx::query(&format!("PRAGMA table_info({table})"))
+            .fetch_all(&self.pool)
+            .await?;
+        let exists = rows.iter().any(|row| {
+            row.try_get::<String, _>("name")
+                .is_ok_and(|name| name == column)
+        });
+        if !exists {
+            sqlx::query(&format!(
+                "ALTER TABLE {table} ADD COLUMN {column} {definition}"
+            ))
+            .execute(&self.pool)
+            .await?;
         }
         Ok(())
     }
@@ -569,7 +617,8 @@ impl RuntimeStore {
 
     pub async fn list_ssh_targets(&self) -> Result<Vec<SshTarget>> {
         let rows = sqlx::query(
-            "SELECT id, alias, host, port, username, platform, arch, authKind, createdAt, updatedAt, lastStatus \
+            "SELECT id, alias, host, port, username, platform, arch, authKind, createdAt, updatedAt, lastStatus, \
+             installDir, runtimeVersion, runtimePlatform, runtimeArch, bootstrapStatus, lastBootstrapAt, lastCheckedAt, lastError \
              FROM sshTargets ORDER BY alias COLLATE NOCASE ASC",
         )
         .fetch_all(&self.pool)
@@ -577,15 +626,28 @@ impl RuntimeStore {
         rows.into_iter().map(ssh_target_from_row).collect()
     }
 
+    pub async fn find_ssh_target(&self, target_id: &str) -> Result<Option<SshTarget>> {
+        let row = sqlx::query(
+            "SELECT id, alias, host, port, username, platform, arch, authKind, createdAt, updatedAt, lastStatus, \
+             installDir, runtimeVersion, runtimePlatform, runtimeArch, bootstrapStatus, lastBootstrapAt, lastCheckedAt, lastError \
+             FROM sshTargets WHERE id = ?",
+        )
+        .bind(target_id)
+        .fetch_optional(&self.pool)
+        .await?;
+        row.map(ssh_target_from_row).transpose()
+    }
+
     pub async fn upsert_ssh_target(&self, target: SshTarget) -> Result<SshTarget> {
         sqlx::query(
             "INSERT INTO sshTargets \
-             (id, alias, host, port, username, platform, arch, authKind, createdAt, updatedAt, lastStatus) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
+             (id, alias, host, port, username, platform, arch, authKind, createdAt, updatedAt, lastStatus, \
+              installDir, runtimeVersion, runtimePlatform, runtimeArch, bootstrapStatus, lastBootstrapAt, lastCheckedAt, lastError) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
              ON CONFLICT(id) DO UPDATE SET \
              alias = excluded.alias, host = excluded.host, port = excluded.port, username = excluded.username, \
              platform = excluded.platform, arch = excluded.arch, authKind = excluded.authKind, \
-             updatedAt = excluded.updatedAt, lastStatus = excluded.lastStatus",
+             updatedAt = excluded.updatedAt, lastStatus = excluded.lastStatus, installDir = excluded.installDir",
         )
         .bind(&target.id)
         .bind(&target.alias)
@@ -598,9 +660,67 @@ impl RuntimeStore {
         .bind(format_timestamp(target.created_at))
         .bind(format_timestamp(target.updated_at))
         .bind(&target.last_status)
+        .bind(&target.install_dir)
+        .bind(&target.runtime_version)
+        .bind(&target.runtime_platform)
+        .bind(&target.runtime_arch)
+        .bind(target.bootstrap_status.as_str())
+        .bind(target.last_bootstrap_at.map(format_timestamp))
+        .bind(target.last_checked_at.map(format_timestamp))
+        .bind(&target.last_error)
         .execute(&self.pool)
         .await?;
-        Ok(target)
+        self.find_ssh_target(&target.id).await?.ok_or_else(|| {
+            anyhow::anyhow!(RuntimeStoreError::Message(format!(
+                "ssh target not found after upsert: {}",
+                target.id
+            )))
+        })
+    }
+
+    pub async fn update_ssh_target_bootstrap_state(
+        &self,
+        target_id: &str,
+        update: SshTargetBootstrapStateUpdate<'_>,
+    ) -> Result<SshTarget> {
+        let now = format_timestamp(Utc::now());
+        sqlx::query(
+            "UPDATE sshTargets SET \
+             bootstrapStatus = ?, installDir = COALESCE(?, installDir), runtimeVersion = COALESCE(?, runtimeVersion), \
+             runtimePlatform = COALESCE(?, runtimePlatform), runtimeArch = COALESCE(?, runtimeArch), \
+             lastError = ?, lastBootstrapAt = ?, updatedAt = ? WHERE id = ?",
+        )
+        .bind(update.status.as_str())
+        .bind(update.install_dir)
+        .bind(update.runtime_version)
+        .bind(update.runtime_platform)
+        .bind(update.runtime_arch)
+        .bind(update.last_error)
+        .bind(&now)
+        .bind(&now)
+        .bind(target_id)
+        .execute(&self.pool)
+        .await?;
+        self.find_ssh_target(target_id).await?.ok_or_else(|| {
+            anyhow::anyhow!(RuntimeStoreError::Message(format!(
+                "ssh target not found: {target_id}"
+            )))
+        })
+    }
+
+    pub async fn mark_ssh_target_checked(&self, target_id: &str) -> Result<SshTarget> {
+        let now = format_timestamp(Utc::now());
+        sqlx::query("UPDATE sshTargets SET lastCheckedAt = ?, updatedAt = ? WHERE id = ?")
+            .bind(&now)
+            .bind(&now)
+            .bind(target_id)
+            .execute(&self.pool)
+            .await?;
+        self.find_ssh_target(target_id).await?.ok_or_else(|| {
+            anyhow::anyhow!(RuntimeStoreError::Message(format!(
+                "ssh target not found: {target_id}"
+            )))
+        })
     }
 
     pub async fn remove_ssh_target(&self, target_id: &str) -> Result<()> {
@@ -764,6 +884,12 @@ fn relation_from_row(row: sqlx::sqlite::SqliteRow) -> Result<WorkspaceRelation> 
 }
 
 fn ssh_target_from_row(row: sqlx::sqlite::SqliteRow) -> Result<SshTarget> {
+    let last_bootstrap_at = row
+        .try_get::<Option<String>, _>("lastBootstrapAt")?
+        .map(|value| parse_timestamp(&value));
+    let last_checked_at = row
+        .try_get::<Option<String>, _>("lastCheckedAt")?
+        .map(|value| parse_timestamp(&value));
     Ok(SshTarget {
         id: row.try_get("id")?,
         alias: row.try_get("alias")?,
@@ -776,6 +902,16 @@ fn ssh_target_from_row(row: sqlx::sqlite::SqliteRow) -> Result<SshTarget> {
         created_at: parse_timestamp(row.try_get::<String, _>("createdAt")?.as_str()),
         updated_at: parse_timestamp(row.try_get::<String, _>("updatedAt")?.as_str()),
         last_status: row.try_get("lastStatus")?,
+        install_dir: row.try_get("installDir")?,
+        runtime_version: row.try_get("runtimeVersion")?,
+        runtime_platform: row.try_get("runtimePlatform")?,
+        runtime_arch: row.try_get("runtimeArch")?,
+        bootstrap_status: SshBootstrapStatus::from_db(
+            row.try_get::<String, _>("bootstrapStatus")?.as_str(),
+        ),
+        last_bootstrap_at,
+        last_checked_at,
+        last_error: row.try_get("lastError")?,
     })
 }
 
@@ -891,7 +1027,15 @@ const RUNTIME_SCHEMA: &[&str] = &[
         authKind TEXT NOT NULL,
         createdAt TEXT NOT NULL,
         updatedAt TEXT NOT NULL,
-        lastStatus TEXT
+        lastStatus TEXT,
+        installDir TEXT,
+        runtimeVersion TEXT,
+        runtimePlatform TEXT,
+        runtimeArch TEXT,
+        bootstrapStatus TEXT NOT NULL DEFAULT 'notInstalled',
+        lastBootstrapAt TEXT,
+        lastCheckedAt TEXT,
+        lastError TEXT
     );",
     "CREATE UNIQUE INDEX IF NOT EXISTS sshTargetsAliasIdx ON sshTargets(alias COLLATE NOCASE);",
 ];
@@ -938,6 +1082,31 @@ mod tests {
             tag_names: Vec::new(),
             parent_workspace_id: None,
             child_count: 0,
+        }
+    }
+
+    fn ssh_target(id: &str) -> SshTarget {
+        let now = Utc::now();
+        SshTarget {
+            id: id.to_string(),
+            alias: id.to_string(),
+            host: format!("{id}.example.test"),
+            port: 22,
+            username: "alera".to_string(),
+            platform: None,
+            arch: None,
+            auth_kind: SshAuthKind::Agent,
+            created_at: now,
+            updated_at: now,
+            last_status: None,
+            install_dir: None,
+            runtime_version: None,
+            runtime_platform: None,
+            runtime_arch: None,
+            bootstrap_status: SshBootstrapStatus::NotInstalled,
+            last_bootstrap_at: None,
+            last_checked_at: None,
+            last_error: None,
         }
     }
 
@@ -1023,6 +1192,48 @@ mod tests {
         assert_eq!(
             store.get_metadata("migration").await.unwrap(),
             Some("done".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn ssh_target_upsert_preserves_runtime_state_and_updates_install_dir() {
+        let (_dir, store) = store().await;
+        store.upsert_ssh_target(ssh_target("remote")).await.unwrap();
+        let installed = store
+            .update_ssh_target_bootstrap_state(
+                "remote",
+                SshTargetBootstrapStateUpdate {
+                    status: SshBootstrapStatus::Installed,
+                    install_dir: Some("/home/alera/.alera/runtime"),
+                    runtime_version: Some("1.2.3"),
+                    runtime_platform: Some("linux"),
+                    runtime_arch: Some("x64"),
+                    last_error: None,
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(installed.bootstrap_status, SshBootstrapStatus::Installed);
+
+        let mut updated = ssh_target("remote");
+        updated.host = "renamed.example.test".to_string();
+        let cleared = store.upsert_ssh_target(updated).await.unwrap();
+
+        assert_eq!(cleared.host, "renamed.example.test");
+        assert_eq!(cleared.bootstrap_status, SshBootstrapStatus::Installed);
+        assert_eq!(cleared.runtime_version.as_deref(), Some("1.2.3"));
+        assert_eq!(cleared.install_dir, None);
+
+        let mut updated = cleared;
+        updated.install_dir = Some("/custom/alera/runtime".to_string());
+        let updated = store.upsert_ssh_target(updated).await.unwrap();
+
+        assert_eq!(updated.host, "renamed.example.test");
+        assert_eq!(updated.bootstrap_status, SshBootstrapStatus::Installed);
+        assert_eq!(updated.runtime_version.as_deref(), Some("1.2.3"));
+        assert_eq!(
+            updated.install_dir.as_deref(),
+            Some("/custom/alera/runtime")
         );
     }
 }

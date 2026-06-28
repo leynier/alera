@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/application/project_repository.dart';
+import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
+import 'package:alera/src/features/remote_hosts/infra/runtime_ssh_target_repository.dart';
 import 'package:alera/src/features/projects/infra/runtime_project_repository.dart';
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
@@ -69,6 +71,77 @@ void main() {
     expect(workspaces.single.tagNames, <String>['Review', 'Mobile']);
     expect(workspaces.single.parentWorkspaceId, 'parent-1');
     expect(workspaces.single.childCount, 2);
+  });
+
+  test(
+    'RuntimeSshTargetRepository parses targets and bootstrap progress',
+    () async {
+      final client = _FakeRuntimeHostClient();
+      final repository = RuntimeSshTargetRepository(client);
+      client.responses['sshTarget.list'] = <Object?>[
+        _sshTargetJson(id: 'remote-1', bootstrapStatus: 'installed'),
+      ];
+
+      final targets = await repository.list();
+      final progressFuture = repository.watchBootstrapProgress().first;
+      await Future<void>.delayed(Duration.zero);
+      client.emit(
+        const RuntimeHostEvent('sshTargetBootstrapProgress', <String, Object?>{
+          'jobId': 'job-1',
+          'targetId': 'remote-1',
+          'status': 'installing',
+          'stage': 'upload',
+          'message': 'Uploading Runtime Artifact',
+        }),
+      );
+      final progress = await progressFuture;
+
+      expect(targets.single.bootstrapStatus, SshBootstrapStatus.installed);
+      expect(targets.single.installDir, '/home/alera/.alera/runtime');
+      expect(progress.targetId, 'remote-1');
+      expect(progress.status, SshBootstrapStatus.installing);
+      expect(client.requests, <String>['sshTarget.list']);
+    },
+  );
+
+  test('RuntimeSshTargetRepository passes runtime archive defaults', () async {
+    final client = _FakeRuntimeHostClient();
+    final repository = RuntimeSshTargetRepository(
+      client,
+      bootstrapDefaults: const RuntimeSshBootstrapDefaults(
+        channel: 'rc',
+        archiveUrl:
+            'https://github.com/leynier/alera/releases/download/v1.2.4-rc.0/runtime-archive-rc.json',
+        version: '1.2.4-rc.0',
+      ),
+    );
+    client.responses['sshTarget.bootstrap.start'] = <String, Object?>{
+      'jobId': 'job-1',
+      'targetId': 'remote-1',
+      'status': 'installing',
+    };
+
+    final job = await repository.startBootstrap(
+      targetId: 'remote-1',
+      installDir: '/opt/alera/runtime',
+      platform: 'linux',
+      arch: 'arm64',
+    );
+
+    expect(job.jobId, 'job-1');
+    expect(client.payloads['sshTarget.bootstrap.start']?.single, <
+      String,
+      Object?
+    >{
+      'targetId': 'remote-1',
+      'installDir': '/opt/alera/runtime',
+      'platform': 'linux',
+      'arch': 'arm64',
+      'channel': 'rc',
+      'archiveUrl':
+          'https://github.com/leynier/alera/releases/download/v1.2.4-rc.0/runtime-archive-rc.json',
+      'version': '1.2.4-rc.0',
+    });
   });
 
   test('RuntimeStateMigration seeds legacy state once', () async {
@@ -185,10 +258,38 @@ Map<String, Object?> _workspaceJson({
   };
 }
 
+Map<String, Object?> _sshTargetJson({
+  required String id,
+  required String bootstrapStatus,
+}) {
+  return <String, Object?>{
+    'id': id,
+    'alias': 'Build Host',
+    'host': 'build.example.test',
+    'port': 22,
+    'username': 'alera',
+    'platform': 'linux',
+    'arch': 'x64',
+    'authKind': 'agent',
+    'createdAt': '2026-06-27T00:00:00.000Z',
+    'updatedAt': '2026-06-27T00:00:00.000Z',
+    'lastStatus': null,
+    'installDir': '/home/alera/.alera/runtime',
+    'runtimeVersion': '1.2.3',
+    'runtimePlatform': 'linux',
+    'runtimeArch': 'x64',
+    'bootstrapStatus': bootstrapStatus,
+    'lastBootstrapAt': '2026-06-27T00:01:00.000Z',
+    'lastCheckedAt': '2026-06-27T00:02:00.000Z',
+    'lastError': null,
+  };
+}
+
 final class _FakeRuntimeHostClient implements RuntimeHostClient {
   final responses = <String, Object?>{};
   final responseSequences = <String, List<Object?>>{};
   final requests = <String>[];
+  final payloads = <String, List<Map<String, Object?>>>{};
   final _events = StreamController<RuntimeHostEvent>.broadcast();
 
   @override
@@ -200,6 +301,7 @@ final class _FakeRuntimeHostClient implements RuntimeHostClient {
     Map<String, Object?> payload = const <String, Object?>{},
   ]) async {
     requests.add(type);
+    payloads.putIfAbsent(type, () => <Map<String, Object?>>[]).add(payload);
     final sequence = responseSequences[type];
     if (sequence != null && sequence.isNotEmpty) {
       return sequence.removeAt(0);

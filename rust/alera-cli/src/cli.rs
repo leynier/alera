@@ -324,7 +324,10 @@ pub enum SshTargetAction {
     List,
     Add(SshTargetAddArgs),
     Remove(IdArgs),
-    BootstrapPlan(IdArgs),
+    Status(SshTargetStatusArgs),
+    BootstrapPlan(SshTargetBootstrapPlanArgs),
+    Bootstrap(SshTargetBootstrapArgs),
+    BootstrapCancel(IdArgs),
 }
 
 #[derive(Debug, Args)]
@@ -352,6 +355,60 @@ pub enum SshAuthKindArg {
     Password,
     Key,
     Agent,
+}
+
+#[derive(Debug, Args)]
+pub struct SshTargetStatusArgs {
+    #[arg(long)]
+    pub id: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct SshTargetBootstrapPlanArgs {
+    #[arg(long)]
+    pub id: String,
+    #[arg(long)]
+    pub channel: Option<String>,
+    #[arg(long)]
+    pub version: Option<String>,
+    #[arg(long = "install-dir")]
+    pub install_dir: Option<String>,
+    #[arg(long)]
+    pub platform: Option<String>,
+    #[arg(long)]
+    pub arch: Option<String>,
+    #[arg(long = "archive-url")]
+    pub archive_url: Option<String>,
+    #[arg(long = "archive-path")]
+    pub archive_path: Option<String>,
+    #[arg(long = "artifact-path")]
+    pub artifact_path: Option<String>,
+    #[arg(long = "manifest-public-key")]
+    pub manifest_public_key: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct SshTargetBootstrapArgs {
+    #[arg(long)]
+    pub id: String,
+    #[arg(long)]
+    pub channel: Option<String>,
+    #[arg(long)]
+    pub version: Option<String>,
+    #[arg(long = "install-dir")]
+    pub install_dir: Option<String>,
+    #[arg(long)]
+    pub platform: Option<String>,
+    #[arg(long)]
+    pub arch: Option<String>,
+    #[arg(long = "archive-url")]
+    pub archive_url: Option<String>,
+    #[arg(long = "archive-path")]
+    pub archive_path: Option<String>,
+    #[arg(long = "artifact-path")]
+    pub artifact_path: Option<String>,
+    #[arg(long = "manifest-public-key")]
+    pub manifest_public_key: Option<String>,
 }
 
 #[derive(Debug, Args)]

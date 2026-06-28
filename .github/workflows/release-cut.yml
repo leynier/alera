@@ -154,7 +154,7 @@ jobs:
 
       - name: Install Linux Flutter dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev rpm
+        run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev rpm gcc-aarch64-linux-gnu
 
       - name: Install dependencies
         run: flutter pub get
@@ -234,18 +234,23 @@ jobs:
         run: |
           set -euo pipefail
           archive_file="app-archive.json"
+          runtime_archive_file="runtime-archive.json"
           if [[ "$CHANNEL" == "rc" ]]; then
             archive_file="app-archive-rc.json"
+            runtime_archive_file="runtime-archive-rc.json"
           fi
           if [[ -z "${ALERA_UPDATE_MANIFEST_PUBLIC_KEY:-}" ]]; then
             echo "::error::ALERA_UPDATE_MANIFEST_PUBLIC_KEY is required for signed release builds." >&2
             exit 64
           fi
           archive_url="${BASE_URL}/${archive_file}"
+          runtime_archive_url="https://github.com/${{ github.repository }}/releases/download/${{ needs.cut.outputs.tag }}/${runtime_archive_file}"
           dart run desktop_updater:release "$PLATFORM" \
             --dart-define "ALERA_FLAVOR=release" \
             --dart-define "ALERA_UPDATE_CHANNEL=$CHANNEL" \
             --dart-define "ALERA_UPDATE_ARCHIVE_URL=$archive_url" \
+            --dart-define "ALERA_RUNTIME_ARCHIVE_URL=$runtime_archive_url" \
+            --dart-define "ALERA_RUNTIME_VERSION=${{ needs.cut.outputs.release_version }}" \
             --dart-define "ALERA_RELEASE_PAGE_URL=$RELEASE_PAGE_URL" \
             --dart-define "ALERA_UPDATE_AUTO_INSTALL_ENABLED=false" \
             --dart-define "ALERA_SIGNED_RELEASE=true" \
@@ -290,20 +295,51 @@ jobs:
           RELEASE_VERSION: ${{ needs.cut.outputs.release_version }}
         run: |
           set -euo pipefail
-          cargo build --manifest-path rust/Cargo.toml --locked -p alera-cli --release
-          arch="$(printf '%s' "${RUNNER_ARCH:-unknown}" | tr '[:upper:]' '[:lower:]')"
           bin_name="alera"
           if [[ "$PLATFORM" == "windows" ]]; then
             bin_name="alera.exe"
           fi
-          binary_path="rust/target/release/${bin_name}"
-          if [[ ! -f "$binary_path" ]]; then
-            echo "::error::Missing runtime sidecar binary at $binary_path"
-            exit 1
-          fi
-          package_dir="$(mktemp -d)"
-          cp "$binary_path" "$package_dir/$bin_name"
-          cat >"$package_dir/runtime-manifest.json" <<JSON
+
+          case "$PLATFORM" in
+            macos)
+              runtime_targets=("aarch64-apple-darwin:arm64" "x86_64-apple-darwin:x64")
+              ;;
+            windows)
+              runtime_targets=("x86_64-pc-windows-msvc:x64" "aarch64-pc-windows-msvc:arm64")
+              ;;
+            linux)
+              runtime_targets=("x86_64-unknown-linux-gnu:x64" "aarch64-unknown-linux-gnu:arm64")
+              ;;
+            *)
+              echo "::error::Unsupported runtime platform: $PLATFORM"
+              exit 64
+              ;;
+          esac
+
+          rust_targets=()
+          for runtime_target in "${runtime_targets[@]}"; do
+            rust_targets+=("${runtime_target%%:*}")
+          done
+          rustup target add "${rust_targets[@]}"
+
+          for runtime_target in "${runtime_targets[@]}"; do
+            rust_target="${runtime_target%%:*}"
+            arch="${runtime_target##*:}"
+            cargo_env=()
+            if [[ "$rust_target" == "aarch64-unknown-linux-gnu" ]]; then
+              cargo_env+=("CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc")
+            fi
+
+            env "${cargo_env[@]}" cargo build --manifest-path rust/Cargo.toml --locked -p alera-cli --release --target "$rust_target"
+            binary_path="rust/target/${rust_target}/release/${bin_name}"
+            if [[ ! -f "$binary_path" ]]; then
+              echo "::error::Missing runtime sidecar binary at $binary_path"
+              exit 1
+            fi
+
+            package_dir="$(mktemp -d)"
+            cp "$binary_path" "$package_dir/$bin_name"
+            cat >"$package_dir/runtime-manifest.json" <<JSON
           {
             "name": "alera-runtime",
             "version": "$RELEASE_VERSION",
@@ -312,14 +348,16 @@ jobs:
             "entrypoint": "$bin_name"
           }
           JSON
-          asset="release-assets/alera-runtime-${RELEASE_VERSION}-${PLATFORM}-${arch}.tar.gz"
-          tar -czf "$asset" -C "$package_dir" .
-          asset_name="$(basename "$asset")"
-          if command -v shasum >/dev/null 2>&1; then
-            (cd release-assets && shasum -a 256 "$asset_name") >"${asset}.sha256"
-          else
-            (cd release-assets && sha256sum "$asset_name") >"${asset}.sha256"
-          fi
+            asset="release-assets/alera-runtime-${RELEASE_VERSION}-${PLATFORM}-${arch}.tar.gz"
+            tar -czf "$asset" -C "$package_dir" .
+            asset_name="$(basename "$asset")"
+            if command -v shasum >/dev/null 2>&1; then
+              (cd release-assets && shasum -a 256 "$asset_name") >"${asset}.sha256"
+            else
+              (cd release-assets && sha256sum "$asset_name") >"${asset}.sha256"
+            fi
+            rm -rf "$package_dir"
+          done
 
       - name: Sign and package macOS release
         if: matrix.platform == 'macos'
@@ -518,6 +556,27 @@ jobs:
           dart tool/release/verify_app_archive.dart "public/$archive_file"
           echo "ALERA_ARCHIVE_FILE=$archive_file" >>"$GITHUB_ENV"
 
+      - name: Generate and verify runtime archive
+        env:
+          CHANNEL: ${{ needs.cut.outputs.channel }}
+          ALERA_RELEASE_VERSION: ${{ needs.cut.outputs.release_version }}
+          ALERA_RELEASE_BUILD_NUMBER: ${{ needs.cut.outputs.build_number }}
+          ALERA_RELEASE_CHANNEL: ${{ needs.cut.outputs.channel }}
+          ALERA_RELEASE_ASSETS_DIR: release-assets
+          ALERA_RUNTIME_RELEASE_BASE_URL: https://github.com/${{ github.repository }}/releases/download/${{ needs.cut.outputs.tag }}
+          ALERA_UPDATE_MANIFEST_PRIVATE_KEY: ${{ secrets.ALERA_UPDATE_MANIFEST_PRIVATE_KEY }}
+          ALERA_UPDATE_MANIFEST_PUBLIC_KEY: ${{ secrets.ALERA_UPDATE_MANIFEST_PUBLIC_KEY }}
+          ALERA_UPDATE_MANIFEST_PUBLIC_KEY_ID: ${{ vars.ALERA_UPDATE_MANIFEST_PUBLIC_KEY_ID }}
+        run: |
+          runtime_archive_file="runtime-archive.json"
+          if [[ "$CHANNEL" == "rc" ]]; then
+            runtime_archive_file="runtime-archive-rc.json"
+          fi
+          dart tool/release/build_runtime_archive.dart "public/$runtime_archive_file"
+          dart tool/release/sign_app_archive.dart "public/$runtime_archive_file"
+          dart tool/release/verify_runtime_archive.dart "public/$runtime_archive_file"
+          echo "ALERA_RUNTIME_ARCHIVE_FILE=$runtime_archive_file" >>"$GITHUB_ENV"
+
       - name: Build signed Linux package repositories
         if: needs.cut.outputs.channel == 'stable'
         env:
@@ -634,7 +693,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ needs.cut.outputs.tag }}
-        run: gh release upload "$TAG" release-assets/* "public/$ALERA_ARCHIVE_FILE" --repo "$GITHUB_REPOSITORY" --clobber
+        run: gh release upload "$TAG" release-assets/* "public/$ALERA_ARCHIVE_FILE" "public/$ALERA_RUNTIME_ARCHIVE_FILE" --repo "$GITHUB_REPOSITORY" --clobber
 
       - name: Attest release assets
         uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be
@@ -642,6 +701,7 @@ jobs:
           subject-path: |
             release-assets/*
             public/${{ env.ALERA_ARCHIVE_FILE }}
+            public/${{ env.ALERA_RUNTIME_ARCHIVE_FILE }}
 
       - name: Publish release
         id: publish_release

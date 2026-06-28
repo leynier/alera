@@ -17,6 +17,7 @@ tokio = { version = "1", features = [
     "macros",
     "net",
     "io-util",
+    "process",
     "sync",
     "time",
     "signal",
@@ -33,6 +34,10 @@ sqlx = { version = "0.8", default-features = false, features = [
 anyhow = "1"
 thiserror = "2"
 uuid = { version = "1", features = ["v4"] }
+ed25519-dalek = "2"
+hex = "0.4"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+sha2 = "0.10"
 
 [dev-dependencies]
 tempfile = "3"

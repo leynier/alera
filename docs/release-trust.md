@@ -23,3 +23,7 @@ Linux stable distribution uses signed package repositories rather than app self-
 The public update indexes use `schemaVersion: 2` and include SHA-256 and size for each platform artifact. The manifest is signed with Ed25519 and the release build embeds the public key through `ALERA_UPDATE_MANIFEST_PUBLIC_KEY`. Stable update checks reject unsigned or tampered manifests when `ALERA_SIGNED_RELEASE=true`. GitHub artifact attestations are published through GitHub's attestation service; they are not advertised as R2 sidecar URLs unless matching sidecar files are generated and uploaded.
 
 Stable automatic installation remains disabled unless the build is signed, the manifest public key is embedded, and the platform apply path explicitly allows the artifact type.
+
+## Runtime sidecar archive
+
+Remote-host bootstrap uses a separate signed `runtime-archive.json` or `runtime-archive-rc.json` asset published on the GitHub Release. It lists the standalone `alera-runtime-<version>-<platform>-<arch>.tar.gz` sidecar tarballs with SHA-256 and size metadata for macOS, Windows, and Linux on both `x64` and `arm64`. The release workflow signs and verifies this archive with the same Ed25519 key as the desktop update manifest before the draft release is published. Platform code-signing remains warning-only, but runtime archive signing is required for release bootstrap; local development can still use an explicit artifact-path override outside the trusted release path.

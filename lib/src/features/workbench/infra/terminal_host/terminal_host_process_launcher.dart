@@ -3,6 +3,10 @@ import 'dart:io';
 import 'package:alera/src/features/workbench/infra/terminal_host/alera_cli_sidecar.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 
+const _compiledRuntimeArchivePublicKey = String.fromEnvironment(
+  'ALERA_UPDATE_MANIFEST_PUBLIC_KEY',
+);
+
 abstract interface class TerminalHostProcessLauncher {
   Future<void> start({
     required String runtimeDir,
@@ -53,9 +57,18 @@ final class DefaultTerminalHostProcessLauncher
       ],
       workingDirectory: command.workingDirectory,
       mode: ProcessStartMode.detached,
-      environment: const <String, String>{'ALERA_TERMINAL_HOST': '1'},
+      environment: _terminalHostEnvironment(),
     );
   }
+}
+
+Map<String, String> _terminalHostEnvironment() {
+  final environment = <String, String>{'ALERA_TERMINAL_HOST': '1'};
+  if (_compiledRuntimeArchivePublicKey.isNotEmpty) {
+    environment['ALERA_RUNTIME_ARCHIVE_PUBLIC_KEY'] =
+        _compiledRuntimeArchivePublicKey;
+  }
+  return environment;
 }
 
 // coverage:ignore-end

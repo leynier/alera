@@ -162,6 +162,22 @@ pub struct SshTarget {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub last_status: Option<String>,
+    #[serde(default)]
+    pub install_dir: Option<String>,
+    #[serde(default)]
+    pub runtime_version: Option<String>,
+    #[serde(default)]
+    pub runtime_platform: Option<String>,
+    #[serde(default)]
+    pub runtime_arch: Option<String>,
+    #[serde(default)]
+    pub bootstrap_status: SshBootstrapStatus,
+    #[serde(default)]
+    pub last_bootstrap_at: Option<DateTime<Utc>>,
+    #[serde(default)]
+    pub last_checked_at: Option<DateTime<Utc>>,
+    #[serde(default)]
+    pub last_error: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -186,6 +202,42 @@ impl SshAuthKind {
             "key" => SshAuthKind::Key,
             "agent" => SshAuthKind::Agent,
             _ => SshAuthKind::Password,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase")]
+pub enum SshBootstrapStatus {
+    #[default]
+    NotInstalled,
+    Planned,
+    Installing,
+    Installed,
+    Failed,
+    Cancelled,
+}
+
+impl SshBootstrapStatus {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            SshBootstrapStatus::NotInstalled => "notInstalled",
+            SshBootstrapStatus::Planned => "planned",
+            SshBootstrapStatus::Installing => "installing",
+            SshBootstrapStatus::Installed => "installed",
+            SshBootstrapStatus::Failed => "failed",
+            SshBootstrapStatus::Cancelled => "cancelled",
+        }
+    }
+
+    pub fn from_db(value: &str) -> Self {
+        match value {
+            "planned" => SshBootstrapStatus::Planned,
+            "installing" => SshBootstrapStatus::Installing,
+            "installed" => SshBootstrapStatus::Installed,
+            "failed" => SshBootstrapStatus::Failed,
+            "cancelled" => SshBootstrapStatus::Cancelled,
+            _ => SshBootstrapStatus::NotInstalled,
         }
     }
 }

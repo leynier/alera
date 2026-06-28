@@ -543,6 +543,46 @@ void main() {
   );
 
   test(
+    'starts a separate runtime host when bootstrap capability is missing',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'alera-host-client-no-bootstrap-capability-',
+      );
+      addTearDown(() async {
+        if (await tempDir.exists()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+      final legacyServer = await _TerminalHostTestServer.start();
+      addTearDown(legacyServer.dispose);
+      final runtimeServer = await _TerminalHostTestServer.start();
+      addTearDown(runtimeServer.dispose);
+      await _writeControlFile(
+        tempDir: tempDir,
+        port: legacyServer.port,
+        token: 'legacy-token',
+        includeRuntimeCapability: true,
+        includeBootstrapCapability: false,
+      );
+      final launcher = _FakeTerminalHostLauncher(server: runtimeServer);
+      final client = SocketTerminalHostClient(
+        launcher: launcher,
+        applicationSupportDirectory: () async => tempDir,
+      );
+      addTearDown(client.dispose);
+
+      await client.runtimeRequest('sshTarget.bootstrap.plan');
+
+      expect(launcher.starts, 1);
+      expect(legacyServer.requestTypes, isEmpty);
+      expect(runtimeServer.requestTypes, <String>[
+        'hello',
+        'sshTarget.bootstrap.plan',
+      ]);
+    },
+  );
+
+  test(
     'reuses a runtime control for terminal requests when no legacy exists',
     () async {
       final tempDir = await Directory.systemTemp.createTemp(
@@ -612,6 +652,7 @@ Future<void> _writeControlFile({
   required int port,
   required String token,
   bool includeRuntimeCapability = true,
+  bool includeBootstrapCapability = true,
 }) async {
   final runtimeDir = Directory(p.join(tempDir.path, 'terminal_host'));
   await runtimeDir.create(recursive: true);
@@ -620,8 +661,14 @@ Future<void> _writeControlFile({
     'port': port,
     'token': token,
   };
-  if (includeRuntimeCapability) {
-    payload['runtimeCapabilities'] = <String>[aleraRuntimeHostCapability];
+  final capabilities = <String>[
+    if (includeRuntimeCapability) ...<String>[
+      aleraRuntimeHostCapability,
+      if (includeBootstrapCapability) aleraRuntimeHostBootstrapCapability,
+    ],
+  ];
+  if (capabilities.isNotEmpty) {
+    payload['runtimeCapabilities'] = capabilities;
   }
   await File(
     p.join(runtimeDir.path, 'host.json'),
@@ -655,7 +702,10 @@ final class _FakeTerminalHostLauncher implements TerminalHostProcessLauncher {
         'protocolVersion': aleraTerminalHostProtocolVersion,
         'port': server.port,
         'token': token,
-        'runtimeCapabilities': <String>[aleraRuntimeHostCapability],
+        'runtimeCapabilities': <String>[
+          aleraRuntimeHostCapability,
+          aleraRuntimeHostBootstrapCapability,
+        ],
       }),
     );
   }

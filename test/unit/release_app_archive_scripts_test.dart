@@ -126,6 +126,67 @@ void main() {
       },
     );
 
+    test('builds and verifies a signed runtime archive', () async {
+      final temp = await Directory.systemTemp.createTemp(
+        'alera-runtime-release-',
+      );
+      addTearDown(() => temp.deleteSync(recursive: true));
+      _writeReleaseAsset(temp, 'alera-runtime-1.2.3-macos-x64.tar.gz');
+      _writeReleaseAsset(temp, 'alera-runtime-1.2.3-macos-arm64.tar.gz');
+      _writeReleaseAsset(temp, 'alera-runtime-1.2.3-windows-x64.tar.gz');
+      _writeReleaseAsset(temp, 'alera-runtime-1.2.3-windows-arm64.tar.gz');
+      _writeReleaseAsset(temp, 'alera-runtime-1.2.3-linux-x64.tar.gz');
+      _writeReleaseAsset(temp, 'alera-runtime-1.2.3-linux-arm64.tar.gz');
+      final output = p.join(temp.path, 'public', 'runtime-archive.json');
+      final keys = await _signingKeys(seed: 6);
+
+      await _runDartScript(
+        'tool/release/build_runtime_archive.dart',
+        <String>[output],
+        environment: <String, String>{
+          'ALERA_RELEASE_VERSION': '1.2.3',
+          'ALERA_RELEASE_BUILD_NUMBER': '99',
+          'ALERA_RELEASE_CHANNEL': 'stable',
+          'ALERA_RELEASE_ASSETS_DIR': p.join(temp.path, 'release-assets'),
+          'ALERA_RUNTIME_RELEASE_BASE_URL':
+              'https://github.com/example/alera/releases/download/v1.2.3',
+        },
+      );
+      await _runDartScript('tool/release/sign_app_archive.dart', <String>[
+        output,
+      ], environment: keys.toEnvironment());
+      await _runDartScript(
+        'tool/release/verify_runtime_archive.dart',
+        <String>[output],
+        environment: <String, String>{
+          'ALERA_UPDATE_MANIFEST_PUBLIC_KEY': keys.publicKey,
+        },
+      );
+
+      final manifest = jsonDecode(File(output).readAsStringSync()) as Map;
+      expect(manifest['schemaVersion'], 1);
+      expect(manifest['channel'], 'stable');
+      final items = (manifest['items'] as List).cast<Map>();
+      expect(items, hasLength(6));
+      expect(
+        items.map((item) => '${item['platform']}/${item['arch']}'),
+        containsAll(<String>[
+          'macos/x64',
+          'macos/arm64',
+          'windows/x64',
+          'windows/arm64',
+          'linux/x64',
+          'linux/arm64',
+        ]),
+      );
+      for (final item in items) {
+        expect(item['artifactName'], startsWith('alera-runtime-1.2.3-'));
+        expect(item['url'], contains('/releases/download/v1.2.3/'));
+        expect(item, contains('sha256'));
+        expect(item, contains('size'));
+      }
+    });
+
     test('verifies rc manifests without Linux packages', () async {
       final temp = await Directory.systemTemp.createTemp('alera-release-');
       addTearDown(() => temp.deleteSync(recursive: true));
@@ -220,6 +281,12 @@ void _writeArtifact(
   final file = File(
     p.join(temp.path, 'public', 'updates', channel, folder, name),
   );
+  file.parent.createSync(recursive: true);
+  file.writeAsStringSync(name);
+}
+
+void _writeReleaseAsset(Directory temp, String name) {
+  final file = File(p.join(temp.path, 'release-assets', name));
   file.parent.createSync(recursive: true);
   file.writeAsStringSync(name);
 }

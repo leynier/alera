@@ -4,10 +4,12 @@ use alera_core::runtime::{
 use serde_json::{json, Map, Value};
 use uuid::Uuid;
 
+use crate::ssh_bootstrap::{build_ssh_bootstrap_plan, SshTargetBootstrapRequest};
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::{
     decode_bytes, error_response, event, int_or, ok_response, require_object, TerminalHostConfig,
-    TerminalHostLaunch, PROTOCOL_VERSION, RUNTIME_HOST_CAPABILITY,
+    TerminalHostLaunch, PROTOCOL_VERSION, RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
+    RUNTIME_HOST_CAPABILITY,
 };
 use crate::terminal_host::session::Session;
 
@@ -146,7 +148,7 @@ impl ServerActor {
                 Ok(json!({
                     "protocolVersion": PROTOCOL_VERSION,
                     "runtime": "alera",
-                    "runtimeCapabilities": [RUNTIME_HOST_CAPABILITY],
+                    "runtimeCapabilities": [RUNTIME_HOST_CAPABILITY, RUNTIME_HOST_BOOTSTRAP_CAPABILITY],
                     "authenticated": true,
                 }))
             }
@@ -409,7 +411,17 @@ impl ServerActor {
             }
             "sshTarget.upsert" => {
                 self.require_auth(client_id)?;
-                let target: SshTarget = parse_payload(payload)?;
+                let mut target: SshTarget = parse_payload(payload)?;
+                if payload.get("installDir").is_none() {
+                    if let Some(existing) = self
+                        .runtime_store
+                        .find_ssh_target(&target.id)
+                        .await
+                        .map_err(|error| HostError::state(error.to_string()))?
+                    {
+                        target.install_dir = existing.install_dir;
+                    }
+                }
                 let value = json_result(self.runtime_store.upsert_ssh_target(target).await)?;
                 self.broadcast_authenticated(event("sshTargetsChanged", json!({})));
                 Ok(value)
@@ -417,9 +429,29 @@ impl ServerActor {
             "sshTarget.remove" => {
                 self.require_auth(client_id)?;
                 let id = require_string_key(payload, "id")?;
+                self.cancel_ssh_bootstrap_job_before_remove(&id).await?;
                 json_result(self.runtime_store.remove_ssh_target(&id).await)?;
                 self.broadcast_authenticated(event("sshTargetsChanged", json!({})));
                 Ok(json!({}))
+            }
+            "sshTarget.bootstrap.plan" => {
+                self.require_auth(client_id)?;
+                let request: SshTargetBootstrapRequest = parse_payload(payload)?;
+                json_result(build_ssh_bootstrap_plan(&self.runtime_store, &request).await)
+            }
+            "sshTarget.bootstrap.start" => {
+                self.require_auth(client_id)?;
+                let request: SshTargetBootstrapRequest = parse_payload(payload)?;
+                self.start_ssh_bootstrap_job(request).await
+            }
+            "sshTarget.bootstrap.cancel" => {
+                self.require_auth(client_id)?;
+                let id = require_string_key(payload, "id")?;
+                self.cancel_ssh_bootstrap_job(&id).await
+            }
+            "sshTarget.bootstrap.jobs" => {
+                self.require_auth(client_id)?;
+                Ok(self.list_ssh_bootstrap_jobs())
             }
             "pairing.create" => {
                 self.require_auth(client_id)?;

@@ -21,6 +21,7 @@ const Set<String> _runtimeHostEventNames = <String>{
   'workspaceTagsChanged',
   'workspaceRelationsChanged',
   'sshTargetsChanged',
+  'sshTargetBootstrapProgress',
 };
 
 final class SocketTerminalHostClient
@@ -556,7 +557,9 @@ final class SocketTerminalHostClient
       return _TerminalHostControl(
         port: port,
         token: token,
-        supportsRuntime: capabilities.contains(aleraRuntimeHostCapability),
+        supportsRuntime:
+            capabilities.contains(aleraRuntimeHostCapability) &&
+            capabilities.contains(aleraRuntimeHostBootstrapCapability),
       );
     } catch (_) {
       return null;

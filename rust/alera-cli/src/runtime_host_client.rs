@@ -11,7 +11,9 @@ use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::TcpStream;
 use tokio::time::timeout;
 
-use crate::terminal_host::protocol::{PROTOCOL_VERSION, RUNTIME_HOST_CAPABILITY};
+use crate::terminal_host::protocol::{
+    PROTOCOL_VERSION, RUNTIME_HOST_BOOTSTRAP_CAPABILITY, RUNTIME_HOST_CAPABILITY,
+};
 
 const CONTROL_FILE_NAME: &str = "host.json";
 const RUNTIME_CONTROL_FILE_NAME: &str = "runtime-host.json";
@@ -152,5 +154,9 @@ impl RuntimeHostControl {
                 .runtime_capabilities
                 .iter()
                 .any(|capability| capability == RUNTIME_HOST_CAPABILITY)
+            && self
+                .runtime_capabilities
+                .iter()
+                .any(|capability| capability == RUNTIME_HOST_BOOTSTRAP_CAPABILITY)
     }
 }
