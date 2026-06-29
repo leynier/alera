@@ -7,7 +7,7 @@ import 'package:path_provider/path_provider.dart';
 
 part 'drift_database.g.dart';
 
-const int aleraSchemaVersion = 3;
+const int aleraSchemaVersion = 4;
 const String aleraDatabaseFileName = 'alera.sqlite';
 
 class ProjectsTable extends Table {
@@ -86,6 +86,15 @@ class ProjectConfigsTable extends Table {
   Set<Column<Object>> get primaryKey => <Column<Object>>{projectId};
 }
 
+class AppWindowStateTable extends Table {
+  IntColumn get id => integer()();
+  TextColumn get dataJson => text()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => <Column<Object>>{id};
+}
+
 LazyDatabase _openConnection() {
   return LazyDatabase(() async {
     final dir = await getApplicationSupportDirectory();
@@ -112,6 +121,7 @@ LazyDatabase _openConnection() {
     WorkbenchViewPrefsTable,
     AppSettingsTable,
     ProjectConfigsTable,
+    AppWindowStateTable,
   ],
 )
 class AleraDatabase extends _$AleraDatabase {
@@ -133,6 +143,9 @@ class AleraDatabase extends _$AleraDatabase {
       }
       if (from < 3 && to >= 3) {
         await m.createTable(projectConfigsTable);
+      }
+      if (from < 4 && to >= 4) {
+        await m.createTable(appWindowStateTable);
       }
     },
   );

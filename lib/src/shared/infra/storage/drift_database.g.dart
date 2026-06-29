@@ -2454,6 +2454,261 @@ class ProjectConfigsTableCompanion
   }
 }
 
+class $AppWindowStateTableTable extends AppWindowStateTable
+    with TableInfo<$AppWindowStateTableTable, AppWindowStateTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AppWindowStateTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _dataJsonMeta = const VerificationMeta(
+    'dataJson',
+  );
+  @override
+  late final GeneratedColumn<String> dataJson = GeneratedColumn<String>(
+    'data_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, dataJson, updatedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'app_window_state_table';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AppWindowStateTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('data_json')) {
+      context.handle(
+        _dataJsonMeta,
+        dataJson.isAcceptableOrUnknown(data['data_json']!, _dataJsonMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dataJsonMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  AppWindowStateTableData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AppWindowStateTableData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      dataJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}data_json'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $AppWindowStateTableTable createAlias(String alias) {
+    return $AppWindowStateTableTable(attachedDatabase, alias);
+  }
+}
+
+class AppWindowStateTableData extends DataClass
+    implements Insertable<AppWindowStateTableData> {
+  final int id;
+  final String dataJson;
+  final DateTime updatedAt;
+  const AppWindowStateTableData({
+    required this.id,
+    required this.dataJson,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['data_json'] = Variable<String>(dataJson);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  AppWindowStateTableCompanion toCompanion(bool nullToAbsent) {
+    return AppWindowStateTableCompanion(
+      id: Value(id),
+      dataJson: Value(dataJson),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory AppWindowStateTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AppWindowStateTableData(
+      id: serializer.fromJson<int>(json['id']),
+      dataJson: serializer.fromJson<String>(json['dataJson']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'dataJson': serializer.toJson<String>(dataJson),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  AppWindowStateTableData copyWith({
+    int? id,
+    String? dataJson,
+    DateTime? updatedAt,
+  }) => AppWindowStateTableData(
+    id: id ?? this.id,
+    dataJson: dataJson ?? this.dataJson,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  AppWindowStateTableData copyWithCompanion(AppWindowStateTableCompanion data) {
+    return AppWindowStateTableData(
+      id: data.id.present ? data.id.value : this.id,
+      dataJson: data.dataJson.present ? data.dataJson.value : this.dataJson,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AppWindowStateTableData(')
+          ..write('id: $id, ')
+          ..write('dataJson: $dataJson, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, dataJson, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AppWindowStateTableData &&
+          other.id == this.id &&
+          other.dataJson == this.dataJson &&
+          other.updatedAt == this.updatedAt);
+}
+
+class AppWindowStateTableCompanion
+    extends UpdateCompanion<AppWindowStateTableData> {
+  final Value<int> id;
+  final Value<String> dataJson;
+  final Value<DateTime> updatedAt;
+  const AppWindowStateTableCompanion({
+    this.id = const Value.absent(),
+    this.dataJson = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  AppWindowStateTableCompanion.insert({
+    this.id = const Value.absent(),
+    required String dataJson,
+    required DateTime updatedAt,
+  }) : dataJson = Value(dataJson),
+       updatedAt = Value(updatedAt);
+  static Insertable<AppWindowStateTableData> custom({
+    Expression<int>? id,
+    Expression<String>? dataJson,
+    Expression<DateTime>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (dataJson != null) 'data_json': dataJson,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  AppWindowStateTableCompanion copyWith({
+    Value<int>? id,
+    Value<String>? dataJson,
+    Value<DateTime>? updatedAt,
+  }) {
+    return AppWindowStateTableCompanion(
+      id: id ?? this.id,
+      dataJson: dataJson ?? this.dataJson,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (dataJson.present) {
+      map['data_json'] = Variable<String>(dataJson.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AppWindowStateTableCompanion(')
+          ..write('id: $id, ')
+          ..write('dataJson: $dataJson, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AleraDatabase extends GeneratedDatabase {
   _$AleraDatabase(QueryExecutor e) : super(e);
   $AleraDatabaseManager get managers => $AleraDatabaseManager(this);
@@ -2472,6 +2727,8 @@ abstract class _$AleraDatabase extends GeneratedDatabase {
   );
   late final $ProjectConfigsTableTable projectConfigsTable =
       $ProjectConfigsTableTable(this);
+  late final $AppWindowStateTableTable appWindowStateTable =
+      $AppWindowStateTableTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2484,6 +2741,7 @@ abstract class _$AleraDatabase extends GeneratedDatabase {
     workbenchViewPrefsTable,
     appSettingsTable,
     projectConfigsTable,
+    appWindowStateTable,
   ];
 }
 
@@ -3930,6 +4188,178 @@ typedef $$ProjectConfigsTableTableProcessedTableManager =
       ProjectConfigsTableData,
       PrefetchHooks Function()
     >;
+typedef $$AppWindowStateTableTableCreateCompanionBuilder =
+    AppWindowStateTableCompanion Function({
+      Value<int> id,
+      required String dataJson,
+      required DateTime updatedAt,
+    });
+typedef $$AppWindowStateTableTableUpdateCompanionBuilder =
+    AppWindowStateTableCompanion Function({
+      Value<int> id,
+      Value<String> dataJson,
+      Value<DateTime> updatedAt,
+    });
+
+class $$AppWindowStateTableTableFilterComposer
+    extends Composer<_$AleraDatabase, $AppWindowStateTableTable> {
+  $$AppWindowStateTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get dataJson => $composableBuilder(
+    column: $table.dataJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$AppWindowStateTableTableOrderingComposer
+    extends Composer<_$AleraDatabase, $AppWindowStateTableTable> {
+  $$AppWindowStateTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get dataJson => $composableBuilder(
+    column: $table.dataJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$AppWindowStateTableTableAnnotationComposer
+    extends Composer<_$AleraDatabase, $AppWindowStateTableTable> {
+  $$AppWindowStateTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get dataJson =>
+      $composableBuilder(column: $table.dataJson, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$AppWindowStateTableTableTableManager
+    extends
+        RootTableManager<
+          _$AleraDatabase,
+          $AppWindowStateTableTable,
+          AppWindowStateTableData,
+          $$AppWindowStateTableTableFilterComposer,
+          $$AppWindowStateTableTableOrderingComposer,
+          $$AppWindowStateTableTableAnnotationComposer,
+          $$AppWindowStateTableTableCreateCompanionBuilder,
+          $$AppWindowStateTableTableUpdateCompanionBuilder,
+          (
+            AppWindowStateTableData,
+            BaseReferences<
+              _$AleraDatabase,
+              $AppWindowStateTableTable,
+              AppWindowStateTableData
+            >,
+          ),
+          AppWindowStateTableData,
+          PrefetchHooks Function()
+        > {
+  $$AppWindowStateTableTableTableManager(
+    _$AleraDatabase db,
+    $AppWindowStateTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AppWindowStateTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AppWindowStateTableTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$AppWindowStateTableTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> dataJson = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => AppWindowStateTableCompanion(
+                id: id,
+                dataJson: dataJson,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String dataJson,
+                required DateTime updatedAt,
+              }) => AppWindowStateTableCompanion.insert(
+                id: id,
+                dataJson: dataJson,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$AppWindowStateTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AleraDatabase,
+      $AppWindowStateTableTable,
+      AppWindowStateTableData,
+      $$AppWindowStateTableTableFilterComposer,
+      $$AppWindowStateTableTableOrderingComposer,
+      $$AppWindowStateTableTableAnnotationComposer,
+      $$AppWindowStateTableTableCreateCompanionBuilder,
+      $$AppWindowStateTableTableUpdateCompanionBuilder,
+      (
+        AppWindowStateTableData,
+        BaseReferences<
+          _$AleraDatabase,
+          $AppWindowStateTableTable,
+          AppWindowStateTableData
+        >,
+      ),
+      AppWindowStateTableData,
+      PrefetchHooks Function()
+    >;
 
 class $AleraDatabaseManager {
   final _$AleraDatabase _db;
@@ -3951,4 +4381,6 @@ class $AleraDatabaseManager {
       $$AppSettingsTableTableTableManager(_db, _db.appSettingsTable);
   $$ProjectConfigsTableTableTableManager get projectConfigsTable =>
       $$ProjectConfigsTableTableTableManager(_db, _db.projectConfigsTable);
+  $$AppWindowStateTableTableTableManager get appWindowStateTable =>
+      $$AppWindowStateTableTableTableManager(_db, _db.appWindowStateTable);
 }

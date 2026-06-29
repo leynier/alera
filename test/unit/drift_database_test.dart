@@ -21,6 +21,7 @@ void main() {
       final viewPrefs = db.workbenchViewPrefsTable;
       final settings = db.appSettingsTable;
       final projectConfigs = db.projectConfigsTable;
+      final appWindowState = db.appWindowStateTable;
 
       expect(projects.id, isNotNull);
       expect(projects.name, isNotNull);
@@ -68,6 +69,11 @@ void main() {
       expect(projectConfigs.dataJson, isNotNull);
       expect(projectConfigs.updatedAt, isNotNull);
       expect(projectConfigs.primaryKey, hasLength(1));
+
+      expect(appWindowState.id, isNotNull);
+      expect(appWindowState.dataJson, isNotNull);
+      expect(appWindowState.updatedAt, isNotNull);
+      expect(appWindowState.primaryKey, hasLength(1));
     });
 
     test('exposes schema version and migration hooks', () async {
@@ -99,6 +105,7 @@ void main() {
           'workbench_view_prefs_table',
           'app_settings_table',
           'project_configs_table',
+          'app_window_state_table',
         ]),
       );
     });
