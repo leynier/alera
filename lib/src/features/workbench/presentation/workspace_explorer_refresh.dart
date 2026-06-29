@@ -10,7 +10,7 @@ extension _WorkspaceExplorerRefresh on _WorkspaceExplorerState {
   }
 
   Future<void> _restartExplorer() async {
-    await _stopNativeWatcher();
+    unawaited(_stopNativeWatcher());
     if (!mounted) {
       return;
     }
@@ -103,10 +103,10 @@ extension _WorkspaceExplorerRefresh on _WorkspaceExplorerState {
 
   Future<void> _stopNativeWatcher() async {
     final subscription = _watchSubscription;
-    _watchSubscription = null;
-    await subscription?.cancel();
     final handle = _watcherHandle;
+    _watchSubscription = null;
     _watcherHandle = null;
+    await subscription?.cancel();
     if (handle != null) {
       await _workspaceFiles.stopExplorerWatcher(handle: handle);
     }

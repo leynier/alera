@@ -87,7 +87,10 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
   @override
   void didUpdateWidget(covariant WorkspaceExplorer oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.workspace.id != widget.workspace.id) {
+    if (oldWidget.workspace.id != widget.workspace.id ||
+        oldWidget.workspace.path != widget.workspace.path) {
+      _loading = true;
+      _clipboard = null;
       _resetExplorerProjection();
       _controller.dispose();
       _controller = tree.DirectoryTreeController(

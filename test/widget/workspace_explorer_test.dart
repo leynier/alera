@@ -110,6 +110,70 @@ void main() {
   });
 
   testWidgets(
+    'context sidebar loads the next workspace explorer without manual refresh',
+    (tester) async {
+      final stopGate = Completer<void>();
+      final service = _FakeWorkspaceFileService(stopGate: stopGate)
+        ..childrenByWorkspacePath['/repo/alera'] =
+            <String, List<native.WorkspaceFileEntry>>{
+              '': <native.WorkspaceFileEntry>[_file('main.dart')],
+            }
+        ..childrenByWorkspacePath['/repo/alera-feature'] =
+            <String, List<native.WorkspaceFileEntry>>{
+              '': <native.WorkspaceFileEntry>[_file('feature.dart')],
+            };
+
+      await tester.pumpWidget(
+        _withWorkspaceFiles(
+          service,
+          child: MaterialApp(
+            home: Scaffold(
+              body: SizedBox(
+                width: 360,
+                height: 520,
+                child: _workspaceContextSidebar(_workspace()),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('main.dart'), findsOneWidget);
+      expect(find.text('feature.dart'), findsNothing);
+
+      await tester.pumpWidget(
+        _withWorkspaceFiles(
+          service,
+          child: MaterialApp(
+            home: Scaffold(
+              body: SizedBox(
+                width: 360,
+                height: 520,
+                child: _workspaceContextSidebar(
+                  _workspace(
+                    id: 'workspace-2',
+                    name: 'Feature',
+                    path: '/repo/alera-feature',
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.pump();
+
+      expect(find.text('main.dart'), findsNothing);
+      expect(find.text('feature.dart'), findsOneWidget);
+
+      stopGate.complete();
+    },
+  );
+
+  testWidgets(
     'ignored files toggle refreshes the listing without manual refresh',
     (tester) async {
       final service = _FakeWorkspaceFileService()
@@ -586,16 +650,39 @@ Widget _withWorkspaceFiles(
   );
 }
 
+Widget _workspaceContextSidebar(Workspace workspace) {
+  return WorkspaceContextSidebar(
+    workspace: workspace,
+    prefs: WorkbenchViewPrefs.defaults,
+    onToggleVisible: () {},
+    onResize: (_) {},
+    onSetContextPanelTab: (_) {},
+    onSetExplorerMode: (_) {},
+    onSetGitDiffViewMode: (_) {},
+    onOpenFile: (_) {},
+    onOpenGitDiff: ({relativePath, area, required scope}) async {},
+    onOpenSearchMatch: (_) {},
+    onPathMoved: (_, _) async {},
+  );
+}
+
 class _FakeWorkspaceFileService extends WorkspaceFileService {
-  _FakeWorkspaceFileService({this.createGate});
+  _FakeWorkspaceFileService({this.createGate, this.stopGate});
 
   final Completer<void>? createGate;
+  final Completer<void>? stopGate;
   final StreamController<native.WorkspaceExplorerWatchBatch> _watchController =
       StreamController<native.WorkspaceExplorerWatchBatch>.broadcast();
   final Map<String, List<native.WorkspaceFileEntry>> childrenByDirectory =
       <String, List<native.WorkspaceFileEntry>>{};
+  final Map<String, Map<String, List<native.WorkspaceFileEntry>>>
+  childrenByWorkspacePath =
+      <String, Map<String, List<native.WorkspaceFileEntry>>>{};
   final Map<String, List<native.WorkspaceFileEntry>>
   showAllChildrenByDirectory = <String, List<native.WorkspaceFileEntry>>{};
+  final Map<String, Map<String, List<native.WorkspaceFileEntry>>>
+  showAllChildrenByWorkspacePath =
+      <String, Map<String, List<native.WorkspaceFileEntry>>>{};
   final Set<_ListChildrenCall> failingListChildrenCalls = <_ListChildrenCall>{};
   final List<String> createdFiles = <String>[];
   final List<String> copiedFiles = <String>[];
@@ -627,7 +714,15 @@ class _FakeWorkspaceFileService extends WorkspaceFileService {
     if (failingListChildrenCalls.contains(call)) {
       throw StateError('Failed to list $relativePath');
     }
-    return (hideIgnored
+    final workspaceChildren = childrenByWorkspacePath[workspacePath];
+    final workspaceShowAllChildren =
+        showAllChildrenByWorkspacePath[workspacePath];
+    final workspaceModeChildren = hideIgnored
+        ? workspaceChildren
+        : workspaceShowAllChildren;
+    return workspaceModeChildren?[relativePath] ??
+        workspaceChildren?[relativePath] ??
+        (hideIgnored
             ? childrenByDirectory[relativePath]
             : showAllChildrenByDirectory[relativePath]) ??
         childrenByDirectory[relativePath] ??
@@ -674,7 +769,9 @@ class _FakeWorkspaceFileService extends WorkspaceFileService {
   @override
   Future<void> stopExplorerWatcher({
     required native.WorkspaceExplorerWatcherHandle handle,
-  }) async {}
+  }) async {
+    await stopGate?.future;
+  }
 
   @override
   Future<native.WorkspaceFileEntry> createFile({
@@ -955,13 +1052,17 @@ class _NoopProcessRunner implements ProcessRunner {
   }
 }
 
-Workspace _workspace() {
+Workspace _workspace({
+  String id = 'workspace-1',
+  String name = 'alera',
+  String path = '/repo/alera',
+}) {
   final now = DateTime.utc(2026);
   return Workspace(
-    id: 'workspace-1',
+    id: id,
     projectId: 'project-1',
-    name: 'alera',
-    path: '/repo/alera',
+    name: name,
+    path: path,
     createdAt: now,
     updatedAt: now,
     kind: WorkspaceKind.main,

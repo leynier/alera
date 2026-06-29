@@ -63,14 +63,16 @@ class WorkspaceContextSidebar extends StatelessWidget {
                       ),
                       Expanded(
                         child: switch (prefs.activeContextPanelTab) {
-                          WorkbenchContextPanelTab.explorer =>
-                            WorkspaceExplorer(
-                              workspace: workspace,
-                              mode: prefs.explorerMode,
-                              onModeChanged: onSetExplorerMode,
-                              onOpenFile: onOpenFile,
-                              onPathMoved: onPathMoved,
+                          WorkbenchContextPanelTab.explorer => WorkspaceExplorer(
+                            key: ValueKey<String>(
+                              'workspace-explorer:${workspace.id}:${workspace.path}',
                             ),
+                            workspace: workspace,
+                            mode: prefs.explorerMode,
+                            onModeChanged: onSetExplorerMode,
+                            onOpenFile: onOpenFile,
+                            onPathMoved: onPathMoved,
+                          ),
                           WorkbenchContextPanelTab.search =>
                             WorkspaceSearchPanel(
                               workspace: workspace,
