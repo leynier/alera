@@ -330,7 +330,11 @@ jobs:
               cargo_env+=("CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc")
             fi
 
-            env "${cargo_env[@]}" cargo build --manifest-path rust/Cargo.toml --locked -p alera-cli --release --target "$rust_target"
+            if ((${#cargo_env[@]} > 0)); then
+              env "${cargo_env[@]}" cargo build --manifest-path rust/Cargo.toml --locked -p alera-cli --release --target "$rust_target"
+            else
+              cargo build --manifest-path rust/Cargo.toml --locked -p alera-cli --release --target "$rust_target"
+            fi
             binary_path="rust/target/${rust_target}/release/${bin_name}"
             if [[ ! -f "$binary_path" ]]; then
               echo "::error::Missing runtime sidecar binary at $binary_path"
