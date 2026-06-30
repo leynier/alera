@@ -146,6 +146,8 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                   WorkspaceContextSidebar(
                     workspace: workspace,
                     prefs: state.viewPrefs,
+                    sourceControlAvailable:
+                        state.activeProject?.isGitRepository ?? false,
                     onToggleVisible: controller.toggleRightSidebarVisible,
                     onResize: controller.setRightSidebarWidth,
                     onSetContextPanelTab: controller.setContextPanelTab,

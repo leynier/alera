@@ -13,6 +13,7 @@ class WorkspaceContextSidebar extends StatelessWidget {
     super.key,
     required this.workspace,
     required this.prefs,
+    this.sourceControlAvailable = true,
     required this.onToggleVisible,
     required this.onResize,
     required this.onSetContextPanelTab,
@@ -26,6 +27,7 @@ class WorkspaceContextSidebar extends StatelessWidget {
 
   final Workspace workspace;
   final WorkbenchViewPrefs prefs;
+  final bool sourceControlAvailable;
   final VoidCallback onToggleVisible;
   final ValueChanged<double> onResize;
   final ValueChanged<WorkbenchContextPanelTab> onSetContextPanelTab;
@@ -39,6 +41,7 @@ class WorkspaceContextSidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final activeTab = _effectiveActiveTab;
     return DecoratedBox(
       decoration: const BoxDecoration(
         color: AleraTokens.surfaceVariant,
@@ -57,12 +60,13 @@ class WorkspaceContextSidebar extends StatelessWidget {
                   child: Column(
                     children: <Widget>[
                       _ContextTabHeader(
-                        activeTab: prefs.activeContextPanelTab,
+                        activeTab: activeTab,
+                        sourceControlAvailable: sourceControlAvailable,
                         onSetActiveTab: onSetContextPanelTab,
                         onToggleVisible: onToggleVisible,
                       ),
                       Expanded(
-                        child: switch (prefs.activeContextPanelTab) {
+                        child: switch (activeTab) {
                           WorkbenchContextPanelTab.explorer => WorkspaceExplorer(
                             key: ValueKey<String>(
                               'workspace-explorer:${workspace.id}:${workspace.path}',
@@ -93,7 +97,8 @@ class WorkspaceContextSidebar extends StatelessWidget {
               ],
             )
           : _CollapsedContextRail(
-              activeTab: prefs.activeContextPanelTab,
+              activeTab: activeTab,
+              sourceControlAvailable: sourceControlAvailable,
               onOpenTab: (tab) {
                 onSetContextPanelTab(tab);
                 onToggleVisible();
@@ -102,16 +107,26 @@ class WorkspaceContextSidebar extends StatelessWidget {
             ),
     );
   }
+
+  WorkbenchContextPanelTab get _effectiveActiveTab {
+    if (!sourceControlAvailable &&
+        prefs.activeContextPanelTab == WorkbenchContextPanelTab.gitDiff) {
+      return WorkbenchContextPanelTab.explorer;
+    }
+    return prefs.activeContextPanelTab;
+  }
 }
 
 class _CollapsedContextRail extends StatelessWidget {
   const _CollapsedContextRail({
     required this.activeTab,
+    required this.sourceControlAvailable,
     required this.onOpenTab,
     required this.onToggleVisible,
   });
 
   final WorkbenchContextPanelTab activeTab;
+  final bool sourceControlAvailable;
   final ValueChanged<WorkbenchContextPanelTab> onOpenTab;
   final VoidCallback onToggleVisible;
 
@@ -137,14 +152,16 @@ class _CollapsedContextRail extends StatelessWidget {
             icon: AleraIcons.search,
             onPressed: () => onOpenTab(WorkbenchContextPanelTab.search),
           ),
-          const SizedBox(height: AleraTokens.space6),
-          _ContextTabButton(
-            tab: WorkbenchContextPanelTab.gitDiff,
-            activeTab: activeTab,
-            tooltip: 'Source Control',
-            icon: AleraIcons.gitBranch,
-            onPressed: () => onOpenTab(WorkbenchContextPanelTab.gitDiff),
-          ),
+          if (sourceControlAvailable) ...<Widget>[
+            const SizedBox(height: AleraTokens.space6),
+            _ContextTabButton(
+              tab: WorkbenchContextPanelTab.gitDiff,
+              activeTab: activeTab,
+              tooltip: 'Source Control',
+              icon: AleraIcons.gitBranch,
+              onPressed: () => onOpenTab(WorkbenchContextPanelTab.gitDiff),
+            ),
+          ],
           const Spacer(),
           Padding(
             padding: const EdgeInsets.only(bottom: AleraTokens.space8),
@@ -163,11 +180,13 @@ class _CollapsedContextRail extends StatelessWidget {
 class _ContextTabHeader extends StatelessWidget {
   const _ContextTabHeader({
     required this.activeTab,
+    required this.sourceControlAvailable,
     required this.onSetActiveTab,
     required this.onToggleVisible,
   });
 
   final WorkbenchContextPanelTab activeTab;
+  final bool sourceControlAvailable;
   final ValueChanged<WorkbenchContextPanelTab> onSetActiveTab;
   final VoidCallback onToggleVisible;
 
@@ -201,15 +220,17 @@ class _ContextTabHeader extends StatelessWidget {
                 onPressed: () =>
                     onSetActiveTab(WorkbenchContextPanelTab.search),
               ),
-              const SizedBox(width: AleraTokens.space6),
-              _ContextTabButton(
-                tab: WorkbenchContextPanelTab.gitDiff,
-                activeTab: activeTab,
-                tooltip: 'Source Control',
-                icon: AleraIcons.gitBranch,
-                onPressed: () =>
-                    onSetActiveTab(WorkbenchContextPanelTab.gitDiff),
-              ),
+              if (sourceControlAvailable) ...<Widget>[
+                const SizedBox(width: AleraTokens.space6),
+                _ContextTabButton(
+                  tab: WorkbenchContextPanelTab.gitDiff,
+                  activeTab: activeTab,
+                  tooltip: 'Source Control',
+                  icon: AleraIcons.gitBranch,
+                  onPressed: () =>
+                      onSetActiveTab(WorkbenchContextPanelTab.gitDiff),
+                ),
+              ],
               const Spacer(),
               AleraIconButton(
                 tooltip: 'Collapse panel',

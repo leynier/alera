@@ -19,7 +19,7 @@ mixin _WorkbenchControllerSync
     final prefsChanged =
         prunedCollapsed.length != prefs.collapsedProjectIds.length ||
         prunedSelected.length != prefs.selectedProjectIds.length;
-    final nextViewPrefs = prefsChanged
+    final prunedViewPrefs = prefsChanged
         ? prefs.copyWith(
             collapsedProjectIds: prunedCollapsed,
             selectedProjectIds: prunedSelected,
@@ -57,6 +57,12 @@ mixin _WorkbenchControllerSync
       workspacesByProject: updatedWorkspaces,
       preferredWorkspaceId: state.activeWorkspaceId,
     );
+    final nextViewPrefs = _viewPrefsForProjectContext(
+      project: _projectById(projects, activeProjectId),
+      prefs: prunedViewPrefs,
+    );
+    final viewPrefsChanged =
+        prefsChanged || !identical(nextViewPrefs, prunedViewPrefs);
 
     state = state.copyWith(
       projects: projects,
@@ -68,7 +74,7 @@ mixin _WorkbenchControllerSync
       activeTabIdByWorkspace: updatedActiveTabs,
       layoutByWorkspace: updatedLayouts,
     );
-    if (prefsChanged) {
+    if (viewPrefsChanged) {
       unawaited(_persistViewPrefs());
     }
 
@@ -156,9 +162,15 @@ mixin _WorkbenchControllerSync
         .toSet();
     final expansionChanged =
         prunedExpanded.length != viewPrefs.expandedWorkspaceIds.length;
-    final nextViewPrefs = expansionChanged
+    final expandedViewPrefs = expansionChanged
         ? viewPrefs.copyWith(expandedWorkspaceIds: prunedExpanded)
         : viewPrefs;
+    final nextViewPrefs = _viewPrefsForProjectContext(
+      project: _projectById(state.projects, candidateProjectId),
+      prefs: expandedViewPrefs,
+    );
+    final viewPrefsChanged =
+        expansionChanged || !identical(nextViewPrefs, expandedViewPrefs);
     state = state.copyWith(
       workspacesByProject: nextWorkspaces,
       viewPrefs: nextViewPrefs,
@@ -166,7 +178,7 @@ mixin _WorkbenchControllerSync
       activeWorkspaceId: activeWorkspaceId,
       layoutByWorkspace: nextLayouts,
     );
-    if (expansionChanged) {
+    if (viewPrefsChanged) {
       unawaited(_persistViewPrefs());
     }
     _ensureSelectionHasTab();

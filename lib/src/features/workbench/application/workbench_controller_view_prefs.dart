@@ -169,10 +169,14 @@ mixin _WorkbenchControllerViewPrefs
   }
 
   void setContextPanelTab(WorkbenchContextPanelTab tab) {
-    if (state.viewPrefs.activeContextPanelTab == tab) {
+    final nextTab = _supportedContextPanelTabForProject(
+      state.activeProject,
+      tab,
+    );
+    if (state.viewPrefs.activeContextPanelTab == nextTab) {
       return;
     }
-    _updateViewPrefs(state.viewPrefs.copyWith(activeContextPanelTab: tab));
+    _updateViewPrefs(state.viewPrefs.copyWith(activeContextPanelTab: nextTab));
   }
 
   void setExplorerMode(WorkspaceExplorerMode mode) {
@@ -183,10 +187,7 @@ mixin _WorkbenchControllerViewPrefs
   }
 
   void setActiveContextPanelTab(WorkbenchContextPanelTab tab) {
-    if (state.viewPrefs.activeContextPanelTab == tab) {
-      return;
-    }
-    _updateViewPrefs(state.viewPrefs.copyWith(activeContextPanelTab: tab));
+    setContextPanelTab(tab);
   }
 
   void setGitDiffViewMode(GitDiffViewMode mode) {

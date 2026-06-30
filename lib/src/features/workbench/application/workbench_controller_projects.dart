@@ -147,7 +147,7 @@ mixin _WorkbenchControllerProjects
     // user can jump into a run right away. Subsequent toggles via the chevron
     // can hide it back independently of the active selection.
     final prefs = state.viewPrefs;
-    final nextPrefs = prefs.expandedWorkspaceIds.contains(workspace.id)
+    final expandedPrefs = prefs.expandedWorkspaceIds.contains(workspace.id)
         ? prefs
         : prefs.copyWith(
             expandedWorkspaceIds: <String>{
@@ -155,6 +155,10 @@ mixin _WorkbenchControllerProjects
               workspace.id,
             },
           );
+    final nextPrefs = _viewPrefsForProjectContext(
+      project: project,
+      prefs: expandedPrefs,
+    );
     state = state.copyWith(
       activeProjectId: project.id,
       activeWorkspaceId: workspace.id,
@@ -171,10 +175,19 @@ mixin _WorkbenchControllerProjects
   }
 
   Future<void> activateProject(Project project) async {
+    final prefs = state.viewPrefs;
+    final nextPrefs = _viewPrefsForProjectContext(
+      project: project,
+      prefs: prefs,
+    );
     state = state.copyWith(
       activeProjectId: project.id,
       activeWorkspaceId: null,
+      viewPrefs: nextPrefs,
       error: null,
     );
+    if (!identical(nextPrefs, prefs)) {
+      unawaited(_persistViewPrefs());
+    }
   }
 }

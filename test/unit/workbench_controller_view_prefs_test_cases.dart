@@ -160,6 +160,69 @@ void _registerWorkbenchControllerViewPrefsTests() {
     expect(_harness.viewPrefsRepository.saveCount, greaterThan(0));
   });
 
+  test(
+    'selecting a folder workspace replaces source control with explorer',
+    () async {
+      await _controller.bootstrap();
+      _controller.setContextPanelTab(WorkbenchContextPanelTab.gitDiff);
+      await _flush();
+      final saveCountBeforeFolderSelection =
+          _harness.viewPrefsRepository.saveCount;
+      final folderPath = p.join(_harness.tempDir.path, 'notes');
+      Directory(folderPath).createSync(recursive: true);
+      final now = DateTime.utc(2026, 5, 22);
+      final folderProject = Project(
+        id: 'project-folder',
+        name: 'Notes',
+        repoPath: folderPath,
+        createdAt: now,
+        updatedAt: now,
+        kind: ProjectKind.folder,
+      );
+
+      await _harness.projectRepository.add(folderProject);
+      await _flushUntil(
+        () => _controller.state.workspacesFor(folderProject.id).isNotEmpty,
+      );
+      final folderWorkspace = _controller.state
+          .workspacesFor(folderProject.id)
+          .single;
+      await _controller.selectWorkspace(
+        project: folderProject,
+        workspace: folderWorkspace,
+      );
+      await _flush();
+
+      expect(
+        _controller.state.viewPrefs.activeContextPanelTab,
+        WorkbenchContextPanelTab.explorer,
+      );
+      expect(
+        _harness.viewPrefsRepository.prefs.activeContextPanelTab,
+        WorkbenchContextPanelTab.explorer,
+      );
+      expect(
+        _harness.viewPrefsRepository.saveCount,
+        greaterThan(saveCountBeforeFolderSelection),
+      );
+    },
+  );
+
+  test('selecting a git workspace keeps source control active', () async {
+    await _controller.bootstrap();
+    _controller.setContextPanelTab(WorkbenchContextPanelTab.gitDiff);
+    await _flush();
+
+    final workspace = await _selectMainWorkspace(_controller, _harness);
+
+    expect(workspace.projectId, _harness.project.id);
+    expect(_harness.project.isGitRepository, isTrue);
+    expect(
+      _controller.state.viewPrefs.activeContextPanelTab,
+      WorkbenchContextPanelTab.gitDiff,
+    );
+  });
+
   test('bootstrap prunes stale persisted project filters', () async {
     _harness.viewPrefsRepository.prefs = WorkbenchViewPrefs.defaults.copyWith(
       collapsedProjectIds: <String>{'stale-project', _harness.project.id},

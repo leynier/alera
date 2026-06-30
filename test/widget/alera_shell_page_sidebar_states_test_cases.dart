@@ -198,6 +198,7 @@ void _registerAleraShellSidebarStateTests() {
     );
 
     expect(find.textContaining('Local Folder'), findsOneWidget);
+    expect(find.byTooltip('Source Control'), findsNothing);
   });
 
   testWidgets('flat workspace grouping shows project chips on workspace rows', (

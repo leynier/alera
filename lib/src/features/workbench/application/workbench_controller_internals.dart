@@ -42,6 +42,42 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
     }
   }
 
+  WorkbenchContextPanelTab _supportedContextPanelTabForProject(
+    Project? project,
+    WorkbenchContextPanelTab tab,
+  ) {
+    if (project?.isFolder == true && tab == WorkbenchContextPanelTab.gitDiff) {
+      return WorkbenchContextPanelTab.explorer;
+    }
+    return tab;
+  }
+
+  WorkbenchViewPrefs _viewPrefsForProjectContext({
+    required Project? project,
+    required WorkbenchViewPrefs prefs,
+  }) {
+    final activeContextPanelTab = _supportedContextPanelTabForProject(
+      project,
+      prefs.activeContextPanelTab,
+    );
+    if (activeContextPanelTab == prefs.activeContextPanelTab) {
+      return prefs;
+    }
+    return prefs.copyWith(activeContextPanelTab: activeContextPanelTab);
+  }
+
+  Project? _projectById(Iterable<Project> projects, String? projectId) {
+    if (projectId == null) {
+      return null;
+    }
+    for (final project in projects) {
+      if (project.id == projectId) {
+        return project;
+      }
+    }
+    return null;
+  }
+
   Future<void> _activateAddedProject(Project project) async {
     await _ensureMainWorkspaceForProject(project);
     // Expand the project (remove from collapsed set if a stale id lingered).
@@ -52,16 +88,21 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
       ..remove(project.id);
     final changedPrefs =
         nextCollapsed.length != prefs.collapsedProjectIds.length;
-    final nextViewPrefs = changedPrefs
+    final expandedPrefs = changedPrefs
         ? prefs.copyWith(collapsedProjectIds: nextCollapsed)
         : prefs;
+    final nextViewPrefs = _viewPrefsForProjectContext(
+      project: project,
+      prefs: expandedPrefs,
+    );
+    final prefsChanged = !identical(nextViewPrefs, prefs);
     state = state.copyWith(
       viewPrefs: nextViewPrefs,
       activeProjectId: project.id,
       activeWorkspaceId: null,
       error: null,
     );
-    if (changedPrefs) {
+    if (prefsChanged) {
       unawaited(_persistViewPrefs());
     }
   }
