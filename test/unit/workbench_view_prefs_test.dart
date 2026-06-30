@@ -11,6 +11,10 @@ void main() {
       expect(WorkbenchViewPrefs.defaults.selectedProjectIds, isEmpty);
       expect(WorkbenchViewPrefs.defaults.collapsedProjectIds, isEmpty);
       expect(WorkbenchViewPrefs.defaults.expandedWorkspaceIds, isEmpty);
+      expect(
+        WorkbenchViewPrefs.defaults.sourceControlRootByWorkspaceId,
+        isEmpty,
+      );
       expect(WorkbenchViewPrefs.defaults.rightSidebarVisible, isTrue);
       expect(WorkbenchViewPrefs.defaults.rightSidebarWidth, 280);
       expect(
@@ -31,6 +35,9 @@ void main() {
         selectedProjectIds: <String>{'p1', 'p2'},
         collapsedProjectIds: <String>{'p3'},
         expandedWorkspaceIds: <String>{'w1'},
+        sourceControlRootByWorkspaceId: <String, String>{
+          'w-folder': 'packages/app',
+        },
         rightSidebarVisible: false,
         rightSidebarWidth: 360,
         activeContextPanelTab: WorkbenchContextPanelTab.explorer,
@@ -45,6 +52,9 @@ void main() {
       expect(restored.selectedProjectIds, <String>{'p1', 'p2'});
       expect(restored.collapsedProjectIds, <String>{'p3'});
       expect(restored.expandedWorkspaceIds, <String>{'w1'});
+      expect(restored.sourceControlRootByWorkspaceId, <String, String>{
+        'w-folder': 'packages/app',
+      });
       expect(restored.rightSidebarVisible, isFalse);
       expect(restored.rightSidebarWidth, 360);
       expect(restored.activeContextPanelTab, WorkbenchContextPanelTab.explorer);

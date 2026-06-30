@@ -36,6 +36,9 @@ class WorkspaceExplorer extends ConsumerStatefulWidget {
     required this.onModeChanged,
     required this.onOpenFile,
     required this.onPathMoved,
+    this.focusedSourceControlRoot,
+    this.onFocusSourceControlFolder,
+    this.onClearSourceControlRoot,
   });
 
   final Workspace workspace;
@@ -44,6 +47,9 @@ class WorkspaceExplorer extends ConsumerStatefulWidget {
   final ValueChanged<String> onOpenFile;
   final Future<void> Function(String oldRelativePath, String newRelativePath)
   onPathMoved;
+  final String? focusedSourceControlRoot;
+  final Future<bool> Function(String relativePath)? onFocusSourceControlFolder;
+  final VoidCallback? onClearSourceControlRoot;
 
   @override
   ConsumerState<WorkspaceExplorer> createState() => _WorkspaceExplorerState();
@@ -151,6 +157,12 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
                       expanderGap: 0,
                       expanderBuilder: _buildExpander,
                       contextMenuDelegate: _ExplorerMenuDelegate(
+                        canFocusSourceControlFolders:
+                            widget.onFocusSourceControlFolder != null,
+                        isFocusedSourceControlRoot: (node) {
+                          return _entryByNodeId[node.id]?.relativePath ==
+                              widget.focusedSourceControlRoot;
+                        },
                         onMenuOpening: _suppressBackgroundMenuOnce,
                         onAction: _handleMenuAction,
                       ),
@@ -194,6 +206,9 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
       entry: entry,
       expanded: state.isExpanded,
       selected: selected,
+      sourceControlRoot:
+          entry != null &&
+          entry.relativePath == widget.focusedSourceControlRoot,
       onTap: () => unawaited(_handlePrimaryTap(node)),
     );
     if (entry == null) {
@@ -458,4 +473,6 @@ enum _ExplorerAction {
   reveal,
   delete,
   refresh,
+  focusSourceControlRoot,
+  clearSourceControlRoot,
 }

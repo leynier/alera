@@ -353,6 +353,103 @@ void main() {
       expect(repository.tabs, hasLength(1));
     });
 
+    test('openOrCreateGitDiffTab scopes tabs by git diff root', () async {
+      final repository = _FakeWorkbenchRepository();
+      final service = WorkspaceTabService(
+        repository: repository,
+        now: () => DateTime.utc(2026, 5, 21, 1),
+      );
+
+      final rootTab = await service.openOrCreateGitDiffTab(
+        workspaceId: 'workspace-1',
+        scope: WorkspaceGitDiffScope.all,
+        gitDiffRoot: './packages\\app',
+      );
+      final workspaceTab = await service.openOrCreateGitDiffTab(
+        workspaceId: 'workspace-1',
+        scope: WorkspaceGitDiffScope.all,
+      );
+      final rootAgain = await service.openOrCreateGitDiffTab(
+        workspaceId: 'workspace-1',
+        scope: WorkspaceGitDiffScope.all,
+        gitDiffRoot: 'packages/app',
+      );
+
+      expect(rootTab.title, 'app changes');
+      expect(rootTab.gitDiffRoot, 'packages/app');
+      expect(workspaceTab.gitDiffRoot, isNull);
+      expect(rootAgain.id, rootTab.id);
+      expect(repository.tabs, hasLength(2));
+    });
+
+    test('updates git diff roots after a folder move', () async {
+      final repository = _FakeWorkbenchRepository()
+        ..tabs.add(
+          WorkspaceTabRecord(
+            id: 'tab-1',
+            workspaceId: 'workspace-1',
+            kind: WorkspaceTabKind.gitDiff,
+            title: 'app changes',
+            createdAt: DateTime.utc(2026, 5, 21),
+            updatedAt: DateTime.utc(2026, 5, 21),
+            payload: const <String, Object?>{
+              workspaceTabGitDiffScopePayloadKey: 'all',
+              workspaceTabGitDiffRootPayloadKey: 'packages/app',
+            },
+          ),
+        );
+      final service = WorkspaceTabService(
+        repository: repository,
+        now: () => DateTime.utc(2026, 5, 21, 1),
+      );
+
+      final result = await service.updateFileTabPathsAfterMove(
+        workspaceId: 'workspace-1',
+        oldRelativePath: 'packages',
+        newRelativePath: 'modules',
+      );
+
+      expect(result.updatedTabs.single.gitDiffRoot, 'modules/app');
+      expect(repository.tabs.single.gitDiffRoot, 'modules/app');
+      expect(repository.tabs.single.title, 'app changes');
+    });
+
+    test('updates git diff roots and file paths after a folder move', () async {
+      final repository = _FakeWorkbenchRepository()
+        ..tabs.add(
+          WorkspaceTabRecord(
+            id: 'tab-1',
+            workspaceId: 'workspace-1',
+            kind: WorkspaceTabKind.gitDiff,
+            title: 'main.dart unstaged',
+            createdAt: DateTime.utc(2026, 5, 21),
+            updatedAt: DateTime.utc(2026, 5, 21),
+            payload: const <String, Object?>{
+              workspaceTabFilePathPayloadKey: 'packages/app/lib/main.dart',
+              workspaceTabGitDiffScopePayloadKey: 'file',
+              workspaceTabGitDiffAreaPayloadKey: 'unstaged',
+              workspaceTabGitDiffRootPayloadKey: 'packages/app',
+            },
+          ),
+        );
+      final service = WorkspaceTabService(
+        repository: repository,
+        now: () => DateTime.utc(2026, 5, 21, 1),
+      );
+
+      final result = await service.updateFileTabPathsAfterMove(
+        workspaceId: 'workspace-1',
+        oldRelativePath: 'packages',
+        newRelativePath: 'modules',
+      );
+
+      expect(result.updatedTabs, hasLength(1));
+      expect(result.updatedTabs.single.filePath, 'modules/app/lib/main.dart');
+      expect(result.updatedTabs.single.gitDiffRoot, 'modules/app');
+      expect(repository.tabs.single.filePath, 'modules/app/lib/main.dart');
+      expect(repository.tabs.single.gitDiffRoot, 'modules/app');
+    });
+
     test('openOrCreateGitDiffTab validates file diff payloads', () async {
       final repository = _FakeWorkbenchRepository();
       final service = WorkspaceTabService(repository: repository);
@@ -665,6 +762,42 @@ void main() {
       expect(result.closedTabIds, isEmpty);
       expect(repository.tabs.single.filePath, 'docs/note.txt');
       expect(repository.tabs.single.title, 'note.txt staged');
+    });
+
+    test('updates staged git diff paths when their root moves', () async {
+      final repository = _FakeWorkbenchRepository()
+        ..tabs.add(
+          WorkspaceTabRecord(
+            id: 'tab-1',
+            workspaceId: 'workspace-1',
+            kind: WorkspaceTabKind.gitDiff,
+            title: 'main.dart staged',
+            createdAt: DateTime.utc(2026, 5, 21),
+            updatedAt: DateTime.utc(2026, 5, 21),
+            payload: const <String, Object?>{
+              workspaceTabFilePathPayloadKey: 'packages/app/lib/main.dart',
+              workspaceTabGitDiffScopePayloadKey: 'file',
+              workspaceTabGitDiffAreaPayloadKey: 'staged',
+              workspaceTabGitDiffRootPayloadKey: 'packages/app',
+            },
+          ),
+        );
+      final service = WorkspaceTabService(
+        repository: repository,
+        now: () => DateTime.utc(2026, 5, 21, 1),
+      );
+
+      final result = await service.updateFileTabPathsAfterMove(
+        workspaceId: 'workspace-1',
+        oldRelativePath: 'packages',
+        newRelativePath: 'modules',
+      );
+
+      expect(result.updatedTabs, hasLength(1));
+      expect(result.updatedTabs.single.filePath, 'modules/app/lib/main.dart');
+      expect(result.updatedTabs.single.gitDiffRoot, 'modules/app');
+      expect(repository.tabs.single.filePath, 'modules/app/lib/main.dart');
+      expect(repository.tabs.single.gitDiffRoot, 'modules/app');
     });
 
     test(

@@ -11,6 +11,7 @@ import 'package:alera/src/features/settings/domain/editor_syntax_theme_catalog.d
 import 'package:alera/src/features/workbench/application/workspace_file_preview_kind.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/features/workbench/domain/workspace_source_control_scope.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/rust/api/workspace_files.dart' as native;
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
@@ -33,6 +34,7 @@ class WorkspaceEditorSurface extends ConsumerStatefulWidget {
   const WorkspaceEditorSurface({
     super.key,
     required this.workspace,
+    this.sourceControlScope,
     required this.tab,
     required this.autofocus,
     this.onOpenMermanPreview,
@@ -40,6 +42,7 @@ class WorkspaceEditorSurface extends ConsumerStatefulWidget {
   });
 
   final Workspace workspace;
+  final WorkspaceSourceControlScope? sourceControlScope;
   final WorkspaceTabRecord tab;
   final bool autofocus;
   final ValueChanged<String>? onOpenMermanPreview;
@@ -286,11 +289,23 @@ class _WorkspaceEditorSurfaceState
     if (filePath == null) {
       return;
     }
+    final diffTarget = workspaceEditorDiffTargetForFile(
+      workspace: widget.workspace,
+      filePath: filePath,
+      sourceControlScope: widget.sourceControlScope,
+    );
+    if (diffTarget == null) {
+      _showToast('No Git diff for this file');
+      return;
+    }
     try {
       final status = await ref
           .read(gitBackendProvider)
-          .statusForPath(path: widget.workspace.path, filePath: filePath);
-      final entries = status.entriesForPath(filePath);
+          .statusForPath(
+            path: diffTarget.gitPath,
+            filePath: diffTarget.gitFilePath,
+          );
+      final entries = status.entriesForPath(diffTarget.gitFilePath);
       if (!mounted) {
         return;
       }
@@ -306,6 +321,7 @@ class _WorkspaceEditorSurfaceState
               relativePath: filePath,
               area: entries.single.area,
               scope: WorkspaceGitDiffScope.file,
+              gitDiffRoot: diffTarget.gitDiffRoot,
             );
         return;
       }
@@ -320,6 +336,7 @@ class _WorkspaceEditorSurfaceState
               workspace: widget.workspace,
               relativePath: filePath,
               scope: WorkspaceGitDiffScope.fileAll,
+              gitDiffRoot: diffTarget.gitDiffRoot,
             );
         return;
       }
@@ -330,6 +347,7 @@ class _WorkspaceEditorSurfaceState
             relativePath: filePath,
             area: choice.area,
             scope: WorkspaceGitDiffScope.file,
+            gitDiffRoot: diffTarget.gitDiffRoot,
           );
     } catch (_) {
       if (mounted) {
@@ -509,6 +527,29 @@ class _DiffOpenChoice {
 
   final GitChangeArea? area;
   final bool allForFile;
+}
+
+typedef WorkspaceEditorDiffTarget = ({
+  String gitPath,
+  String gitFilePath,
+  String? gitDiffRoot,
+});
+
+@visibleForTesting
+WorkspaceEditorDiffTarget? workspaceEditorDiffTargetForFile({
+  required Workspace workspace,
+  required String filePath,
+  required WorkspaceSourceControlScope? sourceControlScope,
+}) {
+  final sourceFilePath = sourceControlScope?.toSourceRelativePath(filePath);
+  if (sourceControlScope != null && sourceFilePath == null) {
+    return null;
+  }
+  return (
+    gitPath: sourceControlScope?.path ?? workspace.path,
+    gitFilePath: sourceFilePath ?? filePath,
+    gitDiffRoot: sourceControlScope?.relativeRoot,
+  );
 }
 
 String workspaceEditorDisplayPath({

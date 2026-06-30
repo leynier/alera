@@ -39,6 +39,7 @@ const String workspaceTabFileRolePayloadKey = 'fileRole';
 const String workspaceTabFileRoleMermanPreview = 'mermanPreview';
 const String workspaceTabGitDiffScopePayloadKey = 'gitDiffScope';
 const String workspaceTabGitDiffAreaPayloadKey = 'gitDiffArea';
+const String workspaceTabGitDiffRootPayloadKey = 'gitDiffRoot';
 
 enum WorkspaceGitDiffScope {
   file('file'),
@@ -105,6 +106,11 @@ class WorkspaceTabRecord with WorkspaceTabRecordMappable {
   WorkspaceGitDiffScope? get gitDiffScope => WorkspaceGitDiffScope.fromJson(
     payload[workspaceTabGitDiffScopePayloadKey],
   );
+
+  String? get gitDiffRoot {
+    final value = payload[workspaceTabGitDiffRootPayloadKey];
+    return value is String && value.trim().isNotEmpty ? value : null;
+  }
 
   GitChangeArea? get gitDiffArea {
     final value = payload[workspaceTabGitDiffAreaPayloadKey];

@@ -169,6 +169,7 @@ mixin _WorkbenchControllerTabs
     String? relativePath,
     GitChangeArea? area,
     required WorkspaceGitDiffScope scope,
+    String? gitDiffRoot,
     String? targetGroupId,
   }) async {
     try {
@@ -179,6 +180,7 @@ mixin _WorkbenchControllerTabs
         relativePath: relativePath,
         area: area,
         scope: scope,
+        gitDiffRoot: gitDiffRoot,
       );
       final alreadyOpen = previousTabs.any(
         (candidate) => candidate.id == tab.id,

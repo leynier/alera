@@ -11,6 +11,8 @@ import 'package:alera/src/features/workbench/application/source_control_watcher.
 import 'package:alera/src/features/workbench/application/workspace_source_control_controller.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/features/workbench/domain/workspace_source_control_scope.dart';
+import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_git_diff_panel.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_exception.dart';
@@ -56,9 +58,16 @@ void main() {
               height: 420,
               child: WorkspaceGitDiffPanel(
                 workspace: _workspace(),
+                sourceControlScope: _sourceControlScope(),
                 viewMode: GitDiffViewMode.flat,
                 onViewModeChanged: (_) {},
-                onOpenGitDiff: ({area, relativePath, required scope}) async {},
+                onOpenGitDiff:
+                    ({
+                      area,
+                      relativePath,
+                      gitDiffRoot,
+                      required scope,
+                    }) async {},
               ),
             ),
           ),
@@ -75,6 +84,10 @@ void main() {
     tester,
   ) async {
     final backend = FakeGitBackend()
+      ..gitRepositoryStateResult = const GitRepositoryState(
+        branch: 'main',
+        upstream: 'origin/main',
+      )
       ..gitStatusResult = const GitStatusResult(
         entries: <GitChangeEntry>[
           GitChangeEntry(
@@ -108,9 +121,16 @@ void main() {
               height: 420,
               child: WorkspaceGitDiffPanel(
                 workspace: _workspace(),
+                sourceControlScope: _sourceControlScope(),
                 viewMode: GitDiffViewMode.flat,
                 onViewModeChanged: (_) {},
-                onOpenGitDiff: ({area, relativePath, required scope}) async {},
+                onOpenGitDiff:
+                    ({
+                      area,
+                      relativePath,
+                      gitDiffRoot,
+                      required scope,
+                    }) async {},
               ),
             ),
           ),
@@ -150,6 +170,79 @@ void main() {
       backend.calls.where((call) => call.method == 'stage').single.args,
       <String, Object?>{'path': '/tmp/project', 'filePath': null},
     );
+  });
+
+  testWidgets('focused source control root scopes actions and diff tabs', (
+    tester,
+  ) async {
+    final backend = FakeGitBackend()
+      ..gitRepositoryStateResult = const GitRepositoryState(
+        branch: 'main',
+        upstream: 'origin/main',
+      )
+      ..gitStatusResult = const GitStatusResult(
+        entries: <GitChangeEntry>[
+          GitChangeEntry(
+            path: 'lib/new.dart',
+            area: GitChangeArea.untracked,
+            status: GitChangeStatus.untracked,
+          ),
+        ],
+      );
+    final opened =
+        <
+          ({
+            String? relativePath,
+            String? gitDiffRoot,
+            WorkspaceGitDiffScope scope,
+          })
+        >[];
+    final workspace = _workspace(path: '/tmp/project');
+    final sourceControlScope = WorkspaceSourceControlScope(
+      workspaceId: workspace.id,
+      workspacePath: workspace.path,
+      path: '/tmp/project/packages/app',
+      relativeRoot: 'packages/app',
+    );
+    var cleared = false;
+
+    await _pumpPanel(
+      tester,
+      backend: backend,
+      workspace: workspace,
+      sourceControlScope: sourceControlScope,
+      onClearSourceControlRoot: () => cleared = true,
+      onOpenGitDiff: ({area, relativePath, gitDiffRoot, required scope}) async {
+        opened.add((
+          relativePath: relativePath,
+          gitDiffRoot: gitDiffRoot,
+          scope: scope,
+        ));
+      },
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('packages/app'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('All changes'));
+    await tester.pumpAndSettle();
+
+    expect(opened.single.relativePath, isNull);
+    expect(opened.single.gitDiffRoot, 'packages/app');
+    expect(opened.single.scope, WorkspaceGitDiffScope.all);
+
+    await tester.tap(find.text('Stage All'));
+    await tester.pumpAndSettle();
+
+    expect(
+      backend.calls.where((call) => call.method == 'stage').single.args,
+      <String, Object?>{'path': '/tmp/project/packages/app', 'filePath': null},
+    );
+
+    await tester.tap(find.byTooltip('Clear Source Control Root'));
+    await tester.pumpAndSettle();
+
+    expect(cleared, isTrue);
   });
 
   testWidgets('primary source control action is compact and clickable', (
@@ -995,9 +1088,13 @@ Future<void> _pumpPanel(
   required FakeGitBackend backend,
   Workspace? workspace,
   GitDiffViewMode viewMode = GitDiffViewMode.flat,
+  WorkspaceSourceControlScope? sourceControlScope,
   AiTextGenerationService? service,
   AleraSettings settings = AleraSettings.defaults,
+  OpenGitDiffTabCallback? onOpenGitDiff,
+  VoidCallback? onClearSourceControlRoot,
 }) {
+  final resolvedWorkspace = workspace ?? _workspace();
   return tester.pumpWidget(
     ProviderScope(
       overrides: [
@@ -1017,15 +1114,29 @@ Future<void> _pumpPanel(
             width: 420,
             height: 520,
             child: WorkspaceGitDiffPanel(
-              workspace: workspace ?? _workspace(),
+              workspace: resolvedWorkspace,
+              sourceControlScope:
+                  sourceControlScope ?? _sourceControlScope(resolvedWorkspace),
               viewMode: viewMode,
               onViewModeChanged: (_) {},
-              onOpenGitDiff: ({area, relativePath, required scope}) async {},
+              onOpenGitDiff:
+                  onOpenGitDiff ??
+                  ({area, relativePath, gitDiffRoot, required scope}) async {},
+              onClearSourceControlRoot: onClearSourceControlRoot,
             ),
           ),
         ),
       ),
     ),
+  );
+}
+
+WorkspaceSourceControlScope _sourceControlScope([Workspace? workspace]) {
+  final resolved = workspace ?? _workspace();
+  return WorkspaceSourceControlScope(
+    workspaceId: resolved.id,
+    workspacePath: resolved.path,
+    path: resolved.path,
   );
 }
 

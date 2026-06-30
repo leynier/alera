@@ -1,6 +1,7 @@
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_preview_kind.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
+import 'package:alera/src/features/workbench/domain/workspace_source_control_scope.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:uuid/uuid.dart';
 
@@ -141,10 +142,12 @@ class WorkspaceTabService {
     String? relativePath,
     GitChangeArea? area,
     required WorkspaceGitDiffScope scope,
+    String? gitDiffRoot,
   }) async {
     final normalizedPath = relativePath == null
         ? null
         : _normalizeRelativePath(relativePath);
+    final normalizedRoot = normalizeSourceControlRootRelativePath(gitDiffRoot);
     if (scope == WorkspaceGitDiffScope.file && area == null) {
       throw StateError('Git diff file tabs require an area.');
     }
@@ -158,6 +161,7 @@ class WorkspaceTabService {
       }
       if (tab.gitDiffScope == scope &&
           tab.filePath == normalizedPath &&
+          tab.gitDiffRoot == normalizedRoot &&
           tab.gitDiffArea == area) {
         return tab;
       }
@@ -165,6 +169,12 @@ class WorkspaceTabService {
     final payload = <String, Object?>{
       workspaceTabGitDiffScopePayloadKey: scope.key,
       if (area != null) workspaceTabGitDiffAreaPayloadKey: area.key,
+      ...switch (normalizedRoot) {
+        null => const <String, Object?>{},
+        final root => <String, Object?>{
+          workspaceTabGitDiffRootPayloadKey: root,
+        },
+      },
     };
     if (normalizedPath != null) {
       payload[workspaceTabFilePathPayloadKey] = normalizedPath;
@@ -173,7 +183,12 @@ class WorkspaceTabService {
       id: _uuid.v4(),
       workspaceId: workspaceId,
       kind: WorkspaceTabKind.gitDiff,
-      title: _titleForGitDiff(scope: scope, path: normalizedPath, area: area),
+      title: _titleForGitDiff(
+        scope: scope,
+        path: normalizedPath,
+        area: area,
+        root: normalizedRoot,
+      ),
       createdAt: _now(),
       updatedAt: _now(),
       payload: payload,
@@ -218,9 +233,42 @@ class WorkspaceTabService {
     final oldPath = _normalizeRelativePath(oldRelativePath);
     final newPath = _normalizeRelativePath(newRelativePath);
     final tabs = await _repository.listWorkspaceTabs(workspaceId);
-    final updated = <WorkspaceTabRecord>[];
+    final updatedById = <String, WorkspaceTabRecord>{};
     final closed = <String>[];
     final fileBackedPaths = <String>{};
+    void trackUpdated(WorkspaceTabRecord tab) {
+      updatedById[tab.id] = tab;
+    }
+
+    for (final tab in tabs) {
+      if (tab.kind != WorkspaceTabKind.gitDiff || tab.gitDiffRoot == null) {
+        continue;
+      }
+      final root = tab.gitDiffRoot!;
+      final nextRoot = _replacePathPrefix(
+        path: root,
+        oldPath: oldPath,
+        newPath: newPath,
+      );
+      if (nextRoot == null || nextRoot == root) {
+        continue;
+      }
+      final next = tab.copyWith(
+        title: _titleForGitDiff(
+          scope: tab.gitDiffScope ?? WorkspaceGitDiffScope.file,
+          path: tab.filePath,
+          area: tab.gitDiffArea,
+          root: nextRoot,
+        ),
+        updatedAt: _now(),
+        payload: <String, Object?>{
+          ...tab.payload,
+          workspaceTabGitDiffRootPayloadKey: nextRoot,
+        },
+      );
+      await _repository.upsertWorkspaceTab(next);
+      trackUpdated(next);
+    }
     for (final tab in tabs) {
       if (_isRetargetableFileBackedTab(tab) && !tab.isMermanPreview) {
         final filePath = tab.filePath;
@@ -236,12 +284,15 @@ class WorkspaceTabService {
         }
       }
     }
-    for (final tab in tabs) {
+    for (final originalTab in tabs) {
+      final rootWasRetargeted = updatedById.containsKey(originalTab.id);
+      final tab = updatedById[originalTab.id] ?? originalTab;
       if (!_isFileTabKind(tab.kind)) {
         continue;
       }
       if (tab.kind == WorkspaceTabKind.gitDiff &&
-          tab.gitDiffArea == GitChangeArea.staged) {
+          tab.gitDiffArea == GitChangeArea.staged &&
+          !rootWasRetargeted) {
         continue;
       }
       final filePath = tab.filePath;
@@ -261,6 +312,7 @@ class WorkspaceTabService {
         if (fileBackedPaths.contains(nextPath)) {
           await _repository.removeWorkspaceTab(tab.id);
           closed.add(tab.id);
+          updatedById.remove(tab.id);
           continue;
         }
         final nextPayload = <String, Object?>{
@@ -274,13 +326,14 @@ class WorkspaceTabService {
           payload: nextPayload,
         );
         await _repository.upsertWorkspaceTab(next);
-        updated.add(next);
+        trackUpdated(next);
         fileBackedPaths.add(nextPath);
         continue;
       }
       if (nextKind == null) {
         await _repository.removeWorkspaceTab(tab.id);
         closed.add(tab.id);
+        updatedById.remove(tab.id);
         continue;
       }
       final next = tab.copyWith(
@@ -292,6 +345,7 @@ class WorkspaceTabService {
                 scope: tab.gitDiffScope ?? WorkspaceGitDiffScope.file,
                 path: nextPath,
                 area: tab.gitDiffArea,
+                root: tab.gitDiffRoot,
               )
             : _titleForPath(nextPath),
         updatedAt: _now(),
@@ -301,10 +355,10 @@ class WorkspaceTabService {
         },
       );
       await _repository.upsertWorkspaceTab(next);
-      updated.add(next);
+      trackUpdated(next);
     }
     return WorkspaceFileTabPathMoveResult(
-      updatedTabs: List<WorkspaceTabRecord>.unmodifiable(updated),
+      updatedTabs: List<WorkspaceTabRecord>.unmodifiable(updatedById.values),
       closedTabIds: List<String>.unmodifiable(closed),
     );
   }
@@ -458,9 +512,11 @@ class WorkspaceTabService {
     required WorkspaceGitDiffScope scope,
     required String? path,
     required GitChangeArea? area,
+    required String? root,
   }) {
     return switch (scope) {
-      WorkspaceGitDiffScope.all => 'All changes',
+      WorkspaceGitDiffScope.all =>
+        root == null ? 'All changes' : '${_titleForPath(root)} changes',
       WorkspaceGitDiffScope.fileAll => '${_titleForPath(path!)} changes',
       WorkspaceGitDiffScope.file =>
         '${_titleForPath(path!)} ${area!.label.toLowerCase()}',

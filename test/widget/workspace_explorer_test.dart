@@ -481,6 +481,87 @@ void main() {
     expect(opener.revealedPaths, <String>['/repo/alera/readme.md']);
   });
 
+  testWidgets('context menu focuses and clears source control root', (
+    tester,
+  ) async {
+    final service = _FakeWorkspaceFileService()
+      ..childrenByDirectory[''] = <native.WorkspaceFileEntry>[
+        _directory('packages', hasChildrenHint: true),
+      ]
+      ..childrenByDirectory['packages'] = <native.WorkspaceFileEntry>[
+        _directory('packages/app', hasChildrenHint: false),
+      ];
+    final focused = <String>[];
+    var cleared = false;
+
+    await _pumpExplorer(
+      tester,
+      service,
+      onFocusSourceControlFolder: (relativePath) async {
+        focused.add(relativePath);
+        return true;
+      },
+      onClearSourceControlRoot: () => cleared = true,
+    );
+
+    if (find.text('app').evaluate().isEmpty) {
+      await tester.tap(find.text('packages'));
+      await tester.pumpAndSettle();
+    }
+    await tester.tap(find.text('app'), buttons: kSecondaryMouseButton);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Use As Source Control Root'));
+    await tester.pumpAndSettle();
+
+    expect(focused, <String>['packages/app']);
+
+    await _pumpExplorer(
+      tester,
+      service,
+      focusedSourceControlRoot: 'packages/app',
+      onFocusSourceControlFolder: (relativePath) async {
+        focused.add(relativePath);
+        return true;
+      },
+      onClearSourceControlRoot: () => cleared = true,
+    );
+    if (find.text('app').evaluate().isEmpty) {
+      await tester.tap(find.text('packages'));
+      await tester.pumpAndSettle();
+    }
+    await tester.tap(find.text('app'), buttons: kSecondaryMouseButton);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Clear Source Control Root'));
+    await tester.pumpAndSettle();
+
+    expect(cleared, isTrue);
+  });
+
+  testWidgets(
+    'context menu hides source control root action without callback',
+    (tester) async {
+      final service = _FakeWorkspaceFileService()
+        ..childrenByDirectory[''] = <native.WorkspaceFileEntry>[
+          _directory('packages', hasChildrenHint: true),
+        ]
+        ..childrenByDirectory['packages'] = <native.WorkspaceFileEntry>[
+          _directory('packages/app', hasChildrenHint: false),
+        ];
+
+      await _pumpExplorer(tester, service);
+
+      if (find.text('app').evaluate().isEmpty) {
+        await tester.tap(find.text('packages'));
+        await tester.pumpAndSettle();
+      }
+      await tester.tap(find.text('app'), buttons: kSecondaryMouseButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Use As Source Control Root'), findsNothing);
+      expect(find.text('Clear Source Control Root'), findsNothing);
+    },
+  );
+
   testWidgets('creating a file does not use disposed state after unmount', (
     tester,
   ) async {
@@ -521,7 +602,8 @@ void main() {
               onSetExplorerMode: (_) {},
               onSetGitDiffViewMode: (_) {},
               onOpenFile: (_) {},
-              onOpenGitDiff: ({relativePath, area, required scope}) async {},
+              onOpenGitDiff:
+                  ({relativePath, area, gitDiffRoot, required scope}) async {},
               onOpenSearchMatch: (_) {},
               onPathMoved: (_, _) async {},
             ),
@@ -559,7 +641,8 @@ void main() {
               onSetExplorerMode: (_) {},
               onSetGitDiffViewMode: (_) {},
               onOpenFile: (_) {},
-              onOpenGitDiff: ({relativePath, area, required scope}) async {},
+              onOpenGitDiff:
+                  ({relativePath, area, gitDiffRoot, required scope}) async {},
               onOpenSearchMatch: (_) {},
               onPathMoved: (_, _) async {},
             ),
@@ -597,7 +680,8 @@ void main() {
               onSetExplorerMode: (_) {},
               onSetGitDiffViewMode: (_) {},
               onOpenFile: (_) {},
-              onOpenGitDiff: ({relativePath, area, required scope}) async {},
+              onOpenGitDiff:
+                  ({relativePath, area, gitDiffRoot, required scope}) async {},
               onOpenSearchMatch: (_) {},
               onPathMoved: (_, _) async {},
             ),
@@ -631,7 +715,8 @@ void main() {
               onSetExplorerMode: (_) {},
               onSetGitDiffViewMode: (_) {},
               onOpenFile: (_) {},
-              onOpenGitDiff: ({relativePath, area, required scope}) async {},
+              onOpenGitDiff:
+                  ({relativePath, area, gitDiffRoot, required scope}) async {},
               onOpenSearchMatch: (_) {},
               onPathMoved: (_, _) async {},
             ),
@@ -652,6 +737,9 @@ Future<void> _pumpExplorer(
   ValueChanged<String>? onOpenFile,
   EditorSessionRegistry? registry,
   WorkspaceFolderOpener? folderOpener,
+  String? focusedSourceControlRoot,
+  Future<bool> Function(String relativePath)? onFocusSourceControlFolder,
+  VoidCallback? onClearSourceControlRoot,
 }) async {
   await tester.pumpWidget(
     _withWorkspaceFiles(
@@ -668,6 +756,9 @@ Future<void> _pumpExplorer(
               mode: WorkspaceExplorerMode.hideIgnored,
               onModeChanged: (_) {},
               onOpenFile: onOpenFile ?? (_) {},
+              focusedSourceControlRoot: focusedSourceControlRoot,
+              onFocusSourceControlFolder: onFocusSourceControlFolder,
+              onClearSourceControlRoot: onClearSourceControlRoot,
               onPathMoved: (_, _) async {},
             ),
           ),
@@ -730,7 +821,7 @@ Widget _workspaceContextSidebar(Workspace workspace) {
     onSetExplorerMode: (_) {},
     onSetGitDiffViewMode: (_) {},
     onOpenFile: (_) {},
-    onOpenGitDiff: ({relativePath, area, required scope}) async {},
+    onOpenGitDiff: ({relativePath, area, gitDiffRoot, required scope}) async {},
     onOpenSearchMatch: (_) {},
     onPathMoved: (_, _) async {},
   );

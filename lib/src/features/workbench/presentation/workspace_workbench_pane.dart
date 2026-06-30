@@ -3,6 +3,7 @@ part of 'workspace_workbench_view.dart';
 class _WorkbenchPane extends StatelessWidget {
   const _WorkbenchPane({
     required this.workspace,
+    required this.sourceControlScope,
     required this.tabs,
     required this.layout,
     required this.groupId,
@@ -24,6 +25,7 @@ class _WorkbenchPane extends StatelessWidget {
   });
 
   final Workspace workspace;
+  final WorkspaceSourceControlScope? sourceControlScope;
   final List<WorkspaceTabRecord> tabs;
   final WorkbenchLayout layout;
   final String groupId;
@@ -106,6 +108,7 @@ class _WorkbenchPane extends StatelessWidget {
                     ? const Center(child: CircularProgressIndicator())
                     : _WorkspaceTabContent(
                         workspace: workspace,
+                        sourceControlScope: sourceControlScope,
                         tab: activeTab,
                         autofocus: layout.activeGroupId == groupId,
                         terminalRuntime: terminalRuntime,
@@ -262,6 +265,7 @@ Rect _centerDropRect(Size paneSize) {
 class _WorkspaceTabContent extends StatelessWidget {
   const _WorkspaceTabContent({
     required this.workspace,
+    required this.sourceControlScope,
     required this.tab,
     required this.autofocus,
     required this.terminalRuntime,
@@ -271,6 +275,7 @@ class _WorkspaceTabContent extends StatelessWidget {
   });
 
   final Workspace workspace;
+  final WorkspaceSourceControlScope? sourceControlScope;
   final WorkspaceTabRecord tab;
   final bool autofocus;
   final TerminalRuntime terminalRuntime;
@@ -287,6 +292,7 @@ class _WorkspaceTabContent extends StatelessWidget {
       ),
       WorkspaceTabKind.editor => _WorkspaceFileTabContent(
         workspace: workspace,
+        sourceControlScope: sourceControlScope,
         tab: tab,
         autofocus: autofocus,
         onOpenEditor: onOpenEditorTab,
@@ -317,6 +323,7 @@ class _WorkspaceTabContent extends StatelessWidget {
 class _WorkspaceFileTabContent extends StatelessWidget {
   const _WorkspaceFileTabContent({
     required this.workspace,
+    required this.sourceControlScope,
     required this.tab,
     required this.autofocus,
     required this.onOpenEditor,
@@ -325,6 +332,7 @@ class _WorkspaceFileTabContent extends StatelessWidget {
   });
 
   final Workspace workspace;
+  final WorkspaceSourceControlScope? sourceControlScope;
   final WorkspaceTabRecord tab;
   final bool autofocus;
   final ValueChanged<String> onOpenEditor;
@@ -353,6 +361,7 @@ class _WorkspaceFileTabContent extends StatelessWidget {
     }
     return WorkspaceEditorSurface(
       workspace: workspace,
+      sourceControlScope: sourceControlScope,
       tab: tab,
       autofocus: autofocus,
       onOpenMermanPreview: onOpenMermanPreview,

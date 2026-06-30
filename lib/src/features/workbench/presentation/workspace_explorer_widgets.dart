@@ -85,6 +85,7 @@ class _ExplorerRow extends StatelessWidget {
     required this.entry,
     required this.expanded,
     required this.selected,
+    required this.sourceControlRoot,
     required this.onTap,
   });
 
@@ -92,6 +93,7 @@ class _ExplorerRow extends StatelessWidget {
   final native.WorkspaceFileEntry? entry;
   final bool expanded;
   final bool selected;
+  final bool sourceControlRoot;
   final VoidCallback onTap;
 
   @override
@@ -136,6 +138,18 @@ class _ExplorerRow extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(left: AleraTokens.space8),
                     child: _GitStatusIndicator(status: status),
+                  ),
+                if (sourceControlRoot)
+                  const Padding(
+                    padding: EdgeInsets.only(left: AleraTokens.space8),
+                    child: Tooltip(
+                      message: 'Source Control Root',
+                      child: Icon(
+                        AleraIcons.gitBranch,
+                        size: 14,
+                        color: AleraTokens.foregroundMuted,
+                      ),
+                    ),
                   ),
               ],
             ),
@@ -237,10 +251,14 @@ class _ExplorerNameDialogState extends State<_ExplorerNameDialog> {
 
 class _ExplorerMenuDelegate extends tree.ContextMenuDelegate {
   const _ExplorerMenuDelegate({
+    required this.canFocusSourceControlFolders,
+    required this.isFocusedSourceControlRoot,
     required this.onMenuOpening,
     required this.onAction,
   });
 
+  final bool canFocusSourceControlFolders;
+  final bool Function(tree.VisibleNode node) isFocusedSourceControlRoot;
   final VoidCallback onMenuOpening;
   final Future<void> Function(
     BuildContext context,
@@ -269,71 +287,88 @@ class _ExplorerMenuDelegate extends tree.ContextMenuDelegate {
           position.dx,
           position.dy,
         ),
-        items: const <PopupMenuEntry<_ExplorerAction>>[
-          AleraDropdownEntry<_ExplorerAction>(
+        items: <PopupMenuEntry<_ExplorerAction>>[
+          const AleraDropdownEntry<_ExplorerAction>(
             value: _ExplorerAction.newFile,
             label: 'New file',
             leading: Icon(AleraIcons.newFile, size: 16),
           ),
-          AleraDropdownEntry<_ExplorerAction>(
+          const AleraDropdownEntry<_ExplorerAction>(
             value: _ExplorerAction.newFolder,
             label: 'New folder',
             leading: Icon(AleraIcons.newFolder, size: 16),
           ),
-          AleraDropdownEntry<_ExplorerAction>(
+          const AleraDropdownEntry<_ExplorerAction>(
             value: _ExplorerAction.copy,
             label: 'Copy',
             leading: Icon(AleraIcons.copy, size: 16),
           ),
-          AleraDropdownEntry<_ExplorerAction>(
+          const AleraDropdownEntry<_ExplorerAction>(
             value: _ExplorerAction.cut,
             label: 'Cut',
             leading: Icon(AleraIcons.cut, size: 16),
           ),
-          AleraDropdownEntry<_ExplorerAction>(
+          const AleraDropdownEntry<_ExplorerAction>(
             value: _ExplorerAction.paste,
             label: 'Paste',
             leading: Icon(AleraIcons.paste, size: 16),
           ),
-          AleraDropdownEntry<_ExplorerAction>(
+          const AleraDropdownEntry<_ExplorerAction>(
             value: _ExplorerAction.copyPath,
             label: 'Copy path',
             leading: Icon(AleraIcons.copy, size: 16),
           ),
-          AleraDropdownEntry<_ExplorerAction>(
+          const AleraDropdownEntry<_ExplorerAction>(
             value: _ExplorerAction.copyRelativePath,
             label: 'Copy relative path',
             leading: Icon(AleraIcons.copy, size: 16),
           ),
-          AleraDropdownEntry<_ExplorerAction>(
+          const AleraDropdownEntry<_ExplorerAction>(
             value: _ExplorerAction.duplicate,
             label: 'Duplicate',
             leading: Icon(AleraIcons.duplicate, size: 16),
           ),
-          AleraDropdownEntry<_ExplorerAction>(
+          const AleraDropdownEntry<_ExplorerAction>(
             value: _ExplorerAction.reveal,
             label: 'Reveal in Finder',
             leading: Icon(AleraIcons.external, size: 16),
           ),
-          PopupMenuDivider(height: AleraTokens.space8),
-          AleraDropdownEntry<_ExplorerAction>(
+          const PopupMenuDivider(height: AleraTokens.space8),
+          const AleraDropdownEntry<_ExplorerAction>(
             value: _ExplorerAction.rename,
             label: 'Rename',
             leading: Icon(AleraIcons.edit, size: 16),
           ),
-          PopupMenuDivider(height: AleraTokens.space8),
-          AleraDropdownEntry<_ExplorerAction>(
+          if (canFocusSourceControlFolders &&
+              node.type ==
+                  tree.NodeType.folder) ...<PopupMenuEntry<_ExplorerAction>>[
+            const PopupMenuDivider(height: AleraTokens.space8),
+            if (isFocusedSourceControlRoot(node))
+              const AleraDropdownEntry<_ExplorerAction>(
+                value: _ExplorerAction.clearSourceControlRoot,
+                label: 'Clear Source Control Root',
+                leading: Icon(AleraIcons.close, size: 16),
+              )
+            else
+              const AleraDropdownEntry<_ExplorerAction>(
+                value: _ExplorerAction.focusSourceControlRoot,
+                label: 'Use As Source Control Root',
+                leading: Icon(AleraIcons.gitBranch, size: 16),
+              ),
+          ],
+          const PopupMenuDivider(height: AleraTokens.space8),
+          const AleraDropdownEntry<_ExplorerAction>(
             value: _ExplorerAction.collapse,
             label: 'Collapse folder',
             leading: Icon(AleraIcons.chevronRight, size: 16),
           ),
-          AleraDropdownEntry<_ExplorerAction>(
+          const AleraDropdownEntry<_ExplorerAction>(
             value: _ExplorerAction.refresh,
             label: 'Refresh',
             leading: Icon(AleraIcons.refresh, size: 16),
           ),
-          PopupMenuDivider(height: AleraTokens.space8),
-          AleraDropdownEntry<_ExplorerAction>(
+          const PopupMenuDivider(height: AleraTokens.space8),
+          const AleraDropdownEntry<_ExplorerAction>(
             value: _ExplorerAction.delete,
             label: 'Delete',
             leading: Icon(AleraIcons.delete, size: 16),

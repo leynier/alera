@@ -26,6 +26,7 @@ class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
     required this.selectedProjectIds,
     required this.collapsedProjectIds,
     required this.expandedWorkspaceIds,
+    this.sourceControlRootByWorkspaceId = const <String, String>{},
     this.rightSidebarVisible = true,
     this.rightSidebarWidth = 280,
     this.activeContextPanelTab = WorkbenchContextPanelTab.explorer,
@@ -48,6 +49,10 @@ class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
   /// default; the per-row chevron lets the user toggle membership without
   /// changing the active selection.
   final Set<String> expandedWorkspaceIds;
+
+  /// Folder-workspace ids mapped to the workspace-relative Git folder that
+  /// should back the Source Control tab.
+  final Map<String, String> sourceControlRootByWorkspaceId;
   final bool rightSidebarVisible;
   final double rightSidebarWidth;
   final WorkbenchContextPanelTab activeContextPanelTab;
@@ -61,6 +66,7 @@ class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
     selectedProjectIds: <String>{},
     collapsedProjectIds: <String>{},
     expandedWorkspaceIds: <String>{},
+    sourceControlRootByWorkspaceId: <String, String>{},
     rightSidebarVisible: true,
     rightSidebarWidth: 280,
     activeContextPanelTab: WorkbenchContextPanelTab.explorer,

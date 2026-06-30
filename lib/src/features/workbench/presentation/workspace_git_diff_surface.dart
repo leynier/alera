@@ -6,6 +6,7 @@ import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/features/workbench/domain/workspace_source_control_scope.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
@@ -121,19 +122,26 @@ class _WorkspaceGitDiffSurfaceState
     final backend = ref.read(gitBackendProvider);
     final scope = widget.tab.gitDiffScope;
     final filePath = widget.tab.filePath;
+    final sourceControlScope = _sourceControlScope;
+    final sourceFilePath = sourceControlScope.toSourceRelativePath(filePath);
     final area = widget.tab.gitDiffArea;
     final nextFuture = switch (scope) {
-      WorkspaceGitDiffScope.all => backend.diffAll(path: widget.workspace.path),
-      WorkspaceGitDiffScope.fileAll => backend.diffAll(
-        path: widget.workspace.path,
-        filePath: filePath,
+      WorkspaceGitDiffScope.all => backend.diffAll(
+        path: sourceControlScope.path,
       ),
+      WorkspaceGitDiffScope.fileAll =>
+        sourceFilePath == null
+            ? Future<GitDiffResult>.value(const GitDiffResult(files: []))
+            : backend.diffAll(
+                path: sourceControlScope.path,
+                filePath: sourceFilePath,
+              ),
       WorkspaceGitDiffScope.file =>
-        filePath == null || area == null
+        sourceFilePath == null || area == null
             ? Future<GitDiffResult>.value(const GitDiffResult(files: []))
             : backend.diff(
-                path: widget.workspace.path,
-                filePath: filePath,
+                path: sourceControlScope.path,
+                filePath: sourceFilePath,
                 area: area,
               ),
       null => Future<GitDiffResult>.value(const GitDiffResult(files: [])),
@@ -171,7 +179,30 @@ class _WorkspaceGitDiffSurfaceState
     }
     return ref
         .read(workbenchControllerProvider.notifier)
-        .openEditorTab(workspace: widget.workspace, relativePath: file.path);
+        .openEditorTab(
+          workspace: widget.workspace,
+          relativePath: _sourceControlScope.toWorkspaceRelativePath(file.path)!,
+        );
+  }
+
+  WorkspaceSourceControlScope get _sourceControlScope {
+    final root = normalizeSourceControlRootRelativePath(widget.tab.gitDiffRoot);
+    if (root == null) {
+      return WorkspaceSourceControlScope(
+        workspaceId: widget.workspace.id,
+        workspacePath: widget.workspace.path,
+        path: widget.workspace.path,
+      );
+    }
+    return WorkspaceSourceControlScope(
+      workspaceId: widget.workspace.id,
+      workspacePath: widget.workspace.path,
+      path: sourceControlRootAbsolutePath(
+        workspacePath: widget.workspace.path,
+        relativeRoot: root,
+      ),
+      relativeRoot: root,
+    );
   }
 }
 

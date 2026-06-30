@@ -24,6 +24,9 @@ class FakeGitBackend implements GitBackend {
   /// When set, [isGitRepository] throws this instead of returning a value.
   GitException? isRepositoryError;
 
+  /// Optional hook for tests that need to pause [isGitRepository].
+  Future<void> Function(String path)? beforeIsGitRepository;
+
   /// Branches reported by [listBranches] and treated as existing by
   /// [branchExists]. The real backend sorts and de-duplicates; the fake does
   /// too so callers observe the same shape.
@@ -101,6 +104,10 @@ class FakeGitBackend implements GitBackend {
     calls.add(
       GitBackendCall('isGitRepository', <String, Object?>{'path': path}),
     );
+    final before = beforeIsGitRepository;
+    if (before != null) {
+      await before(path);
+    }
     final error = isRepositoryError;
     if (error != null) {
       throw error;

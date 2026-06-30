@@ -16,13 +16,27 @@ mixin _WorkbenchControllerSync
     final prunedSelected = prefs.selectedProjectIds
         .where(validProjectIds.contains)
         .toSet();
+    final removedProjectWorkspaceIds = <String>{
+      for (final entry in state.workspacesByProject.entries)
+        if (!validProjectIds.contains(entry.key))
+          for (final workspace in entry.value) workspace.id,
+    };
+    final prunedSourceControlRoots =
+        Map<String, String>.from(prefs.sourceControlRootByWorkspaceId)
+          ..removeWhere(
+            (workspaceId, _) =>
+                removedProjectWorkspaceIds.contains(workspaceId),
+          );
     final prefsChanged =
         prunedCollapsed.length != prefs.collapsedProjectIds.length ||
-        prunedSelected.length != prefs.selectedProjectIds.length;
+        prunedSelected.length != prefs.selectedProjectIds.length ||
+        prunedSourceControlRoots.length !=
+            prefs.sourceControlRootByWorkspaceId.length;
     final prunedViewPrefs = prefsChanged
         ? prefs.copyWith(
             collapsedProjectIds: prunedCollapsed,
             selectedProjectIds: prunedSelected,
+            sourceControlRootByWorkspaceId: prunedSourceControlRoots,
           )
         : prefs;
     final updatedWorkspaces = <String, List<Workspace>>{
@@ -57,8 +71,13 @@ mixin _WorkbenchControllerSync
       workspacesByProject: updatedWorkspaces,
       preferredWorkspaceId: state.activeWorkspaceId,
     );
+    final activeWorkspace = _workspaceById(
+      updatedWorkspaces,
+      activeWorkspaceId,
+    );
     final nextViewPrefs = _viewPrefsForProjectContext(
       project: _projectById(projects, activeProjectId),
+      workspace: activeWorkspace,
       prefs: prunedViewPrefs,
     );
     final viewPrefsChanged =
@@ -165,12 +184,30 @@ mixin _WorkbenchControllerSync
     final expandedViewPrefs = expansionChanged
         ? viewPrefs.copyWith(expandedWorkspaceIds: prunedExpanded)
         : viewPrefs;
+    final prunedSourceControlRoots =
+        Map<String, String>.from(
+          expandedViewPrefs.sourceControlRootByWorkspaceId,
+        )..removeWhere(
+          (workspaceId, _) => removedWorkspaceIds.contains(workspaceId),
+        );
+    final sourceControlRootsChanged =
+        prunedSourceControlRoots.length !=
+        expandedViewPrefs.sourceControlRootByWorkspaceId.length;
+    final workspacePrunedViewPrefs = sourceControlRootsChanged
+        ? expandedViewPrefs.copyWith(
+            sourceControlRootByWorkspaceId: prunedSourceControlRoots,
+          )
+        : expandedViewPrefs;
+    final activeWorkspace = _workspaceById(nextWorkspaces, activeWorkspaceId);
     final nextViewPrefs = _viewPrefsForProjectContext(
       project: _projectById(state.projects, candidateProjectId),
-      prefs: expandedViewPrefs,
+      workspace: activeWorkspace,
+      prefs: workspacePrunedViewPrefs,
     );
     final viewPrefsChanged =
-        expansionChanged || !identical(nextViewPrefs, expandedViewPrefs);
+        expansionChanged ||
+        sourceControlRootsChanged ||
+        !identical(nextViewPrefs, workspacePrunedViewPrefs);
     state = state.copyWith(
       workspacesByProject: nextWorkspaces,
       viewPrefs: nextViewPrefs,

@@ -157,6 +157,7 @@ mixin _WorkbenchControllerProjects
           );
     final nextPrefs = _viewPrefsForProjectContext(
       project: project,
+      workspace: workspace,
       prefs: expandedPrefs,
     );
     state = state.copyWith(
@@ -178,6 +179,7 @@ mixin _WorkbenchControllerProjects
     final prefs = state.viewPrefs;
     final nextPrefs = _viewPrefsForProjectContext(
       project: project,
+      workspace: null,
       prefs: prefs,
     );
     state = state.copyWith(

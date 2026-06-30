@@ -290,6 +290,16 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
       v.expandedWorkspaceIds;
   static const Field<WorkbenchViewPrefs, Set<String>> _f$expandedWorkspaceIds =
       Field('expandedWorkspaceIds', _$expandedWorkspaceIds);
+  static Map<String, String> _$sourceControlRootByWorkspaceId(
+    WorkbenchViewPrefs v,
+  ) => v.sourceControlRootByWorkspaceId;
+  static const Field<WorkbenchViewPrefs, Map<String, String>>
+  _f$sourceControlRootByWorkspaceId = Field(
+    'sourceControlRootByWorkspaceId',
+    _$sourceControlRootByWorkspaceId,
+    opt: true,
+    def: const <String, String>{},
+  );
   static bool _$rightSidebarVisible(WorkbenchViewPrefs v) =>
       v.rightSidebarVisible;
   static const Field<WorkbenchViewPrefs, bool> _f$rightSidebarVisible = Field(
@@ -343,6 +353,7 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
     #selectedProjectIds: _f$selectedProjectIds,
     #collapsedProjectIds: _f$collapsedProjectIds,
     #expandedWorkspaceIds: _f$expandedWorkspaceIds,
+    #sourceControlRootByWorkspaceId: _f$sourceControlRootByWorkspaceId,
     #rightSidebarVisible: _f$rightSidebarVisible,
     #rightSidebarWidth: _f$rightSidebarWidth,
     #activeContextPanelTab: _f$activeContextPanelTab,
@@ -358,6 +369,9 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
       selectedProjectIds: data.dec(_f$selectedProjectIds),
       collapsedProjectIds: data.dec(_f$collapsedProjectIds),
       expandedWorkspaceIds: data.dec(_f$expandedWorkspaceIds),
+      sourceControlRootByWorkspaceId: data.dec(
+        _f$sourceControlRootByWorkspaceId,
+      ),
       rightSidebarVisible: data.dec(_f$rightSidebarVisible),
       rightSidebarWidth: data.dec(_f$rightSidebarWidth),
       activeContextPanelTab: data.dec(_f$activeContextPanelTab),
@@ -437,6 +451,8 @@ abstract class WorkbenchViewPrefsCopyWith<
   $Out
 >
     implements ClassCopyWith<$R, $In, $Out> {
+  MapCopyWith<$R, String, String, ObjectCopyWith<$R, String, String>>
+  get sourceControlRootByWorkspaceId;
   $R call({
     WorkbenchGroupBy? groupBy,
     WorkbenchSortBy? projectSort,
@@ -444,6 +460,7 @@ abstract class WorkbenchViewPrefsCopyWith<
     Set<String>? selectedProjectIds,
     Set<String>? collapsedProjectIds,
     Set<String>? expandedWorkspaceIds,
+    Map<String, String>? sourceControlRootByWorkspaceId,
     bool? rightSidebarVisible,
     double? rightSidebarWidth,
     WorkbenchContextPanelTab? activeContextPanelTab,
@@ -464,6 +481,13 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
   late final ClassMapperBase<WorkbenchViewPrefs> $mapper =
       WorkbenchViewPrefsMapper.ensureInitialized();
   @override
+  MapCopyWith<$R, String, String, ObjectCopyWith<$R, String, String>>
+  get sourceControlRootByWorkspaceId => MapCopyWith(
+    $value.sourceControlRootByWorkspaceId,
+    (v, t) => ObjectCopyWith(v, $identity, t),
+    (v) => call(sourceControlRootByWorkspaceId: v),
+  );
+  @override
   $R call({
     WorkbenchGroupBy? groupBy,
     WorkbenchSortBy? projectSort,
@@ -471,6 +495,7 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
     Set<String>? selectedProjectIds,
     Set<String>? collapsedProjectIds,
     Set<String>? expandedWorkspaceIds,
+    Map<String, String>? sourceControlRootByWorkspaceId,
     bool? rightSidebarVisible,
     double? rightSidebarWidth,
     WorkbenchContextPanelTab? activeContextPanelTab,
@@ -486,6 +511,8 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
         #collapsedProjectIds: collapsedProjectIds,
       if (expandedWorkspaceIds != null)
         #expandedWorkspaceIds: expandedWorkspaceIds,
+      if (sourceControlRootByWorkspaceId != null)
+        #sourceControlRootByWorkspaceId: sourceControlRootByWorkspaceId,
       if (rightSidebarVisible != null)
         #rightSidebarVisible: rightSidebarVisible,
       if (rightSidebarWidth != null) #rightSidebarWidth: rightSidebarWidth,
@@ -511,6 +538,10 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
     expandedWorkspaceIds: data.get(
       #expandedWorkspaceIds,
       or: $value.expandedWorkspaceIds,
+    ),
+    sourceControlRootByWorkspaceId: data.get(
+      #sourceControlRootByWorkspaceId,
+      or: $value.sourceControlRootByWorkspaceId,
     ),
     rightSidebarVisible: data.get(
       #rightSidebarVisible,

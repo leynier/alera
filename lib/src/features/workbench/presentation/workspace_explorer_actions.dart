@@ -57,6 +57,12 @@ extension _WorkspaceExplorerActions on _WorkspaceExplorerState {
         }
       case _ExplorerAction.refresh:
         await _refreshDirectory(targetDir);
+      case _ExplorerAction.focusSourceControlRoot:
+        if (_isDirectoryEntry(entry)) {
+          await _focusSourceControlRoot(entry!);
+        }
+      case _ExplorerAction.clearSourceControlRoot:
+        widget.onClearSourceControlRoot?.call();
     }
   }
 
@@ -286,6 +292,30 @@ extension _WorkspaceExplorerActions on _WorkspaceExplorerState {
       _rebuildTree();
     } catch (error) {
       _showError(error);
+    }
+  }
+
+  Future<void> _focusSourceControlRoot(native.WorkspaceFileEntry entry) async {
+    final focus = widget.onFocusSourceControlFolder;
+    if (focus == null) {
+      return;
+    }
+    try {
+      final focused = await focus(entry.relativePath);
+      if (!mounted) {
+        return;
+      }
+      if (!focused) {
+        _showInfo('Folder is not a Git repository');
+      }
+    } catch (_) {
+      if (mounted) {
+        AleraToast.show(
+          context,
+          message: 'Could not use folder as Source Control root',
+          tone: AleraToastTone.error,
+        );
+      }
     }
   }
 

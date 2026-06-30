@@ -10,12 +10,14 @@ class _SourceControlToolbar extends StatelessWidget {
     required this.generatingCommitMessage,
     required this.allCollapsed,
     required this.filterVisible,
+    required this.sourceControlRootLabel,
     required this.onMessageChanged,
     required this.onGenerateCommitMessage,
     required this.onCancelGenerateCommitMessage,
     required this.onFilterChanged,
     required this.onToggleFilter,
     required this.onRefresh,
+    required this.onClearSourceControlRoot,
     required this.onToggleCollapseAll,
     required this.onViewModeChanged,
     required this.onOpenAll,
@@ -31,12 +33,14 @@ class _SourceControlToolbar extends StatelessWidget {
   final bool generatingCommitMessage;
   final bool allCollapsed;
   final bool filterVisible;
+  final String? sourceControlRootLabel;
   final VoidCallback onMessageChanged;
   final VoidCallback onGenerateCommitMessage;
   final VoidCallback onCancelGenerateCommitMessage;
   final VoidCallback onFilterChanged;
   final VoidCallback onToggleFilter;
   final VoidCallback onRefresh;
+  final VoidCallback? onClearSourceControlRoot;
   final VoidCallback onToggleCollapseAll;
   final ValueChanged<GitDiffViewMode> onViewModeChanged;
   final VoidCallback onOpenAll;
@@ -70,10 +74,18 @@ class _SourceControlToolbar extends StatelessWidget {
             children: <Widget>[
               Expanded(
                 child: Text(
-                  'Source control',
+                  'Source Control',
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
               ),
+              if (onClearSourceControlRoot != null) ...<Widget>[
+                AleraIconButton(
+                  tooltip: 'Clear Source Control Root',
+                  icon: AleraIcons.close,
+                  onPressed: busy ? null : onClearSourceControlRoot,
+                ),
+                const SizedBox(width: AleraTokens.space2),
+              ],
               if (aiTextSettings.enabled ||
                   generatingCommitMessage) ...<Widget>[
                 _AiCommitMessageButton(
@@ -159,7 +171,7 @@ class _SourceControlToolbar extends StatelessWidget {
           if (data case final state?) ...<Widget>[
             const SizedBox(height: AleraTokens.space6),
             Text(
-              _repoSummary(state),
+              _repoSummary(state, sourceControlRootLabel),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -214,9 +226,12 @@ class _SourceControlToolbar extends StatelessWidget {
     return _SourceControlMenuAction.fetch;
   }
 
-  String _repoSummary(WorkspaceSourceControlState state) {
+  String _repoSummary(
+    WorkspaceSourceControlState state,
+    String? sourceControlRootLabel,
+  ) {
     final repo = state.repositoryState;
-    final parts = <String>[repo.branch];
+    final parts = <String>[?sourceControlRootLabel, repo.branch];
     if (repo.upstream case final upstream?) {
       parts.add(upstream);
     }

@@ -3,6 +3,7 @@ import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/features/workbench/domain/workspace_source_control_scope.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_explorer.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_git_diff_panel.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_search_panel.dart';
@@ -13,12 +14,16 @@ class WorkspaceContextSidebar extends StatelessWidget {
     super.key,
     required this.workspace,
     required this.prefs,
+    this.sourceControlScope,
     this.sourceControlAvailable = true,
+    this.focusedSourceControlRoot,
     required this.onToggleVisible,
     required this.onResize,
     required this.onSetContextPanelTab,
     required this.onSetExplorerMode,
     required this.onSetGitDiffViewMode,
+    this.onFocusSourceControlFolder,
+    this.onClearSourceControlRoot,
     required this.onOpenFile,
     required this.onOpenGitDiff,
     required this.onOpenSearchMatch,
@@ -27,12 +32,16 @@ class WorkspaceContextSidebar extends StatelessWidget {
 
   final Workspace workspace;
   final WorkbenchViewPrefs prefs;
+  final WorkspaceSourceControlScope? sourceControlScope;
   final bool sourceControlAvailable;
+  final String? focusedSourceControlRoot;
   final VoidCallback onToggleVisible;
   final ValueChanged<double> onResize;
   final ValueChanged<WorkbenchContextPanelTab> onSetContextPanelTab;
   final ValueChanged<WorkspaceExplorerMode> onSetExplorerMode;
   final ValueChanged<GitDiffViewMode> onSetGitDiffViewMode;
+  final Future<bool> Function(String relativePath)? onFocusSourceControlFolder;
+  final VoidCallback? onClearSourceControlRoot;
   final ValueChanged<String> onOpenFile;
   final OpenGitDiffTabCallback onOpenGitDiff;
   final ValueChanged<WorkspaceSearchMatchTarget> onOpenSearchMatch;
@@ -41,6 +50,7 @@ class WorkspaceContextSidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final sourceControlScope = _effectiveSourceControlScope;
     final activeTab = _effectiveActiveTab;
     return DecoratedBox(
       decoration: const BoxDecoration(
@@ -61,7 +71,7 @@ class WorkspaceContextSidebar extends StatelessWidget {
                     children: <Widget>[
                       _ContextTabHeader(
                         activeTab: activeTab,
-                        sourceControlAvailable: sourceControlAvailable,
+                        sourceControlAvailable: sourceControlScope != null,
                         onSetActiveTab: onSetContextPanelTab,
                         onToggleVisible: onToggleVisible,
                       ),
@@ -75,6 +85,10 @@ class WorkspaceContextSidebar extends StatelessWidget {
                             mode: prefs.explorerMode,
                             onModeChanged: onSetExplorerMode,
                             onOpenFile: onOpenFile,
+                            focusedSourceControlRoot: focusedSourceControlRoot,
+                            onFocusSourceControlFolder:
+                                onFocusSourceControlFolder,
+                            onClearSourceControlRoot: onClearSourceControlRoot,
                             onPathMoved: onPathMoved,
                           ),
                           WorkbenchContextPanelTab.search =>
@@ -85,9 +99,14 @@ class WorkspaceContextSidebar extends StatelessWidget {
                           WorkbenchContextPanelTab.gitDiff =>
                             WorkspaceGitDiffPanel(
                               workspace: workspace,
+                              sourceControlScope: sourceControlScope!,
                               viewMode: prefs.gitDiffViewMode,
                               onViewModeChanged: onSetGitDiffViewMode,
                               onOpenGitDiff: onOpenGitDiff,
+                              onClearSourceControlRoot:
+                                  sourceControlScope.isWorkspaceRoot
+                                  ? null
+                                  : onClearSourceControlRoot,
                             ),
                         },
                       ),
@@ -98,7 +117,7 @@ class WorkspaceContextSidebar extends StatelessWidget {
             )
           : _CollapsedContextRail(
               activeTab: activeTab,
-              sourceControlAvailable: sourceControlAvailable,
+              sourceControlAvailable: sourceControlScope != null,
               onOpenTab: (tab) {
                 onSetContextPanelTab(tab);
                 onToggleVisible();
@@ -109,11 +128,25 @@ class WorkspaceContextSidebar extends StatelessWidget {
   }
 
   WorkbenchContextPanelTab get _effectiveActiveTab {
-    if (!sourceControlAvailable &&
+    if (_effectiveSourceControlScope == null &&
         prefs.activeContextPanelTab == WorkbenchContextPanelTab.gitDiff) {
       return WorkbenchContextPanelTab.explorer;
     }
     return prefs.activeContextPanelTab;
+  }
+
+  WorkspaceSourceControlScope? get _effectiveSourceControlScope {
+    if (sourceControlScope != null) {
+      return sourceControlScope;
+    }
+    if (!sourceControlAvailable) {
+      return null;
+    }
+    return WorkspaceSourceControlScope(
+      workspaceId: workspace.id,
+      workspacePath: workspace.path,
+      path: workspace.path,
+    );
   }
 }
 

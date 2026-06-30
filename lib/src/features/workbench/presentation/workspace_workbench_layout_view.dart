@@ -3,6 +3,7 @@ part of 'workspace_workbench_view.dart';
 class _WorkbenchLayoutView extends StatelessWidget {
   const _WorkbenchLayoutView({
     required this.workspace,
+    required this.sourceControlScope,
     required this.tabs,
     required this.layout,
     required this.node,
@@ -26,6 +27,7 @@ class _WorkbenchLayoutView extends StatelessWidget {
   });
 
   final Workspace workspace;
+  final WorkspaceSourceControlScope? sourceControlScope;
   final List<WorkspaceTabRecord> tabs;
   final WorkbenchLayout layout;
   final WorkbenchLayoutNode node;
@@ -53,6 +55,7 @@ class _WorkbenchLayoutView extends StatelessWidget {
     if (groupId != null) {
       return _WorkbenchPane(
         workspace: workspace,
+        sourceControlScope: sourceControlScope,
         tabs: tabs,
         layout: layout,
         groupId: groupId,
@@ -75,6 +78,7 @@ class _WorkbenchLayoutView extends StatelessWidget {
     }
     return _WorkbenchSplitView(
       workspace: workspace,
+      sourceControlScope: sourceControlScope,
       tabs: tabs,
       layout: layout,
       node: node,
@@ -102,6 +106,7 @@ class _WorkbenchLayoutView extends StatelessWidget {
 class _WorkbenchSplitView extends StatelessWidget {
   const _WorkbenchSplitView({
     required this.workspace,
+    required this.sourceControlScope,
     required this.tabs,
     required this.layout,
     required this.node,
@@ -125,6 +130,7 @@ class _WorkbenchSplitView extends StatelessWidget {
   });
 
   final Workspace workspace;
+  final WorkspaceSourceControlScope? sourceControlScope;
   final List<WorkspaceTabRecord> tabs;
   final WorkbenchLayout layout;
   final WorkbenchLayoutNode node;
@@ -151,6 +157,7 @@ class _WorkbenchSplitView extends StatelessWidget {
     final axis = node.axis!;
     final first = _WorkbenchLayoutView(
       workspace: workspace,
+      sourceControlScope: sourceControlScope,
       tabs: tabs,
       layout: layout,
       node: node.first!,
@@ -174,6 +181,7 @@ class _WorkbenchSplitView extends StatelessWidget {
     );
     final second = _WorkbenchLayoutView(
       workspace: workspace,
+      sourceControlScope: sourceControlScope,
       tabs: tabs,
       layout: layout,
       node: node.second!,

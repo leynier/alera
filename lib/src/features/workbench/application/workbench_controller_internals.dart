@@ -42,11 +42,21 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
     }
   }
 
-  WorkbenchContextPanelTab _supportedContextPanelTabForProject(
-    Project? project,
-    WorkbenchContextPanelTab tab,
-  ) {
-    if (project?.isFolder == true && tab == WorkbenchContextPanelTab.gitDiff) {
+  WorkbenchContextPanelTab _supportedContextPanelTabForProjectWorkspace({
+    required Project? project,
+    required Workspace? workspace,
+    required WorkbenchViewPrefs prefs,
+    required WorkbenchContextPanelTab tab,
+  }) {
+    if (workspace == null) {
+      return tab;
+    }
+    final sourceControlScope = WorkspaceSourceControlScope.resolve(
+      project: project,
+      workspace: workspace,
+      prefs: prefs,
+    );
+    if (sourceControlScope == null && tab == WorkbenchContextPanelTab.gitDiff) {
       return WorkbenchContextPanelTab.explorer;
     }
     return tab;
@@ -54,11 +64,14 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
 
   WorkbenchViewPrefs _viewPrefsForProjectContext({
     required Project? project,
+    required Workspace? workspace,
     required WorkbenchViewPrefs prefs,
   }) {
-    final activeContextPanelTab = _supportedContextPanelTabForProject(
-      project,
-      prefs.activeContextPanelTab,
+    final activeContextPanelTab = _supportedContextPanelTabForProjectWorkspace(
+      project: project,
+      workspace: workspace,
+      prefs: prefs,
+      tab: prefs.activeContextPanelTab,
     );
     if (activeContextPanelTab == prefs.activeContextPanelTab) {
       return prefs;
@@ -73,6 +86,23 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
     for (final project in projects) {
       if (project.id == projectId) {
         return project;
+      }
+    }
+    return null;
+  }
+
+  Workspace? _workspaceById(
+    Map<String, List<Workspace>> workspacesByProject,
+    String? workspaceId,
+  ) {
+    if (workspaceId == null) {
+      return null;
+    }
+    for (final workspaces in workspacesByProject.values) {
+      for (final workspace in workspaces) {
+        if (workspace.id == workspaceId) {
+          return workspace;
+        }
       }
     }
     return null;
@@ -93,6 +123,7 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
         : prefs;
     final nextViewPrefs = _viewPrefsForProjectContext(
       project: project,
+      workspace: null,
       prefs: expandedPrefs,
     );
     final prefsChanged = !identical(nextViewPrefs, prefs);

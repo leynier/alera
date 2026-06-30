@@ -210,6 +210,84 @@ void main() {
     expect(controller.openedRelativePaths, <String>['lib/new.dart']);
   });
 
+  testWidgets('diff surface scopes nested git roots and opens workspace path', (
+    tester,
+  ) async {
+    final backend = FakeGitBackend()
+      ..gitDiffResult = const GitDiffResult(
+        files: <GitDiffFile>[
+          GitDiffFile(
+            path: 'lib/main.dart',
+            area: GitChangeArea.unstaged,
+            status: GitChangeStatus.modified,
+            lines: <GitDiffLine>[GitDiffLine.addition('+new')],
+          ),
+        ],
+      );
+    final controller = _GitDiffSurfaceTestController();
+
+    await _pumpDiffSurface(
+      tester,
+      backend: backend,
+      controller: controller,
+      tab: _diffTab(
+        filePath: 'packages/app/lib/main.dart',
+        title: 'main.dart unstaged',
+        area: GitChangeArea.unstaged,
+        gitDiffRoot: 'packages/app',
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      backend.calls.where((call) => call.method == 'diff').single.args,
+      <String, Object?>{
+        'path': '/tmp/project/packages/app',
+        'filePath': 'lib/main.dart',
+        'area': GitChangeArea.unstaged,
+      },
+    );
+
+    await tester.tap(find.byTooltip('Open file'));
+    await tester.pump();
+
+    expect(controller.openedRelativePaths, <String>[
+      'packages/app/lib/main.dart',
+    ]);
+  });
+
+  testWidgets('diff surface keeps scoped file-all outside root empty', (
+    tester,
+  ) async {
+    final backend = FakeGitBackend()
+      ..gitDiffAllResult = const GitDiffResult(
+        files: <GitDiffFile>[
+          GitDiffFile(
+            path: 'unrelated.dart',
+            area: GitChangeArea.unstaged,
+            status: GitChangeStatus.modified,
+            lines: <GitDiffLine>[GitDiffLine.addition('+unrelated')],
+          ),
+        ],
+      );
+
+    await _pumpDiffSurface(
+      tester,
+      backend: backend,
+      tab: _diffTab(
+        scope: WorkspaceGitDiffScope.fileAll,
+        filePath: 'docs/main.dart',
+        title: 'main.dart changes',
+        area: null,
+        gitDiffRoot: 'packages/app',
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('No diff available.'), findsOneWidget);
+    expect(backend.calls.where((call) => call.method == 'diffAll'), isEmpty);
+  });
+
   testWidgets('diff surface hides zero-valued header stats', (tester) async {
     final backend = FakeGitBackend()
       ..gitDiffResult = const GitDiffResult(
@@ -295,9 +373,11 @@ Workspace _workspace() {
 }
 
 WorkspaceTabRecord _diffTab({
+  WorkspaceGitDiffScope scope = WorkspaceGitDiffScope.file,
   String filePath = 'lib/large.dart',
   String title = 'large.dart unstaged',
-  GitChangeArea area = GitChangeArea.unstaged,
+  GitChangeArea? area = GitChangeArea.unstaged,
+  String? gitDiffRoot,
 }) {
   final now = DateTime.utc(2026, 6, 6);
   return WorkspaceTabRecord(
@@ -308,9 +388,15 @@ WorkspaceTabRecord _diffTab({
     createdAt: now,
     updatedAt: now,
     payload: <String, Object?>{
-      workspaceTabGitDiffScopePayloadKey: 'file',
+      workspaceTabGitDiffScopePayloadKey: scope.key,
       workspaceTabFilePathPayloadKey: filePath,
-      workspaceTabGitDiffAreaPayloadKey: area.key,
+      if (area != null) workspaceTabGitDiffAreaPayloadKey: area.key,
+      ...switch (gitDiffRoot) {
+        null => const <String, Object?>{},
+        final root => <String, Object?>{
+          workspaceTabGitDiffRootPayloadKey: root,
+        },
+      },
     },
   );
 }

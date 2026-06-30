@@ -11,6 +11,7 @@ import 'package:alera/src/features/workbench/application/workspace_file_service.
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/features/workbench/domain/workspace_source_control_scope.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_context_sidebar.dart';
 import 'package:alera/src/features/workbench/presentation/project_workbench_sidebar.dart';
 import 'package:alera/src/features/workbench/presentation/welcome_dashboard.dart';
@@ -120,6 +121,12 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
     final project = state.activeProject;
     final workspace = state.activeWorkspace;
     final controller = ref.read(workbenchControllerProvider.notifier);
+    final canSelectSourceControlRoot = project?.isFolder == true;
+    final sourceControlScope = WorkspaceSourceControlScope.resolve(
+      project: project,
+      workspace: workspace,
+      prefs: state.viewPrefs,
+    );
 
     return Scaffold(
       body: KeyboardShortcutsScope(
@@ -140,19 +147,40 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                     state: state,
                     project: project,
                     workspace: workspace,
+                    sourceControlScope: sourceControlScope,
                   ),
                 ),
                 if (workspace != null && showContextSidebar)
                   WorkspaceContextSidebar(
                     workspace: workspace,
                     prefs: state.viewPrefs,
-                    sourceControlAvailable:
-                        state.activeProject?.isGitRepository ?? false,
+                    sourceControlScope: sourceControlScope,
+                    sourceControlAvailable: sourceControlScope != null,
+                    focusedSourceControlRoot: canSelectSourceControlRoot
+                        ? state
+                              .viewPrefs
+                              .sourceControlRootByWorkspaceId[workspace.id]
+                        : null,
                     onToggleVisible: controller.toggleRightSidebarVisible,
                     onResize: controller.setRightSidebarWidth,
                     onSetContextPanelTab: controller.setContextPanelTab,
                     onSetExplorerMode: controller.setExplorerMode,
                     onSetGitDiffViewMode: controller.setGitDiffViewMode,
+                    onFocusSourceControlFolder: canSelectSourceControlRoot
+                        ? (relativePath) {
+                            return controller.focusSourceControlFolder(
+                              workspace: workspace,
+                              relativePath: relativePath,
+                            );
+                          }
+                        : null,
+                    onClearSourceControlRoot: canSelectSourceControlRoot
+                        ? () {
+                            controller.clearFocusedSourceControlFolder(
+                              workspace: workspace,
+                            );
+                          }
+                        : null,
                     onOpenFile: (relativePath) {
                       unawaited(
                         controller.openFileTab(
@@ -161,14 +189,16 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                         ),
                       );
                     },
-                    onOpenGitDiff: ({relativePath, area, required scope}) {
-                      return controller.openGitDiffTab(
-                        workspace: workspace,
-                        relativePath: relativePath,
-                        area: area,
-                        scope: scope,
-                      );
-                    },
+                    onOpenGitDiff:
+                        ({relativePath, area, gitDiffRoot, required scope}) {
+                          return controller.openGitDiffTab(
+                            workspace: workspace,
+                            relativePath: relativePath,
+                            area: area,
+                            scope: scope,
+                            gitDiffRoot: gitDiffRoot,
+                          );
+                        },
                     onOpenSearchMatch: (target) {
                       unawaited(() async {
                         final tab = await controller.openEditorTab(
@@ -200,6 +230,11 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                             oldRelativePath: oldRelativePath,
                             newRelativePath: newRelativePath,
                           );
+                      controller.syncSourceControlRootAfterPathMove(
+                        workspace: workspace,
+                        oldRelativePath: oldRelativePath,
+                        newRelativePath: newRelativePath,
+                      );
                     },
                   ),
               ],
@@ -214,6 +249,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
     required WorkbenchState state,
     required Project? project,
     required Workspace? workspace,
+    required WorkspaceSourceControlScope? sourceControlScope,
   }) {
     if (!state.bootstrapped && state.projects.isEmpty) {
       return const Center(child: CircularProgressIndicator());
@@ -228,6 +264,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
     return WorkspaceWorkbenchView(
       project: project,
       workspace: workspace,
+      sourceControlScope: sourceControlScope,
       tabs: tabs,
       layout: state.layoutFor(workspace.id),
       terminalRuntime: terminalRuntime,

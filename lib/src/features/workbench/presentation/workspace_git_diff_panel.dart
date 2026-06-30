@@ -16,6 +16,7 @@ import 'package:alera/src/features/settings/application/settings_controller.dart
 import 'package:alera/src/features/workbench/application/workspace_source_control_controller.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/features/workbench/domain/workspace_source_control_scope.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_exception.dart';
@@ -32,6 +33,7 @@ typedef OpenGitDiffTabCallback =
     Future<void> Function({
       String? relativePath,
       GitChangeArea? area,
+      String? gitDiffRoot,
       required WorkspaceGitDiffScope scope,
     });
 
@@ -39,15 +41,19 @@ class WorkspaceGitDiffPanel extends ConsumerStatefulWidget {
   const WorkspaceGitDiffPanel({
     super.key,
     required this.workspace,
+    required this.sourceControlScope,
     required this.viewMode,
     required this.onViewModeChanged,
     required this.onOpenGitDiff,
+    this.onClearSourceControlRoot,
   });
 
   final Workspace workspace;
+  final WorkspaceSourceControlScope sourceControlScope;
   final GitDiffViewMode viewMode;
   final ValueChanged<GitDiffViewMode> onViewModeChanged;
   final OpenGitDiffTabCallback onOpenGitDiff;
+  final VoidCallback? onClearSourceControlRoot;
 
   @override
   ConsumerState<WorkspaceGitDiffPanel> createState() =>
@@ -73,9 +79,9 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
   @override
   void didUpdateWidget(covariant WorkspaceGitDiffPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.workspace.path != widget.workspace.path) {
+    if (oldWidget.sourceControlScope.path != widget.sourceControlScope.path) {
       _aiTextGenerationService.cancel(
-        oldWidget.workspace.path,
+        oldWidget.sourceControlScope.path,
         AiTextGenerationOperation.commitMessage,
       );
       _commitMessageGenerationId += 1;
@@ -91,7 +97,7 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
   @override
   void dispose() {
     _aiTextGenerationService.cancel(
-      widget.workspace.path,
+      widget.sourceControlScope.path,
       AiTextGenerationOperation.commitMessage,
     );
     _commitMessageGenerationId += 1;
@@ -103,7 +109,7 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(
-      workspaceSourceControlControllerProvider(widget.workspace.path),
+      workspaceSourceControlControllerProvider(widget.sourceControlScope.path),
     );
     final aiTextSettings = ref.watch(
       settingsControllerProvider.select(
@@ -122,17 +128,23 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
           generatingCommitMessage: _generatingCommitMessage,
           allCollapsed: _allVisibleNodesCollapsed(state.asData?.value),
           filterVisible: _isFilterVisible,
+          sourceControlRootLabel: widget.sourceControlScope.relativeRoot,
           onMessageChanged: () => setState(() {}),
           onGenerateCommitMessage: () => unawaited(_generateCommitMessage()),
           onCancelGenerateCommitMessage: _cancelGenerateCommitMessage,
           onFilterChanged: () => setState(() {}),
           onToggleFilter: _toggleFilterVisibility,
           onRefresh: () => unawaited(_refresh()),
+          onClearSourceControlRoot: widget.onClearSourceControlRoot,
           onToggleCollapseAll: () =>
               _toggleAllVisibleNodes(state.asData?.value),
           onViewModeChanged: widget.onViewModeChanged,
-          onOpenAll: () =>
-              unawaited(widget.onOpenGitDiff(scope: WorkspaceGitDiffScope.all)),
+          onOpenAll: () => unawaited(
+            widget.onOpenGitDiff(
+              scope: WorkspaceGitDiffScope.all,
+              gitDiffRoot: widget.sourceControlScope.relativeRoot,
+            ),
+          ),
           onPrimaryAction: (action) => unawaited(_runToolbarAction(action)),
           onSelectMenuAction: (action) => unawaited(_handleMenuAction(action)),
         ),
@@ -159,7 +171,7 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
                 collapsedTreeNodes: _collapsedTreeNodes,
                 onToggleSection: _toggleSectionCollapsed,
                 onToggleTreeNode: _toggleTreeNodeCollapsed,
-                onOpenGitDiff: widget.onOpenGitDiff,
+                onOpenGitDiff: _openGitDiff,
                 onStage: _stageEntry,
                 onUnstage: _unstageEntry,
                 onDiscard: _discardEntry,
@@ -352,7 +364,11 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
 
   Future<void> _generateCommitMessage() async {
     final state = ref
-        .read(workspaceSourceControlControllerProvider(widget.workspace.path))
+        .read(
+          workspaceSourceControlControllerProvider(
+            widget.sourceControlScope.path,
+          ),
+        )
         .asData
         ?.value;
     final settings = ref.read(settingsControllerProvider).aiTextGeneration;
@@ -364,7 +380,7 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
         state.isBusy) {
       return;
     }
-    final requestWorkspacePath = widget.workspace.path;
+    final requestWorkspacePath = widget.sourceControlScope.path;
     final generationId = _commitMessageGenerationId + 1;
     final initialText = _messageController.text;
     setState(() {
@@ -437,20 +453,24 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
     required int generationId,
   }) {
     return mounted &&
-        widget.workspace.path == workspacePath &&
+        widget.sourceControlScope.path == workspacePath &&
         _commitMessageGenerationId == generationId;
   }
 
   void _cancelGenerateCommitMessage() {
     _aiTextGenerationService.cancel(
-      widget.workspace.path,
+      widget.sourceControlScope.path,
       AiTextGenerationOperation.commitMessage,
     );
   }
 
   Future<void> _amendAction() async {
     final state = ref
-        .read(workspaceSourceControlControllerProvider(widget.workspace.path))
+        .read(
+          workspaceSourceControlControllerProvider(
+            widget.sourceControlScope.path,
+          ),
+        )
         .asData
         ?.value;
     final initialMessage = state?.repositoryState.headMessage;
@@ -616,7 +636,11 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
 
   Future<GitStashEntry?> _pickStash() {
     final current = ref
-        .read(workspaceSourceControlControllerProvider(widget.workspace.path))
+        .read(
+          workspaceSourceControlControllerProvider(
+            widget.sourceControlScope.path,
+          ),
+        )
         .asData
         ?.value;
     final stashes = current?.stashes ?? const <GitStashEntry>[];
@@ -631,8 +655,30 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
   }
 
   WorkspaceSourceControlController get _notifier => ref.read(
-    workspaceSourceControlControllerProvider(widget.workspace.path).notifier,
+    workspaceSourceControlControllerProvider(
+      widget.sourceControlScope.path,
+    ).notifier,
   );
+
+  Future<void> _openGitDiff({
+    String? relativePath,
+    GitChangeArea? area,
+    String? gitDiffRoot,
+    required WorkspaceGitDiffScope scope,
+  }) {
+    assert(
+      gitDiffRoot == null ||
+          gitDiffRoot == widget.sourceControlScope.relativeRoot,
+    );
+    return widget.onOpenGitDiff(
+      relativePath: widget.sourceControlScope.toWorkspaceRelativePath(
+        relativePath,
+      ),
+      area: area,
+      gitDiffRoot: widget.sourceControlScope.relativeRoot,
+      scope: scope,
+    );
+  }
 
   String _messageFor(Object? error) {
     if (error is NotARepositoryException) {
