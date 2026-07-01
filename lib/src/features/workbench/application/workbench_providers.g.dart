@@ -250,6 +250,103 @@ final class WorkspaceSearchServiceProvider
 String _$workspaceSearchServiceHash() =>
     r'd4b42d3d093dad896f72742e1ba91f7a5e556d67';
 
+@ProviderFor(managedWorkspaceRuntime)
+final managedWorkspaceRuntimeProvider = ManagedWorkspaceRuntimeProvider._();
+
+final class ManagedWorkspaceRuntimeProvider
+    extends
+        $FunctionalProvider<
+          ManagedWorkspaceRuntime?,
+          ManagedWorkspaceRuntime?,
+          ManagedWorkspaceRuntime?
+        >
+    with $Provider<ManagedWorkspaceRuntime?> {
+  ManagedWorkspaceRuntimeProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'managedWorkspaceRuntimeProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$managedWorkspaceRuntimeHash();
+
+  @$internal
+  @override
+  $ProviderElement<ManagedWorkspaceRuntime?> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  ManagedWorkspaceRuntime? create(Ref ref) {
+    return managedWorkspaceRuntime(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(ManagedWorkspaceRuntime? value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<ManagedWorkspaceRuntime?>(value),
+    );
+  }
+}
+
+String _$managedWorkspaceRuntimeHash() =>
+    r'4d245f24f6381f94006b0779a2b6e9fbc83328a6';
+
+@ProviderFor(aleraCliTerminalShimService)
+final aleraCliTerminalShimServiceProvider =
+    AleraCliTerminalShimServiceProvider._();
+
+final class AleraCliTerminalShimServiceProvider
+    extends
+        $FunctionalProvider<
+          AleraCliTerminalShimService,
+          AleraCliTerminalShimService,
+          AleraCliTerminalShimService
+        >
+    with $Provider<AleraCliTerminalShimService> {
+  AleraCliTerminalShimServiceProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'aleraCliTerminalShimServiceProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$aleraCliTerminalShimServiceHash();
+
+  @$internal
+  @override
+  $ProviderElement<AleraCliTerminalShimService> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  AleraCliTerminalShimService create(Ref ref) {
+    return aleraCliTerminalShimService(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(AleraCliTerminalShimService value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<AleraCliTerminalShimService>(value),
+    );
+  }
+}
+
+String _$aleraCliTerminalShimServiceHash() =>
+    r'bb2421a929f9a17cda647871bd985645c8920ec8';
+
 @ProviderFor(worktreeSetupRunner)
 final worktreeSetupRunnerProvider = WorktreeSetupRunnerProvider._();
 
@@ -390,7 +487,7 @@ final class WorkspaceServiceProvider
   }
 }
 
-String _$workspaceServiceHash() => r'f4f86832bcae482b01ea00e9a0171d2978eb1403';
+String _$workspaceServiceHash() => r'dc769896af802de3483e877bfe9a1cbf232cfdf7';
 
 @ProviderFor(terminalHostClient)
 final terminalHostClientProvider = TerminalHostClientProvider._();
@@ -523,7 +620,7 @@ final class TerminalRuntimeProvider
   }
 }
 
-String _$terminalRuntimeHash() => r'1f66acb9a085095d6e90bf5deb17842d335cac4e';
+String _$terminalRuntimeHash() => r'71a3cd9d4073e46f6fa89b4f6476a0236768fac2';
 
 @ProviderFor(terminalShellStartupPreparer)
 final terminalShellStartupPreparerProvider =

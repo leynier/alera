@@ -4,7 +4,7 @@ Alera can run project-specific setup after it creates a linked workspace. The se
 
 ## Precedence
 
-Per-project settings saved in **Settings > Projects** are the source of truth when present. Selecting **Use Repo File** removes that UI override and makes Alera fall back to the repository file.
+Per-project settings saved in **Settings > Projects** are stored in the runtime profile and are the source of truth when present. Selecting **Use Repo File** removes that runtime override and makes Alera fall back to the repository file.
 
 When no UI override exists, Alera reads `alera.toml` from the project root. Missing files mean no setup actions.
 
@@ -28,4 +28,4 @@ setup = [
 
 Paths are repo-relative literal paths. Absolute paths and `..` escapes are rejected. Globs and custom command environments are not part of v1.
 
-If a copy or setup action fails after the Git worktree is created, Alera keeps and opens the workspace, then surfaces a setup warning so the user can fix the workspace in place.
+If a copy or setup action fails after the Git worktree is created, Alera keeps and opens the workspace, then surfaces a setup warning so the user can fix the workspace in place. The UI and `alera workspace add` both execute this setup through the runtime host.

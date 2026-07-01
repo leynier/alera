@@ -230,7 +230,7 @@ final class ProjectConfigRepositoryProvider
 }
 
 String _$projectConfigRepositoryHash() =>
-    r'8bb06d1831e52fe64496165f00724890d338267b';
+    r'482eaa38d3736a9e96fa7708141e943b2e5576f9';
 
 @ProviderFor(projectConfigFileStore)
 final projectConfigFileStoreProvider = ProjectConfigFileStoreProvider._();

@@ -5,15 +5,14 @@ import 'package:alera/src/features/projects/application/project_config_service.d
 import 'package:alera/src/features/projects/application/projects_service.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/domain/project_config.dart';
-import 'package:alera/src/features/projects/infra/drift_project_config_repository.dart';
 import 'package:alera/src/features/projects/infra/project_config_toml_file_store.dart';
+import 'package:alera/src/features/projects/infra/runtime_project_config_repository.dart';
 import 'package:alera/src/features/projects/infra/runtime_project_repository.dart';
 import 'package:alera/src/features/workbench/application/workspace_folder_opener.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:alera/src/shared/infra/process/process_providers.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_state_migration.dart';
-import 'package:alera/src/shared/infra/storage/storage_providers.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'project_providers.g.dart';
@@ -43,9 +42,10 @@ Stream<List<Project>> projectList(Ref ref) {
 
 @Riverpod(keepAlive: true)
 ProjectConfigRepository projectConfigRepository(Ref ref) {
-  final dbAsync = ref.watch(aleraDatabaseProvider);
-  final db = dbAsync.requireValue;
-  return DriftProjectConfigRepository(db);
+  return RuntimeProjectConfigRepository(
+    ref.watch(runtimeHostClientProvider),
+    beforeAccess: ref.watch(runtimeStateMigrationProvider).ensureMigrated,
+  );
 }
 
 @Riverpod(keepAlive: true)

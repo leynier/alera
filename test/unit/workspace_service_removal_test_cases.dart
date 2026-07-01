@@ -102,6 +102,35 @@ void _registerWorkspaceServiceRemovalTests() {
     );
   });
 
+  test(
+    'removeWorkspace preserves reused branches when delegated to runtime',
+    () async {
+      gitBackend.sourceBranches = <String>['main', 'feature/runtime-reused'];
+      final linkedWorkspace = (await service.createLinkedWorkspace(
+        project: project,
+        sourceBranch: 'feature/runtime-reused',
+        newBranchName: 'feature/runtime-reused',
+        reuseExistingBranch: true,
+      )).workspace;
+      final managedRuntime = _FakeManagedWorkspaceRuntime();
+      final managedService = WorkspaceService(
+        repository: repository,
+        projectService: ProjectService(gitBackend),
+        gitBackend: gitBackend,
+        managedRuntime: managedRuntime,
+      );
+
+      await managedService.removeWorkspace(
+        project: project,
+        workspace: linkedWorkspace,
+        deleteBranch: true,
+      );
+
+      expect(managedRuntime.removedWorkspace, linkedWorkspace);
+      expect(managedRuntime.deleteBranch, isFalse);
+    },
+  );
+
   test('removeWorkspace surfaces git worktree removal failures', () async {
     gitBackend.sourceBranches = <String>['main'];
     final linkedWorkspace = (await service.createLinkedWorkspace(

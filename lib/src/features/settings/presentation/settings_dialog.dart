@@ -29,6 +29,7 @@ import 'package:alera/src/features/keyboard/presentation/keyboard_settings_pane.
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/domain/editor_syntax_theme_catalog.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
+import 'package:alera/src/features/settings/infra/alera_cli_skill_service.dart';
 import 'package:alera/src/features/settings/infra/system_font_service.dart';
 import 'package:alera/src/features/updater/presentation/update_settings_section.dart';
 import 'package:file_selector/file_selector.dart';
@@ -284,6 +285,11 @@ const List<_SettingsSearchEntry> _generalSearchEntries = <_SettingsSearchEntry>[
     title: 'Confirm Workspace Removal',
     description: 'Ask before removing a workspace worktree.',
     keywords: <String>['safety', 'destructive', 'remove', 'delete'],
+  ),
+  _SettingsSearchEntry(
+    title: 'Alera CLI Skill',
+    description: 'Install agent instructions for the Alera CLI.',
+    keywords: <String>['codex', 'skill', 'cli', 'agent', 'workspace'],
   ),
   _SettingsSearchEntry(
     title: 'Codex Hooks',

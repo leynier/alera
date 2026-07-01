@@ -78,6 +78,7 @@ class _WorkbenchHarness {
         projectsServiceProvider.overrideWithValue(projectsService),
         workspaceTabServiceProvider.overrideWithValue(workspaceTabService),
         worktreeSetupRunnerProvider.overrideWithValue(worktreeSetupRunner),
+        managedWorkspaceRuntimeProvider.overrideWithValue(null),
         workbenchViewPrefsRepositoryProvider.overrideWithValue(
           viewPrefsRepository,
         ),

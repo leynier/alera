@@ -81,10 +81,12 @@ void _registerTerminalShellStartupPreparerAdvancedTests() {
         r'if ("ALERA_PI_CODING_AGENT_DIR" in $env) { $env.PI_CODING_AGENT_DIR = $env.ALERA_PI_CODING_AGENT_DIR }'
         '\n'
         r'if ("ALERA_COPILOT_HOME" in $env) { $env.COPILOT_HOME = $env.ALERA_COPILOT_HOME }'
-        '\n'
-        r'if ("ALERA_AGENT_WRAPPER_PATH" in $env) { let __alera_path_entries = if ("PATH" in $env) { $env.PATH } else { [] }; $env.PATH = ($__alera_path_entries | where $it != $env.ALERA_AGENT_WRAPPER_PATH | prepend $env.ALERA_AGENT_WRAPPER_PATH) }'
         '\n',
       ),
+    );
+    expect(
+      launch.setupCommand,
+      contains(r'let __alera_wrapper_dirs = ($env.ALERA_AGENT_WRAPPER_PATH'),
     );
     expect(launch.setupCommand, contains('print setup\n'));
   });
@@ -313,7 +315,9 @@ void _registerTerminalShellStartupPreparerAdvancedTests() {
       final contents = File(p.join(zdotdir, fileName)).readAsStringSync();
       expect(
         contents,
-        contains(r'path=("${ALERA_AGENT_WRAPPER_PATH}"'),
+        contains(
+          r'__alera_wrapper_path=("${(@ps.:.)ALERA_AGENT_WRAPPER_PATH}")',
+        ),
         reason: '$fileName must rebuild PATH with the wrapper dir first',
       );
       expect(
@@ -375,4 +379,53 @@ void _registerTerminalShellStartupPreparerAdvancedTests() {
     expect(result.exitCode, 0, reason: result.stderr.toString());
     expect((result.stdout as String).trim(), '/wrapper/bin');
   });
+
+  test(
+    'zsh startup splits merged wrapper dirs before restoring PATH',
+    () async {
+      final zshExecutable = <String>[
+        '/bin/zsh',
+        '/usr/bin/zsh',
+        '/usr/local/bin/zsh',
+        '/opt/homebrew/bin/zsh',
+      ].firstWhere((path) => File(path).existsSync(), orElse: () => '');
+      if (zshExecutable.isEmpty) {
+        markTestSkipped('zsh is not available on this platform');
+        return;
+      }
+
+      final userZdotdir = Directory(p.join(tempDir.path, 'user-zdotdir-multi'))
+        ..createSync(recursive: true);
+      File(
+        p.join(userZdotdir.path, '.zshenv'),
+      ).writeAsStringSync('export PATH="/decoy/bin:\$PATH"\n');
+
+      final prepared = await preparer.prepare(
+        _launch(
+          shell: zshExecutable,
+          environment: <String, String>{
+            'HOME': userZdotdir.path,
+            'ZDOTDIR': userZdotdir.path,
+            'ALERA_AGENT_WRAPPER_PATH': '/wrapper/one:/wrapper/two',
+          },
+        ),
+      );
+
+      final result = await Process.run(
+        zshExecutable,
+        const <String>['-c', r'print -rn -- ${path[1]}:${path[2]}'],
+        includeParentEnvironment: false,
+        environment: <String, String>{
+          'ZDOTDIR': prepared.environment!['ZDOTDIR']!,
+          'ALERA_ORIG_ZDOTDIR': prepared.environment!['ALERA_ORIG_ZDOTDIR']!,
+          'ALERA_AGENT_WRAPPER_PATH': '/wrapper/one:/wrapper/two',
+          'HOME': userZdotdir.path,
+          'PATH': '/usr/bin:/wrapper/two:/bin:/wrapper/one',
+        },
+      );
+
+      expect(result.exitCode, 0, reason: result.stderr.toString());
+      expect((result.stdout as String).trim(), '/wrapper/one:/wrapper/two');
+    },
+  );
 }

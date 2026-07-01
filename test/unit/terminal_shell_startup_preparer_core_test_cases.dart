@@ -318,7 +318,7 @@ void _registerTerminalShellStartupPreparerCoreTests() {
       'if set -q ALERA_OPENCODE_CONFIG_DIR; set -gx OPENCODE_CONFIG_DIR \$ALERA_OPENCODE_CONFIG_DIR; end\n'
       'if set -q ALERA_PI_CODING_AGENT_DIR; set -gx PI_CODING_AGENT_DIR \$ALERA_PI_CODING_AGENT_DIR; end\n'
       'if set -q ALERA_COPILOT_HOME; set -gx COPILOT_HOME \$ALERA_COPILOT_HOME; end\n'
-      'if set -q ALERA_AGENT_WRAPPER_PATH; set -gx PATH \$ALERA_AGENT_WRAPPER_PATH (string match --invert -- \$ALERA_AGENT_WRAPPER_PATH \$PATH); end',
+      'if set -q ALERA_AGENT_WRAPPER_PATH; set -l __alera_wrappers (string split : -- \$ALERA_AGENT_WRAPPER_PATH); for __alera_wrapper in \$__alera_wrappers; set PATH (string match --invert -- \$__alera_wrapper \$PATH); end; set -gx PATH \$__alera_wrappers \$PATH; end',
     );
     expect(launch.setupCommand, isNull);
   });
@@ -345,7 +345,7 @@ void _registerTerminalShellStartupPreparerCoreTests() {
         'if set -q ALERA_OPENCODE_CONFIG_DIR; set -gx OPENCODE_CONFIG_DIR \$ALERA_OPENCODE_CONFIG_DIR; end\n'
         'if set -q ALERA_PI_CODING_AGENT_DIR; set -gx PI_CODING_AGENT_DIR \$ALERA_PI_CODING_AGENT_DIR; end\n'
         'if set -q ALERA_COPILOT_HOME; set -gx COPILOT_HOME \$ALERA_COPILOT_HOME; end\n'
-        'if set -q ALERA_AGENT_WRAPPER_PATH; set -gx PATH \$ALERA_AGENT_WRAPPER_PATH (string match --invert -- \$ALERA_AGENT_WRAPPER_PATH \$PATH); end\n',
+        'if set -q ALERA_AGENT_WRAPPER_PATH; set -l __alera_wrappers (string split : -- \$ALERA_AGENT_WRAPPER_PATH); for __alera_wrapper in \$__alera_wrappers; set PATH (string match --invert -- \$__alera_wrapper \$PATH); end; set -gx PATH \$__alera_wrappers \$PATH; end\n',
       ),
     );
     expect(launch.setupCommand, contains('printf setup\n'));

@@ -52,7 +52,7 @@ const String _fishRestoreManagedAgentEnvironment =
     'if set -q ALERA_OPENCODE_CONFIG_DIR; set -gx OPENCODE_CONFIG_DIR \$ALERA_OPENCODE_CONFIG_DIR; end\n'
     'if set -q ALERA_PI_CODING_AGENT_DIR; set -gx PI_CODING_AGENT_DIR \$ALERA_PI_CODING_AGENT_DIR; end\n'
     'if set -q ALERA_COPILOT_HOME; set -gx COPILOT_HOME \$ALERA_COPILOT_HOME; end\n'
-    'if set -q ALERA_AGENT_WRAPPER_PATH; set -gx PATH \$ALERA_AGENT_WRAPPER_PATH (string match --invert -- \$ALERA_AGENT_WRAPPER_PATH \$PATH); end\n';
+    'if set -q ALERA_AGENT_WRAPPER_PATH; set -l __alera_wrappers (string split : -- \$ALERA_AGENT_WRAPPER_PATH); for __alera_wrapper in \$__alera_wrappers; set PATH (string match --invert -- \$__alera_wrapper \$PATH); end; set -gx PATH \$__alera_wrappers \$PATH; end\n';
 
 const String _cmdRestoreManagedAgentEnvironment =
     'if defined ALERA_CODEX_HOME set "CODEX_HOME=%ALERA_CODEX_HOME%"\n'
@@ -81,7 +81,7 @@ const String _nushellRestoreManagedAgentEnvironment =
     '\n'
     r'if ("ALERA_COPILOT_HOME" in $env) { $env.COPILOT_HOME = $env.ALERA_COPILOT_HOME }'
     '\n'
-    r'if ("ALERA_AGENT_WRAPPER_PATH" in $env) { let __alera_path_entries = if ("PATH" in $env) { $env.PATH } else { [] }; $env.PATH = ($__alera_path_entries | where $it != $env.ALERA_AGENT_WRAPPER_PATH | prepend $env.ALERA_AGENT_WRAPPER_PATH) }'
+    r'if ("ALERA_AGENT_WRAPPER_PATH" in $env) { let __alera_wrapper_separator = if $nu.os-info.name == "windows" { ";" } else { ":" }; let __alera_wrapper_dirs = ($env.ALERA_AGENT_WRAPPER_PATH | split row $__alera_wrapper_separator | where $it != ""); let __alera_path_entries = if ("PATH" in $env) { $env.PATH } else { [] }; mut __alera_path = ($__alera_path_entries | where {|entry| $entry not-in $__alera_wrapper_dirs}); for __alera_wrapper in ($__alera_wrapper_dirs | reverse) { $__alera_path = ($__alera_path | prepend $__alera_wrapper) }; $env.PATH = $__alera_path }'
     '\n';
 
 const String _nushellConfigFile = r'''
@@ -106,8 +106,14 @@ if ("ALERA_COPILOT_HOME" in $env) {
   $env.COPILOT_HOME = $env.ALERA_COPILOT_HOME
 }
 if ("ALERA_AGENT_WRAPPER_PATH" in $env) {
+  let __alera_wrapper_separator = if $nu.os-info.name == "windows" { ";" } else { ":" }
+  let __alera_wrapper_dirs = ($env.ALERA_AGENT_WRAPPER_PATH | split row $__alera_wrapper_separator | where $it != "")
   let __alera_path_entries = if ("PATH" in $env) { $env.PATH } else { [] }
-  $env.PATH = ($__alera_path_entries | where $it != $env.ALERA_AGENT_WRAPPER_PATH | prepend $env.ALERA_AGENT_WRAPPER_PATH)
+  mut __alera_path = ($__alera_path_entries | where {|entry| $entry not-in $__alera_wrapper_dirs})
+  for __alera_wrapper in ($__alera_wrapper_dirs | reverse) {
+    $__alera_path = ($__alera_path | prepend $__alera_wrapper)
+  }
+  $env.PATH = $__alera_path
 }
 let __alera_restore_managed_agent_environment = { ||
   if ("ALERA_CODEX_HOME" in $env) {
@@ -126,8 +132,14 @@ let __alera_restore_managed_agent_environment = { ||
     $env.COPILOT_HOME = $env.ALERA_COPILOT_HOME
   }
   if ("ALERA_AGENT_WRAPPER_PATH" in $env) {
+    let __alera_wrapper_separator = if $nu.os-info.name == "windows" { ";" } else { ":" }
+    let __alera_wrapper_dirs = ($env.ALERA_AGENT_WRAPPER_PATH | split row $__alera_wrapper_separator | where $it != "")
     let __alera_path_entries = if ("PATH" in $env) { $env.PATH } else { [] }
-    $env.PATH = ($__alera_path_entries | where $it != $env.ALERA_AGENT_WRAPPER_PATH | prepend $env.ALERA_AGENT_WRAPPER_PATH)
+    mut __alera_path = ($__alera_path_entries | where {|entry| $entry not-in $__alera_wrapper_dirs})
+    for __alera_wrapper in ($__alera_wrapper_dirs | reverse) {
+      $__alera_path = ($__alera_path | prepend $__alera_wrapper)
+    }
+    $env.PATH = $__alera_path
   }
 }
 if not ("config" in $env) {

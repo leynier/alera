@@ -10,7 +10,7 @@ name = "alera"
 path = "src/main.rs"
 
 [dependencies]
-alera-core = { path = "../alera-core" }
+alera-core = { path = "../alera-core", features = ["runtime"] }
 clap = { version = "4", features = ["derive"] }
 tokio = { version = "1", features = [
     "rt-multi-thread",
@@ -38,6 +38,7 @@ ed25519-dalek = "2"
 hex = "0.4"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 sha2 = "0.10"
+toml = "0.8"
 
 [dev-dependencies]
 tempfile = "3"

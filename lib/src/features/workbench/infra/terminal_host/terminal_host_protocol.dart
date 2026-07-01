@@ -8,6 +8,8 @@ const String aleraRuntimeHostCommand = 'runtime-host';
 const String aleraTerminalHostCommand = 'terminal-host';
 const String aleraRuntimeHostCapability = 'runtimeStore';
 const String aleraRuntimeHostBootstrapCapability = 'sshTargetBootstrap';
+const String aleraRuntimeHostManagedWorkspaceCapability =
+    'managedWorkspaceLifecycle';
 const int defaultTerminalHostEmptyShutdownDelaySeconds = 30;
 const int defaultTerminalHostDetachedSessionShutdownDelaySeconds = 60 * 60;
 const int defaultTerminalHostScrollbackBytes = 10 * 1000 * 1000;
@@ -149,5 +151,6 @@ abstract interface class RuntimeHostClient {
   Future<Object?> runtimeRequest(
     String type, [
     Map<String, Object?> payload = const <String, Object?>{},
+    Duration? timeout,
   ]);
 }

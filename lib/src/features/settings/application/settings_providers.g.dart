@@ -55,7 +55,7 @@ final class SettingsRepositoryProvider
 }
 
 String _$settingsRepositoryHash() =>
-    r'fae90c4b5ff04e33f2a5da6695d88f408eb27f4e';
+    r'e69353d548e46bc73b6b3262318688319fb68a23';
 
 @ProviderFor(gitHubStarService)
 final gitHubStarServiceProvider = GitHubStarServiceProvider._();
@@ -150,3 +150,51 @@ final class SystemFontServiceProvider
 }
 
 String _$systemFontServiceHash() => r'22d0a265717f0ccf54bc31a1084ed5fe0d578ea5';
+
+@ProviderFor(aleraCliSkillService)
+final aleraCliSkillServiceProvider = AleraCliSkillServiceProvider._();
+
+final class AleraCliSkillServiceProvider
+    extends
+        $FunctionalProvider<
+          AleraCliSkillService,
+          AleraCliSkillService,
+          AleraCliSkillService
+        >
+    with $Provider<AleraCliSkillService> {
+  AleraCliSkillServiceProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'aleraCliSkillServiceProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$aleraCliSkillServiceHash();
+
+  @$internal
+  @override
+  $ProviderElement<AleraCliSkillService> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  AleraCliSkillService create(Ref ref) {
+    return aleraCliSkillService(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(AleraCliSkillService value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<AleraCliSkillService>(value),
+    );
+  }
+}
+
+String _$aleraCliSkillServiceHash() =>
+    r'75a54aa6cbd49e5de17df1a1409aae2498c6e586';

@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -247,3 +248,102 @@ impl SshBootstrapStatus {
 pub struct CascadePreview {
     pub workspace_ids: Vec<String>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeSettings {
+    #[serde(default)]
+    pub workspace_directory: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectConfigRecord {
+    pub project_id: String,
+    pub config: ProjectConfig,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectConfig {
+    #[serde(default)]
+    pub worktree: WorktreeSetupConfig,
+}
+
+impl ProjectConfig {
+    pub fn is_empty(&self) -> bool {
+        self.worktree.copy.is_empty() && self.worktree.setup.is_empty()
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct WorktreeSetupConfig {
+    #[serde(default)]
+    pub copy: Vec<WorktreeCopyRule>,
+    #[serde(default)]
+    pub setup: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct WorktreeCopyRule {
+    pub from: String,
+    #[serde(default)]
+    pub to: Option<String>,
+    #[serde(default)]
+    pub overwrite: bool,
+}
+
+impl WorktreeCopyRule {
+    pub fn destination(&self) -> &str {
+        self.to.as_deref().unwrap_or(&self.from)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct WorktreeSetupReport {
+    #[serde(default)]
+    pub steps: Vec<WorktreeSetupStepReport>,
+}
+
+impl WorktreeSetupReport {
+    pub fn empty() -> Self {
+        Self { steps: Vec::new() }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct WorktreeSetupStepReport {
+    pub kind: WorktreeSetupStepKind,
+    pub label: String,
+    pub succeeded: bool,
+    #[serde(default)]
+    pub message: Option<String>,
+    #[serde(default)]
+    pub exit_code: Option<i64>,
+    #[serde(default)]
+    pub stdout_tail: Option<String>,
+    #[serde(default)]
+    pub stderr_tail: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum WorktreeSetupStepKind {
+    Copy,
+    Command,
+    Config,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceCreationResult {
+    pub workspace: Workspace,
+    pub setup_report: WorktreeSetupReport,
+}
+
+pub type ProjectConfigMap = BTreeMap<String, ProjectConfig>;

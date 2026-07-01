@@ -1,15 +1,21 @@
 import 'dart:async';
 
-import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/projects/application/project_config_repository.dart';
 import 'package:alera/src/features/projects/application/project_repository.dart';
+import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/projects/domain/project_config.dart';
+import 'package:alera/src/features/projects/infra/runtime_project_repository.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/remote_hosts/infra/runtime_ssh_target_repository.dart';
-import 'package:alera/src/features/projects/infra/runtime_project_repository.dart';
+import 'package:alera/src/features/settings/application/settings_repository.dart';
+import 'package:alera/src/features/settings/domain/alera_settings.dart';
+import 'package:alera/src/features/settings/infra/runtime_settings_repository.dart';
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/infra/runtime_workbench_repository.dart';
+import 'package:alera/src/features/workbench/infra/runtime_managed_workspace_client.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_state_migration.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -72,6 +78,61 @@ void main() {
     expect(workspaces.single.parentWorkspaceId, 'parent-1');
     expect(workspaces.single.childCount, 2);
   });
+
+  test(
+    'RuntimeSettingsRepository waits for migration before runtime reads',
+    () async {
+      final client = _FakeRuntimeHostClient();
+      final legacy = _MemorySettingsRepository()
+        ..settings = AleraSettings.defaults.copyWith(
+          general: const GeneralSettings(workspaceDirectory: '/legacy'),
+        );
+      final repository = RuntimeSettingsRepository(
+        client: client,
+        legacyRepository: legacy,
+        beforeAccess: () async {
+          client.responses['runtimeSettings.get'] = <String, Object?>{
+            'workspaceDirectory': '/migrated',
+          };
+        },
+      );
+
+      final settings = await repository.load();
+
+      expect(settings.general.workspaceDirectory, '/migrated');
+      expect(client.requests, <String>['runtimeSettings.get']);
+    },
+  );
+
+  test(
+    'RuntimeManagedWorkspaceClient uses long-running RPC timeouts',
+    () async {
+      final client = _FakeRuntimeHostClient();
+      final repository = RuntimeManagedWorkspaceClient(client);
+      client.responses['workspace.createManaged'] = <String, Object?>{
+        'workspace': _workspaceJson(id: 'workspace-1'),
+        'setupReport': <String, Object?>{'steps': <Object?>[]},
+      };
+
+      await repository.createLinkedWorkspace(
+        project: _project(id: 'project-1', name: 'Alera'),
+        sourceBranch: 'main',
+        newBranchName: 'feature/managed',
+        reuseExistingBranch: false,
+      );
+      await repository.removeWorkspace(
+        workspace: _workspace(id: 'workspace-1', projectId: 'project-1'),
+        deleteBranch: true,
+      );
+
+      expect(client.timeouts['workspace.createManaged'], <Duration?>[
+        const Duration(minutes: 30),
+      ]);
+      expect(client.timeouts['workspace.removeManaged'], <Duration?>[
+        const Duration(minutes: 10),
+      ]);
+    },
+  );
 
   test(
     'RuntimeSshTargetRepository parses targets and bootstrap progress',
@@ -171,6 +232,8 @@ void main() {
         legacyFactoryCalls += 1;
         return RuntimeStateLegacyRepositories(
           projectRepository: legacyProjects,
+          projectConfigRepository: _MemoryProjectConfigRepository(),
+          settingsRepository: _MemorySettingsRepository(),
           workbenchRepository: legacyWorkbench,
         );
       },
@@ -188,6 +251,9 @@ void main() {
     expect(runtimeWorkbench.layouts[workspace.id], isNotNull);
     expect(client.requests, <String>[
       'runtimeMetadata.get',
+      'runtimeMetadata.set',
+      'runtimeMetadata.get',
+      'runtimeSettings.update',
       'runtimeMetadata.set',
     ]);
   });
@@ -290,6 +356,7 @@ final class _FakeRuntimeHostClient implements RuntimeHostClient {
   final responseSequences = <String, List<Object?>>{};
   final requests = <String>[];
   final payloads = <String, List<Map<String, Object?>>>{};
+  final timeouts = <String, List<Duration?>>{};
   final _events = StreamController<RuntimeHostEvent>.broadcast();
 
   @override
@@ -299,9 +366,11 @@ final class _FakeRuntimeHostClient implements RuntimeHostClient {
   Future<Object?> runtimeRequest(
     String type, [
     Map<String, Object?> payload = const <String, Object?>{},
+    Duration? timeout,
   ]) async {
     requests.add(type);
     payloads.putIfAbsent(type, () => <Map<String, Object?>>[]).add(payload);
+    timeouts.putIfAbsent(type, () => <Duration?>[]).add(timeout);
     final sequence = responseSequences[type];
     if (sequence != null && sequence.isNotEmpty) {
       return sequence.removeAt(0);
@@ -336,6 +405,51 @@ final class _MemoryProjectRepository implements ProjectRepository {
   @override
   Future<void> remove(String projectId) async {
     projects.removeWhere((project) => project.id == projectId);
+  }
+}
+
+final class _MemoryProjectConfigRepository implements ProjectConfigRepository {
+  final configs = <String, ProjectConfig>{};
+
+  @override
+  Future<ProjectConfig?> findByProjectId(String projectId) async {
+    return configs[projectId];
+  }
+
+  @override
+  Future<Map<String, ProjectConfig>> loadAll() async {
+    return Map<String, ProjectConfig>.of(configs);
+  }
+
+  @override
+  Stream<Map<String, ProjectConfig>> watchAll() {
+    return Stream<Map<String, ProjectConfig>>.value(configs);
+  }
+
+  @override
+  Future<void> save({
+    required String projectId,
+    required ProjectConfig config,
+    required DateTime updatedAt,
+  }) async {
+    configs[projectId] = config;
+  }
+
+  @override
+  Future<void> remove(String projectId) async {
+    configs.remove(projectId);
+  }
+}
+
+final class _MemorySettingsRepository implements SettingsRepository {
+  AleraSettings settings = AleraSettings.defaults;
+
+  @override
+  Future<AleraSettings> load() async => settings;
+
+  @override
+  Future<void> save(AleraSettings settings) async {
+    this.settings = settings;
   }
 }
 

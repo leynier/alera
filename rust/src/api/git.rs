@@ -1,10 +1,10 @@
 use std::path::{Component, Path, PathBuf};
 
+use alera_core::git as core_git;
 use camino::Utf8Path;
 use git2::{
-    build::CheckoutBuilder, Branch, BranchType, DiffOptions, ErrorCode, Index, ObjectType, Oid,
-    Repository, RepositoryState, Signature, StashApplyOptions, StashSaveOptions,
-    WorktreeAddOptions, WorktreePruneOptions,
+    build::CheckoutBuilder, BranchType, DiffOptions, ErrorCode, Index, ObjectType, Oid, Repository,
+    RepositoryState, Signature, StashApplyOptions, StashSaveOptions,
 };
 
 #[path = "git_diff_impl.rs"]
@@ -185,6 +185,25 @@ impl GitError {
     }
 }
 
+impl From<core_git::GitError> for GitError {
+    fn from(error: core_git::GitError) -> Self {
+        let kind = match error.kind {
+            core_git::GitErrorKind::NotARepository => GitErrorKind::NotARepository,
+            core_git::GitErrorKind::AccessDenied => GitErrorKind::AccessDenied,
+            core_git::GitErrorKind::BranchNotFound => GitErrorKind::BranchNotFound,
+            core_git::GitErrorKind::BranchAlreadyExists => GitErrorKind::BranchAlreadyExists,
+            core_git::GitErrorKind::InvalidBranchName => GitErrorKind::InvalidBranchName,
+            core_git::GitErrorKind::WorktreeAlreadyExists => GitErrorKind::WorktreeAlreadyExists,
+            core_git::GitErrorKind::WorktreeNotFound => GitErrorKind::WorktreeNotFound,
+            core_git::GitErrorKind::GitCli => GitErrorKind::GitCli,
+            core_git::GitErrorKind::Conflict => GitErrorKind::Conflict,
+            core_git::GitErrorKind::RemoteNotFound => GitErrorKind::RemoteNotFound,
+            core_git::GitErrorKind::Internal => GitErrorKind::Internal,
+        };
+        GitError::new(kind, error.context)
+    }
+}
+
 fn open_repo(path: &str) -> Result<Repository, GitError> {
     // `discover` (rather than `open`) so operations work when `path` is a
     // subdirectory of the work tree, matching `is_git_repository` and the
@@ -224,58 +243,6 @@ fn unborn_branch_name(repo: &Repository) -> String {
     "HEAD".to_string()
 }
 
-fn worktree_admin_name(path: &str) -> String {
-    Path::new(path)
-        .file_name()
-        .map(|name| name.to_string_lossy().to_string())
-        .unwrap_or_else(|| path.to_string())
-}
-
-fn unique_worktree_admin_name(repo: &Repository, path: &str) -> String {
-    let base = worktree_admin_name(path);
-    let existing = existing_worktree_admin_names(repo);
-    if !existing.contains(&base) {
-        return base;
-    }
-    let mut suffix = 1u32;
-    loop {
-        let candidate = format!("{base}{suffix}");
-        if !existing.contains(&candidate) {
-            return candidate;
-        }
-        suffix += 1;
-    }
-}
-
-fn existing_worktree_admin_names(repo: &Repository) -> std::collections::HashSet<String> {
-    let mut names = std::collections::HashSet::new();
-    if let Ok(list) = repo.worktrees() {
-        for entry in list.iter() {
-            if let Ok(Some(name)) = entry {
-                names.insert(name.to_string());
-            }
-        }
-    }
-    names
-}
-
-fn canonical(path: &str) -> String {
-    let target = Path::new(path);
-    if let Ok(resolved) = std::fs::canonicalize(target) {
-        return resolved.to_string_lossy().trim_end_matches('/').to_string();
-    }
-    if let (Some(parent), Some(name)) = (target.parent(), target.file_name()) {
-        if let Ok(resolved_parent) = std::fs::canonicalize(parent) {
-            return resolved_parent
-                .join(name)
-                .to_string_lossy()
-                .trim_end_matches('/')
-                .to_string();
-        }
-    }
-    path.trim_end_matches('/').to_string()
-}
-
 pub fn is_git_repository(path: String) -> Result<bool, GitError> {
     match Repository::discover(&path) {
         Ok(repo) => Ok(repo.workdir().is_some()),
@@ -296,40 +263,19 @@ pub fn is_git_repository(path: String) -> Result<bool, GitError> {
 }
 
 pub fn list_branches(path: String) -> Result<Vec<String>, GitError> {
-    let repo = open_repo(&path)?;
-    let mut names: Vec<String> = Vec::new();
-    let branches = repo.branches(None).map_err(GitError::from_git2)?;
-    for entry in branches {
-        let (branch, _kind) = entry.map_err(GitError::from_git2)?;
-        if let Some(name) = branch.name().map_err(GitError::from_git2)? {
-            if name.ends_with("/HEAD") {
-                continue;
-            }
-            names.push(name.to_string());
-        }
-    }
-    names.sort();
-    names.dedup();
-    Ok(names)
+    core_git::list_branches(&path).map_err(Into::into)
 }
 
 pub fn current_branch(path: String) -> Result<String, GitError> {
-    let repo = open_repo(&path)?;
-    Ok(head_branch_name(&repo))
+    core_git::current_branch(&path).map_err(Into::into)
 }
 
 pub fn branch_exists(repo_path: String, branch: String) -> Result<bool, GitError> {
-    let repo = open_repo(&repo_path)?;
-    let exists = match repo.find_branch(&branch, BranchType::Local) {
-        Ok(_) => true,
-        Err(error) if error.code() == ErrorCode::NotFound => false,
-        Err(error) => return Err(GitError::from_git2(error)),
-    };
-    Ok(exists)
+    core_git::branch_exists(&repo_path, &branch).map_err(Into::into)
 }
 
 pub fn is_valid_branch_name(name: String) -> Result<bool, GitError> {
-    Branch::name_is_valid(&name).map_err(GitError::from_git2)
+    core_git::is_valid_branch_name(&name).map_err(Into::into)
 }
 
 pub fn git_status(path: String) -> Result<GitStatusResult, GitError> {
@@ -631,45 +577,7 @@ pub fn git_pull(path: String) -> Result<(), GitError> {
 }
 
 pub fn refresh_source_branch(repo_path: String, source_branch: String) -> Result<(), GitError> {
-    let repo = open_repo(&repo_path)?;
-
-    if let Some(remote_branch) = find_remote_tracking_branch_name(&repo, &source_branch)? {
-        let remote = configured_remote_for_tracking_branch(&repo, &remote_branch)?
-            .ok_or_else(|| GitError::new(GitErrorKind::RemoteNotFound, remote_branch.clone()))?;
-        return git_fetch_remote(&repo_path, &remote);
-    }
-
-    let branch = repo
-        .find_branch(&source_branch, BranchType::Local)
-        .map_err(|error| match error.code() {
-            ErrorCode::NotFound => {
-                GitError::new(GitErrorKind::BranchNotFound, source_branch.clone())
-            }
-            _ => GitError::from_git2(error),
-        })?;
-    let upstream_name = match branch.upstream() {
-        Ok(upstream) => upstream
-            .name()
-            .map_err(GitError::from_git2)?
-            .map(ToString::to_string),
-        Err(error) if error.code() == ErrorCode::NotFound => return Ok(()),
-        Err(error) => return Err(GitError::from_git2(error)),
-    };
-    let Some(upstream_name) = upstream_name else {
-        return Ok(());
-    };
-    let Some(remote) = configured_remote_for_tracking_branch(&repo, &upstream_name)? else {
-        return Ok(());
-    };
-    let checked_out_path = checkout_path_for_branch(&repo, &source_branch)?;
-    drop(branch);
-
-    if let Some(path) = checked_out_path {
-        return git_pull_ff_only(path);
-    }
-
-    git_fetch_remote(&repo_path, &remote)?;
-    fast_forward_local_branch(&repo_path, &source_branch, &upstream_name)
+    core_git::refresh_source_branch(&repo_path, &source_branch).map_err(Into::into)
 }
 
 pub fn git_push(path: String) -> Result<(), GitError> {
@@ -1182,187 +1090,6 @@ fn git_cli_in_path(path: &str, args: &[&str]) -> Result<(), GitError> {
         .map_err(|error| GitError::new(GitErrorKind::GitCli, error.to_string()))
 }
 
-fn git_fetch_remote(path: &str, remote: &str) -> Result<(), GitError> {
-    git_cli_in_path(path, &["fetch", "--prune", remote])
-}
-
-fn git_pull_ff_only(path: String) -> Result<(), GitError> {
-    git_cli_in_path(&path, &["pull", "--ff-only"])
-}
-
-fn find_remote_tracking_branch_name(
-    repo: &Repository,
-    source_branch: &str,
-) -> Result<Option<String>, GitError> {
-    let mut candidates = vec![source_branch];
-    if let Some(stripped) = source_branch.strip_prefix("refs/remotes/") {
-        candidates.push(stripped);
-    }
-
-    for candidate in candidates {
-        match repo.find_branch(candidate, BranchType::Remote) {
-            Ok(branch) => {
-                return Ok(branch
-                    .name()
-                    .map_err(GitError::from_git2)?
-                    .map(ToString::to_string));
-            }
-            Err(error) if error.code() == ErrorCode::NotFound => {}
-            Err(error) => return Err(GitError::from_git2(error)),
-        }
-    }
-
-    Ok(None)
-}
-
-fn configured_remote_for_tracking_branch(
-    repo: &Repository,
-    remote_branch: &str,
-) -> Result<Option<String>, GitError> {
-    let remotes = repo.remotes().map_err(GitError::from_git2)?;
-    for remote in remotes.iter() {
-        let Some(remote) = remote.map_err(GitError::from_git2)? else {
-            continue;
-        };
-        if let Some(remainder) = remote_branch.strip_prefix(remote) {
-            if remainder.starts_with('/') {
-                return Ok(Some(remote.to_string()));
-            }
-        }
-    }
-    Ok(None)
-}
-
-fn checkout_path_for_branch(
-    repo: &Repository,
-    branch_name: &str,
-) -> Result<Option<String>, GitError> {
-    if head_branch_name(repo) == branch_name {
-        if let Some(workdir) = repo.workdir() {
-            return Ok(Some(workdir.to_string_lossy().to_string()));
-        }
-    }
-
-    let names = repo.worktrees().map_err(GitError::from_git2)?;
-    for entry in names.iter() {
-        let Some(name) = entry.map_err(GitError::from_git2)? else {
-            continue;
-        };
-        let worktree = repo.find_worktree(name).map_err(GitError::from_git2)?;
-        let path = worktree.path();
-        let Ok(worktree_repo) = Repository::open(path) else {
-            continue;
-        };
-        if head_branch_name(&worktree_repo) == branch_name {
-            return Ok(Some(path.to_string_lossy().to_string()));
-        }
-    }
-
-    Ok(None)
-}
-
-fn fast_forward_local_branch(
-    repo_path: &str,
-    branch_name: &str,
-    upstream_name: &str,
-) -> Result<(), GitError> {
-    let repo = open_repo(repo_path)?;
-    let branch = repo
-        .find_branch(branch_name, BranchType::Local)
-        .map_err(|error| match error.code() {
-            ErrorCode::NotFound => GitError::new(GitErrorKind::BranchNotFound, branch_name),
-            _ => GitError::from_git2(error),
-        })?;
-    let upstream = repo
-        .find_branch(upstream_name, BranchType::Remote)
-        .map_err(|error| match error.code() {
-            ErrorCode::NotFound => GitError::new(GitErrorKind::BranchNotFound, upstream_name),
-            _ => GitError::from_git2(error),
-        })?;
-    let local_oid = branch
-        .get()
-        .target()
-        .ok_or_else(|| GitError::new(GitErrorKind::Internal, branch_name))?;
-    let upstream_oid = upstream
-        .get()
-        .target()
-        .ok_or_else(|| GitError::new(GitErrorKind::Internal, upstream_name))?;
-    if local_oid == upstream_oid {
-        return Ok(());
-    }
-
-    if repo
-        .graph_descendant_of(upstream_oid, local_oid)
-        .map_err(GitError::from_git2)?
-    {
-        let reference_name = branch
-            .get()
-            .name()
-            .map_err(GitError::from_git2)?
-            .to_string();
-        drop(upstream);
-        drop(branch);
-        let mut reference = repo
-            .find_reference(&reference_name)
-            .map_err(GitError::from_git2)?;
-        reference
-            .set_target(
-                upstream_oid,
-                "fast-forward source branch before worktree creation",
-            )
-            .map_err(GitError::from_git2)?;
-        return Ok(());
-    }
-
-    if repo
-        .graph_descendant_of(local_oid, upstream_oid)
-        .map_err(GitError::from_git2)?
-    {
-        return Ok(());
-    }
-
-    Err(GitError::new(
-        GitErrorKind::Conflict,
-        format!("source branch \"{branch_name}\" has diverged from \"{upstream_name}\""),
-    ))
-}
-
-fn remote_tracking_upstream_name(
-    repo: &Repository,
-    source_branch: &str,
-) -> Result<Option<String>, GitError> {
-    let mut candidates = vec![source_branch];
-    if let Some(stripped) = source_branch.strip_prefix("refs/remotes/") {
-        candidates.push(stripped);
-    }
-
-    for candidate in candidates {
-        match repo.find_branch(candidate, BranchType::Remote) {
-            Ok(branch) => {
-                let Some(remote_branch) = branch.name().map_err(GitError::from_git2)? else {
-                    return Ok(None);
-                };
-                let remote_branch = remote_branch.to_string();
-                if has_configured_remote_for_tracking_branch(repo, &remote_branch)? {
-                    return Ok(Some(remote_branch));
-                }
-                return Ok(None);
-            }
-            Err(error) if error.code() == ErrorCode::NotFound => {}
-            Err(error) => return Err(GitError::from_git2(error)),
-        }
-    }
-
-    Ok(None)
-}
-
-fn has_configured_remote_for_tracking_branch(
-    repo: &Repository,
-    remote_branch: &str,
-) -> Result<bool, GitError> {
-    Ok(configured_remote_for_tracking_branch(repo, remote_branch)?.is_some())
-}
-
 /// Adds a linked worktree at `path` for `target_branch`. By default this creates
 /// `target_branch` from `source_branch`; when `reuse_existing_branch` is true,
 /// `target_branch` must already exist locally.
@@ -1373,185 +1100,42 @@ pub fn create_worktree(
     source_branch: String,
     reuse_existing_branch: bool,
 ) -> Result<(), GitError> {
-    let repo = open_repo(&repo_path)?;
-
-    // Match `git worktree add`: refuse an occupied target up front (an existing
-    // empty directory is fine) so a blocked path never creates an orphan branch
-    // or worktree admin entry that would make a later retry fail.
-    if is_path_occupied(&path) {
-        return Err(GitError::new(GitErrorKind::WorktreeAlreadyExists, path));
-    }
-
-    if reuse_existing_branch {
-        let branch = repo
-            .find_branch(&target_branch, BranchType::Local)
-            .map_err(|error| match error.code() {
-                ErrorCode::NotFound => {
-                    GitError::new(GitErrorKind::BranchNotFound, target_branch.clone())
-                }
-                _ => GitError::from_git2(error),
-            })?;
-        let worktree_result = {
-            let reference = branch.into_reference();
-            let mut options = WorktreeAddOptions::new();
-            options.reference(Some(&reference));
-            let admin_name = unique_worktree_admin_name(&repo, &path);
-            repo.worktree(&admin_name, Path::new(&path), Some(&options))
-        };
-        return worktree_result
-            .map(|_| ())
-            .map_err(|error| match error.code() {
-                ErrorCode::Exists => {
-                    GitError::new(GitErrorKind::WorktreeAlreadyExists, path.clone())
-                }
-                _ => GitError::from_git2(error),
-            });
-    }
-
-    // Resolve the source as any committish (local branch, remote-tracking ref
-    // like `origin/main`, tag, or SHA) to match `git worktree add`'s semantics.
-    let source_commit = repo
-        .revparse_single(&source_branch)
-        .map_err(|_| GitError::new(GitErrorKind::BranchNotFound, source_branch.clone()))?
-        .peel_to_commit()
-        .map_err(GitError::from_git2)?;
-
-    let upstream_name = remote_tracking_upstream_name(&repo, &source_branch)?;
-    let mut branch =
-        repo.branch(&target_branch, &source_commit, false)
-            .map_err(|error| match error.code() {
-                ErrorCode::Exists => {
-                    GitError::new(GitErrorKind::BranchAlreadyExists, target_branch.clone())
-                }
-                ErrorCode::InvalidSpec => {
-                    GitError::new(GitErrorKind::InvalidBranchName, target_branch.clone())
-                }
-                _ => GitError::from_git2(error),
-            })?;
-    if let Some(upstream_name) = upstream_name.as_deref() {
-        if let Err(error) = branch.set_upstream(Some(upstream_name)) {
-            let _ = branch.delete();
-            return Err(GitError::from_git2(error));
-        }
-    }
-    // Scope `reference`/`options` so the borrows they hold on `repo` end before
-    // the rollback path below mutates refs.
-    let worktree_result = {
-        let reference = branch.into_reference();
-        let mut options = WorktreeAddOptions::new();
-        options.reference(Some(&reference));
-        let admin_name = unique_worktree_admin_name(&repo, &path);
-        repo.worktree(&admin_name, Path::new(&path), Some(&options))
-    };
-    if let Err(error) = worktree_result {
-        // The branch was created above; if the worktree could not be added the
-        // whole action failed, so roll the branch back to keep it atomic and
-        // let a retry succeed instead of hitting BranchAlreadyExists.
-        if let Ok(mut created) = repo.find_branch(&target_branch, BranchType::Local) {
-            let _ = created.delete();
-        }
-        return Err(match error.code() {
-            ErrorCode::Exists => GitError::new(GitErrorKind::WorktreeAlreadyExists, path.clone()),
-            _ => GitError::from_git2(error),
-        });
-    }
-    Ok(())
-}
-
-/// Whether `path` is occupied for the purpose of `git worktree add`: it exists
-/// and is anything other than an empty directory.
-fn is_path_occupied(path: &str) -> bool {
-    let target = Path::new(path);
-    match std::fs::read_dir(target) {
-        // A directory is free only when empty.
-        Ok(mut entries) => entries.next().is_some(),
-        // Not a directory: occupied if it exists (e.g. a file), free otherwise.
-        Err(_) => target.exists(),
-    }
+    core_git::create_worktree(
+        &repo_path,
+        &target_branch,
+        &path,
+        &source_branch,
+        reuse_existing_branch,
+    )
+    .map_err(Into::into)
 }
 
 /// Removes the worktree whose checkout lives at `path`, deleting the working
 /// tree files. Mirrors `git worktree remove --force <path>`.
 pub fn remove_worktree(repo_path: String, path: String, force: bool) -> Result<(), GitError> {
-    let repo = open_repo(&repo_path)?;
-    let target = canonical(&path);
-
-    let names = repo.worktrees().map_err(GitError::from_git2)?;
-    let mut found = None;
-    for entry in names.iter() {
-        let Ok(Some(name)) = entry else {
-            continue;
-        };
-        if let Ok(worktree) = repo.find_worktree(name) {
-            if canonical(&worktree.path().to_string_lossy()) == target {
-                found = Some(worktree);
-                break;
-            }
-        }
-    }
-    let worktree =
-        found.ok_or_else(|| GitError::new(GitErrorKind::WorktreeNotFound, path.clone()))?;
-
-    let mut options = WorktreePruneOptions::new();
-    options.valid(true).working_tree(true).locked(force);
-    if let Err(error) = worktree.prune(Some(&mut options)) {
-        if Path::new(&path).exists() {
-            return Err(GitError::from_git2(error));
-        }
-        let mut metadata_options = WorktreePruneOptions::new();
-        metadata_options.locked(force);
-        worktree
-            .prune(Some(&mut metadata_options))
-            .map_err(GitError::from_git2)?;
-    }
-    Ok(())
+    core_git::remove_worktree(&repo_path, &path, force).map_err(Into::into)
 }
 
 /// Force-deletes a local branch. Mirrors `git branch -D <branch>`.
-pub fn delete_branch(repo_path: String, branch: String, _force: bool) -> Result<(), GitError> {
-    let repo = open_repo(&repo_path)?;
-    let mut target = repo
-        .find_branch(&branch, BranchType::Local)
-        .map_err(|error| match error.code() {
-            ErrorCode::NotFound => GitError::new(GitErrorKind::BranchNotFound, branch.clone()),
-            _ => GitError::from_git2(error),
-        })?;
-    target.delete().map_err(GitError::from_git2)?;
-    Ok(())
+pub fn delete_branch(repo_path: String, branch: String, force: bool) -> Result<(), GitError> {
+    core_git::delete_branch(&repo_path, &branch, force).map_err(Into::into)
 }
 
 /// Lists the main work tree plus every linked worktree, with each entry's
 /// branch short name. Mirrors `git worktree list --porcelain` (the main work
 /// tree is included so callers can use its presence as a liveness guard).
 pub fn list_worktrees(repo_path: String) -> Result<Vec<GitWorktreeEntry>, GitError> {
-    let repo = open_repo(&repo_path)?;
-    let mut entries: Vec<GitWorktreeEntry> = Vec::new();
-
-    if let Some(workdir) = repo.workdir() {
-        entries.push(GitWorktreeEntry {
-            path: workdir.to_string_lossy().trim_end_matches('/').to_string(),
-            branch: head_branch_name(&repo),
-        });
-    }
-
-    let names = repo.worktrees().map_err(GitError::from_git2)?;
-    for entry in names.iter() {
-        let Ok(Some(name)) = entry else {
-            continue;
-        };
-        if let Ok(worktree) = repo.find_worktree(name) {
-            let worktree_path = worktree.path().to_string_lossy().to_string();
-            let branch = match Repository::open(worktree.path()) {
-                Ok(worktree_repo) => head_branch_name(&worktree_repo),
-                Err(_) => "HEAD".to_string(),
-            };
-            entries.push(GitWorktreeEntry {
-                path: worktree_path.trim_end_matches('/').to_string(),
-                branch,
-            });
-        }
-    }
-    Ok(entries)
+    core_git::list_worktrees(&repo_path)
+        .map(|entries| {
+            entries
+                .into_iter()
+                .map(|entry| GitWorktreeEntry {
+                    path: entry.path,
+                    branch: entry.branch,
+                })
+                .collect()
+        })
+        .map_err(Into::into)
 }
 
 /// Splits `destination_path` into the parent directory to run `git` in and the

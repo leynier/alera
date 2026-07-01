@@ -126,6 +126,31 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
       const Stream<List<Workspace>>.empty();
 }
 
+class _FakeManagedWorkspaceRuntime implements ManagedWorkspaceRuntime {
+  Workspace? removedWorkspace;
+  bool? deleteBranch;
+
+  @override
+  Future<WorkspaceCreationResult> createLinkedWorkspace({
+    required Project project,
+    required String sourceBranch,
+    required String newBranchName,
+    required bool reuseExistingBranch,
+    String? name,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> removeWorkspace({
+    required Workspace workspace,
+    bool? deleteBranch,
+  }) async {
+    removedWorkspace = workspace;
+    this.deleteBranch = deleteBranch;
+  }
+}
+
 class _FailingProjectConfigReader implements ProjectConfigReader {
   const _FailingProjectConfigReader();
 

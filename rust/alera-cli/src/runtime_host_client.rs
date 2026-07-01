@@ -1,5 +1,6 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::Path;
+use std::process::Stdio;
 use std::time::Duration;
 
 use anyhow::{anyhow, Context, Result};
@@ -9,16 +10,21 @@ use serde_json::{json, Value};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, Lines};
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::TcpStream;
-use tokio::time::timeout;
+use tokio::process::Command;
+use tokio::time::{sleep, timeout, Instant};
+use uuid::Uuid;
 
 use crate::terminal_host::protocol::{
-    PROTOCOL_VERSION, RUNTIME_HOST_BOOTSTRAP_CAPABILITY, RUNTIME_HOST_CAPABILITY,
+    DEFAULT_DETACHED_SESSION_SHUTDOWN_DELAY_SECONDS, DEFAULT_EMPTY_SHUTDOWN_DELAY_SECONDS,
+    DEFAULT_SCROLLBACK_BYTES, PROTOCOL_VERSION, RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
+    RUNTIME_HOST_CAPABILITY, RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
 };
 
 const CONTROL_FILE_NAME: &str = "host.json";
 const RUNTIME_CONTROL_FILE_NAME: &str = "runtime-host.json";
 const CONNECT_TIMEOUT: Duration = Duration::from_millis(750);
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(3);
+const STARTUP_TIMEOUT: Duration = Duration::from_secs(10);
 
 pub(crate) struct RuntimeHostRpcClient {
     reader: Lines<BufReader<OwnedReadHalf>>,
@@ -56,6 +62,45 @@ impl RuntimeHostRpcClient {
             }
         }
         Ok(None)
+    }
+
+    pub(crate) async fn connect_or_start(runtime_dir: &Path) -> Result<Self> {
+        if let Some(client) = Self::connect(runtime_dir).await? {
+            return Ok(client);
+        }
+        tokio::fs::create_dir_all(runtime_dir).await?;
+        let control_file = runtime_dir.join(RUNTIME_CONTROL_FILE_NAME);
+        let _ = tokio::fs::remove_file(&control_file).await;
+        let token = Uuid::new_v4().to_string();
+        let executable = std::env::current_exe().context("failed to resolve current alera CLI")?;
+        Command::new(executable)
+            .arg("runtime-host")
+            .arg("--runtime-dir")
+            .arg(runtime_dir)
+            .arg("--control-file")
+            .arg(&control_file)
+            .arg("--token")
+            .arg(&token)
+            .arg("--empty-shutdown-delay-seconds")
+            .arg(DEFAULT_EMPTY_SHUTDOWN_DELAY_SECONDS.to_string())
+            .arg("--detached-session-shutdown-delay-seconds")
+            .arg(DEFAULT_DETACHED_SESSION_SHUTDOWN_DELAY_SECONDS.to_string())
+            .arg("--scrollback-bytes")
+            .arg(DEFAULT_SCROLLBACK_BYTES.to_string())
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .context("failed to start alera runtime-host")?;
+
+        let deadline = Instant::now() + STARTUP_TIMEOUT;
+        while Instant::now() < deadline {
+            if let Some(client) = Self::connect_control_file(&control_file).await? {
+                return Ok(client);
+            }
+            sleep(Duration::from_millis(100)).await;
+        }
+        Err(anyhow!("timed out waiting for alera runtime-host to start"))
     }
 
     async fn connect_control_file(control_path: &Path) -> Result<Option<Self>> {
@@ -158,5 +203,9 @@ impl RuntimeHostControl {
                 .runtime_capabilities
                 .iter()
                 .any(|capability| capability == RUNTIME_HOST_BOOTSTRAP_CAPABILITY)
+            && self
+                .runtime_capabilities
+                .iter()
+                .any(|capability| capability == RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY)
     }
 }

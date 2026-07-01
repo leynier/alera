@@ -173,10 +173,14 @@ pub struct WorkspaceCommand {
 pub enum WorkspaceAction {
     /// List workspaces for one project or all projects.
     List(WorkspaceListArgs),
-    /// Register a workspace record.
+    /// Create an Alera-managed Git worktree workspace.
     Add(WorkspaceAddArgs),
-    /// Remove a workspace record and related runtime records.
-    Remove(IdArgs),
+    /// Remove an Alera-managed Git worktree workspace.
+    Remove(WorkspaceRemoveArgs),
+    /// Register a workspace record without touching Git worktrees.
+    Register(WorkspaceRegisterArgs),
+    /// Remove a workspace record and related runtime records without touching Git worktrees.
+    Unregister(IdArgs),
     /// Add a parent/child relationship.
     Link(WorkspaceLinkArgs),
     /// Remove a parent/child relationship.
@@ -199,6 +203,36 @@ pub struct WorkspaceListArgs {
 
 #[derive(Debug, Args)]
 pub struct WorkspaceAddArgs {
+    #[arg(long)]
+    pub id: Option<String>,
+    #[arg(long = "project-id")]
+    pub project_id: String,
+    #[arg(long)]
+    pub branch: String,
+    #[arg(long = "source-branch")]
+    pub source_branch: Option<String>,
+    #[arg(long)]
+    pub name: Option<String>,
+    #[arg(long = "reuse-existing-branch")]
+    pub reuse_existing_branch: bool,
+    #[arg(long = "workspace-root", conflicts_with = "path")]
+    pub workspace_root: Option<String>,
+    #[arg(long, conflicts_with = "workspace_root")]
+    pub path: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct WorkspaceRemoveArgs {
+    #[arg(long)]
+    pub id: String,
+    #[arg(long = "delete-branch", conflicts_with = "keep_branch")]
+    pub delete_branch: bool,
+    #[arg(long = "keep-branch", conflicts_with = "delete_branch")]
+    pub keep_branch: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct WorkspaceRegisterArgs {
     #[arg(long)]
     pub id: Option<String>,
     #[arg(long = "instance-id")]

@@ -86,6 +86,7 @@ void main() {
                 fileStore: FakeProjectConfigFileStore(),
               ),
             ),
+            managedWorkspaceRuntimeProvider.overrideWithValue(null),
           ],
         );
         addTearDown(container.dispose);

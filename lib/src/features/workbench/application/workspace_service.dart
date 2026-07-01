@@ -54,6 +54,21 @@ class WorkspaceRoot {
   }
 }
 
+abstract interface class ManagedWorkspaceRuntime {
+  Future<WorkspaceCreationResult> createLinkedWorkspace({
+    required Project project,
+    required String sourceBranch,
+    required String newBranchName,
+    required bool reuseExistingBranch,
+    String? name,
+  });
+
+  Future<void> removeWorkspace({
+    required Workspace workspace,
+    bool? deleteBranch,
+  });
+}
+
 class WorkspaceService {
   factory WorkspaceService({
     required WorkbenchRepository repository,
@@ -62,6 +77,7 @@ class WorkspaceService {
     WorkspaceRoot? workspaceRoot,
     ProjectConfigReader? projectConfigReader,
     WorktreeSetupRunner? worktreeSetupRunner,
+    ManagedWorkspaceRuntime? managedRuntime,
     Uuid? uuid,
     DateTime Function()? now,
   }) {
@@ -72,6 +88,7 @@ class WorkspaceService {
       workspaceRoot ?? WorkspaceRoot(),
       projectConfigReader ?? const NoopProjectConfigReader(),
       worktreeSetupRunner ?? const NoopWorktreeSetupRunner(),
+      managedRuntime,
       uuid ?? const Uuid(),
       now ?? _defaultNow,
     );
@@ -84,6 +101,7 @@ class WorkspaceService {
     this._workspaceRoot,
     this._projectConfigReader,
     this._worktreeSetupRunner,
+    this._managedRuntime,
     this._uuid,
     this._now,
   );
@@ -94,6 +112,7 @@ class WorkspaceService {
   final WorkspaceRoot _workspaceRoot;
   final ProjectConfigReader _projectConfigReader;
   final WorktreeSetupRunner _worktreeSetupRunner;
+  final ManagedWorkspaceRuntime? _managedRuntime;
   final Uuid _uuid;
   final DateTime Function() _now;
 
@@ -175,11 +194,22 @@ class WorkspaceService {
     }
     final normalizedSource = sourceBranch.trim();
     final normalizedBranch = newBranchName.trim();
-    if (normalizedSource.isEmpty) {
+    if (!reuseExistingBranch && normalizedSource.isEmpty) {
       throw WorkspaceException('Source Branch Is Required');
     }
     if (normalizedBranch.isEmpty) {
       throw WorkspaceException('New Branch Name Is Required');
+    }
+
+    final managedRuntime = _managedRuntime;
+    if (managedRuntime != null) {
+      return managedRuntime.createLinkedWorkspace(
+        project: project,
+        sourceBranch: normalizedSource,
+        newBranchName: normalizedBranch,
+        reuseExistingBranch: reuseExistingBranch,
+        name: name,
+      );
     }
 
     await _validateBranchName(normalizedBranch);
@@ -211,16 +241,18 @@ class WorkspaceService {
       );
     }
 
-    try {
-      await _gitBackend.refreshSourceBranch(
-        repoPath: project.repoPath,
-        sourceBranch: normalizedSource,
-      );
-    } on GitException catch (error) {
-      throw WorkspaceException(
-        'git source branch refresh failed',
-        stderr: error.context,
-      );
+    if (!reuseExistingBranch) {
+      try {
+        await _gitBackend.refreshSourceBranch(
+          repoPath: project.repoPath,
+          sourceBranch: normalizedSource,
+        );
+      } on GitException catch (error) {
+        throw WorkspaceException(
+          'git source branch refresh failed',
+          stderr: error.context,
+        );
+      }
     }
 
     final parent = Directory(p.dirname(workspacePath));
@@ -300,6 +332,15 @@ class WorkspaceService {
     if (workspace.isMain) {
       throw WorkspaceException('The main workspace cannot be removed');
     }
+    final shouldDeleteBranch = deleteBranch && !workspace.reusesExistingBranch;
+    final managedRuntime = _managedRuntime;
+    if (managedRuntime != null) {
+      await managedRuntime.removeWorkspace(
+        workspace: workspace,
+        deleteBranch: shouldDeleteBranch,
+      );
+      return;
+    }
     try {
       await _gitBackend.removeWorktree(
         repoPath: project.repoPath,
@@ -312,7 +353,6 @@ class WorkspaceService {
         stderr: error.context,
       );
     }
-    final shouldDeleteBranch = deleteBranch && !workspace.reusesExistingBranch;
     if (shouldDeleteBranch) {
       final branch = workspace.branch;
       if (branch == null || branch.isEmpty) {

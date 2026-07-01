@@ -27,11 +27,11 @@ This document records the current product and code naming used by Alera. It is i
 
 ## Persistence
 
-Alera persists runtime-owned projects, workspaces, workspace tabs, workbench layouts, workspace tags, workspace relations, and SSH targets in the Rust runtime database `runtime.sqlite` under the active runtime profile directory. The Rust store lives in `rust/alera-core` and is reached by the Flutter app through the `alera runtime-host` JSON socket protocol.
+Alera persists runtime-owned settings, projects, project config overrides, workspaces, workspace tabs, workbench layouts, workspace tags, workspace relations, and SSH targets in the Rust runtime database `runtime.sqlite` under the active runtime profile directory. The Rust store lives in `rust/alera-core` and is reached by the Flutter app through the `alera runtime-host` JSON socket protocol.
 
-Drift/SQLite remains active for app settings, view preferences, and project config overrides in `lib/src/shared/infra/storage/drift_database.dart`. Old Drift project/workspace/tab/layout rows are intentionally left untouched but are no longer authoritative for those domains.
+Drift/SQLite remains active for local view preferences and legacy migration sources in `lib/src/shared/infra/storage/drift_database.dart`. Old Drift settings, project config, project, workspace, tab, and layout rows are intentionally left untouched after migration but are no longer authoritative for those domains.
 
-Project-specific worktree setup config is stored separately from global app settings. UI overrides live in the Drift project-config table and take precedence over a repo-root `alera.toml`; see `docs/worktree-setup-config.md`.
+Project-specific worktree setup config is stored separately from global app settings. UI overrides live in runtime project config records and take precedence over a repo-root `alera.toml`; see `docs/worktree-setup-config.md`.
 
 Terminal workspace tabs store their durable `terminalSessionId` in the tab payload. The runtime host stores socket metadata, terminal checkpoint metadata, and bounded output chunks under the active runtime profile directory, outside Drift, so app/window close can detach from PTYs without killing running commands.
 
@@ -49,7 +49,11 @@ The app resolves the sidecar through `AleraCliResolver`, which honors `ALERA_CLI
 
 The shell eagerly starts the runtime host before the first terminal tab is created and before RPC-backed repository streams need data. The app passes the current host lifecycle and host scrollback settings when launching `alera runtime-host`, then sends a `configure` request whenever terminal settings change so an already-running host updates without requiring an app restart.
 
-The CLI can operate the same runtime-owned state for agents and automation. The first implemented command groups are `runtime`, `project`, `workspace`, `tag`, `tab`, and `ssh-target`. They accept `--runtime-dir` to target a specific profile directory; when omitted, the CLI uses `ALERA_RUNTIME_DIR` or `~/.alera/runtime`.
+The CLI can operate the same runtime-owned state for agents and automation. The first implemented command groups are `runtime`, `project`, `workspace`, `tag`, `tab`, and `ssh-target`. They accept `--runtime-dir` to target a specific profile directory; when omitted, the CLI uses `ALERA_RUNTIME_DIR` or `~/.alera/runtime`. Alera terminal launches prepend a managed `alera` shim to `PATH` and set `ALERA_RUNTIME_DIR` to the app runtime profile, so agents inside Alera terminals operate the same state as the UI by default.
+
+Managed linked-workspace lifecycle goes through the runtime host. `alera workspace add` creates a Git worktree, persists the workspace record, and runs project worktree setup. `alera workspace remove` removes the worktree, deletes the branch only when requested or when Alera created it by default, and removes runtime child records. Metadata-only recovery remains available as `alera workspace register` and `alera workspace unregister`; those commands do not touch Git worktrees. The Flutter UI calls the same runtime-host RPCs instead of owning Git worktree create/remove itself.
+
+A Codex skill for agents lives at `skills/alera-cli`. Settings exposes an Alera CLI Skill action that runs `npx skills add https://github.com/leynier/alera --skill alera-cli --global` or copies the same command. The skill instructs agents to prefer the CLI for Alera-managed workspace lifecycle and metadata operations.
 
 The host stays alive only while it is useful. When all app clients disconnect and no PTYs are running, it stops after the configured empty-host delay, which defaults to 30 seconds. When app clients disconnect while PTYs are still running, it keeps those detached sessions alive for the configured detached-session delay, which defaults to one hour; if the app does not reconnect in time, the host terminates the PTYs and writes final checkpoints before exiting. On exit, the host removes its `host.json` control file so the next app launch cannot attach to stale socket metadata.
 

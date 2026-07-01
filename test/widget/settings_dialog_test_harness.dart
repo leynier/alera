@@ -216,6 +216,7 @@ class _FakeRuntimeHostClient implements RuntimeHostClient {
   Future<Object?> runtimeRequest(
     String type, [
     Map<String, Object?> payload = const <String, Object?>{},
+    Duration? timeout,
   ]) async {
     requests.add(_RuntimeRequest(type, Map<String, Object?>.from(payload)));
     switch (type) {

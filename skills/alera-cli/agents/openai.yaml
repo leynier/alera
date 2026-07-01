@@ -1,0 +1,3 @@
+interface:
+  display_name: "Alera CLI"
+  short_description: "Operate Alera projects, workspaces, worktrees, and runtime metadata through the alera CLI."

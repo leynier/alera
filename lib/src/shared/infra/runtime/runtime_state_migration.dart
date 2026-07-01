@@ -1,8 +1,12 @@
 import 'dart:async';
 
+import 'package:alera/src/features/projects/application/project_config_repository.dart';
 import 'package:alera/src/features/projects/application/project_repository.dart';
+import 'package:alera/src/features/projects/infra/drift_project_config_repository.dart';
 import 'package:alera/src/features/projects/infra/drift_project_repository.dart';
 import 'package:alera/src/features/projects/infra/runtime_project_repository.dart';
+import 'package:alera/src/features/settings/application/settings_repository.dart';
+import 'package:alera/src/features/settings/infra/drift_settings_repository.dart';
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
 import 'package:alera/src/features/workbench/infra/drift_workbench_repository.dart';
 import 'package:alera/src/features/workbench/infra/runtime_workbench_repository.dart';
@@ -15,6 +19,8 @@ part 'runtime_state_migration.g.dart';
 
 const _legacyDriftRuntimeStateMigrationKey =
     'legacy_drift_runtime_state_migrated_v1';
+const _legacyDriftRuntimeSettingsMigrationKey =
+    'legacy_drift_runtime_settings_migrated_v1';
 
 @Riverpod(keepAlive: true)
 RuntimeStateMigration runtimeStateMigration(Ref ref) {
@@ -25,6 +31,8 @@ RuntimeStateMigration runtimeStateMigration(Ref ref) {
       final db = await ref.read(aleraDatabaseProvider.future);
       return RuntimeStateLegacyRepositories(
         projectRepository: DriftProjectRepository(db),
+        projectConfigRepository: DriftProjectConfigRepository(db),
+        settingsRepository: DriftSettingsRepository(db),
         workbenchRepository: DriftWorkbenchRepository(db),
       );
     },
@@ -34,10 +42,14 @@ RuntimeStateMigration runtimeStateMigration(Ref ref) {
 final class RuntimeStateLegacyRepositories {
   const RuntimeStateLegacyRepositories({
     required this.projectRepository,
+    required this.projectConfigRepository,
+    required this.settingsRepository,
     required this.workbenchRepository,
   });
 
   final ProjectRepository projectRepository;
+  final ProjectConfigRepository projectConfigRepository;
+  final SettingsRepository settingsRepository;
   final WorkbenchRepository workbenchRepository;
 }
 
@@ -83,11 +95,21 @@ final class RuntimeStateMigration {
   }
 
   Future<void> _run() async {
-    if (await _metadataValue(_legacyDriftRuntimeStateMigrationKey) == 'true') {
-      return;
-    }
-
     final legacy = await legacyRepositories();
+    if (await _metadataValue(_legacyDriftRuntimeStateMigrationKey) != 'true') {
+      await _migrateProjectsAndWorkbench(legacy);
+      await _setMetadataValue(_legacyDriftRuntimeStateMigrationKey, 'true');
+    }
+    if (await _metadataValue(_legacyDriftRuntimeSettingsMigrationKey) !=
+        'true') {
+      await _migrateSettingsAndProjectConfig(legacy);
+      await _setMetadataValue(_legacyDriftRuntimeSettingsMigrationKey, 'true');
+    }
+  }
+
+  Future<void> _migrateProjectsAndWorkbench(
+    RuntimeStateLegacyRepositories legacy,
+  ) async {
     final legacyProjects = await legacy.projectRepository.listAll();
     final runtimeProjectIds = <String>{
       for (final project in await _runtimeProjects.listAll()) project.id,
@@ -123,8 +145,28 @@ final class RuntimeStateMigration {
         }
       }
     }
+  }
 
-    await _setMetadataValue(_legacyDriftRuntimeStateMigrationKey, 'true');
+  Future<void> _migrateSettingsAndProjectConfig(
+    RuntimeStateLegacyRepositories legacy,
+  ) async {
+    final settings = await legacy.settingsRepository.load();
+    await _runtimeClient.runtimeRequest(
+      'runtimeSettings.update',
+      <String, Object?>{
+        'workspaceDirectory': settings.general.workspaceDirectory,
+      },
+    );
+    final configs = await legacy.projectConfigRepository.loadAll();
+    for (final entry in configs.entries) {
+      await _runtimeClient.runtimeRequest(
+        'projectConfig.upsert',
+        <String, Object?>{
+          'projectId': entry.key,
+          'config': entry.value.toMap(),
+        },
+      );
+    }
   }
 
   Future<String?> _metadataValue(String key) async {

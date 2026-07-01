@@ -66,6 +66,16 @@ pub enum ServerCommand {
         job_id: String,
         status: SshBootstrapStatus,
     },
+    ManagedWorkspaceCreated {
+        client_id: u64,
+        request_id: i64,
+        result: HostResult<Value>,
+    },
+    ManagedWorkspaceRemoved {
+        client_id: u64,
+        request_id: i64,
+        result: HostResult<Value>,
+    },
 }
 
 struct ClientState {
@@ -110,6 +120,7 @@ pub async fn run_terminal_host_server(
         runtime_store,
         sessions: HashMap::new(),
         ssh_bootstrap_jobs: HashMap::new(),
+        managed_workspace_jobs: 0,
         clients: HashMap::new(),
         pending_output_writes: HashMap::new(),
         inbox,
@@ -161,6 +172,7 @@ struct ServerActor {
     runtime_store: RuntimeStore,
     sessions: HashMap<String, Session>,
     ssh_bootstrap_jobs: HashMap<String, SshBootstrapJobState>,
+    managed_workspace_jobs: usize,
     clients: HashMap<u64, ClientState>,
     pending_output_writes: HashMap<String, Vec<JoinHandle<()>>>,
     inbox: UnboundedSender<ServerCommand>,
@@ -204,6 +216,22 @@ impl ServerActor {
                 job_id,
                 status,
             } => self.handle_ssh_bootstrap_finished(target_id, job_id, status),
+            ServerCommand::ManagedWorkspaceCreated {
+                client_id,
+                request_id,
+                result,
+            } => {
+                self.handle_managed_workspace_created(client_id, request_id, result)
+                    .await
+            }
+            ServerCommand::ManagedWorkspaceRemoved {
+                client_id,
+                request_id,
+                result,
+            } => {
+                self.handle_managed_workspace_removed(client_id, request_id, result)
+                    .await
+            }
         }
     }
 
@@ -700,8 +728,16 @@ impl ServerActor {
         !self.ssh_bootstrap_jobs.is_empty()
     }
 
+    fn has_active_managed_workspace_jobs(&self) -> bool {
+        self.managed_workspace_jobs > 0
+    }
+
     fn schedule_shutdown_if_idle(&mut self) {
-        if self.disposed || self.has_authenticated_clients() || self.has_active_bootstrap_jobs() {
+        if self.disposed
+            || self.has_authenticated_clients()
+            || self.has_active_bootstrap_jobs()
+            || self.has_active_managed_workspace_jobs()
+        {
             self.cancel_shutdown_timer();
             return;
         }
@@ -790,6 +826,7 @@ mod tests {
                     handle: tokio::spawn(async {}),
                 },
             )]),
+            managed_workspace_jobs: 0,
             clients: HashMap::from([(
                 1,
                 ClientState {

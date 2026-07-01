@@ -1,19 +1,34 @@
 use alera_core::runtime::{
-    Project, SshTarget, WorkbenchLayoutRecord, Workspace, WorkspaceTabRecord, WorkspaceTag,
+    Project, ProjectConfig, SshTarget, WorkbenchLayoutRecord, Workspace, WorkspaceTabRecord,
+    WorkspaceTag,
 };
+use chrono::{DateTime, Utc};
 use serde_json::{json, Map, Value};
 use uuid::Uuid;
 
+use crate::managed_workspace::{
+    create_managed_workspace, remove_managed_workspace, ManagedWorkspaceCreateRequest,
+    ManagedWorkspaceRemoveRequest,
+};
 use crate::ssh_bootstrap::{build_ssh_bootstrap_plan, SshTargetBootstrapRequest};
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::{
     decode_bytes, error_response, event, int_or, ok_response, require_object, TerminalHostConfig,
     TerminalHostLaunch, PROTOCOL_VERSION, RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
-    RUNTIME_HOST_CAPABILITY,
+    RUNTIME_HOST_CAPABILITY, RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
 };
 use crate::terminal_host::session::Session;
 
 use super::{ServerActor, ServerCommand};
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ProjectConfigUpsertRequest {
+    project_id: String,
+    config: ProjectConfig,
+    #[serde(default)]
+    updated_at: Option<DateTime<Utc>>,
+}
 
 impl ServerActor {
     /// Parse and dispatch one client line, then write the response. Malformed
@@ -35,6 +50,20 @@ impl ServerActor {
         let request_id = obj.get("id").and_then(Value::as_i64);
         let outcome: HostResult<Value> = match extract_request(obj) {
             Ok((request_type, payload)) => {
+                if let Some(id) = request_id {
+                    match self.try_start_deferred_request(client_id, id, &request_type, &payload) {
+                        Ok(true) => return,
+                        Ok(false) => {}
+                        Err(error) => {
+                            if let Some(id) = request_id {
+                                self.client_write(client_id, error_response(id, &error));
+                            } else {
+                                self.dispose_client(client_id).await;
+                            }
+                            return;
+                        }
+                    }
+                }
                 self.handle_request(client_id, &request_type, &payload)
                     .await
             }
@@ -54,6 +83,112 @@ impl ServerActor {
                 }
             }
         }
+    }
+
+    fn try_start_deferred_request(
+        &mut self,
+        client_id: u64,
+        request_id: i64,
+        request_type: &str,
+        payload: &Value,
+    ) -> HostResult<bool> {
+        match request_type {
+            "workspace.createManaged" => {
+                self.require_auth(client_id)?;
+                let request: ManagedWorkspaceCreateRequest = parse_payload(payload)?;
+                self.start_managed_workspace_create(client_id, request_id, request);
+                Ok(true)
+            }
+            "workspace.removeManaged" => {
+                self.require_auth(client_id)?;
+                let request: ManagedWorkspaceRemoveRequest = parse_payload(payload)?;
+                self.start_managed_workspace_remove(client_id, request_id, request);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn start_managed_workspace_create(
+        &mut self,
+        client_id: u64,
+        request_id: i64,
+        request: ManagedWorkspaceCreateRequest,
+    ) {
+        self.managed_workspace_jobs += 1;
+        self.cancel_shutdown_timer();
+        let store = self.runtime_store.clone();
+        let inbox = self.inbox.clone();
+        tokio::spawn(async move {
+            let result = json_result(create_managed_workspace(&store, request).await);
+            let _ = inbox.send(ServerCommand::ManagedWorkspaceCreated {
+                client_id,
+                request_id,
+                result,
+            });
+        });
+    }
+
+    fn start_managed_workspace_remove(
+        &mut self,
+        client_id: u64,
+        request_id: i64,
+        request: ManagedWorkspaceRemoveRequest,
+    ) {
+        self.managed_workspace_jobs += 1;
+        self.cancel_shutdown_timer();
+        let store = self.runtime_store.clone();
+        let inbox = self.inbox.clone();
+        tokio::spawn(async move {
+            let result = json_result(remove_managed_workspace(&store, request).await);
+            let _ = inbox.send(ServerCommand::ManagedWorkspaceRemoved {
+                client_id,
+                request_id,
+                result,
+            });
+        });
+    }
+
+    pub(super) async fn handle_managed_workspace_created(
+        &mut self,
+        client_id: u64,
+        request_id: i64,
+        result: HostResult<Value>,
+    ) {
+        self.managed_workspace_jobs = self.managed_workspace_jobs.saturating_sub(1);
+        match result {
+            Ok(payload) => {
+                self.client_write(client_id, ok_response(request_id, payload));
+                self.broadcast_authenticated(event("workspacesChanged", json!({})));
+            }
+            Err(error) => {
+                self.client_write(client_id, error_response(request_id, &error));
+            }
+        }
+        self.schedule_shutdown_if_idle();
+    }
+
+    pub(super) async fn handle_managed_workspace_removed(
+        &mut self,
+        client_id: u64,
+        request_id: i64,
+        result: HostResult<Value>,
+    ) {
+        self.managed_workspace_jobs = self.managed_workspace_jobs.saturating_sub(1);
+        match result {
+            Ok(payload) => {
+                if let Some(id) = payload.get("id").and_then(Value::as_str).map(str::to_string) {
+                    self.terminate_sessions_for_workspace(&id).await;
+                }
+                self.client_write(client_id, ok_response(request_id, payload));
+                self.broadcast_authenticated(event("workspacesChanged", json!({})));
+                self.broadcast_authenticated(event("workspaceTabsChanged", json!({})));
+            }
+            Err(error) => {
+                self.client_write(client_id, error_response(request_id, &error));
+            }
+        }
+        self.schedule_shutdown_if_idle();
     }
 
     async fn handle_request(
@@ -148,7 +283,11 @@ impl ServerActor {
                 Ok(json!({
                     "protocolVersion": PROTOCOL_VERSION,
                     "runtime": "alera",
-                    "runtimeCapabilities": [RUNTIME_HOST_CAPABILITY, RUNTIME_HOST_BOOTSTRAP_CAPABILITY],
+                    "runtimeCapabilities": [
+                        RUNTIME_HOST_CAPABILITY,
+                        RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
+                        RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
+                    ],
                     "authenticated": true,
                 }))
             }
@@ -163,6 +302,29 @@ impl ServerActor {
                 let value = require_string_key(payload, "value")?;
                 json_result(self.runtime_store.set_metadata(&key, &value).await)?;
                 Ok(json!({}))
+            }
+            "runtimeSettings.get" => {
+                self.require_auth(client_id)?;
+                json_result(self.runtime_store.runtime_settings().await)
+            }
+            "runtimeSettings.update" => {
+                self.require_auth(client_id)?;
+                let workspace_directory = match payload.get("workspaceDirectory") {
+                    Some(Value::String(value)) => Some(value.as_str()),
+                    Some(Value::Null) | None => None,
+                    _ => {
+                        return Err(HostError::format(
+                            "workspaceDirectory must be a string or null.",
+                        ))
+                    }
+                };
+                let value = json_result(
+                    self.runtime_store
+                        .set_workspace_directory(workspace_directory)
+                        .await,
+                )?;
+                self.broadcast_authenticated(event("runtimeSettingsChanged", json!({})));
+                Ok(value)
             }
             "project.list" => {
                 self.require_auth(client_id)?;
@@ -191,6 +353,37 @@ impl ServerActor {
                 self.broadcast_authenticated(event("projectsChanged", json!({})));
                 self.broadcast_authenticated(event("workspacesChanged", json!({})));
                 self.broadcast_authenticated(event("workspaceTabsChanged", json!({})));
+                Ok(json!({}))
+            }
+            "projectConfig.find" => {
+                self.require_auth(client_id)?;
+                let project_id = require_string_key(payload, "projectId")?;
+                json_result(self.runtime_store.find_project_config(&project_id).await)
+            }
+            "projectConfig.list" => {
+                self.require_auth(client_id)?;
+                json_result(self.runtime_store.list_project_configs().await)
+            }
+            "projectConfig.upsert" => {
+                self.require_auth(client_id)?;
+                let request: ProjectConfigUpsertRequest = parse_payload(payload)?;
+                let value = json_result(
+                    self.runtime_store
+                        .upsert_project_config(
+                            &request.project_id,
+                            request.config,
+                            request.updated_at.unwrap_or_else(Utc::now),
+                        )
+                        .await,
+                )?;
+                self.broadcast_authenticated(event("projectConfigsChanged", json!({})));
+                Ok(value)
+            }
+            "projectConfig.remove" => {
+                self.require_auth(client_id)?;
+                let project_id = require_string_key(payload, "projectId")?;
+                json_result(self.runtime_store.remove_project_config(&project_id).await)?;
+                self.broadcast_authenticated(event("projectConfigsChanged", json!({})));
                 Ok(json!({}))
             }
             "workspace.list" => {

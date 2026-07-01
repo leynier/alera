@@ -1,4 +1,5 @@
 mod cli;
+mod managed_workspace;
 mod runtime_archive;
 mod runtime_host_client;
 mod ssh_bootstrap;
@@ -24,8 +25,8 @@ use crate::cli::{
     CascadePreviewArgs, Cli, Command, IdArgs, ProjectAction, ProjectAddArgs, ProjectCommand,
     ProjectKindArg, RuntimeAction, RuntimeCommand, RuntimeDirArgs, SshAuthKindArg, SshTargetAction,
     SshTargetAddArgs, SshTargetBootstrapArgs, SshTargetBootstrapPlanArgs, SshTargetCommand,
-    SshTargetStatusArgs, TabAction, TabCommand, TabCreateArgs, WorkspaceAction, WorkspaceAddArgs,
-    WorkspaceCommand, WorkspaceKindArg,
+    SshTargetStatusArgs, TabAction, TabCommand, TabCreateArgs, WorkspaceAction,
+    WorkspaceAddArgs, WorkspaceCommand, WorkspaceKindArg, WorkspaceRegisterArgs,
 };
 use crate::runtime_host_client::RuntimeHostRpcClient;
 use crate::ssh_bootstrap::{
@@ -203,6 +204,41 @@ async fn run_workspace_command(command: WorkspaceCommand) -> i32 {
             }
         }
         WorkspaceAction::Add(args) => {
+            let payload = match workspace_add_payload(args) {
+                Ok(payload) => payload,
+                Err(error) => return print_error(error),
+            };
+            let value: Value = match runtime_host_required(&runtime).await {
+                Ok(mut client) => match client.request_value("workspace.createManaged", &payload).await {
+                    Ok(value) => value,
+                    Err(error) => return print_error(error),
+                },
+                Err(error) => return print_error(error),
+            };
+            print_value(&value, json_output, "workspace created");
+        }
+        WorkspaceAction::Remove(args) => {
+            let delete_branch = if args.delete_branch {
+                Some(true)
+            } else if args.keep_branch {
+                Some(false)
+            } else {
+                None
+            };
+            let payload = json!({
+                "id": args.id,
+                "deleteBranch": delete_branch,
+            });
+            let value: Value = match runtime_host_required(&runtime).await {
+                Ok(mut client) => match client.request_value("workspace.removeManaged", &payload).await {
+                    Ok(value) => value,
+                    Err(error) => return print_error(error),
+                },
+                Err(error) => return print_error(error),
+            };
+            print_value(&value, json_output, "workspace removed");
+        }
+        WorkspaceAction::Register(args) => {
             let workspace = workspace_from_args(args);
             let fallback_workspace = workspace.clone();
             match runtime_host_or_store(
@@ -213,11 +249,11 @@ async fn run_workspace_command(command: WorkspaceCommand) -> i32 {
             )
             .await
             {
-                Ok(workspace) => print_value(&workspace, json_output, "workspace saved"),
+                Ok(workspace) => print_value(&workspace, json_output, "workspace registered"),
                 Err(error) => return print_error(error),
             }
         }
-        WorkspaceAction::Remove(IdArgs { id }) => {
+        WorkspaceAction::Unregister(IdArgs { id }) => {
             let payload = json!({ "id": id, "cascadeTabs": true });
             let removed_id = id.clone();
             match runtime_host_or_store_unit(
@@ -231,7 +267,7 @@ async fn run_workspace_command(command: WorkspaceCommand) -> i32 {
                 Ok(()) => print_value(
                     &json!({ "id": removed_id }),
                     json_output,
-                    "workspace removed",
+                    "workspace unregistered",
                 ),
                 Err(error) => return print_error(error),
             }
@@ -575,6 +611,10 @@ where
     store_operation(open_store(args).await?).await
 }
 
+async fn runtime_host_required(args: &RuntimeDirArgs) -> anyhow::Result<RuntimeHostRpcClient> {
+    RuntimeHostRpcClient::connect_or_start(&runtime_dir(args)).await
+}
+
 async fn upsert_ssh_target_from_cli(
     args: &RuntimeDirArgs,
     mut target: SshTarget,
@@ -673,7 +713,7 @@ fn project_from_args(args: ProjectAddArgs) -> Project {
     }
 }
 
-fn workspace_from_args(args: WorkspaceAddArgs) -> Workspace {
+fn workspace_from_args(args: WorkspaceRegisterArgs) -> Workspace {
     let now = Utc::now();
     Workspace {
         id: args.id.unwrap_or_else(|| Uuid::new_v4().to_string()),
@@ -807,6 +847,43 @@ fn host_accessible_path(value: String, current_dir: &Path) -> PathBuf {
     }
 }
 
+fn workspace_add_payload(args: WorkspaceAddArgs) -> anyhow::Result<Value> {
+    Ok(json!({
+        "id": args.id,
+        "projectId": args.project_id,
+        "name": args.name,
+        "branch": args.branch,
+        "sourceBranch": args.source_branch,
+        "reuseExistingBranch": args.reuse_existing_branch,
+        "workspaceRoot": host_accessible_optional_string_path(args.workspace_root)?,
+        "path": host_accessible_optional_string_path(args.path)?,
+    }))
+}
+
+fn host_accessible_optional_string_path(value: Option<String>) -> anyhow::Result<Option<String>> {
+    let Some(value) = value else {
+        return Ok(None);
+    };
+    let Some(path) = normalized_workspace_path_value(&value) else {
+        return Ok(None);
+    };
+    let current_dir = std::env::current_dir()?;
+    Ok(Some(
+        host_accessible_path(path, &current_dir)
+            .to_string_lossy()
+            .into_owned(),
+    ))
+}
+
+fn normalized_workspace_path_value(value: &str) -> Option<String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
+}
+
 async fn cascade_preview(
     store: &RuntimeStore,
     args: CascadePreviewArgs,
@@ -857,5 +934,25 @@ mod tests {
             host_accessible_path(absolute_path.to_string_lossy().into_owned(), current_dir);
 
         assert_eq!(resolved, absolute_path);
+    }
+
+    #[test]
+    fn workspace_path_value_trims_empty_arguments() {
+        assert_eq!(normalized_workspace_path_value(" \t "), None);
+        assert_eq!(
+            normalized_workspace_path_value(" relative-worktree "),
+            Some("relative-worktree".to_string())
+        );
+    }
+
+    #[test]
+    fn host_accessible_path_resolves_relative_workspace_paths_for_rpc() {
+        let current_dir = std::env::temp_dir().join("alera-cli-workspace-path-test");
+        let resolved = host_accessible_path(
+            normalized_workspace_path_value("relative-worktree").unwrap(),
+            &current_dir,
+        );
+
+        assert_eq!(resolved, current_dir.join("relative-worktree"));
     }
 }

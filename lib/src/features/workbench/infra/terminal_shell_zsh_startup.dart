@@ -41,7 +41,14 @@ fi
 if [[ -n "\${ALERA_AGENT_WRAPPER_PATH:-}" ]]; then
   # Move the managed wrapper dir to the front even if a sourced rc (e.g.
   # ~/.zshenv prepending ~/.local/bin) already placed it later in PATH.
-  path=("\${ALERA_AGENT_WRAPPER_PATH}" "\${(@)path:#\${ALERA_AGENT_WRAPPER_PATH}}")
+  typeset -a __alera_wrapper_path __alera_existing_path
+  __alera_wrapper_path=("\${(@ps.:.)ALERA_AGENT_WRAPPER_PATH}")
+  __alera_existing_path=("\${(@)path}")
+  for __alera_wrapper_entry in "\${(@)__alera_wrapper_path}"; do
+    __alera_existing_path=("\${(@)__alera_existing_path:#\${__alera_wrapper_entry}}")
+  done
+  path=("\${(@)__alera_wrapper_path}" "\${(@)__alera_existing_path}")
+  unset __alera_wrapper_path __alera_existing_path __alera_wrapper_entry
   export PATH
 fi
 ''';
@@ -76,7 +83,14 @@ fi
 if [[ -n "\${ALERA_AGENT_WRAPPER_PATH:-}" ]]; then
   # Move the managed wrapper dir to the front even if a sourced rc (e.g.
   # ~/.zshenv prepending ~/.local/bin) already placed it later in PATH.
-  path=("\${ALERA_AGENT_WRAPPER_PATH}" "\${(@)path:#\${ALERA_AGENT_WRAPPER_PATH}}")
+  typeset -a __alera_wrapper_path __alera_existing_path
+  __alera_wrapper_path=("\${(@ps.:.)ALERA_AGENT_WRAPPER_PATH}")
+  __alera_existing_path=("\${(@)path}")
+  for __alera_wrapper_entry in "\${(@)__alera_wrapper_path}"; do
+    __alera_existing_path=("\${(@)__alera_existing_path:#\${__alera_wrapper_entry}}")
+  done
+  path=("\${(@)__alera_wrapper_path}" "\${(@)__alera_existing_path}")
+  unset __alera_wrapper_path __alera_existing_path __alera_wrapper_entry
   export PATH
 fi
 export ZDOTDIR=$quotedManagedZdotdir

@@ -9,9 +9,9 @@ use thiserror::Error;
 use uuid::Uuid;
 
 use super::{
-    CascadePreview, Project, ProjectKind, SshAuthKind, SshBootstrapStatus, SshTarget,
-    WorkbenchLayoutRecord, Workspace, WorkspaceKind, WorkspaceRelation, WorkspaceStatus,
-    WorkspaceTabRecord, WorkspaceTag,
+    CascadePreview, Project, ProjectConfig, ProjectConfigMap, ProjectConfigRecord, ProjectKind,
+    RuntimeSettings, SshAuthKind, SshBootstrapStatus, SshTarget, WorkbenchLayoutRecord, Workspace,
+    WorkspaceKind, WorkspaceRelation, WorkspaceStatus, WorkspaceTabRecord, WorkspaceTag,
 };
 
 pub const RUNTIME_DATABASE_FILE_NAME: &str = "runtime.sqlite";
@@ -126,6 +126,32 @@ impl RuntimeStore {
         Ok(())
     }
 
+    pub async fn runtime_settings(&self) -> Result<RuntimeSettings> {
+        Ok(RuntimeSettings {
+            workspace_directory: self.get_workspace_directory().await?,
+        })
+    }
+
+    pub async fn get_workspace_directory(&self) -> Result<Option<String>> {
+        self.get_metadata("settings.general.workspaceDirectory").await
+    }
+
+    pub async fn set_workspace_directory(&self, path: Option<&str>) -> Result<RuntimeSettings> {
+        match path.map(str::trim).filter(|value| !value.is_empty()) {
+            Some(value) => {
+                self.set_metadata("settings.general.workspaceDirectory", value)
+                    .await?;
+            }
+            None => {
+                sqlx::query("DELETE FROM runtimeMetadata WHERE key = ?")
+                    .bind("settings.general.workspaceDirectory")
+                    .execute(&self.pool)
+                    .await?;
+            }
+        }
+        self.runtime_settings().await
+    }
+
     pub async fn list_projects(&self) -> Result<Vec<Project>> {
         let rows = sqlx::query(
             "SELECT id, name, repoPath, createdAt, updatedAt, kind \
@@ -205,7 +231,61 @@ impl RuntimeStore {
             .bind(project_id)
             .execute(&mut *tx)
             .await?;
+        sqlx::query("DELETE FROM projectConfigs WHERE projectId = ?")
+            .bind(project_id)
+            .execute(&mut *tx)
+            .await?;
         tx.commit().await?;
+        Ok(())
+    }
+
+    pub async fn find_project_config(&self, project_id: &str) -> Result<Option<ProjectConfig>> {
+        let row = sqlx::query("SELECT dataJson FROM projectConfigs WHERE projectId = ?")
+            .bind(project_id)
+            .fetch_optional(&self.pool)
+            .await?;
+        row.map(project_config_from_row).transpose()
+    }
+
+    pub async fn list_project_configs(&self) -> Result<ProjectConfigMap> {
+        let rows = sqlx::query("SELECT projectId, dataJson FROM projectConfigs")
+            .fetch_all(&self.pool)
+            .await?;
+        let mut configs = ProjectConfigMap::new();
+        for row in rows {
+            let project_id: String = row.try_get("projectId")?;
+            configs.insert(project_id, project_config_from_row(row)?);
+        }
+        Ok(configs)
+    }
+
+    pub async fn upsert_project_config(
+        &self,
+        project_id: &str,
+        config: ProjectConfig,
+        updated_at: DateTime<Utc>,
+    ) -> Result<ProjectConfigRecord> {
+        sqlx::query(
+            "INSERT INTO projectConfigs (projectId, dataJson, updatedAt) VALUES (?, ?, ?) \
+             ON CONFLICT(projectId) DO UPDATE SET dataJson = excluded.dataJson, updatedAt = excluded.updatedAt",
+        )
+        .bind(project_id)
+        .bind(serde_json::to_string(&config)?)
+        .bind(format_timestamp(updated_at))
+        .execute(&self.pool)
+        .await?;
+        Ok(ProjectConfigRecord {
+            project_id: project_id.to_string(),
+            config,
+            updated_at,
+        })
+    }
+
+    pub async fn remove_project_config(&self, project_id: &str) -> Result<()> {
+        sqlx::query("DELETE FROM projectConfigs WHERE projectId = ?")
+            .bind(project_id)
+            .execute(&self.pool)
+            .await?;
         Ok(())
     }
 
@@ -862,6 +942,11 @@ fn layout_from_row(row: sqlx::sqlite::SqliteRow) -> Result<WorkbenchLayoutRecord
     })
 }
 
+fn project_config_from_row(row: sqlx::sqlite::SqliteRow) -> Result<ProjectConfig> {
+    let data_json: String = row.try_get("dataJson")?;
+    Ok(serde_json::from_str(&data_json).unwrap_or_default())
+}
+
 fn tag_from_row(row: sqlx::sqlite::SqliteRow) -> Result<WorkspaceTag> {
     Ok(WorkspaceTag {
         id: row.try_get("id")?,
@@ -959,6 +1044,11 @@ const RUNTIME_SCHEMA: &[&str] = &[
         createdAt TEXT NOT NULL,
         updatedAt TEXT NOT NULL,
         kind TEXT NOT NULL
+    );",
+    "CREATE TABLE IF NOT EXISTS projectConfigs (
+        projectId TEXT PRIMARY KEY,
+        dataJson TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
     );",
     "CREATE TABLE IF NOT EXISTS workspaces (
         id TEXT PRIMARY KEY,

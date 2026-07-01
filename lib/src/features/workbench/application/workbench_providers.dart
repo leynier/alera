@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:alera/src/features/agent_status/application/agent_status_controller.dart';
 import 'package:alera/src/features/agent_status/application/agent_status_providers.dart';
@@ -18,6 +19,8 @@ import 'package:alera/src/features/workbench/application/worktree_setup_service.
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/infra/drift_workbench_view_prefs_repository.dart';
+import 'package:alera/src/features/workbench/infra/alera_cli_terminal_shim.dart';
+import 'package:alera/src/features/workbench/infra/runtime_managed_workspace_client.dart';
 import 'package:alera/src/features/workbench/infra/runtime_workbench_repository.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
@@ -68,6 +71,19 @@ WorkspaceSearchService workspaceSearchService(Ref ref) {
 }
 
 @Riverpod(keepAlive: true)
+ManagedWorkspaceRuntime? managedWorkspaceRuntime(Ref ref) {
+  return RuntimeManagedWorkspaceClient(
+    ref.watch(runtimeHostClientProvider),
+    beforeAccess: ref.watch(runtimeStateMigrationProvider).ensureMigrated,
+  );
+}
+
+@Riverpod(keepAlive: true)
+AleraCliTerminalShimService aleraCliTerminalShimService(Ref ref) {
+  return AleraCliTerminalShimService();
+}
+
+@Riverpod(keepAlive: true)
 WorktreeSetupRunner worktreeSetupRunner(Ref ref) {
   return WorktreeSetupService(processRunner: ref.watch(processRunnerProvider));
 }
@@ -91,6 +107,7 @@ WorkspaceService workspaceService(Ref ref) {
     workspaceRoot: WorkspaceRoot(override: override),
     projectConfigReader: ref.watch(projectConfigServiceProvider),
     worktreeSetupRunner: ref.watch(worktreeSetupRunnerProvider),
+    managedRuntime: ref.watch(managedWorkspaceRuntimeProvider),
   );
 }
 
@@ -138,6 +155,7 @@ TerminalRuntime terminalRuntime(Ref ref) {
   final codexRuntimeHome = ref.watch(codexRuntimeHomeServiceProvider);
   final claudeRuntimeHome = ref.watch(claudeRuntimeHomeServiceProvider);
   final agentRuntimeOverlay = ref.watch(agentRuntimeOverlayServiceProvider);
+  final aleraCliShim = ref.watch(aleraCliTerminalShimServiceProvider);
   final shellStartupPreparer = ref.watch(terminalShellStartupPreparerProvider);
   final runtime = XtermTerminalRuntime(
     ptySessionFactory: TerminalHostPtySessionFactory(
@@ -149,23 +167,40 @@ TerminalRuntime terminalRuntime(Ref ref) {
     terminalSessionCleanup: agentRuntimeOverlay.clearTerminalOverlays,
     agentHookEnvironmentBuilder:
         ({required terminalSessionId, required workspaceId, required tabId}) {
+          final environment = <String, String>{};
+          Future<void> addAleraCliShim() async {
+            try {
+              _mergeTerminalLaunchEnvironment(
+                environment,
+                await aleraCliShim.prepareForTerminalLaunch(),
+              );
+            } catch (_) {}
+          }
+
           final hooks = ref
               .read(settingsControllerProvider)
               .general
               .agentStatusHooks;
           if (!hooks.anyEnabled) {
-            return null;
+            return addAleraCliShim().then(
+              (_) => environment.isEmpty ? null : environment,
+            );
           }
-          return terminalLaunchEnvironmentFor(
-            agentHookReceiver: agentHookReceiver,
-            codexRuntimeHome: codexRuntimeHome,
-            claudeRuntimeHome: claudeRuntimeHome,
-            agentRuntimeOverlay: agentRuntimeOverlay,
-            hooks: hooks,
-            terminalSessionId: terminalSessionId,
-            workspaceId: workspaceId,
-            tabId: tabId,
-          );
+          return () async {
+            await addAleraCliShim();
+            final hooksEnvironment = await terminalLaunchEnvironmentFor(
+              agentHookReceiver: agentHookReceiver,
+              codexRuntimeHome: codexRuntimeHome,
+              claudeRuntimeHome: claudeRuntimeHome,
+              agentRuntimeOverlay: agentRuntimeOverlay,
+              hooks: hooks,
+              terminalSessionId: terminalSessionId,
+              workspaceId: workspaceId,
+              tabId: tabId,
+            );
+            _mergeTerminalLaunchEnvironment(environment, hooksEnvironment);
+            return environment.isEmpty ? null : environment;
+          }();
         },
   );
   ref.listen<TerminalSettings>(
@@ -278,3 +313,32 @@ WorkspaceTabRecord? findTabById(
 // coverage:ignore-start
 void _ignoreProviderAsyncError(Object error, StackTrace stackTrace) {}
 // coverage:ignore-end
+
+void _mergeTerminalLaunchEnvironment(
+  Map<String, String> target,
+  Map<String, String>? source,
+) {
+  if (source == null || source.isEmpty) {
+    return;
+  }
+  final wrapperEntries = <String>[
+    ..._splitPathList(target['ALERA_AGENT_WRAPPER_PATH']),
+    ..._splitPathList(source['ALERA_AGENT_WRAPPER_PATH']),
+  ];
+  target.addAll(source);
+  if (wrapperEntries.isEmpty) {
+    target.remove('ALERA_AGENT_WRAPPER_PATH');
+    return;
+  }
+  final seen = <String>{};
+  target['ALERA_AGENT_WRAPPER_PATH'] = wrapperEntries
+      .where((entry) => entry.isNotEmpty && seen.add(entry))
+      .join(Platform.pathSeparator);
+}
+
+List<String> _splitPathList(String? value) {
+  if (value == null || value.isEmpty) {
+    return const <String>[];
+  }
+  return value.split(Platform.pathSeparator);
+}

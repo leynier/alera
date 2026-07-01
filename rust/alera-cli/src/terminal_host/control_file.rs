@@ -6,6 +6,7 @@ use serde_json::json;
 
 use crate::terminal_host::protocol::{
     PROTOCOL_VERSION, RUNTIME_HOST_BOOTSTRAP_CAPABILITY, RUNTIME_HOST_CAPABILITY,
+    RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
 };
 
 /// Publishes the host's socket metadata to the control file the app reads.
@@ -18,7 +19,11 @@ pub fn write_control_file(path: &Path, port: u16, token: &str) -> std::io::Resul
         "pid": std::process::id(),
         "port": port,
         "token": token,
-        "runtimeCapabilities": [RUNTIME_HOST_CAPABILITY, RUNTIME_HOST_BOOTSTRAP_CAPABILITY],
+        "runtimeCapabilities": [
+            RUNTIME_HOST_CAPABILITY,
+            RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
+            RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
+        ],
         "startedAt": Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true),
     });
     let temp = temp_path(path);
@@ -59,7 +64,11 @@ mod tests {
         assert_eq!(value["token"], json!("secret-token"));
         assert_eq!(
             value["runtimeCapabilities"],
-            json!([RUNTIME_HOST_CAPABILITY, RUNTIME_HOST_BOOTSTRAP_CAPABILITY])
+            json!([
+                RUNTIME_HOST_CAPABILITY,
+                RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
+                RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
+            ])
         );
         assert_eq!(value["pid"], json!(std::process::id()));
         assert!(value["startedAt"].as_str().unwrap().ends_with('Z'));

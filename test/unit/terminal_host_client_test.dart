@@ -583,6 +583,47 @@ void main() {
   );
 
   test(
+    'starts a separate runtime host when managed workspace capability is missing',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'alera-host-client-no-managed-capability-',
+      );
+      addTearDown(() async {
+        if (await tempDir.exists()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+      final legacyServer = await _TerminalHostTestServer.start();
+      addTearDown(legacyServer.dispose);
+      final runtimeServer = await _TerminalHostTestServer.start();
+      addTearDown(runtimeServer.dispose);
+      await _writeControlFile(
+        tempDir: tempDir,
+        port: legacyServer.port,
+        token: 'legacy-token',
+        includeRuntimeCapability: true,
+        includeBootstrapCapability: true,
+        includeManagedWorkspaceCapability: false,
+      );
+      final launcher = _FakeTerminalHostLauncher(server: runtimeServer);
+      final client = SocketTerminalHostClient(
+        launcher: launcher,
+        applicationSupportDirectory: () async => tempDir,
+      );
+      addTearDown(client.dispose);
+
+      await client.runtimeRequest('workspace.createManaged');
+
+      expect(launcher.starts, 1);
+      expect(legacyServer.requestTypes, isEmpty);
+      expect(runtimeServer.requestTypes, <String>[
+        'hello',
+        'workspace.createManaged',
+      ]);
+    },
+  );
+
+  test(
     'reuses a runtime control for terminal requests when no legacy exists',
     () async {
       final tempDir = await Directory.systemTemp.createTemp(
@@ -653,6 +694,7 @@ Future<void> _writeControlFile({
   required String token,
   bool includeRuntimeCapability = true,
   bool includeBootstrapCapability = true,
+  bool includeManagedWorkspaceCapability = true,
 }) async {
   final runtimeDir = Directory(p.join(tempDir.path, 'terminal_host'));
   await runtimeDir.create(recursive: true);
@@ -665,6 +707,8 @@ Future<void> _writeControlFile({
     if (includeRuntimeCapability) ...<String>[
       aleraRuntimeHostCapability,
       if (includeBootstrapCapability) aleraRuntimeHostBootstrapCapability,
+      if (includeManagedWorkspaceCapability)
+        aleraRuntimeHostManagedWorkspaceCapability,
     ],
   ];
   if (capabilities.isNotEmpty) {
@@ -705,6 +749,7 @@ final class _FakeTerminalHostLauncher implements TerminalHostProcessLauncher {
         'runtimeCapabilities': <String>[
           aleraRuntimeHostCapability,
           aleraRuntimeHostBootstrapCapability,
+          aleraRuntimeHostManagedWorkspaceCapability,
         ],
       }),
     );

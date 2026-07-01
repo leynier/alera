@@ -47,6 +47,15 @@ fn path_str(path: &Path) -> String {
     path.to_string_lossy().to_string()
 }
 
+fn canonical(path: &str) -> String {
+    let target = Path::new(path);
+    std::fs::canonicalize(target)
+        .unwrap_or_else(|_| target.to_path_buf())
+        .to_string_lossy()
+        .trim_end_matches('/')
+        .to_string()
+}
+
 fn branch_oid(path: &Path, branch: &str) -> Oid {
     let repo = Repository::open(path).expect("open repo");
     let branch = repo

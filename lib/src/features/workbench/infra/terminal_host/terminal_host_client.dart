@@ -20,6 +20,8 @@ const Set<String> _runtimeHostEventNames = <String>{
   'workspaceTabsChanged',
   'workspaceTagsChanged',
   'workspaceRelationsChanged',
+  'runtimeSettingsChanged',
+  'projectConfigsChanged',
   'sshTargetsChanged',
   'sshTargetBootstrapProgress',
 };
@@ -208,19 +210,21 @@ final class SocketTerminalHostClient
   Future<Object?> _runtimeRequest(
     String type,
     Map<String, Object?> payload,
+    Duration? timeout,
   ) async {
     if (_disposed) {
       throw StateError('Terminal host client is disposed.');
     }
     final connection = await _connectRuntime();
-    return _requestOnConnection(connection, type, payload);
+    return _requestOnConnection(connection, type, payload, timeout: timeout);
   }
 
   Future<Object?> _requestOnConnection(
     _TerminalHostConnection connection,
     String type,
-    Map<String, Object?> payload,
-  ) {
+    Map<String, Object?> payload, {
+    Duration? timeout,
+  }) {
     final id = _nextRequestId++;
     final completer = Completer<Object?>();
     _pending[id] = _PendingHostRequest(connection, completer);
@@ -229,15 +233,16 @@ final class SocketTerminalHostClient
       'type': type,
       'payload': payload,
     });
-    return completer.future.timeout(_terminalHostRequestTimeout);
+    return completer.future.timeout(timeout ?? _terminalHostRequestTimeout);
   }
 
   @override
   Future<Object?> runtimeRequest(
     String type, [
     Map<String, Object?> payload = const <String, Object?>{},
+    Duration? timeout,
   ]) {
-    return _runtimeRequest(type, payload);
+    return _runtimeRequest(type, payload, timeout);
   }
 
   Future<_TerminalHostConnection> _connectTerminal() {
@@ -559,7 +564,8 @@ final class SocketTerminalHostClient
         token: token,
         supportsRuntime:
             capabilities.contains(aleraRuntimeHostCapability) &&
-            capabilities.contains(aleraRuntimeHostBootstrapCapability),
+            capabilities.contains(aleraRuntimeHostBootstrapCapability) &&
+            capabilities.contains(aleraRuntimeHostManagedWorkspaceCapability),
       );
     } catch (_) {
       return null;
