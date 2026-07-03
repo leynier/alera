@@ -1,13 +1,24 @@
-part of 'settings_dialog.dart';
+import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
+import 'package:alera/src/design_system/forms/alera_search_field.dart';
+import 'package:alera/src/design_system/menus/alera_menu_item.dart';
+import 'package:alera/src/design_system/surfaces/alera_panel.dart';
+import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
+import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart';
+import 'package:flutter/material.dart';
 
-class _ThemePickerSetting extends StatefulWidget {
-  const _ThemePickerSetting({required this.value, required this.onChanged});
+class ThemePickerSetting extends StatefulWidget {
+  const ThemePickerSetting({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
 
   final String value;
   final ValueChanged<String> onChanged;
 
   @override
-  State<_ThemePickerSetting> createState() => _ThemePickerSettingState();
+  State<ThemePickerSetting> createState() => _ThemePickerSettingState();
 }
 
 @visibleForTesting
@@ -15,10 +26,10 @@ Widget buildThemePickerSettingForTesting({
   required String value,
   required ValueChanged<String> onChanged,
 }) {
-  return _ThemePickerSetting(value: value, onChanged: onChanged);
+  return ThemePickerSetting(value: value, onChanged: onChanged);
 }
 
-class _ThemePickerSettingState extends State<_ThemePickerSetting> {
+class _ThemePickerSettingState extends State<ThemePickerSetting> {
   final TextEditingController _controller = TextEditingController();
   int _highlightedIndex = -1;
 
@@ -29,7 +40,7 @@ class _ThemePickerSettingState extends State<_ThemePickerSetting> {
   }
 
   List<TerminalThemeEntry> get _filteredThemes {
-    final names = _filterOrdered(terminalThemeNames, _controller.text);
+    final names = filterOrdered(terminalThemeNames, _controller.text);
     return names
         .map(terminalThemeEntryForName)
         .whereType<TerminalThemeEntry>()
@@ -178,7 +189,7 @@ class _ThemeSearchList extends StatelessWidget {
             ),
             ConstrainedBox(
               constraints: const BoxConstraints(
-                maxHeight: _kPickerMenuMaxHeight,
+                maxHeight: kPickerMenuMaxHeight,
               ),
               child: themes.isEmpty
                   ? const AleraEmptyState(message: 'No themes found.')
@@ -220,17 +231,17 @@ class _ThemeColorDots extends StatelessWidget {
       height: 12,
       child: Row(
         children: <Widget>[
-          _ThemeColorDot(color: entry.theme.red),
-          _ThemeColorDot(color: entry.theme.green),
-          _ThemeColorDot(color: entry.theme.blue),
+          ThemeColorDot(color: entry.theme.red),
+          ThemeColorDot(color: entry.theme.green),
+          ThemeColorDot(color: entry.theme.blue),
         ],
       ),
     );
   }
 }
 
-class _ThemeColorDot extends StatelessWidget {
-  const _ThemeColorDot({required this.color});
+class ThemeColorDot extends StatelessWidget {
+  const ThemeColorDot({super.key, required this.color});
 
   final Color color;
 

@@ -609,11 +609,7 @@ void _registerSettingsDialogCoreTests() {
       isTrue,
     );
     expect(
-      container
-          .read(settingsControllerProvider)
-          .agents
-          .agentStatusHooks
-          .claude,
+      container.read(settingsControllerProvider).agents.agentStatusHooks.claude,
       isTrue,
     );
     expect(
@@ -625,11 +621,7 @@ void _registerSettingsDialogCoreTests() {
       isTrue,
     );
     expect(
-      container
-          .read(settingsControllerProvider)
-          .agents
-          .agentStatusHooks
-          .cursor,
+      container.read(settingsControllerProvider).agents.agentStatusHooks.cursor,
       isTrue,
     );
     expect(

@@ -1,7 +1,15 @@
-part of 'settings_dialog.dart';
+import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/layout/alera_settings_group.dart';
+import 'package:alera/src/features/settings/domain/alera_settings.dart';
+import 'package:alera/src/features/settings/presentation/panes/terminal_theme_controls.dart';
+import 'package:alera/src/features/settings/presentation/panes/terminal_theme_picker.dart';
+import 'package:alera/src/features/settings/presentation/rows/settings_font_autocomplete_row.dart';
+import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart';
+import 'package:flutter/material.dart';
 
-class _TerminalSettingsPane extends StatelessWidget {
-  const _TerminalSettingsPane({
+class TerminalSettingsPane extends StatelessWidget {
+  const TerminalSettingsPane({
+    super.key,
     required this.settings,
     required this.fontSuggestions,
     required this.onChanged,
@@ -17,11 +25,11 @@ class _TerminalSettingsPane extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        _SettingsGroup(
+        AleraSettingsGroup(
           title: 'Typography',
           description: 'Default terminal typography for new sessions.',
           children: <Widget>[
-            _FontAutocompleteSettingRow(
+            SettingsFontAutocompleteRow(
               title: 'Font Family',
               description: 'Typeface used in new terminal sessions.',
               value: settings.fontFamily,
@@ -29,7 +37,7 @@ class _TerminalSettingsPane extends StatelessWidget {
               onChanged: (value) =>
                   onChanged(settings.copyWith(fontFamily: value)),
             ),
-            _NumberSettingRow(
+            SettingsNumberRow(
               title: 'Font Size',
               description: 'Text size used in new terminal sessions.',
               value: settings.fontSize,
@@ -40,7 +48,7 @@ class _TerminalSettingsPane extends StatelessWidget {
               onChanged: (value) =>
                   onChanged(settings.copyWith(fontSize: value)),
             ),
-            _IntegerSettingRow(
+            SettingsIntegerRow(
               title: 'Font Weight',
               description: 'Weight used for terminal text.',
               value: settings.fontWeight,
@@ -50,7 +58,7 @@ class _TerminalSettingsPane extends StatelessWidget {
               onChanged: (value) =>
                   onChanged(settings.copyWith(fontWeight: value)),
             ),
-            _NumberSettingRow(
+            SettingsNumberRow(
               title: 'Line Height',
               description: 'Vertical spacing for terminal rows.',
               value: settings.lineHeight,
@@ -63,23 +71,23 @@ class _TerminalSettingsPane extends StatelessWidget {
           ],
         ),
         const SizedBox(height: AleraTokens.space16),
-        _SettingsGroup(
+        AleraSettingsGroup(
           title: 'Cursor',
           description: 'Default cursor appearance for terminal sessions.',
           children: <Widget>[
-            _CursorShapeRow(
+            CursorShapeRow(
               value: settings.cursorShape,
               onChanged: (value) =>
                   onChanged(settings.copyWith(cursorShape: value)),
             ),
-            _SwitchSettingRow(
+            SettingsSwitchRow(
               title: 'Blinking Cursor',
               description: 'Blink the cursor while the terminal has focus.',
               value: settings.cursorBlink,
               onChanged: (value) =>
                   onChanged(settings.copyWith(cursorBlink: value)),
             ),
-            _NumberSettingRow(
+            SettingsNumberRow(
               title: 'Cursor Opacity',
               description: 'Opacity of the terminal cursor.',
               value: settings.cursorOpacity,
@@ -92,16 +100,16 @@ class _TerminalSettingsPane extends StatelessWidget {
           ],
         ),
         const SizedBox(height: AleraTokens.space16),
-        _SettingsGroup(
+        AleraSettingsGroup(
           title: 'Appearance',
           description: 'Terminal colors, theme and spacing.',
           children: <Widget>[
-            _ThemePickerSetting(
+            ThemePickerSetting(
               value: settings.themeName,
               onChanged: (value) =>
                   onChanged(settings.copyWith(themeName: value)),
             ),
-            _NumberSettingRow(
+            SettingsNumberRow(
               title: 'Background Opacity',
               description: 'Opacity of the terminal background.',
               value: settings.backgroundOpacity,
@@ -111,7 +119,7 @@ class _TerminalSettingsPane extends StatelessWidget {
               onChanged: (value) =>
                   onChanged(settings.copyWith(backgroundOpacity: value)),
             ),
-            _NumberSettingRow(
+            SettingsNumberRow(
               title: 'Horizontal Padding',
               description: 'Horizontal spacing around the terminal grid.',
               value: settings.paddingX,
@@ -122,7 +130,7 @@ class _TerminalSettingsPane extends StatelessWidget {
               onChanged: (value) =>
                   onChanged(settings.copyWith(paddingX: value)),
             ),
-            _NumberSettingRow(
+            SettingsNumberRow(
               title: 'Vertical Padding',
               description: 'Vertical spacing around the terminal grid.',
               value: settings.paddingY,
@@ -133,7 +141,7 @@ class _TerminalSettingsPane extends StatelessWidget {
               onChanged: (value) =>
                   onChanged(settings.copyWith(paddingY: value)),
             ),
-            _HexColorSettingRow(
+            HexColorSettingRow(
               title: 'Foreground Color',
               description: 'Override the terminal text color.',
               value: overrides.foreground,
@@ -144,7 +152,7 @@ class _TerminalSettingsPane extends StatelessWidget {
                 ),
               ),
             ),
-            _HexColorSettingRow(
+            HexColorSettingRow(
               title: 'Background Color',
               description: 'Override the terminal background color.',
               value: overrides.background,
@@ -155,7 +163,7 @@ class _TerminalSettingsPane extends StatelessWidget {
                 ),
               ),
             ),
-            _HexColorSettingRow(
+            HexColorSettingRow(
               title: 'Cursor Color',
               description: 'Override the terminal cursor color.',
               value: overrides.cursor,
@@ -166,7 +174,7 @@ class _TerminalSettingsPane extends StatelessWidget {
                 ),
               ),
             ),
-            _HexColorSettingRow(
+            HexColorSettingRow(
               title: 'Selection Color',
               description: 'Override the terminal selection color.',
               value: overrides.selection,
@@ -180,12 +188,12 @@ class _TerminalSettingsPane extends StatelessWidget {
           ],
         ),
         const SizedBox(height: AleraTokens.space16),
-        _SettingsGroup(
+        AleraSettingsGroup(
           title: 'Advanced',
           description:
               'History, detached host lifetime and double-click selection behavior.',
           children: <Widget>[
-            _IntegerSettingRow(
+            SettingsIntegerRow(
               title: 'Scrollback Lines',
               description: 'Maximum terminal history retained per session.',
               value: settings.scrollbackLines,
@@ -195,7 +203,7 @@ class _TerminalSettingsPane extends StatelessWidget {
               onChanged: (value) =>
                   onChanged(settings.copyWith(scrollbackLines: value)),
             ),
-            _IntegerSettingRow(
+            SettingsIntegerRow(
               title: 'Host Scrollback Size',
               description:
                   'Maximum host-side terminal output retained per session.',
@@ -208,7 +216,7 @@ class _TerminalSettingsPane extends StatelessWidget {
                 settings.copyWith(hostScrollbackBytes: value * 1000 * 1000),
               ),
             ),
-            _IntegerSettingRow(
+            SettingsIntegerRow(
               title: 'Empty Host Shutdown',
               description:
                   'Seconds to keep the host alive after the app closes with no running sessions.',
@@ -221,7 +229,7 @@ class _TerminalSettingsPane extends StatelessWidget {
                 settings.copyWith(hostEmptyShutdownDelaySeconds: value),
               ),
             ),
-            _IntegerSettingRow(
+            SettingsIntegerRow(
               title: 'Detached Session Shutdown',
               description:
                   'Seconds to keep detached running sessions alive after the app closes.',
@@ -236,7 +244,7 @@ class _TerminalSettingsPane extends StatelessWidget {
                 ),
               ),
             ),
-            _TextSettingRow(
+            SettingsTextRow(
               title: 'Word Separators',
               description: 'Characters that break double-click word selection.',
               value: settings.wordSeparators ?? '',

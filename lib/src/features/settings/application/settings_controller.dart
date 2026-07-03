@@ -123,9 +123,7 @@ class SettingsController extends _$SettingsController {
     }
     await _save(
       state.copyWith(
-        agents: state.agents.copyWith(
-          keepComputerAwakeWhileAgentsWork: value,
-        ),
+        agents: state.agents.copyWith(keepComputerAwakeWhileAgentsWork: value),
       ),
     );
   }
