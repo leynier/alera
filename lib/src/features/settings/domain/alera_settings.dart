@@ -170,9 +170,6 @@ class GeneralSettings with GeneralSettingsMappable {
     this.starClicked = false,
     this.confirmProjectRemoval = true,
     this.confirmWorkspaceRemoval = true,
-    this.agentStatusHooks = AgentStatusHookSettings.defaults,
-    this.agentStatusNotificationsEnabled = false,
-    this.keepComputerAwakeWhileAgentsWork = false,
   });
 
   /// User-configured root directory where new linked workspaces are created.
@@ -190,6 +187,20 @@ class GeneralSettings with GeneralSettingsMappable {
   /// Ask before removing a linked workspace and its Git worktree.
   final bool confirmWorkspaceRemoval;
 
+  static const GeneralSettings defaults = GeneralSettings();
+
+  factory GeneralSettings.fromJson(Map<String, Object?> json) =>
+      GeneralSettingsMapper.fromMap(Map<String, dynamic>.from(json));
+}
+
+@MappableClass()
+class AgentSettings with AgentSettingsMappable {
+  const AgentSettings({
+    this.agentStatusHooks = AgentStatusHookSettings.defaults,
+    this.agentStatusNotificationsEnabled = false,
+    this.keepComputerAwakeWhileAgentsWork = false,
+  });
+
   /// Install managed agent hooks for terminal status. Each agent is
   /// default-off because enabling it writes into that agent's user config area.
   final AgentStatusHookSettings agentStatusHooks;
@@ -200,16 +211,55 @@ class GeneralSettings with GeneralSettingsMappable {
   /// Keep the local computer awake while local hook-reported agents are working.
   final bool keepComputerAwakeWhileAgentsWork;
 
-  static const GeneralSettings defaults = GeneralSettings();
+  static const AgentSettings defaults = AgentSettings();
 
-  factory GeneralSettings.fromJson(Map<String, Object?> json) =>
-      GeneralSettingsMapper.fromMap(Map<String, dynamic>.from(json));
+  factory AgentSettings.fromJson(Map<String, Object?> json) =>
+      AgentSettingsMapper.fromMap(Map<String, dynamic>.from(json));
 }
 
-@MappableClass()
+/// Lifts the agent-related keys that historically lived under `general` into
+/// the `agents` sub-map so settings blobs written before the `AgentSettings`
+/// extraction keep decoding with their values intact.
+class _LegacyAgentSettingsHook extends MappingHook {
+  const _LegacyAgentSettingsHook();
+
+  static const List<String> _legacyKeys = <String>[
+    'agentStatusHooks',
+    'agentStatusNotificationsEnabled',
+    'keepComputerAwakeWhileAgentsWork',
+  ];
+
+  @override
+  Object? beforeDecode(Object? value) {
+    if (value is! Map) {
+      return value;
+    }
+    if (value.containsKey('agents')) {
+      return value;
+    }
+    final general = value['general'];
+    if (general is! Map) {
+      return value;
+    }
+    final agents = <String, dynamic>{
+      for (final key in _legacyKeys)
+        if (general.containsKey(key)) key: general[key],
+    };
+    if (agents.isEmpty) {
+      return value;
+    }
+    return <String, dynamic>{
+      for (final entry in value.entries) entry.key.toString(): entry.value,
+      'agents': agents,
+    };
+  }
+}
+
+@MappableClass(hook: _LegacyAgentSettingsHook())
 class AleraSettings with AleraSettingsMappable {
   const AleraSettings({
     required this.general,
+    this.agents = AgentSettings.defaults,
     this.aiTextGeneration = AiTextGenerationSettings.defaults,
     this.editor = EditorSettings.defaults,
     required this.terminal,
@@ -217,6 +267,7 @@ class AleraSettings with AleraSettingsMappable {
   });
 
   final GeneralSettings general;
+  final AgentSettings agents;
   final AiTextGenerationSettings aiTextGeneration;
   final EditorSettings editor;
   final TerminalSettings terminal;
@@ -224,6 +275,7 @@ class AleraSettings with AleraSettingsMappable {
 
   static const AleraSettings defaults = AleraSettings(
     general: GeneralSettings.defaults,
+    agents: AgentSettings.defaults,
     aiTextGeneration: AiTextGenerationSettings.defaults,
     editor: EditorSettings.defaults,
     terminal: TerminalSettings.defaults,

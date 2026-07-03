@@ -1,9 +1,10 @@
 part of 'settings_dialog.dart';
 
 class _GeneralSettingsPane extends ConsumerWidget {
-  const _GeneralSettingsPane({required this.general});
+  const _GeneralSettingsPane({required this.general, required this.agents});
 
   final GeneralSettings general;
+  final AgentSettings agents;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -63,7 +64,7 @@ class _GeneralSettingsPane extends ConsumerWidget {
               title: 'Codex Hooks',
               description:
                   'Use an Alera-managed Codex runtime home with status hooks.',
-              value: general.agentStatusHooks.codex,
+              value: agents.agentStatusHooks.codex,
               onChanged: (value) => ref
                   .read(settingsControllerProvider.notifier)
                   .setAgentStatusHookEnabled(AgentType.codex, value),
@@ -72,7 +73,7 @@ class _GeneralSettingsPane extends ConsumerWidget {
               title: 'Claude Code Hooks',
               description:
                   'Use an Alera-managed Claude Code config with status hooks.',
-              value: general.agentStatusHooks.claude,
+              value: agents.agentStatusHooks.claude,
               onChanged: (value) => ref
                   .read(settingsControllerProvider.notifier)
                   .setAgentStatusHookEnabled(AgentType.claude, value),
@@ -80,7 +81,7 @@ class _GeneralSettingsPane extends ConsumerWidget {
             _SwitchSettingRow(
               title: 'GitHub Copilot Hooks',
               description: 'Use an Alera-managed GitHub Copilot home overlay.',
-              value: general.agentStatusHooks.copilot,
+              value: agents.agentStatusHooks.copilot,
               onChanged: (value) => ref
                   .read(settingsControllerProvider.notifier)
                   .setAgentStatusHookEnabled(AgentType.copilot, value),
@@ -88,7 +89,7 @@ class _GeneralSettingsPane extends ConsumerWidget {
             _SwitchSettingRow(
               title: 'Cursor Hooks',
               description: 'Use an Alera-managed Cursor Agent plugin wrapper.',
-              value: general.agentStatusHooks.cursor,
+              value: agents.agentStatusHooks.cursor,
               onChanged: (value) => ref
                   .read(settingsControllerProvider.notifier)
                   .setAgentStatusHookEnabled(AgentType.cursor, value),
@@ -97,7 +98,7 @@ class _GeneralSettingsPane extends ConsumerWidget {
               title: 'Antigravity Hooks',
               description:
                   'Install Alera-managed Antigravity hooks for the agy CLI. Disable to remove only Alera-managed hook entries.',
-              value: general.agentStatusHooks.agy,
+              value: agents.agentStatusHooks.agy,
               onChanged: (value) => ref
                   .read(settingsControllerProvider.notifier)
                   .setAgentStatusHookEnabled(AgentType.agy, value),
@@ -106,7 +107,7 @@ class _GeneralSettingsPane extends ConsumerWidget {
               title: 'OpenCode Hooks',
               description:
                   'Use an Alera-managed OpenCode config overlay with status plugin.',
-              value: general.agentStatusHooks.opencode,
+              value: agents.agentStatusHooks.opencode,
               onChanged: (value) => ref
                   .read(settingsControllerProvider.notifier)
                   .setAgentStatusHookEnabled(AgentType.opencode, value),
@@ -115,7 +116,7 @@ class _GeneralSettingsPane extends ConsumerWidget {
               title: 'Pi Hooks',
               description:
                   'Use an Alera-managed Pi agent overlay with status extension.',
-              value: general.agentStatusHooks.pi,
+              value: agents.agentStatusHooks.pi,
               onChanged: (value) => ref
                   .read(settingsControllerProvider.notifier)
                   .setAgentStatusHookEnabled(AgentType.pi, value),
@@ -123,7 +124,7 @@ class _GeneralSettingsPane extends ConsumerWidget {
             _SwitchSettingRow(
               title: 'Amp Hooks',
               description: 'Use an Alera-managed Amp config overlay.',
-              value: general.agentStatusHooks.amp,
+              value: agents.agentStatusHooks.amp,
               onChanged: (value) => ref
                   .read(settingsControllerProvider.notifier)
                   .setAgentStatusHookEnabled(AgentType.amp, value),
@@ -132,7 +133,7 @@ class _GeneralSettingsPane extends ConsumerWidget {
               title: 'Agent Status Notifications',
               description:
                   'Show native notifications when an agent needs attention or finishes.',
-              value: general.agentStatusNotificationsEnabled,
+              value: agents.agentStatusNotificationsEnabled,
               onChanged: (value) => ref
                   .read(settingsControllerProvider.notifier)
                   .setAgentStatusNotificationsEnabled(value),
@@ -142,7 +143,7 @@ class _GeneralSettingsPane extends ConsumerWidget {
               description: _agentAwakeSettingDescription(
                 Theme.of(context).platform,
               ),
-              value: general.keepComputerAwakeWhileAgentsWork,
+              value: agents.keepComputerAwakeWhileAgentsWork,
               onChanged: (value) => ref
                   .read(settingsControllerProvider.notifier)
                   .setKeepComputerAwakeWhileAgentsWork(value),

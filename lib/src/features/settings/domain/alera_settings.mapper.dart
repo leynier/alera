@@ -976,7 +976,6 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
   static GeneralSettingsMapper ensureInitialized() {
     if (_instance == null) {
       MapperContainer.globals.use(_instance = GeneralSettingsMapper._());
-      AgentStatusHookSettingsMapper.ensureInitialized();
     }
     return _instance!;
   }
@@ -1014,33 +1013,6 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
     opt: true,
     def: true,
   );
-  static AgentStatusHookSettings _$agentStatusHooks(GeneralSettings v) =>
-      v.agentStatusHooks;
-  static const Field<GeneralSettings, AgentStatusHookSettings>
-  _f$agentStatusHooks = Field(
-    'agentStatusHooks',
-    _$agentStatusHooks,
-    opt: true,
-    def: AgentStatusHookSettings.defaults,
-  );
-  static bool _$agentStatusNotificationsEnabled(GeneralSettings v) =>
-      v.agentStatusNotificationsEnabled;
-  static const Field<GeneralSettings, bool> _f$agentStatusNotificationsEnabled =
-      Field(
-        'agentStatusNotificationsEnabled',
-        _$agentStatusNotificationsEnabled,
-        opt: true,
-        def: false,
-      );
-  static bool _$keepComputerAwakeWhileAgentsWork(GeneralSettings v) =>
-      v.keepComputerAwakeWhileAgentsWork;
-  static const Field<GeneralSettings, bool>
-  _f$keepComputerAwakeWhileAgentsWork = Field(
-    'keepComputerAwakeWhileAgentsWork',
-    _$keepComputerAwakeWhileAgentsWork,
-    opt: true,
-    def: false,
-  );
 
   @override
   final MappableFields<GeneralSettings> fields = const {
@@ -1048,9 +1020,6 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
     #starClicked: _f$starClicked,
     #confirmProjectRemoval: _f$confirmProjectRemoval,
     #confirmWorkspaceRemoval: _f$confirmWorkspaceRemoval,
-    #agentStatusHooks: _f$agentStatusHooks,
-    #agentStatusNotificationsEnabled: _f$agentStatusNotificationsEnabled,
-    #keepComputerAwakeWhileAgentsWork: _f$keepComputerAwakeWhileAgentsWork,
   };
 
   static GeneralSettings _instantiate(DecodingData data) {
@@ -1059,13 +1028,6 @@ class GeneralSettingsMapper extends ClassMapperBase<GeneralSettings> {
       starClicked: data.dec(_f$starClicked),
       confirmProjectRemoval: data.dec(_f$confirmProjectRemoval),
       confirmWorkspaceRemoval: data.dec(_f$confirmWorkspaceRemoval),
-      agentStatusHooks: data.dec(_f$agentStatusHooks),
-      agentStatusNotificationsEnabled: data.dec(
-        _f$agentStatusNotificationsEnabled,
-      ),
-      keepComputerAwakeWhileAgentsWork: data.dec(
-        _f$keepComputerAwakeWhileAgentsWork,
-      ),
     );
   }
 
@@ -1131,20 +1093,11 @@ extension GeneralSettingsValueCopy<$R, $Out>
 
 abstract class GeneralSettingsCopyWith<$R, $In extends GeneralSettings, $Out>
     implements ClassCopyWith<$R, $In, $Out> {
-  AgentStatusHookSettingsCopyWith<
-    $R,
-    AgentStatusHookSettings,
-    AgentStatusHookSettings
-  >
-  get agentStatusHooks;
   $R call({
     String? workspaceDirectory,
     bool? starClicked,
     bool? confirmProjectRemoval,
     bool? confirmWorkspaceRemoval,
-    AgentStatusHookSettings? agentStatusHooks,
-    bool? agentStatusNotificationsEnabled,
-    bool? keepComputerAwakeWhileAgentsWork,
   });
   GeneralSettingsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -1160,22 +1113,11 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
   late final ClassMapperBase<GeneralSettings> $mapper =
       GeneralSettingsMapper.ensureInitialized();
   @override
-  AgentStatusHookSettingsCopyWith<
-    $R,
-    AgentStatusHookSettings,
-    AgentStatusHookSettings
-  >
-  get agentStatusHooks =>
-      $value.agentStatusHooks.copyWith.$chain((v) => call(agentStatusHooks: v));
-  @override
   $R call({
     Object? workspaceDirectory = $none,
     bool? starClicked,
     bool? confirmProjectRemoval,
     bool? confirmWorkspaceRemoval,
-    AgentStatusHookSettings? agentStatusHooks,
-    bool? agentStatusNotificationsEnabled,
-    bool? keepComputerAwakeWhileAgentsWork,
   }) => $apply(
     FieldCopyWithData({
       if (workspaceDirectory != $none) #workspaceDirectory: workspaceDirectory,
@@ -1184,11 +1126,6 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
         #confirmProjectRemoval: confirmProjectRemoval,
       if (confirmWorkspaceRemoval != null)
         #confirmWorkspaceRemoval: confirmWorkspaceRemoval,
-      if (agentStatusHooks != null) #agentStatusHooks: agentStatusHooks,
-      if (agentStatusNotificationsEnabled != null)
-        #agentStatusNotificationsEnabled: agentStatusNotificationsEnabled,
-      if (keepComputerAwakeWhileAgentsWork != null)
-        #keepComputerAwakeWhileAgentsWork: keepComputerAwakeWhileAgentsWork,
     }),
   );
   @override
@@ -1206,6 +1143,184 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
       #confirmWorkspaceRemoval,
       or: $value.confirmWorkspaceRemoval,
     ),
+  );
+
+  @override
+  GeneralSettingsCopyWith<$R2, GeneralSettings, $Out2> $chain<$R2, $Out2>(
+    Then<$Out2, $R2> t,
+  ) => _GeneralSettingsCopyWithImpl<$R2, $Out2>($value, $cast, t);
+}
+
+class AgentSettingsMapper extends ClassMapperBase<AgentSettings> {
+  AgentSettingsMapper._();
+
+  static AgentSettingsMapper? _instance;
+  static AgentSettingsMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = AgentSettingsMapper._());
+      AgentStatusHookSettingsMapper.ensureInitialized();
+    }
+    return _instance!;
+  }
+
+  @override
+  final String id = 'AgentSettings';
+
+  static AgentStatusHookSettings _$agentStatusHooks(AgentSettings v) =>
+      v.agentStatusHooks;
+  static const Field<AgentSettings, AgentStatusHookSettings>
+  _f$agentStatusHooks = Field(
+    'agentStatusHooks',
+    _$agentStatusHooks,
+    opt: true,
+    def: AgentStatusHookSettings.defaults,
+  );
+  static bool _$agentStatusNotificationsEnabled(AgentSettings v) =>
+      v.agentStatusNotificationsEnabled;
+  static const Field<AgentSettings, bool> _f$agentStatusNotificationsEnabled =
+      Field(
+        'agentStatusNotificationsEnabled',
+        _$agentStatusNotificationsEnabled,
+        opt: true,
+        def: false,
+      );
+  static bool _$keepComputerAwakeWhileAgentsWork(AgentSettings v) =>
+      v.keepComputerAwakeWhileAgentsWork;
+  static const Field<AgentSettings, bool> _f$keepComputerAwakeWhileAgentsWork =
+      Field(
+        'keepComputerAwakeWhileAgentsWork',
+        _$keepComputerAwakeWhileAgentsWork,
+        opt: true,
+        def: false,
+      );
+
+  @override
+  final MappableFields<AgentSettings> fields = const {
+    #agentStatusHooks: _f$agentStatusHooks,
+    #agentStatusNotificationsEnabled: _f$agentStatusNotificationsEnabled,
+    #keepComputerAwakeWhileAgentsWork: _f$keepComputerAwakeWhileAgentsWork,
+  };
+
+  static AgentSettings _instantiate(DecodingData data) {
+    return AgentSettings(
+      agentStatusHooks: data.dec(_f$agentStatusHooks),
+      agentStatusNotificationsEnabled: data.dec(
+        _f$agentStatusNotificationsEnabled,
+      ),
+      keepComputerAwakeWhileAgentsWork: data.dec(
+        _f$keepComputerAwakeWhileAgentsWork,
+      ),
+    );
+  }
+
+  @override
+  final Function instantiate = _instantiate;
+
+  static AgentSettings fromMap(Map<String, dynamic> map) {
+    return ensureInitialized().decodeMap<AgentSettings>(map);
+  }
+
+  static AgentSettings fromJson(String json) {
+    return ensureInitialized().decodeJson<AgentSettings>(json);
+  }
+}
+
+mixin AgentSettingsMappable {
+  String toJson() {
+    return AgentSettingsMapper.ensureInitialized().encodeJson<AgentSettings>(
+      this as AgentSettings,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return AgentSettingsMapper.ensureInitialized().encodeMap<AgentSettings>(
+      this as AgentSettings,
+    );
+  }
+
+  AgentSettingsCopyWith<AgentSettings, AgentSettings, AgentSettings>
+  get copyWith => _AgentSettingsCopyWithImpl<AgentSettings, AgentSettings>(
+    this as AgentSettings,
+    $identity,
+    $identity,
+  );
+  @override
+  String toString() {
+    return AgentSettingsMapper.ensureInitialized().stringifyValue(
+      this as AgentSettings,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return AgentSettingsMapper.ensureInitialized().equalsValue(
+      this as AgentSettings,
+      other,
+    );
+  }
+
+  @override
+  int get hashCode {
+    return AgentSettingsMapper.ensureInitialized().hashValue(
+      this as AgentSettings,
+    );
+  }
+}
+
+extension AgentSettingsValueCopy<$R, $Out>
+    on ObjectCopyWith<$R, AgentSettings, $Out> {
+  AgentSettingsCopyWith<$R, AgentSettings, $Out> get $asAgentSettings =>
+      $base.as((v, t, t2) => _AgentSettingsCopyWithImpl<$R, $Out>(v, t, t2));
+}
+
+abstract class AgentSettingsCopyWith<$R, $In extends AgentSettings, $Out>
+    implements ClassCopyWith<$R, $In, $Out> {
+  AgentStatusHookSettingsCopyWith<
+    $R,
+    AgentStatusHookSettings,
+    AgentStatusHookSettings
+  >
+  get agentStatusHooks;
+  $R call({
+    AgentStatusHookSettings? agentStatusHooks,
+    bool? agentStatusNotificationsEnabled,
+    bool? keepComputerAwakeWhileAgentsWork,
+  });
+  AgentSettingsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
+}
+
+class _AgentSettingsCopyWithImpl<$R, $Out>
+    extends ClassCopyWithBase<$R, AgentSettings, $Out>
+    implements AgentSettingsCopyWith<$R, AgentSettings, $Out> {
+  _AgentSettingsCopyWithImpl(super.value, super.then, super.then2);
+
+  @override
+  late final ClassMapperBase<AgentSettings> $mapper =
+      AgentSettingsMapper.ensureInitialized();
+  @override
+  AgentStatusHookSettingsCopyWith<
+    $R,
+    AgentStatusHookSettings,
+    AgentStatusHookSettings
+  >
+  get agentStatusHooks =>
+      $value.agentStatusHooks.copyWith.$chain((v) => call(agentStatusHooks: v));
+  @override
+  $R call({
+    AgentStatusHookSettings? agentStatusHooks,
+    bool? agentStatusNotificationsEnabled,
+    bool? keepComputerAwakeWhileAgentsWork,
+  }) => $apply(
+    FieldCopyWithData({
+      if (agentStatusHooks != null) #agentStatusHooks: agentStatusHooks,
+      if (agentStatusNotificationsEnabled != null)
+        #agentStatusNotificationsEnabled: agentStatusNotificationsEnabled,
+      if (keepComputerAwakeWhileAgentsWork != null)
+        #keepComputerAwakeWhileAgentsWork: keepComputerAwakeWhileAgentsWork,
+    }),
+  );
+  @override
+  AgentSettings $make(CopyWithData data) => AgentSettings(
     agentStatusHooks: data.get(#agentStatusHooks, or: $value.agentStatusHooks),
     agentStatusNotificationsEnabled: data.get(
       #agentStatusNotificationsEnabled,
@@ -1218,9 +1333,9 @@ class _GeneralSettingsCopyWithImpl<$R, $Out>
   );
 
   @override
-  GeneralSettingsCopyWith<$R2, GeneralSettings, $Out2> $chain<$R2, $Out2>(
+  AgentSettingsCopyWith<$R2, AgentSettings, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
-  ) => _GeneralSettingsCopyWithImpl<$R2, $Out2>($value, $cast, t);
+  ) => _AgentSettingsCopyWithImpl<$R2, $Out2>($value, $cast, t);
 }
 
 class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
@@ -1231,6 +1346,7 @@ class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
     if (_instance == null) {
       MapperContainer.globals.use(_instance = AleraSettingsMapper._());
       GeneralSettingsMapper.ensureInitialized();
+      AgentSettingsMapper.ensureInitialized();
       AiTextGenerationSettingsMapper.ensureInitialized();
       EditorSettingsMapper.ensureInitialized();
       TerminalSettingsMapper.ensureInitialized();
@@ -1246,6 +1362,13 @@ class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
   static const Field<AleraSettings, GeneralSettings> _f$general = Field(
     'general',
     _$general,
+  );
+  static AgentSettings _$agents(AleraSettings v) => v.agents;
+  static const Field<AleraSettings, AgentSettings> _f$agents = Field(
+    'agents',
+    _$agents,
+    opt: true,
+    def: AgentSettings.defaults,
   );
   static AiTextGenerationSettings _$aiTextGeneration(AleraSettings v) =>
       v.aiTextGeneration;
@@ -1275,15 +1398,19 @@ class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {
   @override
   final MappableFields<AleraSettings> fields = const {
     #general: _f$general,
+    #agents: _f$agents,
     #aiTextGeneration: _f$aiTextGeneration,
     #editor: _f$editor,
     #terminal: _f$terminal,
     #keyboard: _f$keyboard,
   };
 
+  @override
+  final MappingHook hook = const _LegacyAgentSettingsHook();
   static AleraSettings _instantiate(DecodingData data) {
     return AleraSettings(
       general: data.dec(_f$general),
+      agents: data.dec(_f$agents),
       aiTextGeneration: data.dec(_f$aiTextGeneration),
       editor: data.dec(_f$editor),
       terminal: data.dec(_f$terminal),
@@ -1354,6 +1481,7 @@ extension AleraSettingsValueCopy<$R, $Out>
 abstract class AleraSettingsCopyWith<$R, $In extends AleraSettings, $Out>
     implements ClassCopyWith<$R, $In, $Out> {
   GeneralSettingsCopyWith<$R, GeneralSettings, GeneralSettings> get general;
+  AgentSettingsCopyWith<$R, AgentSettings, AgentSettings> get agents;
   AiTextGenerationSettingsCopyWith<
     $R,
     AiTextGenerationSettings,
@@ -1370,6 +1498,7 @@ abstract class AleraSettingsCopyWith<$R, $In extends AleraSettings, $Out>
   get keyboard;
   $R call({
     GeneralSettings? general,
+    AgentSettings? agents,
     AiTextGenerationSettings? aiTextGeneration,
     EditorSettings? editor,
     TerminalSettings? terminal,
@@ -1389,6 +1518,9 @@ class _AleraSettingsCopyWithImpl<$R, $Out>
   @override
   GeneralSettingsCopyWith<$R, GeneralSettings, GeneralSettings> get general =>
       $value.general.copyWith.$chain((v) => call(general: v));
+  @override
+  AgentSettingsCopyWith<$R, AgentSettings, AgentSettings> get agents =>
+      $value.agents.copyWith.$chain((v) => call(agents: v));
   @override
   AiTextGenerationSettingsCopyWith<
     $R,
@@ -1413,6 +1545,7 @@ class _AleraSettingsCopyWithImpl<$R, $Out>
   @override
   $R call({
     GeneralSettings? general,
+    AgentSettings? agents,
     AiTextGenerationSettings? aiTextGeneration,
     EditorSettings? editor,
     TerminalSettings? terminal,
@@ -1420,6 +1553,7 @@ class _AleraSettingsCopyWithImpl<$R, $Out>
   }) => $apply(
     FieldCopyWithData({
       if (general != null) #general: general,
+      if (agents != null) #agents: agents,
       if (aiTextGeneration != null) #aiTextGeneration: aiTextGeneration,
       if (editor != null) #editor: editor,
       if (terminal != null) #terminal: terminal,
@@ -1429,6 +1563,7 @@ class _AleraSettingsCopyWithImpl<$R, $Out>
   @override
   AleraSettings $make(CopyWithData data) => AleraSettings(
     general: data.get(#general, or: $value.general),
+    agents: data.get(#agents, or: $value.agents),
     aiTextGeneration: data.get(#aiTextGeneration, or: $value.aiTextGeneration),
     editor: data.get(#editor, or: $value.editor),
     terminal: data.get(#terminal, or: $value.terminal),

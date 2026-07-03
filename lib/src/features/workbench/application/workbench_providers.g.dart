@@ -620,7 +620,7 @@ final class TerminalRuntimeProvider
   }
 }
 
-String _$terminalRuntimeHash() => r'71a3cd9d4073e46f6fa89b4f6476a0236768fac2';
+String _$terminalRuntimeHash() => r'ad905380225f77406ad18d8bc7f22a7993095433';
 
 @ProviderFor(terminalShellStartupPreparer)
 final terminalShellStartupPreparerProvider =

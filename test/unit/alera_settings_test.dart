@@ -32,22 +32,27 @@ void main() {
       expect(terminal.hostScrollbackBytes, 10 * 1000 * 1000);
     });
 
-    test('general safety and hook defaults are conservative', () {
+    test('general safety defaults are conservative', () {
       const general = GeneralSettings.defaults;
 
       expect(general.confirmProjectRemoval, isTrue);
       expect(general.confirmWorkspaceRemoval, isTrue);
-      expect(general.agentStatusHooks.codex, isFalse);
-      expect(general.agentStatusHooks.claude, isFalse);
-      expect(general.agentStatusHooks.copilot, isFalse);
-      expect(general.agentStatusHooks.cursor, isFalse);
-      expect(general.agentStatusHooks.agy, isFalse);
-      expect(general.agentStatusHooks.opencode, isFalse);
-      expect(general.agentStatusHooks.pi, isFalse);
-      expect(general.agentStatusHooks.amp, isFalse);
-      expect(general.agentStatusHooks.anyEnabled, isFalse);
-      expect(general.agentStatusNotificationsEnabled, isFalse);
-      expect(general.keepComputerAwakeWhileAgentsWork, isFalse);
+    });
+
+    test('agent defaults are conservative', () {
+      const agents = AgentSettings.defaults;
+
+      expect(agents.agentStatusHooks.codex, isFalse);
+      expect(agents.agentStatusHooks.claude, isFalse);
+      expect(agents.agentStatusHooks.copilot, isFalse);
+      expect(agents.agentStatusHooks.cursor, isFalse);
+      expect(agents.agentStatusHooks.agy, isFalse);
+      expect(agents.agentStatusHooks.opencode, isFalse);
+      expect(agents.agentStatusHooks.pi, isFalse);
+      expect(agents.agentStatusHooks.amp, isFalse);
+      expect(agents.agentStatusHooks.anyEnabled, isFalse);
+      expect(agents.agentStatusNotificationsEnabled, isFalse);
+      expect(agents.keepComputerAwakeWhileAgentsWork, isFalse);
     });
 
     test('editor defaults match current editor behavior', () {
@@ -85,6 +90,8 @@ void main() {
         'starClicked': true,
         'confirmProjectRemoval': false,
         'confirmWorkspaceRemoval': true,
+      });
+      final agents = AgentSettings.fromJson(<String, Object?>{
         'agentStatusHooks': <String, Object?>{
           'codex': true,
           'copilot': true,
@@ -100,16 +107,16 @@ void main() {
       expect(overrides.selection, '#123456');
       expect(general.workspaceDirectory, '/tmp/workspaces');
       expect(general.starClicked, isTrue);
-      expect(general.agentStatusHooks.codex, isTrue);
-      expect(general.agentStatusHooks.claude, isFalse);
-      expect(general.agentStatusHooks.copilot, isTrue);
-      expect(general.agentStatusHooks.cursor, isTrue);
-      expect(general.agentStatusHooks.agy, isFalse);
-      expect(general.agentStatusHooks.opencode, isTrue);
-      expect(general.agentStatusHooks.pi, isFalse);
-      expect(general.agentStatusHooks.amp, isTrue);
-      expect(general.agentStatusNotificationsEnabled, isTrue);
-      expect(general.keepComputerAwakeWhileAgentsWork, isTrue);
+      expect(agents.agentStatusHooks.codex, isTrue);
+      expect(agents.agentStatusHooks.claude, isFalse);
+      expect(agents.agentStatusHooks.copilot, isTrue);
+      expect(agents.agentStatusHooks.cursor, isTrue);
+      expect(agents.agentStatusHooks.agy, isFalse);
+      expect(agents.agentStatusHooks.opencode, isTrue);
+      expect(agents.agentStatusHooks.pi, isFalse);
+      expect(agents.agentStatusHooks.amp, isTrue);
+      expect(agents.agentStatusNotificationsEnabled, isTrue);
+      expect(agents.keepComputerAwakeWhileAgentsWork, isTrue);
 
       final hooks = AgentStatusHookSettings.fromJson(<String, Object?>{
         'claude': true,
@@ -125,6 +132,8 @@ void main() {
         general: GeneralSettings(
           confirmProjectRemoval: false,
           confirmWorkspaceRemoval: false,
+        ),
+        agents: AgentSettings(
           agentStatusHooks: AgentStatusHookSettings(
             codex: true,
             claude: true,
@@ -187,16 +196,16 @@ void main() {
 
       expect(restored.general.confirmProjectRemoval, isFalse);
       expect(restored.general.confirmWorkspaceRemoval, isFalse);
-      expect(restored.general.agentStatusHooks.codex, isTrue);
-      expect(restored.general.agentStatusHooks.claude, isTrue);
-      expect(restored.general.agentStatusHooks.copilot, isFalse);
-      expect(restored.general.agentStatusHooks.cursor, isTrue);
-      expect(restored.general.agentStatusHooks.agy, isTrue);
-      expect(restored.general.agentStatusHooks.opencode, isFalse);
-      expect(restored.general.agentStatusHooks.pi, isTrue);
-      expect(restored.general.agentStatusHooks.amp, isTrue);
-      expect(restored.general.agentStatusNotificationsEnabled, isTrue);
-      expect(restored.general.keepComputerAwakeWhileAgentsWork, isTrue);
+      expect(restored.agents.agentStatusHooks.codex, isTrue);
+      expect(restored.agents.agentStatusHooks.claude, isTrue);
+      expect(restored.agents.agentStatusHooks.copilot, isFalse);
+      expect(restored.agents.agentStatusHooks.cursor, isTrue);
+      expect(restored.agents.agentStatusHooks.agy, isTrue);
+      expect(restored.agents.agentStatusHooks.opencode, isFalse);
+      expect(restored.agents.agentStatusHooks.pi, isTrue);
+      expect(restored.agents.agentStatusHooks.amp, isTrue);
+      expect(restored.agents.agentStatusNotificationsEnabled, isTrue);
+      expect(restored.agents.keepComputerAwakeWhileAgentsWork, isTrue);
       expect(restored.editor.tabSize, 2);
       expect(restored.editor.themeName, EditorSyntaxThemeNames.nord);
       expect(restored.aiTextGeneration.agent, AiTextGenerationAgent.agy);
@@ -331,6 +340,81 @@ void main() {
 
       expect(restored.tabSize, 2);
       expect(restored.themeName, EditorSyntaxThemeNames.alera);
+    });
+
+    test('legacy blob lifts agent keys from general into agents', () {
+      final restored = AleraSettings.fromJson(<String, Object?>{
+        'general': <String, Object?>{
+          'workspaceDirectory': '/tmp/workspaces',
+          'starClicked': true,
+          'confirmProjectRemoval': false,
+          'confirmWorkspaceRemoval': true,
+          'agentStatusHooks': <String, Object?>{'codex': true, 'pi': true},
+          'agentStatusNotificationsEnabled': true,
+          'keepComputerAwakeWhileAgentsWork': true,
+        },
+        'terminal': Map<String, Object?>.from(
+          TerminalSettings.defaults.toMap(),
+        ),
+        'keyboard': <String, Object?>{
+          'terminalPolicy': 'appFirst',
+          'overrides': <String, Object?>{},
+        },
+      });
+
+      expect(restored.general.workspaceDirectory, '/tmp/workspaces');
+      expect(restored.general.confirmProjectRemoval, isFalse);
+      expect(restored.agents.agentStatusHooks.codex, isTrue);
+      expect(restored.agents.agentStatusHooks.pi, isTrue);
+      expect(restored.agents.agentStatusHooks.claude, isFalse);
+      expect(restored.agents.agentStatusNotificationsEnabled, isTrue);
+      expect(restored.agents.keepComputerAwakeWhileAgentsWork, isTrue);
+    });
+
+    test('legacy blob without agent keys decodes with agent defaults', () {
+      final restored = AleraSettings.fromJson(<String, Object?>{
+        'general': <String, Object?>{
+          'confirmProjectRemoval': true,
+          'confirmWorkspaceRemoval': true,
+          'starClicked': false,
+        },
+        'terminal': Map<String, Object?>.from(
+          TerminalSettings.defaults.toMap(),
+        ),
+        'keyboard': <String, Object?>{
+          'terminalPolicy': 'appFirst',
+          'overrides': <String, Object?>{},
+        },
+      });
+
+      expect(restored.agents, AgentSettings.defaults);
+    });
+
+    test('mixed blob prefers the agents sub-map over legacy general keys', () {
+      final restored = AleraSettings.fromJson(<String, Object?>{
+        'general': <String, Object?>{
+          'confirmProjectRemoval': true,
+          'confirmWorkspaceRemoval': true,
+          'starClicked': false,
+          'agentStatusHooks': <String, Object?>{'codex': true},
+          'agentStatusNotificationsEnabled': true,
+        },
+        'agents': <String, Object?>{
+          'agentStatusHooks': <String, Object?>{'claude': true},
+          'agentStatusNotificationsEnabled': false,
+        },
+        'terminal': Map<String, Object?>.from(
+          TerminalSettings.defaults.toMap(),
+        ),
+        'keyboard': <String, Object?>{
+          'terminalPolicy': 'appFirst',
+          'overrides': <String, Object?>{},
+        },
+      });
+
+      expect(restored.agents.agentStatusHooks.codex, isFalse);
+      expect(restored.agents.agentStatusHooks.claude, isTrue);
+      expect(restored.agents.agentStatusNotificationsEnabled, isFalse);
     });
 
     test(

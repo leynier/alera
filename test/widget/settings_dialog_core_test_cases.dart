@@ -605,13 +605,13 @@ void _registerSettingsDialogCoreTests() {
     await tester.pump(const Duration(milliseconds: 50));
 
     expect(
-      container.read(settingsControllerProvider).general.agentStatusHooks.codex,
+      container.read(settingsControllerProvider).agents.agentStatusHooks.codex,
       isTrue,
     );
     expect(
       container
           .read(settingsControllerProvider)
-          .general
+          .agents
           .agentStatusHooks
           .claude,
       isTrue,
@@ -619,7 +619,7 @@ void _registerSettingsDialogCoreTests() {
     expect(
       container
           .read(settingsControllerProvider)
-          .general
+          .agents
           .agentStatusHooks
           .copilot,
       isTrue,
@@ -627,42 +627,42 @@ void _registerSettingsDialogCoreTests() {
     expect(
       container
           .read(settingsControllerProvider)
-          .general
+          .agents
           .agentStatusHooks
           .cursor,
       isTrue,
     );
     expect(
-      container.read(settingsControllerProvider).general.agentStatusHooks.agy,
+      container.read(settingsControllerProvider).agents.agentStatusHooks.agy,
       isTrue,
     );
     expect(
       container
           .read(settingsControllerProvider)
-          .general
+          .agents
           .agentStatusHooks
           .opencode,
       isTrue,
     );
     expect(
-      container.read(settingsControllerProvider).general.agentStatusHooks.pi,
+      container.read(settingsControllerProvider).agents.agentStatusHooks.pi,
       isTrue,
     );
     expect(
-      container.read(settingsControllerProvider).general.agentStatusHooks.amp,
+      container.read(settingsControllerProvider).agents.agentStatusHooks.amp,
       isTrue,
     );
     expect(
       container
           .read(settingsControllerProvider)
-          .general
+          .agents
           .agentStatusNotificationsEnabled,
       isTrue,
     );
     expect(
       container
           .read(settingsControllerProvider)
-          .general
+          .agents
           .keepComputerAwakeWhileAgentsWork,
       isTrue,
     );

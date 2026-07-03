@@ -109,7 +109,10 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         description: 'Storage and integrations.',
         icon: AleraIcons.tune,
         entries: _generalSearchEntries,
-        builder: (_) => _GeneralSettingsPane(general: settings.general),
+        builder: (_) => _GeneralSettingsPane(
+          general: settings.general,
+          agents: settings.agents,
+        ),
       ),
       _SettingsSectionData(
         id: 'projects',

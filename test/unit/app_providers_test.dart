@@ -218,7 +218,7 @@ void main() {
         disabledRuntime.dispose();
 
         final settings = AleraSettings.defaults.copyWith(
-          general: AleraSettings.defaults.general.copyWith(
+          agents: AleraSettings.defaults.agents.copyWith(
             agentStatusHooks: const AgentStatusHookSettings(copilot: true),
           ),
         );
@@ -313,7 +313,7 @@ void main() {
       () async {
         final presenter = _FakeNotificationPresenter();
         final settings = AleraSettings.defaults.copyWith(
-          general: AleraSettings.defaults.general.copyWith(
+          agents: AleraSettings.defaults.agents.copyWith(
             agentStatusHooks: const AgentStatusHookSettings(codex: true),
             agentStatusNotificationsEnabled: true,
           ),
@@ -390,7 +390,7 @@ void main() {
         );
         final runtime = _FocusableTerminalRuntime();
         final settings = AleraSettings.defaults.copyWith(
-          general: AleraSettings.defaults.general.copyWith(
+          agents: AleraSettings.defaults.agents.copyWith(
             agentStatusHooks: const AgentStatusHookSettings(codex: true),
             agentStatusNotificationsEnabled: true,
           ),
@@ -446,7 +446,7 @@ void main() {
       final displayLock = _FakeAwakeDisplayLock();
       final assertion = _FakeAwakeAssertion();
       final settings = AleraSettings.defaults.copyWith(
-        general: AleraSettings.defaults.general.copyWith(
+        agents: AleraSettings.defaults.agents.copyWith(
           agentStatusHooks: const AgentStatusHookSettings(codex: true),
           keepComputerAwakeWhileAgentsWork: true,
         ),
@@ -505,7 +505,7 @@ void main() {
       final assertion = _FakeAwakeAssertion();
       final settingsController = _TestSettingsController(
         AleraSettings.defaults.copyWith(
-          general: AleraSettings.defaults.general.copyWith(
+          agents: AleraSettings.defaults.agents.copyWith(
             agentStatusHooks: const AgentStatusHookSettings(codex: true),
           ),
         ),
@@ -524,7 +524,7 @@ void main() {
       container.read(agentAwakeServiceProvider);
       settingsController.setState(
         settingsController.state.copyWith(
-          general: settingsController.state.general.copyWith(
+          agents: settingsController.state.agents.copyWith(
             keepComputerAwakeWhileAgentsWork: true,
           ),
         ),
@@ -549,7 +549,7 @@ void main() {
 
       settingsController.setState(
         settingsController.state.copyWith(
-          general: settingsController.state.general.copyWith(
+          agents: settingsController.state.agents.copyWith(
             agentStatusHooks: const AgentStatusHookSettings(),
           ),
         ),
@@ -642,7 +642,7 @@ void main() {
       PathProviderPlatform.instance = _FakePathProviderPlatform(support.path);
       addTearDown(() => PathProviderPlatform.instance = previousPlatform);
       final settings = AleraSettings.defaults.copyWith(
-        general: AleraSettings.defaults.general.copyWith(
+        agents: AleraSettings.defaults.agents.copyWith(
           agentStatusHooks: const AgentStatusHookSettings(codex: true),
         ),
       );
@@ -713,7 +713,7 @@ void main() {
         );
         addTearDown(receiver.dispose);
         final settings = AleraSettings.defaults.copyWith(
-          general: AleraSettings.defaults.general.copyWith(
+          agents: AleraSettings.defaults.agents.copyWith(
             agentStatusHooks: const AgentStatusHookSettings(codex: true),
           ),
         );
@@ -767,7 +767,7 @@ void main() {
       );
       final settingsController = _TestSettingsController(
         AleraSettings.defaults.copyWith(
-          general: AleraSettings.defaults.general.copyWith(
+          agents: AleraSettings.defaults.agents.copyWith(
             agentStatusHooks: const AgentStatusHookSettings(),
           ),
         ),
@@ -787,7 +787,7 @@ void main() {
       container.read(agentHookInstallerCoordinatorProvider);
       settingsController.setState(
         settingsController.state.copyWith(
-          general: settingsController.state.general.copyWith(
+          agents: settingsController.state.agents.copyWith(
             agentStatusHooks: const AgentStatusHookSettings(
               codex: true,
               claude: true,
@@ -820,7 +820,7 @@ void main() {
 
       settingsController.setState(
         settingsController.state.copyWith(
-          general: settingsController.state.general.copyWith(
+          agents: settingsController.state.agents.copyWith(
             agentStatusHooks: const AgentStatusHookSettings(),
           ),
         ),

@@ -179,7 +179,7 @@ TerminalRuntime terminalRuntime(Ref ref) {
 
           final hooks = ref
               .read(settingsControllerProvider)
-              .general
+              .agents
               .agentStatusHooks;
           if (!hooks.anyEnabled) {
             return addAleraCliShim().then(
