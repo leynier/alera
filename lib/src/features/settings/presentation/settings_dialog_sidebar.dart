@@ -1,11 +1,15 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/badges/alera_badge.dart';
 import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/forms/alera_search_field.dart';
+import 'package:alera/src/design_system/layout/alera_section_header.dart';
 import 'package:alera/src/features/settings/presentation/settings_sections.dart';
 import 'package:flutter/material.dart';
 
 const double _kSidebarWidth = 260;
 const double _kSidebarIconSize = 16;
+const double _kActiveBarWidth = 2;
+const double _kActiveBarHeight = 16;
 
 class SettingsSidebar extends StatelessWidget {
   const SettingsSidebar({
@@ -14,12 +18,14 @@ class SettingsSidebar extends StatelessWidget {
     required this.visibleSections,
     required this.activeSectionId,
     required this.onSelect,
+    this.query = '',
   });
 
   final TextEditingController queryController;
   final List<SettingsSectionData> visibleSections;
   final String? activeSectionId;
   final ValueChanged<String> onSelect;
+  final String query;
 
   @override
   Widget build(BuildContext context) {
@@ -61,25 +67,55 @@ class SettingsSidebar extends StatelessWidget {
             Expanded(
               child: visibleSections.isEmpty
                   ? const AleraEmptyState(message: 'No matching settings.')
-                  : ListView.separated(
+                  : ListView(
                       padding: const EdgeInsets.all(AleraTokens.space8),
-                      itemCount: visibleSections.length,
-                      separatorBuilder: (_, _) =>
-                          const SizedBox(height: AleraTokens.space2),
-                      itemBuilder: (_, index) {
-                        final section = visibleSections[index];
-                        return SettingsNavItem(
-                          section: section,
-                          active: section.id == activeSectionId,
-                          onTap: () => onSelect(section.id),
-                        );
-                      },
+                      children: _buildNavChildren(),
                     ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  List<Widget> _buildNavChildren() {
+    final children = <Widget>[];
+    for (final group in SettingsNavGroup.values) {
+      final sections = visibleSections
+          .where((section) => section.navGroup == group)
+          .toList();
+      if (sections.isEmpty) {
+        continue;
+      }
+      if (children.isNotEmpty) {
+        children.add(const SizedBox(height: AleraTokens.space8));
+      }
+      children.add(
+        AleraSectionHeader(
+          label: group.label,
+          padding: const EdgeInsets.only(
+            left: AleraTokens.space8,
+            right: AleraTokens.space8,
+            top: AleraTokens.space4,
+            bottom: AleraTokens.space4,
+          ),
+        ),
+      );
+      for (final section in sections) {
+        children.add(
+          Padding(
+            padding: const EdgeInsets.only(bottom: AleraTokens.space2),
+            child: SettingsNavItem(
+              section: section,
+              active: section.id == activeSectionId,
+              matchCount: section.matchCount(query),
+              onTap: () => onSelect(section.id),
+            ),
+          ),
+        );
+      }
+    }
+    return children;
   }
 }
 
@@ -89,11 +125,15 @@ class SettingsNavItem extends StatelessWidget {
     required this.section,
     required this.active,
     required this.onTap,
+    this.matchCount = 0,
   });
 
   final SettingsSectionData section;
   final bool active;
   final VoidCallback onTap;
+
+  /// Number of matching search entries; shown as a badge while searching.
+  final int matchCount;
 
   @override
   Widget build(BuildContext context) {
@@ -118,6 +158,16 @@ class SettingsNavItem extends StatelessWidget {
           ),
           child: Row(
             children: <Widget>[
+              AnimatedContainer(
+                duration: AleraTokens.durationFast,
+                width: _kActiveBarWidth,
+                height: _kActiveBarHeight,
+                decoration: BoxDecoration(
+                  color: active ? AleraTokens.accent : Colors.transparent,
+                  borderRadius: BorderRadius.circular(AleraTokens.radiusPill),
+                ),
+              ),
+              const SizedBox(width: AleraTokens.space8),
               Icon(
                 section.icon,
                 size: _kSidebarIconSize,
@@ -135,6 +185,7 @@ class SettingsNavItem extends StatelessWidget {
                   ),
                 ),
               ),
+              if (matchCount > 0) AleraBadge(label: '$matchCount'),
             ],
           ),
         ),

@@ -4,9 +4,10 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/features/keyboard/presentation/keyboard_settings_pane.dart';
 import 'package:alera/src/features/settings/infra/system_font_service.dart';
+import 'package:alera/src/features/settings/presentation/panes/agents_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/ai_text_pane.dart';
+import 'package:alera/src/features/settings/presentation/panes/application_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/editor_pane.dart';
-import 'package:alera/src/features/settings/presentation/panes/general_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/projects_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/remote_hosts_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/terminal_pane.dart';
@@ -17,8 +18,14 @@ import 'package:alera/src/features/settings/presentation/settings_sections.dart'
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-const double _kDialogMaxWidth = 920;
-const double _kDialogMaxHeight = 680;
+// The dialog tracks the screen so settings stay comfortable on small laptops
+// while using the extra room of large desktop displays.
+const double _kDialogWidthFraction = 0.75;
+const double _kDialogHeightFraction = 0.82;
+const double _kDialogMinWidth = 760;
+const double _kDialogMaxWidth = 1240;
+const double _kDialogMinHeight = 560;
+const double _kDialogMaxHeight = 920;
 
 class SettingsDialog extends ConsumerStatefulWidget {
   const SettingsDialog({super.key});
@@ -29,8 +36,10 @@ class SettingsDialog extends ConsumerStatefulWidget {
 
 class _SettingsDialogState extends ConsumerState<SettingsDialog> {
   final TextEditingController _searchController = TextEditingController();
+  final Map<String, Map<String, GlobalKey>> _groupKeys =
+      <String, Map<String, GlobalKey>>{};
   String _query = '';
-  String _activeSectionId = 'general';
+  String _activeSectionId = 'application';
   late List<String> _fontSuggestions = fallbackTerminalFontFamilies();
 
   @override
@@ -61,38 +70,99 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
     });
   }
 
+  Map<String, GlobalKey> _keysFor(String sectionId) {
+    return _groupKeys.putIfAbsent(sectionId, () => <String, GlobalKey>{});
+  }
+
+  GlobalKey _groupKey(String sectionId, String groupId) {
+    return _keysFor(
+      sectionId,
+    ).putIfAbsent(groupId, () => GlobalKey(debugLabel: '$sectionId/$groupId'));
+  }
+
+  Map<String, GlobalKey> _paneKeys(
+    String sectionId,
+    List<SettingsGroupSpec> groups,
+  ) {
+    return <String, GlobalKey>{
+      for (final group in groups) group.id: _groupKey(sectionId, group.id),
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsControllerProvider);
     final controller = ref.read(settingsControllerProvider.notifier);
+    final screen = MediaQuery.sizeOf(context);
+    final dialogWidth = (screen.width * _kDialogWidthFraction).clamp(
+      _kDialogMinWidth,
+      _kDialogMaxWidth,
+    );
+    final dialogHeight = (screen.height * _kDialogHeightFraction).clamp(
+      _kDialogMinHeight,
+      _kDialogMaxHeight,
+    );
+
+    const applicationGroups = <SettingsGroupSpec>[
+      SettingsGroupSpec(id: 'storage', title: 'Storage'),
+      SettingsGroupSpec(id: 'safety', title: 'Safety'),
+      SettingsGroupSpec(id: 'updates', title: 'Updates'),
+      SettingsGroupSpec(id: 'support', title: 'Support'),
+    ];
+    const agentsGroups = <SettingsGroupSpec>[
+      SettingsGroupSpec(id: 'cliSkill', title: 'CLI Skill'),
+      SettingsGroupSpec(id: 'hooks', title: 'Status Hooks'),
+      SettingsGroupSpec(id: 'behavior', title: 'Behavior'),
+    ];
+    const aiTextGroups = <SettingsGroupSpec>[
+      SettingsGroupSpec(id: 'generation', title: 'Generation'),
+      SettingsGroupSpec(id: 'instructions', title: 'Instructions'),
+    ];
+    const terminalGroups = <SettingsGroupSpec>[
+      SettingsGroupSpec(id: 'typography', title: 'Typography'),
+      SettingsGroupSpec(id: 'cursor', title: 'Cursor'),
+      SettingsGroupSpec(id: 'appearance', title: 'Appearance'),
+      SettingsGroupSpec(id: 'advanced', title: 'Advanced'),
+    ];
 
     final sections = <SettingsSectionData>[
       SettingsSectionData(
-        id: 'general',
-        title: 'General',
-        description: 'Storage and integrations.',
+        id: 'application',
+        title: 'Application',
+        description: 'Storage, safety, updates and support.',
         icon: AleraIcons.tune,
-        entries: generalSearchEntries,
-        builder: (_) => GeneralSettingsPane(
+        entries: applicationSearchEntries,
+        groups: applicationGroups,
+        builder: (_) => ApplicationSettingsPane(
           general: settings.general,
-          agents: settings.agents,
+          groupKeys: _paneKeys('application', applicationGroups),
         ),
       ),
       SettingsSectionData(
-        id: 'projects',
-        title: 'Projects',
-        description: 'Per-Project Workspace Setup.',
-        icon: AleraIcons.folderSpecial,
-        entries: projectSearchEntries,
-        builder: (_) => const ProjectSettingsPane(),
+        id: 'agents',
+        title: 'Agents',
+        description: 'Agent hooks, notifications and the Alera CLI skill.',
+        icon: AleraIcons.agent,
+        entries: agentsSearchEntries,
+        groups: agentsGroups,
+        builder: (_) => AgentsSettingsPane(
+          agents: settings.agents,
+          groupKeys: _paneKeys('agents', agentsGroups),
+        ),
       ),
       SettingsSectionData(
-        id: 'remoteHosts',
-        title: 'Remote Hosts',
-        description: 'SSH runtime targets.',
-        icon: AleraIcons.host,
-        entries: remoteHostSearchEntries,
-        builder: (_) => const RemoteHostSettingsPane(),
+        id: 'aiText',
+        title: 'AI Text',
+        description: 'AI-generated source control text.',
+        icon: AleraIcons.ai,
+        entries: aiTextSearchEntries,
+        groups: aiTextGroups,
+        onReset: controller.resetAiTextGenerationSettings,
+        builder: (_) => AiTextSettingsPane(
+          settings: settings.aiTextGeneration,
+          groupKeys: _paneKeys('aiText', aiTextGroups),
+          onChanged: (aiText) => controller.updateAiTextGeneration(aiText),
+        ),
       ),
       SettingsSectionData(
         id: 'editor',
@@ -107,27 +177,17 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         ),
       ),
       SettingsSectionData(
-        id: 'aiText',
-        title: 'AI Text',
-        description: 'AI-generated source control text.',
-        icon: AleraIcons.ai,
-        entries: aiTextSearchEntries,
-        onReset: controller.resetAiTextGenerationSettings,
-        builder: (_) => AiTextSettingsPane(
-          settings: settings.aiTextGeneration,
-          onChanged: (aiText) => controller.updateAiTextGeneration(aiText),
-        ),
-      ),
-      SettingsSectionData(
         id: 'terminal',
         title: 'Terminal',
         description: 'Appearance defaults for new terminal sessions.',
         icon: AleraIcons.terminal,
         entries: terminalSearchEntries,
+        groups: terminalGroups,
         onReset: controller.resetTerminalSettings,
         builder: (_) => TerminalSettingsPane(
           settings: settings.terminal,
           fontSuggestions: _fontSuggestions,
+          groupKeys: _paneKeys('terminal', terminalGroups),
           onChanged: (terminal) => controller.updateTerminal(terminal),
         ),
       ),
@@ -139,6 +199,24 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         entries: keyboardSearchEntries,
         onReset: controller.resetKeyboardShortcuts,
         builder: (_) => const KeyboardSettingsPane(),
+      ),
+      SettingsSectionData(
+        id: 'projects',
+        title: 'Projects',
+        description: 'Per-Project Workspace Setup.',
+        icon: AleraIcons.folderSpecial,
+        entries: projectSearchEntries,
+        navGroup: SettingsNavGroup.resources,
+        builder: (_) => const ProjectSettingsPane(),
+      ),
+      SettingsSectionData(
+        id: 'remoteHosts',
+        title: 'Remote Hosts',
+        description: 'SSH runtime targets.',
+        icon: AleraIcons.host,
+        entries: remoteHostSearchEntries,
+        navGroup: SettingsNavGroup.resources,
+        builder: (_) => const RemoteHostSettingsPane(),
       ),
     ];
 
@@ -154,13 +232,14 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
           );
 
     return AleraDialog(
-      maxWidth: _kDialogMaxWidth,
-      maxHeight: _kDialogMaxHeight,
+      maxWidth: dialogWidth,
+      maxHeight: dialogHeight,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           SettingsSidebar(
             queryController: _searchController,
+            query: _query,
             visibleSections: visibleSections,
             activeSectionId: activeSection?.id,
             onSelect: (id) => setState(() => _activeSectionId = id),
@@ -170,6 +249,8 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
             child: activeSection != null
                 ? SettingsContent(
                     section: activeSection,
+                    groupKeys: _keysFor(activeSection.id),
+                    scrollToGroupId: activeSection.firstMatchingGroupId(_query),
                     onClose: () => Navigator.of(context).pop(),
                   )
                 : NoSettingsResults(onClose: () => Navigator.of(context).pop()),

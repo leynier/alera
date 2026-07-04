@@ -13,11 +13,13 @@ class TerminalSettingsPane extends StatelessWidget {
     required this.settings,
     required this.fontSuggestions,
     required this.onChanged,
+    this.groupKeys = const <String, GlobalKey>{},
   });
 
   final TerminalSettings settings;
   final List<String> fontSuggestions;
   final ValueChanged<TerminalSettings> onChanged;
+  final Map<String, GlobalKey> groupKeys;
 
   @override
   Widget build(BuildContext context) {
@@ -25,236 +27,251 @@ class TerminalSettingsPane extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        AleraSettingsGroup(
-          title: 'Typography',
-          description: 'Default terminal typography for new sessions.',
-          children: <Widget>[
-            SettingsFontAutocompleteRow(
-              title: 'Font Family',
-              description: 'Typeface used in new terminal sessions.',
-              value: settings.fontFamily,
-              suggestions: fontSuggestions,
-              onChanged: (value) =>
-                  onChanged(settings.copyWith(fontFamily: value)),
-            ),
-            SettingsNumberRow(
-              title: 'Font Size',
-              description: 'Text size used in new terminal sessions.',
-              value: settings.fontSize,
-              min: 8,
-              max: 32,
-              step: 1,
-              suffix: 'px',
-              onChanged: (value) =>
-                  onChanged(settings.copyWith(fontSize: value)),
-            ),
-            SettingsIntegerRow(
-              title: 'Font Weight',
-              description: 'Weight used for terminal text.',
-              value: settings.fontWeight,
-              min: 100,
-              max: 900,
-              step: 100,
-              onChanged: (value) =>
-                  onChanged(settings.copyWith(fontWeight: value)),
-            ),
-            SettingsNumberRow(
-              title: 'Line Height',
-              description: 'Vertical spacing for terminal rows.',
-              value: settings.lineHeight,
-              min: 0.8,
-              max: 2.4,
-              step: 0.1,
-              onChanged: (value) =>
-                  onChanged(settings.copyWith(lineHeight: value)),
-            ),
-          ],
+        KeyedSubtree(
+          key: groupKeys['typography'],
+          child: AleraSettingsGroup(
+            title: 'Typography',
+            description: 'Default terminal typography for new sessions.',
+            children: <Widget>[
+              SettingsFontAutocompleteRow(
+                title: 'Font Family',
+                description: 'Typeface used in new terminal sessions.',
+                value: settings.fontFamily,
+                suggestions: fontSuggestions,
+                onChanged: (value) =>
+                    onChanged(settings.copyWith(fontFamily: value)),
+              ),
+              SettingsNumberRow(
+                title: 'Font Size',
+                description: 'Text size used in new terminal sessions.',
+                value: settings.fontSize,
+                min: 8,
+                max: 32,
+                step: 1,
+                suffix: 'px',
+                onChanged: (value) =>
+                    onChanged(settings.copyWith(fontSize: value)),
+              ),
+              SettingsIntegerRow(
+                title: 'Font Weight',
+                description: 'Weight used for terminal text.',
+                value: settings.fontWeight,
+                min: 100,
+                max: 900,
+                step: 100,
+                onChanged: (value) =>
+                    onChanged(settings.copyWith(fontWeight: value)),
+              ),
+              SettingsNumberRow(
+                title: 'Line Height',
+                description: 'Vertical spacing for terminal rows.',
+                value: settings.lineHeight,
+                min: 0.8,
+                max: 2.4,
+                step: 0.1,
+                onChanged: (value) =>
+                    onChanged(settings.copyWith(lineHeight: value)),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: AleraTokens.space16),
-        AleraSettingsGroup(
-          title: 'Cursor',
-          description: 'Default cursor appearance for terminal sessions.',
-          children: <Widget>[
-            CursorShapeRow(
-              value: settings.cursorShape,
-              onChanged: (value) =>
-                  onChanged(settings.copyWith(cursorShape: value)),
-            ),
-            SettingsSwitchRow(
-              title: 'Blinking Cursor',
-              description: 'Blink the cursor while the terminal has focus.',
-              value: settings.cursorBlink,
-              onChanged: (value) =>
-                  onChanged(settings.copyWith(cursorBlink: value)),
-            ),
-            SettingsNumberRow(
-              title: 'Cursor Opacity',
-              description: 'Opacity of the terminal cursor.',
-              value: settings.cursorOpacity,
-              min: 0,
-              max: 1,
-              step: 0.05,
-              onChanged: (value) =>
-                  onChanged(settings.copyWith(cursorOpacity: value)),
-            ),
-          ],
+        KeyedSubtree(
+          key: groupKeys['cursor'],
+          child: AleraSettingsGroup(
+            title: 'Cursor',
+            description: 'Default cursor appearance for terminal sessions.',
+            children: <Widget>[
+              CursorShapeRow(
+                value: settings.cursorShape,
+                onChanged: (value) =>
+                    onChanged(settings.copyWith(cursorShape: value)),
+              ),
+              SettingsSwitchRow(
+                title: 'Blinking Cursor',
+                description: 'Blink the cursor while the terminal has focus.',
+                value: settings.cursorBlink,
+                onChanged: (value) =>
+                    onChanged(settings.copyWith(cursorBlink: value)),
+              ),
+              SettingsNumberRow(
+                title: 'Cursor Opacity',
+                description: 'Opacity of the terminal cursor.',
+                value: settings.cursorOpacity,
+                min: 0,
+                max: 1,
+                step: 0.05,
+                onChanged: (value) =>
+                    onChanged(settings.copyWith(cursorOpacity: value)),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: AleraTokens.space16),
-        AleraSettingsGroup(
-          title: 'Appearance',
-          description: 'Terminal colors, theme and spacing.',
-          children: <Widget>[
-            ThemePickerSetting(
-              value: settings.themeName,
-              onChanged: (value) =>
-                  onChanged(settings.copyWith(themeName: value)),
-            ),
-            SettingsNumberRow(
-              title: 'Background Opacity',
-              description: 'Opacity of the terminal background.',
-              value: settings.backgroundOpacity,
-              min: 0,
-              max: 1,
-              step: 0.05,
-              onChanged: (value) =>
-                  onChanged(settings.copyWith(backgroundOpacity: value)),
-            ),
-            SettingsNumberRow(
-              title: 'Horizontal Padding',
-              description: 'Horizontal spacing around the terminal grid.',
-              value: settings.paddingX,
-              min: 0,
-              max: 64,
-              step: 1,
-              suffix: 'px',
-              onChanged: (value) =>
-                  onChanged(settings.copyWith(paddingX: value)),
-            ),
-            SettingsNumberRow(
-              title: 'Vertical Padding',
-              description: 'Vertical spacing around the terminal grid.',
-              value: settings.paddingY,
-              min: 0,
-              max: 64,
-              step: 1,
-              suffix: 'px',
-              onChanged: (value) =>
-                  onChanged(settings.copyWith(paddingY: value)),
-            ),
-            HexColorSettingRow(
-              title: 'Foreground Color',
-              description: 'Override the terminal text color.',
-              value: overrides.foreground,
-              fallback: '#f5f5f5',
-              onChanged: (value) => onChanged(
-                settings.copyWith(
-                  colorOverrides: overrides.copyWith(foreground: value),
+        KeyedSubtree(
+          key: groupKeys['appearance'],
+          child: AleraSettingsGroup(
+            title: 'Appearance',
+            description: 'Terminal colors, theme and spacing.',
+            children: <Widget>[
+              ThemePickerSetting(
+                value: settings.themeName,
+                onChanged: (value) =>
+                    onChanged(settings.copyWith(themeName: value)),
+              ),
+              SettingsNumberRow(
+                title: 'Background Opacity',
+                description: 'Opacity of the terminal background.',
+                value: settings.backgroundOpacity,
+                min: 0,
+                max: 1,
+                step: 0.05,
+                onChanged: (value) =>
+                    onChanged(settings.copyWith(backgroundOpacity: value)),
+              ),
+              SettingsNumberRow(
+                title: 'Horizontal Padding',
+                description: 'Horizontal spacing around the terminal grid.',
+                value: settings.paddingX,
+                min: 0,
+                max: 64,
+                step: 1,
+                suffix: 'px',
+                onChanged: (value) =>
+                    onChanged(settings.copyWith(paddingX: value)),
+              ),
+              SettingsNumberRow(
+                title: 'Vertical Padding',
+                description: 'Vertical spacing around the terminal grid.',
+                value: settings.paddingY,
+                min: 0,
+                max: 64,
+                step: 1,
+                suffix: 'px',
+                onChanged: (value) =>
+                    onChanged(settings.copyWith(paddingY: value)),
+              ),
+              HexColorSettingRow(
+                title: 'Foreground Color',
+                description: 'Override the terminal text color.',
+                value: overrides.foreground,
+                fallback: '#f5f5f5',
+                onChanged: (value) => onChanged(
+                  settings.copyWith(
+                    colorOverrides: overrides.copyWith(foreground: value),
+                  ),
                 ),
               ),
-            ),
-            HexColorSettingRow(
-              title: 'Background Color',
-              description: 'Override the terminal background color.',
-              value: overrides.background,
-              fallback: '#101010',
-              onChanged: (value) => onChanged(
-                settings.copyWith(
-                  colorOverrides: overrides.copyWith(background: value),
+              HexColorSettingRow(
+                title: 'Background Color',
+                description: 'Override the terminal background color.',
+                value: overrides.background,
+                fallback: '#101010',
+                onChanged: (value) => onChanged(
+                  settings.copyWith(
+                    colorOverrides: overrides.copyWith(background: value),
+                  ),
                 ),
               ),
-            ),
-            HexColorSettingRow(
-              title: 'Cursor Color',
-              description: 'Override the terminal cursor color.',
-              value: overrides.cursor,
-              fallback: '#e0e0e0',
-              onChanged: (value) => onChanged(
-                settings.copyWith(
-                  colorOverrides: overrides.copyWith(cursor: value),
+              HexColorSettingRow(
+                title: 'Cursor Color',
+                description: 'Override the terminal cursor color.',
+                value: overrides.cursor,
+                fallback: '#e0e0e0',
+                onChanged: (value) => onChanged(
+                  settings.copyWith(
+                    colorOverrides: overrides.copyWith(cursor: value),
+                  ),
                 ),
               ),
-            ),
-            HexColorSettingRow(
-              title: 'Selection Color',
-              description: 'Override the terminal selection color.',
-              value: overrides.selection,
-              fallback: '#3e4451',
-              onChanged: (value) => onChanged(
-                settings.copyWith(
-                  colorOverrides: overrides.copyWith(selection: value),
+              HexColorSettingRow(
+                title: 'Selection Color',
+                description: 'Override the terminal selection color.',
+                value: overrides.selection,
+                fallback: '#3e4451',
+                onChanged: (value) => onChanged(
+                  settings.copyWith(
+                    colorOverrides: overrides.copyWith(selection: value),
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         const SizedBox(height: AleraTokens.space16),
-        AleraSettingsGroup(
-          title: 'Advanced',
-          description:
-              'History, detached host lifetime and double-click selection behavior.',
-          children: <Widget>[
-            SettingsIntegerRow(
-              title: 'Scrollback Lines',
-              description: 'Maximum terminal history retained per session.',
-              value: settings.scrollbackLines,
-              min: 100,
-              max: 200000,
-              step: 100,
-              onChanged: (value) =>
-                  onChanged(settings.copyWith(scrollbackLines: value)),
-            ),
-            SettingsIntegerRow(
-              title: 'Host Scrollback Size',
-              description:
-                  'Maximum host-side terminal output retained per session.',
-              value: settings.hostScrollbackBytes ~/ (1000 * 1000),
-              min: 1,
-              max: 256,
-              step: 1,
-              suffix: 'MB',
-              onChanged: (value) => onChanged(
-                settings.copyWith(hostScrollbackBytes: value * 1000 * 1000),
+        KeyedSubtree(
+          key: groupKeys['advanced'],
+          child: AleraSettingsGroup(
+            title: 'Advanced',
+            description:
+                'History, detached host lifetime and double-click selection behavior.',
+            children: <Widget>[
+              SettingsIntegerRow(
+                title: 'Scrollback Lines',
+                description: 'Maximum terminal history retained per session.',
+                value: settings.scrollbackLines,
+                min: 100,
+                max: 200000,
+                step: 100,
+                onChanged: (value) =>
+                    onChanged(settings.copyWith(scrollbackLines: value)),
               ),
-            ),
-            SettingsIntegerRow(
-              title: 'Empty Host Shutdown',
-              description:
-                  'Seconds to keep the host alive after the app closes with no running sessions.',
-              value: settings.hostEmptyShutdownDelaySeconds,
-              min: 5,
-              max: 3600,
-              step: 5,
-              suffix: 's',
-              onChanged: (value) => onChanged(
-                settings.copyWith(hostEmptyShutdownDelaySeconds: value),
-              ),
-            ),
-            SettingsIntegerRow(
-              title: 'Detached Session Shutdown',
-              description:
-                  'Seconds to keep detached running sessions alive after the app closes.',
-              value: settings.hostDetachedSessionShutdownDelaySeconds,
-              min: 5,
-              max: 86400,
-              step: 60,
-              suffix: 's',
-              onChanged: (value) => onChanged(
-                settings.copyWith(
-                  hostDetachedSessionShutdownDelaySeconds: value,
+              SettingsIntegerRow(
+                title: 'Host Scrollback Size',
+                description:
+                    'Maximum host-side terminal output retained per session.',
+                value: settings.hostScrollbackBytes ~/ (1000 * 1000),
+                min: 1,
+                max: 256,
+                step: 1,
+                suffix: 'MB',
+                onChanged: (value) => onChanged(
+                  settings.copyWith(hostScrollbackBytes: value * 1000 * 1000),
                 ),
               ),
-            ),
-            SettingsTextRow(
-              title: 'Word Separators',
-              description: 'Characters that break double-click word selection.',
-              value: settings.wordSeparators ?? '',
-              trimValue: false,
-              hintText: " ()[]{},\"'`",
-              onChanged: (value) => onChanged(
-                settings.copyWith(wordSeparators: value.isEmpty ? null : value),
+              SettingsIntegerRow(
+                title: 'Empty Host Shutdown',
+                description:
+                    'Seconds to keep the host alive after the app closes with no running sessions.',
+                value: settings.hostEmptyShutdownDelaySeconds,
+                min: 5,
+                max: 3600,
+                step: 5,
+                suffix: 's',
+                onChanged: (value) => onChanged(
+                  settings.copyWith(hostEmptyShutdownDelaySeconds: value),
+                ),
               ),
-            ),
-          ],
+              SettingsIntegerRow(
+                title: 'Detached Session Shutdown',
+                description:
+                    'Seconds to keep detached running sessions alive after the app closes.',
+                value: settings.hostDetachedSessionShutdownDelaySeconds,
+                min: 5,
+                max: 86400,
+                step: 60,
+                suffix: 's',
+                onChanged: (value) => onChanged(
+                  settings.copyWith(
+                    hostDetachedSessionShutdownDelaySeconds: value,
+                  ),
+                ),
+              ),
+              SettingsTextRow(
+                title: 'Word Separators',
+                description:
+                    'Characters that break double-click word selection.',
+                value: settings.wordSeparators ?? '',
+                trimValue: false,
+                hintText: " ()[]{},\"'`",
+                onChanged: (value) => onChanged(
+                  settings.copyWith(
+                    wordSeparators: value.isEmpty ? null : value,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );

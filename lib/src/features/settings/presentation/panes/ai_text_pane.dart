@@ -16,10 +16,12 @@ class AiTextSettingsPane extends ConsumerStatefulWidget {
     super.key,
     required this.settings,
     required this.onChanged,
+    this.groupKeys = const <String, GlobalKey>{},
   });
 
   final AiTextGenerationSettings settings;
   final ValueChanged<AiTextGenerationSettings> onChanged;
+  final Map<String, GlobalKey> groupKeys;
 
   @override
   ConsumerState<AiTextSettingsPane> createState() => _AiTextSettingsPaneState();
@@ -66,91 +68,98 @@ class _AiTextSettingsPaneState extends ConsumerState<AiTextSettingsPane> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        AleraSettingsGroup(
-          title: 'Generation',
-          description:
-              'Local agent CLIs generate text from source control context.',
-          children: <Widget>[
-            SettingsSwitchRow(
-              title: 'Enable AI Text',
-              description: 'Show generation actions in source control.',
-              value: widget.settings.enabled,
-              onChanged: (value) =>
-                  widget.onChanged(settings.copyWith(enabled: value)),
-            ),
-            AiTextAgentRow(
-              value: agent,
-              onChanged: (value) =>
-                  widget.onChanged(settings.copyWith(agent: value)),
-            ),
-            if (agent == AiTextGenerationAgent.custom)
-              SettingsTextRow(
-                title: 'Custom Command',
-                description:
-                    'Use {prompt} to pass the prompt as an argument; otherwise Alera sends it on stdin.',
-                value: settings.customCommand,
-                hintText: 'llm --system commit-message',
+        KeyedSubtree(
+          key: widget.groupKeys['generation'],
+          child: AleraSettingsGroup(
+            title: 'Generation',
+            description:
+                'Local agent CLIs generate text from source control context.',
+            children: <Widget>[
+              SettingsSwitchRow(
+                title: 'Enable AI Text',
+                description: 'Show generation actions in source control.',
+                value: widget.settings.enabled,
                 onChanged: (value) =>
-                    widget.onChanged(settings.copyWith(customCommand: value)),
-              )
-            else if (spec != null)
-              AiTextModelRow(
-                agent: agent,
-                models: models,
-                value: model.id,
-                canDiscoverModels: canDiscoverModels,
-                discovering: discovery.loading,
-                discoveryError: discovery.error,
-                onRefreshModels: canDiscoverModels
-                    ? () => unawaited(_discoverModels(agent))
-                    : null,
-                onChanged: (value) => widget.onChanged(
-                  settings.copyWith(
-                    selectedModelByAgent: <AiTextGenerationAgent, String>{
-                      ...settings.selectedModelByAgent,
-                      agent: value,
-                    },
+                    widget.onChanged(settings.copyWith(enabled: value)),
+              ),
+              AiTextAgentRow(
+                value: agent,
+                onChanged: (value) =>
+                    widget.onChanged(settings.copyWith(agent: value)),
+              ),
+              if (agent == AiTextGenerationAgent.custom)
+                SettingsTextRow(
+                  title: 'Custom Command',
+                  description:
+                      'Use {prompt} to pass the prompt as an argument; otherwise Alera sends it on stdin.',
+                  value: settings.customCommand,
+                  hintText: 'llm --system commit-message',
+                  onChanged: (value) =>
+                      widget.onChanged(settings.copyWith(customCommand: value)),
+                )
+              else if (spec != null)
+                AiTextModelRow(
+                  agent: agent,
+                  models: models,
+                  value: model.id,
+                  canDiscoverModels: canDiscoverModels,
+                  discovering: discovery.loading,
+                  discoveryError: discovery.error,
+                  onRefreshModels: canDiscoverModels
+                      ? () => unawaited(_discoverModels(agent))
+                      : null,
+                  onChanged: (value) => widget.onChanged(
+                    settings.copyWith(
+                      selectedModelByAgent: <AiTextGenerationAgent, String>{
+                        ...settings.selectedModelByAgent,
+                        agent: value,
+                      },
+                    ),
                   ),
                 ),
-              ),
-            if (thinkingLevels.isNotEmpty)
-              AiTextThinkingRow(
-                levels: thinkingLevels,
-                value:
-                    settings.thinkingForModel(model.id) ??
-                    model.defaultThinkingLevel ??
-                    thinkingLevels.first.id,
-                onChanged: (value) => widget.onChanged(
-                  settings.copyWith(
-                    selectedThinkingByModel: <String, String>{
-                      ...settings.selectedThinkingByModel,
-                      model.id: value,
-                    },
+              if (thinkingLevels.isNotEmpty)
+                AiTextThinkingRow(
+                  levels: thinkingLevels,
+                  value:
+                      settings.thinkingForModel(model.id) ??
+                      model.defaultThinkingLevel ??
+                      thinkingLevels.first.id,
+                  onChanged: (value) => widget.onChanged(
+                    settings.copyWith(
+                      selectedThinkingByModel: <String, String>{
+                        ...settings.selectedThinkingByModel,
+                        model.id: value,
+                      },
+                    ),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
         const SizedBox(height: AleraTokens.space16),
-        AleraSettingsGroup(
-          title: 'Instructions',
-          description: 'Extra guidance appended to commit-message prompts.',
-          children: <Widget>[
-            InstructionSettingRow(
-              title: AiTextGenerationOperation.commitMessage.label,
-              value: settings.instructionsFor(
-                AiTextGenerationOperation.commitMessage,
-              ),
-              onChanged: (value) => widget.onChanged(
-                settings.copyWith(
-                  instructionsByOperation: <AiTextGenerationOperation, String>{
-                    ...settings.instructionsByOperation,
-                    AiTextGenerationOperation.commitMessage: value,
-                  },
+        KeyedSubtree(
+          key: widget.groupKeys['instructions'],
+          child: AleraSettingsGroup(
+            title: 'Instructions',
+            description: 'Extra guidance appended to commit-message prompts.',
+            children: <Widget>[
+              InstructionSettingRow(
+                title: AiTextGenerationOperation.commitMessage.label,
+                value: settings.instructionsFor(
+                  AiTextGenerationOperation.commitMessage,
+                ),
+                onChanged: (value) => widget.onChanged(
+                  settings.copyWith(
+                    instructionsByOperation:
+                        <AiTextGenerationOperation, String>{
+                          ...settings.instructionsByOperation,
+                          AiTextGenerationOperation.commitMessage: value,
+                        },
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ],
     );
