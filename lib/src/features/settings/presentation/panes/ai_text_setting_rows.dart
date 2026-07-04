@@ -1,10 +1,8 @@
-import 'dart:async';
-
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
+import 'package:alera/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera/src/design_system/forms/alera_setting_row.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
-import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_registry.dart';
 import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
 import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart';
@@ -25,20 +23,17 @@ class AiTextAgentRow extends StatelessWidget {
     return AleraSettingRow(
       title: 'Agent',
       description: 'CLI used for generated source control text.',
-      child: _AiTextSelectField<AiTextGenerationAgent>(
+      child: AleraDropdownField<AiTextGenerationAgent>(
         key: ValueKey<String>('ai-text-agent-${value.key}'),
         value: value,
-        label: value.label,
-        entries: <_AiTextSelectEntry<AiTextGenerationAgent>>[
+        entries: <AleraDropdownFieldEntry<AiTextGenerationAgent>>[
           for (final agent in AiTextGenerationAgent.values)
-            _AiTextSelectEntry<AiTextGenerationAgent>(
+            AleraDropdownFieldEntry<AiTextGenerationAgent>(
               value: agent,
               label: agent.label,
             ),
         ],
-        onChanged: (next) {
-          onChanged(next);
-        },
+        onChanged: onChanged,
       ),
     );
   }
@@ -85,20 +80,17 @@ class AiTextModelRow extends StatelessWidget {
       child: Row(
         children: <Widget>[
           Expanded(
-            child: _AiTextSelectField<String>(
+            child: AleraDropdownField<String>(
               key: ValueKey<String>('ai-text-model-${agent.key}-$value'),
               value: value,
-              label: models.firstWhere((model) => model.id == value).label,
-              entries: <_AiTextSelectEntry<String>>[
+              entries: <AleraDropdownFieldEntry<String>>[
                 for (final model in models)
-                  _AiTextSelectEntry<String>(
+                  AleraDropdownFieldEntry<String>(
                     value: model.id,
                     label: model.label,
                   ),
               ],
-              onChanged: (next) {
-                onChanged(next);
-              },
+              onChanged: onChanged,
             ),
           ),
           if (canDiscoverModels) ...<Widget>[
@@ -135,97 +127,19 @@ class AiTextThinkingRow extends StatelessWidget {
     return AleraSettingRow(
       title: 'Thinking',
       description: 'Reasoning effort for models that support it.',
-      child: _AiTextSelectField<String>(
+      child: AleraDropdownField<String>(
         key: ValueKey<String>('ai-text-thinking-$value'),
         value: selected,
-        label: levels.firstWhere((level) => level.id == selected).label,
-        entries: <_AiTextSelectEntry<String>>[
+        entries: <AleraDropdownFieldEntry<String>>[
           for (final level in levels)
-            _AiTextSelectEntry<String>(value: level.id, label: level.label),
-        ],
-        onChanged: (next) {
-          onChanged(next);
-        },
-      ),
-    );
-  }
-}
-
-class _AiTextSelectEntry<T> {
-  const _AiTextSelectEntry({required this.value, required this.label});
-
-  final T value;
-  final String label;
-}
-
-class _AiTextSelectField<T> extends StatelessWidget {
-  const _AiTextSelectField({
-    super.key,
-    required this.value,
-    required this.label,
-    required this.entries,
-    required this.onChanged,
-  });
-
-  final T value;
-  final String label;
-  final List<_AiTextSelectEntry<T>> entries;
-  final ValueChanged<T> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Builder(
-      builder: (buttonContext) {
-        return MouseRegion(
-          cursor: SystemMouseCursors.click,
-          child: InkWell(
-            mouseCursor: SystemMouseCursors.click,
-            borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-            onTap: () => unawaited(_openMenu(buttonContext)),
-            child: InputDecorator(
-              isEmpty: false,
-              isFocused: false,
-              decoration: const InputDecoration(
-                isDense: true,
-                suffixIcon: Icon(AleraIcons.chevronDown, size: 18),
-              ),
-              child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+            AleraDropdownFieldEntry<String>(
+              value: level.id,
+              label: level.label,
             ),
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> _openMenu(BuildContext context) async {
-    final renderBox = context.findRenderObject() as RenderBox?;
-    final overlay = Navigator.of(context).overlay?.context.findRenderObject();
-    if (renderBox == null || overlay is! RenderBox) {
-      return;
-    }
-    final topLeft = renderBox.localToGlobal(Offset.zero, ancestor: overlay);
-    final bottomRight = renderBox.localToGlobal(
-      renderBox.size.bottomRight(Offset.zero),
-      ancestor: overlay,
-    );
-    final selected = await showMenu<T>(
-      context: context,
-      position: RelativeRect.fromRect(
-        Rect.fromPoints(topLeft, bottomRight),
-        Offset.zero & overlay.size,
+        ],
+        onChanged: onChanged,
       ),
-      items: <PopupMenuEntry<T>>[
-        for (final entry in entries)
-          AleraDropdownEntry<T>(
-            value: entry.value,
-            label: entry.label,
-            selected: entry.value == value,
-          ),
-      ],
     );
-    if (selected != null && selected != value) {
-      onChanged(selected);
-    }
   }
 }
 

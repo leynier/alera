@@ -56,8 +56,10 @@ class AgentsSettingsPane extends ConsumerWidget {
                 description:
                     'Use an Alera-managed Codex runtime home with status hooks.',
                 value: agents.agentStatusHooks.codex,
-                onChanged: (value) =>
-                    controller.setAgentStatusHookEnabled(AgentType.codex, value),
+                onChanged: (value) => controller.setAgentStatusHookEnabled(
+                  AgentType.codex,
+                  value,
+                ),
               ),
               SettingsSwitchRow(
                 title: 'Claude Code Hooks',

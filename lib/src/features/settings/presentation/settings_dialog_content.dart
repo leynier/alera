@@ -149,11 +149,19 @@ class _SettingsContentState extends State<SettingsContent> {
           ),
         ),
         const Divider(height: 1, color: AleraTokens.borderSubtle),
+        // Resource sections use a master-detail layout with independent
+        // scroll contexts, so they fill the pane instead of living inside a
+        // single scrolling list.
         Expanded(
-          child: ListView(
-            padding: const EdgeInsets.all(AleraTokens.space24),
-            children: <Widget>[section.builder(context)],
-          ),
+          child: section.navGroup == SettingsNavGroup.resources
+              ? Padding(
+                  padding: const EdgeInsets.all(AleraTokens.space24),
+                  child: section.builder(context),
+                )
+              : ListView(
+                  padding: const EdgeInsets.all(AleraTokens.space24),
+                  children: <Widget>[section.builder(context)],
+                ),
         ),
       ],
     );

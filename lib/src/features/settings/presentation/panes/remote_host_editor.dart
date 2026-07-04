@@ -1,5 +1,6 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
+import 'package:alera/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_settings_group.dart';
@@ -108,25 +109,32 @@ class RemoteHostEditor extends StatelessWidget {
                   enabled: !bootstrapping,
                 ),
               ),
-              _RemoteHostDropdownRow<SshAuthKind>(
-                title: 'Authentication',
-                value: authKind,
-                entries: const <DropdownMenuItem<SshAuthKind>>[
-                  DropdownMenuItem<SshAuthKind>(
-                    value: SshAuthKind.agent,
-                    child: Text('Agent'),
-                  ),
-                  DropdownMenuItem<SshAuthKind>(
-                    value: SshAuthKind.key,
-                    child: Text('Key'),
-                  ),
-                  DropdownMenuItem<SshAuthKind>(
-                    value: SshAuthKind.password,
-                    enabled: false,
-                    child: Text('Password'),
-                  ),
-                ],
-                onChanged: bootstrapping ? null : onAuthKindChanged,
+              Padding(
+                padding: const EdgeInsets.all(AleraTokens.space12),
+                child: _RemoteHostDropdown<SshAuthKind>(
+                  label: 'Authentication',
+                  fieldKey: ValueKey<String>('Authentication:${authKind.name}'),
+                  value: authKind,
+                  // Password stays listed but non-selectable: existing
+                  // password-auth targets keep their value, new selections
+                  // must use agent or key auth.
+                  entries: const <AleraDropdownFieldEntry<SshAuthKind>>[
+                    AleraDropdownFieldEntry<SshAuthKind>(
+                      value: SshAuthKind.agent,
+                      label: 'Agent',
+                    ),
+                    AleraDropdownFieldEntry<SshAuthKind>(
+                      value: SshAuthKind.key,
+                      label: 'Key',
+                    ),
+                    AleraDropdownFieldEntry<SshAuthKind>(
+                      value: SshAuthKind.password,
+                      label: 'Password',
+                      enabled: false,
+                    ),
+                  ],
+                  onChanged: bootstrapping ? null : onAuthKindChanged,
+                ),
               ),
             ],
           ),
@@ -136,25 +144,39 @@ class RemoteHostEditor extends StatelessWidget {
             description: 'Install The Alera Runtime Sidecar On This Host.',
             children: <Widget>[
               _InlineFieldRow(
-                first: _RemoteHostDropdownField(
+                first: _RemoteHostDropdown<String>(
                   label: 'Platform',
+                  fieldKey: ValueKey<String>('Platform:$platform'),
                   value: platform,
-                  items: const <String, String>{
-                    '': 'Auto',
-                    'macos': 'macOS',
-                    'linux': 'Linux',
-                    'windows': 'Windows',
-                  },
+                  entries: const <AleraDropdownFieldEntry<String>>[
+                    AleraDropdownFieldEntry<String>(value: '', label: 'Auto'),
+                    AleraDropdownFieldEntry<String>(
+                      value: 'macos',
+                      label: 'macOS',
+                    ),
+                    AleraDropdownFieldEntry<String>(
+                      value: 'linux',
+                      label: 'Linux',
+                    ),
+                    AleraDropdownFieldEntry<String>(
+                      value: 'windows',
+                      label: 'Windows',
+                    ),
+                  ],
                   onChanged: bootstrapping ? null : onPlatformChanged,
                 ),
-                second: _RemoteHostDropdownField(
+                second: _RemoteHostDropdown<String>(
                   label: 'Architecture',
+                  fieldKey: ValueKey<String>('Architecture:$arch'),
                   value: arch,
-                  items: const <String, String>{
-                    '': 'Auto',
-                    'x64': 'x64',
-                    'arm64': 'arm64',
-                  },
+                  entries: const <AleraDropdownFieldEntry<String>>[
+                    AleraDropdownFieldEntry<String>(value: '', label: 'Auto'),
+                    AleraDropdownFieldEntry<String>(value: 'x64', label: 'x64'),
+                    AleraDropdownFieldEntry<String>(
+                      value: 'arm64',
+                      label: 'arm64',
+                    ),
+                  ],
                   onChanged: bootstrapping ? null : onArchChanged,
                 ),
               ),
@@ -272,64 +294,45 @@ class _InlineFieldRow extends StatelessWidget {
   }
 }
 
-class _RemoteHostDropdownRow<T> extends StatelessWidget {
-  const _RemoteHostDropdownRow({
-    required this.title,
+/// Labeled [AleraDropdownField] used by the connection and bootstrap groups.
+/// [fieldKey] keeps the `Label:value` key scheme so the field reseeds when
+/// the selected target changes.
+class _RemoteHostDropdown<T> extends StatelessWidget {
+  const _RemoteHostDropdown({
+    required this.label,
+    required this.fieldKey,
     required this.value,
     required this.entries,
     required this.onChanged,
   });
 
-  final String title;
+  final String label;
+  final Key fieldKey;
   final T value;
-  final List<DropdownMenuItem<T>> entries;
+  final List<AleraDropdownFieldEntry<T>> entries;
   final ValueChanged<T>? onChanged;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(AleraTokens.space12),
-      child: DropdownButtonFormField<T>(
-        key: ValueKey<String>('$title:$value'),
-        initialValue: value,
-        decoration: InputDecoration(labelText: title),
-        items: entries,
-        onChanged: onChanged == null
-            ? null
-            : (value) {
-                if (value != null) {
-                  onChanged!(value);
-                }
-              },
-      ),
-    );
-  }
-}
-
-class _RemoteHostDropdownField extends StatelessWidget {
-  const _RemoteHostDropdownField({
-    required this.label,
-    required this.value,
-    required this.items,
-    required this.onChanged,
-  });
-
-  final String label;
-  final String value;
-  final Map<String, String> items;
-  final ValueChanged<String>? onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return DropdownButtonFormField<String>(
-      key: ValueKey<String>('$label:$value'),
-      initialValue: value,
-      decoration: InputDecoration(labelText: label),
-      items: <DropdownMenuItem<String>>[
-        for (final entry in items.entries)
-          DropdownMenuItem<String>(value: entry.key, child: Text(entry.value)),
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          label,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: AleraTokens.foregroundMuted,
+          ),
+        ),
+        const SizedBox(height: AleraTokens.space4),
+        AleraDropdownField<T>(
+          key: fieldKey,
+          value: value,
+          entries: entries,
+          enabled: onChanged != null,
+          onChanged: (next) => onChanged?.call(next),
+        ),
       ],
-      onChanged: onChanged == null ? null : (value) => onChanged!(value ?? ''),
     );
   }
 }

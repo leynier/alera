@@ -2,6 +2,7 @@ import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/design_system/layout/alera_master_detail.dart';
 import 'package:alera/src/design_system/surfaces/alera_panel.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/domain/project_config.dart';
@@ -50,45 +51,41 @@ class _ProjectSettingsPaneState extends ConsumerState<ProjectSettingsPane> {
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, _) => _ProjectSettingsError(message: error.toString()),
           data: (overrides) {
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                SizedBox(
-                  width: 220,
-                  child: _ProjectConfigProjectList(
-                    projects: projects,
-                    selectedProjectId: selected.id,
-                    overrideProjectIds: overrides.keys.toSet(),
-                    onSelect: (project) {
-                      setState(() {
-                        _selectedProjectId = project.id;
-                        _saveError = null;
-                      });
-                    },
-                  ),
+            return AleraMasterDetail(
+              masterTitle: 'Projects',
+              master: SingleChildScrollView(
+                child: _ProjectConfigProjectList(
+                  projects: projects,
+                  selectedProjectId: selected.id,
+                  overrideProjectIds: overrides.keys.toSet(),
+                  onSelect: (project) {
+                    setState(() {
+                      _selectedProjectId = project.id;
+                      _saveError = null;
+                    });
+                  },
                 ),
-                const SizedBox(width: AleraTokens.space16),
-                Expanded(
-                  child: _ProjectConfigEditorLoader(
-                    project: selected,
-                    overrideConfig: overrides[selected.id],
-                    repoConfigFuture: _repoConfigFuture(selected),
-                    saveError: _saveError,
-                    saving: _saving,
-                    seedEditor: _seedEditor,
-                    updateCopyRule: _updateCopyRule,
-                    removeCopyRule: _removeCopyRule,
-                    addCopyRule: _addCopyRule,
-                    updateSetupCommand: _updateSetupCommand,
-                    removeSetupCommand: _removeSetupCommand,
-                    addSetupCommand: _addSetupCommand,
-                    saveOverride: _saveOverride,
-                    useRepoFile: overrides.containsKey(selected.id)
-                        ? () => _useRepoFile(selected)
-                        : null,
-                  ),
+              ),
+              detail: SingleChildScrollView(
+                child: _ProjectConfigEditorLoader(
+                  project: selected,
+                  overrideConfig: overrides[selected.id],
+                  repoConfigFuture: _repoConfigFuture(selected),
+                  saveError: _saveError,
+                  saving: _saving,
+                  seedEditor: _seedEditor,
+                  updateCopyRule: _updateCopyRule,
+                  removeCopyRule: _removeCopyRule,
+                  addCopyRule: _addCopyRule,
+                  updateSetupCommand: _updateSetupCommand,
+                  removeSetupCommand: _removeSetupCommand,
+                  addSetupCommand: _addSetupCommand,
+                  saveOverride: _saveOverride,
+                  useRepoFile: overrides.containsKey(selected.id)
+                      ? () => _useRepoFile(selected)
+                      : null,
                 ),
-              ],
+              ),
             );
           },
         );

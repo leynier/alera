@@ -1,5 +1,6 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
+import 'package:alera/src/design_system/forms/alera_checkbox.dart';
 import 'package:alera/src/design_system/forms/alera_setting_row.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
@@ -211,12 +212,12 @@ class _CopyRuleEditorRow extends StatelessWidget {
           const SizedBox(width: AleraTokens.space8),
           Tooltip(
             message: 'Overwrite Existing Destination',
-            child: Checkbox(
+            child: AleraCheckbox(
               value: rule.overwrite,
-              onChanged: (value) =>
-                  onChanged(rule.copyWith(overwrite: value ?? false)),
+              onChanged: (value) => onChanged(rule.copyWith(overwrite: value)),
             ),
           ),
+          const SizedBox(width: AleraTokens.space8),
           AleraIconButton(
             tooltip: 'Remove Copy Rule',
             onPressed: onRemove,

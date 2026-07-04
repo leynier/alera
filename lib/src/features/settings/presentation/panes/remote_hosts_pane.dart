@@ -1,7 +1,7 @@
-import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/design_system/layout/alera_master_detail.dart';
 import 'package:alera/src/design_system/surfaces/alera_panel.dart';
 import 'package:alera/src/features/remote_hosts/application/ssh_target_providers.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
@@ -87,86 +87,59 @@ class _RemoteHostSettingsPaneState
           }
         }
         final selectedTarget = selected;
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            SizedBox(
-              width: 230,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  Row(
+        return AleraMasterDetail(
+          masterTitle: 'SSH Targets',
+          masterAction: AleraIconButton(
+            tooltip: 'New Host',
+            icon: AleraIcons.add,
+            onPressed: _newTarget,
+          ),
+          master: targets.isEmpty
+              ? const AleraEmptyState(
+                  icon: AleraIcons.host,
+                  title: 'No Remote Hosts',
+                  message: 'Add An SSH Target To Bootstrap A Runtime.',
+                )
+              : SingleChildScrollView(
+                  child: AleraPanel(
+                    clipBehavior: Clip.antiAlias,
                     children: <Widget>[
-                      Expanded(
-                        child: Text(
-                          'SSH Targets',
-                          style: Theme.of(context).textTheme.titleSmall
-                              ?.copyWith(
-                                color: AleraTokens.foreground,
-                                fontWeight: FontWeight.w600,
-                              ),
+                      for (final target in targets)
+                        RemoteHostListRow(
+                          target: target,
+                          selected: target.id == _selectedTargetId,
+                          onTap: () => _selectTarget(target),
                         ),
-                      ),
-                      AleraIconButton(
-                        tooltip: 'New Host',
-                        icon: AleraIcons.add,
-                        onPressed: _newTarget,
-                      ),
                     ],
                   ),
-                  const SizedBox(height: AleraTokens.space8),
-                  if (targets.isEmpty)
-                    const AleraEmptyState(
-                      icon: AleraIcons.host,
-                      title: 'No Remote Hosts',
-                      message: 'Add An SSH Target To Bootstrap A Runtime.',
-                    )
-                  else
-                    AleraPanel(
-                      clipBehavior: Clip.antiAlias,
-                      children: <Widget>[
-                        for (final target in targets)
-                          RemoteHostListRow(
-                            target: target,
-                            selected: target.id == _selectedTargetId,
-                            onTap: () => _selectTarget(target),
-                          ),
-                      ],
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(width: AleraTokens.space16),
-            Expanded(
-              child: RemoteHostEditor(
-                aliasController: _aliasController,
-                hostController: _hostController,
-                portController: _portController,
-                usernameController: _usernameController,
-                installDirController: _installDirController,
-                platform: _platform,
-                arch: _arch,
-                authKind: _authKind,
-                error: _error,
-                plan: _plan,
-                progress: _progress,
-                hasSelection: _selectedTargetId != null,
-                saving: _saving,
-                planning: _planning,
-                bootstrapping: _bootstrapping,
-                onPlatformChanged: (value) => setState(() => _platform = value),
-                onArchChanged: (value) => setState(() => _arch = value),
-                onAuthKindChanged: (value) => setState(() => _authKind = value),
-                onSave: _saveTarget,
-                onRemove: selectedTarget == null
-                    ? null
-                    : () => _removeTarget(selectedTarget),
-                onPlan: selectedTarget == null ? null : _loadPlan,
-                onBootstrap: selectedTarget == null ? null : _startBootstrap,
-                onCancel: selectedTarget == null ? null : _cancelBootstrap,
-              ),
-            ),
-          ],
+                ),
+          detail: RemoteHostEditor(
+            aliasController: _aliasController,
+            hostController: _hostController,
+            portController: _portController,
+            usernameController: _usernameController,
+            installDirController: _installDirController,
+            platform: _platform,
+            arch: _arch,
+            authKind: _authKind,
+            error: _error,
+            plan: _plan,
+            progress: _progress,
+            hasSelection: _selectedTargetId != null,
+            saving: _saving,
+            planning: _planning,
+            bootstrapping: _bootstrapping,
+            onPlatformChanged: (value) => setState(() => _platform = value),
+            onArchChanged: (value) => setState(() => _arch = value),
+            onAuthKindChanged: (value) => setState(() => _authKind = value),
+            onSave: _saveTarget,
+            onRemove: selectedTarget == null
+                ? null
+                : () => _removeTarget(selectedTarget),
+            onPlan: selectedTarget == null ? null : _loadPlan,
+            onBootstrap: selectedTarget == null ? null : _startBootstrap,
+            onCancel: selectedTarget == null ? null : _cancelBootstrap,
+          ),
         );
       },
     );
