@@ -79,6 +79,7 @@ mixin _WorkbenchControllerProjects
     required String newBranchName,
     bool reuseExistingBranch = false,
     String? name,
+    String? parentWorkspaceId,
   }) async {
     try {
       final result = await _workspaceService.createLinkedWorkspace(
@@ -89,6 +90,24 @@ mixin _WorkbenchControllerProjects
         name: name,
       );
       await selectWorkspace(project: project, workspace: result.workspace);
+      final parentId = parentWorkspaceId?.trim();
+      if (parentId != null && parentId.isNotEmpty) {
+        try {
+          await _workspaceGraphRepository.linkWorkspaces(
+            parentWorkspaceId: parentId,
+            childWorkspaceId: result.workspace.id,
+          );
+        } catch (error) {
+          // The workspace itself was created successfully, so the failure is
+          // reported as a warning on the result instead of failing the flow.
+          state = state.copyWith(error: null);
+          return WorkspaceCreationResult(
+            workspace: result.workspace,
+            setupReport: result.setupReport,
+            parentLinkError: error.toString(),
+          );
+        }
+      }
       state = state.copyWith(error: null);
       return result;
     } catch (error) {
@@ -133,6 +152,162 @@ mixin _WorkbenchControllerProjects
         ],
       };
       state = state.copyWith(workspacesByProject: nextWorkspaces, error: null);
+    } catch (error) {
+      state = state.copyWith(error: error.toString());
+      rethrow;
+    }
+  }
+
+  Future<List<WorkspaceTag>> listWorkspaceTags() async {
+    try {
+      final tags = await _workspaceGraphRepository.listTags();
+      state = state.copyWith(error: null);
+      return tags;
+    } catch (error) {
+      state = state.copyWith(error: error.toString());
+      rethrow;
+    }
+  }
+
+  Future<List<WorkspaceRelation>> listWorkspaceRelations() async {
+    try {
+      final relations = await _workspaceGraphRepository.listRelations();
+      state = state.copyWith(error: null);
+      return relations;
+    } catch (error) {
+      state = state.copyWith(error: error.toString());
+      rethrow;
+    }
+  }
+
+  Future<WorkspaceTag> createWorkspaceTag(String name) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) {
+      throw WorkspaceException('Tag Name Is Required');
+    }
+    try {
+      final tag = await _workspaceGraphRepository.upsertTag(
+        WorkspaceTag.create(name: trimmed),
+      );
+      state = state.copyWith(error: null);
+      return tag;
+    } catch (error) {
+      state = state.copyWith(error: error.toString());
+      rethrow;
+    }
+  }
+
+  Future<void> deleteWorkspaceTag(String tagId) async {
+    try {
+      await _workspaceGraphRepository.removeTag(tagId);
+      state = state.copyWith(error: null);
+    } catch (error) {
+      state = state.copyWith(error: error.toString());
+      rethrow;
+    }
+  }
+
+  Future<void> updateWorkspaceTags({
+    required Workspace workspace,
+    required Set<String> tagIds,
+  }) async {
+    // Diff against the freshest known membership: the workspace snapshot may
+    // predate tag changes applied while the dialog was open.
+    final latest = state
+        .workspacesFor(workspace.projectId)
+        .where((candidate) => candidate.id == workspace.id)
+        .firstOrNull;
+    final current = (latest ?? workspace).tagIds.toSet();
+    final next = tagIds
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    try {
+      for (final tagId in current.difference(next)) {
+        await _workspaceGraphRepository.unassignTag(
+          workspaceId: workspace.id,
+          tagId: tagId,
+        );
+      }
+      for (final tagId in next.difference(current)) {
+        await _workspaceGraphRepository.assignTag(
+          workspaceId: workspace.id,
+          tagId: tagId,
+        );
+      }
+      state = state.copyWith(error: null);
+    } catch (error) {
+      state = state.copyWith(error: error.toString());
+      rethrow;
+    }
+  }
+
+  Future<void> setWorkspaceParent({
+    required Workspace workspace,
+    String? parentWorkspaceId,
+  }) async {
+    final currentParentId = workspace.parentWorkspaceId?.trim();
+    final nextParentId = parentWorkspaceId?.trim();
+    if ((currentParentId == null || currentParentId.isEmpty) &&
+        (nextParentId == null || nextParentId.isEmpty)) {
+      return;
+    }
+    if (currentParentId == nextParentId) {
+      return;
+    }
+    var removedCurrentParent = false;
+    try {
+      if (nextParentId != null && nextParentId.isNotEmpty) {
+        // The dialog disables descendant options, but its relations snapshot
+        // can be stale; re-validate against fresh relations before linking.
+        if (nextParentId == workspace.id) {
+          throw WorkspaceException(
+            'A Workspace Cannot Be Its Own Parent',
+          );
+        }
+        final relations = await _workspaceGraphRepository.listRelations();
+        if (workspaceDescendantIds(
+          workspace.id,
+          relations,
+        ).contains(nextParentId)) {
+          throw WorkspaceException(
+            'Cannot Set A Descendant Workspace As Parent',
+          );
+        }
+      }
+      if (currentParentId != null && currentParentId.isNotEmpty) {
+        await _workspaceGraphRepository.unlinkWorkspaces(
+          parentWorkspaceId: currentParentId,
+          childWorkspaceId: workspace.id,
+        );
+        removedCurrentParent = true;
+      }
+      if (nextParentId != null && nextParentId.isNotEmpty) {
+        try {
+          await _workspaceGraphRepository.linkWorkspaces(
+            parentWorkspaceId: nextParentId,
+            childWorkspaceId: workspace.id,
+          );
+        } catch (error) {
+          if (removedCurrentParent &&
+              currentParentId != null &&
+              currentParentId.isNotEmpty) {
+            try {
+              await _workspaceGraphRepository.linkWorkspaces(
+                parentWorkspaceId: currentParentId,
+                childWorkspaceId: workspace.id,
+              );
+            } catch (restoreError) {
+              throw WorkspaceException(
+                'Workspace Parent Update Failed: $error. '
+                'Previous Parent Restore Failed: $restoreError',
+              );
+            }
+          }
+          rethrow;
+        }
+      }
+      state = state.copyWith(error: null);
     } catch (error) {
       state = state.copyWith(error: error.toString());
       rethrow;

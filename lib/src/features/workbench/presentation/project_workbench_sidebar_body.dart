@@ -14,6 +14,9 @@ class _SidebarBody extends StatelessWidget {
     required this.onRenameProject,
     required this.onRemoveProject,
     required this.onRenameWorkspace,
+    required this.onManageWorkspaceTags,
+    required this.onSetWorkspaceParent,
+    required this.onClearWorkspaceParent,
     required this.fileManagerLabel,
     required this.onSelectTerminal,
     required this.onCloseTerminal,
@@ -33,6 +36,9 @@ class _SidebarBody extends StatelessWidget {
   final Future<void> Function(Project project) onRenameProject;
   final Future<void> Function(Project project) onRemoveProject;
   final Future<void> Function(Workspace workspace) onRenameWorkspace;
+  final Future<void> Function(Workspace workspace) onManageWorkspaceTags;
+  final Future<void> Function(Workspace workspace) onSetWorkspaceParent;
+  final Future<void> Function(Workspace workspace) onClearWorkspaceParent;
   final String fileManagerLabel;
   final _TerminalTabCallback onSelectTerminal;
   final _TerminalTabCallback onCloseTerminal;
@@ -107,6 +113,11 @@ class _SidebarBody extends StatelessWidget {
               controller.toggleWorkspaceExpanded(row.workspace.id),
           fileManagerLabel: fileManagerLabel,
           onRename: () => onRenameWorkspace(row.workspace),
+          onManageTags: () => onManageWorkspaceTags(row.workspace),
+          onSetParent: () => onSetWorkspaceParent(row.workspace),
+          onClearParent: row.workspace.hasParentWorkspace
+              ? () => onClearWorkspaceParent(row.workspace)
+              : null,
           onDelete: row.workspace.isMain
               ? null
               : () => onDeleteWorkspace(row.project, row.workspace),

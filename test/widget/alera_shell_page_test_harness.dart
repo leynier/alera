@@ -25,6 +25,13 @@ class _ShellTestWorkbenchController extends WorkbenchController {
   final Object? deleteWorkspaceFailure;
   final Object? removeProjectFailure;
   final Object? closeWorkspaceTabFailure;
+  final List<WorkspaceTag> workspaceTags = <WorkspaceTag>[];
+  final List<WorkspaceRelation> workspaceRelations = <WorkspaceRelation>[];
+  final List<({String workspaceId, Set<String> tagIds})> tagUpdates =
+      <({String workspaceId, Set<String> tagIds})>[];
+  final List<({String workspaceId, String? parentWorkspaceId})> parentUpdates =
+      <({String workspaceId, String? parentWorkspaceId})>[];
+  final List<String> deletedTagIds = <String>[];
 
   @override
   WorkbenchState build() => const WorkbenchState();
@@ -372,6 +379,66 @@ class _ShellTestWorkbenchController extends WorkbenchController {
   }
 
   @override
+  Future<List<WorkspaceTag>> listWorkspaceTags() async {
+    return List<WorkspaceTag>.of(workspaceTags);
+  }
+
+  @override
+  Future<WorkspaceTag> createWorkspaceTag(String name) async {
+    final now = DateTime.utc(2026, 5, 22);
+    final tag = WorkspaceTag(
+      id: 'tag-${workspaceTags.length + 1}',
+      name: name.trim(),
+      color: WorkspaceTag.defaultColor,
+      createdAt: now,
+      updatedAt: now,
+    );
+    workspaceTags.add(tag);
+    return tag;
+  }
+
+  @override
+  Future<void> deleteWorkspaceTag(String tagId) async {
+    deletedTagIds.add(tagId);
+    workspaceTags.removeWhere((tag) => tag.id == tagId);
+  }
+
+  @override
+  Future<void> updateWorkspaceTags({
+    required Workspace workspace,
+    required Set<String> tagIds,
+  }) async {
+    tagUpdates.add((workspaceId: workspace.id, tagIds: tagIds));
+    final tagNames = <String>[
+      for (final tag in workspaceTags)
+        if (tagIds.contains(tag.id)) tag.name,
+    ];
+    _replaceWorkspace(
+      workspace.copyWith(
+        tagIds: tagIds.toList(growable: false),
+        tagNames: tagNames,
+      ),
+    );
+  }
+
+  @override
+  Future<List<WorkspaceRelation>> listWorkspaceRelations() async {
+    return List<WorkspaceRelation>.of(workspaceRelations);
+  }
+
+  @override
+  Future<void> setWorkspaceParent({
+    required Workspace workspace,
+    String? parentWorkspaceId,
+  }) async {
+    parentUpdates.add((
+      workspaceId: workspace.id,
+      parentWorkspaceId: parentWorkspaceId,
+    ));
+    _replaceWorkspace(workspace.copyWith(parentWorkspaceId: parentWorkspaceId));
+  }
+
+  @override
   void setActiveWorkspaceTab({
     required String workspaceId,
     required String groupId,
@@ -449,6 +516,18 @@ class _ShellTestWorkbenchController extends WorkbenchController {
       tabsByWorkspace: <String, List<WorkspaceTabRecord>>{
         ...state.tabsByWorkspace,
         workspaceId: tabs,
+      },
+    );
+  }
+
+  void _replaceWorkspace(Workspace workspace) {
+    state = state.copyWith(
+      workspacesByProject: <String, List<Workspace>>{
+        for (final entry in state.workspacesByProject.entries)
+          entry.key: <Workspace>[
+            for (final candidate in entry.value)
+              if (candidate.id == workspace.id) workspace else candidate,
+          ],
       },
     );
   }

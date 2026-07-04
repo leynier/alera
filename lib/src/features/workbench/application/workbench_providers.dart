@@ -12,6 +12,7 @@ import 'package:alera/src/features/workbench/application/workbench_repository.da
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/application/workbench_view_prefs_repository.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
+import 'package:alera/src/features/workbench/application/workspace_graph_repository.dart';
 import 'package:alera/src/features/workbench/application/workspace_search_service.dart';
 import 'package:alera/src/features/workbench/application/workspace_service.dart';
 import 'package:alera/src/features/workbench/application/workspace_tab_service.dart';
@@ -21,6 +22,7 @@ import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/infra/drift_workbench_view_prefs_repository.dart';
 import 'package:alera/src/features/workbench/infra/alera_cli_terminal_shim.dart';
 import 'package:alera/src/features/workbench/infra/runtime_managed_workspace_client.dart';
+import 'package:alera/src/features/workbench/infra/runtime_workspace_graph_repository.dart';
 import 'package:alera/src/features/workbench/infra/runtime_workbench_repository.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
@@ -41,6 +43,14 @@ part 'workbench_providers.g.dart';
 @Riverpod(keepAlive: true)
 WorkbenchRepository workbenchRepository(Ref ref) {
   return RuntimeWorkbenchRepository(
+    ref.watch(runtimeHostClientProvider),
+    beforeAccess: ref.watch(runtimeStateMigrationProvider).ensureMigrated,
+  );
+}
+
+@Riverpod(keepAlive: true)
+WorkspaceGraphRepository workspaceGraphRepository(Ref ref) {
+  return RuntimeWorkspaceGraphRepository(
     ref.watch(runtimeHostClientProvider),
     beforeAccess: ref.watch(runtimeStateMigrationProvider).ensureMigrated,
   );

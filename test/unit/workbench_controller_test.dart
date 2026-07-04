@@ -16,6 +16,7 @@ import 'package:alera/src/features/workbench/application/workspace_tab_service.d
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
 import 'package:alera/src/features/workbench/application/workbench_view_prefs_repository.dart';
+import 'package:alera/src/features/workbench/application/workspace_graph_repository.dart';
 import 'package:alera/src/features/workbench/application/workspace_service.dart';
 import 'package:alera/src/features/workbench/application/worktree_setup_service.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
@@ -34,6 +35,7 @@ import 'fake_project_config.dart';
 part 'workbench_controller_lifecycle_test_cases.dart';
 part 'workbench_controller_view_prefs_test_cases.dart';
 part 'workbench_controller_failure_test_cases.dart';
+part 'workbench_controller_workspace_graph_test_cases.dart';
 part 'workbench_controller_test_harness.dart';
 
 late _WorkbenchHarness _harness;
@@ -53,5 +55,6 @@ void main() {
     _registerWorkbenchControllerLifecycleTests();
     _registerWorkbenchControllerViewPrefsTests();
     _registerWorkbenchControllerFailureTests();
+    _registerWorkbenchControllerWorkspaceGraphTests();
   });
 }

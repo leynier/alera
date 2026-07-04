@@ -57,6 +57,54 @@ final class WorkbenchRepositoryProvider
 String _$workbenchRepositoryHash() =>
     r'382cb08ed64259de6254c2daeb3c0e6d23bd57ef';
 
+@ProviderFor(workspaceGraphRepository)
+final workspaceGraphRepositoryProvider = WorkspaceGraphRepositoryProvider._();
+
+final class WorkspaceGraphRepositoryProvider
+    extends
+        $FunctionalProvider<
+          WorkspaceGraphRepository,
+          WorkspaceGraphRepository,
+          WorkspaceGraphRepository
+        >
+    with $Provider<WorkspaceGraphRepository> {
+  WorkspaceGraphRepositoryProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'workspaceGraphRepositoryProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$workspaceGraphRepositoryHash();
+
+  @$internal
+  @override
+  $ProviderElement<WorkspaceGraphRepository> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  WorkspaceGraphRepository create(Ref ref) {
+    return workspaceGraphRepository(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(WorkspaceGraphRepository value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<WorkspaceGraphRepository>(value),
+    );
+  }
+}
+
+String _$workspaceGraphRepositoryHash() =>
+    r'4e7ca75e44454275b59debc04b7de0f1123353ce';
+
 @ProviderFor(workbenchViewPrefsRepository)
 final workbenchViewPrefsRepositoryProvider =
     WorkbenchViewPrefsRepositoryProvider._();

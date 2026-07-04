@@ -198,11 +198,16 @@ Future<void> showCreateWorkspaceFlow(
   Project? initialProject,
 }) async {
   final controller = ref.read(workbenchControllerProvider.notifier);
-  final projects = ref
-      .read(workbenchControllerProvider)
-      .projects
+  final state = ref.read(workbenchControllerProvider);
+  final projects = state.projects
       .where((project) => project.supportsLinkedWorkspaces)
       .toList(growable: false);
+  final parentCandidates = <WorkspaceParentCandidate>[
+    for (final project in state.projects)
+      for (final workspace in state.workspacesFor(project.id))
+        if (workspace.isActive)
+          WorkspaceParentCandidate(project: project, workspace: workspace),
+  ];
 
   final resolvedInitialProject =
       initialProject?.supportsLinkedWorkspaces == true ? initialProject : null;
@@ -212,6 +217,7 @@ Future<void> showCreateWorkspaceFlow(
     builder: (_) => CreateWorkspaceDialog(
       projects: projects,
       initialProject: resolvedInitialProject,
+      parentCandidates: parentCandidates,
       loadBranches: controller.listSourceBranches,
       getProjectActiveBranch: (project) {
         final state = ref.read(workbenchControllerProvider);
@@ -250,6 +256,7 @@ Future<void> showCreateWorkspaceFlow(
             required newBranchName,
             required reuseExistingBranch,
             name,
+            parentWorkspaceId,
           }) async {
             return controller.createWorkspace(
               project: project,
@@ -257,6 +264,7 @@ Future<void> showCreateWorkspaceFlow(
               newBranchName: newBranchName,
               reuseExistingBranch: reuseExistingBranch,
               name: name,
+              parentWorkspaceId: parentWorkspaceId,
             );
           },
       onAddProject: () {
@@ -272,6 +280,15 @@ Future<void> showCreateWorkspaceFlow(
         context,
         message:
             'Workspace Created With Setup Warnings: ${result.setupReport.summary}',
+        tone: AleraToastTone.error,
+        duration: const Duration(seconds: 6),
+      );
+      return;
+    }
+    if (result.hasParentLinkError) {
+      AleraToast.show(
+        context,
+        message: 'Workspace Created, But Parent Link Failed',
         tone: AleraToastTone.error,
         duration: const Duration(seconds: 6),
       );

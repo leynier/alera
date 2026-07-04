@@ -44,6 +44,7 @@ class _WorkbenchHarness {
     );
     projectRepository = _FakeProjectRepository(<Project>[project]);
     workbenchRepository = _FakeWorkbenchRepository();
+    workspaceGraphRepository = _FakeWorkspaceGraphRepository();
     gitBackend = FakeGitBackend()
       ..sourceBranches = <String>['main', 'origin/main']
       ..includeQueriedRepoAsMain = true;
@@ -68,6 +69,9 @@ class _WorkbenchHarness {
         gitBackendProvider.overrideWithValue(gitBackend),
         projectRepositoryProvider.overrideWithValue(projectRepository),
         workbenchRepositoryProvider.overrideWithValue(workbenchRepository),
+        workspaceGraphRepositoryProvider.overrideWithValue(
+          workspaceGraphRepository,
+        ),
         projectServiceProvider.overrideWithValue(projectService),
         projectConfigServiceProvider.overrideWithValue(
           ProjectConfigService(
@@ -92,6 +96,7 @@ class _WorkbenchHarness {
   late final Project project;
   late final _FakeProjectRepository projectRepository;
   late final _FakeWorkbenchRepository workbenchRepository;
+  late final _FakeWorkspaceGraphRepository workspaceGraphRepository;
   late final FakeGitBackend gitBackend;
   late final _FakeWorkbenchViewPrefsRepository viewPrefsRepository;
   late final _FakeWorktreeSetupRunner worktreeSetupRunner;
@@ -119,6 +124,98 @@ class _WorkbenchHarness {
     if (tempDir.existsSync()) {
       tempDir.deleteSync(recursive: true);
     }
+  }
+}
+
+class _FakeWorkspaceGraphRepository implements WorkspaceGraphRepository {
+  final tags = <WorkspaceTag>[];
+  final relations = <WorkspaceRelation>[];
+  final assignedTags = <({String workspaceId, String tagId})>[];
+  final unassignedTags = <({String workspaceId, String tagId})>[];
+  final linkedWorkspaces =
+      <({String parentWorkspaceId, String childWorkspaceId})>[];
+  final unlinkedWorkspaces =
+      <({String parentWorkspaceId, String childWorkspaceId})>[];
+  final linkErrorsByParent = <String, Object>{};
+  Object? linkError;
+
+  @override
+  Future<List<WorkspaceTag>> listTags() async => List<WorkspaceTag>.of(tags);
+
+  @override
+  Future<WorkspaceTag> upsertTag(WorkspaceTag tag) async {
+    tags.removeWhere((candidate) => candidate.id == tag.id);
+    tags.add(tag);
+    return tag;
+  }
+
+  @override
+  Future<void> removeTag(String tagId) async {
+    tags.removeWhere((tag) => tag.id == tagId);
+  }
+
+  @override
+  Future<void> assignTag({
+    required String workspaceId,
+    required String tagId,
+  }) async {
+    assignedTags.add((workspaceId: workspaceId, tagId: tagId));
+  }
+
+  @override
+  Future<void> unassignTag({
+    required String workspaceId,
+    required String tagId,
+  }) async {
+    unassignedTags.add((workspaceId: workspaceId, tagId: tagId));
+  }
+
+  @override
+  Future<List<WorkspaceRelation>> listRelations() async {
+    return List<WorkspaceRelation>.of(relations);
+  }
+
+  @override
+  Future<WorkspaceRelation> linkWorkspaces({
+    required String parentWorkspaceId,
+    required String childWorkspaceId,
+  }) async {
+    if (linkErrorsByParent.remove(parentWorkspaceId) case final Object error) {
+      throw error;
+    }
+    if (linkError case final Object error) {
+      throw error;
+    }
+    linkedWorkspaces.add((
+      parentWorkspaceId: parentWorkspaceId,
+      childWorkspaceId: childWorkspaceId,
+    ));
+    final relation = WorkspaceRelation(
+      id: 'relation-${linkedWorkspaces.length}',
+      parentWorkspaceId: parentWorkspaceId,
+      parentInstanceId: 'instance-$parentWorkspaceId',
+      childWorkspaceId: childWorkspaceId,
+      childInstanceId: 'instance-$childWorkspaceId',
+      createdAt: DateTime.utc(2026, 5, 22),
+    );
+    relations.add(relation);
+    return relation;
+  }
+
+  @override
+  Future<void> unlinkWorkspaces({
+    required String parentWorkspaceId,
+    required String childWorkspaceId,
+  }) async {
+    unlinkedWorkspaces.add((
+      parentWorkspaceId: parentWorkspaceId,
+      childWorkspaceId: childWorkspaceId,
+    ));
+    relations.removeWhere(
+      (relation) =>
+          relation.parentWorkspaceId == parentWorkspaceId &&
+          relation.childWorkspaceId == childWorkspaceId,
+    );
   }
 }
 

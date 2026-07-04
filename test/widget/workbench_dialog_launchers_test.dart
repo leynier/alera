@@ -267,8 +267,46 @@ void main() {
           newBranchName: 'feature/coverage',
           reuseExistingBranch: false,
           name: 'feature/coverage',
+          parentWorkspaceId: null,
         ));
         expect(find.text('Workspace Created'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'showCreateWorkspaceFlow warns when the parent link fails',
+      (tester) async {
+        final project = _project('project-1', 'Alera');
+        final controller =
+            _DialogLaunchersTestController(
+                WorkbenchState(projects: <Project>[project]),
+              )
+              ..sourceBranches = <String>['main']
+              ..parentLinkError = 'Parent workspace not found';
+
+        await _pumpFlowHarness(
+          tester,
+          controller: controller,
+          onPressed: (context, ref) => showCreateWorkspaceFlow(context, ref),
+        );
+
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Continue'));
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.widgetWithText(TextField, 'New Branch Name *'),
+          'feature/orphan',
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Create Workspace'));
+        await tester.pumpAndSettle();
+
+        expect(
+          find.text('Workspace Created, But Parent Link Failed'),
+          findsOneWidget,
+        );
+        expect(find.text('Workspace Created'), findsNothing);
       },
     );
 
@@ -392,12 +430,14 @@ class _DialogLaunchersTestController extends WorkbenchController {
   ({String gitUrl, String destinationPath, String? name})? clonedProjectCall;
   List<String> sourceBranches = const <String>['main'];
   Exception? createWorkspaceError;
+  String? parentLinkError;
   ({
     Project project,
     String sourceBranch,
     String newBranchName,
     bool reuseExistingBranch,
     String? name,
+    String? parentWorkspaceId,
   })?
   createdWorkspaceCall;
 
@@ -446,6 +486,7 @@ class _DialogLaunchersTestController extends WorkbenchController {
     required String newBranchName,
     bool reuseExistingBranch = false,
     String? name,
+    String? parentWorkspaceId,
   }) async {
     if (createWorkspaceError case final Exception error) {
       throw error;
@@ -456,6 +497,7 @@ class _DialogLaunchersTestController extends WorkbenchController {
       newBranchName: newBranchName,
       reuseExistingBranch: reuseExistingBranch,
       name: name,
+      parentWorkspaceId: parentWorkspaceId,
     );
     return WorkspaceCreationResult(
       workspace: _workspace(
@@ -464,6 +506,7 @@ class _DialogLaunchersTestController extends WorkbenchController {
         name: name ?? newBranchName,
       ),
       setupReport: WorktreeSetupReport.empty,
+      parentLinkError: parentLinkError,
     );
   }
 }

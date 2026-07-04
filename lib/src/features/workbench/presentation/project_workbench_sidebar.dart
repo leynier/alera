@@ -23,6 +23,7 @@ import 'package:alera/src/features/workbench/application/workspace_agent_status_
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_dialog_launchers.dart';
+import 'package:alera/src/features/workbench/presentation/workspace_graph_dialogs.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_graph_indicators.dart';
 import 'package:alera/src/features/workbench/presentation/widgets/workbench_sidebar_toolbar.dart';
 import 'package:flutter/material.dart';
@@ -115,6 +116,9 @@ class _ProjectWorkbenchSidebarState
                           onRenameProject: _renameProject,
                           onRemoveProject: _removeProject,
                           onRenameWorkspace: _renameWorkspace,
+                          onManageWorkspaceTags: _manageWorkspaceTags,
+                          onSetWorkspaceParent: _setWorkspaceParent,
+                          onClearWorkspaceParent: _clearWorkspaceParent,
                           fileManagerLabel:
                               workspaceFolderOpener.fileManagerLabel,
                           onSelectTerminal: _selectTerminal,
@@ -331,6 +335,122 @@ class _ProjectWorkbenchSidebarState
         tone: AleraToastTone.error,
       );
     }
+  }
+
+  Future<void> _manageWorkspaceTags(Workspace workspace) async {
+    final controller = ref.read(workbenchControllerProvider.notifier);
+    try {
+      final tags = await controller.listWorkspaceTags();
+      if (!mounted) {
+        return;
+      }
+      final selection = await showWorkspaceTagsDialog(
+        context: context,
+        workspace: workspace,
+        tags: tags,
+        onCreateTag: controller.createWorkspaceTag,
+        onDeleteTag: controller.deleteWorkspaceTag,
+      );
+      if (selection == null || !mounted) {
+        return;
+      }
+      await controller.updateWorkspaceTags(
+        workspace: workspace,
+        tagIds: selection.tagIds,
+      );
+      if (!mounted) {
+        return;
+      }
+      AleraToast.show(
+        context,
+        message: 'Workspace Tags Updated',
+        tone: AleraToastTone.success,
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      AleraToast.show(
+        context,
+        message: error.toString(),
+        tone: AleraToastTone.error,
+      );
+    }
+  }
+
+  Future<void> _setWorkspaceParent(Workspace workspace) async {
+    final controller = ref.read(workbenchControllerProvider.notifier);
+    try {
+      final relations = await controller.listWorkspaceRelations();
+      if (!mounted) {
+        return;
+      }
+      final selection = await showWorkspaceParentDialog(
+        context: context,
+        workspace: workspace,
+        options: _workspaceParentOptions(),
+        relations: relations,
+      );
+      if (selection == null || !mounted) {
+        return;
+      }
+      await controller.setWorkspaceParent(
+        workspace: workspace,
+        parentWorkspaceId: selection.parentWorkspaceId,
+      );
+      if (!mounted) {
+        return;
+      }
+      AleraToast.show(
+        context,
+        message: 'Workspace Parent Updated',
+        tone: AleraToastTone.success,
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      AleraToast.show(
+        context,
+        message: error.toString(),
+        tone: AleraToastTone.error,
+      );
+    }
+  }
+
+  Future<void> _clearWorkspaceParent(Workspace workspace) async {
+    try {
+      await ref
+          .read(workbenchControllerProvider.notifier)
+          .setWorkspaceParent(workspace: workspace);
+      if (!mounted) {
+        return;
+      }
+      AleraToast.show(
+        context,
+        message: 'Workspace Parent Cleared',
+        tone: AleraToastTone.success,
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      AleraToast.show(
+        context,
+        message: error.toString(),
+        tone: AleraToastTone.error,
+      );
+    }
+  }
+
+  List<WorkspaceParentOption> _workspaceParentOptions() {
+    final state = ref.read(workbenchControllerProvider);
+    return <WorkspaceParentOption>[
+      for (final project in state.projects)
+        for (final workspace in state.workspacesFor(project.id))
+          if (workspace.isActive)
+            WorkspaceParentOption(project: project, workspace: workspace),
+    ];
   }
 
   Future<void> _removeProject(Project project) async {
