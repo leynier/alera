@@ -591,7 +591,7 @@ void _registerAleraShellSidebarActionTests() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('General'), findsWidgets);
+    expect(find.text('Application'), findsWidgets);
   });
 
   testWidgets('collapsed brand row can expand the sidebar', (tester) async {

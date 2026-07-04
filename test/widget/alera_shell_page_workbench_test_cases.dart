@@ -395,7 +395,7 @@ void _registerAleraShellWorkbenchTests() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('General'), findsWidgets);
+    expect(find.text('Application'), findsWidgets);
   });
 
   testWidgets('footer add-project button opens the add-project dialog', (

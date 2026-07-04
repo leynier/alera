@@ -12,6 +12,10 @@ void _registerSettingsDialogCoreTests() {
   }) async {
     await tester.binding.setSurfaceSize(surfaceSize);
     addTearDown(() => tester.binding.setSurfaceSize(null));
+    // Keep MediaQuery in sync with the surface so the adaptive dialog sizing
+    // (width/height fractions) sees the intended screen size.
+    tester.view.physicalSize = surfaceSize * tester.view.devicePixelRatio;
+    addTearDown(tester.view.resetPhysicalSize);
     final repository = _FakeSettingsRepository(initialSettings);
     final container = ProviderContainer(
       overrides: [
@@ -73,7 +77,8 @@ void _registerSettingsDialogCoreTests() {
   ) async {
     await pumpSettingsDialogLocal(tester);
 
-    expect(find.text('Updates'), findsOneWidget);
+    // 'Updates' appears both as a subsection chip and as the group title.
+    expect(find.text('Updates'), findsWidgets);
 
     await selectTerminalSectionLocal(tester);
 
@@ -126,6 +131,8 @@ void _registerSettingsDialogCoreTests() {
     expect(find.text('Alera'), findsWidgets);
     expect(find.text('Add Copy Rule'), findsOneWidget);
 
+    await tester.ensureVisible(find.text('Add Copy Rule'));
+    await tester.pump();
     await tester.tap(find.text('Add Copy Rule'));
     await tester.pump();
     await tester.enterText(
@@ -144,7 +151,11 @@ void _registerSettingsDialogCoreTests() {
       '.env.local',
     );
     await tester.pump();
-    await tester.tap(find.byType(Checkbox).first);
+    await tester.ensureVisible(find.byType(AleraCheckbox).first);
+    await tester.pump();
+    await tester.tap(find.byType(AleraCheckbox).first);
+    await tester.pump();
+    await tester.ensureVisible(find.text('Add Setup Command'));
     await tester.pump();
     await tester.tap(find.text('Add Setup Command'));
     await tester.pump();
@@ -204,6 +215,8 @@ void _registerSettingsDialogCoreTests() {
     await tester.pumpAndSettle();
     expect(find.text('UI Override'), findsWidgets);
 
+    await tester.ensureVisible(find.text('Add Setup Command'));
+    await tester.pump();
     await tester.tap(find.text('Add Setup Command'));
     await tester.pump();
     await tester.enterText(
@@ -523,10 +536,13 @@ void _registerSettingsDialogCoreTests() {
   testWidgets('edits destructive confirmation settings', (tester) async {
     final container = await pumpSettingsDialogLocal(tester);
 
-    expect(find.text('Safety'), findsOneWidget);
+    // 'Safety' appears both as a subsection chip and as the group title.
+    expect(find.text('Safety'), findsWidgets);
     expect(find.text('Confirm Project Removal'), findsOneWidget);
     expect(find.text('Confirm Workspace Removal'), findsOneWidget);
 
+    await tester.ensureVisible(find.byType(Switch).at(0));
+    await tester.pump();
     await tester.tap(find.byType(Switch).at(0));
     await tester.pump(const Duration(milliseconds: 50));
 
@@ -535,6 +551,8 @@ void _registerSettingsDialogCoreTests() {
       isFalse,
     );
 
+    await tester.ensureVisible(find.byType(Switch).at(1));
+    await tester.pump();
     await tester.tap(find.byType(Switch).at(1));
     await tester.pump(const Duration(milliseconds: 50));
 
@@ -558,6 +576,10 @@ void _registerSettingsDialogCoreTests() {
   ) async {
     final container = await pumpSettingsDialogLocal(tester);
 
+    // Agent hooks and behavior settings live in the Agents section.
+    await tester.tap(find.text('Agents').first);
+    await tester.pump();
+
     await tester.ensureVisible(find.text('Agent Status Notifications'));
     await tester.pump();
 
@@ -577,16 +599,16 @@ void _registerSettingsDialogCoreTests() {
 
     await tester.ensureVisible(find.text('Codex Hooks'));
     await tester.pump();
-    await tester.tap(find.byType(Switch).at(2));
+    await tester.tap(find.byType(Switch).at(0));
     await tester.pump(const Duration(milliseconds: 50));
     for (final entry in const <({String label, int switchIndex})>[
-      (label: 'Claude Code Hooks', switchIndex: 3),
-      (label: 'GitHub Copilot Hooks', switchIndex: 4),
-      (label: 'Cursor Hooks', switchIndex: 5),
-      (label: 'Antigravity Hooks', switchIndex: 6),
-      (label: 'OpenCode Hooks', switchIndex: 7),
-      (label: 'Pi Hooks', switchIndex: 8),
-      (label: 'Amp Hooks', switchIndex: 9),
+      (label: 'Claude Code Hooks', switchIndex: 1),
+      (label: 'GitHub Copilot Hooks', switchIndex: 2),
+      (label: 'Cursor Hooks', switchIndex: 3),
+      (label: 'Antigravity Hooks', switchIndex: 4),
+      (label: 'OpenCode Hooks', switchIndex: 5),
+      (label: 'Pi Hooks', switchIndex: 6),
+      (label: 'Amp Hooks', switchIndex: 7),
     ]) {
       await tester.ensureVisible(find.text(entry.label));
       await tester.pump();
@@ -595,74 +617,66 @@ void _registerSettingsDialogCoreTests() {
     }
     await tester.ensureVisible(find.text('Agent Status Notifications'));
     await tester.pump();
-    await tester.tap(find.byType(Switch).at(10));
+    await tester.tap(find.byType(Switch).at(8));
     await tester.pump(const Duration(milliseconds: 50));
     await tester.ensureVisible(
       find.text('Keep Computer Awake While Agents Are Working'),
     );
     await tester.pump();
-    await tester.tap(find.byType(Switch).at(11));
+    await tester.tap(find.byType(Switch).at(9));
     await tester.pump(const Duration(milliseconds: 50));
 
     expect(
-      container.read(settingsControllerProvider).general.agentStatusHooks.codex,
+      container.read(settingsControllerProvider).agents.agentStatusHooks.codex,
+      isTrue,
+    );
+    expect(
+      container.read(settingsControllerProvider).agents.agentStatusHooks.claude,
       isTrue,
     );
     expect(
       container
           .read(settingsControllerProvider)
-          .general
-          .agentStatusHooks
-          .claude,
-      isTrue,
-    );
-    expect(
-      container
-          .read(settingsControllerProvider)
-          .general
+          .agents
           .agentStatusHooks
           .copilot,
       isTrue,
     );
     expect(
-      container
-          .read(settingsControllerProvider)
-          .general
-          .agentStatusHooks
-          .cursor,
+      container.read(settingsControllerProvider).agents.agentStatusHooks.cursor,
       isTrue,
     );
     expect(
-      container.read(settingsControllerProvider).general.agentStatusHooks.agy,
+      container.read(settingsControllerProvider).agents.agentStatusHooks.agy,
       isTrue,
     );
     expect(
       container
           .read(settingsControllerProvider)
-          .general
+          .agents
           .agentStatusHooks
           .opencode,
       isTrue,
     );
     expect(
-      container.read(settingsControllerProvider).general.agentStatusHooks.pi,
+      container.read(settingsControllerProvider).agents.agentStatusHooks.pi,
       isTrue,
     );
     expect(
-      container.read(settingsControllerProvider).general.agentStatusHooks.amp,
+      container.read(settingsControllerProvider).agents.agentStatusHooks.amp,
       isTrue,
     );
     expect(
       container
           .read(settingsControllerProvider)
-          .general
+          .agents
           .agentStatusNotificationsEnabled,
       isTrue,
     );
     expect(
       container
           .read(settingsControllerProvider)
-          .general
+          .agents
           .keepComputerAwakeWhileAgentsWork,
       isTrue,
     );
@@ -849,6 +863,47 @@ void _registerSettingsDialogCoreTests() {
 
     expect(find.text('Support Alera'), findsNothing);
     expect(find.byKey(const ValueKey<String>('hidden')), findsNothing);
+  });
+
+  testWidgets('sidebar groups sections under Preferences and Resources', (
+    tester,
+  ) async {
+    await pumpSettingsDialogLocal(tester);
+
+    // AleraSectionHeader renders group labels uppercased.
+    expect(find.text('PREFERENCES'), findsOneWidget);
+    expect(find.text('RESOURCES'), findsOneWidget);
+    expect(find.text('Application'), findsWidgets);
+    expect(find.text('Agents'), findsOneWidget);
+    expect(find.text('General'), findsNothing);
+
+    // Let pending timers (tooltips, animations) finish before teardown.
+    await tester.pump(const Duration(seconds: 2));
+  });
+
+  testWidgets('tapping a subsection chip scrolls its group into view', (
+    tester,
+  ) async {
+    await pumpSettingsDialogLocal(tester);
+    await selectTerminalSectionLocal(tester);
+
+    // 'Advanced' appears as a header chip and as the (initially offscreen)
+    // group title further down the pane.
+    final advancedTexts = find.text('Advanced', skipOffstage: false);
+    expect(advancedTexts, findsNWidgets(2));
+
+    final chip = advancedTexts.first;
+    final groupTitle = advancedTexts.last;
+    final beforeDy = tester.getTopLeft(groupTitle).dy;
+
+    await tester.tap(chip);
+    await tester.pumpAndSettle();
+
+    final afterDy = tester.getTopLeft(groupTitle).dy;
+    expect(afterDy, lessThan(beforeDy));
+    final screenHeight =
+        tester.view.physicalSize.height / tester.view.devicePixelRatio;
+    expect(afterDy, lessThan(screenHeight));
   });
 
   testWidgets('hidden star control shrinks away', (tester) async {

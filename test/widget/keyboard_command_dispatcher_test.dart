@@ -315,7 +315,7 @@ void main() {
     dispatcher.dispatch(KeyboardActionId.openSettings);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('General'), findsWidgets);
+    expect(find.text('Application'), findsWidgets);
     Navigator.of(harness.context).pop();
     await tester.pumpAndSettle();
 

@@ -128,8 +128,8 @@ Components are **presentational**: they take data and callbacks as parameters an
 | Badges & chips | `AleraBadge`, `AleraChip` |
 | Surfaces | `AleraPanel`, `HoverContainer` |
 | Feedback | `AleraStatusDot`, `AleraStatusIndicator`, `AleraColorSwatch`, `AleraEmptyState`, `AleraToast` |
-| Forms | `AleraTextField`, `AleraSearchField`, `AleraNumberField`, `AleraSettingRow` |
-| Layout | `AleraSectionHeader`, `AleraDialog`, `AleraDialogHeader`, `AleraConfirmDialog` |
+| Forms | `AleraTextField`, `AleraSearchField`, `AleraNumberField`, `AleraSettingRow`, `AleraDropdownField`, `AleraCheckbox` |
+| Layout | `AleraSectionHeader`, `AleraDialog`, `AleraDialogHeader`, `AleraConfirmDialog`, `AleraSettingsGroup`, `AleraMasterDetail` |
 | Menus | `AleraDropdownEntry`, `AleraMenuItem` |
 | Iconography | `AleraIcons`, `AleraFileIcon` |
 

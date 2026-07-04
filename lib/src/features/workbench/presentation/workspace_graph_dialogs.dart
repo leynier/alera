@@ -291,12 +291,10 @@ class _WorkspaceTagsDialogState extends State<_WorkspaceTagsDialog> {
         return;
       }
       setState(() {
-        _tags = _sortedTags(
-          <WorkspaceTag>[
-            for (final candidate in _tags)
-              if (candidate.id != tag.id) candidate,
-          ],
-        );
+        _tags = _sortedTags(<WorkspaceTag>[
+          for (final candidate in _tags)
+            if (candidate.id != tag.id) candidate,
+        ]);
         _selectedTagIds.remove(tag.id);
         _deletingTagId = null;
       });

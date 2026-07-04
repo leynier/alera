@@ -54,7 +54,7 @@ final class AgentHookReceiverProvider
   }
 }
 
-String _$agentHookReceiverHash() => r'bc2999306c825069eccb760ef642d0711f65221a';
+String _$agentHookReceiverHash() => r'f9ef39ed83de7482972c0e578165972d1d18d216';
 
 @ProviderFor(agentHookServer)
 final agentHookServerProvider = AgentHookServerProvider._();
@@ -692,7 +692,7 @@ final class AgentAwakeServiceProvider
   }
 }
 
-String _$agentAwakeServiceHash() => r'60720cd3c1faf47eb6543beb7ded31e9c033b4ad';
+String _$agentAwakeServiceHash() => r'006dcce93356d8e95a5b088d9fa0c94276b65c4c';
 
 @ProviderFor(agentAwakeCoordinator)
 final agentAwakeCoordinatorProvider = AgentAwakeCoordinatorProvider._();
@@ -778,7 +778,7 @@ final class AgentHookReceiverLifecycleCoordinatorProvider
 }
 
 String _$agentHookReceiverLifecycleCoordinatorHash() =>
-    r'1e1fb6be685697b3f1d70fa4ba1911744aa85043';
+    r'5f06c7f98f6e1b1fe6ebc30e0e190960ae95d933';
 
 @ProviderFor(agentHookInstallerCoordinator)
 final agentHookInstallerCoordinatorProvider =
@@ -821,7 +821,7 @@ final class AgentHookInstallerCoordinatorProvider
 }
 
 String _$agentHookInstallerCoordinatorHash() =>
-    r'52789597befd7b2fb3051e75c729bf4af1c1d320';
+    r'34ae4b096d5affeea2bcb72a14ad6f5bc7f7c9f7';
 
 @ProviderFor(agentStatusNotificationCoordinator)
 final agentStatusNotificationCoordinatorProvider =
@@ -865,4 +865,4 @@ final class AgentStatusNotificationCoordinatorProvider
 }
 
 String _$agentStatusNotificationCoordinatorHash() =>
-    r'c1c2d5ae23ff9f14080e0ee312345a4fd6800cd6';
+    r'4e35861d346aba07c96f5acd4e31174d84d4f4ce';

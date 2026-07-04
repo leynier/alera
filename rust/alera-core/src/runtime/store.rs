@@ -133,7 +133,8 @@ impl RuntimeStore {
     }
 
     pub async fn get_workspace_directory(&self) -> Result<Option<String>> {
-        self.get_metadata("settings.general.workspaceDirectory").await
+        self.get_metadata("settings.general.workspaceDirectory")
+            .await
     }
 
     pub async fn set_workspace_directory(&self, path: Option<&str>) -> Result<RuntimeSettings> {

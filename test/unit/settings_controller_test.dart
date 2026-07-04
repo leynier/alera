@@ -169,16 +169,16 @@ void main() {
         );
         expect(restored.general.confirmProjectRemoval, isFalse);
         expect(restored.general.confirmWorkspaceRemoval, isFalse);
-        expect(restored.general.agentStatusHooks.codex, isTrue);
-        expect(restored.general.agentStatusHooks.claude, isFalse);
-        expect(restored.general.agentStatusHooks.copilot, isFalse);
-        expect(restored.general.agentStatusHooks.cursor, isTrue);
-        expect(restored.general.agentStatusHooks.agy, isTrue);
-        expect(restored.general.agentStatusHooks.opencode, isTrue);
-        expect(restored.general.agentStatusHooks.pi, isTrue);
-        expect(restored.general.agentStatusHooks.amp, isTrue);
-        expect(restored.general.agentStatusNotificationsEnabled, isTrue);
-        expect(restored.general.keepComputerAwakeWhileAgentsWork, isTrue);
+        expect(restored.agents.agentStatusHooks.codex, isTrue);
+        expect(restored.agents.agentStatusHooks.claude, isFalse);
+        expect(restored.agents.agentStatusHooks.copilot, isFalse);
+        expect(restored.agents.agentStatusHooks.cursor, isTrue);
+        expect(restored.agents.agentStatusHooks.agy, isTrue);
+        expect(restored.agents.agentStatusHooks.opencode, isTrue);
+        expect(restored.agents.agentStatusHooks.pi, isTrue);
+        expect(restored.agents.agentStatusHooks.amp, isTrue);
+        expect(restored.agents.agentStatusNotificationsEnabled, isTrue);
+        expect(restored.agents.keepComputerAwakeWhileAgentsWork, isTrue);
       },
     );
 

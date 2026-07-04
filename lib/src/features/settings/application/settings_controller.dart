@@ -87,7 +87,7 @@ class SettingsController extends _$SettingsController {
     AgentType agentType,
     bool value,
   ) async {
-    final current = state.general.agentStatusHooks;
+    final current = state.agents.agentStatusHooks;
     final next = switch (agentType) {
       AgentType.codex => current.copyWith(codex: value),
       AgentType.claude => current.copyWith(claude: value),
@@ -102,30 +102,28 @@ class SettingsController extends _$SettingsController {
       return;
     }
     await _save(
-      state.copyWith(general: state.general.copyWith(agentStatusHooks: next)),
+      state.copyWith(agents: state.agents.copyWith(agentStatusHooks: next)),
     );
   }
 
   Future<void> setAgentStatusNotificationsEnabled(bool value) async {
-    if (state.general.agentStatusNotificationsEnabled == value) {
+    if (state.agents.agentStatusNotificationsEnabled == value) {
       return;
     }
     await _save(
       state.copyWith(
-        general: state.general.copyWith(agentStatusNotificationsEnabled: value),
+        agents: state.agents.copyWith(agentStatusNotificationsEnabled: value),
       ),
     );
   }
 
   Future<void> setKeepComputerAwakeWhileAgentsWork(bool value) async {
-    if (state.general.keepComputerAwakeWhileAgentsWork == value) {
+    if (state.agents.keepComputerAwakeWhileAgentsWork == value) {
       return;
     }
     await _save(
       state.copyWith(
-        general: state.general.copyWith(
-          keepComputerAwakeWhileAgentsWork: value,
-        ),
+        agents: state.agents.copyWith(keepComputerAwakeWhileAgentsWork: value),
       ),
     );
   }

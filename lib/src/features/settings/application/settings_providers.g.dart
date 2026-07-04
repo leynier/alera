@@ -55,7 +55,7 @@ final class SettingsRepositoryProvider
 }
 
 String _$settingsRepositoryHash() =>
-    r'e69353d548e46bc73b6b3262318688319fb68a23';
+    r'f345b22ff94200b14bc43967978aebf4091fa035';
 
 @ProviderFor(gitHubStarService)
 final gitHubStarServiceProvider = GitHubStarServiceProvider._();

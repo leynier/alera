@@ -52,8 +52,7 @@ class Workspace with WorkspaceMappable {
 
   bool get isActive => status == WorkspaceStatus.active;
 
-  bool get hasParentWorkspace =>
-      parentWorkspaceId?.trim().isNotEmpty ?? false;
+  bool get hasParentWorkspace => parentWorkspaceId?.trim().isNotEmpty ?? false;
 
   factory Workspace.fromJson(Map<String, Object?> json) =>
       WorkspaceMapper.fromMap(Map<String, dynamic>.from(json));

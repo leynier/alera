@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera/src/features/app_window/application/app_window_controller.dart';
 import 'package:alera/src/features/app_window/application/app_window_platform.dart';
 import 'package:alera/src/features/app_window/application/app_window_providers.dart';
 import 'package:alera/src/shared/infra/storage/storage_providers.dart';
@@ -22,6 +23,10 @@ class _AppWindowLifecycleScopeState
   final Logger _logger = Logger('AppWindowLifecycleScope');
   bool _startRequested = false;
 
+  // Reading providers through ref is unsafe in dispose(), so the coordinator
+  // started here is kept in a field for the matching stop() call.
+  AppWindowLifecycleCoordinator? _startedCoordinator;
+
   @override
   Widget build(BuildContext context) {
     if (supportsDesktopAppWindowState) {
@@ -32,8 +37,10 @@ class _AppWindowLifecycleScopeState
           if (!mounted) {
             return;
           }
+          final coordinator = ref.read(appWindowLifecycleCoordinatorProvider);
+          _startedCoordinator = coordinator;
           unawaited(
-            ref.read(appWindowLifecycleCoordinatorProvider).start().catchError((
+            coordinator.start().catchError((
               Object error,
               StackTrace stackTrace,
             ) {
@@ -52,8 +59,9 @@ class _AppWindowLifecycleScopeState
 
   @override
   void dispose() {
-    if (_startRequested) {
-      unawaited(ref.read(appWindowLifecycleCoordinatorProvider).stop());
+    final coordinator = _startedCoordinator;
+    if (coordinator != null) {
+      unawaited(coordinator.stop());
     }
     super.dispose();
   }

@@ -19,11 +19,14 @@ import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/domain/editor_syntax_theme_catalog.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
 import 'package:alera/src/features/settings/infra/system_font_service.dart';
+import 'package:alera/src/features/settings/presentation/panes/application_support_section.dart';
+import 'package:alera/src/features/settings/presentation/panes/terminal_theme_picker.dart';
 import 'package:alera/src/features/settings/presentation/settings_dialog.dart';
 import 'package:alera/src/features/updater/application/update_service.dart';
 import 'package:alera/src/features/updater/domain/alera_update.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/design_system/feedback/alera_color_swatch.dart';
+import 'package:alera/src/design_system/forms/alera_checkbox.dart';
 import 'package:alera/src/design_system/forms/alera_number_field.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
@@ -53,6 +56,10 @@ Future<ProviderContainer> _pumpSettingsDialog(
 }) async {
   await tester.binding.setSurfaceSize(surfaceSize);
   addTearDown(() => tester.binding.setSurfaceSize(null));
+  // Keep MediaQuery in sync with the surface so the adaptive dialog sizing
+  // (width/height fractions) sees the intended screen size.
+  tester.view.physicalSize = surfaceSize * tester.view.devicePixelRatio;
+  addTearDown(tester.view.resetPhysicalSize);
   final repository = _FakeSettingsRepository(initialSettings);
   final container = ProviderContainer(
     overrides: [

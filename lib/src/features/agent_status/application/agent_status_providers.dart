@@ -33,7 +33,7 @@ AgentHookReceiver agentHookReceiver(Ref ref) {
     statusSink: ref.read(agentStatusControllerProvider.notifier),
     hookServer: ref.watch(agentHookServerProvider),
     isAgentEnabled: (agentType) => isAgentStatusHookEnabled(
-      ref.read(settingsControllerProvider).general.agentStatusHooks,
+      ref.read(settingsControllerProvider).agents.agentStatusHooks,
       agentType,
     ),
   );
@@ -131,7 +131,7 @@ AgentAwakeService agentAwakeService(Ref ref) {
   unawaited(
     service
         .setHookSettings(
-          ref.read(settingsControllerProvider).general.agentStatusHooks,
+          ref.read(settingsControllerProvider).agents.agentStatusHooks,
         )
         .catchError(_ignoreProviderAsyncError),
   );
@@ -145,14 +145,14 @@ AgentAwakeService agentAwakeService(Ref ref) {
         .setEnabled(
           ref
               .read(settingsControllerProvider)
-              .general
+              .agents
               .keepComputerAwakeWhileAgentsWork,
         )
         .catchError(_ignoreProviderAsyncError),
   );
   ref.listen<AgentStatusHookSettings>(
     settingsControllerProvider.select(
-      (settings) => settings.general.agentStatusHooks,
+      (settings) => settings.agents.agentStatusHooks,
     ),
     (_, next) {
       unawaited(
@@ -162,7 +162,7 @@ AgentAwakeService agentAwakeService(Ref ref) {
   );
   ref.listen<bool>(
     settingsControllerProvider.select(
-      (settings) => settings.general.keepComputerAwakeWhileAgentsWork,
+      (settings) => settings.agents.keepComputerAwakeWhileAgentsWork,
     ),
     (_, next) {
       unawaited(service.setEnabled(next).catchError(_ignoreProviderAsyncError));
@@ -189,7 +189,7 @@ void agentAwakeCoordinator(Ref ref) {
 void agentHookReceiverLifecycleCoordinator(Ref ref) {
   final hooks = ref.watch(
     settingsControllerProvider.select(
-      (settings) => settings.general.agentStatusHooks,
+      (settings) => settings.agents.agentStatusHooks,
     ),
   );
   final receiver = ref.watch(agentHookReceiverProvider);
@@ -210,7 +210,7 @@ void agentHookInstallerCoordinator(Ref ref) {
   final claudeRuntimeHome = ref.watch(claudeRuntimeHomeServiceProvider);
   ref.listen<AgentStatusHookSettings>(
     settingsControllerProvider.select(
-      (settings) => settings.general.agentStatusHooks,
+      (settings) => settings.agents.agentStatusHooks,
     ),
     (previous, next) {
       if (previous == null || previous == next) {
@@ -233,12 +233,12 @@ void agentHookInstallerCoordinator(Ref ref) {
 void agentStatusNotificationCoordinator(Ref ref) {
   final hooksEnabled = ref.watch(
     settingsControllerProvider.select(
-      (settings) => settings.general.agentStatusHooks.anyEnabled,
+      (settings) => settings.agents.agentStatusHooks.anyEnabled,
     ),
   );
   final notificationsEnabled = ref.watch(
     settingsControllerProvider.select(
-      (settings) => settings.general.agentStatusNotificationsEnabled,
+      (settings) => settings.agents.agentStatusNotificationsEnabled,
     ),
   );
   final presenter = ref.watch(agentStatusNotificationPresenterProvider);
@@ -285,7 +285,7 @@ void agentStatusNotificationCoordinator(Ref ref) {
       next: Map<String, AgentStatusEntry>.fromEntries(
         next.entries.where(
           (entry) => isAgentStatusHookEnabled(
-            ref.read(settingsControllerProvider).general.agentStatusHooks,
+            ref.read(settingsControllerProvider).agents.agentStatusHooks,
             entry.value.agentType,
           ),
         ),

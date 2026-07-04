@@ -261,9 +261,7 @@ mixin _WorkbenchControllerProjects
         // The dialog disables descendant options, but its relations snapshot
         // can be stale; re-validate against fresh relations before linking.
         if (nextParentId == workspace.id) {
-          throw WorkspaceException(
-            'A Workspace Cannot Be Its Own Parent',
-          );
+          throw WorkspaceException('A Workspace Cannot Be Its Own Parent');
         }
         final relations = await _workspaceGraphRepository.listRelations();
         if (workspaceDescendantIds(

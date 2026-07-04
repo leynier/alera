@@ -1,7 +1,16 @@
-part of 'settings_dialog.dart';
+import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/buttons/alera_segmented_button.dart';
+import 'package:alera/src/design_system/feedback/alera_color_swatch.dart';
+import 'package:alera/src/design_system/forms/alera_setting_row.dart';
+import 'package:alera/src/design_system/forms/alera_text_field.dart';
+import 'package:alera/src/features/settings/domain/alera_settings.dart';
+import 'package:flutter/material.dart';
 
-class _HexColorSettingRow extends StatefulWidget {
-  const _HexColorSettingRow({
+const double _kSidebarIconSize = 16;
+
+class HexColorSettingRow extends StatefulWidget {
+  const HexColorSettingRow({
+    super.key,
     required this.title,
     required this.description,
     required this.value,
@@ -16,10 +25,10 @@ class _HexColorSettingRow extends StatefulWidget {
   final ValueChanged<String?> onChanged;
 
   @override
-  State<_HexColorSettingRow> createState() => _HexColorSettingRowState();
+  State<HexColorSettingRow> createState() => _HexColorSettingRowState();
 }
 
-class _HexColorSettingRowState extends State<_HexColorSettingRow> {
+class _HexColorSettingRowState extends State<HexColorSettingRow> {
   late final TextEditingController _controller;
 
   @override
@@ -29,7 +38,7 @@ class _HexColorSettingRowState extends State<_HexColorSettingRow> {
   }
 
   @override
-  void didUpdateWidget(_HexColorSettingRow oldWidget) {
+  void didUpdateWidget(HexColorSettingRow oldWidget) {
     super.didUpdateWidget(oldWidget);
     final next = widget.value ?? '';
     if (next != oldWidget.value && next != _controller.text) {
@@ -108,8 +117,12 @@ class _HexColorSettingRowState extends State<_HexColorSettingRow> {
   }
 }
 
-class _CursorShapeRow extends StatelessWidget {
-  const _CursorShapeRow({required this.value, required this.onChanged});
+class CursorShapeRow extends StatelessWidget {
+  const CursorShapeRow({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
 
   final TerminalCursorShape value;
   final ValueChanged<TerminalCursorShape> onChanged;
@@ -191,31 +204,4 @@ class _CursorGlyph extends StatelessWidget {
 Color _colorFromHex(String value) {
   final normalized = normalizeTerminalHexColor(value) ?? '#000000';
   return Color(0xFF000000 | int.parse(normalized.substring(1), radix: 16));
-}
-
-class _NoSettingsResults extends StatelessWidget {
-  const _NoSettingsResults({required this.onClose});
-
-  final VoidCallback onClose;
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: <Widget>[
-        const Positioned.fill(
-          child: AleraEmptyState(message: 'No settings found.'),
-        ),
-        Positioned(
-          top: AleraTokens.space16,
-          right: AleraTokens.space16,
-          child: AleraIconButton(
-            tooltip: 'Close',
-            onPressed: onClose,
-            icon: AleraIcons.close,
-            minSize: 28,
-          ),
-        ),
-      ],
-    );
-  }
 }

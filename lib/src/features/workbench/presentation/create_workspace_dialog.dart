@@ -935,7 +935,9 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                                               color: AleraTokens.accent
                                                   .withValues(alpha: 0.7),
                                             ),
-                                            const SizedBox(width: AleraTokens.space4),
+                                            const SizedBox(
+                                              width: AleraTokens.space4,
+                                            ),
                                             Text(
                                               'Sync',
                                               style: theme.textTheme.labelSmall
@@ -1013,7 +1015,9 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                                           color: AleraTokens.foregroundMuted
                                               .withValues(alpha: 0.7),
                                         ),
-                                        const SizedBox(width: AleraTokens.space6),
+                                        const SizedBox(
+                                          width: AleraTokens.space6,
+                                        ),
                                         Expanded(
                                           child: Text(
                                             _getPreviewWorkspacePath(),
@@ -1036,7 +1040,9 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                                           color: AleraTokens.foregroundMuted
                                               .withValues(alpha: 0.7),
                                         ),
-                                        const SizedBox(width: AleraTokens.space6),
+                                        const SizedBox(
+                                          width: AleraTokens.space6,
+                                        ),
                                         Expanded(
                                           child: Text(
                                             _reuseExistingBranch
@@ -1091,7 +1097,9 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                                           color: AleraTokens.foregroundMuted
                                               .withValues(alpha: 0.7),
                                         ),
-                                        const SizedBox(width: AleraTokens.space6),
+                                        const SizedBox(
+                                          width: AleraTokens.space6,
+                                        ),
                                         Expanded(
                                           child: Text(
                                             'Initial Terminal Tab Will Be Opened',

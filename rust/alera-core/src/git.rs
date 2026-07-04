@@ -2,9 +2,7 @@ use std::fmt;
 use std::path::Path;
 
 use camino::Utf8Path;
-use git2::{
-    Branch, BranchType, ErrorCode, Repository, WorktreeAddOptions, WorktreePruneOptions,
-};
+use git2::{Branch, BranchType, ErrorCode, Repository, WorktreeAddOptions, WorktreePruneOptions};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GitWorktreeEntry {
@@ -44,13 +42,13 @@ impl GitError {
     fn from_git2(error: git2::Error) -> Self {
         let message = error.message().to_string();
         let lowered = message.to_lowercase();
-        let kind =
-            if lowered.contains("permission denied") || lowered.contains("operation not permitted")
-            {
-                GitErrorKind::AccessDenied
-            } else {
-                GitErrorKind::Internal
-            };
+        let kind = if lowered.contains("permission denied")
+            || lowered.contains("operation not permitted")
+        {
+            GitErrorKind::AccessDenied
+        } else {
+            GitErrorKind::Internal
+        };
         Self::new(kind, message)
     }
 }
@@ -157,12 +155,14 @@ pub fn create_worktree(
     }
 
     if reuse_existing_branch {
-        let branch = repo
-            .find_branch(target_branch, BranchType::Local)
-            .map_err(|error| match error.code() {
-                ErrorCode::NotFound => GitError::new(GitErrorKind::BranchNotFound, target_branch),
-                _ => GitError::from_git2(error),
-            })?;
+        let branch =
+            repo.find_branch(target_branch, BranchType::Local)
+                .map_err(|error| match error.code() {
+                    ErrorCode::NotFound => {
+                        GitError::new(GitErrorKind::BranchNotFound, target_branch)
+                    }
+                    _ => GitError::from_git2(error),
+                })?;
         let worktree_result = {
             let reference = branch.into_reference();
             let mut options = WorktreeAddOptions::new();
@@ -170,10 +170,12 @@ pub fn create_worktree(
             let admin_name = unique_worktree_admin_name(&repo, path);
             repo.worktree(&admin_name, Path::new(path), Some(&options))
         };
-        return worktree_result.map(|_| ()).map_err(|error| match error.code() {
-            ErrorCode::Exists => GitError::new(GitErrorKind::WorktreeAlreadyExists, path),
-            _ => GitError::from_git2(error),
-        });
+        return worktree_result
+            .map(|_| ())
+            .map_err(|error| match error.code() {
+                ErrorCode::Exists => GitError::new(GitErrorKind::WorktreeAlreadyExists, path),
+                _ => GitError::from_git2(error),
+            });
     }
 
     let source_commit = repo
@@ -451,7 +453,10 @@ fn configured_remote_for_tracking_branch(
     Ok(None)
 }
 
-fn checkout_path_for_branch(repo: &Repository, branch_name: &str) -> Result<Option<String>, GitError> {
+fn checkout_path_for_branch(
+    repo: &Repository,
+    branch_name: &str,
+) -> Result<Option<String>, GitError> {
     if head_branch_name(repo) == branch_name {
         if let Some(workdir) = repo.workdir() {
             return Ok(Some(workdir.to_string_lossy().to_string()));

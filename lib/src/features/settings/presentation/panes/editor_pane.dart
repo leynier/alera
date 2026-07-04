@@ -1,7 +1,21 @@
-part of 'settings_dialog.dart';
+import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
+import 'package:alera/src/design_system/forms/alera_search_field.dart';
+import 'package:alera/src/design_system/layout/alera_settings_group.dart';
+import 'package:alera/src/design_system/menus/alera_menu_item.dart';
+import 'package:alera/src/design_system/surfaces/alera_panel.dart';
+import 'package:alera/src/features/settings/domain/alera_settings.dart';
+import 'package:alera/src/features/settings/domain/editor_syntax_theme_catalog.dart';
+import 'package:alera/src/features/settings/presentation/panes/terminal_theme_picker.dart';
+import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart';
+import 'package:flutter/material.dart';
 
-class _EditorSettingsPane extends StatelessWidget {
-  const _EditorSettingsPane({required this.settings, required this.onChanged});
+class EditorSettingsPane extends StatelessWidget {
+  const EditorSettingsPane({
+    super.key,
+    required this.settings,
+    required this.onChanged,
+  });
 
   final EditorSettings settings;
   final ValueChanged<EditorSettings> onChanged;
@@ -11,7 +25,7 @@ class _EditorSettingsPane extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        _SettingsGroup(
+        AleraSettingsGroup(
           title: 'Appearance',
           description: 'Syntax highlighting defaults for editor tabs.',
           children: <Widget>[
@@ -23,11 +37,11 @@ class _EditorSettingsPane extends StatelessWidget {
           ],
         ),
         const SizedBox(height: AleraTokens.space16),
-        _SettingsGroup(
+        AleraSettingsGroup(
           title: 'Indentation',
           description: 'Defaults used by editor tabs.',
           children: <Widget>[
-            _IntegerSettingRow(
+            SettingsIntegerRow(
               title: 'Tab Size',
               description: 'Spaces inserted when pressing Tab.',
               value: settings.tabSize,
@@ -78,7 +92,7 @@ class _EditorThemePickerSettingState extends State<_EditorThemePickerSetting> {
   }
 
   List<EditorSyntaxThemeEntry> get _filteredThemes {
-    final names = _filterOrdered(editorSyntaxThemeNames, _controller.text);
+    final names = filterOrdered(editorSyntaxThemeNames, _controller.text);
     return names
         .map(editorSyntaxThemeEntryForName)
         .whereType<EditorSyntaxThemeEntry>()
@@ -228,7 +242,7 @@ class _EditorThemeSearchList extends StatelessWidget {
             ),
             ConstrainedBox(
               constraints: const BoxConstraints(
-                maxHeight: _kPickerMenuMaxHeight,
+                maxHeight: kPickerMenuMaxHeight,
               ),
               child: themes.isEmpty
                   ? const AleraEmptyState(message: 'No themes found.')
@@ -270,9 +284,9 @@ class _EditorThemeColorDots extends StatelessWidget {
       height: 12,
       child: Row(
         children: <Widget>[
-          _ThemeColorDot(color: _editorThemeColor(entry, 'keyword')),
-          _ThemeColorDot(color: _editorThemeColor(entry, 'string')),
-          _ThemeColorDot(color: _editorThemeColor(entry, 'title')),
+          ThemeColorDot(color: _editorThemeColor(entry, 'keyword')),
+          ThemeColorDot(color: _editorThemeColor(entry, 'string')),
+          ThemeColorDot(color: _editorThemeColor(entry, 'title')),
         ],
       ),
     );
