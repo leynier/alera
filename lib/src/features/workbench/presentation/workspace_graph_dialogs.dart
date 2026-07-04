@@ -1,5 +1,6 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
+import 'package:alera/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
@@ -368,29 +369,20 @@ class _WorkspaceParentDialogState extends State<_WorkspaceParentDialog> {
               ],
             ),
             const SizedBox(height: AleraTokens.space16),
-            DropdownButtonFormField<String?>(
-              initialValue: _selectedParentId,
-              isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Parent Workspace'),
-              items: <DropdownMenuItem<String?>>[
-                const DropdownMenuItem<String?>(
+            AleraDropdownField<String?>(
+              value: _selectedParentId,
+              labelText: 'Parent Workspace',
+              entries: <AleraDropdownFieldEntry<String?>>[
+                const AleraDropdownFieldEntry<String?>(
                   value: null,
-                  child: Text('No Parent'),
+                  label: 'No Parent',
                 ),
                 for (final option in widget.options)
                   if (option.workspace.id != widget.workspace.id)
-                    DropdownMenuItem<String?>(
+                    AleraDropdownFieldEntry<String?>(
                       value: option.workspace.id,
+                      label: option.label,
                       enabled: !descendants.contains(option.workspace.id),
-                      child: Text(
-                        option.label,
-                        overflow: TextOverflow.ellipsis,
-                        style: descendants.contains(option.workspace.id)
-                            ? theme.textTheme.bodyMedium?.copyWith(
-                                color: AleraTokens.foregroundFaint,
-                              )
-                            : null,
-                      ),
                     ),
               ],
               onChanged: (value) {

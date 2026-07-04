@@ -154,6 +154,155 @@ final class WorkbenchViewPrefsRepositoryProvider
 String _$workbenchViewPrefsRepositoryHash() =>
     r'b7726a6ea38683368a484b1c0015eebc3e65bda8';
 
+@ProviderFor(sidebarOrderMemory)
+final sidebarOrderMemoryProvider = SidebarOrderMemoryProvider._();
+
+final class SidebarOrderMemoryProvider
+    extends
+        $FunctionalProvider<
+          SidebarOrderMemory,
+          SidebarOrderMemory,
+          SidebarOrderMemory
+        >
+    with $Provider<SidebarOrderMemory> {
+  SidebarOrderMemoryProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'sidebarOrderMemoryProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$sidebarOrderMemoryHash();
+
+  @$internal
+  @override
+  $ProviderElement<SidebarOrderMemory> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  SidebarOrderMemory create(Ref ref) {
+    return sidebarOrderMemory(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(SidebarOrderMemory value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<SidebarOrderMemory>(value),
+    );
+  }
+}
+
+String _$sidebarOrderMemoryHash() =>
+    r'63af5266267a090aad55563c87262c6ea27d6a5b';
+
+@ProviderFor(workspaceActivityRepository)
+final workspaceActivityRepositoryProvider =
+    WorkspaceActivityRepositoryProvider._();
+
+final class WorkspaceActivityRepositoryProvider
+    extends
+        $FunctionalProvider<
+          WorkspaceActivityRepository,
+          WorkspaceActivityRepository,
+          WorkspaceActivityRepository
+        >
+    with $Provider<WorkspaceActivityRepository> {
+  WorkspaceActivityRepositoryProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'workspaceActivityRepositoryProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$workspaceActivityRepositoryHash();
+
+  @$internal
+  @override
+  $ProviderElement<WorkspaceActivityRepository> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  WorkspaceActivityRepository create(Ref ref) {
+    return workspaceActivityRepository(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(WorkspaceActivityRepository value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<WorkspaceActivityRepository>(value),
+    );
+  }
+}
+
+String _$workspaceActivityRepositoryHash() =>
+    r'07afee80ccb3807edd70367eac0c5d2d0a7c5be0';
+
+/// Seeds [WorkspaceActivityController] from Drift once the database is ready
+/// so the Agent Activity sort keeps its recency ordering across restarts.
+
+@ProviderFor(workspaceActivityPersistenceCoordinator)
+final workspaceActivityPersistenceCoordinatorProvider =
+    WorkspaceActivityPersistenceCoordinatorProvider._();
+
+/// Seeds [WorkspaceActivityController] from Drift once the database is ready
+/// so the Agent Activity sort keeps its recency ordering across restarts.
+
+final class WorkspaceActivityPersistenceCoordinatorProvider
+    extends $FunctionalProvider<void, void, void>
+    with $Provider<void> {
+  /// Seeds [WorkspaceActivityController] from Drift once the database is ready
+  /// so the Agent Activity sort keeps its recency ordering across restarts.
+  WorkspaceActivityPersistenceCoordinatorProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'workspaceActivityPersistenceCoordinatorProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() =>
+      _$workspaceActivityPersistenceCoordinatorHash();
+
+  @$internal
+  @override
+  $ProviderElement<void> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  void create(Ref ref) {
+    return workspaceActivityPersistenceCoordinator(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(void value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<void>(value),
+    );
+  }
+}
+
+String _$workspaceActivityPersistenceCoordinatorHash() =>
+    r'7ae7aae0460472435ae00d4737f1f5ee19f4816c';
+
 @ProviderFor(workspaceTabService)
 final workspaceTabServiceProvider = WorkspaceTabServiceProvider._();
 
@@ -760,4 +909,4 @@ final class TerminalRuntimeExitCoordinatorProvider
 }
 
 String _$terminalRuntimeExitCoordinatorHash() =>
-    r'c29c3c8c7baf565c55dc510a840f3996cff0160b';
+    r'c06ba37819e3b0da9764d184a2ead782fb10e48e';

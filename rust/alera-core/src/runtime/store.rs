@@ -519,6 +519,20 @@ impl RuntimeStore {
     }
 
     pub async fn upsert_tag(&self, tag: WorkspaceTag) -> Result<WorkspaceTag> {
+        // Tag names are unique (COLLATE NOCASE). Callers mint a fresh id per
+        // create, so a duplicate name must reuse the existing row instead of
+        // tripping the unique name index.
+        if let Some(row) = sqlx::query(
+            "SELECT id, name, color, createdAt, updatedAt FROM workspaceTags \
+             WHERE name = ? COLLATE NOCASE AND id != ?",
+        )
+        .bind(&tag.name)
+        .bind(&tag.id)
+        .fetch_optional(&self.pool)
+        .await?
+        {
+            return tag_from_row(row);
+        }
         sqlx::query(
             "INSERT INTO workspaceTags (id, name, color, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?) \
              ON CONFLICT(id) DO UPDATE SET name = excluded.name, color = excluded.color, updatedAt = excluded.updatedAt",
@@ -1237,6 +1251,37 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(preview.workspace_ids, vec!["a", "b", "c"]);
+    }
+
+    #[tokio::test]
+    async fn upsert_tag_reuses_existing_row_for_duplicate_name() {
+        let (_dir, store) = store().await;
+        let now = Utc::now();
+        let original = store
+            .upsert_tag(WorkspaceTag {
+                id: "tag-1".to_string(),
+                name: "Review".to_string(),
+                color: None,
+                created_at: now,
+                updated_at: now,
+            })
+            .await
+            .unwrap();
+        let duplicate = store
+            .upsert_tag(WorkspaceTag {
+                id: "tag-2".to_string(),
+                name: "review".to_string(),
+                color: None,
+                created_at: now,
+                updated_at: now,
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(duplicate.id, original.id);
+        assert_eq!(duplicate.name, "Review");
+        let tags = store.list_tags().await.unwrap();
+        assert_eq!(tags.len(), 1);
     }
 
     #[tokio::test]

@@ -11,6 +11,9 @@ import 'package:alera/src/features/workbench/application/workbench_controller.da
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/application/workbench_view_prefs_repository.dart';
+import 'package:alera/src/features/workbench/application/workbench_agent_activity_sort.dart';
+import 'package:alera/src/features/workbench/application/workspace_activity_controller.dart';
+import 'package:alera/src/features/workbench/application/workspace_activity_repository.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
 import 'package:alera/src/features/workbench/application/workspace_graph_repository.dart';
 import 'package:alera/src/features/workbench/application/workspace_search_service.dart';
@@ -20,6 +23,7 @@ import 'package:alera/src/features/workbench/application/worktree_setup_service.
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/infra/drift_workbench_view_prefs_repository.dart';
+import 'package:alera/src/features/workbench/infra/drift_workspace_activity_repository.dart';
 import 'package:alera/src/features/workbench/infra/alera_cli_terminal_shim.dart';
 import 'package:alera/src/features/workbench/infra/runtime_managed_workspace_client.dart';
 import 'package:alera/src/features/workbench/infra/runtime_workspace_graph_repository.dart';
@@ -61,6 +65,31 @@ WorkbenchViewPrefsRepository workbenchViewPrefsRepository(Ref ref) {
   final dbAsync = ref.watch(aleraDatabaseProvider);
   final db = dbAsync.requireValue;
   return DriftWorkbenchViewPrefsRepository(db);
+}
+
+@Riverpod(keepAlive: true)
+SidebarOrderMemory sidebarOrderMemory(Ref ref) {
+  return SidebarOrderMemory();
+}
+
+@Riverpod(keepAlive: true)
+WorkspaceActivityRepository workspaceActivityRepository(Ref ref) {
+  final dbAsync = ref.watch(aleraDatabaseProvider);
+  final db = dbAsync.requireValue;
+  return DriftWorkspaceActivityRepository(db);
+}
+
+/// Seeds [WorkspaceActivityController] from Drift once the database is ready
+/// so the Agent Activity sort keeps its recency ordering across restarts.
+@Riverpod(keepAlive: true)
+void workspaceActivityPersistenceCoordinator(Ref ref) {
+  final repository = ref.watch(workspaceActivityRepositoryProvider);
+  unawaited(
+    ref
+        .read(workspaceActivityControllerProvider.notifier)
+        .attachRepository(repository)
+        .catchError((_) {}),
+  );
 }
 
 @Riverpod(keepAlive: true)
@@ -269,6 +298,9 @@ void terminalRuntimeExitCoordinator(Ref ref) {
           tabId: event.tabId,
           exitCode: event.exitCode,
         );
+    ref
+        .read(workspaceActivityControllerProvider.notifier)
+        .recordActivity(event.workspaceId, DateTime.now().toUtc());
     unawaited(closeExitedTerminalTab(event));
   });
 

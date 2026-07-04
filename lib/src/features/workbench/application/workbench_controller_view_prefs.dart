@@ -76,6 +76,55 @@ mixin _WorkbenchControllerViewPrefs
     );
   }
 
+  void toggleTagFilter(String tagId) {
+    final next = Set<String>.from(state.viewPrefs.selectedTagIds);
+    if (!next.add(tagId)) {
+      next.remove(tagId);
+    }
+    _updateViewPrefs(state.viewPrefs.copyWith(selectedTagIds: next));
+  }
+
+  void addTagFilter(String tagId) {
+    final current = state.viewPrefs.selectedTagIds;
+    if (current.contains(tagId)) {
+      return;
+    }
+    _updateViewPrefs(
+      state.viewPrefs.copyWith(selectedTagIds: <String>{...current, tagId}),
+    );
+  }
+
+  void removeTagFilter(String tagId) {
+    final current = state.viewPrefs.selectedTagIds;
+    if (!current.contains(tagId)) {
+      return;
+    }
+    _updateViewPrefs(
+      state.viewPrefs.copyWith(
+        selectedTagIds: current.where((id) => id != tagId).toSet(),
+      ),
+    );
+  }
+
+  void clearTagFilters() {
+    if (state.viewPrefs.selectedTagIds.isEmpty) {
+      return;
+    }
+    _updateViewPrefs(
+      state.viewPrefs.copyWith(selectedTagIds: const <String>{}),
+    );
+  }
+
+  void toggleParentWorkspaceCollapsed(String workspaceId) {
+    final next = Set<String>.from(state.viewPrefs.collapsedParentWorkspaceIds);
+    if (!next.add(workspaceId)) {
+      next.remove(workspaceId);
+    }
+    _updateViewPrefs(
+      state.viewPrefs.copyWith(collapsedParentWorkspaceIds: next),
+    );
+  }
+
   /// Collapses or expands the appropriate items depending on the active group
   /// mode. In [WorkbenchGroupBy.project] this toggles every visible project
   /// group; in [WorkbenchGroupBy.none] it toggles the sidebar-visible agent-run

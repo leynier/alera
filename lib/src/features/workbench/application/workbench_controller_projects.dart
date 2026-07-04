@@ -127,6 +127,9 @@ mixin _WorkbenchControllerProjects
         workspace: workspace,
         deleteBranch: deleteBranch,
       );
+      ref
+          .read(workspaceActivityControllerProvider.notifier)
+          .removeWorkspace(workspace.id);
       state = state.copyWith(error: null);
     } catch (error) {
       state = state.copyWith(error: error.toString());
@@ -186,6 +189,16 @@ mixin _WorkbenchControllerProjects
       throw WorkspaceException('Tag Name Is Required');
     }
     try {
+      // Tag names are unique case-insensitively in the runtime store, so a
+      // duplicate name reuses the existing tag instead of minting a new id.
+      final lowered = trimmed.toLowerCase();
+      final existing = (await _workspaceGraphRepository.listTags())
+          .where((tag) => tag.name.toLowerCase() == lowered)
+          .firstOrNull;
+      if (existing != null) {
+        state = state.copyWith(error: null);
+        return existing;
+      }
       final tag = await _workspaceGraphRepository.upsertTag(
         WorkspaceTag.create(name: trimmed),
       );

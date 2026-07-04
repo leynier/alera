@@ -77,6 +77,8 @@ class WorkbenchSortByMapper extends EnumMapper<WorkbenchSortBy> {
         return WorkbenchSortBy.name;
       case r'recent':
         return WorkbenchSortBy.recent;
+      case r'activity':
+        return WorkbenchSortBy.activity;
       default:
         throw MapperException.unknownEnumValue(value);
     }
@@ -89,6 +91,8 @@ class WorkbenchSortByMapper extends EnumMapper<WorkbenchSortBy> {
         return r'name';
       case WorkbenchSortBy.recent:
         return r'recent';
+      case WorkbenchSortBy.activity:
+        return r'activity';
     }
   }
 }
@@ -290,6 +294,22 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
       v.expandedWorkspaceIds;
   static const Field<WorkbenchViewPrefs, Set<String>> _f$expandedWorkspaceIds =
       Field('expandedWorkspaceIds', _$expandedWorkspaceIds);
+  static Set<String> _$selectedTagIds(WorkbenchViewPrefs v) => v.selectedTagIds;
+  static const Field<WorkbenchViewPrefs, Set<String>> _f$selectedTagIds = Field(
+    'selectedTagIds',
+    _$selectedTagIds,
+    opt: true,
+    def: const <String>{},
+  );
+  static Set<String> _$collapsedParentWorkspaceIds(WorkbenchViewPrefs v) =>
+      v.collapsedParentWorkspaceIds;
+  static const Field<WorkbenchViewPrefs, Set<String>>
+  _f$collapsedParentWorkspaceIds = Field(
+    'collapsedParentWorkspaceIds',
+    _$collapsedParentWorkspaceIds,
+    opt: true,
+    def: const <String>{},
+  );
   static Map<String, String> _$sourceControlRootByWorkspaceId(
     WorkbenchViewPrefs v,
   ) => v.sourceControlRootByWorkspaceId;
@@ -353,6 +373,8 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
     #selectedProjectIds: _f$selectedProjectIds,
     #collapsedProjectIds: _f$collapsedProjectIds,
     #expandedWorkspaceIds: _f$expandedWorkspaceIds,
+    #selectedTagIds: _f$selectedTagIds,
+    #collapsedParentWorkspaceIds: _f$collapsedParentWorkspaceIds,
     #sourceControlRootByWorkspaceId: _f$sourceControlRootByWorkspaceId,
     #rightSidebarVisible: _f$rightSidebarVisible,
     #rightSidebarWidth: _f$rightSidebarWidth,
@@ -369,6 +391,8 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
       selectedProjectIds: data.dec(_f$selectedProjectIds),
       collapsedProjectIds: data.dec(_f$collapsedProjectIds),
       expandedWorkspaceIds: data.dec(_f$expandedWorkspaceIds),
+      selectedTagIds: data.dec(_f$selectedTagIds),
+      collapsedParentWorkspaceIds: data.dec(_f$collapsedParentWorkspaceIds),
       sourceControlRootByWorkspaceId: data.dec(
         _f$sourceControlRootByWorkspaceId,
       ),
@@ -460,6 +484,8 @@ abstract class WorkbenchViewPrefsCopyWith<
     Set<String>? selectedProjectIds,
     Set<String>? collapsedProjectIds,
     Set<String>? expandedWorkspaceIds,
+    Set<String>? selectedTagIds,
+    Set<String>? collapsedParentWorkspaceIds,
     Map<String, String>? sourceControlRootByWorkspaceId,
     bool? rightSidebarVisible,
     double? rightSidebarWidth,
@@ -495,6 +521,8 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
     Set<String>? selectedProjectIds,
     Set<String>? collapsedProjectIds,
     Set<String>? expandedWorkspaceIds,
+    Set<String>? selectedTagIds,
+    Set<String>? collapsedParentWorkspaceIds,
     Map<String, String>? sourceControlRootByWorkspaceId,
     bool? rightSidebarVisible,
     double? rightSidebarWidth,
@@ -511,6 +539,9 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
         #collapsedProjectIds: collapsedProjectIds,
       if (expandedWorkspaceIds != null)
         #expandedWorkspaceIds: expandedWorkspaceIds,
+      if (selectedTagIds != null) #selectedTagIds: selectedTagIds,
+      if (collapsedParentWorkspaceIds != null)
+        #collapsedParentWorkspaceIds: collapsedParentWorkspaceIds,
       if (sourceControlRootByWorkspaceId != null)
         #sourceControlRootByWorkspaceId: sourceControlRootByWorkspaceId,
       if (rightSidebarVisible != null)
@@ -538,6 +569,11 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
     expandedWorkspaceIds: data.get(
       #expandedWorkspaceIds,
       or: $value.expandedWorkspaceIds,
+    ),
+    selectedTagIds: data.get(#selectedTagIds, or: $value.selectedTagIds),
+    collapsedParentWorkspaceIds: data.get(
+      #collapsedParentWorkspaceIds,
+      or: $value.collapsedParentWorkspaceIds,
     ),
     sourceControlRootByWorkspaceId: data.get(
       #sourceControlRootByWorkspaceId,

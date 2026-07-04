@@ -4,7 +4,7 @@ class _WorkspaceRow extends StatefulWidget {
   const _WorkspaceRow({
     required this.project,
     required this.workspace,
-    required this.agentRunCount,
+    required this.agentRunGroups,
     required this.status,
     required this.hasTerminalTabs,
     required this.isActive,
@@ -19,18 +19,24 @@ class _WorkspaceRow extends StatefulWidget {
     required this.onRename,
     required this.onManageTags,
     required this.onSetParent,
+    this.hasVisibleChildren = false,
+    this.childrenCollapsed = false,
+    this.onToggleChildren,
     this.onClearParent,
     this.onDelete,
   });
 
   final Project project;
   final Workspace workspace;
-  final int agentRunCount;
+  final List<WorkspaceAgentRunGroup> agentRunGroups;
   final AgentStatusEntry? status;
   final bool hasTerminalTabs;
   final bool isActive;
   final bool showProjectChip;
   final bool expanded;
+  final bool hasVisibleChildren;
+  final bool childrenCollapsed;
+  final VoidCallback? onToggleChildren;
   final VoidCallback onTap;
   final VoidCallback onOpenFolder;
   final VoidCallback onCopyPath;
@@ -173,13 +179,6 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
         source.isNotEmpty) {
       parts.add('Base: $source');
     }
-    if (widget.agentRunCount > 0) {
-      parts.add(
-        widget.agentRunCount == 1
-            ? '1 Agent Run'
-            : '${widget.agentRunCount} Agent Runs',
-      );
-    }
     return parts.join(' · ');
   }
 
@@ -216,13 +215,31 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
+                    if (widget.hasVisibleChildren &&
+                        widget.onToggleChildren != null) ...<Widget>[
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: AleraIconButton(
+                          tooltip: widget.childrenCollapsed
+                              ? 'Show Child Workspaces'
+                              : 'Hide Child Workspaces',
+                          onPressed: widget.onToggleChildren!,
+                          icon: widget.childrenCollapsed
+                              ? AleraIcons.chevronRight
+                              : AleraIcons.chevronDown,
+                          iconSize: 12,
+                          minSize: 20,
+                        ),
+                      ),
+                      const SizedBox(width: AleraTokens.space2),
+                    ],
                     Padding(
                       padding: const EdgeInsets.only(top: 6),
                       child: widget.status == null
                           ? AleraStatusDot(
                               active: isActive || widget.hasTerminalTabs,
                             )
-                          : _AgentRunStateIndicator(status: widget.status!),
+                          : AgentRunStateIndicator(status: widget.status!),
                     ),
                     const SizedBox(width: AleraTokens.space8),
                     Expanded(
@@ -272,6 +289,17 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                               ),
                             ],
                           ),
+                          if (widget.agentRunGroups.isNotEmpty) ...<Widget>[
+                            const SizedBox(height: AleraTokens.space6),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: WorkspaceAgentCompactSummary(
+                                groups: widget.agentRunGroups,
+                                expanded: widget.expanded,
+                                onToggle: widget.onToggleExpanded,
+                              ),
+                            ),
+                          ],
                           if (WorkspaceGraphChips.hasContent(
                             widget.workspace,
                           )) ...<Widget>[
@@ -281,18 +309,6 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                         ],
                       ),
                     ),
-                    if (widget.agentRunCount > 0)
-                      AleraIconButton(
-                        tooltip: widget.expanded
-                            ? 'Hide Agent Runs'
-                            : 'Show Agent Runs',
-                        onPressed: widget.onToggleExpanded,
-                        icon: widget.expanded
-                            ? AleraIcons.chevronUp
-                            : AleraIcons.chevronDown,
-                        iconSize: 14,
-                        minSize: 24,
-                      ),
                     if (widget.onDelete != null)
                       IgnorePointer(
                         ignoring: !actionsVisible,

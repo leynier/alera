@@ -105,7 +105,9 @@ List<Map<String, Object?>> _asList(Object? value) {
   if (value is List) {
     return <Map<String, Object?>>[for (final item in value) _asMap(item)];
   }
-  return const <Map<String, Object?>>[];
+  // A malformed payload must surface as an error instead of masquerading as
+  // an empty collection (e.g. "no tags exist").
+  throw const FormatException('Workspace graph payload must be a JSON array.');
 }
 
 Map<String, Object?> _asMap(Object? value) {

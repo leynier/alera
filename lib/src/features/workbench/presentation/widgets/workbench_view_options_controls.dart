@@ -95,6 +95,7 @@ class _SortRow extends StatelessWidget {
   static const Map<WorkbenchSortBy, String> _labels = <WorkbenchSortBy, String>{
     WorkbenchSortBy.name: 'Name',
     WorkbenchSortBy.recent: 'Recent',
+    WorkbenchSortBy.activity: 'Agent Activity',
   };
 
   @override

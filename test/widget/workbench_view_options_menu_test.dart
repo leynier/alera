@@ -46,7 +46,7 @@ void main() {
 
       expect(controller.state.viewPrefs.workspaceSort, WorkbenchSortBy.recent);
 
-      await tester.enterText(find.byType(TextField).last, 'orca');
+      await tester.enterText(_projectSearchField(), 'orca');
       await tester.pumpAndSettle();
       await tester.tap(find.text('Orca').last);
       await tester.pumpAndSettle();
@@ -54,9 +54,9 @@ void main() {
       expect(controller.state.viewPrefs.selectedProjectIds, <String>{
         'project-2',
       });
-      expect(find.text('Clear'), findsOneWidget);
+      expect(find.text('Clear'), findsNWidgets(2));
 
-      await tester.tap(find.text('Clear'));
+      await tester.tap(find.text('Clear').first);
       await tester.pumpAndSettle();
 
       expect(controller.state.viewPrefs.selectedProjectIds, isEmpty);
@@ -79,7 +79,7 @@ void main() {
       await tester.tap(_viewOptionsButton());
       await tester.pumpAndSettle();
 
-      final field = find.byType(TextField).last;
+      final field = _projectSearchField();
       await tester.enterText(field, 'or');
       await tester.pumpAndSettle();
       await tester.testTextInput.receiveAction(TextInputAction.done);
@@ -107,6 +107,7 @@ void main() {
       await tester.tap(_viewOptionsButton());
       await tester.pumpAndSettle();
       expect(find.text('No Projects Yet'), findsOneWidget);
+      expect(find.text('No Tags Yet'), findsOneWidget);
 
       await tester.tap(find.byTooltip('Close'));
       await tester.pumpAndSettle();
@@ -120,7 +121,7 @@ void main() {
       await tester.tap(_viewOptionsButton());
       await tester.pumpAndSettle();
 
-      await tester.enterText(find.byType(TextField).last, 'missing');
+      await tester.enterText(_projectSearchField(), 'missing');
       await tester.pumpAndSettle();
       expect(find.text('No Projects Match "missing"'), findsOneWidget);
     });
@@ -180,6 +181,14 @@ Future<void> _pumpButton(
     ),
   );
   await tester.pump();
+}
+
+Finder _projectSearchField() {
+  return find.byWidgetPredicate(
+    (widget) =>
+        widget is TextField &&
+        widget.decoration?.hintText == 'Add Project\u2026',
+  );
 }
 
 Finder _viewOptionsButton() {
