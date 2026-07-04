@@ -11,11 +11,13 @@ import 'package:alera/src/features/settings/application/settings_repository.dart
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/infra/runtime_settings_repository.dart';
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
+import 'package:alera/src/features/workbench/application/workspace_graph_repository.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/infra/runtime_workbench_repository.dart';
 import 'package:alera/src/features/workbench/infra/runtime_managed_workspace_client.dart';
+import 'package:alera/src/features/workbench/infra/runtime_workspace_graph_repository.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_state_migration.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -77,6 +79,60 @@ void main() {
     expect(workspaces.single.tagNames, <String>['Review', 'Mobile']);
     expect(workspaces.single.parentWorkspaceId, 'parent-1');
     expect(workspaces.single.childCount, 2);
+  });
+
+  test('RuntimeWorkspaceGraphRepository maps tag and relation RPCs', () async {
+    final client = _FakeRuntimeHostClient();
+    final repository = RuntimeWorkspaceGraphRepository(client);
+    client.responses['workspaceTag.list'] = <Object?>[
+      _workspaceTagJson(id: 'tag-1', name: 'Review'),
+    ];
+    client.responses['workspaceTag.upsert'] = _workspaceTagJson(
+      id: 'tag-2',
+      name: 'Mobile',
+    );
+    client.responses['workspaceRelation.list'] = <Object?>[
+      _workspaceRelationJson(id: 'relation-1'),
+    ];
+    client.responses['workspaceRelation.link'] = _workspaceRelationJson(
+      id: 'relation-2',
+      parentWorkspaceId: 'parent-2',
+      childWorkspaceId: 'child-2',
+    );
+
+    final tags = await repository.listTags();
+    final created = await repository.upsertTag(
+      WorkspaceTag.create(name: 'Mobile', now: DateTime.utc(2026, 6, 27)),
+    );
+    await repository.assignTag(workspaceId: 'workspace-1', tagId: 'tag-1');
+    await repository.unassignTag(workspaceId: 'workspace-1', tagId: 'tag-1');
+    final relations = await repository.listRelations();
+    final relation = await repository.linkWorkspaces(
+      parentWorkspaceId: 'parent-2',
+      childWorkspaceId: 'child-2',
+    );
+    await repository.unlinkWorkspaces(
+      parentWorkspaceId: 'parent-2',
+      childWorkspaceId: 'child-2',
+    );
+
+    expect(tags.single.name, 'Review');
+    expect(created.color, WorkspaceTag.defaultColor);
+    expect(relations.single.parentWorkspaceId, 'parent-1');
+    expect(relation.childWorkspaceId, 'child-2');
+    expect(client.requests, <String>[
+      'workspaceTag.list',
+      'workspaceTag.upsert',
+      'workspaceTag.assign',
+      'workspaceTag.unassign',
+      'workspaceRelation.list',
+      'workspaceRelation.link',
+      'workspaceRelation.unlink',
+    ]);
+    expect(client.payloads['workspaceTag.assign']!.single, <String, Object?>{
+      'workspaceId': 'workspace-1',
+      'tagId': 'tag-1',
+    });
   });
 
   test(
@@ -321,6 +377,35 @@ Map<String, Object?> _workspaceJson({
     'tagNames': tagNames,
     'parentWorkspaceId': parentWorkspaceId,
     'childCount': childCount,
+  };
+}
+
+Map<String, Object?> _workspaceTagJson({
+  required String id,
+  required String name,
+  String color = WorkspaceTag.defaultColor,
+}) {
+  return <String, Object?>{
+    'id': id,
+    'name': name,
+    'color': color,
+    'createdAt': '2026-06-27T00:00:00.000Z',
+    'updatedAt': '2026-06-27T00:00:00.000Z',
+  };
+}
+
+Map<String, Object?> _workspaceRelationJson({
+  required String id,
+  String parentWorkspaceId = 'parent-1',
+  String childWorkspaceId = 'child-1',
+}) {
+  return <String, Object?>{
+    'id': id,
+    'parentWorkspaceId': parentWorkspaceId,
+    'parentInstanceId': 'instance-$parentWorkspaceId',
+    'childWorkspaceId': childWorkspaceId,
+    'childInstanceId': 'instance-$childWorkspaceId',
+    'createdAt': '2026-06-27T00:00:00.000Z',
   };
 }
 

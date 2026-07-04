@@ -11,6 +11,7 @@ typedef MockSubmitResult = ({
   String newBranchName,
   bool reuseExistingBranch,
   String? name,
+  String? parentWorkspaceId,
 });
 
 void main() {
@@ -549,6 +550,7 @@ Future<void> _pumpDialogLauncher(
                             required newBranchName,
                             required reuseExistingBranch,
                             name,
+                            parentWorkspaceId,
                           }) async {
                             onSubmit((
                               project: project,
@@ -556,6 +558,7 @@ Future<void> _pumpDialogLauncher(
                               newBranchName: newBranchName,
                               reuseExistingBranch: reuseExistingBranch,
                               name: name,
+                              parentWorkspaceId: parentWorkspaceId,
                             ));
                             return WorkspaceCreationResult(
                               workspace: Workspace(

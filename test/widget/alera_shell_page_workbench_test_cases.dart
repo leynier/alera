@@ -316,6 +316,8 @@ void _registerAleraShellWorkbenchTests() {
     await tester.pumpAndSettle();
 
     expect(find.text('Rename'), findsOneWidget);
+    expect(find.text('Manage Tags'), findsOneWidget);
+    expect(find.text('Set Parent Workspace'), findsOneWidget);
     expect(find.text('Open in Finder'), findsOneWidget);
     expect(find.text('Copy Path'), findsOneWidget);
     expect(find.text('Sleep'), findsOneWidget);

@@ -17,6 +17,9 @@ class _WorkspaceRow extends StatefulWidget {
     required this.onToggleExpanded,
     required this.fileManagerLabel,
     required this.onRename,
+    required this.onManageTags,
+    required this.onSetParent,
+    this.onClearParent,
     this.onDelete,
   });
 
@@ -35,6 +38,9 @@ class _WorkspaceRow extends StatefulWidget {
   final VoidCallback onToggleExpanded;
   final String fileManagerLabel;
   final VoidCallback onRename;
+  final VoidCallback onManageTags;
+  final VoidCallback onSetParent;
+  final VoidCallback? onClearParent;
   final VoidCallback? onDelete;
 
   @override
@@ -46,6 +52,9 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
   static const String _openFolderAction = 'open-folder';
   static const String _copyPathAction = 'copy-path';
   static const String _sleepAction = 'sleep';
+  static const String _manageTagsAction = 'manage-tags';
+  static const String _setParentAction = 'set-parent';
+  static const String _clearParentAction = 'clear-parent';
   static const String _removeAction = 'remove';
 
   bool _hovered = false;
@@ -68,6 +77,22 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
           leading: Icon(AleraIcons.edit, size: 16),
           label: 'Rename',
         ),
+        const AleraDropdownEntry<String>(
+          value: _manageTagsAction,
+          leading: Icon(AleraIcons.tag, size: 16),
+          label: 'Manage Tags',
+        ),
+        const AleraDropdownEntry<String>(
+          value: _setParentAction,
+          leading: Icon(AleraIcons.link, size: 16),
+          label: 'Set Parent Workspace',
+        ),
+        if (widget.onClearParent != null)
+          const AleraDropdownEntry<String>(
+            value: _clearParentAction,
+            leading: Icon(AleraIcons.close, size: 16),
+            label: 'Clear Parent Workspace',
+          ),
         const PopupMenuDivider(height: AleraTokens.space8),
         AleraDropdownEntry<String>(
           value: _openFolderAction,
@@ -114,6 +139,12 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
 
     if (selected == _renameAction) {
       widget.onRename();
+    } else if (selected == _manageTagsAction) {
+      widget.onManageTags();
+    } else if (selected == _setParentAction) {
+      widget.onSetParent();
+    } else if (selected == _clearParentAction) {
+      widget.onClearParent?.call();
     } else if (selected == _openFolderAction) {
       widget.onOpenFolder();
     } else if (selected == _copyPathAction) {

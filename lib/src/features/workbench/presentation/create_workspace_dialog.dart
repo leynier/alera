@@ -10,6 +10,7 @@ import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/design_system/menus/alera_menu_item.dart';
 import 'package:alera/src/design_system/surfaces/alera_panel.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_creation_result.dart';
 import 'package:flutter/material.dart';
 
@@ -24,6 +25,7 @@ class CreateWorkspaceDialog extends StatefulWidget {
     required this.checkBranchExists,
     required this.getProjectActiveBranch,
     required this.getProjectWorkspaceBranches,
+    this.parentCandidates = const <WorkspaceParentCandidate>[],
     this.initialProject,
     this.onAddProject,
   });
@@ -37,16 +39,28 @@ class CreateWorkspaceDialog extends StatefulWidget {
     required String newBranchName,
     required bool reuseExistingBranch,
     String? name,
+    String? parentWorkspaceId,
   })
   onCreateWorkspace;
   final Future<bool> Function(Project project, String branchName)
   checkBranchExists;
   final String? Function(Project project) getProjectActiveBranch;
   final Set<String> Function(Project project) getProjectWorkspaceBranches;
+  final List<WorkspaceParentCandidate> parentCandidates;
   final VoidCallback? onAddProject;
 
   @override
   State<CreateWorkspaceDialog> createState() => _CreateWorkspaceDialogState();
+}
+
+class WorkspaceParentCandidate {
+  const WorkspaceParentCandidate({
+    required this.project,
+    required this.workspace,
+  });
+
+  final Project project;
+  final Workspace workspace;
 }
 
 class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
@@ -70,6 +84,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
   String _branchQuery = '';
   String? _sourceBranchError;
   String? _newBranchError;
+  String? _selectedParentWorkspaceId;
   bool _reuseExistingBranch = false;
 
   // New state fields for 2-step flow and inline creation
@@ -163,6 +178,32 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
 
   List<String> _branchesForMode(bool reuseExistingBranch) {
     return reuseExistingBranch ? _localBranches : _branches;
+  }
+
+  List<WorkspaceParentCandidate> get _parentCandidates {
+    return <WorkspaceParentCandidate>[
+      for (final candidate in widget.parentCandidates)
+        if (candidate.workspace.status == WorkspaceStatus.active) candidate,
+    ];
+  }
+
+  String _parentLabel(WorkspaceParentCandidate candidate) {
+    final branch = candidate.workspace.branch;
+    final suffix = branch == null || branch.isEmpty ? '' : ' - $branch';
+    return '${candidate.project.name} / ${candidate.workspace.name}$suffix';
+  }
+
+  String? _selectedParentLabel() {
+    final selectedId = _selectedParentWorkspaceId;
+    if (selectedId == null) {
+      return null;
+    }
+    for (final candidate in _parentCandidates) {
+      if (candidate.workspace.id == selectedId) {
+        return _parentLabel(candidate);
+      }
+    }
+    return null;
   }
 
   String? _pickBranchForMode(bool reuseExistingBranch) {
@@ -353,7 +394,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
           if (_reuseExistingBranch && !exists) {
             _branchValidationError = 'Branch "$trimmed" Does Not Exist';
           } else if (!_reuseExistingBranch && exists) {
-            _branchValidationError = 'Branch "$trimmed" already exists';
+            _branchValidationError = 'Branch "$trimmed" Already Exists';
           }
           _isValidatingBranch = false;
         });
@@ -405,6 +446,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
         newBranchName: newBranchName,
         reuseExistingBranch: _reuseExistingBranch,
         name: name.isEmpty ? null : name,
+        parentWorkspaceId: _selectedParentWorkspaceId,
       );
       if (mounted) {
         Navigator.of(context).pop(result);
@@ -611,7 +653,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
             ],
             Flexible(
               child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 200),
+                duration: AleraTokens.durationMid,
                 transitionBuilder: (Widget child, Animation<double> animation) {
                   return FadeTransition(
                     opacity: animation,
@@ -893,12 +935,11 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                                               color: AleraTokens.accent
                                                   .withValues(alpha: 0.7),
                                             ),
-                                            const SizedBox(width: 4),
+                                            const SizedBox(width: AleraTokens.space4),
                                             Text(
-                                              'sync',
+                                              'Sync',
                                               style: theme.textTheme.labelSmall
                                                   ?.copyWith(
-                                                    fontSize: 10,
                                                     color: AleraTokens.accent,
                                                     fontWeight: FontWeight.w500,
                                                   ),
@@ -909,6 +950,35 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                                     ),
                                   ],
                                 ],
+                              ),
+                              const SizedBox(height: AleraTokens.space16),
+                              DropdownButtonFormField<String?>(
+                                initialValue: _selectedParentWorkspaceId,
+                                isExpanded: true,
+                                decoration: const InputDecoration(
+                                  labelText: 'Parent Workspace',
+                                ),
+                                items: <DropdownMenuItem<String?>>[
+                                  const DropdownMenuItem<String?>(
+                                    value: null,
+                                    child: Text('No Parent'),
+                                  ),
+                                  for (final candidate in _parentCandidates)
+                                    DropdownMenuItem<String?>(
+                                      value: candidate.workspace.id,
+                                      child: Text(
+                                        _parentLabel(candidate),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                ],
+                                onChanged: _creating
+                                    ? null
+                                    : (value) {
+                                        setState(() {
+                                          _selectedParentWorkspaceId = value;
+                                        });
+                                      },
                               ),
                               const SizedBox(height: AleraTokens.space16),
                               Text(
@@ -943,14 +1013,13 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                                           color: AleraTokens.foregroundMuted
                                               .withValues(alpha: 0.7),
                                         ),
-                                        const SizedBox(width: 6),
+                                        const SizedBox(width: AleraTokens.space6),
                                         Expanded(
                                           child: Text(
                                             _getPreviewWorkspacePath(),
                                             overflow: TextOverflow.ellipsis,
                                             style: AleraTokens.monoStyle
                                                 .copyWith(
-                                                  fontSize: 11,
                                                   color: AleraTokens
                                                       .foregroundMuted,
                                                 ),
@@ -958,7 +1027,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                                         ),
                                       ],
                                     ),
-                                    const SizedBox(height: 6),
+                                    const SizedBox(height: AleraTokens.space6),
                                     Row(
                                       children: [
                                         Icon(
@@ -967,7 +1036,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                                           color: AleraTokens.foregroundMuted
                                               .withValues(alpha: 0.7),
                                         ),
-                                        const SizedBox(width: 6),
+                                        const SizedBox(width: AleraTokens.space6),
                                         Expanded(
                                           child: Text(
                                             _reuseExistingBranch
@@ -976,7 +1045,6 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                                             overflow: TextOverflow.ellipsis,
                                             style: AleraTokens.monoStyle
                                                 .copyWith(
-                                                  fontSize: 11,
                                                   color: AleraTokens
                                                       .foregroundMuted,
                                                 ),
@@ -984,7 +1052,37 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                                         ),
                                       ],
                                     ),
-                                    const SizedBox(height: 6),
+                                    if (_selectedParentLabel()
+                                        case final parentLabel?) ...[
+                                      const SizedBox(
+                                        height: AleraTokens.space6,
+                                      ),
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            AleraIcons.link,
+                                            size: 14,
+                                            color: AleraTokens.foregroundMuted
+                                                .withValues(alpha: 0.7),
+                                          ),
+                                          const SizedBox(
+                                            width: AleraTokens.space6,
+                                          ),
+                                          Expanded(
+                                            child: Text(
+                                              'Parent: $parentLabel',
+                                              overflow: TextOverflow.ellipsis,
+                                              style: theme.textTheme.labelSmall
+                                                  ?.copyWith(
+                                                    color: AleraTokens
+                                                        .foregroundMuted,
+                                                  ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                    const SizedBox(height: AleraTokens.space6),
                                     Row(
                                       children: [
                                         Icon(
@@ -993,10 +1091,10 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                                           color: AleraTokens.foregroundMuted
                                               .withValues(alpha: 0.7),
                                         ),
-                                        const SizedBox(width: 6),
+                                        const SizedBox(width: AleraTokens.space6),
                                         Expanded(
                                           child: Text(
-                                            'Initial terminal tab will be opened',
+                                            'Initial Terminal Tab Will Be Opened',
                                             style: theme.textTheme.labelSmall
                                                 ?.copyWith(
                                                   color: AleraTokens
@@ -1082,7 +1180,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                             }
                             _submit();
                           },
-                    child: Text(_creating ? 'Creating...' : 'Create Workspace'),
+                    child: Text(_creating ? 'Creating…' : 'Create Workspace'),
                   ),
               ],
             ),

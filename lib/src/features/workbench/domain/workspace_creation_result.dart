@@ -4,12 +4,16 @@ class WorkspaceCreationResult {
   const WorkspaceCreationResult({
     required this.workspace,
     required this.setupReport,
+    this.parentLinkError,
   });
 
   final Workspace workspace;
   final WorktreeSetupReport setupReport;
+  final String? parentLinkError;
 
   bool get hasSetupWarnings => setupReport.hasFailures;
+
+  bool get hasParentLinkError => parentLinkError != null;
 }
 
 class WorktreeSetupReport {

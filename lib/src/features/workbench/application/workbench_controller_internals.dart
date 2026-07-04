@@ -8,6 +8,9 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
 
   WorkbenchRepository get _repository => ref.read(workbenchRepositoryProvider);
 
+  WorkspaceGraphRepository get _workspaceGraphRepository =>
+      ref.read(workspaceGraphRepositoryProvider);
+
   WorkspaceService get _workspaceService => ref.read(workspaceServiceProvider);
 
   WorkspaceTabService get _workspaceTabService =>

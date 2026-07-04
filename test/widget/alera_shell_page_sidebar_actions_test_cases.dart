@@ -139,6 +139,89 @@ void _registerAleraShellSidebarActionTests() {
     expect(copiedText, '/repo/alera');
   });
 
+  testWidgets('workspace context menu creates and assigns tags', (
+    tester,
+  ) async {
+    final state = _linkedWorkbenchState(linkedExpanded: true);
+    final controller = _ShellTestWorkbenchController(state);
+    await _pumpShell(tester, state: state, controller: controller);
+
+    await tester.tapAt(
+      tester.getCenter(find.text('Feature login').first),
+      buttons: kSecondaryMouseButton,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Manage Tags'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'New Tag'), 'Review');
+    await tester.tap(find.text('Create Tag'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(controller.workspaceTags.single.name, 'Review');
+    expect(controller.tagUpdates.single.workspaceId, 'workspace-2');
+    expect(controller.tagUpdates.single.tagIds, <String>{'tag-1'});
+  });
+
+  testWidgets('workspace tags dialog deletes a tag after confirmation', (
+    tester,
+  ) async {
+    final state = _linkedWorkbenchState(linkedExpanded: true);
+    final controller = _ShellTestWorkbenchController(state);
+    final now = DateTime.utc(2026, 5, 22);
+    controller.workspaceTags.add(
+      WorkspaceTag(
+        id: 'tag-1',
+        name: 'Review',
+        color: WorkspaceTag.defaultColor,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    await _pumpShell(tester, state: state, controller: controller);
+
+    await tester.tapAt(
+      tester.getCenter(find.text('Feature login').first),
+      buttons: kSecondaryMouseButton,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Manage Tags'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Delete Tag'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+
+    expect(controller.deletedTagIds, <String>['tag-1']);
+    expect(find.text('#Review'), findsNothing);
+  });
+
+  testWidgets('workspace context menu sets a parent workspace', (tester) async {
+    final state = _linkedWorkbenchState(linkedExpanded: true);
+    final controller = _ShellTestWorkbenchController(state);
+    await _pumpShell(tester, state: state, controller: controller);
+
+    await tester.tapAt(
+      tester.getCenter(find.text('Feature login').first),
+      buttons: kSecondaryMouseButton,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Set Parent Workspace'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('No Parent'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Alera / Main - main').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(controller.parentUpdates.single.workspaceId, 'workspace-2');
+    expect(controller.parentUpdates.single.parentWorkspaceId, 'workspace-1');
+  });
+
   testWidgets('sidebar agent rows can switch workspaces and request focus', (
     tester,
   ) async {
