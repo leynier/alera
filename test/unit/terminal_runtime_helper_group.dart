@@ -413,6 +413,33 @@ void _registerTerminalRuntimeHelperGroup() {
             );
         expect(pathOnlyWrapper.environment, isNot(contains('PATH')));
 
+        final aleraWrapper = Platform.isWindows
+            ? r'C:\alera\bin'
+            : '/alera/bin';
+        final agentWrapper = Platform.isWindows
+            ? r'C:\agent\bin'
+            : '/agent/bin';
+        final combinedWrapperLaunch =
+            launchWithSanitizedAgentHookEnvironmentForTesting(
+              _launch(
+                'shell',
+                shell: '/bin/zsh',
+                environment: <String, String>{'PATH': pathEntry},
+              ),
+              <String, String>{
+                'ALERA_AGENT_WRAPPER_PATH':
+                    '$aleraWrapper$pathSeparator$agentWrapper',
+              },
+            );
+        expect(
+          combinedWrapperLaunch.environment?['PATH'],
+          '$aleraWrapper$pathSeparator$agentWrapper$pathSeparator$pathEntry',
+        );
+        expect(
+          combinedWrapperLaunch.environment?['ALERA_AGENT_WRAPPER_PATH'],
+          '$aleraWrapper$pathSeparator$agentWrapper',
+        );
+
         final existingSetupLaunch =
             launchWithSanitizedAgentHookEnvironmentForTesting(
               _launch(

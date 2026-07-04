@@ -31,14 +31,20 @@ class AgentsSettingsPane extends ConsumerWidget {
           key: groupKeys['cliSkill'],
           child: const AleraSettingsGroup(
             title: 'Alera CLI Skill',
-            description:
-                'Teach agents to manage workspaces through the Alera CLI.',
+            description: 'Register The CLI Command And Teach Agents To Use It.',
             children: <Widget>[
+              AleraSettingRow(
+                title: 'Alera CLI Command',
+                description:
+                    'Register The Alera Command On PATH For Terminals And Agents.',
+                controlWidth: 360,
+                child: AleraCliRegistrationControl(),
+              ),
               AleraSettingRow(
                 title: 'Alera CLI Skill',
                 description:
                     'Install The Codex Skill That Teaches Agents To Use The Alera CLI.',
-                controlWidth: 280,
+                controlWidth: 360,
                 child: AleraCliSkillControl(),
               ),
             ],

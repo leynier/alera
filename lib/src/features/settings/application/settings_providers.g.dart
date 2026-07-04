@@ -197,4 +197,53 @@ final class AleraCliSkillServiceProvider
 }
 
 String _$aleraCliSkillServiceHash() =>
-    r'75a54aa6cbd49e5de17df1a1409aae2498c6e586';
+    r'92fe3fc21c9c52e51230890ebbd7c6353f6f31b0';
+
+@ProviderFor(aleraCliRegistrationService)
+final aleraCliRegistrationServiceProvider =
+    AleraCliRegistrationServiceProvider._();
+
+final class AleraCliRegistrationServiceProvider
+    extends
+        $FunctionalProvider<
+          AleraCliRegistrationService,
+          AleraCliRegistrationService,
+          AleraCliRegistrationService
+        >
+    with $Provider<AleraCliRegistrationService> {
+  AleraCliRegistrationServiceProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'aleraCliRegistrationServiceProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$aleraCliRegistrationServiceHash();
+
+  @$internal
+  @override
+  $ProviderElement<AleraCliRegistrationService> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  AleraCliRegistrationService create(Ref ref) {
+    return aleraCliRegistrationService(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(AleraCliRegistrationService value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<AleraCliRegistrationService>(value),
+    );
+  }
+}
+
+String _$aleraCliRegistrationServiceHash() =>
+    r'98b597e431a2a4376cdd4945f99f627e330bf72c';
