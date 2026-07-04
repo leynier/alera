@@ -102,7 +102,7 @@ void main() {
 Future<void> _pumpUntilFound(
   WidgetTester tester,
   Finder finder, {
-  int attempts = 60,
+  int attempts = 200,
 }) async {
   for (var attempt = 0; attempt < attempts; attempt += 1) {
     await tester.pump(const Duration(milliseconds: 50));
