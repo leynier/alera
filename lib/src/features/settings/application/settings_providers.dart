@@ -1,4 +1,5 @@
 import 'package:alera/src/features/settings/application/settings_repository.dart';
+import 'package:alera/src/features/settings/infra/alera_cli_registration_service.dart';
 import 'package:alera/src/features/settings/infra/alera_cli_skill_service.dart';
 import 'package:alera/src/features/settings/infra/drift_settings_repository.dart';
 import 'package:alera/src/features/settings/infra/github_star_service.dart';
@@ -35,5 +36,15 @@ SystemFontService systemFontService(Ref ref) {
 
 @Riverpod(keepAlive: true)
 AleraCliSkillService aleraCliSkillService(Ref ref) {
-  return AleraCliSkillService(processRunner: ref.watch(processRunnerProvider));
+  return AleraCliSkillService(
+    processRunner: ref.watch(processRunnerProvider),
+    commandEnvironmentResolver: ref.watch(commandEnvironmentResolverProvider),
+  );
+}
+
+@Riverpod(keepAlive: true)
+AleraCliRegistrationService aleraCliRegistrationService(Ref ref) {
+  return AleraCliRegistrationService(
+    processRunner: ref.watch(processRunnerProvider),
+  );
 }
