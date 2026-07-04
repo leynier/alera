@@ -15,6 +15,9 @@ mixin _WorkbenchControllerTabs
       final groupId = targetGroupId ?? layout.activeGroupId;
       final nextLayout = layout.addTabToGroup(groupId: groupId, tabId: tab.id);
       await _applyLayout(nextLayout.sanitize(tabs), persist: true);
+      ref
+          .read(workspaceActivityControllerProvider.notifier)
+          .recordActivity(workspace.id, DateTime.now().toUtc());
       state = state.copyWith(error: null);
       return tab;
     } catch (error) {

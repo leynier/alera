@@ -35,6 +35,20 @@ Widget aleraDropdownFieldPlaceholderPreview() => const SizedBox(
   ),
 );
 
+@AleraPreview(name: 'Labeled', group: 'Dropdown field', size: Size(280, 110))
+Widget aleraDropdownFieldLabeledPreview() => const SizedBox(
+  width: 220,
+  child: AleraDropdownField<String>(
+    value: 'agent',
+    labelText: 'Auth Method',
+    entries: <AleraDropdownFieldEntry<String>>[
+      AleraDropdownFieldEntry<String>(value: 'agent', label: 'SSH Agent'),
+      AleraDropdownFieldEntry<String>(value: 'key', label: 'Private Key'),
+    ],
+    onChanged: _ignoreValue,
+  ),
+);
+
 @AleraPreview(name: 'Disabled', group: 'Dropdown field', size: Size(280, 90))
 Widget aleraDropdownFieldDisabledPreview() => const SizedBox(
   width: 220,

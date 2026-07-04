@@ -58,7 +58,7 @@ class _AgentRunRowState extends State<_AgentRunRow> {
                 children: <Widget>[
                   Padding(
                     padding: const EdgeInsets.only(top: 1),
-                    child: _AgentRunStateIndicator(
+                    child: AgentRunStateIndicator(
                       status: widget.status,
                       size: 12,
                     ),
@@ -137,80 +137,12 @@ class _AgentRunRowState extends State<_AgentRunRow> {
   }
 }
 
-class _AgentRunStateIndicator extends StatelessWidget {
-  const _AgentRunStateIndicator({required this.status, this.size = 13});
-
-  final AgentStatusEntry status;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    final label = _agentRunStateLabel(status);
-    final color = _agentRunStateColor(status);
-    return Tooltip(
-      message: label,
-      child: Semantics(
-        label: label,
-        child: SizedBox.square(
-          dimension: size,
-          child: Center(child: _buildIndicator(color)),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildIndicator(Color color) {
-    if (status.state == AgentStatusState.working) {
-      return SizedBox.square(
-        dimension: size - 2,
-        child: CircularProgressIndicator(
-          strokeWidth: 1.7,
-          color: AleraTokens.warning,
-        ),
-      );
-    }
-    final icon = status.interrupted == true
-        ? AleraIcons.cancel
-        : switch (status.state) {
-            AgentStatusState.done => AleraIcons.success,
-            AgentStatusState.waiting ||
-            AgentStatusState.blocked => AleraIcons.notifications,
-            AgentStatusState.working => AleraIcons.sync, // coverage:ignore-line
-          };
-    return Icon(icon, size: size, color: color);
-  }
-}
-
-Color _agentRunStateColor(AgentStatusEntry status) {
-  if (status.interrupted == true) {
-    return AleraTokens.error;
-  }
-  return switch (status.state) {
-    AgentStatusState.working => AleraTokens.warning,
-    AgentStatusState.waiting => AleraTokens.warning,
-    AgentStatusState.blocked => AleraTokens.error,
-    AgentStatusState.done => AleraTokens.success,
-  };
-}
-
-String _agentRunStateLabel(AgentStatusEntry status) {
-  if (status.interrupted == true) {
-    return 'Interrupted';
-  }
-  return switch (status.state) {
-    AgentStatusState.working => 'Working',
-    AgentStatusState.waiting => 'Waiting for input',
-    AgentStatusState.blocked => 'Blocked',
-    AgentStatusState.done => 'Done',
-  };
-}
-
 String _agentRunPrimaryLabel(AgentStatusEntry status) {
   final prompt = status.prompt.trim();
   if (prompt.isNotEmpty) {
     return prompt;
   }
-  return _agentRunStateLabel(status);
+  return agentRunStateLabel(status);
 }
 
 String _agentRunSecondaryLabel(AgentStatusEntry status) {
@@ -228,5 +160,5 @@ String _agentRunSecondaryLabel(AgentStatusEntry status) {
   if (assistantMessage.isNotEmpty) {
     return assistantMessage;
   }
-  return '${agentDisplayName(status.agentType)} · ${_agentRunStateLabel(status)}';
+  return '${agentDisplayName(status.agentType)} · ${agentRunStateLabel(status)}';
 }

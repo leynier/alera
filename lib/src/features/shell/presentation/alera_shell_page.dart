@@ -106,6 +106,8 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
     ref.watch(agentStatusNotificationCoordinatorProvider);
     ref.watch(agentAwakeCoordinatorProvider);
     ref.watch(terminalRuntimeExitCoordinatorProvider);
+    ref.watch(workspaceActivityCoordinatorProvider);
+    ref.watch(workspaceActivityPersistenceCoordinatorProvider);
     final state = ref.watch(workbenchControllerProvider);
     final error = state.error;
     if (error != null && error != _lastErrorMessage) {

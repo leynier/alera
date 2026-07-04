@@ -83,6 +83,45 @@ void main() {
     expect(find.text('Select An Option'), findsOneWidget);
   });
 
+  testWidgets('shows the label above the field when provided', (tester) async {
+    await tester.pumpWidget(
+      _wrap(
+        AleraDropdownField<String>(
+          value: 'agent',
+          labelText: 'Auth Method',
+          entries: _entries,
+          onChanged: (_) {},
+        ),
+      ),
+    );
+
+    expect(find.text('Auth Method'), findsOneWidget);
+    expect(find.text('SSH Agent'), findsOneWidget);
+  });
+
+  testWidgets('a null-valued entry can be picked', (tester) async {
+    String? picked = 'unset';
+    await tester.pumpWidget(
+      _wrap(
+        AleraDropdownField<String?>(
+          value: 'child',
+          entries: const <AleraDropdownFieldEntry<String?>>[
+            AleraDropdownFieldEntry<String?>(value: null, label: 'No Parent'),
+            AleraDropdownFieldEntry<String?>(value: 'child', label: 'Child'),
+          ],
+          onChanged: (value) => picked = value,
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Child'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('No Parent'));
+    await tester.pumpAndSettle();
+
+    expect(picked, isNull);
+  });
+
   testWidgets('disabled field does not open the menu', (tester) async {
     await tester.pumpWidget(
       _wrap(

@@ -14,3 +14,8 @@ export 'package:alera/src/features/updater/application/update_controller.dart'
 export 'package:alera/src/features/workbench/application/workbench_controller.dart'
     show WorkbenchController, workbenchControllerProvider;
 export 'package:alera/src/features/workbench/application/workbench_providers.dart';
+export 'package:alera/src/features/workbench/application/workspace_activity_controller.dart'
+    show
+        WorkspaceActivityController,
+        workspaceActivityControllerProvider,
+        workspaceActivityCoordinatorProvider;

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_segmented_button.dart';
 import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
+import 'package:alera/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera/src/design_system/forms/alera_search_field.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
@@ -954,33 +955,26 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                                 ],
                               ),
                               const SizedBox(height: AleraTokens.space16),
-                              DropdownButtonFormField<String?>(
-                                initialValue: _selectedParentWorkspaceId,
-                                isExpanded: true,
-                                decoration: const InputDecoration(
-                                  labelText: 'Parent Workspace',
-                                ),
-                                items: <DropdownMenuItem<String?>>[
-                                  const DropdownMenuItem<String?>(
+                              AleraDropdownField<String?>(
+                                value: _selectedParentWorkspaceId,
+                                labelText: 'Parent Workspace',
+                                enabled: !_creating,
+                                entries: <AleraDropdownFieldEntry<String?>>[
+                                  const AleraDropdownFieldEntry<String?>(
                                     value: null,
-                                    child: Text('No Parent'),
+                                    label: 'No Parent',
                                   ),
                                   for (final candidate in _parentCandidates)
-                                    DropdownMenuItem<String?>(
+                                    AleraDropdownFieldEntry<String?>(
                                       value: candidate.workspace.id,
-                                      child: Text(
-                                        _parentLabel(candidate),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
+                                      label: _parentLabel(candidate),
                                     ),
                                 ],
-                                onChanged: _creating
-                                    ? null
-                                    : (value) {
-                                        setState(() {
-                                          _selectedParentWorkspaceId = value;
-                                        });
-                                      },
+                                onChanged: (value) {
+                                  setState(() {
+                                    _selectedParentWorkspaceId = value;
+                                  });
+                                },
                               ),
                               const SizedBox(height: AleraTokens.space16),
                               Text(

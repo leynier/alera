@@ -343,7 +343,9 @@ void _registerAleraShellSidebarActionTests() {
     );
   });
 
-  testWidgets('workspace rows show plural agent run counts', (tester) async {
+  testWidgets('workspace rows summarize agent runs in a compact pill', (
+    tester,
+  ) async {
     await _pumpShell(
       tester,
       state: _stackedWorkbenchState(),
@@ -363,7 +365,7 @@ void _registerAleraShellSidebarActionTests() {
       },
     );
 
-    expect(find.textContaining('2 Agent Runs'), findsOneWidget);
+    expect(find.byType(WorkspaceAgentCompactSummary), findsOneWidget);
   });
 
   testWidgets('closing a sidebar agent row closes the runtime tab', (

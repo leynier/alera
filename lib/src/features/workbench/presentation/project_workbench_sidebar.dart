@@ -17,11 +17,15 @@ import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/presentation/agent_identity_icon.dart';
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_resize_handle.dart';
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_search_bar.dart';
+import 'package:alera/src/features/workbench/application/workbench_agent_activity_sort.dart';
 import 'package:alera/src/features/workbench/application/workbench_listing.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
+import 'package:alera/src/features/workbench/application/workspace_agent_run_groups.dart';
 import 'package:alera/src/features/workbench/application/workspace_agent_status_projection.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
+import 'package:alera/src/features/workbench/presentation/widgets/agent_run_state_indicator.dart';
+import 'package:alera/src/features/workbench/presentation/widgets/workspace_agent_compact_summary.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_dialog_launchers.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_graph_dialogs.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_graph_indicators.dart';
@@ -60,6 +64,8 @@ class _ProjectWorkbenchSidebarState
   Widget build(BuildContext context) {
     final state = ref.watch(workbenchControllerProvider);
     final agentStatuses = ref.watch(agentStatusControllerProvider);
+    final lastActivity = ref.watch(workspaceActivityControllerProvider);
+    final orderMemory = ref.read(sidebarOrderMemoryProvider);
     final controller = ref.read(workbenchControllerProvider.notifier);
     final workspaceFolderOpener = ref.read(workspaceFolderOpenerProvider);
     if (state.collapsed) {
@@ -107,6 +113,8 @@ class _ProjectWorkbenchSidebarState
                           state: state,
                           controller: controller,
                           agentStatuses: agentStatuses,
+                          lastActivityByWorkspaceId: lastActivity,
+                          orderMemory: orderMemory,
                           onOpenWorkspace: _openWorkspace,
                           onOpenWorkspaceFolder: _openWorkspaceFolder,
                           onCopyWorkspacePath: _copyWorkspacePath,

@@ -52,6 +52,19 @@ void _registerWorkbenchControllerWorkspaceGraphTests() {
     },
   );
 
+  test(
+    'createWorkspaceTag reuses an existing tag with the same name',
+    () async {
+      final existing = WorkspaceTag.create(name: 'Review');
+      _harness.workspaceGraphRepository.tags.add(existing);
+
+      final result = await _controller.createWorkspaceTag('review');
+
+      expect(result.id, existing.id);
+      expect(_harness.workspaceGraphRepository.tags, hasLength(1));
+    },
+  );
+
   test('updateWorkspaceTags applies only tag assignment diffs', () async {
     final workspace = Workspace(
       id: 'workspace-1',

@@ -2709,6 +2709,247 @@ class AppWindowStateTableCompanion
   }
 }
 
+class $WorkspaceActivityTableTable extends WorkspaceActivityTable
+    with TableInfo<$WorkspaceActivityTableTable, WorkspaceActivityTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $WorkspaceActivityTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _workspaceIdMeta = const VerificationMeta(
+    'workspaceId',
+  );
+  @override
+  late final GeneratedColumn<String> workspaceId = GeneratedColumn<String>(
+    'workspace_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _lastActivityAtMeta = const VerificationMeta(
+    'lastActivityAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastActivityAt =
+      GeneratedColumn<DateTime>(
+        'last_activity_at',
+        aliasedName,
+        false,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: true,
+      );
+  @override
+  List<GeneratedColumn> get $columns => [workspaceId, lastActivityAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'workspace_activity_table';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<WorkspaceActivityTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('workspace_id')) {
+      context.handle(
+        _workspaceIdMeta,
+        workspaceId.isAcceptableOrUnknown(
+          data['workspace_id']!,
+          _workspaceIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_workspaceIdMeta);
+    }
+    if (data.containsKey('last_activity_at')) {
+      context.handle(
+        _lastActivityAtMeta,
+        lastActivityAt.isAcceptableOrUnknown(
+          data['last_activity_at']!,
+          _lastActivityAtMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_lastActivityAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {workspaceId};
+  @override
+  WorkspaceActivityTableData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return WorkspaceActivityTableData(
+      workspaceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}workspace_id'],
+      )!,
+      lastActivityAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_activity_at'],
+      )!,
+    );
+  }
+
+  @override
+  $WorkspaceActivityTableTable createAlias(String alias) {
+    return $WorkspaceActivityTableTable(attachedDatabase, alias);
+  }
+}
+
+class WorkspaceActivityTableData extends DataClass
+    implements Insertable<WorkspaceActivityTableData> {
+  final String workspaceId;
+  final DateTime lastActivityAt;
+  const WorkspaceActivityTableData({
+    required this.workspaceId,
+    required this.lastActivityAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['workspace_id'] = Variable<String>(workspaceId);
+    map['last_activity_at'] = Variable<DateTime>(lastActivityAt);
+    return map;
+  }
+
+  WorkspaceActivityTableCompanion toCompanion(bool nullToAbsent) {
+    return WorkspaceActivityTableCompanion(
+      workspaceId: Value(workspaceId),
+      lastActivityAt: Value(lastActivityAt),
+    );
+  }
+
+  factory WorkspaceActivityTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return WorkspaceActivityTableData(
+      workspaceId: serializer.fromJson<String>(json['workspaceId']),
+      lastActivityAt: serializer.fromJson<DateTime>(json['lastActivityAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'workspaceId': serializer.toJson<String>(workspaceId),
+      'lastActivityAt': serializer.toJson<DateTime>(lastActivityAt),
+    };
+  }
+
+  WorkspaceActivityTableData copyWith({
+    String? workspaceId,
+    DateTime? lastActivityAt,
+  }) => WorkspaceActivityTableData(
+    workspaceId: workspaceId ?? this.workspaceId,
+    lastActivityAt: lastActivityAt ?? this.lastActivityAt,
+  );
+  WorkspaceActivityTableData copyWithCompanion(
+    WorkspaceActivityTableCompanion data,
+  ) {
+    return WorkspaceActivityTableData(
+      workspaceId: data.workspaceId.present
+          ? data.workspaceId.value
+          : this.workspaceId,
+      lastActivityAt: data.lastActivityAt.present
+          ? data.lastActivityAt.value
+          : this.lastActivityAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WorkspaceActivityTableData(')
+          ..write('workspaceId: $workspaceId, ')
+          ..write('lastActivityAt: $lastActivityAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(workspaceId, lastActivityAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is WorkspaceActivityTableData &&
+          other.workspaceId == this.workspaceId &&
+          other.lastActivityAt == this.lastActivityAt);
+}
+
+class WorkspaceActivityTableCompanion
+    extends UpdateCompanion<WorkspaceActivityTableData> {
+  final Value<String> workspaceId;
+  final Value<DateTime> lastActivityAt;
+  final Value<int> rowid;
+  const WorkspaceActivityTableCompanion({
+    this.workspaceId = const Value.absent(),
+    this.lastActivityAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  WorkspaceActivityTableCompanion.insert({
+    required String workspaceId,
+    required DateTime lastActivityAt,
+    this.rowid = const Value.absent(),
+  }) : workspaceId = Value(workspaceId),
+       lastActivityAt = Value(lastActivityAt);
+  static Insertable<WorkspaceActivityTableData> custom({
+    Expression<String>? workspaceId,
+    Expression<DateTime>? lastActivityAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (workspaceId != null) 'workspace_id': workspaceId,
+      if (lastActivityAt != null) 'last_activity_at': lastActivityAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  WorkspaceActivityTableCompanion copyWith({
+    Value<String>? workspaceId,
+    Value<DateTime>? lastActivityAt,
+    Value<int>? rowid,
+  }) {
+    return WorkspaceActivityTableCompanion(
+      workspaceId: workspaceId ?? this.workspaceId,
+      lastActivityAt: lastActivityAt ?? this.lastActivityAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (workspaceId.present) {
+      map['workspace_id'] = Variable<String>(workspaceId.value);
+    }
+    if (lastActivityAt.present) {
+      map['last_activity_at'] = Variable<DateTime>(lastActivityAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WorkspaceActivityTableCompanion(')
+          ..write('workspaceId: $workspaceId, ')
+          ..write('lastActivityAt: $lastActivityAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AleraDatabase extends GeneratedDatabase {
   _$AleraDatabase(QueryExecutor e) : super(e);
   $AleraDatabaseManager get managers => $AleraDatabaseManager(this);
@@ -2729,6 +2970,8 @@ abstract class _$AleraDatabase extends GeneratedDatabase {
       $ProjectConfigsTableTable(this);
   late final $AppWindowStateTableTable appWindowStateTable =
       $AppWindowStateTableTable(this);
+  late final $WorkspaceActivityTableTable workspaceActivityTable =
+      $WorkspaceActivityTableTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2742,6 +2985,7 @@ abstract class _$AleraDatabase extends GeneratedDatabase {
     appSettingsTable,
     projectConfigsTable,
     appWindowStateTable,
+    workspaceActivityTable,
   ];
 }
 
@@ -4360,6 +4604,172 @@ typedef $$AppWindowStateTableTableProcessedTableManager =
       AppWindowStateTableData,
       PrefetchHooks Function()
     >;
+typedef $$WorkspaceActivityTableTableCreateCompanionBuilder =
+    WorkspaceActivityTableCompanion Function({
+      required String workspaceId,
+      required DateTime lastActivityAt,
+      Value<int> rowid,
+    });
+typedef $$WorkspaceActivityTableTableUpdateCompanionBuilder =
+    WorkspaceActivityTableCompanion Function({
+      Value<String> workspaceId,
+      Value<DateTime> lastActivityAt,
+      Value<int> rowid,
+    });
+
+class $$WorkspaceActivityTableTableFilterComposer
+    extends Composer<_$AleraDatabase, $WorkspaceActivityTableTable> {
+  $$WorkspaceActivityTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get workspaceId => $composableBuilder(
+    column: $table.workspaceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastActivityAt => $composableBuilder(
+    column: $table.lastActivityAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$WorkspaceActivityTableTableOrderingComposer
+    extends Composer<_$AleraDatabase, $WorkspaceActivityTableTable> {
+  $$WorkspaceActivityTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get workspaceId => $composableBuilder(
+    column: $table.workspaceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastActivityAt => $composableBuilder(
+    column: $table.lastActivityAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$WorkspaceActivityTableTableAnnotationComposer
+    extends Composer<_$AleraDatabase, $WorkspaceActivityTableTable> {
+  $$WorkspaceActivityTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get workspaceId => $composableBuilder(
+    column: $table.workspaceId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get lastActivityAt => $composableBuilder(
+    column: $table.lastActivityAt,
+    builder: (column) => column,
+  );
+}
+
+class $$WorkspaceActivityTableTableTableManager
+    extends
+        RootTableManager<
+          _$AleraDatabase,
+          $WorkspaceActivityTableTable,
+          WorkspaceActivityTableData,
+          $$WorkspaceActivityTableTableFilterComposer,
+          $$WorkspaceActivityTableTableOrderingComposer,
+          $$WorkspaceActivityTableTableAnnotationComposer,
+          $$WorkspaceActivityTableTableCreateCompanionBuilder,
+          $$WorkspaceActivityTableTableUpdateCompanionBuilder,
+          (
+            WorkspaceActivityTableData,
+            BaseReferences<
+              _$AleraDatabase,
+              $WorkspaceActivityTableTable,
+              WorkspaceActivityTableData
+            >,
+          ),
+          WorkspaceActivityTableData,
+          PrefetchHooks Function()
+        > {
+  $$WorkspaceActivityTableTableTableManager(
+    _$AleraDatabase db,
+    $WorkspaceActivityTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$WorkspaceActivityTableTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$WorkspaceActivityTableTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$WorkspaceActivityTableTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> workspaceId = const Value.absent(),
+                Value<DateTime> lastActivityAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => WorkspaceActivityTableCompanion(
+                workspaceId: workspaceId,
+                lastActivityAt: lastActivityAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String workspaceId,
+                required DateTime lastActivityAt,
+                Value<int> rowid = const Value.absent(),
+              }) => WorkspaceActivityTableCompanion.insert(
+                workspaceId: workspaceId,
+                lastActivityAt: lastActivityAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$WorkspaceActivityTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AleraDatabase,
+      $WorkspaceActivityTableTable,
+      WorkspaceActivityTableData,
+      $$WorkspaceActivityTableTableFilterComposer,
+      $$WorkspaceActivityTableTableOrderingComposer,
+      $$WorkspaceActivityTableTableAnnotationComposer,
+      $$WorkspaceActivityTableTableCreateCompanionBuilder,
+      $$WorkspaceActivityTableTableUpdateCompanionBuilder,
+      (
+        WorkspaceActivityTableData,
+        BaseReferences<
+          _$AleraDatabase,
+          $WorkspaceActivityTableTable,
+          WorkspaceActivityTableData
+        >,
+      ),
+      WorkspaceActivityTableData,
+      PrefetchHooks Function()
+    >;
 
 class $AleraDatabaseManager {
   final _$AleraDatabase _db;
@@ -4383,4 +4793,9 @@ class $AleraDatabaseManager {
       $$ProjectConfigsTableTableTableManager(_db, _db.projectConfigsTable);
   $$AppWindowStateTableTableTableManager get appWindowStateTable =>
       $$AppWindowStateTableTableTableManager(_db, _db.appWindowStateTable);
+  $$WorkspaceActivityTableTableTableManager get workspaceActivityTable =>
+      $$WorkspaceActivityTableTableTableManager(
+        _db,
+        _db.workspaceActivityTable,
+      );
 }

@@ -11,6 +11,8 @@ void main() {
       expect(WorkbenchViewPrefs.defaults.selectedProjectIds, isEmpty);
       expect(WorkbenchViewPrefs.defaults.collapsedProjectIds, isEmpty);
       expect(WorkbenchViewPrefs.defaults.expandedWorkspaceIds, isEmpty);
+      expect(WorkbenchViewPrefs.defaults.selectedTagIds, isEmpty);
+      expect(WorkbenchViewPrefs.defaults.collapsedParentWorkspaceIds, isEmpty);
       expect(
         WorkbenchViewPrefs.defaults.sourceControlRootByWorkspaceId,
         isEmpty,
@@ -35,6 +37,8 @@ void main() {
         selectedProjectIds: <String>{'p1', 'p2'},
         collapsedProjectIds: <String>{'p3'},
         expandedWorkspaceIds: <String>{'w1'},
+        selectedTagIds: <String>{'tag-1'},
+        collapsedParentWorkspaceIds: <String>{'w-parent'},
         sourceControlRootByWorkspaceId: <String, String>{
           'w-folder': 'packages/app',
         },
@@ -52,6 +56,8 @@ void main() {
       expect(restored.selectedProjectIds, <String>{'p1', 'p2'});
       expect(restored.collapsedProjectIds, <String>{'p3'});
       expect(restored.expandedWorkspaceIds, <String>{'w1'});
+      expect(restored.selectedTagIds, <String>{'tag-1'});
+      expect(restored.collapsedParentWorkspaceIds, <String>{'w-parent'});
       expect(restored.sourceControlRootByWorkspaceId, <String, String>{
         'w-folder': 'packages/app',
       });
@@ -80,6 +86,37 @@ void main() {
         }),
         throwsA(isA<MapperException>()),
       );
+    });
+
+    test('fromJson tolerates persisted prefs without the new fields', () {
+      // JSON persisted before selectedTagIds/collapsedParentWorkspaceIds and
+      // the activity sort existed must keep decoding.
+      final restored = WorkbenchViewPrefs.fromJson(<String, Object?>{
+        'groupBy': 'project',
+        'projectSort': 'name',
+        'workspaceSort': 'recent',
+        'selectedProjectIds': <String>['p1'],
+        'collapsedProjectIds': <String>[],
+        'expandedWorkspaceIds': <String>[],
+      });
+
+      expect(restored.selectedTagIds, isEmpty);
+      expect(restored.collapsedParentWorkspaceIds, isEmpty);
+      expect(restored.workspaceSort, WorkbenchSortBy.recent);
+    });
+
+    test('fromJson decodes the activity sort value', () {
+      final restored = WorkbenchViewPrefs.fromJson(<String, Object?>{
+        'groupBy': 'project',
+        'projectSort': 'activity',
+        'workspaceSort': 'activity',
+        'selectedProjectIds': <String>[],
+        'collapsedProjectIds': <String>[],
+        'expandedWorkspaceIds': <String>[],
+      });
+
+      expect(restored.projectSort, WorkbenchSortBy.activity);
+      expect(restored.workspaceSort, WorkbenchSortBy.activity);
     });
 
     test('fromJson applies mapper conversions inside id collections', () {

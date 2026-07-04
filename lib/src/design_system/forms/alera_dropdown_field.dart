@@ -28,6 +28,7 @@ class AleraDropdownField<T> extends StatelessWidget {
     required this.entries,
     required this.onChanged,
     this.hintText,
+    this.labelText,
     this.enabled = true,
   });
 
@@ -35,6 +36,7 @@ class AleraDropdownField<T> extends StatelessWidget {
   final List<AleraDropdownFieldEntry<T>> entries;
   final ValueChanged<T> onChanged;
   final String? hintText;
+  final String? labelText;
   final bool enabled;
 
   static const double _height = 34;
@@ -44,20 +46,52 @@ class AleraDropdownField<T> extends StatelessWidget {
     final overlay =
         Overlay.of(context).context.findRenderObject()! as RenderBox;
     final origin = box.localToGlobal(Offset.zero, ancestor: overlay);
+    final position = RelativeRect.fromLTRB(
+      origin.dx,
+      origin.dy + box.size.height + AleraTokens.space4,
+      overlay.size.width - origin.dx - box.size.width,
+      overlay.size.height - origin.dy,
+    );
+    final constraints = BoxConstraints(minWidth: box.size.width);
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+      side: const BorderSide(color: AleraTokens.border),
+    );
+    if (entries.any((entry) => entry.value == null)) {
+      // A null-valued entry (e.g. "No Parent") is indistinguishable from a
+      // dismissed menu when popped as a value, so resolve by entry index.
+      final selectedIndex = await showMenu<int>(
+        context: context,
+        position: position,
+        constraints: constraints,
+        color: AleraTokens.surface,
+        shape: shape,
+        items: <PopupMenuEntry<int>>[
+          for (final (index, entry) in entries.indexed)
+            AleraDropdownEntry<int>(
+              value: index,
+              label: entry.label,
+              leading: entry.leading,
+              selected: entry.value == value,
+              enabled: entry.enabled,
+            ),
+        ],
+      );
+      if (selectedIndex == null) {
+        return;
+      }
+      final selected = entries[selectedIndex].value;
+      if (selected != value) {
+        onChanged(selected);
+      }
+      return;
+    }
     final selected = await showMenu<T>(
       context: context,
-      position: RelativeRect.fromLTRB(
-        origin.dx,
-        origin.dy + box.size.height + AleraTokens.space4,
-        overlay.size.width - origin.dx - box.size.width,
-        overlay.size.height - origin.dy,
-      ),
-      constraints: BoxConstraints(minWidth: box.size.width),
+      position: position,
+      constraints: constraints,
       color: AleraTokens.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-        side: const BorderSide(color: AleraTokens.border),
-      ),
+      shape: shape,
       items: <PopupMenuEntry<T>>[
         for (final entry in entries)
           AleraDropdownEntry<T>(
@@ -89,7 +123,7 @@ class AleraDropdownField<T> extends StatelessWidget {
         : current == null
         ? AleraTokens.foregroundMuted
         : AleraTokens.foreground;
-    return Semantics(
+    final field = Semantics(
       button: true,
       enabled: enabled,
       label: current?.label ?? hintText,
@@ -135,6 +169,24 @@ class AleraDropdownField<T> extends StatelessWidget {
           ),
         ),
       ),
+    );
+    final label = labelText;
+    if (label == null) {
+      return field;
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Text(
+          label,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: AleraTokens.foregroundMuted,
+          ),
+        ),
+        const SizedBox(height: AleraTokens.space4),
+        field,
+      ],
     );
   }
 }

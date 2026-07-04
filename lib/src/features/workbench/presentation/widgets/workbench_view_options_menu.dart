@@ -11,11 +11,13 @@ import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/design_system/layout/alera_dialog_header.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 part 'workbench_view_options_controls.dart';
+part 'workbench_view_options_tags.dart';
 
 /// Filter/sort/group icon button that opens the view-options modal centered on
 /// screen. Using a centered dialog (instead of an anchored popover) sidesteps
@@ -30,6 +32,7 @@ class WorkbenchViewOptionsButton extends ConsumerWidget {
     );
     final hasFilters =
         prefs.selectedProjectIds.isNotEmpty ||
+        prefs.selectedTagIds.isNotEmpty ||
         prefs.groupBy != WorkbenchViewPrefs.defaults.groupBy ||
         prefs.projectSort != WorkbenchViewPrefs.defaults.projectSort ||
         prefs.workspaceSort != WorkbenchViewPrefs.defaults.workspaceSort;
@@ -97,7 +100,14 @@ class _WorkbenchViewOptionsPanel extends ConsumerStatefulWidget {
 class _WorkbenchViewOptionsPanelState
     extends ConsumerState<_WorkbenchViewOptionsPanel> {
   final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _tagSearchController = TextEditingController();
   String _projectQuery = '';
+  String _tagQuery = '';
+
+  /// Tags known to the runtime, loaded once when the panel opens. Until (or if
+  /// ever) the fetch fails, the tags carried by the loaded workspaces act as a
+  /// fallback so the filter stays usable offline.
+  List<_TagOption>? _runtimeTags;
 
   @override
   void initState() {
@@ -108,11 +118,37 @@ class _WorkbenchViewOptionsPanelState
         setState(() => _projectQuery = value);
       }
     });
+    _tagSearchController.addListener(() {
+      final value = _tagSearchController.text.trim().toLowerCase();
+      if (value != _tagQuery) {
+        setState(() => _tagQuery = value);
+      }
+    });
+    _loadRuntimeTags();
+  }
+
+  Future<void> _loadRuntimeTags() async {
+    try {
+      final tags = await ref
+          .read(workbenchControllerProvider.notifier)
+          .listWorkspaceTags();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _runtimeTags = <_TagOption>[
+          for (final tag in tags) (id: tag.id, name: tag.name),
+        ];
+      });
+    } catch (_) {
+      // Keep the workspace-derived fallback.
+    }
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _tagSearchController.dispose();
     super.dispose();
   }
 
@@ -124,6 +160,27 @@ class _WorkbenchViewOptionsPanelState
         .read(workbenchControllerProvider.notifier)
         .addProjectFilter(available.first.id);
     _searchController.clear();
+  }
+
+  List<_TagOption> _knownTags(WorkbenchState state) {
+    final runtime = _runtimeTags;
+    if (runtime != null) {
+      return runtime;
+    }
+    final byId = <String, String>{};
+    for (final workspaces in state.workspacesByProject.values) {
+      for (final workspace in workspaces) {
+        for (var i = 0; i < workspace.tagIds.length; i++) {
+          byId[workspace.tagIds[i]] = i < workspace.tagNames.length
+              ? workspace.tagNames[i]
+              : workspace.tagIds[i];
+        }
+      }
+    }
+    final options = <_TagOption>[
+      for (final entry in byId.entries) (id: entry.key, name: entry.value),
+    ]..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    return options;
   }
 
   @override
@@ -143,6 +200,22 @@ class _WorkbenchViewOptionsPanelState
           (p) =>
               _projectQuery.isEmpty ||
               p.name.toLowerCase().contains(_projectQuery),
+        )
+        .toList(growable: false);
+
+    final knownTags = _knownTags(state);
+    final tagNameById = <String, String>{
+      for (final tag in knownTags) tag.id: tag.name,
+    };
+    final selectedTags = <_TagOption>[
+      for (final id in prefs.selectedTagIds)
+        (id: id, name: tagNameById[id] ?? id),
+    ];
+    final availableTags = knownTags
+        .where((tag) => !prefs.selectedTagIds.contains(tag.id))
+        .where(
+          (tag) =>
+              _tagQuery.isEmpty || tag.name.toLowerCase().contains(_tagQuery),
         )
         .toList(growable: false);
 
@@ -225,6 +298,24 @@ class _WorkbenchViewOptionsPanelState
               controller.addProjectFilter(project.id);
               _searchController.clear();
             },
+            theme: theme,
+          ),
+          const SizedBox(height: AleraTokens.space16),
+          const Divider(height: 1, color: AleraTokens.borderSubtle),
+          const SizedBox(height: AleraTokens.space12),
+          _TagsFilterSection(
+            selectedTags: selectedTags,
+            availableTags: availableTags,
+            query: _tagQuery,
+            searchController: _tagSearchController,
+            onAdd: (tagId) {
+              controller.addTagFilter(tagId);
+              _tagSearchController.clear();
+            },
+            onRemove: controller.removeTagFilter,
+            onClear: prefs.selectedTagIds.isEmpty
+                ? null
+                : controller.clearTagFilters,
             theme: theme,
           ),
         ],

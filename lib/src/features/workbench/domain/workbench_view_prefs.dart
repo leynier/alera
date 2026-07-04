@@ -6,7 +6,7 @@ part 'workbench_view_prefs.mapper.dart';
 enum WorkbenchGroupBy { none, project }
 
 @MappableEnum()
-enum WorkbenchSortBy { name, recent }
+enum WorkbenchSortBy { name, recent, activity }
 
 @MappableEnum()
 enum WorkbenchContextPanelTab { explorer, search, gitDiff }
@@ -26,6 +26,8 @@ class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
     required this.selectedProjectIds,
     required this.collapsedProjectIds,
     required this.expandedWorkspaceIds,
+    this.selectedTagIds = const <String>{},
+    this.collapsedParentWorkspaceIds = const <String>{},
     this.sourceControlRootByWorkspaceId = const <String, String>{},
     this.rightSidebarVisible = true,
     this.rightSidebarWidth = 280,
@@ -50,6 +52,15 @@ class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
   /// changing the active selection.
   final Set<String> expandedWorkspaceIds;
 
+  /// Tags the user has explicitly added to the visibility filter. Empty means
+  /// no tag filtering; non-empty shows workspaces carrying at least one of the
+  /// selected tags (OR semantics, mirroring [selectedProjectIds]).
+  final Set<String> selectedTagIds;
+
+  /// Parent workspaces whose nested children are currently hidden in the
+  /// sidebar tree.
+  final Set<String> collapsedParentWorkspaceIds;
+
   /// Folder-workspace ids mapped to the workspace-relative Git folder that
   /// should back the Source Control tab.
   final Map<String, String> sourceControlRootByWorkspaceId;
@@ -66,6 +77,8 @@ class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
     selectedProjectIds: <String>{},
     collapsedProjectIds: <String>{},
     expandedWorkspaceIds: <String>{},
+    selectedTagIds: <String>{},
+    collapsedParentWorkspaceIds: <String>{},
     sourceControlRootByWorkspaceId: <String, String>{},
     rightSidebarVisible: true,
     rightSidebarWidth: 280,

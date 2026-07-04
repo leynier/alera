@@ -5,6 +5,8 @@ class _SidebarBody extends StatelessWidget {
     required this.state,
     required this.controller,
     required this.agentStatuses,
+    required this.lastActivityByWorkspaceId,
+    required this.orderMemory,
     required this.onOpenWorkspace,
     required this.onOpenWorkspaceFolder,
     required this.onCopyWorkspacePath,
@@ -25,6 +27,8 @@ class _SidebarBody extends StatelessWidget {
   final WorkbenchState state;
   final WorkbenchController controller;
   final Map<String, AgentStatusEntry> agentStatuses;
+  final Map<String, DateTime> lastActivityByWorkspaceId;
+  final SidebarOrderMemory orderMemory;
   final Future<void> Function(Project project, Workspace workspace)
   onOpenWorkspace;
   final Future<void> Function(Workspace workspace) onOpenWorkspaceFolder;
@@ -45,7 +49,13 @@ class _SidebarBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final rows = buildSidebarRows(state, agentStatuses: agentStatuses);
+    final rows = buildSidebarRows(
+      state,
+      agentStatuses: agentStatuses,
+      lastActivityByWorkspaceId: lastActivityByWorkspaceId,
+      previousWorkspaceOrder: orderMemory.order,
+    );
+    orderMemory.order = workspaceOrderOfRows(rows);
     if (rows.isEmpty) {
       return _EmptyResultsView(query: state.searchQuery);
     }
@@ -83,9 +93,7 @@ class _SidebarBody extends StatelessWidget {
       );
     }
     if (row is WorkbenchWorkspaceRow) {
-      final leftPadding = row.indent == 0
-          ? AleraTokens.space8
-          : AleraTokens.space20;
+      final leftPadding = _indentPadding(row.indent);
       final tabs = state.tabsFor(row.workspace.id);
       final agentRuns = visibleWorkspaceAgentRuns(
         tabs: tabs,
@@ -99,12 +107,18 @@ class _SidebarBody extends StatelessWidget {
         child: _WorkspaceRow(
           project: row.project,
           workspace: row.workspace,
-          agentRunCount: agentRuns.length,
+          agentRunGroups: groupWorkspaceAgentRuns(agentRuns),
           status: agentRuns.isEmpty ? null : agentRuns.first.status,
           hasTerminalTabs: hasTerminalTabs,
           isActive: row.workspace.id == state.activeWorkspaceId,
           showProjectChip: row.showProjectChip,
           expanded: row.expanded,
+          hasVisibleChildren: row.hasVisibleChildren,
+          childrenCollapsed: row.childrenCollapsed,
+          onToggleChildren: row.hasVisibleChildren
+              ? () =>
+                    controller.toggleParentWorkspaceCollapsed(row.workspace.id)
+              : null,
           onTap: () => onOpenWorkspace(row.project, row.workspace),
           onOpenFolder: () => unawaited(onOpenWorkspaceFolder(row.workspace)),
           onCopyPath: () => unawaited(onCopyWorkspacePath(row.workspace)),
@@ -125,9 +139,7 @@ class _SidebarBody extends StatelessWidget {
       );
     }
     if (row is SidebarAgentRunRow) {
-      final leftPadding = row.indent <= 1
-          ? AleraTokens.space20
-          : AleraTokens.space32;
+      final leftPadding = _indentPadding(row.indent);
       return Padding(
         padding: EdgeInsets.only(left: leftPadding, right: AleraTokens.space8),
         child: _AgentRunRow(
@@ -145,6 +157,16 @@ class _SidebarBody extends StatelessWidget {
       );
     }
     return const SizedBox.shrink();
+  }
+
+  /// Base sidebar padding plus one step per nesting level, clamped so deep
+  /// trees keep usable row widths in a narrow sidebar.
+  double _indentPadding(int indent) {
+    const double base = AleraTokens.space8;
+    const double step = AleraTokens.space12;
+    const double max = base + 6 * step;
+    final padding = base + indent * step;
+    return padding > max ? max : padding;
   }
 }
 
