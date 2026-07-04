@@ -39,11 +39,7 @@ class AleraCheckbox extends StatelessWidget {
         ),
       ),
       child: value
-          ? const Icon(
-              AleraIcons.check,
-              size: 14,
-              color: AleraTokens.onAccent,
-            )
+          ? const Icon(AleraIcons.check, size: 14, color: AleraTokens.onAccent)
           : null,
     );
     return Semantics(

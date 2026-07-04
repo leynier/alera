@@ -25,8 +25,8 @@ use crate::cli::{
     CascadePreviewArgs, Cli, Command, IdArgs, ProjectAction, ProjectAddArgs, ProjectCommand,
     ProjectKindArg, RuntimeAction, RuntimeCommand, RuntimeDirArgs, SshAuthKindArg, SshTargetAction,
     SshTargetAddArgs, SshTargetBootstrapArgs, SshTargetBootstrapPlanArgs, SshTargetCommand,
-    SshTargetStatusArgs, TabAction, TabCommand, TabCreateArgs, WorkspaceAction,
-    WorkspaceAddArgs, WorkspaceCommand, WorkspaceKindArg, WorkspaceRegisterArgs,
+    SshTargetStatusArgs, TabAction, TabCommand, TabCreateArgs, WorkspaceAction, WorkspaceAddArgs,
+    WorkspaceCommand, WorkspaceKindArg, WorkspaceRegisterArgs,
 };
 use crate::runtime_host_client::RuntimeHostRpcClient;
 use crate::ssh_bootstrap::{
@@ -209,7 +209,10 @@ async fn run_workspace_command(command: WorkspaceCommand) -> i32 {
                 Err(error) => return print_error(error),
             };
             let value: Value = match runtime_host_required(&runtime).await {
-                Ok(mut client) => match client.request_value("workspace.createManaged", &payload).await {
+                Ok(mut client) => match client
+                    .request_value("workspace.createManaged", &payload)
+                    .await
+                {
                     Ok(value) => value,
                     Err(error) => return print_error(error),
                 },
@@ -230,7 +233,10 @@ async fn run_workspace_command(command: WorkspaceCommand) -> i32 {
                 "deleteBranch": delete_branch,
             });
             let value: Value = match runtime_host_required(&runtime).await {
-                Ok(mut client) => match client.request_value("workspace.removeManaged", &payload).await {
+                Ok(mut client) => match client
+                    .request_value("workspace.removeManaged", &payload)
+                    .await
+                {
                     Ok(value) => value,
                     Err(error) => return print_error(error),
                 },

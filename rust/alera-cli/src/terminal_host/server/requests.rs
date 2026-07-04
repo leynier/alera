@@ -177,7 +177,11 @@ impl ServerActor {
         self.managed_workspace_jobs = self.managed_workspace_jobs.saturating_sub(1);
         match result {
             Ok(payload) => {
-                if let Some(id) = payload.get("id").and_then(Value::as_str).map(str::to_string) {
+                if let Some(id) = payload
+                    .get("id")
+                    .and_then(Value::as_str)
+                    .map(str::to_string)
+                {
                     self.terminate_sessions_for_workspace(&id).await;
                 }
                 self.client_write(client_id, ok_response(request_id, payload));

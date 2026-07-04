@@ -4,9 +4,9 @@ use std::process::Stdio;
 
 use alera_core::git as core_git;
 use alera_core::runtime::{
-    Project, ProjectConfig, ProjectKind, RuntimeStore, WorktreeCopyRule, WorktreeSetupReport,
-    WorktreeSetupStepKind, WorktreeSetupStepReport, Workspace, WorkspaceCreationResult,
-    WorkspaceKind, WorkspaceStatus, LOCAL_HOST_ID,
+    Project, ProjectConfig, ProjectKind, RuntimeStore, Workspace, WorkspaceCreationResult,
+    WorkspaceKind, WorkspaceStatus, WorktreeCopyRule, WorktreeSetupReport, WorktreeSetupStepKind,
+    WorktreeSetupStepReport, LOCAL_HOST_ID,
 };
 use anyhow::{anyhow, bail, Context, Result};
 use chrono::Utc;
@@ -183,7 +183,9 @@ pub async fn remove_managed_workspace(
         .ok_or_else(|| anyhow!("Project not found: {}", workspace.project_id))?;
     core_git::remove_worktree(&project.repo_path, &workspace.path, true)
         .context("git worktree remove failed")?;
-    let should_delete_branch = request.delete_branch.unwrap_or(!workspace.reuses_existing_branch);
+    let should_delete_branch = request
+        .delete_branch
+        .unwrap_or(!workspace.reuses_existing_branch);
     if should_delete_branch {
         let branch = workspace
             .branch
@@ -275,7 +277,11 @@ fn default_workspace_root() -> String {
     let home = std::env::var("HOME")
         .ok()
         .filter(|value| !value.is_empty())
-        .or_else(|| std::env::var("USERPROFILE").ok().filter(|value| !value.is_empty()))
+        .or_else(|| {
+            std::env::var("USERPROFILE")
+                .ok()
+                .filter(|value| !value.is_empty())
+        })
         .unwrap_or_else(|| ".".to_string());
     PathBuf::from(home)
         .join(".alera")
@@ -360,7 +366,10 @@ async fn run_worktree_setup(
     }
 }
 
-async fn effective_project_config(store: &RuntimeStore, project: &Project) -> Result<ProjectConfig> {
+async fn effective_project_config(
+    store: &RuntimeStore,
+    project: &Project,
+) -> Result<ProjectConfig> {
     if let Some(config) = store.find_project_config(&project.id).await? {
         return Ok(config);
     }
@@ -374,9 +383,7 @@ async fn effective_project_config(store: &RuntimeStore, project: &Project) -> Re
 }
 
 fn parse_project_config_toml(contents: &str) -> Result<ProjectConfig> {
-    let value: toml::Value = contents
-        .parse()
-        .context("Invalid alera.toml")?;
+    let value: toml::Value = contents.parse().context("Invalid alera.toml")?;
     let Some(root) = value.as_table() else {
         bail!("alera.toml must contain a table");
     };
@@ -410,9 +417,9 @@ fn parse_copy_rules(value: Option<&toml::Value>) -> Result<Vec<WorktreeCopyRule>
         let overwrite = table
             .get("overwrite")
             .map(|value| {
-                value.as_bool().ok_or_else(|| {
-                    anyhow!("worktree.copy[{index}].overwrite must be a boolean")
-                })
+                value
+                    .as_bool()
+                    .ok_or_else(|| anyhow!("worktree.copy[{index}].overwrite must be a boolean"))
             })
             .transpose()?
             .unwrap_or(false);
@@ -519,7 +526,11 @@ async fn run_setup_config(
     WorktreeSetupReport { steps }
 }
 
-fn copy_rule(project: &Project, workspace: &Workspace, rule: &WorktreeCopyRule) -> WorktreeSetupStepReport {
+fn copy_rule(
+    project: &Project,
+    workspace: &Workspace,
+    rule: &WorktreeCopyRule,
+) -> WorktreeSetupStepReport {
     let label = format!("{} -> {}", rule.from, rule.destination());
     match copy_rule_inner(project, workspace, rule) {
         Ok(()) => WorktreeSetupStepReport {
@@ -543,7 +554,11 @@ fn copy_rule(project: &Project, workspace: &Workspace, rule: &WorktreeCopyRule) 
     }
 }
 
-fn copy_rule_inner(project: &Project, workspace: &Workspace, rule: &WorktreeCopyRule) -> Result<()> {
+fn copy_rule_inner(
+    project: &Project,
+    workspace: &Workspace,
+    rule: &WorktreeCopyRule,
+) -> Result<()> {
     let project_root = std::fs::canonicalize(&project.repo_path)?;
     let workspace_root = std::fs::canonicalize(&workspace.path)?;
     let source_path = join_config_path(&project_root, &rule.from);
@@ -727,9 +742,7 @@ async fn run_setup_command(
     }
 }
 
-async fn await_tail(
-    handle: Option<tokio::task::JoinHandle<Option<String>>>,
-) -> Option<String> {
+async fn await_tail(handle: Option<tokio::task::JoinHandle<Option<String>>>) -> Option<String> {
     match handle {
         Some(handle) => handle.await.ok().flatten(),
         None => None,
@@ -837,7 +850,11 @@ fn merge_path_segments(environment: &mut Vec<(String, String)>, shell_segments: 
     let existing = environment
         .iter()
         .position(|(key, _)| key == "PATH")
-        .and_then(|index| environment.get(index).map(|(_, value)| (index, value.clone())));
+        .and_then(|index| {
+            environment
+                .get(index)
+                .map(|(_, value)| (index, value.clone()))
+        });
     let existing_segments = existing
         .as_ref()
         .map(|(_, path)| split_path_segments(path))
@@ -871,7 +888,12 @@ fn shell_invocation(command: &str) -> (&'static str, Vec<String>) {
     if cfg!(windows) {
         (
             "cmd.exe",
-            vec!["/d".to_string(), "/s".to_string(), "/c".to_string(), command.to_string()],
+            vec![
+                "/d".to_string(),
+                "/s".to_string(),
+                "/c".to_string(),
+                command.to_string(),
+            ],
         )
     } else {
         ("/bin/sh", vec!["-c".to_string(), command.to_string()])
@@ -959,7 +981,9 @@ mod tests {
         std::fs::create_dir(&repo).unwrap();
         init_git_repo(&repo);
 
-        let store = RuntimeStore::open(&dir.path().join("runtime")).await.unwrap();
+        let store = RuntimeStore::open(&dir.path().join("runtime"))
+            .await
+            .unwrap();
         let now = Utc::now();
         store
             .upsert_project(Project {

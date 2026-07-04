@@ -28,7 +28,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.text('General'), findsWidgets);
+      expect(find.text('Application'), findsWidgets);
     });
 
     testWidgets(
@@ -273,42 +273,41 @@ void main() {
       },
     );
 
-    testWidgets(
-      'showCreateWorkspaceFlow warns when the parent link fails',
-      (tester) async {
-        final project = _project('project-1', 'Alera');
-        final controller =
-            _DialogLaunchersTestController(
-                WorkbenchState(projects: <Project>[project]),
-              )
-              ..sourceBranches = <String>['main']
-              ..parentLinkError = 'Parent workspace not found';
+    testWidgets('showCreateWorkspaceFlow warns when the parent link fails', (
+      tester,
+    ) async {
+      final project = _project('project-1', 'Alera');
+      final controller =
+          _DialogLaunchersTestController(
+              WorkbenchState(projects: <Project>[project]),
+            )
+            ..sourceBranches = <String>['main']
+            ..parentLinkError = 'Parent workspace not found';
 
-        await _pumpFlowHarness(
-          tester,
-          controller: controller,
-          onPressed: (context, ref) => showCreateWorkspaceFlow(context, ref),
-        );
+      await _pumpFlowHarness(
+        tester,
+        controller: controller,
+        onPressed: (context, ref) => showCreateWorkspaceFlow(context, ref),
+      );
 
-        await tester.tap(find.text('Open'));
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Continue'));
-        await tester.pumpAndSettle();
-        await tester.enterText(
-          find.widgetWithText(TextField, 'New Branch Name *'),
-          'feature/orphan',
-        );
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Create Workspace'));
-        await tester.pumpAndSettle();
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Continue'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextField, 'New Branch Name *'),
+        'feature/orphan',
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Create Workspace'));
+      await tester.pumpAndSettle();
 
-        expect(
-          find.text('Workspace Created, But Parent Link Failed'),
-          findsOneWidget,
-        );
-        expect(find.text('Workspace Created'), findsNothing);
-      },
-    );
+      expect(
+        find.text('Workspace Created, But Parent Link Failed'),
+        findsOneWidget,
+      );
+      expect(find.text('Workspace Created'), findsNothing);
+    });
 
     testWidgets('showCreateWorkspaceFlow surfaces controller errors', (
       tester,
