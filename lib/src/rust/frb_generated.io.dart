@@ -56,6 +56,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   GitChangeEntry dco_decode_box_autoadd_git_change_entry(dynamic raw);
 
   @protected
+  GitHistoryItemRef dco_decode_box_autoadd_git_history_item_ref(dynamic raw);
+
+  @protected
+  GitHistoryRefCategory dco_decode_box_autoadd_git_history_ref_category(
+    dynamic raw,
+  );
+
+  @protected
+  PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
+
+  @protected
   SourceControlWatcherHandle
   dco_decode_box_autoadd_source_control_watcher_handle(dynamic raw);
 
@@ -109,6 +120,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   GitChangeTreeRowKind dco_decode_git_change_tree_row_kind(dynamic raw);
 
   @protected
+  GitCommitChangeEntry dco_decode_git_commit_change_entry(dynamic raw);
+
+  @protected
+  GitCommitCompareResult dco_decode_git_commit_compare_result(dynamic raw);
+
+  @protected
+  GitCommitCompareStatus dco_decode_git_commit_compare_status(dynamic raw);
+
+  @protected
+  GitCommitCompareSummary dco_decode_git_commit_compare_summary(dynamic raw);
+
+  @protected
   GitDiffFile dco_decode_git_diff_file(dynamic raw);
 
   @protected
@@ -125,6 +148,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GitErrorKind dco_decode_git_error_kind(dynamic raw);
+
+  @protected
+  GitHistoryItem dco_decode_git_history_item(dynamic raw);
+
+  @protected
+  GitHistoryItemRef dco_decode_git_history_item_ref(dynamic raw);
+
+  @protected
+  GitHistoryRefCategory dco_decode_git_history_ref_category(dynamic raw);
+
+  @protected
+  GitHistoryResult dco_decode_git_history_result(dynamic raw);
 
   @protected
   GitRepositoryState dco_decode_git_repository_state(dynamic raw);
@@ -160,10 +195,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<GitChangeTreeRow> dco_decode_list_git_change_tree_row(dynamic raw);
 
   @protected
+  List<GitCommitChangeEntry> dco_decode_list_git_commit_change_entry(
+    dynamic raw,
+  );
+
+  @protected
   List<GitDiffFile> dco_decode_list_git_diff_file(dynamic raw);
 
   @protected
   List<GitDiffLine> dco_decode_list_git_diff_line(dynamic raw);
+
+  @protected
+  List<GitHistoryItem> dco_decode_list_git_history_item(dynamic raw);
+
+  @protected
+  List<GitHistoryItemRef> dco_decode_list_git_history_item_ref(dynamic raw);
 
   @protected
   List<GitStashEntry> dco_decode_list_git_stash_entry(dynamic raw);
@@ -223,6 +269,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GitChangeEntry? dco_decode_opt_box_autoadd_git_change_entry(dynamic raw);
+
+  @protected
+  GitHistoryItemRef? dco_decode_opt_box_autoadd_git_history_item_ref(
+    dynamic raw,
+  );
+
+  @protected
+  GitHistoryRefCategory? dco_decode_opt_box_autoadd_git_history_ref_category(
+    dynamic raw,
+  );
+
+  @protected
+  PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
 
   @protected
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
@@ -402,6 +461,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  GitHistoryItemRef sse_decode_box_autoadd_git_history_item_ref(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  GitHistoryRefCategory sse_decode_box_autoadd_git_history_ref_category(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
+
+  @protected
   SourceControlWatcherHandle
   sse_decode_box_autoadd_source_control_watcher_handle(
     SseDeserializer deserializer,
@@ -463,6 +535,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  GitCommitChangeEntry sse_decode_git_commit_change_entry(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  GitCommitCompareResult sse_decode_git_commit_compare_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  GitCommitCompareStatus sse_decode_git_commit_compare_status(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  GitCommitCompareSummary sse_decode_git_commit_compare_summary(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   GitDiffFile sse_decode_git_diff_file(SseDeserializer deserializer);
 
   @protected
@@ -479,6 +571,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GitErrorKind sse_decode_git_error_kind(SseDeserializer deserializer);
+
+  @protected
+  GitHistoryItem sse_decode_git_history_item(SseDeserializer deserializer);
+
+  @protected
+  GitHistoryItemRef sse_decode_git_history_item_ref(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  GitHistoryRefCategory sse_decode_git_history_ref_category(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  GitHistoryResult sse_decode_git_history_result(SseDeserializer deserializer);
 
   @protected
   GitRepositoryState sse_decode_git_repository_state(
@@ -524,10 +632,25 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<GitCommitChangeEntry> sse_decode_list_git_commit_change_entry(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<GitDiffFile> sse_decode_list_git_diff_file(SseDeserializer deserializer);
 
   @protected
   List<GitDiffLine> sse_decode_list_git_diff_line(SseDeserializer deserializer);
+
+  @protected
+  List<GitHistoryItem> sse_decode_list_git_history_item(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<GitHistoryItemRef> sse_decode_list_git_history_item_ref(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<GitStashEntry> sse_decode_list_git_stash_entry(
@@ -607,6 +730,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   GitChangeEntry? sse_decode_opt_box_autoadd_git_change_entry(
     SseDeserializer deserializer,
   );
+
+  @protected
+  GitHistoryItemRef? sse_decode_opt_box_autoadd_git_history_item_ref(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  GitHistoryRefCategory? sse_decode_opt_box_autoadd_git_history_ref_category(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
@@ -833,6 +969,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_git_history_item_ref(
+    GitHistoryItemRef self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_git_history_ref_category(
+    GitHistoryRefCategory self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_i_64(
+    PlatformInt64 self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_source_control_watcher_handle(
     SourceControlWatcherHandle self,
     SseSerializer serializer,
@@ -911,6 +1065,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_git_commit_change_entry(
+    GitCommitChangeEntry self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_git_commit_compare_result(
+    GitCommitCompareResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_git_commit_compare_status(
+    GitCommitCompareStatus self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_git_commit_compare_summary(
+    GitCommitCompareSummary self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_git_diff_file(GitDiffFile self, SseSerializer serializer);
 
   @protected
@@ -930,6 +1108,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_git_error_kind(GitErrorKind self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_git_history_item(
+    GitHistoryItem self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_git_history_item_ref(
+    GitHistoryItemRef self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_git_history_ref_category(
+    GitHistoryRefCategory self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_git_history_result(
+    GitHistoryResult self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_git_repository_state(
@@ -986,6 +1188,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_git_commit_change_entry(
+    List<GitCommitChangeEntry> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_git_diff_file(
     List<GitDiffFile> self,
     SseSerializer serializer,
@@ -994,6 +1202,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_git_diff_line(
     List<GitDiffLine> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_git_history_item(
+    List<GitHistoryItem> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_git_history_item_ref(
+    List<GitHistoryItemRef> self,
     SseSerializer serializer,
   );
 
@@ -1087,6 +1307,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_git_change_entry(
     GitChangeEntry? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_git_history_item_ref(
+    GitHistoryItemRef? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_git_history_ref_category(
+    GitHistoryRefCategory? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_i_64(
+    PlatformInt64? self,
     SseSerializer serializer,
   );
 

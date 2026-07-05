@@ -604,6 +604,18 @@ void main() {
               onOpenFile: (_) {},
               onOpenGitDiff:
                   ({relativePath, area, gitDiffRoot, required scope}) async {},
+              onOpenGitCommitDiff:
+                  ({
+                    relativePath,
+                    oldPath,
+                    required scope,
+                    gitDiffRoot,
+                    required commitOid,
+                    parentOid,
+                    required compareRef,
+                    subject,
+                    message,
+                  }) async {},
               onOpenSearchMatch: (_) {},
               onPathMoved: (_, _) async {},
             ),
@@ -643,6 +655,18 @@ void main() {
               onOpenFile: (_) {},
               onOpenGitDiff:
                   ({relativePath, area, gitDiffRoot, required scope}) async {},
+              onOpenGitCommitDiff:
+                  ({
+                    relativePath,
+                    oldPath,
+                    required scope,
+                    gitDiffRoot,
+                    required commitOid,
+                    parentOid,
+                    required compareRef,
+                    subject,
+                    message,
+                  }) async {},
               onOpenSearchMatch: (_) {},
               onPathMoved: (_, _) async {},
             ),
@@ -682,6 +706,18 @@ void main() {
               onOpenFile: (_) {},
               onOpenGitDiff:
                   ({relativePath, area, gitDiffRoot, required scope}) async {},
+              onOpenGitCommitDiff:
+                  ({
+                    relativePath,
+                    oldPath,
+                    required scope,
+                    gitDiffRoot,
+                    required commitOid,
+                    parentOid,
+                    required compareRef,
+                    subject,
+                    message,
+                  }) async {},
               onOpenSearchMatch: (_) {},
               onPathMoved: (_, _) async {},
             ),
@@ -717,6 +753,18 @@ void main() {
               onOpenFile: (_) {},
               onOpenGitDiff:
                   ({relativePath, area, gitDiffRoot, required scope}) async {},
+              onOpenGitCommitDiff:
+                  ({
+                    relativePath,
+                    oldPath,
+                    required scope,
+                    gitDiffRoot,
+                    required commitOid,
+                    parentOid,
+                    required compareRef,
+                    subject,
+                    message,
+                  }) async {},
               onOpenSearchMatch: (_) {},
               onPathMoved: (_, _) async {},
             ),
@@ -822,6 +870,18 @@ Widget _workspaceContextSidebar(Workspace workspace) {
     onSetGitDiffViewMode: (_) {},
     onOpenFile: (_) {},
     onOpenGitDiff: ({relativePath, area, gitDiffRoot, required scope}) async {},
+    onOpenGitCommitDiff:
+        ({
+          relativePath,
+          oldPath,
+          required scope,
+          gitDiffRoot,
+          required commitOid,
+          parentOid,
+          required compareRef,
+          subject,
+          message,
+        }) async {},
     onOpenSearchMatch: (_) {},
     onPathMoved: (_, _) async {},
   );

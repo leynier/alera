@@ -84,6 +84,26 @@ abstract interface class GitBackend {
   /// when [filePath] is provided.
   Future<GitDiffResult> diffAll({required String path, String? filePath});
 
+  /// Loads commit history for the repository containing [path].
+  Future<GitHistoryResult> history(String path, {int? limit, String? baseRef});
+
+  /// Lists files changed by [commitId] compared with its first parent.
+  Future<GitCommitCompareResult> commitCompare({
+    required String path,
+    required String commitId,
+  });
+
+  /// Loads a read-only diff for [commitOid] compared with [parentOid], or the
+  /// root empty tree when [parentOid] is null. When [filePath] is omitted, all
+  /// files changed by the commit are returned as a combined diff.
+  Future<GitDiffResult> commitDiff({
+    required String path,
+    required String commitOid,
+    String? parentOid,
+    String? filePath,
+    String? oldPath,
+  });
+
   /// Branch/upstream/divergence information for the repository containing
   /// [path].
   Future<GitRepositoryState> repositoryState(String path);

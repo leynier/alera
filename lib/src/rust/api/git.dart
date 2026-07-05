@@ -6,8 +6,8 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `canonical`, `checkout_path_for_branch`, `commit_parent_commits`, `configured_remote_for_tracking_branch`, `current_head_commit`, `delete_workspace_relative_path`, `discard_status_entries`, `entries_for_area_and_scope`, `existing_worktree_admin_names`, `fast_forward_local_branch`, `find_remote_tracking_branch_name`, `from_git2`, `from_io`, `git_cli_in_path`, `git_fetch_remote`, `git_signature`, `has_configured_remote_for_tracking_branch`, `head_branch_name`, `is_path_occupied`, `merge_head_oids`, `new`, `open_repo`, `pathspec_string`, `reject_out_of_scope_staged_entries`, `reject_out_of_scope_stash_pop`, `reject_out_of_scope_tracked_changes`, `reject_tree_diff_out_of_scope`, `relative_path`, `remote_tracking_upstream_name`, `remove_index_path_if_present`, `repo_path_is_in_scope`, `repo_relative_path_from_workspace`, `repo_relative_path`, `repo_workdir_path_exists`, `repository_has_conflicts`, `scoped_pathspecs`, `split_clone_destination`, `stage_selected_path`, `stage_status_entries`, `stash_oid`, `unborn_branch_name`, `unique_worktree_admin_name`, `unstage_selected_path`, `unstage_status_entries`, `workspace_path_is_in_scope`, `workspace_repo_relative_path`, `worktree_admin_name`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These functions are ignored because they are not marked as `pub`: `commit_parent_commits`, `current_head_commit`, `delete_workspace_relative_path`, `discard_status_entries`, `entries_for_area_and_scope`, `from_git2`, `from_io`, `git_cli_in_path`, `git_signature`, `head_branch_name`, `merge_head_oids`, `new`, `open_repo`, `pathspec_string`, `reject_out_of_scope_staged_entries`, `reject_out_of_scope_stash_pop`, `reject_out_of_scope_tracked_changes`, `reject_tree_diff_out_of_scope`, `relative_path`, `remove_index_path_if_present`, `repo_path_is_in_scope`, `repo_relative_path_from_workspace`, `repo_relative_path`, `repo_workdir_path_exists`, `repository_has_conflicts`, `scoped_pathspecs`, `split_clone_destination`, `stage_selected_path`, `stage_status_entries`, `stash_oid`, `unborn_branch_name`, `unstage_selected_path`, `unstage_status_entries`, `workspace_path_is_in_scope`, `workspace_repo_relative_path`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`
 
 Future<bool> isGitRepository({required String path}) =>
     RustLib.instance.api.crateApiGitIsGitRepository(path: path);
@@ -50,6 +50,38 @@ Future<GitDiffResult> gitDiff({
 
 Future<GitDiffResult> gitDiffAll({required String path, String? filePath}) =>
     RustLib.instance.api.crateApiGitGitDiffAll(path: path, filePath: filePath);
+
+Future<GitHistoryResult> gitHistory({
+  required String path,
+  int? limit,
+  String? baseRef,
+}) => RustLib.instance.api.crateApiGitGitHistory(
+  path: path,
+  limit: limit,
+  baseRef: baseRef,
+);
+
+Future<GitCommitCompareResult> gitCommitCompare({
+  required String path,
+  required String commitId,
+}) => RustLib.instance.api.crateApiGitGitCommitCompare(
+  path: path,
+  commitId: commitId,
+);
+
+Future<GitDiffResult> gitCommitDiff({
+  required String path,
+  required String commitOid,
+  String? parentOid,
+  String? filePath,
+  String? oldPath,
+}) => RustLib.instance.api.crateApiGitGitCommitDiff(
+  path: path,
+  commitOid: commitOid,
+  parentOid: parentOid,
+  filePath: filePath,
+  oldPath: oldPath,
+);
 
 Future<GitRepositoryState> gitRepositoryState({required String path}) =>
     RustLib.instance.api.crateApiGitGitRepositoryState(path: path);
@@ -306,6 +338,104 @@ class GitChangeTreeRow {
 
 enum GitChangeTreeRowKind { directory, file }
 
+class GitCommitChangeEntry {
+  final String path;
+  final String? oldPath;
+  final GitChangeStatus status;
+  final int? added;
+  final int? removed;
+
+  const GitCommitChangeEntry({
+    required this.path,
+    this.oldPath,
+    required this.status,
+    this.added,
+    this.removed,
+  });
+
+  @override
+  int get hashCode =>
+      path.hashCode ^
+      oldPath.hashCode ^
+      status.hashCode ^
+      added.hashCode ^
+      removed.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GitCommitChangeEntry &&
+          runtimeType == other.runtimeType &&
+          path == other.path &&
+          oldPath == other.oldPath &&
+          status == other.status &&
+          added == other.added &&
+          removed == other.removed;
+}
+
+class GitCommitCompareResult {
+  final GitCommitCompareSummary summary;
+  final List<GitCommitChangeEntry> entries;
+
+  const GitCommitCompareResult({required this.summary, required this.entries});
+
+  @override
+  int get hashCode => summary.hashCode ^ entries.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GitCommitCompareResult &&
+          runtimeType == other.runtimeType &&
+          summary == other.summary &&
+          entries == other.entries;
+}
+
+enum GitCommitCompareStatus { ready, invalidCommit, error }
+
+class GitCommitCompareSummary {
+  final String commitOid;
+  final String? parentOid;
+  final String compareRef;
+  final String baseRef;
+  final int changedFiles;
+  final GitCommitCompareStatus status;
+  final String? errorMessage;
+
+  const GitCommitCompareSummary({
+    required this.commitOid,
+    this.parentOid,
+    required this.compareRef,
+    required this.baseRef,
+    required this.changedFiles,
+    required this.status,
+    this.errorMessage,
+  });
+
+  @override
+  int get hashCode =>
+      commitOid.hashCode ^
+      parentOid.hashCode ^
+      compareRef.hashCode ^
+      baseRef.hashCode ^
+      changedFiles.hashCode ^
+      status.hashCode ^
+      errorMessage.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GitCommitCompareSummary &&
+          runtimeType == other.runtimeType &&
+          commitOid == other.commitOid &&
+          parentOid == other.parentOid &&
+          compareRef == other.compareRef &&
+          baseRef == other.baseRef &&
+          changedFiles == other.changedFiles &&
+          status == other.status &&
+          errorMessage == other.errorMessage;
+}
+
 class GitDiffFile {
   final String path;
   final String? oldPath;
@@ -439,6 +569,138 @@ enum GitErrorKind {
   workspaceScope,
   missingIdentity,
   internal,
+}
+
+class GitHistoryItem {
+  final String id;
+  final List<String> parentIds;
+  final String subject;
+  final String message;
+  final String? displayId;
+  final String? author;
+  final String? authorEmail;
+  final PlatformInt64? timestamp;
+  final List<GitHistoryItemRef> references;
+
+  const GitHistoryItem({
+    required this.id,
+    required this.parentIds,
+    required this.subject,
+    required this.message,
+    this.displayId,
+    this.author,
+    this.authorEmail,
+    this.timestamp,
+    required this.references,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      parentIds.hashCode ^
+      subject.hashCode ^
+      message.hashCode ^
+      displayId.hashCode ^
+      author.hashCode ^
+      authorEmail.hashCode ^
+      timestamp.hashCode ^
+      references.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GitHistoryItem &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          parentIds == other.parentIds &&
+          subject == other.subject &&
+          message == other.message &&
+          displayId == other.displayId &&
+          author == other.author &&
+          authorEmail == other.authorEmail &&
+          timestamp == other.timestamp &&
+          references == other.references;
+}
+
+class GitHistoryItemRef {
+  final String id;
+  final String name;
+  final String? revision;
+  final GitHistoryRefCategory? category;
+
+  const GitHistoryItemRef({
+    required this.id,
+    required this.name,
+    this.revision,
+    this.category,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^ name.hashCode ^ revision.hashCode ^ category.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GitHistoryItemRef &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          name == other.name &&
+          revision == other.revision &&
+          category == other.category;
+}
+
+enum GitHistoryRefCategory { branches, remoteBranches, tags, commits }
+
+class GitHistoryResult {
+  final List<GitHistoryItem> items;
+  final GitHistoryItemRef? currentRef;
+  final GitHistoryItemRef? remoteRef;
+  final GitHistoryItemRef? baseRef;
+  final String? mergeBase;
+  final bool hasIncomingChanges;
+  final bool hasOutgoingChanges;
+  final bool hasMore;
+  final int limit;
+
+  const GitHistoryResult({
+    required this.items,
+    this.currentRef,
+    this.remoteRef,
+    this.baseRef,
+    this.mergeBase,
+    required this.hasIncomingChanges,
+    required this.hasOutgoingChanges,
+    required this.hasMore,
+    required this.limit,
+  });
+
+  @override
+  int get hashCode =>
+      items.hashCode ^
+      currentRef.hashCode ^
+      remoteRef.hashCode ^
+      baseRef.hashCode ^
+      mergeBase.hashCode ^
+      hasIncomingChanges.hashCode ^
+      hasOutgoingChanges.hashCode ^
+      hasMore.hashCode ^
+      limit.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GitHistoryResult &&
+          runtimeType == other.runtimeType &&
+          items == other.items &&
+          currentRef == other.currentRef &&
+          remoteRef == other.remoteRef &&
+          baseRef == other.baseRef &&
+          mergeBase == other.mergeBase &&
+          hasIncomingChanges == other.hasIncomingChanges &&
+          hasOutgoingChanges == other.hasOutgoingChanges &&
+          hasMore == other.hasMore &&
+          limit == other.limit;
 }
 
 class GitRepositoryState {

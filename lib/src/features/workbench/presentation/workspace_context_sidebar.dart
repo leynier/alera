@@ -26,6 +26,7 @@ class WorkspaceContextSidebar extends StatelessWidget {
     this.onClearSourceControlRoot,
     required this.onOpenFile,
     required this.onOpenGitDiff,
+    required this.onOpenGitCommitDiff,
     required this.onOpenSearchMatch,
     required this.onPathMoved,
   });
@@ -44,6 +45,7 @@ class WorkspaceContextSidebar extends StatelessWidget {
   final VoidCallback? onClearSourceControlRoot;
   final ValueChanged<String> onOpenFile;
   final OpenGitDiffTabCallback onOpenGitDiff;
+  final OpenGitCommitDiffTabCallback onOpenGitCommitDiff;
   final ValueChanged<WorkspaceSearchMatchTarget> onOpenSearchMatch;
   final Future<void> Function(String oldRelativePath, String newRelativePath)
   onPathMoved;
@@ -103,6 +105,7 @@ class WorkspaceContextSidebar extends StatelessWidget {
                               viewMode: prefs.gitDiffViewMode,
                               onViewModeChanged: onSetGitDiffViewMode,
                               onOpenGitDiff: onOpenGitDiff,
+                              onOpenGitCommitDiff: onOpenGitCommitDiff,
                               onClearSourceControlRoot:
                                   sourceControlScope.isWorkspaceRoot
                                   ? null

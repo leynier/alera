@@ -38,7 +38,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1983816553;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1007517553;
 
 // Section: executor
 
@@ -338,12 +338,12 @@ fn wire__crate__api__git__delete_branch_impl(
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_repo_path = <String>::sse_decode(&mut deserializer);
             let api_branch = <String>::sse_decode(&mut deserializer);
-            let api__force = <bool>::sse_decode(&mut deserializer);
+            let api_force = <bool>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, crate::api::git::GitError>((move || {
                     let output_ok =
-                        crate::api::git::delete_branch(api_repo_path, api_branch, api__force)?;
+                        crate::api::git::delete_branch(api_repo_path, api_branch, api_force)?;
                     Ok(output_ok)
                 })())
             }
@@ -453,6 +453,83 @@ fn wire__crate__api__git__git_commit_amend_impl(
             move |context| {
                 transform_result_sse::<_, crate::api::git::GitError>((move || {
                     let output_ok = crate::api::git::git_commit_amend(api_path, api_message)?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__git__git_commit_compare_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "git_commit_compare",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_path = <String>::sse_decode(&mut deserializer);
+            let api_commit_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::git::GitError>((move || {
+                    let output_ok = crate::api::git::git_commit_compare(api_path, api_commit_id)?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__git__git_commit_diff_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "git_commit_diff",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_path = <String>::sse_decode(&mut deserializer);
+            let api_commit_oid = <String>::sse_decode(&mut deserializer);
+            let api_parent_oid = <Option<String>>::sse_decode(&mut deserializer);
+            let api_file_path = <Option<String>>::sse_decode(&mut deserializer);
+            let api_old_path = <Option<String>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::git::GitError>((move || {
+                    let output_ok = crate::api::git::git_commit_diff(
+                        api_path,
+                        api_commit_oid,
+                        api_parent_oid,
+                        api_file_path,
+                        api_old_path,
+                    )?;
                     Ok(output_ok)
                 })())
             }
@@ -625,6 +702,42 @@ fn wire__crate__api__git__git_fetch_impl(
             move |context| {
                 transform_result_sse::<_, crate::api::git::GitError>((move || {
                     let output_ok = crate::api::git::git_fetch(api_path)?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__git__git_history_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "git_history",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_path = <String>::sse_decode(&mut deserializer);
+            let api_limit = <Option<u32>>::sse_decode(&mut deserializer);
+            let api_base_ref = <Option<String>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::git::GitError>((move || {
+                    let output_ok =
+                        crate::api::git::git_history(api_path, api_limit, api_base_ref)?;
                     Ok(output_ok)
                 })())
             }
@@ -2408,6 +2521,72 @@ impl SseDecode for crate::api::git::GitChangeTreeRowKind {
     }
 }
 
+impl SseDecode for crate::api::git::GitCommitChangeEntry {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_path = <String>::sse_decode(deserializer);
+        let mut var_oldPath = <Option<String>>::sse_decode(deserializer);
+        let mut var_status = <crate::api::git::GitChangeStatus>::sse_decode(deserializer);
+        let mut var_added = <Option<u32>>::sse_decode(deserializer);
+        let mut var_removed = <Option<u32>>::sse_decode(deserializer);
+        return crate::api::git::GitCommitChangeEntry {
+            path: var_path,
+            old_path: var_oldPath,
+            status: var_status,
+            added: var_added,
+            removed: var_removed,
+        };
+    }
+}
+
+impl SseDecode for crate::api::git::GitCommitCompareResult {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_summary = <crate::api::git::GitCommitCompareSummary>::sse_decode(deserializer);
+        let mut var_entries =
+            <Vec<crate::api::git::GitCommitChangeEntry>>::sse_decode(deserializer);
+        return crate::api::git::GitCommitCompareResult {
+            summary: var_summary,
+            entries: var_entries,
+        };
+    }
+}
+
+impl SseDecode for crate::api::git::GitCommitCompareStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::git::GitCommitCompareStatus::Ready,
+            1 => crate::api::git::GitCommitCompareStatus::InvalidCommit,
+            2 => crate::api::git::GitCommitCompareStatus::Error,
+            _ => unreachable!("Invalid variant for GitCommitCompareStatus: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::git::GitCommitCompareSummary {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_commitOid = <String>::sse_decode(deserializer);
+        let mut var_parentOid = <Option<String>>::sse_decode(deserializer);
+        let mut var_compareRef = <String>::sse_decode(deserializer);
+        let mut var_baseRef = <String>::sse_decode(deserializer);
+        let mut var_changedFiles = <u32>::sse_decode(deserializer);
+        let mut var_status = <crate::api::git::GitCommitCompareStatus>::sse_decode(deserializer);
+        let mut var_errorMessage = <Option<String>>::sse_decode(deserializer);
+        return crate::api::git::GitCommitCompareSummary {
+            commit_oid: var_commitOid,
+            parent_oid: var_parentOid,
+            compare_ref: var_compareRef,
+            base_ref: var_baseRef,
+            changed_files: var_changedFiles,
+            status: var_status,
+            error_message: var_errorMessage,
+        };
+    }
+}
+
 impl SseDecode for crate::api::git::GitDiffFile {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -2512,6 +2691,93 @@ impl SseDecode for crate::api::git::GitErrorKind {
             15 => crate::api::git::GitErrorKind::MissingIdentity,
             16 => crate::api::git::GitErrorKind::Internal,
             _ => unreachable!("Invalid variant for GitErrorKind: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::git::GitHistoryItem {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_parentIds = <Vec<String>>::sse_decode(deserializer);
+        let mut var_subject = <String>::sse_decode(deserializer);
+        let mut var_message = <String>::sse_decode(deserializer);
+        let mut var_displayId = <Option<String>>::sse_decode(deserializer);
+        let mut var_author = <Option<String>>::sse_decode(deserializer);
+        let mut var_authorEmail = <Option<String>>::sse_decode(deserializer);
+        let mut var_timestamp = <Option<i64>>::sse_decode(deserializer);
+        let mut var_references =
+            <Vec<crate::api::git::GitHistoryItemRef>>::sse_decode(deserializer);
+        return crate::api::git::GitHistoryItem {
+            id: var_id,
+            parent_ids: var_parentIds,
+            subject: var_subject,
+            message: var_message,
+            display_id: var_displayId,
+            author: var_author,
+            author_email: var_authorEmail,
+            timestamp: var_timestamp,
+            references: var_references,
+        };
+    }
+}
+
+impl SseDecode for crate::api::git::GitHistoryItemRef {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_name = <String>::sse_decode(deserializer);
+        let mut var_revision = <Option<String>>::sse_decode(deserializer);
+        let mut var_category =
+            <Option<crate::api::git::GitHistoryRefCategory>>::sse_decode(deserializer);
+        return crate::api::git::GitHistoryItemRef {
+            id: var_id,
+            name: var_name,
+            revision: var_revision,
+            category: var_category,
+        };
+    }
+}
+
+impl SseDecode for crate::api::git::GitHistoryRefCategory {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::git::GitHistoryRefCategory::Branches,
+            1 => crate::api::git::GitHistoryRefCategory::RemoteBranches,
+            2 => crate::api::git::GitHistoryRefCategory::Tags,
+            3 => crate::api::git::GitHistoryRefCategory::Commits,
+            _ => unreachable!("Invalid variant for GitHistoryRefCategory: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::git::GitHistoryResult {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_items = <Vec<crate::api::git::GitHistoryItem>>::sse_decode(deserializer);
+        let mut var_currentRef =
+            <Option<crate::api::git::GitHistoryItemRef>>::sse_decode(deserializer);
+        let mut var_remoteRef =
+            <Option<crate::api::git::GitHistoryItemRef>>::sse_decode(deserializer);
+        let mut var_baseRef =
+            <Option<crate::api::git::GitHistoryItemRef>>::sse_decode(deserializer);
+        let mut var_mergeBase = <Option<String>>::sse_decode(deserializer);
+        let mut var_hasIncomingChanges = <bool>::sse_decode(deserializer);
+        let mut var_hasOutgoingChanges = <bool>::sse_decode(deserializer);
+        let mut var_hasMore = <bool>::sse_decode(deserializer);
+        let mut var_limit = <u32>::sse_decode(deserializer);
+        return crate::api::git::GitHistoryResult {
+            items: var_items,
+            current_ref: var_currentRef,
+            remote_ref: var_remoteRef,
+            base_ref: var_baseRef,
+            merge_base: var_mergeBase,
+            has_incoming_changes: var_hasIncomingChanges,
+            has_outgoing_changes: var_hasOutgoingChanges,
+            has_more: var_hasMore,
+            limit: var_limit,
         };
     }
 }
@@ -2654,6 +2920,20 @@ impl SseDecode for Vec<crate::api::git::GitChangeTreeRow> {
     }
 }
 
+impl SseDecode for Vec<crate::api::git::GitCommitChangeEntry> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::git::GitCommitChangeEntry>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::git::GitDiffFile> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -2673,6 +2953,32 @@ impl SseDecode for Vec<crate::api::git::GitDiffLine> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::git::GitDiffLine>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::git::GitHistoryItem> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::git::GitHistoryItem>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::git::GitHistoryItemRef> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::git::GitHistoryItemRef>::sse_decode(
+                deserializer,
+            ));
         }
         return ans_;
     }
@@ -2893,6 +3199,43 @@ impl SseDecode for Option<crate::api::git::GitChangeEntry> {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<crate::api::git::GitChangeEntry>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::git::GitHistoryItemRef> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::git::GitHistoryItemRef>::sse_decode(
+                deserializer,
+            ));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::git::GitHistoryRefCategory> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::git::GitHistoryRefCategory>::sse_decode(
+                deserializer,
+            ));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<i64> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<i64>::sse_decode(deserializer));
         } else {
             return None;
         }
@@ -3462,163 +3805,166 @@ fn pde_ffi_dispatcher_primary_impl(
         ),
         10 => wire__crate__api__git__git_commit_impl(port, ptr, rust_vec_len, data_len),
         11 => wire__crate__api__git__git_commit_amend_impl(port, ptr, rust_vec_len, data_len),
-        12 => wire__crate__api__git__git_diff_impl(port, ptr, rust_vec_len, data_len),
-        13 => wire__crate__api__git__git_diff_all_impl(port, ptr, rust_vec_len, data_len),
-        14 => wire__crate__api__git__git_discard_impl(port, ptr, rust_vec_len, data_len),
-        15 => wire__crate__api__git__git_discard_area_impl(port, ptr, rust_vec_len, data_len),
-        16 => wire__crate__api__git__git_fetch_impl(port, ptr, rust_vec_len, data_len),
-        17 => wire__crate__api__git__git_list_stashes_impl(port, ptr, rust_vec_len, data_len),
-        18 => wire__crate__api__git__git_pull_impl(port, ptr, rust_vec_len, data_len),
-        19 => wire__crate__api__git__git_push_impl(port, ptr, rust_vec_len, data_len),
-        20 => wire__crate__api__git__git_repository_state_impl(port, ptr, rust_vec_len, data_len),
-        21 => wire__crate__api__git__git_stage_impl(port, ptr, rust_vec_len, data_len),
-        22 => wire__crate__api__git__git_stage_area_impl(port, ptr, rust_vec_len, data_len),
-        23 => wire__crate__api__git__git_stash_impl(port, ptr, rust_vec_len, data_len),
-        24 => wire__crate__api__git__git_stash_pop_impl(port, ptr, rust_vec_len, data_len),
-        25 => wire__crate__api__git__git_status_impl(port, ptr, rust_vec_len, data_len),
-        26 => wire__crate__api__git__git_status_for_path_impl(port, ptr, rust_vec_len, data_len),
-        27 => wire__crate__api__git__git_unstage_impl(port, ptr, rust_vec_len, data_len),
-        28 => wire__crate__api__git__git_unstage_area_impl(port, ptr, rust_vec_len, data_len),
-        29 => wire__crate__api__init_app_impl(port, ptr, rust_vec_len, data_len),
-        30 => wire__crate__api__git__is_git_repository_impl(port, ptr, rust_vec_len, data_len),
-        31 => wire__crate__api__git__is_valid_branch_name_impl(port, ptr, rust_vec_len, data_len),
-        32 => wire__crate__api__git__list_branches_impl(port, ptr, rust_vec_len, data_len),
-        33 => wire__crate__api__workspace_files__list_workspace_children_impl(
+        12 => wire__crate__api__git__git_commit_compare_impl(port, ptr, rust_vec_len, data_len),
+        13 => wire__crate__api__git__git_commit_diff_impl(port, ptr, rust_vec_len, data_len),
+        14 => wire__crate__api__git__git_diff_impl(port, ptr, rust_vec_len, data_len),
+        15 => wire__crate__api__git__git_diff_all_impl(port, ptr, rust_vec_len, data_len),
+        16 => wire__crate__api__git__git_discard_impl(port, ptr, rust_vec_len, data_len),
+        17 => wire__crate__api__git__git_discard_area_impl(port, ptr, rust_vec_len, data_len),
+        18 => wire__crate__api__git__git_fetch_impl(port, ptr, rust_vec_len, data_len),
+        19 => wire__crate__api__git__git_history_impl(port, ptr, rust_vec_len, data_len),
+        20 => wire__crate__api__git__git_list_stashes_impl(port, ptr, rust_vec_len, data_len),
+        21 => wire__crate__api__git__git_pull_impl(port, ptr, rust_vec_len, data_len),
+        22 => wire__crate__api__git__git_push_impl(port, ptr, rust_vec_len, data_len),
+        23 => wire__crate__api__git__git_repository_state_impl(port, ptr, rust_vec_len, data_len),
+        24 => wire__crate__api__git__git_stage_impl(port, ptr, rust_vec_len, data_len),
+        25 => wire__crate__api__git__git_stage_area_impl(port, ptr, rust_vec_len, data_len),
+        26 => wire__crate__api__git__git_stash_impl(port, ptr, rust_vec_len, data_len),
+        27 => wire__crate__api__git__git_stash_pop_impl(port, ptr, rust_vec_len, data_len),
+        28 => wire__crate__api__git__git_status_impl(port, ptr, rust_vec_len, data_len),
+        29 => wire__crate__api__git__git_status_for_path_impl(port, ptr, rust_vec_len, data_len),
+        30 => wire__crate__api__git__git_unstage_impl(port, ptr, rust_vec_len, data_len),
+        31 => wire__crate__api__git__git_unstage_area_impl(port, ptr, rust_vec_len, data_len),
+        32 => wire__crate__api__init_app_impl(port, ptr, rust_vec_len, data_len),
+        33 => wire__crate__api__git__is_git_repository_impl(port, ptr, rust_vec_len, data_len),
+        34 => wire__crate__api__git__is_valid_branch_name_impl(port, ptr, rust_vec_len, data_len),
+        35 => wire__crate__api__git__list_branches_impl(port, ptr, rust_vec_len, data_len),
+        36 => wire__crate__api__workspace_files__list_workspace_children_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        34 => wire__crate__api__git__list_worktrees_impl(port, ptr, rust_vec_len, data_len),
-        35 => wire__crate__api__workspace_files__move_workspace_entry_impl(
+        37 => wire__crate__api__git__list_worktrees_impl(port, ptr, rust_vec_len, data_len),
+        38 => wire__crate__api__workspace_files__move_workspace_entry_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        36 => wire__crate__api__workspace_search__preview_workspace_replace_impl(
+        39 => wire__crate__api__workspace_search__preview_workspace_replace_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        37 => wire__crate__api__workspace_files__project_workspace_explorer_tree_impl(
+        40 => wire__crate__api__workspace_files__project_workspace_explorer_tree_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        38 => wire__crate__api__workspace_files__read_workspace_editor_text_file_impl(
+        41 => wire__crate__api__workspace_files__read_workspace_editor_text_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        39 => wire__crate__api__workspace_files__read_workspace_text_file_impl(
+        42 => wire__crate__api__workspace_files__read_workspace_text_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        40 => wire__crate__api__git__refresh_source_branch_impl(port, ptr, rust_vec_len, data_len),
-        41 => wire__crate__api__git__remove_worktree_impl(port, ptr, rust_vec_len, data_len),
-        42 => wire__crate__api__workspace_files__rename_workspace_entry_impl(
+        43 => wire__crate__api__git__refresh_source_branch_impl(port, ptr, rust_vec_len, data_len),
+        44 => wire__crate__api__git__remove_worktree_impl(port, ptr, rust_vec_len, data_len),
+        45 => wire__crate__api__workspace_files__rename_workspace_entry_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        43 => wire__crate__api__merman_viewer__render_merman_workspace_file_impl(
+        46 => wire__crate__api__merman_viewer__render_merman_workspace_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        44 => wire__crate__api__workspace_search__replace_workspace_matches_impl(
+        47 => wire__crate__api__workspace_search__replace_workspace_matches_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        45 => wire__crate__api__workspace_search__search_workspace_impl(
+        48 => wire__crate__api__workspace_search__search_workspace_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        46 => wire__crate__api__agent_hooks__set_agent_hook_enabled_agents_impl(
+        49 => wire__crate__api__agent_hooks__set_agent_hook_enabled_agents_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        47 => wire__crate__api__agent_hooks__start_agent_hook_receiver_impl(
+        50 => wire__crate__api__agent_hooks__start_agent_hook_receiver_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        48 => wire__crate__api__workspace_files__start_source_control_watcher_impl(
+        51 => wire__crate__api__workspace_files__start_source_control_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        49 => wire__crate__api__workspace_files__start_workspace_explorer_watcher_impl(
+        52 => wire__crate__api__workspace_files__start_workspace_explorer_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        50 => wire__crate__api__agent_hooks__stop_agent_hook_receiver_impl(
+        53 => wire__crate__api__agent_hooks__stop_agent_hook_receiver_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        51 => wire__crate__api__workspace_files__stop_source_control_watcher_impl(
+        54 => wire__crate__api__workspace_files__stop_source_control_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        52 => wire__crate__api__workspace_files__stop_workspace_explorer_watcher_impl(
+        55 => wire__crate__api__workspace_files__stop_workspace_explorer_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        53 => wire__crate__api__workspace_files__update_workspace_explorer_watcher_impl(
+        56 => wire__crate__api__workspace_files__update_workspace_explorer_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        54 => wire__crate__api__agent_hooks__watch_agent_hook_event_batches_impl(
+        57 => wire__crate__api__agent_hooks__watch_agent_hook_event_batches_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        55 => wire__crate__api__workspace_files__watch_source_control_events_impl(
+        58 => wire__crate__api__workspace_files__watch_source_control_events_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        56 => wire__crate__api__workspace_files__watch_workspace_explorer_events_impl(
+        59 => wire__crate__api__workspace_files__watch_workspace_explorer_events_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        57 => wire__crate__api__workspace_files__write_workspace_editor_text_file_impl(
+        60 => wire__crate__api__workspace_files__write_workspace_editor_text_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        58 => wire__crate__api__workspace_files__write_workspace_text_file_impl(
+        61 => wire__crate__api__workspace_files__write_workspace_text_file_impl(
             port,
             ptr,
             rust_vec_len,
@@ -3852,6 +4198,99 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitChangeTreeRowKind>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::git::GitCommitChangeEntry {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.path.into_into_dart().into_dart(),
+            self.old_path.into_into_dart().into_dart(),
+            self.status.into_into_dart().into_dart(),
+            self.added.into_into_dart().into_dart(),
+            self.removed.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::git::GitCommitChangeEntry
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitCommitChangeEntry>
+    for crate::api::git::GitCommitChangeEntry
+{
+    fn into_into_dart(self) -> crate::api::git::GitCommitChangeEntry {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::git::GitCommitCompareResult {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.summary.into_into_dart().into_dart(),
+            self.entries.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::git::GitCommitCompareResult
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitCommitCompareResult>
+    for crate::api::git::GitCommitCompareResult
+{
+    fn into_into_dart(self) -> crate::api::git::GitCommitCompareResult {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::git::GitCommitCompareStatus {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Ready => 0.into_dart(),
+            Self::InvalidCommit => 1.into_dart(),
+            Self::Error => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::git::GitCommitCompareStatus
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitCommitCompareStatus>
+    for crate::api::git::GitCommitCompareStatus
+{
+    fn into_into_dart(self) -> crate::api::git::GitCommitCompareStatus {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::git::GitCommitCompareSummary {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.commit_oid.into_into_dart().into_dart(),
+            self.parent_oid.into_into_dart().into_dart(),
+            self.compare_ref.into_into_dart().into_dart(),
+            self.base_ref.into_into_dart().into_dart(),
+            self.changed_files.into_into_dart().into_dart(),
+            self.status.into_into_dart().into_dart(),
+            self.error_message.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::git::GitCommitCompareSummary
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitCommitCompareSummary>
+    for crate::api::git::GitCommitCompareSummary
+{
+    fn into_into_dart(self) -> crate::api::git::GitCommitCompareSummary {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::git::GitDiffFile {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -3987,6 +4426,108 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitErrorKind>
     for crate::api::git::GitErrorKind
 {
     fn into_into_dart(self) -> crate::api::git::GitErrorKind {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::git::GitHistoryItem {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.parent_ids.into_into_dart().into_dart(),
+            self.subject.into_into_dart().into_dart(),
+            self.message.into_into_dart().into_dart(),
+            self.display_id.into_into_dart().into_dart(),
+            self.author.into_into_dart().into_dart(),
+            self.author_email.into_into_dart().into_dart(),
+            self.timestamp.into_into_dart().into_dart(),
+            self.references.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::git::GitHistoryItem
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitHistoryItem>
+    for crate::api::git::GitHistoryItem
+{
+    fn into_into_dart(self) -> crate::api::git::GitHistoryItem {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::git::GitHistoryItemRef {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.name.into_into_dart().into_dart(),
+            self.revision.into_into_dart().into_dart(),
+            self.category.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::git::GitHistoryItemRef
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitHistoryItemRef>
+    for crate::api::git::GitHistoryItemRef
+{
+    fn into_into_dart(self) -> crate::api::git::GitHistoryItemRef {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::git::GitHistoryRefCategory {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Branches => 0.into_dart(),
+            Self::RemoteBranches => 1.into_dart(),
+            Self::Tags => 2.into_dart(),
+            Self::Commits => 3.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::git::GitHistoryRefCategory
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitHistoryRefCategory>
+    for crate::api::git::GitHistoryRefCategory
+{
+    fn into_into_dart(self) -> crate::api::git::GitHistoryRefCategory {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::git::GitHistoryResult {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.items.into_into_dart().into_dart(),
+            self.current_ref.into_into_dart().into_dart(),
+            self.remote_ref.into_into_dart().into_dart(),
+            self.base_ref.into_into_dart().into_dart(),
+            self.merge_base.into_into_dart().into_dart(),
+            self.has_incoming_changes.into_into_dart().into_dart(),
+            self.has_outgoing_changes.into_into_dart().into_dart(),
+            self.has_more.into_into_dart().into_dart(),
+            self.limit.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::git::GitHistoryResult
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitHistoryResult>
+    for crate::api::git::GitHistoryResult
+{
+    fn into_into_dart(self) -> crate::api::git::GitHistoryResult {
         self
     }
 }
@@ -4965,6 +5506,55 @@ impl SseEncode for crate::api::git::GitChangeTreeRowKind {
     }
 }
 
+impl SseEncode for crate::api::git::GitCommitChangeEntry {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.path, serializer);
+        <Option<String>>::sse_encode(self.old_path, serializer);
+        <crate::api::git::GitChangeStatus>::sse_encode(self.status, serializer);
+        <Option<u32>>::sse_encode(self.added, serializer);
+        <Option<u32>>::sse_encode(self.removed, serializer);
+    }
+}
+
+impl SseEncode for crate::api::git::GitCommitCompareResult {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <crate::api::git::GitCommitCompareSummary>::sse_encode(self.summary, serializer);
+        <Vec<crate::api::git::GitCommitChangeEntry>>::sse_encode(self.entries, serializer);
+    }
+}
+
+impl SseEncode for crate::api::git::GitCommitCompareStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::git::GitCommitCompareStatus::Ready => 0,
+                crate::api::git::GitCommitCompareStatus::InvalidCommit => 1,
+                crate::api::git::GitCommitCompareStatus::Error => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::git::GitCommitCompareSummary {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.commit_oid, serializer);
+        <Option<String>>::sse_encode(self.parent_oid, serializer);
+        <String>::sse_encode(self.compare_ref, serializer);
+        <String>::sse_encode(self.base_ref, serializer);
+        <u32>::sse_encode(self.changed_files, serializer);
+        <crate::api::git::GitCommitCompareStatus>::sse_encode(self.status, serializer);
+        <Option<String>>::sse_encode(self.error_message, serializer);
+    }
+}
+
 impl SseEncode for crate::api::git::GitDiffFile {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -5053,6 +5643,64 @@ impl SseEncode for crate::api::git::GitErrorKind {
             },
             serializer,
         );
+    }
+}
+
+impl SseEncode for crate::api::git::GitHistoryItem {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <Vec<String>>::sse_encode(self.parent_ids, serializer);
+        <String>::sse_encode(self.subject, serializer);
+        <String>::sse_encode(self.message, serializer);
+        <Option<String>>::sse_encode(self.display_id, serializer);
+        <Option<String>>::sse_encode(self.author, serializer);
+        <Option<String>>::sse_encode(self.author_email, serializer);
+        <Option<i64>>::sse_encode(self.timestamp, serializer);
+        <Vec<crate::api::git::GitHistoryItemRef>>::sse_encode(self.references, serializer);
+    }
+}
+
+impl SseEncode for crate::api::git::GitHistoryItemRef {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.name, serializer);
+        <Option<String>>::sse_encode(self.revision, serializer);
+        <Option<crate::api::git::GitHistoryRefCategory>>::sse_encode(self.category, serializer);
+    }
+}
+
+impl SseEncode for crate::api::git::GitHistoryRefCategory {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::git::GitHistoryRefCategory::Branches => 0,
+                crate::api::git::GitHistoryRefCategory::RemoteBranches => 1,
+                crate::api::git::GitHistoryRefCategory::Tags => 2,
+                crate::api::git::GitHistoryRefCategory::Commits => 3,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::git::GitHistoryResult {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Vec<crate::api::git::GitHistoryItem>>::sse_encode(self.items, serializer);
+        <Option<crate::api::git::GitHistoryItemRef>>::sse_encode(self.current_ref, serializer);
+        <Option<crate::api::git::GitHistoryItemRef>>::sse_encode(self.remote_ref, serializer);
+        <Option<crate::api::git::GitHistoryItemRef>>::sse_encode(self.base_ref, serializer);
+        <Option<String>>::sse_encode(self.merge_base, serializer);
+        <bool>::sse_encode(self.has_incoming_changes, serializer);
+        <bool>::sse_encode(self.has_outgoing_changes, serializer);
+        <bool>::sse_encode(self.has_more, serializer);
+        <u32>::sse_encode(self.limit, serializer);
     }
 }
 
@@ -5158,6 +5806,16 @@ impl SseEncode for Vec<crate::api::git::GitChangeTreeRow> {
     }
 }
 
+impl SseEncode for Vec<crate::api::git::GitCommitChangeEntry> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::git::GitCommitChangeEntry>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::git::GitDiffFile> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -5174,6 +5832,26 @@ impl SseEncode for Vec<crate::api::git::GitDiffLine> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::git::GitDiffLine>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::git::GitHistoryItem> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::git::GitHistoryItem>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::git::GitHistoryItemRef> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::git::GitHistoryItemRef>::sse_encode(item, serializer);
         }
     }
 }
@@ -5348,6 +6026,36 @@ impl SseEncode for Option<crate::api::git::GitChangeEntry> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <crate::api::git::GitChangeEntry>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::git::GitHistoryItemRef> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::git::GitHistoryItemRef>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::git::GitHistoryRefCategory> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::git::GitHistoryRefCategory>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<i64> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <i64>::sse_encode(value, serializer);
         }
     }
 }

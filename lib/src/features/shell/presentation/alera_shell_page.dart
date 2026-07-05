@@ -201,6 +201,31 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                             gitDiffRoot: gitDiffRoot,
                           );
                         },
+                    onOpenGitCommitDiff:
+                        ({
+                          relativePath,
+                          oldPath,
+                          required scope,
+                          gitDiffRoot,
+                          required commitOid,
+                          parentOid,
+                          required compareRef,
+                          subject,
+                          message,
+                        }) {
+                          return controller.openGitCommitDiffTab(
+                            workspace: workspace,
+                            relativePath: relativePath,
+                            oldPath: oldPath,
+                            scope: scope,
+                            gitDiffRoot: gitDiffRoot,
+                            commitOid: commitOid,
+                            parentOid: parentOid,
+                            compareRef: compareRef,
+                            subject: subject,
+                            message: message,
+                          );
+                        },
                     onOpenSearchMatch: (target) {
                       unawaited(() async {
                         final tab = await controller.openEditorTab(

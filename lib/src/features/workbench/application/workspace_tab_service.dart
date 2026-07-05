@@ -159,7 +159,8 @@ class WorkspaceTabService {
       if (tab.kind != WorkspaceTabKind.gitDiff) {
         continue;
       }
-      if (tab.gitDiffScope == scope &&
+      if (tab.gitDiffSource == WorkspaceGitDiffSource.workingTree &&
+          tab.gitDiffScope == scope &&
           tab.filePath == normalizedPath &&
           tab.gitDiffRoot == normalizedRoot &&
           tab.gitDiffArea == area) {
@@ -188,6 +189,83 @@ class WorkspaceTabService {
         path: normalizedPath,
         area: area,
         root: normalizedRoot,
+      ),
+      createdAt: _now(),
+      updatedAt: _now(),
+      payload: payload,
+    );
+    await _repository.upsertWorkspaceTab(tab);
+    return tab;
+  }
+
+  Future<WorkspaceTabRecord> openOrCreateGitCommitDiffTab({
+    required String workspaceId,
+    String? relativePath,
+    String? oldPath,
+    required WorkspaceGitDiffScope scope,
+    String? gitDiffRoot,
+    required String commitOid,
+    String? parentOid,
+    required String compareRef,
+    String? subject,
+    String? message,
+  }) async {
+    final normalizedPath = relativePath == null
+        ? null
+        : _normalizeRelativePath(relativePath);
+    final normalizedOldPath = oldPath == null
+        ? null
+        : _normalizeRelativePath(oldPath);
+    final normalizedRoot = normalizeSourceControlRootRelativePath(gitDiffRoot);
+    if (scope != WorkspaceGitDiffScope.all && normalizedPath == null) {
+      throw StateError('Commit diff file tabs require a file path.');
+    }
+    final existing = await _repository.listWorkspaceTabs(workspaceId);
+    for (final tab in existing) {
+      if (tab.kind != WorkspaceTabKind.gitDiff ||
+          tab.gitDiffSource != WorkspaceGitDiffSource.commit) {
+        continue;
+      }
+      if (tab.gitDiffScope == scope &&
+          tab.filePath == normalizedPath &&
+          tab.gitDiffOldPath == normalizedOldPath &&
+          tab.gitDiffRoot == normalizedRoot &&
+          tab.gitDiffCommitOid == commitOid) {
+        return tab;
+      }
+    }
+    final payload = <String, Object?>{
+      workspaceTabGitDiffSourcePayloadKey: WorkspaceGitDiffSource.commit.key,
+      workspaceTabGitDiffScopePayloadKey: scope.key,
+      workspaceTabGitDiffCommitOidPayloadKey: commitOid,
+      workspaceTabGitDiffCompareRefPayloadKey: compareRef,
+    };
+    if (parentOid != null) {
+      payload[workspaceTabGitDiffParentOidPayloadKey] = parentOid;
+    }
+    if (subject != null) {
+      payload[workspaceTabGitDiffCommitSubjectPayloadKey] = subject;
+    }
+    if (message != null) {
+      payload[workspaceTabGitDiffCommitMessagePayloadKey] = message;
+    }
+    if (normalizedRoot != null) {
+      payload[workspaceTabGitDiffRootPayloadKey] = normalizedRoot;
+    }
+    if (normalizedPath != null) {
+      payload[workspaceTabFilePathPayloadKey] = normalizedPath;
+    }
+    if (normalizedOldPath != null) {
+      payload[workspaceTabGitDiffOldPathPayloadKey] = normalizedOldPath;
+    }
+    final tab = WorkspaceTabRecord(
+      id: _uuid.v4(),
+      workspaceId: workspaceId,
+      kind: WorkspaceTabKind.gitDiff,
+      title: _titleForGitCommitDiff(
+        scope: scope,
+        path: normalizedPath,
+        compareRef: compareRef,
       ),
       createdAt: _now(),
       updatedAt: _now(),
@@ -244,6 +322,9 @@ class WorkspaceTabService {
       if (tab.kind != WorkspaceTabKind.gitDiff || tab.gitDiffRoot == null) {
         continue;
       }
+      if (tab.gitDiffSource == WorkspaceGitDiffSource.commit) {
+        continue;
+      }
       final root = tab.gitDiffRoot!;
       final nextRoot = _replacePathPrefix(
         path: root,
@@ -287,6 +368,10 @@ class WorkspaceTabService {
     for (final originalTab in tabs) {
       final rootWasRetargeted = updatedById.containsKey(originalTab.id);
       final tab = updatedById[originalTab.id] ?? originalTab;
+      if (tab.kind == WorkspaceTabKind.gitDiff &&
+          tab.gitDiffSource == WorkspaceGitDiffSource.commit) {
+        continue;
+      }
       if (!_isFileTabKind(tab.kind)) {
         continue;
       }
@@ -520,6 +605,18 @@ class WorkspaceTabService {
       WorkspaceGitDiffScope.fileAll => '${_titleForPath(path!)} changes',
       WorkspaceGitDiffScope.file =>
         '${_titleForPath(path!)} ${area!.label.toLowerCase()}',
+    };
+  }
+
+  String _titleForGitCommitDiff({
+    required WorkspaceGitDiffScope scope,
+    required String? path,
+    required String compareRef,
+  }) {
+    return switch (scope) {
+      WorkspaceGitDiffScope.all => 'Commit $compareRef',
+      WorkspaceGitDiffScope.file ||
+      WorkspaceGitDiffScope.fileAll => '${_titleForPath(path!)} $compareRef',
     };
   }
 

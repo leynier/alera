@@ -200,6 +200,45 @@ class _E2eGitBackend implements GitBackend {
   }) async => const GitDiffResult(files: <GitDiffFile>[]);
 
   @override
+  Future<GitHistoryResult> history(
+    String path, {
+    int? limit,
+    String? baseRef,
+  }) async => GitHistoryResult(
+    items: const <GitHistoryItem>[],
+    hasIncomingChanges: false,
+    hasOutgoingChanges: false,
+    hasMore: false,
+    limit: limit ?? 50,
+  );
+
+  @override
+  Future<GitCommitCompareResult> commitCompare({
+    required String path,
+    required String commitId,
+  }) async => GitCommitCompareResult(
+    summary: GitCommitCompareSummary(
+      commitOid: commitId,
+      parentOid: null,
+      compareRef: commitId,
+      baseRef: 'Parent',
+      changedFiles: 0,
+      status: GitCommitCompareStatus.invalidCommit,
+      errorMessage: 'Commit Not Available',
+    ),
+    entries: const <GitCommitChangeEntry>[],
+  );
+
+  @override
+  Future<GitDiffResult> commitDiff({
+    required String path,
+    required String commitOid,
+    String? parentOid,
+    String? filePath,
+    String? oldPath,
+  }) async => const GitDiffResult(files: <GitDiffFile>[]);
+
+  @override
   Future<GitRepositoryState> repositoryState(String path) async =>
       const GitRepositoryState(branch: 'HEAD');
 

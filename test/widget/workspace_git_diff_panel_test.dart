@@ -68,6 +68,18 @@ void main() {
                       gitDiffRoot,
                       required scope,
                     }) async {},
+                onOpenGitCommitDiff:
+                    ({
+                      relativePath,
+                      oldPath,
+                      required scope,
+                      gitDiffRoot,
+                      required commitOid,
+                      parentOid,
+                      required compareRef,
+                      subject,
+                      message,
+                    }) async {},
               ),
             ),
           ),
@@ -130,6 +142,18 @@ void main() {
                       relativePath,
                       gitDiffRoot,
                       required scope,
+                    }) async {},
+                onOpenGitCommitDiff:
+                    ({
+                      relativePath,
+                      oldPath,
+                      required scope,
+                      gitDiffRoot,
+                      required commitOid,
+                      parentOid,
+                      required compareRef,
+                      subject,
+                      message,
                     }) async {},
               ),
             ),
@@ -244,6 +268,368 @@ void main() {
 
     expect(cleared, isTrue);
   });
+
+  testWidgets('commits panel loads history and opens commit file diffs', (
+    tester,
+  ) async {
+    final backend = FakeGitBackend()
+      ..gitRepositoryStateResult = const GitRepositoryState(
+        branch: 'main',
+        upstream: 'origin/main',
+      )
+      ..gitHistoryResult = GitHistoryResult(
+        currentRef: const GitHistoryItemRef(
+          id: 'refs/heads/main',
+          name: 'main',
+          revision: 'abc123456789',
+        ),
+        hasIncomingChanges: false,
+        hasOutgoingChanges: false,
+        hasMore: false,
+        limit: 50,
+        items: <GitHistoryItem>[
+          GitHistoryItem(
+            id: 'abc123456789',
+            parentIds: const <String>['def987654321'],
+            subject: 'Add Feature',
+            message: 'Add Feature\n\nBody',
+            displayId: 'abc1234',
+            author: 'Leynier',
+            timestamp: DateTime.utc(2026, 7, 4, 12),
+          ),
+        ],
+      )
+      ..gitCommitCompareResult = const GitCommitCompareResult(
+        summary: GitCommitCompareSummary(
+          commitOid: 'abc123456789',
+          parentOid: 'def987654321',
+          compareRef: 'abc1234',
+          baseRef: 'def9876',
+          changedFiles: 1,
+          status: GitCommitCompareStatus.ready,
+        ),
+        entries: <GitCommitChangeEntry>[
+          GitCommitChangeEntry(
+            path: 'lib/new.dart',
+            oldPath: 'lib/old.dart',
+            status: GitChangeStatus.renamed,
+            added: 3,
+            removed: 1,
+          ),
+        ],
+      );
+    final opened =
+        <
+          ({
+            String? relativePath,
+            String? oldPath,
+            WorkspaceGitDiffScope scope,
+            String? gitDiffRoot,
+            String commitOid,
+            String? parentOid,
+            String compareRef,
+            String? subject,
+            String? message,
+          })
+        >[];
+
+    await _pumpPanel(
+      tester,
+      backend: backend,
+      onOpenGitCommitDiff:
+          ({
+            relativePath,
+            oldPath,
+            required scope,
+            gitDiffRoot,
+            required commitOid,
+            parentOid,
+            required compareRef,
+            subject,
+            message,
+          }) async {
+            opened.add((
+              relativePath: relativePath,
+              oldPath: oldPath,
+              scope: scope,
+              gitDiffRoot: gitDiffRoot,
+              commitOid: commitOid,
+              parentOid: parentOid,
+              compareRef: compareRef,
+              subject: subject,
+              message: message,
+            ));
+          },
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Commits'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Add Feature'), findsOneWidget);
+    expect(
+      backend.calls.where((call) => call.method == 'history').single.args,
+      <String, Object?>{'path': '/tmp/project', 'limit': 50, 'baseRef': null},
+    );
+
+    await tester.tap(find.text('Add Feature'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('lib/old.dart -> lib/new.dart'), findsOneWidget);
+    expect(
+      backend.calls.where((call) => call.method == 'commitCompare').single.args,
+      <String, Object?>{'path': '/tmp/project', 'commitId': 'abc123456789'},
+    );
+
+    await tester.tap(find.textContaining('lib/old.dart -> lib/new.dart'));
+    await tester.pumpAndSettle();
+
+    expect(opened.single.relativePath, 'lib/new.dart');
+    expect(opened.single.oldPath, 'lib/old.dart');
+    expect(opened.single.scope, WorkspaceGitDiffScope.file);
+    expect(opened.single.gitDiffRoot, isNull);
+    expect(opened.single.commitOid, 'abc123456789');
+    expect(opened.single.parentOid, 'def987654321');
+    expect(opened.single.compareRef, 'abc1234');
+    expect(opened.single.subject, 'Add Feature');
+    expect(opened.single.message, 'Add Feature\n\nBody');
+  });
+
+  testWidgets('collapsed commits panel reloads after successful git actions', (
+    tester,
+  ) async {
+    final backend = FakeGitBackend()
+      ..gitRepositoryStateResult = const GitRepositoryState(
+        branch: 'main',
+        upstream: 'origin/main',
+      )
+      ..gitStatusResult = const GitStatusResult(
+        entries: <GitChangeEntry>[
+          GitChangeEntry(
+            path: 'lib/new.dart',
+            area: GitChangeArea.untracked,
+            status: GitChangeStatus.untracked,
+          ),
+        ],
+      )
+      ..gitHistoryResult = const GitHistoryResult(
+        currentRef: GitHistoryItemRef(
+          id: 'refs/heads/main',
+          name: 'main',
+          revision: 'old123',
+        ),
+        hasIncomingChanges: false,
+        hasOutgoingChanges: false,
+        hasMore: false,
+        limit: 50,
+        items: <GitHistoryItem>[
+          GitHistoryItem(
+            id: 'old123',
+            parentIds: <String>[],
+            subject: 'Old Commit',
+            message: 'Old Commit',
+          ),
+        ],
+      );
+
+    await _pumpPanel(tester, backend: backend);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Commits'));
+    await tester.pumpAndSettle();
+    expect(find.text('Old Commit'), findsOneWidget);
+
+    await tester.tap(find.text('Commits'));
+    await tester.pumpAndSettle();
+    backend.gitHistoryResult = const GitHistoryResult(
+      currentRef: GitHistoryItemRef(
+        id: 'refs/heads/main',
+        name: 'main',
+        revision: 'new123',
+      ),
+      hasIncomingChanges: false,
+      hasOutgoingChanges: false,
+      hasMore: false,
+      limit: 50,
+      items: <GitHistoryItem>[
+        GitHistoryItem(
+          id: 'new123',
+          parentIds: <String>['old123'],
+          subject: 'New Commit',
+          message: 'New Commit',
+        ),
+      ],
+    );
+
+    await tester.tap(find.text('Stage All'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Commits'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('New Commit'), findsOneWidget);
+    expect(
+      backend.calls.where((call) => call.method == 'history'),
+      hasLength(2),
+    );
+  });
+
+  testWidgets('collapsed commits panel ignores stale in-flight history loads', (
+    tester,
+  ) async {
+    final firstHistory = Completer<GitHistoryResult>();
+    final backend = FakeGitBackend()
+      ..gitRepositoryStateResult = const GitRepositoryState(
+        branch: 'main',
+        upstream: 'origin/main',
+      )
+      ..gitStatusResult = const GitStatusResult(
+        entries: <GitChangeEntry>[
+          GitChangeEntry(
+            path: 'lib/new.dart',
+            area: GitChangeArea.untracked,
+            status: GitChangeStatus.untracked,
+          ),
+        ],
+      )
+      ..gitHistoryResultQueue.add(firstHistory.future);
+
+    await _pumpPanel(tester, backend: backend);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Commits'));
+    await tester.pump();
+    await tester.tap(find.text('Commits'));
+    await tester.pump();
+
+    backend.gitHistoryResult = const GitHistoryResult(
+      currentRef: GitHistoryItemRef(
+        id: 'refs/heads/main',
+        name: 'main',
+        revision: 'new123',
+      ),
+      hasIncomingChanges: false,
+      hasOutgoingChanges: false,
+      hasMore: false,
+      limit: 50,
+      items: <GitHistoryItem>[
+        GitHistoryItem(
+          id: 'new123',
+          parentIds: <String>[],
+          subject: 'New Commit',
+          message: 'New Commit',
+        ),
+      ],
+    );
+    await tester.tap(find.text('Stage All'));
+    await tester.pumpAndSettle();
+
+    firstHistory.complete(
+      const GitHistoryResult(
+        currentRef: GitHistoryItemRef(
+          id: 'refs/heads/main',
+          name: 'main',
+          revision: 'old123',
+        ),
+        hasIncomingChanges: false,
+        hasOutgoingChanges: false,
+        hasMore: false,
+        limit: 50,
+        items: <GitHistoryItem>[
+          GitHistoryItem(
+            id: 'old123',
+            parentIds: <String>[],
+            subject: 'Old Commit',
+            message: 'Old Commit',
+          ),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Commits'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('New Commit'), findsOneWidget);
+    expect(find.text('Old Commit'), findsNothing);
+    expect(
+      backend.calls.where((call) => call.method == 'history'),
+      hasLength(2),
+    );
+  });
+
+  testWidgets(
+    'expanded commits panel reloads when watch summary is unchanged',
+    (tester) async {
+      final watcher = FakeSourceControlWatcher();
+      final backend = FakeGitBackend()
+        ..gitRepositoryStateResult = const GitRepositoryState(
+          branch: 'main',
+          upstream: 'origin/main',
+          headMessage: 'Old Commit',
+        )
+        ..gitHistoryResult = const GitHistoryResult(
+          currentRef: GitHistoryItemRef(
+            id: 'refs/heads/main',
+            name: 'main',
+            revision: 'old123',
+          ),
+          hasIncomingChanges: false,
+          hasOutgoingChanges: false,
+          hasMore: false,
+          limit: 50,
+          items: <GitHistoryItem>[
+            GitHistoryItem(
+              id: 'old123',
+              parentIds: <String>[],
+              subject: 'Old Commit',
+              message: 'Old Commit',
+            ),
+          ],
+        );
+
+      await _pumpPanel(tester, backend: backend, watcher: watcher);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Commits'));
+      await tester.pumpAndSettle();
+      expect(find.text('Old Commit'), findsOneWidget);
+
+      backend
+        ..gitRepositoryStateResult = const GitRepositoryState(
+          branch: 'main',
+          upstream: 'origin/main',
+          headMessage: 'Old Commit',
+        )
+        ..gitHistoryResult = const GitHistoryResult(
+          currentRef: GitHistoryItemRef(
+            id: 'refs/heads/main',
+            name: 'main',
+            revision: 'new123',
+          ),
+          hasIncomingChanges: false,
+          hasOutgoingChanges: false,
+          hasMore: false,
+          limit: 50,
+          items: <GitHistoryItem>[
+            GitHistoryItem(
+              id: 'new123',
+              parentIds: <String>['old123'],
+              subject: 'New Commit',
+              message: 'New Commit',
+            ),
+          ],
+        );
+      watcher.emitChange();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pumpAndSettle();
+
+      expect(find.text('New Commit'), findsOneWidget);
+      expect(find.text('Old Commit'), findsNothing);
+      expect(
+        backend.calls.where((call) => call.method == 'history'),
+        hasLength(2),
+      );
+    },
+  );
 
   testWidgets('primary source control action is compact and clickable', (
     tester,
@@ -1089,9 +1475,11 @@ Future<void> _pumpPanel(
   Workspace? workspace,
   GitDiffViewMode viewMode = GitDiffViewMode.flat,
   WorkspaceSourceControlScope? sourceControlScope,
+  FakeSourceControlWatcher? watcher,
   AiTextGenerationService? service,
   AleraSettings settings = AleraSettings.defaults,
   OpenGitDiffTabCallback? onOpenGitDiff,
+  OpenGitCommitDiffTabCallback? onOpenGitCommitDiff,
   VoidCallback? onClearSourceControlRoot,
 }) {
   final resolvedWorkspace = workspace ?? _workspace();
@@ -1100,7 +1488,7 @@ Future<void> _pumpPanel(
       overrides: [
         gitBackendProvider.overrideWithValue(backend),
         sourceControlWatcherProvider.overrideWithValue(
-          FakeSourceControlWatcher(),
+          watcher ?? FakeSourceControlWatcher(),
         ),
         settingsControllerProvider.overrideWith(
           () => _PanelSettingsController(settings),
@@ -1122,6 +1510,19 @@ Future<void> _pumpPanel(
               onOpenGitDiff:
                   onOpenGitDiff ??
                   ({area, relativePath, gitDiffRoot, required scope}) async {},
+              onOpenGitCommitDiff:
+                  onOpenGitCommitDiff ??
+                  ({
+                    relativePath,
+                    oldPath,
+                    required scope,
+                    gitDiffRoot,
+                    required commitOid,
+                    parentOid,
+                    required compareRef,
+                    subject,
+                    message,
+                  }) async {},
               onClearSourceControlRoot: onClearSourceControlRoot,
             ),
           ),

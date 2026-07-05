@@ -70,7 +70,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => -1983816553;
+  int get rustContentHash => -1007517553;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -142,6 +142,19 @@ abstract class RustLibApi extends BaseApi {
     required String message,
   });
 
+  Future<GitCommitCompareResult> crateApiGitGitCommitCompare({
+    required String path,
+    required String commitId,
+  });
+
+  Future<GitDiffResult> crateApiGitGitCommitDiff({
+    required String path,
+    required String commitOid,
+    String? parentOid,
+    String? filePath,
+    String? oldPath,
+  });
+
   Future<GitDiffResult> crateApiGitGitDiff({
     required String path,
     required String filePath,
@@ -162,6 +175,12 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<void> crateApiGitGitFetch({required String path});
+
+  Future<GitHistoryResult> crateApiGitGitHistory({
+    required String path,
+    int? limit,
+    String? baseRef,
+  });
 
   Future<List<GitStashEntry>> crateApiGitGitListStashes({required String path});
 
@@ -759,6 +778,81 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<GitCommitCompareResult> crateApiGitGitCommitCompare({
+    required String path,
+    required String commitId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(path, serializer);
+          sse_encode_String(commitId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 12,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_git_commit_compare_result,
+          decodeErrorData: sse_decode_git_error,
+        ),
+        constMeta: kCrateApiGitGitCommitCompareConstMeta,
+        argValues: [path, commitId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGitGitCommitCompareConstMeta =>
+      const TaskConstMeta(
+        debugName: "git_commit_compare",
+        argNames: ["path", "commitId"],
+      );
+
+  @override
+  Future<GitDiffResult> crateApiGitGitCommitDiff({
+    required String path,
+    required String commitOid,
+    String? parentOid,
+    String? filePath,
+    String? oldPath,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(path, serializer);
+          sse_encode_String(commitOid, serializer);
+          sse_encode_opt_String(parentOid, serializer);
+          sse_encode_opt_String(filePath, serializer);
+          sse_encode_opt_String(oldPath, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 13,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_git_diff_result,
+          decodeErrorData: sse_decode_git_error,
+        ),
+        constMeta: kCrateApiGitGitCommitDiffConstMeta,
+        argValues: [path, commitOid, parentOid, filePath, oldPath],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGitGitCommitDiffConstMeta => const TaskConstMeta(
+    debugName: "git_commit_diff",
+    argNames: ["path", "commitOid", "parentOid", "filePath", "oldPath"],
+  );
+
+  @override
   Future<GitDiffResult> crateApiGitGitDiff({
     required String path,
     required String filePath,
@@ -774,7 +868,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 12,
+            funcId: 14,
             port: port_,
           );
         },
@@ -808,7 +902,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 13,
+            funcId: 15,
             port: port_,
           );
         },
@@ -839,7 +933,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 14,
+            funcId: 16,
             port: port_,
           );
         },
@@ -875,7 +969,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 15,
+            funcId: 17,
             port: port_,
           );
         },
@@ -905,7 +999,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 16,
+            funcId: 18,
             port: port_,
           );
         },
@@ -924,6 +1018,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "git_fetch", argNames: ["path"]);
 
   @override
+  Future<GitHistoryResult> crateApiGitGitHistory({
+    required String path,
+    int? limit,
+    String? baseRef,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(path, serializer);
+          sse_encode_opt_box_autoadd_u_32(limit, serializer);
+          sse_encode_opt_String(baseRef, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 19,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_git_history_result,
+          decodeErrorData: sse_decode_git_error,
+        ),
+        constMeta: kCrateApiGitGitHistoryConstMeta,
+        argValues: [path, limit, baseRef],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGitGitHistoryConstMeta => const TaskConstMeta(
+    debugName: "git_history",
+    argNames: ["path", "limit", "baseRef"],
+  );
+
+  @override
   Future<List<GitStashEntry>> crateApiGitGitListStashes({
     required String path,
   }) {
@@ -935,7 +1065,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 17,
+            funcId: 20,
             port: port_,
           );
         },
@@ -963,7 +1093,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 18,
+            funcId: 21,
             port: port_,
           );
         },
@@ -991,7 +1121,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 19,
+            funcId: 22,
             port: port_,
           );
         },
@@ -1021,7 +1151,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 20,
+            funcId: 23,
             port: port_,
           );
         },
@@ -1053,7 +1183,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 21,
+            funcId: 24,
             port: port_,
           );
         },
@@ -1089,7 +1219,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 22,
+            funcId: 25,
             port: port_,
           );
         },
@@ -1119,7 +1249,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 23,
+            funcId: 26,
             port: port_,
           );
         },
@@ -1151,7 +1281,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 24,
+            funcId: 27,
             port: port_,
           );
         },
@@ -1181,7 +1311,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 25,
+            funcId: 28,
             port: port_,
           );
         },
@@ -1213,7 +1343,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 26,
+            funcId: 29,
             port: port_,
           );
         },
@@ -1245,7 +1375,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 27,
+            funcId: 30,
             port: port_,
           );
         },
@@ -1281,7 +1411,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 28,
+            funcId: 31,
             port: port_,
           );
         },
@@ -1310,7 +1440,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 29,
+            funcId: 32,
             port: port_,
           );
         },
@@ -1338,7 +1468,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 30,
+            funcId: 33,
             port: port_,
           );
         },
@@ -1366,7 +1496,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 31,
+            funcId: 34,
             port: port_,
           );
         },
@@ -1397,7 +1527,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 32,
+            funcId: 35,
             port: port_,
           );
         },
@@ -1431,7 +1561,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 33,
+            funcId: 36,
             port: port_,
           );
         },
@@ -1464,7 +1594,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 34,
+            funcId: 37,
             port: port_,
           );
         },
@@ -1498,7 +1628,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 35,
+            funcId: 38,
             port: port_,
           );
         },
@@ -1532,7 +1662,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 36,
+            funcId: 39,
             port: port_,
           );
         },
@@ -1578,7 +1708,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 37,
+            funcId: 40,
             port: port_,
           );
         },
@@ -1622,7 +1752,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 38,
+            funcId: 41,
             port: port_,
           );
         },
@@ -1658,7 +1788,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 39,
+            funcId: 42,
             port: port_,
           );
         },
@@ -1693,7 +1823,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 40,
+            funcId: 43,
             port: port_,
           );
         },
@@ -1730,7 +1860,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 41,
+            funcId: 44,
             port: port_,
           );
         },
@@ -1766,7 +1896,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 42,
+            funcId: 45,
             port: port_,
           );
         },
@@ -1801,7 +1931,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 43,
+            funcId: 46,
             port: port_,
           );
         },
@@ -1835,7 +1965,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 44,
+            funcId: 47,
             port: port_,
           );
         },
@@ -1868,7 +1998,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 45,
+            funcId: 48,
             port: port_,
           );
         },
@@ -1898,7 +2028,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 46,
+            funcId: 49,
             port: port_,
           );
         },
@@ -1933,7 +2063,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 47,
+            funcId: 50,
             port: port_,
           );
         },
@@ -1967,7 +2097,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 48,
+            funcId: 51,
             port: port_,
           );
         },
@@ -2001,7 +2131,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 49,
+            funcId: 52,
             port: port_,
           );
         },
@@ -2033,7 +2163,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 50,
+            funcId: 53,
             port: port_,
           );
         },
@@ -2066,7 +2196,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 51,
+            funcId: 54,
             port: port_,
           );
         },
@@ -2102,7 +2232,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 52,
+            funcId: 55,
             port: port_,
           );
         },
@@ -2141,7 +2271,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 53,
+            funcId: 56,
             port: port_,
           );
         },
@@ -2180,7 +2310,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 54,
+              funcId: 57,
               port: port_,
             );
           },
@@ -2225,7 +2355,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 55,
+              funcId: 58,
               port: port_,
             );
           },
@@ -2270,7 +2400,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 56,
+              funcId: 59,
               port: port_,
             );
           },
@@ -2322,7 +2452,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 57,
+            funcId: 60,
             port: port_,
           );
         },
@@ -2382,7 +2512,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 58,
+            funcId: 61,
             port: port_,
           );
         },
@@ -2497,6 +2627,26 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   GitChangeEntry dco_decode_box_autoadd_git_change_entry(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_git_change_entry(raw);
+  }
+
+  @protected
+  GitHistoryItemRef dco_decode_box_autoadd_git_history_item_ref(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_git_history_item_ref(raw);
+  }
+
+  @protected
+  GitHistoryRefCategory dco_decode_box_autoadd_git_history_ref_category(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_git_history_ref_category(raw);
+  }
+
+  @protected
+  PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_i_64(raw);
   }
 
   @protected
@@ -2624,6 +2774,56 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  GitCommitChangeEntry dco_decode_git_commit_change_entry(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return GitCommitChangeEntry(
+      path: dco_decode_String(arr[0]),
+      oldPath: dco_decode_opt_String(arr[1]),
+      status: dco_decode_git_change_status(arr[2]),
+      added: dco_decode_opt_box_autoadd_u_32(arr[3]),
+      removed: dco_decode_opt_box_autoadd_u_32(arr[4]),
+    );
+  }
+
+  @protected
+  GitCommitCompareResult dco_decode_git_commit_compare_result(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return GitCommitCompareResult(
+      summary: dco_decode_git_commit_compare_summary(arr[0]),
+      entries: dco_decode_list_git_commit_change_entry(arr[1]),
+    );
+  }
+
+  @protected
+  GitCommitCompareStatus dco_decode_git_commit_compare_status(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return GitCommitCompareStatus.values[raw as int];
+  }
+
+  @protected
+  GitCommitCompareSummary dco_decode_git_commit_compare_summary(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return GitCommitCompareSummary(
+      commitOid: dco_decode_String(arr[0]),
+      parentOid: dco_decode_opt_String(arr[1]),
+      compareRef: dco_decode_String(arr[2]),
+      baseRef: dco_decode_String(arr[3]),
+      changedFiles: dco_decode_u_32(arr[4]),
+      status: dco_decode_git_commit_compare_status(arr[5]),
+      errorMessage: dco_decode_opt_String(arr[6]),
+    );
+  }
+
+  @protected
   GitDiffFile dco_decode_git_diff_file(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -2690,6 +2890,64 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   GitErrorKind dco_decode_git_error_kind(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return GitErrorKind.values[raw as int];
+  }
+
+  @protected
+  GitHistoryItem dco_decode_git_history_item(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
+    return GitHistoryItem(
+      id: dco_decode_String(arr[0]),
+      parentIds: dco_decode_list_String(arr[1]),
+      subject: dco_decode_String(arr[2]),
+      message: dco_decode_String(arr[3]),
+      displayId: dco_decode_opt_String(arr[4]),
+      author: dco_decode_opt_String(arr[5]),
+      authorEmail: dco_decode_opt_String(arr[6]),
+      timestamp: dco_decode_opt_box_autoadd_i_64(arr[7]),
+      references: dco_decode_list_git_history_item_ref(arr[8]),
+    );
+  }
+
+  @protected
+  GitHistoryItemRef dco_decode_git_history_item_ref(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return GitHistoryItemRef(
+      id: dco_decode_String(arr[0]),
+      name: dco_decode_String(arr[1]),
+      revision: dco_decode_opt_String(arr[2]),
+      category: dco_decode_opt_box_autoadd_git_history_ref_category(arr[3]),
+    );
+  }
+
+  @protected
+  GitHistoryRefCategory dco_decode_git_history_ref_category(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return GitHistoryRefCategory.values[raw as int];
+  }
+
+  @protected
+  GitHistoryResult dco_decode_git_history_result(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
+    return GitHistoryResult(
+      items: dco_decode_list_git_history_item(arr[0]),
+      currentRef: dco_decode_opt_box_autoadd_git_history_item_ref(arr[1]),
+      remoteRef: dco_decode_opt_box_autoadd_git_history_item_ref(arr[2]),
+      baseRef: dco_decode_opt_box_autoadd_git_history_item_ref(arr[3]),
+      mergeBase: dco_decode_opt_String(arr[4]),
+      hasIncomingChanges: dco_decode_bool(arr[5]),
+      hasOutgoingChanges: dco_decode_bool(arr[6]),
+      hasMore: dco_decode_bool(arr[7]),
+      limit: dco_decode_u_32(arr[8]),
+    );
   }
 
   @protected
@@ -2789,6 +3047,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<GitCommitChangeEntry> dco_decode_list_git_commit_change_entry(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>)
+        .map(dco_decode_git_commit_change_entry)
+        .toList();
+  }
+
+  @protected
   List<GitDiffFile> dco_decode_list_git_diff_file(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_git_diff_file).toList();
@@ -2798,6 +3066,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<GitDiffLine> dco_decode_list_git_diff_line(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_git_diff_line).toList();
+  }
+
+  @protected
+  List<GitHistoryItem> dco_decode_list_git_history_item(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_git_history_item).toList();
+  }
+
+  @protected
+  List<GitHistoryItemRef> dco_decode_list_git_history_item_ref(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_git_history_item_ref).toList();
   }
 
   @protected
@@ -2933,6 +3213,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   GitChangeEntry? dco_decode_opt_box_autoadd_git_change_entry(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_git_change_entry(raw);
+  }
+
+  @protected
+  GitHistoryItemRef? dco_decode_opt_box_autoadd_git_history_item_ref(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_git_history_item_ref(raw);
+  }
+
+  @protected
+  GitHistoryRefCategory? dco_decode_opt_box_autoadd_git_history_ref_category(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_git_history_ref_category(raw);
+  }
+
+  @protected
+  PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_i_64(raw);
   }
 
   @protected
@@ -3459,6 +3765,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  GitHistoryItemRef sse_decode_box_autoadd_git_history_item_ref(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_git_history_item_ref(deserializer));
+  }
+
+  @protected
+  GitHistoryRefCategory sse_decode_box_autoadd_git_history_ref_category(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_git_history_ref_category(deserializer));
+  }
+
+  @protected
+  PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_i_64(deserializer));
+  }
+
+  @protected
   SourceControlWatcherHandle
   sse_decode_box_autoadd_source_control_watcher_handle(
     SseDeserializer deserializer,
@@ -3604,6 +3932,67 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  GitCommitChangeEntry sse_decode_git_commit_change_entry(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_path = sse_decode_String(deserializer);
+    var var_oldPath = sse_decode_opt_String(deserializer);
+    var var_status = sse_decode_git_change_status(deserializer);
+    var var_added = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_removed = sse_decode_opt_box_autoadd_u_32(deserializer);
+    return GitCommitChangeEntry(
+      path: var_path,
+      oldPath: var_oldPath,
+      status: var_status,
+      added: var_added,
+      removed: var_removed,
+    );
+  }
+
+  @protected
+  GitCommitCompareResult sse_decode_git_commit_compare_result(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_summary = sse_decode_git_commit_compare_summary(deserializer);
+    var var_entries = sse_decode_list_git_commit_change_entry(deserializer);
+    return GitCommitCompareResult(summary: var_summary, entries: var_entries);
+  }
+
+  @protected
+  GitCommitCompareStatus sse_decode_git_commit_compare_status(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return GitCommitCompareStatus.values[inner];
+  }
+
+  @protected
+  GitCommitCompareSummary sse_decode_git_commit_compare_summary(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_commitOid = sse_decode_String(deserializer);
+    var var_parentOid = sse_decode_opt_String(deserializer);
+    var var_compareRef = sse_decode_String(deserializer);
+    var var_baseRef = sse_decode_String(deserializer);
+    var var_changedFiles = sse_decode_u_32(deserializer);
+    var var_status = sse_decode_git_commit_compare_status(deserializer);
+    var var_errorMessage = sse_decode_opt_String(deserializer);
+    return GitCommitCompareSummary(
+      commitOid: var_commitOid,
+      parentOid: var_parentOid,
+      compareRef: var_compareRef,
+      baseRef: var_baseRef,
+      changedFiles: var_changedFiles,
+      status: var_status,
+      errorMessage: var_errorMessage,
+    );
+  }
+
+  @protected
   GitDiffFile sse_decode_git_diff_file(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_path = sse_decode_String(deserializer);
@@ -3668,6 +4057,90 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_i_32(deserializer);
     return GitErrorKind.values[inner];
+  }
+
+  @protected
+  GitHistoryItem sse_decode_git_history_item(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_parentIds = sse_decode_list_String(deserializer);
+    var var_subject = sse_decode_String(deserializer);
+    var var_message = sse_decode_String(deserializer);
+    var var_displayId = sse_decode_opt_String(deserializer);
+    var var_author = sse_decode_opt_String(deserializer);
+    var var_authorEmail = sse_decode_opt_String(deserializer);
+    var var_timestamp = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_references = sse_decode_list_git_history_item_ref(deserializer);
+    return GitHistoryItem(
+      id: var_id,
+      parentIds: var_parentIds,
+      subject: var_subject,
+      message: var_message,
+      displayId: var_displayId,
+      author: var_author,
+      authorEmail: var_authorEmail,
+      timestamp: var_timestamp,
+      references: var_references,
+    );
+  }
+
+  @protected
+  GitHistoryItemRef sse_decode_git_history_item_ref(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_revision = sse_decode_opt_String(deserializer);
+    var var_category = sse_decode_opt_box_autoadd_git_history_ref_category(
+      deserializer,
+    );
+    return GitHistoryItemRef(
+      id: var_id,
+      name: var_name,
+      revision: var_revision,
+      category: var_category,
+    );
+  }
+
+  @protected
+  GitHistoryRefCategory sse_decode_git_history_ref_category(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return GitHistoryRefCategory.values[inner];
+  }
+
+  @protected
+  GitHistoryResult sse_decode_git_history_result(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_items = sse_decode_list_git_history_item(deserializer);
+    var var_currentRef = sse_decode_opt_box_autoadd_git_history_item_ref(
+      deserializer,
+    );
+    var var_remoteRef = sse_decode_opt_box_autoadd_git_history_item_ref(
+      deserializer,
+    );
+    var var_baseRef = sse_decode_opt_box_autoadd_git_history_item_ref(
+      deserializer,
+    );
+    var var_mergeBase = sse_decode_opt_String(deserializer);
+    var var_hasIncomingChanges = sse_decode_bool(deserializer);
+    var var_hasOutgoingChanges = sse_decode_bool(deserializer);
+    var var_hasMore = sse_decode_bool(deserializer);
+    var var_limit = sse_decode_u_32(deserializer);
+    return GitHistoryResult(
+      items: var_items,
+      currentRef: var_currentRef,
+      remoteRef: var_remoteRef,
+      baseRef: var_baseRef,
+      mergeBase: var_mergeBase,
+      hasIncomingChanges: var_hasIncomingChanges,
+      hasOutgoingChanges: var_hasOutgoingChanges,
+      hasMore: var_hasMore,
+      limit: var_limit,
+    );
   }
 
   @protected
@@ -3803,6 +4276,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<GitCommitChangeEntry> sse_decode_list_git_commit_change_entry(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <GitCommitChangeEntry>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_git_commit_change_entry(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<GitDiffFile> sse_decode_list_git_diff_file(
     SseDeserializer deserializer,
   ) {
@@ -3826,6 +4313,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <GitDiffLine>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_git_diff_line(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<GitHistoryItem> sse_decode_list_git_history_item(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <GitHistoryItem>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_git_history_item(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<GitHistoryItemRef> sse_decode_list_git_history_item_ref(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <GitHistoryItemRef>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_git_history_item_ref(deserializer));
     }
     return ans_;
   }
@@ -4035,6 +4550,43 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_git_change_entry(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  GitHistoryItemRef? sse_decode_opt_box_autoadd_git_history_item_ref(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_git_history_item_ref(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  GitHistoryRefCategory? sse_decode_opt_box_autoadd_git_history_ref_category(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_git_history_ref_category(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_i_64(deserializer));
     } else {
       return null;
     }
@@ -4653,6 +5205,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_git_history_item_ref(
+    GitHistoryItemRef self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_git_history_item_ref(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_git_history_ref_category(
+    GitHistoryRefCategory self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_git_history_ref_category(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_i_64(
+    PlatformInt64 self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_64(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_source_control_watcher_handle(
     SourceControlWatcherHandle self,
     SseSerializer serializer,
@@ -4790,6 +5369,53 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_git_commit_change_entry(
+    GitCommitChangeEntry self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.path, serializer);
+    sse_encode_opt_String(self.oldPath, serializer);
+    sse_encode_git_change_status(self.status, serializer);
+    sse_encode_opt_box_autoadd_u_32(self.added, serializer);
+    sse_encode_opt_box_autoadd_u_32(self.removed, serializer);
+  }
+
+  @protected
+  void sse_encode_git_commit_compare_result(
+    GitCommitCompareResult self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_git_commit_compare_summary(self.summary, serializer);
+    sse_encode_list_git_commit_change_entry(self.entries, serializer);
+  }
+
+  @protected
+  void sse_encode_git_commit_compare_status(
+    GitCommitCompareStatus self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_git_commit_compare_summary(
+    GitCommitCompareSummary self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.commitOid, serializer);
+    sse_encode_opt_String(self.parentOid, serializer);
+    sse_encode_String(self.compareRef, serializer);
+    sse_encode_String(self.baseRef, serializer);
+    sse_encode_u_32(self.changedFiles, serializer);
+    sse_encode_git_commit_compare_status(self.status, serializer);
+    sse_encode_opt_String(self.errorMessage, serializer);
+  }
+
+  @protected
   void sse_encode_git_diff_file(GitDiffFile self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.path, serializer);
@@ -4842,6 +5468,67 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_git_error_kind(GitErrorKind self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_git_history_item(
+    GitHistoryItem self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_list_String(self.parentIds, serializer);
+    sse_encode_String(self.subject, serializer);
+    sse_encode_String(self.message, serializer);
+    sse_encode_opt_String(self.displayId, serializer);
+    sse_encode_opt_String(self.author, serializer);
+    sse_encode_opt_String(self.authorEmail, serializer);
+    sse_encode_opt_box_autoadd_i_64(self.timestamp, serializer);
+    sse_encode_list_git_history_item_ref(self.references, serializer);
+  }
+
+  @protected
+  void sse_encode_git_history_item_ref(
+    GitHistoryItemRef self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.name, serializer);
+    sse_encode_opt_String(self.revision, serializer);
+    sse_encode_opt_box_autoadd_git_history_ref_category(
+      self.category,
+      serializer,
+    );
+  }
+
+  @protected
+  void sse_encode_git_history_ref_category(
+    GitHistoryRefCategory self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_git_history_result(
+    GitHistoryResult self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_git_history_item(self.items, serializer);
+    sse_encode_opt_box_autoadd_git_history_item_ref(
+      self.currentRef,
+      serializer,
+    );
+    sse_encode_opt_box_autoadd_git_history_item_ref(self.remoteRef, serializer);
+    sse_encode_opt_box_autoadd_git_history_item_ref(self.baseRef, serializer);
+    sse_encode_opt_String(self.mergeBase, serializer);
+    sse_encode_bool(self.hasIncomingChanges, serializer);
+    sse_encode_bool(self.hasOutgoingChanges, serializer);
+    sse_encode_bool(self.hasMore, serializer);
+    sse_encode_u_32(self.limit, serializer);
   }
 
   @protected
@@ -4960,6 +5647,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_git_commit_change_entry(
+    List<GitCommitChangeEntry> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_git_commit_change_entry(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_git_diff_file(
     List<GitDiffFile> self,
     SseSerializer serializer,
@@ -4980,6 +5679,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_git_diff_line(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_git_history_item(
+    List<GitHistoryItem> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_git_history_item(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_git_history_item_ref(
+    List<GitHistoryItemRef> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_git_history_item_ref(item, serializer);
     }
   }
 
@@ -5164,6 +5887,45 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_git_change_entry(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_git_history_item_ref(
+    GitHistoryItemRef? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_git_history_item_ref(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_git_history_ref_category(
+    GitHistoryRefCategory? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_git_history_ref_category(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_i_64(
+    PlatformInt64? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_i_64(self, serializer);
     }
   }
 

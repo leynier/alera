@@ -20,14 +20,18 @@ import 'package:alera/src/features/workbench/domain/workspace_source_control_sco
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_exception.dart';
+import 'package:alera/src/shared/infra/git/git_history_graph.dart';
+import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 
 part 'workspace_git_diff_panel_groups.dart';
 part 'workspace_git_diff_panel_amend_dialog.dart';
 part 'workspace_git_diff_panel_stash_dialog.dart';
 part 'workspace_git_diff_panel_toolbar.dart';
 part 'workspace_git_diff_panel_tree.dart';
+part 'workspace_git_history_panel.dart';
 
 typedef OpenGitDiffTabCallback =
     Future<void> Function({
@@ -35,6 +39,19 @@ typedef OpenGitDiffTabCallback =
       GitChangeArea? area,
       String? gitDiffRoot,
       required WorkspaceGitDiffScope scope,
+    });
+
+typedef OpenGitCommitDiffTabCallback =
+    Future<void> Function({
+      String? relativePath,
+      String? oldPath,
+      required WorkspaceGitDiffScope scope,
+      String? gitDiffRoot,
+      required String commitOid,
+      String? parentOid,
+      required String compareRef,
+      String? subject,
+      String? message,
     });
 
 class WorkspaceGitDiffPanel extends ConsumerStatefulWidget {
@@ -45,6 +62,7 @@ class WorkspaceGitDiffPanel extends ConsumerStatefulWidget {
     required this.viewMode,
     required this.onViewModeChanged,
     required this.onOpenGitDiff,
+    required this.onOpenGitCommitDiff,
     this.onClearSourceControlRoot,
   });
 
@@ -53,6 +71,7 @@ class WorkspaceGitDiffPanel extends ConsumerStatefulWidget {
   final GitDiffViewMode viewMode;
   final ValueChanged<GitDiffViewMode> onViewModeChanged;
   final OpenGitDiffTabCallback onOpenGitDiff;
+  final OpenGitCommitDiffTabCallback onOpenGitCommitDiff;
   final VoidCallback? onClearSourceControlRoot;
 
   @override
@@ -68,6 +87,14 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
   late final AiTextGenerationService _aiTextGenerationService;
   bool _filterVisible = false;
   bool _generatingCommitMessage = false;
+  bool _historyCollapsed = true;
+  bool _historyDirty = false;
+  bool _historyRefreshing = false;
+  Future<GitHistoryResult>? _historyFuture;
+  GitHistoryResult? _historyResult;
+  String? _historyError;
+  final Map<String, GitCommitCompareResult> _commitCompareCache =
+      <String, GitCommitCompareResult>{};
   int _commitMessageGenerationId = 0;
 
   @override
@@ -91,6 +118,13 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
       _collapsedTreeNodes.clear();
       _filterVisible = false;
       _generatingCommitMessage = false;
+      _historyCollapsed = true;
+      _historyDirty = false;
+      _historyFuture = null;
+      _historyResult = null;
+      _historyError = null;
+      _historyRefreshing = false;
+      _commitCompareCache.clear();
     }
   }
 
@@ -108,9 +142,21 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(
-      workspaceSourceControlControllerProvider(widget.sourceControlScope.path),
+    final sourceControlProvider = workspaceSourceControlControllerProvider(
+      widget.sourceControlScope.path,
     );
+    ref.listen<AsyncValue<WorkspaceSourceControlState>>(sourceControlProvider, (
+      previous,
+      next,
+    ) {
+      final previousData = previous?.asData?.value;
+      final nextData = next.asData?.value;
+      if (previousData == null || nextData == null || nextData.isBusy) {
+        return;
+      }
+      _invalidateGitHistoryAfterRepositoryChange();
+    });
+    final state = ref.watch(sourceControlProvider);
     final aiTextSettings = ref.watch(
       settingsControllerProvider.select(
         (settings) => settings.aiTextGeneration,
@@ -150,36 +196,55 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
         ),
         const Divider(height: 1, color: AleraTokens.borderSubtle),
         Expanded(
-          child: state.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (error, _) => _GitDiffMessage(message: _messageFor(error)),
-            data: (data) {
-              final status = _filteredStatus(data.status);
-              final entries = status.entries;
-              if (entries.isEmpty) {
-                return _GitDiffMessage(
-                  message: _filterController.text.trim().isEmpty
-                      ? 'No changes'
-                      : 'No files match the current filter',
-                );
-              }
-              return _GitDiffGroups(
-                groups: status.effectiveGroups,
-                viewMode: widget.viewMode,
-                busy: data.isBusy,
-                collapsedSections: _collapsedSections,
-                collapsedTreeNodes: _collapsedTreeNodes,
-                onToggleSection: _toggleSectionCollapsed,
-                onToggleTreeNode: _toggleTreeNodeCollapsed,
-                onOpenGitDiff: _openGitDiff,
-                onStage: _stageEntry,
-                onUnstage: _unstageEntry,
-                onDiscard: _discardEntry,
-                onStageArea: _stageArea,
-                onUnstageArea: _unstageArea,
-                onDiscardArea: _discardAreaWithConfirmation,
-              );
-            },
+          child: Column(
+            children: <Widget>[
+              Expanded(
+                child: state.when(
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (error, _) =>
+                      _GitDiffMessage(message: _messageFor(error)),
+                  data: (data) {
+                    final status = _filteredStatus(data.status);
+                    final entries = status.entries;
+                    if (entries.isEmpty) {
+                      return _GitDiffMessage(
+                        message: _filterController.text.trim().isEmpty
+                            ? 'No changes'
+                            : 'No files match the current filter',
+                      );
+                    }
+                    return _GitDiffGroups(
+                      groups: status.effectiveGroups,
+                      viewMode: widget.viewMode,
+                      busy: data.isBusy,
+                      collapsedSections: _collapsedSections,
+                      collapsedTreeNodes: _collapsedTreeNodes,
+                      onToggleSection: _toggleSectionCollapsed,
+                      onToggleTreeNode: _toggleTreeNodeCollapsed,
+                      onOpenGitDiff: _openGitDiff,
+                      onStage: _stageEntry,
+                      onUnstage: _unstageEntry,
+                      onDiscard: _discardEntry,
+                      onStageArea: _stageArea,
+                      onUnstageArea: _unstageArea,
+                      onDiscardArea: _discardAreaWithConfirmation,
+                    );
+                  },
+                ),
+              ),
+              const Divider(height: 1, color: AleraTokens.borderSubtle),
+              _GitHistoryPanel(
+                state: _historyPanelState,
+                collapsed: _historyCollapsed,
+                onToggle: _toggleGitHistory,
+                onRefresh: _refreshGitHistory,
+                onLoadCommitFiles: _loadCommitFiles,
+                onOpenCommit: _openCommitDiff,
+                onOpenCommitFile: _openCommitFile,
+                onCopyCommitText: _copyCommitText,
+              ),
+            ],
           ),
         ),
       ],
@@ -620,6 +685,7 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
           message: successMessage,
           tone: AleraToastTone.success,
         );
+        _invalidateGitHistoryAfterMutation();
       }
       return true;
     } catch (error) {
@@ -678,6 +744,212 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
       gitDiffRoot: widget.sourceControlScope.relativeRoot,
       scope: scope,
     );
+  }
+
+  _GitHistoryPanelLoadState get _historyPanelState {
+    final future = _historyFuture;
+    final result = _historyResult;
+    if (_historyError case final error?) {
+      return _GitHistoryPanelLoadState.error(
+        error: error,
+        result: result,
+        loading: _historyRefreshing,
+      );
+    }
+    if (future != null && result == null) {
+      return const _GitHistoryPanelLoadState.loading();
+    }
+    if (result != null) {
+      return _GitHistoryPanelLoadState.ready(
+        result: result,
+        loading: _historyRefreshing,
+      );
+    }
+    return const _GitHistoryPanelLoadState.idle();
+  }
+
+  void _toggleGitHistory() {
+    final opening = _historyCollapsed;
+    setState(() => _historyCollapsed = !_historyCollapsed);
+    if (opening &&
+        (_historyDirty || (_historyResult == null && _historyFuture == null))) {
+      unawaited(_loadGitHistory());
+    }
+  }
+
+  void _invalidateGitHistoryAfterMutation() {
+    _commitCompareCache.clear();
+    if (_historyCollapsed) {
+      _markCollapsedHistoryDirty();
+      return;
+    }
+    unawaited(_loadGitHistory());
+  }
+
+  void _invalidateGitHistoryAfterRepositoryChange() {
+    if (_historyResult == null && _historyFuture == null) {
+      return;
+    }
+    _commitCompareCache.clear();
+    if (_historyCollapsed) {
+      setState(_markCollapsedHistoryDirty);
+      return;
+    }
+    unawaited(_loadGitHistory());
+  }
+
+  void _markCollapsedHistoryDirty() {
+    _historyDirty = true;
+    _historyFuture = null;
+    _historyRefreshing = false;
+  }
+
+  Future<void> _refreshGitHistory() async {
+    if (_historyCollapsed) {
+      setState(() => _historyCollapsed = false);
+    }
+    await _loadGitHistory();
+  }
+
+  Future<void> _loadGitHistory() async {
+    final future = ref
+        .read(gitBackendProvider)
+        .history(widget.sourceControlScope.path, limit: 50);
+    setState(() {
+      _historyFuture = future;
+      _historyError = null;
+      _historyRefreshing = _historyResult != null;
+    });
+    try {
+      final result = await future;
+      if (!mounted || _historyFuture != future) {
+        return;
+      }
+      setState(() {
+        _historyResult = result;
+        _historyDirty = false;
+        _historyFuture = null;
+        _historyRefreshing = false;
+        _commitCompareCache.clear();
+      });
+    } catch (error) {
+      if (!mounted || _historyFuture != future) {
+        return;
+      }
+      setState(() {
+        _historyError = _messageFor(error);
+        _historyFuture = null;
+        _historyRefreshing = false;
+      });
+    }
+  }
+
+  Future<List<GitCommitChangeEntry>> _loadCommitFiles(
+    GitHistoryItem item,
+  ) async {
+    final compare = await _commitCompareFor(item);
+    return compare.entries;
+  }
+
+  Future<void> _openCommitDiff(GitHistoryItem item) async {
+    try {
+      final compare = await _commitCompareFor(item);
+      if (!mounted) {
+        return;
+      }
+      await widget.onOpenGitCommitDiff(
+        scope: WorkspaceGitDiffScope.all,
+        gitDiffRoot: widget.sourceControlScope.relativeRoot,
+        commitOid: compare.summary.commitOid,
+        parentOid: compare.summary.parentOid,
+        compareRef: compare.summary.compareRef,
+        subject: item.subject,
+        message: item.message,
+      );
+    } catch (error) {
+      if (mounted) {
+        AleraToast.show(
+          context,
+          message: _messageFor(error),
+          tone: AleraToastTone.error,
+        );
+      }
+    }
+  }
+
+  Future<void> _openCommitFile(
+    GitHistoryItem item,
+    GitCommitChangeEntry entry,
+  ) async {
+    try {
+      final compare = await _commitCompareFor(item);
+      if (!mounted) {
+        return;
+      }
+      await widget.onOpenGitCommitDiff(
+        relativePath: widget.sourceControlScope.toWorkspaceRelativePath(
+          entry.path,
+        ),
+        oldPath: widget.sourceControlScope.toWorkspaceRelativePath(
+          entry.oldPath,
+        ),
+        scope: WorkspaceGitDiffScope.file,
+        gitDiffRoot: widget.sourceControlScope.relativeRoot,
+        commitOid: compare.summary.commitOid,
+        parentOid: compare.summary.parentOid,
+        compareRef: compare.summary.compareRef,
+        subject: item.subject,
+        message: item.message,
+      );
+    } catch (error) {
+      if (mounted) {
+        AleraToast.show(
+          context,
+          message: _messageFor(error),
+          tone: AleraToastTone.error,
+        );
+      }
+    }
+  }
+
+  Future<GitCommitCompareResult> _commitCompareFor(GitHistoryItem item) async {
+    final cached = _commitCompareCache[item.id];
+    if (cached != null) {
+      return cached;
+    }
+    final result = await ref
+        .read(gitBackendProvider)
+        .commitCompare(path: widget.sourceControlScope.path, commitId: item.id);
+    if (result.summary.status != GitCommitCompareStatus.ready) {
+      throw GitInternalException(
+        result.summary.errorMessage ?? 'Failed to load commit diff.',
+      );
+    }
+    _commitCompareCache[item.id] = result;
+    return result;
+  }
+
+  Future<void> _copyCommitText(String text, String label) async {
+    try {
+      await Clipboard.setData(ClipboardData(text: text));
+      if (!mounted) {
+        return;
+      }
+      AleraToast.show(
+        context,
+        message: '$label Copied',
+        tone: AleraToastTone.success,
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      AleraToast.show(
+        context,
+        message: 'Could Not Copy $label',
+        tone: AleraToastTone.error,
+      );
+    }
   }
 
   String _messageFor(Object? error) {
