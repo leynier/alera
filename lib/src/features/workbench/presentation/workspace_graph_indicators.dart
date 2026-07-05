@@ -6,11 +6,6 @@ import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:flutter/material.dart';
 
 /// Role badge shown next to a workspace name.
-///
-/// A workspace is either the project's primary worktree, a child of another
-/// workspace, or neither — so this renders at most one badge. It mirrors the
-/// `Primary` marker that already sits beside the name, keeping role markers
-/// visually parallel across the sidebar and the welcome dashboard.
 class WorkspaceRoleBadge extends StatelessWidget {
   const WorkspaceRoleBadge({super.key, required this.workspace});
 
@@ -19,21 +14,12 @@ class WorkspaceRoleBadge extends StatelessWidget {
   /// Whether [workspace] has a role to show. Callers use this to gate the
   /// adjacent spacer so the predicate lives in one place instead of being
   /// duplicated at every call site.
-  static bool hasRole(Workspace workspace) =>
-      workspace.isMain || workspace.parentWorkspaceId != null;
+  static bool hasRole(Workspace workspace) => workspace.isMain;
 
   @override
   Widget build(BuildContext context) {
     if (workspace.isMain) {
-      return const AleraBadge(label: 'Primary');
-    }
-    if (workspace.parentWorkspaceId != null) {
-      // Info-tinted text so the relationship role reads differently from the
-      // neutral "Primary" marker while keeping the same subtle fill.
-      return const AleraBadge(
-        label: 'Child',
-        foregroundColor: AleraTokens.info,
-      );
+      return const AleraBadge(label: 'Default');
     }
     return const SizedBox.shrink();
   }

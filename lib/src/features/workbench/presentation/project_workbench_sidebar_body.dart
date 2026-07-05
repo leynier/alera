@@ -145,12 +145,12 @@ class _SidebarBody extends StatelessWidget {
     return const SizedBox.shrink();
   }
 
-  /// Base sidebar padding plus one step per nesting level, clamped so deep
-  /// trees keep usable row widths in a narrow sidebar.
+  /// Base sidebar padding plus one row-content step per nesting level, clamped
+  /// so deep trees keep usable row widths in a narrow sidebar.
   double _indentPadding(int indent) {
     const double base = AleraTokens.space8;
-    const double step = AleraTokens.space12;
-    const double max = base + 6 * step;
+    const double step = AleraTokens.space32;
+    const double max = base + 4 * step;
     final padding = base + indent * step;
     return padding > max ? max : padding;
   }

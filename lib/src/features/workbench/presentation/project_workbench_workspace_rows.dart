@@ -62,6 +62,7 @@ class _WorkspaceRow extends StatefulWidget {
 }
 
 class _WorkspaceRowState extends State<_WorkspaceRow> {
+  static const int _maxInlineTags = 3;
   static const String _renameAction = 'rename';
   static const String _openFolderAction = 'open-folder';
   static const String _copyPathAction = 'copy-path';
@@ -170,31 +171,72 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
     }
   }
 
-  String _buildSecondaryLine() {
+  String _buildBranchLabel() {
     final branch = widget.workspace.branch;
-    final parts = <String>[
-      if (branch != null && branch.isNotEmpty)
-        branch
-      else if (widget.project.isFolder)
-        'Local Folder'
-      else
-        'Git Repository',
-    ];
-    final source = widget.workspace.sourceBranch;
-    if (!widget.workspace.isMain &&
-        !widget.workspace.reusesExistingBranch &&
-        source != null &&
-        source.isNotEmpty) {
-      parts.add('Base: $source');
+    if (branch != null && branch.isNotEmpty) {
+      return branch;
     }
-    return parts.join(' · ');
+    if (widget.project.isFolder) {
+      return 'Local Folder';
+    }
+    return 'Git Repository';
+  }
+
+  List<String> _tagLabels() {
+    final source = widget.workspace.tagNames.isNotEmpty
+        ? widget.workspace.tagNames
+        : widget.workspace.tagIds;
+    return source
+        .map((tag) => tag.trim())
+        .where((tag) => tag.isNotEmpty)
+        .toList(growable: false);
+  }
+
+  List<Widget> _buildMetadataChips() {
+    final branchLabel = _buildBranchLabel();
+    final tags = _tagLabels();
+    final chips = <Widget>[
+      if (widget.showProjectChip)
+        AleraChip(
+          leading: AleraIcons.folderSpecial,
+          label: widget.project.name,
+          tooltip: widget.project.name,
+        ),
+      AleraChip(
+        leading: AleraIcons.gitBranch,
+        label: branchLabel,
+        tooltip: branchLabel,
+      ),
+      for (final tag in tags.take(_maxInlineTags))
+        AleraChip(leading: AleraIcons.tag, label: '#$tag', tooltip: tag),
+    ];
+    final hiddenTags = tags.skip(_maxInlineTags).toList(growable: false);
+    if (hiddenTags.isNotEmpty) {
+      chips.add(
+        AleraChip(
+          leading: AleraIcons.tag,
+          label: '+${hiddenTags.length} Tags',
+          tooltip: hiddenTags.join(', '),
+        ),
+      );
+    }
+    final hostId = widget.workspace.hostId.trim();
+    if (hostId.isNotEmpty && hostId != 'local') {
+      chips.add(
+        AleraChip(
+          leading: AleraIcons.host,
+          label: hostId,
+          tooltip: 'Host: $hostId',
+        ),
+      );
+    }
+    return chips;
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isActive = widget.isActive;
-    final actionsVisible = _hovered || isActive;
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
@@ -223,24 +265,6 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    if (widget.hasVisibleChildren &&
-                        widget.onToggleChildren != null) ...<Widget>[
-                      Padding(
-                        padding: const EdgeInsets.only(top: 2),
-                        child: AleraIconButton(
-                          tooltip: widget.childrenCollapsed
-                              ? 'Show Child Workspaces'
-                              : 'Hide Child Workspaces',
-                          onPressed: widget.onToggleChildren!,
-                          icon: widget.childrenCollapsed
-                              ? AleraIcons.chevronRight
-                              : AleraIcons.chevronDown,
-                          iconSize: 12,
-                          minSize: 20,
-                        ),
-                      ),
-                      const SizedBox(width: AleraTokens.space2),
-                    ],
                     Padding(
                       padding: const EdgeInsets.only(top: 6),
                       child: widget.status == null
@@ -277,25 +301,11 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                             ],
                           ),
                           const SizedBox(height: AleraTokens.space4),
-                          Row(
-                            children: <Widget>[
-                              if (widget.showProjectChip) ...<Widget>[
-                                Flexible(
-                                  child: AleraChip(label: widget.project.name),
-                                ),
-                                const SizedBox(width: AleraTokens.space6),
-                              ],
-                              Flexible(
-                                child: Text(
-                                  _buildSecondaryLine(),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: theme.textTheme.labelSmall?.copyWith(
-                                    color: AleraTokens.foregroundFaint,
-                                  ),
-                                ),
-                              ),
-                            ],
+                          Wrap(
+                            spacing: AleraTokens.space6,
+                            runSpacing: AleraTokens.space4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: _buildMetadataChips(),
                           ),
                           if (widget.agentRuns.isNotEmpty) ...<Widget>[
                             const SizedBox(height: AleraTokens.space6),
@@ -311,33 +321,25 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                               onCloseTerminal: widget.onCloseTerminal,
                             ),
                           ],
-                          if (WorkspaceGraphChips.hasContent(
-                            widget.workspace,
-                          )) ...<Widget>[
-                            const SizedBox(height: AleraTokens.space6),
-                            WorkspaceGraphChips(workspace: widget.workspace),
-                          ],
                         ],
                       ),
                     ),
-                    if (widget.onDelete != null)
-                      IgnorePointer(
-                        ignoring: !actionsVisible,
-                        child: AnimatedOpacity(
-                          opacity: actionsVisible ? 1 : 0,
-                          duration: AleraTokens.durationFast,
-                          child: Padding(
-                            padding: const EdgeInsets.only(
-                              left: AleraTokens.space2,
-                            ),
-                            child: AleraIconButton(
-                              tooltip: 'Remove Workspace',
-                              onPressed: widget.onDelete!,
-                              icon: AleraIcons.delete,
-                              iconSize: 14,
-                              minSize: 24,
-                            ),
-                          ),
+                    if (widget.hasVisibleChildren &&
+                        widget.onToggleChildren != null)
+                      Padding(
+                        padding: const EdgeInsets.only(
+                          left: AleraTokens.space2,
+                        ),
+                        child: AleraIconButton(
+                          tooltip: widget.childrenCollapsed
+                              ? 'Show Child Workspaces'
+                              : 'Hide Child Workspaces',
+                          onPressed: widget.onToggleChildren!,
+                          icon: widget.childrenCollapsed
+                              ? AleraIcons.chevronRight
+                              : AleraIcons.chevronDown,
+                          iconSize: 14,
+                          minSize: 24,
                         ),
                       ),
                   ],

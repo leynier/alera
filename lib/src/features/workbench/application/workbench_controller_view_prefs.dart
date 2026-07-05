@@ -125,51 +125,42 @@ mixin _WorkbenchControllerViewPrefs
     );
   }
 
-  /// Collapses or expands the appropriate items depending on the active group
-  /// mode. In [WorkbenchGroupBy.project] this toggles every visible project
-  /// group; in [WorkbenchGroupBy.none] it toggles the sidebar-visible agent-run
-  /// list of the active workspace.
+  /// Collapses or expands every sidebar-visible grouping surface: project
+  /// groups, parent workspace child trees, and workspace agent-run sections.
   void toggleCollapseAll() {
     final prefs = state.viewPrefs;
-    if (prefs.groupBy == WorkbenchGroupBy.project) {
-      final selected = prefs.selectedProjectIds;
-      final visibleProjectIds = <String>[
-        for (final project in state.projects)
-          if (selected.isEmpty || selected.contains(project.id)) project.id,
-      ];
-      if (visibleProjectIds.isEmpty) {
-        return;
-      }
-      final allCollapsed = visibleProjectIds.every(
-        prefs.collapsedProjectIds.contains,
-      );
-      final next = Set<String>.from(prefs.collapsedProjectIds);
-      if (allCollapsed) {
-        next.removeAll(visibleProjectIds);
-      } else {
-        next.addAll(visibleProjectIds);
-      }
-      _updateViewPrefs(prefs.copyWith(collapsedProjectIds: next));
+    final targets = visibleSidebarCollapseTargets(state);
+    if (targets.isEmpty) {
       return;
     }
-    // Flat mode: toggle the expansion of every visible workspace.
-    final allWorkspaceIds = <String>[
-      for (final entry in state.workspacesByProject.entries)
-        for (final workspace in entry.value) workspace.id,
-    ];
-    if (allWorkspaceIds.isEmpty) {
-      return;
-    }
-    final anyExpanded = allWorkspaceIds.any(
-      prefs.expandedWorkspaceIds.contains,
+    final allCollapsed = targets.isCollapsed(prefs);
+    final actionTargets = allCollapsed
+        ? visibleSidebarCollapseTargets(
+            state,
+            includeCollapsedProjectDescendants: true,
+          )
+        : targets;
+    final nextProjects = Set<String>.from(prefs.collapsedProjectIds);
+    final nextParentWorkspaces = Set<String>.from(
+      prefs.collapsedParentWorkspaceIds,
     );
     final next = Set<String>.from(prefs.expandedWorkspaceIds);
-    if (anyExpanded) {
-      next.removeAll(allWorkspaceIds);
+    if (allCollapsed) {
+      nextProjects.removeAll(actionTargets.projectIds);
+      nextParentWorkspaces.removeAll(actionTargets.parentWorkspaceIds);
+      next.addAll(actionTargets.workspaceIds);
     } else {
-      next.addAll(allWorkspaceIds);
+      nextProjects.addAll(actionTargets.projectIds);
+      nextParentWorkspaces.addAll(actionTargets.parentWorkspaceIds);
+      next.removeAll(actionTargets.workspaceIds);
     }
-    _updateViewPrefs(prefs.copyWith(expandedWorkspaceIds: next));
+    _updateViewPrefs(
+      prefs.copyWith(
+        collapsedProjectIds: nextProjects,
+        collapsedParentWorkspaceIds: nextParentWorkspaces,
+        expandedWorkspaceIds: next,
+      ),
+    );
   }
 
   void toggleWorkspaceExpanded(String workspaceId) {
