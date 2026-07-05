@@ -399,9 +399,9 @@ mixin _WorkbenchControllerViewPrefs
       AleraTokens.sidebarMinWidth,
       AleraTokens.sidebarMaxWidth,
     );
-    if ((state.sidebarWidth - clamped).abs() < 0.5) {
+    if ((state.viewPrefs.sidebarWidth - clamped).abs() < 0.5) {
       return;
     }
-    state = state.copyWith(sidebarWidth: clamped);
+    _updateViewPrefs(state.viewPrefs.copyWith(sidebarWidth: clamped));
   }
 }

@@ -183,7 +183,7 @@ void _registerWorkbenchControllerViewPrefsTests() {
     );
     expect(_controller.state.searchQuery, 'terminal');
     expect(_controller.state.collapsed, isTrue);
-    expect(_controller.state.sidebarWidth, AleraTokens.sidebarMaxWidth);
+    expect(_controller.state.viewPrefs.sidebarWidth, AleraTokens.sidebarMaxWidth);
     expect(
       _harness.viewPrefsRepository.prefs.workspaceSort,
       WorkbenchSortBy.recent,

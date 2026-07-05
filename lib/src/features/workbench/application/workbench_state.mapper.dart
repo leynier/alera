@@ -117,13 +117,6 @@ class WorkbenchStateMapper extends ClassMapperBase<WorkbenchState> {
     opt: true,
     def: false,
   );
-  static double _$sidebarWidth(WorkbenchState v) => v.sidebarWidth;
-  static const Field<WorkbenchState, double> _f$sidebarWidth = Field(
-    'sidebarWidth',
-    _$sidebarWidth,
-    opt: true,
-    def: AleraTokens.sidebarDefaultWidth,
-  );
 
   @override
   final MappableFields<WorkbenchState> fields = const {
@@ -139,7 +132,6 @@ class WorkbenchStateMapper extends ClassMapperBase<WorkbenchState> {
     #error: _f$error,
     #searchQuery: _f$searchQuery,
     #collapsed: _f$collapsed,
-    #sidebarWidth: _f$sidebarWidth,
   };
 
   static WorkbenchState _instantiate(DecodingData data) {
@@ -156,7 +148,6 @@ class WorkbenchStateMapper extends ClassMapperBase<WorkbenchState> {
       error: data.dec(_f$error),
       searchQuery: data.dec(_f$searchQuery),
       collapsed: data.dec(_f$collapsed),
-      sidebarWidth: data.dec(_f$sidebarWidth),
     );
   }
 
@@ -261,7 +252,6 @@ abstract class WorkbenchStateCopyWith<$R, $In extends WorkbenchState, $Out>
     String? error,
     String? searchQuery,
     bool? collapsed,
-    double? sidebarWidth,
   });
   WorkbenchStateCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -343,7 +333,6 @@ class _WorkbenchStateCopyWithImpl<$R, $Out>
     Object? error = $none,
     String? searchQuery,
     bool? collapsed,
-    double? sidebarWidth,
   }) => $apply(
     FieldCopyWithData({
       if (projects != null) #projects: projects,
@@ -360,7 +349,6 @@ class _WorkbenchStateCopyWithImpl<$R, $Out>
       if (error != $none) #error: error,
       if (searchQuery != null) #searchQuery: searchQuery,
       if (collapsed != null) #collapsed: collapsed,
-      if (sidebarWidth != null) #sidebarWidth: sidebarWidth,
     }),
   );
   @override
@@ -389,7 +377,6 @@ class _WorkbenchStateCopyWithImpl<$R, $Out>
     error: data.get(#error, or: $value.error),
     searchQuery: data.get(#searchQuery, or: $value.searchQuery),
     collapsed: data.get(#collapsed, or: $value.collapsed),
-    sidebarWidth: data.get(#sidebarWidth, or: $value.sidebarWidth),
   );
 
   @override

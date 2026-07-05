@@ -336,6 +336,13 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
     opt: true,
     def: 280,
   );
+  static double _$sidebarWidth(WorkbenchViewPrefs v) => v.sidebarWidth;
+  static const Field<WorkbenchViewPrefs, double> _f$sidebarWidth = Field(
+    'sidebarWidth',
+    _$sidebarWidth,
+    opt: true,
+    def: AleraTokens.sidebarDefaultWidth,
+  );
   static WorkbenchContextPanelTab _$activeContextPanelTab(
     WorkbenchViewPrefs v,
   ) => v.activeContextPanelTab;
@@ -378,6 +385,7 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
     #sourceControlRootByWorkspaceId: _f$sourceControlRootByWorkspaceId,
     #rightSidebarVisible: _f$rightSidebarVisible,
     #rightSidebarWidth: _f$rightSidebarWidth,
+    #sidebarWidth: _f$sidebarWidth,
     #activeContextPanelTab: _f$activeContextPanelTab,
     #explorerMode: _f$explorerMode,
     #gitDiffViewMode: _f$gitDiffViewMode,
@@ -398,6 +406,7 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
       ),
       rightSidebarVisible: data.dec(_f$rightSidebarVisible),
       rightSidebarWidth: data.dec(_f$rightSidebarWidth),
+      sidebarWidth: data.dec(_f$sidebarWidth),
       activeContextPanelTab: data.dec(_f$activeContextPanelTab),
       explorerMode: data.dec(_f$explorerMode),
       gitDiffViewMode: data.dec(_f$gitDiffViewMode),
@@ -489,6 +498,7 @@ abstract class WorkbenchViewPrefsCopyWith<
     Map<String, String>? sourceControlRootByWorkspaceId,
     bool? rightSidebarVisible,
     double? rightSidebarWidth,
+    double? sidebarWidth,
     WorkbenchContextPanelTab? activeContextPanelTab,
     WorkspaceExplorerMode? explorerMode,
     GitDiffViewMode? gitDiffViewMode,
@@ -526,6 +536,7 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
     Map<String, String>? sourceControlRootByWorkspaceId,
     bool? rightSidebarVisible,
     double? rightSidebarWidth,
+    double? sidebarWidth,
     WorkbenchContextPanelTab? activeContextPanelTab,
     WorkspaceExplorerMode? explorerMode,
     GitDiffViewMode? gitDiffViewMode,
@@ -547,6 +558,7 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
       if (rightSidebarVisible != null)
         #rightSidebarVisible: rightSidebarVisible,
       if (rightSidebarWidth != null) #rightSidebarWidth: rightSidebarWidth,
+      if (sidebarWidth != null) #sidebarWidth: sidebarWidth,
       if (activeContextPanelTab != null)
         #activeContextPanelTab: activeContextPanelTab,
       if (explorerMode != null) #explorerMode: explorerMode,
@@ -587,6 +599,7 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
       #rightSidebarWidth,
       or: $value.rightSidebarWidth,
     ),
+    sidebarWidth: data.get(#sidebarWidth, or: $value.sidebarWidth),
     activeContextPanelTab: data.get(
       #activeContextPanelTab,
       or: $value.activeContextPanelTab,

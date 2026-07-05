@@ -1,4 +1,3 @@
-import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
@@ -23,7 +22,6 @@ class WorkbenchState with WorkbenchStateMappable {
     this.error,
     this.searchQuery = '',
     this.collapsed = false,
-    this.sidebarWidth = AleraTokens.sidebarDefaultWidth,
   });
 
   final List<Project> projects;
@@ -38,7 +36,6 @@ class WorkbenchState with WorkbenchStateMappable {
   final String? error;
   final String searchQuery;
   final bool collapsed;
-  final double sidebarWidth;
 
   /// Project ids that are visually expanded in the sidebar. Computed as the
   /// inverse of [WorkbenchViewPrefs.collapsedProjectIds] over the currently

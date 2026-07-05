@@ -77,7 +77,7 @@ class _ProjectWorkbenchSidebarState
       );
     }
     return SizedBox(
-      width: state.sidebarWidth,
+      width: state.viewPrefs.sidebarWidth,
       child: Stack(
         children: <Widget>[
           Container(
@@ -146,7 +146,7 @@ class _ProjectWorkbenchSidebarState
             top: 0,
             bottom: 0,
             child: SidebarResizeHandle(
-              currentWidth: state.sidebarWidth,
+              currentWidth: state.viewPrefs.sidebarWidth,
               onResize: controller.setSidebarWidth,
             ),
           ),
