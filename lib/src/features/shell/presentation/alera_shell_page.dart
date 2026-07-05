@@ -445,7 +445,7 @@ bool _canShowContextSidebar({
 }) {
   final leftWidth = state.collapsed
       ? AleraTokens.sidebarCollapsedWidth
-      : AleraTokens.sidebarDefaultWidth;
+      : state.viewPrefs.sidebarWidth;
   final rightWidth = state.viewPrefs.rightSidebarVisible
       ? state.viewPrefs.rightSidebarWidth
       : AleraTokens.sidebarCollapsedWidth;

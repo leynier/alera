@@ -1,4 +1,5 @@
 import 'package:dart_mappable/dart_mappable.dart';
+import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -19,6 +20,10 @@ void main() {
       );
       expect(WorkbenchViewPrefs.defaults.rightSidebarVisible, isTrue);
       expect(WorkbenchViewPrefs.defaults.rightSidebarWidth, 280);
+      expect(
+        WorkbenchViewPrefs.defaults.sidebarWidth,
+        AleraTokens.sidebarDefaultWidth,
+      );
       expect(
         WorkbenchViewPrefs.defaults.activeContextPanelTab,
         WorkbenchContextPanelTab.explorer,
@@ -44,6 +49,7 @@ void main() {
         },
         rightSidebarVisible: false,
         rightSidebarWidth: 360,
+        sidebarWidth: 360,
         activeContextPanelTab: WorkbenchContextPanelTab.explorer,
         explorerMode: WorkspaceExplorerMode.showAll,
       );
@@ -63,6 +69,7 @@ void main() {
       });
       expect(restored.rightSidebarVisible, isFalse);
       expect(restored.rightSidebarWidth, 360);
+      expect(restored.sidebarWidth, 360);
       expect(restored.activeContextPanelTab, WorkbenchContextPanelTab.explorer);
       expect(restored.explorerMode, WorkspaceExplorerMode.showAll);
     });

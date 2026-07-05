@@ -1,3 +1,4 @@
+import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:dart_mappable/dart_mappable.dart';
 
 part 'workbench_view_prefs.mapper.dart';
@@ -31,6 +32,7 @@ class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
     this.sourceControlRootByWorkspaceId = const <String, String>{},
     this.rightSidebarVisible = true,
     this.rightSidebarWidth = 280,
+    this.sidebarWidth = AleraTokens.sidebarDefaultWidth,
     this.activeContextPanelTab = WorkbenchContextPanelTab.explorer,
     this.explorerMode = WorkspaceExplorerMode.hideIgnored,
     this.gitDiffViewMode = GitDiffViewMode.tree,
@@ -66,6 +68,11 @@ class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
   final Map<String, String> sourceControlRootByWorkspaceId;
   final bool rightSidebarVisible;
   final double rightSidebarWidth;
+
+  /// Width of the left sidebar (project/workbench list panel). Persisted so
+  /// the user's preferred panel size survives app restarts.
+  final double sidebarWidth;
+
   final WorkbenchContextPanelTab activeContextPanelTab;
   final WorkspaceExplorerMode explorerMode;
   final GitDiffViewMode gitDiffViewMode;
@@ -82,6 +89,7 @@ class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
     sourceControlRootByWorkspaceId: <String, String>{},
     rightSidebarVisible: true,
     rightSidebarWidth: 280,
+    sidebarWidth: AleraTokens.sidebarDefaultWidth,
     activeContextPanelTab: WorkbenchContextPanelTab.explorer,
     explorerMode: WorkspaceExplorerMode.hideIgnored,
     gitDiffViewMode: GitDiffViewMode.tree,
