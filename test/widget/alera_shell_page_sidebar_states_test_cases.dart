@@ -156,26 +156,13 @@ void _registerAleraShellSidebarStateTests() {
     expect(find.textContaining('deletes branch'), findsNothing);
   });
 
-  testWidgets('reused branch workspaces do not show base branch labels', (
+  testWidgets('workspace branch metadata omits base branch labels', (
     tester,
   ) async {
-    final seeded = _linkedWorkbenchState();
-    final workspaces = seeded.workspacesFor('project-1');
-    final reusedState = seeded.copyWith(
-      workspacesByProject: <String, List<Workspace>>{
-        'project-1': <Workspace>[
-          workspaces.first,
-          workspaces.last.copyWith(
-            sourceBranch: 'feature/login',
-            reusesExistingBranch: true,
-          ),
-        ],
-      },
-    );
+    await _pumpShell(tester, state: _linkedWorkbenchState());
 
-    await _pumpShell(tester, state: reusedState);
-
-    expect(find.textContaining('feature/login'), findsOneWidget);
+    expect(find.text('feature/login'), findsOneWidget);
+    expect(find.byIcon(AleraIcons.gitBranch), findsAtLeastNWidgets(2));
     expect(find.textContaining('Base:'), findsNothing);
   });
 
@@ -252,7 +239,129 @@ void _registerAleraShellSidebarStateTests() {
 
     expect(find.byType(AleraChip), findsAtLeastNWidgets(1));
     expect(find.text('Alera'), findsAtLeastNWidgets(1));
+    expect(find.byIcon(AleraIcons.folderSpecial), findsAtLeastNWidgets(1));
   });
+
+  testWidgets('workspace rows show tags inline without child role indicators', (
+    tester,
+  ) async {
+    final seeded = _linkedWorkbenchState(linkedExpanded: true);
+    final workspaces = seeded.workspacesFor('project-1');
+    final parent = workspaces.first.copyWith(childCount: 1);
+    final child = workspaces.last.copyWith(
+      parentWorkspaceId: parent.id,
+      tagNames: const <String>['frontend', 'review', 'qa', 'ux'],
+    );
+
+    await _pumpShell(
+      tester,
+      state: seeded.copyWith(
+        workspacesByProject: <String, List<Workspace>>{
+          'project-1': <Workspace>[parent, child],
+        },
+      ),
+    );
+
+    expect(find.text('#frontend'), findsOneWidget);
+    expect(find.text('#review'), findsOneWidget);
+    expect(find.text('#qa'), findsOneWidget);
+    expect(find.text('+1 Tags'), findsOneWidget);
+    expect(find.text('Child'), findsNothing);
+    expect(find.text('1 Child'), findsNothing);
+    expect(find.byTooltip('Remove Workspace'), findsNothing);
+    expect(find.byTooltip('Hide Child Workspaces'), findsOneWidget);
+  });
+
+  testWidgets('collapse all closes projects, child workspaces, and agents', (
+    tester,
+  ) async {
+    final seeded = _linkedWorkbenchState(linkedExpanded: true);
+    final workspaces = seeded.workspacesFor('project-1');
+    final parent = workspaces.first.copyWith(childCount: 1);
+    final child = workspaces.last.copyWith(parentWorkspaceId: parent.id);
+    final state = seeded.copyWith(
+      workspacesByProject: <String, List<Workspace>>{
+        'project-1': <Workspace>[parent, child],
+      },
+      viewPrefs: seeded.viewPrefs.copyWith(
+        expandedWorkspaceIds: <String>{parent.id, child.id},
+      ),
+    );
+    final harness = await _pumpShell(tester, state: state);
+
+    await tester.tap(find.byTooltip('Collapse All'));
+    await tester.pumpAndSettle();
+
+    expect(
+      harness.controller.state.viewPrefs.collapsedProjectIds,
+      contains('project-1'),
+    );
+    expect(
+      harness.controller.state.viewPrefs.collapsedParentWorkspaceIds,
+      contains(parent.id),
+    );
+    expect(
+      harness.controller.state.viewPrefs.expandedWorkspaceIds,
+      isNot(contains(parent.id)),
+    );
+    expect(
+      harness.controller.state.viewPrefs.expandedWorkspaceIds,
+      isNot(contains(child.id)),
+    );
+
+    await tester.tap(find.byTooltip('Expand All'));
+    await tester.pumpAndSettle();
+
+    expect(
+      harness.controller.state.viewPrefs.collapsedProjectIds,
+      isNot(contains('project-1')),
+    );
+    expect(
+      harness.controller.state.viewPrefs.collapsedParentWorkspaceIds,
+      isNot(contains(parent.id)),
+    );
+    expect(
+      harness.controller.state.viewPrefs.expandedWorkspaceIds,
+      containsAll(<String>[parent.id, child.id]),
+    );
+  });
+
+  testWidgets(
+    'expand all opens collapsed projects despite hidden agent state',
+    (tester) async {
+      final seeded = _linkedWorkbenchState(linkedExpanded: true);
+      final workspaces = seeded.workspacesFor('project-1');
+      final parent = workspaces.first.copyWith(childCount: 1);
+      final child = workspaces.last.copyWith(parentWorkspaceId: parent.id);
+      final state = seeded.copyWith(
+        workspacesByProject: <String, List<Workspace>>{
+          'project-1': <Workspace>[parent, child],
+        },
+        viewPrefs: seeded.viewPrefs.copyWith(
+          collapsedProjectIds: <String>{'project-1'},
+          collapsedParentWorkspaceIds: <String>{parent.id},
+          expandedWorkspaceIds: <String>{parent.id, child.id},
+        ),
+      );
+      final harness = await _pumpShell(tester, state: state);
+
+      await tester.tap(find.byTooltip('Expand All'));
+      await tester.pumpAndSettle();
+
+      expect(
+        harness.controller.state.viewPrefs.collapsedProjectIds,
+        isNot(contains('project-1')),
+      );
+      expect(
+        harness.controller.state.viewPrefs.collapsedParentWorkspaceIds,
+        isNot(contains(parent.id)),
+      );
+      expect(
+        harness.controller.state.viewPrefs.expandedWorkspaceIds,
+        containsAll(<String>[parent.id, child.id]),
+      );
+    },
+  );
 
   testWidgets('project rename failures surface an error toast event', (
     tester,

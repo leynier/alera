@@ -26,27 +26,9 @@ class WorkbenchSidebarToolbar extends ConsumerWidget {
     final prefs = state.viewPrefs;
     final count = countVisibleWorkspaces(state);
 
-    final isProjectMode = prefs.groupBy == WorkbenchGroupBy.project;
-    final selected = prefs.selectedProjectIds;
-    final visibleProjects = state.projects
-        .where((p) => selected.isEmpty || selected.contains(p.id))
-        .toList(growable: false);
-    final allWorkspaceIds = <String>[
-      for (final project in visibleProjects)
-        for (final workspace in state.workspacesFor(project.id)) workspace.id,
-    ];
-    final anyExpanded = allWorkspaceIds.any(
-      prefs.expandedWorkspaceIds.contains,
-    );
-    final allCollapsed = isProjectMode
-        ? visibleProjects.isNotEmpty &&
-              visibleProjects.every(
-                (p) => prefs.collapsedProjectIds.contains(p.id),
-              )
-        : !anyExpanded;
-    final canCollapse = isProjectMode
-        ? visibleProjects.isNotEmpty
-        : allWorkspaceIds.isNotEmpty;
+    final collapseTargets = visibleSidebarCollapseTargets(state);
+    final allCollapsed = collapseTargets.isCollapsed(prefs);
+    final canCollapse = !collapseTargets.isEmpty;
     final hasGitProjects = state.projects.any(
       (project) => project.supportsLinkedWorkspaces,
     );

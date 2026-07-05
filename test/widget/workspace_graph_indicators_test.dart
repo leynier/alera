@@ -39,26 +39,34 @@ void main() {
   }
 
   group('WorkspaceRoleBadge', () {
-    testWidgets('shows Primary for the main workspace', (tester) async {
+    testWidgets('shows Default for the main workspace', (tester) async {
       await pump(
         tester,
         WorkspaceRoleBadge(workspace: workspace(kind: WorkspaceKind.main)),
       );
-      expect(find.text('Primary'), findsOneWidget);
+      expect(find.text('Default'), findsOneWidget);
+      expect(find.text('default'), findsNothing);
+      expect(find.text('Primary'), findsNothing);
       expect(find.text('Child'), findsNothing);
     });
 
-    testWidgets('shows Child when the workspace has a parent', (tester) async {
+    testWidgets('renders nothing when the workspace has a parent', (
+      tester,
+    ) async {
       await pump(
         tester,
         WorkspaceRoleBadge(workspace: workspace(parentWorkspaceId: 'parent')),
       );
-      expect(find.text('Child'), findsOneWidget);
+      expect(find.text('Default'), findsNothing);
+      expect(find.text('default'), findsNothing);
+      expect(find.text('Child'), findsNothing);
       expect(find.text('Primary'), findsNothing);
     });
 
     testWidgets('renders nothing for a plain linked workspace', (tester) async {
       await pump(tester, WorkspaceRoleBadge(workspace: workspace()));
+      expect(find.text('Default'), findsNothing);
+      expect(find.text('default'), findsNothing);
       expect(find.text('Primary'), findsNothing);
       expect(find.text('Child'), findsNothing);
     });
@@ -70,7 +78,7 @@ void main() {
       );
       expect(
         WorkspaceRoleBadge.hasRole(workspace(parentWorkspaceId: 'p')),
-        isTrue,
+        isFalse,
       );
       expect(WorkspaceRoleBadge.hasRole(workspace()), isFalse);
     });

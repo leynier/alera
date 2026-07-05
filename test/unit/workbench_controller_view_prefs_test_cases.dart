@@ -139,16 +139,30 @@ void _registerWorkbenchControllerViewPrefsTests() {
     )).workspace;
     await _flush();
 
+    _controller.setWorkspaceExpanded(mainWorkspace.id, true);
+    _controller.setWorkspaceExpanded(linkedWorkspace.id, true);
     _controller.toggleCollapseAll();
     expect(
       _controller.state.viewPrefs.collapsedProjectIds,
       contains(_harness.project.id),
+    );
+    expect(
+      _controller.state.viewPrefs.expandedWorkspaceIds,
+      isNot(contains(mainWorkspace.id)),
+    );
+    expect(
+      _controller.state.viewPrefs.expandedWorkspaceIds,
+      isNot(contains(linkedWorkspace.id)),
     );
 
     _controller.toggleCollapseAll();
     expect(
       _controller.state.viewPrefs.collapsedProjectIds,
       isNot(contains(_harness.project.id)),
+    );
+    expect(
+      _controller.state.viewPrefs.expandedWorkspaceIds,
+      containsAll(<String>[mainWorkspace.id, linkedWorkspace.id]),
     );
 
     _controller.setGroupBy(WorkbenchGroupBy.none);

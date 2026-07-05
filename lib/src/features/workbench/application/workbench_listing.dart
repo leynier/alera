@@ -13,6 +13,34 @@ sealed class WorkbenchSidebarRow {
   const WorkbenchSidebarRow();
 }
 
+class WorkbenchSidebarCollapseTargets {
+  const WorkbenchSidebarCollapseTargets({
+    required this.projectIds,
+    required this.workspaceIds,
+    required this.parentWorkspaceIds,
+  });
+
+  final Set<String> projectIds;
+  final Set<String> workspaceIds;
+  final Set<String> parentWorkspaceIds;
+
+  bool get isEmpty =>
+      projectIds.isEmpty && workspaceIds.isEmpty && parentWorkspaceIds.isEmpty;
+
+  bool isCollapsed(WorkbenchViewPrefs prefs) {
+    final projectsCollapsed = projectIds.every(
+      prefs.collapsedProjectIds.contains,
+    );
+    final childTreesCollapsed = parentWorkspaceIds.every(
+      prefs.collapsedParentWorkspaceIds.contains,
+    );
+    final agentsCollapsed = !workspaceIds.any(
+      prefs.expandedWorkspaceIds.contains,
+    );
+    return projectsCollapsed && childTreesCollapsed && agentsCollapsed;
+  }
+}
+
 class WorkbenchProjectHeaderRow extends WorkbenchSidebarRow {
   const WorkbenchProjectHeaderRow({
     required this.project,
@@ -315,6 +343,108 @@ bool workspaceMatchesTagFilter(WorkbenchViewPrefs prefs, Workspace workspace) {
   return workspace.tagIds.any(prefs.selectedTagIds.contains);
 }
 
+WorkbenchSidebarCollapseTargets visibleSidebarCollapseTargets(
+  WorkbenchState state, {
+  bool includeCollapsedProjectDescendants = false,
+}) {
+  final prefs = state.viewPrefs;
+  final query = state.searchQuery.trim().toLowerCase();
+  final filtersHideEmptyProjects =
+      query.isNotEmpty || prefs.selectedTagIds.isNotEmpty;
+  final visibleProjects = state.projects
+      .where((project) => _projectVisible(prefs, project))
+      .toList(growable: false);
+  final projectIds = <String>{};
+  final workspaceIds = <String>{};
+  final parentWorkspaceIds = <String>{};
+
+  Iterable<Workspace> visibleWorkspacesFor(Project project) {
+    return state
+        .workspacesFor(project.id)
+        .where(
+          (workspace) => _workspaceVisible(prefs, query, project, workspace),
+        );
+  }
+
+  void collectParentIds(Iterable<Workspace> workspaces) {
+    final ids = <String>{for (final workspace in workspaces) workspace.id};
+    for (final workspace in workspaces) {
+      final parentId = workspace.parentWorkspaceId;
+      if (parentId != null &&
+          parentId != workspace.id &&
+          ids.contains(parentId)) {
+        parentWorkspaceIds.add(parentId);
+      }
+    }
+  }
+
+  switch (prefs.groupBy) {
+    case WorkbenchGroupBy.project:
+      for (final project in visibleProjects) {
+        final workspaces = visibleWorkspacesFor(
+          project,
+        ).toList(growable: false);
+        if (filtersHideEmptyProjects && workspaces.isEmpty) {
+          continue;
+        }
+        projectIds.add(project.id);
+        if (includeCollapsedProjectDescendants ||
+            !prefs.collapsedProjectIds.contains(project.id)) {
+          workspaceIds.addAll(workspaces.map((workspace) => workspace.id));
+          collectParentIds(workspaces);
+        }
+      }
+    case WorkbenchGroupBy.none:
+      final workspaces = <Workspace>[];
+      for (final project in visibleProjects) {
+        workspaces.addAll(visibleWorkspacesFor(project));
+      }
+      workspaceIds.addAll(workspaces.map((workspace) => workspace.id));
+      collectParentIds(workspaces);
+  }
+
+  return WorkbenchSidebarCollapseTargets(
+    projectIds: projectIds,
+    workspaceIds: workspaceIds,
+    parentWorkspaceIds: parentWorkspaceIds,
+  );
+}
+
+bool _projectVisible(WorkbenchViewPrefs prefs, Project project) {
+  if (prefs.selectedProjectIds.isEmpty) {
+    return true;
+  }
+  return prefs.selectedProjectIds.contains(project.id);
+}
+
+bool _workspaceVisible(
+  WorkbenchViewPrefs prefs,
+  String query,
+  Project project,
+  Workspace workspace,
+) {
+  if (!workspaceMatchesTagFilter(prefs, workspace)) {
+    return false;
+  }
+  if (query.isEmpty) {
+    return true;
+  }
+  if (project.name.toLowerCase().contains(query)) {
+    return true;
+  }
+  if (workspace.name.toLowerCase().contains(query)) {
+    return true;
+  }
+  if (workspace.branch?.toLowerCase().contains(query) ?? false) {
+    return true;
+  }
+  final source = workspace.sourceBranch;
+  if (source != null && source.toLowerCase().contains(query)) {
+    return true;
+  }
+  return false;
+}
+
 /// The workspace-id order of the rendered rows, used to remember the previous
 /// ordering for [buildSidebarRows]'s active-row stabilization.
 List<String> workspaceOrderOfRows(List<WorkbenchSidebarRow> rows) {
@@ -331,24 +461,11 @@ int countVisibleWorkspaces(WorkbenchState state) {
   final query = state.searchQuery.trim().toLowerCase();
   var count = 0;
   for (final project in state.projects) {
-    if (prefs.selectedProjectIds.isNotEmpty &&
-        !prefs.selectedProjectIds.contains(project.id)) {
+    if (!_projectVisible(prefs, project)) {
       continue;
     }
     for (final workspace in state.workspacesFor(project.id)) {
-      if (!workspaceMatchesTagFilter(prefs, workspace)) {
-        continue;
-      }
-      if (query.isEmpty) {
-        count++;
-        continue;
-      }
-      final projectMatches = project.name.toLowerCase().contains(query);
-      final workspaceMatches =
-          workspace.name.toLowerCase().contains(query) ||
-          (workspace.branch?.toLowerCase().contains(query) ?? false) ||
-          (workspace.sourceBranch?.toLowerCase().contains(query) ?? false);
-      if (projectMatches || workspaceMatches) {
+      if (_workspaceVisible(prefs, query, project, workspace)) {
         count++;
       }
     }
