@@ -226,9 +226,10 @@ void _registerAleraShellSidebarActionTests() {
     tester,
   ) async {
     const prompt = 'Review linked workspace';
+    const description = 'Codex · Waiting for input';
     final harness = await _pumpShell(
       tester,
-      state: _linkedWorkbenchState(linkedExpanded: true),
+      state: _linkedWorkbenchState(),
       agentStatuses: <String, AgentStatusEntry>{
         'tab-2': _agentStatusEntry(
           terminalSessionId: 'tab-2',
@@ -240,7 +241,9 @@ void _registerAleraShellSidebarActionTests() {
       },
     );
 
-    await tester.tap(find.text(prompt));
+    expect(find.text(prompt), findsNothing);
+
+    await tester.tap(find.text(description));
     await tester.pumpAndSettle();
 
     expect(harness.controller.state.activeWorkspaceId, 'workspace-2');
@@ -277,10 +280,14 @@ void _registerAleraShellSidebarActionTests() {
       },
     );
 
-    expect(find.text('Working'), findsOneWidget);
     expect(find.text('Bash: flutter test'), findsOneWidget);
-    expect(find.text('Interrupted'), findsOneWidget);
     expect(find.text('Stopped early'), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (widget) => widget is Tooltip && widget.message == 'Working',
+      ),
+      findsWidgets,
+    );
     expect(
       find.byWidgetPredicate(
         (widget) => widget is Tooltip && widget.message == 'Interrupted',
@@ -305,8 +312,13 @@ void _registerAleraShellSidebarActionTests() {
       },
     );
 
-    expect(find.text('Blocked'), findsWidgets);
     expect(find.text('Codex · Blocked'), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (widget) => widget is Tooltip && widget.message == 'Blocked',
+      ),
+      findsWidgets,
+    );
   });
 
   testWidgets('sidebar agent rows describe tool-only and done runs', (
@@ -333,7 +345,6 @@ void _registerAleraShellSidebarActionTests() {
     );
 
     expect(find.text('Bash'), findsOneWidget);
-    expect(find.text('Done'), findsWidgets);
     expect(find.text('Codex · Done'), findsOneWidget);
     expect(
       find.byWidgetPredicate(
@@ -366,12 +377,43 @@ void _registerAleraShellSidebarActionTests() {
     );
 
     expect(find.byType(WorkspaceAgentCompactSummary), findsOneWidget);
+    expect(
+      tester.getSize(find.byType(WorkspaceAgentCompactSummary)).width,
+      greaterThan(180),
+    );
+  });
+
+  testWidgets('workspace rows group duplicate collapsed agents by type', (
+    tester,
+  ) async {
+    await _pumpShell(
+      tester,
+      state: _stackedWorkbenchState(),
+      agentStatuses: <String, AgentStatusEntry>{
+        'tab-1': _agentStatusEntry(
+          terminalSessionId: 'tab-1',
+          workspaceId: 'workspace-1',
+          tabId: 'tab-1',
+          state: AgentStatusState.waiting,
+        ),
+        'tab-2': _agentStatusEntry(
+          terminalSessionId: 'tab-2',
+          workspaceId: 'workspace-1',
+          tabId: 'tab-2',
+          state: AgentStatusState.waiting,
+        ),
+      },
+    );
+
+    expect(find.byType(WorkspaceAgentCompactSummary), findsOneWidget);
+    expect(find.text('+1'), findsOneWidget);
   });
 
   testWidgets('closing a sidebar agent row closes the runtime tab', (
     tester,
   ) async {
     const prompt = 'Review linked workspace';
+    const description = 'Codex · Waiting for input';
     final harness = await _pumpShell(
       tester,
       state: _linkedWorkbenchState(linkedExpanded: true),
@@ -388,10 +430,10 @@ void _registerAleraShellSidebarActionTests() {
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
     addTearDown(mouse.removePointer);
     await mouse.addPointer();
-    await mouse.moveTo(tester.getCenter(find.text(prompt)));
+    await mouse.moveTo(tester.getCenter(find.text(description)));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Close terminal').first);
+    await tester.tap(find.byTooltip('Close Terminal').first);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
@@ -400,6 +442,7 @@ void _registerAleraShellSidebarActionTests() {
     expect(harness.controller.state.activeWorkspaceId, 'workspace-1');
     expect(harness.runtime.focusedTabIds, isNot(contains('tab-2')));
     expect(find.text(prompt), findsNothing);
+    expect(find.text(description), findsNothing);
   });
 
   testWidgets('linked workspace removal closes runtime and removes the row', (

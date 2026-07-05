@@ -329,22 +329,11 @@ mixin _WorkbenchControllerProjects
     required Project project,
     required Workspace workspace,
   }) async {
-    // Selecting a workspace also reveals its sidebar agent-run list so the
-    // user can jump into a run right away. Subsequent toggles via the chevron
-    // can hide it back independently of the active selection.
     final prefs = state.viewPrefs;
-    final expandedPrefs = prefs.expandedWorkspaceIds.contains(workspace.id)
-        ? prefs
-        : prefs.copyWith(
-            expandedWorkspaceIds: <String>{
-              ...prefs.expandedWorkspaceIds,
-              workspace.id,
-            },
-          );
     final nextPrefs = _viewPrefsForProjectContext(
       project: project,
       workspace: workspace,
-      prefs: expandedPrefs,
+      prefs: prefs,
     );
     state = state.copyWith(
       activeProjectId: project.id,

@@ -4,10 +4,12 @@ class _WorkspaceRow extends StatefulWidget {
   const _WorkspaceRow({
     required this.project,
     required this.workspace,
+    required this.agentRuns,
     required this.agentRunGroups,
     required this.status,
     required this.hasTerminalTabs,
     required this.isActive,
+    required this.activeTabId,
     required this.showProjectChip,
     required this.expanded,
     required this.onTap,
@@ -19,6 +21,8 @@ class _WorkspaceRow extends StatefulWidget {
     required this.onRename,
     required this.onManageTags,
     required this.onSetParent,
+    required this.onSelectTerminal,
+    required this.onCloseTerminal,
     this.hasVisibleChildren = false,
     this.childrenCollapsed = false,
     this.onToggleChildren,
@@ -28,10 +32,12 @@ class _WorkspaceRow extends StatefulWidget {
 
   final Project project;
   final Workspace workspace;
+  final List<WorkspaceAgentRun> agentRuns;
   final List<WorkspaceAgentRunGroup> agentRunGroups;
   final AgentStatusEntry? status;
   final bool hasTerminalTabs;
   final bool isActive;
+  final String? activeTabId;
   final bool showProjectChip;
   final bool expanded;
   final bool hasVisibleChildren;
@@ -46,6 +52,8 @@ class _WorkspaceRow extends StatefulWidget {
   final VoidCallback onRename;
   final VoidCallback onManageTags;
   final VoidCallback onSetParent;
+  final _TerminalTabCallback onSelectTerminal;
+  final _TerminalTabCallback onCloseTerminal;
   final VoidCallback? onClearParent;
   final VoidCallback? onDelete;
 
@@ -289,15 +297,18 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                               ),
                             ],
                           ),
-                          if (widget.agentRunGroups.isNotEmpty) ...<Widget>[
+                          if (widget.agentRuns.isNotEmpty) ...<Widget>[
                             const SizedBox(height: AleraTokens.space6),
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: WorkspaceAgentCompactSummary(
-                                groups: widget.agentRunGroups,
-                                expanded: widget.expanded,
-                                onToggle: widget.onToggleExpanded,
-                              ),
+                            _WorkspaceAgentSection(
+                              workspace: widget.workspace,
+                              runs: widget.agentRuns,
+                              groups: widget.agentRunGroups,
+                              expanded: widget.expanded,
+                              workspaceIsActive: widget.isActive,
+                              activeTabId: widget.activeTabId,
+                              onToggleExpanded: widget.onToggleExpanded,
+                              onSelectTerminal: widget.onSelectTerminal,
+                              onCloseTerminal: widget.onCloseTerminal,
                             ),
                           ],
                           if (WorkspaceGraphChips.hasContent(
@@ -336,6 +347,71 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _WorkspaceAgentSection extends StatelessWidget {
+  const _WorkspaceAgentSection({
+    required this.workspace,
+    required this.runs,
+    required this.groups,
+    required this.expanded,
+    required this.workspaceIsActive,
+    required this.activeTabId,
+    required this.onToggleExpanded,
+    required this.onSelectTerminal,
+    required this.onCloseTerminal,
+  });
+
+  final Workspace workspace;
+  final List<WorkspaceAgentRun> runs;
+  final List<WorkspaceAgentRunGroup> groups;
+  final bool expanded;
+  final bool workspaceIsActive;
+  final String? activeTabId;
+  final VoidCallback onToggleExpanded;
+  final _TerminalTabCallback onSelectTerminal;
+  final _TerminalTabCallback onCloseTerminal;
+
+  @override
+  Widget build(BuildContext context) {
+    if (runs.length == 1) {
+      final run = runs.single;
+      return _AgentRunRow(
+        tab: run.tab,
+        status: run.status,
+        isActive: workspaceIsActive && activeTabId == run.tab.id,
+        onTap: () => onSelectTerminal(workspace, run.tab.id),
+        onClose: () => onCloseTerminal(workspace, run.tab.id),
+      );
+    }
+    if (!expanded) {
+      return WorkspaceAgentCompactSummary(
+        groups: groups,
+        expanded: expanded,
+        onToggle: onToggleExpanded,
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        WorkspaceAgentCompactSummary(
+          groups: groups,
+          expanded: expanded,
+          onToggle: onToggleExpanded,
+        ),
+        const SizedBox(height: AleraTokens.space2),
+        for (final run in runs)
+          _AgentRunRow(
+            tab: run.tab,
+            status: run.status,
+            isActive: workspaceIsActive && activeTabId == run.tab.id,
+            onTap: () => onSelectTerminal(workspace, run.tab.id),
+            onClose: () => onCloseTerminal(workspace, run.tab.id),
+          ),
+      ],
     );
   }
 }

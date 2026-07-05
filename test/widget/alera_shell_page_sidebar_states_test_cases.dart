@@ -45,48 +45,84 @@ void _registerAleraShellSidebarStateTests() {
     expect(dots.map((dot) => dot.active), <bool>[true, false]);
   });
 
-  testWidgets('workspace toggle can hide agent rows', (tester) async {
-    const prompt = 'Review linked workspace';
+  testWidgets('workspace agent pill toggles expanded rows', (tester) async {
     final harness = await _pumpShell(
       tester,
-      state: _linkedWorkbenchState(linkedExpanded: true, linkedActive: true),
+      state: _stackedWorkbenchState(),
+      agentStatuses: <String, AgentStatusEntry>{
+        'tab-1': _agentStatusEntry(
+          terminalSessionId: 'tab-1',
+          workspaceId: 'workspace-1',
+          tabId: 'tab-1',
+          state: AgentStatusState.waiting,
+          lastAssistantMessage: 'Needs input',
+        ),
+        'tab-2': _agentStatusEntry(
+          terminalSessionId: 'tab-2',
+          workspaceId: 'workspace-1',
+          tabId: 'tab-2',
+          state: AgentStatusState.waiting,
+          lastAssistantMessage: 'Ready to continue',
+        ),
+      },
+    );
+
+    expect(find.byType(WorkspaceAgentCompactSummary), findsOneWidget);
+    expect(find.text('Needs input'), findsNothing);
+    expect(find.text('Ready to continue'), findsNothing);
+
+    await tester.tap(find.byTooltip('Show Agent Runs'));
+    await tester.pumpAndSettle();
+
+    expect(
+      harness.controller.state.viewPrefs.expandedWorkspaceIds.contains(
+        'workspace-1',
+      ),
+      isTrue,
+    );
+    expect(find.text('2 Agents'), findsOneWidget);
+    expect(find.text('Needs input'), findsOneWidget);
+    expect(find.text('Ready to continue'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Hide Agent Runs'));
+    await tester.pumpAndSettle();
+
+    expect(
+      harness.controller.state.viewPrefs.expandedWorkspaceIds.contains(
+        'workspace-1',
+      ),
+      isFalse,
+    );
+    expect(find.text('Needs input'), findsNothing);
+    expect(find.text('Ready to continue'), findsNothing);
+  });
+
+  testWidgets('selecting a workspace does not expand agent rows', (
+    tester,
+  ) async {
+    final harness = await _pumpShell(
+      tester,
+      state: _linkedWorkbenchState(),
       agentStatuses: <String, AgentStatusEntry>{
         'tab-2': _agentStatusEntry(
           terminalSessionId: 'tab-2',
           workspaceId: 'workspace-2',
           tabId: 'tab-2',
           state: AgentStatusState.waiting,
-          prompt: prompt,
         ),
       },
     );
 
-    expect(find.text(prompt), findsOneWidget);
-
-    final toggles = find.byTooltip('Hide Agent Runs');
-    final workspaceCenter = tester.getCenter(find.text('Feature login').first);
-    var toggleIndex = 0;
-    var bestDistance = double.infinity;
-    final toggleCount = toggles.evaluate().length;
-    for (var index = 0; index < toggleCount; index += 1) {
-      final distance =
-          (tester.getCenter(toggles.at(index)).dy - workspaceCenter.dy).abs();
-      if (distance < bestDistance) {
-        bestDistance = distance;
-        toggleIndex = index;
-      }
-    }
-
-    await tester.tap(toggles.at(toggleIndex));
+    await tester.tap(find.text('Feature login'));
     await tester.pumpAndSettle();
 
+    expect(harness.controller.state.activeWorkspaceId, 'workspace-2');
     expect(
       harness.controller.state.viewPrefs.expandedWorkspaceIds.contains(
         'workspace-2',
       ),
       isFalse,
     );
-    expect(find.text(prompt), findsNothing);
   });
 
   testWidgets('workspace removal dialog omits branch details when blank', (
@@ -354,6 +390,7 @@ void _registerAleraShellSidebarStateTests() {
     tester,
   ) async {
     const prompt = 'Review linked workspace';
+    const description = 'Codex · Waiting for input';
     final events = <AleraToastData>[];
     final subscription = AleraToast.stream.listen(events.add);
     addTearDown(subscription.cancel);
@@ -379,10 +416,10 @@ void _registerAleraShellSidebarStateTests() {
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
     addTearDown(mouse.removePointer);
     await mouse.addPointer();
-    await mouse.moveTo(tester.getCenter(find.text(prompt)));
+    await mouse.moveTo(tester.getCenter(find.text(description)));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Close terminal').first);
+    await tester.tap(find.byTooltip('Close Terminal').first);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
@@ -394,6 +431,7 @@ void _registerAleraShellSidebarStateTests() {
     tester,
   ) async {
     const prompt = 'Review linked workspace';
+    const description = 'Codex · Waiting for input';
     await _pumpShell(
       tester,
       state: _linkedWorkbenchState(linkedExpanded: true),
@@ -426,7 +464,7 @@ void _registerAleraShellSidebarStateTests() {
         .first;
     final terminalContainer = find
         .ancestor(
-          of: find.text(prompt),
+          of: find.text(description),
           matching: find.byType(AnimatedContainer),
         )
         .first;
@@ -453,7 +491,7 @@ void _registerAleraShellSidebarStateTests() {
     expect(decorationOf(workspaceContainer).color, Colors.transparent);
 
     expect(decorationOf(terminalContainer).color, Colors.transparent);
-    await mouse.moveTo(tester.getCenter(find.text(prompt)));
+    await mouse.moveTo(tester.getCenter(find.text(description)));
     await tester.pumpAndSettle();
     expect(decorationOf(terminalContainer).color, AleraTokens.surface);
     await mouse.moveTo(const Offset(0, 0));

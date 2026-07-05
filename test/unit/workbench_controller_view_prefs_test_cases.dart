@@ -98,6 +98,37 @@ void _registerWorkbenchControllerViewPrefsTests() {
     expect(_controller.state.error, isNull);
   });
 
+  test('selecting a workspace preserves agent expansion prefs', () async {
+    await _controller.bootstrap();
+    await _flushUntil(
+      () => _controller.state.workspacesFor(_harness.project.id).isNotEmpty,
+    );
+    final workspace = _controller.state
+        .workspacesFor(_harness.project.id)
+        .single;
+
+    await _controller.selectWorkspace(
+      project: _harness.project,
+      workspace: workspace,
+    );
+    await _flush();
+    expect(
+      _controller.state.viewPrefs.expandedWorkspaceIds,
+      isNot(contains(workspace.id)),
+    );
+
+    _controller.setWorkspaceExpanded(workspace.id, true);
+    await _controller.selectWorkspace(
+      project: _harness.project,
+      workspace: workspace,
+    );
+    await _flush();
+    expect(
+      _controller.state.viewPrefs.expandedWorkspaceIds,
+      contains(workspace.id),
+    );
+  });
+
   test('view-pref mutators update state and persist changes', () async {
     await _controller.bootstrap();
     final mainWorkspace = await _selectMainWorkspace(_controller, _harness);
@@ -503,6 +534,9 @@ void _registerWorkbenchControllerViewPrefsTests() {
         sourceBranch: 'main',
         newBranchName: 'feature/remove-expanded',
       )).workspace;
+      await _flush();
+
+      _controller.setWorkspaceExpanded(linkedWorkspace.id, true);
       await _flush();
 
       expect(

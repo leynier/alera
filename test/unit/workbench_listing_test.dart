@@ -70,8 +70,6 @@ WorkbenchState _fixtureState({
   final resolvedPrefs =
       prefs ??
       WorkbenchViewPrefs.defaults.copyWith(
-        // Default behaviour mirrors the controller: activating a workspace
-        // also expands it so its agent runs are visible.
         expandedWorkspaceIds: <String>{?activeWorkspaceId},
       );
   final alera = _project('p-alera', 'alera', recencyOffset: 2);
@@ -149,27 +147,25 @@ Map<String, AgentStatusEntry> _agentStatuses(
 
 void main() {
   group('buildSidebarRows · group by project', () {
-    test('emits project headers, workspace rows and agent-run rows', () {
+    test('emits project headers and workspace rows', () {
       final state = _fixtureState();
       final rows = buildSidebarRows(
         state,
         agentStatuses: _agentStatuses(state, <String>['t-1', 't-2']),
       );
-      // alera header → Main + 2 agent runs + feature, orca header → Main
-      expect(rows, hasLength(7));
+      // alera header → Main + feature, orca header → Main
+      expect(rows, hasLength(5));
       expect(rows[0], isA<WorkbenchProjectHeaderRow>());
       expect((rows[0] as WorkbenchProjectHeaderRow).project.name, 'alera');
       expect(rows[1], isA<WorkbenchWorkspaceRow>());
       expect((rows[1] as WorkbenchWorkspaceRow).workspace.name, 'Main');
       expect((rows[1] as WorkbenchWorkspaceRow).showProjectChip, isFalse);
-      expect(rows[2], isA<SidebarAgentRunRow>());
-      expect(rows[3], isA<SidebarAgentRunRow>());
+      expect(rows[2], isA<WorkbenchWorkspaceRow>());
+      expect((rows[2] as WorkbenchWorkspaceRow).workspace.name, 'feature');
+      expect(rows[3], isA<WorkbenchProjectHeaderRow>());
+      expect((rows[3] as WorkbenchProjectHeaderRow).project.name, 'orca');
       expect(rows[4], isA<WorkbenchWorkspaceRow>());
-      expect((rows[4] as WorkbenchWorkspaceRow).workspace.name, 'feature');
-      expect(rows[5], isA<WorkbenchProjectHeaderRow>());
-      expect((rows[5] as WorkbenchProjectHeaderRow).project.name, 'orca');
-      expect(rows[6], isA<WorkbenchWorkspaceRow>());
-      expect((rows[6] as WorkbenchWorkspaceRow).workspace.name, 'Main');
+      expect((rows[4] as WorkbenchWorkspaceRow).workspace.name, 'Main');
     });
 
     test('main worktree is pinned to the top regardless of name sort', () {
@@ -320,7 +316,7 @@ void main() {
       expect(rows.whereType<WorkbenchProjectHeaderRow>(), isEmpty);
     });
 
-    test('agent runs appear when the workspace is in the expansion set', () {
+    test('agent statuses do not add separate sidebar rows', () {
       final prefs = WorkbenchViewPrefs.defaults.copyWith(
         groupBy: WorkbenchGroupBy.none,
         expandedWorkspaceIds: <String>{'w-alera-main'},
@@ -330,43 +326,8 @@ void main() {
         state,
         agentStatuses: _agentStatuses(state, <String>['t-1', 't-2']),
       );
-      expect(rows.whereType<SidebarAgentRunRow>(), hasLength(2));
-    });
-
-    test('terminal tabs without agent status stay out of the sidebar', () {
-      final prefs = WorkbenchViewPrefs.defaults.copyWith(
-        groupBy: WorkbenchGroupBy.none,
-        expandedWorkspaceIds: <String>{'w-alera-main'},
-      );
-      final rows = buildSidebarRows(_fixtureState(prefs: prefs));
-      expect(rows.whereType<SidebarAgentRunRow>(), isEmpty);
-    });
-
-    test('non-terminal workspace tabs stay out of the sidebar', () {
-      final prefs = WorkbenchViewPrefs.defaults.copyWith(
-        groupBy: WorkbenchGroupBy.none,
-        expandedWorkspaceIds: <String>{'w-alera-main'},
-      );
-      final state = _fixtureState(prefs: prefs);
-      final rows = buildSidebarRows(
-        state,
-        agentStatuses: _agentStatuses(state, <String>['e-1']),
-      );
-      expect(rows.whereType<SidebarAgentRunRow>(), isEmpty);
-    });
-
-    test('workspace without an expansion entry shows no agent runs', () {
-      final prefs = WorkbenchViewPrefs.defaults.copyWith(
-        groupBy: WorkbenchGroupBy.none,
-        // expandedWorkspaceIds is empty — no workspace should reveal its
-        // agent runs even though one is active in the state fixture.
-      );
-      final state = _fixtureState(prefs: prefs);
-      final rows = buildSidebarRows(
-        state,
-        agentStatuses: _agentStatuses(state, <String>['t-1']),
-      );
-      expect(rows.whereType<SidebarAgentRunRow>(), isEmpty);
+      expect(rows.whereType<WorkbenchWorkspaceRow>(), hasLength(3));
+      expect(rows.whereType<WorkbenchProjectHeaderRow>(), isEmpty);
     });
 
     test('recent sort orders workspaces by updatedAt desc', () {

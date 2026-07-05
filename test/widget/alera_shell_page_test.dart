@@ -305,7 +305,7 @@ WorkbenchState _linkedWorkbenchState({
   );
   final activeWorkspace = linkedActive ? linkedWorkspace : mainWorkspace;
   final expandedWorkspaceIds = <String>{mainWorkspace.id};
-  if (linkedExpanded || linkedActive) {
+  if (linkedExpanded) {
     expandedWorkspaceIds.add(linkedWorkspace.id);
   }
   return WorkbenchState(

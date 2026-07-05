@@ -1,7 +1,9 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/presentation/agent_identity_icon.dart';
 import 'package:alera/src/features/workbench/application/workspace_agent_run_groups.dart';
+import 'package:alera/src/features/workbench/application/workspace_agent_status_projection.dart';
 import 'package:alera/src/features/workbench/presentation/widgets/agent_run_state_indicator.dart';
 import 'package:flutter/material.dart';
 
@@ -28,6 +30,10 @@ class WorkspaceAgentCompactSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final agentCount = groups.fold<int>(
+      0,
+      (count, group) => count + group.runs.length,
+    );
     final visibleGroups = groups.take(_maxVisibleGroups).toList();
     final hiddenGroupRuns = groups
         .skip(_maxVisibleGroups)
@@ -39,6 +45,7 @@ class WorkspaceAgentCompactSummary extends StatelessWidget {
         mouseCursor: SystemMouseCursors.click,
         borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
         child: Container(
+          width: double.infinity,
           padding: const EdgeInsets.symmetric(
             horizontal: AleraTokens.space6,
             vertical: AleraTokens.space2,
@@ -49,21 +56,42 @@ class WorkspaceAgentCompactSummary extends StatelessWidget {
             border: Border.all(color: AleraTokens.borderSubtle),
           ),
           child: Row(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize: MainAxisSize.max,
             children: <Widget>[
-              for (final (index, group) in visibleGroups.indexed) ...<Widget>[
-                if (index > 0) const SizedBox(width: AleraTokens.space8),
-                _GroupCluster(group: group),
-              ],
-              if (hiddenGroupRuns > 0) ...<Widget>[
-                const SizedBox(width: AleraTokens.space6),
-                Text(
-                  '+$hiddenGroupRuns',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: AleraTokens.foregroundFaint,
+              if (expanded)
+                Expanded(
+                  child: Text(
+                    '$agentCount Agents',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: AleraTokens.foregroundMuted,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                )
+              else
+                Expanded(
+                  child: Row(
+                    children: <Widget>[
+                      for (final (index, group)
+                          in visibleGroups.indexed) ...<Widget>[
+                        if (index > 0)
+                          const SizedBox(width: AleraTokens.space8),
+                        _GroupCluster(group: group),
+                      ],
+                      if (hiddenGroupRuns > 0) ...<Widget>[
+                        const SizedBox(width: AleraTokens.space6),
+                        Text(
+                          '+$hiddenGroupRuns',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: AleraTokens.foregroundFaint,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
-              ],
               const SizedBox(width: AleraTokens.space6),
               Icon(
                 expanded ? AleraIcons.chevronUp : AleraIcons.chevronDown,
@@ -88,9 +116,9 @@ class _GroupCluster extends StatelessWidget {
     final theme = Theme.of(context);
     const iconSize = WorkspaceAgentCompactSummary._iconSize;
     const overlap = WorkspaceAgentCompactSummary._iconOverlap;
-    final iconRuns = group.runs
-        .take(WorkspaceAgentCompactSummary._maxIconsPerGroup)
-        .toList();
+    final iconRuns = _representativeRunsByAgentType(
+      group.runs,
+    ).take(WorkspaceAgentCompactSummary._maxIconsPerGroup).toList();
     final hiddenCount = group.runs.length - iconRuns.length;
     final width = iconSize + (iconRuns.length - 1) * (iconSize - overlap);
     return Row(
@@ -138,4 +166,14 @@ class _GroupCluster extends StatelessWidget {
       ],
     );
   }
+}
+
+List<WorkspaceAgentRun> _representativeRunsByAgentType(
+  List<WorkspaceAgentRun> runs,
+) {
+  final seen = <AgentType>{};
+  return <WorkspaceAgentRun>[
+    for (final run in runs)
+      if (seen.add(run.status.agentType)) run,
+  ];
 }

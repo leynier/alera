@@ -49,12 +49,6 @@ class _ShellTestWorkbenchController extends WorkbenchController {
     state = state.copyWith(
       activeProjectId: project.id,
       activeWorkspaceId: workspace.id,
-      viewPrefs: state.viewPrefs.copyWith(
-        expandedWorkspaceIds: <String>{
-          ...state.viewPrefs.expandedWorkspaceIds,
-          workspace.id,
-        },
-      ),
     );
   }
 
