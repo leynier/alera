@@ -107,10 +107,12 @@ class _SidebarBody extends StatelessWidget {
         child: _WorkspaceRow(
           project: row.project,
           workspace: row.workspace,
+          agentRuns: agentRuns,
           agentRunGroups: groupWorkspaceAgentRuns(agentRuns),
           status: agentRuns.isEmpty ? null : agentRuns.first.status,
           hasTerminalTabs: hasTerminalTabs,
           isActive: row.workspace.id == state.activeWorkspaceId,
+          activeTabId: state.activeTabIdByWorkspace[row.workspace.id],
           showProjectChip: row.showProjectChip,
           expanded: row.expanded,
           hasVisibleChildren: row.hasVisibleChildren,
@@ -132,27 +134,11 @@ class _SidebarBody extends StatelessWidget {
           onClearParent: row.workspace.hasParentWorkspace
               ? () => onClearWorkspaceParent(row.workspace)
               : null,
+          onSelectTerminal: onSelectTerminal,
+          onCloseTerminal: onCloseTerminal,
           onDelete: row.workspace.isMain
               ? null
               : () => onDeleteWorkspace(row.project, row.workspace),
-        ),
-      );
-    }
-    if (row is SidebarAgentRunRow) {
-      final leftPadding = _indentPadding(row.indent);
-      return Padding(
-        padding: EdgeInsets.only(left: leftPadding, right: AleraTokens.space8),
-        child: _AgentRunRow(
-          workspace: row.workspace,
-          tab: row.tab,
-          status: row.status,
-          // An agent run only reads as active when its workspace and backing
-          // terminal tab are both selected.
-          isActive:
-              row.workspace.id == state.activeWorkspaceId &&
-              state.activeTabIdByWorkspace[row.workspace.id] == row.tab.id,
-          onTap: () => onSelectTerminal(row.workspace, row.tab.id),
-          onClose: () => onCloseTerminal(row.workspace, row.tab.id),
         ),
       );
     }

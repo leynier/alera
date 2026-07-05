@@ -46,7 +46,7 @@ class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
   final Set<String> selectedProjectIds;
   final Set<String> collapsedProjectIds;
 
-  /// Workspaces whose sidebar agent-run list is currently expanded.
+  /// Workspaces whose in-card sidebar agent section is currently expanded.
   /// Activating a workspace adds it to this set so agent runs are visible by
   /// default; the per-row chevron lets the user toggle membership without
   /// changing the active selection.

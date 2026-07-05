@@ -2,9 +2,7 @@ import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_agent_activity_sort.dart';
 import 'package:alera/src/features/workbench/application/workbench_listing_tree.dart';
-import 'package:alera/src/features/workbench/application/workspace_agent_status_projection.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
-import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 
@@ -50,20 +48,6 @@ class WorkbenchWorkspaceRow extends WorkbenchSidebarRow {
   /// How deeply the row should be indented from the left edge of the sidebar
   /// (in token-space units). `0` for top-level rows, `1` for workspaces inside
   /// a project group, etc.
-  final int indent;
-}
-
-class SidebarAgentRunRow extends WorkbenchSidebarRow {
-  const SidebarAgentRunRow({
-    required this.workspace,
-    required this.tab,
-    required this.status,
-    required this.indent,
-  });
-
-  final Workspace workspace;
-  final WorkspaceTabRecord tab;
-  final AgentStatusEntry status;
   final int indent;
 }
 
@@ -233,30 +217,6 @@ List<WorkbenchSidebarRow> buildSidebarRows(
     return sorted;
   }
 
-  void appendSidebarAgentRunRows(
-    List<WorkbenchSidebarRow> rows,
-    Workspace workspace,
-    int indent,
-  ) {
-    if (!prefs.expandedWorkspaceIds.contains(workspace.id)) {
-      return;
-    }
-    final runs = visibleWorkspaceAgentRuns(
-      tabs: state.tabsFor(workspace.id),
-      agentStatuses: agentStatuses,
-    );
-    for (final run in runs) {
-      rows.add(
-        SidebarAgentRunRow(
-          workspace: workspace,
-          tab: run.tab,
-          status: run.status,
-          indent: indent,
-        ),
-      );
-    }
-  }
-
   void appendWorkspaceTreeRows(
     List<WorkbenchSidebarRow> rows, {
     required List<Workspace> workspaces,
@@ -281,7 +241,6 @@ List<WorkbenchSidebarRow> buildSidebarRows(
           childrenCollapsed: entry.childrenCollapsed,
         ),
       );
-      appendSidebarAgentRunRows(rows, entry.workspace, indent + 1);
     }
   }
 
