@@ -98,27 +98,28 @@ class _GitHistoryPanelState extends State<_GitHistoryPanel> {
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           if (!widget.collapsed) _ResizeHandle(onResize: _resize),
-          SizedBox(
-            height: 30,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AleraTokens.space8,
-              ),
-              child: Row(
-                children: <Widget>[
-                  Expanded(
-                    child: InkWell(
-                      onTap: widget.onToggle,
-                      child: Row(
+          DecoratedBox(
+            decoration: const BoxDecoration(color: AleraTokens.surface),
+            child: SizedBox(
+              height: AleraTokens.sidebarHeaderHeight,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AleraTokens.space8,
+                  vertical: AleraTokens.space4,
+                ),
+                child: Row(
+                  children: <Widget>[
+                    OutlinedButton.icon(
+                      onPressed: widget.onToggle,
+                      icon: Icon(
+                        widget.collapsed
+                            ? AleraIcons.chevronRight
+                            : AleraIcons.chevronDown,
+                        size: 15,
+                      ),
+                      label: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: <Widget>[
-                          Icon(
-                            widget.collapsed
-                                ? AleraIcons.chevronRight
-                                : AleraIcons.chevronDown,
-                            size: 15,
-                            color: AleraTokens.foregroundMuted,
-                          ),
-                          const SizedBox(width: AleraTokens.space4),
                           Text(
                             'Commits',
                             style: Theme.of(context).textTheme.labelSmall
@@ -139,16 +140,26 @@ class _GitHistoryPanelState extends State<_GitHistoryPanel> {
                           ],
                         ],
                       ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AleraTokens.foregroundMuted,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AleraTokens.space8,
+                          vertical: AleraTokens.space4,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            AleraTokens.radiusMd,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                  AleraIconButton(
-                    tooltip: 'Refresh Commits',
-                    icon: AleraIcons.refresh,
-                    onPressed: widget.state.loading
-                        ? null
-                        : () => unawaited(widget.onRefresh()),
-                  ),
-                ],
+                    const Spacer(),
+                    _RefreshCommitsButton(
+                      loading: widget.state.loading,
+                      onPressed: () => unawaited(widget.onRefresh()),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -314,6 +325,79 @@ class _GitHistoryPanelState extends State<_GitHistoryPanel> {
   }
 }
 
+class _RefreshCommitsButton extends StatefulWidget {
+  const _RefreshCommitsButton({required this.loading, required this.onPressed});
+
+  final bool loading;
+  final VoidCallback onPressed;
+
+  @override
+  State<_RefreshCommitsButton> createState() => _RefreshCommitsButtonState();
+}
+
+class _RefreshCommitsButtonState extends State<_RefreshCommitsButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.loading) {
+      _controller.repeat();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _RefreshCommitsButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.loading != widget.loading) {
+      if (widget.loading) {
+        _controller.repeat();
+      } else {
+        _controller.stop();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      tooltip: 'Refresh Commits',
+      onPressed: widget.loading ? null : widget.onPressed,
+      icon: RotationTransition(
+        turns: _controller,
+        child: const Icon(
+          AleraIcons.refresh,
+          size: 15,
+          color: AleraTokens.foregroundMuted,
+        ),
+      ),
+      visualDensity: VisualDensity.compact,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+      style: IconButton.styleFrom(
+        backgroundColor: AleraTokens.surfaceVariant,
+        side: const BorderSide(color: AleraTokens.borderSubtle),
+        minimumSize: const Size(30, 30),
+        maximumSize: const Size(30, 30),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
+        ),
+      ),
+    );
+  }
+}
+
 enum _CommitAction { copyHash, copyMessage }
 
 class _ResizeHandle extends StatelessWidget {
@@ -353,62 +437,67 @@ class _GitHistoryCommitRow extends StatelessWidget {
     final boundary =
         viewModel.kind == GitHistoryItemViewModelKind.incomingChanges ||
         viewModel.kind == GitHistoryItemViewModelKind.outgoingChanges;
-    return InkWell(
-      onTap: onTap,
-      child: SizedBox(
-        height: 28,
-        child: Padding(
-          padding: const EdgeInsets.only(
-            left: AleraTokens.space8,
-            right: AleraTokens.space6,
-          ),
-          child: Row(
-            children: <Widget>[
-              _GitHistoryGraph(viewModel: viewModel),
-              const SizedBox(width: AleraTokens.space4),
-              if (!boundary)
-                Icon(
-                  expanded ? AleraIcons.chevronDown : AleraIcons.chevronRight,
-                  size: 14,
-                  color: AleraTokens.foregroundFaint,
-                )
-              else
-                const SizedBox(width: 14),
-              const SizedBox(width: AleraTokens.space4),
-              Expanded(
-                child: Text(
-                  item.subject,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: boundary
-                        ? AleraTokens.foregroundMuted
-                        : AleraTokens.foreground,
-                  ),
-                ),
-              ),
-              for (final itemRef in item.references.take(2)) ...<Widget>[
+    return MouseRegion(
+      cursor: onTap != null
+          ? SystemMouseCursors.click
+          : SystemMouseCursors.basic,
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          height: 28,
+          child: Padding(
+            padding: const EdgeInsets.only(
+              left: AleraTokens.space8,
+              right: AleraTokens.space6,
+            ),
+            child: Row(
+              children: <Widget>[
+                _GitHistoryGraph(viewModel: viewModel),
                 const SizedBox(width: AleraTokens.space4),
-                _GitRefBadge(itemRef: itemRef),
-              ],
-              if (item.references.length > 2) ...<Widget>[
-                const SizedBox(width: AleraTokens.space4),
-                Text(
-                  '+${item.references.length - 2}',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                if (!boundary)
+                  Icon(
+                    expanded ? AleraIcons.chevronDown : AleraIcons.chevronRight,
+                    size: 14,
                     color: AleraTokens.foregroundFaint,
+                  )
+                else
+                  const SizedBox(width: 14),
+                const SizedBox(width: AleraTokens.space4),
+                Expanded(
+                  child: Text(
+                    item.subject,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: boundary
+                          ? AleraTokens.foregroundMuted
+                          : AleraTokens.foreground,
+                    ),
                   ),
                 ),
+                for (final itemRef in item.references.take(2)) ...<Widget>[
+                  const SizedBox(width: AleraTokens.space4),
+                  _GitRefBadge(itemRef: itemRef),
+                ],
+                if (item.references.length > 2) ...<Widget>[
+                  const SizedBox(width: AleraTokens.space4),
+                  Text(
+                    '+${item.references.length - 2}',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: AleraTokens.foregroundFaint,
+                    ),
+                  ),
+                ],
+                if (onOpenActions != null)
+                  Builder(
+                    builder: (context) => AleraIconButton(
+                      tooltip: 'Commit Actions',
+                      icon: AleraIcons.more,
+                      onPressed: () => onOpenActions!(context),
+                    ),
+                  ),
               ],
-              if (onOpenActions != null)
-                Builder(
-                  builder: (context) => AleraIconButton(
-                    tooltip: 'Commit Actions',
-                    icon: AleraIcons.more,
-                    onPressed: () => onOpenActions!(context),
-                  ),
-                ),
-            ],
+            ),
           ),
         ),
       ),
@@ -730,25 +819,28 @@ class _CommitFiles extends StatelessWidget {
           else ...<Widget>[
             for (final entry in state.entries)
               _CommitFileRow(entry: entry, onOpen: () => onOpenFile(entry)),
-            InkWell(
-              onTap: onOpenAll,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(40, 5, 8, 7),
-                child: Row(
-                  children: <Widget>[
-                    const Icon(
-                      AleraIcons.external,
-                      size: 13,
-                      color: AleraTokens.foregroundMuted,
-                    ),
-                    const SizedBox(width: AleraTokens.space6),
-                    Text(
-                      'Open All Changes',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: InkWell(
+                onTap: onOpenAll,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(40, 5, 8, 7),
+                  child: Row(
+                    children: <Widget>[
+                      const Icon(
+                        AleraIcons.external,
+                        size: 13,
                         color: AleraTokens.foregroundMuted,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: AleraTokens.space6),
+                      Text(
+                        'Open All Changes',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: AleraTokens.foregroundMuted,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -776,33 +868,36 @@ class _CommitFileRow extends StatelessWidget {
     final label = entry.oldPath == null
         ? entry.path
         : '${entry.oldPath} -> ${entry.path}';
-    return InkWell(
-      onTap: onOpen,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(40, 4, 8, 4),
-        child: Row(
-          children: <Widget>[
-            AleraFileIcon(
-              pathOrName: entry.path,
-              kind: AleraFileIconKind.file,
-              size: 14,
-            ),
-            const SizedBox(width: AleraTokens.space6),
-            Expanded(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AleraTokens.monoStyle.copyWith(
-                  color: AleraTokens.foregroundMuted,
-                  fontSize: 11,
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: InkWell(
+        onTap: onOpen,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(40, 4, 8, 4),
+          child: Row(
+            children: <Widget>[
+              AleraFileIcon(
+                pathOrName: entry.path,
+                kind: AleraFileIconKind.file,
+                size: 14,
+              ),
+              const SizedBox(width: AleraTokens.space6),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AleraTokens.monoStyle.copyWith(
+                    color: AleraTokens.foregroundMuted,
+                    fontSize: 11,
+                  ),
                 ),
               ),
-            ),
-            _CommitStats(entry: entry),
-            const SizedBox(width: AleraTokens.space6),
-            _GitStatusLabel(status: entry.status),
-          ],
+              _CommitStats(entry: entry),
+              const SizedBox(width: AleraTokens.space6),
+              _GitStatusLabel(status: entry.status),
+            ],
+          ),
         ),
       ),
     );
