@@ -8,6 +8,7 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_source_control_scope.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
+import 'package:alera/src/shared/infra/git/git_backend.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:flutter/material.dart';
@@ -88,6 +89,9 @@ class _WorkspaceGitDiffSurfaceState
   }
 
   bool get _canOpenFile {
+    if (widget.tab.gitDiffSource == WorkspaceGitDiffSource.commit) {
+      return false;
+    }
     return _openableDiffFile != null;
   }
 
@@ -124,28 +128,38 @@ class _WorkspaceGitDiffSurfaceState
     final filePath = widget.tab.filePath;
     final sourceControlScope = _sourceControlScope;
     final sourceFilePath = sourceControlScope.toSourceRelativePath(filePath);
+    final sourceOldPath = sourceControlScope.toSourceRelativePath(
+      widget.tab.gitDiffOldPath,
+    );
     final area = widget.tab.gitDiffArea;
-    final nextFuture = switch (scope) {
-      WorkspaceGitDiffScope.all => backend.diffAll(
-        path: sourceControlScope.path,
-      ),
-      WorkspaceGitDiffScope.fileAll =>
-        sourceFilePath == null
-            ? Future<GitDiffResult>.value(const GitDiffResult(files: []))
-            : backend.diffAll(
-                path: sourceControlScope.path,
-                filePath: sourceFilePath,
-              ),
-      WorkspaceGitDiffScope.file =>
-        sourceFilePath == null || area == null
-            ? Future<GitDiffResult>.value(const GitDiffResult(files: []))
-            : backend.diff(
-                path: sourceControlScope.path,
-                filePath: sourceFilePath,
-                area: area,
-              ),
-      null => Future<GitDiffResult>.value(const GitDiffResult(files: [])),
-    };
+    final nextFuture = widget.tab.gitDiffSource == WorkspaceGitDiffSource.commit
+        ? _loadCommitDiff(
+            backend: backend,
+            sourceControlScope: sourceControlScope,
+            sourceFilePath: sourceFilePath,
+            sourceOldPath: sourceOldPath,
+          )
+        : switch (scope) {
+            WorkspaceGitDiffScope.all => backend.diffAll(
+              path: sourceControlScope.path,
+            ),
+            WorkspaceGitDiffScope.fileAll =>
+              sourceFilePath == null
+                  ? Future<GitDiffResult>.value(const GitDiffResult(files: []))
+                  : backend.diffAll(
+                      path: sourceControlScope.path,
+                      filePath: sourceFilePath,
+                    ),
+            WorkspaceGitDiffScope.file =>
+              sourceFilePath == null || area == null
+                  ? Future<GitDiffResult>.value(const GitDiffResult(files: []))
+                  : backend.diff(
+                      path: sourceControlScope.path,
+                      filePath: sourceFilePath,
+                      area: area,
+                    ),
+            null => Future<GitDiffResult>.value(const GitDiffResult(files: [])),
+          };
     setState(() {
       _loadedResult = null;
       _future = nextFuture;
@@ -183,6 +197,25 @@ class _WorkspaceGitDiffSurfaceState
           workspace: widget.workspace,
           relativePath: _sourceControlScope.toWorkspaceRelativePath(file.path)!,
         );
+  }
+
+  Future<GitDiffResult> _loadCommitDiff({
+    required GitBackend backend,
+    required WorkspaceSourceControlScope sourceControlScope,
+    required String? sourceFilePath,
+    required String? sourceOldPath,
+  }) {
+    final commitOid = widget.tab.gitDiffCommitOid;
+    if (commitOid == null) {
+      return Future<GitDiffResult>.value(const GitDiffResult(files: []));
+    }
+    return backend.commitDiff(
+      path: sourceControlScope.path,
+      commitOid: commitOid,
+      parentOid: widget.tab.gitDiffParentOid,
+      filePath: sourceFilePath,
+      oldPath: sourceOldPath,
+    );
   }
 
   WorkspaceSourceControlScope get _sourceControlScope {
@@ -346,7 +379,7 @@ class _FileHeaderRow extends _DiffRow {
             const SizedBox(width: AleraTokens.space8),
             Expanded(
               child: Text(
-                '${file.area.label} · ${file.path}',
+                '${file.sourceLabel ?? file.area.label} · ${file.path}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(

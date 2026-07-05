@@ -40,6 +40,36 @@ const String workspaceTabFileRoleMermanPreview = 'mermanPreview';
 const String workspaceTabGitDiffScopePayloadKey = 'gitDiffScope';
 const String workspaceTabGitDiffAreaPayloadKey = 'gitDiffArea';
 const String workspaceTabGitDiffRootPayloadKey = 'gitDiffRoot';
+const String workspaceTabGitDiffSourcePayloadKey = 'gitDiffSource';
+const String workspaceTabGitDiffCommitOidPayloadKey = 'gitDiffCommitOid';
+const String workspaceTabGitDiffParentOidPayloadKey = 'gitDiffParentOid';
+const String workspaceTabGitDiffCompareRefPayloadKey = 'gitDiffCompareRef';
+const String workspaceTabGitDiffCommitSubjectPayloadKey =
+    'gitDiffCommitSubject';
+const String workspaceTabGitDiffCommitMessagePayloadKey =
+    'gitDiffCommitMessage';
+const String workspaceTabGitDiffOldPathPayloadKey = 'gitDiffOldPath';
+
+enum WorkspaceGitDiffSource {
+  workingTree('workingTree'),
+  commit('commit');
+
+  const WorkspaceGitDiffSource(this.key);
+
+  final String key;
+
+  static WorkspaceGitDiffSource fromJson(Object? value) {
+    if (value is! String) {
+      return WorkspaceGitDiffSource.workingTree;
+    }
+    for (final source in WorkspaceGitDiffSource.values) {
+      if (source.key == value) {
+        return source;
+      }
+    }
+    return WorkspaceGitDiffSource.workingTree;
+  }
+}
 
 enum WorkspaceGitDiffScope {
   file('file'),
@@ -107,6 +137,10 @@ class WorkspaceTabRecord with WorkspaceTabRecordMappable {
     payload[workspaceTabGitDiffScopePayloadKey],
   );
 
+  WorkspaceGitDiffSource get gitDiffSource => WorkspaceGitDiffSource.fromJson(
+    payload[workspaceTabGitDiffSourcePayloadKey],
+  );
+
   String? get gitDiffRoot {
     final value = payload[workspaceTabGitDiffRootPayloadKey];
     return value is String && value.trim().isNotEmpty ? value : null;
@@ -123,6 +157,29 @@ class WorkspaceTabRecord with WorkspaceTabRecordMappable {
       }
     }
     return null;
+  }
+
+  String? get gitDiffCommitOid =>
+      _nonEmptyPayloadString(workspaceTabGitDiffCommitOidPayloadKey);
+
+  String? get gitDiffParentOid =>
+      _nonEmptyPayloadString(workspaceTabGitDiffParentOidPayloadKey);
+
+  String? get gitDiffCompareRef =>
+      _nonEmptyPayloadString(workspaceTabGitDiffCompareRefPayloadKey);
+
+  String? get gitDiffCommitSubject =>
+      _nonEmptyPayloadString(workspaceTabGitDiffCommitSubjectPayloadKey);
+
+  String? get gitDiffCommitMessage =>
+      _nonEmptyPayloadString(workspaceTabGitDiffCommitMessagePayloadKey);
+
+  String? get gitDiffOldPath =>
+      _nonEmptyPayloadString(workspaceTabGitDiffOldPathPayloadKey);
+
+  String? _nonEmptyPayloadString(String key) {
+    final value = payload[key];
+    return value is String && value.trim().isNotEmpty ? value : null;
   }
 
   factory WorkspaceTabRecord.fromJson(Map<String, Object?> json) =>

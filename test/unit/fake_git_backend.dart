@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:alera/src/shared/infra/git/git_backend.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_exception.dart';
@@ -77,6 +79,27 @@ class FakeGitBackend implements GitBackend {
   GitStatusResult gitStatusResult = const GitStatusResult(entries: []);
   GitDiffResult gitDiffResult = const GitDiffResult(files: []);
   GitDiffResult gitDiffAllResult = const GitDiffResult(files: []);
+  GitHistoryResult gitHistoryResult = const GitHistoryResult(
+    items: <GitHistoryItem>[],
+    hasIncomingChanges: false,
+    hasOutgoingChanges: false,
+    hasMore: false,
+    limit: 50,
+  );
+  final List<Future<GitHistoryResult>> gitHistoryResultQueue =
+      <Future<GitHistoryResult>>[];
+  GitCommitCompareResult gitCommitCompareResult = const GitCommitCompareResult(
+    summary: GitCommitCompareSummary(
+      commitOid: 'abc123',
+      parentOid: 'def456',
+      compareRef: 'abc123',
+      baseRef: 'def456',
+      changedFiles: 0,
+      status: GitCommitCompareStatus.ready,
+    ),
+    entries: <GitCommitChangeEntry>[],
+  );
+  GitDiffResult gitCommitDiffResult = const GitDiffResult(files: []);
   GitRepositoryState gitRepositoryStateResult = const GitRepositoryState(
     branch: 'main',
   );
@@ -84,6 +107,9 @@ class FakeGitBackend implements GitBackend {
   String gitCommitOid = 'abc123';
 
   GitException? statusError;
+  GitException? historyError;
+  GitException? commitCompareError;
+  GitException? commitDiffError;
   GitException? stageError;
   GitException? stageAreaError;
   GitException? unstageError;
@@ -318,6 +344,71 @@ class FakeGitBackend implements GitBackend {
       }),
     );
     return gitDiffAllResult;
+  }
+
+  @override
+  Future<GitHistoryResult> history(
+    String path, {
+    int? limit,
+    String? baseRef,
+  }) async {
+    calls.add(
+      GitBackendCall('history', <String, Object?>{
+        'path': path,
+        'limit': limit,
+        'baseRef': baseRef,
+      }),
+    );
+    final error = historyError;
+    if (error != null) {
+      throw error;
+    }
+    if (gitHistoryResultQueue.isNotEmpty) {
+      return gitHistoryResultQueue.removeAt(0);
+    }
+    return gitHistoryResult;
+  }
+
+  @override
+  Future<GitCommitCompareResult> commitCompare({
+    required String path,
+    required String commitId,
+  }) async {
+    calls.add(
+      GitBackendCall('commitCompare', <String, Object?>{
+        'path': path,
+        'commitId': commitId,
+      }),
+    );
+    final error = commitCompareError;
+    if (error != null) {
+      throw error;
+    }
+    return gitCommitCompareResult;
+  }
+
+  @override
+  Future<GitDiffResult> commitDiff({
+    required String path,
+    required String commitOid,
+    String? parentOid,
+    String? filePath,
+    String? oldPath,
+  }) async {
+    calls.add(
+      GitBackendCall('commitDiff', <String, Object?>{
+        'path': path,
+        'commitOid': commitOid,
+        'parentOid': parentOid,
+        'filePath': filePath,
+        'oldPath': oldPath,
+      }),
+    );
+    final error = commitDiffError;
+    if (error != null) {
+      throw error;
+    }
+    return gitCommitDiffResult;
   }
 
   @override

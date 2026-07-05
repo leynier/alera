@@ -23,6 +23,10 @@ impl GitPathContext {
         Ok(Self { workspace_prefix })
     }
 
+    pub(super) fn is_workspace_root(&self) -> bool {
+        self.workspace_prefix.is_empty()
+    }
+
     pub(super) fn to_workspace_path(&self, repo_path: &str) -> Option<String> {
         let repo_path = normalize_repo_path(repo_path);
         if self.workspace_prefix.is_empty() {

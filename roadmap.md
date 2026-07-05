@@ -75,7 +75,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 | Commit and PR messages with AI | 3 | 4 | Shipped | AI-generated commit messages (PR descriptions planned) |
 | Conflict view and resolver | 4 | 4 | Planned | Visual conflict display with merge controls |
 | Conflict resolution with AI | 4 | 3 | Planned | AI-assisted three-way merge conflict resolution |
-| Git history panel with graph | 4 | 4 | Planned | Commit history browser with visual branch/merge graph |
+| Git history panel with graph | 4 | 4 | Shipped | Collapsible Source Control commits section with HEAD/upstream graph and commit diff tabs |
 | Diff annotations & inline comments | 4 | 3 | Planned | Comment threads on diff lines with popovers |
 | Send diff annotations to agent | 3 | 4 | Planned | Send annotated diffs directly to agents for action |
 | Image diff | 3 | 2 | Planned | Side-by-side image comparison for binary diffs |

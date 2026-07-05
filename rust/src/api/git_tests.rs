@@ -161,6 +161,170 @@ fn repository_state_includes_head_message() {
 }
 
 #[test]
+fn git_history_includes_upstream_only_commits() {
+    let source = init_repo();
+    let bare = tempfile::tempdir().expect("bare remote");
+    run_git(bare.path(), &["init", "--bare"]);
+    run_git(
+        source.path(),
+        &["remote", "add", "origin", &path_str(bare.path())],
+    );
+    run_git(source.path(), &["push", "-u", "origin", "main"]);
+    run_git(bare.path(), &["symbolic-ref", "HEAD", "refs/heads/main"]);
+
+    let clone_parent = tempfile::tempdir().expect("clone parent");
+    run_git(
+        clone_parent.path(),
+        &["clone", &path_str(bare.path()), "checkout"],
+    );
+    let clone_path = clone_parent.path().join("checkout");
+    configure_git_identity(&clone_path);
+
+    commit_file(
+        source.path(),
+        "remote-only.txt",
+        "remote\n",
+        "remote only change",
+    );
+    run_git(source.path(), &["push"]);
+    run_git(&clone_path, &["fetch", "origin"]);
+
+    let history = git_history(path_str(&clone_path), Some(50), None).unwrap();
+
+    assert!(history.has_incoming_changes);
+    assert_eq!(history.remote_ref.unwrap().name, "origin/main");
+    assert!(history
+        .items
+        .iter()
+        .any(|item| item.subject == "remote only change"));
+}
+
+#[test]
+fn git_history_refs_peel_annotated_tags_to_commits() {
+    let repo = init_repo();
+    run_git(repo.path(), &["tag", "-a", "v1.0.0", "-m", "release v1"]);
+
+    let history = git_history(path_str(repo.path()), Some(50), None).unwrap();
+
+    let initial = history
+        .items
+        .iter()
+        .find(|item| item.subject == "initial")
+        .expect("initial commit in history");
+    assert!(initial.references.iter().any(|reference| {
+        reference.name == "v1.0.0" && reference.category == Some(GitHistoryRefCategory::Tags)
+    }));
+}
+
+#[test]
+fn git_history_filters_commits_for_scoped_workspace_path() {
+    let repo = init_repo();
+    std::fs::create_dir_all(repo.path().join("packages/app/lib")).expect("create app dir");
+    std::fs::create_dir_all(repo.path().join("packages/other/lib")).expect("create other dir");
+    commit_file(
+        repo.path(),
+        "packages/app/lib/main.dart",
+        "app\n",
+        "app change",
+    );
+    commit_file(repo.path(), "README.md", "hello\nroot\n", "root change");
+    commit_file(
+        repo.path(),
+        "packages/other/lib/main.dart",
+        "other\n",
+        "other change",
+    );
+    commit_file(
+        repo.path(),
+        "packages/app/lib/main.dart",
+        "app\napp 2\n",
+        "app change 2",
+    );
+
+    let history = git_history(path_str(&repo.path().join("packages/app")), Some(50), None).unwrap();
+    let subjects = history
+        .items
+        .iter()
+        .map(|item| item.subject.as_str())
+        .collect::<Vec<_>>();
+
+    assert!(subjects.contains(&"app change"));
+    assert!(subjects.contains(&"app change 2"));
+    assert!(!subjects.contains(&"other change"));
+    assert!(!subjects.contains(&"root change"));
+    assert!(!subjects.contains(&"initial"));
+    let older = history
+        .items
+        .iter()
+        .find(|item| item.subject == "app change")
+        .expect("older scoped commit");
+    let newer = history
+        .items
+        .iter()
+        .find(|item| item.subject == "app change 2")
+        .expect("newer scoped commit");
+    assert_eq!(newer.parent_ids, vec![older.id.clone()]);
+}
+
+#[test]
+fn git_history_suppresses_divergence_markers_outside_scoped_workspace_path() {
+    let source = init_repo();
+    std::fs::create_dir_all(source.path().join("packages/app/lib")).expect("create app dir");
+    std::fs::create_dir_all(source.path().join("packages/other/lib")).expect("create other dir");
+    commit_file(
+        source.path(),
+        "packages/app/lib/main.dart",
+        "app\n",
+        "app change",
+    );
+    let bare = tempfile::tempdir().expect("bare remote");
+    run_git(bare.path(), &["init", "--bare"]);
+    run_git(
+        source.path(),
+        &["remote", "add", "origin", &path_str(bare.path())],
+    );
+    run_git(source.path(), &["push", "-u", "origin", "main"]);
+    run_git(bare.path(), &["symbolic-ref", "HEAD", "refs/heads/main"]);
+
+    let clone_parent = tempfile::tempdir().expect("clone parent");
+    run_git(
+        clone_parent.path(),
+        &["clone", &path_str(bare.path()), "checkout"],
+    );
+    let clone_path = clone_parent.path().join("checkout");
+    configure_git_identity(&clone_path);
+
+    commit_file(
+        source.path(),
+        "packages/other/remote.dart",
+        "remote\n",
+        "remote other change",
+    );
+    run_git(source.path(), &["push"]);
+    run_git(&clone_path, &["fetch", "origin"]);
+    std::fs::create_dir_all(clone_path.join("packages/other")).expect("create clone other dir");
+    commit_file(
+        &clone_path,
+        "packages/other/local.dart",
+        "local\n",
+        "local other change",
+    );
+
+    let history = git_history(path_str(&clone_path.join("packages/app")), Some(50), None).unwrap();
+    let subjects = history
+        .items
+        .iter()
+        .map(|item| item.subject.as_str())
+        .collect::<Vec<_>>();
+
+    assert!(!history.has_incoming_changes);
+    assert!(!history.has_outgoing_changes);
+    assert!(subjects.contains(&"app change"));
+    assert!(!subjects.contains(&"remote other change"));
+    assert!(!subjects.contains(&"local other change"));
+}
+
+#[test]
 fn creates_lists_and_removes_worktree() {
     let repo = init_repo();
     let worktree_base = tempfile::tempdir().expect("tempdir");

@@ -208,6 +208,57 @@ mixin _WorkbenchControllerTabs
     }
   }
 
+  Future<WorkspaceTabRecord> openGitCommitDiffTab({
+    required Workspace workspace,
+    String? relativePath,
+    String? oldPath,
+    required WorkspaceGitDiffScope scope,
+    String? gitDiffRoot,
+    required String commitOid,
+    String? parentOid,
+    required String compareRef,
+    String? subject,
+    String? message,
+    String? targetGroupId,
+  }) async {
+    try {
+      final previousTabs = state.tabsFor(workspace.id);
+      final layout = _layoutForMutation(workspace.id, previousTabs);
+      final tab = await _workspaceTabService.openOrCreateGitCommitDiffTab(
+        workspaceId: workspace.id,
+        relativePath: relativePath,
+        oldPath: oldPath,
+        scope: scope,
+        gitDiffRoot: gitDiffRoot,
+        commitOid: commitOid,
+        parentOid: parentOid,
+        compareRef: compareRef,
+        subject: subject,
+        message: message,
+      );
+      final alreadyOpen = previousTabs.any(
+        (candidate) => candidate.id == tab.id,
+      );
+      final tabs = alreadyOpen
+          ? previousTabs
+          : <WorkspaceTabRecord>[...previousTabs, tab];
+      _setTabsForWorkspace(workspace.id, tabs);
+      final groupId = targetGroupId ?? layout.activeGroupId;
+      final nextLayout = alreadyOpen
+          ? layout.setActiveTab(
+              groupId: layout.groupIdForTab(tab.id) ?? groupId,
+              tabId: tab.id,
+            )
+          : layout.addTabToGroup(groupId: groupId, tabId: tab.id);
+      await _applyLayout(nextLayout.sanitize(tabs), persist: true);
+      state = state.copyWith(error: null);
+      return tab;
+    } catch (error) {
+      state = state.copyWith(error: error.toString());
+      rethrow;
+    }
+  }
+
   Future<void> closeWorkspaceTab({
     required Workspace workspace,
     required String tabId,

@@ -1,30 +1,35 @@
+use std::collections::HashMap;
 use std::path::Path;
 
 use git2::{
-    Delta, Diff, DiffFindOptions, DiffOptions, Repository, Status, StatusEntry, StatusOptions,
+    Delta, Diff, DiffFindOptions, DiffFormat, DiffLineType, DiffOptions, Oid, Repository, Status,
+    StatusEntry, StatusOptions,
 };
 
 use super::{
     open_repo, GitChangeArea, GitChangeEntry, GitChangeGroup, GitChangeStatus, GitChangeTreeRow,
-    GitChangeTreeRowKind, GitDiffFile, GitDiffLine, GitDiffLineKind, GitDiffResult, GitError,
+    GitChangeTreeRowKind, GitCommitChangeEntry, GitCommitCompareResult, GitCommitCompareStatus,
+    GitCommitCompareSummary, GitDiffFile, GitDiffLine, GitDiffLineKind, GitDiffResult, GitError,
     GitErrorKind, GitStatusResult,
 };
 
 #[path = "git_diff_combined.rs"]
 mod git_diff_combined;
-#[path = "git_diff_paths.rs"]
-mod git_diff_paths;
 #[path = "git_diff_render.rs"]
 mod git_diff_render;
 #[path = "git_diff_untracked.rs"]
 mod git_diff_untracked;
 
 use git_diff_combined::{append_combined_diff_file, git_diff_all_for_file};
-use git_diff_paths::GitPathContext;
 use git_diff_render::render_diff_for_path;
 use git_diff_untracked::untracked_diff_file;
 
+use super::git_diff_paths::GitPathContext;
+
 pub(super) const MAX_DIFF_PATCH_BYTES: usize = 512 * 1024;
+
+type LineStats = (Option<u32>, Option<u32>);
+type CommitDiffLineStatsByPath = HashMap<String, LineStats>;
 
 pub(super) fn git_status(path: String) -> Result<GitStatusResult, GitError> {
     let repo = open_repo(&path)?;
@@ -116,6 +121,109 @@ pub(super) fn git_diff_all(
     Ok(GitDiffResult { files, truncated })
 }
 
+pub(super) fn git_commit_compare(
+    path: String,
+    commit_id: String,
+) -> Result<GitCommitCompareResult, GitError> {
+    let repo = open_repo(&path)?;
+    let commit = match repo.revparse_single(&format!("{commit_id}^{{commit}}")) {
+        Ok(object) => match object.peel_to_commit() {
+            Ok(commit) => commit,
+            Err(_) => return Ok(invalid_commit_compare(commit_id)),
+        },
+        Err(_) => return Ok(invalid_commit_compare(commit_id)),
+    };
+    let commit_oid = commit.id();
+    let parent_oid = commit.parent_id(0).ok();
+    let mut summary = GitCommitCompareSummary {
+        commit_oid: commit_oid.to_string(),
+        parent_oid: parent_oid.map(|oid| oid.to_string()),
+        compare_ref: short_oid(commit_oid),
+        base_ref: parent_oid
+            .map(short_oid)
+            .unwrap_or_else(|| "empty tree".to_string()),
+        changed_files: 0,
+        status: GitCommitCompareStatus::Ready,
+        error_message: None,
+    };
+    match commit_change_entries(&repo, &path, parent_oid, commit_oid) {
+        Ok(entries) => {
+            summary.changed_files = entries.len() as u32;
+            Ok(GitCommitCompareResult { summary, entries })
+        }
+        Err(error) => Ok(GitCommitCompareResult {
+            summary: GitCommitCompareSummary {
+                status: GitCommitCompareStatus::Error,
+                error_message: Some(error.context),
+                ..summary
+            },
+            entries: Vec::new(),
+        }),
+    }
+}
+
+pub(super) fn git_commit_diff(
+    path: String,
+    commit_oid: String,
+    parent_oid: Option<String>,
+    file_path: Option<String>,
+    old_path: Option<String>,
+) -> Result<GitDiffResult, GitError> {
+    let repo = open_repo(&path)?;
+    let paths = GitPathContext::new(&repo, &path)?;
+    let commit_oid = Oid::from_str(&commit_oid).map_err(GitError::from_git2)?;
+    let parent_oid = parent_oid
+        .as_deref()
+        .map(Oid::from_str)
+        .transpose()
+        .map_err(GitError::from_git2)?;
+    if let Some(file_path) = file_path {
+        let repo_path = paths.to_repo_path(&file_path);
+        let old_repo_path = old_path
+            .as_deref()
+            .map(|old_path| paths.to_repo_path(old_path));
+        let mut diff = diff_for_commit_range(
+            &repo,
+            parent_oid,
+            commit_oid,
+            &[repo_path.as_str(), old_repo_path.as_deref().unwrap_or("")],
+        )?;
+        let file = commit_diff_file_for_path(
+            &repo,
+            &paths,
+            &mut diff,
+            &repo_path,
+            old_repo_path.as_deref(),
+        )?;
+        return Ok(GitDiffResult {
+            files: file.into_iter().collect(),
+            truncated: false,
+        });
+    }
+
+    let mut diff = diff_for_commit_range(&repo, parent_oid, commit_oid, &[])?;
+    let mut files = Vec::new();
+    let mut total_bytes = 0usize;
+    let mut truncated = false;
+    let selections = commit_diff_selections(&diff)?;
+    for selection in selections {
+        let Some(file) = commit_diff_file_for_path(
+            &repo,
+            &paths,
+            &mut diff,
+            &selection.path,
+            selection.old_path.as_deref(),
+        )?
+        else {
+            continue;
+        };
+        if append_combined_diff_file(&mut files, &mut total_bytes, &mut truncated, file) {
+            break;
+        }
+    }
+    Ok(GitDiffResult { files, truncated })
+}
+
 fn status_options() -> StatusOptions {
     let mut options = StatusOptions::new();
     options
@@ -142,7 +250,10 @@ fn status_entry_to_change(
             };
             let repo_path = delta_path(&delta, false)?;
             let old_path = old_path_for_delta(&delta)?;
-            let Some(path) = visible_workspace_path(paths, &repo_path, old_path.as_deref()) else {
+            let change_status = change_status_for_delta(delta.status(), area);
+            let Some(path) =
+                visible_workspace_path(paths, &repo_path, old_path.as_deref(), change_status)
+            else {
                 return Ok(None);
             };
             let mut change = GitChangeEntry {
@@ -151,7 +262,7 @@ fn status_entry_to_change(
                     .as_deref()
                     .and_then(|old_path| paths.to_workspace_path(old_path)),
                 area,
-                status: change_status_for_delta(delta.status(), area),
+                status: change_status,
                 added: None,
                 removed: None,
                 is_binary: delta.old_file().is_binary() || delta.new_file().is_binary(),
@@ -219,7 +330,10 @@ fn status_entry_to_change(
             };
             let repo_path = delta_path(&delta, false)?;
             let old_path = old_path_for_delta(&delta)?;
-            let Some(path) = visible_workspace_path(paths, &repo_path, old_path.as_deref()) else {
+            let change_status = change_status_for_delta(delta.status(), area);
+            let Some(path) =
+                visible_workspace_path(paths, &repo_path, old_path.as_deref(), change_status)
+            else {
                 return Ok(None);
             };
             let mut change = GitChangeEntry {
@@ -228,7 +342,7 @@ fn status_entry_to_change(
                     .as_deref()
                     .and_then(|old_path| paths.to_workspace_path(old_path)),
                 area,
-                status: change_status_for_delta(delta.status(), area),
+                status: change_status,
                 added: None,
                 removed: None,
                 is_binary: delta.old_file().is_binary() || delta.new_file().is_binary(),
@@ -308,9 +422,12 @@ fn diff_file_for_area(
             if rendered.lines.is_empty() {
                 return Ok(None);
             }
-            let Some(path) =
-                visible_workspace_path(paths, &selection.path, selection.old_path.as_deref())
-            else {
+            let Some(path) = visible_workspace_path(
+                paths,
+                &selection.path,
+                selection.old_path.as_deref(),
+                selection.status,
+            ) else {
                 return Ok(None);
             };
             Ok(Some(GitDiffFile {
@@ -347,6 +464,207 @@ fn untracked_placeholder_diff_file(path: String) -> GitDiffFile {
         truncated: false,
         line_preview_truncated: false,
     }
+}
+
+fn invalid_commit_compare(commit_id: String) -> GitCommitCompareResult {
+    GitCommitCompareResult {
+        summary: GitCommitCompareSummary {
+            commit_oid: String::new(),
+            parent_oid: None,
+            compare_ref: commit_id.clone(),
+            base_ref: "parent".to_string(),
+            changed_files: 0,
+            status: GitCommitCompareStatus::InvalidCommit,
+            error_message: Some(format!(
+                "Commit {commit_id} could not be resolved in this repository."
+            )),
+        },
+        entries: Vec::new(),
+    }
+}
+
+fn commit_change_entries(
+    repo: &Repository,
+    workspace_path: &str,
+    parent_oid: Option<Oid>,
+    commit_oid: Oid,
+) -> Result<Vec<GitCommitChangeEntry>, GitError> {
+    let paths = GitPathContext::new(repo, workspace_path)?;
+    let mut diff = diff_for_commit_range(repo, parent_oid, commit_oid, &[])?;
+    let stats = commit_diff_stats_by_path(&mut diff)?;
+    let selections = commit_diff_selections(&diff)?;
+    let mut entries = Vec::new();
+    for selection in selections {
+        let Some(path) = visible_workspace_path(
+            &paths,
+            &selection.path,
+            selection.old_path.as_deref(),
+            selection.status,
+        ) else {
+            continue;
+        };
+        let old_path = selection
+            .old_path
+            .as_deref()
+            .and_then(|old_path| paths.to_workspace_path(old_path));
+        let (added, removed) = stats.get(&selection.path).copied().unwrap_or((None, None));
+        entries.push(GitCommitChangeEntry {
+            path,
+            old_path,
+            status: selection.status,
+            added,
+            removed,
+        });
+    }
+    entries.sort_by(|a, b| a.path.cmp(&b.path));
+    Ok(entries)
+}
+
+fn commit_diff_file_for_path(
+    _repo: &Repository,
+    paths: &GitPathContext,
+    diff: &mut Diff<'_>,
+    repo_path: &str,
+    old_repo_path: Option<&str>,
+) -> Result<Option<GitDiffFile>, GitError> {
+    let selections = commit_diff_selections(diff)?;
+    let selection = selections
+        .iter()
+        .find(|selection| {
+            selected_delta_matches_path(
+                delta_for_status(selection.status),
+                &selection.path,
+                selection.old_path.as_deref(),
+                repo_path,
+            )
+        })
+        .or_else(|| {
+            old_repo_path.and_then(|old_repo_path| {
+                selections.iter().find(|selection| {
+                    selection.status == GitChangeStatus::Renamed
+                        && selection.old_path.as_deref() == Some(old_repo_path)
+                })
+            })
+        });
+    let Some(selection) = selection else {
+        return Ok(None);
+    };
+    let rendered = render_diff_for_path(diff, &selection.path)?;
+    let Some(path) = visible_workspace_path(
+        paths,
+        &selection.path,
+        selection.old_path.as_deref(),
+        selection.status,
+    ) else {
+        return Ok(None);
+    };
+    Ok(Some(GitDiffFile {
+        path,
+        old_path: selection
+            .old_path
+            .as_deref()
+            .and_then(|old_path| paths.to_workspace_path(old_path)),
+        area: GitChangeArea::Staged,
+        status: selection.status,
+        lines: rendered.lines,
+        added: Some(rendered.added),
+        removed: Some(rendered.removed),
+        is_binary: rendered.is_binary,
+        is_large: false,
+        truncated: rendered.truncated,
+        line_preview_truncated: rendered.line_preview_truncated,
+    }))
+}
+
+fn diff_for_commit_range<'repo>(
+    repo: &'repo Repository,
+    parent_oid: Option<Oid>,
+    commit_oid: Oid,
+    pathspecs: &[&str],
+) -> Result<Diff<'repo>, GitError> {
+    let commit = repo.find_commit(commit_oid).map_err(GitError::from_git2)?;
+    let commit_tree = commit.tree().map_err(GitError::from_git2)?;
+    let parent_tree = parent_oid
+        .map(|oid| {
+            repo.find_commit(oid)
+                .and_then(|commit| commit.tree())
+                .map_err(GitError::from_git2)
+        })
+        .transpose()?;
+    let mut options = DiffOptions::new();
+    let mut has_pathspec = false;
+    for pathspec in pathspecs.iter().filter(|pathspec| !pathspec.is_empty()) {
+        options.pathspec(pathspec);
+        has_pathspec = true;
+    }
+    if has_pathspec {
+        options.disable_pathspec_match(true);
+    }
+    let mut diff = repo
+        .diff_tree_to_tree(parent_tree.as_ref(), Some(&commit_tree), Some(&mut options))
+        .map_err(GitError::from_git2)?;
+    let mut find_options = DiffFindOptions::new();
+    find_options.renames(true).copies(true);
+    diff.find_similar(Some(&mut find_options))
+        .map_err(GitError::from_git2)?;
+    Ok(diff)
+}
+
+fn commit_diff_selections(diff: &Diff<'_>) -> Result<Vec<DiffSelection>, GitError> {
+    let mut selections = Vec::new();
+    for delta in diff.deltas() {
+        let path = delta_path(&delta, false)?;
+        let old_path = old_path_for_delta(&delta)?;
+        selections.push(DiffSelection {
+            path,
+            old_path,
+            status: change_status_for_delta(delta.status(), GitChangeArea::Staged),
+        });
+    }
+    Ok(selections)
+}
+
+fn commit_diff_stats_by_path(diff: &mut Diff<'_>) -> Result<CommitDiffLineStatsByPath, GitError> {
+    let mut stats = HashMap::<String, (u32, u32)>::new();
+    diff.print(DiffFormat::Patch, |delta, _hunk, line| {
+        let Ok(path) = delta_path(&delta, false) else {
+            return true;
+        };
+        let entry = stats.entry(path).or_insert((0, 0));
+        match line.origin_value() {
+            DiffLineType::Addition => entry.0 = entry.0.saturating_add(line.num_lines()),
+            DiffLineType::Deletion => entry.1 = entry.1.saturating_add(line.num_lines()),
+            _ => {}
+        }
+        true
+    })
+    .map_err(GitError::from_git2)?;
+    Ok(stats
+        .into_iter()
+        .map(|(path, (added, removed))| {
+            (
+                path,
+                (
+                    if added > 0 { Some(added) } else { None },
+                    if removed > 0 { Some(removed) } else { None },
+                ),
+            )
+        })
+        .collect())
+}
+
+fn delta_for_status(status: GitChangeStatus) -> Delta {
+    match status {
+        GitChangeStatus::Added | GitChangeStatus::Untracked => Delta::Added,
+        GitChangeStatus::Deleted => Delta::Deleted,
+        GitChangeStatus::Renamed => Delta::Renamed,
+        GitChangeStatus::Copied => Delta::Copied,
+        GitChangeStatus::Modified => Delta::Modified,
+    }
+}
+
+fn short_oid(oid: Oid) -> String {
+    oid.to_string().chars().take(7).collect()
 }
 
 struct DiffSelection {
@@ -389,10 +707,15 @@ fn visible_workspace_path(
     paths: &GitPathContext,
     repo_path: &str,
     old_path: Option<&str>,
+    status: GitChangeStatus,
 ) -> Option<String> {
-    paths
-        .to_workspace_path(repo_path)
-        .or_else(|| old_path.and_then(|old_path| paths.to_workspace_path(old_path)))
+    paths.to_workspace_path(repo_path).or_else(|| {
+        if matches!(status, GitChangeStatus::Renamed | GitChangeStatus::Deleted) {
+            old_path.and_then(|old_path| paths.to_workspace_path(old_path))
+        } else {
+            None
+        }
+    })
 }
 
 fn diff_for_area<'repo>(

@@ -319,6 +319,53 @@ void main() {
     expect(find.text('+0'), findsNothing);
     expect(find.text('-0'), findsNothing);
   });
+
+  testWidgets('diff surface loads commit diffs from commit payload', (
+    tester,
+  ) async {
+    final backend = FakeGitBackend()
+      ..gitCommitDiffResult = const GitDiffResult(
+        files: <GitDiffFile>[
+          GitDiffFile(
+            path: 'lib/main.dart',
+            area: GitChangeArea.staged,
+            status: GitChangeStatus.modified,
+            lines: <GitDiffLine>[GitDiffLine.addition('+new')],
+            sourceLabel: 'Commit',
+          ),
+        ],
+      );
+
+    await _pumpDiffSurface(
+      tester,
+      backend: backend,
+      tab: _diffTab(
+        source: WorkspaceGitDiffSource.commit,
+        filePath: 'packages/app/lib/main.dart',
+        title: 'main.dart abc1234',
+        scope: WorkspaceGitDiffScope.file,
+        area: null,
+        gitDiffRoot: 'packages/app',
+        commitOid: 'abc123456789',
+        parentOid: 'def987654321',
+        compareRef: 'abc1234',
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      backend.calls.where((call) => call.method == 'commitDiff').single.args,
+      <String, Object?>{
+        'path': '/tmp/project/packages/app',
+        'commitOid': 'abc123456789',
+        'parentOid': 'def987654321',
+        'filePath': 'lib/main.dart',
+        'oldPath': null,
+      },
+    );
+    expect(find.text('Commit · lib/main.dart'), findsOneWidget);
+    expect(_openFileButton(tester).onPressed, isNull);
+  });
 }
 
 Future<void> _pumpDiffSurface(
@@ -373,13 +420,41 @@ Workspace _workspace() {
 }
 
 WorkspaceTabRecord _diffTab({
+  WorkspaceGitDiffSource source = WorkspaceGitDiffSource.workingTree,
   WorkspaceGitDiffScope scope = WorkspaceGitDiffScope.file,
   String filePath = 'lib/large.dart',
   String title = 'large.dart unstaged',
   GitChangeArea? area = GitChangeArea.unstaged,
   String? gitDiffRoot,
+  String? oldPath,
+  String? commitOid,
+  String? parentOid,
+  String? compareRef,
 }) {
   final now = DateTime.utc(2026, 6, 6);
+  final payload = <String, Object?>{
+    workspaceTabGitDiffSourcePayloadKey: source.key,
+    workspaceTabGitDiffScopePayloadKey: scope.key,
+    workspaceTabFilePathPayloadKey: filePath,
+  };
+  if (area != null) {
+    payload[workspaceTabGitDiffAreaPayloadKey] = area.key;
+  }
+  if (oldPath != null) {
+    payload[workspaceTabGitDiffOldPathPayloadKey] = oldPath;
+  }
+  if (commitOid != null) {
+    payload[workspaceTabGitDiffCommitOidPayloadKey] = commitOid;
+  }
+  if (parentOid != null) {
+    payload[workspaceTabGitDiffParentOidPayloadKey] = parentOid;
+  }
+  if (compareRef != null) {
+    payload[workspaceTabGitDiffCompareRefPayloadKey] = compareRef;
+  }
+  if (gitDiffRoot != null) {
+    payload[workspaceTabGitDiffRootPayloadKey] = gitDiffRoot;
+  }
   return WorkspaceTabRecord(
     id: 'tab-1',
     workspaceId: 'workspace-1',
@@ -387,17 +462,7 @@ WorkspaceTabRecord _diffTab({
     title: title,
     createdAt: now,
     updatedAt: now,
-    payload: <String, Object?>{
-      workspaceTabGitDiffScopePayloadKey: scope.key,
-      workspaceTabFilePathPayloadKey: filePath,
-      if (area != null) workspaceTabGitDiffAreaPayloadKey: area.key,
-      ...switch (gitDiffRoot) {
-        null => const <String, Object?>{},
-        final root => <String, Object?>{
-          workspaceTabGitDiffRootPayloadKey: root,
-        },
-      },
-    },
+    payload: payload,
   );
 }
 

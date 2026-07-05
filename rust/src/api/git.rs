@@ -9,6 +9,10 @@ use git2::{
 
 #[path = "git_diff_impl.rs"]
 mod git_diff_impl;
+#[path = "git_diff_paths.rs"]
+mod git_diff_paths;
+#[path = "git_history_impl.rs"]
+mod git_history_impl;
 
 pub struct GitWorktreeEntry {
     pub path: String,
@@ -121,6 +125,77 @@ pub struct GitDiffFile {
 pub struct GitDiffResult {
     pub files: Vec<GitDiffFile>,
     pub truncated: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GitHistoryRefCategory {
+    Branches,
+    RemoteBranches,
+    Tags,
+    Commits,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GitHistoryItemRef {
+    pub id: String,
+    pub name: String,
+    pub revision: Option<String>,
+    pub category: Option<GitHistoryRefCategory>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GitHistoryItem {
+    pub id: String,
+    pub parent_ids: Vec<String>,
+    pub subject: String,
+    pub message: String,
+    pub display_id: Option<String>,
+    pub author: Option<String>,
+    pub author_email: Option<String>,
+    pub timestamp: Option<i64>,
+    pub references: Vec<GitHistoryItemRef>,
+}
+
+pub struct GitHistoryResult {
+    pub items: Vec<GitHistoryItem>,
+    pub current_ref: Option<GitHistoryItemRef>,
+    pub remote_ref: Option<GitHistoryItemRef>,
+    pub base_ref: Option<GitHistoryItemRef>,
+    pub merge_base: Option<String>,
+    pub has_incoming_changes: bool,
+    pub has_outgoing_changes: bool,
+    pub has_more: bool,
+    pub limit: u32,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GitCommitCompareStatus {
+    Ready,
+    InvalidCommit,
+    Error,
+}
+
+pub struct GitCommitChangeEntry {
+    pub path: String,
+    pub old_path: Option<String>,
+    pub status: GitChangeStatus,
+    pub added: Option<u32>,
+    pub removed: Option<u32>,
+}
+
+pub struct GitCommitCompareSummary {
+    pub commit_oid: String,
+    pub parent_oid: Option<String>,
+    pub compare_ref: String,
+    pub base_ref: String,
+    pub changed_files: u32,
+    pub status: GitCommitCompareStatus,
+    pub error_message: Option<String>,
+}
+
+pub struct GitCommitCompareResult {
+    pub summary: GitCommitCompareSummary,
+    pub entries: Vec<GitCommitChangeEntry>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -296,6 +371,31 @@ pub fn git_diff(
 
 pub fn git_diff_all(path: String, file_path: Option<String>) -> Result<GitDiffResult, GitError> {
     git_diff_impl::git_diff_all(path, file_path)
+}
+
+pub fn git_history(
+    path: String,
+    limit: Option<u32>,
+    base_ref: Option<String>,
+) -> Result<GitHistoryResult, GitError> {
+    git_history_impl::git_history(path, limit, base_ref)
+}
+
+pub fn git_commit_compare(
+    path: String,
+    commit_id: String,
+) -> Result<GitCommitCompareResult, GitError> {
+    git_diff_impl::git_commit_compare(path, commit_id)
+}
+
+pub fn git_commit_diff(
+    path: String,
+    commit_oid: String,
+    parent_oid: Option<String>,
+    file_path: Option<String>,
+    old_path: Option<String>,
+) -> Result<GitDiffResult, GitError> {
+    git_diff_impl::git_commit_diff(path, commit_oid, parent_oid, file_path, old_path)
 }
 
 pub fn git_repository_state(path: String) -> Result<GitRepositoryState, GitError> {

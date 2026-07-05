@@ -132,6 +132,47 @@ class RustGitBackend implements GitBackend {
       });
 
   @override
+  Future<GitHistoryResult> history(
+    String path, {
+    int? limit,
+    String? baseRef,
+  }) => _guard(() async {
+    final result = await rust.gitHistory(
+      path: path,
+      limit: limit,
+      baseRef: baseRef,
+    );
+    return _toHistoryResult(result);
+  });
+
+  @override
+  Future<GitCommitCompareResult> commitCompare({
+    required String path,
+    required String commitId,
+  }) => _guard(() async {
+    final result = await rust.gitCommitCompare(path: path, commitId: commitId);
+    return _toCommitCompareResult(result);
+  });
+
+  @override
+  Future<GitDiffResult> commitDiff({
+    required String path,
+    required String commitOid,
+    String? parentOid,
+    String? filePath,
+    String? oldPath,
+  }) => _guard(() async {
+    final result = await rust.gitCommitDiff(
+      path: path,
+      commitOid: commitOid,
+      parentOid: parentOid,
+      filePath: filePath,
+      oldPath: oldPath,
+    );
+    return _toDiffResult(result, sourceLabel: 'Commit');
+  });
+
+  @override
   Future<GitRepositoryState> repositoryState(String path) => _guard(() async {
     final state = await rust.gitRepositoryState(path: path);
     return GitRepositoryState(
@@ -310,7 +351,10 @@ class RustGitBackend implements GitBackend {
     );
   }
 
-  GitDiffResult _toDiffResult(rust.GitDiffResult result) {
+  GitDiffResult _toDiffResult(
+    rust.GitDiffResult result, {
+    String? sourceLabel,
+  }) {
     return GitDiffResult(
       truncated: result.truncated,
       files: result.files
@@ -327,9 +371,93 @@ class RustGitBackend implements GitBackend {
               isLarge: file.isLarge,
               truncated: file.truncated,
               linePreviewTruncated: file.linePreviewTruncated,
+              sourceLabel: sourceLabel,
             ),
           )
           .toList(growable: false),
+    );
+  }
+
+  GitHistoryResult _toHistoryResult(rust.GitHistoryResult result) {
+    return GitHistoryResult(
+      items: result.items.map(_toHistoryItem).toList(growable: false),
+      currentRef: result.currentRef == null
+          ? null
+          : _toHistoryItemRef(result.currentRef!),
+      remoteRef: result.remoteRef == null
+          ? null
+          : _toHistoryItemRef(result.remoteRef!),
+      baseRef: result.baseRef == null
+          ? null
+          : _toHistoryItemRef(result.baseRef!),
+      mergeBase: result.mergeBase,
+      hasIncomingChanges: result.hasIncomingChanges,
+      hasOutgoingChanges: result.hasOutgoingChanges,
+      hasMore: result.hasMore,
+      limit: result.limit,
+    );
+  }
+
+  GitHistoryItem _toHistoryItem(rust.GitHistoryItem item) {
+    final timestamp = item.timestamp;
+    return GitHistoryItem(
+      id: item.id,
+      parentIds: item.parentIds,
+      subject: item.subject,
+      message: item.message,
+      displayId: item.displayId,
+      author: item.author,
+      authorEmail: item.authorEmail,
+      timestamp: timestamp == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(timestamp, isUtc: true),
+      references: item.references
+          .map(_toHistoryItemRef)
+          .toList(growable: false),
+    );
+  }
+
+  GitHistoryItemRef _toHistoryItemRef(rust.GitHistoryItemRef itemRef) {
+    return GitHistoryItemRef(
+      id: itemRef.id,
+      name: itemRef.name,
+      revision: itemRef.revision,
+      category: itemRef.category == null
+          ? null
+          : _toHistoryRefCategory(itemRef.category!),
+    );
+  }
+
+  GitCommitCompareResult _toCommitCompareResult(
+    rust.GitCommitCompareResult result,
+  ) {
+    return GitCommitCompareResult(
+      summary: _toCommitCompareSummary(result.summary),
+      entries: result.entries.map(_toCommitChangeEntry).toList(growable: false),
+    );
+  }
+
+  GitCommitCompareSummary _toCommitCompareSummary(
+    rust.GitCommitCompareSummary summary,
+  ) {
+    return GitCommitCompareSummary(
+      commitOid: summary.commitOid,
+      parentOid: summary.parentOid,
+      compareRef: summary.compareRef,
+      baseRef: summary.baseRef,
+      changedFiles: summary.changedFiles,
+      status: _toCommitCompareStatus(summary.status),
+      errorMessage: summary.errorMessage,
+    );
+  }
+
+  GitCommitChangeEntry _toCommitChangeEntry(rust.GitCommitChangeEntry entry) {
+    return GitCommitChangeEntry(
+      path: entry.path,
+      oldPath: entry.oldPath,
+      status: _toStatus(entry.status),
+      added: entry.added,
+      removed: entry.removed,
     );
   }
 
@@ -367,6 +495,29 @@ class RustGitBackend implements GitBackend {
       rust.GitDiffLineKind.hunk => GitDiffLineKind.hunk,
       rust.GitDiffLineKind.header => GitDiffLineKind.header,
       rust.GitDiffLineKind.context => GitDiffLineKind.context,
+    };
+  }
+
+  GitHistoryRefCategory _toHistoryRefCategory(
+    rust.GitHistoryRefCategory category,
+  ) {
+    return switch (category) {
+      rust.GitHistoryRefCategory.branches => GitHistoryRefCategory.branches,
+      rust.GitHistoryRefCategory.remoteBranches =>
+        GitHistoryRefCategory.remoteBranches,
+      rust.GitHistoryRefCategory.tags => GitHistoryRefCategory.tags,
+      rust.GitHistoryRefCategory.commits => GitHistoryRefCategory.commits,
+    };
+  }
+
+  GitCommitCompareStatus _toCommitCompareStatus(
+    rust.GitCommitCompareStatus status,
+  ) {
+    return switch (status) {
+      rust.GitCommitCompareStatus.ready => GitCommitCompareStatus.ready,
+      rust.GitCommitCompareStatus.invalidCommit =>
+        GitCommitCompareStatus.invalidCommit,
+      rust.GitCommitCompareStatus.error => GitCommitCompareStatus.error,
     };
   }
 

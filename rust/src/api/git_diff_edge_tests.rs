@@ -339,6 +339,108 @@ fn git_diff_does_not_select_copy_delta_by_source_path() {
 }
 
 #[test]
+fn git_commit_diff_prefers_copied_destination_over_shared_source_path() {
+    let repo = init_repo();
+    let source = repo
+        .path()
+        .join("packages")
+        .join("app")
+        .join("lib")
+        .join("foo.dart");
+    let copy_a = repo.path().join("packages").join("aaa").join("foo.dart");
+    let copy_b = repo.path().join("packages").join("bbb").join("foo.dart");
+    std::fs::create_dir_all(source.parent().unwrap()).expect("create source dir");
+    std::fs::create_dir_all(copy_a.parent().unwrap()).expect("create copy a dir");
+    std::fs::create_dir_all(copy_b.parent().unwrap()).expect("create copy b dir");
+    std::fs::write(&source, "base\n").expect("write source");
+    run_git(repo.path(), &["add", "."]);
+    run_git(repo.path(), &["commit", "-m", "add source"]);
+
+    std::fs::copy(&source, &copy_a).expect("copy source a");
+    std::fs::copy(&source, &copy_b).expect("copy source b");
+    std::fs::write(&source, "base\nsource change\n").expect("modify source");
+    run_git(
+        repo.path(),
+        &[
+            "add",
+            "packages/app/lib/foo.dart",
+            "packages/aaa/foo.dart",
+            "packages/bbb/foo.dart",
+        ],
+    );
+    run_git(repo.path(), &["commit", "-m", "copy source twice"]);
+
+    let git_repo = git2::Repository::open(repo.path()).expect("open repo");
+    let commit = git_repo
+        .head()
+        .expect("head")
+        .peel_to_commit()
+        .expect("head commit");
+    let diff = git_commit_diff(
+        path_str(repo.path()),
+        commit.id().to_string(),
+        Some(commit.parent_id(0).expect("parent").to_string()),
+        Some("packages/bbb/foo.dart".to_string()),
+        Some("packages/app/lib/foo.dart".to_string()),
+    )
+    .unwrap();
+
+    assert_eq!(diff.files.len(), 1);
+    assert_eq!(diff.files[0].path, "packages/bbb/foo.dart");
+    assert_eq!(
+        diff.files[0].old_path.as_deref(),
+        Some("packages/app/lib/foo.dart")
+    );
+    assert_eq!(diff.files[0].status, GitChangeStatus::Copied);
+    assert!(!diff_text(&diff.files[0]).contains("packages/aaa/foo.dart"));
+}
+
+#[test]
+fn git_commit_compare_ignores_copy_sources_outside_scoped_workspace() {
+    let repo = init_repo();
+    let source = repo
+        .path()
+        .join("packages")
+        .join("app")
+        .join("lib")
+        .join("foo.dart");
+    let copy = repo.path().join("packages").join("other").join("foo.dart");
+    std::fs::create_dir_all(source.parent().unwrap()).expect("create source dir");
+    std::fs::create_dir_all(copy.parent().unwrap()).expect("create copy dir");
+    std::fs::write(&source, "base\n").expect("write source");
+    run_git(repo.path(), &["add", "."]);
+    run_git(repo.path(), &["commit", "-m", "add source"]);
+
+    std::fs::copy(&source, &copy).expect("copy source");
+    std::fs::write(&source, "base\nsource change\n").expect("modify source");
+    run_git(
+        repo.path(),
+        &[
+            "add",
+            "packages/app/lib/foo.dart",
+            "packages/other/foo.dart",
+        ],
+    );
+    run_git(repo.path(), &["commit", "-m", "copy source out"]);
+
+    let git_repo = git2::Repository::open(repo.path()).expect("open repo");
+    let commit = git_repo
+        .head()
+        .expect("head")
+        .peel_to_commit()
+        .expect("head commit");
+    let compare = git_commit_compare(
+        path_str(&repo.path().join("packages/app")),
+        commit.id().to_string(),
+    )
+    .unwrap();
+
+    assert_eq!(compare.entries.len(), 1);
+    assert_eq!(compare.entries[0].path, "lib/foo.dart");
+    assert_eq!(compare.entries[0].status, GitChangeStatus::Modified);
+}
+
+#[test]
 fn git_diff_treats_star_pathspec_characters_as_literals() {
     let repo = init_repo();
     std::fs::write(repo.path().join("*.txt"), "literal star\n").expect("write star file");
