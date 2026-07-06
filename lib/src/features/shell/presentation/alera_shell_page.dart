@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
+import 'package:alera/src/features/agent_status/application/agent_status_host_forwarder.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
@@ -104,6 +105,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
     ref.watch(agentHookReceiverLifecycleCoordinatorProvider);
     ref.watch(agentHookInstallerCoordinatorProvider);
     ref.watch(agentStatusNotificationCoordinatorProvider);
+    ref.watch(agentStatusHostForwarderProvider);
     ref.watch(agentAwakeCoordinatorProvider);
     ref.watch(terminalRuntimeExitCoordinatorProvider);
     ref.watch(workspaceActivityCoordinatorProvider);

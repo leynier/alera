@@ -1,5 +1,7 @@
 mod cli;
+mod cli_orchestration;
 mod managed_workspace;
+mod orchestration_commands;
 mod runtime_archive;
 mod runtime_host_client;
 mod ssh_bootstrap;
@@ -74,6 +76,9 @@ async fn run() -> i32 {
         Command::Tag(command) => run_tag_command(command).await,
         Command::Tab(command) => run_tab_command(command).await,
         Command::SshTarget(command) => run_ssh_target_command(command).await,
+        Command::Orchestration(command) => {
+            orchestration_commands::run_orchestration_command(command).await
+        }
     }
 }
 
@@ -761,6 +766,22 @@ fn tab_from_args(args: TabCreateArgs) -> Result<WorkspaceTabRecord, String> {
                 SUPPORTED_TAB_KINDS.join(", ")
             )
         })?;
+    if (args.command.is_some() || args.spawn) && kind != "terminal" {
+        return Err("--command and --spawn are only supported for terminal tabs.".to_string());
+    }
+    let mut payload = serde_json::Map::new();
+    payload.insert("terminalSessionId".to_string(), json!(id));
+    if let Some(command) = args
+        .command
+        .as_deref()
+        .map(str::trim)
+        .filter(|command| !command.is_empty())
+    {
+        payload.insert("initialCommand".to_string(), json!(command));
+    }
+    if args.spawn {
+        payload.insert("spawnOnCreate".to_string(), json!(true));
+    }
     Ok(WorkspaceTabRecord {
         id: id.clone(),
         workspace_id: args.workspace_id,
@@ -768,7 +789,7 @@ fn tab_from_args(args: TabCreateArgs) -> Result<WorkspaceTabRecord, String> {
         title: args.title,
         created_at: now,
         updated_at: now,
-        payload: json!({ "terminalSessionId": id }),
+        payload: Value::Object(payload),
     })
 }
 

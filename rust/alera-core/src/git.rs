@@ -590,3 +590,86 @@ fn is_path_occupied(path: &str) -> bool {
         Err(_) => target.exists(),
     }
 }
+
+/// How far a worktree's HEAD trails its upstream tracking branch, plus the
+/// most recent upstream-only commit subjects for the dispatch preamble.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GitBaseDrift {
+    pub base: String,
+    pub behind: u64,
+    pub recent_subjects: Vec<String>,
+}
+
+const BASE_DRIFT_SUBJECT_LIMIT: usize = 5;
+
+/// Measures drift between a worktree's HEAD and its upstream tracking branch
+/// without fetching. Returns `None` when the branch has no upstream — a
+/// worktree with no tracking base has nothing to drift from.
+pub fn probe_base_drift(worktree_path: &str) -> Result<Option<GitBaseDrift>, GitError> {
+    let repo = open_repo(worktree_path)?;
+    let head = match repo.head() {
+        Ok(head) => head,
+        // Unborn/empty worktrees cannot be behind anything.
+        Err(error) if error.code() == ErrorCode::UnbornBranch => return Ok(None),
+        Err(error) => return Err(GitError::from_git2(error)),
+    };
+    let Some(head_oid) = head.target() else {
+        return Ok(None);
+    };
+    if repo.head_detached().unwrap_or(false) {
+        return Ok(None);
+    }
+    let branch_name = match head.shorthand() {
+        Ok(name) => name.to_string(),
+        Err(_) => return Ok(None),
+    };
+    let branch = match repo.find_branch(&branch_name, BranchType::Local) {
+        Ok(branch) => branch,
+        Err(error) if error.code() == ErrorCode::NotFound => return Ok(None),
+        Err(error) => return Err(GitError::from_git2(error)),
+    };
+    let upstream = match branch.upstream() {
+        Ok(upstream) => upstream,
+        Err(error) if error.code() == ErrorCode::NotFound => return Ok(None),
+        Err(error) => return Err(GitError::from_git2(error)),
+    };
+    let upstream_name = upstream
+        .name()
+        .map_err(GitError::from_git2)?
+        .unwrap_or("upstream")
+        .to_string();
+    let Some(upstream_oid) = upstream.get().target() else {
+        return Ok(None);
+    };
+    let (_ahead, behind) = repo
+        .graph_ahead_behind(head_oid, upstream_oid)
+        .map_err(GitError::from_git2)?;
+    if behind == 0 {
+        return Ok(Some(GitBaseDrift {
+            base: upstream_name,
+            behind: 0,
+            recent_subjects: Vec::new(),
+        }));
+    }
+    // Walk upstream-only commits (upstream, hiding HEAD) for the newest
+    // subjects the worktree has not seen.
+    let mut walk = repo.revwalk().map_err(GitError::from_git2)?;
+    walk.push(upstream_oid).map_err(GitError::from_git2)?;
+    walk.hide(head_oid).map_err(GitError::from_git2)?;
+    let mut recent_subjects = Vec::new();
+    for oid in walk.take(BASE_DRIFT_SUBJECT_LIMIT) {
+        let oid = oid.map_err(GitError::from_git2)?;
+        let commit = repo.find_commit(oid).map_err(GitError::from_git2)?;
+        let subject = commit
+            .summary()
+            .map_err(GitError::from_git2)?
+            .unwrap_or("<no subject>")
+            .to_string();
+        recent_subjects.push(subject);
+    }
+    Ok(Some(GitBaseDrift {
+        base: upstream_name,
+        behind: behind as u64,
+        recent_subjects,
+    }))
+}
