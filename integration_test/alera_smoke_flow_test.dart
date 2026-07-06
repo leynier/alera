@@ -31,7 +31,8 @@ void main() {
         await tempRoot.delete(recursive: true);
       }
     });
-    final projectDir = Directory(p.join(tempRoot.path, 'sample-project'))
+    const projectName = 'sample-project';
+    final projectDir = Directory(p.join(tempRoot.path, projectName))
       ..createSync(recursive: true);
 
     final db = AleraDatabase(executor: NativeDatabase.memory());
@@ -81,11 +82,11 @@ void main() {
     );
     await tester.tap(submitButton);
 
-    await _pumpUntilFound(tester, find.text('Main'));
+    await _pumpUntilFound(tester, find.text(projectName));
 
-    await tester.ensureVisible(find.text('Main').last);
+    await tester.ensureVisible(find.text(projectName).last);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Main').last);
+    await tester.tap(find.text(projectName).last);
     await _pumpUntilFound(tester, find.byTooltip('New Terminal'));
     await _pumpUntilFound(tester, find.text('E2E terminal: Terminal 1'));
 
