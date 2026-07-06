@@ -9,9 +9,10 @@ use thiserror::Error;
 use uuid::Uuid;
 
 use super::{
-    CascadePreview, Project, ProjectConfig, ProjectConfigMap, ProjectConfigRecord, ProjectKind,
-    RuntimeSettings, SshAuthKind, SshBootstrapStatus, SshTarget, WorkbenchLayoutRecord, Workspace,
-    WorkspaceKind, WorkspaceRelation, WorkspaceStatus, WorkspaceTabRecord, WorkspaceTag,
+    CascadePreview, MobileAccessSettings, MobileDevice, MobileDevicePermission, MobilePairingOffer,
+    Project, ProjectConfig, ProjectConfigMap, ProjectConfigRecord, ProjectKind, RuntimeSettings,
+    SshAuthKind, SshBootstrapStatus, SshTarget, WorkbenchLayoutRecord, Workspace, WorkspaceKind,
+    WorkspaceRelation, WorkspaceStatus, WorkspaceTabRecord, WorkspaceTag,
 };
 
 pub const RUNTIME_DATABASE_FILE_NAME: &str = "runtime.sqlite";
@@ -154,6 +155,254 @@ impl RuntimeStore {
             }
         }
         self.runtime_settings().await
+    }
+
+    pub async fn mobile_access_settings(&self) -> Result<MobileAccessSettings> {
+        let row = sqlx::query(
+            "SELECT enabled, bindHost, port, serverPublicKeyB64, updatedAt \
+             FROM mobileAccessSettings WHERE id = 1",
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+        match row {
+            Some(row) => Ok(mobile_access_settings_from_row(row)?),
+            None => Ok(MobileAccessSettings::default()),
+        }
+    }
+
+    pub async fn set_mobile_access_settings(
+        &self,
+        mut settings: MobileAccessSettings,
+    ) -> Result<MobileAccessSettings> {
+        if settings.bind_host.trim().is_empty() {
+            settings.bind_host = MobileAccessSettings::default().bind_host;
+        }
+        if settings.port <= 0 {
+            settings.port = MobileAccessSettings::default().port;
+        }
+        settings.updated_at = Utc::now();
+        sqlx::query(
+            "INSERT INTO mobileAccessSettings \
+             (id, enabled, bindHost, port, serverPublicKeyB64, updatedAt) \
+             VALUES (1, ?, ?, ?, ?, ?) \
+             ON CONFLICT(id) DO UPDATE SET \
+             enabled = excluded.enabled, bindHost = excluded.bindHost, port = excluded.port, \
+             serverPublicKeyB64 = excluded.serverPublicKeyB64, updatedAt = excluded.updatedAt",
+        )
+        .bind(if settings.enabled { 1_i64 } else { 0_i64 })
+        .bind(&settings.bind_host)
+        .bind(settings.port)
+        .bind(&settings.server_public_key_b64)
+        .bind(format_timestamp(settings.updated_at))
+        .execute(&self.pool)
+        .await?;
+        self.mobile_access_settings().await
+    }
+
+    pub async fn list_mobile_pairing_offers(&self) -> Result<Vec<MobilePairingOffer>> {
+        let rows = sqlx::query(
+            "SELECT id, endpoint, secretHash, expectedDeviceName, serverPublicKeyB64, \
+             createdAt, expiresAt, claimedDeviceId FROM mobilePairingOffers \
+             WHERE claimedDeviceId IS NULL AND expiresAt > ? ORDER BY createdAt DESC",
+        )
+        .bind(format_timestamp(Utc::now()))
+        .fetch_all(&self.pool)
+        .await?;
+        rows.into_iter()
+            .map(mobile_pairing_offer_from_row)
+            .collect()
+    }
+
+    pub async fn find_mobile_pairing_offer(
+        &self,
+        offer_id: &str,
+    ) -> Result<Option<MobilePairingOffer>> {
+        let row = sqlx::query(
+            "SELECT id, endpoint, secretHash, expectedDeviceName, serverPublicKeyB64, \
+             createdAt, expiresAt, claimedDeviceId FROM mobilePairingOffers WHERE id = ?",
+        )
+        .bind(offer_id)
+        .fetch_optional(&self.pool)
+        .await?;
+        row.map(mobile_pairing_offer_from_row).transpose()
+    }
+
+    pub async fn upsert_mobile_pairing_offer(
+        &self,
+        offer: MobilePairingOffer,
+    ) -> Result<MobilePairingOffer> {
+        sqlx::query(
+            "INSERT INTO mobilePairingOffers \
+             (id, endpoint, secretHash, expectedDeviceName, serverPublicKeyB64, createdAt, expiresAt, claimedDeviceId) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?) \
+             ON CONFLICT(id) DO UPDATE SET \
+             endpoint = excluded.endpoint, secretHash = excluded.secretHash, \
+             expectedDeviceName = excluded.expectedDeviceName, serverPublicKeyB64 = excluded.serverPublicKeyB64, \
+             expiresAt = excluded.expiresAt, claimedDeviceId = excluded.claimedDeviceId",
+        )
+        .bind(&offer.id)
+        .bind(&offer.endpoint)
+        .bind(&offer.secret_hash)
+        .bind(&offer.expected_device_name)
+        .bind(&offer.server_public_key_b64)
+        .bind(format_timestamp(offer.created_at))
+        .bind(format_timestamp(offer.expires_at))
+        .bind(&offer.claimed_device_id)
+        .execute(&self.pool)
+        .await?;
+        Ok(offer)
+    }
+
+    pub async fn claim_mobile_pairing_offer(
+        &self,
+        offer_id: &str,
+        secret_hash: &str,
+        device: MobileDevice,
+    ) -> Result<MobileDevice> {
+        let mut tx = self.pool.begin().await?;
+        let row = sqlx::query(
+            "SELECT id, endpoint, secretHash, expectedDeviceName, serverPublicKeyB64, \
+             createdAt, expiresAt, claimedDeviceId FROM mobilePairingOffers WHERE id = ?",
+        )
+        .bind(offer_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+        let offer = row
+            .map(mobile_pairing_offer_from_row)
+            .transpose()?
+            .ok_or_else(|| RuntimeStoreError::Message("pairing offer not found".to_string()))?;
+        if offer.claimed_device_id.is_some() {
+            return Err(
+                RuntimeStoreError::Message("pairing offer already claimed".to_string()).into(),
+            );
+        }
+        if Utc::now() > offer.expires_at {
+            return Err(RuntimeStoreError::Message("pairing offer expired".to_string()).into());
+        }
+        if offer.secret_hash != secret_hash {
+            return Err(RuntimeStoreError::Message("pairing secret is invalid".to_string()).into());
+        }
+        let result = sqlx::query(
+            "UPDATE mobilePairingOffers SET claimedDeviceId = ? \
+             WHERE id = ? AND claimedDeviceId IS NULL",
+        )
+        .bind(&device.id)
+        .bind(&offer.id)
+        .execute(&mut *tx)
+        .await?;
+        if result.rows_affected() != 1 {
+            return Err(
+                RuntimeStoreError::Message("pairing offer already claimed".to_string()).into(),
+            );
+        }
+        sqlx::query(
+            "INSERT INTO mobileDevices \
+             (id, displayName, tokenHash, publicKeyB64, permission, pairedAt, lastSeenAt, revokedAt) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        )
+        .bind(&device.id)
+        .bind(&device.display_name)
+        .bind(&device.token_hash)
+        .bind(&device.public_key_b64)
+        .bind(device.permission.as_str())
+        .bind(format_timestamp(device.paired_at))
+        .bind(device.last_seen_at.map(format_timestamp))
+        .bind(device.revoked_at.map(format_timestamp))
+        .execute(&mut *tx)
+        .await?;
+        tx.commit().await?;
+        Ok(device)
+    }
+
+    pub async fn list_mobile_devices(&self, include_revoked: bool) -> Result<Vec<MobileDevice>> {
+        let rows = if include_revoked {
+            sqlx::query(
+                "SELECT id, displayName, tokenHash, publicKeyB64, permission, pairedAt, lastSeenAt, revokedAt \
+                 FROM mobileDevices ORDER BY pairedAt DESC",
+            )
+            .fetch_all(&self.pool)
+            .await?
+        } else {
+            sqlx::query(
+                "SELECT id, displayName, tokenHash, publicKeyB64, permission, pairedAt, lastSeenAt, revokedAt \
+                 FROM mobileDevices WHERE revokedAt IS NULL ORDER BY pairedAt DESC",
+            )
+            .fetch_all(&self.pool)
+            .await?
+        };
+        rows.into_iter().map(mobile_device_from_row).collect()
+    }
+
+    pub async fn find_mobile_device(&self, device_id: &str) -> Result<Option<MobileDevice>> {
+        let row = sqlx::query(
+            "SELECT id, displayName, tokenHash, publicKeyB64, permission, pairedAt, lastSeenAt, revokedAt \
+             FROM mobileDevices WHERE id = ?",
+        )
+        .bind(device_id)
+        .fetch_optional(&self.pool)
+        .await?;
+        row.map(mobile_device_from_row).transpose()
+    }
+
+    pub async fn upsert_mobile_device(&self, device: MobileDevice) -> Result<MobileDevice> {
+        sqlx::query(
+            "INSERT INTO mobileDevices \
+             (id, displayName, tokenHash, publicKeyB64, permission, pairedAt, lastSeenAt, revokedAt) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?) \
+             ON CONFLICT(id) DO UPDATE SET \
+             displayName = excluded.displayName, tokenHash = excluded.tokenHash, publicKeyB64 = excluded.publicKeyB64, \
+             permission = excluded.permission, lastSeenAt = excluded.lastSeenAt, \
+             revokedAt = COALESCE(mobileDevices.revokedAt, excluded.revokedAt)",
+        )
+        .bind(&device.id)
+        .bind(&device.display_name)
+        .bind(&device.token_hash)
+        .bind(&device.public_key_b64)
+        .bind(device.permission.as_str())
+        .bind(format_timestamp(device.paired_at))
+        .bind(device.last_seen_at.map(format_timestamp))
+        .bind(device.revoked_at.map(format_timestamp))
+        .execute(&self.pool)
+        .await?;
+        Ok(device)
+    }
+
+    pub async fn mark_mobile_device_seen_if_active(
+        &self,
+        device_id: &str,
+        seen_at: DateTime<Utc>,
+    ) -> Result<Option<MobileDevice>> {
+        let mut tx = self.pool.begin().await?;
+        let result = sqlx::query(
+            "UPDATE mobileDevices SET lastSeenAt = ? WHERE id = ? AND revokedAt IS NULL",
+        )
+        .bind(format_timestamp(seen_at))
+        .bind(device_id)
+        .execute(&mut *tx)
+        .await?;
+        if result.rows_affected() != 1 {
+            tx.commit().await?;
+            return Ok(None);
+        }
+        let row = sqlx::query(
+            "SELECT id, displayName, tokenHash, publicKeyB64, permission, pairedAt, lastSeenAt, revokedAt \
+             FROM mobileDevices WHERE id = ?",
+        )
+        .bind(device_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+        tx.commit().await?;
+        row.map(mobile_device_from_row).transpose()
+    }
+
+    pub async fn revoke_mobile_device(&self, device_id: &str) -> Result<()> {
+        let now = format_timestamp(Utc::now());
+        sqlx::query("UPDATE mobileDevices SET revokedAt = ? WHERE id = ?")
+            .bind(now)
+            .bind(device_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
     }
 
     pub async fn list_projects(&self) -> Result<Vec<Project>> {
@@ -1018,6 +1267,50 @@ fn ssh_target_from_row(row: sqlx::sqlite::SqliteRow) -> Result<SshTarget> {
     })
 }
 
+fn mobile_access_settings_from_row(row: sqlx::sqlite::SqliteRow) -> Result<MobileAccessSettings> {
+    Ok(MobileAccessSettings {
+        enabled: row.try_get::<i64, _>("enabled")? == 1,
+        bind_host: row.try_get("bindHost")?,
+        port: row.try_get("port")?,
+        server_public_key_b64: row.try_get("serverPublicKeyB64")?,
+        updated_at: parse_timestamp(row.try_get::<String, _>("updatedAt")?.as_str()),
+    })
+}
+
+fn mobile_device_from_row(row: sqlx::sqlite::SqliteRow) -> Result<MobileDevice> {
+    let last_seen_at = row
+        .try_get::<Option<String>, _>("lastSeenAt")?
+        .map(|value| parse_timestamp(&value));
+    let revoked_at = row
+        .try_get::<Option<String>, _>("revokedAt")?
+        .map(|value| parse_timestamp(&value));
+    Ok(MobileDevice {
+        id: row.try_get("id")?,
+        display_name: row.try_get("displayName")?,
+        token_hash: row.try_get("tokenHash")?,
+        public_key_b64: row.try_get("publicKeyB64")?,
+        permission: MobileDevicePermission::from_db(
+            row.try_get::<String, _>("permission")?.as_str(),
+        ),
+        paired_at: parse_timestamp(row.try_get::<String, _>("pairedAt")?.as_str()),
+        last_seen_at,
+        revoked_at,
+    })
+}
+
+fn mobile_pairing_offer_from_row(row: sqlx::sqlite::SqliteRow) -> Result<MobilePairingOffer> {
+    Ok(MobilePairingOffer {
+        id: row.try_get("id")?,
+        endpoint: row.try_get("endpoint")?,
+        secret_hash: row.try_get("secretHash")?,
+        expected_device_name: row.try_get("expectedDeviceName")?,
+        server_public_key_b64: row.try_get("serverPublicKeyB64")?,
+        created_at: parse_timestamp(row.try_get::<String, _>("createdAt")?.as_str()),
+        expires_at: parse_timestamp(row.try_get::<String, _>("expiresAt")?.as_str()),
+        claimed_device_id: row.try_get("claimedDeviceId")?,
+    })
+}
+
 async fn existing_relation_id(
     pool: &SqlitePool,
     parent_workspace_id: &str,
@@ -1146,6 +1439,37 @@ const RUNTIME_SCHEMA: &[&str] = &[
         lastError TEXT
     );",
     "CREATE UNIQUE INDEX IF NOT EXISTS sshTargetsAliasIdx ON sshTargets(alias COLLATE NOCASE);",
+    "CREATE TABLE IF NOT EXISTS mobileAccessSettings (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        enabled INTEGER NOT NULL DEFAULT 0,
+        bindHost TEXT NOT NULL,
+        port INTEGER NOT NULL,
+        serverPublicKeyB64 TEXT,
+        updatedAt TEXT NOT NULL
+    );",
+    "CREATE TABLE IF NOT EXISTS mobileDevices (
+        id TEXT PRIMARY KEY,
+        displayName TEXT NOT NULL,
+        tokenHash TEXT NOT NULL,
+        publicKeyB64 TEXT,
+        permission TEXT NOT NULL,
+        pairedAt TEXT NOT NULL,
+        lastSeenAt TEXT,
+        revokedAt TEXT
+    );",
+    "CREATE UNIQUE INDEX IF NOT EXISTS mobileDevicesTokenHashIdx ON mobileDevices(tokenHash);",
+    "CREATE INDEX IF NOT EXISTS mobileDevicesRevokedIdx ON mobileDevices(revokedAt, pairedAt);",
+    "CREATE TABLE IF NOT EXISTS mobilePairingOffers (
+        id TEXT PRIMARY KEY,
+        endpoint TEXT NOT NULL,
+        secretHash TEXT NOT NULL,
+        expectedDeviceName TEXT,
+        serverPublicKeyB64 TEXT,
+        createdAt TEXT NOT NULL,
+        expiresAt TEXT NOT NULL,
+        claimedDeviceId TEXT
+    );",
+    "CREATE INDEX IF NOT EXISTS mobilePairingOffersActiveIdx ON mobilePairingOffers(expiresAt, claimedDeviceId);",
 ];
 
 #[cfg(test)]
@@ -1216,6 +1540,153 @@ mod tests {
             last_checked_at: None,
             last_error: None,
         }
+    }
+
+    fn mobile_device(id: &str, token_hash: &str) -> MobileDevice {
+        MobileDevice {
+            id: id.to_string(),
+            display_name: id.to_string(),
+            token_hash: token_hash.to_string(),
+            public_key_b64: None,
+            permission: MobileDevicePermission::FullControl,
+            paired_at: Utc::now(),
+            last_seen_at: Some(Utc::now()),
+            revoked_at: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn mobile_access_settings_roundtrip() {
+        let (_dir, store) = store().await;
+        let settings = store.mobile_access_settings().await.unwrap();
+        assert!(!settings.enabled);
+        assert_eq!(settings.port, 6768);
+
+        let saved = store
+            .set_mobile_access_settings(MobileAccessSettings {
+                enabled: true,
+                bind_host: "127.0.0.1".to_string(),
+                port: 7777,
+                server_public_key_b64: Some("pub".to_string()),
+                updated_at: Utc::now(),
+            })
+            .await
+            .unwrap();
+
+        assert!(saved.enabled);
+        assert_eq!(saved.bind_host, "127.0.0.1");
+        assert_eq!(saved.port, 7777);
+        assert_eq!(saved.server_public_key_b64.as_deref(), Some("pub"));
+    }
+
+    #[tokio::test]
+    async fn mobile_pairing_offers_only_list_active_unclaimed_entries() {
+        let (_dir, store) = store().await;
+        let now = Utc::now();
+        store
+            .upsert_mobile_pairing_offer(MobilePairingOffer {
+                id: "active".to_string(),
+                endpoint: "ws://localhost:6768".to_string(),
+                secret_hash: "hash".to_string(),
+                expected_device_name: None,
+                server_public_key_b64: None,
+                created_at: now,
+                expires_at: now + chrono::Duration::minutes(10),
+                claimed_device_id: None,
+            })
+            .await
+            .unwrap();
+        store
+            .upsert_mobile_pairing_offer(MobilePairingOffer {
+                id: "expired".to_string(),
+                endpoint: "ws://localhost:6768".to_string(),
+                secret_hash: "hash".to_string(),
+                expected_device_name: None,
+                server_public_key_b64: None,
+                created_at: now,
+                expires_at: now - chrono::Duration::minutes(1),
+                claimed_device_id: None,
+            })
+            .await
+            .unwrap();
+
+        let offers = store.list_mobile_pairing_offers().await.unwrap();
+        assert_eq!(offers.len(), 1);
+        assert_eq!(offers[0].id, "active");
+    }
+
+    #[tokio::test]
+    async fn mobile_pairing_offer_claim_is_single_use() {
+        let (_dir, store) = store().await;
+        let now = Utc::now();
+        store
+            .upsert_mobile_pairing_offer(MobilePairingOffer {
+                id: "offer".to_string(),
+                endpoint: "ws://localhost:6768".to_string(),
+                secret_hash: "secret-hash".to_string(),
+                expected_device_name: None,
+                server_public_key_b64: None,
+                created_at: now,
+                expires_at: now + chrono::Duration::minutes(10),
+                claimed_device_id: None,
+            })
+            .await
+            .unwrap();
+
+        let claimed = store
+            .claim_mobile_pairing_offer("offer", "secret-hash", mobile_device("phone-1", "token-1"))
+            .await
+            .unwrap();
+        assert_eq!(claimed.id, "phone-1");
+
+        let error = store
+            .claim_mobile_pairing_offer("offer", "secret-hash", mobile_device("phone-2", "token-2"))
+            .await
+            .unwrap_err();
+        assert!(error.to_string().contains("already claimed"));
+        assert!(store.find_mobile_device("phone-2").await.unwrap().is_none());
+        let offer = store
+            .find_mobile_pairing_offer("offer")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(offer.claimed_device_id.as_deref(), Some("phone-1"));
+    }
+
+    #[tokio::test]
+    async fn mobile_devices_can_be_revoked() {
+        let (_dir, store) = store().await;
+        store
+            .upsert_mobile_device(mobile_device("phone", "hash"))
+            .await
+            .unwrap();
+
+        assert_eq!(store.list_mobile_devices(false).await.unwrap().len(), 1);
+        store.revoke_mobile_device("phone").await.unwrap();
+        assert!(store.list_mobile_devices(false).await.unwrap().is_empty());
+        assert_eq!(store.list_mobile_devices(true).await.unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn mobile_device_seen_update_does_not_revive_revoked_device() {
+        let (_dir, store) = store().await;
+        let mut stale = store
+            .upsert_mobile_device(mobile_device("phone", "hash"))
+            .await
+            .unwrap();
+        store.revoke_mobile_device("phone").await.unwrap();
+
+        stale.last_seen_at = Some(Utc::now());
+        store.upsert_mobile_device(stale).await.unwrap();
+        let stored = store.find_mobile_device("phone").await.unwrap().unwrap();
+        assert!(stored.revoked_at.is_some());
+
+        let active = store
+            .mark_mobile_device_seen_if_active("phone", Utc::now())
+            .await
+            .unwrap();
+        assert!(active.is_none());
+        assert!(store.list_mobile_devices(false).await.unwrap().is_empty());
     }
 
     #[tokio::test]

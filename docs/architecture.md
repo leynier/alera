@@ -27,7 +27,9 @@ This document records the current product and code naming used by Alera. It is i
 
 ## Persistence
 
-Alera persists runtime-owned settings, projects, project config overrides, workspaces, workspace tabs, workbench layouts, workspace tags, workspace relations, and SSH targets in the Rust runtime database `runtime.sqlite` under the active runtime profile directory. The Rust store lives in `rust/alera-core` and is reached by the Flutter app through the `alera runtime-host` JSON socket protocol.
+Alera persists runtime-owned settings, projects, project config overrides, workspaces, workspace tabs, workbench layouts, workspace tags, workspace relations, SSH targets, and mobile companion access records in the Rust runtime database `runtime.sqlite` under the active runtime profile directory. The Rust store lives in `rust/alera-core` and is reached by the Flutter app through the `alera runtime-host` JSON socket protocol.
+
+Mobile companion access is opt-in runtime state. The runtime surface persists mobile gateway settings, short-lived pairing offers, and paired/revoked device records; the `alera mobile ...` CLI and runtime-host RPCs expose that state. When enabled, the terminal-host sidecar starts an external WebSocket listener, accepts `mobile.device.pair` for valid pairing offers, authenticates mobile clients with `mobile.hello` device tokens, and applies a mobile request allowlist before exposing project/workspace/tab reads and terminal streaming. The mobile transport builds on runtime-owned records rather than on the desktop Flutter process.
 
 Drift/SQLite remains active for local view preferences and legacy migration sources in `lib/src/shared/infra/storage/drift_database.dart`. Old Drift settings, project config, project, workspace, tab, and layout rows are intentionally left untouched after migration but are no longer authoritative for those domains.
 

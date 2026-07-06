@@ -3,6 +3,7 @@ pub mod client;
 pub mod control_file;
 pub mod history_store;
 pub mod host_error;
+pub mod mobile_gateway;
 pub mod orchestration;
 pub mod protocol;
 pub mod server;

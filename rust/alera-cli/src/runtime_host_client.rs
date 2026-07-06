@@ -18,6 +18,7 @@ use crate::terminal_host::protocol::{
     DEFAULT_DETACHED_SESSION_SHUTDOWN_DELAY_SECONDS, DEFAULT_EMPTY_SHUTDOWN_DELAY_SECONDS,
     DEFAULT_SCROLLBACK_BYTES, PROTOCOL_VERSION, RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
     RUNTIME_HOST_CAPABILITY, RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
+    RUNTIME_HOST_MOBILE_CAPABILITY,
 };
 
 const CONTROL_FILE_NAME: &str = "host.json";
@@ -56,6 +57,10 @@ impl RuntimeHostRpcClient {
         Self::connect_with_capability(runtime_dir, None).await
     }
 
+    pub(crate) async fn connect_mobile(runtime_dir: &Path) -> Result<Option<Self>> {
+        Self::connect_with_required_capability(runtime_dir, RUNTIME_HOST_MOBILE_CAPABILITY).await
+    }
+
     pub(crate) async fn connect_with_required_capability(
         runtime_dir: &Path,
         required_capability: &str,
@@ -85,6 +90,11 @@ impl RuntimeHostRpcClient {
             return Ok(client);
         }
         Self::start(runtime_dir, None).await
+    }
+
+    pub(crate) async fn connect_or_start_mobile(runtime_dir: &Path) -> Result<Self> {
+        Self::connect_or_start_with_required_capability(runtime_dir, RUNTIME_HOST_MOBILE_CAPABILITY)
+            .await
     }
 
     pub(crate) async fn connect_or_start_with_required_capability(
@@ -141,7 +151,7 @@ impl RuntimeHostRpcClient {
         control_path: &Path,
         required_capability: Option<&str>,
     ) -> Result<Option<Self>> {
-        let contents = match tokio::fs::read_to_string(&control_path).await {
+        let contents = match tokio::fs::read_to_string(control_path).await {
             Ok(contents) => contents,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
             Err(error) => return Err(error).context("failed reading runtime host control file"),
@@ -322,6 +332,7 @@ mod tests {
         ];
         assert!(control(&base).is_usable(None));
         assert!(!control(&base).is_usable(Some(RUNTIME_HOST_ORCHESTRATION_CAPABILITY)));
+        assert!(!control(&base).is_usable(Some(RUNTIME_HOST_MOBILE_CAPABILITY)));
 
         let with_orchestration = [
             RUNTIME_HOST_CAPABILITY,
@@ -330,6 +341,14 @@ mod tests {
             RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
         ];
         assert!(control(&with_orchestration).is_usable(Some(RUNTIME_HOST_ORCHESTRATION_CAPABILITY)));
+
+        let with_mobile = [
+            RUNTIME_HOST_CAPABILITY,
+            RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
+            RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
+            RUNTIME_HOST_MOBILE_CAPABILITY,
+        ];
+        assert!(control(&with_mobile).is_usable(Some(RUNTIME_HOST_MOBILE_CAPABILITY)));
     }
 
     #[tokio::test]

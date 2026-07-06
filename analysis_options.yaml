@@ -19,6 +19,9 @@ analyzer:
     # Vendored flutter_rust_bridge/cargokit scaffolding; it is its own package
     # (resolved only during the native build), not part of the app analysis.
     - rust_builder/**
+    # The Android/iOS companion lives in its own Flutter package and is
+    # validated by the mobile CI job with its own package_config.
+    - mobile/**
 
 linter:
   # The lint rules applied to this project can be customized in the

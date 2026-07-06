@@ -96,6 +96,10 @@ One codebase, three real desktops. Native window chrome, native keyboard shortcu
 
 Stable and release-candidate update channels with a manual download flow today, signed automatic installs as platform trust requirements land.
 
+### 📱 Mobile companion foundation
+
+A separate Flutter app lives under `mobile/` for Android and iOS. It pairs from `alera mobile --json pairing create`, stores device tokens in platform secure storage, connects to the runtime-host mobile WebSocket gateway, lists projects/workspaces/branches, and can start or attach to a hosted terminal session. Runtime-owned mobile settings, pairing offers, device revocation, and the gateway lifecycle are available through `alera mobile ...`.
+
 ---
 
 ## What's next
@@ -103,7 +107,7 @@ Stable and release-candidate update channels with a manual download flow today, 
 Alera is shipping fast. A non-exhaustive list of what's on the roadmap:
 
 - **SSH worktrees**: run agents on remote machines as if they were local
-- **Mobile companion app**: monitor and nudge your agents from your phone
+- **Mobile live transport expansion**: add agent status, file review, and richer workspace controls to the mobile app
 - **File explorer, search, and diff panels**: review and edit AI-generated changes without leaving Alera
 - **Git operations UI**: stage, commit, push, resolve conflicts visually
 - **Embedded browser & browser use**: give agents a real browser to drive

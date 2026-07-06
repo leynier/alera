@@ -1,0 +1,106 @@
+use std::sync::{
+    atomic::{AtomicU64, Ordering},
+    Arc,
+};
+
+use futures_util::{SinkExt as _, StreamExt as _};
+use serde_json::Value;
+use tokio::net::{TcpListener, TcpStream};
+use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
+use tokio::task::JoinHandle;
+use tokio_tungstenite::{accept_async, tungstenite::Message};
+
+use crate::terminal_host::client::ClientHandle;
+use crate::terminal_host::server::{ClientKind, ServerCommand};
+
+pub fn spawn_mobile_gateway_accept_loop(
+    listener: TcpListener,
+    inbox: UnboundedSender<ServerCommand>,
+    next_client_id: Arc<AtomicU64>,
+) -> JoinHandle<()> {
+    tokio::spawn(async move {
+        while let Ok((stream, _)) = listener.accept().await {
+            let _ = stream.set_nodelay(true);
+            let id = next_client_id.fetch_add(1, Ordering::Relaxed);
+            let inbox = inbox.clone();
+            tokio::spawn(async move {
+                if let Err(error) = accept_mobile_connection(stream, id, inbox).await {
+                    eprintln!("alera mobile gateway connection failed: {error}");
+                }
+            });
+        }
+    })
+}
+
+async fn accept_mobile_connection(
+    stream: TcpStream,
+    id: u64,
+    inbox: UnboundedSender<ServerCommand>,
+) -> anyhow::Result<()> {
+    let socket = accept_async(stream).await?;
+    let (out_tx, out_rx) = mpsc::unbounded_channel::<Value>();
+    inbox.send(ServerCommand::ClientConnected {
+        id,
+        handle: ClientHandle { out: out_tx },
+        kind: ClientKind::Mobile,
+    })?;
+    mobile_websocket_loop(socket, id, inbox, out_rx).await;
+    Ok(())
+}
+
+async fn mobile_websocket_loop(
+    socket: tokio_tungstenite::WebSocketStream<TcpStream>,
+    id: u64,
+    inbox: UnboundedSender<ServerCommand>,
+    mut out_rx: UnboundedReceiver<Value>,
+) {
+    let (mut write, mut read) = socket.split();
+    loop {
+        tokio::select! {
+            inbound = read.next() => {
+                match inbound {
+                    Some(Ok(Message::Text(text))) => {
+                        if inbox.send(ServerCommand::ClientLine { id, line: text.to_string() }).is_err() {
+                            break;
+                        }
+                    }
+                    Some(Ok(Message::Binary(bytes))) => {
+                        if let Ok(line) = String::from_utf8(bytes.to_vec()) {
+                            if inbox.send(ServerCommand::ClientLine { id, line }).is_err() {
+                                break;
+                            }
+                        }
+                    }
+                    Some(Ok(Message::Ping(payload))) => {
+                        if write.send(Message::Pong(payload)).await.is_err() {
+                            break;
+                        }
+                    }
+                    Some(Ok(Message::Close(_))) | None => {
+                        let _ = inbox.send(ServerCommand::ClientDisconnected { id });
+                        break;
+                    }
+                    Some(Ok(_)) => {}
+                    Some(Err(_)) => {
+                        let _ = inbox.send(ServerCommand::ClientDisconnected { id });
+                        break;
+                    }
+                }
+            }
+            outbound = out_rx.recv() => {
+                match outbound {
+                    Some(value) => {
+                        let Ok(text) = serde_json::to_string(&value) else {
+                            continue;
+                        };
+                        if write.send(Message::Text(text.into())).await.is_err() {
+                            let _ = inbox.send(ServerCommand::ClientDisconnected { id });
+                            break;
+                        }
+                    }
+                    None => break,
+                }
+            }
+        }
+    }
+}
