@@ -63,6 +63,9 @@ impl RuntimeStore {
         for statement in RUNTIME_SCHEMA {
             sqlx::query(statement).execute(&self.pool).await?;
         }
+        for statement in super::orchestration_message_store::ORCHESTRATION_SCHEMA {
+            sqlx::query(statement).execute(&self.pool).await?;
+        }
         self.ensure_column("sshTargets", "installDir", "TEXT")
             .await?;
         self.ensure_column("sshTargets", "runtimeVersion", "TEXT")

@@ -19,7 +19,7 @@ class WorkspaceRoleBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (workspace.isMain) {
-      return const AleraBadge(label: 'Default');
+      return const AleraBadge(label: 'default');
     }
     return const SizedBox.shrink();
   }

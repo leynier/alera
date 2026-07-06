@@ -34,6 +34,8 @@ enum WorkspaceTabKind {
 
 const String workspaceTabManualTitlePayloadKey = 'manualTitle';
 const String workspaceTabTerminalSessionIdPayloadKey = 'terminalSessionId';
+const String workspaceTabInitialCommandPayloadKey = 'initialCommand';
+const String workspaceTabSpawnOnCreatePayloadKey = 'spawnOnCreate';
 const String workspaceTabFilePathPayloadKey = 'filePath';
 const String workspaceTabFileRolePayloadKey = 'fileRole';
 const String workspaceTabFileRoleMermanPreview = 'mermanPreview';
@@ -122,6 +124,17 @@ class WorkspaceTabRecord with WorkspaceTabRecordMappable {
     final value = payload[workspaceTabTerminalSessionIdPayloadKey];
     return value is String && value.trim().isNotEmpty ? value : id;
   }
+
+  /// Command written into the terminal after the shell starts, e.g. an agent
+  /// CLI launched by an orchestration coordinator. Only ever run once, on the
+  /// session creation attach.
+  String? get initialCommand =>
+      _nonEmptyPayloadString(workspaceTabInitialCommandPayloadKey);
+
+  /// Whether the terminal session should start as soon as the tab record
+  /// appears, without waiting for the tab to become visible.
+  bool get spawnOnCreate =>
+      payload[workspaceTabSpawnOnCreatePayloadKey] == true;
 
   String? get filePath {
     final value = payload[workspaceTabFilePathPayloadKey];

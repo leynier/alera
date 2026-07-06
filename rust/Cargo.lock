@@ -37,6 +37,7 @@ dependencies = [
  "clap",
  "ed25519-dalek",
  "futures-util",
+ "git2",
  "hex",
  "portable-pty",
  "reqwest",

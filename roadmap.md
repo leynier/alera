@@ -17,7 +17,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 | Agent awake service | 2 | 3 | Shipped | Prevent system sleep while agents work (caffeinate / lid-sleep) |
 | Agent trust presets | 2 | 3 | Planned | Per-agent permission and trust configuration |
 | Agent interrupt intent | 2 | 4 | Planned | Graceful agent interruption protocol |
-| Orchestration between agents | 5 | 5 | Planned | Inter-agent messaging, task dispatch, coordinator loop, decision gates |
+| Orchestration between agents | 5 | 5 | Shipped | Inter-agent messaging with push-on-idle delivery, task DAG, dispatch with circuit breaker, decision gates, coordinator loop (`alera orchestration`) |
 
 ---
 
@@ -239,7 +239,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 | Diff panel | 4 | Shipped |
 | Diffs per file | 3 | Shipped |
 | Git status with operations | 4 | Shipped |
-| Orchestration between agents | 5 | Planned |
+| Orchestration between agents | 5 | Shipped |
 | Quick Open / Command Palette | 3 | Planned |
 | Activity feed | 3 | Planned |
 

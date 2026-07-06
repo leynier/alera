@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::path::PathBuf;
 use std::sync::{
@@ -25,9 +25,18 @@ use crate::terminal_host::control_file;
 use crate::terminal_host::history_store::TerminalHostHistoryStore;
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::mobile_gateway::spawn_mobile_gateway_accept_loop;
+use crate::terminal_host::orchestration::agent_presence::AgentPresenceRegistry;
+use crate::terminal_host::orchestration::coordinator_loop::CoordinatorHandle;
+use crate::terminal_host::orchestration::message_delivery::{
+    skips_auto_enter, DEFERRED_ENTER_DELAY_MS,
+};
+use crate::terminal_host::orchestration::message_formatter::format_messages_for_injection;
+use crate::terminal_host::orchestration::message_waiters::MessageWaiterRegistry;
 use crate::terminal_host::protocol::{event, TerminalHostConfig};
 use crate::terminal_host::session::{PtyEvent, Session};
 
+mod coordinator_requests;
+mod orchestration_requests;
 mod requests;
 
 /// Delay before a debounced checkpoint write fires.
@@ -84,6 +93,20 @@ pub enum ServerCommand {
         request_id: i64,
         result: HostResult<Value>,
     },
+    /// A parked `check --wait`/`ask` request hit its server-side deadline.
+    OrchestrationWaitTimeout {
+        waiter_id: u64,
+    },
+    /// Fires the deferred Enter after an injected orchestration banner.
+    OrchestrationDeferredEnter {
+        session_id: String,
+        session_instance_id: u64,
+        message_ids: Vec<String>,
+    },
+    /// One coordinator loop iteration, enqueued by the ticker task.
+    CoordinatorTick {
+        run_id: String,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -97,6 +120,7 @@ struct ClientState {
     authenticated: bool,
     kind: ClientKind,
     mobile_device_id: Option<String>,
+    app_client: bool,
 }
 
 struct SshBootstrapJobState {
@@ -140,6 +164,10 @@ pub async fn run_terminal_host_server(
         managed_workspace_jobs: 0,
         clients: HashMap::new(),
         pending_output_writes: HashMap::new(),
+        agent_presence: AgentPresenceRegistry::default(),
+        orchestration_waiters: MessageWaiterRegistry::default(),
+        orchestration_delivery_in_flight: HashSet::new(),
+        coordinator: None,
         inbox,
         next_client_id,
         mobile_gateway: None,
@@ -200,6 +228,10 @@ struct ServerActor {
     managed_workspace_jobs: usize,
     clients: HashMap<u64, ClientState>,
     pending_output_writes: HashMap<String, Vec<JoinHandle<()>>>,
+    agent_presence: AgentPresenceRegistry,
+    orchestration_waiters: MessageWaiterRegistry,
+    orchestration_delivery_in_flight: HashSet<String>,
+    coordinator: Option<CoordinatorHandle>,
     inbox: UnboundedSender<ServerCommand>,
     next_client_id: Arc<AtomicU64>,
     mobile_gateway: Option<JoinHandle<()>>,
@@ -371,6 +403,7 @@ impl ServerActor {
                         authenticated: false,
                         kind,
                         mobile_device_id: None,
+                        app_client: false,
                     },
                 );
             }
@@ -414,6 +447,126 @@ impl ServerActor {
                 self.handle_managed_workspace_removed(client_id, request_id, result)
                     .await
             }
+            ServerCommand::OrchestrationWaitTimeout { waiter_id } => {
+                self.handle_orchestration_wait_timeout(waiter_id).await
+            }
+            ServerCommand::OrchestrationDeferredEnter {
+                session_id,
+                session_instance_id,
+                message_ids,
+            } => {
+                self.handle_orchestration_deferred_enter(
+                    session_id,
+                    session_instance_id,
+                    message_ids,
+                )
+                .await
+            }
+            ServerCommand::CoordinatorTick { run_id } => self.handle_coordinator_tick(run_id).await,
+        }
+    }
+
+    // --- Orchestration push-on-idle delivery -------------------------------
+
+    /// Delivers undelivered unread messages into a terminal whose agent just
+    /// became injection-ready. The Enter is written after a delay as a
+    /// separate write; `delivered_at` is stamped only after that second write
+    /// succeeds, so a failure anywhere requeues the batch for the next idle
+    /// transition.
+    pub(super) async fn deliver_pending_messages(&mut self, handle: &str) {
+        let running = self.sessions.get(handle).is_some_and(Session::running);
+        if !running {
+            return;
+        }
+        if self.orchestration_delivery_in_flight.contains(handle) {
+            return;
+        }
+        let messages = match self
+            .runtime_store
+            .undelivered_unread_orchestration_messages(handle)
+            .await
+        {
+            Ok(messages) if !messages.is_empty() => messages,
+            _ => return,
+        };
+        let formatted = format_messages_for_injection(&messages);
+        let Some(session) = self.sessions.get_mut(handle) else {
+            return;
+        };
+        session.write(formatted.as_bytes());
+        let session_instance_id = session.instance_id();
+        let ids: Vec<String> = messages.iter().map(|message| message.id.clone()).collect();
+        if skips_auto_enter(self.agent_presence.agent_type(handle)) {
+            // Editable-prompt agents: no auto-submit, but the text landed, so
+            // the batch counts as delivered.
+            let _ = self
+                .runtime_store
+                .mark_orchestration_messages_delivered(&ids)
+                .await;
+            return;
+        }
+        self.orchestration_delivery_in_flight
+            .insert(handle.to_string());
+        let inbox = self.inbox.clone();
+        let session_id = handle.to_string();
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(DEFERRED_ENTER_DELAY_MS)).await;
+            let _ = inbox.send(ServerCommand::OrchestrationDeferredEnter {
+                session_id,
+                session_instance_id,
+                message_ids: ids,
+            });
+        });
+    }
+
+    /// Send-time hook: deliver immediately only when the recipient's agent is
+    /// already idle right now.
+    pub(super) async fn deliver_pending_messages_if_idle(&mut self, handle: &str) {
+        if self.agent_presence.is_injection_ready(handle) {
+            self.deliver_pending_messages(handle).await;
+        }
+    }
+
+    async fn handle_orchestration_deferred_enter(
+        &mut self,
+        session_id: String,
+        session_instance_id: u64,
+        message_ids: Vec<String>,
+    ) {
+        let had_delivery_in_flight =
+            !message_ids.is_empty() && self.orchestration_delivery_in_flight.remove(&session_id);
+        let skip_auto_enter =
+            message_ids.is_empty() && skips_auto_enter(self.agent_presence.agent_type(&session_id));
+        let current_instance_id = self.sessions.get(&session_id).map(Session::instance_id);
+        if current_instance_id != Some(session_instance_id) {
+            if had_delivery_in_flight && self.agent_presence.is_injection_ready(&session_id) {
+                self.deliver_pending_messages(&session_id).await;
+            }
+            return;
+        }
+        let Some(session) = self.sessions.get_mut(&session_id) else {
+            return;
+        };
+        if !session.running() {
+            // Terminal closed in the 500ms window: leave delivered_at NULL so
+            // the batch is redelivered on the next idle transition.
+            return;
+        }
+        if skip_auto_enter {
+            return;
+        }
+        session.write(b"\r");
+        let delivered = message_ids.is_empty()
+            || self
+                .runtime_store
+                .mark_orchestration_messages_delivered(&message_ids)
+                .await
+                .is_ok();
+        if had_delivery_in_flight
+            && delivered
+            && self.agent_presence.is_injection_ready(&session_id)
+        {
+            self.deliver_pending_messages(&session_id).await;
         }
     }
 
@@ -666,18 +819,57 @@ impl ServerActor {
     }
 
     async fn handle_session_exit(&mut self, session_id: String, exit_code: i32) {
+        let reason = format!("terminal exited with code {exit_code}");
+        self.cleanup_orchestration_for_closed_session(&session_id, &reason)
+            .await;
         self.flush_output_batch(&session_id);
         let broadcast = self.sessions.get_mut(&session_id).and_then(|session| {
             let payload = session.handle_exit(exit_code)?;
             let clients: Vec<u64> = session.clients.iter().copied().collect();
             Some((event("exit", payload), clients))
         });
-        let Some((frame, clients)) = broadcast else {
+        if let Some((frame, clients)) = broadcast {
+            self.broadcast(&clients, frame);
+            self.immediate_checkpoint(&session_id).await;
+        }
+        self.schedule_shutdown_if_idle();
+    }
+
+    async fn cleanup_orchestration_for_closed_session(&mut self, session_id: &str, reason: &str) {
+        // The agent (if any) died with its PTY; stale presence must not keep
+        // attracting group messages or push-on-idle deliveries.
+        self.agent_presence.remove(session_id);
+        self.fail_active_dispatch_for_closed_session(session_id, reason)
+            .await;
+    }
+
+    async fn fail_active_dispatch_for_closed_session(&self, session_id: &str, reason: &str) {
+        let dispatch = match self
+            .runtime_store
+            .active_orchestration_dispatch_for_handle(session_id)
+            .await
+        {
+            Ok(dispatch) => dispatch,
+            Err(error) => {
+                eprintln!(
+                    "failed to inspect active orchestration dispatch for exited terminal {session_id}: {error}"
+                );
+                return;
+            }
+        };
+        let Some(dispatch) = dispatch else {
             return;
         };
-        self.broadcast(&clients, frame);
-        self.immediate_checkpoint(&session_id).await;
-        self.schedule_shutdown_if_idle();
+        if let Err(error) = self
+            .runtime_store
+            .fail_orchestration_dispatch(&dispatch.id, reason)
+            .await
+        {
+            eprintln!(
+                "failed to mark orchestration dispatch {} failed after terminal close: {error}",
+                dispatch.id
+            );
+        }
     }
 
     fn handle_output_batch_tick(&mut self, session_id: String, generation: u64) {
@@ -797,6 +989,11 @@ impl ServerActor {
         }
         let store = self.store.clone();
         for session_id in session_ids {
+            self.cleanup_orchestration_for_closed_session(
+                &session_id,
+                "terminal was explicitly terminated",
+            )
+            .await;
             self.flush_output_batch(&session_id);
             self.await_output_writes(&session_id).await;
             if let Some(mut session) = self.sessions.remove(&session_id) {
@@ -820,9 +1017,12 @@ impl ServerActor {
     // --- Client lifecycle -------------------------------------------------
 
     async fn dispose_client(&mut self, client_id: u64) {
-        if !self.clients.contains_key(&client_id) {
+        let Some(disconnecting_client) = self.clients.get(&client_id) else {
             return;
-        }
+        };
+        let disconnects_app_client = disconnecting_client.app_client;
+        // Parked long-poll requests die with their connection.
+        self.orchestration_waiters.remove_client(client_id);
         let session_ids: Vec<String> = self.sessions.keys().cloned().collect();
         for session_id in session_ids {
             self.flush_output_batch(&session_id);
@@ -833,6 +1033,9 @@ impl ServerActor {
         }
         // Dropping the handle ends the connection loop and closes the socket.
         self.clients.remove(&client_id);
+        if disconnects_app_client && !self.has_app_clients() {
+            self.agent_presence.clear();
+        }
         self.schedule_shutdown_if_idle();
     }
 
@@ -928,6 +1131,12 @@ impl ServerActor {
         self.clients.values().any(|client| client.authenticated)
     }
 
+    fn has_app_clients(&self) -> bool {
+        self.clients
+            .values()
+            .any(|client| client.authenticated && client.app_client)
+    }
+
     fn has_running_sessions(&self) -> bool {
         self.sessions.values().any(Session::running)
     }
@@ -950,6 +1159,7 @@ impl ServerActor {
             || self.has_active_bootstrap_jobs()
             || self.has_active_managed_workspace_jobs()
             || self.has_active_mobile_gateway()
+            || self.coordinator.is_some()
         {
             self.cancel_shutdown_timer();
             return;
@@ -1004,6 +1214,8 @@ impl ServerActor {
         let store = self.store.clone();
         let session_ids: Vec<String> = self.sessions.keys().cloned().collect();
         for session_id in session_ids {
+            self.cleanup_orchestration_for_closed_session(&session_id, "terminal host shut down")
+                .await;
             self.flush_output_batch(&session_id);
             self.await_output_writes(&session_id).await;
             if let Some(mut session) = self.sessions.remove(&session_id) {
@@ -1025,6 +1237,11 @@ fn display_socket_address(host: &str, port: u16) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::terminal_host::history_store::TerminalHostCheckpoint;
+    use crate::terminal_host::orchestration::agent_presence::AgentPresenceState;
+    use alera_core::runtime::{
+        NewOrchestrationTask, OrchestrationDispatchStatus, OrchestrationTaskStatus,
+    };
 
     #[tokio::test]
     async fn stale_ssh_bootstrap_progress_is_not_broadcast() {
@@ -1058,9 +1275,14 @@ mod tests {
                     authenticated: true,
                     kind: ClientKind::Local,
                     mobile_device_id: None,
+                    app_client: true,
                 },
             )]),
             pending_output_writes: HashMap::new(),
+            agent_presence: AgentPresenceRegistry::default(),
+            orchestration_waiters: MessageWaiterRegistry::default(),
+            orchestration_delivery_in_flight: HashSet::new(),
+            coordinator: None,
             inbox,
             next_client_id: Arc::new(AtomicU64::new(2)),
             mobile_gateway: None,
@@ -1117,6 +1339,10 @@ mod tests {
             managed_workspace_jobs: 0,
             clients: HashMap::new(),
             pending_output_writes: HashMap::new(),
+            agent_presence: AgentPresenceRegistry::default(),
+            orchestration_waiters: MessageWaiterRegistry::default(),
+            orchestration_delivery_in_flight: HashSet::new(),
+            coordinator: None,
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1162,6 +1388,10 @@ mod tests {
             managed_workspace_jobs: 0,
             clients: HashMap::new(),
             pending_output_writes: HashMap::new(),
+            agent_presence: AgentPresenceRegistry::default(),
+            orchestration_waiters: MessageWaiterRegistry::default(),
+            orchestration_delivery_in_flight: HashSet::new(),
+            coordinator: None,
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1187,5 +1417,356 @@ mod tests {
             MobileGatewayReplacement::Disabled => panic!("expected bound mobile gateway"),
             MobileGatewayReplacement::Keep => panic!("expected bound mobile gateway"),
         }
+    }
+
+    #[tokio::test]
+    async fn run_stop_clears_persisted_run_without_in_memory_ticker() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
+        let runtime_store = RuntimeStore::open(dir.path()).await.unwrap();
+        let run = runtime_store
+            .create_orchestration_coordinator_run("coordinate", Some("coord"), 1000)
+            .await
+            .unwrap();
+        let (inbox, _rx) = mpsc::unbounded_channel();
+        let mut actor = ServerActor {
+            runtime_dir: dir.path().to_path_buf(),
+            control_file_path: dir.path().join("runtime-host.json"),
+            token: "token".to_string(),
+            config: TerminalHostConfig::default(),
+            store,
+            runtime_store,
+            sessions: HashMap::new(),
+            ssh_bootstrap_jobs: HashMap::new(),
+            managed_workspace_jobs: 0,
+            clients: HashMap::new(),
+            pending_output_writes: HashMap::new(),
+            agent_presence: AgentPresenceRegistry::default(),
+            orchestration_waiters: MessageWaiterRegistry::default(),
+            orchestration_delivery_in_flight: HashSet::new(),
+            coordinator: None,
+            inbox,
+            next_client_id: Arc::new(AtomicU64::new(1)),
+            mobile_gateway: None,
+            shutdown_gen: 0,
+            disposed: false,
+        };
+
+        let response = actor.orchestration_run_stop().await.unwrap();
+        assert_eq!(response["runId"], json!(run.id));
+        assert_eq!(response["status"], json!("failed"));
+        assert!(actor
+            .runtime_store
+            .active_orchestration_coordinator_run()
+            .await
+            .unwrap()
+            .is_none());
+    }
+
+    #[tokio::test]
+    async fn terminal_exit_fails_active_orchestration_dispatch() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
+        let runtime_store = RuntimeStore::open(dir.path()).await.unwrap();
+        let task = runtime_store
+            .create_orchestration_task(NewOrchestrationTask {
+                spec: "do work".to_string(),
+                task_title: None,
+                display_name: None,
+                deps: Vec::new(),
+                parent_id: None,
+                created_by_terminal_handle: None,
+            })
+            .await
+            .unwrap();
+        let dispatch = runtime_store
+            .create_orchestration_dispatch(&task.id, "term-1")
+            .await
+            .unwrap();
+        let (inbox, _rx) = mpsc::unbounded_channel();
+        let mut actor = ServerActor {
+            runtime_dir: dir.path().to_path_buf(),
+            control_file_path: dir.path().join("runtime-host.json"),
+            token: "token".to_string(),
+            config: TerminalHostConfig::default(),
+            store,
+            runtime_store,
+            sessions: HashMap::new(),
+            ssh_bootstrap_jobs: HashMap::new(),
+            managed_workspace_jobs: 0,
+            clients: HashMap::new(),
+            pending_output_writes: HashMap::new(),
+            agent_presence: AgentPresenceRegistry::default(),
+            orchestration_waiters: MessageWaiterRegistry::default(),
+            orchestration_delivery_in_flight: HashSet::new(),
+            coordinator: None,
+            inbox,
+            next_client_id: Arc::new(AtomicU64::new(1)),
+            mobile_gateway: None,
+            shutdown_gen: 0,
+            disposed: false,
+        };
+
+        actor.handle_session_exit("term-1".to_string(), 9).await;
+
+        let updated_dispatch = actor
+            .runtime_store
+            .orchestration_dispatch_by_id(&dispatch.id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(updated_dispatch.status, OrchestrationDispatchStatus::Failed);
+        assert_eq!(updated_dispatch.failure_count, 1);
+        assert_eq!(
+            updated_dispatch.last_failure.as_deref(),
+            Some("terminal exited with code 9")
+        );
+        let updated_task = actor
+            .runtime_store
+            .orchestration_task_by_id(&task.id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(updated_task.status, OrchestrationTaskStatus::Ready);
+    }
+
+    #[tokio::test]
+    async fn host_dispose_fails_active_orchestration_dispatch() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
+        let runtime_store = RuntimeStore::open(dir.path()).await.unwrap();
+        let task = runtime_store
+            .create_orchestration_task(NewOrchestrationTask {
+                spec: "do work".to_string(),
+                task_title: None,
+                display_name: None,
+                deps: Vec::new(),
+                parent_id: None,
+                created_by_terminal_handle: None,
+            })
+            .await
+            .unwrap();
+        let dispatch = runtime_store
+            .create_orchestration_dispatch(&task.id, "term-1")
+            .await
+            .unwrap();
+        store
+            .upsert(TerminalHostCheckpoint {
+                session_id: "term-1".to_string(),
+                workspace_id: "workspace-1".to_string(),
+                tab_id: "tab-1".to_string(),
+                working_directory: "/tmp".to_string(),
+                running: false,
+                exit_code: None,
+                ended_at: None,
+                updated_at: chrono::Utc::now(),
+                buffer: Vec::new(),
+            })
+            .await
+            .unwrap();
+        let session = Session::restore_exited(
+            "term-1".to_string(),
+            "workspace-1".to_string(),
+            "tab-1".to_string(),
+            &store,
+            1024,
+        )
+        .await
+        .unwrap();
+        let (inbox, _rx) = mpsc::unbounded_channel();
+        let mut actor = ServerActor {
+            runtime_dir: dir.path().to_path_buf(),
+            control_file_path: dir.path().join("runtime-host.json"),
+            token: "token".to_string(),
+            config: TerminalHostConfig::default(),
+            store,
+            runtime_store,
+            sessions: HashMap::from([("term-1".to_string(), session)]),
+            ssh_bootstrap_jobs: HashMap::new(),
+            managed_workspace_jobs: 0,
+            clients: HashMap::new(),
+            pending_output_writes: HashMap::new(),
+            agent_presence: AgentPresenceRegistry::default(),
+            orchestration_waiters: MessageWaiterRegistry::default(),
+            orchestration_delivery_in_flight: HashSet::new(),
+            coordinator: None,
+            inbox,
+            next_client_id: Arc::new(AtomicU64::new(1)),
+            mobile_gateway: None,
+            shutdown_gen: 0,
+            disposed: false,
+        };
+
+        actor.dispose().await;
+
+        let updated_dispatch = actor
+            .runtime_store
+            .orchestration_dispatch_by_id(&dispatch.id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(updated_dispatch.status, OrchestrationDispatchStatus::Failed);
+        assert_eq!(updated_dispatch.failure_count, 1);
+        assert_eq!(
+            updated_dispatch.last_failure.as_deref(),
+            Some("terminal host shut down")
+        );
+        let updated_task = actor
+            .runtime_store
+            .orchestration_task_by_id(&task.id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(updated_task.status, OrchestrationTaskStatus::Ready);
+    }
+
+    #[tokio::test]
+    async fn coordinator_does_not_spawn_worker_tab_for_cli_only_client() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
+        let runtime_store = RuntimeStore::open(dir.path()).await.unwrap();
+        runtime_store
+            .create_orchestration_task(NewOrchestrationTask {
+                spec: "do work".to_string(),
+                task_title: None,
+                display_name: None,
+                deps: Vec::new(),
+                parent_id: None,
+                created_by_terminal_handle: None,
+            })
+            .await
+            .unwrap();
+        let (inbox, _rx) = mpsc::unbounded_channel();
+        let (out, _out_rx) = mpsc::unbounded_channel();
+        let mut actor = ServerActor {
+            runtime_dir: dir.path().to_path_buf(),
+            control_file_path: dir.path().join("runtime-host.json"),
+            token: "token".to_string(),
+            config: TerminalHostConfig::default(),
+            store,
+            runtime_store,
+            sessions: HashMap::new(),
+            ssh_bootstrap_jobs: HashMap::new(),
+            managed_workspace_jobs: 0,
+            clients: HashMap::from([(
+                1,
+                ClientState {
+                    handle: ClientHandle { out },
+                    authenticated: true,
+                    kind: ClientKind::Local,
+                    mobile_device_id: None,
+                    app_client: false,
+                },
+            )]),
+            pending_output_writes: HashMap::new(),
+            agent_presence: AgentPresenceRegistry::default(),
+            orchestration_waiters: MessageWaiterRegistry::default(),
+            orchestration_delivery_in_flight: HashSet::new(),
+            coordinator: None,
+            inbox,
+            next_client_id: Arc::new(AtomicU64::new(2)),
+            mobile_gateway: None,
+            shutdown_gen: 0,
+            disposed: false,
+        };
+        let response = actor
+            .orchestration_run(&json!({
+                "spec": "coordinate",
+                "from": "coord",
+                "workspace": "workspace-1",
+                "pollIntervalMs": 600_000,
+            }))
+            .await
+            .unwrap();
+
+        actor
+            .handle(ServerCommand::CoordinatorTick {
+                run_id: response["runId"].as_str().unwrap().to_string(),
+            })
+            .await;
+
+        assert!(actor
+            .runtime_store
+            .list_workspace_tabs("workspace-1")
+            .await
+            .unwrap()
+            .is_empty());
+    }
+
+    #[tokio::test]
+    async fn last_app_client_disconnect_clears_agent_presence() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
+        let runtime_store = RuntimeStore::open(dir.path()).await.unwrap();
+        let (inbox, _rx) = mpsc::unbounded_channel();
+        let (first_app_out, _first_app_rx) = mpsc::unbounded_channel();
+        let (second_app_out, _second_app_rx) = mpsc::unbounded_channel();
+        let (cli_out, _cli_rx) = mpsc::unbounded_channel();
+        let mut actor = ServerActor {
+            runtime_dir: dir.path().to_path_buf(),
+            control_file_path: dir.path().join("runtime-host.json"),
+            token: "token".to_string(),
+            config: TerminalHostConfig::default(),
+            store,
+            runtime_store,
+            sessions: HashMap::new(),
+            ssh_bootstrap_jobs: HashMap::new(),
+            managed_workspace_jobs: 0,
+            clients: HashMap::from([
+                (
+                    1,
+                    ClientState {
+                        handle: ClientHandle { out: first_app_out },
+                        authenticated: true,
+                        kind: ClientKind::Local,
+                        mobile_device_id: None,
+                        app_client: true,
+                    },
+                ),
+                (
+                    2,
+                    ClientState {
+                        handle: ClientHandle {
+                            out: second_app_out,
+                        },
+                        authenticated: true,
+                        kind: ClientKind::Local,
+                        mobile_device_id: None,
+                        app_client: true,
+                    },
+                ),
+                (
+                    3,
+                    ClientState {
+                        handle: ClientHandle { out: cli_out },
+                        authenticated: true,
+                        kind: ClientKind::Local,
+                        mobile_device_id: None,
+                        app_client: false,
+                    },
+                ),
+            ]),
+            pending_output_writes: HashMap::new(),
+            agent_presence: AgentPresenceRegistry::default(),
+            orchestration_waiters: MessageWaiterRegistry::default(),
+            orchestration_delivery_in_flight: HashSet::new(),
+            coordinator: None,
+            inbox,
+            next_client_id: Arc::new(AtomicU64::new(4)),
+            mobile_gateway: None,
+            shutdown_gen: 0,
+            disposed: false,
+        };
+        actor
+            .agent_presence
+            .update("term-1", "claude".to_string(), AgentPresenceState::Done);
+
+        actor.dispose_client(3).await;
+        assert!(actor.agent_presence.is_injection_ready("term-1"));
+        actor.dispose_client(1).await;
+        assert!(actor.agent_presence.is_injection_ready("term-1"));
+        actor.dispose_client(2).await;
+
+        assert!(actor.agent_presence.get("term-1").is_none());
     }
 }

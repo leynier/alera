@@ -126,3 +126,7 @@ alera tab create --workspace-id <workspace-id> --title "Terminal" --kind termina
 - Run list/status commands before destructive operations so you have the exact IDs.
 - Keep user-created branches unless the user explicitly requests deletion or the workspace metadata shows Alera created the branch.
 - If a command fails because no runtime host is available, retry the same CLI command; managed commands auto-start the runtime host when possible.
+
+## Inter-Agent Orchestration
+
+For structured multi-agent coordination — inter-agent messaging, task DAGs, dispatching work to worker agents, decision gates, and coordinator loops — invoke the `alera-orchestration` skill. Its command surface lives under `alera orchestration ...`.

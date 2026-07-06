@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::io::{Read, Write};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use chrono::{DateTime, Utc};
 use portable_pty::{native_pty_system, ChildKiller, CommandBuilder, MasterPty, PtySize};
@@ -12,6 +13,11 @@ use crate::terminal_host::protocol::{encode_bytes, TerminalHostLaunch};
 
 /// Bytes read from the PTY per `read` call.
 const READ_CHUNK_BYTES: usize = 8192;
+static NEXT_SESSION_INSTANCE_ID: AtomicU64 = AtomicU64::new(1);
+
+fn next_session_instance_id() -> u64 {
+    NEXT_SESSION_INSTANCE_ID.fetch_add(1, Ordering::Relaxed)
+}
 
 /// A message produced by a session's PTY reader thread.
 #[derive(Debug)]
@@ -31,6 +37,7 @@ pub struct OutputBatch {
 /// other state transitions are driven by the single server actor that owns this
 /// struct, so no internal locking is required.
 pub struct Session {
+    instance_id: u64,
     pub id: String,
     pub workspace_id: String,
     pub tab_id: String,
@@ -87,6 +94,11 @@ impl Session {
         for (key, value) in &launch.environment {
             command.env(key, value);
         }
+        // The orchestration identity: agents inside this PTY self-identify in
+        // `alera orchestration` commands without an RPC round-trip. The handle
+        // is the session id, which is also the key the app uses for agent
+        // status entries.
+        command.env("ALERA_TERMINAL_HANDLE", &id);
         // The working directory is persisted as session metadata; shell startup
         // preparation owns any cwd changes that should happen inside the PTY.
 
@@ -108,6 +120,7 @@ impl Session {
             .map_err(|error| HostError::state(error.to_string()))?;
 
         let mut session = Session {
+            instance_id: next_session_instance_id(),
             id,
             workspace_id,
             tab_id,
@@ -153,6 +166,7 @@ impl Session {
             (Some(checkpoint.exit_code.unwrap_or(0)), checkpoint.ended_at)
         };
         Some(Session {
+            instance_id: next_session_instance_id(),
             id: session_id,
             workspace_id,
             tab_id,
@@ -178,6 +192,10 @@ impl Session {
 
     pub fn running(&self) -> bool {
         self.running
+    }
+
+    pub fn instance_id(&self) -> u64 {
+        self.instance_id
     }
 
     pub fn set_max_bytes(&mut self, max_bytes: usize) {
@@ -427,6 +445,7 @@ mod tests {
 
     fn test_session() -> Session {
         Session {
+            instance_id: next_session_instance_id(),
             id: "session-1".to_string(),
             workspace_id: "workspace-1".to_string(),
             tab_id: "tab-1".to_string(),

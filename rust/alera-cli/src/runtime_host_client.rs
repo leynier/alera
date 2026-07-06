@@ -26,17 +26,6 @@ const RUNTIME_CONTROL_FILE_NAME: &str = "runtime-host.json";
 const CONNECT_TIMEOUT: Duration = Duration::from_millis(750);
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(3);
 const STARTUP_TIMEOUT: Duration = Duration::from_secs(10);
-const BASE_RUNTIME_HOST_CAPABILITIES: &[&str] = &[
-    RUNTIME_HOST_CAPABILITY,
-    RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
-    RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
-];
-const MOBILE_RUNTIME_HOST_CAPABILITIES: &[&str] = &[
-    RUNTIME_HOST_CAPABILITY,
-    RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
-    RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
-    RUNTIME_HOST_MOBILE_CAPABILITY,
-];
 
 pub(crate) struct RuntimeHostRpcClient {
     reader: Lines<BufReader<OwnedReadHalf>>,
@@ -65,23 +54,30 @@ struct RuntimeHostFrame {
 
 impl RuntimeHostRpcClient {
     pub(crate) async fn connect(runtime_dir: &Path) -> Result<Option<Self>> {
-        Self::connect_with_capabilities(runtime_dir, BASE_RUNTIME_HOST_CAPABILITIES).await
+        Self::connect_with_capability(runtime_dir, None).await
     }
 
     pub(crate) async fn connect_mobile(runtime_dir: &Path) -> Result<Option<Self>> {
-        Self::connect_with_capabilities(runtime_dir, MOBILE_RUNTIME_HOST_CAPABILITIES).await
+        Self::connect_with_required_capability(runtime_dir, RUNTIME_HOST_MOBILE_CAPABILITY).await
     }
 
-    async fn connect_with_capabilities(
+    pub(crate) async fn connect_with_required_capability(
         runtime_dir: &Path,
-        required_capabilities: &[&str],
+        required_capability: &str,
+    ) -> Result<Option<Self>> {
+        Self::connect_with_capability(runtime_dir, Some(required_capability)).await
+    }
+
+    async fn connect_with_capability(
+        runtime_dir: &Path,
+        required_capability: Option<&str>,
     ) -> Result<Option<Self>> {
         for control_path in [
             runtime_dir.join(CONTROL_FILE_NAME),
             runtime_dir.join(RUNTIME_CONTROL_FILE_NAME),
         ] {
             if let Some(client) =
-                Self::connect_control_file(&control_path, required_capabilities).await?
+                Self::connect_control_file(&control_path, required_capability).await?
             {
                 return Ok(Some(client));
             }
@@ -90,23 +86,30 @@ impl RuntimeHostRpcClient {
     }
 
     pub(crate) async fn connect_or_start(runtime_dir: &Path) -> Result<Self> {
-        Self::connect_or_start_with_capabilities(runtime_dir, BASE_RUNTIME_HOST_CAPABILITIES).await
+        if let Some(client) = Self::connect(runtime_dir).await? {
+            return Ok(client);
+        }
+        Self::start(runtime_dir, None).await
     }
 
     pub(crate) async fn connect_or_start_mobile(runtime_dir: &Path) -> Result<Self> {
-        Self::connect_or_start_with_capabilities(runtime_dir, MOBILE_RUNTIME_HOST_CAPABILITIES)
+        Self::connect_or_start_with_required_capability(runtime_dir, RUNTIME_HOST_MOBILE_CAPABILITY)
             .await
     }
 
-    async fn connect_or_start_with_capabilities(
+    pub(crate) async fn connect_or_start_with_required_capability(
         runtime_dir: &Path,
-        required_capabilities: &[&str],
+        required_capability: &str,
     ) -> Result<Self> {
         if let Some(client) =
-            Self::connect_with_capabilities(runtime_dir, required_capabilities).await?
+            Self::connect_with_required_capability(runtime_dir, required_capability).await?
         {
             return Ok(client);
         }
+        Self::start(runtime_dir, Some(required_capability)).await
+    }
+
+    async fn start(runtime_dir: &Path, required_capability: Option<&str>) -> Result<Self> {
         tokio::fs::create_dir_all(runtime_dir).await?;
         let control_file = runtime_dir.join(RUNTIME_CONTROL_FILE_NAME);
         let _ = tokio::fs::remove_file(&control_file).await;
@@ -135,7 +138,7 @@ impl RuntimeHostRpcClient {
         let deadline = Instant::now() + STARTUP_TIMEOUT;
         while Instant::now() < deadline {
             if let Some(client) =
-                Self::connect_control_file(&control_file, required_capabilities).await?
+                Self::connect_control_file(&control_file, required_capability).await?
             {
                 return Ok(client);
             }
@@ -146,9 +149,9 @@ impl RuntimeHostRpcClient {
 
     async fn connect_control_file(
         control_path: &Path,
-        required_capabilities: &[&str],
+        required_capability: Option<&str>,
     ) -> Result<Option<Self>> {
-        let contents = match tokio::fs::read_to_string(&control_path).await {
+        let contents = match tokio::fs::read_to_string(control_path).await {
             Ok(contents) => contents,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
             Err(error) => return Err(error).context("failed reading runtime host control file"),
@@ -157,10 +160,27 @@ impl RuntimeHostRpcClient {
             Ok(control) => control,
             Err(_) => return Ok(None),
         };
-        if !control.is_usable(required_capabilities) {
+        if !control.is_protocol_compatible() {
+            return Ok(None);
+        }
+        if required_capability.is_none() && !control.is_usable(None) {
             return Ok(None);
         }
 
+        let Some(client) = Self::connect_control(&control).await? else {
+            return Ok(None);
+        };
+        if !control.is_usable(required_capability) {
+            let required = required_capability.unwrap_or("requested");
+            return Err(anyhow!(
+                "A live Alera runtime host does not support {required}. Restart Alera and retry."
+            ));
+        }
+
+        Ok(Some(client))
+    }
+
+    async fn connect_control(control: &RuntimeHostControl) -> Result<Option<Self>> {
         let address = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), control.port);
         let stream = match timeout(CONNECT_TIMEOUT, TcpStream::connect(address)).await {
             Ok(Ok(stream)) => stream,
@@ -190,6 +210,31 @@ impl RuntimeHostRpcClient {
         let value = self.request_value(request_type, payload).await?;
         serde_json::from_value(value)
             .with_context(|| format!("runtime host response for {request_type} was invalid"))
+    }
+
+    /// Like `request_value` but bounded by a client-side deadline. Used by
+    /// wait-capable orchestration verbs so a vanished host cannot hang the
+    /// CLI past the server-side wait timeout.
+    pub(crate) async fn request_value_with_deadline<P>(
+        &mut self,
+        request_type: &str,
+        payload: &P,
+        deadline_ms: u64,
+    ) -> Result<Value>
+    where
+        P: Serialize + ?Sized,
+    {
+        match timeout(
+            Duration::from_millis(deadline_ms),
+            self.request_value(request_type, payload),
+        )
+        .await
+        {
+            Ok(result) => result,
+            Err(_) => Err(anyhow!(
+                "runtime host did not answer {request_type} within {deadline_ms}ms"
+            )),
+        }
     }
 
     pub(crate) async fn request_value<P>(
@@ -236,45 +281,163 @@ impl RuntimeHostRpcClient {
 }
 
 impl RuntimeHostControl {
-    fn is_usable(&self, required_capabilities: &[&str]) -> bool {
-        self.protocol_version == PROTOCOL_VERSION
-            && !self.token.is_empty()
-            && required_capabilities.iter().all(|required| {
-                self.runtime_capabilities
+    fn is_protocol_compatible(&self) -> bool {
+        self.protocol_version == PROTOCOL_VERSION && !self.token.is_empty()
+    }
+
+    fn is_usable(&self, required_capability: Option<&str>) -> bool {
+        self.is_protocol_compatible()
+            && self
+                .runtime_capabilities
+                .iter()
+                .any(|capability| capability == RUNTIME_HOST_CAPABILITY)
+            && self
+                .runtime_capabilities
+                .iter()
+                .any(|capability| capability == RUNTIME_HOST_BOOTSTRAP_CAPABILITY)
+            && self
+                .runtime_capabilities
+                .iter()
+                .any(|capability| capability == RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY)
+            && match required_capability {
+                None => true,
+                Some(required) => self
+                    .runtime_capabilities
                     .iter()
-                    .any(|capability| capability == required)
-            })
+                    .any(|capability| capability == required),
+            }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::terminal_host::protocol::RUNTIME_HOST_ORCHESTRATION_CAPABILITY;
 
-    fn control_with_capabilities(runtime_capabilities: &[&str]) -> RuntimeHostControl {
+    fn control(capabilities: &[&str]) -> RuntimeHostControl {
         RuntimeHostControl {
             protocol_version: PROTOCOL_VERSION,
-            port: 12345,
+            port: 1234,
             token: "token".to_string(),
-            runtime_capabilities: runtime_capabilities
-                .iter()
-                .map(|capability| capability.to_string())
-                .collect(),
+            runtime_capabilities: capabilities.iter().map(|value| value.to_string()).collect(),
         }
     }
 
     #[test]
-    fn mobile_capability_is_required_only_for_mobile_connections() {
-        let control = control_with_capabilities(BASE_RUNTIME_HOST_CAPABILITIES);
+    fn required_capability_must_be_advertised() {
+        let base = [
+            RUNTIME_HOST_CAPABILITY,
+            RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
+            RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
+        ];
+        assert!(control(&base).is_usable(None));
+        assert!(!control(&base).is_usable(Some(RUNTIME_HOST_ORCHESTRATION_CAPABILITY)));
+        assert!(!control(&base).is_usable(Some(RUNTIME_HOST_MOBILE_CAPABILITY)));
 
-        assert!(control.is_usable(BASE_RUNTIME_HOST_CAPABILITIES));
-        assert!(!control.is_usable(MOBILE_RUNTIME_HOST_CAPABILITIES));
+        let with_orchestration = [
+            RUNTIME_HOST_CAPABILITY,
+            RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
+            RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
+            RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
+        ];
+        assert!(control(&with_orchestration).is_usable(Some(RUNTIME_HOST_ORCHESTRATION_CAPABILITY)));
+
+        let with_mobile = [
+            RUNTIME_HOST_CAPABILITY,
+            RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
+            RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
+            RUNTIME_HOST_MOBILE_CAPABILITY,
+        ];
+        assert!(control(&with_mobile).is_usable(Some(RUNTIME_HOST_MOBILE_CAPABILITY)));
     }
 
-    #[test]
-    fn mobile_connections_accept_mobile_capable_hosts() {
-        let control = control_with_capabilities(MOBILE_RUNTIME_HOST_CAPABILITIES);
+    #[tokio::test]
+    async fn live_host_missing_required_capability_requires_restart() {
+        let (port, server) = start_hello_server().await;
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join(CONTROL_FILE_NAME),
+            serde_json::to_string(&json!({
+                "protocolVersion": PROTOCOL_VERSION,
+                "port": port,
+                "token": "token",
+                "runtimeCapabilities": [
+                    RUNTIME_HOST_CAPABILITY,
+                    RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
+                    RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
+                ],
+            }))
+            .unwrap(),
+        )
+        .unwrap();
 
-        assert!(control.is_usable(MOBILE_RUNTIME_HOST_CAPABILITIES));
+        let error = match RuntimeHostRpcClient::connect_with_required_capability(
+            dir.path(),
+            RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
+        )
+        .await
+        {
+            Ok(_) => panic!("expected a restart-required capability error"),
+            Err(error) => error,
+        };
+
+        assert!(error.to_string().contains("Restart Alera"));
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn live_host_missing_baseline_capability_requires_restart_for_orchestration() {
+        let (port, server) = start_hello_server().await;
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join(CONTROL_FILE_NAME),
+            serde_json::to_string(&json!({
+                "protocolVersion": PROTOCOL_VERSION,
+                "port": port,
+                "token": "token",
+                "runtimeCapabilities": [
+                    RUNTIME_HOST_CAPABILITY,
+                    RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
+                ],
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+
+        let error = match RuntimeHostRpcClient::connect_with_required_capability(
+            dir.path(),
+            RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
+        )
+        .await
+        {
+            Ok(_) => panic!("expected a restart-required capability error"),
+            Err(error) => error,
+        };
+
+        assert!(error.to_string().contains("Restart Alera"));
+        server.await.unwrap();
+    }
+
+    async fn start_hello_server() -> (u16, tokio::task::JoinHandle<()>) {
+        let listener = tokio::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))
+            .await
+            .unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let server = tokio::spawn(async move {
+            let (socket, _) = listener.accept().await.unwrap();
+            let (read_half, mut write_half) = socket.into_split();
+            let mut lines = BufReader::new(read_half).lines();
+            let line = lines.next_line().await.unwrap().unwrap();
+            let request: Value = serde_json::from_str(&line).unwrap();
+            let response = json!({
+                "id": request["id"],
+                "ok": true,
+                "payload": {},
+            });
+            let mut bytes = serde_json::to_vec(&response).unwrap();
+            bytes.push(b'\n');
+            write_half.write_all(&bytes).await.unwrap();
+        });
+        (port, server)
     }
 }
