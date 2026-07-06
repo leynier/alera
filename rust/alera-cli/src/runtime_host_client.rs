@@ -18,6 +18,7 @@ use crate::terminal_host::protocol::{
     DEFAULT_DETACHED_SESSION_SHUTDOWN_DELAY_SECONDS, DEFAULT_EMPTY_SHUTDOWN_DELAY_SECONDS,
     DEFAULT_SCROLLBACK_BYTES, PROTOCOL_VERSION, RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
     RUNTIME_HOST_CAPABILITY, RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
+    RUNTIME_HOST_MOBILE_CAPABILITY,
 };
 
 const CONTROL_FILE_NAME: &str = "host.json";
@@ -25,6 +26,17 @@ const RUNTIME_CONTROL_FILE_NAME: &str = "runtime-host.json";
 const CONNECT_TIMEOUT: Duration = Duration::from_millis(750);
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(3);
 const STARTUP_TIMEOUT: Duration = Duration::from_secs(10);
+const BASE_RUNTIME_HOST_CAPABILITIES: &[&str] = &[
+    RUNTIME_HOST_CAPABILITY,
+    RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
+    RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
+];
+const MOBILE_RUNTIME_HOST_CAPABILITIES: &[&str] = &[
+    RUNTIME_HOST_CAPABILITY,
+    RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
+    RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
+    RUNTIME_HOST_MOBILE_CAPABILITY,
+];
 
 pub(crate) struct RuntimeHostRpcClient {
     reader: Lines<BufReader<OwnedReadHalf>>,
@@ -53,11 +65,24 @@ struct RuntimeHostFrame {
 
 impl RuntimeHostRpcClient {
     pub(crate) async fn connect(runtime_dir: &Path) -> Result<Option<Self>> {
+        Self::connect_with_capabilities(runtime_dir, BASE_RUNTIME_HOST_CAPABILITIES).await
+    }
+
+    pub(crate) async fn connect_mobile(runtime_dir: &Path) -> Result<Option<Self>> {
+        Self::connect_with_capabilities(runtime_dir, MOBILE_RUNTIME_HOST_CAPABILITIES).await
+    }
+
+    async fn connect_with_capabilities(
+        runtime_dir: &Path,
+        required_capabilities: &[&str],
+    ) -> Result<Option<Self>> {
         for control_path in [
             runtime_dir.join(CONTROL_FILE_NAME),
             runtime_dir.join(RUNTIME_CONTROL_FILE_NAME),
         ] {
-            if let Some(client) = Self::connect_control_file(&control_path).await? {
+            if let Some(client) =
+                Self::connect_control_file(&control_path, required_capabilities).await?
+            {
                 return Ok(Some(client));
             }
         }
@@ -65,7 +90,21 @@ impl RuntimeHostRpcClient {
     }
 
     pub(crate) async fn connect_or_start(runtime_dir: &Path) -> Result<Self> {
-        if let Some(client) = Self::connect(runtime_dir).await? {
+        Self::connect_or_start_with_capabilities(runtime_dir, BASE_RUNTIME_HOST_CAPABILITIES).await
+    }
+
+    pub(crate) async fn connect_or_start_mobile(runtime_dir: &Path) -> Result<Self> {
+        Self::connect_or_start_with_capabilities(runtime_dir, MOBILE_RUNTIME_HOST_CAPABILITIES)
+            .await
+    }
+
+    async fn connect_or_start_with_capabilities(
+        runtime_dir: &Path,
+        required_capabilities: &[&str],
+    ) -> Result<Self> {
+        if let Some(client) =
+            Self::connect_with_capabilities(runtime_dir, required_capabilities).await?
+        {
             return Ok(client);
         }
         tokio::fs::create_dir_all(runtime_dir).await?;
@@ -95,7 +134,9 @@ impl RuntimeHostRpcClient {
 
         let deadline = Instant::now() + STARTUP_TIMEOUT;
         while Instant::now() < deadline {
-            if let Some(client) = Self::connect_control_file(&control_file).await? {
+            if let Some(client) =
+                Self::connect_control_file(&control_file, required_capabilities).await?
+            {
                 return Ok(client);
             }
             sleep(Duration::from_millis(100)).await;
@@ -103,7 +144,10 @@ impl RuntimeHostRpcClient {
         Err(anyhow!("timed out waiting for alera runtime-host to start"))
     }
 
-    async fn connect_control_file(control_path: &Path) -> Result<Option<Self>> {
+    async fn connect_control_file(
+        control_path: &Path,
+        required_capabilities: &[&str],
+    ) -> Result<Option<Self>> {
         let contents = match tokio::fs::read_to_string(&control_path).await {
             Ok(contents) => contents,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
@@ -113,7 +157,7 @@ impl RuntimeHostRpcClient {
             Ok(control) => control,
             Err(_) => return Ok(None),
         };
-        if !control.is_usable() {
+        if !control.is_usable(required_capabilities) {
             return Ok(None);
         }
 
@@ -192,20 +236,45 @@ impl RuntimeHostRpcClient {
 }
 
 impl RuntimeHostControl {
-    fn is_usable(&self) -> bool {
+    fn is_usable(&self, required_capabilities: &[&str]) -> bool {
         self.protocol_version == PROTOCOL_VERSION
             && !self.token.is_empty()
-            && self
-                .runtime_capabilities
+            && required_capabilities.iter().all(|required| {
+                self.runtime_capabilities
+                    .iter()
+                    .any(|capability| capability == required)
+            })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn control_with_capabilities(runtime_capabilities: &[&str]) -> RuntimeHostControl {
+        RuntimeHostControl {
+            protocol_version: PROTOCOL_VERSION,
+            port: 12345,
+            token: "token".to_string(),
+            runtime_capabilities: runtime_capabilities
                 .iter()
-                .any(|capability| capability == RUNTIME_HOST_CAPABILITY)
-            && self
-                .runtime_capabilities
-                .iter()
-                .any(|capability| capability == RUNTIME_HOST_BOOTSTRAP_CAPABILITY)
-            && self
-                .runtime_capabilities
-                .iter()
-                .any(|capability| capability == RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY)
+                .map(|capability| capability.to_string())
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn mobile_capability_is_required_only_for_mobile_connections() {
+        let control = control_with_capabilities(BASE_RUNTIME_HOST_CAPABILITIES);
+
+        assert!(control.is_usable(BASE_RUNTIME_HOST_CAPABILITIES));
+        assert!(!control.is_usable(MOBILE_RUNTIME_HOST_CAPABILITIES));
+    }
+
+    #[test]
+    fn mobile_connections_accept_mobile_capable_hosts() {
+        let control = control_with_capabilities(MOBILE_RUNTIME_HOST_CAPABILITIES);
+
+        assert!(control.is_usable(MOBILE_RUNTIME_HOST_CAPABILITIES));
     }
 }

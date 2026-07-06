@@ -1,14 +1,25 @@
-use alera_core::runtime::{
-    Project, ProjectConfig, SshTarget, WorkbenchLayoutRecord, Workspace, WorkspaceTabRecord,
-    WorkspaceTag,
+use std::collections::BTreeMap;
+
+use alera_core::{
+    git as core_git,
+    runtime::{
+        Project, ProjectConfig, SshTarget, WorkbenchLayoutRecord, Workspace, WorkspaceTabRecord,
+        WorkspaceTag,
+    },
 };
 use chrono::{DateTime, Utc};
 use serde_json::{json, Map, Value};
-use uuid::Uuid;
 
 use crate::managed_workspace::{
     create_managed_workspace, remove_managed_workspace, ManagedWorkspaceCreateRequest,
     ManagedWorkspaceRemoveRequest,
+};
+use crate::mobile_access::{
+    apply_mobile_settings_update, authenticate_mobile_device,
+    create_mobile_pairing_offer_for_settings, list_mobile_devices, mobile_status,
+    pair_mobile_device, prepare_mobile_pairing_offer_settings, revoke_mobile_device,
+    MobileDevicePairRequest, MobilePairingCreateRequest, MobileSettingsUpdateRequest,
+    MOBILE_PROTOCOL_VERSION,
 };
 use crate::ssh_bootstrap::{build_ssh_bootstrap_plan, SshTargetBootstrapRequest};
 use crate::terminal_host::host_error::{HostError, HostResult};
@@ -16,10 +27,12 @@ use crate::terminal_host::protocol::{
     decode_bytes, error_response, event, int_or, ok_response, require_object, TerminalHostConfig,
     TerminalHostLaunch, PROTOCOL_VERSION, RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
     RUNTIME_HOST_CAPABILITY, RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
+    RUNTIME_HOST_MOBILE_CAPABILITY,
 };
 use crate::terminal_host::session::Session;
+use uuid::Uuid;
 
-use super::{ServerActor, ServerCommand};
+use super::{ClientKind, ServerActor, ServerCommand};
 
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -28,6 +41,14 @@ struct ProjectConfigUpsertRequest {
     config: ProjectConfig,
     #[serde(default)]
     updated_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct MobileHelloRequest {
+    protocol_version: i64,
+    device_id: String,
+    device_token: String,
 }
 
 impl ServerActor {
@@ -95,12 +116,14 @@ impl ServerActor {
         match request_type {
             "workspace.createManaged" => {
                 self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
                 let request: ManagedWorkspaceCreateRequest = parse_payload(payload)?;
                 self.start_managed_workspace_create(client_id, request_id, request);
                 Ok(true)
             }
             "workspace.removeManaged" => {
                 self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
                 let request: ManagedWorkspaceRemoveRequest = parse_payload(payload)?;
                 self.start_managed_workspace_remove(client_id, request_id, request);
                 Ok(true)
@@ -215,6 +238,67 @@ impl ServerActor {
                 self.cancel_shutdown_timer();
                 Ok(json!({}))
             }
+            "mobile.hello" => {
+                if !self.is_mobile_client(client_id) {
+                    return Err(HostError::state(
+                        "mobile authentication is only available on the mobile gateway.",
+                    ));
+                }
+                let request: MobileHelloRequest = parse_payload(payload)?;
+                if request.protocol_version != MOBILE_PROTOCOL_VERSION {
+                    return Err(HostError::state(format!(
+                        "Unsupported mobile protocol version: {}",
+                        request.protocol_version
+                    )));
+                }
+                let device = authenticate_mobile_device(
+                    &self.runtime_store,
+                    &request.device_id,
+                    &request.device_token,
+                )
+                .await
+                .map_err(|error| HostError::state(error.to_string()))?;
+                if let Some(client) = self.clients.get_mut(&client_id) {
+                    client.authenticated = true;
+                    client.mobile_device_id = Some(device.id.clone());
+                }
+                self.cancel_shutdown_timer();
+                self.broadcast_authenticated(event("mobileDevicesChanged", json!({})));
+                Ok(json!({
+                    "protocolVersion": MOBILE_PROTOCOL_VERSION,
+                    "runtime": "alera",
+                    "runtimeCapabilities": [
+                        RUNTIME_HOST_CAPABILITY,
+                        RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
+                        RUNTIME_HOST_MOBILE_CAPABILITY,
+                    ],
+                    "authenticated": true,
+                    "device": device,
+                }))
+            }
+            "mobile.device.pair" if self.is_mobile_client(client_id) => {
+                let request: MobileDevicePairRequest = parse_payload(payload)?;
+                let value = json_result(pair_mobile_device(&self.runtime_store, request).await)?;
+                self.broadcast_authenticated(event("mobileDevicesChanged", json!({})));
+                self.broadcast_authenticated(event("mobilePairingsChanged", json!({})));
+                Ok(value)
+            }
+            _ => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.handle_authenticated_request(client_id, request_type, payload)
+                    .await
+            }
+        }
+    }
+
+    async fn handle_authenticated_request(
+        &mut self,
+        client_id: u64,
+        request_type: &str,
+        payload: &Value,
+    ) -> HostResult<Value> {
+        match request_type {
             "configure" => {
                 self.require_auth(client_id)?;
                 let config = TerminalHostConfig::from_json(payload)?;
@@ -282,6 +366,14 @@ impl ServerActor {
                 self.schedule_shutdown_if_idle();
                 Ok(json!({}))
             }
+            "terminal.create" => {
+                self.require_auth(client_id)?;
+                self.create_mobile_terminal(client_id, payload).await
+            }
+            "terminal.attach" => {
+                self.require_auth(client_id)?;
+                self.attach_mobile_terminal(client_id, payload).await
+            }
             "status.get" => {
                 self.require_auth(client_id)?;
                 Ok(json!({
@@ -291,6 +383,7 @@ impl ServerActor {
                         RUNTIME_HOST_CAPABILITY,
                         RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
                         RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
+                        RUNTIME_HOST_MOBILE_CAPABILITY,
                     ],
                     "authenticated": true,
                 }))
@@ -333,6 +426,33 @@ impl ServerActor {
             "project.list" => {
                 self.require_auth(client_id)?;
                 json_result(self.runtime_store.list_projects().await)
+            }
+            "project.branches.list" => {
+                self.require_auth(client_id)?;
+                let project_id = require_string_key(payload, "projectId")?;
+                let project = self
+                    .runtime_store
+                    .find_project(&project_id)
+                    .await
+                    .map_err(|error| HostError::state(error.to_string()))?
+                    .ok_or_else(|| HostError::state(format!("Project not found: {project_id}")))?;
+                let branches = core_git::list_branches(&project.repo_path)
+                    .map_err(|error| HostError::state(error.to_string()))?;
+                let local_branches = branches
+                    .iter()
+                    .filter_map(|branch| {
+                        match core_git::branch_exists(&project.repo_path, branch) {
+                            Ok(true) => Some(Ok(branch.clone())),
+                            Ok(false) => None,
+                            Err(error) => Some(Err(HostError::state(error.to_string()))),
+                        }
+                    })
+                    .collect::<HostResult<Vec<String>>>()?;
+                Ok(json!({
+                    "projectId": project.id,
+                    "branches": branches,
+                    "localBranches": local_branches,
+                }))
             }
             "project.upsert" => {
                 self.require_auth(client_id)?;
@@ -650,18 +770,196 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 Ok(self.list_ssh_bootstrap_jobs())
             }
-            "pairing.create" => {
+            "mobile.status.get" => {
                 self.require_auth(client_id)?;
-                Ok(json!({
-                    "pairingId": Uuid::new_v4().to_string(),
-                    "status": "pending",
-                    "transport": "webSocket",
-                }))
+                json_result(mobile_status(&self.runtime_store, Some(true)).await)
+            }
+            "mobile.settings.update" => {
+                self.require_auth(client_id)?;
+                let request: MobileSettingsUpdateRequest = parse_payload(payload)?;
+                let current = self
+                    .runtime_store
+                    .mobile_access_settings()
+                    .await
+                    .map_err(|error| HostError::state(error.to_string()))?;
+                let next = apply_mobile_settings_update(current.clone(), request)
+                    .map_err(|error| HostError::state(error.to_string()))?;
+                let value =
+                    serde_json::to_value(self.apply_mobile_gateway_settings(current, next).await?)
+                        .map_err(|error| HostError::format(error.to_string()))?;
+                self.broadcast_authenticated(event("mobileSettingsChanged", json!({})));
+                Ok(value)
+            }
+            "mobile.pairing.create" | "pairing.create" => {
+                self.require_auth(client_id)?;
+                let request: MobilePairingCreateRequest = parse_payload(payload)?;
+                let current = self
+                    .runtime_store
+                    .mobile_access_settings()
+                    .await
+                    .map_err(|error| HostError::state(error.to_string()))?;
+                let (next, endpoint) =
+                    prepare_mobile_pairing_offer_settings(current.clone(), &request)
+                        .map_err(|error| HostError::state(error.to_string()))?;
+                let settings = if next == current {
+                    if self.mobile_gateway.is_none() {
+                        self.restart_mobile_gateway().await?;
+                    }
+                    current
+                } else {
+                    self.apply_mobile_gateway_settings(current, next).await?
+                };
+                let value = json_result(
+                    create_mobile_pairing_offer_for_settings(
+                        &self.runtime_store,
+                        &settings,
+                        &request,
+                        endpoint,
+                    )
+                    .await,
+                )?;
+                self.broadcast_authenticated(event("mobilePairingsChanged", json!({})));
+                Ok(value)
+            }
+            "mobile.device.list" => {
+                self.require_auth(client_id)?;
+                let include_revoked = payload
+                    .get("includeRevoked")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false);
+                json_result(list_mobile_devices(&self.runtime_store, include_revoked).await)
+            }
+            "mobile.device.pair" => {
+                self.require_auth(client_id)?;
+                let request: MobileDevicePairRequest = parse_payload(payload)?;
+                let value = json_result(pair_mobile_device(&self.runtime_store, request).await)?;
+                self.broadcast_authenticated(event("mobileDevicesChanged", json!({})));
+                self.broadcast_authenticated(event("mobilePairingsChanged", json!({})));
+                Ok(value)
+            }
+            "mobile.device.revoke" => {
+                self.require_auth(client_id)?;
+                let id = require_string_key(payload, "id")?;
+                json_result(revoke_mobile_device(&self.runtime_store, &id).await)?;
+                self.dispose_mobile_clients_for_device(&id).await;
+                self.broadcast_authenticated(event("mobileDevicesChanged", json!({})));
+                Ok(json!({}))
             }
             other => Err(HostError::state(format!(
                 "Unknown terminal host request: {other}"
             ))),
         }
+    }
+
+    fn is_mobile_client(&self, client_id: u64) -> bool {
+        self.clients
+            .get(&client_id)
+            .is_some_and(|client| client.kind == ClientKind::Mobile)
+    }
+
+    fn require_request_allowed(&self, client_id: u64, request_type: &str) -> HostResult<()> {
+        let Some(client) = self.clients.get(&client_id) else {
+            return Err(HostError::state(
+                "Terminal host client is not authenticated.",
+            ));
+        };
+        if client.kind == ClientKind::Local || mobile_request_allowed(request_type) {
+            return Ok(());
+        }
+        Err(HostError::state(format!(
+            "Mobile clients cannot call terminal host request: {request_type}"
+        )))
+    }
+
+    async fn create_mobile_terminal(
+        &mut self,
+        client_id: u64,
+        payload: &Value,
+    ) -> HostResult<Value> {
+        let workspace_id = require_string_key(payload, "workspaceId")?;
+        let workspace = self
+            .runtime_store
+            .find_workspace(&workspace_id)
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?
+            .ok_or_else(|| HostError::state(format!("Workspace not found: {workspace_id}")))?;
+        let tab_id = Uuid::new_v4().to_string();
+        let session_id = Uuid::new_v4().to_string();
+        let title =
+            optional_string_key(payload, "title").unwrap_or_else(|| "Mobile Terminal".into());
+        let now = Utc::now();
+        let tab = WorkspaceTabRecord {
+            id: tab_id.clone(),
+            workspace_id: workspace.id.clone(),
+            kind: "terminal".to_string(),
+            title,
+            created_at: now,
+            updated_at: now,
+            payload: json!({
+                "terminalSessionId": session_id,
+                "source": "mobile",
+            }),
+        };
+        let tab = self
+            .runtime_store
+            .upsert_workspace_tab(tab)
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?;
+        let attachment_payload =
+            mobile_terminal_attachment_payload(&workspace, &tab.id, &session_id, payload);
+        match self.create_or_attach(client_id, &attachment_payload).await {
+            Ok(attachment) => {
+                self.broadcast_authenticated(event("workspaceTabsChanged", json!({})));
+                Ok(json!({
+                    "tab": tab,
+                    "attachment": attachment,
+                }))
+            }
+            Err(error) => {
+                let _ = self.runtime_store.remove_workspace_tab(&tab.id).await;
+                Err(error)
+            }
+        }
+    }
+
+    async fn attach_mobile_terminal(
+        &mut self,
+        client_id: u64,
+        payload: &Value,
+    ) -> HostResult<Value> {
+        let tab_id = require_string_key(payload, "tabId")?;
+        let tab = self
+            .runtime_store
+            .find_workspace_tab(&tab_id)
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?
+            .ok_or_else(|| HostError::state(format!("Workspace tab not found: {tab_id}")))?;
+        if tab.kind != "terminal" {
+            return Err(HostError::state(format!(
+                "Workspace tab is not a terminal: {}",
+                tab.id
+            )));
+        }
+        let workspace = self
+            .runtime_store
+            .find_workspace(&tab.workspace_id)
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?
+            .ok_or_else(|| {
+                HostError::state(format!("Workspace not found: {}", tab.workspace_id))
+            })?;
+        let session_id = optional_string_key(payload, "sessionId")
+            .or_else(|| terminal_session_id_from_tab(&tab))
+            .unwrap_or_else(|| tab.id.clone());
+        let attachment_payload =
+            mobile_terminal_attachment_payload(&workspace, &tab.id, &session_id, payload);
+        let attachment = self
+            .create_or_attach(client_id, &attachment_payload)
+            .await?;
+        Ok(json!({
+            "tab": tab,
+            "attachment": attachment,
+        }))
     }
 
     async fn create_or_attach(&mut self, client_id: u64, payload: &Value) -> HostResult<Value> {
@@ -771,6 +1069,120 @@ fn string_array(value: Option<&Value>) -> Vec<String> {
     }
 }
 
+fn optional_string_key(payload: &Value, key: &str) -> Option<String> {
+    payload
+        .get(key)
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+}
+
+fn terminal_session_id_from_tab(tab: &WorkspaceTabRecord) -> Option<String> {
+    tab.payload
+        .get("terminalSessionId")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+}
+
+fn mobile_terminal_attachment_payload(
+    workspace: &Workspace,
+    tab_id: &str,
+    session_id: &str,
+    payload: &Value,
+) -> Value {
+    json!({
+        "sessionId": session_id,
+        "workspaceId": workspace.id.clone(),
+        "tabId": tab_id,
+        "workingDirectory": workspace.path.clone(),
+        "launch": default_mobile_terminal_launch(&workspace.path),
+        "cols": int_or(payload, "cols", 80),
+        "rows": int_or(payload, "rows", 24),
+    })
+}
+
+fn default_mobile_terminal_launch(working_directory: &str) -> Value {
+    let environment = mobile_terminal_environment();
+    #[cfg(windows)]
+    {
+        let shell = std::env::var("COMSPEC").unwrap_or_else(|_| "cmd.exe".to_string());
+        json!({
+            "label": "shell",
+            "shell": shell,
+            "arguments": ["/d", "/s", "/k", &format!("cd /d {}", cmd_quote(working_directory))],
+            "environment": environment,
+        })
+    }
+    #[cfg(not(windows))]
+    {
+        let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
+        let command = format!(
+            "cd {} || true; exec {}",
+            sh_quote(working_directory),
+            sh_quote(&shell)
+        );
+        json!({
+            "label": "shell",
+            "shell": "/bin/sh",
+            "arguments": ["-c", command],
+            "environment": environment,
+        })
+    }
+}
+
+fn mobile_terminal_environment() -> BTreeMap<String, String> {
+    let mut environment = std::env::vars().collect::<BTreeMap<_, _>>();
+    #[cfg(not(windows))]
+    {
+        environment
+            .entry("PATH".to_string())
+            .or_insert_with(|| "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin".to_string());
+        environment
+            .entry("TERM".to_string())
+            .or_insert_with(|| "xterm-256color".to_string());
+    }
+    environment
+}
+
+#[cfg(not(windows))]
+fn sh_quote(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\\''"))
+}
+
+#[cfg(windows)]
+fn cmd_quote(value: &str) -> String {
+    format!("\"{}\"", value.replace('"', "\"\""))
+}
+
+fn mobile_request_allowed(request_type: &str) -> bool {
+    matches!(
+        request_type,
+        "status.get"
+            | "mobile.status.get"
+            | "project.list"
+            | "project.branches.list"
+            | "workspace.list"
+            | "workspace.listAll"
+            | "workspace.find"
+            | "tab.list"
+            | "tab.find"
+            | "layout.find"
+            | "workspaceTag.list"
+            | "workspaceRelation.list"
+            | "workspaceCascade.preview"
+            | "terminal.create"
+            | "terminal.attach"
+            | "write"
+            | "resize"
+            | "setOutputPaused"
+            | "detach"
+            | "terminate"
+    )
+}
+
 fn parse_payload<T>(payload: &Value) -> HostResult<T>
 where
     T: serde::de::DeserializeOwned,
@@ -788,4 +1200,15 @@ where
         .and_then(|value| {
             serde_json::to_value(value).map_err(|error| HostError::format(error.to_string()))
         })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mobile_allowlist_excludes_managed_workspace_mutations() {
+        assert!(!mobile_request_allowed("workspace.createManaged"));
+        assert!(!mobile_request_allowed("workspace.removeManaged"));
+    }
 }

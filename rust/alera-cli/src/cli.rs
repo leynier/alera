@@ -45,6 +45,9 @@ pub enum Command {
     /// Manage SSH targets known by the Home Runtime.
     #[command(name = "ssh-target")]
     SshTarget(SshTargetCommand),
+
+    /// Manage mobile companion access and pairing.
+    Mobile(MobileCommand),
 }
 
 /// Arguments for `alera runtime-host` and `alera terminal-host`. Names and
@@ -443,6 +446,94 @@ pub struct SshTargetBootstrapArgs {
     pub artifact_path: Option<String>,
     #[arg(long = "manifest-public-key")]
     pub manifest_public_key: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct MobileCommand {
+    #[command(flatten)]
+    pub runtime: RuntimeDirArgs,
+    #[command(flatten)]
+    pub output: OutputArgs,
+    #[command(subcommand)]
+    pub action: MobileAction,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum MobileAction {
+    /// Show mobile access settings, devices, and active pairing offers.
+    Status,
+    /// Enable the mobile gateway settings.
+    Enable(MobileEnableArgs),
+    /// Disable the mobile gateway settings.
+    Disable,
+    /// Create a short-lived pairing offer.
+    Pairing(MobilePairingCommand),
+    /// List or revoke paired devices.
+    Devices(MobileDevicesCommand),
+}
+
+#[derive(Debug, Args)]
+pub struct MobileEnableArgs {
+    #[arg(long = "bind-host")]
+    pub bind_host: Option<String>,
+    #[arg(long)]
+    pub port: Option<i64>,
+}
+
+#[derive(Debug, Args)]
+pub struct MobilePairingCommand {
+    #[command(subcommand)]
+    pub action: MobilePairingAction,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum MobilePairingAction {
+    /// Create a short-lived pairing offer for QR or manual entry.
+    Create(MobilePairingCreateArgs),
+    /// Claim a pairing offer and create a revocable device record.
+    Claim(MobilePairingClaimArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct MobilePairingCreateArgs {
+    #[arg(long)]
+    pub endpoint: Option<String>,
+    #[arg(long = "device-name")]
+    pub device_name: Option<String>,
+    #[arg(long = "expires-minutes")]
+    pub expires_minutes: Option<i64>,
+}
+
+#[derive(Debug, Args)]
+pub struct MobilePairingClaimArgs {
+    #[arg(long = "pairing-id")]
+    pub pairing_id: String,
+    #[arg(long = "pairing-secret")]
+    pub pairing_secret: String,
+    #[arg(long = "device-name")]
+    pub device_name: Option<String>,
+    #[arg(long = "public-key-b64")]
+    pub public_key_b64: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct MobileDevicesCommand {
+    #[command(subcommand)]
+    pub action: MobileDevicesAction,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum MobileDevicesAction {
+    /// List paired mobile devices.
+    List(MobileDeviceListArgs),
+    /// Revoke a paired mobile device.
+    Revoke(IdArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct MobileDeviceListArgs {
+    #[arg(long = "include-revoked")]
+    pub include_revoked: bool,
 }
 
 #[derive(Debug, Args)]

@@ -1,5 +1,6 @@
 mod cli;
 mod managed_workspace;
+mod mobile_access;
 mod runtime_archive;
 mod runtime_host_client;
 mod ssh_bootstrap;
@@ -9,9 +10,9 @@ use std::future::Future;
 use std::path::{Path, PathBuf};
 
 use alera_core::runtime::{
-    CascadePreview, Project, ProjectKind, RuntimeStore, SshAuthKind, SshTarget, Workspace,
-    WorkspaceKind, WorkspaceStatus, WorkspaceTabRecord, WorkspaceTag, LOCAL_HOST_ID,
-    RUNTIME_DATABASE_FILE_NAME,
+    CascadePreview, MobileAccessSettings, Project, ProjectKind, RuntimeStore, SshAuthKind,
+    SshTarget, Workspace, WorkspaceKind, WorkspaceStatus, WorkspaceTabRecord, WorkspaceTag,
+    LOCAL_HOST_ID, RUNTIME_DATABASE_FILE_NAME,
 };
 use chrono::Utc;
 use clap::Parser;
@@ -27,6 +28,12 @@ use crate::cli::{
     SshTargetAddArgs, SshTargetBootstrapArgs, SshTargetBootstrapPlanArgs, SshTargetCommand,
     SshTargetStatusArgs, TabAction, TabCommand, TabCreateArgs, WorkspaceAction, WorkspaceAddArgs,
     WorkspaceCommand, WorkspaceKindArg, WorkspaceRegisterArgs,
+};
+use crate::cli::{MobileAction, MobileCommand, MobileDevicesAction, MobilePairingAction};
+use crate::mobile_access::{
+    list_mobile_devices, mobile_status, pair_mobile_device, revoke_mobile_device,
+    update_mobile_settings, MobileDevicePairRequest, MobilePairingCreateRequest,
+    MobilePairingOfferPayload, MobileSettingsUpdateRequest,
 };
 use crate::runtime_host_client::RuntimeHostRpcClient;
 use crate::ssh_bootstrap::{
@@ -74,6 +81,7 @@ async fn run() -> i32 {
         Command::Tag(command) => run_tag_command(command).await,
         Command::Tab(command) => run_tab_command(command).await,
         Command::SshTarget(command) => run_ssh_target_command(command).await,
+        Command::Mobile(command) => run_mobile_command(command).await,
     }
 }
 
@@ -600,6 +608,139 @@ async fn run_ssh_target_command(command: SshTargetCommand) -> i32 {
     0
 }
 
+async fn run_mobile_command(command: MobileCommand) -> i32 {
+    let runtime = command.runtime;
+    let json_output = command.output.json;
+    match command.action {
+        MobileAction::Status => {
+            let runtime_host_active =
+                match RuntimeHostRpcClient::connect_mobile(&runtime_dir(&runtime)).await {
+                    Ok(client) => client.is_some(),
+                    Err(_) => false,
+                };
+            let store = match open_store(&runtime).await {
+                Ok(store) => store,
+                Err(error) => return print_error(error),
+            };
+            match mobile_status(&store, Some(runtime_host_active)).await {
+                Ok(status) => print_value(&status, json_output, "mobile status ready"),
+                Err(error) => return print_error(error),
+            }
+        }
+        MobileAction::Enable(args) => {
+            let request = MobileSettingsUpdateRequest {
+                enabled: Some(true),
+                bind_host: args.bind_host,
+                port: args.port,
+            };
+            match mobile_runtime_host_request::<MobileAccessSettings, _>(
+                &runtime,
+                "mobile.settings.update",
+                &request,
+            )
+            .await
+            {
+                Ok(settings) => print_value(&settings, json_output, "mobile access enabled"),
+                Err(error) => return print_error(error),
+            }
+        }
+        MobileAction::Disable => {
+            let request = MobileSettingsUpdateRequest {
+                enabled: Some(false),
+                bind_host: None,
+                port: None,
+            };
+            let fallback_request = request.clone();
+            match mobile_runtime_host_or_store(
+                &runtime,
+                "mobile.settings.update",
+                &request,
+                |store| async move { update_mobile_settings(&store, fallback_request).await },
+            )
+            .await
+            {
+                Ok(settings) => print_value(&settings, json_output, "mobile access disabled"),
+                Err(error) => return print_error(error),
+            }
+        }
+        MobileAction::Pairing(command) => match command.action {
+            MobilePairingAction::Create(args) => {
+                let request = MobilePairingCreateRequest {
+                    endpoint: args.endpoint,
+                    device_name: args.device_name,
+                    expires_minutes: args.expires_minutes,
+                };
+                match mobile_runtime_host_request::<MobilePairingOfferPayload, _>(
+                    &runtime,
+                    "mobile.pairing.create",
+                    &request,
+                )
+                .await
+                {
+                    Ok(offer) => print_value(&offer, json_output, "mobile pairing offer created"),
+                    Err(error) => return print_error(error),
+                }
+            }
+            MobilePairingAction::Claim(args) => {
+                let request = MobileDevicePairRequest {
+                    pairing_id: args.pairing_id,
+                    pairing_secret: args.pairing_secret,
+                    device_name: args.device_name,
+                    public_key_b64: args.public_key_b64,
+                };
+                let fallback_request = request.clone();
+                match mobile_runtime_host_or_store(
+                    &runtime,
+                    "mobile.device.pair",
+                    &request,
+                    |store| async move { pair_mobile_device(&store, fallback_request).await },
+                )
+                .await
+                {
+                    Ok(device) => print_value(&device, json_output, "mobile device paired"),
+                    Err(error) => return print_error(error),
+                }
+            }
+        },
+        MobileAction::Devices(command) => match command.action {
+            MobileDevicesAction::List(args) => {
+                let payload = json!({ "includeRevoked": args.include_revoked });
+                match mobile_runtime_host_or_store(
+                    &runtime,
+                    "mobile.device.list",
+                    &payload,
+                    |store| async move { list_mobile_devices(&store, args.include_revoked).await },
+                )
+                .await
+                {
+                    Ok(devices) => print_value(&devices, json_output, "mobile devices listed"),
+                    Err(error) => return print_error(error),
+                }
+            }
+            MobileDevicesAction::Revoke(IdArgs { id }) => {
+                let payload = json!({ "id": id });
+                let revoked_id = id.clone();
+                match mobile_runtime_host_or_store_unit(
+                    &runtime,
+                    "mobile.device.revoke",
+                    &payload,
+                    |store| async move { revoke_mobile_device(&store, &id).await },
+                )
+                .await
+                {
+                    Ok(()) => print_value(
+                        &json!({ "id": revoked_id }),
+                        json_output,
+                        "mobile device revoked",
+                    ),
+                    Err(error) => return print_error(error),
+                }
+            }
+        },
+    }
+    0
+}
+
 async fn runtime_host_or_store<T, P, Fut>(
     args: &RuntimeDirArgs,
     request_type: &str,
@@ -619,6 +760,59 @@ where
 
 async fn runtime_host_required(args: &RuntimeDirArgs) -> anyhow::Result<RuntimeHostRpcClient> {
     RuntimeHostRpcClient::connect_or_start(&runtime_dir(args)).await
+}
+
+async fn mobile_runtime_host_required(
+    args: &RuntimeDirArgs,
+) -> anyhow::Result<RuntimeHostRpcClient> {
+    RuntimeHostRpcClient::connect_or_start_mobile(&runtime_dir(args)).await
+}
+
+async fn mobile_runtime_host_request<T, P>(
+    args: &RuntimeDirArgs,
+    request_type: &str,
+    payload: &P,
+) -> anyhow::Result<T>
+where
+    T: DeserializeOwned,
+    P: Serialize + ?Sized,
+{
+    let mut client = mobile_runtime_host_required(args).await?;
+    client.request(request_type, payload).await
+}
+
+async fn mobile_runtime_host_or_store<T, P, Fut>(
+    args: &RuntimeDirArgs,
+    request_type: &str,
+    payload: &P,
+    store_operation: impl FnOnce(RuntimeStore) -> Fut,
+) -> anyhow::Result<T>
+where
+    T: DeserializeOwned,
+    P: Serialize + ?Sized,
+    Fut: Future<Output = anyhow::Result<T>>,
+{
+    if let Some(mut client) = RuntimeHostRpcClient::connect_mobile(&runtime_dir(args)).await? {
+        return client.request(request_type, payload).await;
+    }
+    store_operation(open_store(args).await?).await
+}
+
+async fn mobile_runtime_host_or_store_unit<P, Fut>(
+    args: &RuntimeDirArgs,
+    request_type: &str,
+    payload: &P,
+    store_operation: impl FnOnce(RuntimeStore) -> Fut,
+) -> anyhow::Result<()>
+where
+    P: Serialize + ?Sized,
+    Fut: Future<Output = anyhow::Result<()>>,
+{
+    if let Some(mut client) = RuntimeHostRpcClient::connect_mobile(&runtime_dir(args)).await? {
+        client.request_value(request_type, payload).await?;
+        return Ok(());
+    }
+    store_operation(open_store(args).await?).await
 }
 
 async fn upsert_ssh_target_from_cli(

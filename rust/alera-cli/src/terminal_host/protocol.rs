@@ -12,6 +12,7 @@ pub const PROTOCOL_VERSION: i64 = 3;
 pub const RUNTIME_HOST_CAPABILITY: &str = "runtimeStore";
 pub const RUNTIME_HOST_BOOTSTRAP_CAPABILITY: &str = "sshTargetBootstrap";
 pub const RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY: &str = "managedWorkspaceLifecycle";
+pub const RUNTIME_HOST_MOBILE_CAPABILITY: &str = "mobileCompanionAccess";
 
 // Retained for the later packaging/resolver phase (sidecar discovery).
 #[allow(dead_code)]

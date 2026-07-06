@@ -181,6 +181,80 @@ pub struct SshTarget {
     pub last_error: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct MobileAccessSettings {
+    pub enabled: bool,
+    pub bind_host: String,
+    pub port: i64,
+    #[serde(default)]
+    pub server_public_key_b64: Option<String>,
+    pub updated_at: DateTime<Utc>,
+}
+
+impl Default for MobileAccessSettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            bind_host: "127.0.0.1".to_string(),
+            port: 6768,
+            server_public_key_b64: None,
+            updated_at: Utc::now(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct MobileDevice {
+    pub id: String,
+    pub display_name: String,
+    pub token_hash: String,
+    #[serde(default)]
+    pub public_key_b64: Option<String>,
+    pub permission: MobileDevicePermission,
+    pub paired_at: DateTime<Utc>,
+    #[serde(default)]
+    pub last_seen_at: Option<DateTime<Utc>>,
+    #[serde(default)]
+    pub revoked_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase")]
+pub enum MobileDevicePermission {
+    #[default]
+    FullControl,
+}
+
+impl MobileDevicePermission {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            MobileDevicePermission::FullControl => "fullControl",
+        }
+    }
+
+    pub fn from_db(_value: &str) -> Self {
+        MobileDevicePermission::FullControl
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct MobilePairingOffer {
+    pub id: String,
+    pub endpoint: String,
+    pub secret_hash: String,
+    #[serde(default)]
+    pub expected_device_name: Option<String>,
+    #[serde(default)]
+    pub server_public_key_b64: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub expires_at: DateTime<Utc>,
+    #[serde(default)]
+    pub claimed_device_id: Option<String>,
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum SshAuthKind {

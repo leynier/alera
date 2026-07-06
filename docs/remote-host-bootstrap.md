@@ -1,6 +1,6 @@
 # Remote Host Bootstrap
 
-Alera can register SSH targets in the Home Runtime and install the standalone `alera` runtime sidecar on those hosts. This is the first remote-host path for future mobile and agent-driven workflows: Projects, Workspaces, Tabs, and SSH target state remain runtime-owned, while a remote machine can receive a verified runtime binary over SSH.
+Alera can register SSH targets in the Home Runtime and install the standalone `alera` runtime sidecar on those hosts. This is the first remote-host path for mobile and agent-driven workflows: Projects, Workspaces, Tabs, SSH target state, and mobile access state remain runtime-owned, while a remote machine can receive a verified runtime binary over SSH.
 
 ## Supported Targets
 
@@ -24,34 +24,48 @@ Local development can pass `--artifact-path` to install a local tarball. That pa
 List targets:
 
 ```bash
-alera ssh-target list --json
+alera ssh-target --json list
 ```
 
 Add a target:
 
 ```bash
-alera ssh-target add --alias build-mac --host mac.example.test --username leynier --auth agent --json
+alera ssh-target --json add --alias build-mac --host mac.example.test --username leynier --auth agent
 ```
 
 Preview a bootstrap:
 
 ```bash
-alera ssh-target bootstrap-plan --id <target-id> --json
+alera ssh-target --json bootstrap-plan --id <target-id>
 ```
 
 Start a bootstrap:
 
 ```bash
-alera ssh-target bootstrap --id <target-id> --json
+alera ssh-target --json bootstrap --id <target-id>
 ```
 
 Cancel an active runtime-host bootstrap job:
 
 ```bash
-alera ssh-target bootstrap-cancel --id <target-id> --json
+alera ssh-target --json bootstrap-cancel --id <target-id>
 ```
 
 When the runtime host is running, `bootstrap` starts a host job and returns immediately with a job id. Without a runtime host, the CLI performs the bootstrap in the foreground and prints progress to stderr.
+
+## Mobile Access
+
+Mobile companion pairing starts from the runtime profile rather than the desktop Flutter process. The current CLI surface is:
+
+```bash
+alera mobile --json enable --bind-host 127.0.0.1 --port 6768
+alera mobile --json pairing create --endpoint wss://<host-or-vpn-name>:6768
+alera mobile --json devices list
+alera mobile --json devices revoke --id <device-id>
+alera mobile --json disable
+```
+
+The generated pairing payload can be pasted or scanned in the Flutter app under `mobile/`. The CLI starts or reuses a mobile-capable runtime host for enable and pairing creation so the WebSocket listener is live before a pairing payload is returned. The app opens the configured WebSocket endpoint, claims the pairing offer with `mobile.device.pair`, stores the returned device token in secure storage, then authenticates future sessions with `mobile.hello`. Authenticated mobile clients can read status, projects, branches, workspaces, and tabs, and can create or attach to terminal sessions through the mobile terminal RPCs. Mobile access defaults to a loopback bind. Plain `ws://` endpoints are accepted only for loopback/local development because pairing secrets and device tokens are bearer credentials; their explicit port must match the local gateway port. Phone/LAN/VPN access should expose the loopback gateway through a TLS tunnel or proxy and advertise `wss://`; the public TLS endpoint port can differ from the local gateway port. When intentionally binding `0.0.0.0`, pass a reachable `--endpoint` because the pairing payload cannot advertise a wildcard address. Device revocation remains a host-side CLI/runtime-host operation and immediately disconnects active sessions for the revoked device.
 
 ## Settings
 

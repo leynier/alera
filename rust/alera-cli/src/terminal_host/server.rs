@@ -1,9 +1,15 @@
 use std::collections::HashMap;
-use std::net::Ipv4Addr;
+use std::net::{Ipv4Addr, Ipv6Addr};
 use std::path::PathBuf;
+use std::sync::{
+    atomic::{AtomicU64, Ordering},
+    Arc,
+};
 use std::time::Duration;
 
-use alera_core::runtime::{RuntimeStore, SshAuthKind, SshBootstrapStatus, SshTarget};
+use alera_core::runtime::{
+    MobileAccessSettings, RuntimeStore, SshAuthKind, SshBootstrapStatus, SshTarget,
+};
 use anyhow::Result;
 use serde_json::{json, Value};
 use tokio::net::TcpListener;
@@ -18,6 +24,7 @@ use crate::terminal_host::client::{connection_loop, ClientHandle};
 use crate::terminal_host::control_file;
 use crate::terminal_host::history_store::TerminalHostHistoryStore;
 use crate::terminal_host::host_error::{HostError, HostResult};
+use crate::terminal_host::mobile_gateway::spawn_mobile_gateway_accept_loop;
 use crate::terminal_host::protocol::{event, TerminalHostConfig};
 use crate::terminal_host::session::{PtyEvent, Session};
 
@@ -35,6 +42,7 @@ pub enum ServerCommand {
     ClientConnected {
         id: u64,
         handle: ClientHandle,
+        kind: ClientKind,
     },
     ClientLine {
         id: u64,
@@ -78,9 +86,17 @@ pub enum ServerCommand {
     },
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ClientKind {
+    Local,
+    Mobile,
+}
+
 struct ClientState {
     handle: ClientHandle,
     authenticated: bool,
+    kind: ClientKind,
+    mobile_device_id: Option<String>,
 }
 
 struct SshBootstrapJobState {
@@ -109,7 +125,8 @@ pub async fn run_terminal_host_server(
     control_file::write_control_file(&control_file_path, port, &token)?;
 
     let (inbox, mut rx) = mpsc::unbounded_channel::<ServerCommand>();
-    spawn_accept_loop(listener, inbox.clone());
+    let next_client_id = Arc::new(AtomicU64::new(1));
+    spawn_accept_loop(listener, inbox.clone(), next_client_id.clone());
 
     let mut actor = ServerActor {
         runtime_dir,
@@ -124,9 +141,14 @@ pub async fn run_terminal_host_server(
         clients: HashMap::new(),
         pending_output_writes: HashMap::new(),
         inbox,
+        next_client_id,
+        mobile_gateway: None,
         shutdown_gen: 0,
         disposed: false,
     };
+    if let Err(error) = actor.restart_mobile_gateway().await {
+        eprintln!("alera mobile gateway unavailable: {}", error.wire_message());
+    }
     actor.schedule_shutdown_if_idle();
 
     while let Some(command) = rx.recv().await {
@@ -138,13 +160,15 @@ pub async fn run_terminal_host_server(
     Ok(())
 }
 
-fn spawn_accept_loop(listener: TcpListener, inbox: UnboundedSender<ServerCommand>) {
+fn spawn_accept_loop(
+    listener: TcpListener,
+    inbox: UnboundedSender<ServerCommand>,
+    next_client_id: Arc<AtomicU64>,
+) {
     tokio::spawn(async move {
-        let mut next_id: u64 = 1;
         while let Ok((stream, _)) = listener.accept().await {
             let _ = stream.set_nodelay(true);
-            let id = next_id;
-            next_id += 1;
+            let id = next_client_id.fetch_add(1, Ordering::Relaxed);
             let (out_tx, out_rx) = mpsc::unbounded_channel::<Value>();
             // Register the client before its lines can arrive: the
             // ClientConnected command is enqueued before the connection loop
@@ -153,6 +177,7 @@ fn spawn_accept_loop(listener: TcpListener, inbox: UnboundedSender<ServerCommand
                 .send(ServerCommand::ClientConnected {
                     id,
                     handle: ClientHandle { out: out_tx },
+                    kind: ClientKind::Local,
                 })
                 .is_err()
             {
@@ -176,19 +201,176 @@ struct ServerActor {
     clients: HashMap<u64, ClientState>,
     pending_output_writes: HashMap<String, Vec<JoinHandle<()>>>,
     inbox: UnboundedSender<ServerCommand>,
+    next_client_id: Arc<AtomicU64>,
+    mobile_gateway: Option<JoinHandle<()>>,
     shutdown_gen: u64,
     disposed: bool,
 }
 
+enum MobileGatewayReplacement {
+    Keep,
+    Disabled,
+    Bound {
+        listener: TcpListener,
+        bind_address: String,
+    },
+}
+
 impl ServerActor {
+    pub(super) async fn restart_mobile_gateway(&mut self) -> HostResult<()> {
+        let settings = self
+            .runtime_store
+            .mobile_access_settings()
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?;
+        let replacement = self.prepare_mobile_gateway_replacement(&settings).await?;
+        self.replace_mobile_gateway(replacement).await;
+        Ok(())
+    }
+
+    pub(super) async fn apply_mobile_gateway_settings(
+        &mut self,
+        current: MobileAccessSettings,
+        next: MobileAccessSettings,
+    ) -> HostResult<MobileAccessSettings> {
+        let replacement = if self.can_keep_mobile_gateway(&current, &next) {
+            MobileGatewayReplacement::Keep
+        } else {
+            let release_before_bind =
+                self.should_release_mobile_gateway_before_bind(&current, &next);
+            if release_before_bind {
+                self.stop_mobile_gateway().await;
+                self.dispose_mobile_clients().await;
+            }
+            match self.prepare_mobile_gateway_replacement(&next).await {
+                Ok(replacement) => replacement,
+                Err(error) => {
+                    if release_before_bind {
+                        if let Ok(restored) =
+                            self.prepare_mobile_gateway_replacement(&current).await
+                        {
+                            self.replace_mobile_gateway(restored).await;
+                        }
+                    }
+                    return Err(error);
+                }
+            }
+        };
+        let saved = self
+            .runtime_store
+            .set_mobile_access_settings(next)
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?;
+        self.replace_mobile_gateway(replacement).await;
+        Ok(saved)
+    }
+
+    fn can_keep_mobile_gateway(
+        &self,
+        current: &MobileAccessSettings,
+        next: &MobileAccessSettings,
+    ) -> bool {
+        self.mobile_gateway.is_some()
+            && current.enabled
+            && next.enabled
+            && current.bind_host == next.bind_host
+            && current.port == next.port
+    }
+
+    fn should_release_mobile_gateway_before_bind(
+        &self,
+        current: &MobileAccessSettings,
+        next: &MobileAccessSettings,
+    ) -> bool {
+        self.mobile_gateway.is_some()
+            && current.enabled
+            && next.enabled
+            && current.port == next.port
+            && current.bind_host != next.bind_host
+    }
+
+    async fn prepare_mobile_gateway_replacement(
+        &self,
+        settings: &MobileAccessSettings,
+    ) -> HostResult<MobileGatewayReplacement> {
+        if !settings.enabled {
+            return Ok(MobileGatewayReplacement::Disabled);
+        }
+        let port: u16 = settings.port.try_into().map_err(|_| {
+            HostError::state(format!(
+                "mobile gateway port is outside the valid range: {}",
+                settings.port
+            ))
+        })?;
+        let bind_address = display_socket_address(&settings.bind_host, port);
+        let listener = TcpListener::bind((settings.bind_host.as_str(), port))
+            .await
+            .map_err(|error| {
+                HostError::state(format!(
+                    "mobile gateway bind failed for {bind_address}: {error}"
+                ))
+            })?;
+        let local_address = listener
+            .local_addr()
+            .map(|address| address.to_string())
+            .unwrap_or(bind_address);
+        Ok(MobileGatewayReplacement::Bound {
+            listener,
+            bind_address: local_address,
+        })
+    }
+
+    async fn replace_mobile_gateway(&mut self, replacement: MobileGatewayReplacement) {
+        match replacement {
+            MobileGatewayReplacement::Keep => {}
+            MobileGatewayReplacement::Disabled => {
+                self.stop_mobile_gateway().await;
+                self.dispose_mobile_clients().await;
+                self.broadcast_authenticated(event(
+                    "mobileGatewayChanged",
+                    json!({ "enabled": false }),
+                ));
+            }
+            MobileGatewayReplacement::Bound {
+                listener,
+                bind_address,
+            } => {
+                self.stop_mobile_gateway().await;
+                self.dispose_mobile_clients().await;
+                self.mobile_gateway = Some(spawn_mobile_gateway_accept_loop(
+                    listener,
+                    self.inbox.clone(),
+                    self.next_client_id.clone(),
+                ));
+                self.cancel_shutdown_timer();
+                self.broadcast_authenticated(event(
+                    "mobileGatewayChanged",
+                    json!({
+                        "enabled": true,
+                        "bindAddress": bind_address,
+                    }),
+                ));
+            }
+        }
+    }
+
+    async fn stop_mobile_gateway(&mut self) {
+        if let Some(handle) = self.mobile_gateway.take() {
+            handle.abort();
+            let _ = handle.await;
+        }
+    }
+
     async fn handle(&mut self, command: ServerCommand) {
         match command {
-            ServerCommand::ClientConnected { id, handle } => {
+            ServerCommand::ClientConnected { id, handle, kind } => {
                 self.clients.insert(
                     id,
                     ClientState {
                         handle,
                         authenticated: false,
+                        kind,
+                        mobile_device_id: None,
                     },
                 );
             }
@@ -654,6 +836,32 @@ impl ServerActor {
         self.schedule_shutdown_if_idle();
     }
 
+    pub(super) async fn dispose_mobile_clients(&mut self) {
+        let client_ids = self
+            .clients
+            .iter()
+            .filter_map(|(id, client)| (client.kind == ClientKind::Mobile).then_some(*id))
+            .collect::<Vec<_>>();
+        for client_id in client_ids {
+            self.dispose_client(client_id).await;
+        }
+    }
+
+    pub(super) async fn dispose_mobile_clients_for_device(&mut self, device_id: &str) {
+        let client_ids = self
+            .clients
+            .iter()
+            .filter_map(|(id, client)| {
+                (client.kind == ClientKind::Mobile
+                    && client.mobile_device_id.as_deref() == Some(device_id))
+                .then_some(*id)
+            })
+            .collect::<Vec<_>>();
+        for client_id in client_ids {
+            self.dispose_client(client_id).await;
+        }
+    }
+
     fn client_write(&self, client_id: u64, message: Value) {
         if let Some(client) = self.clients.get(&client_id) {
             let _ = client.handle.out.send(message);
@@ -732,11 +940,16 @@ impl ServerActor {
         self.managed_workspace_jobs > 0
     }
 
+    fn has_active_mobile_gateway(&self) -> bool {
+        self.mobile_gateway.is_some()
+    }
+
     fn schedule_shutdown_if_idle(&mut self) {
         if self.disposed
             || self.has_authenticated_clients()
             || self.has_active_bootstrap_jobs()
             || self.has_active_managed_workspace_jobs()
+            || self.has_active_mobile_gateway()
         {
             self.cancel_shutdown_timer();
             return;
@@ -783,6 +996,9 @@ impl ServerActor {
         }
         self.disposed = true;
         self.cancel_shutdown_timer();
+        if let Some(handle) = self.mobile_gateway.take() {
+            handle.abort();
+        }
         // Closing client handles ends their connection loops.
         self.clients.clear();
         let store = self.store.clone();
@@ -795,6 +1011,14 @@ impl ServerActor {
             }
         }
         control_file::delete_control_file(&self.control_file_path);
+    }
+}
+
+fn display_socket_address(host: &str, port: u16) -> String {
+    if host.parse::<Ipv6Addr>().is_ok() {
+        format!("[{host}]:{port}")
+    } else {
+        format!("{host}:{port}")
     }
 }
 
@@ -832,10 +1056,14 @@ mod tests {
                 ClientState {
                     handle: ClientHandle { out },
                     authenticated: true,
+                    kind: ClientKind::Local,
+                    mobile_device_id: None,
                 },
             )]),
             pending_output_writes: HashMap::new(),
             inbox,
+            next_client_id: Arc::new(AtomicU64::new(2)),
+            mobile_gateway: None,
             shutdown_gen: 0,
             disposed: false,
         };
@@ -854,5 +1082,110 @@ mod tests {
             actor.ssh_bootstrap_jobs["remote"].status,
             SshBootstrapStatus::Installing
         );
+    }
+
+    #[tokio::test]
+    async fn mobile_gateway_rebinds_same_port_after_releasing_old_listener() {
+        let port_probe = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await.unwrap();
+        let port = port_probe.local_addr().unwrap().port();
+        drop(port_probe);
+        let dir = tempfile::tempdir().unwrap();
+        let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
+        let runtime_store = RuntimeStore::open(dir.path()).await.unwrap();
+        let (inbox, _rx) = mpsc::unbounded_channel();
+        let current = MobileAccessSettings {
+            enabled: true,
+            bind_host: "127.0.0.1".to_string(),
+            port: i64::from(port),
+            ..MobileAccessSettings::default()
+        };
+        let next = MobileAccessSettings {
+            enabled: true,
+            bind_host: "0.0.0.0".to_string(),
+            port: i64::from(port),
+            ..MobileAccessSettings::default()
+        };
+        let mut actor = ServerActor {
+            runtime_dir: dir.path().to_path_buf(),
+            control_file_path: dir.path().join("runtime-host.json"),
+            token: "token".to_string(),
+            config: TerminalHostConfig::default(),
+            store,
+            runtime_store,
+            sessions: HashMap::new(),
+            ssh_bootstrap_jobs: HashMap::new(),
+            managed_workspace_jobs: 0,
+            clients: HashMap::new(),
+            pending_output_writes: HashMap::new(),
+            inbox,
+            next_client_id: Arc::new(AtomicU64::new(1)),
+            mobile_gateway: None,
+            shutdown_gen: 0,
+            disposed: false,
+        };
+
+        actor
+            .apply_mobile_gateway_settings(MobileAccessSettings::default(), current.clone())
+            .await
+            .unwrap();
+        let saved = actor
+            .apply_mobile_gateway_settings(current, next)
+            .await
+            .unwrap();
+
+        assert_eq!(saved.bind_host, "0.0.0.0");
+        assert!(actor.mobile_gateway.is_some());
+        actor.dispose().await;
+    }
+
+    #[tokio::test]
+    async fn mobile_gateway_binds_ipv6_loopback() {
+        let port_probe = match TcpListener::bind((Ipv6Addr::LOCALHOST, 0)).await {
+            Ok(listener) => listener,
+            Err(_) => return,
+        };
+        let port = port_probe.local_addr().unwrap().port();
+        drop(port_probe);
+        let dir = tempfile::tempdir().unwrap();
+        let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
+        let runtime_store = RuntimeStore::open(dir.path()).await.unwrap();
+        let (inbox, _rx) = mpsc::unbounded_channel();
+        let actor = ServerActor {
+            runtime_dir: dir.path().to_path_buf(),
+            control_file_path: dir.path().join("runtime-host.json"),
+            token: "token".to_string(),
+            config: TerminalHostConfig::default(),
+            store,
+            runtime_store,
+            sessions: HashMap::new(),
+            ssh_bootstrap_jobs: HashMap::new(),
+            managed_workspace_jobs: 0,
+            clients: HashMap::new(),
+            pending_output_writes: HashMap::new(),
+            inbox,
+            next_client_id: Arc::new(AtomicU64::new(1)),
+            mobile_gateway: None,
+            shutdown_gen: 0,
+            disposed: false,
+        };
+        let settings = MobileAccessSettings {
+            enabled: true,
+            bind_host: "::1".to_string(),
+            port: i64::from(port),
+            ..MobileAccessSettings::default()
+        };
+
+        let replacement = actor
+            .prepare_mobile_gateway_replacement(&settings)
+            .await
+            .unwrap();
+
+        match replacement {
+            MobileGatewayReplacement::Bound { bind_address, .. } => {
+                assert!(bind_address.starts_with("[::1]:"));
+            }
+            MobileGatewayReplacement::Disabled => panic!("expected bound mobile gateway"),
+            MobileGatewayReplacement::Keep => panic!("expected bound mobile gateway"),
+        }
     }
 }
