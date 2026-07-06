@@ -215,7 +215,9 @@ final class SocketTerminalHostClient
     if (_disposed) {
       throw StateError('Terminal host client is disposed.');
     }
-    final connection = await _connectRuntime();
+    final connection = await _connectRuntime(
+      requireOrchestration: type.startsWith('orchestration.'),
+    );
     return _requestOnConnection(connection, type, payload, timeout: timeout);
   }
 
@@ -263,37 +265,80 @@ final class SocketTerminalHostClient
     return next;
   }
 
-  Future<_TerminalHostConnection> _connectRuntime() async {
-    if (_runtimeConnection case final connection?) {
+  Future<_TerminalHostConnection> _connectRuntime({
+    bool requireOrchestration = false,
+  }) async {
+    if (_runtimeConnection case final connection?
+        when _supportsRuntime(connection, requireOrchestration)) {
       return Future<_TerminalHostConnection>.value(connection);
     }
-    if (_terminalConnection case final connection?
-        when connection.supportsRuntime) {
-      _runtimeConnection = connection;
-      return Future<_TerminalHostConnection>.value(connection);
+    if (_terminalConnection case final connection?) {
+      if (_supportsRuntime(connection, requireOrchestration)) {
+        _runtimeConnection = connection;
+        return Future<_TerminalHostConnection>.value(connection);
+      }
+      _throwIfOrchestrationWouldSplitPtyHost(connection, requireOrchestration);
     }
     final future = _runtimeConnectionFuture;
     if (future != null) {
-      return future;
+      final connection = await _waitForRuntimeConnectionFuture(
+        future,
+        requireOrchestration: requireOrchestration,
+      );
+      if (connection != null &&
+          _supportsRuntime(connection, requireOrchestration)) {
+        return connection;
+      }
     }
     final terminalFuture = _terminalConnectionFuture;
     if (terminalFuture != null) {
       final connection = await terminalFuture;
-      if (connection.supportsRuntime) {
+      if (_supportsRuntime(connection, requireOrchestration)) {
         _runtimeConnection = connection;
         return connection;
       }
+      _throwIfOrchestrationWouldSplitPtyHost(connection, requireOrchestration);
     }
-    if (_runtimeConnection case final connection?) {
+    if (_runtimeConnection case final connection?
+        when _supportsRuntime(connection, requireOrchestration)) {
       return connection;
     }
     final nextFuture = _runtimeConnectionFuture;
     if (nextFuture != null) {
-      return nextFuture;
+      final connection = await _waitForRuntimeConnectionFuture(
+        nextFuture,
+        requireOrchestration: requireOrchestration,
+      );
+      if (connection != null &&
+          _supportsRuntime(connection, requireOrchestration)) {
+        return connection;
+      }
     }
-    final next = _openRuntimeConnection();
+    late final Future<_TerminalHostConnection> next;
+    next = _openRuntimeConnection(requireOrchestration: requireOrchestration)
+        .whenComplete(() {
+          if (identical(_runtimeConnectionFuture, next)) {
+            _runtimeConnectionFuture = null;
+          }
+        });
     _runtimeConnectionFuture = next;
     return next;
+  }
+
+  Future<_TerminalHostConnection?> _waitForRuntimeConnectionFuture(
+    Future<_TerminalHostConnection> future, {
+    required bool requireOrchestration,
+  }) async {
+    try {
+      return await future;
+    } catch (_) {
+      if (requireOrchestration) {
+        rethrow;
+      }
+      // A strict orchestration probe can reject a live pre-orchestration host;
+      // normal runtime callers should retry without inheriting that error.
+      return null;
+    }
   }
 
   Future<_TerminalHostConnection> _openTerminalConnection() async {
@@ -325,21 +370,33 @@ final class SocketTerminalHostClient
         return connection;
       }
     }
-    return _launchAndConnect(runtime, runtime.controlFile);
+    return _launchAndConnect(
+      runtime,
+      runtime.controlFile,
+      requireOrchestration: false,
+    );
   }
 
-  Future<_TerminalHostConnection> _openRuntimeConnection() async {
+  Future<_TerminalHostConnection> _openRuntimeConnection({
+    bool requireOrchestration = false,
+  }) async {
     final runtime = await _runtimePaths();
     final control = await _readControl(runtime.controlFile);
-    if (control?.supportsRuntime == true) {
+    if (_controlSupportsRuntime(control, requireOrchestration)) {
       try {
         return await _connectToControl(control!, _HostConnectionRole.runtime);
       } catch (_) {
         await _deleteControlFile(runtime.controlFile);
       }
     }
+    if (requireOrchestration && control != null) {
+      if (await _controlAcceptsHello(control)) {
+        throw StateError(_orchestrationHostRestartRequiredMessage);
+      }
+      await _deleteControlFile(runtime.controlFile);
+    }
     final runtimeControl = await _readControl(runtime.runtimeControlFile);
-    if (runtimeControl?.supportsRuntime == true) {
+    if (_controlSupportsRuntime(runtimeControl, requireOrchestration)) {
       try {
         return await _connectToControl(
           runtimeControl!,
@@ -349,16 +406,26 @@ final class SocketTerminalHostClient
         await _deleteControlFile(runtime.runtimeControlFile);
       }
     }
+    if (requireOrchestration && runtimeControl != null) {
+      if (await _controlAcceptsHello(runtimeControl)) {
+        throw StateError(_orchestrationHostRestartRequiredMessage);
+      }
+      await _deleteControlFile(runtime.runtimeControlFile);
+    }
     return _launchAndConnect(
       runtime,
-      control == null ? runtime.controlFile : runtime.runtimeControlFile,
+      control == null || requireOrchestration
+          ? runtime.controlFile
+          : runtime.runtimeControlFile,
+      requireOrchestration: requireOrchestration,
     );
   }
 
   Future<_TerminalHostConnection> _launchAndConnect(
     _TerminalHostPaths runtime,
-    File controlFile,
-  ) async {
+    File controlFile, {
+    required bool requireOrchestration,
+  }) async {
     final token = _newToken();
     await _launcher.start(
       runtimeDir: runtime.runtimeDir.path,
@@ -373,7 +440,7 @@ final class SocketTerminalHostClient
       final nextControl = await _readControl(controlFile);
       if (nextControl == null ||
           nextControl.token != token ||
-          !nextControl.supportsRuntime) {
+          !_controlSupportsRuntime(nextControl, requireOrchestration)) {
         continue;
       }
       try {
@@ -400,6 +467,7 @@ final class SocketTerminalHostClient
     final connection = _TerminalHostConnection(
       socket,
       supportsRuntime: control.supportsRuntime,
+      supportsOrchestration: control.supportsOrchestration,
     );
     final lineSub = connection.lines.listen(
       (line) => _handleLine(connection, line),
@@ -433,6 +501,7 @@ final class SocketTerminalHostClient
       'payload': <String, Object?>{
         'protocolVersion': aleraTerminalHostProtocolVersion,
         'token': control.token,
+        'clientKind': 'app',
       },
     });
     return connection;
@@ -452,6 +521,13 @@ final class SocketTerminalHostClient
     if (id == 0) {
       if (message['ok'] != true) {
         _handleConnectionClosed(connection); // coverage:ignore-line
+      } else if (connection.supportsRuntime && !_runtimeEvents.isClosed) {
+        _runtimeEvents.add(
+          const RuntimeHostEvent(
+            aleraRuntimeHostConnectedEvent,
+            <String, Object?>{},
+          ),
+        );
       }
       return;
     }
@@ -566,6 +642,9 @@ final class SocketTerminalHostClient
             capabilities.contains(aleraRuntimeHostCapability) &&
             capabilities.contains(aleraRuntimeHostBootstrapCapability) &&
             capabilities.contains(aleraRuntimeHostManagedWorkspaceCapability),
+        supportsOrchestration: capabilities.contains(
+          aleraRuntimeHostOrchestrationCapability,
+        ),
       );
     } catch (_) {
       return null;
@@ -605,18 +684,82 @@ final class SocketTerminalHostClient
     unawaited(_events.close());
     unawaited(_runtimeEvents.close());
   }
+
+  bool _supportsRuntime(
+    _TerminalHostConnection connection,
+    bool requireOrchestration,
+  ) {
+    return connection.supportsRuntime &&
+        (!requireOrchestration || connection.supportsOrchestration);
+  }
+
+  bool _controlSupportsRuntime(
+    _TerminalHostControl? control,
+    bool requireOrchestration,
+  ) {
+    return control?.supportsRuntime == true &&
+        (!requireOrchestration || control!.supportsOrchestration);
+  }
+
+  void _throwIfOrchestrationWouldSplitPtyHost(
+    _TerminalHostConnection connection,
+    bool requireOrchestration,
+  ) {
+    if (requireOrchestration && !_supportsRuntime(connection, true)) {
+      throw StateError(_orchestrationHostRestartRequiredMessage);
+    }
+  }
+
+  Future<bool> _controlAcceptsHello(_TerminalHostControl control) async {
+    Socket? socket;
+    try {
+      socket = await Socket.connect(
+        InternetAddress.loopbackIPv4,
+        control.port,
+        timeout: _terminalHostConnectTimeout,
+      );
+      final lines = socket
+          .cast<List<int>>()
+          .transform(utf8.decoder)
+          .transform(const LineSplitter());
+      socket.writeln(
+        jsonEncode(<String, Object?>{
+          'id': 0,
+          'type': 'hello',
+          'payload': <String, Object?>{
+            'protocolVersion': aleraTerminalHostProtocolVersion,
+            'token': control.token,
+          },
+        }),
+      );
+      final line = await lines.first.timeout(_terminalHostConnectTimeout);
+      final message = asTerminalHostMap(
+        jsonDecode(line),
+        'Terminal host hello response',
+      );
+      return message['id'] == 0 && message['ok'] == true;
+    } catch (_) {
+      return false;
+    } finally {
+      socket?.destroy();
+    }
+  }
 }
 
 final class _TerminalHostConnection {
-  _TerminalHostConnection(this._socket, {required this.supportsRuntime})
-    : lines = _socket
-          .cast<List<int>>()
-          .transform(utf8.decoder)
-          .transform(const LineSplitter())
-          .asBroadcastStream();
+  _TerminalHostConnection(
+    this._socket, {
+    required this.supportsRuntime,
+    required this.supportsOrchestration,
+  }) : lines = _socket
+           .cast<List<int>>()
+           .transform(utf8.decoder)
+           .transform(const LineSplitter())
+           .asBroadcastStream();
 
   final Socket _socket;
   final bool supportsRuntime;
+  final bool supportsOrchestration;
   final Stream<String> lines;
 
   void write(Map<String, Object?> message) {
@@ -645,11 +788,13 @@ final class _TerminalHostControl {
     required this.port,
     required this.token,
     required this.supportsRuntime,
+    required this.supportsOrchestration,
   });
 
   final int port;
   final String token;
   final bool supportsRuntime;
+  final bool supportsOrchestration;
 }
 
 final class _PendingHostRequest {
@@ -663,3 +808,5 @@ enum _HostConnectionRole { terminal, runtime }
 
 const Duration _terminalHostConnectTimeout = Duration(seconds: 2);
 const Duration _terminalHostRequestTimeout = Duration(seconds: 10);
+const String _orchestrationHostRestartRequiredMessage =
+    'The running terminal host does not support orchestration. Restart Alera to replace the terminal host before using orchestration.';

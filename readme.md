@@ -76,6 +76,10 @@ Open multiple terminals per workspace, organised in tabs. Run Claude Code in one
 
 Managed lifecycle hooks for Claude, Codex, Amp, OpenCode, Antigravity, Cursor, Copilot and Pi stream agent events into Alera. You can see which agents are **idle, working, or waiting on input** without staring at every terminal.
 
+### 🕸️ Inter-agent orchestration
+
+Agents coordinate with each other through the `alera orchestration` CLI: persistent inter-agent messaging with push-on-idle delivery straight into agent prompts, a task DAG with dependencies, dispatch with retry tracking and a circuit breaker, human-in-the-loop decision gates, and an automated coordinator loop that drives worker agents to completion.
+
 ### 💾 Persistent terminal sessions
 
 Close Alera. Reboot. Reopen. Your terminals, their scrollback, their layouts, and the processes you launched are still there. Long-running agent runs survive restarts instead of vanishing with the window.
@@ -104,7 +108,6 @@ Alera is shipping fast. A non-exhaustive list of what's on the roadmap:
 - **Git operations UI**: stage, commit, push, resolve conflicts visually
 - **Embedded browser & browser use**: give agents a real browser to drive
 - **GitHub / GitLab / Linear / CI integrations**: PRs, issues and checks linked per worktree
-- **Orchestration between agents**: inter-agent messaging, task dispatch, coordinator loops
 - **Voice, automations, MCP management, skills, and more**
 
 See the full [roadmap](roadmap.md) for the complete picture, including difficulty/utility scoring per feature.

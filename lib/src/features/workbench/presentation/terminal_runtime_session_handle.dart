@@ -356,6 +356,22 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
           }
           await Future<void>.delayed(const Duration(milliseconds: 120));
         }
+        // Orchestration-created worker tabs carry an initial command (e.g. an
+        // agent CLI). It runs only when the PTY process was newly created —
+        // never on reattach — and as a plain shell command so the terminal
+        // stays interactive after the agent exits.
+        final initialCommand = _tab.initialCommand;
+        if (_running &&
+            session.startedNewProcess &&
+            initialCommand != null &&
+            initialCommand.isNotEmpty) {
+          await Future<void>.delayed(const Duration(milliseconds: 120));
+          if (!_disposed &&
+              _activePtyGeneration == generation &&
+              identical(_ptySession, session)) {
+            session.writeBytes(utf8.encode('$initialCommand\n'));
+          }
+        }
         return !_disposed &&
             _activePtyGeneration == generation &&
             identical(_ptySession, session);

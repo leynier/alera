@@ -10,6 +10,8 @@ const String aleraRuntimeHostCapability = 'runtimeStore';
 const String aleraRuntimeHostBootstrapCapability = 'sshTargetBootstrap';
 const String aleraRuntimeHostManagedWorkspaceCapability =
     'managedWorkspaceLifecycle';
+const String aleraRuntimeHostOrchestrationCapability = 'orchestration';
+const String aleraRuntimeHostConnectedEvent = 'runtimeHostConnected';
 const int defaultTerminalHostEmptyShutdownDelaySeconds = 30;
 const int defaultTerminalHostDetachedSessionShutdownDelaySeconds = 60 * 60;
 const int defaultTerminalHostScrollbackBytes = 10 * 1000 * 1000;

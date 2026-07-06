@@ -36,6 +36,7 @@ dependencies = [
  "chrono",
  "clap",
  "ed25519-dalek",
+ "git2",
  "hex",
  "portable-pty",
  "reqwest",

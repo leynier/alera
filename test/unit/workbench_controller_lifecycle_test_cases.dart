@@ -202,6 +202,42 @@ void _registerWorkbenchControllerLifecycleTests() {
     );
   });
 
+  test('retries eager terminal spawn after startup error', () async {
+    await _controller.bootstrap();
+    final workspace = await _selectMainWorkspace(_controller, _harness);
+    await _flushUntil(
+      () => _harness.workbenchRepository.hasTabWatcher(workspace.id),
+    );
+    final tab = WorkspaceTabRecord(
+      id: 'spawn-tab',
+      workspaceId: workspace.id,
+      title: 'Worker',
+      createdAt: DateTime.utc(2026, 5, 22, 2),
+      updatedAt: DateTime.utc(2026, 5, 22, 2),
+      payload: const <String, Object?>{
+        workspaceTabTerminalSessionIdPayloadKey: 'spawn-session',
+        workspaceTabInitialCommandPayloadKey: 'claude',
+        workspaceTabSpawnOnCreatePayloadKey: true,
+      },
+    );
+    final session =
+        _harness.terminalRuntime.sessionFor(workspace: workspace, tab: tab)
+            as _FakeTerminalSessionHandle;
+    session.failStarts = true;
+
+    await _harness.workbenchRepository.upsertWorkspaceTab(tab);
+    await _flushUntil(() => session.ensureStartedCalls == 1);
+    expect(session.isRunning, isFalse);
+    expect(session.errorMessage, isNotNull);
+
+    session.failStarts = false;
+    _harness.workbenchRepository.emitTabs(workspace.id);
+    await _flushUntil(() => session.ensureStartedCalls == 2);
+
+    expect(session.isRunning, isTrue);
+    expect(session.errorMessage, isNull);
+  });
+
   test('path sync closes markdown viewer tabs renamed away from md', () async {
     await _controller.bootstrap();
     final workspace = await _selectMainWorkspace(_controller, _harness);

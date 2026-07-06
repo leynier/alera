@@ -91,6 +91,7 @@ void main() {
       'detach',
       'terminate',
     ]);
+    expect(server.payloadFor('hello')['clientKind'], 'app');
     final createPayload = server.payloadFor('createOrAttach');
     expect(createPayload['workingDirectory'], '/repo');
     expect(createPayload['cols'], 80);
@@ -132,6 +133,7 @@ void main() {
       applicationSupportDirectory: () async => tempDir,
     );
     addTearDown(client.dispose);
+    final connectedEvent = client.runtimeEvents.first;
     const config = TerminalHostConfig(
       emptyShutdownDelaySeconds: 5,
       detachedSessionShutdownDelaySeconds: 10,
@@ -144,6 +146,7 @@ void main() {
     expect(launcher.configs.single.toJson(), config.toJson());
     expect(server.requestTypes, <String>['hello', 'configure']);
     expect(server.payloadFor('configure'), config.toJson());
+    expect((await connectedEvent).name, aleraRuntimeHostConnectedEvent);
   });
 
   test(
@@ -624,6 +627,264 @@ void main() {
   );
 
   test(
+    'does not split orchestration from a live PTY host without capability',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'alera-host-client-no-orchestration-capability-',
+      );
+      addTearDown(() async {
+        if (await tempDir.exists()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+      final legacyServer = await _TerminalHostTestServer.start();
+      addTearDown(legacyServer.dispose);
+      await _writeControlFile(
+        tempDir: tempDir,
+        port: legacyServer.port,
+        token: 'legacy-token',
+        includeRuntimeCapability: true,
+        includeBootstrapCapability: true,
+        includeManagedWorkspaceCapability: true,
+        includeOrchestrationCapability: false,
+      );
+      final launcher = _NoopTerminalHostLauncher();
+      final client = SocketTerminalHostClient(
+        launcher: launcher,
+        applicationSupportDirectory: () async => tempDir,
+      );
+      addTearDown(client.dispose);
+
+      await expectLater(
+        client.runtimeRequest('orchestration.agentStatus', <String, Object?>{
+          'entries': const <Object?>[],
+        }),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains('Restart Alera'),
+          ),
+        ),
+      );
+
+      expect(launcher.starts, 0);
+      expect(legacyServer.requestTypes, <String>['hello']);
+    },
+  );
+
+  test(
+    'does not split orchestration from a live runtime control without capability',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'alera-host-client-runtime-no-orchestration-capability-',
+      );
+      addTearDown(() async {
+        if (await tempDir.exists()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+      final legacyServer = await _TerminalHostTestServer.start();
+      addTearDown(legacyServer.dispose);
+      await _writeControlFile(
+        tempDir: tempDir,
+        fileName: 'runtime-host.json',
+        port: legacyServer.port,
+        token: 'legacy-token',
+        includeRuntimeCapability: true,
+        includeBootstrapCapability: true,
+        includeManagedWorkspaceCapability: true,
+        includeOrchestrationCapability: false,
+      );
+      final launcher = _NoopTerminalHostLauncher();
+      final client = SocketTerminalHostClient(
+        launcher: launcher,
+        applicationSupportDirectory: () async => tempDir,
+      );
+      addTearDown(client.dispose);
+
+      await expectLater(
+        client.runtimeRequest('orchestration.agentStatus', <String, Object?>{
+          'entries': const <Object?>[],
+        }),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains('Restart Alera'),
+          ),
+        ),
+      );
+
+      expect(launcher.starts, 0);
+      expect(legacyServer.requestTypes, <String>['hello']);
+    },
+  );
+
+  test(
+    'failed orchestration capability checks do not poison runtime requests',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'alera-host-client-orchestration-failure-runtime-retry-',
+      );
+      addTearDown(() async {
+        if (await tempDir.exists()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+      final legacyServer = await _TerminalHostTestServer.start();
+      addTearDown(legacyServer.dispose);
+      await _writeControlFile(
+        tempDir: tempDir,
+        port: legacyServer.port,
+        token: 'legacy-token',
+        includeRuntimeCapability: true,
+        includeBootstrapCapability: true,
+        includeManagedWorkspaceCapability: true,
+        includeOrchestrationCapability: false,
+      );
+      final launcher = _NoopTerminalHostLauncher();
+      final client = SocketTerminalHostClient(
+        launcher: launcher,
+        applicationSupportDirectory: () async => tempDir,
+      );
+      addTearDown(client.dispose);
+
+      await expectLater(
+        client.runtimeRequest('orchestration.agentStatus', <String, Object?>{
+          'entries': const <Object?>[],
+        }),
+        throwsA(isA<StateError>()),
+      );
+      await client.runtimeRequest('project.list');
+
+      expect(launcher.starts, 0);
+      expect(legacyServer.requestTypes, <String>[
+        'hello',
+        'hello',
+        'project.list',
+      ]);
+    },
+  );
+
+  test(
+    'normal runtime requests ignore in-flight orchestration capability failures',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'alera-host-client-inflight-orchestration-failure-runtime-',
+      );
+      addTearDown(() async {
+        if (await tempDir.exists()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+      final releaseHello = Completer<void>();
+      final legacyServer = await _TerminalHostTestServer.start(
+        beforeResponse: (type) async {
+          if (type == 'hello') {
+            await releaseHello.future;
+          }
+        },
+      );
+      addTearDown(legacyServer.dispose);
+      await _writeControlFile(
+        tempDir: tempDir,
+        port: legacyServer.port,
+        token: 'legacy-token',
+        includeRuntimeCapability: true,
+        includeBootstrapCapability: true,
+        includeManagedWorkspaceCapability: true,
+        includeOrchestrationCapability: false,
+      );
+      final launcher = _NoopTerminalHostLauncher();
+      final client = SocketTerminalHostClient(
+        launcher: launcher,
+        applicationSupportDirectory: () async => tempDir,
+      );
+      addTearDown(client.dispose);
+
+      final orchestrationRequest = client.runtimeRequest(
+        'orchestration.agentStatus',
+        <String, Object?>{'entries': const <Object?>[]},
+      );
+      await _waitForServerRequestCount(legacyServer, 1);
+      final runtimeRequest = client.runtimeRequest('project.list');
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      releaseHello.complete();
+      await expectLater(orchestrationRequest, throwsA(isA<StateError>()));
+      await runtimeRequest;
+
+      expect(launcher.starts, 0);
+      expect(legacyServer.requestTypes, <String>[
+        'hello',
+        'hello',
+        'project.list',
+      ]);
+    },
+  );
+
+  test(
+    'does not split orchestration from an in-flight host without capability',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'alera-host-client-inflight-no-orchestration-',
+      );
+      addTearDown(() async {
+        if (await tempDir.exists()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+      final legacyServer = await _TerminalHostTestServer.start();
+      addTearDown(legacyServer.dispose);
+      final runtimeServer = await _TerminalHostTestServer.start();
+      addTearDown(runtimeServer.dispose);
+      final releaseFirstLaunch = Completer<void>();
+      final launcher = _QueuedTerminalHostLauncher(<_QueuedTerminalHostLaunch>[
+        _QueuedTerminalHostLaunch(
+          server: legacyServer,
+          beforePublish: releaseFirstLaunch.future,
+          includeOrchestrationCapability: false,
+        ),
+        _QueuedTerminalHostLaunch(server: runtimeServer),
+      ]);
+      final client = SocketTerminalHostClient(
+        launcher: launcher,
+        applicationSupportDirectory: () async => tempDir,
+      );
+      addTearDown(client.dispose);
+
+      final firstRequest = client.runtimeRequest('project.list');
+      await _waitForQueuedLauncherStarts(launcher, 1);
+      final orchestrationRequest = client.runtimeRequest(
+        'orchestration.agentStatus',
+        <String, Object?>{'entries': const <Object?>[]},
+      );
+      releaseFirstLaunch.complete();
+
+      await firstRequest;
+      await expectLater(
+        orchestrationRequest,
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains('Restart Alera'),
+          ),
+        ),
+      );
+
+      expect(launcher.starts, 1);
+      expect(legacyServer.requestTypes, <String>[
+        'hello',
+        'project.list',
+        'hello',
+      ]);
+      expect(runtimeServer.requestTypes, isEmpty);
+    },
+  );
+
+  test(
     'reuses a runtime control for terminal requests when no legacy exists',
     () async {
       final tempDir = await Directory.systemTemp.createTemp(
@@ -688,13 +949,38 @@ Future<void> _waitForLauncherStart(_FakeTerminalHostLauncher launcher) async {
   expect(launcher.starts, greaterThan(0));
 }
 
+Future<void> _waitForQueuedLauncherStarts(
+  _QueuedTerminalHostLauncher launcher,
+  int expected,
+) async {
+  final deadline = DateTime.now().add(const Duration(seconds: 1));
+  while (launcher.starts < expected && DateTime.now().isBefore(deadline)) {
+    await Future<void>.delayed(const Duration(milliseconds: 1));
+  }
+  expect(launcher.starts, greaterThanOrEqualTo(expected));
+}
+
+Future<void> _waitForServerRequestCount(
+  _TerminalHostTestServer server,
+  int expected,
+) async {
+  final deadline = DateTime.now().add(const Duration(seconds: 1));
+  while (server.requests.length < expected &&
+      DateTime.now().isBefore(deadline)) {
+    await Future<void>.delayed(const Duration(milliseconds: 1));
+  }
+  expect(server.requests.length, greaterThanOrEqualTo(expected));
+}
+
 Future<void> _writeControlFile({
   required Directory tempDir,
+  String fileName = 'host.json',
   required int port,
   required String token,
   bool includeRuntimeCapability = true,
   bool includeBootstrapCapability = true,
   bool includeManagedWorkspaceCapability = true,
+  bool includeOrchestrationCapability = true,
 }) async {
   final runtimeDir = Directory(p.join(tempDir.path, 'terminal_host'));
   await runtimeDir.create(recursive: true);
@@ -709,13 +995,15 @@ Future<void> _writeControlFile({
       if (includeBootstrapCapability) aleraRuntimeHostBootstrapCapability,
       if (includeManagedWorkspaceCapability)
         aleraRuntimeHostManagedWorkspaceCapability,
+      if (includeOrchestrationCapability)
+        aleraRuntimeHostOrchestrationCapability,
     ],
   ];
   if (capabilities.isNotEmpty) {
     payload['runtimeCapabilities'] = capabilities;
   }
   await File(
-    p.join(runtimeDir.path, 'host.json'),
+    p.join(runtimeDir.path, fileName),
   ).writeAsString(jsonEncode(payload));
 }
 
@@ -750,6 +1038,54 @@ final class _FakeTerminalHostLauncher implements TerminalHostProcessLauncher {
           aleraRuntimeHostCapability,
           aleraRuntimeHostBootstrapCapability,
           aleraRuntimeHostManagedWorkspaceCapability,
+          aleraRuntimeHostOrchestrationCapability,
+        ],
+      }),
+    );
+  }
+}
+
+final class _QueuedTerminalHostLaunch {
+  const _QueuedTerminalHostLaunch({
+    required this.server,
+    this.beforePublish,
+    this.includeOrchestrationCapability = true,
+  });
+
+  final _TerminalHostTestServer server;
+  final Future<void>? beforePublish;
+  final bool includeOrchestrationCapability;
+}
+
+final class _QueuedTerminalHostLauncher implements TerminalHostProcessLauncher {
+  _QueuedTerminalHostLauncher(this._launches);
+
+  final List<_QueuedTerminalHostLaunch> _launches;
+  int starts = 0;
+
+  @override
+  Future<void> start({
+    required String runtimeDir,
+    required String controlFilePath,
+    required String token,
+    required TerminalHostConfig config,
+  }) async {
+    final launch = _launches[starts];
+    starts += 1;
+    launch.server.token = token;
+    await launch.beforePublish;
+    await File(controlFilePath).parent.create(recursive: true);
+    await File(controlFilePath).writeAsString(
+      jsonEncode(<String, Object?>{
+        'protocolVersion': aleraTerminalHostProtocolVersion,
+        'port': launch.server.port,
+        'token': token,
+        'runtimeCapabilities': <String>[
+          aleraRuntimeHostCapability,
+          aleraRuntimeHostBootstrapCapability,
+          aleraRuntimeHostManagedWorkspaceCapability,
+          if (launch.includeOrchestrationCapability)
+            aleraRuntimeHostOrchestrationCapability,
         ],
       }),
     );
@@ -775,17 +1111,20 @@ final class _TerminalHostTestServer {
     this._server, {
     this.errorForType,
     this.closeForType,
+    this.beforeResponse,
   });
 
   static Future<_TerminalHostTestServer> start({
     String? errorForType,
     String? closeForType,
+    Future<void> Function(String type)? beforeResponse,
   }) async {
     final socket = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
     final server = _TerminalHostTestServer._(
       socket,
       errorForType: errorForType,
       closeForType: closeForType,
+      beforeResponse: beforeResponse,
     );
     server._sub = socket.listen(server._accept, onError: (_) {});
     return server;
@@ -794,6 +1133,7 @@ final class _TerminalHostTestServer {
   final ServerSocket _server;
   final String? errorForType;
   final String? closeForType;
+  final Future<void> Function(String type)? beforeResponse;
   final List<Map<String, Object?>> requests = <Map<String, Object?>>[];
   StreamSubscription<Socket>? _sub;
   Socket? _client;
@@ -818,22 +1158,26 @@ final class _TerminalHostTestServer {
         .cast<List<int>>()
         .transform(utf8.decoder)
         .transform(const LineSplitter())
-        .listen(_handleLine, onError: (_) {});
+        .listen(
+          (line) => unawaited(_handleLine(socket, line)),
+          onError: (_) {},
+        );
   }
 
-  void _handleLine(String line) {
+  Future<void> _handleLine(Socket socket, String line) async {
     final request = Map<String, Object?>.from(jsonDecode(line) as Map);
     final payload = Map<String, Object?>.from(request['payload'] as Map);
     request['payload'] = payload;
     requests.add(request);
     final id = request['id'] as int;
     final type = request['type'] as String;
+    await beforeResponse?.call(type);
     if (type == closeForType) {
-      _client!.destroy();
+      socket.destroy();
       return;
     }
     if (type == errorForType) {
-      _client!.writeln(
+      socket.writeln(
         jsonEncode(<String, Object?>{
           'id': id,
           'ok': false,
@@ -843,7 +1187,7 @@ final class _TerminalHostTestServer {
       return;
     }
     if (type == 'createOrAttach') {
-      _client!.writeln(
+      socket.writeln(
         jsonEncode(<String, Object?>{
           'id': id,
           'ok': true,
@@ -858,7 +1202,7 @@ final class _TerminalHostTestServer {
       return;
     }
     if (type == 'setOutputPaused') {
-      _client!.writeln(
+      socket.writeln(
         jsonEncode(<String, Object?>{
           'id': id,
           'ok': true,
@@ -870,7 +1214,7 @@ final class _TerminalHostTestServer {
       );
       return;
     }
-    _client!.writeln(
+    socket.writeln(
       jsonEncode(<String, Object?>{
         'id': id,
         'ok': true,

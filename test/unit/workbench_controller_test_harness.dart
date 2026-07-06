@@ -64,6 +64,7 @@ class _WorkbenchHarness {
         workspaceDirectory: p.join(tempDir.path, 'workspaces'),
       ),
     );
+    terminalRuntime = _FakeTerminalRuntime();
     container = ProviderContainer(
       overrides: [
         gitBackendProvider.overrideWithValue(gitBackend),
@@ -87,6 +88,7 @@ class _WorkbenchHarness {
           viewPrefsRepository,
         ),
         settingsControllerProvider.overrideWithValue(settings),
+        terminalRuntimeProvider.overrideWithValue(terminalRuntime),
       ],
     );
     _controller = container.read(workbenchControllerProvider.notifier);
@@ -100,6 +102,7 @@ class _WorkbenchHarness {
   late final FakeGitBackend gitBackend;
   late final _FakeWorkbenchViewPrefsRepository viewPrefsRepository;
   late final _FakeWorktreeSetupRunner worktreeSetupRunner;
+  late final _FakeTerminalRuntime terminalRuntime;
   late final ProviderContainer container;
   late final WorkbenchController _controller;
 
@@ -119,12 +122,125 @@ class _WorkbenchHarness {
 
   Future<void> dispose() async {
     container.dispose();
+    await terminalRuntime.dispose();
     await projectRepository.dispose();
     await workbenchRepository.dispose();
     if (tempDir.existsSync()) {
       tempDir.deleteSync(recursive: true);
     }
   }
+}
+
+class _FakeTerminalRuntime implements TerminalRuntime {
+  final Map<String, _FakeTerminalSessionHandle> sessions =
+      <String, _FakeTerminalSessionHandle>{};
+  final StreamController<TerminalRuntimeExitEvent> _exits =
+      StreamController<TerminalRuntimeExitEvent>.broadcast();
+
+  @override
+  Stream<TerminalRuntimeExitEvent> get exits => _exits.stream;
+
+  @override
+  TerminalSessionHandle sessionFor({
+    required Workspace workspace,
+    required WorkspaceTabRecord tab,
+  }) {
+    return sessions.putIfAbsent(
+      tab.id,
+      () => _FakeTerminalSessionHandle(
+        tabId: tab.id,
+        workspaceId: workspace.id,
+        displayTitle: tab.title,
+      ),
+    );
+  }
+
+  @override
+  void closeTab(String tabId) {
+    sessions.remove(tabId)?.dispose();
+  }
+
+  @override
+  void closeWorkspace(String workspaceId) {
+    final tabIds = <String>[
+      for (final entry in sessions.entries)
+        if (entry.value.workspaceId == workspaceId) entry.key,
+    ];
+    for (final tabId in tabIds) {
+      closeTab(tabId);
+    }
+  }
+
+  @override
+  Future<void> dispose() => _exits.close();
+}
+
+class _FakeTerminalSessionHandle extends TerminalSessionHandle {
+  _FakeTerminalSessionHandle({
+    required this.tabId,
+    required this.workspaceId,
+    required this.displayTitle,
+  });
+
+  @override
+  final String tabId;
+
+  @override
+  final String workspaceId;
+
+  @override
+  final String displayTitle;
+
+  int ensureStartedCalls = 0;
+  bool failStarts = false;
+  bool _running = false;
+  String? _errorMessage;
+
+  @override
+  bool get isRunning => _running;
+
+  @override
+  bool get isStarting => false;
+
+  @override
+  String? get errorMessage => _errorMessage;
+
+  @override
+  Future<void> ensureStarted() async {
+    ensureStartedCalls += 1;
+    if (failStarts) {
+      _running = false;
+      _errorMessage = 'failed to start';
+      notifyListeners();
+      return;
+    }
+    _running = true;
+    _errorMessage = null;
+    notifyListeners();
+  }
+
+  @override
+  Future<void> restart() async {
+    _running = false;
+    await ensureStarted();
+  }
+
+  @override
+  TerminalVisibilityLease acquireVisibility() {
+    return const NoopTerminalVisibilityLease();
+  }
+
+  @override
+  Widget buildView({
+    Key? key,
+    bool autofocus = false,
+    FocusOnKeyEventCallback? onKeyEvent,
+  }) {
+    return SizedBox(key: key);
+  }
+
+  @override
+  void requestFocus() {}
 }
 
 class _FakeWorkspaceGraphRepository implements WorkspaceGraphRepository {

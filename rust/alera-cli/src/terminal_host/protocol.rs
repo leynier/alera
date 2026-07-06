@@ -12,6 +12,9 @@ pub const PROTOCOL_VERSION: i64 = 3;
 pub const RUNTIME_HOST_CAPABILITY: &str = "runtimeStore";
 pub const RUNTIME_HOST_BOOTSTRAP_CAPABILITY: &str = "sshTargetBootstrap";
 pub const RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY: &str = "managedWorkspaceLifecycle";
+// Advertised additively: older hosts stay usable for non-orchestration verbs,
+// so clients must feature-check this capability instead of the protocol version.
+pub const RUNTIME_HOST_ORCHESTRATION_CAPABILITY: &str = "orchestration";
 
 // Retained for the later packaging/resolver phase (sidecar discovery).
 #[allow(dead_code)]

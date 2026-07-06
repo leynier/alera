@@ -6,7 +6,7 @@ use serde_json::json;
 
 use crate::terminal_host::protocol::{
     PROTOCOL_VERSION, RUNTIME_HOST_BOOTSTRAP_CAPABILITY, RUNTIME_HOST_CAPABILITY,
-    RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
+    RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY, RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
 };
 
 /// Publishes the host's socket metadata to the control file the app reads.
@@ -23,6 +23,7 @@ pub fn write_control_file(path: &Path, port: u16, token: &str) -> std::io::Resul
             RUNTIME_HOST_CAPABILITY,
             RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
             RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
+            RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
         ],
         "startedAt": Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true),
     });
@@ -68,6 +69,7 @@ mod tests {
                 RUNTIME_HOST_CAPABILITY,
                 RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
                 RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
+                RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
             ])
         );
         assert_eq!(value["pid"], json!(std::process::id()));

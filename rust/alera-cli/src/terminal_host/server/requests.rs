@@ -16,6 +16,7 @@ use crate::terminal_host::protocol::{
     decode_bytes, error_response, event, int_or, ok_response, require_object, TerminalHostConfig,
     TerminalHostLaunch, PROTOCOL_VERSION, RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
     RUNTIME_HOST_CAPABILITY, RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
+    RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
 };
 use crate::terminal_host::session::Session;
 
@@ -62,6 +63,22 @@ impl ServerActor {
                             }
                             return;
                         }
+                    }
+                    if request_type.starts_with("orchestration.") {
+                        match self
+                            .handle_orchestration_request(client_id, id, &request_type, &payload)
+                            .await
+                        {
+                            // A parked waiter answers later (wake or timeout).
+                            Ok(None) => return,
+                            Ok(Some(value)) => {
+                                self.client_write(client_id, ok_response(id, value));
+                            }
+                            Err(error) => {
+                                self.client_write(client_id, error_response(id, &error));
+                            }
+                        }
+                        return;
                     }
                 }
                 self.handle_request(client_id, &request_type, &payload)
@@ -211,6 +228,8 @@ impl ServerActor {
                 }
                 if let Some(client) = self.clients.get_mut(&client_id) {
                     client.authenticated = true;
+                    client.app_client =
+                        payload.get("clientKind").and_then(Value::as_str) == Some("app");
                 }
                 self.cancel_shutdown_timer();
                 Ok(json!({}))
@@ -275,6 +294,11 @@ impl ServerActor {
                 let session_id = self.require_session(payload)?;
                 self.flush_output_batch(&session_id);
                 self.await_output_writes(&session_id).await;
+                self.cleanup_orchestration_for_closed_session(
+                    &session_id,
+                    "terminal was explicitly terminated",
+                )
+                .await;
                 let store = self.store.clone();
                 if let Some(mut session) = self.sessions.remove(&session_id) {
                     session.terminate(true, &store).await;
@@ -291,6 +315,7 @@ impl ServerActor {
                         RUNTIME_HOST_CAPABILITY,
                         RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
                         RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
+                        RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
                     ],
                     "authenticated": true,
                 }))

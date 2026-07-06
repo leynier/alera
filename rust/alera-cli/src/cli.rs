@@ -1,5 +1,6 @@
 use clap::{Args, Parser, Subcommand, ValueEnum};
 
+use crate::cli_orchestration::OrchestrationCommand;
 use crate::terminal_host::protocol::{
     DEFAULT_DETACHED_SESSION_SHUTDOWN_DELAY_SECONDS, DEFAULT_EMPTY_SHUTDOWN_DELAY_SECONDS,
     DEFAULT_SCROLLBACK_BYTES, TERMINAL_HOST_COMMAND,
@@ -45,6 +46,9 @@ pub enum Command {
     /// Manage SSH targets known by the Home Runtime.
     #[command(name = "ssh-target")]
     SshTarget(SshTargetCommand),
+
+    /// Inter-agent orchestration: messaging, task DAG, dispatch, gates, coordinator.
+    Orchestration(OrchestrationCommand),
 }
 
 /// Arguments for `alera runtime-host` and `alera terminal-host`. Names and
@@ -341,6 +345,14 @@ pub struct TabCreateArgs {
     pub title: String,
     #[arg(long, default_value = "terminal")]
     pub kind: String,
+    /// Initial command executed in the terminal after the shell starts
+    /// (terminal tabs only), e.g. an agent CLI like "claude".
+    #[arg(long, value_name = "text")]
+    pub command: Option<String>,
+    /// Start the terminal session as soon as the tab is created, even
+    /// before it becomes visible in the app.
+    #[arg(long)]
+    pub spawn: bool,
 }
 
 #[derive(Debug, Args)]
