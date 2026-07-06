@@ -1,5 +1,33 @@
 part of 'welcome_dashboard.dart';
 
+const int _maxDashboardItems = 5;
+
+class _MoreItemsHint extends StatelessWidget {
+  const _MoreItemsHint({required this.count, this.padding});
+
+  final int count;
+
+  final EdgeInsets? padding;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding:
+          padding ??
+          const EdgeInsets.symmetric(
+            horizontal: AleraTokens.space16,
+            vertical: AleraTokens.space8,
+          ),
+      child: Text(
+        '+$count More',
+        style: Theme.of(
+          context,
+        ).textTheme.bodySmall?.copyWith(color: AleraTokens.foregroundFaint),
+      ),
+    );
+  }
+}
+
 class _Header extends StatelessWidget {
   const _Header({required this.theme});
 
@@ -119,6 +147,10 @@ class _RightColumn extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final projects = state.projects;
+    final visibleProjectCount = projects.length > _maxDashboardItems
+        ? _maxDashboardItems
+        : projects.length;
+    final hiddenProjectCount = projects.length - visibleProjectCount;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -164,10 +196,14 @@ class _RightColumn extends ConsumerWidget {
               : ListView.separated(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  itemCount: projects.length,
+                  itemCount:
+                      visibleProjectCount + (hiddenProjectCount > 0 ? 1 : 0),
                   separatorBuilder: (context, index) =>
                       const Divider(height: 1, color: AleraTokens.borderSubtle),
                   itemBuilder: (context, index) {
+                    if (index == visibleProjectCount) {
+                      return _MoreItemsHint(count: hiddenProjectCount);
+                    }
                     final Project project = projects[index];
                     final workspaces = state.workspacesFor(project.id);
 
@@ -215,7 +251,9 @@ class _RightColumn extends ConsumerWidget {
                           else
                             Column(
                               children: [
-                                for (final Workspace ws in workspaces)
+                                for (final Workspace ws in workspaces.take(
+                                  _maxDashboardItems,
+                                ))
                                   Padding(
                                     padding: const EdgeInsets.only(
                                       top: AleraTokens.space4,
@@ -327,6 +365,15 @@ class _RightColumn extends ConsumerWidget {
                                           ],
                                         ],
                                       ),
+                                    ),
+                                  ),
+                                if (workspaces.length > _maxDashboardItems)
+                                  _MoreItemsHint(
+                                    count:
+                                        workspaces.length - _maxDashboardItems,
+                                    padding: const EdgeInsets.only(
+                                      left: AleraTokens.space12,
+                                      top: AleraTokens.space4,
                                     ),
                                   ),
                               ],

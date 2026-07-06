@@ -145,6 +145,78 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('caps the project list at five with a +N More hint', (
+    tester,
+  ) async {
+    final now = DateTime.utc(2026, 5, 22);
+    final projects = <Project>[
+      for (var i = 1; i <= 7; i++)
+        Project(
+          id: 'project-$i',
+          name: 'Project $i',
+          repoPath: '/repo/project-$i',
+          createdAt: now,
+          updatedAt: now,
+        ),
+    ];
+
+    await pumpDashboard(
+      tester,
+      state: WorkbenchState(
+        projects: projects,
+        workspacesByProject: const <String, List<Workspace>>{},
+        bootstrapped: true,
+      ),
+    );
+
+    expect(find.text('Project 1'), findsOneWidget);
+    expect(find.text('Project 5'), findsOneWidget);
+    expect(find.text('Project 6'), findsNothing);
+    expect(find.text('Project 7'), findsNothing);
+    expect(find.text('+2 More'), findsOneWidget);
+  });
+
+  testWidgets('caps the workspace list at five with a +N More hint', (
+    tester,
+  ) async {
+    final now = DateTime.utc(2026, 5, 22);
+    final project = Project(
+      id: 'project-1',
+      name: 'Alera',
+      repoPath: '/repo/alera',
+      createdAt: now,
+      updatedAt: now,
+    );
+    final workspaces = <Workspace>[
+      for (var i = 1; i <= 7; i++)
+        Workspace(
+          id: 'workspace-$i',
+          projectId: project.id,
+          name: 'Workspace $i',
+          path: '/repo/alera/ws-$i',
+          createdAt: now,
+          updatedAt: now,
+          kind: WorkspaceKind.linked,
+          status: WorkspaceStatus.active,
+        ),
+    ];
+
+    await pumpDashboard(
+      tester,
+      state: WorkbenchState(
+        projects: <Project>[project],
+        workspacesByProject: <String, List<Workspace>>{project.id: workspaces},
+        bootstrapped: true,
+      ),
+    );
+
+    expect(find.text('Workspace 1'), findsOneWidget);
+    expect(find.text('Workspace 5'), findsOneWidget);
+    expect(find.text('Workspace 6'), findsNothing);
+    expect(find.text('Workspace 7'), findsNothing);
+    expect(find.text('+2 More'), findsOneWidget);
+  });
 }
 
 class _WelcomeDashboardController extends WorkbenchController {

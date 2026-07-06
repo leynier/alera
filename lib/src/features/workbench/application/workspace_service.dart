@@ -143,7 +143,7 @@ class WorkspaceService {
                 Workspace(
                   id: _uuid.v4(),
                   projectId: project.id,
-                  name: 'Main',
+                  name: project.name,
                   branch: branch,
                   path: project.repoPath,
                   createdAt: now,
