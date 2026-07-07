@@ -1,0 +1,3 @@
+interface:
+  display_name: "Alera Orchestration"
+  short_description: "Coordinate multiple coding agents through Alera messaging, task DAGs, dispatch, and gates."

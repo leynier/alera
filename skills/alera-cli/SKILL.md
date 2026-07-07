@@ -15,6 +15,8 @@ When creating or removing Alera workspaces, use `alera workspace add` and `alera
 
 Start with runtime and inventory checks:
 
+These commands are the same from Bash, PowerShell, and CMD:
+
 ```bash
 alera runtime status
 alera project list
@@ -23,33 +25,83 @@ alera workspace list --all
 
 Use `--json` when you need machine-readable output:
 
+These commands are the same from Bash, PowerShell, and CMD:
+
 ```bash
 alera project --json list
 alera workspace --json list --all
 ```
 
-Outside Alera terminals, set `ALERA_RUNTIME_DIR` or pass `--runtime-dir` after the command group:
+Outside Alera terminals, set `ALERA_RUNTIME_DIR` or pass `--runtime-dir` after the command group.
+
+From Linux, macOS, or WSL:
 
 ```bash
 ALERA_RUNTIME_DIR="$HOME/.alera/runtime" alera workspace list --all
 alera workspace --runtime-dir "$HOME/.alera/runtime" list --all
 ```
 
+From PowerShell:
+
+```powershell
+$env:ALERA_RUNTIME_DIR = "$HOME\.alera\runtime"
+alera workspace list --all
+alera workspace --runtime-dir "$HOME\.alera\runtime" list --all
+```
+
+From `cmd.exe`:
+
+```cmd
+set "ALERA_RUNTIME_DIR=%USERPROFILE%\.alera\runtime"
+alera workspace list --all
+alera workspace --runtime-dir "%USERPROFILE%\.alera\runtime" list --all
+```
+
 ## Projects
 
 Register a Git project:
 
+From Linux, macOS, or WSL:
+
 ```bash
-alera project add --name "Alera" --repo-path /path/to/repo --kind git-repository
+alera project add --name "Alera" --repo-path "$HOME/Projects/Alera" --kind git-repository
+```
+
+From PowerShell:
+
+```powershell
+alera project add --name "Alera" --repo-path "$HOME\Projects\Alera" --kind git-repository
+```
+
+From `cmd.exe`:
+
+```cmd
+alera project add --name "Alera" --repo-path "%USERPROFILE%\Projects\Alera" --kind git-repository
 ```
 
 Register a local folder project that is not treated as a Git repository:
 
+From Linux, macOS, or WSL:
+
 ```bash
-alera project add --name "Notes" --repo-path /path/to/folder --kind folder
+alera project add --name "Notes" --repo-path "$HOME/Notes" --kind folder
+```
+
+From PowerShell:
+
+```powershell
+alera project add --name "Notes" --repo-path "$HOME\Notes" --kind folder
+```
+
+From `cmd.exe`:
+
+```cmd
+alera project add --name "Notes" --repo-path "%USERPROFILE%\Notes" --kind folder
 ```
 
 Remove a project and its runtime-owned child records:
+
+This command is the same from Bash, PowerShell, and CMD:
 
 ```bash
 alera project remove --id <project-id>
@@ -59,25 +111,57 @@ alera project remove --id <project-id>
 
 Create a new Git worktree workspace from a source branch:
 
+This command is the same from Bash, PowerShell, and CMD when no explicit path is passed:
+
 ```bash
 alera workspace add --project-id <project-id> --branch <new-branch> --source-branch <source-branch> --name "<display-name>"
 ```
 
 Use an exact destination path only when the user requests it:
 
+From Linux, macOS, or WSL:
+
 ```bash
-alera workspace add --project-id <project-id> --branch <new-branch> --source-branch <source-branch> --path /exact/workspace/path
+alera workspace add --project-id <project-id> --branch <new-branch> --source-branch <source-branch> --path "$HOME/Projects/workspaces/new-workspace"
+```
+
+From PowerShell:
+
+```powershell
+alera workspace add --project-id <project-id> --branch <new-branch> --source-branch <source-branch> --path "$HOME\Projects\workspaces\new-workspace"
+```
+
+From `cmd.exe`:
+
+```cmd
+alera workspace add --project-id <project-id> --branch <new-branch> --source-branch <source-branch> --path "%USERPROFILE%\Projects\workspaces\new-workspace"
 ```
 
 Use a temporary root override when the user wants the default naming scheme under a different root:
 
+From Linux, macOS, or WSL:
+
 ```bash
-alera workspace add --project-id <project-id> --branch <new-branch> --source-branch <source-branch> --workspace-root /path/to/workspace/root
+alera workspace add --project-id <project-id> --branch <new-branch> --source-branch <source-branch> --workspace-root "$HOME/Projects/workspaces"
 ```
 
-`--path` and `--workspace-root` are mutually exclusive. Without either flag, Alera uses the runtime workspace directory setting, then falls back to `~/.alera/workspaces`.
+From PowerShell:
+
+```powershell
+alera workspace add --project-id <project-id> --branch <new-branch> --source-branch <source-branch> --workspace-root "$HOME\Projects\workspaces"
+```
+
+From `cmd.exe`:
+
+```cmd
+alera workspace add --project-id <project-id> --branch <new-branch> --source-branch <source-branch> --workspace-root "%USERPROFILE%\Projects\workspaces"
+```
+
+`--path` and `--workspace-root` are mutually exclusive. Without either flag, Alera uses the runtime workspace directory setting, then falls back to the user's `.alera/workspaces` directory (`$HOME/.alera/workspaces` on Unix-like shells, `$HOME\.alera\workspaces` in PowerShell, or `%USERPROFILE%\.alera\workspaces` in CMD).
 
 Focus a workspace on an existing local branch:
+
+This command is the same from Bash, PowerShell, and CMD:
 
 ```bash
 alera workspace add --project-id <project-id> --branch <existing-branch> --reuse-existing-branch --name "<display-name>"
@@ -85,11 +169,15 @@ alera workspace add --project-id <project-id> --branch <existing-branch> --reuse
 
 Remove a managed workspace:
 
+This command is the same from Bash, PowerShell, and CMD:
+
 ```bash
 alera workspace remove --id <workspace-id>
 ```
 
 By default, Alera deletes the branch only when Alera created it. Override that behavior explicitly:
+
+These commands are the same from Bash, PowerShell, and CMD:
 
 ```bash
 alera workspace remove --id <workspace-id> --delete-branch
@@ -100,14 +188,32 @@ alera workspace remove --id <workspace-id> --keep-branch
 
 Use these only for repair or migration tasks where Git worktrees must not be touched:
 
+From Linux, macOS, or WSL:
+
 ```bash
-alera workspace register --project-id <project-id> --name "<name>" --path /path/to/workspace --branch <branch>
+alera workspace register --project-id <project-id> --name "<name>" --path "$HOME/Projects/workspaces/existing" --branch <branch>
+alera workspace unregister --id <workspace-id>
+```
+
+From PowerShell:
+
+```powershell
+alera workspace register --project-id <project-id> --name "<name>" --path "$HOME\Projects\workspaces\existing" --branch <branch>
+alera workspace unregister --id <workspace-id>
+```
+
+From `cmd.exe`:
+
+```cmd
+alera workspace register --project-id <project-id> --name "<name>" --path "%USERPROFILE%\Projects\workspaces\existing" --branch <branch>
 alera workspace unregister --id <workspace-id>
 ```
 
 ## Tags, Tabs, And Relations
 
 Common runtime metadata commands:
+
+These commands are the same from Bash, PowerShell, and CMD:
 
 ```bash
 alera tag list

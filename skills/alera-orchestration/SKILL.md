@@ -22,6 +22,33 @@ Use this skill when the task involves coordinating multiple coding agents throug
 - Push-on-idle message delivery and @agent groups require the Alera app to be running with agent status hooks enabled (the app forwards agent presence to the runtime-host). Messaging, tasks, dispatch bookkeeping, and gates work without the app.
 - Your own terminal handle is injected as `ALERA_TERMINAL_HANDLE` into every Alera-managed terminal. Omit `--from`/`--terminal` and the CLI resolves it from that variable.
 
+## Cross-Platform Command Rules
+
+- Unless a shell-specific block is shown, run the same `alera orchestration ...` command from Bash, PowerShell, or CMD.
+- The command surface below uses `bash` fences for compact syntax highlighting, not because the commands require Bash.
+- Prefer `--json` for machine-readable output in every shell.
+- Prefer structured payload flags (`--task-id`, `--dispatch-id`, `--files-modified`, `--report-path`, `--phase`) over raw `--payload` JSON.
+- Use native path syntax for path arguments: `$HOME/path/report.md`, `$HOME\path\report.md`, or `%USERPROFILE%\path\report.md`.
+- For JSON arguments that cannot be avoided, quote them per shell.
+
+From Linux, macOS, or WSL:
+
+```bash
+alera orchestration task-create --spec "Build docs" --deps '["task_1"]'
+```
+
+From PowerShell:
+
+```powershell
+alera orchestration task-create --spec "Build docs" --deps '["task_1"]'
+```
+
+From `cmd.exe`:
+
+```cmd
+alera orchestration task-create --spec "Build docs" --deps "[\"task_1\"]"
+```
+
 ## Command Surface
 
 ### Messaging
