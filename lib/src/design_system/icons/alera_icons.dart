@@ -73,6 +73,8 @@ abstract final class AleraIcons {
   // Workspace graph
   static const IconData host = LucideIcons.server;
   static const IconData tag = LucideIcons.tag;
+  /// Parent/child workspace lineage (matches Orca's workflow glyph).
+  static const IconData workspaceChildren = LucideIcons.workflow;
 
   // Git / version control
   static const IconData gitBranch = LucideIcons.gitBranch;

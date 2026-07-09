@@ -269,6 +269,8 @@ void _registerAleraShellSidebarStateTests() {
     expect(find.text('Child'), findsNothing);
     expect(find.text('1 Child'), findsNothing);
     expect(find.byTooltip('Remove Workspace'), findsNothing);
+    expect(find.text('1 child'), findsOneWidget);
+    expect(find.byIcon(AleraIcons.workspaceChildren), findsOneWidget);
     expect(find.byTooltip('Hide Child Workspaces'), findsOneWidget);
   });
 

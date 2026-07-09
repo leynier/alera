@@ -20,3 +20,12 @@ Widget aleraChipTooltipPreview() => const AleraChip(
 @AleraPreview(name: 'Removable', group: 'Chip')
 Widget aleraChipRemovablePreview() =>
     AleraChip(label: 'Alera', onRemove: () {});
+
+@AleraPreview(name: 'Tappable', group: 'Chip')
+Widget aleraChipTappablePreview() => AleraChip(
+  leading: AleraIcons.workspaceChildren,
+  label: '2 children',
+  trailing: AleraIcons.chevronDown,
+  tooltip: 'Hide Child Workspaces',
+  onTap: () {},
+);

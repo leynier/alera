@@ -23,7 +23,7 @@ class _WorkspaceRow extends StatefulWidget {
     required this.onSetParent,
     required this.onSelectTerminal,
     required this.onCloseTerminal,
-    this.hasVisibleChildren = false,
+    this.visibleChildCount = 0,
     this.childrenCollapsed = false,
     this.onToggleChildren,
     this.onClearParent,
@@ -40,7 +40,7 @@ class _WorkspaceRow extends StatefulWidget {
   final String? activeTabId;
   final bool showProjectChip;
   final bool expanded;
-  final bool hasVisibleChildren;
+  final int visibleChildCount;
   final bool childrenCollapsed;
   final VoidCallback? onToggleChildren;
   final VoidCallback onTap;
@@ -321,27 +321,29 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                               onCloseTerminal: widget.onCloseTerminal,
                             ),
                           ],
+                          if (widget.visibleChildCount > 0 &&
+                              widget.onToggleChildren != null) ...<Widget>[
+                            const SizedBox(height: AleraTokens.space6),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: AleraChip(
+                                leading: AleraIcons.workspaceChildren,
+                                label: widget.visibleChildCount == 1
+                                    ? '1 child'
+                                    : '${widget.visibleChildCount} children',
+                                trailing: widget.childrenCollapsed
+                                    ? AleraIcons.chevronRight
+                                    : AleraIcons.chevronDown,
+                                tooltip: widget.childrenCollapsed
+                                    ? 'Show Child Workspaces'
+                                    : 'Hide Child Workspaces',
+                                onTap: widget.onToggleChildren,
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
-                    if (widget.hasVisibleChildren &&
-                        widget.onToggleChildren != null)
-                      Padding(
-                        padding: const EdgeInsets.only(
-                          left: AleraTokens.space2,
-                        ),
-                        child: AleraIconButton(
-                          tooltip: widget.childrenCollapsed
-                              ? 'Show Child Workspaces'
-                              : 'Hide Child Workspaces',
-                          onPressed: widget.onToggleChildren!,
-                          icon: widget.childrenCollapsed
-                              ? AleraIcons.chevronRight
-                              : AleraIcons.chevronDown,
-                          iconSize: 14,
-                          minSize: 24,
-                        ),
-                      ),
                   ],
                 ),
               ),

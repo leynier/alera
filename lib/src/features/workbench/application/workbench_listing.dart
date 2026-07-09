@@ -60,7 +60,7 @@ class WorkbenchWorkspaceRow extends WorkbenchSidebarRow {
     required this.showProjectChip,
     required this.indent,
     required this.expanded,
-    this.hasVisibleChildren = false,
+    this.visibleChildCount = 0,
     this.childrenCollapsed = false,
   });
 
@@ -69,8 +69,11 @@ class WorkbenchWorkspaceRow extends WorkbenchSidebarRow {
   final bool showProjectChip;
   final bool expanded;
 
+  /// How many children nest under this row in the current filtered tree.
+  final int visibleChildCount;
+
   /// Whether child workspaces are nested (or collapsed) under this row.
-  final bool hasVisibleChildren;
+  bool get hasVisibleChildren => visibleChildCount > 0;
   final bool childrenCollapsed;
 
   /// How deeply the row should be indented from the left edge of the sidebar
@@ -265,7 +268,7 @@ List<WorkbenchSidebarRow> buildSidebarRows(
           showProjectChip: showProjectChip,
           indent: indent,
           expanded: prefs.expandedWorkspaceIds.contains(entry.workspace.id),
-          hasVisibleChildren: entry.hasVisibleChildren,
+          visibleChildCount: entry.visibleChildCount,
           childrenCollapsed: entry.childrenCollapsed,
         ),
       );

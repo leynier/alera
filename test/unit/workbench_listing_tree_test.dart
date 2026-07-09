@@ -35,7 +35,9 @@ void main() {
 
     expect(tree.map((e) => e.workspace.id), <String>['a', 'b', 'c', 'd']);
     expect(tree.map((e) => e.depth), <int>[0, 1, 1, 0]);
+    expect(tree.first.visibleChildCount, 2);
     expect(tree.first.hasVisibleChildren, isTrue);
+    expect(tree.last.visibleChildCount, 0);
     expect(tree.last.hasVisibleChildren, isFalse);
   });
 
@@ -69,6 +71,8 @@ void main() {
 
     expect(tree.map((e) => e.workspace.id), <String>['a', 'd']);
     expect(tree.first.childrenCollapsed, isTrue);
+    // Count still reflects children even while they are hidden.
+    expect(tree.first.visibleChildCount, 1);
   });
 
   test('nesting depth is capped for deep chains', () {

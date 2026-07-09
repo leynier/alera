@@ -5,7 +5,7 @@ class WorkspaceTreeEntry {
   const WorkspaceTreeEntry({
     required this.workspace,
     required this.depth,
-    required this.hasVisibleChildren,
+    required this.visibleChildCount,
     required this.childrenCollapsed,
   });
 
@@ -14,9 +14,13 @@ class WorkspaceTreeEntry {
   /// Nesting depth relative to the sibling group root (0 = root level).
   final int depth;
 
+  /// How many children this workspace has in the current filtered/sibling
+  /// group (including when those children are collapsed and not rendered).
+  final int visibleChildCount;
+
   /// Whether this workspace has children rendered (or collapsed) beneath it in
   /// the current group.
-  final bool hasVisibleChildren;
+  bool get hasVisibleChildren => visibleChildCount > 0;
 
   /// Whether this workspace's children are currently hidden by the user.
   final bool childrenCollapsed;
@@ -71,7 +75,7 @@ List<WorkspaceTreeEntry> buildWorkspaceTree({
       WorkspaceTreeEntry(
         workspace: workspace,
         depth: depth,
-        hasVisibleChildren: children.isNotEmpty,
+        visibleChildCount: children.length,
         childrenCollapsed: collapsed,
       ),
     );

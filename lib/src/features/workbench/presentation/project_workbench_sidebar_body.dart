@@ -115,7 +115,7 @@ class _SidebarBody extends StatelessWidget {
           activeTabId: state.activeTabIdByWorkspace[row.workspace.id],
           showProjectChip: row.showProjectChip,
           expanded: row.expanded,
-          hasVisibleChildren: row.hasVisibleChildren,
+          visibleChildCount: row.visibleChildCount,
           childrenCollapsed: row.childrenCollapsed,
           onToggleChildren: row.hasVisibleChildren
               ? () =>

@@ -466,8 +466,10 @@ void main() {
         (r) => r.workspace.id == 'w-child',
       );
       expect(parent.indent, 1);
+      expect(parent.visibleChildCount, 1);
       expect(parent.hasVisibleChildren, isTrue);
       expect(child.indent, 2);
+      expect(child.visibleChildCount, 0);
     });
 
     test('cross-project children render at the root of their own group', () {
@@ -492,6 +494,7 @@ void main() {
         (r) => r.workspace.id == 'w-parent',
       );
       expect(parent.childrenCollapsed, isTrue);
+      expect(parent.visibleChildCount, 1);
     });
 
     test('a child whose parent is filtered out is promoted to root', () {
