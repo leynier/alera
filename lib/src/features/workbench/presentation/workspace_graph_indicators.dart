@@ -1,11 +1,10 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
-import 'package:alera/src/design_system/badges/alera_badge.dart';
 import 'package:alera/src/design_system/chips/alera_chip.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:flutter/material.dart';
 
-/// Role badge shown next to a workspace name.
+/// Compact main-worktree marker shown next to a workspace name.
 class WorkspaceRoleBadge extends StatelessWidget {
   const WorkspaceRoleBadge({super.key, required this.workspace});
 
@@ -18,10 +17,17 @@ class WorkspaceRoleBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (workspace.isMain) {
-      return const AleraBadge(label: 'default');
+    if (!workspace.isMain) {
+      return const SizedBox.shrink();
     }
-    return const SizedBox.shrink();
+    return const Tooltip(
+      message: 'Default Workspace',
+      child: Icon(
+        AleraIcons.workspaceMain,
+        size: 12,
+        color: AleraTokens.foregroundMuted,
+      ),
+    );
   }
 }
 

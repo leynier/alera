@@ -1,3 +1,4 @@
+import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_graph_indicators.dart';
 import 'package:flutter/material.dart';
@@ -39,12 +40,14 @@ void main() {
   }
 
   group('WorkspaceRoleBadge', () {
-    testWidgets('shows default for the main workspace', (tester) async {
+    testWidgets('shows home icon for the main workspace', (tester) async {
       await pump(
         tester,
         WorkspaceRoleBadge(workspace: workspace(kind: WorkspaceKind.main)),
       );
-      expect(find.text('default'), findsOneWidget);
+      expect(find.byIcon(AleraIcons.workspaceMain), findsOneWidget);
+      expect(find.byTooltip('Default Workspace'), findsOneWidget);
+      expect(find.text('default'), findsNothing);
       expect(find.text('Primary'), findsNothing);
       expect(find.text('Child'), findsNothing);
     });
@@ -56,6 +59,7 @@ void main() {
         tester,
         WorkspaceRoleBadge(workspace: workspace(parentWorkspaceId: 'parent')),
       );
+      expect(find.byIcon(AleraIcons.workspaceMain), findsNothing);
       expect(find.text('default'), findsNothing);
       expect(find.text('Child'), findsNothing);
       expect(find.text('Primary'), findsNothing);
@@ -63,6 +67,7 @@ void main() {
 
     testWidgets('renders nothing for a plain linked workspace', (tester) async {
       await pump(tester, WorkspaceRoleBadge(workspace: workspace()));
+      expect(find.byIcon(AleraIcons.workspaceMain), findsNothing);
       expect(find.text('default'), findsNothing);
       expect(find.text('Primary'), findsNothing);
       expect(find.text('Child'), findsNothing);

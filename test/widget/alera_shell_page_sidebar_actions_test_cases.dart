@@ -229,7 +229,7 @@ void _registerAleraShellSidebarActionTests() {
     const description = 'Codex · Waiting for input';
     final harness = await _pumpShell(
       tester,
-      state: _linkedWorkbenchState(),
+      state: _linkedWorkbenchState(linkedExpanded: true),
       agentStatuses: <String, AgentStatusEntry>{
         'tab-2': _agentStatusEntry(
           terminalSessionId: 'tab-2',
@@ -354,7 +354,7 @@ void _registerAleraShellSidebarActionTests() {
     );
   });
 
-  testWidgets('workspace rows summarize agent runs in a compact pill', (
+  testWidgets('workspace rows summarize agent runs in a compact tray control', (
     tester,
   ) async {
     await _pumpShell(
@@ -377,9 +377,10 @@ void _registerAleraShellSidebarActionTests() {
     );
 
     expect(find.byType(WorkspaceAgentCompactSummary), findsOneWidget);
+    expect(find.byKey(const Key('workspace-tray-agents')), findsOneWidget);
     expect(
       tester.getSize(find.byType(WorkspaceAgentCompactSummary)).width,
-      greaterThan(180),
+      lessThan(180),
     );
   });
 

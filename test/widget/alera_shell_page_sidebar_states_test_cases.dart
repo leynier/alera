@@ -80,7 +80,7 @@ void _registerAleraShellSidebarStateTests() {
       ),
       isTrue,
     );
-    expect(find.text('2 Agents'), findsOneWidget);
+    expect(find.byType(WorkspaceAgentCompactSummary), findsOneWidget);
     expect(find.text('Needs input'), findsOneWidget);
     expect(find.text('Ready to continue'), findsOneWidget);
 
@@ -161,8 +161,20 @@ void _registerAleraShellSidebarStateTests() {
   ) async {
     await _pumpShell(tester, state: _linkedWorkbenchState());
 
-    expect(find.text('feature/login'), findsOneWidget);
-    expect(find.byIcon(AleraIcons.gitBranch), findsAtLeastNWidgets(2));
+    expect(find.byIcon(AleraIcons.gitBranch), findsNWidgets(2));
+    expect(find.byKey(const Key('workspace-tray-branch')), findsNWidgets(2));
+    expect(
+      find.byWidgetPredicate(
+        (widget) => widget is Tooltip && widget.message == 'feature/login',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byWidgetPredicate(
+        (widget) => widget is Tooltip && widget.message == 'main',
+      ),
+      findsOneWidget,
+    );
     expect(find.textContaining('Base:'), findsNothing);
   });
 
@@ -220,11 +232,17 @@ void _registerAleraShellSidebarStateTests() {
       ),
     );
 
-    expect(find.textContaining('Local Folder'), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (widget) => widget is Tooltip && widget.message == 'Local Folder',
+      ),
+      findsOneWidget,
+    );
+    expect(find.byIcon(AleraIcons.gitBranch), findsOneWidget);
     expect(find.byTooltip('Source Control'), findsNothing);
   });
 
-  testWidgets('flat workspace grouping shows project chips on workspace rows', (
+  testWidgets('flat workspace grouping shows project folder icons with tooltips', (
     tester,
   ) async {
     await _pumpShell(
@@ -237,12 +255,19 @@ void _registerAleraShellSidebarStateTests() {
       ),
     );
 
-    expect(find.byType(AleraChip), findsAtLeastNWidgets(1));
-    expect(find.text('Alera'), findsAtLeastNWidgets(1));
-    expect(find.byIcon(AleraIcons.folderSpecial), findsAtLeastNWidgets(1));
+    expect(find.text('Main'), findsOneWidget);
+    expect(find.text('Feature login'), findsOneWidget);
+    expect(find.byKey(const Key('workspace-tray-project')), findsNWidgets(2));
+    expect(find.byIcon(AleraIcons.folderSpecial), findsNWidgets(2));
+    expect(
+      find.byWidgetPredicate(
+        (widget) => widget is Tooltip && widget.message == 'Alera',
+      ),
+      findsNWidgets(2),
+    );
   });
 
-  testWidgets('workspace rows show tags inline without child role indicators', (
+  testWidgets('workspace rows show tags and children in the icon tray', (
     tester,
   ) async {
     final seeded = _linkedWorkbenchState(linkedExpanded: true);
@@ -262,14 +287,21 @@ void _registerAleraShellSidebarStateTests() {
       ),
     );
 
-    expect(find.text('#frontend'), findsOneWidget);
-    expect(find.text('#review'), findsOneWidget);
-    expect(find.text('#qa'), findsOneWidget);
-    expect(find.text('+1 Tags'), findsOneWidget);
+    expect(find.text('#frontend'), findsNothing);
+    expect(find.byKey(const Key('workspace-tray-tags')), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is Tooltip &&
+            widget.message == 'frontend, review, qa, ux',
+      ),
+      findsOneWidget,
+    );
     expect(find.text('Child'), findsNothing);
     expect(find.text('1 Child'), findsNothing);
+    expect(find.text('1 child'), findsNothing);
     expect(find.byTooltip('Remove Workspace'), findsNothing);
-    expect(find.text('1 child'), findsOneWidget);
+    expect(find.byKey(const Key('workspace-tray-children')), findsOneWidget);
     expect(find.byIcon(AleraIcons.workspaceChildren), findsOneWidget);
     expect(find.byTooltip('Hide Child Workspaces'), findsOneWidget);
   });

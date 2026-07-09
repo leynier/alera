@@ -10,7 +10,7 @@ class _WorkspaceRow extends StatefulWidget {
     required this.hasTerminalTabs,
     required this.isActive,
     required this.activeTabId,
-    required this.showProjectChip,
+    required this.showProject,
     required this.expanded,
     required this.onTap,
     required this.onOpenFolder,
@@ -38,7 +38,8 @@ class _WorkspaceRow extends StatefulWidget {
   final bool hasTerminalTabs;
   final bool isActive;
   final String? activeTabId;
-  final bool showProjectChip;
+  /// When true (flat sidebar listing), show a project folder icon in the tray.
+  final bool showProject;
   final bool expanded;
   final int visibleChildCount;
   final bool childrenCollapsed;
@@ -62,7 +63,6 @@ class _WorkspaceRow extends StatefulWidget {
 }
 
 class _WorkspaceRowState extends State<_WorkspaceRow> {
-  static const int _maxInlineTags = 3;
   static const String _renameAction = 'rename';
   static const String _openFolderAction = 'open-folder';
   static const String _copyPathAction = 'copy-path';
@@ -71,6 +71,10 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
   static const String _setParentAction = 'set-parent';
   static const String _clearParentAction = 'clear-parent';
   static const String _removeAction = 'remove';
+
+  /// Fixed leading slot so the status dot (8) and agent glyphs (~12–13) do not
+  /// shift the workspace name when the indicator swaps.
+  static const double _statusSlotSize = 14;
 
   bool _hovered = false;
 
@@ -192,51 +196,24 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
         .toList(growable: false);
   }
 
-  List<Widget> _buildMetadataChips() {
-    final branchLabel = _buildBranchLabel();
-    final tags = _tagLabels();
-    final chips = <Widget>[
-      if (widget.showProjectChip)
-        AleraChip(
-          leading: AleraIcons.folderSpecial,
-          label: widget.project.name,
-          tooltip: widget.project.name,
-        ),
-      AleraChip(
-        leading: AleraIcons.gitBranch,
-        label: branchLabel,
-        tooltip: branchLabel,
-      ),
-      for (final tag in tags.take(_maxInlineTags))
-        AleraChip(leading: AleraIcons.tag, label: '#$tag', tooltip: tag),
-    ];
-    final hiddenTags = tags.skip(_maxInlineTags).toList(growable: false);
-    if (hiddenTags.isNotEmpty) {
-      chips.add(
-        AleraChip(
-          leading: AleraIcons.tag,
-          label: '+${hiddenTags.length} Tags',
-          tooltip: hiddenTags.join(', '),
-        ),
-      );
-    }
+  String? _remoteHostId() {
     final hostId = widget.workspace.hostId.trim();
-    if (hostId.isNotEmpty && hostId != 'local') {
-      chips.add(
-        AleraChip(
-          leading: AleraIcons.host,
-          label: hostId,
-          tooltip: 'Host: $hostId',
-        ),
-      );
+    if (hostId.isEmpty || hostId == 'local') {
+      return null;
     }
-    return chips;
+    return hostId;
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isActive = widget.isActive;
+    final branchLabel = _buildBranchLabel();
+    final tags = _tagLabels();
+    final hostId = _remoteHostId();
+    final hasAgents = widget.agentRuns.isNotEmpty;
+    final showProject = widget.showProject;
+
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
@@ -260,31 +237,40 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
               child: Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: AleraTokens.space12,
-                  vertical: AleraTokens.space8,
+                  vertical: AleraTokens.space6,
                 ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: widget.status == null
-                          ? AleraStatusDot(
-                              active: isActive || widget.hasTerminalTabs,
-                            )
-                          : AgentRunStateIndicator(status: widget.status!),
-                    ),
-                    const SizedBox(width: AleraTokens.space8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: <Widget>[
+                      SizedBox.square(
+                        dimension: _statusSlotSize,
+                        child: Center(
+                          child: widget.status == null
+                              ? AleraStatusDot(
+                                  active: isActive || widget.hasTerminalTabs,
+                                )
+                              : AgentRunStateIndicator(
+                                  status: widget.status!,
+                                  size: _statusSlotSize - 1,
+                                ),
+                        ),
+                      ),
+                      const SizedBox(width: AleraTokens.space8),
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: <Widget>[
                               Flexible(
                                 child: Text(
                                   widget.workspace.name,
                                   maxLines: 1,
+                                  softWrap: false,
                                   overflow: TextOverflow.ellipsis,
                                   style: theme.textTheme.bodyMedium?.copyWith(
                                     color: AleraTokens.foreground,
@@ -292,121 +278,295 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                                   ),
                                 ),
                               ),
+                              if (showProject) ...<Widget>[
+                                const SizedBox(width: AleraTokens.space6),
+                                Tooltip(
+                                  message: widget.project.name,
+                                  child: const Icon(
+                                    AleraIcons.folderSpecial,
+                                    size: 12,
+                                    color: AleraTokens.foregroundMuted,
+                                    key: Key('workspace-tray-project'),
+                                  ),
+                                ),
+                              ],
                               if (WorkspaceRoleBadge.hasRole(
                                 widget.workspace,
                               )) ...<Widget>[
                                 const SizedBox(width: AleraTokens.space6),
-                                WorkspaceRoleBadge(workspace: widget.workspace),
+                                const Tooltip(
+                                  message: 'Default Workspace',
+                                  child: Icon(
+                                    AleraIcons.workspaceMain,
+                                    size: 12,
+                                    color: AleraTokens.foregroundMuted,
+                                    key: Key('workspace-tray-home'),
+                                  ),
+                                ),
+                              ],
+                              const SizedBox(width: AleraTokens.space6),
+                              Tooltip(
+                                message: branchLabel,
+                                child: const Icon(
+                                  AleraIcons.gitBranch,
+                                  size: 12,
+                                  color: AleraTokens.foregroundMuted,
+                                  key: Key('workspace-tray-branch'),
+                                ),
+                              ),
+                              if (tags.isNotEmpty) ...<Widget>[
+                                const SizedBox(width: AleraTokens.space6),
+                                Tooltip(
+                                  message: tags.join(', '),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: <Widget>[
+                                      const Icon(
+                                        AleraIcons.tag,
+                                        size: 12,
+                                        color: AleraTokens.foregroundMuted,
+                                        key: Key('workspace-tray-tags'),
+                                      ),
+                                      const SizedBox(width: AleraTokens.space2),
+                                      Text(
+                                        '${tags.length}',
+                                        style: theme.textTheme.labelSmall
+                                            ?.copyWith(
+                                              color:
+                                                  AleraTokens.foregroundMuted,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                              if (hostId != null) ...<Widget>[
+                                const SizedBox(width: AleraTokens.space6),
+                                Tooltip(
+                                  message: 'Host: $hostId',
+                                  child: const Icon(
+                                    AleraIcons.host,
+                                    size: 12,
+                                    color: AleraTokens.foregroundMuted,
+                                    key: Key('workspace-tray-host'),
+                                  ),
+                                ),
                               ],
                             ],
                           ),
-                          const SizedBox(height: AleraTokens.space4),
-                          Wrap(
-                            spacing: AleraTokens.space6,
-                            runSpacing: AleraTokens.space4,
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            children: _buildMetadataChips(),
-                          ),
-                          if (widget.agentRuns.isNotEmpty) ...<Widget>[
-                            const SizedBox(height: AleraTokens.space6),
-                            _WorkspaceAgentSection(
-                              workspace: widget.workspace,
-                              runs: widget.agentRuns,
-                              groups: widget.agentRunGroups,
-                              expanded: widget.expanded,
-                              workspaceIsActive: widget.isActive,
-                              activeTabId: widget.activeTabId,
-                              onToggleExpanded: widget.onToggleExpanded,
-                              onSelectTerminal: widget.onSelectTerminal,
-                              onCloseTerminal: widget.onCloseTerminal,
-                            ),
-                          ],
-                          if (widget.visibleChildCount > 0 &&
-                              widget.onToggleChildren != null) ...<Widget>[
-                            const SizedBox(height: AleraTokens.space6),
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: AleraChip(
-                                leading: AleraIcons.workspaceChildren,
-                                label: widget.visibleChildCount == 1
-                                    ? '1 child'
-                                    : '${widget.visibleChildCount} children',
-                                trailing: widget.childrenCollapsed
-                                    ? AleraIcons.chevronRight
-                                    : AleraIcons.chevronDown,
-                                tooltip: widget.childrenCollapsed
-                                    ? 'Show Child Workspaces'
-                                    : 'Hide Child Workspaces',
-                                onTap: widget.onToggleChildren,
-                              ),
-                            ),
-                          ],
-                        ],
+                        ),
+                      ),
+                      if (hasAgents ||
+                          (widget.visibleChildCount > 0 &&
+                              widget.onToggleChildren != null)) ...<Widget>[
+                        const SizedBox(width: AleraTokens.space8),
+                        _WorkspaceIconTray(
+                          visibleChildCount: widget.visibleChildCount,
+                          childrenCollapsed: widget.childrenCollapsed,
+                          onToggleChildren: widget.onToggleChildren,
+                          agentGroups: widget.agentRunGroups,
+                          agentsExpanded: widget.expanded,
+                          onToggleAgents: hasAgents
+                              ? widget.onToggleExpanded
+                              : null,
+                          agentTooltip: hasAgents
+                              ? _agentTrayTooltip(
+                                  runs: widget.agentRuns,
+                                  expanded: widget.expanded,
+                                )
+                              : null,
+                        ),
+                      ],
+                    ],
+                  ),
+                  if (hasAgents && widget.expanded) ...<Widget>[
+                    const SizedBox(height: AleraTokens.space4),
+                    Padding(
+                      padding: const EdgeInsets.only(left: AleraTokens.space20),
+                      child: _WorkspaceAgentRunList(
+                        workspace: widget.workspace,
+                        runs: widget.agentRuns,
+                        workspaceIsActive: widget.isActive,
+                        activeTabId: widget.activeTabId,
+                        onSelectTerminal: widget.onSelectTerminal,
+                        onCloseTerminal: widget.onCloseTerminal,
                       ),
                     ),
                   ],
-                ),
+                ],
               ),
             ),
           ),
         ),
       ),
+      ),
     );
   }
 }
 
-class _WorkspaceAgentSection extends StatelessWidget {
-  const _WorkspaceAgentSection({
+String _agentTrayTooltip({
+  required List<WorkspaceAgentRun> runs,
+  required bool expanded,
+}) {
+  if (expanded) {
+    return 'Hide Agent Runs';
+  }
+  if (runs.length == 1) {
+    return _agentRunDescription(runs.single.status);
+  }
+  return 'Show Agent Runs';
+}
+
+/// Right-side icon tray for expandable controls: agents and children.
+class _WorkspaceIconTray extends StatelessWidget {
+  const _WorkspaceIconTray({
+    required this.visibleChildCount,
+    required this.childrenCollapsed,
+    required this.onToggleChildren,
+    required this.agentGroups,
+    required this.agentsExpanded,
+    required this.onToggleAgents,
+    required this.agentTooltip,
+  });
+
+  final int visibleChildCount;
+  final bool childrenCollapsed;
+  final VoidCallback? onToggleChildren;
+  final List<WorkspaceAgentRunGroup> agentGroups;
+  final bool agentsExpanded;
+  final VoidCallback? onToggleAgents;
+  final String? agentTooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final items = <Widget>[];
+
+    if (onToggleAgents != null && agentGroups.isNotEmpty) {
+      items.add(
+        WorkspaceAgentCompactSummary(
+          key: const Key('workspace-tray-agents'),
+          groups: agentGroups,
+          expanded: agentsExpanded,
+          onToggle: onToggleAgents!,
+          tooltipOverride: agentTooltip,
+        ),
+      );
+    }
+
+    if (visibleChildCount > 0 && onToggleChildren != null) {
+      items.add(
+        _TrayIconItem(
+          key: const Key('workspace-tray-children'),
+          tooltip: childrenCollapsed
+              ? 'Show Child Workspaces'
+              : 'Hide Child Workspaces',
+          onTap: onToggleChildren,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              const Icon(
+                AleraIcons.workspaceChildren,
+                size: 12,
+                color: AleraTokens.foregroundMuted,
+              ),
+              const SizedBox(width: AleraTokens.space2),
+              Text(
+                '$visibleChildCount',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: AleraTokens.foregroundMuted,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(width: AleraTokens.space2),
+              Icon(
+                childrenCollapsed
+                    ? AleraIcons.chevronRight
+                    : AleraIcons.chevronDown,
+                size: 12,
+                color: AleraTokens.foregroundMuted,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (items.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        for (final (index, item) in items.indexed) ...<Widget>[
+          if (index > 0) const SizedBox(width: AleraTokens.space6),
+          item,
+        ],
+      ],
+    );
+  }
+}
+
+class _TrayIconItem extends StatelessWidget {
+  const _TrayIconItem({
+    super.key,
+    required this.tooltip,
+    required this.child,
+    this.onTap,
+  });
+
+  final String tooltip;
+  final Widget child;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final content = Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AleraTokens.space4,
+        vertical: AleraTokens.space2,
+      ),
+      child: child,
+    );
+    return Tooltip(
+      message: tooltip,
+      child: onTap == null
+          ? content
+          : InkWell(
+              onTap: onTap,
+              mouseCursor: SystemMouseCursors.click,
+              borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+              child: content,
+            ),
+    );
+  }
+}
+
+class _WorkspaceAgentRunList extends StatelessWidget {
+  const _WorkspaceAgentRunList({
     required this.workspace,
     required this.runs,
-    required this.groups,
-    required this.expanded,
     required this.workspaceIsActive,
     required this.activeTabId,
-    required this.onToggleExpanded,
     required this.onSelectTerminal,
     required this.onCloseTerminal,
   });
 
   final Workspace workspace;
   final List<WorkspaceAgentRun> runs;
-  final List<WorkspaceAgentRunGroup> groups;
-  final bool expanded;
   final bool workspaceIsActive;
   final String? activeTabId;
-  final VoidCallback onToggleExpanded;
   final _TerminalTabCallback onSelectTerminal;
   final _TerminalTabCallback onCloseTerminal;
 
   @override
   Widget build(BuildContext context) {
-    if (runs.length == 1) {
-      final run = runs.single;
-      return _AgentRunRow(
-        tab: run.tab,
-        status: run.status,
-        isActive: workspaceIsActive && activeTabId == run.tab.id,
-        onTap: () => onSelectTerminal(workspace, run.tab.id),
-        onClose: () => onCloseTerminal(workspace, run.tab.id),
-      );
-    }
-    if (!expanded) {
-      return WorkspaceAgentCompactSummary(
-        groups: groups,
-        expanded: expanded,
-        onToggle: onToggleExpanded,
-      );
-    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        WorkspaceAgentCompactSummary(
-          groups: groups,
-          expanded: expanded,
-          onToggle: onToggleExpanded,
-        ),
-        const SizedBox(height: AleraTokens.space2),
         for (final run in runs)
           _AgentRunRow(
             tab: run.tab,

@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
-import 'package:alera/src/design_system/chips/alera_chip.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/feedback/alera_status_dot.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';

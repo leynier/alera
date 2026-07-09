@@ -7,7 +7,6 @@ import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_brand_row.dart';
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_collapsed_rail.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
-import 'package:alera/src/design_system/chips/alera_chip.dart';
 import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/feedback/alera_status_dot.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';

@@ -7,92 +7,68 @@ import 'package:alera/src/features/workbench/application/workspace_agent_status_
 import 'package:alera/src/features/workbench/presentation/widgets/agent_run_state_indicator.dart';
 import 'package:flutter/material.dart';
 
-/// Single-line summary of a workspace's agent runs: agents grouped by state,
+/// Compact tray control for a workspace's agent runs: agents grouped by state,
 /// each group showing its state glyph plus up to three overlapping identity
-/// icons. Clicking toggles the expanded per-agent rows.
+/// icons. Clicking toggles the expanded per-agent rows under the workspace.
 class WorkspaceAgentCompactSummary extends StatelessWidget {
   const WorkspaceAgentCompactSummary({
     super.key,
     required this.groups,
     required this.expanded,
     required this.onToggle,
+    this.tooltipOverride,
   });
 
   final List<WorkspaceAgentRunGroup> groups;
   final bool expanded;
   final VoidCallback onToggle;
 
+  /// Optional tooltip; defaults to Show/Hide Agent Runs.
+  final String? tooltipOverride;
+
   static const int _maxVisibleGroups = 3;
   static const int _maxIconsPerGroup = 3;
-  static const double _iconSize = 16;
-  static const double _iconOverlap = 5;
+  static const double _iconSize = 14;
+  static const double _iconOverlap = 4;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final agentCount = groups.fold<int>(
-      0,
-      (count, group) => count + group.runs.length,
-    );
     final visibleGroups = groups.take(_maxVisibleGroups).toList();
     final hiddenGroupRuns = groups
         .skip(_maxVisibleGroups)
         .fold<int>(0, (sum, group) => sum + group.runs.length);
+    final tooltip =
+        tooltipOverride ??
+        (expanded ? 'Hide Agent Runs' : 'Show Agent Runs');
     return Tooltip(
-      message: expanded ? 'Hide Agent Runs' : 'Show Agent Runs',
+      message: tooltip,
       child: InkWell(
         onTap: onToggle,
         mouseCursor: SystemMouseCursors.click,
-        borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-        child: Container(
-          width: double.infinity,
+        borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+        child: Padding(
           padding: const EdgeInsets.symmetric(
-            horizontal: AleraTokens.space6,
+            horizontal: AleraTokens.space4,
             vertical: AleraTokens.space2,
           ),
-          decoration: BoxDecoration(
-            color: AleraTokens.surface,
-            borderRadius: BorderRadius.circular(AleraTokens.radiusMd),
-            border: Border.all(color: AleraTokens.borderSubtle),
-          ),
           child: Row(
-            mainAxisSize: MainAxisSize.max,
+            mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              if (expanded)
-                Expanded(
-                  child: Text(
-                    '$agentCount Agents',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: AleraTokens.foregroundMuted,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                )
-              else
-                Expanded(
-                  child: Row(
-                    children: <Widget>[
-                      for (final (index, group)
-                          in visibleGroups.indexed) ...<Widget>[
-                        if (index > 0)
-                          const SizedBox(width: AleraTokens.space8),
-                        _GroupCluster(group: group),
-                      ],
-                      if (hiddenGroupRuns > 0) ...<Widget>[
-                        const SizedBox(width: AleraTokens.space6),
-                        Text(
-                          '+$hiddenGroupRuns',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: AleraTokens.foregroundFaint,
-                          ),
-                        ),
-                      ],
-                    ],
+              for (final (index, group) in visibleGroups.indexed) ...<Widget>[
+                if (index > 0) const SizedBox(width: AleraTokens.space6),
+                _GroupCluster(group: group),
+              ],
+              if (hiddenGroupRuns > 0) ...<Widget>[
+                const SizedBox(width: AleraTokens.space4),
+                Text(
+                  '+$hiddenGroupRuns',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: AleraTokens.foregroundFaint,
                   ),
                 ),
-              const SizedBox(width: AleraTokens.space6),
+              ],
+              const SizedBox(width: AleraTokens.space2),
               Icon(
                 expanded ? AleraIcons.chevronUp : AleraIcons.chevronDown,
                 size: 12,
@@ -125,7 +101,7 @@ class _GroupCluster extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         AgentRunStateIndicator(status: group.runs.first.status, size: 11),
-        const SizedBox(width: AleraTokens.space4),
+        const SizedBox(width: AleraTokens.space2),
         SizedBox(
           width: width,
           height: iconSize,
@@ -145,7 +121,7 @@ class _GroupCluster extends StatelessWidget {
                     child: Center(
                       child: AgentIdentityIcon(
                         agentType: run.status.agentType,
-                        size: 10,
+                        size: 9,
                         color: AleraTokens.foregroundMuted,
                       ),
                     ),

@@ -113,7 +113,7 @@ class _SidebarBody extends StatelessWidget {
           hasTerminalTabs: hasTerminalTabs,
           isActive: row.workspace.id == state.activeWorkspaceId,
           activeTabId: state.activeTabIdByWorkspace[row.workspace.id],
-          showProjectChip: row.showProjectChip,
+          showProject: row.showProjectChip,
           expanded: row.expanded,
           visibleChildCount: row.visibleChildCount,
           childrenCollapsed: row.childrenCollapsed,
@@ -149,7 +149,7 @@ class _SidebarBody extends StatelessWidget {
   /// so deep trees keep usable row widths in a narrow sidebar.
   double _indentPadding(int indent) {
     const double base = AleraTokens.space8;
-    const double step = AleraTokens.space16;
+    const double step = AleraTokens.space12;
     const double max = base + 4 * step;
     final padding = base + indent * step;
     return padding > max ? max : padding;
