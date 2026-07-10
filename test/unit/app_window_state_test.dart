@@ -278,6 +278,11 @@ class _FakeAppWindowController implements AppWindowController {
 
   @override
   Future<void> setTitle(String title) async {}
+
+  @override
+  Future<void> close() async {
+    emit((listener) => listener.onWindowClose());
+  }
 }
 
 Future<void> _waitFor(bool Function() condition) async {
