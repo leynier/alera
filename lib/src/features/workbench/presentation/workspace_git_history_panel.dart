@@ -83,8 +83,13 @@ class _GitHistoryPanelState extends State<_GitHistoryPanel> {
   void didUpdateWidget(covariant _GitHistoryPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.state.result != widget.state.result) {
-      _expandedCommitIds.clear();
-      _filesByCommit.clear();
+      final currentCommitIds =
+          widget.state.result?.items.map((item) => item.id).toSet() ??
+          <String>{};
+      _expandedCommitIds.retainAll(currentCommitIds);
+      _filesByCommit.removeWhere(
+        (commitId, _) => !currentCommitIds.contains(commitId),
+      );
     }
   }
 
@@ -443,6 +448,9 @@ class _GitHistoryCommitRow extends StatelessWidget {
           : SystemMouseCursors.basic,
       child: InkWell(
         onTap: onTap,
+        mouseCursor: onTap != null
+            ? SystemMouseCursors.click
+            : SystemMouseCursors.basic,
         child: SizedBox(
           height: 28,
           child: Padding(
@@ -823,6 +831,7 @@ class _CommitFiles extends StatelessWidget {
               cursor: SystemMouseCursors.click,
               child: InkWell(
                 onTap: onOpenAll,
+                mouseCursor: SystemMouseCursors.click,
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(40, 5, 8, 7),
                   child: Row(
@@ -872,6 +881,7 @@ class _CommitFileRow extends StatelessWidget {
       cursor: SystemMouseCursors.click,
       child: InkWell(
         onTap: onOpen,
+        mouseCursor: SystemMouseCursors.click,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(40, 4, 8, 4),
           child: Row(

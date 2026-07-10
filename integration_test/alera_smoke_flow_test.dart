@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:alera/src/app/app.dart';
 import 'package:alera/src/app/providers.dart';
+import 'package:alera/src/design_system/surfaces/hover_container.dart';
 import 'package:alera/src/features/projects/presentation/add_project_dialog.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
@@ -31,7 +32,9 @@ void main() {
         await tempRoot.delete(recursive: true);
       }
     });
-    const projectName = 'sample-project';
+    // Short unique name: avoids collisions with leftover runtime-host projects
+    // from prior local runs, without overflowing the explorer path toolbar.
+    final projectName = 'e2e-${DateTime.now().millisecondsSinceEpoch % 100000}';
     final projectDir = Directory(p.join(tempRoot.path, projectName))
       ..createSync(recursive: true);
 
@@ -82,11 +85,20 @@ void main() {
     );
     await tester.tap(submitButton);
 
-    await _pumpUntilFound(tester, find.text(projectName));
+    // Wait for the main workspace path (not just the project name) so we know
+    // ensureMainWorkspace finished and the dashboard row is interactive.
+    await _pumpUntilFound(tester, find.text(projectDir.path));
 
-    await tester.ensureVisible(find.text(projectName).last);
+    final workspacePath = find.text(projectDir.path).first;
+    await tester.ensureVisible(workspacePath);
     await tester.pumpAndSettle();
-    await tester.tap(find.text(projectName).last);
+    // Open via the dashboard HoverContainer that wraps the path — more reliable
+    // than tapping find.text(projectName).last, which can hit a non-opening
+    // project header when several rows share the same display name.
+    final workspaceRow = find
+        .ancestor(of: workspacePath, matching: find.byType(HoverContainer))
+        .first;
+    await tester.tap(workspaceRow);
     await _pumpUntilFound(tester, find.byTooltip('New Terminal'));
     await _pumpUntilFound(tester, find.text('E2E terminal: Terminal 1'));
 

@@ -19,6 +19,7 @@ import 'package:alera/src/shared/infra/git/git_exception.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -372,6 +373,20 @@ void main() {
       <String, Object?>{'path': '/tmp/project', 'limit': 50, 'baseRef': null},
     );
 
+    final mouse = await tester.createGesture(
+      kind: PointerDeviceKind.mouse,
+      pointer: 1,
+    );
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(
+      location: tester.getCenter(find.text('Add Feature')),
+    );
+    await tester.pump();
+    expect(
+      RendererBinding.instance.mouseTracker.debugDeviceActiveCursor(1),
+      SystemMouseCursors.click,
+    );
+
     await tester.tap(find.text('Add Feature'));
     await tester.pumpAndSettle();
 
@@ -379,6 +394,15 @@ void main() {
     expect(
       backend.calls.where((call) => call.method == 'commitCompare').single.args,
       <String, Object?>{'path': '/tmp/project', 'commitId': 'abc123456789'},
+    );
+
+    await mouse.moveTo(
+      tester.getCenter(find.textContaining('lib/old.dart -> lib/new.dart')),
+    );
+    await tester.pump();
+    expect(
+      RendererBinding.instance.mouseTracker.debugDeviceActiveCursor(1),
+      SystemMouseCursors.click,
     );
 
     await tester.tap(find.textContaining('lib/old.dart -> lib/new.dart'));
@@ -394,6 +418,93 @@ void main() {
     expect(opened.single.subject, 'Add Feature');
     expect(opened.single.message, 'Add Feature\n\nBody');
   });
+
+  testWidgets(
+    'commit expansion survives history reloads and prunes removed commits',
+    (tester) async {
+      GitHistoryResult history(String id, String subject) => GitHistoryResult(
+        currentRef: GitHistoryItemRef(
+          id: 'refs/heads/main',
+          name: 'main',
+          revision: id,
+        ),
+        hasIncomingChanges: false,
+        hasOutgoingChanges: false,
+        hasMore: false,
+        limit: 50,
+        items: <GitHistoryItem>[
+          GitHistoryItem(
+            id: id,
+            parentIds: const <String>[],
+            subject: subject,
+            message: subject,
+          ),
+        ],
+      );
+
+      final watcher = FakeSourceControlWatcher();
+      final backend = FakeGitBackend()
+        ..gitRepositoryStateResult = const GitRepositoryState(
+          branch: 'main',
+          upstream: 'origin/main',
+        )
+        ..gitHistoryResult = history('abc123456789', 'Add Feature')
+        ..gitCommitCompareResult = const GitCommitCompareResult(
+          summary: GitCommitCompareSummary(
+            commitOid: 'abc123456789',
+            parentOid: null,
+            compareRef: 'abc1234',
+            baseRef: 'empty-tree',
+            changedFiles: 1,
+            status: GitCommitCompareStatus.ready,
+          ),
+          entries: <GitCommitChangeEntry>[
+            GitCommitChangeEntry(
+              path: 'lib/new.dart',
+              oldPath: 'lib/old.dart',
+              status: GitChangeStatus.renamed,
+            ),
+          ],
+        );
+
+      await _pumpPanel(tester, backend: backend, watcher: watcher);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Commits'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Add Feature'));
+      await tester.pumpAndSettle();
+
+      final commitFile = find.textContaining('lib/old.dart -> lib/new.dart');
+      expect(commitFile, findsOneWidget);
+
+      backend.gitHistoryResult = history('abc123456789', 'Add Feature');
+      watcher.emitChange();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pumpAndSettle();
+
+      expect(commitFile, findsOneWidget);
+      expect(
+        backend.calls.where((call) => call.method == 'commitCompare'),
+        hasLength(1),
+      );
+
+      backend.gitHistoryResult = history('def987654321', 'Replacement Commit');
+      watcher.emitChange();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Add Feature'), findsNothing);
+      expect(find.text('Replacement Commit'), findsOneWidget);
+
+      backend.gitHistoryResult = history('abc123456789', 'Add Feature');
+      watcher.emitChange();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Add Feature'), findsOneWidget);
+      expect(commitFile, findsNothing);
+    },
+  );
 
   testWidgets('collapsed commits panel reloads after successful git actions', (
     tester,
