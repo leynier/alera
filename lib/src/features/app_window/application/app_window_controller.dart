@@ -52,6 +52,12 @@ abstract interface class AppWindowController {
 
   Future<void> setPreventClose(bool value);
 
+  /// Requests a user-initiated window close (system close path).
+  ///
+  /// When prevent-close is enabled, this should emit the close event so the
+  /// lifecycle coordinator can flush state and destroy the window.
+  Future<void> close();
+
   Future<void> destroy();
 }
 
