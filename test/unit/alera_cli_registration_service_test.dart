@@ -26,7 +26,7 @@ void main() {
           AleraCliCommand(executable: '/Applications/Alera.app/alera'),
         ),
         commandEnvironmentResolver: _FakeCommandEnvironmentResolver(
-          <String, String>{'PATH': '$userBin:/usr/bin'},
+          <String, String>{'PATH': userBin},
         ),
         processRunner: _FakeProcessRunner(),
         applicationSupportDirectory: () async => support,
@@ -173,7 +173,7 @@ void main() {
       final home = Directory(p.join(tempDir.path, 'home'));
       final support = Directory(p.join(tempDir.path, 'support'));
       final userBin = p.join(home.path, '.local', 'bin');
-      var environment = const <String, String>{'PATH': '/usr/bin'};
+      var environment = const <String, String>{'PATH': ''};
       final service = AleraCliRegistrationService(
         cliResolver: const _FakeAleraCliResolver(
           AleraCliCommand(executable: '/Applications/Alera.app/alera'),
@@ -190,7 +190,7 @@ void main() {
       expect(installed.state, AleraCliRegistrationState.installed);
       expect(installed.ready, isFalse);
 
-      environment = <String, String>{'PATH': '$userBin:/usr/bin'};
+      environment = <String, String>{'PATH': userBin};
       final refreshed = await service.status();
 
       expect(refreshed.ready, isTrue);

@@ -1,11 +1,19 @@
+import 'dart:ui' show PointerDeviceKind;
+
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
+import 'package:alera/src/features/agent_status/application/agent_hook_reconciliation_service.dart';
+import 'package:alera/src/features/agent_status/domain/agent_status.dart';
+import 'package:alera/src/features/agent_status/infra/managed_agent_hook_installer.dart';
+import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/infra/alera_cli_registration_service.dart';
 import 'package:alera/src/features/settings/infra/alera_cli_skill_service.dart';
+import 'package:alera/src/features/settings/presentation/panes/alera_orchestration_skill_control.dart';
 import 'package:alera/src/features/settings/presentation/panes/agents_cli_skill_control.dart';
 import 'package:alera/src/shared/infra/process/command_environment_resolver.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -45,6 +53,22 @@ void main() {
           ),
         ),
       ),
+    );
+
+    final mouse = await tester.createGesture(
+      kind: PointerDeviceKind.mouse,
+      pointer: 1,
+    );
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(
+      location: tester.getCenter(
+        find.byType(PopupMenuButton<AleraCliSkillRunner>),
+      ),
+    );
+    await tester.pump();
+    expect(
+      RendererBinding.instance.mouseTracker.debugDeviceActiveCursor(1),
+      SystemMouseCursors.click,
     );
 
     await tester.tap(find.text('Copy'));
@@ -105,6 +129,45 @@ void main() {
     expect(find.textContaining('missing'), findsOneWidget);
   });
 
+  testWidgets('orchestration install reapplies selected hooks', (tester) async {
+    final service = _FakeAleraCliSkillService();
+    final reconciler = _FakeHookReconciler();
+    final settings = AleraSettings.defaults.copyWith(
+      agents: AleraSettings.defaults.agents.copyWith(
+        agentStatusHooks: const AgentStatusHookSettings(codex: true),
+      ),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          aleraCliSkillServiceProvider.overrideWithValue(service),
+          agentHookReconciliationServiceProvider.overrideWithValue(reconciler),
+          settingsControllerProvider.overrideWithValue(settings),
+        ],
+        child: MaterialApp(
+          theme: buildAleraDarkTheme(),
+          home: const Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: AleraOrchestrationSkillControl(),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Install / Update'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(service.skill, AleraAgentSkill.orchestration);
+    expect(reconciler.settings?.codex, isTrue);
+    expect(
+      find.text('Install Complete (npx) · Selected Hooks Ready'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('registration control surfaces install failures', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -146,23 +209,48 @@ class _FakeAleraCliSkillService extends AleraCliSkillService {
       );
 
   AleraCliSkillRunner? runner;
+  AleraAgentSkill? skill;
 
   @override
   Future<AleraCliSkillInstallResult> installOrUpdate({
     AleraCliSkillRunner runner = AleraCliSkillRunner.auto,
+    AleraAgentSkill skill = AleraAgentSkill.cli,
   }) async {
     this.runner = runner;
+    this.skill = skill;
+    final attemptRunner = runner == AleraCliSkillRunner.auto
+        ? AleraCliSkillRunner.npx
+        : runner;
     return AleraCliSkillInstallResult(
       runner: runner,
       attempts: <AleraCliSkillInstallAttempt>[
         AleraCliSkillInstallAttempt(
-          runner: runner,
+          runner: attemptRunner,
           exitCode: 0,
           stdout: 'ok',
           stderr: '',
         ),
       ],
     );
+  }
+}
+
+class _FakeHookReconciler implements AgentHookReconciler {
+  AgentStatusHookSettings? settings;
+
+  @override
+  Future<List<ManagedAgentHookInstallStatus>> reconcile(
+    AgentStatusHookSettings settings,
+  ) async {
+    this.settings = settings;
+    return <ManagedAgentHookInstallStatus>[
+      const ManagedAgentHookInstallStatus(
+        agentType: AgentType.codex,
+        state: ManagedAgentHookInstallState.installed,
+        configPath: '/tmp/codex',
+        managedHooksPresent: true,
+      ),
+    ];
   }
 }
 

@@ -110,7 +110,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
       SettingsGroupSpec(id: 'support', title: 'Support'),
     ];
     const agentsGroups = <SettingsGroupSpec>[
-      SettingsGroupSpec(id: 'cliSkill', title: 'CLI Skill'),
+      SettingsGroupSpec(id: 'cliSkill', title: 'CLI And Skills'),
       SettingsGroupSpec(id: 'hooks', title: 'Status Hooks'),
       SettingsGroupSpec(id: 'behavior', title: 'Behavior'),
     ];
@@ -141,7 +141,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
       SettingsSectionData(
         id: 'agents',
         title: 'Agents',
-        description: 'Agent hooks, notifications and the Alera CLI skill.',
+        description: 'Agent Hooks, Notifications And Alera Skills.',
         icon: AleraIcons.agent,
         entries: agentsSearchEntries,
         groups: agentsGroups,

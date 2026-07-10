@@ -5,6 +5,7 @@ import 'package:alera/src/design_system/layout/alera_settings_group.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/settings/presentation/panes/agents_cli_skill_control.dart';
+import 'package:alera/src/features/settings/presentation/panes/alera_orchestration_skill_control.dart';
 import 'package:alera/src/features/settings/presentation/rows/settings_rows.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -30,8 +31,9 @@ class AgentsSettingsPane extends ConsumerWidget {
         KeyedSubtree(
           key: groupKeys['cliSkill'],
           child: const AleraSettingsGroup(
-            title: 'Alera CLI Skill',
-            description: 'Register The CLI Command And Teach Agents To Use It.',
+            title: 'Alera CLI And Skills',
+            description:
+                'Register The CLI Command And Install Agent Instructions.',
             children: <Widget>[
               AleraSettingRow(
                 title: 'Alera CLI Command',
@@ -46,6 +48,13 @@ class AgentsSettingsPane extends ConsumerWidget {
                     'Install The Codex Skill That Teaches Agents To Use The Alera CLI.',
                 controlWidth: 360,
                 child: AleraCliSkillControl(),
+              ),
+              AleraSettingRow(
+                title: 'Alera Orchestration Skill',
+                description:
+                    'Install Or Update Orchestration And Reapply Selected Status Hooks.',
+                controlWidth: 360,
+                child: AleraOrchestrationSkillControl(),
               ),
             ],
           ),

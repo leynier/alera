@@ -75,3 +75,7 @@ Orchestration payloads serialize with snake_case fields and Orca's exact status 
 - `flutter test test/unit/agent_status_host_forwarder_test.dart` — the app-side presence forwarder.
 
 The agent-facing usage guide is `skills/alera-orchestration/SKILL.md`.
+
+## Settings Setup
+
+`Settings > Agents > Alera CLI And Skills` can install or update the global `alera-orchestration` skill with `npx`, `bunx`, or the automatic fallback. A successful in-app installation reapplies only the status hooks already selected by the user. It does not enable new hook toggles; overlay-backed hooks take effect for newly launched terminals.

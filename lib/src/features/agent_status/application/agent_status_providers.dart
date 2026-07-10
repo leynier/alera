@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera/src/features/agent_status/application/agent_hook_reconciliation_service.dart';
 import 'package:alera/src/features/agent_status/application/agent_awake_service.dart';
 import 'package:alera/src/features/agent_status/application/agent_status_controller.dart';
 import 'package:alera/src/features/agent_status/application/agent_status_notification_activation_service.dart';
@@ -66,6 +67,15 @@ ClaudeRuntimeHomeService claudeRuntimeHomeService(Ref ref) {
 @Riverpod(keepAlive: true)
 AgentRuntimeOverlayService agentRuntimeOverlayService(Ref ref) {
   return AgentRuntimeOverlayService();
+}
+
+@Riverpod(keepAlive: true)
+AgentHookReconciler agentHookReconciliationService(Ref ref) {
+  return AgentHookReconciliationService(
+    managedHooks: ref.watch(managedAgentHookInstallServiceProvider),
+    codexRuntimeHome: ref.watch(codexRuntimeHomeServiceProvider),
+    claudeRuntimeHome: ref.watch(claudeRuntimeHomeServiceProvider),
+  );
 }
 
 @Riverpod(keepAlive: true)
@@ -205,9 +215,7 @@ void agentHookReceiverLifecycleCoordinator(Ref ref) {
 
 @Riverpod(keepAlive: true)
 void agentHookInstallerCoordinator(Ref ref) {
-  final service = ref.watch(managedAgentHookInstallServiceProvider);
-  final codexRuntimeHome = ref.watch(codexRuntimeHomeServiceProvider);
-  final claudeRuntimeHome = ref.watch(claudeRuntimeHomeServiceProvider);
+  final service = ref.watch(agentHookReconciliationServiceProvider);
   ref.listen<AgentStatusHookSettings>(
     settingsControllerProvider.select(
       (settings) => settings.agents.agentStatusHooks,
@@ -216,12 +224,7 @@ void agentHookInstallerCoordinator(Ref ref) {
       if (previous == null || previous == next) {
         return;
       }
-      final operation = _reconcileAgentHooks(
-        service: service,
-        codexRuntimeHome: codexRuntimeHome,
-        claudeRuntimeHome: claudeRuntimeHome,
-        settings: next,
-      );
+      final operation = service.reconcile(next);
       unawaited(
         operation.then<void>((_) {}).catchError(_ignoreProviderAsyncError),
       );
@@ -430,74 +433,6 @@ Future<void> _showAgentStatusNotifications({
     }
     await presenter.show(notification);
   }
-}
-
-List<AgentType> _enabledAgentStatusHookTypes(AgentStatusHookSettings settings) {
-  return <AgentType>[
-    if (settings.codex) AgentType.codex,
-    if (settings.claude) AgentType.claude,
-    if (settings.copilot) AgentType.copilot,
-    if (settings.cursor) AgentType.cursor,
-    if (settings.agy) AgentType.agy,
-    if (settings.opencode) AgentType.opencode,
-    if (settings.pi) AgentType.pi,
-    if (settings.amp) AgentType.amp,
-  ];
-}
-
-List<AgentType> _globalManagedAgentTypes() {
-  return <AgentType>[
-    for (final agentType in AgentType.values)
-      if (agentType != AgentType.codex &&
-          agentType != AgentType.claude &&
-          agentType != AgentType.copilot &&
-          agentType != AgentType.cursor &&
-          agentType != AgentType.opencode &&
-          agentType != AgentType.pi &&
-          agentType != AgentType.amp)
-        agentType,
-  ];
-}
-
-List<AgentType> _enabledGlobalManagedAgentStatusHookTypes(
-  AgentStatusHookSettings settings,
-) {
-  return <AgentType>[
-    for (final agentType in _enabledAgentStatusHookTypes(settings))
-      if (agentType != AgentType.codex &&
-          agentType != AgentType.claude &&
-          agentType != AgentType.copilot &&
-          agentType != AgentType.cursor &&
-          agentType != AgentType.opencode &&
-          agentType != AgentType.pi &&
-          agentType != AgentType.amp)
-        agentType,
-  ];
-}
-
-Future<List<ManagedAgentHookInstallStatus>> _reconcileAgentHooks({
-  required ManagedAgentHookInstallService service,
-  required CodexRuntimeHomeService codexRuntimeHome,
-  required ClaudeRuntimeHomeService claudeRuntimeHome,
-  required AgentStatusHookSettings settings,
-}) async {
-  final results = await service.reconcile(
-    enabledAgentTypes: _enabledGlobalManagedAgentStatusHookTypes(settings),
-    agentTypes: _globalManagedAgentTypes(),
-  );
-  results.add(
-    settings.codex
-        ? await codexRuntimeHome.install()
-        : await codexRuntimeHome.remove(),
-  );
-  results.add(
-    settings.claude
-        ? await claudeRuntimeHome.install()
-        : await claudeRuntimeHome.remove(),
-  );
-  results.add(service.remove(AgentType.opencode));
-  results.add(service.remove(AgentType.pi));
-  return results;
 }
 
 // coverage:ignore-start
