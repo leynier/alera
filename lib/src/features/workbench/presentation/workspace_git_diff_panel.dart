@@ -240,7 +240,6 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
                   },
                 ),
               ),
-              const Divider(height: 1, color: AleraTokens.borderSubtle),
               _GitHistoryPanel(
                 state: _historyPanelState,
                 collapsed: _historyCollapsed,

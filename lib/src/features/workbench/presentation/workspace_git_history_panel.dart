@@ -102,7 +102,10 @@ class _GitHistoryPanelState extends State<_GitHistoryPanel> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          if (!widget.collapsed) _ResizeHandle(onResize: _resize),
+          if (widget.collapsed)
+            const Divider(height: 1, color: AleraTokens.borderSubtle)
+          else
+            _HistoryResizeHandle(onResize: _resize),
           DecoratedBox(
             decoration: const BoxDecoration(color: AleraTokens.surface),
             child: SizedBox(
@@ -405,21 +408,59 @@ class _RefreshCommitsButtonState extends State<_RefreshCommitsButton>
 
 enum _CommitAction { copyHash, copyMessage }
 
-class _ResizeHandle extends StatelessWidget {
-  const _ResizeHandle({required this.onResize});
+class _HistoryResizeHandle extends StatefulWidget {
+  const _HistoryResizeHandle({required this.onResize});
 
   final ValueChanged<double> onResize;
 
   @override
+  State<_HistoryResizeHandle> createState() => _HistoryResizeHandleState();
+}
+
+class _HistoryResizeHandleState extends State<_HistoryResizeHandle> {
+  bool _hovered = false;
+  bool _dragging = false;
+
+  @override
   Widget build(BuildContext context) {
+    final lineColor = _dragging
+        ? AleraTokens.accent
+        : (_hovered ? AleraTokens.foregroundFaint : AleraTokens.borderSubtle);
     return MouseRegion(
-      cursor: SystemMouseCursors.resizeUpDown,
+      cursor: SystemMouseCursors.resizeRow,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onVerticalDragUpdate: (details) => onResize(details.delta.dy),
-        child: const SizedBox(height: AleraTokens.space4),
+        behavior: HitTestBehavior.opaque,
+        onVerticalDragStart: (_) => setState(() => _dragging = true),
+        onVerticalDragUpdate: (details) => widget.onResize(details.delta.dy),
+        onVerticalDragEnd: (_) => _stopDragging(),
+        onVerticalDragCancel: _stopDragging,
+        child: SizedBox(
+          height: AleraTokens.space6,
+          child: Stack(
+            fit: StackFit.expand,
+            children: <Widget>[
+              const ColoredBox(color: AleraTokens.surface),
+              Positioned(
+                left: 0,
+                right: 0,
+                top: AleraTokens.space2,
+                bottom: AleraTokens.space2,
+                child: AnimatedContainer(
+                  duration: AleraTokens.durationFast,
+                  color: lineColor,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
+  }
+
+  void _stopDragging() {
+    setState(() => _dragging = false);
   }
 }
 
