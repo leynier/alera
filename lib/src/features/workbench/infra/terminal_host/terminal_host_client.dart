@@ -607,7 +607,7 @@ final class SocketTerminalHostClient
         );
         // Attach a sink before completeError so orphaned RPCs do not become
         // unhandled async errors during ProviderScope / test teardown.
-        unawaited(completer.future.catchError((Object _) {}));
+        unawaited(completer.future.catchError((Object _) => null));
         completer.completeError(closedError);
       }
     }
