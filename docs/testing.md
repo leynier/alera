@@ -82,6 +82,7 @@ Keep E2E tests deterministic:
 
 - Use temporary project folders.
 - Override `aleraDatabaseProvider` with a temporary or in-memory database.
+- Override runtime-backed repositories (`projectRepositoryProvider`, `workbenchRepositoryProvider`, `projectConfigRepositoryProvider`, `settingsRepositoryProvider`) with Drift (or other in-process) implementations so the smoke flow does not require a live terminal-host sidecar.
 - Override `processRunnerProvider` when a flow should not execute real commands.
 - Override `terminalRuntimeProvider` when a flow only needs terminal UI behavior.
 - Avoid network access.

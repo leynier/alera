@@ -4,9 +4,13 @@ import 'dart:io';
 import 'package:alera/src/app/app.dart';
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/design_system/surfaces/hover_container.dart';
+import 'package:alera/src/features/projects/infra/drift_project_config_repository.dart';
+import 'package:alera/src/features/projects/infra/drift_project_repository.dart';
 import 'package:alera/src/features/projects/presentation/add_project_dialog.dart';
+import 'package:alera/src/features/settings/infra/drift_settings_repository.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
+import 'package:alera/src/features/workbench/infra/drift_workbench_repository.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/shared/infra/git/git_backend.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
@@ -54,6 +58,15 @@ void main() {
     final terminalRuntime = _E2eTerminalRuntime();
     addTearDown(terminalRuntime.dispose);
 
+    // Keep the smoke flow on Drift-backed repositories so CI does not need a
+    // live terminal-host process for project/workspace persistence. The product
+    // path still exercises the real workbench UI and dialogs; only the host IPC
+    // boundary is replaced.
+    final projectRepository = DriftProjectRepository(db);
+    final workbenchRepository = DriftWorkbenchRepository(db);
+    final projectConfigRepository = DriftProjectConfigRepository(db);
+    final settingsRepository = DriftSettingsRepository(db);
+
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -61,6 +74,13 @@ void main() {
             ref.onDispose(closeDb);
             return db;
           }),
+          projectRepositoryProvider.overrideWithValue(projectRepository),
+          workbenchRepositoryProvider.overrideWithValue(workbenchRepository),
+          projectConfigRepositoryProvider.overrideWithValue(
+            projectConfigRepository,
+          ),
+          settingsRepositoryProvider.overrideWithValue(settingsRepository),
+          managedWorkspaceRuntimeProvider.overrideWithValue(null),
           gitBackendProvider.overrideWithValue(const _E2eGitBackend()),
           terminalRuntimeProvider.overrideWith((ref) => terminalRuntime),
         ],

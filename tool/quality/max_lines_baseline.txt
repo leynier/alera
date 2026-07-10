@@ -32,7 +32,6 @@
 529	test/widget/workspace_git_diff_surface_test.dart
 542	rust/src/api/agent_hooks.rs
 543	lib/src/features/workbench/presentation/workspace_git_diff_panel_tree.dart
-550	lib/src/features/agent_status/application/agent_status_providers.dart
 555	test/widget/workspace_markdown_viewer_surface_test.dart
 556	test/unit/terminal_runtime_helper_group.dart
 562	lib/src/features/ai_text_generation/application/ai_text_generation_registry.dart
@@ -45,6 +44,7 @@
 580	test/unit/desktop_update_service_test.dart
 582	rust/alera-cli/src/terminal_host/orchestration/lifecycle_reconciliation.rs
 586	lib/src/features/workbench/presentation/project_workbench_workspace_rows.dart
+587	lib/src/features/workbench/presentation/workspace_git_history_panel.dart
 594	rust/alera-cli/tests/orchestration_conformance.rs
 603	test/widget/create_workspace_dialog_test.dart
 605	lib/src/features/workbench/application/workspace_file_service.dart
@@ -77,5 +77,4 @@
 845	rust/alera-core/src/runtime/orchestration_store_tests.rs
 921	rust/alera-cli/src/terminal_host/server/orchestration_requests.rs
 923	test/widget/settings_dialog_core_test_cases.dart
-964	lib/src/features/workbench/presentation/workspace_git_history_panel.dart
-994	lib/src/features/workbench/presentation/workspace_git_diff_panel.dart
+975	lib/src/features/workbench/presentation/workspace_git_diff_panel.dart

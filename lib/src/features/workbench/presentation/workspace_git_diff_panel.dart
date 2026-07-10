@@ -27,6 +27,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 
+part 'workspace_git_diff_panel_types.dart';
 part 'workspace_git_diff_panel_groups.dart';
 part 'workspace_git_diff_panel_amend_dialog.dart';
 part 'workspace_git_diff_panel_stash_dialog.dart';
@@ -34,27 +35,8 @@ part 'workspace_git_diff_panel_toolbar.dart';
 part 'workspace_git_diff_panel_tree.dart';
 part 'workspace_git_diff_panel_submodules.dart';
 part 'workspace_git_history_panel.dart';
-
-typedef OpenGitDiffTabCallback =
-    Future<void> Function({
-      String? relativePath,
-      GitChangeArea? area,
-      String? gitDiffRoot,
-      required WorkspaceGitDiffScope scope,
-    });
-
-typedef OpenGitCommitDiffTabCallback =
-    Future<void> Function({
-      String? relativePath,
-      String? oldPath,
-      required WorkspaceGitDiffScope scope,
-      String? gitDiffRoot,
-      required String commitOid,
-      String? parentOid,
-      required String compareRef,
-      String? subject,
-      String? message,
-    });
+part 'workspace_git_history_panel_graph.dart';
+part 'workspace_git_history_panel_files.dart';
 
 class WorkspaceGitDiffPanel extends ConsumerStatefulWidget {
   const WorkspaceGitDiffPanel({
