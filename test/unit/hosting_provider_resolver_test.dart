@@ -8,7 +8,10 @@ void main() {
     test('auto-detects GitHub from the origin remote', () {
       final result = resolveHostingProvider(
         remotes: const <GitRemote>[
-          GitRemote(name: 'origin', url: 'https://github.com/leynier/alera.git'),
+          GitRemote(
+            name: 'origin',
+            url: 'https://github.com/leynier/alera.git',
+          ),
         ],
       );
       expect(result, isA<HostingProviderResolved>());
@@ -22,7 +25,10 @@ void main() {
       final result = resolveHostingProvider(
         remotes: const <GitRemote>[
           GitRemote(name: 'fork', url: 'https://github.com/other/alera.git'),
-          GitRemote(name: 'origin', url: 'https://github.com/leynier/alera.git'),
+          GitRemote(
+            name: 'origin',
+            url: 'https://github.com/leynier/alera.git',
+          ),
         ],
       );
       final resolved = result as HostingProviderResolved;
@@ -67,8 +73,10 @@ void main() {
         ],
       );
       expect(result, isA<HostingProviderUndetectable>());
-      expect((result as HostingProviderUndetectable).remoteUrl,
-          'https://gitlab.com/o/r.git');
+      expect(
+        (result as HostingProviderUndetectable).remoteUrl,
+        'https://gitlab.com/o/r.git',
+      );
     });
 
     test('reports undetectable with attemptedOverride when override fails', () {

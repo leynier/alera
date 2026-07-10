@@ -12,10 +12,7 @@ void main() {
     });
 
     test('parses a GitHub pull URL', () {
-      expect(
-        parseReviewReference('https://github.com/o/r/pull/456'),
-        456,
-      );
+      expect(parseReviewReference('https://github.com/o/r/pull/456'), 456);
     });
 
     test('parses an Azure DevOps pullrequest URL', () {

@@ -279,9 +279,7 @@ class FakeGitBackend implements GitBackend {
 
   @override
   Future<List<GitRemote>> listRemotes(String path) async {
-    calls.add(
-      GitBackendCall('listRemotes', <String, Object?>{'path': path}),
-    );
+    calls.add(GitBackendCall('listRemotes', <String, Object?>{'path': path}));
     if (listRemotesFails) {
       throw const GitInternalException('not a git repository');
     }

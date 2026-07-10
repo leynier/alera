@@ -77,23 +77,20 @@ class GitHubForgeProvider implements ForgeProvider {
     required String repoPath,
     required String branch,
   }) async {
-    final output = await _run(
-      <String>[
-        'pr',
-        'list',
-        '--repo',
-        _repoSlug(identity),
-        '--head',
-        branch,
-        '--state',
-        'open',
-        '--limit',
-        '1',
-        '--json',
-        _reviewJsonFields.join(','),
-      ],
-      repoPath,
-    );
+    final output = await _run(<String>[
+      'pr',
+      'list',
+      '--repo',
+      _repoSlug(identity),
+      '--head',
+      branch,
+      '--state',
+      'open',
+      '--limit',
+      '1',
+      '--json',
+      _reviewJsonFields.join(','),
+    ], repoPath);
     final decoded = _decodeJson(output);
     if (decoded is! List || decoded.isEmpty) {
       return null;
@@ -227,9 +224,7 @@ class GitHubForgeProvider implements ForgeProvider {
           provider: GitHostingProvider.github,
           number: number,
           title: input.title,
-          state: input.draft
-              ? HostedReviewState.draft
-              : HostedReviewState.open,
+          state: input.draft ? HostedReviewState.draft : HostedReviewState.open,
           url: url,
           baseBranch: input.baseBranch,
           headBranch: input.headBranch,
@@ -325,7 +320,9 @@ class GitHubForgeProvider implements ForgeProvider {
       title: json['title'] as String? ?? '',
       state: _mapState(state, isDraft),
       url: json['url'] as String? ?? '',
-      author: author is Map<String, Object?> ? author['login'] as String? : null,
+      author: author is Map<String, Object?>
+          ? author['login'] as String?
+          : null,
       baseBranch: json['baseRefName'] as String?,
       headBranch: json['headRefName'] as String?,
       headSha: json['headRefOid'] as String?,

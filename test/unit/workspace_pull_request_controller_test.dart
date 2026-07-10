@@ -18,15 +18,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'fake_git_backend.dart';
 
-HostedReview _review(int number, {HostedReviewState state = HostedReviewState.open}) =>
-    HostedReview(
-      provider: GitHostingProvider.github,
-      number: number,
-      title: 'feat: $number',
-      state: state,
-      url: 'https://github.com/leynier/alera/pull/$number',
-      headBranch: 'feature',
-    );
+HostedReview _review(
+  int number, {
+  HostedReviewState state = HostedReviewState.open,
+}) => HostedReview(
+  provider: GitHostingProvider.github,
+  number: number,
+  title: 'feat: $number',
+  state: state,
+  url: 'https://github.com/leynier/alera/pull/$number',
+  headBranch: 'feature',
+);
 
 const _scope = WorkspacePullRequestScope(
   workspaceId: 'w1',
@@ -46,7 +48,8 @@ ProviderContainer _container({
   required _FakeLinkedReviewRepo repo,
   FakeGitBackend? git,
 }) {
-  final backend = git ??
+  final backend =
+      git ??
       (FakeGitBackend()
         ..remotesByName = <String, String?>{
           'origin': 'https://github.com/leynier/alera.git',
@@ -106,9 +109,7 @@ void main() {
     final container = _container(forge: forge, repo: repo);
     addTearDown(container.dispose);
 
-    await container.read(
-      workspacePullRequestControllerProvider(_scope).future,
-    );
+    await container.read(workspacePullRequestControllerProvider(_scope).future);
     final controller = container.read(
       workspacePullRequestControllerProvider(_scope).notifier,
     );
@@ -127,9 +128,7 @@ void main() {
     final container = _container(forge: forge, repo: _FakeLinkedReviewRepo());
     addTearDown(container.dispose);
 
-    await container.read(
-      workspacePullRequestControllerProvider(_scope).future,
-    );
+    await container.read(workspacePullRequestControllerProvider(_scope).future);
     final controller = container.read(
       workspacePullRequestControllerProvider(_scope).notifier,
     );
@@ -148,9 +147,7 @@ void main() {
     final container = _container(forge: forge, repo: repo);
     addTearDown(container.dispose);
 
-    await container.read(
-      workspacePullRequestControllerProvider(_scope).future,
-    );
+    await container.read(workspacePullRequestControllerProvider(_scope).future);
     final controller = container.read(
       workspacePullRequestControllerProvider(_scope).notifier,
     );
@@ -176,9 +173,7 @@ void main() {
     final container = _container(forge: forge, repo: repo, git: backend);
     addTearDown(container.dispose);
 
-    await container.read(
-      workspacePullRequestControllerProvider(_scope).future,
-    );
+    await container.read(workspacePullRequestControllerProvider(_scope).future);
     final controller = container.read(
       workspacePullRequestControllerProvider(_scope).notifier,
     );
@@ -201,27 +196,29 @@ void main() {
     expect(state.review?.number, 789);
   });
 
-  test('resolves the branch from the repo when scope has no branch hint',
-      () async {
-    final backend = FakeGitBackend()
-      ..headBranch = 'feature'
-      ..remotesByName = <String, String?>{
-        'origin': 'https://github.com/leynier/alera.git',
-      };
-    final forge = _FakeForge()..branchReview = _review(321);
-    final container = _container(
-      forge: forge,
-      repo: _FakeLinkedReviewRepo(),
-      git: backend,
-    );
-    addTearDown(container.dispose);
+  test(
+    'resolves the branch from the repo when scope has no branch hint',
+    () async {
+      final backend = FakeGitBackend()
+        ..headBranch = 'feature'
+        ..remotesByName = <String, String?>{
+          'origin': 'https://github.com/leynier/alera.git',
+        };
+      final forge = _FakeForge()..branchReview = _review(321);
+      final container = _container(
+        forge: forge,
+        repo: _FakeLinkedReviewRepo(),
+        git: backend,
+      );
+      addTearDown(container.dispose);
 
-    final state = await container.read(
-      workspacePullRequestControllerProvider(_folderScope).future,
-    );
-    expect(state.currentBranch, 'feature');
-    expect(state.review?.number, 321);
-  });
+      final state = await container.read(
+        workspacePullRequestControllerProvider(_folderScope).future,
+      );
+      expect(state.currentBranch, 'feature');
+      expect(state.review?.number, 321);
+    },
+  );
 
   test('does not auto-detect when the controlled repo is detached', () async {
     final backend = FakeGitBackend()
@@ -263,8 +260,9 @@ class _FakeForge implements ForgeProvider {
   bool get supportsReviewCreation => true;
 
   @override
-  Future<ForgeAuthStatus> checkAuth({required GitRemoteIdentity identity}) async =>
-      auth;
+  Future<ForgeAuthStatus> checkAuth({
+    required GitRemoteIdentity identity,
+  }) async => auth;
 
   @override
   Future<HostedReview?> getReviewForBranch({

@@ -28,7 +28,9 @@ void main() {
     });
 
     test('parses ssh:// URL form', () {
-      final id = parseGitRemoteIdentity('ssh://git@github.com/leynier/alera.git');
+      final id = parseGitRemoteIdentity(
+        'ssh://git@github.com/leynier/alera.git',
+      );
       expect(id!.owner, 'leynier');
       expect(id.repo, 'alera');
     });

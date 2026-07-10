@@ -119,7 +119,13 @@ class _CreateReviewDialogState extends State<_CreateReviewDialog> {
             const SizedBox(height: AleraTokens.space12),
             _field(theme, _baseController, 'Base Branch'),
             const SizedBox(height: AleraTokens.space12),
-            _field(theme, _bodyController, 'Description', minLines: 3, maxLines: 6),
+            _field(
+              theme,
+              _bodyController,
+              'Description',
+              minLines: 3,
+              maxLines: 6,
+            ),
             if (_errorText != null) ...<Widget>[
               const SizedBox(height: AleraTokens.space8),
               Text(

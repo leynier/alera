@@ -78,7 +78,10 @@ void main() {
         repoPath: '/repo',
         branch: 'x',
       );
-      expect(runner.calls.single.optionValue('repo'), 'github.mycorp.com/team/svc');
+      expect(
+        runner.calls.single.optionValue('repo'),
+        'github.mycorp.com/team/svc',
+      );
     });
   });
 

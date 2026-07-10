@@ -9,8 +9,10 @@ ReviewCheck _check(
 void main() {
   group('deriveReviewChecksRollup', () {
     test('empty list is none', () {
-      expect(deriveReviewChecksRollup(const <ReviewCheck>[]),
-          ReviewChecksRollup.none);
+      expect(
+        deriveReviewChecksRollup(const <ReviewCheck>[]),
+        ReviewChecksRollup.none,
+      );
     });
 
     test('any failing conclusion dominates as failure', () {

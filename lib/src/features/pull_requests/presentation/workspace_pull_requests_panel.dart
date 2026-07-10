@@ -40,10 +40,8 @@ class WorkspacePullRequestsPanel extends ConsumerWidget {
     );
     return overrideAsync.when(
       loading: _loading,
-      error: (error, _) => _MessageBody(
-        icon: AleraIcons.error,
-        message: error.toString(),
-      ),
+      error: (error, _) =>
+          _MessageBody(icon: AleraIcons.error, message: error.toString()),
       data: (override) {
         final scope = WorkspacePullRequestScope(
           workspaceId: workspace.id,
@@ -54,10 +52,8 @@ class WorkspacePullRequestsPanel extends ConsumerWidget {
         final async = ref.watch(workspacePullRequestControllerProvider(scope));
         return async.when(
           loading: _loading,
-          error: (error, _) => _MessageBody(
-            icon: AleraIcons.error,
-            message: error.toString(),
-          ),
+          error: (error, _) =>
+              _MessageBody(icon: AleraIcons.error, message: error.toString()),
           data: (state) => _PullRequestBody(
             workspace: workspace,
             state: state,
@@ -72,8 +68,7 @@ class WorkspacePullRequestsPanel extends ConsumerWidget {
     );
   }
 
-  static Widget _loading() =>
-      const Center(child: CircularProgressIndicator());
+  static Widget _loading() => const Center(child: CircularProgressIndicator());
 }
 
 class _PullRequestBody extends StatelessWidget {
@@ -95,7 +90,8 @@ class _PullRequestBody extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         _Header(busy: state.isBusy, onRefresh: controller.refresh),
-        if (state.errorMessage != null) _ErrorBanner(message: state.errorMessage!),
+        if (state.errorMessage != null)
+          _ErrorBanner(message: state.errorMessage!),
         Expanded(child: _content(context)),
       ],
     );

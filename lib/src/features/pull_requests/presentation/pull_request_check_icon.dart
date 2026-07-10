@@ -40,8 +40,7 @@ class PullRequestCheckIcon extends StatelessWidget {
         AleraIcons.cancel,
         AleraTokens.error,
       ),
-      ReviewCheckConclusion.neutral ||
-      ReviewCheckConclusion.skipped => (
+      ReviewCheckConclusion.neutral || ReviewCheckConclusion.skipped => (
         AleraIcons.circle,
         AleraTokens.foregroundMuted,
       ),

@@ -68,26 +68,23 @@ class AzureDevOpsForgeProvider implements ForgeProvider {
     required String repoPath,
     required String branch,
   }) async {
-    final output = await _run(
-      <String>[
-        'repos',
-        'pr',
-        'list',
-        '--organization',
-        _orgUrl(identity),
-        '--project',
-        identity.project ?? '',
-        '--repository',
-        identity.repo,
-        '--source-branch',
-        branch,
-        '--status',
-        'active',
-        '--output',
-        'json',
-      ],
-      repoPath,
-    );
+    final output = await _run(<String>[
+      'repos',
+      'pr',
+      'list',
+      '--organization',
+      _orgUrl(identity),
+      '--project',
+      identity.project ?? '',
+      '--repository',
+      identity.repo,
+      '--source-branch',
+      branch,
+      '--status',
+      'active',
+      '--output',
+      'json',
+    ], repoPath);
     final decoded = _decodeJson(output);
     if (decoded is! List || decoded.isEmpty) {
       return null;
@@ -275,7 +272,10 @@ class AzureDevOpsForgeProvider implements ForgeProvider {
     );
   }
 
-  HostedReview _mapReview(GitRemoteIdentity identity, Map<String, Object?> json) {
+  HostedReview _mapReview(
+    GitRemoteIdentity identity,
+    Map<String, Object?> json,
+  ) {
     final number = (json['pullRequestId'] as num?)?.toInt() ?? 0;
     final status = (json['status'] as String? ?? 'active').toLowerCase();
     final isDraft = json['isDraft'] as bool? ?? false;

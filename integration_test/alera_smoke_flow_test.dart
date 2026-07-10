@@ -173,8 +173,7 @@ class _E2eGitBackend implements GitBackend {
       const <GitWorktreeEntry>[];
 
   @override
-  Future<List<GitRemote>> listRemotes(String path) async =>
-      const <GitRemote>[];
+  Future<List<GitRemote>> listRemotes(String path) async => const <GitRemote>[];
 
   @override
   Future<void> clone({

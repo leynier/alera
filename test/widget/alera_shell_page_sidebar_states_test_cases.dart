@@ -242,30 +242,31 @@ void _registerAleraShellSidebarStateTests() {
     expect(find.byTooltip('Source Control'), findsNothing);
   });
 
-  testWidgets('flat workspace grouping shows project folder icons with tooltips', (
-    tester,
-  ) async {
-    await _pumpShell(
-      tester,
-      state: _linkedWorkbenchState(linkedExpanded: true).copyWith(
-        viewPrefs: WorkbenchViewPrefs.defaults.copyWith(
-          groupBy: WorkbenchGroupBy.none,
-          expandedWorkspaceIds: <String>{'workspace-1', 'workspace-2'},
+  testWidgets(
+    'flat workspace grouping shows project folder icons with tooltips',
+    (tester) async {
+      await _pumpShell(
+        tester,
+        state: _linkedWorkbenchState(linkedExpanded: true).copyWith(
+          viewPrefs: WorkbenchViewPrefs.defaults.copyWith(
+            groupBy: WorkbenchGroupBy.none,
+            expandedWorkspaceIds: <String>{'workspace-1', 'workspace-2'},
+          ),
         ),
-      ),
-    );
+      );
 
-    expect(find.text('Main'), findsOneWidget);
-    expect(find.text('Feature login'), findsOneWidget);
-    expect(find.byKey(const Key('workspace-tray-project')), findsNWidgets(2));
-    expect(find.byIcon(AleraIcons.folderSpecial), findsNWidgets(2));
-    expect(
-      find.byWidgetPredicate(
-        (widget) => widget is Tooltip && widget.message == 'Alera',
-      ),
-      findsNWidgets(2),
-    );
-  });
+      expect(find.text('Main'), findsOneWidget);
+      expect(find.text('Feature login'), findsOneWidget);
+      expect(find.byKey(const Key('workspace-tray-project')), findsNWidgets(2));
+      expect(find.byIcon(AleraIcons.folderSpecial), findsNWidgets(2));
+      expect(
+        find.byWidgetPredicate(
+          (widget) => widget is Tooltip && widget.message == 'Alera',
+        ),
+        findsNWidgets(2),
+      );
+    },
+  );
 
   testWidgets('workspace rows show tags and children in the icon tray', (
     tester,
@@ -292,8 +293,7 @@ void _registerAleraShellSidebarStateTests() {
     expect(
       find.byWidgetPredicate(
         (widget) =>
-            widget is Tooltip &&
-            widget.message == 'frontend, review, qa, ux',
+            widget is Tooltip && widget.message == 'frontend, review, qa, ux',
       ),
       findsOneWidget,
     );

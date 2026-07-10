@@ -123,7 +123,9 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController {
   bool _disposed = false;
 
   @override
-  Future<WorkspacePullRequestState> build(WorkspacePullRequestScope scope) async {
+  Future<WorkspacePullRequestState> build(
+    WorkspacePullRequestScope scope,
+  ) async {
     _gitBackend = ref.read(gitBackendProvider);
     _registry = ref.read(forgeProviderRegistryProvider);
     _linkedReviews = ref.read(linkedReviewRepositoryProvider);
@@ -301,9 +303,7 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController {
   ) async {
     final resolution = await _resolveIdentity(scope);
     if (resolution.identity == null) {
-      return WorkspacePullRequestState(
-        unavailableReason: resolution.reason,
-      );
+      return WorkspacePullRequestState(unavailableReason: resolution.reason);
     }
     final identity = resolution.identity!;
     final forge = _registry.forProvider(identity.provider);

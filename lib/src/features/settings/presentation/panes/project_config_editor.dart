@@ -85,7 +85,8 @@ class ProjectConfigEditor extends StatelessWidget {
         const SizedBox(height: AleraTokens.space16),
         AleraSettingsGroup(
           title: 'Pull Requests',
-          description: 'Git Hosting Provider Used For Pull Requests And Checks.',
+          description:
+              'Git Hosting Provider Used For Pull Requests And Checks.',
           children: <Widget>[
             AleraSettingRow(
               title: 'Hosting Provider',
