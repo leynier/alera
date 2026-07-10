@@ -31,6 +31,12 @@ class WorkspaceSourceControlState {
 
   bool get hasStagedChanges => stagedEntries.isNotEmpty;
 
+  bool get hasStageableChanges =>
+      status.entries.any((entry) => entry.canStageFromParent);
+
+  bool get hasDiscardableChanges =>
+      status.entries.any((entry) => entry.canDiscardFromParent);
+
   bool get hasChanges => status.entries.isNotEmpty;
 
   bool get hasUnstagedOrUntrackedChanges => status.entries.any(
@@ -42,7 +48,8 @@ class WorkspaceSourceControlState {
   bool get hasStashableChanges => status.entries.any(
     (entry) =>
         entry.area == GitChangeArea.staged ||
-        entry.area == GitChangeArea.unstaged,
+        (entry.area == GitChangeArea.unstaged &&
+            !entry.isSubmoduleWorktreeOnly),
   );
 }
 
@@ -102,12 +109,16 @@ class WorkspaceSourceControlController
         backend.stageArea(path: workspacePath, area: area, filePath: filePath),
   );
 
-  Future<void> stageEntry(GitChangeEntry entry) =>
-      _run(WorkspaceSourceControlAction.stage, (backend) async {
-        for (final filePath in _actionPaths(entry)) {
-          await backend.stage(path: workspacePath, filePath: filePath);
-        }
-      });
+  Future<void> stageEntry(GitChangeEntry entry) {
+    if (!entry.canStageFromParent) {
+      return Future<void>.value();
+    }
+    return _run(WorkspaceSourceControlAction.stage, (backend) async {
+      for (final filePath in _actionPaths(entry)) {
+        await backend.stage(path: workspacePath, filePath: filePath);
+      }
+    });
+  }
 
   Future<void> unstage(String? filePath) => _run(
     WorkspaceSourceControlAction.unstage,
@@ -123,12 +134,16 @@ class WorkspaceSourceControlController
     ),
   );
 
-  Future<void> unstageEntry(GitChangeEntry entry) =>
-      _run(WorkspaceSourceControlAction.unstage, (backend) async {
-        for (final filePath in _actionPaths(entry)) {
-          await backend.unstage(path: workspacePath, filePath: filePath);
-        }
-      });
+  Future<void> unstageEntry(GitChangeEntry entry) {
+    if (!entry.canUnstageFromParent) {
+      return Future<void>.value();
+    }
+    return _run(WorkspaceSourceControlAction.unstage, (backend) async {
+      for (final filePath in _actionPaths(entry)) {
+        await backend.unstage(path: workspacePath, filePath: filePath);
+      }
+    });
+  }
 
   Future<void> discard(String? filePath) => _run(
     WorkspaceSourceControlAction.discard,
@@ -144,12 +159,16 @@ class WorkspaceSourceControlController
     ),
   );
 
-  Future<void> discardEntry(GitChangeEntry entry) =>
-      _run(WorkspaceSourceControlAction.discard, (backend) async {
-        for (final filePath in _actionPaths(entry)) {
-          await backend.discard(path: workspacePath, filePath: filePath);
-        }
-      });
+  Future<void> discardEntry(GitChangeEntry entry) {
+    if (!entry.canDiscardFromParent) {
+      return Future<void>.value();
+    }
+    return _run(WorkspaceSourceControlAction.discard, (backend) async {
+      for (final filePath in _actionPaths(entry)) {
+        await backend.discard(path: workspacePath, filePath: filePath);
+      }
+    });
+  }
 
   Future<void> commit(String message) => _run(
     WorkspaceSourceControlAction.commit,

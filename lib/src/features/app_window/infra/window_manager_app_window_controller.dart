@@ -54,6 +54,9 @@ class WindowManagerAppWindowController implements AppWindowController {
   Future<void> setTitle(String title) => _manager.setTitle(title);
 
   @override
+  Future<void> close() => _manager.close();
+
+  @override
   Future<void> destroy() => _manager.destroy();
 }
 

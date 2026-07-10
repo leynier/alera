@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::{Component, Path, PathBuf};
 
 use alera_core::git as core_git;
@@ -17,6 +18,11 @@ mod git_history_impl;
 pub struct GitWorktreeEntry {
     pub path: String,
     pub branch: String,
+}
+
+pub struct GitRemote {
+    pub name: String,
+    pub url: Option<String>,
 }
 
 pub struct GitRepositoryState {
@@ -68,6 +74,14 @@ pub enum GitDiffLineKind {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GitSubmoduleStatus {
+    pub commit_changed: bool,
+    pub tracked_changes: bool,
+    pub untracked_changes: bool,
+    pub inspectable: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GitChangeEntry {
     pub path: String,
     pub old_path: Option<String>,
@@ -77,6 +91,7 @@ pub struct GitChangeEntry {
     pub removed: Option<u32>,
     pub is_binary: bool,
     pub is_large: bool,
+    pub submodule: Option<GitSubmoduleStatus>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -118,6 +133,7 @@ pub struct GitDiffFile {
     pub removed: Option<u32>,
     pub is_binary: bool,
     pub is_large: bool,
+    pub is_gitlink: bool,
     pub truncated: bool,
     pub line_preview_truncated: bool,
 }
@@ -361,6 +377,14 @@ pub fn git_status_for_path(path: String, file_path: String) -> Result<GitStatusR
     git_diff_impl::git_status_for_path(path, file_path)
 }
 
+pub fn git_submodule_status(
+    path: String,
+    submodule_path: String,
+    area: GitChangeArea,
+) -> Result<GitStatusResult, GitError> {
+    git_diff_impl::git_submodule_status(path, submodule_path, area)
+}
+
 pub fn git_diff(
     path: String,
     file_path: String,
@@ -484,12 +508,19 @@ pub fn git_unstage_area(
 
 pub fn git_discard(path: String, file_path: Option<String>) -> Result<(), GitError> {
     let repo = open_repo(&path)?;
+    let reject_dirty_submodules = file_path.is_some();
     let status = match file_path.as_deref() {
         Some(file_path) => git_status_for_path(path.clone(), file_path.to_string())?,
         None => git_status(path.clone())?,
     };
     let pathspecs = scoped_pathspecs(&repo, &path, file_path.as_deref())?;
-    discard_status_entries(&repo, &path, &status.entries, &pathspecs)
+    discard_status_entries(
+        &repo,
+        &path,
+        &status.entries,
+        &pathspecs,
+        reject_dirty_submodules,
+    )
 }
 
 pub fn git_discard_area(
@@ -501,7 +532,7 @@ pub fn git_discard_area(
     let status = git_status(path.clone())?;
     let entries = entries_for_area_and_scope(status.entries, area, file_path.as_deref());
     let pathspecs = scoped_pathspecs(&repo, &path, file_path.as_deref())?;
-    discard_status_entries(&repo, &path, &entries, &pathspecs)
+    discard_status_entries(&repo, &path, &entries, &pathspecs, false)
 }
 
 fn discard_status_entries(
@@ -509,14 +540,53 @@ fn discard_status_entries(
     path: &str,
     entries: &[GitChangeEntry],
     pathspecs: &[String],
+    reject_dirty_submodules: bool,
 ) -> Result<(), GitError> {
-    let has_tracked_unstaged = entries
-        .iter()
-        .any(|entry| entry.area == GitChangeArea::Unstaged);
+    let mut skipped_submodules = HashSet::new();
+    for entry in entries.iter().filter(|entry| {
+        entry.area == GitChangeArea::Unstaged
+            && entry
+                .submodule
+                .as_ref()
+                .is_some_and(|status| status.commit_changed && status.inspectable)
+    }) {
+        let discarded = git_diff_impl::discard_submodule_gitlink(
+            repo,
+            path,
+            &entry.path,
+            !reject_dirty_submodules,
+        )?;
+        if !discarded {
+            skipped_submodules.insert(entry.path.clone());
+        }
+    }
+
+    let has_tracked_unstaged = entries.iter().any(|entry| {
+        entry.area == GitChangeArea::Unstaged
+            && is_parent_discardable(entry)
+            && !skipped_submodules.contains(&entry.path)
+    });
     if has_tracked_unstaged {
         let mut checkout = CheckoutBuilder::new();
         checkout.force();
-        if pathspecs != [String::from(".")] {
+        let has_non_discardable_submodule = !skipped_submodules.is_empty()
+            || entries.iter().any(|entry| {
+                entry.area == GitChangeArea::Unstaged
+                    && entry.submodule.is_some()
+                    && !is_parent_discardable(entry)
+            });
+        if has_non_discardable_submodule {
+            checkout.disable_pathspec_match(true);
+            for entry in entries.iter().filter(|entry| {
+                entry.area == GitChangeArea::Unstaged
+                    && is_parent_discardable(entry)
+                    && !skipped_submodules.contains(&entry.path)
+            }) {
+                for workspace_path in entry.old_path.iter().chain(std::iter::once(&entry.path)) {
+                    checkout.path(repo_relative_path(repo, path, workspace_path)?);
+                }
+            }
+        } else if pathspecs != [String::from(".")] {
             checkout.disable_pathspec_match(true);
             for pathspec in pathspecs {
                 checkout.path(pathspec);
@@ -976,7 +1046,7 @@ fn stage_status_entries(
     let mut index = repo.index().map_err(GitError::from_git2)?;
     for entry in entries
         .iter()
-        .filter(|entry| entry.area != GitChangeArea::Staged)
+        .filter(|entry| entry.area != GitChangeArea::Staged && !is_submodule_worktree_only(entry))
     {
         if let Some(old_path) = entry.old_path.as_deref() {
             let repo_path = repo_relative_path(repo, workspace_path, old_path)?;
@@ -992,6 +1062,21 @@ fn stage_status_entries(
     }
     index.write().map_err(GitError::from_git2)?;
     Ok(())
+}
+
+fn is_submodule_worktree_only(entry: &GitChangeEntry) -> bool {
+    entry.area == GitChangeArea::Unstaged
+        && entry
+            .submodule
+            .as_ref()
+            .is_some_and(|status| !status.commit_changed)
+}
+
+fn is_parent_discardable(entry: &GitChangeEntry) -> bool {
+    entry
+        .submodule
+        .as_ref()
+        .is_none_or(|status| status.commit_changed && status.inspectable)
 }
 
 fn unstage_selected_path(
@@ -1236,6 +1321,29 @@ pub fn list_worktrees(repo_path: String) -> Result<Vec<GitWorktreeEntry>, GitErr
                 .collect()
         })
         .map_err(Into::into)
+}
+
+/// Lists the repository's configured remotes with their fetch URLs. Used to
+/// detect the git hosting provider (GitHub, Azure DevOps, ...) from the remote
+/// identity. Remotes without a URL yield `None`.
+pub fn list_remotes(path: String) -> Result<Vec<GitRemote>, GitError> {
+    let repo = open_repo(&path)?;
+    let names = repo.remotes().map_err(GitError::from_git2)?;
+    let mut remotes = Vec::new();
+    for name in names.iter() {
+        let Some(name) = name.map_err(GitError::from_git2)? else {
+            continue;
+        };
+        let url = match repo.find_remote(name) {
+            Ok(remote) => remote.url().ok().map(ToString::to_string),
+            Err(_) => None,
+        };
+        remotes.push(GitRemote {
+            name: name.to_string(),
+            url,
+        });
+    }
+    Ok(remotes)
 }
 
 /// Splits `destination_path` into the parent directory to run `git` in and the

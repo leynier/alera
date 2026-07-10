@@ -72,6 +72,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 | Diffs per file | 3 | 5 | Shipped | File-level diff view with line stats |
 | Diffs global | 3 | 4 | Shipped | Aggregated diff across all changed files |
 | Git status with operations | 4 | 5 | Shipped | Staging, commit, pull, push, discard with full UI |
+| Submodule inspection | 3 | 4 | Shipped | Lazy one-level read-only status and diffs; parent actions remain scoped to changed gitlinks |
 | Commit and PR messages with AI | 3 | 4 | Shipped | AI-generated commit messages (PR descriptions planned) |
 | Conflict view and resolver | 4 | 4 | Planned | Visual conflict display with merge controls |
 | Conflict resolution with AI | 4 | 3 | Planned | AI-assisted three-way merge conflict resolution |

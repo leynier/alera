@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera/src/shared/infra/git/git_backend.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_exception.dart';
+import 'package:alera/src/shared/infra/git/git_remote.dart';
 import 'package:alera/src/shared/infra/git/git_worktree_entry.dart';
 
 /// A recorded [GitBackend] invocation, used by tests to assert which git
@@ -57,6 +58,12 @@ class FakeGitBackend implements GitBackend {
   /// When set, [listWorktrees] throws (callers treat the listing as untrusted).
   bool worktreeListFails = false;
 
+  /// Remotes reported by [listRemotes], keyed by name → url.
+  Map<String, String?> remotesByName = <String, String?>{};
+
+  /// When set, [listRemotes] throws.
+  bool listRemotesFails = false;
+
   /// Target branch names whose [createWorktree] should fail.
   final Set<String> failingWorktreeAddBranches = <String>{};
 
@@ -77,6 +84,7 @@ class FakeGitBackend implements GitBackend {
   void Function(String url, String destinationPath)? onClone;
 
   GitStatusResult gitStatusResult = const GitStatusResult(entries: []);
+  GitStatusResult gitSubmoduleStatusResult = const GitStatusResult(entries: []);
   GitDiffResult gitDiffResult = const GitDiffResult(files: []);
   GitDiffResult gitDiffAllResult = const GitDiffResult(files: []);
   GitHistoryResult gitHistoryResult = const GitHistoryResult(
@@ -107,6 +115,7 @@ class FakeGitBackend implements GitBackend {
   String gitCommitOid = 'abc123';
 
   GitException? statusError;
+  GitException? submoduleStatusError;
   GitException? historyError;
   GitException? commitCompareError;
   GitException? commitDiffError;
@@ -271,6 +280,18 @@ class FakeGitBackend implements GitBackend {
   }
 
   @override
+  Future<List<GitRemote>> listRemotes(String path) async {
+    calls.add(GitBackendCall('listRemotes', <String, Object?>{'path': path}));
+    if (listRemotesFails) {
+      throw const GitInternalException('not a git repository');
+    }
+    return <GitRemote>[
+      for (final entry in remotesByName.entries)
+        GitRemote(name: entry.key, url: entry.value),
+    ];
+  }
+
+  @override
   Future<void> clone({
     required String url,
     required String destinationPath,
@@ -314,6 +335,26 @@ class FakeGitBackend implements GitBackend {
         gitStatusResult.entriesForPath(filePath),
       ),
     );
+  }
+
+  @override
+  Future<GitStatusResult> submoduleStatus({
+    required String path,
+    required String submodulePath,
+    required GitChangeArea area,
+  }) async {
+    calls.add(
+      GitBackendCall('submoduleStatus', <String, Object?>{
+        'path': path,
+        'submodulePath': submodulePath,
+        'area': area,
+      }),
+    );
+    final error = submoduleStatusError;
+    if (error != null) {
+      throw error;
+    }
+    return gitSubmoduleStatusResult;
   }
 
   @override

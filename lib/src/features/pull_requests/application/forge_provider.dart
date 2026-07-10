@@ -1,0 +1,60 @@
+import 'package:alera/src/features/pull_requests/domain/create_review_input.dart';
+import 'package:alera/src/features/pull_requests/domain/create_review_result.dart';
+import 'package:alera/src/features/pull_requests/domain/forge_auth_status.dart';
+import 'package:alera/src/features/pull_requests/domain/git_hosting_provider.dart';
+import 'package:alera/src/features/pull_requests/domain/git_remote_identity.dart';
+import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
+import 'package:alera/src/features/pull_requests/domain/review_check.dart';
+
+/// A git hosting provider integration. One implementation per forge, each
+/// wrapping that forge's official CLI. The interface is neutral: no
+/// provider-specific parameters leak in, and callers dispatch through the
+/// `ForgeProviderRegistry`.
+///
+/// Read methods that genuinely find nothing return `null` / an empty list;
+/// authentication, missing-CLI, and transport problems throw a
+/// [ForgeException] subtype so absence is never confused with failure.
+abstract interface class ForgeProvider {
+  /// The provider this integration serves.
+  GitHostingProvider get id;
+
+  /// Whether this provider can create reviews (some are read-only).
+  bool get supportsReviewCreation;
+
+  /// Reports whether the provider's CLI is installed and authenticated for the
+  /// host in [identity]. Never throws.
+  Future<ForgeAuthStatus> checkAuth({required GitRemoteIdentity identity});
+
+  /// The open review whose source branch is [branch], or null when the branch
+  /// has no open review. [repoPath] is the local checkout used as the CLI
+  /// working directory.
+  Future<HostedReview?> getReviewForBranch({
+    required GitRemoteIdentity identity,
+    required String repoPath,
+    required String branch,
+  });
+
+  /// The review identified by [number], or null when it does not exist.
+  Future<HostedReview?> getReviewByNumber({
+    required GitRemoteIdentity identity,
+    required String repoPath,
+    required int number,
+  });
+
+  /// The CI/status checks attached to review [number]. Empty when the review
+  /// has no checks.
+  Future<List<ReviewCheck>> getChecks({
+    required GitRemoteIdentity identity,
+    required String repoPath,
+    required int number,
+  });
+
+  /// Creates a review from [input]. The head branch is expected to already be
+  /// pushed to the remote (the caller pushes first). Returns a discriminated
+  /// success/failure result rather than throwing for expected failures.
+  Future<CreateReviewResult> createReview({
+    required GitRemoteIdentity identity,
+    required String repoPath,
+    required CreateReviewInput input,
+  });
+}

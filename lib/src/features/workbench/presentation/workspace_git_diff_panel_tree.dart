@@ -2,11 +2,14 @@ part of 'workspace_git_diff_panel.dart';
 
 class _GitDiffTree extends StatefulWidget {
   const _GitDiffTree({
+    required this.workspacePath,
     required this.area,
     required this.rows,
     required this.busy,
     required this.collapsedTreeNodes,
+    required this.expandedSubmodules,
     required this.onToggleTreeNode,
+    required this.onToggleSubmodule,
     required this.onOpenGitDiff,
     required this.onStage,
     required this.onUnstage,
@@ -16,11 +19,14 @@ class _GitDiffTree extends StatefulWidget {
     required this.onDiscardArea,
   });
 
+  final String workspacePath;
   final GitChangeArea area;
   final List<GitChangeTreeRow> rows;
   final bool busy;
   final Set<String> collapsedTreeNodes;
+  final Set<String> expandedSubmodules;
   final void Function(GitChangeArea area, String path) onToggleTreeNode;
+  final ValueChanged<GitChangeEntry> onToggleSubmodule;
   final OpenGitDiffTabCallback onOpenGitDiff;
   final ValueChanged<GitChangeEntry> onStage;
   final ValueChanged<GitChangeEntry> onUnstage;
@@ -37,10 +43,40 @@ class _GitDiffTreeState extends State<_GitDiffTree> {
   @override
   Widget build(BuildContext context) {
     final rows = widget.rows.isEmpty ? _fallbackRows() : widget.rows;
+    final directoryCapabilities = _directoryCapabilities(rows);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[for (final row in _visibleRows(rows)) _buildRow(row)],
+      children: <Widget>[
+        for (final row in _visibleRows(rows))
+          ..._buildRows(row, directoryCapabilities),
+      ],
     );
+  }
+
+  Map<String, _GitDirectoryCapabilities> _directoryCapabilities(
+    List<GitChangeTreeRow> rows,
+  ) {
+    final result = <String, _GitDirectoryCapabilities>{};
+    for (final row in rows) {
+      final entry = row.entry;
+      if (entry == null) {
+        continue;
+      }
+      final parts = entry.path
+          .split('/')
+          .where((part) => part.isNotEmpty)
+          .toList(growable: false);
+      var directoryPath = '';
+      for (var index = 0; index < parts.length - 1; index += 1) {
+        directoryPath = directoryPath.isEmpty
+            ? parts[index]
+            : '$directoryPath/${parts[index]}';
+        result
+            .putIfAbsent(directoryPath, _GitDirectoryCapabilities.new)
+            .include(entry);
+      }
+    }
+    return result;
   }
 
   Iterable<GitChangeTreeRow> _visibleRows(List<GitChangeTreeRow> rows) sync* {
@@ -61,37 +97,60 @@ class _GitDiffTreeState extends State<_GitDiffTree> {
     }
   }
 
-  Widget _buildRow(GitChangeTreeRow row) {
+  List<Widget> _buildRows(
+    GitChangeTreeRow row,
+    Map<String, _GitDirectoryCapabilities> directoryCapabilities,
+  ) {
     if (row.entry case final entry?) {
-      return _GitDiffFileRow(
-        entry: entry,
-        depth: row.depth,
-        busy: widget.busy,
-        onStage: widget.onStage,
-        onUnstage: widget.onUnstage,
-        onDiscard: widget.onDiscard,
-        onTap: () => unawaited(
-          widget.onOpenGitDiff(
-            relativePath: entry.path,
-            area: entry.area,
-            scope: WorkspaceGitDiffScope.file,
-          ),
+      final expanded = widget.expandedSubmodules.contains(entry.id);
+      return <Widget>[
+        _GitDiffFileRow(
+          entry: entry,
+          depth: row.depth,
+          busy: widget.busy,
+          onStage: widget.onStage,
+          onUnstage: widget.onUnstage,
+          onDiscard: widget.onDiscard,
+          submoduleExpanded: expanded,
+          onToggleSubmodule: () => widget.onToggleSubmodule(entry),
+          onTap: entry.isSubmoduleWorktreeOnly
+              ? () => widget.onToggleSubmodule(entry)
+              : () => unawaited(
+                  widget.onOpenGitDiff(
+                    relativePath: entry.path,
+                    area: entry.area,
+                    scope: WorkspaceGitDiffScope.file,
+                  ),
+                ),
         ),
-      );
+        if (entry.isExpandableSubmodule && expanded)
+          _SubmoduleChanges(
+            workspacePath: widget.workspacePath,
+            entry: entry,
+            depth: row.depth + 1,
+            busy: widget.busy,
+            onOpenGitDiff: widget.onOpenGitDiff,
+          ),
+      ];
     }
     final collapsed = widget.collapsedTreeNodes.contains(
       _treeNodeKey(row.path),
     );
-    return _GitDiffDirectoryRow(
-      row: row,
-      area: widget.area,
-      busy: widget.busy,
-      collapsed: collapsed,
-      onTap: () => widget.onToggleTreeNode(widget.area, row.path),
-      onStage: () => widget.onStageArea(widget.area, row.path),
-      onUnstage: () => widget.onUnstageArea(widget.area, row.path),
-      onDiscard: () => widget.onDiscardArea(widget.area, row.path),
-    );
+    final capabilities = directoryCapabilities[row.path];
+    return <Widget>[
+      _GitDiffDirectoryRow(
+        row: row,
+        busy: widget.busy,
+        collapsed: collapsed,
+        canStage: capabilities?.canStage ?? false,
+        canUnstage: capabilities?.canUnstage ?? false,
+        canDiscard: capabilities?.canDiscard ?? false,
+        onTap: () => widget.onToggleTreeNode(widget.area, row.path),
+        onStage: () => widget.onStageArea(widget.area, row.path),
+        onUnstage: () => widget.onUnstageArea(widget.area, row.path),
+        onDiscard: () => widget.onDiscardArea(widget.area, row.path),
+      ),
+    ];
   }
 
   List<GitChangeTreeRow> _fallbackRows() {
@@ -101,12 +160,26 @@ class _GitDiffTreeState extends State<_GitDiffTree> {
   String _treeNodeKey(String path) => 'folder:${widget.area.key}:$path';
 }
 
+class _GitDirectoryCapabilities {
+  bool canStage = false;
+  bool canUnstage = false;
+  bool canDiscard = false;
+
+  void include(GitChangeEntry entry) {
+    canStage = canStage || entry.canStageFromParent;
+    canUnstage = canUnstage || entry.canUnstageFromParent;
+    canDiscard = canDiscard || entry.canDiscardFromParent;
+  }
+}
+
 class _GitDiffDirectoryRow extends StatelessWidget {
   const _GitDiffDirectoryRow({
     required this.row,
-    required this.area,
     required this.busy,
     required this.collapsed,
+    required this.canStage,
+    required this.canUnstage,
+    required this.canDiscard,
     required this.onTap,
     required this.onStage,
     required this.onUnstage,
@@ -114,9 +187,11 @@ class _GitDiffDirectoryRow extends StatelessWidget {
   });
 
   final GitChangeTreeRow row;
-  final GitChangeArea area;
   final bool busy;
   final bool collapsed;
+  final bool canStage;
+  final bool canUnstage;
+  final bool canDiscard;
   final VoidCallback onTap;
   final VoidCallback onStage;
   final VoidCallback onUnstage;
@@ -160,11 +235,13 @@ class _GitDiffDirectoryRow extends StatelessWidget {
           ),
           const SizedBox(width: AleraTokens.space6),
           _AreaActions(
-            area: area,
             busy: busy,
             onStage: onStage,
             onUnstage: onUnstage,
             onDiscard: onDiscard,
+            canStage: canStage,
+            canUnstage: canUnstage,
+            canDiscard: canDiscard,
           ),
         ],
       ),
@@ -182,6 +259,8 @@ class _GitDiffFileRow extends StatelessWidget {
     required this.onUnstage,
     required this.onDiscard,
     this.showRelativePath = false,
+    this.submoduleExpanded = false,
+    this.onToggleSubmodule,
   });
 
   final GitChangeEntry entry;
@@ -192,6 +271,8 @@ class _GitDiffFileRow extends StatelessWidget {
   final ValueChanged<GitChangeEntry> onUnstage;
   final ValueChanged<GitChangeEntry> onDiscard;
   final bool showRelativePath;
+  final bool submoduleExpanded;
+  final VoidCallback? onToggleSubmodule;
 
   @override
   Widget build(BuildContext context) {
@@ -200,7 +281,23 @@ class _GitDiffFileRow extends StatelessWidget {
       onTap: onTap,
       child: Row(
         children: <Widget>[
-          const SizedBox(width: 16),
+          if (entry.isExpandableSubmodule)
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onToggleSubmodule,
+              child: Padding(
+                padding: const EdgeInsets.only(right: AleraTokens.space2),
+                child: Icon(
+                  submoduleExpanded
+                      ? AleraIcons.chevronDown
+                      : AleraIcons.chevronRight,
+                  size: 14,
+                  color: AleraTokens.foregroundMuted,
+                ),
+              ),
+            )
+          else
+            const SizedBox(width: 16),
           AleraFileIcon(
             pathOrName: entry.path,
             kind: AleraFileIconKind.file,
@@ -217,6 +314,18 @@ class _GitDiffFileRow extends StatelessWidget {
               ),
             ),
           ),
+          if (entry.isSubmoduleWorktreeOnly)
+            Tooltip(
+              message: 'Manage Inside Submodule',
+              child: Text(
+                'Inside',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: AleraTokens.foregroundFaint,
+                ),
+              ),
+            ),
+          if (entry.isSubmoduleWorktreeOnly)
+            const SizedBox(width: AleraTokens.space4),
           _GitStatusLabel(status: entry.status),
           const SizedBox(width: AleraTokens.space6),
           _LineStats(added: entry.added, removed: entry.removed),
@@ -256,19 +365,19 @@ class _GitFileActions extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: <Widget>[
-          if (entry.area == GitChangeArea.staged)
+          if (entry.canUnstageFromParent)
             AleraIconButton(
               tooltip: 'Unstage',
               icon: AleraIcons.remove,
               onPressed: busy ? null : () => onUnstage(entry),
             )
-          else
+          else if (entry.canStageFromParent)
             AleraIconButton(
               tooltip: 'Stage',
               icon: AleraIcons.add,
               onPressed: busy ? null : () => onStage(entry),
             ),
-          if (entry.area != GitChangeArea.staged)
+          if (entry.canDiscardFromParent)
             AleraIconButton(
               tooltip: 'Discard',
               icon: AleraIcons.close,
@@ -282,18 +391,22 @@ class _GitFileActions extends StatelessWidget {
 
 class _AreaActions extends StatelessWidget {
   const _AreaActions({
-    required this.area,
     required this.busy,
     required this.onStage,
     required this.onUnstage,
     required this.onDiscard,
+    required this.canStage,
+    required this.canUnstage,
+    required this.canDiscard,
   });
 
-  final GitChangeArea area;
   final bool busy;
   final VoidCallback onStage;
   final VoidCallback onUnstage;
   final VoidCallback onDiscard;
+  final bool canStage;
+  final bool canUnstage;
+  final bool canDiscard;
 
   @override
   Widget build(BuildContext context) {
@@ -302,19 +415,19 @@ class _AreaActions extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: <Widget>[
-          if (area == GitChangeArea.staged)
+          if (canUnstage)
             AleraIconButton(
               tooltip: 'Unstage',
               icon: AleraIcons.remove,
               onPressed: busy ? null : onUnstage,
             )
-          else
+          else if (canStage)
             AleraIconButton(
               tooltip: 'Stage',
               icon: AleraIcons.add,
               onPressed: busy ? null : onStage,
             ),
-          if (area != GitChangeArea.staged)
+          if (canDiscard)
             AleraIconButton(
               tooltip: 'Discard',
               icon: AleraIcons.close,

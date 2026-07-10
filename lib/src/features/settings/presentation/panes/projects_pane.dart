@@ -7,6 +7,7 @@ import 'package:alera/src/design_system/surfaces/alera_panel.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/domain/project_config.dart';
 import 'package:alera/src/features/projects/domain/project_config_paths.dart';
+import 'package:alera/src/features/pull_requests/domain/git_hosting_provider.dart';
 import 'package:alera/src/features/settings/presentation/panes/project_config_editor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -25,6 +26,7 @@ class _ProjectSettingsPaneState extends ConsumerState<ProjectSettingsPane> {
   String? _seedSignature;
   List<EditableCopyRule> _copyRules = const <EditableCopyRule>[];
   List<String> _setupCommands = const <String>[];
+  GitHostingProvider? _gitHostingProvider;
   final Map<String, Future<ProjectConfig?>> _repoConfigFutures =
       <String, Future<ProjectConfig?>>{};
   String? _saveError;
@@ -84,6 +86,7 @@ class _ProjectSettingsPaneState extends ConsumerState<ProjectSettingsPane> {
                   useRepoFile: overrides.containsKey(selected.id)
                       ? () => _useRepoFile(selected)
                       : null,
+                  onGitHostingProviderChanged: _setGitHostingProvider,
                 ),
               ),
             );
@@ -111,13 +114,19 @@ class _ProjectSettingsPaneState extends ConsumerState<ProjectSettingsPane> {
     });
   }
 
-  ({List<EditableCopyRule> copyRules, List<String> setupCommands}) _seedEditor({
-    required Project project,
-    required ProjectConfig config,
-  }) {
+  ({
+    List<EditableCopyRule> copyRules,
+    List<String> setupCommands,
+    GitHostingProvider? gitHostingProvider,
+  })
+  _seedEditor({required Project project, required ProjectConfig config}) {
     final signature = projectConfigSignature(config);
     if (_editingProjectId == project.id && _seedSignature == signature) {
-      return (copyRules: _copyRules, setupCommands: _setupCommands);
+      return (
+        copyRules: _copyRules,
+        setupCommands: _setupCommands,
+        gitHostingProvider: _gitHostingProvider,
+      );
     }
     _editingProjectId = project.id;
     _seedSignature = signature;
@@ -130,8 +139,17 @@ class _ProjectSettingsPaneState extends ConsumerState<ProjectSettingsPane> {
         ),
     ];
     _setupCommands = <String>[...config.worktree.setup];
+    _gitHostingProvider = config.gitHostingProvider;
     _saveError = null;
-    return (copyRules: _copyRules, setupCommands: _setupCommands);
+    return (
+      copyRules: _copyRules,
+      setupCommands: _setupCommands,
+      gitHostingProvider: _gitHostingProvider,
+    );
+  }
+
+  void _setGitHostingProvider(GitHostingProvider? provider) {
+    setState(() => _gitHostingProvider = provider);
   }
 
   void _updateCopyRule(int index, EditableCopyRule rule) {
@@ -279,6 +297,7 @@ class _ProjectSettingsPaneState extends ConsumerState<ProjectSettingsPane> {
             if (command.trim().isNotEmpty) command.trim(),
         ],
       ),
+      gitHostingProvider: _gitHostingProvider,
     );
   }
 }
@@ -299,6 +318,7 @@ class _ProjectConfigEditorLoader extends ConsumerWidget {
     required this.addSetupCommand,
     required this.saveOverride,
     required this.useRepoFile,
+    required this.onGitHostingProviderChanged,
   });
 
   final Project project;
@@ -306,9 +326,14 @@ class _ProjectConfigEditorLoader extends ConsumerWidget {
   final Future<ProjectConfig?> repoConfigFuture;
   final String? saveError;
   final bool saving;
-  final ({List<EditableCopyRule> copyRules, List<String> setupCommands})
+  final ({
+    List<EditableCopyRule> copyRules,
+    List<String> setupCommands,
+    GitHostingProvider? gitHostingProvider,
+  })
   Function({required Project project, required ProjectConfig config})
   seedEditor;
+  final ValueChanged<GitHostingProvider?> onGitHostingProviderChanged;
   final void Function(int index, EditableCopyRule rule) updateCopyRule;
   final ValueChanged<int> removeCopyRule;
   final VoidCallback addCopyRule;
@@ -326,6 +351,8 @@ class _ProjectConfigEditorLoader extends ConsumerWidget {
       return ProjectConfigEditor(
         project: project,
         sourceLabel: 'UI Override',
+        gitHostingProvider: editorState.gitHostingProvider,
+        onGitHostingProviderChanged: onGitHostingProviderChanged,
         copyRules: editorState.copyRules,
         setupCommands: editorState.setupCommands,
         saveError: saveError,
@@ -357,6 +384,8 @@ class _ProjectConfigEditorLoader extends ConsumerWidget {
             project: project,
             sourceLabel: 'Repo File Error',
             sourceError: snapshot.error.toString(),
+            gitHostingProvider: editorState.gitHostingProvider,
+            onGitHostingProviderChanged: onGitHostingProviderChanged,
             copyRules: editorState.copyRules,
             setupCommands: editorState.setupCommands,
             saveError: saveError,
@@ -377,6 +406,8 @@ class _ProjectConfigEditorLoader extends ConsumerWidget {
         return ProjectConfigEditor(
           project: project,
           sourceLabel: repoConfig == null ? 'None' : 'Repo File',
+          gitHostingProvider: editorState.gitHostingProvider,
+          onGitHostingProviderChanged: onGitHostingProviderChanged,
           copyRules: editorState.copyRules,
           setupCommands: editorState.setupCommands,
           saveError: saveError,

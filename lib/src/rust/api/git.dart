@@ -6,8 +6,8 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `commit_parent_commits`, `current_head_commit`, `delete_workspace_relative_path`, `discard_status_entries`, `entries_for_area_and_scope`, `from_git2`, `from_io`, `git_cli_in_path`, `git_signature`, `head_branch_name`, `merge_head_oids`, `new`, `open_repo`, `pathspec_string`, `reject_out_of_scope_staged_entries`, `reject_out_of_scope_stash_pop`, `reject_out_of_scope_tracked_changes`, `reject_tree_diff_out_of_scope`, `relative_path`, `remove_index_path_if_present`, `repo_path_is_in_scope`, `repo_relative_path_from_workspace`, `repo_relative_path`, `repo_workdir_path_exists`, `repository_has_conflicts`, `scoped_pathspecs`, `split_clone_destination`, `stage_selected_path`, `stage_status_entries`, `stash_oid`, `unborn_branch_name`, `unstage_selected_path`, `unstage_status_entries`, `workspace_path_is_in_scope`, `workspace_repo_relative_path`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`
+// These functions are ignored because they are not marked as `pub`: `commit_parent_commits`, `current_head_commit`, `delete_workspace_relative_path`, `discard_status_entries`, `entries_for_area_and_scope`, `from_git2`, `from_io`, `git_cli_in_path`, `git_signature`, `head_branch_name`, `is_parent_discardable`, `is_submodule_worktree_only`, `merge_head_oids`, `new`, `open_repo`, `pathspec_string`, `reject_out_of_scope_staged_entries`, `reject_out_of_scope_stash_pop`, `reject_out_of_scope_tracked_changes`, `reject_tree_diff_out_of_scope`, `relative_path`, `remove_index_path_if_present`, `repo_path_is_in_scope`, `repo_relative_path_from_workspace`, `repo_relative_path`, `repo_workdir_path_exists`, `repository_has_conflicts`, `scoped_pathspecs`, `split_clone_destination`, `stage_selected_path`, `stage_status_entries`, `stash_oid`, `unborn_branch_name`, `unstage_selected_path`, `unstage_status_entries`, `workspace_path_is_in_scope`, `workspace_repo_relative_path`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`
 
 Future<bool> isGitRepository({required String path}) =>
     RustLib.instance.api.crateApiGitIsGitRepository(path: path);
@@ -36,6 +36,16 @@ Future<GitStatusResult> gitStatusForPath({
 }) => RustLib.instance.api.crateApiGitGitStatusForPath(
   path: path,
   filePath: filePath,
+);
+
+Future<GitStatusResult> gitSubmoduleStatus({
+  required String path,
+  required String submodulePath,
+  required GitChangeArea area,
+}) => RustLib.instance.api.crateApiGitGitSubmoduleStatus(
+  path: path,
+  submodulePath: submodulePath,
+  area: area,
 );
 
 Future<GitDiffResult> gitDiff({
@@ -211,6 +221,12 @@ Future<void> deleteBranch({
 Future<List<GitWorktreeEntry>> listWorktrees({required String repoPath}) =>
     RustLib.instance.api.crateApiGitListWorktrees(repoPath: repoPath);
 
+/// Lists the repository's configured remotes with their fetch URLs. Used to
+/// detect the git hosting provider (GitHub, Azure DevOps, ...) from the remote
+/// identity. Remotes without a URL yield `None`.
+Future<List<GitRemote>> listRemotes({required String path}) =>
+    RustLib.instance.api.crateApiGitListRemotes(path: path);
+
 /// Clones a repository into `destination_path` using the system `git` CLI so
 /// the user's credential helper authenticates private remotes. Mirrors
 /// `git clone --progress -- <url> <destination_path>`.
@@ -233,6 +249,7 @@ class GitChangeEntry {
   final int? removed;
   final bool isBinary;
   final bool isLarge;
+  final GitSubmoduleStatus? submodule;
 
   const GitChangeEntry({
     required this.path,
@@ -243,6 +260,7 @@ class GitChangeEntry {
     this.removed,
     required this.isBinary,
     required this.isLarge,
+    this.submodule,
   });
 
   @override
@@ -254,7 +272,8 @@ class GitChangeEntry {
       added.hashCode ^
       removed.hashCode ^
       isBinary.hashCode ^
-      isLarge.hashCode;
+      isLarge.hashCode ^
+      submodule.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -268,7 +287,8 @@ class GitChangeEntry {
           added == other.added &&
           removed == other.removed &&
           isBinary == other.isBinary &&
-          isLarge == other.isLarge;
+          isLarge == other.isLarge &&
+          submodule == other.submodule;
 }
 
 class GitChangeGroup {
@@ -446,6 +466,7 @@ class GitDiffFile {
   final int? removed;
   final bool isBinary;
   final bool isLarge;
+  final bool isGitlink;
   final bool truncated;
   final bool linePreviewTruncated;
 
@@ -459,6 +480,7 @@ class GitDiffFile {
     this.removed,
     required this.isBinary,
     required this.isLarge,
+    required this.isGitlink,
     required this.truncated,
     required this.linePreviewTruncated,
   });
@@ -474,6 +496,7 @@ class GitDiffFile {
       removed.hashCode ^
       isBinary.hashCode ^
       isLarge.hashCode ^
+      isGitlink.hashCode ^
       truncated.hashCode ^
       linePreviewTruncated.hashCode;
 
@@ -491,6 +514,7 @@ class GitDiffFile {
           removed == other.removed &&
           isBinary == other.isBinary &&
           isLarge == other.isLarge &&
+          isGitlink == other.isGitlink &&
           truncated == other.truncated &&
           linePreviewTruncated == other.linePreviewTruncated;
 }
@@ -703,6 +727,24 @@ class GitHistoryResult {
           limit == other.limit;
 }
 
+class GitRemote {
+  final String name;
+  final String? url;
+
+  const GitRemote({required this.name, this.url});
+
+  @override
+  int get hashCode => name.hashCode ^ url.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GitRemote &&
+          runtimeType == other.runtimeType &&
+          name == other.name &&
+          url == other.url;
+}
+
 class GitRepositoryState {
   final String branch;
   final String? upstream;
@@ -786,6 +828,37 @@ class GitStatusResult {
           runtimeType == other.runtimeType &&
           entries == other.entries &&
           groups == other.groups;
+}
+
+class GitSubmoduleStatus {
+  final bool commitChanged;
+  final bool trackedChanges;
+  final bool untrackedChanges;
+  final bool inspectable;
+
+  const GitSubmoduleStatus({
+    required this.commitChanged,
+    required this.trackedChanges,
+    required this.untrackedChanges,
+    required this.inspectable,
+  });
+
+  @override
+  int get hashCode =>
+      commitChanged.hashCode ^
+      trackedChanges.hashCode ^
+      untrackedChanges.hashCode ^
+      inspectable.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GitSubmoduleStatus &&
+          runtimeType == other.runtimeType &&
+          commitChanged == other.commitChanged &&
+          trackedChanges == other.trackedChanges &&
+          untrackedChanges == other.untrackedChanges &&
+          inspectable == other.inspectable;
 }
 
 class GitWorktreeEntry {

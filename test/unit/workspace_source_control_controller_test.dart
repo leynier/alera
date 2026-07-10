@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:alera/src/features/workbench/application/source_control_watcher.dart';
 import 'package:alera/src/features/workbench/application/workspace_source_control_controller.dart';
+import 'package:alera/src/features/workbench/application/workspace_submodule_status_provider.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -146,6 +147,89 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 10));
 
     expect(watcher.stopCount, 1);
+  });
+
+  test('parent actions ignore submodule worktree-only entries', () async {
+    final backend = FakeGitBackend();
+    final watcher = FakeSourceControlWatcher();
+    addTearDown(watcher.dispose);
+    final (_, controller) = await _boot(backend, watcher);
+    const entry = GitChangeEntry(
+      path: 'modules/sample',
+      area: GitChangeArea.unstaged,
+      status: GitChangeStatus.modified,
+      submodule: GitSubmoduleStatus(
+        commitChanged: false,
+        trackedChanges: true,
+        untrackedChanges: false,
+        inspectable: true,
+      ),
+    );
+
+    await controller.stageEntry(entry);
+    await controller.discardEntry(entry);
+
+    expect(backend.calls.where((call) => call.method == 'stage'), isEmpty);
+    expect(backend.calls.where((call) => call.method == 'discard'), isEmpty);
+  });
+
+  test('one-sided submodule ranges are not expandable', () {
+    const entry = GitChangeEntry(
+      path: 'modules/sample',
+      area: GitChangeArea.staged,
+      status: GitChangeStatus.deleted,
+      submodule: GitSubmoduleStatus(
+        commitChanged: true,
+        trackedChanges: false,
+        untrackedChanges: false,
+        inspectable: false,
+      ),
+    );
+
+    expect(entry.isExpandableSubmodule, isFalse);
+    expect(entry.canDiscardFromParent, isFalse);
+  });
+
+  test('submodule provider loads lazily and prefixes child paths', () async {
+    final backend = FakeGitBackend()
+      ..gitSubmoduleStatusResult = const GitStatusResult(
+        entries: <GitChangeEntry>[
+          GitChangeEntry(
+            path: 'lib/child.dart',
+            area: GitChangeArea.staged,
+            status: GitChangeStatus.modified,
+          ),
+        ],
+      );
+    final watcher = FakeSourceControlWatcher();
+    addTearDown(watcher.dispose);
+    final (container, _) = await _boot(backend, watcher);
+    final provider = workspaceSubmoduleStatusProvider(
+      workspacePath: _workspacePath,
+      submodulePath: 'modules/sample',
+      area: GitChangeArea.staged,
+    );
+
+    expect(
+      backend.calls.where((call) => call.method == 'submoduleStatus'),
+      isEmpty,
+    );
+    final result = await container.read(provider.future);
+
+    expect(result.entries.single.path, 'modules/sample/lib/child.dart');
+    expect(result.entries.single.area, GitChangeArea.staged);
+    expect(result.entries.single.submoduleRoot, 'modules/sample');
+    expect(
+      backend.calls
+          .where((call) => call.method == 'submoduleStatus')
+          .single
+          .args,
+      <String, Object?>{
+        'path': _workspacePath,
+        'submodulePath': 'modules/sample',
+        'area': GitChangeArea.staged,
+      },
+    );
   });
 }
 

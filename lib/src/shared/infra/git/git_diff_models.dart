@@ -247,6 +247,8 @@ class GitChangeEntry {
     this.removed,
     this.isBinary = false,
     this.isLarge = false,
+    this.submodule,
+    this.submoduleRoot,
   });
 
   final String path;
@@ -257,8 +259,72 @@ class GitChangeEntry {
   final int? removed;
   final bool isBinary;
   final bool isLarge;
+  final GitSubmoduleStatus? submodule;
+  final String? submoduleRoot;
 
   String get id => '${area.key}::$path';
+
+  bool get isSubmoduleChild => submoduleRoot != null;
+
+  bool get isExpandableSubmodule =>
+      submodule != null &&
+      !isSubmoduleChild &&
+      (submodule!.commitChanged ||
+          submodule!.trackedChanges ||
+          submodule!.untrackedChanges) &&
+      submodule!.inspectable;
+
+  bool get isSubmoduleWorktreeOnly =>
+      area == GitChangeArea.unstaged &&
+      submodule != null &&
+      !submodule!.commitChanged;
+
+  bool get canStageFromParent =>
+      !isSubmoduleChild &&
+      area != GitChangeArea.staged &&
+      !isSubmoduleWorktreeOnly;
+
+  bool get canUnstageFromParent =>
+      !isSubmoduleChild && area == GitChangeArea.staged;
+
+  bool get canDiscardFromParent =>
+      !isSubmoduleChild &&
+      area != GitChangeArea.staged &&
+      !isSubmoduleWorktreeOnly &&
+      (submodule == null ||
+          (submodule!.inspectable &&
+              !submodule!.trackedChanges &&
+              !submodule!.untrackedChanges));
+
+  GitChangeEntry insideSubmodule(String root) {
+    final prefixedOldPath = oldPath == null ? null : '$root/$oldPath';
+    return GitChangeEntry(
+      path: '$root/$path',
+      oldPath: prefixedOldPath,
+      area: area,
+      status: status,
+      added: added,
+      removed: removed,
+      isBinary: isBinary,
+      isLarge: isLarge,
+      submodule: submodule,
+      submoduleRoot: root,
+    );
+  }
+}
+
+class GitSubmoduleStatus {
+  const GitSubmoduleStatus({
+    required this.commitChanged,
+    required this.trackedChanges,
+    required this.untrackedChanges,
+    required this.inspectable,
+  });
+
+  final bool commitChanged;
+  final bool trackedChanges;
+  final bool untrackedChanges;
+  final bool inspectable;
 }
 
 class GitChangeTreeRow {
@@ -297,6 +363,7 @@ class GitDiffFile {
     this.removed,
     this.isBinary = false,
     this.isLarge = false,
+    this.isGitlink = false,
     this.truncated = false,
     this.linePreviewTruncated = false,
     this.sourceLabel,
@@ -311,6 +378,7 @@ class GitDiffFile {
   final int? removed;
   final bool isBinary;
   final bool isLarge;
+  final bool isGitlink;
   final bool truncated;
   final bool linePreviewTruncated;
   final String? sourceLabel;

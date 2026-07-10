@@ -2,6 +2,7 @@ import 'package:alera/src/rust/api/git.dart' as rust;
 import 'package:alera/src/shared/infra/git/git_backend.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_exception.dart';
+import 'package:alera/src/shared/infra/git/git_remote.dart';
 import 'package:alera/src/shared/infra/git/git_worktree_entry.dart';
 
 /// [GitBackend] backed by the Rust crate through flutter_rust_bridge. This is
@@ -90,6 +91,14 @@ class RustGitBackend implements GitBackend {
       });
 
   @override
+  Future<List<GitRemote>> listRemotes(String path) => _guard(() async {
+    final remotes = await rust.listRemotes(path: path);
+    return remotes
+        .map((remote) => GitRemote(name: remote.name, url: remote.url))
+        .toList(growable: false);
+  });
+
+  @override
   Future<void> clone({required String url, required String destinationPath}) =>
       _guard(
         () => rust.cloneRepository(url: url, destinationPath: destinationPath),
@@ -107,6 +116,20 @@ class RustGitBackend implements GitBackend {
     required String filePath,
   }) => _guard(() async {
     final result = await rust.gitStatusForPath(path: path, filePath: filePath);
+    return _toStatusResult(result);
+  });
+
+  @override
+  Future<GitStatusResult> submoduleStatus({
+    required String path,
+    required String submodulePath,
+    required GitChangeArea area,
+  }) => _guard(() async {
+    final result = await rust.gitSubmoduleStatus(
+      path: path,
+      submodulePath: submodulePath,
+      area: _toRustArea(area),
+    );
     return _toStatusResult(result);
   });
 
@@ -322,6 +345,14 @@ class RustGitBackend implements GitBackend {
       removed: entry.removed,
       isBinary: entry.isBinary,
       isLarge: entry.isLarge,
+      submodule: entry.submodule == null
+          ? null
+          : GitSubmoduleStatus(
+              commitChanged: entry.submodule!.commitChanged,
+              trackedChanges: entry.submodule!.trackedChanges,
+              untrackedChanges: entry.submodule!.untrackedChanges,
+              inspectable: entry.submodule!.inspectable,
+            ),
     );
   }
 
@@ -369,6 +400,7 @@ class RustGitBackend implements GitBackend {
               removed: file.removed,
               isBinary: file.isBinary,
               isLarge: file.isLarge,
+              isGitlink: file.isGitlink,
               truncated: file.truncated,
               linePreviewTruncated: file.linePreviewTruncated,
               sourceLabel: sourceLabel,

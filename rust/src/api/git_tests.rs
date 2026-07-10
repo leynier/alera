@@ -5,6 +5,8 @@ use std::process::Command;
 
 #[path = "git_diff_edge_tests.rs"]
 mod git_diff_edge_tests;
+#[path = "git_submodule_tests.rs"]
+mod git_submodule_tests;
 
 fn run_git(dir: &Path, args: &[&str]) {
     let status = git_command(dir, args).status().expect("git command runs");

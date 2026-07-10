@@ -40,6 +40,7 @@ pub(super) fn untracked_diff_file(
         removed: Some(0),
         is_binary: untracked.is_binary,
         is_large: untracked.is_large,
+        is_gitlink: false,
         truncated: false,
         line_preview_truncated,
     })

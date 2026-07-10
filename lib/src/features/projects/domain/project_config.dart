@@ -1,14 +1,22 @@
+import 'package:alera/src/features/pull_requests/domain/git_hosting_provider.dart';
 import 'package:dart_mappable/dart_mappable.dart';
 
 part 'project_config.mapper.dart';
 
 @MappableClass()
 class ProjectConfig with ProjectConfigMappable {
-  const ProjectConfig({this.worktree = WorktreeSetupConfig.defaults});
+  const ProjectConfig({
+    this.worktree = WorktreeSetupConfig.defaults,
+    this.gitHostingProvider,
+  });
 
   final WorktreeSetupConfig worktree;
 
-  bool get isEmpty => worktree.isEmpty;
+  /// Overrides auto-detection of the git hosting provider for this project.
+  /// Null means auto-detect from the repository's remote.
+  final GitHostingProvider? gitHostingProvider;
+
+  bool get isEmpty => worktree.isEmpty && gitHostingProvider == null;
 
   static const ProjectConfig empty = ProjectConfig();
 

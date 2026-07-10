@@ -88,6 +88,42 @@ void main() {
     );
   });
 
+  testWidgets('diff surface disables opening gitlink diffs', (tester) async {
+    final backend = FakeGitBackend()
+      ..gitDiffResult = const GitDiffResult(
+        files: <GitDiffFile>[
+          GitDiffFile(
+            path: 'modules/sample',
+            area: GitChangeArea.unstaged,
+            status: GitChangeStatus.modified,
+            lines: <GitDiffLine>[
+              GitDiffLine.addition('+Subproject commit abc123'),
+            ],
+            added: 1,
+            removed: 1,
+            isGitlink: true,
+          ),
+        ],
+      );
+
+    await _pumpDiffSurface(
+      tester,
+      backend: backend,
+      tab: _diffTab(
+        filePath: 'modules/sample',
+        title: 'sample unstaged',
+        area: GitChangeArea.unstaged,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(_openFileButton(tester).onPressed, isNull);
+    expect(
+      find.byTooltip('File is not available in working tree'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('diff surface enables opening modified files', (tester) async {
     final backend = FakeGitBackend()
       ..gitDiffResult = const GitDiffResult(

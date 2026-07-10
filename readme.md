@@ -129,7 +129,7 @@ Alera is a Flutter desktop app. You'll need a recent [Flutter SDK](https://docs.
 ```bash
 git clone https://github.com/leynier/alera.git
 cd alera
-git submodule update --init third_party/xterm third_party/dart_terminal
+make init-submodules
 flutter pub get
 
 # Pick your platform:

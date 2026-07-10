@@ -11,6 +11,7 @@ import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart'
 import 'package:alera/src/shared/infra/git/git_backend.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
+import 'package:alera/src/shared/infra/git/git_remote.dart';
 import 'package:alera/src/shared/infra/git/git_worktree_entry.dart';
 import 'package:alera/src/shared/infra/storage/drift_database.dart';
 import 'package:drift/native.dart';
@@ -184,6 +185,9 @@ class _E2eGitBackend implements GitBackend {
       const <GitWorktreeEntry>[];
 
   @override
+  Future<List<GitRemote>> listRemotes(String path) async => const <GitRemote>[];
+
+  @override
   Future<void> clone({
     required String url,
     required String destinationPath,
@@ -197,6 +201,13 @@ class _E2eGitBackend implements GitBackend {
   Future<GitStatusResult> statusForPath({
     required String path,
     required String filePath,
+  }) async => const GitStatusResult(entries: <GitChangeEntry>[]);
+
+  @override
+  Future<GitStatusResult> submoduleStatus({
+    required String path,
+    required String submodulePath,
+    required GitChangeArea area,
   }) async => const GitStatusResult(entries: <GitChangeEntry>[]);
 
   @override
