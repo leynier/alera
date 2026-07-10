@@ -120,6 +120,25 @@ pub struct WorkspaceTabRecord {
     pub payload: serde_json::Value,
 }
 
+/// Per-workspace review intent. `dismissed` means the user unlinked and the PR
+/// panel should stay empty (no auto-detection); otherwise `provider`/`number`/
+/// `url` describe the explicitly linked review. Absence of a row means
+/// auto-detect from the branch.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct LinkedReview {
+    pub workspace_id: String,
+    #[serde(default)]
+    pub dismissed: bool,
+    #[serde(default)]
+    pub provider: Option<String>,
+    #[serde(default)]
+    pub number: Option<i64>,
+    #[serde(default)]
+    pub url: Option<String>,
+    pub linked_at: DateTime<Utc>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkbenchLayoutRecord {
@@ -343,11 +362,18 @@ pub struct ProjectConfigRecord {
 pub struct ProjectConfig {
     #[serde(default)]
     pub worktree: WorktreeSetupConfig,
+    // Opaque provider override string (e.g. "github", "azureDevops") set by the
+    // Dart client; round-tripped so it survives config upserts. Null/absent
+    // means auto-detect.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub git_hosting_provider: Option<String>,
 }
 
 impl ProjectConfig {
     pub fn is_empty(&self) -> bool {
-        self.worktree.copy.is_empty() && self.worktree.setup.is_empty()
+        self.worktree.copy.is_empty()
+            && self.worktree.setup.is_empty()
+            && self.git_hosting_provider.is_none()
     }
 }
 

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera/src/shared/infra/git/git_backend.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_exception.dart';
+import 'package:alera/src/shared/infra/git/git_remote.dart';
 import 'package:alera/src/shared/infra/git/git_worktree_entry.dart';
 
 /// A recorded [GitBackend] invocation, used by tests to assert which git
@@ -56,6 +57,12 @@ class FakeGitBackend implements GitBackend {
 
   /// When set, [listWorktrees] throws (callers treat the listing as untrusted).
   bool worktreeListFails = false;
+
+  /// Remotes reported by [listRemotes], keyed by name → url.
+  Map<String, String?> remotesByName = <String, String?>{};
+
+  /// When set, [listRemotes] throws.
+  bool listRemotesFails = false;
 
   /// Target branch names whose [createWorktree] should fail.
   final Set<String> failingWorktreeAddBranches = <String>{};
@@ -267,6 +274,20 @@ class FakeGitBackend implements GitBackend {
         GitWorktreeEntry(path: repoPath, branch: headBranch),
       for (final entry in liveBranchByPath.entries)
         GitWorktreeEntry(path: entry.key, branch: entry.value),
+    ];
+  }
+
+  @override
+  Future<List<GitRemote>> listRemotes(String path) async {
+    calls.add(
+      GitBackendCall('listRemotes', <String, Object?>{'path': path}),
+    );
+    if (listRemotesFails) {
+      throw const GitInternalException('not a git repository');
+    }
+    return <GitRemote>[
+      for (final entry in remotesByName.entries)
+        GitRemote(name: entry.key, url: entry.value),
     ];
   }
 

@@ -22,6 +22,7 @@ const Set<String> _runtimeHostEventNames = <String>{
   'workspaceRelationsChanged',
   'runtimeSettingsChanged',
   'projectConfigsChanged',
+  'linkedReviewsChanged',
   'sshTargetsChanged',
   'sshTargetBootstrapProgress',
 };

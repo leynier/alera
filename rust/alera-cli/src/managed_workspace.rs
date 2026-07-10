@@ -387,8 +387,12 @@ fn parse_project_config_toml(contents: &str) -> Result<ProjectConfig> {
     let Some(root) = value.as_table() else {
         bail!("alera.toml must contain a table");
     };
+    let git_hosting_provider = parse_git_hosting_provider(root.get("git_hosting_provider"))?;
     let Some(worktree) = root.get("worktree") else {
-        return Ok(ProjectConfig::default());
+        return Ok(ProjectConfig {
+            git_hosting_provider,
+            ..ProjectConfig::default()
+        });
     };
     let Some(worktree) = worktree.as_table() else {
         bail!("alera.toml [worktree] must be a table");
@@ -397,7 +401,24 @@ fn parse_project_config_toml(contents: &str) -> Result<ProjectConfig> {
     let setup = parse_setup_commands(worktree.get("setup"))?;
     Ok(ProjectConfig {
         worktree: alera_core::runtime::WorktreeSetupConfig { copy, setup },
+        git_hosting_provider,
     })
+}
+
+fn parse_git_hosting_provider(value: Option<&toml::Value>) -> Result<Option<String>> {
+    let Some(value) = value else {
+        return Ok(None);
+    };
+    let Some(raw) = value.as_str() else {
+        bail!("git_hosting_provider must be a string");
+    };
+    match raw.trim().to_lowercase().as_str() {
+        "github" => Ok(Some("github".to_string())),
+        "azuredevops" | "azure_devops" | "azure-devops" | "azure" => {
+            Ok(Some("azureDevops".to_string()))
+        }
+        _ => bail!("git_hosting_provider must be one of: github, azureDevops"),
+    }
 }
 
 fn parse_copy_rules(value: Option<&toml::Value>) -> Result<Vec<WorktreeCopyRule>> {
