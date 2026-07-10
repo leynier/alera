@@ -600,9 +600,15 @@ final class SocketTerminalHostClient
     for (final id in pendingIds) {
       final completer = _pending.remove(id)?.completer;
       if (completer != null && !completer.isCompleted) {
-        completer.completeError(
-          StateError('Terminal host connection closed: $error'),
+        final closedError = StateError(
+          _disposed
+              ? 'Terminal host client is disposed.'
+              : 'Terminal host connection closed: $error',
         );
+        // Attach a sink before completeError so orphaned RPCs do not become
+        // unhandled async errors during ProviderScope / test teardown.
+        unawaited(completer.future.catchError((Object _) {}));
+        completer.completeError(closedError);
       }
     }
   }
