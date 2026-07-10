@@ -27,11 +27,25 @@ pub struct PreambleParams<'a> {
     /// Appended when the task had a resolved decision gate: the worker sees
     /// the human's answer from line 1 of the re-dispatch.
     pub gate_resolution: Option<&'a GateResolution>,
+    /// Controls post-`worker_done` instructions. Inject paths always use
+    /// prompt-returning agents; bare-shell is for dry-run paste only.
+    pub worker_kind: WorkerKind,
 }
 
 pub struct GateResolution {
     pub question: String,
     pub resolution: String,
+}
+
+/// Distinguishes prompt-returning agent workers (Claude, Codex, …) from bare
+/// shell workers. After `worker_done`, agents should idle for re-dispatch;
+/// bare shells have no reusable prompt and should exit.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum WorkerKind {
+    #[default]
+    PromptReturningAgent,
+    /// Used when a human pastes a preamble into a bare shell (dry-run path).
+    BareShell,
 }
 
 /// The dispatch preamble teaches agents Alera's CLI commands for structured
@@ -45,6 +59,7 @@ pub fn build_dispatch_preamble(params: &PreambleParams<'_>) -> String {
         coordinator_handle,
         ..
     } = params;
+    let post_done = build_post_worker_done_instructions(params.worker_kind);
     let header = format!(
         r#"You are working inside Alera, a multi-agent IDE. You are a dispatched worker.
 Your coordinator's terminal handle is: {coordinator_handle}
@@ -101,17 +116,7 @@ Slack, GitHub comments, or any other channel to reach a human during the run.
   # Check for messages from the coordinator:
   alera orchestration check
 
-=== AFTER YOU SEND worker_done ===
-
-Keep the shell session open for a grace period (10 minutes) in case the
-coordinator sends a follow-up or re-dispatches you. Poll with
-`alera orchestration check` every 2 minutes during that window. If no
-follow-up arrives, you may exit after the grace period — the coordinator
-will not expect further output from you.
-
-If the coordinator re-dispatches you (you will receive a fresh preamble +
-TASK block), reset your polling and start the new task. Do not respond
-to the previous task's follow-ups after a re-dispatch."#,
+{post_done}"#,
         heartbeat = HEARTBEAT_INTERVAL_MIN,
     );
 
@@ -155,6 +160,38 @@ fn build_gate_section(gate: &GateResolution) -> String {
     )
 }
 
+/// Re-dispatch reaches idle agents as terminal input; inbox polling after
+/// completion cannot receive that new TASK block and looks hung.
+fn build_post_worker_done_instructions(worker_kind: WorkerKind) -> String {
+    match worker_kind {
+        WorkerKind::BareShell => r#"=== AFTER YOU SEND worker_done ===
+
+worker_done ends your turn for this task. Your dispatched work is complete:
+stop and take no further actions — do NOT start new or unrelated work,
+do NOT run a sleep/poll loop, and do NOT keep calling
+`alera orchestration check`. The coordinator has already recorded your
+completion and expects no further output.
+
+Exit the shell after completion. Bare-shell workers have no idle agent
+prompt for Alera to reuse; if the coordinator has more for you it will
+dispatch or prompt another worker with a fresh TASK block."#
+            .to_string(),
+        WorkerKind::PromptReturningAgent => r#"=== AFTER YOU SEND worker_done ===
+
+worker_done ends your turn for this task. Your dispatched work is complete:
+stop, return to an idle prompt, and take no further actions — do NOT start
+new or unrelated work, do NOT run a sleep/poll loop, and do NOT keep calling
+`alera orchestration check`. The coordinator has already recorded your
+completion and expects no further output.
+
+Do not exit the shell. Your terminal stays available, and if the
+coordinator has more for you it will re-engage this terminal with a fresh
+preamble + TASK block, which arrives as new input. When that happens,
+reset and start the new task; ignore the previous task's follow-ups."#
+            .to_string(),
+    }
+}
+
 /// Scans the spec for a literal `allow-stale-base: true` line (canonical
 /// form only, no regex) and returns whether it was present plus the spec
 /// with the directive stripped so the worker's TASK block never sees it.
@@ -189,6 +226,7 @@ mod tests {
             coordinator_handle: "term_coord",
             base_drift: drift,
             gate_resolution: gate,
+            worker_kind: WorkerKind::PromptReturningAgent,
         }
     }
 
@@ -205,6 +243,27 @@ mod tests {
         assert!(!preamble.contains("\\\n"));
         assert!(!preamble.contains("BASE DRIFT"));
         assert!(!preamble.contains("DECISION GATE RESOLVED"));
+    }
+
+    #[test]
+    fn post_worker_done_instructs_idle_without_polling() {
+        let preamble = build_dispatch_preamble(&params(None, None));
+        assert!(preamble.contains("return to an idle prompt"));
+        assert!(preamble.contains("do NOT run a sleep/poll loop"));
+        assert!(preamble.contains("do NOT keep calling"));
+        assert!(!preamble.contains("every 2 minutes"));
+        assert!(!preamble.contains("grace period (10 minutes)"));
+        assert!(!preamble.contains("Poll with"));
+    }
+
+    #[test]
+    fn bare_shell_post_worker_done_exits() {
+        let mut bare = params(None, None);
+        bare.worker_kind = WorkerKind::BareShell;
+        let preamble = build_dispatch_preamble(&bare);
+        assert!(preamble.contains("Exit the shell after completion"));
+        assert!(preamble.contains("Bare-shell workers"));
+        assert!(!preamble.contains("return to an idle prompt"));
     }
 
     #[test]

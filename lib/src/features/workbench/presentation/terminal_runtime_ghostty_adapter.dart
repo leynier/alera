@@ -20,6 +20,7 @@ class _GhosttyTerminalPtySessionAdapter implements TerminalPtySession {
     required String workingDirectory,
     required int cols,
     required int rows,
+    Future<void> Function()? onProcessCreated,
   }) async {
     if (_disposed) {
       throw StateError('PTY session is disposed.');
@@ -36,6 +37,7 @@ class _GhosttyTerminalPtySessionAdapter implements TerminalPtySession {
         environment: launch.environment,
       );
       _startedNewProcess = true;
+      await onProcessCreated?.call();
     } catch (_) {
       unawaited(_sessionSub?.cancel());
       _sessionSub = null;
@@ -69,6 +71,9 @@ class _GhosttyTerminalPtySessionAdapter implements TerminalPtySession {
     }
     return session.writeBytes(Uint8List.fromList(bytes)) > 0;
   }
+
+  @override
+  Future<bool> writeBytesAndWait(List<int> bytes) async => writeBytes(bytes);
 
   @override
   void resize(int cols, int rows, int cellWidthPx, int cellHeightPx) {

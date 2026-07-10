@@ -22,6 +22,7 @@ class _PosixPortablePtySessionAdapter implements TerminalPtySession {
     required String workingDirectory,
     required int cols,
     required int rows,
+    Future<void> Function()? onProcessCreated,
   }) async {
     if (_disposed) {
       throw StateError('PTY session is disposed.');
@@ -42,6 +43,7 @@ class _PosixPortablePtySessionAdapter implements TerminalPtySession {
         <Object?>[pty.masterFd, _readPort!.sendPort],
         debugName: 'alera-posix-pty-reader',
       );
+      await onProcessCreated?.call();
     } catch (_) {
       dispose();
       rethrow;
@@ -56,6 +58,9 @@ class _PosixPortablePtySessionAdapter implements TerminalPtySession {
     }
     return _writePtyBytes(bytes: bytes, write: pty.writeBytes, events: _events);
   }
+
+  @override
+  Future<bool> writeBytesAndWait(List<int> bytes) async => writeBytes(bytes);
 
   @override
   void resize(int cols, int rows, int cellWidthPx, int cellHeightPx) {

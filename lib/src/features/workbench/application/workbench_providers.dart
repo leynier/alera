@@ -204,6 +204,9 @@ TerminalRuntime terminalRuntime(Ref ref) {
     externalUriLauncher: ref.watch(externalUriLauncherProvider),
     shellStartupPreparer: shellStartupPreparer,
     terminalSessionCleanup: agentRuntimeOverlay.clearTerminalOverlays,
+    terminalProcessCreated: (terminalSessionId) => ref
+        .read(agentStatusControllerProvider.notifier)
+        .clearTerminal(terminalSessionId),
     agentHookEnvironmentBuilder:
         ({required terminalSessionId, required workspaceId, required tabId}) {
           final environment = <String, String>{};

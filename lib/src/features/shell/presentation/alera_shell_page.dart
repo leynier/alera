@@ -10,6 +10,7 @@ import 'package:alera/src/features/app_menu/presentation/alera_app_menu_scope.da
 import 'package:alera/src/features/keyboard/presentation/keyboard_shortcuts_scope.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
+import 'package:alera/src/features/workbench/application/workbench_tab_attention.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
@@ -91,6 +92,8 @@ class _AleraShellPageBody extends ConsumerStatefulWidget {
 
 class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
   String? _lastErrorMessage;
+  final WorkbenchTabCompletionAcknowledgements _completionAcknowledgements =
+      WorkbenchTabCompletionAcknowledgements();
 
   @override
   void initState() {
@@ -112,6 +115,11 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
     ref.watch(workspaceActivityCoordinatorProvider);
     ref.watch(workspaceActivityPersistenceCoordinatorProvider);
     final state = ref.watch(workbenchControllerProvider);
+    _completionAcknowledgements.retainTerminalSessions(<String>{
+      for (final tabs in state.tabsByWorkspace.values)
+        for (final tab in tabs)
+          if (tab.kind == WorkspaceTabKind.terminal) tab.terminalSessionId,
+    });
     final error = state.error;
     if (error != null && error != _lastErrorMessage) {
       _lastErrorMessage = error;
@@ -301,6 +309,7 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
       layout: state.layoutFor(workspace.id),
       terminalRuntime: terminalRuntime,
       agentStatuses: agentStatuses,
+      completionAcknowledgements: _completionAcknowledgements,
       onCreateTab: ({targetGroupId}) async {
         final tab = await controller.createTerminalTab(
           workspace,

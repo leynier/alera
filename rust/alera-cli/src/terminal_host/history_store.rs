@@ -154,6 +154,18 @@ impl TerminalHostHistoryStore {
         Ok(())
     }
 
+    pub async fn next_output_sequence(&self, session_id: &str) -> Result<i64> {
+        let row = sqlx::query(
+            "SELECT COALESCE(MAX(sequence), -1) AS maxSequence \
+             FROM outputChunks WHERE sessionId = ?",
+        )
+        .bind(session_id)
+        .fetch_one(&self.pool)
+        .await?;
+        let max_sequence: i64 = row.try_get("maxSequence")?;
+        Ok(max_sequence.saturating_add(1))
+    }
+
     pub async fn trim_session(&self, session_id: &str, max_bytes: usize) -> Result<()> {
         let rows = sqlx::query(
             "SELECT id, sequence, length(data) AS byteLen FROM outputChunks \
@@ -345,6 +357,19 @@ mod tests {
 
         let read = store.read("s1", 1024).await.unwrap().unwrap();
         assert_eq!(read.buffer, b"hello world");
+    }
+
+    #[tokio::test]
+    async fn next_output_sequence_advances_persisted_history() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
+        store.upsert(sample("s1")).await.unwrap();
+
+        assert_eq!(store.next_output_sequence("s1").await.unwrap(), 0);
+        store.append_output("s1", 0, b"first").await.unwrap();
+        store.append_output("s1", 1, b"second").await.unwrap();
+
+        assert_eq!(store.next_output_sequence("s1").await.unwrap(), 2);
     }
 
     #[tokio::test]

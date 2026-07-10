@@ -162,16 +162,17 @@ Why: `--all` is the default when no scope flag is provided. `--tasks` clears tas
 ## Agent Guidance
 
 - When dispatched with a preamble, **always send `worker_done` when done** — exactly once, with both `--task-id` and `--dispatch-id`. Failure is still a `worker_done` with a subject like "Failed: <reason>"; never silently exit.
+- After `worker_done`, stop and return to an idle prompt. Do **not** poll `check`, sleep-loop, or start unrelated work. The coordinator re-engages idle workers with a fresh preamble + TASK via terminal inject. Do not exit the agent shell (bare-shell dry-run workers are the exception).
 - If blocked, send an `escalation` to the coordinator instead of stalling, including both `--task-id` and `--dispatch-id` when you were dispatched with a preamble. For questions, use `alera orchestration ask` — never AskUserQuestion, which the coordinator cannot see or answer.
 - Send a `heartbeat` every 5 minutes while actively working (skip while blocked inside `check --wait` or `ask` — those calls are themselves liveness signals). The coordinator warns about dispatches with no heartbeat for 10 minutes.
-- Use `alera orchestration check` to read incoming messages. They are also delivered automatically into your prompt when you go idle.
+- Use `alera orchestration check` to read incoming messages. They are also delivered automatically into a **worker** prompt when that agent goes idle (push-on-idle). The active coordinator terminal is not push-injected; coordinators use `check --wait` / lifecycle reconciliation.
 - The coordinator uses `task-list --ready` as its external memory. Prefer querying orchestration state over tracking it in your context window.
-- When acting as coordinator: discover workers with `terminal-list`, create tasks with `task-create`, dispatch with `dispatch --inject`, and block on `check --wait --types worker_done,escalation --timeout-ms 300000` instead of sleep+poll loops.
+- When acting as coordinator: discover workers with `terminal-list`, create tasks with `task-create`, dispatch with `dispatch --inject`, and block on `check --wait --types worker_done,escalation,decision_gate --timeout-ms 300000` instead of sleep+poll loops. The `decision_gate` type is required so taskless questions sent by `ask` reach the coordinator.
 - `check --wait` returns the currently unread batch. If N workers finish near-simultaneously, loop on `check --wait` until all results are collected; after each return, mark progress and dispatch the next wave.
 - After receiving `worker_done` from a terminal, that terminal is idle — dispatch the next task to it immediately.
 - Keep dependency chains to 3-4 steps maximum. Prefer parallel waves of independent tasks over deep sequential chains.
 - Insert decision gates between phases for human oversight of risky operations.
-- Terminal handles equal the PTY session id and survive host restarts only while the session lives. Re-acquire handles with `terminal-list` if in doubt.
+- Terminal handles equal the PTY session id. Reopening a tab remints a new PTY under the **same** handle. If `dispatch --inject` returns `stale_terminal_handle:`, reopen the worker tab or pick a live handle from `terminal-list`, then wait for agent presence before retrying.
 
 ## Coordinator Worked Example
 
@@ -189,7 +190,7 @@ alera orchestration --json task-create --spec "Fix the login button CSS"
 alera orchestration --json dispatch --task task_... --to <handle> --inject
 
 # 4. Block until the worker reports back (no sleep loops needed)
-alera orchestration --json check --wait --types worker_done,escalation --timeout-ms 300000
+alera orchestration --json check --wait --types worker_done,escalation,decision_gate --timeout-ms 300000
 
 # 5. On timeout with no messages, inspect state
 alera orchestration --json task-list

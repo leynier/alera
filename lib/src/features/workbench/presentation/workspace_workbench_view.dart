@@ -7,8 +7,9 @@ import 'package:alera/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
-import 'package:alera/src/features/agent_status/presentation/agent_status_dot.dart';
+import 'package:alera/src/design_system/feedback/alera_status_dot.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/workbench/application/workbench_tab_attention.dart';
 import 'package:alera/src/features/workbench/domain/workbench_layout.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
@@ -156,6 +157,7 @@ class WorkspaceWorkbenchView extends StatelessWidget {
     required this.layout,
     required this.terminalRuntime,
     required this.agentStatuses,
+    required this.completionAcknowledgements,
     required this.onCreateTab,
     required this.onOpenEditorTab,
     required this.onOpenMarkdownViewerTab,
@@ -179,6 +181,7 @@ class WorkspaceWorkbenchView extends StatelessWidget {
   final WorkbenchLayout? layout;
   final TerminalRuntime terminalRuntime;
   final Map<String, AgentStatusEntry> agentStatuses;
+  final WorkbenchTabCompletionAcknowledgements completionAcknowledgements;
   final CreateTerminalTabCallback onCreateTab;
   final OpenFileTabCallback onOpenEditorTab;
   final OpenFileTabCallback onOpenMarkdownViewerTab;
@@ -211,6 +214,7 @@ class WorkspaceWorkbenchView extends StatelessWidget {
       nodePath: const <int>[],
       terminalRuntime: terminalRuntime,
       agentStatuses: agentStatuses,
+      completionAcknowledgements: completionAcknowledgements,
       onCreateTab: onCreateTab,
       onOpenEditorTab: onOpenEditorTab,
       onOpenMarkdownViewerTab: onOpenMarkdownViewerTab,

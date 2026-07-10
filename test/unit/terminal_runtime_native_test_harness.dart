@@ -112,6 +112,7 @@ class _FakeTerminalPtySession implements TerminalPtySession {
   String? startedWorkingDirectory;
   int? startedCols;
   int? startedRows;
+  Future<void> Function()? onProcessCreated;
   bool disposed = false;
   bool terminated = false;
   bool startedNewProcessValue = true;
@@ -128,24 +129,34 @@ class _FakeTerminalPtySession implements TerminalPtySession {
     required String workingDirectory,
     required int cols,
     required int rows,
+    Future<void> Function()? onProcessCreated,
   }) async {
     startedLaunch = launch;
     startedWorkingDirectory = workingDirectory;
     startedCols = cols;
     startedRows = rows;
+    this.onProcessCreated = onProcessCreated;
     if (startError case final Object error) {
       throw error;
     }
     if (startCompleter case final completer?) {
       await completer.future;
     }
+    if (startedNewProcessValue) {
+      await onProcessCreated?.call();
+    }
   }
+
+  Future<void> remint() async => onProcessCreated?.call();
 
   @override
   bool writeBytes(List<int> bytes) {
     writes.add(List<int>.from(bytes));
     return bytes.isNotEmpty;
   }
+
+  @override
+  Future<bool> writeBytesAndWait(List<int> bytes) async => writeBytes(bytes);
 
   @override
   void resize(int cols, int rows, int cellWidthPx, int cellHeightPx) {
@@ -171,11 +182,16 @@ class _FakeTerminalPtySession implements TerminalPtySession {
     _events.add(TerminalPtyOutputEvent(Uint8List.fromList(data)));
   }
 
-  void emitSnapshot(List<int> data) {
+  void emitSnapshot(List<int> data, {bool resetInteractionModes = false}) {
     if (_events.isClosed) {
       return;
     }
-    _events.add(TerminalPtySnapshotEvent(Uint8List.fromList(data)));
+    _events.add(
+      TerminalPtySnapshotEvent(
+        Uint8List.fromList(data),
+        resetInteractionModes: resetInteractionModes,
+      ),
+    );
   }
 
   void emitExit(int exitCode) {

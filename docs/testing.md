@@ -16,9 +16,12 @@ Run the fast checks first:
 
 ```bash
 dart format --set-exit-if-changed lib test integration_test tool
+dart run tool/quality/check_max_lines.dart
 flutter analyze
 flutter test --exclude-tags golden
 ```
+
+`tool/quality/check_max_lines.dart` enforces the AGENTS.md ~500-line file guidance as a ratchet: new files over the limit (or growth past a baseline entry) fail. Existing debt lives in `tool/quality/max_lines_baseline.txt`; refresh only with `--write-baseline` when intentionally accepting oversized files.
 
 Run unit and widget tests with line coverage:
 

@@ -212,7 +212,7 @@ void _registerWorkspaceWorkbenchViewTabTests() {
       updatedRatios: updatedRatios,
     );
 
-    expect(find.byType(AgentStatusDot), findsOneWidget);
+    expect(find.byType(AleraStatusDot), findsOneWidget);
   });
 
   testWidgets('browser tabs use the browser icon in the chip', (tester) async {

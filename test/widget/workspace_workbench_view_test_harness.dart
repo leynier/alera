@@ -35,6 +35,8 @@ Future<void> _pumpWorkbenchView(
               layout: layout,
               terminalRuntime: terminalRuntime,
               agentStatuses: agentStatuses,
+              completionAcknowledgements:
+                  WorkbenchTabCompletionAcknowledgements(),
               onCreateTab: ({String? targetGroupId}) async {
                 createdTabs.add(targetGroupId);
               },

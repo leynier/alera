@@ -7,6 +7,8 @@ import 'dart:isolate';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_link_resolver.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
+import 'package:alera/src/features/workbench/domain/terminal_agent_prompt_injection.dart';
+import 'package:alera/src/features/workbench/domain/terminal_mode_reset.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/infra/terminal_shell_startup_preparer.dart';
@@ -25,6 +27,7 @@ part 'terminal_runtime_posix_adapter.dart';
 part 'terminal_runtime_ghostty_adapter.dart';
 part 'terminal_runtime_xterm_runtime.dart';
 part 'terminal_runtime_session_handle.dart';
+part 'terminal_runtime_startup_delivery.dart';
 part 'terminal_runtime_interactive_view.dart';
 part 'terminal_runtime_shell_launches.dart';
 part 'terminal_runtime_posix_io.dart';
@@ -96,6 +99,9 @@ typedef TerminalLaunchEnvironmentBuilder =
 typedef TerminalSessionCleanup =
     FutureOr<void> Function(String terminalSessionId);
 
+typedef TerminalProcessCreated =
+    FutureOr<void> Function(String terminalSessionId);
+
 final class TerminalRuntimeExitEvent {
   const TerminalRuntimeExitEvent({
     required this.workspaceId,
@@ -126,9 +132,12 @@ abstract interface class TerminalPtySession {
     required String workingDirectory,
     required int cols,
     required int rows,
+    Future<void> Function()? onProcessCreated,
   });
 
   bool writeBytes(List<int> bytes);
+
+  Future<bool> writeBytesAndWait(List<int> bytes);
 
   void resize(int cols, int rows, int cellWidthPx, int cellHeightPx);
 
@@ -150,9 +159,13 @@ final class TerminalPtyOutputEvent extends TerminalPtySessionEvent {
 }
 
 final class TerminalPtySnapshotEvent extends TerminalPtySessionEvent {
-  const TerminalPtySnapshotEvent(this.data);
+  const TerminalPtySnapshotEvent(
+    this.data, {
+    this.resetInteractionModes = false,
+  });
 
   final Uint8List data;
+  final bool resetInteractionModes;
 }
 
 final class TerminalPtyExitEvent extends TerminalPtySessionEvent {

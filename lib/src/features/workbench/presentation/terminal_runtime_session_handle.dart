@@ -10,6 +10,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     this._shellLaunchesBuilder,
     this._agentHookEnvironmentBuilder,
     this._shellStartupPreparer,
+    this._terminalProcessCreated,
     this._onExit,
   ) {
     _terminal = _createTerminal();
@@ -27,6 +28,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   final List<GhosttyTerminalShellLaunch> Function() _shellLaunchesBuilder;
   final TerminalLaunchEnvironmentBuilder? _agentHookEnvironmentBuilder;
   final TerminalShellStartupPreparer? _shellStartupPreparer;
+  final TerminalProcessCreated? _terminalProcessCreated;
   final void Function(TerminalRuntimeExitEvent event) _onExit;
   TerminalSettings _settings;
   late xterm.Terminal _terminal;
@@ -35,6 +37,10 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
       GlobalKey<xterm.TerminalViewState>();
   final xterm.TerminalController _terminalController =
       xterm.TerminalController();
+
+  /// Survives TerminalSurface dispose/rebuild so scroll position is preserved
+  /// when switching tabs and coming back.
+  final ScrollController _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode(debugLabel: 'TerminalSession');
   final StreamController<List<int>> _ptyOutputController =
       StreamController<List<int>>();
@@ -58,6 +64,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   String _title = '';
   String? _errorMessage;
   bool _visible = false;
+  bool _pendingInteractionModeReset = false;
   bool _disposed = false;
 
   @override
@@ -201,6 +208,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
       _terminal,
       key: _terminalViewKey,
       controller: _terminalController,
+      scrollController: _scrollController,
       focusNode: _focusNode,
       autofocus: autofocus,
       onTapUp: onTapUp,
@@ -316,17 +324,34 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
         final preparedLaunch = await _shellStartupPreparer?.prepare(
           workspaceAwarePowerShellLaunch ?? sanitizedLaunch,
         );
+        final interactiveLaunch =
+            preparedLaunch ?? workspaceAwarePowerShellLaunch ?? sanitizedLaunch;
         final workspaceLaunch = workspaceAwarePowerShellLaunch == null
-            ? _launchInWorkingDirectory(
-                preparedLaunch ?? sanitizedLaunch,
-                _workspace.path,
-              )
-            : (preparedLaunch ?? workspaceAwarePowerShellLaunch);
+            ? _launchInWorkingDirectory(interactiveLaunch, _workspace.path)
+            : interactiveLaunch;
         await session.start(
           launch: workspaceLaunch,
           workingDirectory: _workspace.path,
           cols: _terminal.viewWidth,
           rows: _terminal.viewHeight,
+          onProcessCreated: () async {
+            bool isCurrent() =>
+                !_disposed && _activePtyGeneration == generation;
+            if (!isCurrent()) {
+              return;
+            }
+            await _terminalProcessCreated?.call(_tab.terminalSessionId);
+            if (!isCurrent()) {
+              return;
+            }
+            await _deliverTerminalProcessStartup(
+              session: session,
+              launch: workspaceLaunch,
+              interactiveShell: interactiveLaunch.shell,
+              initialCommand: _tab.initialCommand,
+              isCurrent: isCurrent,
+            );
+          },
         );
         if (_disposed || _activePtyGeneration != generation) {
           unawaited(sub.cancel());
@@ -343,35 +368,6 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
         _running = !_exitedPtyGenerations.contains(generation);
         _prunePtyGenerationState();
         notifyListeners();
-        final setupCommand = workspaceLaunch.setupCommand;
-        if (_running &&
-            session.startedNewProcess &&
-            setupCommand != null &&
-            setupCommand.isNotEmpty) {
-          await Future<void>.delayed(const Duration(milliseconds: 120));
-          if (!_disposed &&
-              _activePtyGeneration == generation &&
-              identical(_ptySession, session)) {
-            session.writeBytes(utf8.encode(setupCommand));
-          }
-          await Future<void>.delayed(const Duration(milliseconds: 120));
-        }
-        // Orchestration-created worker tabs carry an initial command (e.g. an
-        // agent CLI). It runs only when the PTY process was newly created —
-        // never on reattach — and as a plain shell command so the terminal
-        // stays interactive after the agent exits.
-        final initialCommand = _tab.initialCommand;
-        if (_running &&
-            session.startedNewProcess &&
-            initialCommand != null &&
-            initialCommand.isNotEmpty) {
-          await Future<void>.delayed(const Duration(milliseconds: 120));
-          if (!_disposed &&
-              _activePtyGeneration == generation &&
-              identical(_ptySession, session)) {
-            session.writeBytes(utf8.encode('$initialCommand\n'));
-          }
-        }
         return !_disposed &&
             _activePtyGeneration == generation &&
             identical(_ptySession, session);
@@ -410,9 +406,15 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
         if (_visible) {
           _ptyOutputController.add(data);
         }
-      case TerminalPtySnapshotEvent(:final data):
+      case TerminalPtySnapshotEvent(:final data, :final resetInteractionModes):
+        _pendingInteractionModeReset |= resetInteractionModes;
         if (_visible) {
-          _replaceTerminalWithSnapshot(data);
+          final shouldResetInteractionModes = _pendingInteractionModeReset;
+          _replaceTerminalWithSnapshot(
+            data,
+            resetInteractionModes: shouldResetInteractionModes,
+          );
+          _pendingInteractionModeReset = false;
         }
       case TerminalPtyExitEvent(:final exitCode):
         _handlePtyExit(
@@ -435,6 +437,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     }
     _running = false;
     _flushPendingTerminalOutputNow();
+    _writeToTerminal(terminalInteractionModeReset);
     _writeToTerminal('\n[process exited: $exitCode]\n');
     notifyListeners();
     if (notifyRuntime && !_suppressedExitPtyGenerations.contains(generation)) {
@@ -446,9 +449,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
         ),
       );
     }
-    unawaited(
-      _stopPtySessionWithMode(suppressExit: true, terminate: notifyRuntime),
-    );
+    unawaited(_stopPtySessionWithMode(suppressExit: true, terminate: false));
   }
 
   void _handlePrivateOsc(String code, List<String> args) {
@@ -539,7 +540,10 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     _pendingTerminalOutput.clear();
   }
 
-  void _replaceTerminalWithSnapshot(List<int> data) {
+  void _replaceTerminalWithSnapshot(
+    List<int> data, {
+    required bool resetInteractionModes,
+  }) {
     if (_disposed) {
       return;
     }
@@ -555,6 +559,9 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     _osc8LinkTracker = Osc8TerminalLinkTracker(terminal: nextTerminal);
     _attachTerminal(nextTerminal);
     nextTerminal.write(const Utf8Decoder(allowMalformed: true).convert(data));
+    if (resetInteractionModes) {
+      nextTerminal.write(terminalInteractionModeReset);
+    }
     notifyListeners();
   }
 
@@ -641,6 +648,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     );
     unawaited(_decodedOutputSub.cancel());
     unawaited(_ptyOutputController.close());
+    _scrollController.dispose();
     _focusNode.dispose();
     super.dispose();
   }

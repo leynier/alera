@@ -243,28 +243,38 @@ void _registerXtermRuntimeSessionTests() {
         await Future<void>.delayed(Duration.zero);
         flushTerminalOutputForTesting(session);
         expect(terminalBufferTextForTesting(session), contains('visible'));
-
         visibility.dispose();
         visibility = null;
         await Future<void>.delayed(Duration.zero);
         expect(fakeSession.outputPausedCalls, contains(true));
-
         fakeSession.emitOutput(utf8.encode('hidden\r\n'));
         await Future<void>.delayed(Duration.zero);
         expect(
           terminalBufferTextForTesting(session),
           isNot(contains('hidden')),
         );
-
         resumedVisibility = acquireTerminalVisibilityForTesting(session);
         await Future<void>.delayed(Duration.zero);
         expect(fakeSession.outputPausedCalls.last, isFalse);
-
-        fakeSession.emitSnapshot(utf8.encode('visible\r\nhidden\r\n'));
+        fakeSession.emitSnapshot(
+          utf8.encode(
+            '\x1b[?1h\x1b[?25l\x1b[?1004h\x1b=\x1b[?1000h\x1b[?2004h\x1b[?1049hvisible\r\nhidden\r\n',
+          ),
+        );
         await Future<void>.delayed(Duration.zero);
         final restored = terminalBufferTextForTesting(session);
         expect(restored, contains('visible'));
         expect(restored, contains('hidden'));
+        expect(
+          terminalMouseModeForTesting(session),
+          isNot(xterm.MouseMode.none),
+        );
+        expect(terminalBracketedPasteModeForTesting(session), isTrue);
+        expect(terminalCursorKeysModeForTesting(session), isTrue);
+        expect(terminalCursorVisibleModeForTesting(session), isFalse);
+        expect(terminalReportFocusModeForTesting(session), isTrue);
+        expect(terminalAppKeypadModeForTesting(session), isTrue);
+        expect(terminalIsUsingAltBufferForTesting(session), isTrue);
       } finally {
         visibility?.dispose();
         resumedVisibility?.dispose();
@@ -320,47 +330,6 @@ void _registerXtermRuntimeSessionTests() {
     },
   );
 
-  test('restores snapshots from a fresh terminal cursor state', () async {
-    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
-    final fakeSession = _FakeTerminalPtySession();
-    final runtime = XtermTerminalRuntime(
-      ptySessionFactory: _FakeTerminalPtySessionFactory(
-        sessions: <_FakeTerminalPtySession>[fakeSession],
-      ),
-      shellLaunchesBuilder: () => <GhosttyTerminalShellLaunch>[
-        _launch('shell', shell: '/bin/sh'),
-      ],
-    );
-    addTearDown(runtime.dispose);
-    final session = runtime.sessionFor(workspace: _workspace(), tab: _tab());
-    TerminalVisibilityLease? visibility;
-    TerminalVisibilityLease? resumedVisibility;
-    try {
-      visibility = acquireTerminalVisibilityForTesting(session);
-      await session.ensureStarted();
-
-      fakeSession.emitOutput(utf8.encode('stale-cursor'));
-      await Future<void>.delayed(Duration.zero);
-
-      visibility.dispose();
-      visibility = null;
-      await Future<void>.delayed(Duration.zero);
-      resumedVisibility = acquireTerminalVisibilityForTesting(session);
-      await Future<void>.delayed(Duration.zero);
-
-      fakeSession.emitSnapshot(utf8.encode('fresh prompt'));
-      await Future<void>.delayed(Duration.zero);
-
-      final restored = terminalBufferTextForTesting(session);
-      expect(restored.split('\n').first, 'fresh prompt');
-      expect(restored, isNot(contains('stale-cursor')));
-    } finally {
-      visibility?.dispose();
-      resumedVisibility?.dispose();
-      debugDefaultTargetPlatformOverride = null;
-    }
-  });
-
   test('hidden terminal exits still notify the runtime', () async {
     debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
     final fakeSession = _FakeTerminalPtySession();
@@ -381,6 +350,17 @@ void _registerXtermRuntimeSessionTests() {
     try {
       visibility = acquireTerminalVisibilityForTesting(session);
       await session.ensureStarted();
+      fakeSession.emitOutput(
+        utf8.encode('\x1b[?1h\x1b[?25l\x1b[?1004h\x1b=\x1b[?1049h\x1b[?1000h'),
+      );
+      await Future<void>.delayed(Duration.zero);
+      flushTerminalOutputForTesting(session);
+      expect(terminalMouseModeForTesting(session), isNot(xterm.MouseMode.none));
+      expect(terminalCursorKeysModeForTesting(session), isTrue);
+      expect(terminalCursorVisibleModeForTesting(session), isFalse);
+      expect(terminalReportFocusModeForTesting(session), isTrue);
+      expect(terminalAppKeypadModeForTesting(session), isTrue);
+      expect(terminalIsUsingAltBufferForTesting(session), isTrue);
       visibility.dispose();
       visibility = null;
       await Future<void>.delayed(Duration.zero);
@@ -391,6 +371,14 @@ void _registerXtermRuntimeSessionTests() {
       expect(session.isRunning, isFalse);
       expect(exits, hasLength(1));
       expect(exits.single.exitCode, 12);
+      expect(terminalMouseModeForTesting(session), xterm.MouseMode.none);
+      expect(terminalCursorKeysModeForTesting(session), isFalse);
+      expect(terminalCursorVisibleModeForTesting(session), isTrue);
+      expect(terminalReportFocusModeForTesting(session), isFalse);
+      expect(terminalAppKeypadModeForTesting(session), isFalse);
+      expect(terminalIsUsingAltBufferForTesting(session), isFalse);
+      expect(fakeSession.disposed, isTrue);
+      expect(fakeSession.terminated, isFalse);
     } finally {
       visibility?.dispose();
       debugDefaultTargetPlatformOverride = null;
@@ -637,11 +625,13 @@ void _registerXtermRuntimeSessionTests() {
       final factory = _FakeTerminalPtySessionFactory(
         sessions: <_FakeTerminalPtySession>[attached],
       );
+      final createdSessions = <String>[];
       final runtime = XtermTerminalRuntime(
         ptySessionFactory: factory,
         shellLaunchesBuilder: () => <GhosttyTerminalShellLaunch>[
           _launch('shell', shell: '/bin/sh', setupCommand: 'printf setup\n'),
         ],
+        terminalProcessCreated: createdSessions.add,
       );
       addTearDown(runtime.dispose);
       try {
@@ -658,6 +648,7 @@ void _registerXtermRuntimeSessionTests() {
 
         expect(attached.startedWorkingDirectory, _workspace().path);
         expect(attached.writes, isEmpty);
+        expect(createdSessions, isEmpty);
       } finally {
         debugDefaultTargetPlatformOverride = null;
       }

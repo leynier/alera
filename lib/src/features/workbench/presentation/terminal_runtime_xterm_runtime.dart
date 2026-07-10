@@ -9,6 +9,7 @@ class XtermTerminalRuntime implements TerminalRuntime {
     TerminalLaunchEnvironmentBuilder? agentHookEnvironmentBuilder,
     TerminalShellStartupPreparer? shellStartupPreparer,
     TerminalSessionCleanup? terminalSessionCleanup,
+    TerminalProcessCreated? terminalProcessCreated,
   }) {
     return XtermTerminalRuntime._(
       ptySessionFactory ?? const DefaultTerminalPtySessionFactory(),
@@ -18,6 +19,7 @@ class XtermTerminalRuntime implements TerminalRuntime {
       agentHookEnvironmentBuilder,
       shellStartupPreparer,
       terminalSessionCleanup,
+      terminalProcessCreated,
     );
   }
 
@@ -29,6 +31,7 @@ class XtermTerminalRuntime implements TerminalRuntime {
     this._agentHookEnvironmentBuilder,
     this._shellStartupPreparer,
     this._terminalSessionCleanup,
+    this._terminalProcessCreated,
   );
 
   final TerminalPtySessionFactory _ptySessionFactory;
@@ -37,6 +40,7 @@ class XtermTerminalRuntime implements TerminalRuntime {
   final TerminalLaunchEnvironmentBuilder? _agentHookEnvironmentBuilder;
   final TerminalShellStartupPreparer? _shellStartupPreparer;
   final TerminalSessionCleanup? _terminalSessionCleanup;
+  final TerminalProcessCreated? _terminalProcessCreated;
   TerminalSettings _settings;
   final StreamController<TerminalRuntimeExitEvent> _exitController =
       StreamController<TerminalRuntimeExitEvent>.broadcast();
@@ -69,6 +73,7 @@ class XtermTerminalRuntime implements TerminalRuntime {
             _shellLaunchesBuilder,
             _agentHookEnvironmentBuilder,
             _shellStartupPreparer,
+            _terminalProcessCreated,
             _handleSessionExit,
           );
         })

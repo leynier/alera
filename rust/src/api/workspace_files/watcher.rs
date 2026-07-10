@@ -268,6 +268,8 @@ fn emit_batch(
     sink: &Arc<Mutex<Option<StreamSink<WorkspaceExplorerWatchBatch>>>>,
     batch: WorkspaceExplorerWatchBatch,
 ) {
+    // Closed Flutter sinks must not poison the watcher thread: drop the sink
+    // and keep the OS watch alive until the client re-subscribes or stops.
     let Ok(mut sink) = sink.lock() else {
         return;
     };
@@ -297,4 +299,28 @@ fn normalize_event_path(root: &Path, path: PathBuf) -> PathBuf {
 
 fn normalize_relative_path(relative_path: &str) -> String {
     relative_path.trim_matches('/').to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use notify::{Event, EventKind};
+
+    #[test]
+    fn explicitly_watched_ignored_named_directory_emits_refresh() {
+        let workspace = tempfile::tempdir().expect("workspace");
+        let build = workspace.path().join("build");
+        let watched_paths = Arc::new(Mutex::new(HashMap::from([(
+            "build".to_string(),
+            build.clone(),
+        )])));
+        let event = Event::new(EventKind::Modify(notify::event::ModifyKind::Any))
+            .add_path(build.join("artifact.txt"));
+
+        let batch = build_batch(workspace.path(), &watched_paths, vec![event], 0)
+            .expect("watched directory refresh");
+
+        assert_eq!(batch.directory_relative_paths, vec!["build"]);
+        assert_eq!(batch.changed_relative_paths, vec!["build/artifact.txt"]);
+    }
 }

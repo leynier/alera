@@ -33,9 +33,8 @@ pub struct OutputBatch {
     pub sequence: i64,
 }
 
-/// A hosted terminal session. The PTY is read on a dedicated OS thread; all
-/// other state transitions are driven by the single server actor that owns this
-/// struct, so no internal locking is required.
+/// A hosted terminal session. The PTY is read on a dedicated OS thread; other
+/// state transitions run in its owning server actor, so no locks are required.
 pub struct Session {
     instance_id: u64,
     pub id: String,
@@ -44,7 +43,7 @@ pub struct Session {
     pub working_directory: String,
     pub clients: HashSet<u64>,
     output_paused_clients: HashSet<u64>,
-    buffer: ScrollbackBuffer,
+    pub(super) buffer: ScrollbackBuffer,
     running: bool,
     exit_code: Option<i32>,
     ended_at: Option<DateTime<Utc>>,
@@ -73,9 +72,14 @@ impl Session {
         cols: u16,
         rows: u16,
         max_bytes: usize,
+        initial_scrollback: &[u8],
         store: &TerminalHostHistoryStore,
         on_event: impl Fn(PtyEvent) + Send + 'static,
     ) -> HostResult<Session> {
+        let output_batch_sequence = store
+            .next_output_sequence(&id)
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?;
         let pty_system = native_pty_system();
         let pair = pty_system
             .openpty(PtySize {
@@ -127,7 +131,7 @@ impl Session {
             working_directory,
             clients: HashSet::new(),
             output_paused_clients: HashSet::new(),
-            buffer: ScrollbackBuffer::new(max_bytes, &[]),
+            buffer: ScrollbackBuffer::new(max_bytes, initial_scrollback),
             running: true,
             exit_code: None,
             ended_at: None,
@@ -140,7 +144,7 @@ impl Session {
             output_batch: Vec::new(),
             output_batch_gen: 0,
             output_batch_armed: false,
-            output_batch_sequence: 0,
+            output_batch_sequence,
         };
         session.write_checkpoint(store, None).await?;
         spawn_reader(reader, child, on_event);

@@ -146,4 +146,16 @@ class AgentStatusController extends _$AgentStatusController
       ..remove(terminalSessionId);
     state = next;
   }
+
+  /// Drops every in-memory status entry for a workspace (e.g. after delete).
+  void clearWorkspace(String workspaceId) {
+    final next = <String, AgentStatusEntry>{
+      for (final entry in state.entries)
+        if (entry.value.workspaceId != workspaceId) entry.key: entry.value,
+    };
+    if (next.length == state.length) {
+      return;
+    }
+    state = next;
+  }
 }

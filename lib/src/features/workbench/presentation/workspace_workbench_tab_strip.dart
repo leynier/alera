@@ -9,6 +9,7 @@ class _WorkspaceTabStrip extends StatefulWidget {
     required this.canCloseSplit,
     required this.terminalRuntime,
     required this.agentStatuses,
+    required this.completionAcknowledgements,
     required this.onSelectTab,
     required this.onCloseTab,
     required this.onCloseTabs,
@@ -25,6 +26,7 @@ class _WorkspaceTabStrip extends StatefulWidget {
   final bool canCloseSplit;
   final TerminalRuntime terminalRuntime;
   final Map<String, AgentStatusEntry> agentStatuses;
+  final WorkbenchTabCompletionAcknowledgements completionAcknowledgements;
   final ValueChanged<String> onSelectTab;
   final ValueChanged<String> onCloseTab;
   final ValueChanged<List<String>> onCloseTabs;
@@ -42,6 +44,18 @@ class _WorkspaceTabStripState extends State<_WorkspaceTabStrip> {
   bool _hasOverflow = false;
 
   @override
+  void initState() {
+    super.initState();
+    _syncCompletionAcknowledgement();
+  }
+
+  @override
+  void didUpdateWidget(covariant _WorkspaceTabStrip oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncCompletionAcknowledgement();
+  }
+
+  @override
   void dispose() {
     _scrollController.dispose();
     super.dispose();
@@ -55,6 +69,26 @@ class _WorkspaceTabStripState extends State<_WorkspaceTabStrip> {
     if (overflow != _hasOverflow) {
       setState(() => _hasOverflow = overflow);
     }
+  }
+
+  void _syncCompletionAcknowledgement() {
+    final activeTabId = widget.activeTabId;
+    if (activeTabId == null) {
+      return;
+    }
+    WorkspaceTabRecord? activeTab;
+    for (final tab in widget.tabs) {
+      if (tab.id == activeTabId) {
+        activeTab = tab;
+        break;
+      }
+    }
+    if (activeTab == null) {
+      return;
+    }
+    widget.completionAcknowledgements.acknowledge(
+      widget.agentStatuses[activeTab.terminalSessionId],
+    );
   }
 
   @override
@@ -86,8 +120,20 @@ class _WorkspaceTabStripState extends State<_WorkspaceTabStrip> {
                         active: tab.id == widget.activeTabId,
                         terminalRuntime: widget.terminalRuntime,
                         status: widget.agentStatuses[tab.terminalSessionId],
+                        completionAcknowledged: widget
+                            .completionAcknowledgements
+                            .isAcknowledged(
+                              widget.agentStatuses[tab.terminalSessionId],
+                            ),
                         groupTabs: widget.tabs,
-                        onSelect: () => widget.onSelectTab(tab.id),
+                        onSelect: () {
+                          setState(() {
+                            widget.completionAcknowledgements.acknowledge(
+                              widget.agentStatuses[tab.terminalSessionId],
+                            );
+                          });
+                          widget.onSelectTab(tab.id);
+                        },
                         onClose: () => widget.onCloseTab(tab.id),
                         onCloseTabs: widget.onCloseTabs,
                         onRename: (title) =>

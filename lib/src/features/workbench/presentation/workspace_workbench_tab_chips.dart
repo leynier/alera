@@ -8,6 +8,7 @@ class _DraggableWorkspaceTabChip extends StatelessWidget {
     required this.active,
     required this.terminalRuntime,
     required this.status,
+    required this.completionAcknowledged,
     required this.groupTabs,
     required this.onSelect,
     required this.onClose,
@@ -22,6 +23,7 @@ class _DraggableWorkspaceTabChip extends StatelessWidget {
   final bool active;
   final TerminalRuntime terminalRuntime;
   final AgentStatusEntry? status;
+  final bool completionAcknowledged;
   final List<WorkspaceTabRecord> groupTabs;
   final VoidCallback onSelect;
   final VoidCallback onClose;
@@ -57,6 +59,7 @@ class _DraggableWorkspaceTabChip extends StatelessWidget {
             tab: tab,
             terminalSession: session,
             status: status,
+            completionAcknowledged: completionAcknowledged,
             active: active,
             groupTabs: groupTabs,
             onTap: selectAndFocus,
@@ -70,6 +73,7 @@ class _DraggableWorkspaceTabChip extends StatelessWidget {
           tab: tab,
           terminalSession: session,
           status: status,
+          completionAcknowledged: completionAcknowledged,
           active: active,
           groupTabs: groupTabs,
           onTap: selectAndFocus,
@@ -88,6 +92,7 @@ class _WorkspaceTabChip extends StatelessWidget {
     required this.tab,
     required this.terminalSession,
     required this.status,
+    required this.completionAcknowledged,
     required this.active,
     required this.groupTabs,
     required this.onTap,
@@ -100,6 +105,7 @@ class _WorkspaceTabChip extends StatelessWidget {
   final WorkspaceTabRecord tab;
   final TerminalSessionHandle? terminalSession;
   final AgentStatusEntry? status;
+  final bool completionAcknowledged;
   final bool active;
   final List<WorkspaceTabRecord> groupTabs;
   final VoidCallback onTap;
@@ -269,9 +275,26 @@ class _WorkspaceTabChip extends StatelessWidget {
                 const SizedBox(width: AleraTokens.space4),
                 SizedBox.square(
                   dimension: 6,
-                  child: status == null
-                      ? const SizedBox.shrink()
-                      : AgentStatusDot(status: status, size: 6),
+                  child: () {
+                    final entry = status;
+                    if (entry == null) {
+                      return const SizedBox.shrink();
+                    }
+                    return Tooltip(
+                      message: workbenchTabAttentionTooltip(
+                        status: entry,
+                        completionAcknowledged: completionAcknowledged,
+                      ),
+                      child: AleraStatusDot(
+                        active: true,
+                        size: 6,
+                        color: workbenchTabAttentionDotColor(
+                          status: entry,
+                          completionAcknowledged: completionAcknowledged,
+                        ),
+                      ),
+                    );
+                  }(),
                 ),
                 const SizedBox(width: AleraTokens.space4),
                 ConstrainedBox(

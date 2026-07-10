@@ -9,6 +9,7 @@ class _WorkbenchPane extends StatelessWidget {
     required this.groupId,
     required this.terminalRuntime,
     required this.agentStatuses,
+    required this.completionAcknowledgements,
     required this.onCreateTab,
     required this.onOpenEditorTab,
     required this.onOpenMarkdownViewerTab,
@@ -31,6 +32,7 @@ class _WorkbenchPane extends StatelessWidget {
   final String groupId;
   final TerminalRuntime terminalRuntime;
   final Map<String, AgentStatusEntry> agentStatuses;
+  final WorkbenchTabCompletionAcknowledgements completionAcknowledgements;
   final CreateTerminalTabCallback onCreateTab;
   final OpenFileTabCallback onOpenEditorTab;
   final OpenFileTabCallback onOpenMarkdownViewerTab;
@@ -91,6 +93,7 @@ class _WorkbenchPane extends StatelessWidget {
                 canCloseSplit: layout.paneGroupIds.length > 1,
                 terminalRuntime: terminalRuntime,
                 agentStatuses: agentStatuses,
+                completionAcknowledgements: completionAcknowledgements,
                 onSelectTab: (tabId) =>
                     onSelectTab(groupId: groupId, tabId: tabId),
                 onCloseTab: onCloseTab,
@@ -112,25 +115,20 @@ class _WorkbenchPane extends StatelessWidget {
                         tab: activeTab,
                         autofocus: layout.activeGroupId == groupId,
                         terminalRuntime: terminalRuntime,
-                        onOpenEditorTab: (relativePath) {
-                          unawaited(
-                            onOpenEditorTab(
-                              relativePath: relativePath,
-                              targetGroupId: groupId,
-                            ),
-                          );
-                        },
-                        onOpenMarkdownViewerTab: (relativePath) {
-                          unawaited(
-                            onOpenMarkdownViewerTab(
-                              relativePath: relativePath,
-                              targetGroupId: groupId,
-                            ),
-                          );
-                        },
-                        onOpenMermanPreview: (relativePath) {
-                          unawaited(onOpenMermanPreview(relativePath));
-                        },
+                        onOpenEditorTab: (relativePath) => unawaited(
+                          onOpenEditorTab(
+                            relativePath: relativePath,
+                            targetGroupId: groupId,
+                          ),
+                        ),
+                        onOpenMarkdownViewerTab: (relativePath) => unawaited(
+                          onOpenMarkdownViewerTab(
+                            relativePath: relativePath,
+                            targetGroupId: groupId,
+                          ),
+                        ),
+                        onOpenMermanPreview: (relativePath) =>
+                            unawaited(onOpenMermanPreview(relativePath)),
                       ),
               ),
             ],

@@ -126,8 +126,8 @@ class WorkspaceTabRecord with WorkspaceTabRecordMappable {
   }
 
   /// Command written into the terminal after the shell starts, e.g. an agent
-  /// CLI launched by an orchestration coordinator. Only ever run once, on the
-  /// session creation attach.
+  /// CLI launched by an orchestration coordinator. Runs once for each newly
+  /// created PTY, including a transparent remint after host recovery.
   String? get initialCommand =>
       _nonEmptyPayloadString(workspaceTabInitialCommandPayloadKey);
 

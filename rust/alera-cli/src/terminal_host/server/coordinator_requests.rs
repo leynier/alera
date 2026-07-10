@@ -6,13 +6,14 @@ use serde_json::{json, Value};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::orchestration::agent_presence::AgentPresenceState;
+use crate::terminal_host::orchestration::agent_prompt_injection::write_agent_prompt_paste;
 use crate::terminal_host::orchestration::coordinator_loop::{
     hung_dispatch_threshold_iso, CoordinatorConfig, CoordinatorHandle, COORDINATOR_DEFAULT_POLL_MS,
     COORDINATOR_DISPATCH_STALE_THRESHOLD, COORDINATOR_MAX_CONCURRENT_DEFAULT,
 };
 use crate::terminal_host::orchestration::dispatch_preamble::{
     build_dispatch_preamble, parse_allow_stale_base_from_spec, BaseDrift, GateResolution,
-    PreambleParams,
+    PreambleParams, WorkerKind,
 };
 use crate::terminal_host::orchestration::lifecycle_reconciliation::{
     reconcile_lifecycle_message, LifecycleReconciliation,
@@ -45,8 +46,6 @@ fn payload_string(payload: Option<&Value>, key: &str) -> Option<String> {
 }
 
 impl ServerActor {
-    // --- run / run-stop -----------------------------------------------------
-
     pub(super) async fn orchestration_run(&mut self, payload: &Value) -> HostResult<Value> {
         if self.coordinator.is_some() {
             return Err(HostError::state("a coordinator run is already active"));
@@ -64,6 +63,10 @@ impl ServerActor {
             .filter(|value| !value.is_empty())
             .map(str::to_string)
             .ok_or_else(|| HostError::format("from is required."))?;
+        let deliveries = &self.orchestration_delivery_in_flight;
+        if deliveries.contains(&coordinator_handle) {
+            return Err(HostError::state("prompt delivery in flight; retry"));
+        }
         let poll_interval_ms = payload
             .get("pollIntervalMs")
             .and_then(Value::as_u64)
@@ -77,7 +80,6 @@ impl ServerActor {
             .get("workspace")
             .and_then(Value::as_str)
             .map(str::to_string);
-
         // Decomposition is the caller's responsibility in v1: the coordinator
         // manages the DAG, it does not invent it.
         let tasks = self
@@ -90,7 +92,6 @@ impl ServerActor {
                 "no orchestration tasks exist; create tasks with task-create before run",
             ));
         }
-
         let run = self
             .runtime_store
             .create_orchestration_coordinator_run(
@@ -648,13 +649,14 @@ impl ServerActor {
                 .unwrap_or("coordinator"),
             base_drift: drift.as_ref(),
             gate_resolution: gate_resolution.as_ref(),
+            worker_kind: WorkerKind::PromptReturningAgent,
         });
         let session_instance_id = self
             .sessions
             .get_mut(handle)
             .filter(|session| Session::running(session))
             .map(|session| {
-                session.write(preamble.as_bytes());
+                write_agent_prompt_paste(session, &preamble);
                 session.instance_id()
             });
         let Some(session_instance_id) = session_instance_id else {

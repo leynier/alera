@@ -1,4 +1,5 @@
 pub mod agent_presence;
+pub mod agent_prompt_injection;
 pub mod coordinator_loop;
 pub mod dispatch_preamble;
 pub mod group_resolution;

@@ -26,6 +26,7 @@ use crate::terminal_host::history_store::TerminalHostHistoryStore;
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::mobile_gateway::spawn_mobile_gateway_accept_loop;
 use crate::terminal_host::orchestration::agent_presence::AgentPresenceRegistry;
+use crate::terminal_host::orchestration::agent_prompt_injection as prompt_injection;
 use crate::terminal_host::orchestration::coordinator_loop::CoordinatorHandle;
 use crate::terminal_host::orchestration::message_delivery::{
     skips_auto_enter, DEFERRED_ENTER_DELAY_MS,
@@ -43,6 +44,8 @@ mod requests;
 const CHECKPOINT_DELAY: Duration = Duration::from_secs(5);
 
 const OUTPUT_BATCH_DELAY: Duration = Duration::from_millis(8);
+/// Cap coalesced PTY→client batches so a verbose agent/build cannot grow an
+/// unbounded `output_batch` between timer flushes (early flush when exceeded).
 const OUTPUT_BATCH_MAX_BYTES: usize = 64 * 1024;
 
 /// Messages processed serially by the single server actor. Every state mutation
@@ -468,12 +471,13 @@ impl ServerActor {
 
     // --- Orchestration push-on-idle delivery -------------------------------
 
-    /// Delivers undelivered unread messages into a terminal whose agent just
-    /// became injection-ready. The Enter is written after a delay as a
-    /// separate write; `delivered_at` is stamped only after that second write
-    /// succeeds, so a failure anywhere requeues the batch for the next idle
-    /// transition.
+    /// Pushes unread messages to an idle agent and stamps `delivered_at` only
+    /// after the deferred Enter succeeds. Active coordinators are excluded so
+    /// auto-submit cannot steal their prompt.
     pub(super) async fn deliver_pending_messages(&mut self, handle: &str) {
+        if self.is_active_coordinator_handle(handle) {
+            return;
+        }
         let running = self.sessions.get(handle).is_some_and(Session::running);
         if !running {
             return;
@@ -493,7 +497,7 @@ impl ServerActor {
         let Some(session) = self.sessions.get_mut(handle) else {
             return;
         };
-        session.write(formatted.as_bytes());
+        prompt_injection::write_agent_prompt_paste(session, &formatted);
         let session_instance_id = session.instance_id();
         let ids: Vec<String> = messages.iter().map(|message| message.id.clone()).collect();
         if skips_auto_enter(self.agent_presence.agent_type(handle)) {
@@ -519,6 +523,13 @@ impl ServerActor {
         });
     }
 
+    fn is_active_coordinator_handle(&self, handle: &str) -> bool {
+        self.coordinator
+            .as_ref()
+            .and_then(|c| c.config.coordinator_handle.as_deref())
+            == Some(handle)
+    }
+
     /// Send-time hook: deliver immediately only when the recipient's agent is
     /// already idle right now.
     pub(super) async fn deliver_pending_messages_if_idle(&mut self, handle: &str) {
@@ -533,8 +544,9 @@ impl ServerActor {
         session_instance_id: u64,
         message_ids: Vec<String>,
     ) {
+        let message_backed = !message_ids.is_empty();
         let had_delivery_in_flight =
-            !message_ids.is_empty() && self.orchestration_delivery_in_flight.remove(&session_id);
+            message_backed && self.orchestration_delivery_in_flight.remove(&session_id);
         let skip_auto_enter =
             message_ids.is_empty() && skips_auto_enter(self.agent_presence.agent_type(&session_id));
         let current_instance_id = self.sessions.get(&session_id).map(Session::instance_id);
@@ -542,6 +554,9 @@ impl ServerActor {
             if had_delivery_in_flight && self.agent_presence.is_injection_ready(&session_id) {
                 self.deliver_pending_messages(&session_id).await;
             }
+            return;
+        }
+        if message_backed && self.is_active_coordinator_handle(&session_id) {
             return;
         }
         let Some(session) = self.sessions.get_mut(&session_id) else {
@@ -555,7 +570,7 @@ impl ServerActor {
         if skip_auto_enter {
             return;
         }
-        session.write(b"\r");
+        session.write(prompt_injection::AGENT_PROMPT_SUBMIT);
         let delivered = message_ids.is_empty()
             || self
                 .runtime_store
