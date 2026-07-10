@@ -16,6 +16,7 @@ class ProjectConfigMapper extends ClassMapperBase<ProjectConfig> {
     if (_instance == null) {
       MapperContainer.globals.use(_instance = ProjectConfigMapper._());
       WorktreeSetupConfigMapper.ensureInitialized();
+      GitHostingProviderMapper.ensureInitialized();
     }
     return _instance!;
   }
@@ -30,12 +31,22 @@ class ProjectConfigMapper extends ClassMapperBase<ProjectConfig> {
     opt: true,
     def: WorktreeSetupConfig.defaults,
   );
+  static GitHostingProvider? _$gitHostingProvider(ProjectConfig v) =>
+      v.gitHostingProvider;
+  static const Field<ProjectConfig, GitHostingProvider> _f$gitHostingProvider =
+      Field('gitHostingProvider', _$gitHostingProvider, opt: true);
 
   @override
-  final MappableFields<ProjectConfig> fields = const {#worktree: _f$worktree};
+  final MappableFields<ProjectConfig> fields = const {
+    #worktree: _f$worktree,
+    #gitHostingProvider: _f$gitHostingProvider,
+  };
 
   static ProjectConfig _instantiate(DecodingData data) {
-    return ProjectConfig(worktree: data.dec(_f$worktree));
+    return ProjectConfig(
+      worktree: data.dec(_f$worktree),
+      gitHostingProvider: data.dec(_f$gitHostingProvider),
+    );
   }
 
   @override
@@ -102,7 +113,10 @@ abstract class ProjectConfigCopyWith<$R, $In extends ProjectConfig, $Out>
     implements ClassCopyWith<$R, $In, $Out> {
   WorktreeSetupConfigCopyWith<$R, WorktreeSetupConfig, WorktreeSetupConfig>
   get worktree;
-  $R call({WorktreeSetupConfig? worktree});
+  $R call({
+    WorktreeSetupConfig? worktree,
+    GitHostingProvider? gitHostingProvider,
+  });
   ProjectConfigCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
 }
 
@@ -118,11 +132,23 @@ class _ProjectConfigCopyWithImpl<$R, $Out>
   WorktreeSetupConfigCopyWith<$R, WorktreeSetupConfig, WorktreeSetupConfig>
   get worktree => $value.worktree.copyWith.$chain((v) => call(worktree: v));
   @override
-  $R call({WorktreeSetupConfig? worktree}) =>
-      $apply(FieldCopyWithData({if (worktree != null) #worktree: worktree}));
+  $R call({
+    WorktreeSetupConfig? worktree,
+    Object? gitHostingProvider = $none,
+  }) => $apply(
+    FieldCopyWithData({
+      if (worktree != null) #worktree: worktree,
+      if (gitHostingProvider != $none) #gitHostingProvider: gitHostingProvider,
+    }),
+  );
   @override
-  ProjectConfig $make(CopyWithData data) =>
-      ProjectConfig(worktree: data.get(#worktree, or: $value.worktree));
+  ProjectConfig $make(CopyWithData data) => ProjectConfig(
+    worktree: data.get(#worktree, or: $value.worktree),
+    gitHostingProvider: data.get(
+      #gitHostingProvider,
+      or: $value.gitHostingProvider,
+    ),
+  );
 
   @override
   ProjectConfigCopyWith<$R2, ProjectConfig, $Out2> $chain<$R2, $Out2>(

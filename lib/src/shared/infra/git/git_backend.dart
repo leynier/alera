@@ -1,5 +1,6 @@
 import 'package:alera/src/shared/infra/git/git_worktree_entry.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
+import 'package:alera/src/shared/infra/git/git_remote.dart';
 
 /// Injectable boundary for git operations. Mirrors the raw git plumbing only;
 /// orchestration (paths, slugs, persistence, reconciliation) lives in the
@@ -59,6 +60,11 @@ abstract interface class GitBackend {
 
   /// The main work tree plus every linked worktree, with each entry's branch.
   Future<List<GitWorktreeEntry>> listWorktrees(String repoPath);
+
+  /// The repository's configured remotes with their fetch URLs. Used to detect
+  /// the git hosting provider (GitHub, Azure DevOps, ...) from the remote
+  /// identity of the repository containing [path].
+  Future<List<GitRemote>> listRemotes(String path);
 
   /// Clones [url] into [destinationPath] using the system `git` CLI so the
   /// user's credential helper authenticates private remotes.

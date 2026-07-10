@@ -221,6 +221,12 @@ Future<void> deleteBranch({
 Future<List<GitWorktreeEntry>> listWorktrees({required String repoPath}) =>
     RustLib.instance.api.crateApiGitListWorktrees(repoPath: repoPath);
 
+/// Lists the repository's configured remotes with their fetch URLs. Used to
+/// detect the git hosting provider (GitHub, Azure DevOps, ...) from the remote
+/// identity. Remotes without a URL yield `None`.
+Future<List<GitRemote>> listRemotes({required String path}) =>
+    RustLib.instance.api.crateApiGitListRemotes(path: path);
+
 /// Clones a repository into `destination_path` using the system `git` CLI so
 /// the user's credential helper authenticates private remotes. Mirrors
 /// `git clone --progress -- <url> <destination_path>`.
@@ -719,6 +725,24 @@ class GitHistoryResult {
           hasOutgoingChanges == other.hasOutgoingChanges &&
           hasMore == other.hasMore &&
           limit == other.limit;
+}
+
+class GitRemote {
+  final String name;
+  final String? url;
+
+  const GitRemote({required this.name, this.url});
+
+  @override
+  int get hashCode => name.hashCode ^ url.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GitRemote &&
+          runtimeType == other.runtimeType &&
+          name == other.name &&
+          url == other.url;
 }
 
 class GitRepositoryState {

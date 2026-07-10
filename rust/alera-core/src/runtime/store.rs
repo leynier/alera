@@ -9,10 +9,10 @@ use thiserror::Error;
 use uuid::Uuid;
 
 use super::{
-    CascadePreview, MobileAccessSettings, MobileDevice, MobileDevicePermission, MobilePairingOffer,
-    Project, ProjectConfig, ProjectConfigMap, ProjectConfigRecord, ProjectKind, RuntimeSettings,
-    SshAuthKind, SshBootstrapStatus, SshTarget, WorkbenchLayoutRecord, Workspace, WorkspaceKind,
-    WorkspaceRelation, WorkspaceStatus, WorkspaceTabRecord, WorkspaceTag,
+    CascadePreview, LinkedReview, MobileAccessSettings, MobileDevice, MobileDevicePermission,
+    MobilePairingOffer, Project, ProjectConfig, ProjectConfigMap, ProjectConfigRecord, ProjectKind,
+    RuntimeSettings, SshAuthKind, SshBootstrapStatus, SshTarget, WorkbenchLayoutRecord, Workspace,
+    WorkspaceKind, WorkspaceRelation, WorkspaceStatus, WorkspaceTabRecord, WorkspaceTag,
 };
 
 pub const RUNTIME_DATABASE_FILE_NAME: &str = "runtime.sqlite";
@@ -630,6 +630,10 @@ impl RuntimeStore {
                 .execute(&mut *tx)
                 .await?;
         }
+        sqlx::query("DELETE FROM linkedReviews WHERE workspaceId = ?")
+            .bind(workspace_id)
+            .execute(&mut *tx)
+            .await?;
         sqlx::query("DELETE FROM workbenchLayouts WHERE workspaceId = ?")
             .bind(workspace_id)
             .execute(&mut *tx)
@@ -712,6 +716,44 @@ impl RuntimeStore {
     pub async fn remove_workspace_tab(&self, tab_id: &str) -> Result<()> {
         sqlx::query("DELETE FROM workspaceTabs WHERE id = ?")
             .bind(tab_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn find_linked_review(&self, workspace_id: &str) -> Result<Option<LinkedReview>> {
+        let row = sqlx::query(
+            "SELECT workspaceId, dismissed, provider, number, url, linkedAt \
+             FROM linkedReviews WHERE workspaceId = ?",
+        )
+        .bind(workspace_id)
+        .fetch_optional(&self.pool)
+        .await?;
+        row.map(linked_review_from_row).transpose()
+    }
+
+    pub async fn upsert_linked_review(&self, review: LinkedReview) -> Result<LinkedReview> {
+        sqlx::query(
+            "INSERT INTO linkedReviews (workspaceId, dismissed, provider, number, url, linkedAt) \
+             VALUES (?, ?, ?, ?, ?, ?) \
+             ON CONFLICT(workspaceId) DO UPDATE SET \
+             dismissed = excluded.dismissed, provider = excluded.provider, \
+             number = excluded.number, url = excluded.url, linkedAt = excluded.linkedAt",
+        )
+        .bind(&review.workspace_id)
+        .bind(i64::from(review.dismissed))
+        .bind(&review.provider)
+        .bind(review.number)
+        .bind(&review.url)
+        .bind(format_timestamp(review.linked_at))
+        .execute(&self.pool)
+        .await?;
+        Ok(review)
+    }
+
+    pub async fn remove_linked_review(&self, workspace_id: &str) -> Result<()> {
+        sqlx::query("DELETE FROM linkedReviews WHERE workspaceId = ?")
+            .bind(workspace_id)
             .execute(&self.pool)
             .await?;
         Ok(())
@@ -1201,6 +1243,18 @@ fn tab_from_row(row: sqlx::sqlite::SqliteRow) -> Result<WorkspaceTabRecord> {
     })
 }
 
+fn linked_review_from_row(row: sqlx::sqlite::SqliteRow) -> Result<LinkedReview> {
+    let dismissed: i64 = row.try_get("dismissed")?;
+    Ok(LinkedReview {
+        workspace_id: row.try_get("workspaceId")?,
+        dismissed: dismissed != 0,
+        provider: row.try_get("provider")?,
+        number: row.try_get("number")?,
+        url: row.try_get("url")?,
+        linked_at: parse_timestamp(row.try_get::<String, _>("linkedAt")?.as_str()),
+    })
+}
+
 fn layout_from_row(row: sqlx::sqlite::SqliteRow) -> Result<WorkbenchLayoutRecord> {
     let data_json: String = row.try_get("dataJson")?;
     Ok(WorkbenchLayoutRecord {
@@ -1388,6 +1442,14 @@ const RUNTIME_SCHEMA: &[&str] = &[
         payloadJson TEXT NOT NULL DEFAULT '{}'
     );",
     "CREATE INDEX IF NOT EXISTS workspaceTabsWorkspaceIdx ON workspaceTabs(workspaceId, createdAt);",
+    "CREATE TABLE IF NOT EXISTS linkedReviews (
+        workspaceId TEXT PRIMARY KEY,
+        dismissed INTEGER NOT NULL DEFAULT 0,
+        provider TEXT,
+        number INTEGER,
+        url TEXT,
+        linkedAt TEXT NOT NULL
+    );",
     "CREATE TABLE IF NOT EXISTS workbenchLayouts (
         workspaceId TEXT PRIMARY KEY,
         dataJson TEXT NOT NULL

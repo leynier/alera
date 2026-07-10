@@ -165,6 +165,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   GitHistoryResult dco_decode_git_history_result(dynamic raw);
 
   @protected
+  GitRemote dco_decode_git_remote(dynamic raw);
+
+  @protected
   GitRepositoryState dco_decode_git_repository_state(dynamic raw);
 
   @protected
@@ -216,6 +219,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<GitHistoryItemRef> dco_decode_list_git_history_item_ref(dynamic raw);
+
+  @protected
+  List<GitRemote> dco_decode_list_git_remote(dynamic raw);
 
   @protected
   List<GitStashEntry> dco_decode_list_git_stash_entry(dynamic raw);
@@ -605,6 +611,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   GitHistoryResult sse_decode_git_history_result(SseDeserializer deserializer);
 
   @protected
+  GitRemote sse_decode_git_remote(SseDeserializer deserializer);
+
+  @protected
   GitRepositoryState sse_decode_git_repository_state(
     SseDeserializer deserializer,
   );
@@ -672,6 +681,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<GitHistoryItemRef> sse_decode_list_git_history_item_ref(
     SseDeserializer deserializer,
   );
+
+  @protected
+  List<GitRemote> sse_decode_list_git_remote(SseDeserializer deserializer);
 
   @protected
   List<GitStashEntry> sse_decode_list_git_stash_entry(
@@ -1166,6 +1178,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_git_remote(GitRemote self, SseSerializer serializer);
+
+  @protected
   void sse_encode_git_repository_state(
     GitRepositoryState self,
     SseSerializer serializer,
@@ -1252,6 +1267,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_git_history_item_ref(
     List<GitHistoryItemRef> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_git_remote(
+    List<GitRemote> self,
     SseSerializer serializer,
   );
 

@@ -3,8 +3,8 @@ use std::collections::BTreeMap;
 use alera_core::{
     git as core_git,
     runtime::{
-        Project, ProjectConfig, SshTarget, WorkbenchLayoutRecord, Workspace, WorkspaceTabRecord,
-        WorkspaceTag,
+        LinkedReview, Project, ProjectConfig, SshTarget, WorkbenchLayoutRecord, Workspace,
+        WorkspaceTabRecord, WorkspaceTag,
     },
 };
 use chrono::{DateTime, Utc};
@@ -626,6 +626,25 @@ impl ServerActor {
                 self.broadcast_authenticated(event("workspaceTabsChanged", json!({})));
                 Ok(json!({}))
             }
+            "linkedReview.find" => {
+                self.require_auth(client_id)?;
+                let workspace_id = require_string_key(payload, "workspaceId")?;
+                json_result(self.runtime_store.find_linked_review(&workspace_id).await)
+            }
+            "linkedReview.upsert" => {
+                self.require_auth(client_id)?;
+                let review: LinkedReview = parse_payload(payload)?;
+                let value = json_result(self.runtime_store.upsert_linked_review(review).await)?;
+                self.broadcast_authenticated(event("linkedReviewsChanged", json!({})));
+                Ok(value)
+            }
+            "linkedReview.remove" => {
+                self.require_auth(client_id)?;
+                let workspace_id = require_string_key(payload, "workspaceId")?;
+                json_result(self.runtime_store.remove_linked_review(&workspace_id).await)?;
+                self.broadcast_authenticated(event("linkedReviewsChanged", json!({})));
+                Ok(json!({}))
+            }
             "layout.find" => {
                 self.require_auth(client_id)?;
                 let workspace_id = require_string_key(payload, "workspaceId")?;
@@ -1193,6 +1212,7 @@ fn mobile_request_allowed(request_type: &str) -> bool {
             | "workspace.find"
             | "tab.list"
             | "tab.find"
+            | "linkedReview.find"
             | "layout.find"
             | "workspaceTag.list"
             | "workspaceRelation.list"

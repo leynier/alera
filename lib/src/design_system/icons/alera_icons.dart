@@ -84,6 +84,7 @@ abstract final class AleraIcons {
   static const IconData gitBranch = LucideIcons.gitBranch;
   static const IconData gitGraph = LucideIcons.gitGraph;
   static const IconData gitFork = LucideIcons.gitFork;
+  static const IconData gitPullRequest = LucideIcons.gitPullRequest;
   static const IconData diff = LucideIcons.gitCompare;
 
   // Download / upload

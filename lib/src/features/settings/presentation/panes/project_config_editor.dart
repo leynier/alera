@@ -1,12 +1,14 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/forms/alera_checkbox.dart';
+import 'package:alera/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera/src/design_system/forms/alera_setting_row.dart';
 import 'package:alera/src/design_system/forms/alera_text_field.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_settings_group.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/domain/project_config.dart';
+import 'package:alera/src/features/pull_requests/domain/git_hosting_provider.dart';
 import 'package:flutter/material.dart';
 
 class ProjectConfigEditor extends StatelessWidget {
@@ -26,6 +28,8 @@ class ProjectConfigEditor extends StatelessWidget {
     required this.addSetupCommand,
     required this.saveOverride,
     required this.useRepoFile,
+    required this.gitHostingProvider,
+    required this.onGitHostingProviderChanged,
     this.sourceError,
   });
 
@@ -34,6 +38,8 @@ class ProjectConfigEditor extends StatelessWidget {
   final String? sourceError;
   final List<EditableCopyRule> copyRules;
   final List<String> setupCommands;
+  final GitHostingProvider? gitHostingProvider;
+  final ValueChanged<GitHostingProvider?> onGitHostingProviderChanged;
   final String? saveError;
   final bool saving;
   final void Function(int index, EditableCopyRule rule) updateCopyRule;
@@ -74,6 +80,33 @@ class ProjectConfigEditor extends StatelessWidget {
                   ),
                 ),
               ),
+          ],
+        ),
+        const SizedBox(height: AleraTokens.space16),
+        AleraSettingsGroup(
+          title: 'Pull Requests',
+          description:
+              'Git Hosting Provider Used For Pull Requests And Checks.',
+          children: <Widget>[
+            AleraSettingRow(
+              title: 'Hosting Provider',
+              description: 'Auto-Detect Reads The Repository Remote.',
+              child: AleraDropdownField<GitHostingProvider?>(
+                value: gitHostingProvider,
+                onChanged: onGitHostingProviderChanged,
+                entries: <AleraDropdownFieldEntry<GitHostingProvider?>>[
+                  const AleraDropdownFieldEntry<GitHostingProvider?>(
+                    value: null,
+                    label: 'Auto-Detect',
+                  ),
+                  for (final provider in GitHostingProvider.values)
+                    AleraDropdownFieldEntry<GitHostingProvider?>(
+                      value: provider,
+                      label: provider.label,
+                    ),
+                ],
+              ),
+            ),
           ],
         ),
         const SizedBox(height: AleraTokens.space16),
@@ -407,5 +440,8 @@ String projectConfigSignature(ProjectConfig config) {
       ..write(command)
       ..write('\u{1e}');
   }
+  buffer
+    ..write('\u{1d}')
+    ..write(config.gitHostingProvider?.name ?? '');
   return buffer.toString();
 }
