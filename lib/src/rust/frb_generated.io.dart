@@ -64,6 +64,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  GitSubmoduleStatus dco_decode_box_autoadd_git_submodule_status(dynamic raw);
+
+  @protected
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
 
   @protected
@@ -169,6 +172,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GitStatusResult dco_decode_git_status_result(dynamic raw);
+
+  @protected
+  GitSubmoduleStatus dco_decode_git_submodule_status(dynamic raw);
 
   @protected
   GitWorktreeEntry dco_decode_git_worktree_entry(dynamic raw);
@@ -277,6 +283,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GitHistoryRefCategory? dco_decode_opt_box_autoadd_git_history_ref_category(
+    dynamic raw,
+  );
+
+  @protected
+  GitSubmoduleStatus? dco_decode_opt_box_autoadd_git_submodule_status(
     dynamic raw,
   );
 
@@ -471,6 +482,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  GitSubmoduleStatus sse_decode_box_autoadd_git_submodule_status(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
@@ -598,6 +614,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GitStatusResult sse_decode_git_status_result(SseDeserializer deserializer);
+
+  @protected
+  GitSubmoduleStatus sse_decode_git_submodule_status(
+    SseDeserializer deserializer,
+  );
 
   @protected
   GitWorktreeEntry sse_decode_git_worktree_entry(SseDeserializer deserializer);
@@ -738,6 +759,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GitHistoryRefCategory? sse_decode_opt_box_autoadd_git_history_ref_category(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  GitSubmoduleStatus? sse_decode_opt_box_autoadd_git_submodule_status(
     SseDeserializer deserializer,
   );
 
@@ -981,6 +1007,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_git_submodule_status(
+    GitSubmoduleStatus self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_i_64(
     PlatformInt64 self,
     SseSerializer serializer,
@@ -1145,6 +1177,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_git_status_result(
     GitStatusResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_git_submodule_status(
+    GitSubmoduleStatus self,
     SseSerializer serializer,
   );
 
@@ -1319,6 +1357,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_git_history_ref_category(
     GitHistoryRefCategory? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_git_submodule_status(
+    GitSubmoduleStatus? self,
     SseSerializer serializer,
   );
 

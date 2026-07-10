@@ -113,7 +113,7 @@ class _WorkspaceGitDiffSurfaceState
   }
 
   bool _isOpenableDiffFile(GitDiffFile file) {
-    if (file.status == GitChangeStatus.deleted) {
+    if (file.isGitlink || file.status == GitChangeStatus.deleted) {
       return false;
     }
     if (file.status == GitChangeStatus.renamed && file.oldPath == file.path) {

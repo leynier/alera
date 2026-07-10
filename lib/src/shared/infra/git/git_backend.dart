@@ -73,6 +73,13 @@ abstract interface class GitBackend {
     required String filePath,
   });
 
+  /// Loads one level of read-only changes from a configured submodule.
+  Future<GitStatusResult> submoduleStatus({
+    required String path,
+    required String submodulePath,
+    required GitChangeArea area,
+  });
+
   /// Loads a read-only diff for [filePath] in [area].
   Future<GitDiffResult> diff({
     required String path,

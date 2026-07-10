@@ -77,6 +77,7 @@ class FakeGitBackend implements GitBackend {
   void Function(String url, String destinationPath)? onClone;
 
   GitStatusResult gitStatusResult = const GitStatusResult(entries: []);
+  GitStatusResult gitSubmoduleStatusResult = const GitStatusResult(entries: []);
   GitDiffResult gitDiffResult = const GitDiffResult(files: []);
   GitDiffResult gitDiffAllResult = const GitDiffResult(files: []);
   GitHistoryResult gitHistoryResult = const GitHistoryResult(
@@ -107,6 +108,7 @@ class FakeGitBackend implements GitBackend {
   String gitCommitOid = 'abc123';
 
   GitException? statusError;
+  GitException? submoduleStatusError;
   GitException? historyError;
   GitException? commitCompareError;
   GitException? commitDiffError;
@@ -314,6 +316,26 @@ class FakeGitBackend implements GitBackend {
         gitStatusResult.entriesForPath(filePath),
       ),
     );
+  }
+
+  @override
+  Future<GitStatusResult> submoduleStatus({
+    required String path,
+    required String submodulePath,
+    required GitChangeArea area,
+  }) async {
+    calls.add(
+      GitBackendCall('submoduleStatus', <String, Object?>{
+        'path': path,
+        'submodulePath': submodulePath,
+        'area': area,
+      }),
+    );
+    final error = submoduleStatusError;
+    if (error != null) {
+      throw error;
+    }
+    return gitSubmoduleStatusResult;
   }
 
   @override

@@ -220,7 +220,7 @@ class _SourceControlToolbar extends StatelessWidget {
     if (repo.hasUpstream && repo.ahead > 0) {
       return _SourceControlMenuAction.push;
     }
-    if (state.hasUnstagedOrUntrackedChanges) {
+    if (state.hasStageableChanges) {
       return _SourceControlMenuAction.stageAll;
     }
     return _SourceControlMenuAction.fetch;
@@ -601,7 +601,7 @@ class _PrimaryActionButton extends StatelessWidget {
     BuildContext context,
   ) {
     final hasStaged = state?.hasStagedChanges ?? false;
-    final hasDiscardable = state?.hasUnstagedOrUntrackedChanges ?? false;
+    final hasDiscardable = state?.hasDiscardableChanges ?? false;
     final hasStashable = state?.hasStashableChanges ?? false;
     final hasStashes = state?.stashes.isNotEmpty ?? false;
     final hasConflicts = state?.repositoryState.hasConflicts ?? false;
@@ -640,7 +640,7 @@ class _PrimaryActionButton extends StatelessWidget {
       AleraDropdownEntry<_SourceControlMenuAction>(
         value: _SourceControlMenuAction.stageAll,
         label: 'Stage All',
-        enabled: state?.hasUnstagedOrUntrackedChanges ?? false,
+        enabled: state?.hasStageableChanges ?? false,
         leading: const Icon(AleraIcons.add, size: 16),
       ),
       AleraDropdownEntry<_SourceControlMenuAction>(

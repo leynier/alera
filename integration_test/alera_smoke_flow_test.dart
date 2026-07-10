@@ -188,6 +188,13 @@ class _E2eGitBackend implements GitBackend {
   }) async => const GitStatusResult(entries: <GitChangeEntry>[]);
 
   @override
+  Future<GitStatusResult> submoduleStatus({
+    required String path,
+    required String submodulePath,
+    required GitChangeArea area,
+  }) async => const GitStatusResult(entries: <GitChangeEntry>[]);
+
+  @override
   Future<GitDiffResult> diff({
     required String path,
     required String filePath,
