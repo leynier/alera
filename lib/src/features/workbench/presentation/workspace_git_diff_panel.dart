@@ -14,6 +14,7 @@ import 'package:alera/src/features/ai_text_generation/application/ai_text_genera
 import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/workbench/application/workspace_source_control_controller.dart';
+import 'package:alera/src/features/workbench/application/workspace_submodule_status_provider.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_source_control_scope.dart';
@@ -31,6 +32,7 @@ part 'workspace_git_diff_panel_amend_dialog.dart';
 part 'workspace_git_diff_panel_stash_dialog.dart';
 part 'workspace_git_diff_panel_toolbar.dart';
 part 'workspace_git_diff_panel_tree.dart';
+part 'workspace_git_diff_panel_submodules.dart';
 part 'workspace_git_history_panel.dart';
 
 typedef OpenGitDiffTabCallback =
@@ -84,6 +86,7 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
   final TextEditingController _filterController = TextEditingController();
   final Set<String> _collapsedSections = <String>{};
   final Set<String> _collapsedTreeNodes = <String>{};
+  final Set<String> _expandedSubmodules = <String>{};
   late final AiTextGenerationService _aiTextGenerationService;
   bool _filterVisible = false;
   bool _generatingCommitMessage = false;
@@ -116,6 +119,7 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
       _filterController.clear();
       _collapsedSections.clear();
       _collapsedTreeNodes.clear();
+      _expandedSubmodules.clear();
       _filterVisible = false;
       _generatingCommitMessage = false;
       _historyCollapsed = true;
@@ -216,12 +220,15 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
                     }
                     return _GitDiffGroups(
                       groups: status.effectiveGroups,
+                      workspacePath: widget.sourceControlScope.path,
                       viewMode: widget.viewMode,
                       busy: data.isBusy,
                       collapsedSections: _collapsedSections,
                       collapsedTreeNodes: _collapsedTreeNodes,
+                      expandedSubmodules: _expandedSubmodules,
                       onToggleSection: _toggleSectionCollapsed,
                       onToggleTreeNode: _toggleTreeNodeCollapsed,
+                      onToggleSubmodule: _toggleSubmodule,
                       onOpenGitDiff: _openGitDiff,
                       onStage: _stageEntry,
                       onUnstage: _unstageEntry,
@@ -249,6 +256,14 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
         ),
       ],
     );
+  }
+
+  void _toggleSubmodule(GitChangeEntry entry) {
+    setState(() {
+      if (!_expandedSubmodules.remove(entry.id)) {
+        _expandedSubmodules.add(entry.id);
+      }
+    });
   }
 
   Future<void> _refresh() {

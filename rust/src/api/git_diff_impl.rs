@@ -10,7 +10,7 @@ use super::{
     open_repo, GitChangeArea, GitChangeEntry, GitChangeGroup, GitChangeStatus, GitChangeTreeRow,
     GitChangeTreeRowKind, GitCommitChangeEntry, GitCommitCompareResult, GitCommitCompareStatus,
     GitCommitCompareSummary, GitDiffFile, GitDiffLine, GitDiffLineKind, GitDiffResult, GitError,
-    GitErrorKind, GitStatusResult,
+    GitErrorKind, GitStatusResult, GitSubmoduleStatus,
 };
 
 #[path = "git_diff_combined.rs"]
@@ -23,6 +23,9 @@ mod git_diff_untracked;
 use git_diff_combined::{append_combined_diff_file, git_diff_all_for_file};
 use git_diff_render::render_diff_for_path;
 use git_diff_untracked::untracked_diff_file;
+
+#[path = "git_submodule_impl.rs"]
+mod git_submodule_impl;
 
 use super::git_diff_paths::GitPathContext;
 
@@ -49,6 +52,31 @@ pub(super) fn git_status_for_path(
         .disable_pathspec_match(true)
         .pathspec(paths.to_repo_path(&file_path));
     git_status_with_options(&repo, &paths, &mut options)
+}
+
+pub(super) fn git_submodule_status(
+    path: String,
+    submodule_path: String,
+    area: GitChangeArea,
+) -> Result<GitStatusResult, GitError> {
+    git_submodule_impl::git_submodule_status(path, submodule_path, area)
+}
+
+pub(super) fn git_submodule_worktree_status(
+    path: String,
+    submodule_path: String,
+) -> Result<GitStatusResult, GitError> {
+    git_submodule_impl::git_submodule_worktree_status(path, submodule_path)
+}
+
+pub(super) fn discard_submodule_gitlink(
+    repo: &Repository,
+    workspace_path: &str,
+    submodule_path: &str,
+    skip_dirty: bool,
+) -> Result<bool, GitError> {
+    let paths = GitPathContext::new(repo, workspace_path)?;
+    git_submodule_impl::discard_gitlink_change(repo, &paths, submodule_path, skip_dirty)
 }
 
 fn git_status_with_options(
@@ -105,12 +133,44 @@ pub(super) fn git_diff_all(
     if let Some(file_path) = file_path {
         return git_diff_all_for_file(&repo, &paths, &file_path);
     }
-    let status = git_status(path)?;
+    let status = git_status(path.clone())?;
     let mut files = Vec::new();
     let mut total_bytes = 0usize;
     let mut truncated = false;
 
-    for entry in status.entries {
+    'changes: for entry in status.entries {
+        if let Some(submodule) = &entry.submodule {
+            if submodule.commit_changed {
+                if let Some(file) = diff_file_for_area(&repo, &paths, &entry.path, entry.area)? {
+                    if append_combined_diff_file(&mut files, &mut total_bytes, &mut truncated, file)
+                    {
+                        break;
+                    }
+                }
+            }
+            if entry.area == GitChangeArea::Unstaged
+                && submodule.inspectable
+                && (submodule.tracked_changes || submodule.untracked_changes)
+            {
+                let inner = git_submodule_worktree_status(path.clone(), entry.path.clone())?;
+                for inner_entry in inner.entries {
+                    let inner_path = format!("{}/{}", entry.path, inner_entry.path);
+                    if let Some(file) =
+                        diff_file_for_area(&repo, &paths, &inner_path, inner_entry.area)?
+                    {
+                        if append_combined_diff_file(
+                            &mut files,
+                            &mut total_bytes,
+                            &mut truncated,
+                            file,
+                        ) {
+                            break 'changes;
+                        }
+                    }
+                }
+            }
+            continue;
+        }
         if let Some(file) = diff_file_for_area(&repo, &paths, &entry.path, entry.area)? {
             if append_combined_diff_file(&mut files, &mut total_bytes, &mut truncated, file) {
                 break;
@@ -267,12 +327,15 @@ fn status_entry_to_change(
                 removed: None,
                 is_binary: delta.old_file().is_binary() || delta.new_file().is_binary(),
                 is_large: false,
+                submodule: git_submodule_impl::status_for_path(repo, &repo_path, area)?,
             };
-            if let Some(stats) =
-                diff_line_stats_for_paths(repo, &repo_path, old_path.as_deref(), area)?
-            {
-                change.added = Some(stats.0);
-                change.removed = Some(stats.1);
+            if change.submodule.is_none() {
+                if let Some(stats) =
+                    diff_line_stats_for_paths(repo, &repo_path, old_path.as_deref(), area)?
+                {
+                    change.added = Some(stats.0);
+                    change.removed = Some(stats.1);
+                }
             }
             Ok(Some(change))
         }
@@ -301,6 +364,7 @@ fn status_entry_to_change(
                 removed: Some(0),
                 is_binary: false,
                 is_large: false,
+                submodule: None,
             }))
         }
         GitChangeArea::Unstaged => {
@@ -323,6 +387,7 @@ fn status_entry_to_change(
                     removed: None,
                     is_binary: false,
                     is_large: false,
+                    submodule: None,
                 }));
             }
             let Some(delta) = entry.index_to_workdir() else {
@@ -347,12 +412,15 @@ fn status_entry_to_change(
                 removed: None,
                 is_binary: delta.old_file().is_binary() || delta.new_file().is_binary(),
                 is_large: false,
+                submodule: git_submodule_impl::status_for_path(repo, &repo_path, area)?,
             };
-            if let Some(stats) =
-                diff_line_stats_for_paths(repo, &repo_path, old_path.as_deref(), area)?
-            {
-                change.added = Some(stats.0);
-                change.removed = Some(stats.1);
+            if change.submodule.is_none() {
+                if let Some(stats) =
+                    diff_line_stats_for_paths(repo, &repo_path, old_path.as_deref(), area)?
+                {
+                    change.added = Some(stats.0);
+                    change.removed = Some(stats.1);
+                }
             }
             Ok(Some(change))
         }
@@ -393,6 +461,11 @@ fn diff_file_for_area(
     workspace_file_path: &str,
     area: GitChangeArea,
 ) -> Result<Option<GitDiffFile>, GitError> {
+    match git_submodule_impl::diff_file_for_submodule(repo, paths, workspace_file_path, area)? {
+        git_submodule_impl::SubmoduleDiff::NotSubmodule => {}
+        git_submodule_impl::SubmoduleDiff::NoDiff => return Ok(None),
+        git_submodule_impl::SubmoduleDiff::File(file) => return Ok(Some(file)),
+    }
     let file_path = paths.to_repo_path(workspace_file_path);
     match area {
         GitChangeArea::Untracked => {
@@ -443,6 +516,7 @@ fn diff_file_for_area(
                 removed: Some(rendered.removed),
                 is_binary: rendered.is_binary,
                 is_large: false,
+                is_gitlink: false,
                 truncated: rendered.truncated,
                 line_preview_truncated: rendered.line_preview_truncated,
             }))
@@ -461,6 +535,7 @@ fn untracked_placeholder_diff_file(path: String) -> GitDiffFile {
         removed: Some(0),
         is_binary: false,
         is_large: false,
+        is_gitlink: false,
         truncated: false,
         line_preview_truncated: false,
     }
@@ -571,6 +646,7 @@ fn commit_diff_file_for_path(
         removed: Some(rendered.removed),
         is_binary: rendered.is_binary,
         is_large: false,
+        is_gitlink: false,
         truncated: rendered.truncated,
         line_preview_truncated: rendered.line_preview_truncated,
     }))

@@ -120,6 +120,20 @@ class RustGitBackend implements GitBackend {
   });
 
   @override
+  Future<GitStatusResult> submoduleStatus({
+    required String path,
+    required String submodulePath,
+    required GitChangeArea area,
+  }) => _guard(() async {
+    final result = await rust.gitSubmoduleStatus(
+      path: path,
+      submodulePath: submodulePath,
+      area: _toRustArea(area),
+    );
+    return _toStatusResult(result);
+  });
+
+  @override
   Future<GitDiffResult> diff({
     required String path,
     required String filePath,
@@ -331,6 +345,14 @@ class RustGitBackend implements GitBackend {
       removed: entry.removed,
       isBinary: entry.isBinary,
       isLarge: entry.isLarge,
+      submodule: entry.submodule == null
+          ? null
+          : GitSubmoduleStatus(
+              commitChanged: entry.submodule!.commitChanged,
+              trackedChanges: entry.submodule!.trackedChanges,
+              untrackedChanges: entry.submodule!.untrackedChanges,
+              inspectable: entry.submodule!.inspectable,
+            ),
     );
   }
 
@@ -378,6 +400,7 @@ class RustGitBackend implements GitBackend {
               removed: file.removed,
               isBinary: file.isBinary,
               isLarge: file.isLarge,
+              isGitlink: file.isGitlink,
               truncated: file.truncated,
               linePreviewTruncated: file.linePreviewTruncated,
               sourceLabel: sourceLabel,

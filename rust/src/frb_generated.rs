@@ -38,7 +38,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 581024109;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1384564487;
 
 // Section: executor
 
@@ -1074,6 +1074,45 @@ fn wire__crate__api__git__git_status_for_path_impl(
             move |context| {
                 transform_result_sse::<_, crate::api::git::GitError>((move || {
                     let output_ok = crate::api::git::git_status_for_path(api_path, api_file_path)?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__git__git_submodule_status_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "git_submodule_status",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_path = <String>::sse_decode(&mut deserializer);
+            let api_submodule_path = <String>::sse_decode(&mut deserializer);
+            let api_area = <crate::api::git::GitChangeArea>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::git::GitError>((move || {
+                    let output_ok = crate::api::git::git_submodule_status(
+                        api_path,
+                        api_submodule_path,
+                        api_area,
+                    )?;
                     Ok(output_ok)
                 })())
             }
@@ -2479,6 +2518,8 @@ impl SseDecode for crate::api::git::GitChangeEntry {
         let mut var_removed = <Option<u32>>::sse_decode(deserializer);
         let mut var_isBinary = <bool>::sse_decode(deserializer);
         let mut var_isLarge = <bool>::sse_decode(deserializer);
+        let mut var_submodule =
+            <Option<crate::api::git::GitSubmoduleStatus>>::sse_decode(deserializer);
         return crate::api::git::GitChangeEntry {
             path: var_path,
             old_path: var_oldPath,
@@ -2488,6 +2529,7 @@ impl SseDecode for crate::api::git::GitChangeEntry {
             removed: var_removed,
             is_binary: var_isBinary,
             is_large: var_isLarge,
+            submodule: var_submodule,
         };
     }
 }
@@ -2632,6 +2674,7 @@ impl SseDecode for crate::api::git::GitDiffFile {
         let mut var_removed = <Option<u32>>::sse_decode(deserializer);
         let mut var_isBinary = <bool>::sse_decode(deserializer);
         let mut var_isLarge = <bool>::sse_decode(deserializer);
+        let mut var_isGitlink = <bool>::sse_decode(deserializer);
         let mut var_truncated = <bool>::sse_decode(deserializer);
         let mut var_linePreviewTruncated = <bool>::sse_decode(deserializer);
         return crate::api::git::GitDiffFile {
@@ -2644,6 +2687,7 @@ impl SseDecode for crate::api::git::GitDiffFile {
             removed: var_removed,
             is_binary: var_isBinary,
             is_large: var_isLarge,
+            is_gitlink: var_isGitlink,
             truncated: var_truncated,
             line_preview_truncated: var_linePreviewTruncated,
         };
@@ -2871,6 +2915,22 @@ impl SseDecode for crate::api::git::GitStatusResult {
         return crate::api::git::GitStatusResult {
             entries: var_entries,
             groups: var_groups,
+        };
+    }
+}
+
+impl SseDecode for crate::api::git::GitSubmoduleStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_commitChanged = <bool>::sse_decode(deserializer);
+        let mut var_trackedChanges = <bool>::sse_decode(deserializer);
+        let mut var_untrackedChanges = <bool>::sse_decode(deserializer);
+        let mut var_inspectable = <bool>::sse_decode(deserializer);
+        return crate::api::git::GitSubmoduleStatus {
+            commit_changed: var_commitChanged,
+            tracked_changes: var_trackedChanges,
+            untracked_changes: var_untrackedChanges,
+            inspectable: var_inspectable,
         };
     }
 }
@@ -3280,6 +3340,19 @@ impl SseDecode for Option<crate::api::git::GitHistoryRefCategory> {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<crate::api::git::GitHistoryRefCategory>::sse_decode(
+                deserializer,
+            ));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::git::GitSubmoduleStatus> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::git::GitSubmoduleStatus>::sse_decode(
                 deserializer,
             ));
         } else {
@@ -3880,149 +3953,150 @@ fn pde_ffi_dispatcher_primary_impl(
         27 => wire__crate__api__git__git_stash_pop_impl(port, ptr, rust_vec_len, data_len),
         28 => wire__crate__api__git__git_status_impl(port, ptr, rust_vec_len, data_len),
         29 => wire__crate__api__git__git_status_for_path_impl(port, ptr, rust_vec_len, data_len),
-        30 => wire__crate__api__git__git_unstage_impl(port, ptr, rust_vec_len, data_len),
-        31 => wire__crate__api__git__git_unstage_area_impl(port, ptr, rust_vec_len, data_len),
-        32 => wire__crate__api__init_app_impl(port, ptr, rust_vec_len, data_len),
-        33 => wire__crate__api__git__is_git_repository_impl(port, ptr, rust_vec_len, data_len),
-        34 => wire__crate__api__git__is_valid_branch_name_impl(port, ptr, rust_vec_len, data_len),
-        35 => wire__crate__api__git__list_branches_impl(port, ptr, rust_vec_len, data_len),
-        36 => wire__crate__api__git__list_remotes_impl(port, ptr, rust_vec_len, data_len),
-        37 => wire__crate__api__workspace_files__list_workspace_children_impl(
+        30 => wire__crate__api__git__git_submodule_status_impl(port, ptr, rust_vec_len, data_len),
+        31 => wire__crate__api__git__git_unstage_impl(port, ptr, rust_vec_len, data_len),
+        32 => wire__crate__api__git__git_unstage_area_impl(port, ptr, rust_vec_len, data_len),
+        33 => wire__crate__api__init_app_impl(port, ptr, rust_vec_len, data_len),
+        34 => wire__crate__api__git__is_git_repository_impl(port, ptr, rust_vec_len, data_len),
+        35 => wire__crate__api__git__is_valid_branch_name_impl(port, ptr, rust_vec_len, data_len),
+        36 => wire__crate__api__git__list_branches_impl(port, ptr, rust_vec_len, data_len),
+        37 => wire__crate__api__git__list_remotes_impl(port, ptr, rust_vec_len, data_len),
+        38 => wire__crate__api__workspace_files__list_workspace_children_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        38 => wire__crate__api__git__list_worktrees_impl(port, ptr, rust_vec_len, data_len),
-        39 => wire__crate__api__workspace_files__move_workspace_entry_impl(
+        39 => wire__crate__api__git__list_worktrees_impl(port, ptr, rust_vec_len, data_len),
+        40 => wire__crate__api__workspace_files__move_workspace_entry_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        40 => wire__crate__api__workspace_search__preview_workspace_replace_impl(
+        41 => wire__crate__api__workspace_search__preview_workspace_replace_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        41 => wire__crate__api__workspace_files__project_workspace_explorer_tree_impl(
+        42 => wire__crate__api__workspace_files__project_workspace_explorer_tree_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        42 => wire__crate__api__workspace_files__read_workspace_editor_text_file_impl(
+        43 => wire__crate__api__workspace_files__read_workspace_editor_text_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        43 => wire__crate__api__workspace_files__read_workspace_text_file_impl(
+        44 => wire__crate__api__workspace_files__read_workspace_text_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        44 => wire__crate__api__git__refresh_source_branch_impl(port, ptr, rust_vec_len, data_len),
-        45 => wire__crate__api__git__remove_worktree_impl(port, ptr, rust_vec_len, data_len),
-        46 => wire__crate__api__workspace_files__rename_workspace_entry_impl(
+        45 => wire__crate__api__git__refresh_source_branch_impl(port, ptr, rust_vec_len, data_len),
+        46 => wire__crate__api__git__remove_worktree_impl(port, ptr, rust_vec_len, data_len),
+        47 => wire__crate__api__workspace_files__rename_workspace_entry_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        47 => wire__crate__api__merman_viewer__render_merman_workspace_file_impl(
+        48 => wire__crate__api__merman_viewer__render_merman_workspace_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        48 => wire__crate__api__workspace_search__replace_workspace_matches_impl(
+        49 => wire__crate__api__workspace_search__replace_workspace_matches_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        49 => wire__crate__api__workspace_search__search_workspace_impl(
+        50 => wire__crate__api__workspace_search__search_workspace_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        50 => wire__crate__api__agent_hooks__set_agent_hook_enabled_agents_impl(
+        51 => wire__crate__api__agent_hooks__set_agent_hook_enabled_agents_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        51 => wire__crate__api__agent_hooks__start_agent_hook_receiver_impl(
+        52 => wire__crate__api__agent_hooks__start_agent_hook_receiver_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        52 => wire__crate__api__workspace_files__start_source_control_watcher_impl(
+        53 => wire__crate__api__workspace_files__start_source_control_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        53 => wire__crate__api__workspace_files__start_workspace_explorer_watcher_impl(
+        54 => wire__crate__api__workspace_files__start_workspace_explorer_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        54 => wire__crate__api__agent_hooks__stop_agent_hook_receiver_impl(
+        55 => wire__crate__api__agent_hooks__stop_agent_hook_receiver_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        55 => wire__crate__api__workspace_files__stop_source_control_watcher_impl(
+        56 => wire__crate__api__workspace_files__stop_source_control_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        56 => wire__crate__api__workspace_files__stop_workspace_explorer_watcher_impl(
+        57 => wire__crate__api__workspace_files__stop_workspace_explorer_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        57 => wire__crate__api__workspace_files__update_workspace_explorer_watcher_impl(
+        58 => wire__crate__api__workspace_files__update_workspace_explorer_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        58 => wire__crate__api__agent_hooks__watch_agent_hook_event_batches_impl(
+        59 => wire__crate__api__agent_hooks__watch_agent_hook_event_batches_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        59 => wire__crate__api__workspace_files__watch_source_control_events_impl(
+        60 => wire__crate__api__workspace_files__watch_source_control_events_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        60 => wire__crate__api__workspace_files__watch_workspace_explorer_events_impl(
+        61 => wire__crate__api__workspace_files__watch_workspace_explorer_events_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        61 => wire__crate__api__workspace_files__write_workspace_editor_text_file_impl(
+        62 => wire__crate__api__workspace_files__write_workspace_editor_text_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        62 => wire__crate__api__workspace_files__write_workspace_text_file_impl(
+        63 => wire__crate__api__workspace_files__write_workspace_text_file_impl(
             port,
             ptr,
             rust_vec_len,
@@ -4147,6 +4221,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::git::GitChangeEntry {
             self.removed.into_into_dart().into_dart(),
             self.is_binary.into_into_dart().into_dart(),
             self.is_large.into_into_dart().into_dart(),
+            self.submodule.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -4361,6 +4436,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::git::GitDiffFile {
             self.removed.into_into_dart().into_dart(),
             self.is_binary.into_into_dart().into_dart(),
             self.is_large.into_into_dart().into_dart(),
+            self.is_gitlink.into_into_dart().into_dart(),
             self.truncated.into_into_dart().into_dart(),
             self.line_preview_truncated.into_into_dart().into_dart(),
         ]
@@ -4671,6 +4747,29 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitStatusResult>
     for crate::api::git::GitStatusResult
 {
     fn into_into_dart(self) -> crate::api::git::GitStatusResult {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::git::GitSubmoduleStatus {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.commit_changed.into_into_dart().into_dart(),
+            self.tracked_changes.into_into_dart().into_dart(),
+            self.untracked_changes.into_into_dart().into_dart(),
+            self.inspectable.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::git::GitSubmoduleStatus
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitSubmoduleStatus>
+    for crate::api::git::GitSubmoduleStatus
+{
+    fn into_into_dart(self) -> crate::api::git::GitSubmoduleStatus {
         self
     }
 }
@@ -5520,6 +5619,7 @@ impl SseEncode for crate::api::git::GitChangeEntry {
         <Option<u32>>::sse_encode(self.removed, serializer);
         <bool>::sse_encode(self.is_binary, serializer);
         <bool>::sse_encode(self.is_large, serializer);
+        <Option<crate::api::git::GitSubmoduleStatus>>::sse_encode(self.submodule, serializer);
     }
 }
 
@@ -5641,6 +5741,7 @@ impl SseEncode for crate::api::git::GitDiffFile {
         <Option<u32>>::sse_encode(self.removed, serializer);
         <bool>::sse_encode(self.is_binary, serializer);
         <bool>::sse_encode(self.is_large, serializer);
+        <bool>::sse_encode(self.is_gitlink, serializer);
         <bool>::sse_encode(self.truncated, serializer);
         <bool>::sse_encode(self.line_preview_truncated, serializer);
     }
@@ -5813,6 +5914,16 @@ impl SseEncode for crate::api::git::GitStatusResult {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <Vec<crate::api::git::GitChangeEntry>>::sse_encode(self.entries, serializer);
         <Vec<crate::api::git::GitChangeGroup>>::sse_encode(self.groups, serializer);
+    }
+}
+
+impl SseEncode for crate::api::git::GitSubmoduleStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.commit_changed, serializer);
+        <bool>::sse_encode(self.tracked_changes, serializer);
+        <bool>::sse_encode(self.untracked_changes, serializer);
+        <bool>::sse_encode(self.inspectable, serializer);
     }
 }
 
@@ -6138,6 +6249,16 @@ impl SseEncode for Option<crate::api::git::GitHistoryRefCategory> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <crate::api::git::GitHistoryRefCategory>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::git::GitSubmoduleStatus> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::git::GitSubmoduleStatus>::sse_encode(value, serializer);
         }
     }
 }
