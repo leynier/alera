@@ -5,6 +5,16 @@ import 'package:alera/src/shared/infra/process/process_runner.dart';
 
 const String aleraCliSkillRepositoryUrl = 'https://github.com/leynier/alera';
 const String aleraCliSkillName = 'alera-cli';
+const String aleraOrchestrationSkillName = 'alera-orchestration';
+
+enum AleraAgentSkill {
+  cli(aleraCliSkillName),
+  orchestration(aleraOrchestrationSkillName);
+
+  const AleraAgentSkill(this.name);
+
+  final String name;
+}
 
 enum AleraCliSkillRunner {
   auto('Auto'),
@@ -18,24 +28,25 @@ enum AleraCliSkillRunner {
 
 String aleraCliSkillInstallCommand({
   AleraCliSkillRunner runner = AleraCliSkillRunner.npx,
+  AleraAgentSkill skill = AleraAgentSkill.cli,
 }) {
-  final npxCommand = _installCommandFor(AleraCliSkillRunner.npx);
+  final npxCommand = _installCommandFor(AleraCliSkillRunner.npx, skill);
   if (runner == AleraCliSkillRunner.auto) {
-    return '$npxCommand || ${_installCommandFor(AleraCliSkillRunner.bunx)}';
+    return '$npxCommand || ${_installCommandFor(AleraCliSkillRunner.bunx, skill)}';
   }
-  return _installCommandFor(runner);
+  return _installCommandFor(runner, skill);
 }
 
-String _installCommandFor(AleraCliSkillRunner runner) {
-  return '${runner.label} skills add $aleraCliSkillRepositoryUrl --skill $aleraCliSkillName --global';
+String _installCommandFor(AleraCliSkillRunner runner, AleraAgentSkill skill) {
+  return '${runner.label} skills add $aleraCliSkillRepositoryUrl --skill ${skill.name} --global';
 }
 
-List<String> _aleraCliSkillInstallArguments = const <String>[
+List<String> _skillInstallArguments(AleraAgentSkill skill) => <String>[
   'skills',
   'add',
   aleraCliSkillRepositoryUrl,
   '--skill',
-  aleraCliSkillName,
+  skill.name,
   '--global',
 ];
 
@@ -106,6 +117,7 @@ class AleraCliSkillService {
 
   Future<AleraCliSkillInstallResult> installOrUpdate({
     AleraCliSkillRunner runner = AleraCliSkillRunner.auto,
+    AleraAgentSkill skill = AleraAgentSkill.cli,
   }) async {
     final environment = await commandEnvironmentResolver.environment();
     final attempts = <AleraCliSkillInstallAttempt>[];
@@ -116,7 +128,7 @@ class AleraCliSkillService {
           ]
         : <AleraCliSkillRunner>[runner];
     for (final candidate in runners) {
-      final attempt = await _run(candidate, environment);
+      final attempt = await _run(candidate, skill, environment);
       attempts.add(attempt);
       if (attempt.succeeded || !attempt.runnerMissing) {
         break;
@@ -130,11 +142,12 @@ class AleraCliSkillService {
 
   Future<AleraCliSkillInstallAttempt> _run(
     AleraCliSkillRunner runner,
+    AleraAgentSkill skill,
     Map<String, String> environment,
   ) async {
     final output = await processRunner.run(
       _executableFor(runner),
-      _aleraCliSkillInstallArguments,
+      _skillInstallArguments(skill),
       environment: environment,
     );
     return AleraCliSkillInstallAttempt(

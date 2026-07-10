@@ -294,6 +294,55 @@ final class AgentRuntimeOverlayServiceProvider
 String _$agentRuntimeOverlayServiceHash() =>
     r'3f9e3572ad17a83b2fe7ca72518cb0bbf353ed24';
 
+@ProviderFor(agentHookReconciliationService)
+final agentHookReconciliationServiceProvider =
+    AgentHookReconciliationServiceProvider._();
+
+final class AgentHookReconciliationServiceProvider
+    extends
+        $FunctionalProvider<
+          AgentHookReconciler,
+          AgentHookReconciler,
+          AgentHookReconciler
+        >
+    with $Provider<AgentHookReconciler> {
+  AgentHookReconciliationServiceProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'agentHookReconciliationServiceProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$agentHookReconciliationServiceHash();
+
+  @$internal
+  @override
+  $ProviderElement<AgentHookReconciler> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  AgentHookReconciler create(Ref ref) {
+    return agentHookReconciliationService(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(AgentHookReconciler value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<AgentHookReconciler>(value),
+    );
+  }
+}
+
+String _$agentHookReconciliationServiceHash() =>
+    r'af94230ade79bff92337f7c04764ca7305e77b6a';
+
 @ProviderFor(agentStatusNotificationPresenter)
 final agentStatusNotificationPresenterProvider =
     AgentStatusNotificationPresenterProvider._();
@@ -821,7 +870,7 @@ final class AgentHookInstallerCoordinatorProvider
 }
 
 String _$agentHookInstallerCoordinatorHash() =>
-    r'34ae4b096d5affeea2bcb72a14ad6f5bc7f7c9f7';
+    r'507acc68a9b40d767638a3945577ae6faf52845a';
 
 @ProviderFor(agentStatusNotificationCoordinator)
 final agentStatusNotificationCoordinatorProvider =

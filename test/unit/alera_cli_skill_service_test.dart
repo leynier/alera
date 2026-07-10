@@ -12,6 +12,16 @@ void main() {
       );
     });
 
+    test('builds the orchestration skill command', () {
+      expect(
+        aleraCliSkillInstallCommand(
+          runner: AleraCliSkillRunner.bunx,
+          skill: AleraAgentSkill.orchestration,
+        ),
+        'bunx skills add https://github.com/leynier/alera --skill alera-orchestration --global',
+      );
+    });
+
     test('passes hydrated environment to npx', () async {
       final runner = _FakeProcessRunner(<ProcessRunOutput>[
         const ProcessRunOutput(exitCode: 0, stdout: 'ok', stderr: ''),
@@ -70,6 +80,27 @@ void main() {
         AleraCliSkillRunner.bunx,
       ]);
       expect(runner.runs.map((run) => run.executable), <String>['npx', 'bunx']);
+    });
+
+    test('passes the selected skill to the installer', () async {
+      final runner = _FakeProcessRunner(<ProcessRunOutput>[
+        const ProcessRunOutput(exitCode: 0, stdout: 'ok', stderr: ''),
+      ]);
+      final service = AleraCliSkillService(
+        processRunner: runner,
+        commandEnvironmentResolver: const _FakeCommandEnvironmentResolver(
+          <String, String>{'PATH': '/usr/bin'},
+        ),
+        operatingSystem: 'linux',
+      );
+
+      await service.installOrUpdate(
+        runner: AleraCliSkillRunner.npx,
+        skill: AleraAgentSkill.orchestration,
+      );
+
+      expect(runner.runs.single.arguments, contains('alera-orchestration'));
+      expect(runner.runs.single.arguments, isNot(contains('alera-cli')));
     });
 
     test(
