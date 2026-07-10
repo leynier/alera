@@ -4,6 +4,7 @@ import 'package:alera/src/features/projects/application/project_config_service.d
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/domain/project_config.dart';
 import 'package:alera/src/features/projects/domain/project_config_paths.dart';
+import 'package:alera/src/features/pull_requests/domain/git_hosting_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:toml/toml.dart';
 
@@ -43,9 +44,10 @@ ProjectConfig parseProjectConfigToml(String contents) {
     throw ProjectConfigException('alera.toml must contain a table');
   }
   final root = Map<String, Object?>.from(decoded);
+  final provider = _gitHostingProviderFrom(root['git_hosting_provider']);
   final worktreeValue = root['worktree'];
   if (worktreeValue == null) {
-    return ProjectConfig.empty;
+    return ProjectConfig(gitHostingProvider: provider);
   }
   if (worktreeValue is! Map) {
     throw ProjectConfigException('alera.toml [worktree] must be a table');
@@ -56,7 +58,27 @@ ProjectConfig parseProjectConfigToml(String contents) {
   final setup = _setupCommandsFrom(worktree['setup']);
   return ProjectConfig(
     worktree: WorktreeSetupConfig(copy: copyRules, setup: setup),
+    gitHostingProvider: provider,
   );
+}
+
+GitHostingProvider? _gitHostingProviderFrom(Object? value) {
+  if (value == null) {
+    return null;
+  }
+  if (value is! String) {
+    throw ProjectConfigException('git_hosting_provider must be a string');
+  }
+  return switch (value.trim().toLowerCase()) {
+    'github' => GitHostingProvider.github,
+    'azuredevops' ||
+    'azure_devops' ||
+    'azure-devops' ||
+    'azure' => GitHostingProvider.azureDevops,
+    _ => throw ProjectConfigException(
+      'git_hosting_provider must be one of: github, azureDevops',
+    ),
+  };
 }
 
 List<WorktreeCopyRule> _copyRulesFrom(Object? value) {

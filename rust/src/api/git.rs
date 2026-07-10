@@ -19,6 +19,11 @@ pub struct GitWorktreeEntry {
     pub branch: String,
 }
 
+pub struct GitRemote {
+    pub name: String,
+    pub url: Option<String>,
+}
+
 pub struct GitRepositoryState {
     pub branch: String,
     pub upstream: Option<String>,
@@ -1236,6 +1241,29 @@ pub fn list_worktrees(repo_path: String) -> Result<Vec<GitWorktreeEntry>, GitErr
                 .collect()
         })
         .map_err(Into::into)
+}
+
+/// Lists the repository's configured remotes with their fetch URLs. Used to
+/// detect the git hosting provider (GitHub, Azure DevOps, ...) from the remote
+/// identity. Remotes without a URL yield `None`.
+pub fn list_remotes(path: String) -> Result<Vec<GitRemote>, GitError> {
+    let repo = open_repo(&path)?;
+    let names = repo.remotes().map_err(GitError::from_git2)?;
+    let mut remotes = Vec::new();
+    for name in names.iter() {
+        let Some(name) = name.map_err(GitError::from_git2)? else {
+            continue;
+        };
+        let url = match repo.find_remote(name) {
+            Ok(remote) => remote.url().ok().map(ToString::to_string),
+            Err(_) => None,
+        };
+        remotes.push(GitRemote {
+            name: name.to_string(),
+            url,
+        });
+    }
+    Ok(remotes)
 }
 
 /// Splits `destination_path` into the parent directory to run `git` in and the

@@ -1,0 +1,59 @@
+import 'package:alera/src/features/pull_requests/domain/git_hosting_provider.dart';
+import 'package:dart_mappable/dart_mappable.dart';
+
+part 'linked_review.mapper.dart';
+
+/// Per-workspace review intent, persisted via the runtime host. Three states:
+/// a linked review ([number] set, [dismissed] false), a dismissal ([dismissed]
+/// true — the panel stays empty and does not auto-detect), or no record at all
+/// (auto-detect from the branch). Replaces Orca's five per-provider fields with
+/// one neutral record keyed by [workspaceId].
+@MappableClass()
+class LinkedReview with LinkedReviewMappable {
+  const LinkedReview({
+    required this.workspaceId,
+    required this.linkedAt,
+    this.dismissed = false,
+    this.provider,
+    this.number,
+    this.url,
+  });
+
+  /// A concrete link to review [number].
+  factory LinkedReview.linked({
+    required String workspaceId,
+    required GitHostingProvider provider,
+    required int number,
+    required String url,
+    DateTime? linkedAt,
+  }) => LinkedReview(
+    workspaceId: workspaceId,
+    provider: provider,
+    number: number,
+    url: url,
+    linkedAt: (linkedAt ?? DateTime.now()).toUtc(),
+  );
+
+  /// A dismissal: the panel stays empty and auto-detection is suppressed.
+  factory LinkedReview.dismissal({
+    required String workspaceId,
+    DateTime? linkedAt,
+  }) => LinkedReview(
+    workspaceId: workspaceId,
+    dismissed: true,
+    linkedAt: (linkedAt ?? DateTime.now()).toUtc(),
+  );
+
+  final String workspaceId;
+  final bool dismissed;
+  final GitHostingProvider? provider;
+  final int? number;
+  final String? url;
+  final DateTime linkedAt;
+
+  /// Whether this record points at a concrete review to display.
+  bool get hasReview => !dismissed && number != null && provider != null;
+
+  factory LinkedReview.fromJson(Map<String, Object?> json) =>
+      LinkedReviewMapper.fromMap(Map<String, dynamic>.from(json));
+}

@@ -28,4 +28,14 @@ setup = [
 
 Paths are repo-relative literal paths. Absolute paths and `..` escapes are rejected. Globs and custom command environments are not part of v1.
 
+## Git hosting provider
+
+The same config carries the project's git hosting provider, used by the Pull Requests panel to talk to `gh` (GitHub) or `az` (Azure DevOps). It can be set in **Settings > Projects** (UI override) or in `alera.toml`:
+
+```toml
+git_hosting_provider = "github" # or "azureDevops"
+```
+
+When absent, Alera auto-detects the provider from the repository's `origin` remote. Set it explicitly for self-hosted hosts (for example GitHub Enterprise) whose remote host is not the canonical one. Accepted values are `github` and `azureDevops` (the aliases `azure`, `azure_devops`, and `azure-devops` are also accepted in the repo file). Authentication is delegated entirely to the CLIs: sign in with `gh auth login` or `az login`.
+
 If a copy or setup action fails after the Git worktree is created, Alera keeps and opens the workspace, then surfaces a setup warning so the user can fix the workspace in place. The UI and `alera workspace add` both execute this setup through the runtime host.

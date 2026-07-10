@@ -2,6 +2,7 @@ import 'package:alera/src/rust/api/git.dart' as rust;
 import 'package:alera/src/shared/infra/git/git_backend.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_exception.dart';
+import 'package:alera/src/shared/infra/git/git_remote.dart';
 import 'package:alera/src/shared/infra/git/git_worktree_entry.dart';
 
 /// [GitBackend] backed by the Rust crate through flutter_rust_bridge. This is
@@ -88,6 +89,14 @@ class RustGitBackend implements GitBackend {
             )
             .toList(growable: false);
       });
+
+  @override
+  Future<List<GitRemote>> listRemotes(String path) => _guard(() async {
+    final remotes = await rust.listRemotes(path: path);
+    return remotes
+        .map((remote) => GitRemote(name: remote.name, url: remote.url))
+        .toList(growable: false);
+  });
 
   @override
   Future<void> clone({required String url, required String destinationPath}) =>
