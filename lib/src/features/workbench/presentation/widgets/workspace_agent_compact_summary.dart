@@ -39,8 +39,7 @@ class WorkspaceAgentCompactSummary extends StatelessWidget {
         .skip(_maxVisibleGroups)
         .fold<int>(0, (sum, group) => sum + group.runs.length);
     final tooltip =
-        tooltipOverride ??
-        (expanded ? 'Hide Agent Runs' : 'Show Agent Runs');
+        tooltipOverride ?? (expanded ? 'Hide Agent Runs' : 'Show Agent Runs');
     return Tooltip(
       message: tooltip,
       child: InkWell(
