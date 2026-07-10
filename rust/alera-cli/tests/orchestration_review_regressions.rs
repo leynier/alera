@@ -10,6 +10,9 @@ use serde_json::{json, Value};
 
 const PROTOCOL_VERSION: i64 = 3;
 
+#[path = "orchestration_review_regressions/deferred_delivery_cases.rs"]
+mod deferred_delivery_cases;
+
 struct HostGuard(Child);
 
 impl Drop for HostGuard {
@@ -83,6 +86,16 @@ fn send(writer: &mut TcpStream, message: Value) {
     let mut line = serde_json::to_vec(&message).unwrap();
     line.push(b'\n');
     writer.write_all(&line).unwrap();
+    writer.flush().unwrap();
+}
+
+fn send_batch(writer: &mut TcpStream, messages: &[Value]) {
+    let mut batch = Vec::new();
+    for message in messages {
+        serde_json::to_writer(&mut batch, message).unwrap();
+        batch.push(b'\n');
+    }
+    writer.write_all(&batch).unwrap();
     writer.flush().unwrap();
 }
 
@@ -363,180 +376,6 @@ fn ask_timeout_survives_unrelated_message_wake() {
     assert_eq!(response["ok"], json!(true));
     assert_eq!(response["payload"]["answered"], json!(false));
     assert_eq!(response["payload"]["timedOut"], json!(true));
-}
-
-#[test]
-#[cfg(unix)]
-fn push_on_idle_does_not_duplicate_in_flight_batches() {
-    let host = start_host();
-    let (mut writer, mut reader) = connect(host.port);
-    handshake(&mut writer, &mut reader, &host.token);
-    let session_id = "orchestration-review-pty";
-
-    expect_ok(request(
-        &mut writer,
-        &mut reader,
-        30,
-        "createOrAttach",
-        json!({
-            "sessionId": session_id,
-            "workspaceId": "ws-1",
-            "tabId": "tab-1",
-            "workingDirectory": "/tmp",
-            "launch": {
-                "shell": "/bin/sh",
-                "arguments": ["-lc", "stty -echo; cat"],
-                "environment": {"PATH": "/usr/bin:/bin", "TERM": "xterm"}
-            },
-            "cols": 120,
-            "rows": 40
-        }),
-    ));
-    std::thread::sleep(Duration::from_millis(700));
-    let _ = collect_output(&mut reader, session_id, Duration::from_millis(400));
-    expect_ok(request(
-        &mut writer,
-        &mut reader,
-        31,
-        "orchestration.agentStatus",
-        json!({"entries": [{"terminalSessionId": session_id, "agentType": "claude", "state": "done"}]}),
-    ));
-    expect_ok(request(
-        &mut writer,
-        &mut reader,
-        32,
-        "orchestration.send",
-        json!({"from": "coord", "to": session_id, "subject": "first", "body": "one"}),
-    ));
-    expect_ok(request(
-        &mut writer,
-        &mut reader,
-        33,
-        "orchestration.send",
-        json!({"from": "coord", "to": session_id, "subject": "second", "body": "two"}),
-    ));
-
-    let output = collect_output(&mut reader, session_id, Duration::from_secs(4));
-    assert_eq!(occurrences(&output, "Subject: first"), 1, "{output}");
-    assert_eq!(occurrences(&output, "Subject: second"), 1, "{output}");
-}
-
-#[test]
-#[cfg(unix)]
-fn waiting_status_does_not_push_into_approval_prompt() {
-    let host = start_host();
-    let (mut writer, mut reader) = connect(host.port);
-    handshake(&mut writer, &mut reader, &host.token);
-    let session_id = "waiting-approval-session";
-
-    attach_shell_session(
-        &mut writer,
-        &mut reader,
-        331,
-        session_id,
-        "ws-1",
-        "tab-1",
-        &["-lc", "stty -echo; cat"],
-    );
-    std::thread::sleep(Duration::from_millis(700));
-    let _ = collect_output(&mut reader, session_id, Duration::from_millis(400));
-    expect_ok(request(
-        &mut writer,
-        &mut reader,
-        332,
-        "orchestration.send",
-        json!({"from": "coord", "to": session_id, "subject": "approval-safe", "body": "do not inject yet"}),
-    ));
-    expect_ok(request(
-        &mut writer,
-        &mut reader,
-        333,
-        "orchestration.agentStatus",
-        json!({"entries": [{"terminalSessionId": session_id, "agentType": "claude", "state": "waiting"}]}),
-    ));
-
-    let waiting_output = collect_output(&mut reader, session_id, Duration::from_millis(900));
-    assert!(
-        !waiting_output.contains("approval-safe"),
-        "waiting approval prompt received injected banner: {waiting_output}"
-    );
-
-    expect_ok(request(
-        &mut writer,
-        &mut reader,
-        334,
-        "orchestration.agentStatus",
-        json!({"entries": [{"terminalSessionId": session_id, "agentType": "claude", "state": "done"}]}),
-    ));
-    let done_output = collect_output(&mut reader, session_id, Duration::from_secs(3));
-    assert!(
-        done_output.contains("Subject: approval-safe"),
-        "done transition did not receive queued banner: {done_output}"
-    );
-}
-
-#[test]
-#[cfg(unix)]
-fn deferred_delivery_requeues_when_session_instance_is_replaced() {
-    let host = start_host();
-    let (mut writer, mut reader) = connect(host.port);
-    handshake(&mut writer, &mut reader, &host.token);
-    let session_id = "replaced-delivery-session";
-
-    attach_shell_session(
-        &mut writer,
-        &mut reader,
-        34,
-        session_id,
-        "ws-1",
-        "tab-old",
-        &["-lc", "stty -echo; sleep 10"],
-    );
-    expect_ok(request(
-        &mut writer,
-        &mut reader,
-        35,
-        "orchestration.agentStatus",
-        json!({"entries": [{"terminalSessionId": session_id, "agentType": "claude", "state": "done"}]}),
-    ));
-    expect_ok(request(
-        &mut writer,
-        &mut reader,
-        36,
-        "orchestration.send",
-        json!({"from": "coord", "to": session_id, "subject": "replacement delivery", "body": "redeliver me"}),
-    ));
-
-    std::thread::sleep(Duration::from_millis(100));
-    expect_ok(request(
-        &mut writer,
-        &mut reader,
-        37,
-        "terminate",
-        json!({"sessionId": session_id}),
-    ));
-    attach_shell_session(
-        &mut writer,
-        &mut reader,
-        38,
-        session_id,
-        "ws-1",
-        "tab-new",
-        &["-lc", "stty -echo; cat"],
-    );
-    expect_ok(request(
-        &mut writer,
-        &mut reader,
-        39,
-        "orchestration.agentStatus",
-        json!({"entries": [{"terminalSessionId": session_id, "agentType": "claude", "state": "done"}]}),
-    ));
-
-    let output = collect_output(&mut reader, session_id, Duration::from_secs(3));
-    assert!(
-        output.contains("Subject: replacement delivery"),
-        "replacement session did not receive the queued banner: {output}"
-    );
 }
 
 #[test]
@@ -1197,7 +1036,7 @@ fn coordinator_skips_cursor_workers_that_do_not_auto_submit() {
 }
 
 #[test]
-fn coordinator_run_does_not_consume_taskless_decision_gate() {
+fn coordinator_run_exposes_taskless_question_through_documented_filter() {
     let host = start_host();
     let (mut writer, mut reader) = connect(host.port);
     handshake(&mut writer, &mut reader, &host.token);
@@ -1236,7 +1075,7 @@ fn coordinator_run_does_not_consume_taskless_decision_gate() {
         &mut reader,
         73,
         "orchestration.check",
-        json!({"terminal": "coord", "types": ["decision_gate"]}),
+        json!({"terminal": "coord", "types": ["worker_done", "escalation", "decision_gate"]}),
     ));
     assert_eq!(inbox["messages"].as_array().unwrap().len(), 1);
     assert_eq!(

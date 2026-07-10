@@ -65,6 +65,9 @@ jobs:
       - name: Format
         run: dart format --set-exit-if-changed lib test integration_test tool
 
+      - name: Max lines ratchet
+        run: dart run tool/quality/check_max_lines.dart
+
       - name: Analyze
         run: flutter analyze
 

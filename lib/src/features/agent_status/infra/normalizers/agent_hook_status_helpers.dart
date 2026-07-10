@@ -38,6 +38,7 @@ bool _isHumanInputTool(String? toolName) {
 
 bool _isHumanInputToolName(String normalizedToolName) {
   return normalizedToolName == 'askquestion' ||
+      normalizedToolName == 'askuserquestion' ||
       normalizedToolName == 'askpermission' ||
       normalizedToolName == 'askapproval' ||
       normalizedToolName == 'askuser' ||

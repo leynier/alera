@@ -171,6 +171,8 @@ fn emit_signal(
     sink: &Arc<Mutex<Option<StreamSink<SourceControlWatchSignal>>>>,
     signal: SourceControlWatchSignal,
 ) {
+    // Closed Flutter sinks must not poison the watcher thread: drop the sink
+    // and keep the OS watch alive until the client re-subscribes or stops.
     let Ok(mut sink) = sink.lock() else {
         return;
     };

@@ -15,6 +15,13 @@ The engine lives in the **runtime-host sidecar** (`rust/alera-cli`, binary `aler
 
 Each PTY session's handle is its session id, injected into the terminal environment as `ALERA_TERMINAL_HANDLE` at spawn (`terminal_host/session.rs`). This is the same id the app uses to key agent status entries, so no mapping table is needed. CLI verbs resolve `--from`/`--terminal` from that variable when omitted.
 
+### Handle lifecycle and remint
+
+- The handle equals the tab's `terminalSessionId` (payload) for the life of the tab record.
+- When a PTY exits and the app calls `createOrAttach` again for the same session id, the host **remints** a new process under that same id while seeding its checkpoint with the previous scrollback. Orchestration dispatch targets and visible terminal history stay stable across remint.
+- `dispatch --inject` against a missing or non-running session fails with a `stale_terminal_handle:` error. Reopen the tab (or pick a live handle from `terminal-list`) before retrying inject.
+- After remint, agent presence starts empty until hooks report again; wait for `terminal-list` to show an idle agent before re-dispatching.
+
 ## Idle Detection and Push-On-Idle
 
 The Flutter app detects agent state via agent-status hooks (working / waiting / blocked / done). A keepAlive forwarder (`lib/src/features/agent_status/application/agent_status_host_forwarder.dart`) diffs transitions and batches them to the host via the `orchestration.agentStatus` request.
@@ -25,7 +32,7 @@ The host keeps an agent presence registry per handle. State mapping:
 - `working` / `waiting` / `blocked` → busy. `waiting` can mean an approval or user-input prompt, so auto-injection waits until the agent reports `done`.
 - removed → presence cleared; messages stay queued for explicit `check` or the next injection-ready transition.
 
-Messages track `read` (consumed by `check`) and `delivered_at` (auto-injected) independently, so push-on-idle delivers at most once while `check` still sees delivered-but-unread messages. `delivered_at` is stamped only after the deferred Enter succeeds; failures leave the batch queued for the next idle transition.
+Messages track `read` (consumed by `check`) and `delivered_at` (auto-injected) independently, so push-on-idle delivers at most once while `check` still sees delivered-but-unread messages. `delivered_at` is stamped only after the deferred Enter succeeds; failures leave the batch queued for the next idle transition. Push-on-idle never targets the active coordinator handle; coordinators use `check --wait --types worker_done,escalation,decision_gate` plus host lifecycle reconciliation, with `decision_gate` keeping taskless `ask` questions visible. Inject payloads use bracketed paste + deferred Enter so multiline preambles do not corrupt the shell.
 
 Without the app running, push-on-idle and `@agent`/`@idle` groups degrade gracefully: messages queue and remain readable via `check`.
 

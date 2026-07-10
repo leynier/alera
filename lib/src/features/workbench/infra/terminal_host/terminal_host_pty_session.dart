@@ -54,7 +54,7 @@ final class TerminalHostPtySession implements TerminalPtySession {
       StreamController<TerminalPtySessionEvent>.broadcast();
 
   StreamSubscription<TerminalHostEvent>? _hostSub;
-  Future<void>? _reattachFuture;
+  Future<TerminalHostAttachment>? _reattachFuture;
   GhosttyTerminalShellLaunch? _launch;
   String? _workingDirectory;
   int? _cols;
@@ -63,6 +63,7 @@ final class TerminalHostPtySession implements TerminalPtySession {
   bool _started = false;
   bool _startedNewProcess = false;
   Future<void>? _startFuture;
+  Future<void> Function()? _onProcessCreated;
 
   @override
   Stream<TerminalPtySessionEvent> get events => _events.stream;
@@ -76,6 +77,7 @@ final class TerminalHostPtySession implements TerminalPtySession {
     required String workingDirectory,
     required int cols,
     required int rows,
+    Future<void> Function()? onProcessCreated,
   }) async {
     if (_disposed) {
       throw StateError('PTY session is disposed.');
@@ -91,15 +93,16 @@ final class TerminalHostPtySession implements TerminalPtySession {
     _workingDirectory = workingDirectory;
     _cols = cols;
     _rows = rows;
+    _onProcessCreated = onProcessCreated;
     _hostSub ??= _client.events.listen(_handleHostEvent);
     late final Future<void> startFuture;
     startFuture = _createOrAttach()
-        .then((attachment) {
+        .then((attachment) async {
           if (_disposed) {
             return;
           }
-          _applyAttachment(attachment);
           _started = true;
+          await _applyAttachment(attachment);
         })
         .whenComplete(() {
           if (identical(_startFuture, startFuture)) {
@@ -132,16 +135,24 @@ final class TerminalHostPtySession implements TerminalPtySession {
     );
   }
 
-  void _applyAttachment(TerminalHostAttachment attachment) {
+  Future<void> _applyAttachment(TerminalHostAttachment attachment) async {
     _startedNewProcess = attachment.created;
-    if (attachment.snapshot.isNotEmpty) {
-      _events.add(TerminalPtyOutputEvent(attachment.snapshot));
+    if (attachment.snapshot.isNotEmpty || attachment.created) {
+      _events.add(
+        TerminalPtySnapshotEvent(
+          attachment.snapshot,
+          resetInteractionModes: attachment.created || !attachment.running,
+        ),
+      );
     }
     if (!attachment.running) {
       final exitCode = attachment.exitCode;
       if (exitCode != null) {
         _events.add(TerminalPtyExitEvent(exitCode, notifyRuntime: false));
       }
+    }
+    if (attachment.created) {
+      await _onProcessCreated?.call();
     }
   }
 
@@ -151,6 +162,26 @@ final class TerminalHostPtySession implements TerminalPtySession {
       return false;
     }
     unawaited(_writeBytes(bytes).catchError(_emitHostError));
+    return true;
+  }
+
+  @override
+  Future<bool> writeBytesAndWait(List<int> bytes) async {
+    if (_disposed || !_started || bytes.isEmpty) {
+      return false;
+    }
+    try {
+      await _client.write(sessionId: _sessionId, bytes: bytes);
+    } catch (error) {
+      if (!_shouldRecoverFromHostError(error)) {
+        rethrow;
+      }
+      final attachment = await _reattach();
+      if (attachment.created) {
+        return false;
+      }
+      await _client.write(sessionId: _sessionId, bytes: bytes);
+    }
     return true;
   }
 
@@ -229,7 +260,7 @@ final class TerminalHostPtySession implements TerminalPtySession {
     }
   }
 
-  Future<void> _reattach() {
+  Future<TerminalHostAttachment> _reattach() {
     if (_disposed) {
       throw StateError('PTY session is disposed.');
     }
@@ -237,12 +268,17 @@ final class TerminalHostPtySession implements TerminalPtySession {
     if (existing != null) {
       return existing;
     }
-    late final Future<void> next;
-    next = _createOrAttach().then(_applyAttachment).whenComplete(() {
-      if (identical(_reattachFuture, next)) {
-        _reattachFuture = null;
-      }
-    });
+    late final Future<TerminalHostAttachment> next;
+    next = _createOrAttach()
+        .then((attachment) async {
+          await _applyAttachment(attachment);
+          return attachment;
+        })
+        .whenComplete(() {
+          if (identical(_reattachFuture, next)) {
+            _reattachFuture = null;
+          }
+        });
     _reattachFuture = next;
     return next;
   }

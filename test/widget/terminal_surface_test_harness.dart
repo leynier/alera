@@ -106,15 +106,20 @@ class _FakeTerminalPtySession implements TerminalPtySession {
     required String workingDirectory,
     required int cols,
     required int rows,
+    Future<void> Function()? onProcessCreated,
   }) async {
     startedLaunch = launch;
     startedWorkingDirectory = workingDirectory;
     startedCols = cols;
     startedRows = rows;
+    await onProcessCreated?.call();
   }
 
   @override
   bool writeBytes(List<int> bytes) => bytes.isNotEmpty;
+
+  @override
+  Future<bool> writeBytesAndWait(List<int> bytes) async => writeBytes(bytes);
 
   @override
   void resize(int cols, int rows, int cellWidthPx, int cellHeightPx) {}

@@ -64,10 +64,9 @@ void main() {
 
       expect(session.startedNewProcess, isFalse);
       expect(client.attachedWorkingDirectory, '/repo');
-      expect(events.whereType<TerminalPtyOutputEvent>().single.data, <int>[
-        65,
-        66,
-      ]);
+      final snapshot = events.whereType<TerminalPtySnapshotEvent>().single;
+      expect(snapshot.data, <int>[65, 66]);
+      expect(snapshot.resetInteractionModes, isTrue);
       final exit = events.whereType<TerminalPtyExitEvent>().single;
       expect(exit.exitCode, 0);
       expect(exit.notifyRuntime, isFalse);
@@ -166,72 +165,13 @@ void main() {
       ('session-1', true),
       ('session-1', false),
     ]);
-    expect(events.whereType<TerminalPtySnapshotEvent>().single.data, <int>[
-      83,
-      78,
-      65,
-      80,
-    ]);
+    final snapshots = events.whereType<TerminalPtySnapshotEvent>().toList();
+    expect(snapshots, hasLength(2));
+    expect(snapshots.first.data, isEmpty);
+    expect(snapshots.first.resetInteractionModes, isTrue);
+    expect(snapshots.last.data, <int>[83, 78, 65, 80]);
+    expect(snapshots.last.resetInteractionModes, isFalse);
   });
-
-  test(
-    'host PTY session reattaches and retries writes after stale host state',
-    () async {
-      final client = FakeTerminalHostClient(
-        attachment: TerminalHostAttachment(
-          sessionId: 'session-1',
-          created: true,
-          running: true,
-          snapshot: Uint8List(0),
-        ),
-        attachments: <TerminalHostAttachment>[
-          TerminalHostAttachment(
-            sessionId: 'session-1',
-            created: true,
-            running: true,
-            snapshot: Uint8List(0),
-          ),
-          TerminalHostAttachment(
-            sessionId: 'session-1',
-            created: true,
-            running: true,
-            snapshot: Uint8List(0),
-          ),
-        ],
-      );
-      client.writeErrors.add(
-        StateError('Terminal session is not attached: session-1'),
-      );
-      final session = TerminalHostPtySession(
-        client: client,
-        sessionId: 'session-1',
-        workspaceId: 'workspace-1',
-        tabId: 'tab-1',
-      );
-      addTearDown(session.dispose);
-      final events = <TerminalPtySessionEvent>[];
-      final sub = session.events.listen(events.add);
-      addTearDown(sub.cancel);
-
-      await session.start(
-        launch: _launch(),
-        workingDirectory: '/repo',
-        cols: 80,
-        rows: 24,
-      );
-      expect(session.writeBytes(<int>[9, 10]), isTrue);
-      await _flushAsync();
-
-      expect(client.attachCalls, hasLength(2));
-      expect(client.attachCalls.last.workingDirectory, '/repo');
-      expect(client.attachCalls.last.cols, 80);
-      expect(client.attachCalls.last.rows, 24);
-      expect(client.writes, <List<int>>[
-        <int>[9, 10],
-      ]);
-      expect(events.whereType<TerminalPtyErrorEvent>(), isEmpty);
-    },
-  );
 
   test(
     'host PTY session ignores host operations while startup is pending',

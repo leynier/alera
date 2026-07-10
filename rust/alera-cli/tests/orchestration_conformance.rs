@@ -343,10 +343,10 @@ fn task_dag_dispatch_and_worker_done() {
         "orchestration.dispatch",
         json!({"task": a_id, "to": "w1", "from": "coord", "dryRun": true}),
     ));
-    assert!(dry["preamble"]
-        .as_str()
-        .unwrap()
-        .contains("NEVER use AskUserQuestion"));
+    let dry_preamble = dry["preamble"].as_str().unwrap();
+    assert!(dry_preamble.contains("NEVER use AskUserQuestion"));
+    assert!(dry_preamble.contains("Exit the shell after completion"));
+    assert!(!dry_preamble.contains("return to an idle prompt"));
 
     let dispatched = expect_ok(request(
         &mut writer,

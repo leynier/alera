@@ -76,6 +76,41 @@ String terminalBufferTextForTesting(TerminalSessionHandle session) {
 }
 
 @visibleForTesting
+xterm.MouseMode terminalMouseModeForTesting(TerminalSessionHandle session) {
+  return (session as _XtermTerminalSessionHandle)._terminal.mouseMode;
+}
+
+@visibleForTesting
+bool terminalBracketedPasteModeForTesting(TerminalSessionHandle session) {
+  return (session as _XtermTerminalSessionHandle)._terminal.bracketedPasteMode;
+}
+
+@visibleForTesting
+bool terminalCursorVisibleModeForTesting(TerminalSessionHandle session) {
+  return (session as _XtermTerminalSessionHandle)._terminal.cursorVisibleMode;
+}
+
+@visibleForTesting
+bool terminalCursorKeysModeForTesting(TerminalSessionHandle session) {
+  return (session as _XtermTerminalSessionHandle)._terminal.cursorKeysMode;
+}
+
+@visibleForTesting
+bool terminalReportFocusModeForTesting(TerminalSessionHandle session) {
+  return (session as _XtermTerminalSessionHandle)._terminal.reportFocusMode;
+}
+
+@visibleForTesting
+bool terminalAppKeypadModeForTesting(TerminalSessionHandle session) {
+  return (session as _XtermTerminalSessionHandle)._terminal.appKeypadMode;
+}
+
+@visibleForTesting
+bool terminalIsUsingAltBufferForTesting(TerminalSessionHandle session) {
+  return (session as _XtermTerminalSessionHandle)._terminal.isUsingAltBuffer;
+}
+
+@visibleForTesting
 TerminalVisibilityLease acquireTerminalVisibilityForTesting(
   TerminalSessionHandle session,
 ) {

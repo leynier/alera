@@ -236,6 +236,33 @@ void main() {
       expect(postTool?.lastAssistantMessage, 'ok');
     });
 
+    test('Claude AskUserQuestion maps to waiting', () {
+      expect(
+        normalizeAgentHookEvent(
+          _event(
+            agentType: AgentType.claude,
+            hookEventName: 'AskUserQuestion',
+            payload: const <String, Object?>{},
+          ),
+        )?.state,
+        AgentStatusState.waiting,
+      );
+
+      expect(
+        normalizeAgentHookEvent(
+          _event(
+            agentType: AgentType.claude,
+            hookEventName: 'PreToolUse',
+            payload: const <String, Object?>{
+              'tool_name': 'AskUserQuestion',
+              'tool_input': <String, Object?>{'questions': 'Continue?'},
+            },
+          ),
+        )?.state,
+        AgentStatusState.waiting,
+      );
+    });
+
     test('extracts nested Codex tool calls and input previews', () {
       expect(
         normalizeAgentHookEvent(

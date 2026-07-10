@@ -370,7 +370,8 @@ fn full_protocol_sequence() {
     let text = String::from_utf8_lossy(&output);
     assert!(text.contains("MARKER"), "PTY output was: {text:?}");
 
-    // Second client: reattach to the now-exited session and replay its snapshot.
+    // Second client: remint the exited session under the same handle while
+    // preserving its prior snapshot.
     let (mut writer2, mut reader2) = connect(port);
     handshake(&mut writer2, &mut reader2, token);
     send(
@@ -398,11 +399,11 @@ fn full_protocol_sequence() {
     assert_eq!(reattach["ok"], json!(true));
     assert_eq!(
         reattach["payload"]["created"],
-        json!(false),
-        "reattach must not create a new session"
+        json!(true),
+        "reopen must remint the exited session"
     );
-    assert_eq!(reattach["payload"]["running"], json!(false));
-    assert_eq!(reattach["payload"]["exitCode"], json!(7));
+    assert_eq!(reattach["payload"]["running"], json!(true));
+    assert_eq!(reattach["payload"]["exitCode"], Value::Null);
     let snapshot = STANDARD
         .decode(reattach["payload"]["snapshotBase64"].as_str().unwrap())
         .unwrap();
@@ -416,7 +417,7 @@ fn full_protocol_sequence() {
         &mut writer2,
         json!({"id": 2, "type": "terminate", "payload": {"sessionId": "s1"}}),
     );
-    let terminated = read_message(&mut reader2);
+    let terminated = read_response(&mut reader2, 2);
     assert_eq!(terminated["id"], json!(2));
     assert_eq!(
         terminated["ok"],
@@ -1205,7 +1206,7 @@ fn rejects_bad_token() {
 /// SQLite checkpoint store by a freshly started host sharing the runtime dir.
 /// This is the persistence guarantee that makes incremental migration safe.
 #[test]
-fn restores_session_from_disk_after_restart() {
+fn remints_session_from_disk_after_restart_with_prior_scrollback() {
     let dir = tempfile::tempdir().unwrap();
     let control_path = dir.path().join("host.json");
     let token = "restart-token";
@@ -1227,7 +1228,7 @@ fn restores_session_from_disk_after_restart() {
                     "workingDirectory": "/tmp",
                     "launch": {
                         "shell": "/bin/sh",
-                        "arguments": ["-c", "printf PERSISTED; exit 3"],
+                        "arguments": ["-c", "printf FIRST; sleep 0.2; printf SECOND; exit 3"],
                         "environment": {"PATH": "/usr/bin:/bin"}
                     },
                     "cols": 80,
@@ -1263,7 +1264,66 @@ fn restores_session_from_disk_after_restart() {
     // wait for host B's freshly published port rather than host A's dead one.
     std::fs::remove_file(&control_path).ok();
 
-    // Host B: a new process over the same runtime dir restores the session.
+    // Host B: remint the session, seed it with the previous output, then add a
+    // new output chunk whose sequence must follow Host A's chunks.
+    {
+        let (_guard, port) = spawn_host(dir.path(), &control_path, token);
+        let (mut writer, mut reader) = connect(port);
+        handshake(&mut writer, &mut reader, token);
+        send(
+            &mut writer,
+            json!({
+                "id": 1,
+                "type": "createOrAttach",
+                "payload": {
+                    "sessionId": "s1",
+                    "workspaceId": "w1",
+                    "tabId": "t1",
+                    "workingDirectory": "/tmp",
+                    "launch": {
+                        "shell": "/bin/sh",
+                        "arguments": ["-c", "printf AFTER; exit 0"],
+                        "environment": {"PATH": "/usr/bin:/bin"}
+                    },
+                    "cols": 80,
+                    "rows": 24
+                }
+            }),
+        );
+        let restored = read_message(&mut reader);
+        assert_eq!(restored["id"], json!(1));
+        assert_eq!(restored["ok"], json!(true), "restore failed: {restored}");
+        assert_eq!(restored["payload"]["created"], json!(true));
+        assert_eq!(restored["payload"]["running"], json!(true));
+        assert_eq!(restored["payload"]["exitCode"], Value::Null);
+        let snapshot = STANDARD
+            .decode(restored["payload"]["snapshotBase64"].as_str().unwrap())
+            .unwrap();
+        let snapshot = String::from_utf8_lossy(&snapshot);
+        assert!(snapshot.contains("FIRST"));
+        assert!(snapshot.contains("SECOND"));
+
+        let deadline = Instant::now() + Duration::from_secs(10);
+        loop {
+            assert!(Instant::now() < deadline, "never observed reminted exit");
+            let message = read_message(&mut reader);
+            if message.get("event").and_then(Value::as_str) == Some("exit") {
+                assert_eq!(message["payload"]["exitCode"], json!(0));
+                break;
+            }
+        }
+        send(
+            &mut writer,
+            json!({"id": 2, "type": "detach", "payload": {"sessionId": "s1"}}),
+        );
+        let detached = read_message(&mut reader);
+        assert_eq!(detached["id"], json!(2));
+        assert_eq!(detached["ok"], json!(true));
+    }
+
+    std::fs::remove_file(&control_path).ok();
+
+    // Host C observes the persisted chunks in chronological order.
     let (_guard, port) = spawn_host(dir.path(), &control_path, token);
     let (mut writer, mut reader) = connect(port);
     handshake(&mut writer, &mut reader, token);
@@ -1290,14 +1350,15 @@ fn restores_session_from_disk_after_restart() {
     let restored = read_message(&mut reader);
     assert_eq!(restored["id"], json!(1));
     assert_eq!(restored["ok"], json!(true), "restore failed: {restored}");
-    assert_eq!(restored["payload"]["created"], json!(false));
-    assert_eq!(restored["payload"]["running"], json!(false));
-    assert_eq!(restored["payload"]["exitCode"], json!(3));
     let snapshot = STANDARD
         .decode(restored["payload"]["snapshotBase64"].as_str().unwrap())
         .unwrap();
+    let snapshot = String::from_utf8_lossy(&snapshot);
+    let first = snapshot.find("FIRST").expect("FIRST output");
+    let second = snapshot.find("SECOND").expect("SECOND output");
+    let after = snapshot.find("AFTER").expect("AFTER output");
     assert!(
-        String::from_utf8_lossy(&snapshot).contains("PERSISTED"),
-        "restored snapshot should contain prior output"
+        first < second && second < after,
+        "scrollback order: {snapshot}"
     );
 }

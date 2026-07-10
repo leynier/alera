@@ -10,6 +10,7 @@ class _WorkbenchLayoutView extends StatelessWidget {
     required this.nodePath,
     required this.terminalRuntime,
     required this.agentStatuses,
+    required this.completionAcknowledgements,
     required this.onCreateTab,
     required this.onOpenEditorTab,
     required this.onOpenMarkdownViewerTab,
@@ -34,6 +35,7 @@ class _WorkbenchLayoutView extends StatelessWidget {
   final List<int> nodePath;
   final TerminalRuntime terminalRuntime;
   final Map<String, AgentStatusEntry> agentStatuses;
+  final WorkbenchTabCompletionAcknowledgements completionAcknowledgements;
   final CreateTerminalTabCallback onCreateTab;
   final OpenFileTabCallback onOpenEditorTab;
   final OpenFileTabCallback onOpenMarkdownViewerTab;
@@ -61,6 +63,7 @@ class _WorkbenchLayoutView extends StatelessWidget {
         groupId: groupId,
         terminalRuntime: terminalRuntime,
         agentStatuses: agentStatuses,
+        completionAcknowledgements: completionAcknowledgements,
         onCreateTab: onCreateTab,
         onOpenEditorTab: onOpenEditorTab,
         onOpenMarkdownViewerTab: onOpenMarkdownViewerTab,
@@ -85,6 +88,7 @@ class _WorkbenchLayoutView extends StatelessWidget {
       nodePath: nodePath,
       terminalRuntime: terminalRuntime,
       agentStatuses: agentStatuses,
+      completionAcknowledgements: completionAcknowledgements,
       onCreateTab: onCreateTab,
       onOpenEditorTab: onOpenEditorTab,
       onOpenMarkdownViewerTab: onOpenMarkdownViewerTab,
@@ -113,6 +117,7 @@ class _WorkbenchSplitView extends StatelessWidget {
     required this.nodePath,
     required this.terminalRuntime,
     required this.agentStatuses,
+    required this.completionAcknowledgements,
     required this.onCreateTab,
     required this.onOpenEditorTab,
     required this.onOpenMarkdownViewerTab,
@@ -137,6 +142,7 @@ class _WorkbenchSplitView extends StatelessWidget {
   final List<int> nodePath;
   final TerminalRuntime terminalRuntime;
   final Map<String, AgentStatusEntry> agentStatuses;
+  final WorkbenchTabCompletionAcknowledgements completionAcknowledgements;
   final CreateTerminalTabCallback onCreateTab;
   final OpenFileTabCallback onOpenEditorTab;
   final OpenFileTabCallback onOpenMarkdownViewerTab;
@@ -164,6 +170,7 @@ class _WorkbenchSplitView extends StatelessWidget {
       nodePath: <int>[...nodePath, 0],
       terminalRuntime: terminalRuntime,
       agentStatuses: agentStatuses,
+      completionAcknowledgements: completionAcknowledgements,
       onCreateTab: onCreateTab,
       onOpenEditorTab: onOpenEditorTab,
       onOpenMarkdownViewerTab: onOpenMarkdownViewerTab,
@@ -188,6 +195,7 @@ class _WorkbenchSplitView extends StatelessWidget {
       nodePath: <int>[...nodePath, 1],
       terminalRuntime: terminalRuntime,
       agentStatuses: agentStatuses,
+      completionAcknowledgements: completionAcknowledgements,
       onCreateTab: onCreateTab,
       onOpenEditorTab: onOpenEditorTab,
       onOpenMarkdownViewerTab: onOpenMarkdownViewerTab,

@@ -122,6 +122,12 @@ mixin _WorkbenchControllerProjects
     bool deleteBranch = true,
   }) async {
     try {
+      final terminalSessionIds = state
+          .tabsFor(workspace.id)
+          .where((tab) => tab.kind == WorkspaceTabKind.terminal)
+          .map((tab) => tab.terminalSessionId)
+          .where((id) => id.isNotEmpty)
+          .toList(growable: false);
       await _workspaceService.removeWorkspace(
         project: project,
         workspace: workspace,
@@ -130,6 +136,15 @@ mixin _WorkbenchControllerProjects
       ref
           .read(workspaceActivityControllerProvider.notifier)
           .removeWorkspace(workspace.id);
+      ref
+          .read(agentStatusControllerProvider.notifier)
+          .clearWorkspace(workspace.id);
+      final overlay = ref.read(agentRuntimeOverlayServiceProvider);
+      for (final sessionId in terminalSessionIds) {
+        unawaited(
+          overlay.clearTerminalOverlays(sessionId).catchError((Object _) {}),
+        );
+      }
       state = state.copyWith(error: null);
     } catch (error) {
       state = state.copyWith(error: error.toString());

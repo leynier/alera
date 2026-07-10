@@ -8,8 +8,10 @@ use serde_json::{json, Value};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::orchestration::agent_presence::AgentPresenceState;
+use crate::terminal_host::orchestration::agent_prompt_injection::write_agent_prompt_paste;
 use crate::terminal_host::orchestration::dispatch_preamble::{
     build_dispatch_preamble, parse_allow_stale_base_from_spec, GateResolution, PreambleParams,
+    WorkerKind,
 };
 use crate::terminal_host::orchestration::group_resolution::{
     is_group_address, resolve_group_address, GroupResolutionTerminal,
@@ -585,6 +587,7 @@ impl ServerActor {
                 coordinator_handle: &from,
                 base_drift: None,
                 gate_resolution: gate_resolution.as_ref(),
+                worker_kind: WorkerKind::BareShell,
             });
             return Ok(json!({ "dryRun": true, "preamble": preamble }));
         }
@@ -592,10 +595,20 @@ impl ServerActor {
         if inject {
             // Refuse to dump a preamble into a bare shell: injection requires
             // a recognized agent to be running in the target terminal.
+            // Stable `stale_terminal_handle:` prefix is matched by recovery docs
+            // and agents re-listing terminals after PTY death.
+            let session_exists = self.sessions.contains_key(&to);
             let session_running = self.sessions.get(&to).is_some_and(Session::running);
+            if !session_exists {
+                return Err(HostError::state(format!(
+                    "stale_terminal_handle: terminal {to} not found; remint the PTY \
+                     (reopen the tab) or dispatch to a live handle from terminal-list"
+                )));
+            }
             if !session_running {
                 return Err(HostError::state(format!(
-                    "terminal {to} is not running; cannot inject"
+                    "stale_terminal_handle: terminal {to} is not running; remint the PTY \
+                     (reopen the tab) or dispatch to a live handle from terminal-list"
                 )));
             }
             if self.agent_presence.get(&to).is_none() {
@@ -622,6 +635,7 @@ impl ServerActor {
             coordinator_handle: &from,
             base_drift: None,
             gate_resolution: gate_resolution.as_ref(),
+            worker_kind: WorkerKind::PromptReturningAgent,
         });
 
         if inject {
@@ -632,7 +646,7 @@ impl ServerActor {
                     .await;
                 return Err(HostError::state(format!("terminal {to} vanished")));
             };
-            session.write(preamble.as_bytes());
+            write_agent_prompt_paste(session, &preamble);
             let session_instance_id = session.instance_id();
             let inbox = self.inbox.clone();
             let session_id = to.clone();

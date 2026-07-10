@@ -5,6 +5,8 @@ import 'dart:io';
 import 'dart:isolate';
 import 'package:flutter/gestures.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
+import 'package:alera/src/features/workbench/domain/terminal_agent_prompt_injection.dart';
+import 'package:alera/src/features/workbench/domain/terminal_mode_reset.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/infra/terminal_shell_startup_preparer.dart';
@@ -21,6 +23,7 @@ import 'package:xterm/xterm.dart' as xterm;
 part 'terminal_runtime_helper_group.dart';
 part 'terminal_runtime_factory_group.dart';
 part 'terminal_runtime_xterm_session_cases.dart';
+part 'terminal_runtime_remint_cases.dart';
 part 'terminal_runtime_xterm_widget_cases.dart';
 part 'terminal_runtime_native_test_harness.dart';
 
@@ -29,6 +32,7 @@ void main() {
   _registerTerminalRuntimeFactoryGroup();
   group('XtermTerminalRuntime', () {
     _registerXtermRuntimeSessionTests();
+    _registerXtermRuntimeRemintTests();
     _registerXtermRuntimeWidgetTests();
   });
 }

@@ -992,16 +992,26 @@ impl ServerActor {
         let tab_id = require_string(payload, "tabId")?;
         let working_directory = require_string(payload, "workingDirectory")?;
 
-        if self.sessions.contains_key(&session_id) {
-            self.flush_output_batch(&session_id);
-            let session = self.sessions.get_mut(&session_id).expect("just checked");
-            session.attach(client_id);
-            return Ok(session.attachment_payload(false));
-        }
-
         let store = self.store.clone();
         let max_bytes = self.config.scrollback_bytes as usize;
-        if let Some(restored) = Session::restore_exited(
+        let mut initial_scrollback = Vec::new();
+
+        // Live session: attach only. Dead session: remint with the same handle so
+        // ALERA_TERMINAL_HANDLE / orchestration dispatch targets stay valid.
+        if self.sessions.contains_key(&session_id) {
+            let running = self.sessions.get(&session_id).is_some_and(Session::running);
+            if running {
+                self.flush_output_batch(&session_id);
+                let session = self.sessions.get_mut(&session_id).expect("just checked");
+                session.attach(client_id);
+                return Ok(session.attachment_payload(false));
+            }
+            if let Some(mut dead) = self.sessions.remove(&session_id) {
+                initial_scrollback = dead.buffer.to_bytes();
+                dead.terminate(false, &store).await;
+            }
+            self.agent_presence.remove(&session_id);
+        } else if let Some(restored) = Session::restore_exited(
             session_id.clone(),
             workspace_id.clone(),
             tab_id.clone(),
@@ -1010,14 +1020,7 @@ impl ServerActor {
         )
         .await
         {
-            self.sessions.insert(session_id.clone(), restored);
-            if let Some(session) = self.sessions.get_mut(&session_id) {
-                session.set_max_bytes(max_bytes);
-            }
-            self.immediate_checkpoint(&session_id).await;
-            let session = self.sessions.get_mut(&session_id).expect("just inserted");
-            session.attach(client_id);
-            return Ok(session.attachment_payload(false));
+            initial_scrollback = restored.buffer.to_bytes();
         }
 
         let launch = TerminalHostLaunch::from_json(&Value::Object(
@@ -1036,6 +1039,7 @@ impl ServerActor {
             cols,
             rows,
             max_bytes,
+            &initial_scrollback,
             &store,
             move |event| {
                 let _ = inbox.send(ServerCommand::Pty {
