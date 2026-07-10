@@ -216,7 +216,7 @@ class _Header extends StatelessWidget {
           child: Row(
             children: <Widget>[
               Text(
-                'Pull Requests',
+                'Checks',
                 style: theme.textTheme.labelLarge?.copyWith(
                   color: AleraTokens.foreground,
                 ),
