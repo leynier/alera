@@ -359,7 +359,9 @@ void main() {
         final service = DesktopAleraUpdateService(
           config: AleraUpdateConfig(
             archiveUrl: Uri.parse('https://example.com/archive.json'),
-            releasePageUrl: Uri.parse('https://example.com/releases'),
+            releasePageUrl: Uri.parse(
+              'https://github.com/leynier/alera/releases/tag/v0.9.0',
+            ),
             channel: AleraUpdateChannel.stable,
             autoInstallEnabled: false,
             signedRelease: false,
@@ -373,9 +375,25 @@ void main() {
         );
 
         await service.openDownloadPage(null);
+        await service.openDownloadPage(
+          AleraUpdateInfo(
+            version: '0.10.0',
+            shortVersion: 23,
+            date: '2026-07-10',
+            mandatory: false,
+            url: Uri.parse(
+              'https://updates.alera.build/updates/stable/0.10.0+23-linux/alera.deb',
+            ),
+            platform: 'linux',
+            changes: const <String>['Release 0.10.0.'],
+          ),
+        );
         await service.restartApp();
 
-        expect(launched, <Uri>[Uri.parse('https://example.com/releases')]);
+        expect(launched, <Uri>[
+          Uri.parse('https://github.com/leynier/alera/releases/tag/v0.9.0'),
+          Uri.parse('https://github.com/leynier/alera/releases/tag/v0.10.0'),
+        ]);
         expect(updater.restartCalls, 1);
       },
     );

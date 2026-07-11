@@ -61,6 +61,63 @@ void main() {
         AleraUpdateConfig.defaultReleasePageUrl,
       );
     });
+
+    test(
+      'downloadPageUrlFor maps a detected update to its release tag page',
+      () {
+        final listRoot = AleraUpdateConfig(
+          archiveUrl: Uri.parse('https://example.com/app-archive.json'),
+          releasePageUrl: Uri.parse(
+            'https://github.com/leynier/alera/releases',
+          ),
+          channel: AleraUpdateChannel.stable,
+          autoInstallEnabled: false,
+          signedRelease: false,
+        );
+        final bakedCurrent = listRoot.copyWith(
+          releasePageUrl: Uri.parse(
+            'https://github.com/leynier/alera/releases/tag/v0.9.0',
+          ),
+        );
+
+        expect(listRoot.downloadPageUrlFor(null), listRoot.releasePageUrl);
+        expect(
+          listRoot.downloadPageUrlFor(_update),
+          Uri.parse('https://github.com/leynier/alera/releases/tag/v0.1.2'),
+        );
+        expect(
+          bakedCurrent.downloadPageUrlFor(_update),
+          Uri.parse('https://github.com/leynier/alera/releases/tag/v0.1.2'),
+        );
+        expect(
+          bakedCurrent.downloadPageUrlFor(
+            _update.copyWith(version: 'v0.10.0-rc.1'),
+          ),
+          Uri.parse(
+            'https://github.com/leynier/alera/releases/tag/v0.10.0-rc.1',
+          ),
+        );
+      },
+    );
+
+    test('resolveAleraReleaseTagPageUrl falls back without a releases segment', () {
+      expect(
+        resolveAleraReleaseTagPageUrl(
+          releasePageUrl: Uri.parse('https://example.com/downloads'),
+          version: '1.2.3',
+        ),
+        Uri.parse('https://example.com/downloads/tag/v1.2.3'),
+      );
+      expect(
+        resolveAleraReleaseTagPageUrl(
+          releasePageUrl: Uri.parse(
+            'https://github.com/leynier/alera/releases/tag/v0.9.0',
+          ),
+          version: '  ',
+        ),
+        Uri.parse('https://github.com/leynier/alera/releases/tag/v0.9.0'),
+      );
+    });
   });
 
   group('AleraUpdateState', () {

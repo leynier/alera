@@ -96,6 +96,21 @@ class AleraUpdateConfig with AleraUpdateConfigMappable {
             channel == AleraUpdateChannel.rc);
   }
 
+  /// Resolves the manual-download page for an available update.
+  ///
+  /// Release builds bake [releasePageUrl] to the *installed* version's GitHub
+  /// tag page (`.../releases/tag/vX.Y.Z`). When a newer update is detected,
+  /// open that update's tag page instead of the baked current-version URL.
+  Uri downloadPageUrlFor(AleraUpdateInfo? update) {
+    if (update == null) {
+      return releasePageUrl;
+    }
+    return resolveAleraReleaseTagPageUrl(
+      releasePageUrl: releasePageUrl,
+      version: update.version,
+    );
+  }
+
   factory AleraUpdateConfig.fromEnvironment() {
     final archiveUrl = Uri.tryParse(
       const String.fromEnvironment(
@@ -135,6 +150,38 @@ class AleraUpdateConfig with AleraUpdateConfigMappable {
 @visibleForTesting
 Uri resolveUpdateConfigUriForTesting(Uri? value, Uri fallback) =>
     value ?? fallback;
+
+/// Builds a GitHub-style release tag URL for [version] under [releasePageUrl].
+///
+/// Accepts either the releases list (`.../releases`) or a baked tag page
+/// (`.../releases/tag/v0.9.0`) and returns `.../releases/tag/v{version}`.
+@visibleForTesting
+Uri resolveAleraReleaseTagPageUrl({
+  required Uri releasePageUrl,
+  required String version,
+}) {
+  final trimmed = version.trim();
+  if (trimmed.isEmpty) {
+    return releasePageUrl;
+  }
+  final tag = trimmed.startsWith('v') ? trimmed : 'v$trimmed';
+  final segments = releasePageUrl.pathSegments
+      .where((segment) => segment.isNotEmpty)
+      .toList();
+  final releasesIndex = segments.indexOf('releases');
+  if (releasesIndex < 0) {
+    return releasePageUrl.replace(
+      pathSegments: <String>[...segments, 'tag', tag],
+    );
+  }
+  return releasePageUrl.replace(
+    pathSegments: <String>[
+      ...segments.sublist(0, releasesIndex + 1),
+      'tag',
+      tag,
+    ],
+  );
+}
 
 @MappableEnum()
 enum AleraUpdateStatus {
