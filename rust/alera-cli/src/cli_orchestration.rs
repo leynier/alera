@@ -18,6 +18,9 @@ pub struct OrchestrationCommand {
 
 #[derive(Debug, Subcommand)]
 pub enum OrchestrationAction {
+    /// Create or select a worker terminal and dispatch once the agent is ready.
+    #[command(name = "agent-spawn")]
+    AgentSpawn(OrchestrationAgentSpawnArgs),
     /// Send a message to a terminal handle or @group address.
     Send(OrchestrationSendArgs),
     /// Read messages for a terminal (unread by default; marks them read).
@@ -34,14 +37,43 @@ pub enum OrchestrationAction {
     /// List tasks, optionally filtered by status.
     #[command(name = "task-list")]
     TaskList(OrchestrationTaskListArgs),
-    /// Update a task's status.
-    #[command(name = "task-update")]
-    TaskUpdate(OrchestrationTaskUpdateArgs),
+    /// Show one task with its active dispatch.
+    #[command(name = "task-show")]
+    TaskShow(OrchestrationTaskIdArgs),
+    /// Cancel a task and its not-yet-started descendants.
+    #[command(name = "task-cancel")]
+    TaskCancel(OrchestrationTaskCancelArgs),
+    /// Resolve a stalled task through an audited administrative action.
+    #[command(name = "task-recover")]
+    TaskRecover(OrchestrationTaskRecoverArgs),
+    /// Transfer task or run coordinator ownership.
+    #[command(name = "transfer-coordinator")]
+    TransferCoordinator(OrchestrationTransferCoordinatorArgs),
     /// Dispatch a ready task to a terminal.
     Dispatch(OrchestrationDispatchArgs),
     /// Show the dispatch state and preamble for a task.
     #[command(name = "dispatch-show")]
     DispatchShow(OrchestrationDispatchShowArgs),
+    /// Accept the active dispatch installed for this worker terminal.
+    #[command(name = "dispatch-accept")]
+    DispatchAccept,
+    /// Interrupt an active worker turn without terminating the terminal.
+    #[command(name = "dispatch-interrupt")]
+    DispatchInterrupt(OrchestrationDispatchInterruptArgs),
+    /// Inspect the active dispatch context for this terminal.
+    Context,
+    /// Record semantic worker activity for the active dispatch.
+    Heartbeat(OrchestrationHeartbeatArgs),
+    /// Escalate a blocker through the active dispatch context.
+    Escalate(OrchestrationEscalateArgs),
+    /// Atomically complete the active dispatch.
+    Complete(OrchestrationCompleteArgs),
+    /// Idempotent explicit completion for recovery and automation.
+    #[command(name = "worker-done")]
+    WorkerDone(OrchestrationWorkerDoneArgs),
+    /// Print the compact worker lifecycle command reference.
+    #[command(name = "worker-help")]
+    WorkerHelp,
     /// Create a decision gate that blocks a task until resolved.
     #[command(name = "gate-create")]
     GateCreate(OrchestrationGateCreateArgs),
@@ -53,14 +85,46 @@ pub enum OrchestrationAction {
     GateList(OrchestrationGateListArgs),
     /// Start the background coordinator loop.
     Run(OrchestrationRunArgs),
+    /// List durable coordinator runs.
+    #[command(name = "run-list")]
+    RunList(OrchestrationRunListArgs),
+    /// Show a coordinator run.
+    #[command(name = "run-show")]
+    RunShow(OrchestrationRunIdArgs),
+    /// Aggregate run, task, worker, and escalation state.
+    Status(OrchestrationRunIdArgs),
     /// Stop the active coordinator loop.
     #[command(name = "run-stop")]
-    RunStop,
+    RunStop(OrchestrationRunStopArgs),
     /// List live terminals with agent presence.
     #[command(name = "terminal-list")]
     TerminalList,
+    /// Show one terminal with explicit startup and agent state.
+    #[command(name = "terminal-show")]
+    TerminalShow(OrchestrationTerminalShowArgs),
+    /// Wait for a terminal lifecycle state without caller-side polling.
+    #[command(name = "terminal-wait")]
+    TerminalWait(OrchestrationTerminalWaitArgs),
     /// Clear orchestration state (default: everything).
     Reset(OrchestrationResetArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct OrchestrationAgentSpawnArgs {
+    #[arg(long = "workspace", value_name = "workspace_id")]
+    pub workspace: String,
+    #[arg(long = "agent", value_name = "agent_type")]
+    pub agent: String,
+    #[arg(long = "task", value_name = "task_id")]
+    pub task: String,
+    #[arg(long = "title", value_name = "text")]
+    pub title: Option<String>,
+    #[arg(long = "terminal", value_name = "handle")]
+    pub terminal: Option<String>,
+    #[arg(long = "command", value_name = "command")]
+    pub command: Option<String>,
+    #[arg(long = "from", value_name = "handle")]
+    pub from: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -78,10 +142,14 @@ pub struct OrchestrationSendArgs {
     pub from: Option<String>,
 
     /// Message body.
-    #[arg(long = "body", value_name = "text")]
+    #[arg(long = "body", value_name = "text", conflicts_with_all = ["body_file", "body_stdin"])]
     pub body: Option<String>,
+    #[arg(long = "body-file", value_name = "path", conflicts_with_all = ["body", "body_stdin"])]
+    pub body_file: Option<String>,
+    #[arg(long = "body-stdin", conflicts_with_all = ["body", "body_file"])]
+    pub body_stdin: bool,
 
-    /// Message type: status|dispatch|worker_done|merge_ready|escalation|handoff|decision_gate|heartbeat.
+    /// Message type: status|dispatch|merge_ready|escalation|handoff|decision_gate.
     #[arg(long = "type", value_name = "type")]
     pub message_type: Option<String>,
 
@@ -97,11 +165,11 @@ pub struct OrchestrationSendArgs {
     #[arg(long = "payload", value_name = "json", conflicts_with_all = ["task_id", "dispatch_id", "files_modified", "report_path", "phase"])]
     pub payload: Option<String>,
 
-    /// Structured payload: task id (for worker_done/heartbeat/escalation).
+    /// Structured payload: task id for an application-defined message.
     #[arg(long = "task-id", value_name = "id")]
     pub task_id: Option<String>,
 
-    /// Structured payload: dispatch context id (for worker_done/heartbeat/escalation).
+    /// Structured payload: dispatch id for an application-defined message.
     #[arg(long = "dispatch-id", value_name = "id")]
     pub dispatch_id: Option<String>,
 
@@ -113,7 +181,7 @@ pub struct OrchestrationSendArgs {
     #[arg(long = "report-path", value_name = "path")]
     pub report_path: Option<String>,
 
-    /// Structured payload: current work phase (heartbeats).
+    /// Structured payload: application-defined work phase.
     #[arg(long = "phase", value_name = "text")]
     pub phase: Option<String>,
 }
@@ -169,6 +237,9 @@ pub struct OrchestrationInboxArgs {
     /// Maximum messages returned (default 50).
     #[arg(long = "limit", value_name = "n")]
     pub limit: Option<i64>,
+    /// Message direction relative to --terminal.
+    #[arg(long, default_value = "inbox", value_parser = ["inbox", "outbox"])]
+    pub direction: String,
 }
 
 #[derive(Debug, Args)]
@@ -211,6 +282,22 @@ pub struct OrchestrationTaskCreateArgs {
     /// Parent task id.
     #[arg(long = "parent", value_name = "task_id")]
     pub parent: Option<String>,
+
+    /// Workspace that owns the task.
+    #[arg(long = "workspace", value_name = "workspace_id")]
+    pub workspace: String,
+
+    /// Coordinator run for a coordinated task.
+    #[arg(long = "run", value_name = "run_id")]
+    pub run: Option<String>,
+
+    /// Coordinator terminal for a manual task. Defaults to ALERA_TERMINAL_HANDLE.
+    #[arg(long = "coordinator", value_name = "handle")]
+    pub coordinator: Option<String>,
+
+    /// Optional JSON Schema applied to structured completion results.
+    #[arg(long = "result-schema", value_name = "json")]
+    pub result_schema: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -222,21 +309,102 @@ pub struct OrchestrationTaskListArgs {
     /// Shorthand for --status ready.
     #[arg(long = "ready")]
     pub ready: bool,
+    #[arg(long = "run", value_name = "run_id")]
+    pub run: Option<String>,
+    #[arg(long = "workspace", value_name = "workspace_id")]
+    pub workspace: Option<String>,
 }
 
 #[derive(Debug, Args)]
-pub struct OrchestrationTaskUpdateArgs {
-    /// Task id.
+pub struct OrchestrationTaskIdArgs {
     #[arg(long = "id", value_name = "task_id")]
     pub id: String,
+}
 
-    /// New status: pending|ready|dispatched|completed|failed|blocked.
-    #[arg(long = "status", value_name = "status")]
+#[derive(Debug, Args)]
+pub struct OrchestrationTaskCancelArgs {
+    #[arg(long = "id", value_name = "task_id")]
+    pub id: String,
+    #[arg(long, value_name = "text")]
+    pub reason: String,
+    /// Bypass coordinator ownership for audited administrative recovery.
+    #[arg(long)]
+    pub force: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct OrchestrationTaskRecoverArgs {
+    #[arg(long = "id", value_name = "task_id")]
+    pub id: String,
+    #[arg(long, value_parser = ["ready", "failed", "cancelled"])]
     pub status: String,
+    #[arg(long)]
+    pub reason: String,
+    /// Bypass coordinator ownership for audited administrative recovery.
+    #[arg(long)]
+    pub force: bool,
+}
 
-    /// JSON result blob to store with the task.
-    #[arg(long = "result", value_name = "json")]
-    pub result: Option<String>,
+#[derive(Debug, Args)]
+pub struct OrchestrationTransferCoordinatorArgs {
+    #[arg(long, conflicts_with = "run", required_unless_present = "run")]
+    pub task: Option<String>,
+    #[arg(long, conflicts_with = "task", required_unless_present = "task")]
+    pub run: Option<String>,
+    #[arg(long = "to")]
+    pub to: String,
+    #[arg(long)]
+    pub reason: String,
+    #[arg(long)]
+    pub force: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct OrchestrationHeartbeatArgs {
+    #[arg(long, value_name = "text")]
+    pub phase: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct OrchestrationEscalateArgs {
+    #[arg(long, value_name = "text")]
+    pub subject: String,
+    #[arg(long, value_name = "text", conflicts_with_all = ["body_file", "body_stdin"])]
+    pub body: Option<String>,
+    #[arg(long = "body-file", conflicts_with_all = ["body", "body_stdin"])]
+    pub body_file: Option<String>,
+    #[arg(long = "body-stdin", conflicts_with_all = ["body", "body_file"])]
+    pub body_stdin: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct OrchestrationCompleteArgs {
+    #[arg(long, value_name = "text")]
+    pub summary: String,
+    #[arg(long = "completion-kind", default_value = "success", value_parser = ["success", "failure"])]
+    pub completion_kind: String,
+    #[arg(long = "artifacts", value_name = "json")]
+    pub artifacts: Option<String>,
+    #[arg(long = "files-modified", value_name = "csv")]
+    pub files_modified: Option<String>,
+    #[arg(long = "validation", value_name = "json")]
+    pub validation: Option<String>,
+    /// Additional JSON object fields required by the task result schema.
+    #[arg(long = "result-extra", value_name = "json_object")]
+    pub result_extra: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct OrchestrationWorkerDoneArgs {
+    #[arg(long = "task")]
+    pub task: String,
+    #[arg(long = "dispatch")]
+    pub dispatch: String,
+    #[arg(long)]
+    pub summary: String,
+    /// Additional JSON object fields required by the task result schema.
+    #[arg(long = "result-extra", value_name = "json_object")]
+    pub result_extra: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -264,6 +432,18 @@ pub struct OrchestrationDispatchArgs {
     /// Include the full preamble text in the response.
     #[arg(long = "return-preamble")]
     pub return_preamble: bool,
+
+    /// Allow a deliberate coordinator-to-self protocol test.
+    #[arg(long = "allow-self-dispatch")]
+    pub allow_self_dispatch: bool,
+
+    /// Worker completion acknowledgement policy.
+    #[arg(long = "completion-policy", default_value = "return-immediately", value_parser = ["return-immediately"])]
+    pub completion_policy: String,
+
+    /// Terminal lifecycle after successful completion.
+    #[arg(long = "terminal-policy", default_value = "keep-open", value_parser = ["keep-open", "close-on-success", "return-to-shell"])]
+    pub terminal_policy: String,
 }
 
 #[derive(Debug, Args)]
@@ -271,6 +451,17 @@ pub struct OrchestrationDispatchShowArgs {
     /// Task id to inspect.
     #[arg(long = "task", value_name = "task_id")]
     pub task: String,
+}
+
+#[derive(Debug, Args)]
+pub struct OrchestrationDispatchInterruptArgs {
+    #[arg(long = "id", value_name = "dispatch_id")]
+    pub id: String,
+    #[arg(long)]
+    pub reason: String,
+    /// Bypass coordinator ownership for an audited administrative interrupt.
+    #[arg(long)]
+    pub force: bool,
 }
 
 #[derive(Debug, Args)]
@@ -330,7 +521,52 @@ pub struct OrchestrationRunArgs {
 
     /// Workspace id that scopes worker terminals and drift checks.
     #[arg(long = "workspace", value_name = "workspace_id")]
+    pub workspace: String,
+
+    /// Agent type used when the coordinator creates worker terminals.
+    #[arg(long = "agent", default_value = "codex")]
+    pub agent: String,
+}
+
+#[derive(Debug, Args)]
+pub struct OrchestrationRunListArgs {
+    #[arg(long = "workspace", value_name = "workspace_id")]
     pub workspace: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct OrchestrationRunIdArgs {
+    #[arg(long = "id", value_name = "run_id")]
+    pub id: String,
+}
+
+#[derive(Debug, Args)]
+pub struct OrchestrationRunStopArgs {
+    #[arg(long = "id", value_name = "run_id")]
+    pub id: String,
+    #[arg(long = "cancel-active")]
+    pub cancel_active: bool,
+    #[arg(long = "reason", default_value = "coordinator stopped")]
+    pub reason: String,
+    /// Bypass coordinator ownership for an audited administrative stop.
+    #[arg(long)]
+    pub force: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct OrchestrationTerminalShowArgs {
+    #[arg(long = "handle", value_name = "terminal_handle")]
+    pub handle: String,
+}
+
+#[derive(Debug, Args)]
+pub struct OrchestrationTerminalWaitArgs {
+    #[arg(long = "terminal")]
+    pub terminal: String,
+    #[arg(long = "for", value_parser = ["process-started", "agent-detected", "agent-ready", "dispatch-accepted"])]
+    pub target: String,
+    #[arg(long = "timeout-ms", default_value_t = 30_000)]
+    pub timeout_ms: u64,
 }
 
 #[derive(Debug, Args)]

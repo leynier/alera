@@ -10,6 +10,7 @@ pub const COORDINATOR_MAX_CONCURRENT_DEFAULT: usize = 4;
 /// considered hung. Warn-only: killing a slow-but-correct worker costs more
 /// than a hung worker holding a slot.
 pub const COORDINATOR_HUNG_THRESHOLD_MINUTES: i64 = 10;
+pub const COORDINATOR_ACCEPTANCE_TIMEOUT_SECONDS: i64 = 90;
 /// Worktrees more than this many commits behind their base are skipped at
 /// dispatch pre-flight (silently retried next tick) unless the spec carries
 /// `allow-stale-base: true`.
@@ -23,6 +24,7 @@ pub struct CoordinatorConfig {
     pub poll_interval_ms: u64,
     pub max_concurrent: usize,
     pub workspace_id: Option<String>,
+    pub agent_type: String,
 }
 
 /// The host-side handle for the single active coordinator: a ticker task that
@@ -71,6 +73,12 @@ pub fn hung_dispatch_threshold_iso(now: chrono::DateTime<chrono::Utc>) -> String
         .to_string()
 }
 
+pub fn acceptance_timeout_threshold_iso(now: chrono::DateTime<chrono::Utc>) -> String {
+    (now - chrono::Duration::seconds(COORDINATOR_ACCEPTANCE_TIMEOUT_SECONDS))
+        .format("%Y-%m-%d %H:%M:%S")
+        .to_string()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -83,6 +91,14 @@ mod tests {
         assert_eq!(hung_dispatch_threshold_iso(now), "2026-07-05 12:20:00");
     }
 
+    #[test]
+    fn acceptance_timeout_threshold_matches_cli_wait() {
+        let now = chrono::DateTime::parse_from_rfc3339("2026-07-05T12:30:00Z")
+            .unwrap()
+            .with_timezone(&chrono::Utc);
+        assert_eq!(acceptance_timeout_threshold_iso(now), "2026-07-05 12:28:30");
+    }
+
     #[tokio::test]
     async fn ticker_emits_and_stop_aborts() {
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<String>();
@@ -93,6 +109,7 @@ mod tests {
                 poll_interval_ms: 250,
                 max_concurrent: 4,
                 workspace_id: None,
+                agent_type: "codex".to_string(),
             },
             tx,
             |run_id| run_id,

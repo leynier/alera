@@ -8,7 +8,10 @@ use crate::terminal_host::host_error::{HostError, HostResult};
 
 /// Wire protocol version. Must stay in lockstep with the Flutter client
 /// (`aleraTerminalHostProtocolVersion`).
-pub const PROTOCOL_VERSION: i64 = 3;
+pub const PROTOCOL_VERSION: i64 = 4;
+pub const ORCHESTRATION_PROTOCOL_VERSION: i64 = 2;
+pub const DISPATCH_PREAMBLE_VERSION: i64 = 2;
+pub const ORCHESTRATION_SKILL_VERSION: i64 = 2;
 pub const RUNTIME_HOST_CAPABILITY: &str = "runtimeStore";
 pub const RUNTIME_HOST_BOOTSTRAP_CAPABILITY: &str = "sshTargetBootstrap";
 pub const RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY: &str = "managedWorkspaceLifecycle";

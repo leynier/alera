@@ -1,198 +1,97 @@
 ---
 name: alera-orchestration
-description: Use when coordinating multiple coding agents through Alera's orchestration system — inter-agent messaging, task DAGs with dependencies, dispatching work to worker agents, decision gates, or acting as a coordinator. For basic workspace and tab management, use the alera-cli skill instead.
+description: Use when coordinating multiple coding agents through Alera orchestration protocol v2, including scoped runs, task DAGs, atomic lifecycle operations, decision gates, and worker recovery.
+metadata:
+  version: 2
 ---
 
 # Alera Inter-Agent Orchestration
 
-Use this skill when the task involves coordinating multiple coding agents through Alera's orchestration system.
-
-## When To Use
-
-- You need to send messages between agent terminals
-- You need to decompose a spec into parallel subtasks with dependencies
-- You need to dispatch tasks to worker agents with structured feedback
-- You need to act as a coordinator managing a multi-agent workflow
-- You need decision gates for human-in-the-loop checkpoints
+Use this skill for structured multi-agent work in Alera. The runtime-host owns lifecycle authority; do not emulate completion, cancellation, leases, or ownership with generic messages.
 
 ## Preconditions
 
-- The `alera` CLI must be on PATH (Alera-managed terminals get it automatically).
-- All `alera orchestration` commands talk to the Alera runtime-host. If none is running, the CLI starts one automatically.
-- Push-on-idle message delivery and @agent groups require the Alera app to be running with agent status hooks enabled (the app forwards agent presence to the runtime-host). Messaging, tasks, dispatch bookkeeping, and gates work without the app.
-- Your own terminal handle is injected as `ALERA_TERMINAL_HANDLE` into every Alera-managed terminal. Omit `--from`/`--terminal` and the CLI resolves it from that variable.
+- Run inside an Alera terminal so `ALERA_TERMINAL_HANDLE` identifies the caller.
+- Use `alera version --json` when CLI/host/skill compatibility is uncertain.
+- Keep every coordinated task scoped to a workspace and coordinator. A workspace may have one active coordinator run; different workspaces may run concurrently. Tasks created for a run and injected worker terminals must match that run's workspace and coordinator.
 
-## Cross-Platform Command Rules
-
-- Unless a shell-specific block is shown, run the same `alera orchestration ...` command from Bash, PowerShell, or CMD.
-- The command surface below uses `bash` fences for compact syntax highlighting, not because the commands require Bash.
-- Prefer `--json` for machine-readable output in every shell.
-- Prefer structured payload flags (`--task-id`, `--dispatch-id`, `--files-modified`, `--report-path`, `--phase`) over raw `--payload` JSON.
-- Use native path syntax for path arguments: `$HOME/path/report.md`, `$HOME\path\report.md`, or `%USERPROFILE%\path\report.md`.
-- For JSON arguments that cannot be avoided, quote them per shell.
-
-From Linux, macOS, or WSL:
+## Coordinator Workflow
 
 ```bash
-alera orchestration task-create --spec "Build docs" --deps '["task_1"]'
+alera orchestration --json task-create --workspace <workspace-id> --task-title "Review Tests" --spec "Review automated test coverage"
+alera orchestration --json run --workspace <workspace-id> --agent codex --spec "Audit the repository"
+alera orchestration --json run-list --workspace <workspace-id>
+alera orchestration --json status --id <run-id>
 ```
 
-From PowerShell:
+Use `--agent codex|claude|copilot|cursor|agy|opencode|pi|amp`. The runtime may create workers through the built-in adapter registry. Stop scheduling with `run-stop --id`; add `--cancel-active` only when active work should receive cooperative cancellation. Run stop, task recovery, and dispatch interruption require the owning coordinator; `--force` is the audited administrative recovery path.
 
-```powershell
-alera orchestration task-create --spec "Build docs" --deps '["task_1"]'
-```
-
-From `cmd.exe`:
-
-```cmd
-alera orchestration task-create --spec "Build docs" --deps "[\"task_1\"]"
-```
-
-## Command Surface
-
-### Messaging
-
-Inter-agent messaging via a persistent SQLite-backed mail store. Messages are delivered automatically into a recipient terminal when its agent goes idle (push-on-idle).
+For direct assignment:
 
 ```bash
-alera orchestration send --to <handle|@group> --subject <text> [--from <handle>] [--body <text>] [--type <type>] [--priority <level>] [--thread-id <id>] [--payload <json>]
-alera orchestration check [--terminal <handle>] [--all] [--types <type,...>] [--inject] [--wait] [--timeout-ms <n>]
-alera orchestration reply --id <msg_id> --body <text>
-alera orchestration inbox [--terminal <handle>] [--limit <n>]
-alera orchestration ask --to <handle> --question <text> [--options <csv>] [--timeout-ms <n>]
+alera orchestration --json agent-spawn --workspace <workspace-id> --agent codex --task <task-id> --title "Review Tests"
+alera orchestration --json terminal-wait --terminal <handle> --for dispatch-accepted --timeout-ms 60000
 ```
 
-Why: `--wait` blocks until a matching message arrives or the timeout expires (default 2 minutes). This replaces sleep+poll loops. If unread messages already exist, it returns immediately. Combine with `--types` to wait for specific message types (e.g. `--wait --types worker_done --timeout-ms 300000`).
+`agent-spawn` encapsulates terminal creation, native agent startup, readiness, forced preamble submission, and acceptance. A timeout is an exit-0 outcome, not a transport failure.
 
-Why: `--inject` returns messages formatted as readable banners with priority indicators (`[HIGH]`, `[URGENT]`). Default output without `--json` shows the same banners.
+## Worker Contract
 
-Why: on Windows PowerShell, raw JSON in `--payload` is fragile. Prefer the structured flags: `--task-id`, `--dispatch-id`, `--files-modified <csv>`, `--report-path <path>`, `--phase <text>` — the CLI assembles the JSON payload.
-
-**Message types**: `status` (general), `dispatch` (assign work), `worker_done` (signal completion), `merge_ready` (branch ready for merge), `escalation` (issue requiring attention), `handoff` (pass work to another agent), `decision_gate` (human-in-the-loop), `heartbeat` (liveness).
-
-**Priority levels**: `normal`, `high`, `urgent`.
-
-**Group addresses** resolve to terminal handles at send time (one message per recipient, shared thread):
-
-| Group | Resolves To |
-|-------|------------|
-| `@all` | All live terminal handles except sender |
-| `@idle` | Handles whose agent has reported `done` and can safely receive auto-submitted input |
-| `@claude` / `@codex` / `@copilot` / `@cursor` / `@agy` / `@opencode` / `@pi` / `@amp` | Handles running that agent (via agent status hooks) |
-| `@workspace:<id>` | All handles in a specific workspace |
-
-Lifecycle messages (`worker_done`, `heartbeat`) cannot be sent to a group address.
-
-### Tasks
-
-Task tracking with DAG dependencies. A task becomes `ready` when all tasks in its `deps` array are `completed`; if any dependency fails, pending dependents fail instead of staying stuck.
+The dispatch preamble installs a terminal-scoped context. Execute acceptance before doing work:
 
 ```bash
-alera orchestration task-create --spec <text> [--task-title <text>] [--deps <json_array>] [--parent <task_id>]
-alera orchestration task-list [--status <status>] [--ready]
-alera orchestration task-update --id <task_id> --status <status> [--result <json>]
+alera orchestration dispatch-accept
+alera orchestration --json context
 ```
 
-**Task statuses**: `pending` (waiting on deps), `ready` (deps met, dispatchable), `dispatched` (assigned to a terminal), `completed`, `failed`, `blocked` (waiting on a decision gate).
-
-Why: when a task is marked `completed`, the runtime automatically promotes any pending tasks whose deps are now all satisfied to `ready`. When a dependency is marked `failed`, pending dependents are marked `failed`. This is the DAG resolution step.
-
-### Dispatch
-
-Dispatch assigns a ready task to a terminal, optionally injecting the task spec + preamble so the agent knows how to report back.
+Use context-aware lifecycle commands:
 
 ```bash
-alera orchestration dispatch --task <task_id> --to <handle> [--from <handle>] [--inject] [--dry-run] [--return-preamble]
-alera orchestration dispatch-show --task <task_id>
+alera orchestration heartbeat --phase reviewing
+alera orchestration escalate --subject "Blocked" --body "Missing credentials"
+alera orchestration complete --summary "Review completed" --completion-kind success --artifacts '[]' --files-modified "path/a" --validation '[]'
 ```
 
-Why: `--inject` writes a preamble that teaches the agent to report `worker_done` (with taskId + dispatchId), send heartbeats every 5 minutes, and use `ask` instead of AskUserQuestion. It requires a recognized agent running in the target terminal; for a bare shell, use `--dry-run` and paste the preamble manually.
+If the task defines a custom result schema, add its properties with `--result-extra '{"field":"value"}'`.
 
-Why: dispatch contexts are separate from tasks. A task can be dispatched, fail, and be re-dispatched — the task stays clean while dispatch contexts track retry state, and the failure count carries across retries.
+- `complete` is atomic and required exactly once. `completion-kind failure` consumes execution failure budget and may return the task to ready.
+- `worker-done --task --dispatch --summary` is the idempotent explicit recovery form.
+- Never use `send --type worker_done`, `send --type heartbeat`, or arbitrary task status mutation; protocol v2 rejects them.
+- After successful completion, stop the turn. Default policy returns immediately and leaves the terminal open for reuse.
+- Use `ask` for coordinator questions. While a dispatch is active, the host routes the question to the dispatch's current durable coordinator even if the run was transferred after its preamble was injected. Do not open a local user-input prompt the coordinator cannot see.
 
-**Circuit breaker**: after 3 accumulated failures on a task, the dispatch context is marked `circuit_broken` and the task is marked `failed`, preventing infinite retry loops. Below the threshold a failed dispatch returns the task to `ready`.
-
-### Decision Gates
-
-Human-in-the-loop decision points that block a task until resolved.
+## Tasks, Gates, And Recovery
 
 ```bash
-alera orchestration gate-create --task <task_id> --question <text> [--options <json_array>]
-alera orchestration gate-resolve --id <gate_id> --resolution <text>
-alera orchestration gate-list [--task <task_id>] [--status <status>]
+alera orchestration task-list --run <run-id>
+alera orchestration task-show --id <task-id>
+alera orchestration gate-create --task <task-id> --question "Choose approach" --options '["A","B"]'
+alera orchestration gate-resolve --id <gate-id> --resolution "A"
+alera orchestration task-cancel --id <task-id> --reason "No longer needed"
+alera orchestration task-recover --id <task-id> --status ready --reason "Worker inspected and stopped"
 ```
 
-Why: creating a gate is accepted for `ready` or `dispatched` tasks, blocks the task, and completes any active dispatch (releasing the worker). Resolving a gate sets the task back to `ready` with the resolution included in the next dispatch preamble as a `DECISION GATE RESOLVED` section.
-
-**Gate statuses**: `pending`, `resolved`, `timeout`.
-
-### Coordinator
-
-Start an automated coordinator loop that dispatches ready tasks, processes `worker_done`/`escalation` messages, and advances the task DAG.
+Cancellation propagates to unstarted descendants, including tasks created after a dependency was already cancelled. Lease expiry produces `stalled`, keeps the concurrency slot occupied, and never silently redispatches work. Recovery and forced lifecycle mutations require a reason and are audited. Transfer a complete run rather than one of its owned tasks.
 
 ```bash
-alera orchestration run --spec <text> [--from <handle>] [--poll-interval-ms <n>] [--max-concurrent <n>] [--workspace <workspace_id>]
-alera orchestration run-stop
+alera orchestration transfer-coordinator --task <task-id> --to <handle> --reason "Handoff"
+alera orchestration transfer-coordinator --run <run-id> --to <handle> --force --reason "Coordinator crashed"
 ```
 
-Why: `run` returns immediately with a run id; the loop runs in the background inside the runtime-host. Query progress via `alera orchestration task-list`. Only one coordinator can run at a time. Tasks must be pre-created — decomposition is your responsibility as the coordinating agent.
+Self-dispatch is rejected unless `--allow-self-dispatch` is explicitly supplied for a protocol test.
 
-Why: `--workspace` scopes which terminals receive dispatches, enables the stale-base drift check (worktrees more than 20 commits behind their base are skipped unless the spec contains `allow-stale-base: true` on its own line), and lets the coordinator create worker terminal tabs when no idle worker exists (requires the app to be running).
-
-Coordinator worker selection only uses injection-ready agents that can auto-submit injected preambles. Cursor-style editable-prompt agents are visible in `terminal-list` and can receive manual `dispatch --inject`, but `run` skips them for unattended dispatch.
-
-### Terminals
+## Messaging And Diagnostics
 
 ```bash
-alera orchestration terminal-list
-alera tab create --workspace-id <id> --title <text> --command "claude" --spawn
+alera orchestration send --to <handle|@group> --subject "Status" --body "Details"
+alera orchestration inbox --terminal <handle> --direction inbox
+alera orchestration inbox --terminal <handle> --direction outbox
+alera orchestration check --wait --types escalation,decision_gate --timeout-ms 300000
+alera orchestration terminal-show --handle <handle>
+alera terminal read --handle <handle> --max-bytes 65536
+alera terminal write --handle <handle> --text "continue" --enter
 ```
 
-Why: `terminal-list` shows live terminal handles with workspace, agent type, and agent state — the coordinator's worker inventory. `tab create --command "claude" --spawn` creates a terminal tab that the app starts eagerly (even while invisible) and runs the agent CLI in it. After creating one, wait for its presence to appear in `terminal-list` before dispatching.
+Use `--body-file` or `--body-stdin` for multiline content. Operational messages become expired or obsolete when their scope ends. List commands return `{kind, items, filters}`; use `items` in automation.
 
-### Lifecycle
-
-```bash
-alera orchestration reset [--all] [--tasks] [--messages]
-```
-
-Why: `--all` is the default when no scope flag is provided. `--tasks` clears tasks, dispatch contexts, decision gates, and coordinator runs but preserves messages.
-
-## Agent Guidance
-
-- When dispatched with a preamble, **always send `worker_done` when done** — exactly once, with both `--task-id` and `--dispatch-id`. Failure is still a `worker_done` with a subject like "Failed: <reason>"; never silently exit.
-- After `worker_done`, stop and return to an idle prompt. Do **not** poll `check`, sleep-loop, or start unrelated work. The coordinator re-engages idle workers with a fresh preamble + TASK via terminal inject. Do not exit the agent shell (bare-shell dry-run workers are the exception).
-- If blocked, send an `escalation` to the coordinator instead of stalling, including both `--task-id` and `--dispatch-id` when you were dispatched with a preamble. For questions, use `alera orchestration ask` — never AskUserQuestion, which the coordinator cannot see or answer.
-- Send a `heartbeat` every 5 minutes while actively working (skip while blocked inside `check --wait` or `ask` — those calls are themselves liveness signals). The coordinator warns about dispatches with no heartbeat for 10 minutes.
-- Use `alera orchestration check` to read incoming messages. They are also delivered automatically into a **worker** prompt when that agent goes idle (push-on-idle). The active coordinator terminal is not push-injected; coordinators use `check --wait` / lifecycle reconciliation.
-- The coordinator uses `task-list --ready` as its external memory. Prefer querying orchestration state over tracking it in your context window.
-- When acting as coordinator: discover workers with `terminal-list`, create tasks with `task-create`, dispatch with `dispatch --inject`, and block on `check --wait --types worker_done,escalation,decision_gate --timeout-ms 300000` instead of sleep+poll loops. The `decision_gate` type is required so taskless questions sent by `ask` reach the coordinator.
-- `check --wait` returns the currently unread batch. If N workers finish near-simultaneously, loop on `check --wait` until all results are collected; after each return, mark progress and dispatch the next wave.
-- After receiving `worker_done` from a terminal, that terminal is idle — dispatch the next task to it immediately.
-- Keep dependency chains to 3-4 steps maximum. Prefer parallel waves of independent tasks over deep sequential chains.
-- Insert decision gates between phases for human oversight of risky operations.
-- Terminal handles equal the PTY session id. Reopening a tab remints a new PTY under the **same** handle. If `dispatch --inject` returns `stale_terminal_handle:`, reopen the worker tab or pick a live handle from `terminal-list`, then wait for agent presence before retrying.
-
-## Coordinator Worked Example
-
-```bash
-# 1. Create a worker terminal running Claude Code (the app spawns it eagerly)
-alera tab --json create --workspace-id ws_123 --title "Worker 1" --command "claude" --spawn
-# → payload.terminalSessionId is the worker's future handle
-
-# 2. Wait for the agent to boot: poll terminal-list until agentState appears
-alera orchestration --json terminal-list
-
-# 3. Create and dispatch a task with preamble injection
-alera orchestration --json task-create --spec "Fix the login button CSS"
-# → id: task_...
-alera orchestration --json dispatch --task task_... --to <handle> --inject
-
-# 4. Block until the worker reports back (no sleep loops needed)
-alera orchestration --json check --wait --types worker_done,escalation,decision_gate --timeout-ms 300000
-
-# 5. On timeout with no messages, inspect state
-alera orchestration --json task-list
-alera orchestration --json dispatch-show --task task_...
-```
+For the compact command contract at runtime, call `alera orchestration worker-help`.

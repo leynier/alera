@@ -37,6 +37,8 @@ pub struct ManagedWorkspaceCreateRequest {
     pub workspace_root: Option<String>,
     #[serde(default)]
     pub path: Option<String>,
+    #[serde(default)]
+    pub parent_workspace_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -68,6 +70,14 @@ pub async fn create_managed_workspace(
         }
         None => None,
     };
+    if let Some(parent_workspace_id) = request.parent_workspace_id.as_deref() {
+        if requested_id.as_deref() == Some(parent_workspace_id) {
+            bail!("Workspace cannot be related to itself");
+        }
+        if store.find_workspace(parent_workspace_id).await?.is_none() {
+            bail!("Parent workspace not found: {parent_workspace_id}");
+        }
+    }
 
     let branch = require_trimmed(&request.branch, "New Branch Name Is Required")?;
     let source_branch = request
@@ -158,7 +168,16 @@ pub async fn create_managed_workspace(
         parent_workspace_id: None,
         child_count: 0,
     };
-    let workspace = store.upsert_workspace(workspace).await?;
+    let mut workspace = store.upsert_workspace(workspace).await?;
+    if let Some(parent_workspace_id) = request.parent_workspace_id.as_deref() {
+        store
+            .link_workspaces(parent_workspace_id, &workspace.id)
+            .await?;
+        workspace = store
+            .find_workspace(&workspace.id)
+            .await?
+            .ok_or_else(|| anyhow!("Workspace disappeared after linking: {}", workspace.id))?;
+    }
     let setup_report = run_worktree_setup(store, &project, &workspace).await;
     Ok(WorkspaceCreationResult {
         workspace,
@@ -1052,6 +1071,7 @@ mod tests {
                 reuse_existing_branch: false,
                 workspace_root: None,
                 path: Some(worktree_path.to_string_lossy().into_owned()),
+                parent_workspace_id: None,
             },
         )
         .await;
@@ -1062,6 +1082,122 @@ mod tests {
         let existing = store.find_workspace("workspace-1").await.unwrap().unwrap();
         assert_eq!(existing.kind, WorkspaceKind::Main);
         assert_eq!(existing.path, repo.to_string_lossy());
+    }
+
+    #[tokio::test]
+    async fn create_managed_workspace_rejects_missing_parent_before_worktree_create() {
+        let dir = tempfile::tempdir().unwrap();
+        let repo = dir.path().join("repo");
+        std::fs::create_dir(&repo).unwrap();
+        init_git_repo(&repo);
+        let store = RuntimeStore::open(&dir.path().join("runtime"))
+            .await
+            .unwrap();
+        let now = Utc::now();
+        store
+            .upsert_project(Project {
+                id: "project-1".to_string(),
+                name: "Project".to_string(),
+                repo_path: repo.to_string_lossy().into_owned(),
+                created_at: now,
+                updated_at: now,
+                kind: ProjectKind::GitRepository,
+            })
+            .await
+            .unwrap();
+        let worktree_path = dir.path().join("workspaces").join("feature-child");
+
+        let result = create_managed_workspace(
+            &store,
+            ManagedWorkspaceCreateRequest {
+                id: Some("workspace-child".to_string()),
+                project_id: "project-1".to_string(),
+                name: Some("feature/child".to_string()),
+                branch: "feature/child".to_string(),
+                source_branch: Some("main".to_string()),
+                reuse_existing_branch: false,
+                workspace_root: None,
+                path: Some(worktree_path.to_string_lossy().into_owned()),
+                parent_workspace_id: Some("missing-parent".to_string()),
+            },
+        )
+        .await;
+
+        assert!(result.unwrap_err().to_string().contains("missing-parent"));
+        assert!(!worktree_path.exists());
+        assert!(store
+            .find_workspace("workspace-child")
+            .await
+            .unwrap()
+            .is_none());
+    }
+
+    #[tokio::test]
+    async fn create_managed_workspace_returns_the_linked_parent() {
+        let dir = tempfile::tempdir().unwrap();
+        let repo = dir.path().join("repo");
+        std::fs::create_dir(&repo).unwrap();
+        init_git_repo(&repo);
+        let store = RuntimeStore::open(&dir.path().join("runtime"))
+            .await
+            .unwrap();
+        let now = Utc::now();
+        store
+            .upsert_project(Project {
+                id: "project-1".to_string(),
+                name: "Project".to_string(),
+                repo_path: repo.to_string_lossy().into_owned(),
+                created_at: now,
+                updated_at: now,
+                kind: ProjectKind::GitRepository,
+            })
+            .await
+            .unwrap();
+        store
+            .upsert_workspace(Workspace {
+                id: "parent".to_string(),
+                instance_id: "parent-instance".to_string(),
+                host_id: LOCAL_HOST_ID.to_string(),
+                project_id: "project-1".to_string(),
+                name: "Parent".to_string(),
+                branch: Some("main".to_string()),
+                path: repo.to_string_lossy().into_owned(),
+                created_at: now,
+                updated_at: now,
+                kind: WorkspaceKind::Main,
+                status: WorkspaceStatus::Active,
+                source_branch: None,
+                reuses_existing_branch: false,
+                tag_ids: Vec::new(),
+                tag_names: Vec::new(),
+                parent_workspace_id: None,
+                child_count: 0,
+            })
+            .await
+            .unwrap();
+        let worktree_path = dir.path().join("workspaces").join("feature-child");
+
+        let result = create_managed_workspace(
+            &store,
+            ManagedWorkspaceCreateRequest {
+                id: Some("child".to_string()),
+                project_id: "project-1".to_string(),
+                name: Some("feature/child".to_string()),
+                branch: "feature/child".to_string(),
+                source_branch: Some("main".to_string()),
+                reuse_existing_branch: false,
+                workspace_root: None,
+                path: Some(worktree_path.to_string_lossy().into_owned()),
+                parent_workspace_id: Some("parent".to_string()),
+            },
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(
+            result.workspace.parent_workspace_id.as_deref(),
+            Some("parent")
+        );
     }
 
     #[cfg(unix)]

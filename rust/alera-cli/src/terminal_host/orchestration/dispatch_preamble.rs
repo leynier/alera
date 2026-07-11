@@ -1,8 +1,3 @@
-/// 5 minutes is frequent enough that the coordinator's stale-heartbeat check
-/// (threshold 10 min) catches a hung worker within one tick, and infrequent
-/// enough to avoid inbox spam on long tasks.
-pub const HEARTBEAT_INTERVAL_MIN: u32 = 5;
-
 pub struct BaseDrift {
     pub base: String,
     pub behind: u64,
@@ -11,9 +6,9 @@ pub struct BaseDrift {
 
 pub struct PreambleParams<'a> {
     pub task_id: &'a str,
-    /// Completion and heartbeat payloads attribute activity to a specific
+    /// Completion and heartbeat commands attribute activity to a specific
     /// dispatch context (not just a task): a retried task has multiple
-    /// dispatch contexts, and keying worker_done/heartbeat on dispatchId
+    /// dispatch contexts, and keying lifecycle operations on dispatchId
     /// prevents stale messages from a previously-failed dispatch from
     /// completing or refreshing the retry.
     pub dispatch_id: &'a str,
@@ -27,7 +22,7 @@ pub struct PreambleParams<'a> {
     /// Appended when the task had a resolved decision gate: the worker sees
     /// the human's answer from line 1 of the re-dispatch.
     pub gate_resolution: Option<&'a GateResolution>,
-    /// Controls post-`worker_done` instructions. Inject paths always use
+    /// Controls post-completion instructions. Inject paths always use
     /// prompt-returning agents; bare-shell is for dry-run paste only.
     pub worker_kind: WorkerKind,
 }
@@ -38,7 +33,7 @@ pub struct GateResolution {
 }
 
 /// Distinguishes prompt-returning agent workers (Claude, Codex, …) from bare
-/// shell workers. After `worker_done`, agents should idle for re-dispatch;
+/// shell workers. After completion, agents should idle for re-dispatch;
 /// bare shells have no reusable prompt and should exit.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum WorkerKind {
@@ -64,37 +59,24 @@ pub fn build_dispatch_preamble(params: &PreambleParams<'_>) -> String {
         r#"You are working inside Alera, a multi-agent IDE. You are a dispatched worker.
 Your coordinator's terminal handle is: {coordinator_handle}
 Your task ID is: {task_id}
+Your dispatch ID is: {dispatch_id}
 
 You talk to the coordinator only through the CLI commands below. Do not use
 Slack, GitHub comments, or any other channel to reach a human during the run.
 
 === CLI COMMANDS ===
 
-  # Report task completion (REQUIRED when done — even on failure).
-  #
-  # RULE: --body must be a 3-sentence executive summary (what you did,
-  # what you found, what's left). Never send an empty body; the coordinator
-  # reads the body first and only opens artifacts if it needs more detail.
-  # If you produced a long-form artifact, include its path as
-  # payload.reportPath so the coordinator can find it without a file search.
-  #
-  # RULE: send worker_done exactly once. Failure is still a worker_done
-  # with subject like "Failed: <reason>" — never silently exit.
-  # Include BOTH taskId and dispatchId in the payload so a late completion
-  # from a failed retry cannot complete the current dispatch.
-  alera orchestration send --to {coordinator_handle} --type worker_done --subject "<short status>" --body "<3-sentence summary: what you did, what you found, what's left>" --task-id {task_id} --dispatch-id {dispatch_id} --files-modified "path/a,path/b" --report-path "<optional: path to the full artifact>"
+  # Accept before beginning. Execution timers start only after this succeeds.
+  alera orchestration dispatch-accept
 
-  # BEHAVIOR RULE: send a heartbeat every {heartbeat} minutes
-  # while actively working on the task. The coordinator uses this to
-  # distinguish "still thinking" from "hung / crashed." Skip heartbeats only
-  # while blocked inside `check --wait` or `ask` — those calls are
-  # themselves liveness signals.
-  #
-  # Include BOTH taskId and dispatchId in the payload: the coordinator
-  # attributes the heartbeat to the specific dispatch context, not just
-  # the task, so a straggler heartbeat from a previously-failed dispatch
-  # cannot mask a hung retry.
-  alera orchestration send --to {coordinator_handle} --type heartbeat --subject "alive" --task-id {task_id} --dispatch-id {dispatch_id} --phase "<short: investigating|implementing|reviewing|waiting>"
+  # Inspect the context installed for this terminal.
+  alera orchestration --json context
+
+  # Optional semantic phase update. Runtime activity also renews liveness.
+  alera orchestration heartbeat --phase "<investigating|implementing|reviewing|waiting>"
+
+  # Atomically commit a successful or failed result. Do this exactly once.
+  alera orchestration complete --summary "<what was completed and remaining work>" --completion-kind success --files-modified "path/a,path/b" --artifacts '[]' --validation '[]'
 
   # Ask the coordinator a question and block until it answers.
   #
@@ -111,13 +93,12 @@ Slack, GitHub comments, or any other channel to reach a human during the run.
 
   # Escalate a blocker or failure (pre-completion, when you need the
   # coordinator to do something before you can continue):
-  alera orchestration send --to {coordinator_handle} --type escalation --subject "Blocked: <reason>" --body "<details>" --task-id {task_id} --dispatch-id {dispatch_id}
+  alera orchestration escalate --subject "Blocked: <reason>" --body "<details>"
 
   # Check for messages from the coordinator:
   alera orchestration check
 
 {post_done}"#,
-        heartbeat = HEARTBEAT_INTERVAL_MIN,
     );
 
     let drift = params
@@ -164,9 +145,9 @@ fn build_gate_section(gate: &GateResolution) -> String {
 /// completion cannot receive that new TASK block and looks hung.
 fn build_post_worker_done_instructions(worker_kind: WorkerKind) -> String {
     match worker_kind {
-        WorkerKind::BareShell => r#"=== AFTER YOU SEND worker_done ===
+        WorkerKind::BareShell => r#"=== AFTER COMPLETE RETURNS ===
 
-worker_done ends your turn for this task. Your dispatched work is complete:
+Successful completion ends your turn for this task. Your dispatched work is complete:
 stop and take no further actions — do NOT start new or unrelated work,
 do NOT run a sleep/poll loop, and do NOT keep calling
 `alera orchestration check`. The coordinator has already recorded your
@@ -176,9 +157,9 @@ Exit the shell after completion. Bare-shell workers have no idle agent
 prompt for Alera to reuse; if the coordinator has more for you it will
 dispatch or prompt another worker with a fresh TASK block."#
             .to_string(),
-        WorkerKind::PromptReturningAgent => r#"=== AFTER YOU SEND worker_done ===
+        WorkerKind::PromptReturningAgent => r#"=== AFTER COMPLETE RETURNS ===
 
-worker_done ends your turn for this task. Your dispatched work is complete:
+Successful completion ends your turn for this task. Your dispatched work is complete:
 stop, return to an idle prompt, and take no further actions — do NOT start
 new or unrelated work, do NOT run a sleep/poll loop, and do NOT keep calling
 `alera orchestration check`. The coordinator has already recorded your
@@ -234,9 +215,10 @@ mod tests {
     fn preamble_contains_contract_commands() {
         let preamble = build_dispatch_preamble(&params(None, None));
         assert!(preamble.contains("Your task ID is: task_1"));
-        assert!(preamble.contains("--task-id task_1 --dispatch-id ctx_1"));
-        assert!(preamble.contains("--type worker_done"));
-        assert!(preamble.contains("--type heartbeat"));
+        assert!(preamble.contains("Your dispatch ID is: ctx_1"));
+        assert!(preamble.contains("alera orchestration dispatch-accept"));
+        assert!(preamble.contains("alera orchestration heartbeat"));
+        assert!(preamble.contains("alera orchestration complete"));
         assert!(preamble.contains("NEVER use AskUserQuestion"));
         assert!(preamble.contains("alera orchestration ask --to term_coord"));
         assert!(preamble.contains("=== TASK ===\nFix the login button CSS"));

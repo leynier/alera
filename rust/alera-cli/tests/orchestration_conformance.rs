@@ -1,4 +1,5 @@
-//! End-to-end orchestration conformance using the real `alera runtime-host`, raw TCP clients, messaging, long-poll
+//! End-to-end orchestration conformance. Spawns the real `alera runtime-host`
+//! binary, connects raw TCP clients, and exercises messaging, long-poll
 //! waits, tasks, dispatch, gates, agent presence, and push-on-idle delivery
 //! against a live PTY.
 
@@ -14,7 +15,7 @@ use serde_json::{json, Value};
 #[path = "orchestration_conformance/limits.rs"]
 mod limits;
 
-const PROTOCOL_VERSION: i64 = 3;
+const PROTOCOL_VERSION: i64 = 4;
 
 struct HostGuard(Child);
 
@@ -217,16 +218,16 @@ fn check_wait_wakes_on_matching_type_only() {
     let (mut sender_writer, mut sender_reader) = connect(host.port);
     handshake(&mut sender_writer, &mut sender_reader, &host.token);
 
-    // Park a waiter filtered to worker_done.
+    // Park a waiter filtered to escalation.
     send(
         &mut coordinator_writer,
         json!({"id": 10, "type": "orchestration.check", "payload": {
-            "terminal": "coord", "wait": true, "types": ["worker_done"], "timeoutMs": 10_000
+            "terminal": "coord", "wait": true, "types": ["escalation"], "timeoutMs": 10_000
         }}),
     );
     std::thread::sleep(Duration::from_millis(300));
 
-    // A status message must NOT wake the worker_done waiter.
+    // A status message must NOT wake the escalation waiter.
     expect_ok(request(
         &mut sender_writer,
         &mut sender_reader,
@@ -236,21 +237,19 @@ fn check_wait_wakes_on_matching_type_only() {
     ));
     std::thread::sleep(Duration::from_millis(300));
 
-    // The worker_done wakes it. Task/dispatch ids are bogus, so lifecycle
-    // reconciliation ignores it, but delivery to the waiter still happens.
+    // The escalation wakes it.
     expect_ok(request(
         &mut sender_writer,
         &mut sender_reader,
         12,
         "orchestration.send",
-        json!({"from": "w", "to": "coord", "subject": "done", "type": "worker_done",
-               "payload": "{\"taskId\":\"t\",\"dispatchId\":\"d\"}"}),
+        json!({"from": "w", "to": "coord", "subject": "blocked", "type": "escalation"}),
     ));
     let woken = read_response(&mut coordinator_reader, 10);
     assert_eq!(woken["ok"], json!(true));
     let messages = woken["payload"]["messages"].as_array().unwrap();
     assert_eq!(messages.len(), 1);
-    assert_eq!(messages[0]["type"], json!("worker_done"));
+    assert_eq!(messages[0]["type"], json!("escalation"));
 }
 
 #[test]
@@ -358,44 +357,30 @@ fn task_dag_dispatch_and_worker_done() {
         json!({"task": a_id, "to": "w1", "from": "coord"}),
     ));
     let dispatch_id = dispatched["dispatch"]["id"].as_str().unwrap().to_string();
+    let context_token = dispatched["contextToken"].as_str().unwrap().to_string();
     assert!(dispatched["preamble"]
         .as_str()
         .unwrap()
         .contains(&dispatch_id));
 
-    // worker_done from the assignee with matching ids completes A and
-    // promotes B in one send.
-    let completion_payload = format!("{{\"taskId\":\"{a_id}\",\"dispatchId\":\"{dispatch_id}\"}}");
     expect_ok(request(
         &mut writer,
         &mut reader,
         44,
-        "orchestration.send",
-        json!({"from": "w1", "to": "coord", "subject": "done", "type": "worker_done",
-               "payload": completion_payload}),
+        "orchestration.dispatchAccept",
+        json!({"terminal": "w1", "contextToken": context_token}),
     ));
-    let duplicate = expect_ok(request(
+    // Dedicated completion from the assignee completes A and promotes B.
+    expect_ok(request(
         &mut writer,
         &mut reader,
         46,
-        "orchestration.send",
-        json!({"from": "w1", "to": "coord", "subject": "done again", "type": "worker_done",
-               "payload": completion_payload}),
+        "orchestration.complete",
+        json!({"terminal": "w1", "contextToken": context_token, "result": {
+            "summary": "done", "completionKind": "success",
+            "artifacts": [], "filesModified": [], "validation": []
+        }}),
     ));
-    assert_eq!(duplicate["duplicate"], json!(true));
-    assert_eq!(duplicate["messages"], json!([]));
-    let mismatched = request(
-        &mut writer,
-        &mut reader,
-        47,
-        "orchestration.send",
-        json!({"from": "w1", "to": "coord", "subject": "wrong task", "type": "worker_done",
-               "payload": format!("{{\"taskId\":\"{b_id}\",\"dispatchId\":\"{dispatch_id}\"}}")}),
-    );
-    assert_eq!(mismatched["ok"], json!(false));
-    assert!(mismatched["error"]
-        .as_str()
-        .is_some_and(|error| error.contains("invalid_dispatch_task")));
     let tasks = expect_ok(request(
         &mut writer,
         &mut reader,
@@ -591,4 +576,29 @@ fn push_on_idle_delivers_into_live_pty() {
         !redelivered.contains("Orchestration Messages"),
         "message was redelivered after being marked delivered: {redelivered}"
     );
+}
+
+#[test]
+fn lifecycle_to_group_and_unknown_recipients_are_rejected() {
+    let host = start_host();
+    let (mut writer, mut reader) = connect(host.port);
+    handshake(&mut writer, &mut reader, &host.token);
+
+    let group_lifecycle = request(
+        &mut writer,
+        &mut reader,
+        70,
+        "orchestration.send",
+        json!({"from": "a", "to": "@all", "subject": "x", "type": "worker_done"}),
+    );
+    assert_eq!(group_lifecycle["ok"], json!(false));
+
+    let no_recipients = request(
+        &mut writer,
+        &mut reader,
+        71,
+        "orchestration.send",
+        json!({"from": "a", "to": "@all", "subject": "x"}),
+    );
+    assert_eq!(no_recipients["ok"], json!(false));
 }

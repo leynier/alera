@@ -20,6 +20,8 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
+    /// Show CLI, host, orchestration, preamble, and skill contract versions.
+    Version(VersionCommand),
     /// Run the persistent runtime host sidecar.
     #[command(name = RUNTIME_HOST_COMMAND)]
     RuntimeHost(TerminalHostArgs),
@@ -43,6 +45,9 @@ pub enum Command {
     /// Manage runtime-owned workspace tabs.
     Tab(TabCommand),
 
+    /// Inspect and write live terminal sessions.
+    Terminal(TerminalCommand),
+
     /// Manage SSH targets known by the Home Runtime.
     #[command(name = "ssh-target")]
     SshTarget(SshTargetCommand),
@@ -52,6 +57,56 @@ pub enum Command {
 
     /// Inter-agent orchestration: messaging, task DAG, dispatch, gates, coordinator.
     Orchestration(OrchestrationCommand),
+}
+
+#[derive(Debug, Args)]
+pub struct TerminalCommand {
+    #[command(flatten)]
+    pub runtime: RuntimeDirArgs,
+    #[command(flatten)]
+    pub output: OutputArgs,
+    #[command(subcommand)]
+    pub action: TerminalAction,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum TerminalAction {
+    /// Read retained terminal output, optionally from an incremental cursor.
+    Read(TerminalReadArgs),
+    /// Write text, a file, or stdin to a terminal.
+    Write(TerminalWriteArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct TerminalReadArgs {
+    #[arg(long)]
+    pub handle: String,
+    #[arg(long)]
+    pub cursor: Option<u64>,
+    #[arg(long = "max-bytes", default_value_t = 65_536)]
+    pub max_bytes: u64,
+}
+
+#[derive(Debug, Args)]
+pub struct TerminalWriteArgs {
+    #[arg(long)]
+    pub handle: String,
+    #[arg(long, conflicts_with_all = ["file", "stdin"])]
+    pub text: Option<String>,
+    #[arg(long, conflicts_with_all = ["text", "stdin"])]
+    pub file: Option<String>,
+    #[arg(long, conflicts_with_all = ["text", "file"])]
+    pub stdin: bool,
+    #[arg(long)]
+    pub enter: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct VersionCommand {
+    #[command(flatten)]
+    pub runtime: RuntimeDirArgs,
+    #[command(flatten)]
+    pub output: OutputArgs,
 }
 
 /// Arguments for `alera runtime-host` and `alera terminal-host`. Names and
@@ -226,6 +281,8 @@ pub struct WorkspaceAddArgs {
     pub workspace_root: Option<String>,
     #[arg(long, conflicts_with = "workspace_root")]
     pub path: Option<String>,
+    #[arg(long = "parent-workspace-id")]
+    pub parent_workspace_id: Option<String>,
 }
 
 #[derive(Debug, Args)]

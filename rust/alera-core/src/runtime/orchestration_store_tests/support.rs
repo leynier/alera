@@ -20,6 +20,11 @@ pub(super) fn message(
         priority: OrchestrationMessagePriority::Normal,
         thread_id: None,
         payload: None,
+        run_id: None,
+        workspace_id: Some("workspace_1".to_string()),
+        task_id: None,
+        dispatch_id: None,
+        expires_at: None,
     }
 }
 
@@ -31,5 +36,9 @@ pub(super) fn task(spec: &str, deps: Vec<String>) -> NewOrchestrationTask {
         deps,
         parent_id: None,
         created_by_terminal_handle: None,
+        run_id: None,
+        workspace_id: "workspace_1".to_string(),
+        coordinator_handle: "coord".to_string(),
+        result_schema: None,
     }
 }

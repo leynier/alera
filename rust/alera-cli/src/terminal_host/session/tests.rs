@@ -57,6 +57,7 @@ fn test_session() -> Session {
         durable_output_batch_gen: 0,
         durable_output_batch_armed: false,
         durable_output_batch_sequence: 0,
+        output_stream_bytes: 0,
     }
 }
 
@@ -92,6 +93,58 @@ fn output_batch_empty_flush_disarms_timer() {
     let durable = session.flush_durable_output_batch().expect("durable batch");
     assert_eq!(durable.data, b"ab");
     assert_eq!(durable.sequence, 0);
+}
+
+#[test]
+fn output_stream_range_remains_monotonic_when_scrollback_trims() {
+    let mut session = test_session();
+    session.set_max_bytes(4);
+    session.append_output(b"abcd");
+    assert_eq!(session.output_stream_range(), (0, 4));
+
+    session.append_output(b"ef");
+    assert_eq!(session.buffer.to_bytes(), b"cdef");
+    assert_eq!(session.output_stream_range(), (2, 6));
+}
+
+#[test]
+fn remint_keeps_the_persisted_absolute_stream_position() {
+    assert_eq!(resumed_output_stream_bytes(10, 4), 10);
+    assert_eq!(resumed_output_stream_bytes(0, 4), 4);
+}
+
+#[tokio::test]
+async fn restored_output_stream_range_keeps_absolute_cursor() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
+    store
+        .upsert(TerminalHostCheckpoint {
+            session_id: "restored".to_string(),
+            workspace_id: "workspace-1".to_string(),
+            tab_id: "tab-1".to_string(),
+            working_directory: "/repo".to_string(),
+            running: false,
+            exit_code: Some(0),
+            ended_at: Some(Utc::now()),
+            output_stream_bytes: 10,
+            updated_at: Utc::now(),
+            buffer: Vec::new(),
+        })
+        .await
+        .unwrap();
+    store.append_output("restored", 0, b"tail").await.unwrap();
+
+    let session = Session::restore_exited(
+        "restored".to_string(),
+        "workspace-1".to_string(),
+        "tab-1".to_string(),
+        &store,
+        4,
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(session.output_stream_range(), (6, 10));
 }
 
 #[test]

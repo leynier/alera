@@ -3,12 +3,15 @@ use alera_core::runtime::{
     OrchestrationTaskStatus, WorkspaceStatus,
 };
 use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::orchestration::agent_presence::AgentPresenceState;
+use crate::terminal_host::orchestration::agent_registry::adapter_for;
 use crate::terminal_host::orchestration::coordinator_loop::{
-    hung_dispatch_threshold_iso, CoordinatorConfig, CoordinatorHandle, COORDINATOR_DEFAULT_POLL_MS,
-    COORDINATOR_DISPATCH_STALE_THRESHOLD, COORDINATOR_MAX_CONCURRENT_DEFAULT,
+    acceptance_timeout_threshold_iso, hung_dispatch_threshold_iso, CoordinatorConfig,
+    CoordinatorHandle, COORDINATOR_DEFAULT_POLL_MS, COORDINATOR_DISPATCH_STALE_THRESHOLD,
+    COORDINATOR_MAX_CONCURRENT_DEFAULT,
 };
 use crate::terminal_host::orchestration::dispatch_preamble::{
     build_dispatch_preamble, parse_allow_stale_base_from_spec, BaseDrift, GateResolution,
@@ -17,7 +20,6 @@ use crate::terminal_host::orchestration::dispatch_preamble::{
 use crate::terminal_host::orchestration::lifecycle_reconciliation::{
     reconcile_lifecycle_message, LifecycleReconciliation,
 };
-use crate::terminal_host::orchestration::message_delivery::skips_auto_enter;
 use crate::terminal_host::protocol::event;
 use crate::terminal_host::session::Session;
 
@@ -46,9 +48,6 @@ fn payload_string(payload: Option<&Value>, key: &str) -> Option<String> {
 
 impl ServerActor {
     pub(super) async fn orchestration_run(&mut self, payload: &Value) -> HostResult<Value> {
-        if self.coordinator.is_some() {
-            return Err(HostError::state("a coordinator run is already active"));
-        }
         let spec = payload
             .get("spec")
             .and_then(Value::as_str)
@@ -78,12 +77,33 @@ impl ServerActor {
         let workspace_id = payload
             .get("workspace")
             .and_then(Value::as_str)
-            .map(str::to_string);
+            .filter(|value| !value.is_empty())
+            .map(str::to_string)
+            .unwrap_or_else(|| "global".to_string());
+        let agent_type = payload
+            .get("agent")
+            .and_then(Value::as_str)
+            .unwrap_or("claude")
+            .to_string();
+        if adapter_for(&agent_type).is_none() {
+            return Err(HostError::format(format!(
+                "unsupported agent type: {agent_type}"
+            )));
+        }
+        if self
+            .coordinators
+            .values()
+            .any(|handle| handle.config.workspace_id.as_deref() == Some(workspace_id.as_str()))
+        {
+            return Err(HostError::state(format!(
+                "a coordinator run is already active for workspace {workspace_id}"
+            )));
+        }
         // Decomposition is the caller's responsibility in v1: the coordinator
         // manages the DAG, it does not invent it.
         let tasks = self
             .runtime_store
-            .list_orchestration_tasks(None)
+            .list_scoped_orchestration_tasks(None, None, None)
             .await
             .map_err(state_error)?;
         if tasks.is_empty() {
@@ -93,39 +113,21 @@ impl ServerActor {
         }
         let run = self
             .runtime_store
-            .create_orchestration_coordinator_run(
+            .create_scoped_orchestration_coordinator_run(
                 spec,
                 Some(&coordinator_handle),
                 poll_interval_ms as i64,
+                &workspace_id,
+                max_concurrent as i64,
             )
             .await
             .map_err(state_error)?;
-        let config = CoordinatorConfig {
-            run_id: run.id.clone(),
-            coordinator_handle: Some(coordinator_handle),
-            poll_interval_ms,
-            max_concurrent,
-            workspace_id,
-        };
-        self.coordinator = Some(CoordinatorHandle::start(
-            config,
-            self.inbox.clone(),
-            |run_id| ServerCommand::CoordinatorTick { run_id },
-        ));
-        self.cancel_shutdown_timer();
-        Ok(json!({ "runId": run.id, "status": "running" }))
-    }
-
-    pub(super) async fn orchestration_run_stop(&mut self) -> HostResult<Value> {
-        let Some(handle) = self.coordinator.take() else {
-            let Some(run) = self
-                .runtime_store
-                .active_orchestration_coordinator_run()
-                .await
-                .map_err(state_error)?
-            else {
-                return Err(HostError::state("no coordinator run is active"));
-            };
+        let bound = self
+            .runtime_store
+            .bind_manual_tasks_to_run(&run.id, &workspace_id, &coordinator_handle)
+            .await
+            .map_err(state_error)?;
+        if bound == 0 {
             self.runtime_store
                 .finish_orchestration_coordinator_run(
                     &run.id,
@@ -133,19 +135,122 @@ impl ServerActor {
                 )
                 .await
                 .map_err(state_error)?;
-            self.schedule_shutdown_if_idle();
-            return Ok(json!({ "runId": run.id, "status": "failed" }));
+            return Err(HostError::state(
+                "no unowned tasks in this workspace belong to the coordinator",
+            ));
+        }
+        let config = CoordinatorConfig {
+            run_id: run.id.clone(),
+            coordinator_handle: Some(coordinator_handle),
+            poll_interval_ms,
+            max_concurrent,
+            workspace_id: Some(workspace_id),
+            agent_type,
         };
-        handle.stop();
+        self.coordinators.insert(
+            run.id.clone(),
+            CoordinatorHandle::start(config, self.inbox.clone(), |run_id| {
+                ServerCommand::CoordinatorTick { run_id }
+            }),
+        );
+        self.cancel_shutdown_timer();
+        Ok(json!({ "runId": run.id, "status": "running" }))
+    }
+
+    pub(super) async fn orchestration_run_stop(&mut self, payload: &Value) -> HostResult<Value> {
+        let requested_run_id = payload
+            .get("id")
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty())
+            .map(str::to_string);
+        let run_id = match requested_run_id {
+            Some(id) => id,
+            None if self.coordinators.len() == 1 => {
+                self.coordinators.keys().next().cloned().unwrap()
+            }
+            None => {
+                return Err(HostError::format(
+                    "id is required when zero or multiple runs are active.",
+                ))
+            }
+        };
+        let run_id = run_id.as_str();
+        let run = self
+            .runtime_store
+            .orchestration_coordinator_run_by_id(run_id)
+            .await
+            .map_err(state_error)?
+            .filter(|run| {
+                matches!(
+                    run.status,
+                    OrchestrationCoordinatorStatus::Running
+                        | OrchestrationCoordinatorStatus::Stopping
+                )
+            })
+            .ok_or_else(|| HostError::state(format!("coordinator run is not active: {run_id}")))?;
+        let actor = payload
+            .get("actor")
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty());
+        let force = payload
+            .get("force")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        if !force && actor != run.coordinator_handle.as_deref() {
+            return Err(HostError::state(format!(
+                "only coordinator {} can stop run {run_id}; use --force for audited recovery",
+                run.coordinator_handle.as_deref().unwrap_or("<unassigned>")
+            )));
+        }
+        let handle = self.coordinators.remove(run_id);
+        if let Some(handle) = handle.as_ref() {
+            handle.stop();
+        }
+        let config_workspace = Some(run.workspace_id.clone());
+        let reason = payload
+            .get("reason")
+            .and_then(Value::as_str)
+            .unwrap_or("coordinator stopped");
+        if payload
+            .get("cancelActive")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+        {
+            let tasks = self
+                .runtime_store
+                .list_scoped_orchestration_tasks(None, Some(run_id), config_workspace.as_deref())
+                .await
+                .map_err(state_error)?;
+            for task in tasks.into_iter().filter(|task| {
+                matches!(
+                    task.status,
+                    OrchestrationTaskStatus::Dispatched | OrchestrationTaskStatus::Stalled
+                )
+            }) {
+                self.orchestration_task_cancel(&json!({
+                    "id": task.id,
+                    "reason": reason,
+                    "actor": actor,
+                    "force": force,
+                }))
+                .await?;
+            }
+        }
         self.runtime_store
-            .finish_orchestration_coordinator_run(
-                &handle.config.run_id,
-                OrchestrationCoordinatorStatus::Failed,
+            .stop_orchestration_coordinator_run(run_id, reason)
+            .await
+            .map_err(state_error)?;
+        self.runtime_store
+            .insert_orchestration_audit_event(
+                actor,
+                if force { "run.stop.force" } else { "run.stop" },
+                run_id,
+                reason,
             )
             .await
             .map_err(state_error)?;
         self.schedule_shutdown_if_idle();
-        Ok(json!({ "runId": handle.config.run_id, "status": "failed" }))
+        Ok(json!({ "runId": run_id, "status": "stopped" }))
     }
 
     // --- tick ---------------------------------------------------------------
@@ -154,12 +259,9 @@ impl ServerActor {
     /// process messages -> re-assert gate blocks -> warn stale dispatches ->
     /// dispatch ready tasks -> check convergence.
     pub(super) async fn handle_coordinator_tick(&mut self, run_id: String) {
-        let Some(handle) = &self.coordinator else {
+        let Some(handle) = self.coordinators.get(&run_id) else {
             return;
         };
-        if handle.config.run_id != run_id {
-            return;
-        }
         let config = handle.config.clone();
 
         if let Err(error) = self.coordinator_process_messages(&config).await {
@@ -174,13 +276,13 @@ impl ServerActor {
         if let Err(error) = self.coordinator_dispatch_ready_tasks(&config).await {
             self.coordinator_log(&format!("dispatch failed: {error}"));
         }
-        match self.coordinator_check_convergence().await {
+        match self.coordinator_check_convergence(&config).await {
             Ok(Some(final_status)) => {
                 let _ = self
                     .runtime_store
                     .finish_orchestration_coordinator_run(&run_id, final_status)
                     .await;
-                if let Some(handle) = self.coordinator.take() {
+                if let Some(handle) = self.coordinators.remove(&run_id) {
                     handle.stop();
                 }
                 self.coordinator_log(&format!(
@@ -236,8 +338,14 @@ impl ServerActor {
                         message.from_handle, message.subject
                     ));
                     let payload = payload_value(message);
-                    let task_id = payload_string(payload.as_ref(), "taskId");
-                    let dispatch_id = payload_string(payload.as_ref(), "dispatchId");
+                    let task_id = message
+                        .task_id
+                        .clone()
+                        .or_else(|| payload_string(payload.as_ref(), "taskId"));
+                    let dispatch_id = message
+                        .dispatch_id
+                        .clone()
+                        .or_else(|| payload_string(payload.as_ref(), "dispatchId"));
                     if let Some(task_id) = task_id {
                         if let Some(dispatch) = self
                             .runtime_store
@@ -266,8 +374,14 @@ impl ServerActor {
                 }
                 OrchestrationMessageType::DecisionGate => {
                     let payload = payload_value(message);
-                    let task_id = payload_string(payload.as_ref(), "taskId");
-                    let dispatch_id = payload_string(payload.as_ref(), "dispatchId");
+                    let task_id = message
+                        .task_id
+                        .clone()
+                        .or_else(|| payload_string(payload.as_ref(), "taskId"));
+                    let dispatch_id = message
+                        .dispatch_id
+                        .clone()
+                        .or_else(|| payload_string(payload.as_ref(), "dispatchId"));
                     if let Some(task_id) = task_id {
                         let question = payload
                             .as_ref()
@@ -336,6 +450,7 @@ impl ServerActor {
                 if task.status != OrchestrationTaskStatus::Blocked
                     && task.status != OrchestrationTaskStatus::Completed
                     && task.status != OrchestrationTaskStatus::Failed
+                    && task.status != OrchestrationTaskStatus::Cancelled
                 {
                     let _ = self
                         .runtime_store
@@ -351,17 +466,31 @@ impl ServerActor {
         Ok(())
     }
 
-    /// Warn-only hung detection: a dispatch with no heartbeat past the
-    /// threshold is reported but never auto-failed.
+    /// A dispatch with no runtime activity past the lease is stalled. It is
+    /// never auto-retried, preventing two agents from doing the same work.
     async fn coordinator_warn_stale_dispatches(&mut self) -> anyhow::Result<()> {
+        let acceptance_threshold = acceptance_timeout_threshold_iso(chrono::Utc::now());
+        let unaccepted = self
+            .runtime_store
+            .expire_unaccepted_orchestration_dispatches(&acceptance_threshold)
+            .await?;
+        for dispatch in unaccepted {
+            if let Some(handle) = dispatch.assignee_handle.as_deref() {
+                self.remove_dispatch_context(handle);
+            }
+            self.coordinator_log(&format!(
+                "dispatch {} did not accept before the startup deadline",
+                dispatch.id
+            ));
+        }
         let threshold = hung_dispatch_threshold_iso(chrono::Utc::now());
         let stale = self
             .runtime_store
-            .stale_orchestration_dispatches(&threshold)
+            .stall_expired_orchestration_dispatches(&threshold)
             .await?;
         for dispatch in stale {
             self.coordinator_log(&format!(
-                "dispatch {} on {} has no heartbeat since {} — possibly hung",
+                "dispatch {} on {} exceeded its activity lease and is stalled since {}",
                 dispatch.id,
                 dispatch.assignee_handle.as_deref().unwrap_or("<unknown>"),
                 dispatch
@@ -380,16 +509,32 @@ impl ServerActor {
     ) -> anyhow::Result<()> {
         let ready = self
             .runtime_store
-            .list_orchestration_tasks(Some(OrchestrationTaskStatus::Ready))
+            .list_scoped_orchestration_tasks(
+                Some(OrchestrationTaskStatus::Ready),
+                Some(&config.run_id),
+                config.workspace_id.as_deref(),
+            )
             .await?;
         if ready.is_empty() {
             return Ok(());
         }
-        let dispatched = self
+        let occupied = self
             .runtime_store
-            .list_orchestration_tasks(Some(OrchestrationTaskStatus::Dispatched))
-            .await?;
-        let mut slots = config.max_concurrent.saturating_sub(dispatched.len());
+            .list_scoped_orchestration_tasks(
+                None,
+                Some(&config.run_id),
+                config.workspace_id.as_deref(),
+            )
+            .await?
+            .into_iter()
+            .filter(|task| {
+                matches!(
+                    task.status,
+                    OrchestrationTaskStatus::Dispatched | OrchestrationTaskStatus::Stalled
+                )
+            })
+            .count();
+        let mut slots = config.max_concurrent.saturating_sub(occupied);
         if slots == 0 {
             return Ok(());
         }
@@ -464,9 +609,6 @@ impl ServerActor {
             if !self.agent_presence.is_injection_ready(&session_id) {
                 continue;
             }
-            if skips_auto_enter(self.agent_presence.agent_type(&session_id)) {
-                continue;
-            }
             let busy = self
                 .runtime_store
                 .active_orchestration_dispatch_for_handle(&session_id)
@@ -496,7 +638,8 @@ impl ServerActor {
                 let payload = tab.payload.as_object()?;
                 let is_spawned_worker = payload.get("spawnOnCreate").and_then(Value::as_bool)
                     == Some(true)
-                    && payload.get("initialCommand").and_then(Value::as_str) == Some("claude");
+                    && payload.get("initialCommand").and_then(Value::as_str)
+                        == adapter_for(&config.agent_type).map(|adapter| adapter.default_command);
                 if !is_spawned_worker {
                     return None;
                 }
@@ -581,6 +724,8 @@ impl ServerActor {
             .first()
             .map(|task| task.spec.chars().take(40).collect())
             .unwrap_or_else(|| "orchestration".to_string());
+        let adapter = adapter_for(&config.agent_type)
+            .ok_or_else(|| anyhow::anyhow!("unsupported agent type: {}", config.agent_type))?;
         let now = chrono::Utc::now();
         let id = uuid::Uuid::new_v4().to_string();
         let tab = alera_core::runtime::WorkspaceTabRecord {
@@ -592,7 +737,7 @@ impl ServerActor {
             updated_at: now,
             payload: json!({
                 "terminalSessionId": id,
-                "initialCommand": "claude",
+                "initialCommand": adapter.default_command,
                 "spawnOnCreate": true,
             }),
         };
@@ -634,10 +779,31 @@ impl ServerActor {
             resolution: gate.resolution.unwrap_or_default(),
         });
 
+        let context_token = uuid::Uuid::new_v4().simple().to_string();
+        let context_hash = hex::encode(Sha256::digest(context_token.as_bytes()));
         let dispatch = self
             .runtime_store
-            .create_orchestration_dispatch(task_id, handle)
+            .create_scoped_orchestration_dispatch(
+                task_id,
+                handle,
+                Some(&config.run_id),
+                config.workspace_id.as_deref().unwrap_or("global"),
+                config
+                    .coordinator_handle
+                    .as_deref()
+                    .unwrap_or("coordinator"),
+                Some(&context_hash),
+                "return-immediately",
+                "keep-open",
+            )
             .await?;
+        self.orchestration_activity_last_recorded.remove(handle);
+        if let Err(error) = self.install_dispatch_context(handle, &dispatch.id, &context_token) {
+            self.runtime_store
+                .fail_orchestration_startup(&dispatch.id, "could not install worker context")
+                .await?;
+            return Err(anyhow::anyhow!(error.to_string()));
+        }
         let preamble = build_dispatch_preamble(&PreambleParams {
             task_id,
             dispatch_id: &dispatch.id,
@@ -650,21 +816,23 @@ impl ServerActor {
             gate_resolution: gate_resolution.as_ref(),
             worker_kind: WorkerKind::PromptReturningAgent,
         });
-        let session_running = self.sessions.get(handle).is_some_and(Session::running);
-        if !session_running {
+        if !self.sessions.get(handle).is_some_and(Session::running) {
+            self.remove_dispatch_context(handle);
             self.runtime_store
-                .fail_orchestration_dispatch(&dispatch.id, "terminal not writable")
+                .fail_orchestration_startup(&dispatch.id, "terminal not writable")
                 .await?;
             return Ok(false);
         }
-        if self
-            .queue_orchestration_paste(handle, &preamble, Vec::new())
-            .is_err()
+        let force_submit =
+            adapter_for(&config.agent_type).is_some_and(|adapter| adapter.force_submit);
+        if let Err(error) =
+            self.queue_orchestration_paste(handle, &preamble, Vec::new(), force_submit)
         {
+            self.remove_dispatch_context(handle);
             self.runtime_store
-                .fail_orchestration_dispatch(&dispatch.id, "terminal input unavailable")
+                .fail_orchestration_startup(&dispatch.id, "terminal input unavailable")
                 .await?;
-            return Ok(false);
+            return Err(anyhow::anyhow!(error.wire_message()));
         }
         self.coordinator_log(&format!("dispatched {task_id} to {handle}"));
         Ok(true)
@@ -695,15 +863,25 @@ impl ServerActor {
     /// keeps the loop alive but logs the situation.
     async fn coordinator_check_convergence(
         &mut self,
+        config: &CoordinatorConfig,
     ) -> anyhow::Result<Option<OrchestrationCoordinatorStatus>> {
-        let tasks = self.runtime_store.list_orchestration_tasks(None).await?;
+        let tasks = self
+            .runtime_store
+            .list_scoped_orchestration_tasks(
+                None,
+                Some(&config.run_id),
+                config.workspace_id.as_deref(),
+            )
+            .await?;
         if tasks.is_empty() {
             return Ok(Some(OrchestrationCoordinatorStatus::Failed));
         }
         let all_terminal = tasks.iter().all(|task| {
             matches!(
                 task.status,
-                OrchestrationTaskStatus::Completed | OrchestrationTaskStatus::Failed
+                OrchestrationTaskStatus::Completed
+                    | OrchestrationTaskStatus::Failed
+                    | OrchestrationTaskStatus::Cancelled
             )
         });
         if all_terminal {
@@ -729,6 +907,13 @@ impl ServerActor {
             {
                 self.coordinator_log(
                     "coordinator stuck: blocked tasks remain; resolve decision gates to continue",
+                );
+            } else if tasks
+                .iter()
+                .any(|task| task.status == OrchestrationTaskStatus::Stalled)
+            {
+                self.coordinator_log(
+                    "coordinator waiting: stalled tasks require explicit recovery",
                 );
             } else {
                 self.coordinator_log(

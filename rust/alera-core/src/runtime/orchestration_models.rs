@@ -90,6 +90,8 @@ pub enum OrchestrationTaskStatus {
     Completed,
     Failed,
     Blocked,
+    Stalled,
+    Cancelled,
 }
 
 impl OrchestrationTaskStatus {
@@ -101,6 +103,8 @@ impl OrchestrationTaskStatus {
             OrchestrationTaskStatus::Completed => "completed",
             OrchestrationTaskStatus::Failed => "failed",
             OrchestrationTaskStatus::Blocked => "blocked",
+            OrchestrationTaskStatus::Stalled => "stalled",
+            OrchestrationTaskStatus::Cancelled => "cancelled",
         }
     }
 
@@ -112,6 +116,8 @@ impl OrchestrationTaskStatus {
             "completed" => Some(OrchestrationTaskStatus::Completed),
             "failed" => Some(OrchestrationTaskStatus::Failed),
             "blocked" => Some(OrchestrationTaskStatus::Blocked),
+            "stalled" => Some(OrchestrationTaskStatus::Stalled),
+            "cancelled" => Some(OrchestrationTaskStatus::Cancelled),
             _ => None,
         }
     }
@@ -125,6 +131,11 @@ pub enum OrchestrationDispatchStatus {
     Completed,
     Failed,
     CircuitBroken,
+    AwaitingAcceptance,
+    StartupFailed,
+    Stalled,
+    Cancelled,
+    Superseded,
 }
 
 impl OrchestrationDispatchStatus {
@@ -135,6 +146,11 @@ impl OrchestrationDispatchStatus {
             OrchestrationDispatchStatus::Completed => "completed",
             OrchestrationDispatchStatus::Failed => "failed",
             OrchestrationDispatchStatus::CircuitBroken => "circuit_broken",
+            OrchestrationDispatchStatus::AwaitingAcceptance => "awaiting_acceptance",
+            OrchestrationDispatchStatus::StartupFailed => "startup_failed",
+            OrchestrationDispatchStatus::Stalled => "stalled",
+            OrchestrationDispatchStatus::Cancelled => "cancelled",
+            OrchestrationDispatchStatus::Superseded => "superseded",
         }
     }
 
@@ -145,6 +161,11 @@ impl OrchestrationDispatchStatus {
             "completed" => Some(OrchestrationDispatchStatus::Completed),
             "failed" => Some(OrchestrationDispatchStatus::Failed),
             "circuit_broken" => Some(OrchestrationDispatchStatus::CircuitBroken),
+            "awaiting_acceptance" => Some(OrchestrationDispatchStatus::AwaitingAcceptance),
+            "startup_failed" => Some(OrchestrationDispatchStatus::StartupFailed),
+            "stalled" => Some(OrchestrationDispatchStatus::Stalled),
+            "cancelled" => Some(OrchestrationDispatchStatus::Cancelled),
+            "superseded" => Some(OrchestrationDispatchStatus::Superseded),
             _ => None,
         }
     }
@@ -184,6 +205,8 @@ pub enum OrchestrationCoordinatorStatus {
     Running,
     Completed,
     Failed,
+    Stopping,
+    Stopped,
 }
 
 impl OrchestrationCoordinatorStatus {
@@ -193,6 +216,8 @@ impl OrchestrationCoordinatorStatus {
             OrchestrationCoordinatorStatus::Running => "running",
             OrchestrationCoordinatorStatus::Completed => "completed",
             OrchestrationCoordinatorStatus::Failed => "failed",
+            OrchestrationCoordinatorStatus::Stopping => "stopping",
+            OrchestrationCoordinatorStatus::Stopped => "stopped",
         }
     }
 
@@ -202,6 +227,8 @@ impl OrchestrationCoordinatorStatus {
             "running" => Some(OrchestrationCoordinatorStatus::Running),
             "completed" => Some(OrchestrationCoordinatorStatus::Completed),
             "failed" => Some(OrchestrationCoordinatorStatus::Failed),
+            "stopping" => Some(OrchestrationCoordinatorStatus::Stopping),
+            "stopped" => Some(OrchestrationCoordinatorStatus::Stopped),
             _ => None,
         }
     }
@@ -223,6 +250,13 @@ pub struct OrchestrationMessage {
     pub sequence: i64,
     pub created_at: String,
     pub delivered_at: Option<String>,
+    pub run_id: Option<String>,
+    pub workspace_id: Option<String>,
+    pub task_id: Option<String>,
+    pub dispatch_id: Option<String>,
+    pub state: String,
+    pub expires_at: Option<String>,
+    pub obsolete_at: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -238,6 +272,13 @@ pub struct OrchestrationTask {
     pub result: Option<String>,
     pub created_at: String,
     pub completed_at: Option<String>,
+    pub run_id: Option<String>,
+    pub workspace_id: String,
+    pub coordinator_handle: String,
+    pub result_schema: Option<String>,
+    pub startup_failure_count: i64,
+    pub cancelled_at: Option<String>,
+    pub stalled_at: Option<String>,
     /// Populated by list-with-dispatch queries: the active dispatch, if any.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub assignee_handle: Option<String>,
@@ -257,6 +298,15 @@ pub struct OrchestrationDispatchContext {
     pub completed_at: Option<String>,
     pub created_at: String,
     pub last_heartbeat_at: Option<String>,
+    pub run_id: Option<String>,
+    pub workspace_id: String,
+    pub coordinator_handle: String,
+    pub accepted_at: Option<String>,
+    pub last_activity_at: Option<String>,
+    pub context_token_hash: Option<String>,
+    pub completion_policy: String,
+    pub terminal_policy: String,
+    pub startup_error: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -280,4 +330,8 @@ pub struct OrchestrationCoordinatorRun {
     pub poll_interval_ms: i64,
     pub created_at: String,
     pub completed_at: Option<String>,
+    pub workspace_id: String,
+    pub max_concurrent: i64,
+    pub last_activity_at: String,
+    pub stop_reason: Option<String>,
 }

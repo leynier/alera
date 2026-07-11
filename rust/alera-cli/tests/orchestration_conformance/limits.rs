@@ -41,7 +41,7 @@ fn unsafe_orchestration_messages_are_rejected_before_persistence() {
     assert_eq!(self_lifecycle["ok"], json!(false));
     assert!(self_lifecycle["error"]
         .as_str()
-        .is_some_and(|error| error.contains("invalid_self_recipient")));
+        .is_some_and(|error| error.contains("lifecycle operation")));
 
     let oversized = request(
         &mut writer,
@@ -109,5 +109,5 @@ fn unsafe_orchestration_messages_are_rejected_before_persistence() {
     assert_eq!(injected_self_dispatch["ok"], json!(false));
     assert!(injected_self_dispatch["error"]
         .as_str()
-        .is_some_and(|error| error.contains("invalid_self_recipient")));
+        .is_some_and(|error| error.contains("self_dispatch_requires_opt_in")));
 }

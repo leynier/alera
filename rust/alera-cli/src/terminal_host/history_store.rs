@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS checkpoints (\n\
   running INTEGER NOT NULL,\n\
   exitCode INTEGER,\n\
   endedAt TEXT,\n\
+  outputStreamBytes INTEGER NOT NULL DEFAULT 0,\n\
   updatedAt TEXT NOT NULL\n\
 );";
 
@@ -41,6 +42,7 @@ pub struct TerminalHostCheckpoint {
     pub running: bool,
     pub exit_code: Option<i32>,
     pub ended_at: Option<DateTime<Utc>>,
+    pub output_stream_bytes: u64,
     pub updated_at: DateTime<Utc>,
     pub buffer: Vec<u8>,
 }
@@ -67,6 +69,7 @@ impl TerminalHostHistoryStore {
         sqlx::query(CREATE_CHECKPOINTS_TABLE_SQL)
             .execute(&pool)
             .await?;
+        ensure_output_stream_bytes_column(&pool).await?;
         sqlx::query(CREATE_OUTPUT_CHUNKS_TABLE_SQL)
             .execute(&pool)
             .await?;
@@ -84,7 +87,7 @@ impl TerminalHostHistoryStore {
         self.trim_session(session_id, max_bytes).await?;
         let row = sqlx::query(
             "SELECT sessionId, workspaceId, tabId, workingDirectory, running, exitCode, \
-             endedAt, updatedAt FROM checkpoints WHERE sessionId = ?",
+             endedAt, outputStreamBytes, updatedAt FROM checkpoints WHERE sessionId = ?",
         )
         .bind(session_id)
         .fetch_optional(&self.pool)
@@ -103,6 +106,7 @@ impl TerminalHostHistoryStore {
             running: row.try_get::<i64, _>("running")? == 1,
             exit_code: row.try_get("exitCode")?,
             ended_at: parse_timestamp(ended_at.as_deref()),
+            output_stream_bytes: row.try_get::<i64, _>("outputStreamBytes")?.max(0) as u64,
             updated_at: parse_timestamp(Some(updated_at.as_str()))
                 .unwrap_or_else(|| Utc.timestamp_opt(0, 0).single().expect("epoch is valid")),
             buffer,
@@ -112,8 +116,8 @@ impl TerminalHostHistoryStore {
     pub async fn upsert(&self, checkpoint: TerminalHostCheckpoint) -> Result<()> {
         sqlx::query(
             "INSERT INTO checkpoints \
-             (sessionId, workspaceId, tabId, workingDirectory, running, exitCode, endedAt, updatedAt) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?) \
+             (sessionId, workspaceId, tabId, workingDirectory, running, exitCode, endedAt, outputStreamBytes, updatedAt) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) \
              ON CONFLICT(sessionId) DO UPDATE SET \
              workspaceId = excluded.workspaceId, \
              tabId = excluded.tabId, \
@@ -121,6 +125,7 @@ impl TerminalHostHistoryStore {
              running = excluded.running, \
              exitCode = excluded.exitCode, \
              endedAt = excluded.endedAt, \
+             outputStreamBytes = excluded.outputStreamBytes, \
              updatedAt = excluded.updatedAt",
         )
         .bind(checkpoint.session_id)
@@ -130,6 +135,7 @@ impl TerminalHostHistoryStore {
         .bind(if checkpoint.running { 1_i64 } else { 0_i64 })
         .bind(checkpoint.exit_code.map(i64::from))
         .bind(checkpoint.ended_at.map(format_timestamp))
+        .bind(i64::try_from(checkpoint.output_stream_bytes).unwrap_or(i64::MAX))
         .bind(format_timestamp(checkpoint.updated_at))
         .execute(&self.pool)
         .await?;
@@ -296,6 +302,24 @@ async fn destroy_unsequenced_output_chunks_schema(pool: &SqlitePool) -> Result<(
     Ok(())
 }
 
+async fn ensure_output_stream_bytes_column(pool: &SqlitePool) -> Result<()> {
+    let rows = sqlx::query("PRAGMA table_info(checkpoints)")
+        .fetch_all(pool)
+        .await?;
+    let has_column = rows.iter().any(|row| {
+        row.try_get::<String, _>("name")
+            .is_ok_and(|name| name == "outputStreamBytes")
+    });
+    if !has_column {
+        sqlx::query(
+            "ALTER TABLE checkpoints ADD COLUMN outputStreamBytes INTEGER NOT NULL DEFAULT 0",
+        )
+        .execute(pool)
+        .await?;
+    }
+    Ok(())
+}
+
 fn format_timestamp(value: DateTime<Utc>) -> String {
     value.to_rfc3339_opts(SecondsFormat::Millis, true)
 }
@@ -323,6 +347,7 @@ mod tests {
             running: true,
             exit_code: None,
             ended_at: None,
+            output_stream_bytes: 42,
             updated_at: Utc.timestamp_opt(1_700_000_000, 123_000_000).unwrap(),
             buffer: Vec::new(),
         }
@@ -343,6 +368,7 @@ mod tests {
         let read = store.read("s1", 1024).await.unwrap().unwrap();
         assert_eq!(read.session_id, checkpoint.session_id);
         assert_eq!(read.workspace_id, checkpoint.workspace_id);
+        assert_eq!(read.output_stream_bytes, checkpoint.output_stream_bytes);
         assert_eq!(read.buffer, b"hello world");
     }
 

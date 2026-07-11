@@ -34,7 +34,15 @@ pub(super) const ORCHESTRATION_SCHEMA: &[&str] = &[
         read INTEGER NOT NULL DEFAULT 0,
         sequence INTEGER PRIMARY KEY AUTOINCREMENT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
-        delivered_at TEXT
+        delivered_at TEXT,
+        run_id TEXT,
+        workspace_id TEXT,
+        task_id TEXT,
+        dispatch_id TEXT,
+        state TEXT NOT NULL DEFAULT 'queued'
+            CHECK(state IN ('queued','delivered','read','expired','obsolete')),
+        expires_at TEXT,
+        obsolete_at TEXT
     );",
     "CREATE UNIQUE INDEX IF NOT EXISTS orchestrationMessagesIdIdx ON orchestrationMessages(id);",
     "CREATE INDEX IF NOT EXISTS orchestrationMessagesInboxIdx ON orchestrationMessages(to_handle, read);",
@@ -48,11 +56,18 @@ pub(super) const ORCHESTRATION_SCHEMA: &[&str] = &[
         display_name TEXT,
         spec TEXT NOT NULL,
         status TEXT NOT NULL DEFAULT 'pending'
-            CHECK(status IN ('pending','ready','dispatched','completed','failed','blocked')),
+            CHECK(status IN ('pending','ready','dispatched','completed','failed','blocked','stalled','cancelled')),
         deps TEXT NOT NULL DEFAULT '[]',
         result TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
-        completed_at TEXT
+        completed_at TEXT,
+        run_id TEXT,
+        workspace_id TEXT NOT NULL,
+        coordinator_handle TEXT NOT NULL,
+        result_schema TEXT,
+        startup_failure_count INTEGER NOT NULL DEFAULT 0,
+        cancelled_at TEXT,
+        stalled_at TEXT
     );",
     "CREATE INDEX IF NOT EXISTS orchestrationTasksStatusIdx ON orchestrationTasks(status);",
     "CREATE INDEX IF NOT EXISTS orchestrationTasksParentIdx ON orchestrationTasks(parent_id);",
@@ -61,13 +76,22 @@ pub(super) const ORCHESTRATION_SCHEMA: &[&str] = &[
         task_id TEXT NOT NULL,
         assignee_handle TEXT,
         status TEXT NOT NULL DEFAULT 'pending'
-            CHECK(status IN ('pending','dispatched','completed','failed','circuit_broken')),
+            CHECK(status IN ('pending','dispatched','completed','failed','circuit_broken','awaiting_acceptance','startup_failed','stalled','cancelled','superseded')),
         failure_count INTEGER NOT NULL DEFAULT 0,
         last_failure TEXT,
         dispatched_at TEXT,
         completed_at TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
-        last_heartbeat_at TEXT
+        last_heartbeat_at TEXT,
+        run_id TEXT,
+        workspace_id TEXT NOT NULL,
+        coordinator_handle TEXT NOT NULL,
+        accepted_at TEXT,
+        last_activity_at TEXT,
+        context_token_hash TEXT,
+        completion_policy TEXT NOT NULL DEFAULT 'return-immediately',
+        terminal_policy TEXT NOT NULL DEFAULT 'keep-open',
+        startup_error TEXT
     );",
     "CREATE INDEX IF NOT EXISTS orchestrationDispatchTaskIdx ON orchestrationDispatchContexts(task_id);",
     "CREATE INDEX IF NOT EXISTS orchestrationDispatchStatusIdx ON orchestrationDispatchContexts(status);",
@@ -87,13 +111,29 @@ pub(super) const ORCHESTRATION_SCHEMA: &[&str] = &[
         id TEXT PRIMARY KEY,
         spec TEXT NOT NULL,
         status TEXT NOT NULL DEFAULT 'idle'
-            CHECK(status IN ('idle','running','completed','failed')),
+            CHECK(status IN ('idle','running','completed','failed','stopping','stopped')),
         coordinator_handle TEXT,
         poll_interval_ms INTEGER NOT NULL DEFAULT 2000,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
-        completed_at TEXT
+        completed_at TEXT,
+        workspace_id TEXT NOT NULL,
+        max_concurrent INTEGER NOT NULL DEFAULT 4,
+        last_activity_at TEXT NOT NULL DEFAULT (datetime('now')),
+        stop_reason TEXT
+    );",
+    "CREATE UNIQUE INDEX IF NOT EXISTS orchestrationCoordinatorRunsActiveWorkspaceIdx ON orchestrationCoordinatorRuns(workspace_id) WHERE status IN ('running','stopping');",
+    "CREATE TABLE IF NOT EXISTS orchestrationAuditEvents (
+        id TEXT PRIMARY KEY,
+        actor_handle TEXT,
+        action TEXT NOT NULL,
+        target_id TEXT,
+        reason TEXT NOT NULL,
+        payload TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );",
 ];
+
+pub(super) const ORCHESTRATION_SCHEMA_VERSION: &str = "2";
 
 // Future enum widening: SQLite cannot ALTER a CHECK constraint, so adding a
 // message type or status value requires an Orca-style table rebuild migration.
@@ -107,6 +147,11 @@ pub struct NewOrchestrationMessage {
     pub priority: OrchestrationMessagePriority,
     pub thread_id: Option<String>,
     pub payload: Option<String>,
+    pub run_id: Option<String>,
+    pub workspace_id: Option<String>,
+    pub task_id: Option<String>,
+    pub dispatch_id: Option<String>,
+    pub expires_at: Option<String>,
 }
 
 fn validate_message_field(value: &str, field: &str, max_bytes: usize) -> Result<()> {
@@ -149,7 +194,8 @@ pub(super) fn orchestration_id(prefix: &str) -> String {
 }
 
 const MESSAGE_COLUMNS: &str = "id, from_handle, to_handle, subject, body, type, priority, \
-     thread_id, payload, read, sequence, created_at, delivered_at";
+     thread_id, payload, read, sequence, created_at, delivered_at, run_id, workspace_id, \
+     task_id, dispatch_id, state, expires_at, obsolete_at";
 
 fn message_from_row(row: SqliteRow) -> Result<OrchestrationMessage> {
     let type_raw: String = row.try_get("type")?;
@@ -169,6 +215,13 @@ fn message_from_row(row: SqliteRow) -> Result<OrchestrationMessage> {
         sequence: row.try_get("sequence")?,
         created_at: row.try_get("created_at")?,
         delivered_at: row.try_get("delivered_at")?,
+        run_id: row.try_get("run_id")?,
+        workspace_id: row.try_get("workspace_id")?,
+        task_id: row.try_get("task_id")?,
+        dispatch_id: row.try_get("dispatch_id")?,
+        state: row.try_get("state")?,
+        expires_at: row.try_get("expires_at")?,
+        obsolete_at: row.try_get("obsolete_at")?,
     })
 }
 
@@ -179,6 +232,17 @@ fn id_placeholders(count: usize) -> String {
 }
 
 impl RuntimeStore {
+    async fn expire_orchestration_messages(&self) -> Result<()> {
+        sqlx::query(
+            "UPDATE orchestrationMessages SET state = 'expired' \
+             WHERE state IN ('queued','delivered') AND expires_at IS NOT NULL \
+             AND expires_at <= datetime('now')",
+        )
+        .execute(self.pool())
+        .await?;
+        Ok(())
+    }
+
     pub async fn insert_orchestration_message(
         &self,
         message: NewOrchestrationMessage,
@@ -187,8 +251,9 @@ impl RuntimeStore {
         let id = orchestration_id("msg");
         sqlx::query(
             "INSERT INTO orchestrationMessages \
-             (id, from_handle, to_handle, subject, body, type, priority, thread_id, payload) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+             (id, from_handle, to_handle, subject, body, type, priority, thread_id, payload, \
+              run_id, workspace_id, task_id, dispatch_id, expires_at) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(&id)
         .bind(&message.from_handle)
@@ -199,6 +264,11 @@ impl RuntimeStore {
         .bind(message.priority.as_str())
         .bind(&message.thread_id)
         .bind(&message.payload)
+        .bind(&message.run_id)
+        .bind(&message.workspace_id)
+        .bind(&message.task_id)
+        .bind(&message.dispatch_id)
+        .bind(&message.expires_at)
         .execute(self.pool())
         .await?;
         self.orchestration_message_by_id(&id)
@@ -224,9 +294,10 @@ impl RuntimeStore {
         to_handle: &str,
         types: Option<&[OrchestrationMessageType]>,
     ) -> Result<Vec<OrchestrationMessage>> {
+        self.expire_orchestration_messages().await?;
         let mut sql = format!(
             "SELECT {MESSAGE_COLUMNS} FROM orchestrationMessages \
-             WHERE to_handle = ? AND read = 0"
+             WHERE to_handle = ? AND read = 0 AND state NOT IN ('expired','obsolete')"
         );
         if let Some(types) = types {
             if !types.is_empty() {
@@ -248,9 +319,10 @@ impl RuntimeStore {
         &self,
         to_handle: &str,
     ) -> Result<Vec<OrchestrationMessage>> {
+        self.expire_orchestration_messages().await?;
         let rows = sqlx::query(&format!(
             "SELECT {MESSAGE_COLUMNS} FROM orchestrationMessages \
-             WHERE to_handle = ? AND read = 0 AND ( \
+             WHERE to_handle = ? AND read = 0 AND state NOT IN ('expired','obsolete') AND ( \
                type IN ('worker_done', 'heartbeat', 'escalation') \
                OR ( \
                  type = 'decision_gate' \
@@ -273,9 +345,10 @@ impl RuntimeStore {
         &self,
         to_handle: &str,
     ) -> Result<Vec<OrchestrationMessage>> {
+        self.expire_orchestration_messages().await?;
         let rows = sqlx::query(&format!(
             "SELECT {MESSAGE_COLUMNS} FROM orchestrationMessages \
-             WHERE to_handle = ? AND read = 0 AND delivered_at IS NULL \
+             WHERE to_handle = ? AND read = 0 AND delivered_at IS NULL AND state = 'queued' \
              ORDER BY sequence ASC"
         ))
         .bind(to_handle)
@@ -290,6 +363,7 @@ impl RuntimeStore {
         types: Option<&[OrchestrationMessageType]>,
         limit: i64,
     ) -> Result<Vec<OrchestrationMessage>> {
+        self.expire_orchestration_messages().await?;
         let mut sql = format!(
             "SELECT {MESSAGE_COLUMNS} FROM orchestrationMessages \
              WHERE to_handle = ?"
@@ -310,7 +384,25 @@ impl RuntimeStore {
         rows.into_iter().map(message_from_row).collect()
     }
 
+    pub async fn all_orchestration_messages_from_handle(
+        &self,
+        from_handle: &str,
+        limit: i64,
+    ) -> Result<Vec<OrchestrationMessage>> {
+        self.expire_orchestration_messages().await?;
+        let rows = sqlx::query(&format!(
+            "SELECT {MESSAGE_COLUMNS} FROM orchestrationMessages \
+             WHERE from_handle = ? ORDER BY sequence DESC LIMIT ?"
+        ))
+        .bind(from_handle)
+        .bind(limit)
+        .fetch_all(self.pool())
+        .await?;
+        rows.into_iter().map(message_from_row).collect()
+    }
+
     pub async fn orchestration_inbox(&self, limit: i64) -> Result<Vec<OrchestrationMessage>> {
+        self.expire_orchestration_messages().await?;
         let rows = sqlx::query(&format!(
             "SELECT {MESSAGE_COLUMNS} FROM orchestrationMessages \
              ORDER BY sequence DESC LIMIT ?"
@@ -326,7 +418,7 @@ impl RuntimeStore {
             return Ok(());
         }
         let sql = format!(
-            "UPDATE orchestrationMessages SET read = 1 WHERE id IN ({})",
+            "UPDATE orchestrationMessages SET read = 1, state = CASE WHEN state = 'obsolete' THEN state ELSE 'read' END WHERE id IN ({})",
             id_placeholders(ids.len())
         );
         let mut query = sqlx::query(&sql);
@@ -342,7 +434,8 @@ impl RuntimeStore {
             return Ok(());
         }
         let sql = format!(
-            "UPDATE orchestrationMessages SET delivered_at = datetime('now') WHERE id IN ({})",
+            "UPDATE orchestrationMessages SET delivered_at = datetime('now'), \
+             state = CASE WHEN state = 'queued' THEN 'delivered' ELSE state END WHERE id IN ({})",
             id_placeholders(ids.len())
         );
         let mut query = sqlx::query(&sql);
