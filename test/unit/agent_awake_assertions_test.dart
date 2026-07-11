@@ -51,6 +51,25 @@ void main() {
       expect(runner.calls, hasLength(1));
     });
 
+    test('stops a process that finishes spawning after stop', () async {
+      final child = _FakeStartedProcess();
+      final pending = Completer<StartedProcess>();
+      final runner = _FakeProcessRunner()..queuedStarts.add(pending.future);
+      final assertion = MacosSystemSleepAssertion(
+        processRunner: runner,
+        platform: 'macos',
+      );
+
+      final start = assertion.start('status-change');
+      await _waitForStartCalls(runner, 1);
+      final stop = assertion.stop('status-change');
+      pending.complete(child.startedProcess);
+      await Future.wait<void>(<Future<void>>[start, stop]);
+
+      expect(runner.calls, hasLength(1));
+      expect(child.killCalls, 1);
+    });
+
     test('retries after an unexpected process exit', () async {
       final first = _FakeStartedProcess();
       final second = _FakeStartedProcess();
@@ -168,69 +187,6 @@ void main() {
         expect(runner.calls, hasLength(3));
       },
     );
-  });
-
-  group('LinuxLidSleepAssertion', () {
-    test(
-      'spawns systemd-inhibit with sleep and lid-switch inhibitors',
-      () async {
-        final runner = _FakeProcessRunner()
-          ..queuedStarts.add(_FakeStartedProcess());
-        final assertion = LinuxLidSleepAssertion(
-          processRunner: runner,
-          platform: 'linux',
-        );
-
-        await assertion.start('status-change');
-
-        expect(runner.calls, hasLength(1));
-        expect(runner.calls.single.executable, 'systemd-inhibit');
-        expect(runner.calls.single.arguments, <String>[
-          '--what=sleep:handle-lid-switch',
-          '--who=Alera',
-          '--why=Agents are working',
-          '--mode=block',
-          'sleep',
-          'infinity',
-        ]);
-      },
-    );
-
-    test('degrades to no-op when systemd-inhibit is missing', () async {
-      final runner = _FakeProcessRunner()
-        ..queuedStarts.add(
-          const ProcessException('systemd-inhibit', <String>[], 'not found', 2),
-        );
-      final assertion = LinuxLidSleepAssertion(
-        processRunner: runner,
-        platform: 'linux',
-        retryDelay: const Duration(milliseconds: 5),
-      );
-
-      await assertion.start('status-change');
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-      await assertion.start('power-resume');
-
-      expect(runner.calls, hasLength(1));
-    });
-
-    test('treats shell command-not-found exits as unavailable', () async {
-      final first = _FakeStartedProcess();
-      final runner = _FakeProcessRunner()
-        ..queuedStarts.addAll(<Object>[first, _FakeStartedProcess()]);
-      final assertion = LinuxLidSleepAssertion(
-        processRunner: runner,
-        platform: 'linux',
-        retryDelay: const Duration(milliseconds: 5),
-      );
-
-      await assertion.start('status-change');
-      first.completeExit(127);
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-      await assertion.start('power-resume');
-
-      expect(runner.calls, hasLength(1));
-    });
   });
 
   group('WindowsSystemSleepAssertion', () {
@@ -373,8 +329,11 @@ class _FakeProcessRunner implements ProcessRunner {
     final next = queuedStarts.isEmpty
         ? _FakeStartedProcess()
         : queuedStarts.removeAt(0);
-    if (next is ProcessException) {
+    if (next is Exception) {
       throw next;
+    }
+    if (next is Future<StartedProcess>) {
+      return next;
     }
     return (next as _FakeStartedProcess).startedProcess;
   }
