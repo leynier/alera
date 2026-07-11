@@ -34,12 +34,9 @@ void main() {
           platform: 'macos',
         );
       final service = DesktopAleraUpdateService(
-        config: AleraUpdateConfig(
-          archiveUrl: Uri.parse('https://example.com/archive.json'),
-          releasePageUrl: Uri.parse('https://example.com/releases'),
+        config: _config(
           channel: AleraUpdateChannel.rc,
           autoInstallEnabled: true,
-          signedRelease: false,
         ),
         desktopUpdater: updater,
         platform: 'macos',
@@ -59,13 +56,7 @@ void main() {
       'checks the published archive manually when auto-install is blocked',
       () async {
         final service = DesktopAleraUpdateService(
-          config: AleraUpdateConfig(
-            archiveUrl: Uri.parse('https://example.com/archive.json'),
-            releasePageUrl: Uri.parse('https://example.com/releases'),
-            channel: AleraUpdateChannel.stable,
-            autoInstallEnabled: true,
-            signedRelease: false,
-          ),
+          config: _config(autoInstallEnabled: true),
           client: MockClient((request) async {
             expect(request.url.toString(), 'https://example.com/archive.json');
             return http.Response(_archiveJson, 200);
@@ -88,13 +79,7 @@ void main() {
       'manual checks describe downloadable updates when auto-install is off',
       () async {
         final service = DesktopAleraUpdateService(
-          config: AleraUpdateConfig(
-            archiveUrl: Uri.parse('https://example.com/archive.json'),
-            releasePageUrl: Uri.parse('https://example.com/releases'),
-            channel: AleraUpdateChannel.stable,
-            autoInstallEnabled: false,
-            signedRelease: false,
-          ),
+          config: _config(),
           client: MockClient((_) async => http.Response(_archiveJson, 200)),
           loadPackageInfo: () async => _packageInfo(buildNumber: '1'),
           platform: 'macos',
@@ -199,13 +184,7 @@ void main() {
       'throws when the archive download fails with a non-404 status',
       () async {
         final service = DesktopAleraUpdateService(
-          config: AleraUpdateConfig(
-            archiveUrl: Uri.parse('https://example.com/archive.json'),
-            releasePageUrl: Uri.parse('https://example.com/releases'),
-            channel: AleraUpdateChannel.stable,
-            autoInstallEnabled: false,
-            signedRelease: false,
-          ),
+          config: _config(),
           client: MockClient((_) async => http.Response('boom', 500)),
           platform: 'macos',
         );
@@ -251,12 +230,9 @@ void main() {
             ),
           ]);
         final service = DesktopAleraUpdateService(
-          config: AleraUpdateConfig(
-            archiveUrl: Uri.parse('https://example.com/archive.json'),
-            releasePageUrl: Uri.parse('https://example.com/releases'),
+          config: _config(
             channel: AleraUpdateChannel.rc,
             autoInstallEnabled: true,
-            signedRelease: false,
           ),
           desktopUpdater: updater,
           platform: 'macos',
@@ -264,14 +240,10 @@ void main() {
         final progress = <double>[];
 
         await service.installUpdate(
-          AleraUpdateInfo(
+          _updateInfo(
             version: '0.1.4-rc.0',
             shortVersion: 4,
-            date: '2026-05-25',
-            mandatory: false,
-            url: Uri.parse('https://example.com/updates/0.1.4+4-macos'),
-            platform: 'macos',
-            changes: <String>['Preview'],
+            url: 'https://example.com/updates/0.1.4+4-macos',
           ),
           onProgress: progress.add,
         );
@@ -286,27 +258,13 @@ void main() {
 
     test('rejects installation when automatic updates are disabled', () async {
       final service = DesktopAleraUpdateService(
-        config: AleraUpdateConfig(
-          archiveUrl: Uri.parse('https://example.com/archive.json'),
-          releasePageUrl: Uri.parse('https://example.com/releases'),
-          channel: AleraUpdateChannel.stable,
-          autoInstallEnabled: false,
-          signedRelease: false,
-        ),
+        config: _config(),
         platform: 'macos',
       );
 
       await expectLater(
         service.installUpdate(
-          AleraUpdateInfo(
-            version: '0.1.2',
-            shortVersion: 3,
-            date: '2026-05-25',
-            mandatory: false,
-            url: Uri.parse('https://example.com/updates/0.1.2+3-macos'),
-            platform: 'macos',
-            changes: <String>['Fix'],
-          ),
+          _updateInfo(url: 'https://example.com/updates/0.1.2+3-macos'),
         ),
         throwsA(isA<StateError>()),
       );
@@ -316,12 +274,9 @@ void main() {
       'installUpdate throws when the updater has no available item',
       () async {
         final service = DesktopAleraUpdateService(
-          config: AleraUpdateConfig(
-            archiveUrl: Uri.parse('https://example.com/archive.json'),
-            releasePageUrl: Uri.parse('https://example.com/releases'),
+          config: _config(
             channel: AleraUpdateChannel.rc,
             autoInstallEnabled: true,
-            signedRelease: false,
           ),
           desktopUpdater: _FakeDesktopUpdater(),
           platform: 'macos',
@@ -329,14 +284,10 @@ void main() {
 
         await expectLater(
           service.installUpdate(
-            AleraUpdateInfo(
+            _updateInfo(
               version: '0.1.4-rc.0',
               shortVersion: 4,
-              date: '2026-05-25',
-              mandatory: false,
-              url: Uri.parse('https://example.com/updates/0.1.4+4-macos'),
-              platform: 'macos',
-              changes: <String>['Preview'],
+              url: 'https://example.com/updates/0.1.4+4-macos',
             ),
           ),
           throwsStateError,
@@ -352,17 +303,15 @@ void main() {
     });
 
     test(
-      'opens the release page and restarts through injected delegates',
+      'opens the detected update release page and restarts via delegates',
       () async {
         final launched = <Uri>[];
         final updater = _FakeDesktopUpdater();
         final service = DesktopAleraUpdateService(
-          config: AleraUpdateConfig(
-            archiveUrl: Uri.parse('https://example.com/archive.json'),
-            releasePageUrl: Uri.parse('https://example.com/releases'),
-            channel: AleraUpdateChannel.stable,
-            autoInstallEnabled: false,
-            signedRelease: false,
+          config: _config(
+            releasePageUrl: Uri.parse(
+              'https://github.com/leynier/alera/releases/tag/v0.9.0',
+            ),
           ),
           desktopUpdater: updater,
           launchUrl: (uri) async {
@@ -373,9 +322,15 @@ void main() {
         );
 
         await service.openDownloadPage(null);
+        await service.openDownloadPage(
+          _updateInfo(version: '0.10.0', shortVersion: 23, platform: 'linux'),
+        );
         await service.restartApp();
 
-        expect(launched, <Uri>[Uri.parse('https://example.com/releases')]);
+        expect(launched, <Uri>[
+          Uri.parse('https://github.com/leynier/alera/releases/tag/v0.9.0'),
+          Uri.parse('https://github.com/leynier/alera/releases/tag/v0.10.0'),
+        ]);
         expect(updater.restartCalls, 1);
       },
     );
@@ -386,13 +341,7 @@ void main() {
       UrlLauncherPlatform.instance = fakePlatform;
       addTearDown(() => UrlLauncherPlatform.instance = previousPlatform);
       final service = DesktopAleraUpdateService(
-        config: AleraUpdateConfig(
-          archiveUrl: Uri.parse('https://example.com/archive.json'),
-          releasePageUrl: Uri.parse('https://example.com/releases'),
-          channel: AleraUpdateChannel.stable,
-          autoInstallEnabled: false,
-          signedRelease: false,
-        ),
+        config: _config(),
         platform: 'macos',
       );
       addTearDown(service.dispose);
@@ -404,6 +353,41 @@ void main() {
       ]);
     });
   });
+}
+
+AleraUpdateConfig _config({
+  Uri? releasePageUrl,
+  AleraUpdateChannel channel = AleraUpdateChannel.stable,
+  bool autoInstallEnabled = false,
+  bool signedRelease = false,
+  String manifestPublicKey = '',
+}) {
+  return AleraUpdateConfig(
+    archiveUrl: Uri.parse('https://example.com/archive.json'),
+    releasePageUrl: releasePageUrl ?? Uri.parse('https://example.com/releases'),
+    channel: channel,
+    autoInstallEnabled: autoInstallEnabled,
+    signedRelease: signedRelease,
+    manifestPublicKey: manifestPublicKey,
+  );
+}
+
+AleraUpdateInfo _updateInfo({
+  String version = '0.1.2',
+  int shortVersion = 3,
+  String url = 'https://example.com/updates/0.1.2+3-macos',
+  String platform = 'macos',
+  List<String> changes = const <String>['Preview'],
+}) {
+  return AleraUpdateInfo(
+    version: version,
+    shortVersion: shortVersion,
+    date: '2026-05-25',
+    mandatory: false,
+    url: Uri.parse(url),
+    platform: platform,
+    changes: changes,
+  );
 }
 
 PackageInfo _packageInfo({required String buildNumber}) {

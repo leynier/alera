@@ -153,7 +153,7 @@ class DesktopAleraUpdateService implements AleraUpdateService {
 
   @override
   Future<void> openDownloadPage(AleraUpdateInfo? update) async {
-    await _launchUrl(config.releasePageUrl);
+    await _launchUrl(config.downloadPageUrlFor(update));
   }
 
   @override
