@@ -24,7 +24,7 @@ use crate::mobile_access::{
 use crate::ssh_bootstrap::{build_ssh_bootstrap_plan, SshTargetBootstrapRequest};
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::{
-    decode_bytes, error_response, event, int_or, ok_response, require_object, TerminalHostConfig,
+    error_response, event, int_or, ok_response, require_object, TerminalHostConfig,
     TerminalHostLaunch, PROTOCOL_VERSION, RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
     RUNTIME_HOST_CAPABILITY, RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
     RUNTIME_HOST_MOBILE_CAPABILITY, RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
@@ -147,23 +147,7 @@ impl ServerActor {
             "write" => {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
-                let session_id = self.require_session(payload)?;
-                let bytes = decode_bytes(payload.get("dataBase64"))?;
-                if bytes.is_empty() {
-                    return Ok(false);
-                }
-                let session = self
-                    .sessions
-                    .get_mut(&session_id)
-                    .ok_or_else(|| HostError::state("Terminal session is not attached."))?;
-                session.queue_write(
-                    crate::terminal_host::session::PtyWriteCompletion::ClientRequest {
-                        client_id,
-                        request_id,
-                    },
-                    &bytes,
-                )?;
-                Ok(true)
+                self.queue_terminal_input(client_id, request_id, payload)
             }
             _ => Ok(false),
         }
