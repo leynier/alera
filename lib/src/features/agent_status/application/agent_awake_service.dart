@@ -36,6 +36,8 @@ class AgentAwakeService {
   bool _enabled = false;
   bool _displayLockEnabled = false;
   bool _disposed = false;
+  Future<void> _operationTail = Future<void>.value();
+  Future<void>? _disposeFuture;
   AgentStatusHookSettings _hookSettings = AgentStatusHookSettings.defaults;
   Map<String, AgentStatusEntry> _statuses = const <String, AgentStatusEntry>{};
   Timer? _staleTimer;
@@ -62,18 +64,30 @@ class AgentAwakeService {
   }
 
   Future<void> dispose() async {
-    if (_disposed) {
-      return;
+    final existingDispose = _disposeFuture;
+    if (existingDispose != null) {
+      return existingDispose;
     }
     _disposed = true;
     _clearStaleTimer();
-    await _setDisplayLock(false, 'dispose');
-    for (final assertion in _assertions) {
-      await _tryAssertion('dispose assertion', () => assertion.dispose());
-    }
+    final disposeFuture = _enqueue(() async {
+      await _setDisplayLock(false, 'dispose');
+      for (final assertion in _assertions) {
+        await _tryAssertion('dispose assertion', () => assertion.dispose());
+      }
+    });
+    _disposeFuture = disposeFuture;
+    await disposeFuture;
   }
 
-  Future<void> _refresh(String reason) async {
+  Future<void> _refresh(String reason) {
+    if (_disposed) {
+      return Future<void>.value();
+    }
+    return _enqueue(() => _performRefresh(reason));
+  }
+
+  Future<void> _performRefresh(String reason) async {
     if (_disposed) {
       return;
     }
@@ -182,5 +196,14 @@ class AgentAwakeService {
         stackTrace,
       );
     }
+  }
+
+  Future<void> _enqueue(Future<void> Function() operation) {
+    final result = _operationTail.then((_) => operation());
+    _operationTail = result.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    return result;
   }
 }

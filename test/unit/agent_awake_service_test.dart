@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:alera/src/features/agent_status/application/agent_awake_service.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
@@ -77,7 +79,7 @@ void main() {
       });
 
       now = base.add(staleAfter).add(const Duration(milliseconds: 1));
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await _waitForAssertionStop(assertion, 'stale-expiry');
 
       expect(displayLock.states, <bool>[true, false]);
       expect(assertion.stops, contains('stale-expiry'));
@@ -99,6 +101,35 @@ void main() {
       expect(displayLock.states, <bool>[true, false]);
       expect(assertion.stops, contains('settings-change'));
     });
+
+    test(
+      'serializes a working to idle transition while start is pending',
+      () async {
+        final displayLock = _FakeDisplayLock();
+        final assertion = _FakeAssertion()..startGate = Completer<void>();
+        final service = _service(
+          displayLock: displayLock,
+          assertion: assertion,
+        );
+
+        await service.setHookSettings(
+          const AgentStatusHookSettings(codex: true),
+        );
+        await service.setEnabled(true);
+        final working = service.setStatuses(<String, AgentStatusEntry>{
+          'session-1': _entry(state: AgentStatusState.working),
+        });
+        await _waitForAssertionStarts(assertion, 1);
+        final idle = service.setStatuses(const <String, AgentStatusEntry>{});
+        assertion.startGate!.complete();
+        await Future.wait<void>(<Future<void>>[working, idle]);
+
+        expect(assertion.maxActiveCount, 1);
+        expect(assertion.activeCount, 0);
+        expect(assertion.stops, contains('status-change'));
+        await service.dispose();
+      },
+    );
 
     test('treats every enabled agent hook as wake eligible', () async {
       for (final agentType in AgentType.values) {
@@ -247,6 +278,36 @@ class _FakeDisplayLock implements AgentAwakeDisplayLock {
   }
 }
 
+Future<void> _waitForAssertionStarts(
+  _FakeAssertion assertion,
+  int count, {
+  Duration timeout = const Duration(seconds: 1),
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (DateTime.now().isBefore(deadline)) {
+    if (assertion.starts.length >= count) {
+      return;
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+  }
+  fail('Expected at least $count assertion starts.');
+}
+
+Future<void> _waitForAssertionStop(
+  _FakeAssertion assertion,
+  String reason, {
+  Duration timeout = const Duration(seconds: 1),
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (DateTime.now().isBefore(deadline)) {
+    if (assertion.stops.contains(reason)) {
+      return;
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+  }
+  fail('Expected an assertion stop for $reason.');
+}
+
 class _FakeAssertion implements AgentAwakeAssertion {
   final List<String> starts = <String>[];
   final List<String> stops = <String>[];
@@ -254,10 +315,18 @@ class _FakeAssertion implements AgentAwakeAssertion {
   var throwOnStart = false;
   var throwOnStop = false;
   var throwOnDispose = false;
+  Completer<void>? startGate;
+  var activeCount = 0;
+  var maxActiveCount = 0;
 
   @override
   Future<void> start(String reason) async {
     starts.add(reason);
+    activeCount++;
+    if (activeCount > maxActiveCount) {
+      maxActiveCount = activeCount;
+    }
+    await startGate?.future;
     if (throwOnStart) {
       throw StateError('start failed');
     }
@@ -266,6 +335,9 @@ class _FakeAssertion implements AgentAwakeAssertion {
   @override
   Future<void> stop(String reason) async {
     stops.add(reason);
+    if (activeCount > 0) {
+      activeCount--;
+    }
     if (throwOnStop) {
       throw StateError('stop failed');
     }

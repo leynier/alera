@@ -50,19 +50,22 @@ class MacosSystemSleepAssertion extends _ProcessBackedAwakeAssertion {
 class LinuxLidSleepAssertion extends _ProcessBackedAwakeAssertion {
   LinuxLidSleepAssertion({
     required super.processRunner,
+    int? processId,
     super.now,
     super.logger,
     super.platform,
     super.retryDelay = linuxLidSleepAssertionRetryDelay,
   }) : super(
          executable: 'systemd-inhibit',
-         arguments: const <String>[
+         arguments: <String>[
            '--what=sleep:handle-lid-switch',
            '--who=Alera',
            '--why=Agents are working',
            '--mode=block',
-           'sleep',
-           'infinity',
+           'tail',
+           '--pid=${processId ?? pid}',
+           '-f',
+           '/dev/null',
          ],
          supportedPlatform: 'linux',
          label: 'Linux lid sleep assertion',
@@ -164,14 +167,25 @@ class _ProcessBackedAwakeAssertion implements AgentAwakeAssertion {
   DateTime? _retryNotBefore;
   Timer? _retryTimer;
   bool _unavailable = false;
+  bool _desiredActive = false;
+  bool _disposed = false;
+  Future<void> _operationTail = Future<void>.value();
   String? _lastFailureKey;
   bool _warnedForLastFailure = false;
   final Set<StartedProcess> _intentionalStops = <StartedProcess>{};
   final Set<StartedProcess> _reportedFailures = <StartedProcess>{};
 
   @override
-  Future<void> start(String reason) async {
-    if (_platform != supportedPlatform || _child != null || _unavailable) {
+  Future<void> start(String reason) {
+    if (_platform != supportedPlatform || _disposed) {
+      return Future<void>.value();
+    }
+    _desiredActive = true;
+    return _enqueue(() => _startNow(reason));
+  }
+
+  Future<void> _startNow(String reason) async {
+    if (!_desiredActive || _disposed || _child != null || _unavailable) {
       return;
     }
     final retryNotBefore = _retryNotBefore;
@@ -188,7 +202,6 @@ class _ProcessBackedAwakeAssertion implements AgentAwakeAssertion {
       return;
     }
 
-    _child = child;
     unawaited(child.stdout.drain<void>());
     unawaited(child.stderr.drain<void>());
     unawaited(
@@ -206,20 +219,35 @@ class _ProcessBackedAwakeAssertion implements AgentAwakeAssertion {
             );
           }),
     );
+    if (!_desiredActive || _disposed) {
+      _intentionalStops.add(child);
+      _killChild(child, reason);
+      return;
+    }
+    _child = child;
     _resetRetrySuppression();
     _resetFailureStreak();
   }
 
   @override
-  Future<void> stop(String reason) async {
+  Future<void> stop(String reason) {
+    _desiredActive = false;
     _resetRetrySuppression();
     _resetFailureStreak();
+    return _enqueue(() async => _stopNow(reason));
+  }
+
+  void _stopNow(String reason) {
     final child = _child;
     if (child == null) {
       return;
     }
     _child = null;
     _intentionalStops.add(child);
+    _killChild(child, reason);
+  }
+
+  void _killChild(StartedProcess child, String reason) {
     try {
       child.kill();
     } catch (error, stackTrace) {
@@ -233,7 +261,14 @@ class _ProcessBackedAwakeAssertion implements AgentAwakeAssertion {
 
   @override
   Future<void> dispose() {
-    return stop('dispose');
+    if (_disposed) {
+      return _operationTail;
+    }
+    _disposed = true;
+    _desiredActive = false;
+    _resetRetrySuppression();
+    _resetFailureStreak();
+    return _enqueue(() async => _stopNow('dispose'));
   }
 
   void _handleChildExit(StartedProcess child, int exitCode, String reason) {
@@ -287,6 +322,9 @@ class _ProcessBackedAwakeAssertion implements AgentAwakeAssertion {
       return;
     }
     _logFailure(failureKey, reason, details, failureType);
+    if (!_desiredActive || _disposed) {
+      return;
+    }
     _retryNotBefore = _now().add(retryDelay);
     _scheduleRetry();
   }
@@ -315,7 +353,10 @@ class _ProcessBackedAwakeAssertion implements AgentAwakeAssertion {
 
   void _scheduleRetry() {
     final retryNotBefore = _retryNotBefore;
-    if (retryNotBefore == null || _retryTimer != null) {
+    if (!_desiredActive ||
+        _disposed ||
+        retryNotBefore == null ||
+        _retryTimer != null) {
       return;
     }
     final delay = retryNotBefore.difference(_now());
@@ -334,6 +375,15 @@ class _ProcessBackedAwakeAssertion implements AgentAwakeAssertion {
   void _resetFailureStreak() {
     _lastFailureKey = null;
     _warnedForLastFailure = false;
+  }
+
+  Future<void> _enqueue(Future<void> Function() operation) {
+    final result = _operationTail.then((_) => operation());
+    _operationTail = result.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    return result;
   }
 }
 
