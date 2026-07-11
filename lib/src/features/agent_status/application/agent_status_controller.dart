@@ -52,6 +52,15 @@ class AgentStatusController extends _$AgentStatusController
     final receivedAt = _now();
     for (final event in events) {
       final previous = next[event.terminalSessionId];
+      if (isAgentSessionResetHookEvent(event)) {
+        if (previous == null) {
+          continue;
+        }
+        next = <String, AgentStatusEntry>{...next}
+          ..remove(event.terminalSessionId);
+        changed = true;
+        continue;
+      }
       if (isAgentSessionCloseHookEvent(event)) {
         final identity = resolveAgentStatusIdentity(
           previous: previous,

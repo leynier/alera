@@ -124,6 +124,7 @@ class AgentStatusHookSettings with AgentStatusHookSettingsMappable {
     this.opencode = false,
     this.pi = false,
     this.amp = false,
+    this.grok = false,
   });
 
   final bool codex;
@@ -134,9 +135,18 @@ class AgentStatusHookSettings with AgentStatusHookSettingsMappable {
   final bool opencode;
   final bool pi;
   final bool amp;
+  final bool grok;
 
   bool get anyEnabled =>
-      codex || claude || copilot || cursor || agy || opencode || pi || amp;
+      codex ||
+      claude ||
+      copilot ||
+      cursor ||
+      agy ||
+      opencode ||
+      pi ||
+      amp ||
+      grok;
 
   static const AgentStatusHookSettings defaults = AgentStatusHookSettings();
 

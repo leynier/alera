@@ -9,6 +9,7 @@ part 'normalizers/claude_agent_hook_normalizer.dart';
 part 'normalizers/codex_agent_hook_normalizer.dart';
 part 'normalizers/copilot_agent_hook_normalizer.dart';
 part 'normalizers/cursor_agent_hook_normalizer.dart';
+part 'normalizers/grok_agent_hook_normalizer.dart';
 part 'normalizers/opencode_agent_hook_normalizer.dart';
 part 'normalizers/pi_agent_hook_normalizer.dart';
 part 'normalizers/agent_hook_tool_snapshot.dart';
@@ -56,6 +57,7 @@ NormalizedAgentStatus? normalizeAgentHookEvent(
     AgentType.opencode => _normalizeOpenCodeState(eventName),
     AgentType.pi => _normalizePiState(eventName),
     AgentType.amp => _normalizeAmpState(eventName),
+    AgentType.grok => _normalizeGrokState(eventName, event.payload),
   };
   if (state == null) {
     return null;
@@ -100,7 +102,13 @@ bool isAgentSessionCloseHookEvent(AgentHookEvent event) {
     AgentType.agy ||
     AgentType.opencode ||
     AgentType.amp => false,
+    AgentType.grok => _normalizeGrokEventName(eventName) == 'SessionEnd',
   };
+}
+
+bool isAgentSessionResetHookEvent(AgentHookEvent event) {
+  final eventName = _hookEventName(event);
+  return event.agentType == AgentType.grok && eventName == 'SessionStart';
 }
 
 String? _hookEventName(AgentHookEvent event) {
@@ -121,6 +129,9 @@ String? _hookEventName(AgentHookEvent event) {
       raw ?? _inferCopilotEventName(event.payload),
     );
   }
+  if (event.agentType == AgentType.grok) {
+    return _normalizeGrokEventName(raw);
+  }
   return raw;
 }
 
@@ -134,11 +145,15 @@ bool _isNewTurn(AgentType agentType, String eventName) {
     AgentType.opencode => _isOpenCodeNewTurn(eventName),
     AgentType.pi => _isPiNewTurn(eventName),
     AgentType.amp => _isAmpNewTurn(eventName),
+    AgentType.grok => _isGrokNewTurn(eventName),
   };
 }
 
 String _extractPromptForEvent(AgentHookEvent event, String eventName) {
   if (event.agentType == AgentType.copilot && eventName == 'Notification') {
+    return '';
+  }
+  if (event.agentType == AgentType.grok && eventName == 'Notification') {
     return '';
   }
   if (event.agentType == AgentType.opencode) {
@@ -149,7 +164,9 @@ String _extractPromptForEvent(AgentHookEvent event, String eventName) {
   }
   final direct = _extractPrompt(event.payload);
   if (direct.isNotEmpty) {
-    return direct;
+    return event.agentType == AgentType.grok
+        ? _stripGrokUserQueryWrapper(direct)
+        : direct;
   }
   if (event.agentType == AgentType.agy) {
     return _agyPromptForEvent(event) ?? '';

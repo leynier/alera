@@ -17,7 +17,8 @@ enum AgentType {
   agy('agy'),
   opencode('opencode'),
   pi('pi'),
-  amp('amp');
+  amp('amp'),
+  grok('grok');
 
   const AgentType(this.key);
 

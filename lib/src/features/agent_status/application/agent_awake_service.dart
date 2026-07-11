@@ -116,6 +116,7 @@ class AgentAwakeService {
       AgentType.opencode => _hookSettings.opencode,
       AgentType.pi => _hookSettings.pi,
       AgentType.amp => _hookSettings.amp,
+      AgentType.grok => _hookSettings.grok,
     };
   }
 

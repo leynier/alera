@@ -2,7 +2,10 @@ import 'dart:convert';
 
 import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
 
-enum AiPromptDelivery { argv, stdin }
+part 'grok_ai_text_generation.dart';
+part 'ai_text_generation_model_labels.dart';
+
+enum AiPromptDelivery { argv, stdin, promptFile }
 
 class AiThinkingLevel {
   const AiThinkingLevel({required this.id, required this.label});
@@ -399,6 +402,7 @@ aiTextAgentSpecs = <AiTextGenerationAgent, AiTextAgentSpec>{
           if (thinkingLevel != null) ...<String>['--effort', thinkingLevel],
         ],
   ),
+  AiTextGenerationAgent.grok: grokAiTextAgentSpec,
 };
 
 List<AiTextModel> discoveredModelsForAgent(
@@ -538,22 +542,6 @@ List<AiTextModel> parsePiModels(String stdout) {
         })
         .toList(growable: false),
   );
-}
-
-String labelFromModelId(String id) {
-  return id
-      .split(RegExp(r'[/-]'))
-      .where((part) => part.isNotEmpty)
-      .map((part) {
-        if (part.toLowerCase() == 'gpt') {
-          return 'GPT';
-        }
-        if (part.length <= 3 && RegExp(r'^\d').hasMatch(part)) {
-          return part.toUpperCase();
-        }
-        return '${part[0].toUpperCase()}${part.substring(1)}';
-      })
-      .join(' ');
 }
 
 List<AiTextModel> _uniqueModels(List<AiTextModel> models) {

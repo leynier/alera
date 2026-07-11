@@ -76,7 +76,7 @@ void main() {
             .map((agent) => agent.agentType)
             .whereType<Object>()
             .length,
-        8,
+        9,
       );
     });
 
@@ -124,6 +124,7 @@ void main() {
       });
       expect(hooks.claude, isTrue);
       expect(hooks.pi, isTrue);
+      expect(hooks.grok, isFalse);
       expect(hooks.anyEnabled, isTrue);
     });
 
@@ -141,6 +142,7 @@ void main() {
             agy: true,
             pi: true,
             amp: true,
+            grok: true,
           ),
           agentStatusNotificationsEnabled: true,
           keepComputerAwakeWhileAgentsWork: true,
@@ -204,6 +206,7 @@ void main() {
       expect(restored.agents.agentStatusHooks.opencode, isFalse);
       expect(restored.agents.agentStatusHooks.pi, isTrue);
       expect(restored.agents.agentStatusHooks.amp, isTrue);
+      expect(restored.agents.agentStatusHooks.grok, isTrue);
       expect(restored.agents.agentStatusNotificationsEnabled, isTrue);
       expect(restored.agents.keepComputerAwakeWhileAgentsWork, isTrue);
       expect(restored.editor.tabSize, 2);

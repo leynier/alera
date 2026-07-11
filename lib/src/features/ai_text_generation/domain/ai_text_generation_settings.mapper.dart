@@ -98,6 +98,8 @@ class AiTextGenerationAgentMapper extends EnumMapper<AiTextGenerationAgent> {
         return AiTextGenerationAgent.pi;
       case r'amp':
         return AiTextGenerationAgent.amp;
+      case r'grok':
+        return AiTextGenerationAgent.grok;
       case r'custom':
         return AiTextGenerationAgent.custom;
       default:
@@ -124,6 +126,8 @@ class AiTextGenerationAgentMapper extends EnumMapper<AiTextGenerationAgent> {
         return r'pi';
       case AiTextGenerationAgent.amp:
         return r'amp';
+      case AiTextGenerationAgent.grok:
+        return r'grok';
       case AiTextGenerationAgent.custom:
         return r'custom';
     }

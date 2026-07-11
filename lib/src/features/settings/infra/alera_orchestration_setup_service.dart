@@ -97,5 +97,6 @@ String _agentTypeLabel(AgentType agentType) {
     AgentType.opencode => 'OpenCode',
     AgentType.pi => 'Pi',
     AgentType.amp => 'Amp',
+    AgentType.grok => 'Grok Build',
   };
 }

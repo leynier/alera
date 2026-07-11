@@ -3,6 +3,9 @@ import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+part 'grok_agent_status_controller_test_cases.dart';
+part 'agent_status_controller_test_harness.dart';
+
 void main() {
   group('AgentStatusController', () {
     late List<DateTime> times;
@@ -26,6 +29,8 @@ void main() {
       );
       addTearDown(container.dispose);
     });
+
+    _registerGrokAgentStatusControllerTests(() => container);
 
     test('normalizes Codex events and preserves state start time', () {
       final controller = container.read(agentStatusControllerProvider.notifier);
@@ -491,19 +496,4 @@ void main() {
       );
     });
   });
-}
-
-AgentHookEvent _event({
-  required AgentType agentType,
-  required String hookEventName,
-  required Map<String, Object?> payload,
-}) {
-  return AgentHookEvent(
-    terminalSessionId: 'session-1',
-    workspaceId: 'workspace-1',
-    tabId: 'tab-1',
-    agentType: agentType,
-    hookEventName: hookEventName,
-    payload: payload,
-  );
 }

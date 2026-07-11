@@ -672,6 +672,13 @@ class AgentStatusHookSettingsMapper
     opt: true,
     def: false,
   );
+  static bool _$grok(AgentStatusHookSettings v) => v.grok;
+  static const Field<AgentStatusHookSettings, bool> _f$grok = Field(
+    'grok',
+    _$grok,
+    opt: true,
+    def: false,
+  );
 
   @override
   final MappableFields<AgentStatusHookSettings> fields = const {
@@ -683,6 +690,7 @@ class AgentStatusHookSettingsMapper
     #opencode: _f$opencode,
     #pi: _f$pi,
     #amp: _f$amp,
+    #grok: _f$grok,
   };
 
   static AgentStatusHookSettings _instantiate(DecodingData data) {
@@ -695,6 +703,7 @@ class AgentStatusHookSettingsMapper
       opencode: data.dec(_f$opencode),
       pi: data.dec(_f$pi),
       amp: data.dec(_f$amp),
+      grok: data.dec(_f$grok),
     );
   }
 
@@ -777,6 +786,7 @@ abstract class AgentStatusHookSettingsCopyWith<
     bool? opencode,
     bool? pi,
     bool? amp,
+    bool? grok,
   });
   AgentStatusHookSettingsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -802,6 +812,7 @@ class _AgentStatusHookSettingsCopyWithImpl<$R, $Out>
     bool? opencode,
     bool? pi,
     bool? amp,
+    bool? grok,
   }) => $apply(
     FieldCopyWithData({
       if (codex != null) #codex: codex,
@@ -812,6 +823,7 @@ class _AgentStatusHookSettingsCopyWithImpl<$R, $Out>
       if (opencode != null) #opencode: opencode,
       if (pi != null) #pi: pi,
       if (amp != null) #amp: amp,
+      if (grok != null) #grok: grok,
     }),
   );
   @override
@@ -824,6 +836,7 @@ class _AgentStatusHookSettingsCopyWithImpl<$R, $Out>
     opencode: data.get(#opencode, or: $value.opencode),
     pi: data.get(#pi, or: $value.pi),
     amp: data.get(#amp, or: $value.amp),
+    grok: data.get(#grok, or: $value.grok),
   );
 
   @override

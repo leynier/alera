@@ -103,6 +103,12 @@ const List<SettingsSearchEntry> agentsSearchEntries = <SettingsSearchEntry>[
     groupId: 'hooks',
   ),
   SettingsSearchEntry(
+    title: 'Grok Build Hooks',
+    description: 'Install managed Grok Build status hooks.',
+    keywords: <String>['grok', 'xai', 'agent', 'status', 'hooks'],
+    groupId: 'hooks',
+  ),
+  SettingsSearchEntry(
     title: 'Agent Status Notifications',
     description: 'Show native notifications when agents need attention.',
     keywords: <String>[
@@ -115,6 +121,7 @@ const List<SettingsSearchEntry> agentsSearchEntries = <SettingsSearchEntry>[
       'opencode',
       'pi',
       'amp',
+      'grok',
       'agent',
       'status',
       'notification',

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_prompt.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_registry.dart';
@@ -8,6 +9,7 @@ import 'package:alera/src/shared/infra/git/git_backend.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/process/command_environment_resolver.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
+import 'package:path/path.dart' as p;
 
 const int maxArgvPromptBytes = 24000;
 
@@ -78,13 +80,14 @@ class CliAiTextGenerationService implements AiTextGenerationService {
     _canceled.remove(key);
     _pending.add(key);
 
+    _AiTextCommandPlan? plan;
     try {
       final prompt = await _promptFor(request);
       if (_canceled.contains(key)) {
         throw const AiTextGenerationCanceledException();
       }
-      final plan = _planCommand(request.settings, prompt);
       final environment = await commandEnvironmentResolver.environment();
+      plan = await _planCommand(request.settings, prompt, environment);
       if (_canceled.contains(key)) {
         throw const AiTextGenerationCanceledException();
       }
@@ -94,7 +97,10 @@ class CliAiTextGenerationService implements AiTextGenerationService {
           plan.binary,
           plan.args,
           workingDirectory: request.workspacePath,
-          environment: environment,
+          environment: <String, String>{
+            ...environment,
+            ...plan.environmentOverrides,
+          },
         );
       } catch (_) {
         throw AiTextGenerationException(
@@ -140,6 +146,7 @@ class CliAiTextGenerationService implements AiTextGenerationService {
       _pending.remove(key);
       _running.remove(key);
       _canceled.remove(key);
+      await plan?.dispose();
     }
   }
 
@@ -211,10 +218,11 @@ class CliAiTextGenerationService implements AiTextGenerationService {
     );
   }
 
-  _AiTextCommandPlan _planCommand(
+  Future<_AiTextCommandPlan> _planCommand(
     AiTextGenerationSettings settings,
     String prompt,
-  ) {
+    Map<String, String> environment,
+  ) async {
     if (settings.agent == AiTextGenerationAgent.custom) {
       return _planCustomCommand(settings.customCommand, prompt);
     }
@@ -238,13 +246,36 @@ class CliAiTextGenerationService implements AiTextGenerationService {
         '${spec.label} cannot receive large prompts safely. Choose an agent that supports stdin prompts or reduce the staged diff.',
       );
     }
-    final argvPrompt = spec.promptDelivery == AiPromptDelivery.argv
-        ? prompt
-        : '';
+    Directory? promptDirectory;
+    final environmentOverrides = <String, String>{};
+    var deliveredPrompt = '';
+    if (spec.promptDelivery == AiPromptDelivery.argv) {
+      deliveredPrompt = prompt;
+    } else if (spec.promptDelivery == AiPromptDelivery.promptFile) {
+      promptDirectory = await Directory.systemTemp.createTemp('alera-ai-text-');
+      try {
+        final promptFile = File(
+          '${promptDirectory.path}${Platform.pathSeparator}prompt.txt',
+        );
+        await promptFile.writeAsString(prompt, flush: true);
+        deliveredPrompt = promptFile.path;
+        if (settings.agent == AiTextGenerationAgent.grok) {
+          final grokHome = Directory(p.join(promptDirectory.path, 'grok-home'));
+          await grokHome.create();
+          await _copyGrokRuntimeConfiguration(grokHome, environment);
+          environmentOverrides['GROK_HOME'] = grokHome.path;
+        }
+      } catch (_) {
+        try {
+          await promptDirectory.delete(recursive: true);
+        } catch (_) {}
+        rethrow;
+      }
+    }
     return _AiTextCommandPlan(
       binary: spec.binary,
       args: spec.buildArgs(
-        prompt: argvPrompt,
+        prompt: deliveredPrompt,
         model: model.id,
         thinkingLevel: thinking,
         timeoutSeconds: settings.timeoutSeconds,
@@ -253,7 +284,37 @@ class CliAiTextGenerationService implements AiTextGenerationService {
           ? prompt
           : null,
       label: spec.label,
+      promptDirectory: promptDirectory,
+      environmentOverrides: environmentOverrides,
     );
+  }
+
+  Future<void> _copyGrokRuntimeConfiguration(
+    Directory isolatedHome,
+    Map<String, String> environment,
+  ) async {
+    final configuredHome = environment['GROK_HOME']?.trim();
+    final userHome = (environment['HOME'] ?? environment['USERPROFILE'])
+        ?.trim();
+    final sourceHome = configuredHome != null && configuredHome.isNotEmpty
+        ? configuredHome
+        : userHome != null && userHome.isNotEmpty
+        ? p.join(userHome, '.grok')
+        : null;
+    if (sourceHome == null) {
+      return;
+    }
+    for (final fileName in const <String>[
+      'auth.json',
+      'config.toml',
+      'managed_config.toml',
+      'requirements.toml',
+    ]) {
+      final source = File(p.join(sourceHome, fileName));
+      if (await source.exists()) {
+        await source.copy(p.join(isolatedHome.path, fileName));
+      }
+    }
   }
 
   _AiTextCommandPlan _planCustomCommand(String template, String prompt) {
@@ -350,10 +411,26 @@ class _AiTextCommandPlan {
     required this.args,
     required this.stdinPayload,
     required this.label,
+    this.environmentOverrides = const <String, String>{},
+    this.promptDirectory,
   });
 
   final String binary;
   final List<String> args;
   final String? stdinPayload;
   final String label;
+  final Map<String, String> environmentOverrides;
+  final Directory? promptDirectory;
+
+  Future<void> dispose() async {
+    final directory = promptDirectory;
+    if (directory == null) {
+      return;
+    }
+    try {
+      if (await directory.exists()) {
+        await directory.delete(recursive: true);
+      }
+    } catch (_) {}
+  }
 }
