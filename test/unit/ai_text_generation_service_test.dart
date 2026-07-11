@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_prompt.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_registry.dart';
@@ -13,8 +14,13 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'fake_git_backend.dart';
 
+part 'ai_text_generation_grok_test_cases.dart';
+part 'ai_text_generation_test_harness.dart';
+
 void main() {
   group('AI text generation', () {
+    _registerGrokAiTextGenerationTests();
+
     test('builds commit prompts with staged context and instructions', () {
       final prompt = buildCommitMessagePrompt(
         context: const AiTextCommitContext(
@@ -605,120 +611,4 @@ openai-codex    gpt-5.5                 272K     128K     yes       yes
       expect(runner.started, isFalse);
     });
   });
-}
-
-class _FakeProcessRunner implements ProcessRunner {
-  _FakeProcessRunner({
-    required this.stdout,
-    this.stderr = '',
-    this.exitCode = 0,
-    this.exitCodeCompleter,
-    this.completeExitOnKill = true,
-  });
-
-  final String stdout;
-  final String stderr;
-  final int exitCode;
-  final Completer<int>? exitCodeCompleter;
-  final bool completeExitOnKill;
-  bool started = false;
-  int startCount = 0;
-  bool stdinClosed = false;
-  bool killed = false;
-  String? executable;
-  List<String> arguments = const <String>[];
-  Map<String, String>? environment;
-  final StringBuffer _stdin = StringBuffer();
-
-  String get stdinText => _stdin.toString();
-
-  @override
-  Future<ProcessRunOutput> run(
-    String executable,
-    List<String> arguments, {
-    String? workingDirectory,
-    Map<String, String>? environment,
-  }) async {
-    return ProcessRunOutput(exitCode: exitCode, stdout: stdout, stderr: stderr);
-  }
-
-  @override
-  Future<StartedProcess> start(
-    String executable,
-    List<String> arguments, {
-    String? workingDirectory,
-    Map<String, String>? environment,
-  }) async {
-    started = true;
-    startCount += 1;
-    this.executable = executable;
-    this.arguments = List<String>.from(arguments);
-    this.environment = environment == null
-        ? null
-        : Map<String, String>.from(environment);
-    return StartedProcess(
-      stdinWrite: (data) => _stdin.write(utf8.decode(data)),
-      stdinClose: () => stdinClosed = true,
-      stdout: Stream<List<int>>.value(utf8.encode(stdout)),
-      stderr: Stream<List<int>>.value(utf8.encode(stderr)),
-      pid: 1,
-      exitCode: exitCodeCompleter?.future ?? Future<int>.value(exitCode),
-      kill: ([dynamic signal]) {
-        killed = true;
-        if (completeExitOnKill) {
-          if (exitCodeCompleter case final completer?) {
-            if (!completer.isCompleted) {
-              completer.complete(143);
-            }
-          }
-        }
-        return true;
-      },
-    );
-  }
-}
-
-class _FakeCommandEnvironmentResolver implements CommandEnvironmentResolver {
-  const _FakeCommandEnvironmentResolver({
-    this.value = const <String, String>{'PATH': '/usr/bin'},
-  });
-
-  final Map<String, String> value;
-
-  @override
-  Future<Map<String, String>> environment() async {
-    return Map<String, String>.from(value);
-  }
-}
-
-class _DelayedDiffGitBackend extends FakeGitBackend {
-  final Completer<void> _diffGate = Completer<void>();
-  bool diffStarted = false;
-
-  @override
-  Future<GitDiffResult> diff({
-    required String path,
-    required String filePath,
-    required GitChangeArea area,
-  }) async {
-    diffStarted = true;
-    await _diffGate.future;
-    return super.diff(path: path, filePath: filePath, area: area);
-  }
-
-  void completeDiff() {
-    if (!_diffGate.isCompleted) {
-      _diffGate.complete();
-    }
-  }
-}
-
-Future<void> untilCalled(bool Function() predicate) async {
-  final deadline = DateTime.now().add(const Duration(seconds: 5));
-  while (!predicate()) {
-    if (DateTime.now().isAfter(deadline)) {
-      fail('Timed out waiting for call');
-    }
-    await Future<void>.delayed(const Duration(milliseconds: 5));
-  }
 }

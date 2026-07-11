@@ -132,6 +132,7 @@ AgentStatusNotification? composeAgentStatusNotification({
     AgentType.opencode => 'OpenCode',
     AgentType.pi => 'Pi',
     AgentType.amp => 'Amp',
+    AgentType.grok => 'Grok Build',
   };
   final title = switch (entry.state) {
     AgentStatusState.waiting ||

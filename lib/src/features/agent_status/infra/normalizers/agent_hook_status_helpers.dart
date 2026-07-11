@@ -10,6 +10,7 @@ bool _isInterrupted(AgentHookEvent event) {
     AgentType.agy ||
     AgentType.opencode ||
     AgentType.pi => _isGenericInterrupted(event),
+    AgentType.grok => _isGenericInterrupted(event),
   };
 }
 

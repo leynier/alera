@@ -405,6 +405,7 @@ bool isAgentStatusHookEnabled(
     AgentType.opencode => settings.opencode,
     AgentType.pi => settings.pi,
     AgentType.amp => settings.amp,
+    AgentType.grok => settings.grok,
   };
 }
 

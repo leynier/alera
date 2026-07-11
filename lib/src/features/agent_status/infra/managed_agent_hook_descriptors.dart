@@ -56,6 +56,10 @@ extension _ManagedAgentHookDescriptors on ManagedAgentHookInstallService {
         scriptFileName: scriptFileName,
         scriptPath: scriptPath,
       ),
+      AgentType.grok => _grokDescriptor(
+        scriptFileName: scriptFileName,
+        scriptPath: scriptPath,
+      ),
       // coverage:ignore-start
       // Descriptor lookups for artifact-backed agents are guarded by
       // _managedArtifact before this switch. This branch protects future misuse.
@@ -79,7 +83,8 @@ extension _ManagedAgentHookDescriptors on ManagedAgentHookInstallService {
       AgentType.claude ||
       AgentType.copilot ||
       AgentType.cursor ||
-      AgentType.agy => null,
+      AgentType.agy ||
+      AgentType.grok => null,
     };
   }
 

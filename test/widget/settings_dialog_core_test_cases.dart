@@ -583,14 +583,19 @@ void _registerSettingsDialogCoreTests() {
     await tester.ensureVisible(find.text('Agent Status Notifications'));
     await tester.pump();
 
-    expect(find.text('Codex Hooks'), findsOneWidget);
-    expect(find.text('Claude Code Hooks'), findsOneWidget);
-    expect(find.text('GitHub Copilot Hooks'), findsOneWidget);
-    expect(find.text('Cursor Hooks'), findsOneWidget);
-    expect(find.text('Antigravity Hooks'), findsOneWidget);
-    expect(find.text('OpenCode Hooks'), findsOneWidget);
-    expect(find.text('Pi Hooks'), findsOneWidget);
-    expect(find.text('Amp Hooks'), findsOneWidget);
+    for (final label in const <String>[
+      'Codex Hooks',
+      'Claude Code Hooks',
+      'GitHub Copilot Hooks',
+      'Cursor Hooks',
+      'Antigravity Hooks',
+      'OpenCode Hooks',
+      'Pi Hooks',
+      'Amp Hooks',
+      'Grok Build Hooks',
+    ]) {
+      expect(find.text(label), findsOneWidget);
+    }
     expect(find.text('Agent Status Notifications'), findsOneWidget);
     expect(
       find.text('Keep Computer Awake While Agents Are Working'),
@@ -609,6 +614,7 @@ void _registerSettingsDialogCoreTests() {
       (label: 'OpenCode Hooks', switchIndex: 5),
       (label: 'Pi Hooks', switchIndex: 6),
       (label: 'Amp Hooks', switchIndex: 7),
+      (label: 'Grok Build Hooks', switchIndex: 8),
     ]) {
       await tester.ensureVisible(find.text(entry.label));
       await tester.pump();
@@ -617,55 +623,30 @@ void _registerSettingsDialogCoreTests() {
     }
     await tester.ensureVisible(find.text('Agent Status Notifications'));
     await tester.pump();
-    await tester.tap(find.byType(Switch).at(8));
+    await tester.tap(find.byType(Switch).at(9));
     await tester.pump(const Duration(milliseconds: 50));
     await tester.ensureVisible(
       find.text('Keep Computer Awake While Agents Are Working'),
     );
     await tester.pump();
-    await tester.tap(find.byType(Switch).at(9));
+    await tester.tap(find.byType(Switch).at(10));
     await tester.pump(const Duration(milliseconds: 50));
 
-    expect(
-      container.read(settingsControllerProvider).agents.agentStatusHooks.codex,
-      isTrue,
-    );
-    expect(
-      container.read(settingsControllerProvider).agents.agentStatusHooks.claude,
-      isTrue,
-    );
-    expect(
-      container
-          .read(settingsControllerProvider)
-          .agents
-          .agentStatusHooks
-          .copilot,
-      isTrue,
-    );
-    expect(
-      container.read(settingsControllerProvider).agents.agentStatusHooks.cursor,
-      isTrue,
-    );
-    expect(
-      container.read(settingsControllerProvider).agents.agentStatusHooks.agy,
-      isTrue,
-    );
-    expect(
-      container
-          .read(settingsControllerProvider)
-          .agents
-          .agentStatusHooks
-          .opencode,
-      isTrue,
-    );
-    expect(
-      container.read(settingsControllerProvider).agents.agentStatusHooks.pi,
-      isTrue,
-    );
-    expect(
-      container.read(settingsControllerProvider).agents.agentStatusHooks.amp,
-      isTrue,
-    );
+    final hooks = container
+        .read(settingsControllerProvider)
+        .agents
+        .agentStatusHooks;
+    expect(<bool>[
+      hooks.codex,
+      hooks.claude,
+      hooks.copilot,
+      hooks.cursor,
+      hooks.agy,
+      hooks.opencode,
+      hooks.pi,
+      hooks.amp,
+      hooks.grok,
+    ], everyElement(isTrue));
     expect(
       container
           .read(settingsControllerProvider)

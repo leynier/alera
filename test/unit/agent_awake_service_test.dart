@@ -231,6 +231,7 @@ AgentStatusHookSettings _settingsFor(AgentType agentType) {
     AgentType.opencode => const AgentStatusHookSettings(opencode: true),
     AgentType.pi => const AgentStatusHookSettings(pi: true),
     AgentType.amp => const AgentStatusHookSettings(amp: true),
+    AgentType.grok => const AgentStatusHookSettings(grok: true),
   };
 }
 

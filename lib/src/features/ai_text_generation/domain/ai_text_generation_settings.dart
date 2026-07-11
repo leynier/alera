@@ -30,6 +30,7 @@ enum AiTextGenerationAgent {
   opencode('opencode'),
   pi('pi'),
   amp('amp'),
+  grok('grok'),
   custom('custom');
 
   const AiTextGenerationAgent(this.key);
@@ -45,6 +46,7 @@ enum AiTextGenerationAgent {
     AiTextGenerationAgent.opencode => 'OpenCode',
     AiTextGenerationAgent.pi => 'Pi',
     AiTextGenerationAgent.amp => 'Amp',
+    AiTextGenerationAgent.grok => 'Grok Build',
     AiTextGenerationAgent.custom => 'Custom Command',
   };
 
@@ -57,6 +59,7 @@ enum AiTextGenerationAgent {
     AiTextGenerationAgent.opencode => AgentType.opencode,
     AiTextGenerationAgent.pi => AgentType.pi,
     AiTextGenerationAgent.amp => AgentType.amp,
+    AiTextGenerationAgent.grok => AgentType.grok,
     AiTextGenerationAgent.custom => null,
   };
 }

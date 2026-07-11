@@ -65,6 +65,7 @@ String agentDisplayName(AgentType agentType) {
     AgentType.opencode => 'OpenCode',
     AgentType.pi => 'Pi',
     AgentType.amp => 'Amp',
+    AgentType.grok => 'Grok Build',
   };
 }
 
@@ -94,6 +95,10 @@ _AgentIconAsset _agentAsset(AgentType agentType) {
     AgentType.amp => const _AgentIconAsset(
       path: 'assets/agents/amp.png',
       raster: true,
+    ),
+    AgentType.grok => const _AgentIconAsset(
+      path: 'assets/agents/grok.svg',
+      tintable: false,
     ),
   };
 }

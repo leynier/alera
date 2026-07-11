@@ -55,6 +55,7 @@ List<AgentType> enabledAgentStatusHookTypes(AgentStatusHookSettings settings) {
     if (settings.opencode) AgentType.opencode,
     if (settings.pi) AgentType.pi,
     if (settings.amp) AgentType.amp,
+    if (settings.grok) AgentType.grok,
   ];
 }
 

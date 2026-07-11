@@ -848,11 +848,11 @@ void main() {
         opencode: true,
         pi: true,
         amp: true,
+        grok: true,
       );
       for (final agentType in AgentType.values) {
         expect(isAgentStatusHookEnabled(allEnabled, agentType), isTrue);
       }
-
       expect(
         AgentType.values.where(
           (agentType) => isAgentStatusHookEnabled(

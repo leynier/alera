@@ -139,6 +139,14 @@ class AgentsSettingsPane extends ConsumerWidget {
                 onChanged: (value) =>
                     controller.setAgentStatusHookEnabled(AgentType.amp, value),
               ),
+              SettingsSwitchRow(
+                title: 'Grok Build Hooks',
+                description:
+                    'Install Alera-managed Grok Build hooks in a dedicated global file.',
+                value: agents.agentStatusHooks.grok,
+                onChanged: (value) =>
+                    controller.setAgentStatusHookEnabled(AgentType.grok, value),
+              ),
             ],
           ),
         ),

@@ -152,7 +152,7 @@ void main() {
       expect(sink.events.single.payload['prompt'], 'ship it');
     });
 
-    test('accepts Cursor, OpenCode, Pi, and Amp hook routes', () async {
+    test('accepts Cursor, OpenCode, Pi, Amp, and Grok hook routes', () async {
       final cursorResponse = await _post(
         receiver.endpoint!.port,
         path: '/hook/cursor',
@@ -210,16 +210,31 @@ void main() {
         }),
         contentType: ContentType.json,
       );
+      final grokResponse = await _post(
+        receiver.endpoint!.port,
+        path: '/hook/grok',
+        token: 'token-1',
+        body: jsonEncode(<String, Object?>{
+          'terminalSessionId': 'session-4',
+          'workspaceId': 'workspace-1',
+          'tabId': 'tab-4',
+          'hookEventName': 'UserPromptSubmit',
+          'payload': <String, Object?>{'prompt': 'ship grok'},
+        }),
+        contentType: ContentType.json,
+      );
 
       expect(cursorResponse.statusCode, HttpStatus.noContent);
       expect(openCodeResponse.statusCode, HttpStatus.noContent);
       expect(piResponse.statusCode, HttpStatus.noContent);
       expect(ampResponse.statusCode, HttpStatus.noContent);
+      expect(grokResponse.statusCode, HttpStatus.noContent);
       expect(sink.events.map((event) => event.agentType), <AgentType>[
         AgentType.cursor,
         AgentType.opencode,
         AgentType.pi,
         AgentType.amp,
+        AgentType.grok,
       ]);
     });
 

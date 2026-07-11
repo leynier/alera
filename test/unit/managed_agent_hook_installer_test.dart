@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
 part 'managed_agent_hook_installer_test_harness.dart';
+part 'managed_agent_hook_installer_grok_test_cases.dart';
 
 void main() {
   group('ManagedAgentHookInstallService', () {
@@ -27,7 +28,7 @@ void main() {
         home.deleteSync(recursive: true);
       }
     });
-
+    _registerGrokHookInstallerTests(() => home, () => service);
     test('does not install Codex hooks into the user config', () {
       final configPath = p.join(home.path, '.codex', 'hooks.json');
       _writeJson(configPath, <String, Object?>{
@@ -46,7 +47,6 @@ void main() {
       });
 
       final status = service.install(AgentType.codex);
-
       expect(status.state, ManagedAgentHookInstallState.notInstalled);
       final config = _readJson(configPath);
       final hooks = Map<String, Object?>.from(config['hooks'] as Map);

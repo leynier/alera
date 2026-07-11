@@ -10,6 +10,7 @@ String? _assistantTextFromHookEvent(AgentHookEvent event, String eventName) {
     AgentType.copilot ||
     AgentType.cursor ||
     AgentType.agy => null,
+    AgentType.grok => null,
   };
 }
 
