@@ -1,5 +1,4 @@
-//! End-to-end orchestration conformance. Spawns the real `alera runtime-host`
-//! binary, connects raw TCP clients, and exercises messaging, long-poll
+//! End-to-end orchestration conformance using the real `alera runtime-host`, raw TCP clients, messaging, long-poll
 //! waits, tasks, dispatch, gates, agent presence, and push-on-idle delivery
 //! against a live PTY.
 
@@ -11,6 +10,9 @@ use std::time::{Duration, Instant};
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine as _;
 use serde_json::{json, Value};
+
+#[path = "orchestration_conformance/limits.rs"]
+mod limits;
 
 const PROTOCOL_VERSION: i64 = 3;
 
@@ -363,14 +365,37 @@ fn task_dag_dispatch_and_worker_done() {
 
     // worker_done from the assignee with matching ids completes A and
     // promotes B in one send.
+    let completion_payload = format!("{{\"taskId\":\"{a_id}\",\"dispatchId\":\"{dispatch_id}\"}}");
     expect_ok(request(
         &mut writer,
         &mut reader,
         44,
         "orchestration.send",
         json!({"from": "w1", "to": "coord", "subject": "done", "type": "worker_done",
-               "payload": format!("{{\"taskId\":\"{a_id}\",\"dispatchId\":\"{dispatch_id}\"}}")}),
+               "payload": completion_payload}),
     ));
+    let duplicate = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        46,
+        "orchestration.send",
+        json!({"from": "w1", "to": "coord", "subject": "done again", "type": "worker_done",
+               "payload": completion_payload}),
+    ));
+    assert_eq!(duplicate["duplicate"], json!(true));
+    assert_eq!(duplicate["messages"], json!([]));
+    let mismatched = request(
+        &mut writer,
+        &mut reader,
+        47,
+        "orchestration.send",
+        json!({"from": "w1", "to": "coord", "subject": "wrong task", "type": "worker_done",
+               "payload": format!("{{\"taskId\":\"{b_id}\",\"dispatchId\":\"{dispatch_id}\"}}")}),
+    );
+    assert_eq!(mismatched["ok"], json!(false));
+    assert!(mismatched["error"]
+        .as_str()
+        .is_some_and(|error| error.contains("invalid_dispatch_task")));
     let tasks = expect_ok(request(
         &mut writer,
         &mut reader,
@@ -566,29 +591,4 @@ fn push_on_idle_delivers_into_live_pty() {
         !redelivered.contains("Orchestration Messages"),
         "message was redelivered after being marked delivered: {redelivered}"
     );
-}
-
-#[test]
-fn lifecycle_to_group_and_unknown_recipients_are_rejected() {
-    let host = start_host();
-    let (mut writer, mut reader) = connect(host.port);
-    handshake(&mut writer, &mut reader, &host.token);
-
-    let group_lifecycle = request(
-        &mut writer,
-        &mut reader,
-        70,
-        "orchestration.send",
-        json!({"from": "a", "to": "@all", "subject": "x", "type": "worker_done"}),
-    );
-    assert_eq!(group_lifecycle["ok"], json!(false));
-
-    let no_recipients = request(
-        &mut writer,
-        &mut reader,
-        71,
-        "orchestration.send",
-        json!({"from": "a", "to": "@all", "subject": "x"}),
-    );
-    assert_eq!(no_recipients["ok"], json!(false));
 }

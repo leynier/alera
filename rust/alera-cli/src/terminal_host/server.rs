@@ -34,16 +34,22 @@ use crate::terminal_host::orchestration::message_delivery::{
 use crate::terminal_host::orchestration::message_formatter::format_messages_for_injection;
 use crate::terminal_host::orchestration::message_waiters::MessageWaiterRegistry;
 use crate::terminal_host::protocol::{event, TerminalHostConfig};
-use crate::terminal_host::session::{PtyEvent, Session};
+use crate::terminal_host::session::{PtyEvent, PtyWriteCompletion, Session};
 
 mod coordinator_requests;
 mod orchestration_requests;
+mod orchestration_validation;
+mod pty_events;
 mod requests;
+mod terminal_input_requests;
 
 /// Delay before a debounced checkpoint write fires.
 const CHECKPOINT_DELAY: Duration = Duration::from_secs(5);
 
 const OUTPUT_BATCH_DELAY: Duration = Duration::from_millis(8);
+const DURABLE_OUTPUT_BATCH_DELAY: Duration = Duration::from_millis(100);
+const OUTPUT_PERSISTENCE_BARRIER_TIMEOUT: Duration = Duration::from_secs(2);
+const TERMINAL_INPUT_BACKPRESSURE_CODE: &str = "terminal_input_backpressure";
 /// Cap coalesced PTY→client batches so a verbose agent/build cannot grow an
 /// unbounded `output_batch` between timer flushes (early flush when exceeded).
 const OUTPUT_BATCH_MAX_BYTES: usize = 64 * 1024;
@@ -68,6 +74,10 @@ pub enum ServerCommand {
         event: PtyEvent,
     },
     OutputBatchTick {
+        session_id: String,
+        generation: u64,
+    },
+    DurableOutputBatchTick {
         session_id: String,
         generation: u64,
     },
@@ -170,6 +180,7 @@ pub async fn run_terminal_host_server(
         agent_presence: AgentPresenceRegistry::default(),
         orchestration_waiters: MessageWaiterRegistry::default(),
         orchestration_delivery_in_flight: HashSet::new(),
+        orchestration_delivery_backpressured: HashSet::new(),
         coordinator: None,
         inbox,
         next_client_id,
@@ -234,6 +245,7 @@ struct ServerActor {
     agent_presence: AgentPresenceRegistry,
     orchestration_waiters: MessageWaiterRegistry,
     orchestration_delivery_in_flight: HashSet<String>,
+    orchestration_delivery_backpressured: HashSet<String>,
     coordinator: Option<CoordinatorHandle>,
     inbox: UnboundedSender<ServerCommand>,
     next_client_id: Arc<AtomicU64>,
@@ -419,6 +431,10 @@ impl ServerActor {
                 session_id,
                 generation,
             } => self.handle_output_batch_tick(session_id, generation),
+            ServerCommand::DurableOutputBatchTick {
+                session_id,
+                generation,
+            } => self.handle_durable_output_batch_tick(session_id, generation),
             ServerCommand::CheckpointTick {
                 session_id,
                 generation,
@@ -485,6 +501,7 @@ impl ServerActor {
         if self.orchestration_delivery_in_flight.contains(handle) {
             return;
         }
+        self.orchestration_delivery_backpressured.remove(handle);
         let messages = match self
             .runtime_store
             .undelivered_unread_orchestration_messages(handle)
@@ -497,30 +514,27 @@ impl ServerActor {
         let Some(session) = self.sessions.get_mut(handle) else {
             return;
         };
-        prompt_injection::write_agent_prompt_paste(session, &formatted);
         let session_instance_id = session.instance_id();
         let ids: Vec<String> = messages.iter().map(|message| message.id.clone()).collect();
-        if skips_auto_enter(self.agent_presence.agent_type(handle)) {
-            // Editable-prompt agents: no auto-submit, but the text landed, so
-            // the batch counts as delivered.
-            let _ = self
-                .runtime_store
-                .mark_orchestration_messages_delivered(&ids)
-                .await;
+        let paste = prompt_injection::build_agent_prompt_paste_bytes(&formatted);
+        if let Err(error) = session.queue_write(
+            PtyWriteCompletion::OrchestrationPaste {
+                session_instance_id,
+                message_ids: ids,
+            },
+            &paste,
+        ) {
+            let message = error.wire_message();
+            if message.contains(TERMINAL_INPUT_BACKPRESSURE_CODE) {
+                self.orchestration_delivery_backpressured
+                    .insert(handle.to_string());
+            } else {
+                self.broadcast_terminal_error(handle, message);
+            }
             return;
         }
         self.orchestration_delivery_in_flight
             .insert(handle.to_string());
-        let inbox = self.inbox.clone();
-        let session_id = handle.to_string();
-        tokio::spawn(async move {
-            tokio::time::sleep(Duration::from_millis(DEFERRED_ENTER_DELAY_MS)).await;
-            let _ = inbox.send(ServerCommand::OrchestrationDeferredEnter {
-                session_id,
-                session_instance_id,
-                message_ids: ids,
-            });
-        });
     }
 
     fn is_active_coordinator_handle(&self, handle: &str) -> bool {
@@ -538,25 +552,29 @@ impl ServerActor {
         }
     }
 
+    async fn retry_backpressured_delivery_if_idle(&mut self, handle: &str) {
+        if self.orchestration_delivery_backpressured.contains(handle)
+            && self.agent_presence.is_injection_ready(handle)
+        {
+            self.deliver_pending_messages(handle).await;
+        }
+    }
+
     async fn handle_orchestration_deferred_enter(
         &mut self,
         session_id: String,
         session_instance_id: u64,
         message_ids: Vec<String>,
     ) {
-        let message_backed = !message_ids.is_empty();
-        let had_delivery_in_flight =
-            message_backed && self.orchestration_delivery_in_flight.remove(&session_id);
         let skip_auto_enter =
             message_ids.is_empty() && skips_auto_enter(self.agent_presence.agent_type(&session_id));
         let current_instance_id = self.sessions.get(&session_id).map(Session::instance_id);
         if current_instance_id != Some(session_instance_id) {
-            if had_delivery_in_flight && self.agent_presence.is_injection_ready(&session_id) {
-                self.deliver_pending_messages(&session_id).await;
-            }
+            self.orchestration_delivery_in_flight.remove(&session_id);
             return;
         }
-        if message_backed && self.is_active_coordinator_handle(&session_id) {
+        if !message_ids.is_empty() && self.is_active_coordinator_handle(&session_id) {
+            self.orchestration_delivery_in_flight.remove(&session_id);
             return;
         }
         let Some(session) = self.sessions.get_mut(&session_id) else {
@@ -565,23 +583,71 @@ impl ServerActor {
         if !session.running() {
             // Terminal closed in the 500ms window: leave delivered_at NULL so
             // the batch is redelivered on the next idle transition.
+            self.orchestration_delivery_in_flight.remove(&session_id);
             return;
         }
         if skip_auto_enter {
             return;
         }
-        session.write(prompt_injection::AGENT_PROMPT_SUBMIT);
-        let delivered = message_ids.is_empty()
-            || self
-                .runtime_store
-                .mark_orchestration_messages_delivered(&message_ids)
-                .await
-                .is_ok();
-        if had_delivery_in_flight
-            && delivered
-            && self.agent_presence.is_injection_ready(&session_id)
-        {
-            self.deliver_pending_messages(&session_id).await;
+        if let Err(error) = session.queue_write(
+            PtyWriteCompletion::OrchestrationEnter {
+                session_instance_id,
+                message_ids: message_ids.clone(),
+            },
+            prompt_injection::AGENT_PROMPT_SUBMIT,
+        ) {
+            let message = error.wire_message();
+            if message.contains(TERMINAL_INPUT_BACKPRESSURE_CODE) {
+                self.schedule_orchestration_enter(session_id, session_instance_id, message_ids);
+                return;
+            }
+            self.orchestration_delivery_in_flight.remove(&session_id);
+            self.broadcast_terminal_error(&session_id, message);
+        }
+    }
+
+    fn schedule_orchestration_enter(
+        &self,
+        session_id: String,
+        session_instance_id: u64,
+        message_ids: Vec<String>,
+    ) {
+        let inbox = self.inbox.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(DEFERRED_ENTER_DELAY_MS)).await;
+            let _ = inbox.send(ServerCommand::OrchestrationDeferredEnter {
+                session_id,
+                session_instance_id,
+                message_ids,
+            });
+        });
+    }
+
+    pub(super) fn queue_orchestration_paste(
+        &mut self,
+        session_id: &str,
+        prompt: &str,
+        message_ids: Vec<String>,
+    ) -> HostResult<()> {
+        let session = self
+            .sessions
+            .get_mut(session_id)
+            .ok_or_else(|| HostError::state(format!("terminal {session_id} vanished")))?;
+        let session_instance_id = session.instance_id();
+        let paste = prompt_injection::build_agent_prompt_paste_bytes(prompt);
+        session.queue_write(
+            PtyWriteCompletion::OrchestrationPaste {
+                session_instance_id,
+                message_ids,
+            },
+            &paste,
+        )
+    }
+
+    fn broadcast_terminal_error(&self, session_id: &str, message: String) {
+        if let Some(session) = self.sessions.get(session_id) {
+            let clients: Vec<u64> = session.clients.iter().copied().collect();
+            self.broadcast(&clients, event("error", session.error_payload(&message)));
         }
     }
 
@@ -798,172 +864,6 @@ impl ServerActor {
         }
     }
 
-    // --- PTY and checkpoint events ---------------------------------------
-
-    async fn handle_pty_event(&mut self, session_id: String, pty_event: PtyEvent) {
-        match pty_event {
-            PtyEvent::Output(data) => {
-                let state = self.sessions.get_mut(&session_id).map(|session| {
-                    let output_generation = session.append_output(&data);
-                    let output_len = session.output_batch_len();
-                    let checkpoint_generation = session.arm_checkpoint();
-                    (output_generation, output_len, checkpoint_generation)
-                });
-                if let Some((output_generation, output_len, checkpoint_generation)) = state {
-                    if let Some(generation) = output_generation {
-                        self.spawn_output_batch_timer(session_id.clone(), generation);
-                    }
-                    if output_len >= OUTPUT_BATCH_MAX_BYTES {
-                        self.flush_output_batch(&session_id);
-                    }
-                    if let Some(generation) = checkpoint_generation {
-                        self.spawn_checkpoint_timer(session_id, generation);
-                    }
-                }
-            }
-            PtyEvent::Error(message) => {
-                self.flush_output_batch(&session_id);
-                if let Some(session) = self.sessions.get_mut(&session_id) {
-                    let payload = session.error_payload(&message);
-                    let clients: Vec<u64> = session.clients.iter().copied().collect();
-                    self.broadcast(&clients, event("error", payload));
-                }
-            }
-            PtyEvent::Exit(code) => self.handle_session_exit(session_id, code).await,
-        }
-    }
-
-    async fn handle_session_exit(&mut self, session_id: String, exit_code: i32) {
-        let reason = format!("terminal exited with code {exit_code}");
-        self.cleanup_orchestration_for_closed_session(&session_id, &reason)
-            .await;
-        self.flush_output_batch(&session_id);
-        let broadcast = self.sessions.get_mut(&session_id).and_then(|session| {
-            let payload = session.handle_exit(exit_code)?;
-            let clients: Vec<u64> = session.clients.iter().copied().collect();
-            Some((event("exit", payload), clients))
-        });
-        if let Some((frame, clients)) = broadcast {
-            self.broadcast(&clients, frame);
-            self.immediate_checkpoint(&session_id).await;
-        }
-        self.schedule_shutdown_if_idle();
-    }
-
-    async fn cleanup_orchestration_for_closed_session(&mut self, session_id: &str, reason: &str) {
-        // The agent (if any) died with its PTY; stale presence must not keep
-        // attracting group messages or push-on-idle deliveries.
-        self.agent_presence.remove(session_id);
-        self.fail_active_dispatch_for_closed_session(session_id, reason)
-            .await;
-    }
-
-    async fn fail_active_dispatch_for_closed_session(&self, session_id: &str, reason: &str) {
-        let dispatch = match self
-            .runtime_store
-            .active_orchestration_dispatch_for_handle(session_id)
-            .await
-        {
-            Ok(dispatch) => dispatch,
-            Err(error) => {
-                eprintln!(
-                    "failed to inspect active orchestration dispatch for exited terminal {session_id}: {error}"
-                );
-                return;
-            }
-        };
-        let Some(dispatch) = dispatch else {
-            return;
-        };
-        if let Err(error) = self
-            .runtime_store
-            .fail_orchestration_dispatch(&dispatch.id, reason)
-            .await
-        {
-            eprintln!(
-                "failed to mark orchestration dispatch {} failed after terminal close: {error}",
-                dispatch.id
-            );
-        }
-    }
-
-    fn handle_output_batch_tick(&mut self, session_id: String, generation: u64) {
-        let due = self
-            .sessions
-            .get(&session_id)
-            .is_some_and(|session| session.output_batch_due(generation));
-        if due {
-            self.flush_output_batch(&session_id);
-        }
-    }
-
-    fn flush_output_batch(&mut self, session_id: &str) {
-        let broadcast = self.sessions.get_mut(session_id).and_then(|session| {
-            let batch = session.flush_output_batch()?;
-            let clients = session.output_clients();
-            Some((
-                event("output", batch.payload),
-                batch.sequence,
-                batch.data,
-                clients,
-            ))
-        });
-        if let Some((frame, sequence, data, clients)) = broadcast {
-            self.broadcast(&clients, frame);
-            self.persist_output_batch(session_id.to_string(), sequence, data);
-        }
-    }
-
-    async fn handle_checkpoint_tick(&mut self, session_id: String, generation: u64) {
-        let store = self.store.clone();
-        let due = self
-            .sessions
-            .get_mut(&session_id)
-            .is_some_and(|session| session.checkpoint_due(generation));
-        if due {
-            self.await_output_writes(&session_id).await;
-            if let Some(session) = self.sessions.get_mut(&session_id) {
-                let _ = session.write_checkpoint(&store, None).await;
-            }
-            let _ = store
-                .trim_session(&session_id, self.config.scrollback_bytes as usize)
-                .await;
-        }
-    }
-
-    async fn immediate_checkpoint(&mut self, session_id: &str) {
-        let store = self.store.clone();
-        self.await_output_writes(session_id).await;
-        if let Some(session) = self.sessions.get_mut(session_id) {
-            session.invalidate_checkpoint();
-            let _ = session.write_checkpoint(&store, None).await;
-            let _ = store
-                .trim_session(session_id, self.config.scrollback_bytes as usize)
-                .await;
-        }
-    }
-
-    fn persist_output_batch(&mut self, session_id: String, sequence: i64, data: Vec<u8>) {
-        let store = self.store.clone();
-        let task_session_id = session_id.clone();
-        let handle = tokio::spawn(async move {
-            let _ = store.append_output(&task_session_id, sequence, &data).await;
-        });
-        self.pending_output_writes
-            .entry(session_id)
-            .or_default()
-            .push(handle);
-    }
-
-    async fn await_output_writes(&mut self, session_id: &str) {
-        let Some(handles) = self.pending_output_writes.remove(session_id) else {
-            return;
-        };
-        for handle in handles {
-            let _ = handle.await;
-        }
-    }
-
     pub(super) async fn terminate_sessions_for_tab(&mut self, tab_id: &str) {
         let session_ids: Vec<String> = self
             .sessions
@@ -1009,7 +909,7 @@ impl ServerActor {
                 "terminal was explicitly terminated",
             )
             .await;
-            self.flush_output_batch(&session_id);
+            self.flush_all_output(&session_id);
             self.await_output_writes(&session_id).await;
             if let Some(mut session) = self.sessions.remove(&session_id) {
                 session.terminate(true, &store).await;
@@ -1040,7 +940,7 @@ impl ServerActor {
         self.orchestration_waiters.remove_client(client_id);
         let session_ids: Vec<String> = self.sessions.keys().cloned().collect();
         for session_id in session_ids {
-            self.flush_output_batch(&session_id);
+            self.flush_all_output(&session_id);
             if let Some(session) = self.sessions.get_mut(&session_id) {
                 session.detach(client_id);
             }
@@ -1131,7 +1031,7 @@ impl ServerActor {
         let max_bytes = config.scrollback_bytes as usize;
         let session_ids: Vec<String> = self.sessions.keys().cloned().collect();
         for session_id in session_ids {
-            self.flush_output_batch(&session_id);
+            self.flush_all_output(&session_id);
             if let Some(session) = self.sessions.get_mut(&session_id) {
                 session.set_max_bytes(max_bytes);
             }
@@ -1204,6 +1104,17 @@ impl ServerActor {
         });
     }
 
+    fn spawn_durable_output_batch_timer(&self, session_id: String, generation: u64) {
+        let inbox = self.inbox.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(DURABLE_OUTPUT_BATCH_DELAY).await;
+            let _ = inbox.send(ServerCommand::DurableOutputBatchTick {
+                session_id,
+                generation,
+            });
+        });
+    }
+
     fn cancel_shutdown_timer(&mut self) {
         // Bumping the generation invalidates any pending ShutdownTick.
         self.shutdown_gen += 1;
@@ -1231,7 +1142,7 @@ impl ServerActor {
         for session_id in session_ids {
             self.cleanup_orchestration_for_closed_session(&session_id, "terminal host shut down")
                 .await;
-            self.flush_output_batch(&session_id);
+            self.flush_all_output(&session_id);
             self.await_output_writes(&session_id).await;
             if let Some(mut session) = self.sessions.remove(&session_id) {
                 session.terminate(false, &store).await;
@@ -1297,6 +1208,7 @@ mod tests {
             agent_presence: AgentPresenceRegistry::default(),
             orchestration_waiters: MessageWaiterRegistry::default(),
             orchestration_delivery_in_flight: HashSet::new(),
+            orchestration_delivery_backpressured: HashSet::new(),
             coordinator: None,
             inbox,
             next_client_id: Arc::new(AtomicU64::new(2)),
@@ -1357,6 +1269,7 @@ mod tests {
             agent_presence: AgentPresenceRegistry::default(),
             orchestration_waiters: MessageWaiterRegistry::default(),
             orchestration_delivery_in_flight: HashSet::new(),
+            orchestration_delivery_backpressured: HashSet::new(),
             coordinator: None,
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
@@ -1406,6 +1319,7 @@ mod tests {
             agent_presence: AgentPresenceRegistry::default(),
             orchestration_waiters: MessageWaiterRegistry::default(),
             orchestration_delivery_in_flight: HashSet::new(),
+            orchestration_delivery_backpressured: HashSet::new(),
             coordinator: None,
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
@@ -1459,6 +1373,7 @@ mod tests {
             agent_presence: AgentPresenceRegistry::default(),
             orchestration_waiters: MessageWaiterRegistry::default(),
             orchestration_delivery_in_flight: HashSet::new(),
+            orchestration_delivery_backpressured: HashSet::new(),
             coordinator: None,
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
@@ -1514,6 +1429,7 @@ mod tests {
             agent_presence: AgentPresenceRegistry::default(),
             orchestration_waiters: MessageWaiterRegistry::default(),
             orchestration_delivery_in_flight: HashSet::new(),
+            orchestration_delivery_backpressured: HashSet::new(),
             coordinator: None,
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
@@ -1604,6 +1520,7 @@ mod tests {
             agent_presence: AgentPresenceRegistry::default(),
             orchestration_waiters: MessageWaiterRegistry::default(),
             orchestration_delivery_in_flight: HashSet::new(),
+            orchestration_delivery_backpressured: HashSet::new(),
             coordinator: None,
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
@@ -1677,6 +1594,7 @@ mod tests {
             agent_presence: AgentPresenceRegistry::default(),
             orchestration_waiters: MessageWaiterRegistry::default(),
             orchestration_delivery_in_flight: HashSet::new(),
+            orchestration_delivery_backpressured: HashSet::new(),
             coordinator: None,
             inbox,
             next_client_id: Arc::new(AtomicU64::new(2)),
@@ -1765,6 +1683,7 @@ mod tests {
             agent_presence: AgentPresenceRegistry::default(),
             orchestration_waiters: MessageWaiterRegistry::default(),
             orchestration_delivery_in_flight: HashSet::new(),
+            orchestration_delivery_backpressured: HashSet::new(),
             coordinator: None,
             inbox,
             next_client_id: Arc::new(AtomicU64::new(4)),

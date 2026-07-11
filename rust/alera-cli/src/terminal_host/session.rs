@@ -1,6 +1,7 @@
 use std::collections::HashSet;
-use std::io::{Read, Write};
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::mpsc::{sync_channel, SyncSender, TrySendError};
+use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use portable_pty::{native_pty_system, ChildKiller, CommandBuilder, MasterPty, PtySize};
@@ -11,8 +12,13 @@ use crate::terminal_host::history_store::{TerminalHostCheckpoint, TerminalHostHi
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::{encode_bytes, TerminalHostLaunch};
 
-/// Bytes read from the PTY per `read` call.
-const READ_CHUNK_BYTES: usize = 8192;
+mod io_threads;
+#[cfg(test)]
+mod tests;
+
+use io_threads::{spawn_reader, spawn_writer};
+
+const INPUT_QUEUE_CAPACITY: usize = 64;
 static NEXT_SESSION_INSTANCE_ID: AtomicU64 = AtomicU64::new(1);
 
 fn next_session_instance_id() -> u64 {
@@ -25,10 +31,38 @@ pub enum PtyEvent {
     Output(Vec<u8>),
     Exit(i32),
     Error(String),
+    InputWritten {
+        completion: PtyWriteCompletion,
+        error: Option<String>,
+    },
+}
+
+#[derive(Debug)]
+pub enum PtyWriteCompletion {
+    ClientRequest {
+        client_id: u64,
+        request_id: i64,
+    },
+    OrchestrationPaste {
+        session_instance_id: u64,
+        message_ids: Vec<String>,
+    },
+    OrchestrationEnter {
+        session_instance_id: u64,
+        message_ids: Vec<String>,
+    },
+}
+
+struct PtyWrite {
+    completion: PtyWriteCompletion,
+    bytes: Vec<u8>,
 }
 
 pub struct OutputBatch {
     pub payload: Value,
+}
+
+pub struct DurableOutputBatch {
     pub data: Vec<u8>,
     pub sequence: i64,
 }
@@ -48,7 +82,7 @@ pub struct Session {
     exit_code: Option<i32>,
     ended_at: Option<DateTime<Utc>>,
     master: Option<Box<dyn MasterPty + Send>>,
-    writer: Option<Box<dyn std::io::Write + Send>>,
+    input_tx: Option<SyncSender<PtyWrite>>,
     killer: Option<Box<dyn ChildKiller + Send + Sync>>,
     terminated: bool,
     checkpoint_gen: u64,
@@ -56,7 +90,10 @@ pub struct Session {
     output_batch: Vec<u8>,
     output_batch_gen: u64,
     output_batch_armed: bool,
-    output_batch_sequence: i64,
+    durable_output_batch: Vec<u8>,
+    durable_output_batch_gen: u64,
+    durable_output_batch_armed: bool,
+    durable_output_batch_sequence: i64,
 }
 
 impl Session {
@@ -74,9 +111,9 @@ impl Session {
         max_bytes: usize,
         initial_scrollback: &[u8],
         store: &TerminalHostHistoryStore,
-        on_event: impl Fn(PtyEvent) + Send + 'static,
+        on_event: impl Fn(PtyEvent) + Send + Sync + 'static,
     ) -> HostResult<Session> {
-        let output_batch_sequence = store
+        let durable_output_batch_sequence = store
             .next_output_sequence(&id)
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
@@ -122,6 +159,8 @@ impl Session {
             .master
             .take_writer()
             .map_err(|error| HostError::state(error.to_string()))?;
+        let (input_tx, input_rx) = sync_channel(INPUT_QUEUE_CAPACITY);
+        let on_event: Arc<dyn Fn(PtyEvent) + Send + Sync> = Arc::new(on_event);
 
         let mut session = Session {
             instance_id: next_session_instance_id(),
@@ -136,7 +175,7 @@ impl Session {
             exit_code: None,
             ended_at: None,
             master: Some(pair.master),
-            writer: Some(writer),
+            input_tx: Some(input_tx),
             killer: Some(killer),
             terminated: false,
             checkpoint_gen: 0,
@@ -144,10 +183,14 @@ impl Session {
             output_batch: Vec::new(),
             output_batch_gen: 0,
             output_batch_armed: false,
-            output_batch_sequence,
+            durable_output_batch: Vec::new(),
+            durable_output_batch_gen: 0,
+            durable_output_batch_armed: false,
+            durable_output_batch_sequence,
         };
         session.write_checkpoint(store, None).await?;
-        spawn_reader(reader, child, on_event);
+        spawn_reader(reader, child, Arc::clone(&on_event));
+        spawn_writer(writer, input_rx, on_event);
         Ok(session)
     }
 
@@ -182,7 +225,7 @@ impl Session {
             exit_code,
             ended_at,
             master: None,
-            writer: None,
+            input_tx: None,
             killer: None,
             terminated: false,
             checkpoint_gen: 0,
@@ -190,7 +233,10 @@ impl Session {
             output_batch: Vec::new(),
             output_batch_gen: 0,
             output_batch_armed: false,
-            output_batch_sequence: 0,
+            durable_output_batch: Vec::new(),
+            durable_output_batch_gen: 0,
+            durable_output_batch_armed: false,
+            durable_output_batch_sequence: 0,
         })
     }
 
@@ -232,15 +278,30 @@ impl Session {
             .collect()
     }
 
-    /// Write input to the PTY. No-op when the session is not running.
-    pub fn write(&mut self, bytes: &[u8]) {
-        if bytes.is_empty() || !self.running {
-            return;
+    /// Queue input for the session-local blocking writer.
+    pub fn queue_write(&mut self, completion: PtyWriteCompletion, bytes: &[u8]) -> HostResult<()> {
+        if bytes.is_empty() {
+            return Ok(());
         }
-        if let Some(writer) = self.writer.as_mut() {
-            let _ = writer.write_all(bytes);
-            let _ = writer.flush();
+        if !self.running {
+            return Err(HostError::state("Terminal session is not running."));
         }
+        let Some(input_tx) = self.input_tx.as_ref() else {
+            return Err(HostError::state("terminal input writer is unavailable"));
+        };
+        input_tx
+            .try_send(PtyWrite {
+                completion,
+                bytes: bytes.to_vec(),
+            })
+            .map_err(|error| match error {
+                TrySendError::Full(_) => {
+                    HostError::state("terminal_input_backpressure: terminal input queue is full")
+                }
+                TrySendError::Disconnected(_) => {
+                    HostError::state("terminal input writer is unavailable")
+                }
+            })
     }
 
     pub fn resize(&mut self, cols: u16, rows: u16) {
@@ -259,15 +320,23 @@ impl Session {
 
     /// Append PTY output to the scrollback and live-output batch. Returns a
     /// timer generation when a delayed flush should be armed.
-    pub fn append_output(&mut self, data: &[u8]) -> Option<u64> {
+    pub fn append_output(&mut self, data: &[u8]) -> (Option<u64>, Option<u64>) {
         self.buffer.append(data);
         self.output_batch.extend_from_slice(data);
-        if self.output_batch_armed {
+        self.durable_output_batch.extend_from_slice(data);
+        let output_generation = if self.output_batch_armed {
             None
         } else {
             self.output_batch_armed = true;
             Some(self.output_batch_gen)
-        }
+        };
+        let durable_generation = if self.durable_output_batch_armed {
+            None
+        } else {
+            self.durable_output_batch_armed = true;
+            Some(self.durable_output_batch_gen)
+        };
+        (output_generation, durable_generation)
     }
 
     pub fn output_batch_len(&self) -> usize {
@@ -286,14 +355,29 @@ impl Session {
         self.output_batch_gen = self.output_batch_gen.wrapping_add(1);
         self.output_batch_armed = false;
         let data = std::mem::take(&mut self.output_batch);
-        let sequence = self.output_batch_sequence;
-        self.output_batch_sequence = self.output_batch_sequence.wrapping_add(1);
         let payload = json!({ "sessionId": self.id, "dataBase64": encode_bytes(&data) });
-        Some(OutputBatch {
-            payload,
-            data,
-            sequence,
-        })
+        Some(OutputBatch { payload })
+    }
+
+    pub fn durable_output_batch_len(&self) -> usize {
+        self.durable_output_batch.len()
+    }
+
+    pub fn durable_output_batch_due(&self, generation: u64) -> bool {
+        self.durable_output_batch_armed && self.durable_output_batch_gen == generation
+    }
+
+    pub fn flush_durable_output_batch(&mut self) -> Option<DurableOutputBatch> {
+        if self.durable_output_batch.is_empty() {
+            self.durable_output_batch_armed = false;
+            return None;
+        }
+        self.durable_output_batch_gen = self.durable_output_batch_gen.wrapping_add(1);
+        self.durable_output_batch_armed = false;
+        let data = std::mem::take(&mut self.durable_output_batch);
+        let sequence = self.durable_output_batch_sequence;
+        self.durable_output_batch_sequence = self.durable_output_batch_sequence.wrapping_add(1);
+        Some(DurableOutputBatch { data, sequence })
     }
 
     /// Mark the session as exited. Returns the `exit` event payload to broadcast,
@@ -338,12 +422,15 @@ impl Session {
             // The child may have already exited between checks.
             let _ = killer.kill();
         }
-        self.writer = None;
+        self.input_tx = None;
         self.master = None;
         self.checkpoint_armed = false;
         self.output_batch.clear();
         self.output_batch_armed = false;
         self.output_batch_gen = self.output_batch_gen.wrapping_add(1);
+        self.durable_output_batch.clear();
+        self.durable_output_batch_armed = false;
+        self.durable_output_batch_gen = self.durable_output_batch_gen.wrapping_add(1);
         if remove_history {
             let _ = store.delete(&self.id).await;
         } else {
@@ -403,108 +490,5 @@ impl Session {
             .upsert(checkpoint)
             .await
             .map_err(|error| HostError::state(error.to_string()))
-    }
-}
-
-/// Read the PTY on a dedicated thread, forwarding output and the final exit code
-/// through `on_event`.
-fn spawn_reader(
-    mut reader: Box<dyn Read + Send>,
-    mut child: Box<dyn portable_pty::Child + Send + Sync>,
-    on_event: impl Fn(PtyEvent) + Send + 'static,
-) {
-    std::thread::Builder::new()
-        .name("alera-pty-reader".to_string())
-        .spawn(move || {
-            let mut buffer = vec![0u8; READ_CHUNK_BYTES];
-            loop {
-                match reader.read(&mut buffer) {
-                    Ok(0) => break,
-                    Ok(read) => on_event(PtyEvent::Output(buffer[..read].to_vec())),
-                    Err(error) => {
-                        let code = child
-                            .try_wait()
-                            .ok()
-                            .flatten()
-                            .map(|status| status.exit_code() as i32)
-                            .unwrap_or(-1);
-                        on_event(PtyEvent::Error(error.to_string()));
-                        on_event(PtyEvent::Exit(code));
-                        return;
-                    }
-                }
-            }
-            let code = child
-                .wait()
-                .map(|status| status.exit_code() as i32)
-                .unwrap_or(-1);
-            on_event(PtyEvent::Exit(code));
-        })
-        .expect("failed to spawn pty reader thread");
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn test_session() -> Session {
-        Session {
-            instance_id: next_session_instance_id(),
-            id: "session-1".to_string(),
-            workspace_id: "workspace-1".to_string(),
-            tab_id: "tab-1".to_string(),
-            working_directory: "/repo".to_string(),
-            clients: HashSet::new(),
-            output_paused_clients: HashSet::new(),
-            buffer: ScrollbackBuffer::new(1024, &[]),
-            running: true,
-            exit_code: None,
-            ended_at: None,
-            master: None,
-            writer: None,
-            killer: None,
-            terminated: false,
-            checkpoint_gen: 0,
-            checkpoint_armed: false,
-            output_batch: Vec::new(),
-            output_batch_gen: 0,
-            output_batch_armed: false,
-            output_batch_sequence: 0,
-        }
-    }
-
-    #[test]
-    fn output_batch_coalesces_until_flush() {
-        let mut session = test_session();
-
-        assert_eq!(session.append_output(b"ab"), Some(0));
-        assert_eq!(session.append_output(b"cd"), None);
-        assert!(session.output_batch_due(0));
-
-        let batch = session.flush_output_batch().expect("batch");
-
-        assert_eq!(batch.payload["sessionId"], "session-1");
-        assert_eq!(
-            batch.payload["dataBase64"],
-            serde_json::Value::String(encode_bytes(b"abcd"))
-        );
-        assert_eq!(batch.data, b"abcd");
-        assert_eq!(batch.sequence, 0);
-        assert_eq!(session.output_batch_len(), 0);
-        assert!(!session.output_batch_due(0));
-    }
-
-    #[test]
-    fn output_batch_empty_flush_disarms_timer() {
-        let mut session = test_session();
-
-        assert_eq!(session.append_output(b"a"), Some(0));
-        assert_eq!(session.flush_output_batch().expect("batch").sequence, 0);
-        assert!(session.flush_output_batch().is_none());
-
-        assert_eq!(session.append_output(b"b"), Some(1));
-        assert!(!session.output_batch_due(0));
-        assert!(session.output_batch_due(1));
-        assert_eq!(session.flush_output_batch().expect("batch").sequence, 1);
     }
 }

@@ -65,6 +65,20 @@ abstract interface class AppWindowDisplayProvider {
   Future<List<Rect>> visibleDisplayBounds();
 }
 
+abstract interface class AppWindowCloseStrategy {
+  Future<void> close(AppWindowController window);
+}
+
+final class DestroyAppWindowCloseStrategy implements AppWindowCloseStrategy {
+  const DestroyAppWindowCloseStrategy();
+
+  @override
+  Future<void> close(AppWindowController window) async {
+    await window.setPreventClose(false);
+    await window.destroy();
+  }
+}
+
 class AppWindowRestorer {
   const AppWindowRestorer({
     required AppWindowStateRepository repository,
@@ -111,11 +125,14 @@ class AppWindowLifecycleCoordinator extends AppWindowEventListener {
   AppWindowLifecycleCoordinator({
     required AppWindowStateRepository repository,
     required AppWindowController window,
+    AppWindowCloseStrategy closeStrategy =
+        const DestroyAppWindowCloseStrategy(),
     Duration saveDebounce = const Duration(milliseconds: 350),
     Logger? logger,
   }) : this._(
          repository: repository,
          window: window,
+         closeStrategy: closeStrategy,
          saveDebounce: saveDebounce,
          logger: logger ?? Logger('AppWindowLifecycleCoordinator'),
        );
@@ -123,12 +140,14 @@ class AppWindowLifecycleCoordinator extends AppWindowEventListener {
   AppWindowLifecycleCoordinator._({
     required this._repository,
     required this._window,
+    required this._closeStrategy,
     required this._saveDebounce,
     required this._logger,
   });
 
   final AppWindowStateRepository _repository;
   final AppWindowController _window;
+  final AppWindowCloseStrategy _closeStrategy;
   final Duration _saveDebounce;
   final Logger _logger;
 
@@ -232,8 +251,7 @@ class AppWindowLifecycleCoordinator extends AppWindowEventListener {
       );
     } finally {
       _window.removeListener(this);
-      await _window.setPreventClose(false);
-      await _window.destroy();
+      await _closeStrategy.close(_window);
     }
   }
 

@@ -1,14 +1,14 @@
 use std::time::Duration;
 
 use alera_core::runtime::{
-    NewOrchestrationMessage, NewOrchestrationTask, OrchestrationGateStatus, OrchestrationMessage,
-    OrchestrationMessagePriority, OrchestrationMessageType, OrchestrationTaskStatus,
+    NewOrchestrationMessage, NewOrchestrationTask, OrchestrationDispatchStatus,
+    OrchestrationGateStatus, OrchestrationMessage, OrchestrationMessagePriority,
+    OrchestrationMessageType, OrchestrationTaskStatus,
 };
 use serde_json::{json, Value};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::orchestration::agent_presence::AgentPresenceState;
-use crate::terminal_host::orchestration::agent_prompt_injection::write_agent_prompt_paste;
 use crate::terminal_host::orchestration::dispatch_preamble::{
     build_dispatch_preamble, parse_allow_stale_base_from_spec, GateResolution, PreambleParams,
     WorkerKind,
@@ -22,70 +22,11 @@ use crate::terminal_host::orchestration::message_waiters::{MessageWaiter, WaitKi
 use crate::terminal_host::protocol::{error_response, ok_response};
 use crate::terminal_host::session::Session;
 
+use super::orchestration_validation::{
+    optional_string, parse_message_type, parse_priority, parse_type_filter, prefixed_subject,
+    require_string, state_error, wait_timeout_ms,
+};
 use super::{ServerActor, ServerCommand};
-
-/// Server-side ceiling for `check --wait`/`ask` so a parked request can never
-/// outlive a misbehaving client that skipped its own timeout.
-const MAX_WAIT_TIMEOUT_MS: u64 = 600_000;
-const DEFAULT_WAIT_TIMEOUT_MS: u64 = 120_000;
-
-fn optional_string(payload: &Value, key: &str) -> Option<String> {
-    payload
-        .get(key)
-        .and_then(Value::as_str)
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(str::to_string)
-}
-
-fn require_string(payload: &Value, key: &str) -> HostResult<String> {
-    optional_string(payload, key).ok_or_else(|| HostError::format(format!("{key} is required.")))
-}
-
-fn parse_message_type(payload: &Value) -> HostResult<OrchestrationMessageType> {
-    match payload.get("type").and_then(Value::as_str) {
-        None => Ok(OrchestrationMessageType::Status),
-        Some(raw) => OrchestrationMessageType::parse(raw)
-            .ok_or_else(|| HostError::format(format!("unknown message type: {raw}"))),
-    }
-}
-
-fn parse_priority(payload: &Value) -> HostResult<OrchestrationMessagePriority> {
-    match payload.get("priority").and_then(Value::as_str) {
-        None => Ok(OrchestrationMessagePriority::Normal),
-        Some(raw) => OrchestrationMessagePriority::parse(raw)
-            .ok_or_else(|| HostError::format(format!("unknown message priority: {raw}"))),
-    }
-}
-
-fn parse_type_filter(payload: &Value) -> HostResult<Vec<OrchestrationMessageType>> {
-    let Some(types) = payload.get("types") else {
-        return Ok(Vec::new());
-    };
-    let Some(items) = types.as_array() else {
-        return Err(HostError::format("types must be an array of strings."));
-    };
-    items
-        .iter()
-        .map(|item| {
-            item.as_str()
-                .and_then(OrchestrationMessageType::parse)
-                .ok_or_else(|| HostError::format(format!("unknown message type: {item}")))
-        })
-        .collect()
-}
-
-fn wait_timeout_ms(payload: &Value) -> u64 {
-    payload
-        .get("timeoutMs")
-        .and_then(Value::as_u64)
-        .unwrap_or(DEFAULT_WAIT_TIMEOUT_MS)
-        .min(MAX_WAIT_TIMEOUT_MS)
-}
-
-fn state_error(error: impl std::fmt::Display) -> HostError {
-    HostError::state(error.to_string())
-}
 
 impl ServerActor {
     /// Handles `orchestration.*` requests. Wait-capable verbs return
@@ -156,6 +97,56 @@ impl ServerActor {
         );
         if recipients.is_empty() {
             return Err(HostError::state(format!("No recipients resolved for {to}")));
+        }
+        if message_type.is_lifecycle()
+            && recipients.iter().any(|recipient| recipient == &from_handle)
+        {
+            return Err(HostError::state(format!(
+                "invalid_self_recipient: {} messages must be sent to the coordinator, not the sender",
+                message_type.as_str()
+            )));
+        }
+
+        if message_type == OrchestrationMessageType::WorkerDone {
+            let parsed_payload = message_payload
+                .as_deref()
+                .and_then(|raw| serde_json::from_str::<Value>(raw).ok())
+                .and_then(|value| value.as_object().cloned());
+            let dispatch_id = parsed_payload
+                .as_ref()
+                .and_then(|value| value.get("dispatchId"))
+                .and_then(Value::as_str);
+            let task_id = parsed_payload
+                .as_ref()
+                .and_then(|value| value.get("taskId"))
+                .and_then(Value::as_str);
+            if let (Some(dispatch_id), Some(task_id)) = (dispatch_id, task_id) {
+                if let Some(dispatch) = self
+                    .runtime_store
+                    .orchestration_dispatch_by_id(dispatch_id)
+                    .await
+                    .map_err(state_error)?
+                {
+                    if dispatch.status == OrchestrationDispatchStatus::Completed {
+                        if dispatch.task_id != task_id {
+                            return Err(HostError::state(format!(
+                                "invalid_dispatch_task: dispatch {dispatch_id} belongs to {}, not {task_id}",
+                                dispatch.task_id
+                            )));
+                        }
+                        if dispatch.assignee_handle.as_deref() != Some(from_handle.as_str()) {
+                            return Err(HostError::state(format!(
+                                "invalid_dispatch_assignee: dispatch {dispatch_id} is not assigned to {from_handle}"
+                            )));
+                        }
+                        return Ok(json!({
+                            "messages": [],
+                            "recipients": recipients,
+                            "duplicate": true,
+                        }));
+                    }
+                }
+            }
         }
 
         // Group fan-out shares a thread id so replies converge.
@@ -308,16 +299,12 @@ impl ServerActor {
             .await
             .map_err(state_error)?
             .ok_or_else(|| HostError::state(format!("message not found: {message_id}")))?;
-        self.runtime_store
-            .mark_orchestration_messages_read(std::slice::from_ref(&original.id))
-            .await
-            .map_err(state_error)?;
         let reply = self
             .runtime_store
             .insert_orchestration_message(NewOrchestrationMessage {
                 from_handle: original.to_handle.clone(),
                 to_handle: original.from_handle.clone(),
-                subject: format!("Re: {}", original.subject),
+                subject: prefixed_subject("Re: ", &original.subject),
                 body,
                 message_type: OrchestrationMessageType::Status,
                 priority: OrchestrationMessagePriority::Normal,
@@ -327,6 +314,10 @@ impl ServerActor {
                     .or_else(|| Some(original.id.clone())),
                 payload: None,
             })
+            .await
+            .map_err(state_error)?;
+        self.runtime_store
+            .mark_orchestration_messages_read(std::slice::from_ref(&original.id))
             .await
             .map_err(state_error)?;
         let recipient = reply.to_handle.clone();
@@ -568,6 +559,12 @@ impl ServerActor {
             .and_then(Value::as_bool)
             .unwrap_or(false);
 
+        if inject && from == to {
+            return Err(HostError::state(
+                "invalid_self_recipient: injected dispatch coordinator and worker must differ",
+            ));
+        }
+
         let task = self
             .runtime_store
             .orchestration_task_by_id(&task_id)
@@ -639,28 +636,20 @@ impl ServerActor {
         });
 
         if inject {
-            let Some(session) = self.sessions.get_mut(&to) else {
+            if !self.sessions.contains_key(&to) {
                 let _ = self
                     .runtime_store
                     .fail_orchestration_dispatch(&dispatch.id, "terminal session vanished")
                     .await;
                 return Err(HostError::state(format!("terminal {to} vanished")));
-            };
-            write_agent_prompt_paste(session, &preamble);
-            let session_instance_id = session.instance_id();
-            let inbox = self.inbox.clone();
-            let session_id = to.clone();
-            tokio::spawn(async move {
-                tokio::time::sleep(Duration::from_millis(
-                    crate::terminal_host::orchestration::message_delivery::DEFERRED_ENTER_DELAY_MS,
-                ))
-                .await;
-                let _ = inbox.send(ServerCommand::OrchestrationDeferredEnter {
-                    session_id,
-                    session_instance_id,
-                    message_ids: Vec::new(),
-                });
-            });
+            }
+            if let Err(error) = self.queue_orchestration_paste(&to, &preamble, Vec::new()) {
+                let _ = self
+                    .runtime_store
+                    .fail_orchestration_dispatch(&dispatch.id, "terminal input unavailable")
+                    .await;
+                return Err(error);
+            }
         }
 
         let mut response = json!({ "dispatch": dispatch, "taskId": task_id });

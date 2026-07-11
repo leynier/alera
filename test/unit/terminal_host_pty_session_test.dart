@@ -286,7 +286,7 @@ void main() {
   );
 
   test(
-    'host PTY session emits one error when stale-session recovery fails',
+    'host PTY session never replays a write after connection loss',
     () async {
       final client = FakeTerminalHostClient(
         attachment: TerminalHostAttachment(
@@ -310,10 +310,9 @@ void main() {
           ),
         ],
       );
-      client.writeErrors.addAll(<Object>[
-        StateError('Terminal session is not attached: session-1'),
-        StateError('Terminal session is not attached: session-1'),
-      ]);
+      client.writeErrors.add(
+        StateError('Terminal host connection closed: reset'),
+      );
       final session = TerminalHostPtySession(
         client: client,
         sessionId: 'session-1',
@@ -334,7 +333,7 @@ void main() {
       expect(session.writeBytes(<int>[9]), isTrue);
       await _flushAsync();
 
-      expect(client.attachCalls, hasLength(2));
+      expect(client.attachCalls, hasLength(1));
       expect(client.writes, isEmpty);
       final error = events.whereType<TerminalPtyErrorEvent>().single.error;
       expect(
@@ -342,7 +341,7 @@ void main() {
         isA<StateError>().having(
           (error) => error.message,
           'message',
-          contains('Terminal session is not attached'),
+          contains('Terminal host connection closed'),
         ),
       );
     },
@@ -394,6 +393,53 @@ void main() {
       );
     },
   );
+
+  test('host PTY session keeps input backpressure non-fatal', () async {
+    final client = FakeTerminalHostClient(
+      attachment: TerminalHostAttachment(
+        sessionId: 'session-1',
+        created: true,
+        running: true,
+        snapshot: Uint8List(0),
+      ),
+    );
+    final session = TerminalHostPtySession(
+      client: client,
+      sessionId: 'session-1',
+      workspaceId: 'workspace-1',
+      tabId: 'tab-1',
+    );
+    addTearDown(session.dispose);
+    final events = <TerminalPtySessionEvent>[];
+    final sub = session.events.listen(events.add);
+    addTearDown(sub.cancel);
+
+    await session.start(
+      launch: _launch(),
+      workingDirectory: '/repo',
+      cols: 80,
+      rows: 24,
+    );
+    client.writeErrors.add(
+      StateError('terminal_input_backpressure: terminal input queue is full'),
+    );
+    expect(session.writeBytes(<int>[1]), isTrue);
+    client.emit(
+      const TerminalHostErrorEvent(
+        'session-1',
+        'terminal_input_backpressure: terminal input queue is full',
+      ),
+    );
+    await _flushAsync();
+
+    expect(events.whereType<TerminalPtyErrorEvent>(), isEmpty);
+    expect(client.attachCalls, hasLength(1));
+    expect(session.writeBytes(<int>[2]), isTrue);
+    await _flushAsync();
+    expect(client.writes, <List<int>>[
+      <int>[2],
+    ]);
+  });
 
   test('host PTY session rejects use after disposal', () async {
     final client = FakeTerminalHostClient(

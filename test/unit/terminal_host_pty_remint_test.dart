@@ -55,7 +55,7 @@ void main() {
     ]);
   });
 
-  test('awaited startup write yields to a complete remint replay', () async {
+  test('awaited startup write does not replay after connection loss', () async {
     final client = _clientWithReattach(created: true);
     client.writeErrors.add(
       StateError('Terminal host connection closed: reset'),
@@ -63,25 +63,30 @@ void main() {
     final session = _session(client);
     addTearDown(session.dispose);
     var processCount = 0;
-    final results = <bool>[];
 
-    await session.start(
-      launch: _launch(),
-      workingDirectory: '/repo',
-      cols: 80,
-      rows: 24,
-      onProcessCreated: () async {
-        processCount += 1;
-        results.add(await session.writeBytesAndWait(<int>[1, 2]));
-      },
+    await expectLater(
+      session.start(
+        launch: _launch(),
+        workingDirectory: '/repo',
+        cols: 80,
+        rows: 24,
+        onProcessCreated: () async {
+          processCount += 1;
+          await session.writeBytesAndWait(<int>[1, 2]);
+        },
+      ),
+      throwsA(
+        isA<StateError>().having(
+          (error) => error.message,
+          'message',
+          contains('Terminal host connection closed'),
+        ),
+      ),
     );
 
-    expect(processCount, 2);
-    expect(results, <bool>[true, false]);
-    expect(client.attachCalls, hasLength(2));
-    expect(client.writes, <List<int>>[
-      <int>[1, 2],
-    ]);
+    expect(processCount, 1);
+    expect(client.attachCalls, hasLength(1));
+    expect(client.writes, isEmpty);
   });
 
   test('awaited startup write preserves unrecoverable errors', () async {

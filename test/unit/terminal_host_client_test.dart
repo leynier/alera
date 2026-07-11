@@ -8,7 +8,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
 import 'package:path/path.dart' as p;
 
+part 'terminal_host_client_resilience_cases.dart';
+
 void main() {
+  _registerTerminalHostClientResilienceTests();
+
   test('connects through launcher and sends lifecycle requests', () async {
     final tempDir = await Directory.systemTemp.createTemp('alera-host-client-');
     addTearDown(() async {
@@ -960,18 +964,6 @@ Future<void> _waitForQueuedLauncherStarts(
   expect(launcher.starts, greaterThanOrEqualTo(expected));
 }
 
-Future<void> _waitForServerRequestCount(
-  _TerminalHostTestServer server,
-  int expected,
-) async {
-  final deadline = DateTime.now().add(const Duration(seconds: 1));
-  while (server.requests.length < expected &&
-      DateTime.now().isBefore(deadline)) {
-    await Future<void>.delayed(const Duration(milliseconds: 1));
-  }
-  expect(server.requests.length, greaterThanOrEqualTo(expected));
-}
-
 Future<void> _writeControlFile({
   required Directory tempDir,
   String fileName = 'host.json',
@@ -1159,7 +1151,7 @@ final class _TerminalHostTestServer {
         .transform(utf8.decoder)
         .transform(const LineSplitter())
         .listen(
-          (line) => unawaited(_handleLine(socket, line)),
+          (line) => unawaited(_handleLine(socket, line).catchError((_) {})),
           onError: (_) {},
         );
   }

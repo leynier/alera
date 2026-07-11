@@ -6,7 +6,6 @@ use serde_json::{json, Value};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::orchestration::agent_presence::AgentPresenceState;
-use crate::terminal_host::orchestration::agent_prompt_injection::write_agent_prompt_paste;
 use crate::terminal_host::orchestration::coordinator_loop::{
     hung_dispatch_threshold_iso, CoordinatorConfig, CoordinatorHandle, COORDINATOR_DEFAULT_POLL_MS,
     COORDINATOR_DISPATCH_STALE_THRESHOLD, COORDINATOR_MAX_CONCURRENT_DEFAULT,
@@ -651,33 +650,22 @@ impl ServerActor {
             gate_resolution: gate_resolution.as_ref(),
             worker_kind: WorkerKind::PromptReturningAgent,
         });
-        let session_instance_id = self
-            .sessions
-            .get_mut(handle)
-            .filter(|session| Session::running(session))
-            .map(|session| {
-                write_agent_prompt_paste(session, &preamble);
-                session.instance_id()
-            });
-        let Some(session_instance_id) = session_instance_id else {
+        let session_running = self.sessions.get(handle).is_some_and(Session::running);
+        if !session_running {
             self.runtime_store
                 .fail_orchestration_dispatch(&dispatch.id, "terminal not writable")
                 .await?;
             return Ok(false);
-        };
-        let inbox = self.inbox.clone();
-        let session_id = handle.to_string();
-        tokio::spawn(async move {
-            tokio::time::sleep(std::time::Duration::from_millis(
-                crate::terminal_host::orchestration::message_delivery::DEFERRED_ENTER_DELAY_MS,
-            ))
-            .await;
-            let _ = inbox.send(ServerCommand::OrchestrationDeferredEnter {
-                session_id,
-                session_instance_id,
-                message_ids: Vec::new(),
-            });
-        });
+        }
+        if self
+            .queue_orchestration_paste(handle, &preamble, Vec::new())
+            .is_err()
+        {
+            self.runtime_store
+                .fail_orchestration_dispatch(&dispatch.id, "terminal input unavailable")
+                .await?;
+            return Ok(false);
+        }
         self.coordinator_log(&format!("dispatched {task_id} to {handle}"));
         Ok(true)
     }

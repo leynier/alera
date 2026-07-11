@@ -32,7 +32,9 @@ The host keeps an agent presence registry per handle. State mapping:
 - `working` / `waiting` / `blocked` → busy. `waiting` can mean an approval or user-input prompt, so auto-injection waits until the agent reports `done`.
 - removed → presence cleared; messages stay queued for explicit `check` or the next injection-ready transition.
 
-Messages track `read` (consumed by `check`) and `delivered_at` (auto-injected) independently, so push-on-idle delivers at most once while `check` still sees delivered-but-unread messages. `delivered_at` is stamped only after the deferred Enter succeeds; failures leave the batch queued for the next idle transition. Push-on-idle never targets the active coordinator handle; coordinators use `check --wait --types worker_done,escalation,decision_gate` plus host lifecycle reconciliation, with `decision_gate` keeping taskless `ask` questions visible. Inject payloads use bracketed paste + deferred Enter so multiline preambles do not corrupt the shell.
+Messages track `read` (consumed by `check`) and `delivered_at` (auto-injected) independently, so push-on-idle delivers at most once while `check` still sees delivered-but-unread messages. `delivered_at` is stamped only after the session-local PTY writer acknowledges the paste and, for auto-submit agents, the deferred Enter; failures leave the batch queued for the next idle transition. Push-on-idle never targets the active coordinator handle; coordinators use `check --wait --types worker_done,escalation,decision_gate` plus host lifecycle reconciliation, with `decision_gate` keeping taskless `ask` questions visible. Inject payloads use bracketed paste + deferred Enter so multiline preambles do not corrupt the shell.
+
+Message admission is bounded at the storage boundary: handles and thread IDs are limited to 512 UTF-8 bytes, subjects to 256 bytes, lifecycle bodies to 8 KiB, and general bodies and serialized payloads to 64 KiB. These limits apply equally to send, reply, ask, and future insertion paths. Lifecycle messages cannot target their sender, injected dispatches require different coordinator and worker handles, and only an exact repeated `worker_done` whose task, dispatch, and assignee all match an already completed dispatch is accepted as an idempotent duplicate without inserting another message. Agent prompt injection further truncates each body to 4 KiB and the complete injected batch to 16 KiB; omitted content remains available through `alera orchestration inbox --terminal <handle>`.
 
 Without the app running, push-on-idle and `@agent`/`@idle` groups degrade gracefully: messages queue and remain readable via `check`.
 
@@ -47,6 +49,7 @@ Without the app running, push-on-idle and `@agent`/`@idle` groups degrade gracef
 7. Gate create is accepted only for `ready` or `dispatched` tasks. It sets the task `blocked` and completes any active dispatch; gate resolve returns the task to `ready` with the resolution injected into the next preamble.
 8. Lifecycle messages reconcile before waking blocked waiters, so the dispatch lock is released by the time a coordinator reads the result.
 9. Long-poll waiters (`check --wait`, `ask`) have a server-side deadline (600 s max) and die with their client connection.
+10. Blocking PTY writes never run in `ServerActor`; each terminal owns a bounded writer queue, so one stalled prompt injection cannot stop unrelated terminals or runtime requests.
 
 ## Coordinator
 

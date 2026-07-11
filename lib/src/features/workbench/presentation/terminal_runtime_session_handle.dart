@@ -423,7 +423,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
           notifyRuntime: event.notifyRuntime,
         );
       case TerminalPtyErrorEvent(:final error):
-        _writeToTerminal('\n[terminal error: $error]\n');
+        _setTerminalHostError(error);
     }
   }
 
@@ -572,11 +572,22 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     }
     unawaited(
       session.setOutputPaused(!_visible).catchError((Object error) {
-        if (!_disposed) {
-          _writeToTerminal('\n[terminal error: $error]\n');
-        }
+        _setTerminalHostError(error);
       }),
     );
+  }
+
+  void _setTerminalHostError(Object error) {
+    if (_disposed) {
+      return;
+    }
+    final message = 'Terminal host unavailable: $error';
+    if (_errorMessage == message && !_running) {
+      return;
+    }
+    _errorMessage = message;
+    _running = false;
+    notifyListeners();
   }
 
   void _syncVisibilityFromLeases() {
@@ -660,17 +671,3 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     _focusNode.requestFocus();
   }
 }
-
-int _terminalOutputFrameCutoff(String value) {
-  if (value.length <= _terminalOutputMaxCharsPerFrame) {
-    return value.length;
-  }
-  var cutoff = _terminalOutputMaxCharsPerFrame;
-  final codeUnit = value.codeUnitAt(cutoff);
-  if (codeUnit >= 0xDC00 && codeUnit <= 0xDFFF) {
-    cutoff -= 1;
-  }
-  return cutoff;
-}
-
-const int _terminalOutputMaxCharsPerFrame = 64 * 1024;

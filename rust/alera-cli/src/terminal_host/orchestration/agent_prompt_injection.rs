@@ -13,9 +13,6 @@ pub const BRACKETED_PASTE_END: &[u8] = b"\x1b[201~";
 /// Submit after paste (carriage return, not LF).
 pub const AGENT_PROMPT_SUBMIT: &[u8] = b"\r";
 
-/// Max bytes per PTY write so large preambles do not monopolize the writer.
-pub const TERMINAL_INPUT_CHUNK_MAX_BYTES: usize = 16 * 1024;
-
 /// Preserve printable text, LF, and tab while rendering terminal controls as
 /// inert ASCII markers.
 pub fn sanitize_agent_prompt_text(text: &str) -> String {
@@ -43,30 +40,6 @@ pub fn build_agent_prompt_paste_bytes(prompt: &str) -> Vec<u8> {
     bytes.extend_from_slice(sanitized.as_bytes());
     bytes.extend_from_slice(BRACKETED_PASTE_END);
     bytes
-}
-
-/// Split bytes into write-sized chunks (last chunk may be shorter).
-pub fn iterate_terminal_input_chunks(
-    bytes: &[u8],
-    max_chunk_bytes: usize,
-) -> impl Iterator<Item = &[u8]> {
-    let max = max_chunk_bytes.max(1);
-    (0..bytes.len().div_ceil(max)).map(move |i| {
-        let start = i * max;
-        let end = (start + max).min(bytes.len());
-        &bytes[start..end]
-    })
-}
-
-/// Write a sanitized bracketed-paste prompt to a PTY session in chunks.
-pub fn write_agent_prompt_paste(
-    session: &mut crate::terminal_host::session::Session,
-    prompt: &str,
-) {
-    let paste = build_agent_prompt_paste_bytes(prompt);
-    for chunk in iterate_terminal_input_chunks(&paste, TERMINAL_INPUT_CHUNK_MAX_BYTES) {
-        session.write(chunk);
-    }
 }
 
 #[cfg(test)]
@@ -110,20 +83,5 @@ mod tests {
         assert!(as_str.contains("<0x1B>"));
         let inner = &paste[BRACKETED_PASTE_START.len()..paste.len() - BRACKETED_PASTE_END.len()];
         assert!(!inner.contains(&0x1b));
-    }
-
-    #[test]
-    fn chunks_split_large_payloads() {
-        let data = vec![b'a'; 40];
-        let chunks: Vec<&[u8]> = iterate_terminal_input_chunks(&data, 16).collect();
-        assert_eq!(chunks.len(), 3);
-        assert_eq!(chunks[0].len(), 16);
-        assert_eq!(chunks[1].len(), 16);
-        assert_eq!(chunks[2].len(), 8);
-    }
-
-    #[test]
-    fn empty_input_yields_no_chunks() {
-        assert_eq!(iterate_terminal_input_chunks(b"", 16).count(), 0);
     }
 }
