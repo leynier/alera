@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:alera/src/features/app_window/application/app_window_controller.dart';
 import 'package:alera/src/features/app_window/application/app_window_state_repository.dart';
 import 'package:alera/src/features/app_window/domain/app_window_state.dart';
+import 'package:alera/src/features/app_window/infra/platform_app_window_close_strategy.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -179,6 +180,39 @@ void main() {
 
       expect(repository.saved, isEmpty);
     });
+
+    test(
+      'Linux close flushes and exits without destroying the GTK window',
+      () async {
+        final repository = _FakeAppWindowStateRepository(null);
+        final window = _FakeAppWindowController()
+          ..bounds = const Rect.fromLTWH(40, 60, 1000, 700);
+        final exitCodes = <int>[];
+        var detached = false;
+        final coordinator = AppWindowLifecycleCoordinator(
+          repository: repository,
+          window: window,
+          closeStrategy: PlatformAppWindowCloseStrategy(
+            isLinux: true,
+            beforeLinuxExit: () async {
+              detached = true;
+            },
+            exitProcess: exitCodes.add,
+          ),
+          saveDebounce: Duration.zero,
+        );
+        await coordinator.start();
+
+        window.emit((listener) => listener.onWindowClose());
+        await _waitFor(() => exitCodes.isNotEmpty);
+
+        expect(detached, isTrue);
+        expect(exitCodes, <int>[0]);
+        expect(window.destroyed, isFalse);
+        expect(window.preventCloseValues, <bool>[true]);
+        expect(repository.saved, hasLength(1));
+      },
+    );
   });
 }
 

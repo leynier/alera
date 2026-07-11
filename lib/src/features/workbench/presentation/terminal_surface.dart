@@ -147,10 +147,7 @@ class _TerminalErrorState extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text(
-                'Terminal failed to start',
-                style: theme.textTheme.titleMedium,
-              ),
+              Text('Terminal Unavailable', style: theme.textTheme.titleMedium),
               const SizedBox(height: AleraTokens.space8),
               Text(
                 message,

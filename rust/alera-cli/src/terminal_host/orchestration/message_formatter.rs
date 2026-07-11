@@ -1,6 +1,10 @@
 use alera_core::runtime::{OrchestrationMessage, OrchestrationMessagePriority};
 
 const BANNER_WIDTH: usize = 60;
+const INJECT_BODY_MAX_BYTES: usize = 4 * 1024;
+const INJECT_PAYLOAD_MAX_BYTES: usize = 2 * 1024;
+const INJECT_BATCH_MAX_BYTES: usize = 16 * 1024;
+const INJECT_BATCH_RESERVED_BYTES: usize = 512;
 
 /// Rich message banners help agents (and humans reading terminal output)
 /// quickly parse message metadata. Priority indicators surface urgent
@@ -20,10 +24,21 @@ pub fn format_message_banner(message: &OrchestrationMessage) -> String {
     )];
     lines.push(format!("Subject: {}", message.subject));
     if !message.body.is_empty() {
-        lines.push(message.body.clone());
+        let (body, truncated) = truncate_utf8(&message.body, INJECT_BODY_MAX_BYTES);
+        lines.push(body.to_string());
+        if truncated {
+            lines.push(format!(
+                "[Message body truncated; run alera orchestration inbox --terminal {} for full content]",
+                message.to_handle
+            ));
+        }
     }
     if let Some(payload) = &message.payload {
-        lines.push(format!("[Payload: {payload}]"));
+        let (payload, truncated) = truncate_utf8(payload, INJECT_PAYLOAD_MAX_BYTES);
+        lines.push(format!(
+            "[Payload: {payload}{}]",
+            if truncated { "…" } else { "" }
+        ));
     }
     lines.push(format!(
         "[Reply: alera orchestration reply --id {} --body \"...\"]",
@@ -39,15 +54,50 @@ pub fn format_messages_for_injection(messages: &[OrchestrationMessage]) -> Strin
     if messages.is_empty() {
         return String::new();
     }
-    let banners = messages
-        .iter()
-        .map(format_message_banner)
-        .collect::<Vec<_>>()
-        .join("\n\n");
+    let mut banners = Vec::new();
+    let mut used_bytes = 0usize;
+    let content_limit = INJECT_BATCH_MAX_BYTES.saturating_sub(INJECT_BATCH_RESERVED_BYTES);
+    for message in messages {
+        let banner = format_message_banner(message);
+        let separator_bytes = if banners.is_empty() { 0 } else { 2 };
+        if used_bytes
+            .saturating_add(separator_bytes)
+            .saturating_add(banner.len())
+            > content_limit
+        {
+            let notice = format!(
+                "[{} additional message(s) omitted; run alera orchestration inbox --terminal {}]",
+                messages.len().saturating_sub(banners.len()),
+                message.to_handle
+            );
+            if used_bytes
+                .saturating_add(separator_bytes)
+                .saturating_add(notice.len())
+                <= content_limit
+            {
+                banners.push(notice);
+            }
+            break;
+        }
+        used_bytes = used_bytes.saturating_add(separator_bytes + banner.len());
+        banners.push(banner);
+    }
+    let banners = banners.join("\n\n");
     format!(
         "\n--- Orchestration Messages ({}) ---\n{banners}\n---\n",
         messages.len()
     )
+}
+
+fn truncate_utf8(value: &str, max_bytes: usize) -> (&str, bool) {
+    if value.len() <= max_bytes {
+        return (value, false);
+    }
+    let mut end = max_bytes;
+    while !value.is_char_boundary(end) {
+        end = end.saturating_sub(1);
+    }
+    (&value[..end], true)
 }
 
 #[cfg(test)]
@@ -103,5 +153,24 @@ mod tests {
     #[test]
     fn empty_batch_formats_to_empty_string() {
         assert!(format_messages_for_injection(&[]).is_empty());
+    }
+
+    #[test]
+    fn oversized_body_is_truncated_on_utf8_boundary() {
+        let mut oversized = message(OrchestrationMessagePriority::Normal);
+        oversized.body = "á".repeat(INJECT_BODY_MAX_BYTES);
+        let banner = format_message_banner(&oversized);
+        assert!(banner.contains("Message body truncated"));
+        assert!(banner.len() < oversized.body.len());
+    }
+
+    #[test]
+    fn injection_batch_is_bounded() {
+        let mut oversized = message(OrchestrationMessagePriority::Normal);
+        oversized.body = "x".repeat(INJECT_BODY_MAX_BYTES * 2);
+        let batch = vec![oversized; 8];
+        let formatted = format_messages_for_injection(&batch);
+        assert!(formatted.len() <= INJECT_BATCH_MAX_BYTES);
+        assert!(formatted.contains("additional message(s) omitted"));
     }
 }

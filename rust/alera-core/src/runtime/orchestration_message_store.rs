@@ -7,6 +7,13 @@ use super::{
     OrchestrationMessage, OrchestrationMessagePriority, OrchestrationMessageType, RuntimeStore,
 };
 
+pub const ORCHESTRATION_HANDLE_MAX_BYTES: usize = 512;
+pub const ORCHESTRATION_SUBJECT_MAX_BYTES: usize = 256;
+pub const ORCHESTRATION_LIFECYCLE_BODY_MAX_BYTES: usize = 8 * 1024;
+pub const ORCHESTRATION_BODY_MAX_BYTES: usize = 64 * 1024;
+pub const ORCHESTRATION_THREAD_ID_MAX_BYTES: usize = 512;
+pub const ORCHESTRATION_PAYLOAD_MAX_BYTES: usize = 64 * 1024;
+
 // Timestamps in orchestration tables use SQLite's datetime('now') TEXT shape
 // (UTC, second precision) so threshold comparisons can rely on lexicographic
 // ordering, mirroring the Orca reference implementation.
@@ -102,6 +109,40 @@ pub struct NewOrchestrationMessage {
     pub payload: Option<String>,
 }
 
+fn validate_message_field(value: &str, field: &str, max_bytes: usize) -> Result<()> {
+    if value.len() > max_bytes {
+        anyhow::bail!("message_too_large: {field} exceeds {max_bytes} UTF-8 bytes");
+    }
+    Ok(())
+}
+
+fn validate_new_orchestration_message(message: &NewOrchestrationMessage) -> Result<()> {
+    validate_message_field(
+        &message.from_handle,
+        "from handle",
+        ORCHESTRATION_HANDLE_MAX_BYTES,
+    )?;
+    validate_message_field(
+        &message.to_handle,
+        "to handle",
+        ORCHESTRATION_HANDLE_MAX_BYTES,
+    )?;
+    validate_message_field(&message.subject, "subject", ORCHESTRATION_SUBJECT_MAX_BYTES)?;
+    let body_limit = if message.message_type.is_lifecycle() {
+        ORCHESTRATION_LIFECYCLE_BODY_MAX_BYTES
+    } else {
+        ORCHESTRATION_BODY_MAX_BYTES
+    };
+    validate_message_field(&message.body, "body", body_limit)?;
+    if let Some(thread_id) = message.thread_id.as_deref() {
+        validate_message_field(thread_id, "thread id", ORCHESTRATION_THREAD_ID_MAX_BYTES)?;
+    }
+    if let Some(payload) = message.payload.as_deref() {
+        validate_message_field(payload, "payload", ORCHESTRATION_PAYLOAD_MAX_BYTES)?;
+    }
+    Ok(())
+}
+
 pub(super) fn orchestration_id(prefix: &str) -> String {
     let hex = Uuid::new_v4().simple().to_string();
     format!("{prefix}_{}", &hex[..16])
@@ -142,6 +183,7 @@ impl RuntimeStore {
         &self,
         message: NewOrchestrationMessage,
     ) -> Result<OrchestrationMessage> {
+        validate_new_orchestration_message(&message)?;
         let id = orchestration_id("msg");
         sqlx::query(
             "INSERT INTO orchestrationMessages \

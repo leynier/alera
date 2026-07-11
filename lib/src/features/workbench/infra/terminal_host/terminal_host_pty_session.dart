@@ -173,7 +173,7 @@ final class TerminalHostPtySession implements TerminalPtySession {
     try {
       await _client.write(sessionId: _sessionId, bytes: bytes);
     } catch (error) {
-      if (!_shouldRecoverFromHostError(error)) {
+      if (!_isDefinitivelyNotAttached(error)) {
         rethrow;
       }
       final attachment = await _reattach();
@@ -202,7 +202,7 @@ final class TerminalHostPtySession implements TerminalPtySession {
     try {
       await _client.write(sessionId: _sessionId, bytes: bytes);
     } catch (error) {
-      if (!_shouldRecoverFromHostError(error)) {
+      if (!_isDefinitivelyNotAttached(error)) {
         rethrow;
       }
       await _reattach();
@@ -289,6 +289,12 @@ final class TerminalHostPtySession implements TerminalPtySession {
         message.contains('Terminal host connection closed');
   }
 
+  bool _isDefinitivelyNotAttached(Object error) {
+    return _hostErrorMessage(
+      error,
+    ).contains('Terminal session is not attached');
+  }
+
   String _hostErrorMessage(Object error) {
     if (error is StateError) {
       return error.message;
@@ -332,13 +338,19 @@ final class TerminalHostPtySession implements TerminalPtySession {
       case TerminalHostExitEvent(:final exitCode):
         _events.add(TerminalPtyExitEvent(exitCode));
       case TerminalHostErrorEvent(:final error):
-        _events.add(TerminalPtyErrorEvent(error));
+        if (!_isInputBackpressure(error)) {
+          _events.add(TerminalPtyErrorEvent(error));
+        }
     }
   }
 
   void _emitHostError(Object error) {
-    if (!_disposed && !_events.isClosed) {
+    if (!_disposed && !_events.isClosed && !_isInputBackpressure(error)) {
       _events.add(TerminalPtyErrorEvent(error));
     }
+  }
+
+  bool _isInputBackpressure(Object error) {
+    return _hostErrorMessage(error).contains('terminal_input_backpressure');
   }
 }

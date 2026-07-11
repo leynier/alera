@@ -363,14 +363,37 @@ fn task_dag_dispatch_and_worker_done() {
 
     // worker_done from the assignee with matching ids completes A and
     // promotes B in one send.
+    let completion_payload = format!("{{\"taskId\":\"{a_id}\",\"dispatchId\":\"{dispatch_id}\"}}");
     expect_ok(request(
         &mut writer,
         &mut reader,
         44,
         "orchestration.send",
         json!({"from": "w1", "to": "coord", "subject": "done", "type": "worker_done",
-               "payload": format!("{{\"taskId\":\"{a_id}\",\"dispatchId\":\"{dispatch_id}\"}}")}),
+               "payload": completion_payload}),
     ));
+    let duplicate = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        46,
+        "orchestration.send",
+        json!({"from": "w1", "to": "coord", "subject": "done again", "type": "worker_done",
+               "payload": completion_payload}),
+    ));
+    assert_eq!(duplicate["duplicate"], json!(true));
+    assert_eq!(duplicate["messages"], json!([]));
+    let mismatched = request(
+        &mut writer,
+        &mut reader,
+        47,
+        "orchestration.send",
+        json!({"from": "w1", "to": "coord", "subject": "wrong task", "type": "worker_done",
+               "payload": format!("{{\"taskId\":\"{b_id}\",\"dispatchId\":\"{dispatch_id}\"}}")}),
+    );
+    assert_eq!(mismatched["ok"], json!(false));
+    assert!(mismatched["error"]
+        .as_str()
+        .is_some_and(|error| error.contains("invalid_dispatch_task")));
     let tasks = expect_ok(request(
         &mut writer,
         &mut reader,
@@ -591,4 +614,91 @@ fn lifecycle_to_group_and_unknown_recipients_are_rejected() {
         json!({"from": "a", "to": "@all", "subject": "x"}),
     );
     assert_eq!(no_recipients["ok"], json!(false));
+}
+
+#[test]
+fn unsafe_orchestration_messages_are_rejected_before_persistence() {
+    let host = start_host();
+    let (mut writer, mut reader) = connect(host.port);
+    handshake(&mut writer, &mut reader, &host.token);
+
+    let self_lifecycle = request(
+        &mut writer,
+        &mut reader,
+        80,
+        "orchestration.send",
+        json!({"from": "worker", "to": "worker", "subject": "done", "type": "worker_done"}),
+    );
+    assert_eq!(self_lifecycle["ok"], json!(false));
+    assert!(self_lifecycle["error"]
+        .as_str()
+        .is_some_and(|error| error.contains("invalid_self_recipient")));
+
+    let oversized = request(
+        &mut writer,
+        &mut reader,
+        81,
+        "orchestration.send",
+        json!({"from": "a", "to": "b", "subject": "large", "body": "x".repeat(64 * 1024 + 1)}),
+    );
+    assert_eq!(oversized["ok"], json!(false));
+    assert!(oversized["error"]
+        .as_str()
+        .is_some_and(|error| error.contains("message_too_large")));
+
+    let oversized_payload = request(
+        &mut writer,
+        &mut reader,
+        83,
+        "orchestration.send",
+        json!({"from": "a", "to": "b", "subject": "large payload", "payload": "x".repeat(64 * 1024 + 1)}),
+    );
+    assert_eq!(oversized_payload["ok"], json!(false));
+    assert!(oversized_payload["error"]
+        .as_str()
+        .is_some_and(|error| error.contains("payload")));
+
+    let original = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        84,
+        "orchestration.send",
+        json!({"from": "a", "to": "b", "subject": "reply root"}),
+    ));
+    let original_id = original["messages"][0]["id"].as_str().unwrap();
+    let oversized_reply = request(
+        &mut writer,
+        &mut reader,
+        85,
+        "orchestration.reply",
+        json!({"id": original_id, "body": "x".repeat(64 * 1024 + 1)}),
+    );
+    assert_eq!(oversized_reply["ok"], json!(false));
+    assert!(oversized_reply["error"]
+        .as_str()
+        .is_some_and(|error| error.contains("body")));
+
+    let oversized_ask = request(
+        &mut writer,
+        &mut reader,
+        86,
+        "orchestration.ask",
+        json!({"from": "a", "to": "b", "question": "x".repeat(64 * 1024 + 1)}),
+    );
+    assert_eq!(oversized_ask["ok"], json!(false));
+    assert!(oversized_ask["error"]
+        .as_str()
+        .is_some_and(|error| error.contains("message_too_large")));
+
+    let injected_self_dispatch = request(
+        &mut writer,
+        &mut reader,
+        82,
+        "orchestration.dispatch",
+        json!({"task": "missing", "from": "same", "to": "same", "inject": true}),
+    );
+    assert_eq!(injected_self_dispatch["ok"], json!(false));
+    assert!(injected_self_dispatch["error"]
+        .as_str()
+        .is_some_and(|error| error.contains("invalid_self_recipient")));
 }

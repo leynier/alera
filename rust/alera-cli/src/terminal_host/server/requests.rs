@@ -144,6 +144,27 @@ impl ServerActor {
                 self.start_managed_workspace_remove(client_id, request_id, request);
                 Ok(true)
             }
+            "write" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                let session_id = self.require_session(payload)?;
+                let bytes = decode_bytes(payload.get("dataBase64"))?;
+                if bytes.is_empty() {
+                    return Ok(false);
+                }
+                let session = self
+                    .sessions
+                    .get_mut(&session_id)
+                    .ok_or_else(|| HostError::state("Terminal session is not attached."))?;
+                session.queue_write(
+                    crate::terminal_host::session::PtyWriteCompletion::ClientRequest {
+                        client_id,
+                        request_id,
+                    },
+                    &bytes,
+                )?;
+                Ok(true)
+            }
             _ => Ok(false),
         }
     }
@@ -329,11 +350,6 @@ impl ServerActor {
             }
             "write" => {
                 self.require_auth(client_id)?;
-                let session_id = self.require_session(payload)?;
-                let bytes = decode_bytes(payload.get("dataBase64"))?;
-                if let Some(session) = self.sessions.get_mut(&session_id) {
-                    session.write(&bytes);
-                }
                 Ok(json!({}))
             }
             "resize" => {
@@ -353,7 +369,7 @@ impl ServerActor {
                     .get("paused")
                     .and_then(Value::as_bool)
                     .unwrap_or(false);
-                self.flush_output_batch(&session_id);
+                self.flush_all_output(&session_id);
                 let snapshot = if let Some(session) = self.sessions.get_mut(&session_id) {
                     session.set_output_paused(client_id, paused);
                     session.snapshot_payload()
@@ -365,7 +381,7 @@ impl ServerActor {
             "detach" => {
                 self.require_auth(client_id)?;
                 let session_id = self.require_session(payload)?;
-                self.flush_output_batch(&session_id);
+                self.flush_all_output(&session_id);
                 if let Some(session) = self.sessions.get_mut(&session_id) {
                     session.detach(client_id);
                 }
@@ -375,7 +391,7 @@ impl ServerActor {
             "terminate" => {
                 self.require_auth(client_id)?;
                 let session_id = self.require_session(payload)?;
-                self.flush_output_batch(&session_id);
+                self.flush_all_output(&session_id);
                 self.await_output_writes(&session_id).await;
                 self.cleanup_orchestration_for_closed_session(
                     &session_id,
@@ -1020,7 +1036,7 @@ impl ServerActor {
         if self.sessions.contains_key(&session_id) {
             let running = self.sessions.get(&session_id).is_some_and(Session::running);
             if running {
-                self.flush_output_batch(&session_id);
+                self.flush_all_output(&session_id);
                 let session = self.sessions.get_mut(&session_id).expect("just checked");
                 session.attach(client_id);
                 return Ok(session.attachment_payload(false));

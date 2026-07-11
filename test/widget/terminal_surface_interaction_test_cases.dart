@@ -123,7 +123,7 @@ void _registerTerminalSurfaceInteractionTests() {
     );
     await tester.pump();
 
-    expect(find.text('Terminal failed to start'), findsOneWidget);
+    expect(find.text('Terminal Unavailable'), findsOneWidget);
     expect(find.text('boom'), findsOneWidget);
 
     await tester.tap(find.text('Retry'));

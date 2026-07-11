@@ -40,6 +40,19 @@ abstract interface class TerminalHostClient {
   void dispose();
 }
 
+final class TerminalHostRequestTimeoutException implements Exception {
+  const TerminalHostRequestTimeoutException(this.requestType, this.duration);
+
+  final String requestType;
+  final Duration duration;
+
+  @override
+  String toString() {
+    return 'Terminal host request "$requestType" timed out after '
+        '${duration.inMilliseconds} ms. The connection was closed.';
+  }
+}
+
 final class TerminalHostAttachment {
   const TerminalHostAttachment({
     required this.sessionId,

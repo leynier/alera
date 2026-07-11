@@ -202,4 +202,4 @@ final class AppWindowLifecycleCoordinatorProvider
 }
 
 String _$appWindowLifecycleCoordinatorHash() =>
-    r'542a601a41a230b2fa89d5e2319e118914016e88';
+    r'cd701c2b5038caf5c56604db638e08dcc663e6c1';

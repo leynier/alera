@@ -231,12 +231,26 @@ final class SocketTerminalHostClient
     final id = _nextRequestId++;
     final completer = Completer<Object?>();
     _pending[id] = _PendingHostRequest(connection, completer);
+    final requestTimeout = timeout ?? _terminalHostRequestTimeout;
     connection.write(<String, Object?>{
       'id': id,
       'type': type,
       'payload': payload,
     });
-    return completer.future.timeout(timeout ?? _terminalHostRequestTimeout);
+    return completer.future.timeout(
+      requestTimeout,
+      onTimeout: () {
+        final pending = _pending[id];
+        if (pending != null &&
+            identical(pending.connection, connection) &&
+            identical(pending.completer, completer)) {
+          _pending.remove(id);
+        }
+        final error = TerminalHostRequestTimeoutException(type, requestTimeout);
+        _handleConnectionClosed(connection, error);
+        throw error;
+      },
+    );
   }
 
   @override
@@ -261,7 +275,12 @@ final class SocketTerminalHostClient
     if (future != null) {
       return future;
     }
-    final next = _openTerminalConnection();
+    late final Future<_TerminalHostConnection> next;
+    next = _openTerminalConnection().whenComplete(() {
+      if (identical(_terminalConnectionFuture, next)) {
+        _terminalConnectionFuture = null;
+      }
+    });
     _terminalConnectionFuture = next;
     return next;
   }
@@ -471,40 +490,72 @@ final class SocketTerminalHostClient
       supportsOrchestration: control.supportsOrchestration,
     );
     final lineSub = connection.lines.listen(
-      (line) => _handleLine(connection, line),
+      (line) {
+        try {
+          _handleLine(connection, line);
+        } catch (error) {
+          _handleConnectionClosed(connection, error);
+        }
+      },
       onError: (error) => _handleConnectionClosed(connection, error),
       onDone: () => _handleConnectionClosed(connection),
       cancelOnError: true,
     );
-    switch (role) {
-      case _HostConnectionRole.terminal:
-        _terminalLineSub = lineSub;
-        _terminalConnection = connection;
-        _terminalConnectionFuture = null;
-        if (connection.supportsRuntime) {
-          _runtimeConnection = connection;
-          _runtimeConnectionFuture = null;
-          _runtimeLineSub = lineSub;
-        }
-      case _HostConnectionRole.runtime:
-        _runtimeLineSub = lineSub;
-        _runtimeConnection = connection;
-        _runtimeConnectionFuture = null;
-        if (_terminalConnection == null && connection.supportsRuntime) {
+    try {
+      connection.write(<String, Object?>{
+        'id': 0,
+        'type': 'hello',
+        'payload': <String, Object?>{
+          'protocolVersion': aleraTerminalHostProtocolVersion,
+          'token': control.token,
+          'clientKind': 'app',
+        },
+      });
+      await connection.authenticated.timeout(
+        _terminalHostConnectTimeout,
+        onTimeout: () => throw TimeoutException(
+          'Terminal host authentication timed out.',
+          _terminalHostConnectTimeout,
+        ),
+      );
+      if (connection.isClosed) {
+        throw StateError(
+          'Terminal host connection closed during authentication.',
+        );
+      }
+      switch (role) {
+        case _HostConnectionRole.terminal:
+          _terminalLineSub = lineSub;
           _terminalConnection = connection;
           _terminalConnectionFuture = null;
-          _terminalLineSub = lineSub;
-        }
+          if (connection.supportsRuntime) {
+            _runtimeConnection = connection;
+            _runtimeConnectionFuture = null;
+            _runtimeLineSub = lineSub;
+          }
+        case _HostConnectionRole.runtime:
+          _runtimeLineSub = lineSub;
+          _runtimeConnection = connection;
+          _runtimeConnectionFuture = null;
+          if (_terminalConnection == null && connection.supportsRuntime) {
+            _terminalConnection = connection;
+            _terminalConnectionFuture = null;
+            _terminalLineSub = lineSub;
+          }
+      }
+      if (connection.supportsRuntime && !_runtimeEvents.isClosed) {
+        _runtimeEvents.add(
+          const RuntimeHostEvent(
+            aleraRuntimeHostConnectedEvent,
+            <String, Object?>{},
+          ),
+        );
+      }
+    } catch (_) {
+      await lineSub.cancel();
+      connection.dispose();
+      rethrow;
     }
-    connection.write(<String, Object?>{
-      'id': 0,
-      'type': 'hello',
-      'payload': <String, Object?>{
-        'protocolVersion': aleraTerminalHostProtocolVersion,
-        'token': control.token,
-        'clientKind': 'app',
-      },
-    });
     return connection;
   }
 
@@ -521,14 +572,14 @@ final class SocketTerminalHostClient
     }
     if (id == 0) {
       if (message['ok'] != true) {
-        _handleConnectionClosed(connection); // coverage:ignore-line
-      } else if (connection.supportsRuntime && !_runtimeEvents.isClosed) {
-        _runtimeEvents.add(
-          const RuntimeHostEvent(
-            aleraRuntimeHostConnectedEvent,
-            <String, Object?>{},
-          ),
+        final error = StateError(
+          (message['error'] as String?) ??
+              'Terminal host authentication was rejected.',
         );
+        connection.completeAuthenticationError(error);
+        _handleConnectionClosed(connection, error);
+      } else {
+        connection.completeAuthentication();
       }
       return;
     }
@@ -580,6 +631,9 @@ final class SocketTerminalHostClient
     _TerminalHostConnection connection, [
     Object? error,
   ]) {
+    connection.completeAuthenticationError(
+      StateError('Terminal host connection closed: $error'),
+    );
     if (identical(_terminalConnection, connection)) {
       _terminalConnection = null;
       _terminalConnectionFuture = null;
@@ -768,12 +822,31 @@ final class _TerminalHostConnection {
   final bool supportsRuntime;
   final bool supportsOrchestration;
   final Stream<String> lines;
+  final Completer<void> _authenticated = Completer<void>();
+  bool _isClosed = false;
+
+  Future<void> get authenticated => _authenticated.future;
+
+  bool get isClosed => _isClosed;
+
+  void completeAuthentication() {
+    if (!_authenticated.isCompleted) {
+      _authenticated.complete();
+    }
+  }
+
+  void completeAuthenticationError(Object error) {
+    if (!_authenticated.isCompleted) {
+      _authenticated.completeError(error);
+    }
+  }
 
   void write(Map<String, Object?> message) {
     _socket.writeln(jsonEncode(message));
   }
 
   void dispose() {
+    _isClosed = true;
     _socket.destroy();
   }
 }

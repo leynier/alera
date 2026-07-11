@@ -141,6 +141,13 @@ class _FakeTerminalPtySession implements TerminalPtySession {
     _events.add(TerminalPtyOutputEvent(Uint8List.fromList(data)));
   }
 
+  void emitError(Object error) {
+    if (_events.isClosed) {
+      return;
+    }
+    _events.add(TerminalPtyErrorEvent(error));
+  }
+
   @override
   void dispose() {
     if (disposed) {
