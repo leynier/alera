@@ -336,6 +336,40 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 Ok(json!({}))
             }
+            "terminal.read" => {
+                self.require_auth(client_id)?;
+                let session_id = self.require_session(payload)?;
+                let cursor = payload.get("cursor").and_then(Value::as_u64);
+                let max_bytes = payload
+                    .get("maxBytes")
+                    .and_then(Value::as_u64)
+                    .unwrap_or(65_536)
+                    .max(1) as usize;
+                let session = self
+                    .sessions
+                    .get(&session_id)
+                    .ok_or_else(|| HostError::state(format!("terminal not found: {session_id}")))?;
+                let snapshot = session.snapshot_payload();
+                let bytes =
+                    crate::terminal_host::protocol::decode_bytes(snapshot.get("snapshotBase64"))?;
+                let (base_cursor, end_cursor) = session.output_stream_range();
+                let (requested_cursor, start_cursor, next_cursor) =
+                    terminal_read_window(base_cursor, end_cursor, cursor, max_bytes as u64);
+                let (start_cursor, next_cursor) =
+                    align_terminal_text_window(&bytes, base_cursor, start_cursor, next_cursor);
+                let start = (start_cursor - base_cursor) as usize;
+                let end = (next_cursor - base_cursor) as usize;
+                let selected = &bytes[start..end];
+                Ok(json!({
+                    "handle": session_id,
+                    "baseCursor": base_cursor,
+                    "cursor": start_cursor,
+                    "nextCursor": next_cursor,
+                    "truncated": requested_cursor < base_cursor,
+                    "text": String::from_utf8_lossy(selected),
+                    "dataBase64": crate::terminal_host::protocol::encode_bytes(selected),
+                }))
+            }
             "resize" => {
                 self.require_auth(client_id)?;
                 let session_id = self.require_session(payload)?;
@@ -400,7 +434,12 @@ impl ServerActor {
             "status.get" => {
                 self.require_auth(client_id)?;
                 Ok(json!({
+                    "runtimeHostVersion": option_env!("ALERA_BUILD_VERSION").unwrap_or(env!("CARGO_PKG_VERSION")),
+                    "runtimeHostCommit": option_env!("ALERA_BUILD_COMMIT").unwrap_or("unknown"),
                     "protocolVersion": PROTOCOL_VERSION,
+                    "orchestrationProtocolVersion": crate::terminal_host::protocol::ORCHESTRATION_PROTOCOL_VERSION,
+                    "dispatchPreambleVersion": crate::terminal_host::protocol::DISPATCH_PREAMBLE_VERSION,
+                    "skillVersion": crate::terminal_host::protocol::ORCHESTRATION_SKILL_VERSION,
                     "runtime": "alera",
                     "runtimeCapabilities": [
                         RUNTIME_HOST_CAPABILITY,
@@ -1014,6 +1053,7 @@ impl ServerActor {
         let store = self.store.clone();
         let max_bytes = self.config.scrollback_bytes as usize;
         let mut initial_scrollback = Vec::new();
+        let mut initial_output_stream_bytes = 0;
 
         // Live session: attach only. Dead session: remint with the same handle so
         // ALERA_TERMINAL_HANDLE / orchestration dispatch targets stay valid.
@@ -1027,6 +1067,7 @@ impl ServerActor {
             }
             if let Some(mut dead) = self.sessions.remove(&session_id) {
                 initial_scrollback = dead.buffer.to_bytes();
+                initial_output_stream_bytes = dead.output_stream_range().1;
                 dead.terminate(false, &store).await;
             }
             self.agent_presence.remove(&session_id);
@@ -1040,6 +1081,7 @@ impl ServerActor {
         .await
         {
             initial_scrollback = restored.buffer.to_bytes();
+            initial_output_stream_bytes = restored.output_stream_range().1;
         }
 
         let launch = TerminalHostLaunch::from_json(&Value::Object(
@@ -1059,6 +1101,7 @@ impl ServerActor {
             rows,
             max_bytes,
             &initial_scrollback,
+            initial_output_stream_bytes,
             &store,
             move |event| {
                 let _ = inbox.send(ServerCommand::Pty {
@@ -1231,6 +1274,81 @@ fn mobile_request_allowed(request_type: &str) -> bool {
     )
 }
 
+fn terminal_read_window(
+    base_cursor: u64,
+    end_cursor: u64,
+    cursor: Option<u64>,
+    max_bytes: u64,
+) -> (u64, u64, u64) {
+    let requested = cursor.unwrap_or_else(|| end_cursor.saturating_sub(max_bytes).max(base_cursor));
+    let start = requested.clamp(base_cursor, end_cursor);
+    let next = start.saturating_add(max_bytes).min(end_cursor);
+    (requested, start, next)
+}
+
+fn align_terminal_text_window(
+    bytes: &[u8],
+    base_cursor: u64,
+    start_cursor: u64,
+    next_cursor: u64,
+) -> (u64, u64) {
+    let mut start = (start_cursor - base_cursor) as usize;
+    let mut end = (next_cursor - base_cursor) as usize;
+    if let Some(scalar_end) = containing_utf8_scalar_end(bytes, start) {
+        start = scalar_end;
+    }
+    end = end.max(start).min(bytes.len());
+    while let Some(incomplete_at) = trailing_incomplete_utf8_start(&bytes[start..end]) {
+        if end < bytes.len() {
+            end += 1;
+        } else {
+            end = start + incomplete_at;
+            break;
+        }
+    }
+    (base_cursor + start as u64, base_cursor + end as u64)
+}
+
+fn containing_utf8_scalar_end(bytes: &[u8], index: usize) -> Option<usize> {
+    if index >= bytes.len() || !is_utf8_continuation(bytes[index]) {
+        return None;
+    }
+    let search_start = index.saturating_sub(3);
+    for lead in (search_start..index).rev() {
+        if is_utf8_continuation(bytes[lead]) {
+            continue;
+        }
+        for end in (index + 1)..=(lead + 4).min(bytes.len()) {
+            if std::str::from_utf8(&bytes[lead..end]).is_ok() {
+                return Some(end);
+            }
+        }
+        return None;
+    }
+    None
+}
+
+fn trailing_incomplete_utf8_start(bytes: &[u8]) -> Option<usize> {
+    let mut offset = 0;
+    while offset < bytes.len() {
+        match std::str::from_utf8(&bytes[offset..]) {
+            Ok(_) => return None,
+            Err(error) => {
+                offset += error.valid_up_to();
+                match error.error_len() {
+                    Some(length) => offset += length,
+                    None => return Some(offset),
+                }
+            }
+        }
+    }
+    None
+}
+
+fn is_utf8_continuation(byte: u8) -> bool {
+    byte & 0b1100_0000 == 0b1000_0000
+}
+
 fn parse_payload<T>(payload: &Value) -> HostResult<T>
 where
     T: serde::de::DeserializeOwned,
@@ -1258,5 +1376,35 @@ mod tests {
     fn mobile_allowlist_excludes_managed_workspace_mutations() {
         assert!(!mobile_request_allowed("workspace.createManaged"));
         assert!(!mobile_request_allowed("workspace.removeManaged"));
+    }
+
+    #[test]
+    fn terminal_read_cursor_advances_across_trimmed_scrollback() {
+        assert_eq!(terminal_read_window(0, 4, None, 4), (0, 0, 4));
+        assert_eq!(terminal_read_window(2, 6, Some(4), 4), (4, 4, 6));
+        assert_eq!(terminal_read_window(8, 12, Some(4), 4), (4, 8, 12));
+    }
+
+    #[test]
+    fn terminal_text_pages_do_not_split_valid_utf8_scalars() {
+        let bytes = "aé🙂z".as_bytes();
+        let mut cursor = 0;
+        let mut text = String::new();
+        while cursor < bytes.len() as u64 {
+            let (_, start, next) = terminal_read_window(0, bytes.len() as u64, Some(cursor), 1);
+            let (start, next) = align_terminal_text_window(bytes, 0, start, next);
+            assert!(next > cursor);
+            text.push_str(std::str::from_utf8(&bytes[start as usize..next as usize]).unwrap());
+            cursor = next;
+        }
+        assert_eq!(text, "aé🙂z");
+        assert!(!text.contains('\u{fffd}'));
+    }
+
+    #[test]
+    fn terminal_text_window_skips_an_explicit_cursor_inside_a_scalar() {
+        let bytes = "aéz".as_bytes();
+        assert_eq!(align_terminal_text_window(bytes, 0, 2, 3), (3, 3));
+        assert_eq!(align_terminal_text_window(&[0x80, b'a'], 0, 0, 1), (0, 1));
     }
 }

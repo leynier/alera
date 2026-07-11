@@ -5,7 +5,7 @@ use std::sync::{
     atomic::{AtomicU64, Ordering},
     Arc,
 };
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use alera_core::runtime::{
     MobileAccessSettings, RuntimeStore, SshAuthKind, SshBootstrapStatus, SshTarget,
@@ -53,6 +53,7 @@ const TERMINAL_INPUT_BACKPRESSURE_CODE: &str = "terminal_input_backpressure";
 /// Cap coalesced PTY→client batches so a verbose agent/build cannot grow an
 /// unbounded `output_batch` between timer flushes (early flush when exceeded).
 const OUTPUT_BATCH_MAX_BYTES: usize = 64 * 1024;
+const ORCHESTRATION_ACTIVITY_WRITE_INTERVAL: Duration = Duration::from_secs(30);
 
 /// Messages processed serially by the single server actor. Every state mutation
 /// happens here, which keeps session/client transitions deterministic.
@@ -109,12 +110,14 @@ pub enum ServerCommand {
     /// A parked `check --wait`/`ask` request hit its server-side deadline.
     OrchestrationWaitTimeout {
         waiter_id: u64,
+        waited_ms: u64,
     },
     /// Fires the deferred Enter after an injected orchestration banner.
     OrchestrationDeferredEnter {
         session_id: String,
         session_instance_id: u64,
         message_ids: Vec<String>,
+        force_submit: bool,
     },
     /// One coordinator loop iteration, enqueued by the ticker task.
     CoordinatorTick {
@@ -181,7 +184,8 @@ pub async fn run_terminal_host_server(
         orchestration_waiters: MessageWaiterRegistry::default(),
         orchestration_delivery_in_flight: HashSet::new(),
         orchestration_delivery_backpressured: HashSet::new(),
-        coordinator: None,
+        orchestration_activity_last_recorded: HashMap::new(),
+        coordinators: HashMap::new(),
         inbox,
         next_client_id,
         mobile_gateway: None,
@@ -246,7 +250,8 @@ struct ServerActor {
     orchestration_waiters: MessageWaiterRegistry,
     orchestration_delivery_in_flight: HashSet<String>,
     orchestration_delivery_backpressured: HashSet<String>,
-    coordinator: Option<CoordinatorHandle>,
+    orchestration_activity_last_recorded: HashMap<String, Instant>,
+    coordinators: HashMap<String, CoordinatorHandle>,
     inbox: UnboundedSender<ServerCommand>,
     next_client_id: Arc<AtomicU64>,
     mobile_gateway: Option<JoinHandle<()>>,
@@ -466,18 +471,24 @@ impl ServerActor {
                 self.handle_managed_workspace_removed(client_id, request_id, result)
                     .await
             }
-            ServerCommand::OrchestrationWaitTimeout { waiter_id } => {
-                self.handle_orchestration_wait_timeout(waiter_id).await
+            ServerCommand::OrchestrationWaitTimeout {
+                waiter_id,
+                waited_ms,
+            } => {
+                self.handle_orchestration_wait_timeout(waiter_id, waited_ms)
+                    .await
             }
             ServerCommand::OrchestrationDeferredEnter {
                 session_id,
                 session_instance_id,
                 message_ids,
+                force_submit,
             } => {
                 self.handle_orchestration_deferred_enter(
                     session_id,
                     session_instance_id,
                     message_ids,
+                    force_submit,
                 )
                 .await
             }
@@ -521,6 +532,7 @@ impl ServerActor {
             PtyWriteCompletion::OrchestrationPaste {
                 session_instance_id,
                 message_ids: ids,
+                force_submit: false,
             },
             &paste,
         ) {
@@ -538,10 +550,9 @@ impl ServerActor {
     }
 
     fn is_active_coordinator_handle(&self, handle: &str) -> bool {
-        self.coordinator
-            .as_ref()
-            .and_then(|c| c.config.coordinator_handle.as_deref())
-            == Some(handle)
+        self.coordinators
+            .values()
+            .any(|coordinator| coordinator.config.coordinator_handle.as_deref() == Some(handle))
     }
 
     /// Send-time hook: deliver immediately only when the recipient's agent is
@@ -565,9 +576,11 @@ impl ServerActor {
         session_id: String,
         session_instance_id: u64,
         message_ids: Vec<String>,
+        force_submit: bool,
     ) {
-        let skip_auto_enter =
-            message_ids.is_empty() && skips_auto_enter(self.agent_presence.agent_type(&session_id));
+        let skip_auto_enter = message_ids.is_empty()
+            && !force_submit
+            && skips_auto_enter(self.agent_presence.agent_type(&session_id));
         let current_instance_id = self.sessions.get(&session_id).map(Session::instance_id);
         if current_instance_id != Some(session_instance_id) {
             self.orchestration_delivery_in_flight.remove(&session_id);
@@ -598,7 +611,12 @@ impl ServerActor {
         ) {
             let message = error.wire_message();
             if message.contains(TERMINAL_INPUT_BACKPRESSURE_CODE) {
-                self.schedule_orchestration_enter(session_id, session_instance_id, message_ids);
+                self.schedule_orchestration_enter(
+                    session_id,
+                    session_instance_id,
+                    message_ids,
+                    force_submit,
+                );
                 return;
             }
             self.orchestration_delivery_in_flight.remove(&session_id);
@@ -611,6 +629,7 @@ impl ServerActor {
         session_id: String,
         session_instance_id: u64,
         message_ids: Vec<String>,
+        force_submit: bool,
     ) {
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
@@ -619,6 +638,7 @@ impl ServerActor {
                 session_id,
                 session_instance_id,
                 message_ids,
+                force_submit,
             });
         });
     }
@@ -628,6 +648,7 @@ impl ServerActor {
         session_id: &str,
         prompt: &str,
         message_ids: Vec<String>,
+        force_submit: bool,
     ) -> HostResult<()> {
         let session = self
             .sessions
@@ -639,8 +660,29 @@ impl ServerActor {
             PtyWriteCompletion::OrchestrationPaste {
                 session_instance_id,
                 message_ids,
+                force_submit,
             },
             &paste,
+        )
+    }
+
+    pub(super) fn queue_orchestration_control(
+        &mut self,
+        session_id: &str,
+        bytes: &[u8],
+    ) -> HostResult<()> {
+        let session = self
+            .sessions
+            .get_mut(session_id)
+            .filter(|session| session.running())
+            .ok_or_else(|| HostError::state(format!("terminal is not running: {session_id}")))?;
+        let session_instance_id = session.instance_id();
+        session.queue_write(
+            PtyWriteCompletion::OrchestrationEnter {
+                session_instance_id,
+                message_ids: Vec::new(),
+            },
+            bytes,
         )
     }
 
@@ -1074,7 +1116,7 @@ impl ServerActor {
             || self.has_active_bootstrap_jobs()
             || self.has_active_managed_workspace_jobs()
             || self.has_active_mobile_gateway()
-            || self.coordinator.is_some()
+            || !self.coordinators.is_empty()
         {
             self.cancel_shutdown_timer();
             return;
@@ -1209,7 +1251,8 @@ mod tests {
             orchestration_waiters: MessageWaiterRegistry::default(),
             orchestration_delivery_in_flight: HashSet::new(),
             orchestration_delivery_backpressured: HashSet::new(),
-            coordinator: None,
+            orchestration_activity_last_recorded: HashMap::new(),
+            coordinators: HashMap::new(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(2)),
             mobile_gateway: None,
@@ -1270,7 +1313,8 @@ mod tests {
             orchestration_waiters: MessageWaiterRegistry::default(),
             orchestration_delivery_in_flight: HashSet::new(),
             orchestration_delivery_backpressured: HashSet::new(),
-            coordinator: None,
+            orchestration_activity_last_recorded: HashMap::new(),
+            coordinators: HashMap::new(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1320,7 +1364,8 @@ mod tests {
             orchestration_waiters: MessageWaiterRegistry::default(),
             orchestration_delivery_in_flight: HashSet::new(),
             orchestration_delivery_backpressured: HashSet::new(),
-            coordinator: None,
+            orchestration_activity_last_recorded: HashMap::new(),
+            coordinators: HashMap::new(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1374,7 +1419,8 @@ mod tests {
             orchestration_waiters: MessageWaiterRegistry::default(),
             orchestration_delivery_in_flight: HashSet::new(),
             orchestration_delivery_backpressured: HashSet::new(),
-            coordinator: None,
+            orchestration_activity_last_recorded: HashMap::new(),
+            coordinators: HashMap::new(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1382,15 +1428,29 @@ mod tests {
             disposed: false,
         };
 
-        let response = actor.orchestration_run_stop().await.unwrap();
+        let response = actor
+            .orchestration_run_stop(&json!({
+                "id": run.id,
+                "actor": "coord",
+                "reason": "maintenance"
+            }))
+            .await
+            .unwrap();
         assert_eq!(response["runId"], json!(run.id));
-        assert_eq!(response["status"], json!("failed"));
+        assert_eq!(response["status"], json!("stopped"));
         assert!(actor
             .runtime_store
             .active_orchestration_coordinator_run()
             .await
             .unwrap()
             .is_none());
+        let stopped = actor
+            .runtime_store
+            .orchestration_coordinator_run_by_id(&run.id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(stopped.stop_reason.as_deref(), Some("maintenance"));
     }
 
     #[tokio::test]
@@ -1406,6 +1466,10 @@ mod tests {
                 deps: Vec::new(),
                 parent_id: None,
                 created_by_terminal_handle: None,
+                run_id: None,
+                workspace_id: "workspace-1".to_string(),
+                coordinator_handle: "coord".to_string(),
+                result_schema: None,
             })
             .await
             .unwrap();
@@ -1430,7 +1494,8 @@ mod tests {
             orchestration_waiters: MessageWaiterRegistry::default(),
             orchestration_delivery_in_flight: HashSet::new(),
             orchestration_delivery_backpressured: HashSet::new(),
-            coordinator: None,
+            orchestration_activity_last_recorded: HashMap::new(),
+            coordinators: HashMap::new(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1474,6 +1539,10 @@ mod tests {
                 deps: Vec::new(),
                 parent_id: None,
                 created_by_terminal_handle: None,
+                run_id: None,
+                workspace_id: "workspace-1".to_string(),
+                coordinator_handle: "coord".to_string(),
+                result_schema: None,
             })
             .await
             .unwrap();
@@ -1490,6 +1559,7 @@ mod tests {
                 running: false,
                 exit_code: None,
                 ended_at: None,
+                output_stream_bytes: 0,
                 updated_at: chrono::Utc::now(),
                 buffer: Vec::new(),
             })
@@ -1521,7 +1591,8 @@ mod tests {
             orchestration_waiters: MessageWaiterRegistry::default(),
             orchestration_delivery_in_flight: HashSet::new(),
             orchestration_delivery_backpressured: HashSet::new(),
-            coordinator: None,
+            orchestration_activity_last_recorded: HashMap::new(),
+            coordinators: HashMap::new(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(1)),
             mobile_gateway: None,
@@ -1565,6 +1636,10 @@ mod tests {
                 deps: Vec::new(),
                 parent_id: None,
                 created_by_terminal_handle: None,
+                run_id: None,
+                workspace_id: "workspace-1".to_string(),
+                coordinator_handle: "coord".to_string(),
+                result_schema: None,
             })
             .await
             .unwrap();
@@ -1595,7 +1670,8 @@ mod tests {
             orchestration_waiters: MessageWaiterRegistry::default(),
             orchestration_delivery_in_flight: HashSet::new(),
             orchestration_delivery_backpressured: HashSet::new(),
-            coordinator: None,
+            orchestration_activity_last_recorded: HashMap::new(),
+            coordinators: HashMap::new(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(2)),
             mobile_gateway: None,
@@ -1684,7 +1760,8 @@ mod tests {
             orchestration_waiters: MessageWaiterRegistry::default(),
             orchestration_delivery_in_flight: HashSet::new(),
             orchestration_delivery_backpressured: HashSet::new(),
-            coordinator: None,
+            orchestration_activity_last_recorded: HashMap::new(),
+            coordinators: HashMap::new(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(4)),
             mobile_gateway: None,

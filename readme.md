@@ -79,7 +79,7 @@ Managed lifecycle hooks for Claude, Codex, Grok Build, Amp, OpenCode, Antigravit
 
 ### 🕸️ Inter-agent orchestration
 
-Agents coordinate with each other through the `alera orchestration` CLI: persistent inter-agent messaging with push-on-idle delivery straight into agent prompts, a task DAG with dependencies, dispatch with retry tracking and a circuit breaker, human-in-the-loop decision gates, and an automated coordinator loop that drives worker agents to completion.
+Agents coordinate through orchestration protocol v2: workspace-scoped coordinator runs, atomic spawn/readiness/acceptance, durable task ownership, context-aware completion and cancellation, runtime liveness leases, structured results, decision gates, and persistent messaging. A workspace has at most one active coordinator while unrelated workspaces can run concurrently.
 
 ### 💾 Persistent terminal sessions
 

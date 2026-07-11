@@ -1,14 +1,17 @@
 use std::time::Duration;
 
 use alera_core::runtime::{
-    NewOrchestrationMessage, NewOrchestrationTask, OrchestrationDispatchStatus,
-    OrchestrationGateStatus, OrchestrationMessage, OrchestrationMessagePriority,
-    OrchestrationMessageType, OrchestrationTaskStatus,
+    NewOrchestrationMessage, NewOrchestrationTask, OrchestrationCoordinatorStatus,
+    OrchestrationDispatchContext, OrchestrationDispatchStatus, OrchestrationGateStatus,
+    OrchestrationMessage, OrchestrationMessagePriority, OrchestrationMessageType,
+    OrchestrationTaskStatus, WorkspaceStatus, WorkspaceTabRecord,
 };
 use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::orchestration::agent_presence::AgentPresenceState;
+use crate::terminal_host::orchestration::agent_registry::adapter_for;
 use crate::terminal_host::orchestration::dispatch_preamble::{
     build_dispatch_preamble, parse_allow_stale_base_from_spec, GateResolution, PreambleParams,
     WorkerKind,
@@ -20,7 +23,6 @@ use crate::terminal_host::orchestration::lifecycle_reconciliation::reconcile_lif
 use crate::terminal_host::orchestration::message_formatter::format_messages_for_injection;
 use crate::terminal_host::orchestration::message_waiters::{MessageWaiter, WaitKind};
 use crate::terminal_host::protocol::{error_response, ok_response};
-use crate::terminal_host::session::Session;
 
 use super::orchestration_validation::{
     optional_string, parse_message_type, parse_priority, parse_type_filter, prefixed_subject,
@@ -28,7 +30,87 @@ use super::orchestration_validation::{
 };
 use super::{ServerActor, ServerCommand};
 
+fn context_token_hash(token: &str) -> String {
+    hex::encode(Sha256::digest(token.as_bytes()))
+}
+
+fn validate_result_schema(
+    result: &serde_json::Map<String, Value>,
+    schema_raw: Option<&str>,
+) -> HostResult<()> {
+    let Some(schema_raw) = schema_raw else {
+        return Ok(());
+    };
+    let schema: Value = serde_json::from_str(schema_raw)
+        .map_err(|error| HostError::state(format!("stored result schema is invalid: {error}")))?;
+    let validator = jsonschema::validator_for(&schema)
+        .map_err(|error| HostError::state(format!("stored result schema is invalid: {error}")))?;
+    validator
+        .validate(&Value::Object(result.clone()))
+        .map_err(|error| HostError::format(format!("result does not match schema: {error}")))
+}
+
+fn validate_result_schema_definition(schema_raw: &str) -> HostResult<()> {
+    let schema: Value = serde_json::from_str(schema_raw)
+        .map_err(|error| HostError::format(format!("result schema is invalid JSON: {error}")))?;
+    jsonschema::validator_for(&schema)
+        .map(|_| ())
+        .map_err(|error| HostError::format(format!("result schema is invalid: {error}")))
+}
+
 impl ServerActor {
+    fn dispatch_context_path(&self, handle: &str) -> std::path::PathBuf {
+        let safe_handle: String = handle
+            .chars()
+            .map(|value| {
+                if value.is_ascii_alphanumeric() || value == '-' || value == '_' {
+                    value
+                } else {
+                    '_'
+                }
+            })
+            .collect();
+        self.runtime_dir
+            .join("orchestration-contexts")
+            .join(format!("{safe_handle}.json"))
+    }
+
+    pub(super) fn install_dispatch_context(
+        &self,
+        handle: &str,
+        dispatch_id: &str,
+        token: &str,
+    ) -> HostResult<()> {
+        let path = self.dispatch_context_path(handle);
+        let parent = path
+            .parent()
+            .ok_or_else(|| HostError::state("invalid dispatch context path"))?;
+        std::fs::create_dir_all(parent).map_err(|error| HostError::state(error.to_string()))?;
+        let bytes = serde_json::to_vec(&json!({ "dispatchId": dispatch_id, "token": token }))
+            .map_err(|error| HostError::state(error.to_string()))?;
+        #[cfg(unix)]
+        {
+            use std::io::Write;
+            use std::os::unix::fs::OpenOptionsExt;
+            let mut file = std::fs::OpenOptions::new()
+                .create(true)
+                .truncate(true)
+                .write(true)
+                .mode(0o600)
+                .open(path)
+                .map_err(|error| HostError::state(error.to_string()))?;
+            file.write_all(&bytes)
+                .map_err(|error| HostError::state(error.to_string()))?;
+        }
+        #[cfg(not(unix))]
+        std::fs::write(path, bytes).map_err(|error| HostError::state(error.to_string()))?;
+        Ok(())
+    }
+
+    pub(super) fn remove_dispatch_context(&self, handle: &str) {
+        let _ = std::fs::remove_file(self.dispatch_context_path(handle));
+    }
+
     /// Handles `orchestration.*` requests. Wait-capable verbs return
     /// `Ok(None)` when the request parked a waiter; the response is written
     /// later by a wake or timeout.
@@ -41,6 +123,11 @@ impl ServerActor {
     ) -> HostResult<Option<Value>> {
         self.require_auth(client_id)?;
         match request_type {
+            "orchestration.agentSpawn" => self.orchestration_agent_spawn(payload).await.map(Some),
+            "orchestration.agentSpawnTimeout" => self
+                .orchestration_agent_spawn_timeout(payload)
+                .await
+                .map(Some),
             "orchestration.send" => self.orchestration_send(payload).await.map(Some),
             "orchestration.check" => {
                 self.orchestration_check(client_id, request_id, payload)
@@ -51,23 +138,197 @@ impl ServerActor {
             "orchestration.ask" => self.orchestration_ask(client_id, request_id, payload).await,
             "orchestration.agentStatus" => self.orchestration_agent_status(payload).await.map(Some),
             "orchestration.terminals" => Ok(Some(self.orchestration_terminals())),
+            "orchestration.terminalShow" => {
+                self.orchestration_terminal_show(payload).await.map(Some)
+            }
             "orchestration.taskCreate" => self.orchestration_task_create(payload).await.map(Some),
             "orchestration.taskList" => self.orchestration_task_list(payload).await.map(Some),
-            "orchestration.taskUpdate" => self.orchestration_task_update(payload).await.map(Some),
+            "orchestration.taskShow" => self.orchestration_task_show(payload).await.map(Some),
+            "orchestration.taskCancel" => self.orchestration_task_cancel(payload).await.map(Some),
+            "orchestration.taskRecover" => self.orchestration_task_recover(payload).await.map(Some),
+            "orchestration.transferCoordinator" => self
+                .orchestration_transfer_coordinator(payload)
+                .await
+                .map(Some),
             "orchestration.dispatch" => self.orchestration_dispatch(payload).await.map(Some),
             "orchestration.dispatchShow" => {
                 self.orchestration_dispatch_show(payload).await.map(Some)
             }
+            "orchestration.dispatchAccept" => {
+                self.orchestration_dispatch_accept(payload).await.map(Some)
+            }
+            "orchestration.dispatchInterrupt" => self
+                .orchestration_dispatch_interrupt(payload)
+                .await
+                .map(Some),
+            "orchestration.context" => self.orchestration_context(payload).await.map(Some),
+            "orchestration.heartbeat" => self.orchestration_heartbeat(payload).await.map(Some),
+            "orchestration.escalate" => self.orchestration_escalate(payload).await.map(Some),
+            "orchestration.complete" => self.orchestration_complete(payload).await.map(Some),
+            "orchestration.workerDone" => self.orchestration_worker_done(payload).await.map(Some),
+            "orchestration.workerHelp" => Ok(Some(self.orchestration_worker_help())),
             "orchestration.gateCreate" => self.orchestration_gate_create(payload).await.map(Some),
             "orchestration.gateResolve" => self.orchestration_gate_resolve(payload).await.map(Some),
             "orchestration.gateList" => self.orchestration_gate_list(payload).await.map(Some),
             "orchestration.run" => self.orchestration_run(payload).await.map(Some),
-            "orchestration.runStop" => self.orchestration_run_stop().await.map(Some),
+            "orchestration.runList" => self.orchestration_run_list(payload).await.map(Some),
+            "orchestration.runShow" => self.orchestration_run_show(payload).await.map(Some),
+            "orchestration.status" => self.orchestration_status(payload).await.map(Some),
+            "orchestration.runStop" => self.orchestration_run_stop(payload).await.map(Some),
             "orchestration.reset" => self.orchestration_reset(payload).await.map(Some),
             other => Err(HostError::state(format!(
                 "Unknown orchestration request: {other}"
             ))),
         }
+    }
+
+    async fn orchestration_agent_spawn(&mut self, payload: &Value) -> HostResult<Value> {
+        let workspace_id = require_string(payload, "workspace")?;
+        let agent_type = require_string(payload, "agent")?;
+        let task_id = require_string(payload, "task")?;
+        let from = require_string(payload, "from")?;
+        let adapter = adapter_for(&agent_type)
+            .ok_or_else(|| HostError::format(format!("unsupported agent type: {agent_type}")))?;
+        let task = self
+            .runtime_store
+            .orchestration_task_by_id(&task_id)
+            .await
+            .map_err(state_error)?
+            .ok_or_else(|| HostError::state(format!("orchestration task not found: {task_id}")))?;
+        if task.workspace_id != workspace_id {
+            return Err(HostError::state(format!(
+                "task belongs to workspace {}, not {workspace_id}",
+                task.workspace_id
+            )));
+        }
+        if task.coordinator_handle != from {
+            return Err(HostError::state(format!(
+                "coordinator ownership conflict: task is owned by {}",
+                task.coordinator_handle
+            )));
+        }
+        if let Some(terminal) = optional_string(payload, "terminal") {
+            let response = self
+                .orchestration_dispatch(&json!({
+                    "task": task_id,
+                    "to": terminal,
+                    "from": from,
+                    "inject": true,
+                    "forceSubmit": adapter.force_submit,
+                    "completionPolicy": "return-immediately",
+                    "terminalPolicy": "keep-open",
+                }))
+                .await?;
+            return Ok(response);
+        }
+        if !self.has_app_clients() {
+            return Err(HostError::state(
+                "agent-spawn requires the Alera app to be connected so it can create the PTY",
+            ));
+        }
+        let workspace = self
+            .runtime_store
+            .find_workspace(&workspace_id)
+            .await
+            .map_err(state_error)?
+            .ok_or_else(|| HostError::state(format!("workspace not found: {workspace_id}")))?;
+        if workspace.status != WorkspaceStatus::Active {
+            return Err(HostError::state(format!(
+                "workspace is not active: {workspace_id}"
+            )));
+        }
+        let id = uuid::Uuid::new_v4().to_string();
+        let command = optional_string(payload, "command")
+            .unwrap_or_else(|| adapter.default_command.to_string());
+        let now = chrono::Utc::now();
+        let tab = WorkspaceTabRecord {
+            id: id.clone(),
+            workspace_id: workspace_id.clone(),
+            kind: "terminal".to_string(),
+            title: optional_string(payload, "title")
+                .unwrap_or_else(|| format!("{} Worker", agent_type)),
+            created_at: now,
+            updated_at: now,
+            payload: json!({
+                "terminalSessionId": id,
+                "initialCommand": command,
+                "spawnOnCreate": true,
+                "pendingOrchestration": {
+                    "task": task_id,
+                    "from": from,
+                    "agent": agent_type,
+                }
+            }),
+        };
+        self.runtime_store
+            .upsert_workspace_tab(tab)
+            .await
+            .map_err(state_error)?;
+        self.broadcast_authenticated(crate::terminal_host::protocol::event(
+            "workspaceTabsChanged",
+            json!({}),
+        ));
+        Ok(json!({
+            "terminalHandle": id,
+            "agentType": adapter.agent_type,
+            "taskId": task.id,
+            "runId": task.run_id,
+            "workspaceId": workspace_id,
+            "coordinatorHandle": task.coordinator_handle,
+            "assigneeHandle": id,
+            "startupState": "terminal_created",
+            "acceptanceState": "pending_agent_readiness",
+        }))
+    }
+
+    async fn orchestration_agent_spawn_timeout(&mut self, payload: &Value) -> HostResult<Value> {
+        let handle = require_string(payload, "terminal")?;
+        if let Some(dispatch) = self
+            .runtime_store
+            .active_orchestration_dispatch_for_handle(&handle)
+            .await
+            .map_err(state_error)?
+        {
+            if dispatch.status == OrchestrationDispatchStatus::AwaitingAcceptance {
+                let failed = self
+                    .runtime_store
+                    .fail_orchestration_startup(&dispatch.id, "acceptance timeout")
+                    .await
+                    .map_err(state_error)?;
+                self.remove_dispatch_context(&handle);
+                return Ok(json!({ "outcome": "startup_failed", "dispatch": failed }));
+            }
+        }
+        let mut tab = self
+            .runtime_store
+            .find_workspace_tab(&handle)
+            .await
+            .map_err(state_error)?;
+        let task_id = tab
+            .as_ref()
+            .and_then(|tab| tab.payload.get("pendingOrchestration"))
+            .and_then(|pending| pending.get("task"))
+            .and_then(Value::as_str)
+            .map(str::to_string)
+            .ok_or_else(|| HostError::state("no pending spawn or acceptance for terminal"))?;
+        if let Some(tab) = tab.as_mut() {
+            tab.payload["pendingOrchestration"] = Value::Null;
+            tab.updated_at = chrono::Utc::now();
+            self.runtime_store
+                .upsert_workspace_tab(tab.clone())
+                .await
+                .map_err(state_error)?;
+            self.broadcast_authenticated(crate::terminal_host::protocol::event(
+                "workspaceTabsChanged",
+                json!({}),
+            ));
+        }
+        let task = self
+            .runtime_store
+            .record_orchestration_task_startup_failure(&task_id, "agent readiness timeout")
+            .await
+            .map_err(state_error)?;
+        Ok(json!({ "outcome": "startup_failed", "task": task }))
     }
 
     // --- send -------------------------------------------------------------
@@ -81,6 +342,13 @@ impl ServerActor {
         let priority = parse_priority(payload)?;
         let message_payload = optional_string(payload, "payload");
         let explicit_thread_id = optional_string(payload, "threadId");
+
+        if message_type.is_lifecycle() {
+            return Err(HostError::state(format!(
+                "{} is a lifecycle operation; use heartbeat or complete instead",
+                message_type.as_str()
+            )));
+        }
 
         if message_type.is_lifecycle() && is_group_address(&to) {
             return Err(HostError::state(format!(
@@ -97,56 +365,6 @@ impl ServerActor {
         );
         if recipients.is_empty() {
             return Err(HostError::state(format!("No recipients resolved for {to}")));
-        }
-        if message_type.is_lifecycle()
-            && recipients.iter().any(|recipient| recipient == &from_handle)
-        {
-            return Err(HostError::state(format!(
-                "invalid_self_recipient: {} messages must be sent to the coordinator, not the sender",
-                message_type.as_str()
-            )));
-        }
-
-        if message_type == OrchestrationMessageType::WorkerDone {
-            let parsed_payload = message_payload
-                .as_deref()
-                .and_then(|raw| serde_json::from_str::<Value>(raw).ok())
-                .and_then(|value| value.as_object().cloned());
-            let dispatch_id = parsed_payload
-                .as_ref()
-                .and_then(|value| value.get("dispatchId"))
-                .and_then(Value::as_str);
-            let task_id = parsed_payload
-                .as_ref()
-                .and_then(|value| value.get("taskId"))
-                .and_then(Value::as_str);
-            if let (Some(dispatch_id), Some(task_id)) = (dispatch_id, task_id) {
-                if let Some(dispatch) = self
-                    .runtime_store
-                    .orchestration_dispatch_by_id(dispatch_id)
-                    .await
-                    .map_err(state_error)?
-                {
-                    if dispatch.status == OrchestrationDispatchStatus::Completed {
-                        if dispatch.task_id != task_id {
-                            return Err(HostError::state(format!(
-                                "invalid_dispatch_task: dispatch {dispatch_id} belongs to {}, not {task_id}",
-                                dispatch.task_id
-                            )));
-                        }
-                        if dispatch.assignee_handle.as_deref() != Some(from_handle.as_str()) {
-                            return Err(HostError::state(format!(
-                                "invalid_dispatch_assignee: dispatch {dispatch_id} is not assigned to {from_handle}"
-                            )));
-                        }
-                        return Ok(json!({
-                            "messages": [],
-                            "recipients": recipients,
-                            "duplicate": true,
-                        }));
-                    }
-                }
-            }
         }
 
         // Group fan-out shares a thread id so replies converge.
@@ -169,6 +387,11 @@ impl ServerActor {
                     priority,
                     thread_id: thread_id.clone(),
                     payload: message_payload.clone(),
+                    run_id: optional_string(payload, "runId"),
+                    workspace_id: optional_string(payload, "workspaceId"),
+                    task_id: optional_string(payload, "taskId"),
+                    dispatch_id: optional_string(payload, "dispatchId"),
+                    expires_at: optional_string(payload, "expiresAt"),
                 })
                 .await
                 .map_err(state_error)?;
@@ -299,6 +522,10 @@ impl ServerActor {
             .await
             .map_err(state_error)?
             .ok_or_else(|| HostError::state(format!("message not found: {message_id}")))?;
+        self.runtime_store
+            .mark_orchestration_messages_read(std::slice::from_ref(&original.id))
+            .await
+            .map_err(state_error)?;
         let reply = self
             .runtime_store
             .insert_orchestration_message(NewOrchestrationMessage {
@@ -313,11 +540,12 @@ impl ServerActor {
                     .clone()
                     .or_else(|| Some(original.id.clone())),
                 payload: None,
+                run_id: original.run_id.clone(),
+                workspace_id: original.workspace_id.clone(),
+                task_id: original.task_id.clone(),
+                dispatch_id: original.dispatch_id.clone(),
+                expires_at: None,
             })
-            .await
-            .map_err(state_error)?;
-        self.runtime_store
-            .mark_orchestration_messages_read(std::slice::from_ref(&original.id))
             .await
             .map_err(state_error)?;
         let recipient = reply.to_handle.clone();
@@ -331,19 +559,32 @@ impl ServerActor {
 
     async fn orchestration_inbox(&mut self, payload: &Value) -> HostResult<Value> {
         let limit = payload.get("limit").and_then(Value::as_i64).unwrap_or(50);
-        let messages = match optional_string(payload, "terminal") {
-            Some(handle) => self
+        let direction =
+            optional_string(payload, "direction").unwrap_or_else(|| "inbox".to_string());
+        let terminal_filter = optional_string(payload, "terminal");
+        let messages = match (terminal_filter.clone(), direction.as_str()) {
+            (Some(handle), "outbox") => self
+                .runtime_store
+                .all_orchestration_messages_from_handle(&handle, limit)
+                .await
+                .map_err(state_error)?,
+            (Some(handle), _) => self
                 .runtime_store
                 .all_orchestration_messages_for_handle(&handle, None, limit)
                 .await
                 .map_err(state_error)?,
-            None => self
+            (None, "outbox") => {
+                return Err(HostError::format("--terminal is required for outbox."))
+            }
+            (None, _) => self
                 .runtime_store
                 .orchestration_inbox(limit)
                 .await
                 .map_err(state_error)?,
         };
-        Ok(json!({ "messages": messages }))
+        Ok(
+            json!({ "kind": "messages", "items": messages, "messages": messages, "filters": { "terminal": terminal_filter, "direction": direction } }),
+        )
     }
 
     // --- ask --------------------------------------------------------------
@@ -355,7 +596,16 @@ impl ServerActor {
         payload: &Value,
     ) -> HostResult<Option<Value>> {
         let from_handle = require_string(payload, "from")?;
-        let to = require_string(payload, "to")?;
+        let requested_to = require_string(payload, "to")?;
+        let active_dispatch = self
+            .runtime_store
+            .active_orchestration_dispatch_for_handle(&from_handle)
+            .await
+            .map_err(state_error)?;
+        let to = active_dispatch
+            .as_ref()
+            .map(|dispatch| dispatch.coordinator_handle.clone())
+            .unwrap_or(requested_to);
         if is_group_address(&to) {
             return Err(HostError::state(
                 "ask requires a single terminal handle, not a group address",
@@ -378,6 +628,23 @@ impl ServerActor {
                 priority: OrchestrationMessagePriority::High,
                 thread_id: None,
                 payload: None,
+                run_id: active_dispatch
+                    .as_ref()
+                    .and_then(|dispatch| dispatch.run_id.clone())
+                    .or_else(|| optional_string(payload, "runId")),
+                workspace_id: active_dispatch
+                    .as_ref()
+                    .map(|dispatch| dispatch.workspace_id.clone())
+                    .or_else(|| optional_string(payload, "workspaceId")),
+                task_id: active_dispatch
+                    .as_ref()
+                    .map(|dispatch| dispatch.task_id.clone())
+                    .or_else(|| optional_string(payload, "taskId")),
+                dispatch_id: active_dispatch
+                    .as_ref()
+                    .map(|dispatch| dispatch.id.clone())
+                    .or_else(|| optional_string(payload, "dispatchId")),
+                expires_at: optional_string(payload, "expiresAt"),
             })
             .await
             .map_err(state_error)?;
@@ -436,16 +703,72 @@ impl ServerActor {
                 .and_then(Value::as_str)
                 .unwrap_or("unknown")
                 .to_string();
-            if self.agent_presence.update(handle, agent_type, state) {
+            self.agent_presence.update(handle, agent_type, state);
+            if let Ok(Some(dispatch)) = self
+                .runtime_store
+                .active_orchestration_dispatch_for_handle(handle)
+                .await
+            {
+                let _ = self
+                    .runtime_store
+                    .record_orchestration_activity(&dispatch.id)
+                    .await;
+            }
+            if state.accepts_injection() {
                 became_ready.push(handle.to_string());
             }
         }
         // A transition into an injection-ready state flushes that handle's
         // undelivered queue (push-on-idle).
         for handle in became_ready {
+            self.dispatch_pending_agent_spawn(&handle).await;
             self.deliver_pending_messages(&handle).await;
         }
         Ok(json!({}))
+    }
+
+    async fn dispatch_pending_agent_spawn(&mut self, handle: &str) {
+        let Some(session) = self.sessions.get(handle) else {
+            return;
+        };
+        let tab_id = session.tab_id.clone();
+        let Ok(Some(mut tab)) = self.runtime_store.find_workspace_tab(&tab_id).await else {
+            return;
+        };
+        let Some(pending) = tab.payload.get("pendingOrchestration").cloned() else {
+            return;
+        };
+        if pending.is_null() {
+            return;
+        }
+        let Some(task) = pending.get("task").and_then(Value::as_str) else {
+            return;
+        };
+        let Some(from) = pending.get("from").and_then(Value::as_str) else {
+            return;
+        };
+        let dispatch_payload = json!({
+            "task": task,
+            "to": handle,
+            "from": from,
+            "inject": true,
+            "forceSubmit": pending
+                .get("agent")
+                .and_then(Value::as_str)
+                .and_then(adapter_for)
+                .is_some_and(|adapter| adapter.force_submit),
+            "completionPolicy": "return-immediately",
+            "terminalPolicy": "keep-open",
+        });
+        if self.orchestration_dispatch(&dispatch_payload).await.is_ok() {
+            tab.payload["pendingOrchestration"] = Value::Null;
+            tab.updated_at = chrono::Utc::now();
+            let _ = self.runtime_store.upsert_workspace_tab(tab).await;
+            self.broadcast_authenticated(crate::terminal_host::protocol::event(
+                "workspaceTabsChanged",
+                json!({}),
+            ));
+        }
     }
 
     // --- terminals ---------------------------------------------------------
@@ -466,7 +789,55 @@ impl ServerActor {
                 })
             })
             .collect();
-        json!({ "terminals": terminals })
+        json!({ "kind": "terminals", "items": terminals, "terminals": terminals, "filters": {} })
+    }
+
+    async fn orchestration_terminal_show(&mut self, payload: &Value) -> HostResult<Value> {
+        let handle = require_string(payload, "handle")?;
+        let session = self
+            .sessions
+            .get(&handle)
+            .ok_or_else(|| HostError::state(format!("terminal not found: {handle}")))?;
+        let presence = self.agent_presence.get(&handle);
+        let active_dispatch = self
+            .runtime_store
+            .active_orchestration_dispatch_for_handle(&handle)
+            .await
+            .map_err(state_error)?;
+        let dispatch = match active_dispatch {
+            Some(dispatch) => Some(dispatch),
+            None => self
+                .runtime_store
+                .latest_orchestration_dispatch_for_handle(&handle)
+                .await
+                .map_err(state_error)?,
+        };
+        let startup_state = match dispatch.as_ref().map(|value| value.status) {
+            _ if !session.running() => "failed",
+            Some(OrchestrationDispatchStatus::AwaitingAcceptance) => {
+                "dispatch_submitted_unconfirmed"
+            }
+            Some(OrchestrationDispatchStatus::Dispatched) => "accepted",
+            Some(OrchestrationDispatchStatus::Completed) => "completed",
+            Some(OrchestrationDispatchStatus::StartupFailed) => "failed",
+            Some(OrchestrationDispatchStatus::Stalled) => "stalled",
+            _ if presence.is_some_and(|entry| entry.state == AgentPresenceState::Done) => {
+                "agent_ready"
+            }
+            _ if presence.is_some() => "agent_detected",
+            _ => "process_started",
+        };
+        Ok(json!({
+            "handle": handle,
+            "workspaceId": session.workspace_id,
+            "tabId": session.tab_id,
+            "running": session.running(),
+            "agentType": presence.map(|entry| entry.agent_type.clone()),
+            "agentState": presence.map(|entry| entry.state.as_str()),
+            "startupState": startup_state,
+            "startupError": dispatch.as_ref().and_then(|value| value.startup_error.clone()),
+            "dispatch": dispatch,
+        }))
     }
 
     pub(super) fn group_resolution_terminals(&self) -> Vec<GroupResolutionTerminal> {
@@ -484,6 +855,50 @@ impl ServerActor {
 
     async fn orchestration_task_create(&mut self, payload: &Value) -> HostResult<Value> {
         let spec = require_string(payload, "spec")?;
+        let result_schema = optional_string(payload, "resultSchema");
+        if let Some(schema) = result_schema.as_deref() {
+            validate_result_schema_definition(schema)?;
+        }
+        let created_by = optional_string(payload, "createdBy");
+        let requested_coordinator = optional_string(payload, "coordinator");
+        let workspace_id =
+            optional_string(payload, "workspace").unwrap_or_else(|| "global".to_string());
+        let run_id = optional_string(payload, "run");
+        let coordinator_handle = if let Some(run_id) = run_id.as_deref() {
+            let run = self
+                .runtime_store
+                .orchestration_coordinator_run_by_id(run_id)
+                .await
+                .map_err(state_error)?
+                .ok_or_else(|| HostError::state(format!("coordinator run not found: {run_id}")))?;
+            if run.status != OrchestrationCoordinatorStatus::Running {
+                return Err(HostError::state(format!(
+                    "coordinator run is not accepting tasks: {run_id}"
+                )));
+            }
+            if workspace_id != run.workspace_id {
+                return Err(HostError::state(format!(
+                    "task workspace {workspace_id} does not match run workspace {}",
+                    run.workspace_id
+                )));
+            }
+            let run_coordinator = run.coordinator_handle.ok_or_else(|| {
+                HostError::state(format!("coordinator run has no owner: {run_id}"))
+            })?;
+            if requested_coordinator
+                .as_deref()
+                .is_some_and(|coordinator| coordinator != run_coordinator.as_str())
+            {
+                return Err(HostError::state(format!(
+                    "task coordinator does not match run coordinator {run_coordinator}"
+                )));
+            }
+            run_coordinator
+        } else {
+            requested_coordinator
+                .or_else(|| created_by.clone())
+                .unwrap_or_else(|| "coord".to_string())
+        };
         let deps: Vec<String> = payload
             .get("deps")
             .and_then(Value::as_array)
@@ -503,7 +918,11 @@ impl ServerActor {
                 display_name: None,
                 deps,
                 parent_id: optional_string(payload, "parent"),
-                created_by_terminal_handle: optional_string(payload, "createdBy"),
+                created_by_terminal_handle: created_by,
+                run_id,
+                workspace_id,
+                coordinator_handle,
+                result_schema,
             })
             .await
             .map_err(state_error)?;
@@ -520,24 +939,198 @@ impl ServerActor {
         };
         let tasks = self
             .runtime_store
-            .list_orchestration_tasks(status)
+            .list_scoped_orchestration_tasks(
+                status,
+                optional_string(payload, "run").as_deref(),
+                optional_string(payload, "workspace").as_deref(),
+            )
             .await
             .map_err(state_error)?;
-        Ok(json!({ "tasks": tasks }))
+        Ok(json!({
+            "kind": "tasks",
+            "items": tasks,
+            "tasks": tasks,
+            "filters": {
+                "status": optional_string(payload, "status"),
+                "run": optional_string(payload, "run"),
+                "workspace": optional_string(payload, "workspace"),
+            }
+        }))
     }
 
-    async fn orchestration_task_update(&mut self, payload: &Value) -> HostResult<Value> {
+    async fn orchestration_task_show(&mut self, payload: &Value) -> HostResult<Value> {
+        let id = require_string(payload, "id")?;
+        let task = self
+            .runtime_store
+            .orchestration_task_by_id(&id)
+            .await
+            .map_err(state_error)?
+            .ok_or_else(|| HostError::state(format!("orchestration task not found: {id}")))?;
+        let dispatch = self
+            .runtime_store
+            .active_orchestration_dispatch_for_task(&id)
+            .await
+            .map_err(state_error)?;
+        Ok(json!({ "task": task, "activeDispatch": dispatch }))
+    }
+
+    pub(super) async fn orchestration_task_cancel(&mut self, payload: &Value) -> HostResult<Value> {
+        let id = require_string(payload, "id")?;
+        let reason = require_string(payload, "reason")?;
+        let actor = optional_string(payload, "actor");
+        let force = payload
+            .get("force")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let existing_task = self
+            .runtime_store
+            .orchestration_task_by_id(&id)
+            .await
+            .map_err(state_error)?
+            .ok_or_else(|| HostError::state(format!("orchestration task not found: {id}")))?;
+        if !force && actor.as_deref() != Some(existing_task.coordinator_handle.as_str()) {
+            return Err(HostError::state(format!(
+                "only coordinator {} can cancel task {id}; use --force for audited recovery",
+                existing_task.coordinator_handle
+            )));
+        }
+        let active = self
+            .runtime_store
+            .active_orchestration_dispatch_for_task(&id)
+            .await
+            .map_err(state_error)?;
+        let task = self
+            .runtime_store
+            .cancel_orchestration_task(&id, &reason)
+            .await
+            .map_err(state_error)?;
+        self.runtime_store
+            .insert_orchestration_audit_event(
+                actor.as_deref(),
+                if force {
+                    "task.cancel.force"
+                } else {
+                    "task.cancel"
+                },
+                &id,
+                &reason,
+            )
+            .await
+            .map_err(state_error)?;
+        if let Some(dispatch) = active {
+            if let Some(assignee) = dispatch.assignee_handle {
+                self.remove_dispatch_context(&assignee);
+                let message = self
+                    .runtime_store
+                    .insert_orchestration_message(NewOrchestrationMessage {
+                        from_handle: task.coordinator_handle.clone(),
+                        to_handle: assignee.clone(),
+                        subject: "Task Cancelled".to_string(),
+                        body: reason.clone(),
+                        message_type: OrchestrationMessageType::Status,
+                        priority: OrchestrationMessagePriority::Urgent,
+                        thread_id: None,
+                        payload: None,
+                        run_id: task.run_id.clone(),
+                        workspace_id: Some(task.workspace_id.clone()),
+                        task_id: Some(task.id.clone()),
+                        dispatch_id: Some(dispatch.id),
+                        expires_at: None,
+                    })
+                    .await
+                    .map_err(state_error)?;
+                if self.agent_presence.is_injection_ready(&assignee) {
+                    self.deliver_pending_messages(&assignee).await;
+                } else if let Some(agent_type) = self.agent_presence.agent_type(&assignee) {
+                    if let Some(adapter) = adapter_for(agent_type) {
+                        let _ =
+                            self.queue_orchestration_control(&assignee, adapter.interrupt_bytes);
+                    }
+                }
+                return Ok(json!({ "task": task, "cancellationMessage": message }));
+            }
+        }
+        Ok(json!({ "task": task }))
+    }
+
+    async fn orchestration_task_recover(&mut self, payload: &Value) -> HostResult<Value> {
         let id = require_string(payload, "id")?;
         let status_raw = require_string(payload, "status")?;
         let status = OrchestrationTaskStatus::parse(&status_raw)
             .ok_or_else(|| HostError::format(format!("unknown task status: {status_raw}")))?;
-        let result = optional_string(payload, "result");
+        let reason = require_string(payload, "reason")?;
+        let actor = optional_string(payload, "actor");
+        let force = payload
+            .get("force")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let existing_task = self
+            .runtime_store
+            .orchestration_task_by_id(&id)
+            .await
+            .map_err(state_error)?
+            .ok_or_else(|| HostError::state(format!("orchestration task not found: {id}")))?;
+        if !force && actor.as_deref() != Some(existing_task.coordinator_handle.as_str()) {
+            return Err(HostError::state(format!(
+                "only coordinator {} can recover task {id}; use --force for audited recovery",
+                existing_task.coordinator_handle
+            )));
+        }
         let task = self
             .runtime_store
-            .update_orchestration_task_status(&id, status, result.as_deref())
+            .recover_stalled_orchestration_task(&id, status, actor.as_deref(), &reason, force)
             .await
             .map_err(state_error)?;
-        Ok(json!(task))
+        Ok(json!({ "task": task }))
+    }
+
+    async fn orchestration_transfer_coordinator(&mut self, payload: &Value) -> HostResult<Value> {
+        let actor = optional_string(payload, "actor")
+            .ok_or_else(|| HostError::format("actor is required."))?;
+        let to = require_string(payload, "to")?;
+        let reason = require_string(payload, "reason")?;
+        let force = payload
+            .get("force")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        match (
+            optional_string(payload, "task"),
+            optional_string(payload, "run"),
+        ) {
+            (Some(task_id), None) => {
+                let task = self
+                    .runtime_store
+                    .orchestration_task_by_id(&task_id)
+                    .await
+                    .map_err(state_error)?
+                    .ok_or_else(|| {
+                        HostError::state(format!("orchestration task not found: {task_id}"))
+                    })?;
+                if let Some(run_id) = task.run_id {
+                    return Err(HostError::state(format!(
+                        "task {task_id} belongs to run {run_id}; transfer the run instead"
+                    )));
+                }
+                let task = self
+                    .runtime_store
+                    .transfer_orchestration_task_coordinator(&task_id, &actor, &to, &reason, force)
+                    .await
+                    .map_err(state_error)?;
+                Ok(json!({ "task": task }))
+            }
+            (None, Some(run_id)) => {
+                let run = self
+                    .runtime_store
+                    .transfer_orchestration_run_coordinator(&run_id, &actor, &to, &reason, force)
+                    .await
+                    .map_err(state_error)?;
+                if let Some(handle) = self.coordinators.get_mut(&run_id) {
+                    handle.config.coordinator_handle = Some(to);
+                }
+                Ok(json!({ "run": run }))
+            }
+            _ => Err(HostError::format("exactly one of task or run is required.")),
+        }
     }
 
     // --- dispatch -------------------------------------------------------------
@@ -558,11 +1151,14 @@ impl ServerActor {
             .get("returnPreamble")
             .and_then(Value::as_bool)
             .unwrap_or(false);
-
-        if inject && from == to {
-            return Err(HostError::state(
-                "invalid_self_recipient: injected dispatch coordinator and worker must differ",
-            ));
+        let allow_self_dispatch = payload
+            .get("allowSelfDispatch")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        if from == to && !allow_self_dispatch {
+            return Err(HostError::state(format!(
+                "self_dispatch_requires_opt_in: from and to both resolve to {to}; pass --allow-self-dispatch for a deliberate protocol test"
+            )));
         }
 
         let task = self
@@ -572,6 +1168,12 @@ impl ServerActor {
             .map_err(state_error)?
             .ok_or_else(|| HostError::state(format!("orchestration task not found: {task_id}")))?;
         let (_allow_stale, stripped_spec) = parse_allow_stale_base_from_spec(&task.spec);
+        if from != task.coordinator_handle {
+            return Err(HostError::state(format!(
+                "coordinator ownership conflict: task is owned by {}, not {from}",
+                task.coordinator_handle
+            )));
+        }
         let gate_resolution = self.latest_resolved_gate(&task_id).await?;
 
         if dry_run {
@@ -594,18 +1196,22 @@ impl ServerActor {
             // a recognized agent to be running in the target terminal.
             // Stable `stale_terminal_handle:` prefix is matched by recovery docs
             // and agents re-listing terminals after PTY death.
-            let session_exists = self.sessions.contains_key(&to);
-            let session_running = self.sessions.get(&to).is_some_and(Session::running);
-            if !session_exists {
+            let Some(session) = self.sessions.get(&to) else {
                 return Err(HostError::state(format!(
                     "stale_terminal_handle: terminal {to} not found; remint the PTY \
                      (reopen the tab) or dispatch to a live handle from terminal-list"
                 )));
-            }
-            if !session_running {
+            };
+            if !session.running() {
                 return Err(HostError::state(format!(
                     "stale_terminal_handle: terminal {to} is not running; remint the PTY \
                      (reopen the tab) or dispatch to a live handle from terminal-list"
+                )));
+            }
+            if session.workspace_id != task.workspace_id {
+                return Err(HostError::state(format!(
+                    "terminal {to} belongs to workspace {}, not task workspace {}",
+                    session.workspace_id, task.workspace_id
                 )));
             }
             if self.agent_presence.get(&to).is_none() {
@@ -620,11 +1226,39 @@ impl ServerActor {
             }
         }
 
+        let completion_policy = optional_string(payload, "completionPolicy")
+            .unwrap_or_else(|| "return-immediately".to_string());
+        if completion_policy != "return-immediately" {
+            return Err(HostError::format(format!(
+                "unsupported completion policy: {completion_policy}; only return-immediately is implemented"
+            )));
+        }
+        let context_token = uuid::Uuid::new_v4().simple().to_string();
+        let context_hash = context_token_hash(&context_token);
         let dispatch = self
             .runtime_store
-            .create_orchestration_dispatch(&task_id, &to)
+            .create_scoped_orchestration_dispatch(
+                &task_id,
+                &to,
+                task.run_id.as_deref(),
+                &task.workspace_id,
+                &task.coordinator_handle,
+                Some(&context_hash),
+                &completion_policy,
+                optional_string(payload, "terminalPolicy")
+                    .as_deref()
+                    .unwrap_or("keep-open"),
+            )
             .await
             .map_err(state_error)?;
+        self.orchestration_activity_last_recorded.remove(&to);
+        if let Err(error) = self.install_dispatch_context(&to, &dispatch.id, &context_token) {
+            let _ = self
+                .runtime_store
+                .fail_orchestration_startup(&dispatch.id, "could not install worker context")
+                .await;
+            return Err(error);
+        }
         let preamble = build_dispatch_preamble(&PreambleParams {
             task_id: &task_id,
             dispatch_id: &dispatch.id,
@@ -636,23 +1270,47 @@ impl ServerActor {
         });
 
         if inject {
-            if !self.sessions.contains_key(&to) {
+            if !self
+                .sessions
+                .get(&to)
+                .is_some_and(|session| session.running())
+            {
+                self.remove_dispatch_context(&to);
                 let _ = self
                     .runtime_store
-                    .fail_orchestration_dispatch(&dispatch.id, "terminal session vanished")
+                    .fail_orchestration_startup(&dispatch.id, "terminal session vanished")
                     .await;
                 return Err(HostError::state(format!("terminal {to} vanished")));
             }
-            if let Err(error) = self.queue_orchestration_paste(&to, &preamble, Vec::new()) {
+            let force_submit = payload
+                .get("forceSubmit")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            if let Err(error) =
+                self.queue_orchestration_paste(&to, &preamble, Vec::new(), force_submit)
+            {
+                self.remove_dispatch_context(&to);
                 let _ = self
                     .runtime_store
-                    .fail_orchestration_dispatch(&dispatch.id, "terminal input unavailable")
+                    .fail_orchestration_startup(&dispatch.id, "terminal input unavailable")
                     .await;
                 return Err(error);
             }
         }
 
-        let mut response = json!({ "dispatch": dispatch, "taskId": task_id });
+        let mut response = json!({
+            "dispatch": dispatch,
+            "taskId": task_id,
+            "runId": task.run_id,
+            "workspaceId": task.workspace_id,
+            "coordinatorHandle": task.coordinator_handle,
+            "assigneeHandle": to,
+            "dispatchingTerminal": from,
+            "startupState": if inject { "dispatch_submitted_unconfirmed" } else { "awaiting_manual_delivery" },
+            "dispatchPreambleVersion": 2,
+            "contextToken": context_token,
+            "contextPath": self.dispatch_context_path(&to),
+        });
         if return_preamble || !inject {
             response["preamble"] = Value::String(preamble);
         }
@@ -672,6 +1330,438 @@ impl ServerActor {
             .await
             .map_err(state_error)?;
         Ok(json!({ "active": active, "history": history }))
+    }
+
+    async fn active_worker_dispatch(
+        &self,
+        payload: &Value,
+    ) -> HostResult<OrchestrationDispatchContext> {
+        let terminal = optional_string(payload, "terminal").ok_or_else(|| {
+            HostError::format("terminal is required; run inside an Alera terminal.")
+        })?;
+        let dispatch = self
+            .runtime_store
+            .active_orchestration_dispatch_for_handle(&terminal)
+            .await
+            .map_err(state_error)?
+            .ok_or_else(|| {
+                HostError::state(format!("no active dispatch for terminal {terminal}"))
+            })?;
+        if let Some(expected_hash) = dispatch.context_token_hash.as_deref() {
+            let token = optional_string(payload, "contextToken")
+                .ok_or_else(|| HostError::state("dispatch context token is required"))?;
+            if context_token_hash(&token) != expected_hash {
+                return Err(HostError::state(
+                    "dispatch context token is invalid or stale",
+                ));
+            }
+        }
+        Ok(dispatch)
+    }
+
+    async fn orchestration_dispatch_accept(&mut self, payload: &Value) -> HostResult<Value> {
+        let terminal = optional_string(payload, "terminal")
+            .ok_or_else(|| HostError::format("terminal is required."))?;
+        let dispatch = self.active_worker_dispatch(payload).await?;
+        let accepted = self
+            .runtime_store
+            .accept_orchestration_dispatch(
+                &dispatch.id,
+                &terminal,
+                &optional_string(payload, "contextToken")
+                    .map(|token| context_token_hash(&token))
+                    .unwrap_or_default(),
+            )
+            .await
+            .map_err(state_error)?;
+        Ok(json!({ "outcome": "accepted", "dispatch": accepted }))
+    }
+
+    async fn orchestration_dispatch_interrupt(&mut self, payload: &Value) -> HostResult<Value> {
+        let id = require_string(payload, "id")?;
+        let reason = require_string(payload, "reason")?;
+        let dispatch = self
+            .runtime_store
+            .orchestration_dispatch_by_id(&id)
+            .await
+            .map_err(state_error)?
+            .ok_or_else(|| HostError::state(format!("dispatch not found: {id}")))?;
+        if !matches!(
+            dispatch.status,
+            OrchestrationDispatchStatus::Dispatched | OrchestrationDispatchStatus::Stalled
+        ) {
+            return Err(HostError::state("dispatch is not interruptible"));
+        }
+        let actor = optional_string(payload, "actor");
+        let force = payload
+            .get("force")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        if !force && actor.as_deref() != Some(dispatch.coordinator_handle.as_str()) {
+            return Err(HostError::state(format!(
+                "only coordinator {} can interrupt dispatch {id}; use --force for audited recovery",
+                dispatch.coordinator_handle
+            )));
+        }
+        let handle = dispatch
+            .assignee_handle
+            .clone()
+            .ok_or_else(|| HostError::state("dispatch has no assignee"))?;
+        let agent_type = self.agent_presence.agent_type(&handle).unwrap_or("codex");
+        let adapter = adapter_for(agent_type)
+            .ok_or_else(|| HostError::state(format!("no interrupt adapter for {agent_type}")))?;
+        self.queue_orchestration_control(&handle, adapter.interrupt_bytes)?;
+        self.runtime_store
+            .insert_orchestration_audit_event(
+                actor.as_deref(),
+                if force {
+                    "dispatch.interrupt.force"
+                } else {
+                    "dispatch.interrupt"
+                },
+                &id,
+                &reason,
+            )
+            .await
+            .map_err(state_error)?;
+        Ok(json!({ "dispatchId": id, "interrupted": true, "reason": reason }))
+    }
+
+    fn orchestration_worker_help(&self) -> Value {
+        json!({
+            "dispatchPreambleVersion": 2,
+            "commands": [
+                "alera orchestration dispatch-accept",
+                "alera orchestration --json context",
+                "alera orchestration heartbeat --phase <phase>",
+                "alera orchestration escalate --subject <subject> --body <details>",
+                "alera orchestration complete --summary <summary> --completion-kind success --artifacts '[]' --validation '[]'"
+            ]
+        })
+    }
+
+    async fn orchestration_context(&mut self, payload: &Value) -> HostResult<Value> {
+        let dispatch = self.active_worker_dispatch(payload).await?;
+        let task = self
+            .runtime_store
+            .orchestration_task_by_id(&dispatch.task_id)
+            .await
+            .map_err(state_error)?;
+        Ok(json!({
+            "task": task,
+            "dispatch": dispatch,
+            "coordinatorHandle": dispatch.coordinator_handle,
+            "assigneeHandle": dispatch.assignee_handle,
+            "phase": dispatch.status.as_str(),
+            "lastActivityAt": dispatch.last_activity_at,
+            "completionState": dispatch.status.as_str(),
+        }))
+    }
+
+    async fn orchestration_heartbeat(&mut self, payload: &Value) -> HostResult<Value> {
+        let dispatch = self.active_worker_dispatch(payload).await?;
+        let accepted = self
+            .runtime_store
+            .record_orchestration_activity(&dispatch.id)
+            .await
+            .map_err(state_error)?;
+        if !accepted {
+            return Err(HostError::state("heartbeat rejected for inactive dispatch"));
+        }
+        Ok(
+            json!({ "lifecycleAccepted": true, "dispatchId": dispatch.id, "phase": optional_string(payload, "phase") }),
+        )
+    }
+
+    async fn orchestration_escalate(&mut self, payload: &Value) -> HostResult<Value> {
+        let dispatch = self.active_worker_dispatch(payload).await?;
+        let assignee = dispatch.assignee_handle.clone().unwrap_or_default();
+        let message = self
+            .runtime_store
+            .insert_orchestration_message(NewOrchestrationMessage {
+                from_handle: assignee,
+                to_handle: dispatch.coordinator_handle.clone(),
+                subject: require_string(payload, "subject")?,
+                body: optional_string(payload, "body").unwrap_or_default(),
+                message_type: OrchestrationMessageType::Escalation,
+                priority: OrchestrationMessagePriority::High,
+                thread_id: None,
+                payload: Some(
+                    json!({
+                        "taskId": dispatch.task_id,
+                        "dispatchId": dispatch.id,
+                    })
+                    .to_string(),
+                ),
+                run_id: dispatch.run_id.clone(),
+                workspace_id: Some(dispatch.workspace_id.clone()),
+                task_id: Some(dispatch.task_id.clone()),
+                dispatch_id: Some(dispatch.id.clone()),
+                expires_at: None,
+            })
+            .await
+            .map_err(state_error)?;
+        self.runtime_store
+            .record_orchestration_activity(&dispatch.id)
+            .await
+            .map_err(state_error)?;
+        self.notify_message_arrived(
+            &dispatch.coordinator_handle,
+            OrchestrationMessageType::Escalation,
+        )
+        .await;
+        Ok(json!({ "lifecycleAccepted": true, "message": message }))
+    }
+
+    async fn orchestration_complete(&mut self, payload: &Value) -> HostResult<Value> {
+        let dispatch = self.active_worker_dispatch(payload).await?;
+        let assignee = dispatch
+            .assignee_handle
+            .clone()
+            .ok_or_else(|| HostError::state("active dispatch has no assignee"))?;
+        let result = payload
+            .get("result")
+            .and_then(Value::as_object)
+            .ok_or_else(|| HostError::format("result must be an object."))?;
+        let summary = result
+            .get("summary")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| HostError::format("result.summary is required."))?;
+        let completion_kind = result
+            .get("completionKind")
+            .and_then(Value::as_str)
+            .unwrap_or("success");
+        for field in ["artifacts", "filesModified", "validation"] {
+            if !result.get(field).is_some_and(Value::is_array) {
+                return Err(HostError::format(format!(
+                    "result.{field} must be an array."
+                )));
+            }
+        }
+        let task = self
+            .runtime_store
+            .orchestration_task_by_id(&dispatch.task_id)
+            .await
+            .map_err(state_error)?
+            .ok_or_else(|| HostError::state("dispatch task no longer exists"))?;
+        validate_result_schema(result, task.result_schema.as_deref())?;
+        let result_json =
+            serde_json::to_string(result).map_err(|error| HostError::format(error.to_string()))?;
+        if completion_kind == "failure" {
+            self.remove_dispatch_context(&assignee);
+            let failed = self
+                .runtime_store
+                .fail_orchestration_dispatch_with_result(&dispatch.id, summary, Some(&result_json))
+                .await
+                .map_err(state_error)?;
+            return Ok(json!({
+                "lifecycleAccepted": true,
+                "taskId": dispatch.task_id,
+                "dispatchId": failed.id,
+                "dispatchStatus": failed.status.as_str(),
+            }));
+        }
+        if completion_kind != "success" {
+            return Err(HostError::format(
+                "result.completionKind must be success or failure.",
+            ));
+        }
+        let completed = self
+            .runtime_store
+            .complete_orchestration_dispatch(&dispatch.id, &assignee, &result_json)
+            .await
+            .map_err(state_error)?;
+        self.apply_terminal_completion_policy(&assignee, &completed.terminal_policy)
+            .await?;
+        Ok(json!({
+            "delivered": true,
+            "lifecycleAccepted": true,
+            "taskId": completed.task_id,
+            "dispatchId": completed.id,
+            "taskStatus": "completed",
+            "dispatchStatus": completed.status.as_str(),
+        }))
+    }
+
+    async fn orchestration_worker_done(&mut self, payload: &Value) -> HostResult<Value> {
+        let terminal = optional_string(payload, "terminal")
+            .ok_or_else(|| HostError::format("terminal is required."))?;
+        let task_id = require_string(payload, "task")?;
+        let dispatch_id = require_string(payload, "dispatch")?;
+        let dispatch = self
+            .runtime_store
+            .orchestration_dispatch_by_id(&dispatch_id)
+            .await
+            .map_err(state_error)?
+            .ok_or_else(|| HostError::state(format!("dispatch not found: {dispatch_id}")))?;
+        if dispatch.task_id != task_id || dispatch.assignee_handle.as_deref() != Some(&terminal) {
+            return Err(HostError::state("worker-done authority rejected"));
+        }
+        let result = payload
+            .get("result")
+            .and_then(Value::as_object)
+            .ok_or_else(|| HostError::format("result must be an object."))?;
+        result
+            .get("summary")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| HostError::format("result.summary is required."))?;
+        let completion_kind = result
+            .get("completionKind")
+            .and_then(Value::as_str)
+            .unwrap_or("success");
+        if completion_kind != "success" {
+            return Err(HostError::format(
+                "worker-done result.completionKind must be success.",
+            ));
+        }
+        for field in ["artifacts", "filesModified", "validation"] {
+            if !result.get(field).is_some_and(Value::is_array) {
+                return Err(HostError::format(format!(
+                    "result.{field} must be an array."
+                )));
+            }
+        }
+        let task = self
+            .runtime_store
+            .orchestration_task_by_id(&task_id)
+            .await
+            .map_err(state_error)?
+            .ok_or_else(|| HostError::state("dispatch task no longer exists"))?;
+        validate_result_schema(result, task.result_schema.as_deref())?;
+        let result_json =
+            serde_json::to_string(result).map_err(|error| HostError::format(error.to_string()))?;
+        let completed = self
+            .runtime_store
+            .complete_orchestration_dispatch(&dispatch_id, &terminal, &result_json)
+            .await
+            .map_err(state_error)?;
+        self.apply_terminal_completion_policy(&terminal, &completed.terminal_policy)
+            .await?;
+        Ok(json!({
+            "delivered": true,
+            "lifecycleAccepted": true,
+            "taskId": completed.task_id,
+            "dispatchId": completed.id,
+            "taskStatus": "completed",
+            "dispatchStatus": completed.status.as_str(),
+        }))
+    }
+
+    async fn apply_terminal_completion_policy(
+        &mut self,
+        handle: &str,
+        policy: &str,
+    ) -> HostResult<()> {
+        match policy {
+            "return-to-shell" => {
+                let _ = self.queue_orchestration_control(handle, b"\x04");
+            }
+            "close-on-success" => {
+                if let Some(tab_id) = self
+                    .sessions
+                    .get(handle)
+                    .map(|session| session.tab_id.clone())
+                {
+                    self.runtime_store
+                        .remove_workspace_tab(&tab_id)
+                        .await
+                        .map_err(state_error)?;
+                    self.terminate_sessions_for_tab(&tab_id).await;
+                    self.broadcast_authenticated(crate::terminal_host::protocol::event(
+                        "workspaceTabsChanged",
+                        json!({}),
+                    ));
+                } else {
+                    self.agent_presence.remove(handle);
+                    self.schedule_shutdown_if_idle();
+                }
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    async fn orchestration_run_list(&mut self, payload: &Value) -> HostResult<Value> {
+        let runs = self
+            .runtime_store
+            .list_orchestration_coordinator_runs(optional_string(payload, "workspace").as_deref())
+            .await
+            .map_err(state_error)?;
+        Ok(
+            json!({ "kind": "runs", "items": runs, "runs": runs, "filters": { "workspace": optional_string(payload, "workspace") } }),
+        )
+    }
+
+    async fn orchestration_run_show(&mut self, payload: &Value) -> HostResult<Value> {
+        let id = require_string(payload, "id")?;
+        let run = self
+            .runtime_store
+            .orchestration_coordinator_run_by_id(&id)
+            .await
+            .map_err(state_error)?
+            .ok_or_else(|| HostError::state(format!("coordinator run not found: {id}")))?;
+        let tasks = self
+            .runtime_store
+            .list_scoped_orchestration_tasks(None, Some(&id), Some(&run.workspace_id))
+            .await
+            .map_err(state_error)?;
+        Ok(json!({ "run": run, "tasks": tasks }))
+    }
+
+    async fn orchestration_status(&mut self, payload: &Value) -> HostResult<Value> {
+        let id = require_string(payload, "id")?;
+        let run = self
+            .runtime_store
+            .orchestration_coordinator_run_by_id(&id)
+            .await
+            .map_err(state_error)?
+            .ok_or_else(|| HostError::state(format!("coordinator run not found: {id}")))?;
+        let tasks = self
+            .runtime_store
+            .list_scoped_orchestration_tasks(None, Some(&id), Some(&run.workspace_id))
+            .await
+            .map_err(state_error)?;
+        let mut run_handles = tasks
+            .iter()
+            .filter_map(|task| task.assignee_handle.as_deref())
+            .collect::<std::collections::HashSet<_>>();
+        if let Some(coordinator_handle) = run.coordinator_handle.as_deref() {
+            run_handles.insert(coordinator_handle);
+        }
+        let terminals = self.orchestration_terminals()["items"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter(|terminal| {
+                terminal.get("workspaceId").and_then(Value::as_str)
+                    == Some(run.workspace_id.as_str())
+                    && terminal
+                        .get("handle")
+                        .and_then(Value::as_str)
+                        .is_some_and(|handle| run_handles.contains(handle))
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        let active = tasks
+            .iter()
+            .filter(|task| {
+                matches!(
+                    task.status,
+                    OrchestrationTaskStatus::Dispatched | OrchestrationTaskStatus::Stalled
+                )
+            })
+            .count();
+        Ok(json!({
+            "run": run,
+            "tasks": tasks,
+            "terminals": terminals,
+            "activeTaskCount": active,
+            "lastActivityAt": run.last_activity_at,
+        }))
     }
 
     async fn latest_resolved_gate(&self, task_id: &str) -> HostResult<Option<GateResolution>> {
@@ -735,7 +1825,9 @@ impl ServerActor {
             .list_orchestration_gates(task_id.as_deref(), status)
             .await
             .map_err(state_error)?;
-        Ok(json!({ "gates": gates }))
+        Ok(
+            json!({ "kind": "gates", "items": gates, "gates": gates, "filters": { "task": task_id, "status": status.map(|value| value.as_str()) } }),
+        )
     }
 
     // --- reset --------------------------------------------------------------
@@ -754,7 +1846,7 @@ impl ServerActor {
         let all =
             (!tasks && !messages) || payload.get("all").and_then(Value::as_bool).unwrap_or(false);
         if all || tasks {
-            if let Some(handle) = self.coordinator.take() {
+            for (_, handle) in self.coordinators.drain() {
                 handle.stop();
             }
             self.runtime_store
@@ -860,15 +1952,21 @@ impl ServerActor {
         }
     }
 
-    pub(super) async fn handle_orchestration_wait_timeout(&mut self, waiter_id: u64) {
+    pub(super) async fn handle_orchestration_wait_timeout(
+        &mut self,
+        waiter_id: u64,
+        waited_ms: u64,
+    ) {
         let Some(waiter) = self.orchestration_waiters.take_by_id(waiter_id) else {
             return;
         };
         let mut payload = match waiter.kind {
             WaitKind::Check { inject, .. } => check_response(&[], inject),
-            WaitKind::Ask { .. } => json!({ "answered": false, "timedOut": true }),
+            WaitKind::Ask { .. } => json!({ "answered": false }),
         };
         payload["timedOut"] = Value::Bool(true);
+        payload["outcome"] = Value::String("timeout".to_string());
+        payload["waitedMs"] = json!(waited_ms);
         self.client_write(waiter.client_id, ok_response(waiter.request_id, payload));
     }
 
@@ -876,7 +1974,10 @@ impl ServerActor {
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
             tokio::time::sleep(Duration::from_millis(timeout_ms)).await;
-            let _ = inbox.send(ServerCommand::OrchestrationWaitTimeout { waiter_id });
+            let _ = inbox.send(ServerCommand::OrchestrationWaitTimeout {
+                waiter_id,
+                waited_ms: timeout_ms,
+            });
         });
     }
 }
@@ -906,5 +2007,45 @@ mod tests {
             .collect::<HashSet<_>>();
 
         assert_eq!(ids.len(), 512);
+    }
+
+    #[test]
+    fn result_schema_distinguishes_integer_from_fractional_number() {
+        let schema = r#"{"properties":{"count":{"type":"integer"}}}"#;
+        for value in [json!(1), json!(1.0)] {
+            let result = json!({"count": value}).as_object().unwrap().clone();
+            assert!(validate_result_schema(&result, Some(schema)).is_ok());
+        }
+        let fractional = json!({"count": 1.5}).as_object().unwrap().clone();
+        assert!(validate_result_schema(&fractional, Some(schema)).is_err());
+    }
+
+    #[test]
+    fn result_schema_enforces_nested_enum_items_and_additional_properties() {
+        let schema = r#"{
+            "type":"object",
+            "required":["status","details"],
+            "additionalProperties":false,
+            "properties":{
+                "status":{"enum":["ok"]},
+                "details":{
+                    "type":"object",
+                    "required":["checks"],
+                    "properties":{"checks":{"type":"array","items":{"type":"boolean"}}}
+                }
+            }
+        }"#;
+        let valid = json!({"status":"ok","details":{"checks":[true, false]}})
+            .as_object()
+            .unwrap()
+            .clone();
+        assert!(validate_result_schema(&valid, Some(schema)).is_ok());
+        for invalid in [
+            json!({"status":"bad","details":{"checks":[true]}}),
+            json!({"status":"ok","details":{"checks":["yes"]}}),
+            json!({"status":"ok","details":{"checks":[]},"extra":true}),
+        ] {
+            assert!(validate_result_schema(invalid.as_object().unwrap(), Some(schema)).is_err());
+        }
     }
 }

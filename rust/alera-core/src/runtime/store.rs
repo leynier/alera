@@ -63,9 +63,15 @@ impl RuntimeStore {
         for statement in RUNTIME_SCHEMA {
             sqlx::query(statement).execute(&self.pool).await?;
         }
+        self.migrate_legacy_orchestration_schema().await?;
         for statement in super::orchestration_message_store::ORCHESTRATION_SCHEMA {
             sqlx::query(statement).execute(&self.pool).await?;
         }
+        self.set_metadata(
+            "orchestration.schemaVersion",
+            super::orchestration_message_store::ORCHESTRATION_SCHEMA_VERSION,
+        )
+        .await?;
         self.ensure_column("sshTargets", "installDir", "TEXT")
             .await?;
         self.ensure_column("sshTargets", "runtimeVersion", "TEXT")
@@ -86,6 +92,128 @@ impl RuntimeStore {
             .await?;
         self.ensure_column("sshTargets", "lastError", "TEXT")
             .await?;
+        Ok(())
+    }
+
+    async fn migrate_legacy_orchestration_schema(&self) -> Result<()> {
+        let current = self.get_metadata("orchestration.schemaVersion").await?;
+        match current.as_deref() {
+            Some(super::orchestration_message_store::ORCHESTRATION_SCHEMA_VERSION) => return Ok(()),
+            Some(other) => anyhow::bail!(
+                "unsupported orchestration schema version {other}; refusing destructive migration"
+            ),
+            None => {}
+        }
+        let task_columns = sqlx::query("PRAGMA table_info(orchestrationTasks)")
+            .fetch_all(&self.pool)
+            .await?;
+        if task_columns.is_empty()
+            || task_columns.iter().any(|row| {
+                row.try_get::<String, _>("name")
+                    .is_ok_and(|name| name == "workspace_id")
+            })
+        {
+            return Ok(());
+        }
+
+        let mut tx = self.pool.begin().await?;
+        for index in [
+            "orchestrationMessagesIdIdx",
+            "orchestrationMessagesInboxIdx",
+            "orchestrationMessagesUndeliveredIdx",
+            "orchestrationMessagesThreadIdx",
+            "orchestrationTasksStatusIdx",
+            "orchestrationTasksParentIdx",
+            "orchestrationDispatchTaskIdx",
+            "orchestrationDispatchStatusIdx",
+            "orchestrationGatesTaskIdx",
+        ] {
+            sqlx::query(&format!("DROP INDEX IF EXISTS {index}"))
+                .execute(&mut *tx)
+                .await?;
+        }
+        for table in [
+            "orchestrationMessages",
+            "orchestrationTasks",
+            "orchestrationDispatchContexts",
+            "orchestrationDecisionGates",
+            "orchestrationCoordinatorRuns",
+        ] {
+            sqlx::query(&format!("ALTER TABLE {table} RENAME TO {table}LegacyV1"))
+                .execute(&mut *tx)
+                .await?;
+        }
+        for statement in super::orchestration_message_store::ORCHESTRATION_SCHEMA {
+            sqlx::query(statement).execute(&mut *tx).await?;
+        }
+        sqlx::query(
+            "INSERT INTO orchestrationMessages \
+             (id, from_handle, to_handle, subject, body, type, priority, thread_id, payload, \
+              read, sequence, created_at, delivered_at, state) \
+             SELECT id, from_handle, to_handle, subject, body, type, priority, thread_id, payload, \
+                    read, sequence, created_at, delivered_at, \
+                    CASE WHEN read != 0 THEN 'read' \
+                         WHEN delivered_at IS NOT NULL THEN 'delivered' ELSE 'queued' END \
+             FROM orchestrationMessagesLegacyV1",
+        )
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query(
+            "INSERT INTO orchestrationTasks \
+             (id, parent_id, created_by_terminal_handle, task_title, display_name, spec, status, \
+              deps, result, created_at, completed_at, workspace_id, coordinator_handle) \
+             SELECT id, parent_id, created_by_terminal_handle, task_title, display_name, spec, status, \
+                    deps, result, created_at, completed_at, 'global', \
+                    COALESCE(created_by_terminal_handle, 'coord') \
+             FROM orchestrationTasksLegacyV1",
+        )
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query(
+            "INSERT INTO orchestrationDispatchContexts \
+             (id, task_id, assignee_handle, status, failure_count, last_failure, dispatched_at, \
+              completed_at, created_at, last_heartbeat_at, workspace_id, coordinator_handle, \
+              accepted_at, last_activity_at) \
+             SELECT d.id, d.task_id, d.assignee_handle, d.status, d.failure_count, d.last_failure, \
+                    d.dispatched_at, d.completed_at, d.created_at, d.last_heartbeat_at, \
+                    t.workspace_id, t.coordinator_handle, \
+                    CASE WHEN d.status = 'dispatched' THEN d.dispatched_at ELSE NULL END, \
+                    COALESCE(d.last_heartbeat_at, d.dispatched_at, d.created_at) \
+             FROM orchestrationDispatchContextsLegacyV1 d \
+             JOIN orchestrationTasks t ON t.id = d.task_id",
+        )
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query(
+            "INSERT INTO orchestrationDecisionGates \
+             (id, task_id, question, options, status, resolution, created_at, resolved_at) \
+             SELECT id, task_id, question, options, status, resolution, created_at, resolved_at \
+             FROM orchestrationDecisionGatesLegacyV1",
+        )
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query(
+            "INSERT INTO orchestrationCoordinatorRuns \
+             (id, spec, status, coordinator_handle, poll_interval_ms, created_at, completed_at, \
+              workspace_id, max_concurrent, last_activity_at) \
+             SELECT id, spec, status, coordinator_handle, poll_interval_ms, created_at, completed_at, \
+                    'global', 4, created_at \
+             FROM orchestrationCoordinatorRunsLegacyV1",
+        )
+        .execute(&mut *tx)
+        .await?;
+        for table in [
+            "orchestrationMessagesLegacyV1",
+            "orchestrationTasksLegacyV1",
+            "orchestrationDispatchContextsLegacyV1",
+            "orchestrationDecisionGatesLegacyV1",
+            "orchestrationCoordinatorRunsLegacyV1",
+        ] {
+            sqlx::query(&format!("DROP TABLE {table}"))
+                .execute(&mut *tx)
+                .await?;
+        }
+        tx.commit().await?;
         Ok(())
     }
 
@@ -1864,6 +1992,148 @@ mod tests {
         assert_eq!(
             store.get_metadata("migration").await.unwrap(),
             Some("done".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn legacy_orchestration_schema_migrates_without_losing_records() {
+        let (dir, store) = store().await;
+        for table in [
+            "orchestrationAuditEvents",
+            "orchestrationDecisionGates",
+            "orchestrationDispatchContexts",
+            "orchestrationMessages",
+            "orchestrationTasks",
+            "orchestrationCoordinatorRuns",
+        ] {
+            sqlx::query(&format!("DROP TABLE IF EXISTS {table}"))
+                .execute(store.pool())
+                .await
+                .unwrap();
+        }
+        sqlx::query("DELETE FROM runtimeMetadata WHERE key = 'orchestration.schemaVersion'")
+            .execute(store.pool())
+            .await
+            .unwrap();
+        for statement in [
+            "CREATE TABLE orchestrationMessages (
+                id TEXT NOT NULL, from_handle TEXT NOT NULL, to_handle TEXT NOT NULL,
+                subject TEXT NOT NULL, body TEXT NOT NULL DEFAULT '', type TEXT NOT NULL,
+                priority TEXT NOT NULL, thread_id TEXT, payload TEXT, read INTEGER NOT NULL DEFAULT 0,
+                sequence INTEGER PRIMARY KEY AUTOINCREMENT, created_at TEXT NOT NULL,
+                delivered_at TEXT
+            )",
+            "CREATE TABLE orchestrationTasks (
+                id TEXT PRIMARY KEY, parent_id TEXT, created_by_terminal_handle TEXT,
+                task_title TEXT, display_name TEXT, spec TEXT NOT NULL, status TEXT NOT NULL,
+                deps TEXT NOT NULL DEFAULT '[]', result TEXT, created_at TEXT NOT NULL,
+                completed_at TEXT
+            )",
+            "CREATE TABLE orchestrationDispatchContexts (
+                id TEXT PRIMARY KEY, task_id TEXT NOT NULL, assignee_handle TEXT,
+                status TEXT NOT NULL, failure_count INTEGER NOT NULL DEFAULT 0,
+                last_failure TEXT, dispatched_at TEXT, completed_at TEXT,
+                created_at TEXT NOT NULL, last_heartbeat_at TEXT
+            )",
+            "CREATE TABLE orchestrationDecisionGates (
+                id TEXT PRIMARY KEY, task_id TEXT NOT NULL, question TEXT NOT NULL,
+                options TEXT NOT NULL DEFAULT '[]', status TEXT NOT NULL, resolution TEXT,
+                created_at TEXT NOT NULL, resolved_at TEXT
+            )",
+            "CREATE TABLE orchestrationCoordinatorRuns (
+                id TEXT PRIMARY KEY, spec TEXT NOT NULL, status TEXT NOT NULL,
+                coordinator_handle TEXT, poll_interval_ms INTEGER NOT NULL,
+                created_at TEXT NOT NULL, completed_at TEXT
+            )",
+        ] {
+            sqlx::query(statement)
+                .execute(store.pool())
+                .await
+                .unwrap();
+        }
+        sqlx::query(
+            "INSERT INTO orchestrationTasks VALUES
+             ('task-v1', NULL, 'owner', NULL, 'Legacy Task', 'work', 'dispatched', '[]',
+              NULL, '2026-01-01 00:00:00', NULL)",
+        )
+        .execute(store.pool())
+        .await
+        .unwrap();
+        sqlx::query(
+            "INSERT INTO orchestrationDispatchContexts VALUES
+             ('dispatch-v1', 'task-v1', 'worker', 'dispatched', 0, NULL,
+              '2026-01-01 00:01:00', NULL, '2026-01-01 00:01:00', NULL)",
+        )
+        .execute(store.pool())
+        .await
+        .unwrap();
+        sqlx::query(
+            "INSERT INTO orchestrationMessages VALUES
+             ('message-v1', 'worker', 'owner', 'done', 'body', 'status', 'normal',
+              NULL, NULL, 0, 1, '2026-01-01 00:02:00', NULL)",
+        )
+        .execute(store.pool())
+        .await
+        .unwrap();
+        sqlx::query(
+            "INSERT INTO orchestrationDecisionGates VALUES
+             ('gate-v1', 'task-v1', 'Proceed?', '[]', 'pending', NULL,
+              '2026-01-01 00:03:00', NULL)",
+        )
+        .execute(store.pool())
+        .await
+        .unwrap();
+        sqlx::query(
+            "INSERT INTO orchestrationCoordinatorRuns VALUES
+             ('run-v1', 'coordinate', 'running', 'owner', 2000,
+              '2026-01-01 00:00:00', NULL)",
+        )
+        .execute(store.pool())
+        .await
+        .unwrap();
+        drop(store);
+
+        let migrated = RuntimeStore::open(dir.path()).await.unwrap();
+        let task = migrated
+            .orchestration_task_by_id("task-v1")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(task.workspace_id, "global");
+        assert_eq!(task.coordinator_handle, "owner");
+        let dispatch = migrated
+            .orchestration_dispatch_by_id("dispatch-v1")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(dispatch.workspace_id, "global");
+        assert_eq!(
+            dispatch.accepted_at.as_deref(),
+            dispatch.dispatched_at.as_deref()
+        );
+        let messages = migrated.orchestration_inbox(10).await.unwrap();
+        assert_eq!(messages[0].id, "message-v1");
+        assert_eq!(messages[0].state, "queued");
+        assert_eq!(
+            migrated.list_orchestration_gates(None, None).await.unwrap()[0].id,
+            "gate-v1"
+        );
+        assert_eq!(
+            migrated
+                .orchestration_coordinator_run_by_id("run-v1")
+                .await
+                .unwrap()
+                .unwrap()
+                .workspace_id,
+            "global"
+        );
+        assert_eq!(
+            migrated
+                .get_metadata("orchestration.schemaVersion")
+                .await
+                .unwrap()
+                .as_deref(),
+            Some("2")
         );
     }
 

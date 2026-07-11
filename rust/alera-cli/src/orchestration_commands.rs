@@ -1,4 +1,5 @@
 use serde_json::{json, Map, Value};
+use std::io::Read;
 
 use crate::cli::RuntimeDirArgs;
 use crate::cli_orchestration::{
@@ -19,6 +20,7 @@ pub async fn run_orchestration_command(command: OrchestrationCommand) -> i32 {
     let runtime = command.runtime;
     let json_output = command.output.json;
     match command.action {
+        OrchestrationAction::AgentSpawn(args) => run_agent_spawn(&runtime, args, json_output).await,
         OrchestrationAction::Send(args) => match build_send_payload(args) {
             Ok(payload) => {
                 request(&runtime, "orchestration.send", payload, json_output, None).await
@@ -39,6 +41,7 @@ pub async fn run_orchestration_command(command: OrchestrationCommand) -> i32 {
         OrchestrationAction::Inbox(args) => {
             let mut payload = Map::new();
             insert_opt(&mut payload, "terminal", args.terminal);
+            payload.insert("direction".to_string(), json!(args.direction));
             if let Some(limit) = args.limit {
                 payload.insert("limit".to_string(), json!(limit));
             }
@@ -60,6 +63,8 @@ pub async fn run_orchestration_command(command: OrchestrationCommand) -> i32 {
                     Err(_) => return usage_error("--deps must be a JSON array of task ids."),
                 },
             };
+            let created_by = terminal_handle_env();
+            let coordinator = args.coordinator.or_else(|| created_by.clone());
             request(
                 &runtime,
                 "orchestration.taskCreate",
@@ -68,7 +73,11 @@ pub async fn run_orchestration_command(command: OrchestrationCommand) -> i32 {
                     "taskTitle": args.task_title,
                     "deps": deps,
                     "parent": args.parent,
-                    "createdBy": terminal_handle_env(),
+                    "createdBy": created_by,
+                    "coordinator": coordinator,
+                    "workspace": args.workspace,
+                    "run": args.run,
+                    "resultSchema": args.result_schema,
                 }),
                 json_output,
                 None,
@@ -83,6 +92,8 @@ pub async fn run_orchestration_command(command: OrchestrationCommand) -> i32 {
             };
             let mut payload = Map::new();
             insert_opt(&mut payload, "status", status);
+            insert_opt(&mut payload, "run", args.run);
+            insert_opt(&mut payload, "workspace", args.workspace);
             request(
                 &runtime,
                 "orchestration.taskList",
@@ -92,14 +103,58 @@ pub async fn run_orchestration_command(command: OrchestrationCommand) -> i32 {
             )
             .await
         }
-        OrchestrationAction::TaskUpdate(args) => {
+        OrchestrationAction::TaskShow(args) => {
             request(
                 &runtime,
-                "orchestration.taskUpdate",
+                "orchestration.taskShow",
+                json!({ "id": args.id }),
+                json_output,
+                None,
+            )
+            .await
+        }
+        OrchestrationAction::TaskCancel(args) => {
+            request(
+                &runtime,
+                "orchestration.taskCancel",
+                json!({
+                    "id": args.id,
+                    "reason": args.reason,
+                    "actor": terminal_handle_env(),
+                    "force": args.force,
+                }),
+                json_output,
+                None,
+            )
+            .await
+        }
+        OrchestrationAction::TaskRecover(args) => {
+            request(
+                &runtime,
+                "orchestration.taskRecover",
                 json!({
                     "id": args.id,
                     "status": args.status,
-                    "result": args.result,
+                    "reason": args.reason,
+                    "actor": terminal_handle_env(),
+                    "force": args.force,
+                }),
+                json_output,
+                None,
+            )
+            .await
+        }
+        OrchestrationAction::TransferCoordinator(args) => {
+            request(
+                &runtime,
+                "orchestration.transferCoordinator",
+                json!({
+                    "task": args.task,
+                    "run": args.run,
+                    "to": args.to,
+                    "reason": args.reason,
+                    "force": args.force,
+                    "actor": terminal_handle_env(),
                 }),
                 json_output,
                 None,
@@ -122,6 +177,9 @@ pub async fn run_orchestration_command(command: OrchestrationCommand) -> i32 {
                     "inject": args.inject,
                     "dryRun": args.dry_run,
                     "returnPreamble": args.return_preamble,
+                    "allowSelfDispatch": args.allow_self_dispatch,
+                    "completionPolicy": args.completion_policy,
+                    "terminalPolicy": args.terminal_policy,
                 }),
                 json_output,
                 None,
@@ -133,6 +191,169 @@ pub async fn run_orchestration_command(command: OrchestrationCommand) -> i32 {
                 &runtime,
                 "orchestration.dispatchShow",
                 json!({ "task": args.task }),
+                json_output,
+                None,
+            )
+            .await
+        }
+        OrchestrationAction::DispatchAccept => {
+            let terminal = terminal_handle_env();
+            let context_token = terminal
+                .as_deref()
+                .and_then(|handle| dispatch_context_token(&runtime, handle));
+            request(
+                &runtime,
+                "orchestration.dispatchAccept",
+                json!({ "terminal": terminal, "contextToken": context_token }),
+                json_output,
+                None,
+            )
+            .await
+        }
+        OrchestrationAction::DispatchInterrupt(args) => {
+            request(
+                &runtime,
+                "orchestration.dispatchInterrupt",
+                json!({
+                    "id": args.id,
+                    "reason": args.reason,
+                    "actor": terminal_handle_env(),
+                    "force": args.force,
+                }),
+                json_output,
+                None,
+            )
+            .await
+        }
+        OrchestrationAction::Context => {
+            let terminal = terminal_handle_env();
+            let context_token = terminal
+                .as_deref()
+                .and_then(|handle| dispatch_context_token(&runtime, handle));
+            request(
+                &runtime,
+                "orchestration.context",
+                json!({ "terminal": terminal, "contextToken": context_token }),
+                json_output,
+                None,
+            )
+            .await
+        }
+        OrchestrationAction::Heartbeat(args) => {
+            let terminal = terminal_handle_env();
+            let context_token = terminal
+                .as_deref()
+                .and_then(|handle| dispatch_context_token(&runtime, handle));
+            request(
+                &runtime,
+                "orchestration.heartbeat",
+                json!({ "terminal": terminal, "contextToken": context_token, "phase": args.phase }),
+                json_output,
+                None,
+            )
+            .await
+        }
+        OrchestrationAction::Escalate(args) => {
+            let body = match read_body(args.body, args.body_file, args.body_stdin) {
+                Ok(body) => body,
+                Err(error) => return usage_error(&error),
+            };
+            let terminal = terminal_handle_env();
+            let context_token = terminal
+                .as_deref()
+                .and_then(|handle| dispatch_context_token(&runtime, handle));
+            request(
+                &runtime,
+                "orchestration.escalate",
+                json!({ "terminal": terminal, "contextToken": context_token, "subject": args.subject, "body": body }),
+                json_output,
+                None,
+            )
+            .await
+        }
+        OrchestrationAction::Complete(args) => {
+            let artifacts: Value = match args.artifacts {
+                Some(raw) => match serde_json::from_str(&raw) {
+                    Ok(value) => value,
+                    Err(_) => return usage_error("--artifacts must be valid JSON."),
+                },
+                None => json!([]),
+            };
+            let validation: Value = match args.validation {
+                Some(raw) => match serde_json::from_str(&raw) {
+                    Ok(value) => value,
+                    Err(_) => return usage_error("--validation must be valid JSON."),
+                },
+                None => json!([]),
+            };
+            let files_modified: Vec<String> = args
+                .files_modified
+                .as_deref()
+                .map(|raw| {
+                    raw.split(',')
+                        .map(str::trim)
+                        .filter(|value| !value.is_empty())
+                        .map(str::to_string)
+                        .collect()
+                })
+                .unwrap_or_default();
+            let mut result = json!({
+                "summary": args.summary,
+                "completionKind": args.completion_kind,
+                "artifacts": artifacts,
+                "filesModified": files_modified,
+                "validation": validation,
+            });
+            if let Err(error) = merge_result_extra(&mut result, args.result_extra.as_deref()) {
+                return usage_error(&error);
+            }
+            let terminal = terminal_handle_env();
+            let context_token = terminal
+                .as_deref()
+                .and_then(|handle| dispatch_context_token(&runtime, handle));
+            request(
+                &runtime,
+                "orchestration.complete",
+                json!({
+                    "terminal": terminal,
+                    "contextToken": context_token,
+                    "result": result
+                }),
+                json_output,
+                None,
+            )
+            .await
+        }
+        OrchestrationAction::WorkerDone(args) => {
+            let mut result = json!({
+                "summary": args.summary,
+                "completionKind": "success",
+                "artifacts": [],
+                "filesModified": [],
+                "validation": [],
+            });
+            if let Err(error) = merge_result_extra(&mut result, args.result_extra.as_deref()) {
+                return usage_error(&error);
+            }
+            request(
+                &runtime,
+                "orchestration.workerDone",
+                json!({
+                    "terminal": terminal_handle_env(),
+                    "task": args.task,
+                    "dispatch": args.dispatch,
+                    "result": result
+                }),
+                json_output,
+                None,
+            )
+            .await
+        }
+        OrchestrationAction::WorkerHelp => {
+            request(
+                &runtime,
+                "orchestration.workerHelp",
+                json!({}),
                 json_output,
                 None,
             )
@@ -197,17 +418,54 @@ pub async fn run_orchestration_command(command: OrchestrationCommand) -> i32 {
                     "pollIntervalMs": args.poll_interval_ms,
                     "maxConcurrent": args.max_concurrent,
                     "workspace": args.workspace,
+                    "agent": args.agent,
                 }),
                 json_output,
                 None,
             )
             .await
         }
-        OrchestrationAction::RunStop => {
+        OrchestrationAction::RunList(args) => {
+            request(
+                &runtime,
+                "orchestration.runList",
+                json!({ "workspace": args.workspace }),
+                json_output,
+                None,
+            )
+            .await
+        }
+        OrchestrationAction::RunShow(args) => {
+            request(
+                &runtime,
+                "orchestration.runShow",
+                json!({ "id": args.id }),
+                json_output,
+                None,
+            )
+            .await
+        }
+        OrchestrationAction::Status(args) => {
+            request(
+                &runtime,
+                "orchestration.status",
+                json!({ "id": args.id }),
+                json_output,
+                None,
+            )
+            .await
+        }
+        OrchestrationAction::RunStop(args) => {
             request(
                 &runtime,
                 "orchestration.runStop",
-                json!({}),
+                json!({
+                    "id": args.id,
+                    "cancelActive": args.cancel_active,
+                    "reason": args.reason,
+                    "actor": terminal_handle_env(),
+                    "force": args.force,
+                }),
                 json_output,
                 None,
             )
@@ -220,6 +478,27 @@ pub async fn run_orchestration_command(command: OrchestrationCommand) -> i32 {
                 json!({}),
                 json_output,
                 None,
+            )
+            .await
+        }
+        OrchestrationAction::TerminalShow(args) => {
+            request(
+                &runtime,
+                "orchestration.terminalShow",
+                json!({ "handle": args.handle }),
+                json_output,
+                None,
+            )
+            .await
+        }
+        OrchestrationAction::TerminalWait(args) => {
+            run_terminal_wait(
+                &runtime,
+                &args.terminal,
+                &args.target,
+                args.timeout_ms,
+                json_output,
+                false,
             )
             .await
         }
@@ -240,6 +519,171 @@ pub async fn run_orchestration_command(command: OrchestrationCommand) -> i32 {
     }
 }
 
+async fn run_agent_spawn(
+    runtime: &RuntimeDirArgs,
+    args: crate::cli_orchestration::OrchestrationAgentSpawnArgs,
+    json_output: bool,
+) -> i32 {
+    let Some(from) = args.from.or_else(terminal_handle_env) else {
+        return usage_error("--from is required (or set ALERA_TERMINAL_HANDLE).");
+    };
+    let value = match request_value(
+        runtime,
+        "orchestration.agentSpawn",
+        json!({
+            "workspace": args.workspace,
+            "agent": args.agent,
+            "task": args.task,
+            "title": args.title,
+            "terminal": args.terminal,
+            "command": args.command,
+            "from": from,
+        }),
+        None,
+    )
+    .await
+    {
+        Ok(value) => value,
+        Err(error) => {
+            eprintln!("{error}");
+            return 1;
+        }
+    };
+    let Some(handle) = value
+        .get("terminalHandle")
+        .or_else(|| value.get("assigneeHandle"))
+        .and_then(Value::as_str)
+    else {
+        if json_output {
+            println!("{value}");
+        }
+        return 0;
+    };
+    run_terminal_wait(
+        runtime,
+        handle,
+        "dispatch-accepted",
+        90_000,
+        json_output,
+        true,
+    )
+    .await
+}
+
+async fn run_terminal_wait(
+    runtime: &RuntimeDirArgs,
+    terminal: &str,
+    target: &str,
+    timeout_ms: u64,
+    json_output: bool,
+    reconcile_spawn_timeout: bool,
+) -> i32 {
+    let started = std::time::Instant::now();
+    loop {
+        match request_value(
+            runtime,
+            "orchestration.terminalShow",
+            json!({ "handle": terminal }),
+            None,
+        )
+        .await
+        {
+            Ok(value) => {
+                let state = value
+                    .get("startupState")
+                    .and_then(Value::as_str)
+                    .unwrap_or("");
+                if let Some(error) = terminal_startup_error(&value) {
+                    if reconcile_spawn_timeout {
+                        reconcile_agent_spawn_failure(runtime, terminal).await;
+                    }
+                    let response = json!({
+                        "outcome": "failed",
+                        "waitedMs": started.elapsed().as_millis(),
+                        "error": error,
+                        "terminal": value,
+                    });
+                    if json_output {
+                        println!("{response}");
+                    } else {
+                        eprintln!("{error}");
+                    }
+                    return 1;
+                }
+                let reached = match target {
+                    "process-started" => !state.is_empty() && state != "failed",
+                    "agent-detected" => matches!(
+                        state,
+                        "agent_detected"
+                            | "agent_ready"
+                            | "dispatch_submitted_unconfirmed"
+                            | "accepted"
+                            | "completed"
+                    ),
+                    "agent-ready" => matches!(
+                        state,
+                        "agent_ready" | "dispatch_submitted_unconfirmed" | "accepted" | "completed"
+                    ),
+                    "dispatch-accepted" => matches!(state, "accepted" | "completed"),
+                    _ => false,
+                };
+                if reached {
+                    let response = json!({
+                        "outcome": "reached",
+                        "waitedMs": started.elapsed().as_millis(),
+                        "terminal": value,
+                    });
+                    if json_output {
+                        println!("{response}");
+                    } else {
+                        println!("{state}");
+                    }
+                    return 0;
+                }
+            }
+            Err(error) if started.elapsed().as_millis() < timeout_ms as u128 => {
+                let _ = error;
+            }
+            Err(error) => {
+                eprintln!("{error}");
+                return 1;
+            }
+        }
+        if started.elapsed().as_millis() >= timeout_ms as u128 {
+            if reconcile_spawn_timeout {
+                reconcile_agent_spawn_failure(runtime, terminal).await;
+            }
+            let response = json!({ "outcome": "timeout", "items": [], "waitedMs": timeout_ms });
+            if json_output {
+                println!("{response}");
+            } else {
+                println!("timeout");
+            }
+            return 0;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+    }
+}
+
+async fn reconcile_agent_spawn_failure(runtime: &RuntimeDirArgs, terminal: &str) {
+    let _ = request_value(
+        runtime,
+        "orchestration.agentSpawnTimeout",
+        json!({ "terminal": terminal }),
+        None,
+    )
+    .await;
+}
+
+fn terminal_startup_error(terminal: &Value) -> Option<&str> {
+    (terminal.get("startupState").and_then(Value::as_str) == Some("failed")).then(|| {
+        terminal
+            .get("startupError")
+            .and_then(Value::as_str)
+            .unwrap_or("terminal startup failed")
+    })
+}
+
 fn build_send_payload(args: OrchestrationSendArgs) -> Result<Value, String> {
     let Some(from) = args.from.or_else(terminal_handle_env) else {
         return Err(
@@ -255,6 +699,7 @@ fn build_send_payload(args: OrchestrationSendArgs) -> Result<Value, String> {
             ));
         }
     }
+    let body = read_body(args.body, args.body_file, args.body_stdin)?;
     let payload_json = build_structured_payload(
         args.payload,
         args.task_id,
@@ -267,12 +712,60 @@ fn build_send_payload(args: OrchestrationSendArgs) -> Result<Value, String> {
     payload.insert("from".to_string(), json!(from));
     payload.insert("to".to_string(), json!(args.to));
     payload.insert("subject".to_string(), json!(args.subject));
-    insert_opt(&mut payload, "body", args.body);
+    insert_opt(&mut payload, "body", body);
     insert_opt(&mut payload, "type", args.message_type);
     insert_opt(&mut payload, "priority", args.priority);
     insert_opt(&mut payload, "threadId", args.thread_id);
     insert_opt(&mut payload, "payload", payload_json);
     Ok(Value::Object(payload))
+}
+
+fn read_body(
+    inline: Option<String>,
+    file: Option<String>,
+    stdin: bool,
+) -> Result<Option<String>, String> {
+    if let Some(inline) = inline {
+        return Ok(Some(inline));
+    }
+    if let Some(path) = file {
+        return std::fs::read_to_string(path)
+            .map(Some)
+            .map_err(|error| format!("could not read body file: {error}"));
+    }
+    if stdin {
+        let mut body = String::new();
+        std::io::stdin()
+            .read_to_string(&mut body)
+            .map_err(|error| format!("could not read body from stdin: {error}"))?;
+        return Ok(Some(body));
+    }
+    Ok(None)
+}
+
+fn dispatch_context_token(runtime: &RuntimeDirArgs, handle: &str) -> Option<String> {
+    let path = std::env::var_os("ALERA_DISPATCH_CONTEXT")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| {
+            let safe_handle: String = handle
+                .chars()
+                .map(|value| {
+                    if value.is_ascii_alphanumeric() || value == '-' || value == '_' {
+                        value
+                    } else {
+                        '_'
+                    }
+                })
+                .collect();
+            crate::runtime_dir(runtime)
+                .join("orchestration-contexts")
+                .join(format!("{safe_handle}.json"))
+        });
+    let value: Value = serde_json::from_slice(&std::fs::read(path).ok()?).ok()?;
+    value
+        .get("token")
+        .and_then(Value::as_str)
+        .map(str::to_string)
 }
 
 /// Structured payload flags exist because raw JSON in `--payload` is fragile
@@ -412,15 +905,10 @@ async fn run_ask(runtime: &RuntimeDirArgs, args: OrchestrationAskArgs, json_outp
             .and_then(Value::as_str)
             .unwrap_or("");
         println!("{body}");
-    } else {
-        eprintln!("ask timed out with no reply");
+    } else if !json_output {
+        println!("timeout");
     }
-    // A timeout is a runtime failure so scripted callers can branch on it.
-    if answered {
-        0
-    } else {
-        1
-    }
+    0
 }
 
 async fn request(
@@ -491,7 +979,7 @@ fn human_summary(request_type: &str, value: &Value) -> String {
         "orchestration.reply" => "reply sent".to_string(),
         "orchestration.inbox" => {
             let count = value
-                .get("messages")
+                .get("items")
                 .and_then(Value::as_array)
                 .map(|messages| messages.len())
                 .unwrap_or(0);
@@ -504,7 +992,7 @@ fn human_summary(request_type: &str, value: &Value) -> String {
             .unwrap_or_else(|| "task created".to_string()),
         "orchestration.taskList" => {
             let count = value
-                .get("tasks")
+                .get("items")
                 .and_then(Value::as_array)
                 .map(|tasks| tasks.len())
                 .unwrap_or(0);
@@ -537,7 +1025,7 @@ fn human_summary(request_type: &str, value: &Value) -> String {
         "orchestration.gateResolve" => "gate resolved".to_string(),
         "orchestration.gateList" => {
             let count = value
-                .get("gates")
+                .get("items")
                 .and_then(Value::as_array)
                 .map(|gates| gates.len())
                 .unwrap_or(0);
@@ -551,7 +1039,7 @@ fn human_summary(request_type: &str, value: &Value) -> String {
         "orchestration.runStop" => "coordinator run stopped".to_string(),
         "orchestration.terminals" => {
             let count = value
-                .get("terminals")
+                .get("items")
                 .and_then(Value::as_array)
                 .map(|terminals| terminals.len())
                 .unwrap_or(0);
@@ -620,6 +1108,19 @@ fn insert_opt(payload: &mut Map<String, Value>, key: &str, value: Option<String>
     if let Some(value) = value {
         payload.insert(key.to_string(), json!(value));
     }
+}
+
+fn merge_result_extra(result: &mut Value, raw: Option<&str>) -> Result<(), String> {
+    let Some(raw) = raw else {
+        return Ok(());
+    };
+    let extra = serde_json::from_str::<Map<String, Value>>(raw)
+        .map_err(|_| "--result-extra must be a valid JSON object.".to_string())?;
+    let result = result
+        .as_object_mut()
+        .ok_or_else(|| "completion result must be a JSON object.".to_string())?;
+    result.extend(extra);
+    Ok(())
 }
 
 fn terminal_handle_env() -> Option<String> {
@@ -739,5 +1240,34 @@ mod tests {
         assert!(summary.contains("Subject: Follow up"));
         assert!(summary.contains("Please rerun tests."));
         assert!(summary.contains("alera orchestration reply --id msg_1"));
+    }
+
+    #[test]
+    fn terminal_startup_failure_is_detected_without_waiting_for_timeout() {
+        assert_eq!(
+            terminal_startup_error(&json!({
+                "startupState": "failed",
+                "startupError": "agent exited"
+            })),
+            Some("agent exited")
+        );
+        assert_eq!(
+            terminal_startup_error(&json!({"startupState": "process_started"})),
+            None
+        );
+    }
+
+    #[test]
+    fn result_extra_adds_schema_defined_completion_fields() {
+        let mut result = json!({
+            "summary": "done",
+            "completionKind": "success",
+            "artifacts": [],
+            "filesModified": [],
+            "validation": []
+        });
+        merge_result_extra(&mut result, Some(r#"{"ticket":42}"#)).unwrap();
+        assert_eq!(result["ticket"], json!(42));
+        assert!(merge_result_extra(&mut result, Some("[]")).is_err());
     }
 }

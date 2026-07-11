@@ -194,14 +194,14 @@ fn coordinator_promotion_waits_for_deferred_delivery() {
         &mut reader,
         343,
         "orchestration.taskCreate",
-        json!({"spec": "keep the coordinator active"}),
+        json!({"spec": "keep the coordinator active", "workspace": "ws-1", "coordinator": session_id}),
     ));
     let promotion = request(
         &mut writer,
         &mut reader,
         344,
         "orchestration.run",
-        json!({"from": session_id, "spec": "coordinate", "pollIntervalMs": 60000}),
+        json!({"from": session_id, "spec": "coordinate", "workspace": "ws-1", "pollIntervalMs": 60000}),
     );
     assert_eq!(promotion["ok"], json!(false), "{promotion}");
     assert!(
@@ -233,13 +233,13 @@ fn coordinator_promotion_waits_for_deferred_delivery() {
         &mut reader,
         346,
         "orchestration.run",
-        json!({"from": session_id, "spec": "coordinate", "pollIntervalMs": 60000}),
+        json!({"from": session_id, "spec": "coordinate", "workspace": "ws-1", "pollIntervalMs": 60000}),
     ));
     expect_ok(request(
         &mut writer,
         &mut reader,
         347,
         "orchestration.runStop",
-        json!({}),
+        json!({"force": true}),
     ));
 }

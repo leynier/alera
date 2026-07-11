@@ -290,6 +290,11 @@ mod tests {
                 priority: OrchestrationMessagePriority::Normal,
                 thread_id: None,
                 payload: payload.map(|value| value.to_string()),
+                run_id: None,
+                workspace_id: Some("workspace_1".to_string()),
+                task_id: None,
+                dispatch_id: None,
+                expires_at: None,
             })
             .await
             .unwrap()
@@ -304,6 +309,10 @@ mod tests {
                 deps: vec![],
                 parent_id: None,
                 created_by_terminal_handle: None,
+                run_id: None,
+                workspace_id: "workspace_1".to_string(),
+                coordinator_handle: "coord".to_string(),
+                result_schema: None,
             })
             .await
             .unwrap();

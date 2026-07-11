@@ -1,84 +1,106 @@
 # Inter-Agent Orchestration
 
-Alera's orchestration system lets multiple coding agents coordinate through structured messaging, a task DAG, dispatch with retry tracking, decision gates, and an automated coordinator loop. The design ports the semantics of Orca's orchestration system (see `reference_projects/orca`) into Alera's Rust sidecar architecture.
+Alera orchestration is owned by the Rust runtime-host. Tasks, dispatches, messages, decision gates, coordinator runs, and administrative audit events are persisted in the runtime SQLite database; all mutations pass through the authenticated host actor.
 
-## Architecture
+## Contract Versions
 
-The engine lives in the **runtime-host sidecar** (`rust/alera-cli`, binary `alera`), not in the Flutter app:
+- Terminal-host protocol: 4.
+- Orchestration protocol: 2.
+- Dispatch preamble: 2.
+- Installed skill contract: 2.
 
-- **State** is persisted in the existing `RuntimeStore` SQLite database (`rust/alera-core/src/runtime/`): five tables — `orchestrationMessages`, `orchestrationTasks`, `orchestrationDispatchContexts`, `orchestrationDecisionGates`, `orchestrationCoordinatorRuns` — created by the same migration pass as the rest of the runtime schema.
-- **Verbs** are `alera orchestration ...` CLI subcommands (`rust/alera-cli/src/cli_orchestration.rs`) that RPC into the running runtime-host over the existing socket protocol. There is no direct-store fallback: waiters, agent presence, and the coordinator are in-process host state, so a live host is required (the CLI auto-starts one).
-- **Engine modules** live under `rust/alera-cli/src/terminal_host/orchestration/` (formatter, preamble, lifecycle reconciliation, group resolution, agent presence, waiter registry, coordinator ticker) with request handlers in `terminal_host/server/orchestration_requests.rs` and `terminal_host/server/coordinator_requests.rs`. All state mutation runs inside the single `ServerActor`.
-- The host advertises the additive `orchestration` runtime capability. Protocol version stays at 3; older hosts remain usable for non-orchestration verbs.
+`alera version --json` reports the CLI build and expected contracts, then queries an already-running compatible runtime host for its actual build and contract versions. Host fields are `null` and `runtimeHostAvailable` is `false` when no compatible host is reachable; the command never invents host equality from the CLI build.
 
-## Identity
+The v2 schema is incompatible at the SQL constraint level, so the runtime performs a transactional table rebuild that preserves v1 messages, tasks, dispatches, gates, and runs while filling new ownership and scope fields with conservative defaults. Unknown future schema versions fail closed instead of deleting state.
 
-Each PTY session's handle is its session id, injected into the terminal environment as `ALERA_TERMINAL_HANDLE` at spawn (`terminal_host/session.rs`). This is the same id the app uses to key agent status entries, so no mapping table is needed. CLI verbs resolve `--from`/`--terminal` from that variable when omitted.
+## Runs And Ownership
 
-### Handle lifecycle and remint
+Runs and tasks carry `workspaceId`, `runId`, `coordinatorHandle`, and `assigneeHandle`. Multiple workspaces can coordinate concurrently, but a workspace can have at most one active run. A coordinated run adopts ready/manual tasks in its workspace that belong to its coordinator. Creating a task for an existing run requires the same workspace and coordinator; injected dispatches likewise require the target terminal to belong to the task workspace.
 
-- The handle equals the tab's `terminalSessionId` (payload) for the life of the tab record.
-- When a PTY exits and the app calls `createOrAttach` again for the same session id, the host **remints** a new process under that same id while seeding its checkpoint with the previous scrollback. Orchestration dispatch targets and visible terminal history stay stable across remint.
-- `dispatch --inject` against a missing or non-running session fails with a `stale_terminal_handle:` error. Reopen the tab (or pick a live handle from `terminal-list`) before retrying inject.
-- After remint, agent presence starts empty until hooks report again; wait for `terminal-list` to show an idle agent before re-dispatching.
+Coordinator authority resolves from the run or task, never from whichever terminal calls dispatch. `dispatch` rejects `from == to` unless `--allow-self-dispatch` is present. Stopping runs, interrupting dispatches, recovering tasks, cancellation, and ownership transfer require the current coordinator or an audited `--force --reason` action. A task attached to a run cannot transfer independently; transfer the run so its durable tasks, active dispatches, and in-memory coordinator remain aligned.
 
-## Idle Detection and Push-On-Idle
+```bash
+alera orchestration task-create --workspace <workspace-id> --spec "Review tests"
+alera orchestration run --workspace <workspace-id> --agent codex --spec "Audit the repository"
+alera orchestration run-list --workspace <workspace-id>
+alera orchestration run-show --id <run-id>
+alera orchestration run-stop --id <run-id> [--cancel-active] --reason "Stopped by coordinator"
+```
 
-The Flutter app detects agent state via agent-status hooks (working / waiting / blocked / done). A keepAlive forwarder (`lib/src/features/agent_status/application/agent_status_host_forwarder.dart`) diffs transitions and batches them to the host via the `orchestration.agentStatus` request.
+`run-stop` is graceful by default: it stops new scheduling while active workers retain authority to finish and persists the supplied reason on the run. `--cancel-active` applies cooperative cancellation to active tasks. Only the owning coordinator can stop the run normally; `--force` is reserved for audited administrative recovery, and forced child cancellations retain the administrative actor in their audit records.
 
-The host keeps an agent presence registry per handle. State mapping:
+## Agent Spawn And Readiness
 
-- `done` → injection-ready: pending messages are formatted as banners and written into the PTY, followed 500 ms later by a separate Enter (Claude Code treats a large write as a paste and swallows an inline `\r`). Cursor-type agents get no auto-Enter — injected text stays as editable prompt input.
-- `working` / `waiting` / `blocked` → busy. `waiting` can mean an approval or user-input prompt, so auto-injection waits until the agent reports `done`.
-- removed → presence cleared; messages stay queued for explicit `check` or the next injection-ready transition.
+`agent-spawn` creates or selects a terminal, launches the requested agent, waits for hook-based readiness, injects the v2 preamble, forces submission through the agent adapter, and waits for acceptance.
 
-Messages track `read` (consumed by `check`) and `delivered_at` (auto-injected) independently, so push-on-idle delivers at most once while `check` still sees delivered-but-unread messages. `delivered_at` is stamped only after the session-local PTY writer acknowledges the paste and, for auto-submit agents, the deferred Enter; failures leave the batch queued for the next idle transition. Push-on-idle never targets the active coordinator handle; coordinators use `check --wait --types worker_done,escalation,decision_gate` plus host lifecycle reconciliation, with `decision_gate` keeping taskless `ask` questions visible. Inject payloads use bracketed paste + deferred Enter so multiline preambles do not corrupt the shell.
+```bash
+alera orchestration agent-spawn --workspace <workspace-id> --agent codex --task <task-id> --title "Review Tests"
+alera orchestration terminal-wait --terminal <handle> --for agent-ready --timeout-ms 30000
+alera orchestration terminal-wait --terminal <handle> --for dispatch-accepted --timeout-ms 60000
+```
 
-Message admission is bounded at the storage boundary: handles and thread IDs are limited to 512 UTF-8 bytes, subjects to 256 bytes, lifecycle bodies to 8 KiB, and general bodies and serialized payloads to 64 KiB. These limits apply equally to send, reply, ask, and future insertion paths. Lifecycle messages cannot target their sender, injected dispatches require different coordinator and worker handles, and only an exact repeated `worker_done` whose task, dispatch, and assignee all match an already completed dispatch is accepted as an idempotent duplicate without inserting another message. Agent prompt injection further truncates each body to 4 KiB and the complete injected batch to 16 KiB; omitted content remains available through `alera orchestration inbox --terminal <handle>`.
+The built-in registry supports `codex`, `claude`, `copilot`, `cursor`, `agy`, `opencode`, `pi`, and `amp`, with default commands `codex`, `claude`, `copilot`, `cursor-agent`, `agy`, `opencode`, `pi`, and `amp`. `agent-spawn --command` overrides the default without changing the agent type.
 
-Without the app running, push-on-idle and `@agent`/`@idle` groups degrade gracefully: messages queue and remain readable via `check`.
+Startup states distinguish process creation, agent detection, agent readiness, submitted-but-unconfirmed dispatch, acceptance, failure, and stall. An unaccepted coordinator dispatch expires after the same 90-second deadline used by `agent-spawn`; three startup/acceptance failures stall the task without consuming the execution circuit breaker. Wait commands return startup failures immediately as non-zero errors instead of reporting a normal timeout.
 
-## Key Invariants (ported from Orca)
+## Worker Context And Lifecycle
 
-1. A task without deps starts `ready`; a task with deps starts `ready` only when all existing deps are already completed, `failed` when any dep has failed, and otherwise `pending`.
-2. Completing or failing a task refreshes pending dependents in the same transaction (`update_orchestration_task_status`): completed deps promote children to `ready`; failed deps fail children instead of stranding them.
-3. One active dispatch per terminal.
-4. `failure_count` carries forward across a task's dispatch retries; at 3 failures the dispatch is `circuit_broken` and the task `failed`; below the threshold the task returns to `ready` (not `pending`, which would strand it).
-5. `worker_done` authority requires taskId + dispatchId + sender handle to match the *active* dispatch (`lifecycle_reconciliation.rs`) — a stale retry cannot complete or fail the current dispatch. A `worker_done` subject of `Failed: ...` consumes dispatch failure/circuit-breaker budget instead of completing the task.
-6. Heartbeats record only while the dispatch is `dispatched`.
-7. Gate create is accepted only for `ready` or `dispatched` tasks. It sets the task `blocked` and completes any active dispatch; gate resolve returns the task to `ready` with the resolution injected into the next preamble.
-8. Lifecycle messages reconcile before waking blocked waiters, so the dispatch lock is released by the time a coordinator reads the result.
-9. Long-poll waiters (`check --wait`, `ask`) have a server-side deadline (600 s max) and die with their client connection.
-10. Blocking PTY writes never run in `ServerActor`; each terminal owns a bounded writer queue, so one stalled prompt injection cannot stop unrelated terminals or runtime requests.
+The primary worker commands infer task, dispatch, coordinator, and assignee from the active terminal context:
 
-## Coordinator
+```bash
+alera orchestration dispatch-accept
+alera orchestration --json context
+alera orchestration heartbeat --phase reviewing
+alera orchestration escalate --subject "Blocked" --body "Missing credentials"
+alera orchestration complete --summary "Review complete" --completion-kind success --artifacts '[]' --files-modified "path/a" --validation '[]'
+```
 
-`orchestration run` starts a background ticker inside the host (one active run at a time; the run keeps the host alive). Each tick executes in the actor: process coordinator inbox (worker_done/heartbeat reconcile, authorized escalation → fail dispatch, authorized decision_gate → create gate) → re-assert gate blocks → warn hung dispatches (no heartbeat for 10 minutes; warn-only) → dispatch ready tasks (default max 4 concurrent, one new worker terminal per tick when none idle) → check convergence (all tasks completed/failed).
+Completion validates structured results and atomically commits task/dispatch state, promotes DAG dependants, invalidates scoped operational messages, and returns lifecycle reconciliation in one response. A completed dispatch is accepted idempotently only when its task is also completed; dispatches closed by a decision gate reject late completion. `worker-done --task --dispatch --summary` is the explicit idempotent recovery form. Generic `send --type worker_done` and arbitrary `task-update --status` are rejected.
 
-The automated coordinator only dispatches to injection-ready agents whose prompts can be auto-submitted. Cursor-type agents are skipped by `run` because their injected text intentionally remains editable; use manual `dispatch --inject` or a Claude-style worker for unattended coordinator loops.
+The only supported completion acknowledgement policy is currently `return-immediately`. The host rejects `wait-for-ack` and `keep-agent-idle` until those policies have distinct runtime state and acknowledgement semantics; terminal reuse remains independently controlled by `--terminal-policy`. `close-on-success` terminates the PTY, removes its persisted worker tab, and notifies connected clients.
 
-Dispatch pre-flight probes worktree drift via `alera_core::git::probe_base_drift` (git2 `graph_ahead_behind` + revwalk, no fetch). More than 20 commits behind skips the dispatch silently — retried next tick without burning circuit budget — unless the spec contains `allow-stale-base: true` on its own line (the directive is stripped before the worker sees the spec).
+Required result fields are `summary`, `completionKind`, `artifacts`, `filesModified`, and `validation`. A task can additionally carry a result schema; pass schema-specific properties as a JSON object with `complete --result-extra '{"ticket":42}'` or `worker-done --result-extra ...`. Reports belong in `artifacts`; only workspace source changes belong in `filesModified`.
 
-Task decomposition is the caller's responsibility: `run` refuses to start with zero tasks.
+Cancellation atomically marks the task and dispatch `cancelled`, closes pending decision gates, obsoletes pending operational messages, queues an urgent cooperative cancellation, and cancels unstarted DAG descendants. Completed or failed tasks reject late cancellation so successful descendants are not invalidated; repeated cancellation of an already-cancelled task is idempotent. Only the owning coordinator can cancel normally; `task-cancel --force` is the audited administrative recovery path. Dispatch interruption has the same ownership rule and requires `dispatch-interrupt --force` for administrative recovery. Use an explicit terminal/dispatch interrupt or termination only when cooperative cancellation does not stop the worker.
 
-## Worker Terminals
+## Liveness And Messages
 
-`alera tab create --command "claude" --spawn` mints a terminal tab whose payload carries `initialCommand` and `spawnOnCreate`. The app starts flagged tabs eagerly on arrival (`workbench_controller_sync.dart`) and writes the command once, only on new PTY creation — never on reattach (`terminal_runtime_session_handle.dart`). The coordinator uses the same mechanism when it needs a worker and none is idle.
+Runtime activity combines agent hooks, PTY output, and context-aware worker commands into dispatch and run-level `lastActivityAt`. The default accepted-dispatch lease is ten minutes. Expiry marks the task and dispatch `stalled`; stalled work continues occupying a concurrency slot because the worker may still be active, and Alera does not automatically redispatch potentially duplicated work. Recover with:
 
-**v1 limitation**: worker creation requires the app to be connected — agent hook environments are built app-side. A headless host queues work until an app connects or a worker appears.
+```bash
+alera orchestration task-recover --id <task-id> --status ready --reason "Worker inspected and stopped"
+```
 
-## JSON Shape
+Operational messages carry task/dispatch/run/workspace scope and may expire. Completing, failing, cancelling, or superseding a dispatch marks its queued operational messages obsolete. Inbox and outbox responses refresh and expose queued, delivered, read, expired, and obsolete state.
 
-Orchestration payloads serialize with snake_case fields and Orca's exact status strings (`worker_done`, `circuit_broken`, ...) so agent-facing skills and docs stay portable between Orca and Alera. This intentionally diverges from Alera's camelCase convention and is confined to orchestration rows.
+Message admission is bounded at the storage boundary: handles and thread IDs are limited to 512 UTF-8 bytes, subjects to 256 bytes, lifecycle bodies to 8 KiB, and general bodies and serialized payloads to 64 KiB. Prompt injection truncates each body to 4 KiB and a complete batch to 16 KiB; omitted content remains available through `alera orchestration inbox`.
 
-## Testing
+PTY input and durable output use bounded asynchronous queues. A blocked terminal writer cannot stall the host actor or unrelated terminals, and delivery is acknowledged only after the queued paste and optional submit complete. Absolute output cursors remain monotonic when retained scrollback is trimmed and when an exited session is reminted.
 
-- `cargo test -p alera-core --features runtime` — store invariants (DAG promotion, circuit breaker, heartbeat guard, read/delivered independence, gates, resets).
-- `cargo test -p alera-cli` — engine unit tests (reconciliation authority branches, preamble content, formatter, group resolution, presence, waiter type filters) and the end-to-end suite `tests/orchestration_conformance.rs` (real host binary, raw TCP: send/check/reply, wait wakeups + type filtering, ask/reply, DAG dispatch, gates, push-on-idle against a live PTY).
-- `flutter test test/unit/agent_status_host_forwarder_test.dart` — the app-side presence forwarder.
+Wait commands return exit 0 for normal timeouts with `{ "outcome": "timeout", "items": [], "waitedMs": ... }`. Usage, transport, and runtime failures remain non-zero errors.
 
-The agent-facing usage guide is `skills/alera-orchestration/SKILL.md`.
+## Observability And Terminal Diagnostics
 
-## Settings Setup
+```bash
+alera orchestration status --id <run-id>
+alera orchestration task-show --id <task-id>
+alera orchestration terminal-show --handle <handle>
+alera terminal read --handle <handle> --max-bytes 65536
+alera terminal read --handle <handle> --cursor <nextCursor>
+alera terminal write --handle <handle> --text "continue" --enter
+alera terminal write --handle <handle> --stdin --enter
+```
 
-`Settings > Agents > Alera CLI And Skills` can install or update the global `alera-orchestration` skill with `npx`, `bunx`, or the automatic fallback. A successful in-app installation reapplies only the status hooks already selected by the user. It does not enable new hook toggles; overlay-backed hooks take effect for newly launched terminals.
+Terminal reads return raw retained bytes, lossy text, an absolute monotonic stream cursor, the current retained `baseCursor`, and a 64 KiB default limit. If a requested cursor predates retained scrollback, reading resumes at `baseCursor` with `truncated: true`. Reads do not apply heuristic secret redaction because that could hide authentication or trust prompts.
+
+All CLI list commands use the collection envelope `{ "kind": "...", "items": [...], "filters": {...} }`. Orchestration responses retain semantic aliases during the protocol transition.
+
+`workspace add --parent-workspace-id <id>` creates and links a child workspace atomically.
+
+## Validation
+
+- `cargo test -p alera-core --features runtime` covers store, DAG, ownership, startup budget, cancellation, leases, and run isolation.
+- `cargo test -p alera-cli` covers CLI/RPC contracts, real PTY behavior, wait outcomes, delivery, adapters, and regression scenarios.
+- Adapter command construction is deterministic across supported platforms. Codex and Claude are the required live smoke targets when their executables are available.
+
+The agent-facing command guide is `skills/alera-orchestration/SKILL.md`.

@@ -25,6 +25,10 @@ fn next_session_instance_id() -> u64 {
     NEXT_SESSION_INSTANCE_ID.fetch_add(1, Ordering::Relaxed)
 }
 
+fn resumed_output_stream_bytes(previous: u64, scrollback_len: usize) -> u64 {
+    previous.max(scrollback_len as u64)
+}
+
 /// A message produced by a session's PTY reader thread.
 #[derive(Debug)]
 pub enum PtyEvent {
@@ -46,6 +50,7 @@ pub enum PtyWriteCompletion {
     OrchestrationPaste {
         session_instance_id: u64,
         message_ids: Vec<String>,
+        force_submit: bool,
     },
     OrchestrationEnter {
         session_instance_id: u64,
@@ -94,6 +99,7 @@ pub struct Session {
     durable_output_batch_gen: u64,
     durable_output_batch_armed: bool,
     durable_output_batch_sequence: i64,
+    output_stream_bytes: u64,
 }
 
 impl Session {
@@ -110,6 +116,7 @@ impl Session {
         rows: u16,
         max_bytes: usize,
         initial_scrollback: &[u8],
+        initial_output_stream_bytes: u64,
         store: &TerminalHostHistoryStore,
         on_event: impl Fn(PtyEvent) + Send + Sync + 'static,
     ) -> HostResult<Session> {
@@ -187,6 +194,10 @@ impl Session {
             durable_output_batch_gen: 0,
             durable_output_batch_armed: false,
             durable_output_batch_sequence,
+            output_stream_bytes: resumed_output_stream_bytes(
+                initial_output_stream_bytes,
+                initial_scrollback.len(),
+            ),
         };
         session.write_checkpoint(store, None).await?;
         spawn_reader(reader, child, Arc::clone(&on_event));
@@ -237,6 +248,9 @@ impl Session {
             durable_output_batch_gen: 0,
             durable_output_batch_armed: false,
             durable_output_batch_sequence: 0,
+            output_stream_bytes: checkpoint
+                .output_stream_bytes
+                .max(checkpoint.buffer.len() as u64),
         })
     }
 
@@ -321,6 +335,7 @@ impl Session {
     /// Append PTY output to the scrollback and live-output batch. Returns a
     /// timer generation when a delayed flush should be armed.
     pub fn append_output(&mut self, data: &[u8]) -> (Option<u64>, Option<u64>) {
+        self.output_stream_bytes = self.output_stream_bytes.saturating_add(data.len() as u64);
         self.buffer.append(data);
         self.output_batch.extend_from_slice(data);
         self.durable_output_batch.extend_from_slice(data);
@@ -341,6 +356,14 @@ impl Session {
 
     pub fn output_batch_len(&self) -> usize {
         self.output_batch.len()
+    }
+
+    pub fn output_stream_range(&self) -> (u64, u64) {
+        (
+            self.output_stream_bytes
+                .saturating_sub(self.buffer.len() as u64),
+            self.output_stream_bytes,
+        )
     }
 
     pub fn output_batch_due(&self, generation: u64) -> bool {
@@ -483,6 +506,7 @@ impl Session {
             running: self.running,
             exit_code: self.exit_code,
             ended_at: self.ended_at,
+            output_stream_bytes: self.output_stream_bytes,
             updated_at: Utc::now(),
             buffer: Vec::new(),
         };

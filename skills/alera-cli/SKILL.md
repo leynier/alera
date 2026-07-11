@@ -117,6 +117,12 @@ This command is the same from Bash, PowerShell, and CMD when no explicit path is
 alera workspace add --project-id <project-id> --branch <new-branch> --source-branch <source-branch> --name "<display-name>"
 ```
 
+Create and link a child workspace in the same atomic operation:
+
+```bash
+alera workspace add --project-id <project-id> --branch <new-branch> --source-branch <source-branch> --parent-workspace-id <parent-workspace-id>
+```
+
 Use an exact destination path only when the user requests it:
 
 From Linux, macOS, or WSL:
@@ -224,6 +230,17 @@ alera workspace link --parent-workspace-id <parent-id> --child-workspace-id <chi
 alera tab list --workspace-id <workspace-id>
 alera tab create --workspace-id <workspace-id> --title "Terminal" --kind terminal
 ```
+
+Read retained terminal output or write input without opening the UI:
+
+```bash
+alera terminal read --handle <terminal-handle> --max-bytes 65536
+alera terminal read --handle <terminal-handle> --cursor <next-cursor>
+alera terminal write --handle <terminal-handle> --text "continue" --enter
+alera terminal write --handle <terminal-handle> --stdin --enter
+```
+
+JSON list commands return a consistent `{ "kind": "...", "items": [...], "filters": {...} }` envelope. Read `items` rather than relying on a resource-specific top-level array.
 
 ## Agent Rules
 

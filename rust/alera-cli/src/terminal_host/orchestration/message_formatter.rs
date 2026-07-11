@@ -120,6 +120,13 @@ mod tests {
             sequence: 1,
             created_at: "2026-01-01 00:00:00".to_string(),
             delivered_at: None,
+            run_id: None,
+            workspace_id: None,
+            task_id: None,
+            dispatch_id: None,
+            state: "queued".to_string(),
+            expires_at: None,
+            obsolete_at: None,
         }
     }
 

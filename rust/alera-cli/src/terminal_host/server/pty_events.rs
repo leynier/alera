@@ -3,7 +3,7 @@ use super::*;
 impl ServerActor {
     pub(super) async fn handle_pty_event(&mut self, session_id: String, pty_event: PtyEvent) {
         match pty_event {
-            PtyEvent::Output(data) => self.handle_pty_output(session_id, data),
+            PtyEvent::Output(data) => self.handle_pty_output(session_id, data).await,
             PtyEvent::Error(message) => {
                 self.flush_all_output(&session_id);
                 if let Some(session) = self.sessions.get_mut(&session_id) {
@@ -20,7 +20,7 @@ impl ServerActor {
         }
     }
 
-    fn handle_pty_output(&mut self, session_id: String, data: Vec<u8>) {
+    async fn handle_pty_output(&mut self, session_id: String, data: Vec<u8>) {
         let state = self.sessions.get_mut(&session_id).map(|session| {
             let (output_generation, durable_generation) = session.append_output(&data);
             (
@@ -36,6 +36,7 @@ impl ServerActor {
         else {
             return;
         };
+        self.record_orchestration_output_activity(&session_id).await;
         if let Some(generation) = output_generation {
             self.spawn_output_batch_timer(session_id.clone(), generation);
         }
@@ -51,6 +52,33 @@ impl ServerActor {
         if let Some(generation) = checkpoint {
             self.spawn_checkpoint_timer(session_id, generation);
         }
+    }
+
+    async fn record_orchestration_output_activity(&mut self, session_id: &str) {
+        if self
+            .orchestration_activity_last_recorded
+            .get(session_id)
+            .is_some_and(|last| last.elapsed() < ORCHESTRATION_ACTIVITY_WRITE_INTERVAL)
+        {
+            return;
+        }
+        let dispatch = match self
+            .runtime_store
+            .active_orchestration_dispatch_for_handle(session_id)
+            .await
+        {
+            Ok(dispatch) => dispatch,
+            Err(_) => return,
+        };
+        self.orchestration_activity_last_recorded
+            .insert(session_id.to_string(), Instant::now());
+        let Some(dispatch) = dispatch else {
+            return;
+        };
+        let _ = self
+            .runtime_store
+            .record_orchestration_activity(&dispatch.id)
+            .await;
     }
 
     async fn handle_pty_input_written(
@@ -82,6 +110,7 @@ impl ServerActor {
             PtyWriteCompletion::OrchestrationPaste {
                 session_instance_id,
                 message_ids,
+                force_submit,
             } => {
                 if let Some(message) = error {
                     self.orchestration_delivery_in_flight.remove(&session_id);
@@ -94,7 +123,7 @@ impl ServerActor {
                     self.orchestration_delivery_in_flight.remove(&session_id);
                     return;
                 }
-                if skips_auto_enter(self.agent_presence.agent_type(&session_id)) {
+                if !force_submit && skips_auto_enter(self.agent_presence.agent_type(&session_id)) {
                     if !message_ids.is_empty() {
                         let delivered = self
                             .runtime_store
@@ -108,7 +137,12 @@ impl ServerActor {
                     }
                     return;
                 }
-                self.schedule_orchestration_enter(session_id, session_instance_id, message_ids);
+                self.schedule_orchestration_enter(
+                    session_id,
+                    session_instance_id,
+                    message_ids,
+                    force_submit,
+                );
             }
             PtyWriteCompletion::OrchestrationEnter {
                 session_instance_id,
@@ -168,6 +202,7 @@ impl ServerActor {
         reason: &str,
     ) {
         self.agent_presence.remove(session_id);
+        self.orchestration_activity_last_recorded.remove(session_id);
         self.orchestration_delivery_in_flight.remove(session_id);
         self.orchestration_delivery_backpressured.remove(session_id);
         self.fail_active_dispatch_for_closed_session(session_id, reason)

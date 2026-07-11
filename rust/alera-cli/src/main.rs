@@ -9,6 +9,7 @@ mod ssh_bootstrap;
 mod terminal_host;
 
 use std::future::Future;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use alera_core::runtime::{
@@ -16,6 +17,8 @@ use alera_core::runtime::{
     SshTarget, Workspace, WorkspaceKind, WorkspaceStatus, WorkspaceTabRecord, WorkspaceTag,
     LOCAL_HOST_ID, RUNTIME_DATABASE_FILE_NAME,
 };
+use base64::engine::general_purpose::STANDARD;
+use base64::Engine as _;
 use chrono::Utc;
 use clap::Parser;
 use serde::de::DeserializeOwned;
@@ -32,6 +35,7 @@ use crate::cli::{
     WorkspaceCommand, WorkspaceKindArg, WorkspaceRegisterArgs,
 };
 use crate::cli::{MobileAction, MobileCommand, MobileDevicesAction, MobilePairingAction};
+use crate::cli::{TerminalAction, TerminalCommand};
 use crate::mobile_access::{
     list_mobile_devices, mobile_status, pair_mobile_device, revoke_mobile_device,
     update_mobile_settings, MobileDevicePairRequest, MobilePairingCreateRequest,
@@ -76,18 +80,106 @@ async fn run() -> i32 {
 
     match cli.command {
         Command::RuntimeHost(args) => run_terminal_host(args).await,
+        Command::Version(command) => run_version_command(command).await,
         Command::TerminalHost(args) => run_terminal_host(args).await,
         Command::Runtime(command) => run_runtime_command(command).await,
         Command::Project(command) => run_project_command(command).await,
         Command::Workspace(command) => run_workspace_command(command).await,
         Command::Tag(command) => run_tag_command(command).await,
         Command::Tab(command) => run_tab_command(command).await,
+        Command::Terminal(command) => run_terminal_command(command).await,
         Command::SshTarget(command) => run_ssh_target_command(command).await,
         Command::Mobile(command) => run_mobile_command(command).await,
         Command::Orchestration(command) => {
             orchestration_commands::run_orchestration_command(command).await
         }
     }
+}
+
+async fn run_terminal_command(command: TerminalCommand) -> i32 {
+    let mut client = match runtime_host_required(&command.runtime).await {
+        Ok(client) => client,
+        Err(error) => return print_error(error),
+    };
+    match command.action {
+        TerminalAction::Read(args) => match client
+            .request_value(
+                "terminal.read",
+                &json!({ "sessionId": args.handle, "cursor": args.cursor, "maxBytes": args.max_bytes }),
+            )
+            .await
+        {
+            Ok(value) => {
+                if command.output.json {
+                    print_value(&value, true, "terminal output read");
+                } else if let Some(text) = value.get("text").and_then(Value::as_str) {
+                    print!("{text}");
+                }
+                0
+            }
+            Err(error) => print_error(error),
+        },
+        TerminalAction::Write(args) => {
+            let mut bytes = if let Some(text) = args.text {
+                text.into_bytes()
+            } else if let Some(path) = args.file {
+                match std::fs::read(path) {
+                    Ok(bytes) => bytes,
+                    Err(error) => return print_error(error),
+                }
+            } else if args.stdin {
+                let mut bytes = Vec::new();
+                if let Err(error) = std::io::stdin().read_to_end(&mut bytes) {
+                    return print_error(error);
+                }
+                bytes
+            } else {
+                return required_option_error("", "text, --file, or --stdin").unwrap_or(USAGE_EXIT_CODE);
+            };
+            if args.enter {
+                bytes.push(b'\r');
+            }
+            match client
+                .request_value(
+                    "write",
+                    &json!({ "sessionId": args.handle, "dataBase64": STANDARD.encode(bytes) }),
+                )
+                .await
+            {
+                Ok(value) => {
+                    print_value(&value, command.output.json, "terminal input written");
+                    0
+                }
+                Err(error) => print_error(error),
+            }
+        }
+    }
+}
+
+async fn run_version_command(command: crate::cli::VersionCommand) -> i32 {
+    let commit = option_env!("ALERA_BUILD_COMMIT").unwrap_or("unknown");
+    let version = option_env!("ALERA_BUILD_VERSION").unwrap_or(env!("CARGO_PKG_VERSION"));
+    let host_status = match RuntimeHostRpcClient::connect(&runtime_dir(&command.runtime)).await {
+        Ok(Some(mut client)) => client.request_value("status.get", &json!({})).await.ok(),
+        Ok(None) | Err(_) => None,
+    };
+    let payload = json!({
+        "cliVersion": version,
+        "cliCommit": commit,
+        "runtimeHostAvailable": host_status.is_some(),
+        "runtimeHostVersion": host_status.as_ref().and_then(|value| value.get("runtimeHostVersion")),
+        "runtimeHostCommit": host_status.as_ref().and_then(|value| value.get("runtimeHostCommit")),
+        "terminalHostProtocolVersion": terminal_host::protocol::PROTOCOL_VERSION,
+        "runtimeHostProtocolVersion": host_status.as_ref().and_then(|value| value.get("protocolVersion")),
+        "orchestrationProtocolVersion": terminal_host::protocol::ORCHESTRATION_PROTOCOL_VERSION,
+        "runtimeHostOrchestrationProtocolVersion": host_status.as_ref().and_then(|value| value.get("orchestrationProtocolVersion")),
+        "dispatchPreambleVersion": terminal_host::protocol::DISPATCH_PREAMBLE_VERSION,
+        "runtimeHostDispatchPreambleVersion": host_status.as_ref().and_then(|value| value.get("dispatchPreambleVersion")),
+        "skillVersion": terminal_host::protocol::ORCHESTRATION_SKILL_VERSION,
+        "runtimeHostSkillVersion": host_status.as_ref().and_then(|value| value.get("skillVersion")),
+    });
+    print_value(&payload, command.output.json, "Alera version information");
+    0
 }
 
 async fn run_terminal_host(args: TerminalHostArgs) -> i32 {
@@ -158,7 +250,11 @@ async fn run_project_command(command: ProjectCommand) -> i32 {
     match command.action {
         ProjectAction::List => match open_store(&runtime).await {
             Ok(store) => match store.list_projects().await {
-                Ok(projects) => print_value(&projects, json_output, "projects listed"),
+                Ok(projects) => print_value(
+                    &json!({ "kind": "projects", "items": projects, "filters": {} }),
+                    json_output,
+                    "projects listed",
+                ),
                 Err(error) => return print_error(error),
             },
             Err(error) => return print_error(error),
@@ -212,7 +308,11 @@ async fn run_workspace_command(command: WorkspaceCommand) -> i32 {
                 return USAGE_EXIT_CODE;
             };
             match result {
-                Ok(workspaces) => print_value(&workspaces, json_output, "workspaces listed"),
+                Ok(workspaces) => print_value(
+                    &json!({ "kind": "workspaces", "items": workspaces, "filters": {} }),
+                    json_output,
+                    "workspaces listed",
+                ),
                 Err(error) => return print_error(error),
             }
         }
@@ -381,7 +481,11 @@ async fn run_tag_command(command: crate::cli::TagCommand) -> i32 {
     match command.action {
         crate::cli::TagAction::List => match open_store(&runtime).await {
             Ok(store) => match store.list_tags().await {
-                Ok(tags) => print_value(&tags, json_output, "tags listed"),
+                Ok(tags) => print_value(
+                    &json!({ "kind": "tags", "items": tags, "filters": {} }),
+                    json_output,
+                    "tags listed",
+                ),
                 Err(error) => return print_error(error),
             },
             Err(error) => return print_error(error),
@@ -430,7 +534,11 @@ async fn run_tab_command(command: TabCommand) -> i32 {
     match command.action {
         TabAction::List(args) => match open_store(&runtime).await {
             Ok(store) => match store.list_workspace_tabs(&args.workspace_id).await {
-                Ok(tabs) => print_value(&tabs, json_output, "tabs listed"),
+                Ok(tabs) => print_value(
+                    &json!({ "kind": "tabs", "items": tabs, "filters": { "workspaceId": args.workspace_id } }),
+                    json_output,
+                    "tabs listed",
+                ),
                 Err(error) => return print_error(error),
             },
             Err(error) => return print_error(error),
@@ -475,7 +583,11 @@ async fn run_ssh_target_command(command: SshTargetCommand) -> i32 {
     match command.action {
         SshTargetAction::List => match open_store(&runtime).await {
             Ok(store) => match store.list_ssh_targets().await {
-                Ok(targets) => print_value(&targets, json_output, "ssh targets listed"),
+                Ok(targets) => print_value(
+                    &json!({ "kind": "sshTargets", "items": targets, "filters": {} }),
+                    json_output,
+                    "ssh targets listed",
+                ),
                 Err(error) => return print_error(error),
             },
             Err(error) => return print_error(error),
@@ -707,10 +819,11 @@ async fn run_mobile_command(command: MobileCommand) -> i32 {
                 }
             }
         },
-        MobileAction::Devices(command) => match command.action {
-            MobileDevicesAction::List(args) => {
-                let payload = json!({ "includeRevoked": args.include_revoked });
-                match mobile_runtime_host_or_store(
+        MobileAction::Devices(command) => {
+            match command.action {
+                MobileDevicesAction::List(args) => {
+                    let payload = json!({ "includeRevoked": args.include_revoked });
+                    match mobile_runtime_host_or_store(
                     &runtime,
                     "mobile.device.list",
                     &payload,
@@ -718,30 +831,31 @@ async fn run_mobile_command(command: MobileCommand) -> i32 {
                 )
                 .await
                 {
-                    Ok(devices) => print_value(&devices, json_output, "mobile devices listed"),
+                    Ok(devices) => print_value(&json!({ "kind": "mobileDevices", "items": devices, "filters": { "includeRevoked": args.include_revoked } }), json_output, "mobile devices listed"),
                     Err(error) => return print_error(error),
                 }
-            }
-            MobileDevicesAction::Revoke(IdArgs { id }) => {
-                let payload = json!({ "id": id });
-                let revoked_id = id.clone();
-                match mobile_runtime_host_or_store_unit(
-                    &runtime,
-                    "mobile.device.revoke",
-                    &payload,
-                    |store| async move { revoke_mobile_device(&store, &id).await },
-                )
-                .await
-                {
-                    Ok(()) => print_value(
-                        &json!({ "id": revoked_id }),
-                        json_output,
-                        "mobile device revoked",
-                    ),
-                    Err(error) => return print_error(error),
+                }
+                MobileDevicesAction::Revoke(IdArgs { id }) => {
+                    let payload = json!({ "id": id });
+                    let revoked_id = id.clone();
+                    match mobile_runtime_host_or_store_unit(
+                        &runtime,
+                        "mobile.device.revoke",
+                        &payload,
+                        |store| async move { revoke_mobile_device(&store, &id).await },
+                    )
+                    .await
+                    {
+                        Ok(()) => print_value(
+                            &json!({ "id": revoked_id }),
+                            json_output,
+                            "mobile device revoked",
+                        ),
+                        Err(error) => return print_error(error),
+                    }
                 }
             }
-        },
+        }
     }
     0
 }
@@ -1078,6 +1192,7 @@ fn workspace_add_payload(args: WorkspaceAddArgs) -> anyhow::Result<Value> {
         "reuseExistingBranch": args.reuse_existing_branch,
         "workspaceRoot": host_accessible_optional_string_path(args.workspace_root)?,
         "path": host_accessible_optional_string_path(args.path)?,
+        "parentWorkspaceId": args.parent_workspace_id,
     }))
 }
 

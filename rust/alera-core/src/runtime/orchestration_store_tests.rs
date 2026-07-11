@@ -2,6 +2,7 @@ use super::*;
 
 mod message_limits;
 mod support;
+mod v2_contract;
 
 use support::{message, store, task};
 
@@ -574,6 +575,19 @@ async fn gate_blocks_task_and_resolution_returns_it_to_ready() {
         .unwrap()
         .unwrap();
     assert_eq!(released.status, OrchestrationDispatchStatus::Completed);
+    assert!(store
+        .complete_orchestration_dispatch(&dispatch.id, "term_1", r#"{"summary":"late"}"#)
+        .await
+        .is_err());
+    assert_eq!(
+        store
+            .orchestration_task_by_id(&created.id)
+            .await
+            .unwrap()
+            .unwrap()
+            .status,
+        OrchestrationTaskStatus::Blocked
+    );
 
     let resolved = store
         .resolve_orchestration_gate(&gate.id, "yes")

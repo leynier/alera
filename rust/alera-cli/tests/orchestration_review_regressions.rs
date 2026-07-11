@@ -8,7 +8,7 @@ use base64::engine::general_purpose::STANDARD;
 use base64::Engine as _;
 use serde_json::{json, Value};
 
-const PROTOCOL_VERSION: i64 = 3;
+const PROTOCOL_VERSION: i64 = 4;
 
 #[path = "orchestration_review_regressions/deferred_delivery_cases.rs"]
 mod deferred_delivery_cases;
@@ -396,7 +396,7 @@ fn check_all_applies_type_filter() {
         &mut reader,
         41,
         "orchestration.send",
-        json!({"from": "worker", "to": "coord", "type": "worker_done", "subject": "done", "body": "complete"}),
+        json!({"from": "worker", "to": "coord", "type": "escalation", "subject": "blocked", "body": "details"}),
     ));
 
     let payload = expect_ok(request(
@@ -404,12 +404,12 @@ fn check_all_applies_type_filter() {
         &mut reader,
         42,
         "orchestration.check",
-        json!({"terminal": "coord", "all": true, "types": ["worker_done"]}),
+        json!({"terminal": "coord", "all": true, "types": ["escalation"]}),
     ));
     let messages = payload["messages"].as_array().unwrap();
     assert_eq!(messages.len(), 1, "{payload}");
-    assert_eq!(messages[0]["type"], json!("worker_done"));
-    assert_eq!(messages[0]["subject"], json!("done"));
+    assert_eq!(messages[0]["type"], json!("escalation"));
+    assert_eq!(messages[0]["subject"], json!("blocked"));
 }
 
 #[test]
@@ -502,20 +502,36 @@ fn stale_escalations_do_not_fail_current_dispatch() {
         json!({"task": &task_id, "to": "worker", "from": "coord"}),
     ));
     let first_dispatch = first["dispatch"]["id"].as_str().unwrap().to_string();
+    let first_context_token = first["contextToken"].as_str().unwrap().to_string();
     expect_ok(request(
         &mut writer,
         &mut reader,
         52,
-        "orchestration.send",
-        json!({
-            "from": "worker",
-            "to": "coord",
-            "type": "worker_done",
-            "subject": "Failed: first attempt",
-            "body": "failed",
-            "payload": json!({"taskId": &task_id, "dispatchId": &first_dispatch}).to_string()
-        }),
+        "orchestration.dispatchAccept",
+        json!({"terminal": "worker", "contextToken": first_context_token}),
     ));
+    expect_ok(request(
+        &mut writer,
+        &mut reader,
+        520,
+        "orchestration.complete",
+        json!({"terminal": "worker", "contextToken": first_context_token, "result": {
+            "summary": "first attempt", "completionKind": "failure",
+            "artifacts": ["failure.log"], "filesModified": ["src/main.rs"],
+            "validation": ["cargo test failed"]
+        }}),
+    ));
+    let failed_attempt = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        521,
+        "orchestration.taskShow",
+        json!({"id": &task_id}),
+    ));
+    let failure_result: Value =
+        serde_json::from_str(failed_attempt["task"]["result"].as_str().unwrap()).unwrap();
+    assert_eq!(failure_result["artifacts"], json!(["failure.log"]));
+    assert_eq!(failure_result["filesModified"], json!(["src/main.rs"]));
     let second = expect_ok(request(
         &mut writer,
         &mut reader,
@@ -581,14 +597,14 @@ fn stale_escalations_do_not_fail_current_dispatch() {
         json!({"task": &task_id}),
     ));
     assert_eq!(show["active"]["id"], json!(second_dispatch));
-    assert_eq!(show["active"]["status"], json!("dispatched"));
+    assert_eq!(show["active"]["status"], json!("awaiting_acceptance"));
 
     expect_ok(request(
         &mut writer,
         &mut reader,
         59,
         "orchestration.runStop",
-        json!({}),
+        json!({"force": true}),
     ));
 }
 
@@ -614,19 +630,23 @@ fn stale_decision_gates_do_not_block_current_dispatch() {
         json!({"task": &task_id, "to": "worker", "from": "coord"}),
     ));
     let first_dispatch = first["dispatch"]["id"].as_str().unwrap().to_string();
+    let first_context_token = first["contextToken"].as_str().unwrap().to_string();
     expect_ok(request(
         &mut writer,
         &mut reader,
         62,
-        "orchestration.send",
-        json!({
-            "from": "worker",
-            "to": "coord",
-            "type": "worker_done",
-            "subject": "Failed: first attempt",
-            "body": "failed",
-            "payload": json!({"taskId": &task_id, "dispatchId": &first_dispatch}).to_string()
-        }),
+        "orchestration.dispatchAccept",
+        json!({"terminal": "worker", "contextToken": first_context_token}),
+    ));
+    expect_ok(request(
+        &mut writer,
+        &mut reader,
+        620,
+        "orchestration.complete",
+        json!({"terminal": "worker", "contextToken": first_context_token, "result": {
+            "summary": "first attempt", "completionKind": "failure",
+            "artifacts": [], "filesModified": [], "validation": []
+        }}),
     ));
     let second = expect_ok(request(
         &mut writer,
@@ -688,14 +708,14 @@ fn stale_decision_gates_do_not_block_current_dispatch() {
         json!({"task": &task_id}),
     ));
     assert_eq!(show["active"]["id"], json!(second_dispatch));
-    assert_eq!(show["active"]["status"], json!("dispatched"));
+    assert_eq!(show["active"]["status"], json!("awaiting_acceptance"));
 
     expect_ok(request(
         &mut writer,
         &mut reader,
         69,
         "orchestration.runStop",
-        json!({}),
+        json!({"force": true}),
     ));
 }
 
@@ -738,7 +758,7 @@ fn injected_dispatch_requires_idle_agent_presence() {
         &mut reader,
         62,
         "orchestration.taskCreate",
-        json!({"spec": "busy injection"}),
+        json!({"spec": "busy injection", "workspace": "ws-1"}),
     ));
     let task_id = task["id"].as_str().unwrap().to_string();
 
@@ -940,7 +960,7 @@ fn dispatch_injection_respects_cursor_skip_auto_enter() {
         &mut reader,
         68,
         "orchestration.taskCreate",
-        json!({"spec": "cursor should keep this editable"}),
+        json!({"spec": "cursor should keep this editable", "workspace": "ws-1"}),
     ));
     let task_id = task["id"].as_str().unwrap().to_string();
 
@@ -961,7 +981,7 @@ fn dispatch_injection_respects_cursor_skip_auto_enter() {
 
 #[test]
 #[cfg(unix)]
-fn coordinator_skips_cursor_workers_that_do_not_auto_submit() {
+fn coordinator_force_submits_cursor_workers_and_waits_for_acceptance() {
     let host = start_host();
     let (mut writer, mut reader) = connect(host.port);
     handshake(&mut writer, &mut reader, &host.token);
@@ -1015,23 +1035,27 @@ fn coordinator_skips_cursor_workers_that_do_not_auto_submit() {
         "orchestration.dispatchShow",
         json!({"task": &task_id}),
     ));
-    assert!(show["active"].is_null(), "{show}");
-    assert!(show["history"].as_array().unwrap().is_empty(), "{show}");
-    let ready = expect_ok(request(
+    assert_eq!(
+        show["active"]["status"],
+        json!("awaiting_acceptance"),
+        "{show}"
+    );
+    assert_eq!(show["history"].as_array().unwrap().len(), 1, "{show}");
+    let dispatched = expect_ok(request(
         &mut writer,
         &mut reader,
         1165,
         "orchestration.taskList",
-        json!({"status": "ready"}),
+        json!({"status": "dispatched"}),
     ));
-    assert_eq!(ready["tasks"][0]["id"], json!(task_id), "{ready}");
+    assert_eq!(dispatched["tasks"][0]["id"], json!(task_id), "{dispatched}");
 
     expect_ok(request(
         &mut writer,
         &mut reader,
         1166,
         "orchestration.runStop",
-        json!({}),
+        json!({"force": true}),
     ));
 }
 
@@ -1088,7 +1112,7 @@ fn coordinator_run_exposes_taskless_question_through_documented_filter() {
         &mut reader,
         74,
         "orchestration.runStop",
-        json!({}),
+        json!({"force": true}),
     ));
 }
 
@@ -1142,7 +1166,7 @@ fn coordinator_run_does_not_consume_unhandled_status_message() {
         &mut reader,
         80,
         "orchestration.runStop",
-        json!({}),
+        json!({"force": true}),
     ));
 }
 
@@ -1221,7 +1245,7 @@ fn coordinator_reuses_idle_worker_after_stale_base_skip() {
     ));
     assert_eq!(
         allowed_show["active"]["status"],
-        json!("dispatched"),
+        json!("awaiting_acceptance"),
         "{allowed_show}"
     );
     assert_eq!(
@@ -1235,7 +1259,7 @@ fn coordinator_reuses_idle_worker_after_stale_base_skip() {
         &mut reader,
         92,
         "orchestration.runStop",
-        json!({}),
+        json!({"force": true}),
     ));
 }
 
@@ -1293,7 +1317,7 @@ fn coordinator_waits_for_spawned_worker_presence_before_creating_another() {
         &mut reader,
         84,
         "orchestration.runStop",
-        json!({}),
+        json!({"force": true}),
     ));
 }
 
@@ -1394,7 +1418,11 @@ fn coordinator_waits_for_spawned_claude_presence_after_initial_command_write() {
         "orchestration.dispatchShow",
         json!({"task": &task_id}),
     ));
-    assert_eq!(show["active"]["status"], json!("dispatched"), "{show}");
+    assert_eq!(
+        show["active"]["status"],
+        json!("awaiting_acceptance"),
+        "{show}"
+    );
     assert_eq!(
         show["active"]["assignee_handle"],
         json!(worker_handle),
@@ -1406,7 +1434,7 @@ fn coordinator_waits_for_spawned_claude_presence_after_initial_command_write() {
         &mut reader,
         124,
         "orchestration.runStop",
-        json!({}),
+        json!({"force": true}),
     ));
 }
 
@@ -1473,7 +1501,7 @@ fn coordinator_counts_booting_worker_presence_as_pending() {
         &mut reader,
         100,
         "orchestration.runStop",
-        json!({}),
+        json!({"force": true}),
     ));
 }
 
@@ -1583,7 +1611,7 @@ fn coordinator_does_not_count_busy_spawned_worker_as_pending() {
         &mut reader,
         110,
         "orchestration.runStop",
-        json!({}),
+        json!({"force": true}),
     ));
 }
 
@@ -1679,7 +1707,11 @@ fn coordinator_reuses_done_spawned_worker_instead_of_spawning_replacement() {
         "orchestration.dispatchShow",
         json!({"task": &task_id}),
     ));
-    assert_eq!(show["active"]["status"], json!("dispatched"), "{show}");
+    assert_eq!(
+        show["active"]["status"],
+        json!("awaiting_acceptance"),
+        "{show}"
+    );
     assert_eq!(
         show["active"]["assignee_handle"],
         json!(worker_handle),
@@ -1691,7 +1723,7 @@ fn coordinator_reuses_done_spawned_worker_instead_of_spawning_replacement() {
         &mut reader,
         130,
         "orchestration.runStop",
-        json!({}),
+        json!({"force": true}),
     ));
 }
 
@@ -1756,7 +1788,7 @@ fn coordinator_ignores_stale_spawned_worker_tabs_when_creating_replacement() {
         &mut reader,
         89,
         "orchestration.runStop",
-        json!({}),
+        json!({"force": true}),
     ));
 }
 
@@ -1801,7 +1833,7 @@ fn coordinator_does_not_create_worker_tab_for_missing_workspace() {
         &mut reader,
         134,
         "orchestration.runStop",
-        json!({}),
+        json!({"force": true}),
     ));
 }
 
@@ -1852,6 +1884,1134 @@ fn reset_tasks_stops_active_coordinator() {
         &mut reader,
         75,
         "orchestration.runStop",
-        json!({}),
+        json!({"force": true}),
     ));
+}
+
+#[test]
+fn task_cancel_enforces_coordinator_ownership_unless_forced() {
+    let host = start_host();
+    let (mut writer, mut reader) = connect(host.port);
+    handshake(&mut writer, &mut reader, &host.token);
+    let task = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        80,
+        "orchestration.taskCreate",
+        json!({"spec": "owned work", "coordinator": "owner"}),
+    ));
+    let task_id = task["id"].as_str().unwrap();
+
+    let rejected = request(
+        &mut writer,
+        &mut reader,
+        81,
+        "orchestration.taskCancel",
+        json!({"id": task_id, "reason": "intruder", "actor": "other"}),
+    );
+    assert_eq!(rejected["ok"], json!(false), "{rejected}");
+    assert!(rejected["error"]
+        .as_str()
+        .unwrap()
+        .contains("only coordinator owner"));
+
+    let cancelled = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        82,
+        "orchestration.taskCancel",
+        json!({"id": task_id, "reason": "admin recovery", "actor": "other", "force": true}),
+    ));
+    assert_eq!(cancelled["task"]["status"], json!("cancelled"));
+}
+
+#[test]
+#[cfg(unix)]
+fn lifecycle_mutations_enforce_coordinator_ownership() {
+    let host = start_host();
+    let (mut writer, mut reader) = connect(host.port);
+    handshake(&mut writer, &mut reader, &host.token);
+    attach_shell_session(
+        &mut writer,
+        &mut reader,
+        8_090,
+        "owner",
+        "ws-1",
+        "owner-tab",
+        &["-c", "stty -echo; cat"],
+    );
+    attach_shell_session(
+        &mut writer,
+        &mut reader,
+        8_091,
+        "unrelated",
+        "ws-2",
+        "unrelated-tab",
+        &["-c", "stty -echo; cat"],
+    );
+    let task = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        8_100,
+        "orchestration.taskCreate",
+        json!({"spec": "owned work", "coordinator": "owner", "workspace": "ws-1"}),
+    ));
+    let task_id = task["id"].as_str().unwrap();
+    let dispatched = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        8_101,
+        "orchestration.dispatch",
+        json!({"task": task_id, "to": "worker", "from": "owner"}),
+    ));
+    let dispatch_id = dispatched["dispatch"]["id"].as_str().unwrap();
+    let context_token = dispatched["contextToken"].as_str().unwrap();
+    expect_ok(request(
+        &mut writer,
+        &mut reader,
+        8_102,
+        "orchestration.dispatchAccept",
+        json!({"terminal": "worker", "contextToken": context_token}),
+    ));
+
+    let interrupt = request(
+        &mut writer,
+        &mut reader,
+        8_103,
+        "orchestration.dispatchInterrupt",
+        json!({"id": dispatch_id, "reason": "intruder", "actor": "other"}),
+    );
+    assert_eq!(interrupt["ok"], json!(false), "{interrupt}");
+    assert!(interrupt["error"]
+        .as_str()
+        .unwrap()
+        .contains("only coordinator owner"));
+
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    runtime.block_on(async {
+        let store = alera_core::runtime::RuntimeStore::open(host._dir.path())
+            .await
+            .unwrap();
+        sqlx::query("UPDATE orchestrationTasks SET status = 'stalled' WHERE id = ?")
+            .bind(task_id)
+            .execute(store.pool())
+            .await
+            .unwrap();
+        sqlx::query("UPDATE orchestrationDispatchContexts SET status = 'stalled' WHERE id = ?")
+            .bind(dispatch_id)
+            .execute(store.pool())
+            .await
+            .unwrap();
+    });
+    let recover = request(
+        &mut writer,
+        &mut reader,
+        8_104,
+        "orchestration.taskRecover",
+        json!({"id": task_id, "status": "ready", "reason": "intruder", "actor": "other"}),
+    );
+    assert_eq!(recover["ok"], json!(false), "{recover}");
+    assert!(recover["error"]
+        .as_str()
+        .unwrap()
+        .contains("only coordinator owner"));
+    expect_ok(request(
+        &mut writer,
+        &mut reader,
+        8_105,
+        "orchestration.taskRecover",
+        json!({"id": task_id, "status": "ready", "reason": "retry", "actor": "owner"}),
+    ));
+
+    let run = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        8_106,
+        "orchestration.run",
+        json!({"from": "owner", "spec": "coordinate", "workspace": "ws-1", "pollIntervalMs": 60000}),
+    ));
+    let run_id = run["runId"].as_str().unwrap();
+    let status = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        81_061,
+        "orchestration.status",
+        json!({"id": run_id}),
+    ));
+    let terminal_handles = status["terminals"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|terminal| terminal["handle"].as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(terminal_handles, vec!["owner"], "{status}");
+    let stop = request(
+        &mut writer,
+        &mut reader,
+        8_107,
+        "orchestration.runStop",
+        json!({"id": run_id, "actor": "other"}),
+    );
+    assert_eq!(stop["ok"], json!(false), "{stop}");
+    assert!(stop["error"]
+        .as_str()
+        .unwrap()
+        .contains("only coordinator owner"));
+    expect_ok(request(
+        &mut writer,
+        &mut reader,
+        8_108,
+        "orchestration.runStop",
+        json!({"id": run_id, "actor": "owner"}),
+    ));
+}
+
+#[test]
+fn forced_run_stop_preserves_administrative_actor_in_task_audit() {
+    let host = start_host();
+    let (mut writer, mut reader) = connect(host.port);
+    handshake(&mut writer, &mut reader, &host.token);
+    let task = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        8_300,
+        "orchestration.taskCreate",
+        json!({"spec": "active", "workspace": "ws-1", "coordinator": "owner"}),
+    ));
+    let task_id = task["id"].as_str().unwrap();
+    let run = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        8_301,
+        "orchestration.run",
+        json!({"from": "owner", "spec": "coordinate", "workspace": "ws-1", "pollIntervalMs": 60000}),
+    ));
+    let run_id = run["runId"].as_str().unwrap();
+    let dispatched = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        8_302,
+        "orchestration.dispatch",
+        json!({"task": task_id, "to": "worker", "from": "owner"}),
+    ));
+    let context_token = dispatched["contextToken"].as_str().unwrap();
+    expect_ok(request(
+        &mut writer,
+        &mut reader,
+        8_303,
+        "orchestration.dispatchAccept",
+        json!({"terminal": "worker", "contextToken": context_token}),
+    ));
+    expect_ok(request(
+        &mut writer,
+        &mut reader,
+        8_304,
+        "orchestration.runStop",
+        json!({
+            "id": run_id,
+            "actor": "admin",
+            "force": true,
+            "cancelActive": true,
+            "reason": "emergency stop"
+        }),
+    ));
+
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    runtime.block_on(async {
+        let store = alera_core::runtime::RuntimeStore::open(host._dir.path())
+            .await
+            .unwrap();
+        let rows = sqlx::query(
+            "SELECT actor_handle, action FROM orchestrationAuditEvents ORDER BY created_at, id",
+        )
+        .fetch_all(store.pool())
+        .await
+        .unwrap();
+        let entries = rows
+            .iter()
+            .map(|row| {
+                (
+                    sqlx::Row::get::<Option<String>, _>(row, "actor_handle"),
+                    sqlx::Row::get::<String, _>(row, "action"),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert!(entries.contains(&(Some("admin".to_string()), "task.cancel.force".to_string())));
+        assert!(entries.contains(&(Some("admin".to_string()), "run.stop.force".to_string())));
+        let stopped = store
+            .orchestration_coordinator_run_by_id(run_id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(stopped.stop_reason.as_deref(), Some("emergency stop"));
+    });
+}
+
+#[test]
+fn worker_done_recovery_enforces_task_result_schema() {
+    let host = start_host();
+    let (mut writer, mut reader) = connect(host.port);
+    handshake(&mut writer, &mut reader, &host.token);
+    let task = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        83,
+        "orchestration.taskCreate",
+        json!({
+            "spec": "schema work",
+            "resultSchema": json!({
+                "type": "object",
+                "properties": {"ticket": {"type": "integer"}},
+                "required": ["ticket"]
+            }).to_string()
+        }),
+    ));
+    let task_id = task["id"].as_str().unwrap();
+    let dispatch = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        84,
+        "orchestration.dispatch",
+        json!({"task": task_id, "to": "worker", "from": "coord"}),
+    ));
+    let dispatch_id = dispatch["dispatch"]["id"].as_str().unwrap();
+
+    let rejected = request(
+        &mut writer,
+        &mut reader,
+        85,
+        "orchestration.workerDone",
+        json!({
+            "terminal": "worker",
+            "task": task_id,
+            "dispatch": dispatch_id,
+            "result": {
+                "summary": "done",
+                "completionKind": "success",
+                "artifacts": [],
+                "filesModified": [],
+                "validation": []
+            }
+        }),
+    );
+    assert_eq!(rejected["ok"], json!(false), "{rejected}");
+    assert!(rejected["error"].as_str().unwrap().contains("ticket"));
+
+    let show = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        86,
+        "orchestration.taskShow",
+        json!({"id": task_id}),
+    ));
+    assert_eq!(show["task"]["status"], json!("dispatched"));
+}
+
+#[test]
+fn context_aware_escalation_preserves_dispatch_authority() {
+    let host = start_host();
+    let (mut writer, mut reader) = connect(host.port);
+    handshake(&mut writer, &mut reader, &host.token);
+    let task = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        87,
+        "orchestration.taskCreate",
+        json!({"spec": "escalate", "workspace": "ws-1", "coordinator": "coord"}),
+    ));
+    let task_id = task["id"].as_str().unwrap();
+    let dispatched = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        88,
+        "orchestration.dispatch",
+        json!({"task": task_id, "to": "worker", "from": "coord"}),
+    ));
+    let context_token = dispatched["contextToken"].as_str().unwrap();
+    expect_ok(request(
+        &mut writer,
+        &mut reader,
+        89,
+        "orchestration.dispatchAccept",
+        json!({"terminal": "worker", "contextToken": context_token}),
+    ));
+    expect_ok(request(
+        &mut writer,
+        &mut reader,
+        90,
+        "orchestration.run",
+        json!({
+            "from": "coord",
+            "workspace": "ws-1",
+            "agent": "codex",
+            "spec": "coordinate",
+            "pollIntervalMs": 50
+        }),
+    ));
+    expect_ok(request(
+        &mut writer,
+        &mut reader,
+        91,
+        "orchestration.escalate",
+        json!({
+            "terminal": "worker",
+            "contextToken": context_token,
+            "subject": "Blocked",
+            "body": "Need coordinator help"
+        }),
+    ));
+
+    std::thread::sleep(Duration::from_millis(250));
+    let show = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        92,
+        "orchestration.dispatchShow",
+        json!({"task": task_id}),
+    ));
+    assert!(show["active"].is_null(), "{show}");
+    assert_eq!(show["history"][0]["status"], json!("failed"), "{show}");
+}
+
+#[test]
+#[cfg(unix)]
+fn stalled_task_keeps_coordinator_run_available_for_recovery() {
+    let host = start_host();
+    let (mut writer, mut reader) = connect(host.port);
+    handshake(&mut writer, &mut reader, &host.token);
+    let task = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        93,
+        "orchestration.taskCreate",
+        json!({"spec": "lease", "workspace": "ws-1", "coordinator": "coord"}),
+    ));
+    let task_id = task["id"].as_str().unwrap();
+    let queued = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        94,
+        "orchestration.taskCreate",
+        json!({"spec": "second", "workspace": "ws-1", "coordinator": "coord"}),
+    ));
+    let queued_task_id = queued["id"].as_str().unwrap();
+    let dispatched = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        95,
+        "orchestration.dispatch",
+        json!({"task": task_id, "to": "worker", "from": "coord"}),
+    ));
+    let context_token = dispatched["contextToken"].as_str().unwrap();
+    expect_ok(request(
+        &mut writer,
+        &mut reader,
+        96,
+        "orchestration.dispatchAccept",
+        json!({"terminal": "worker", "contextToken": context_token}),
+    ));
+    attach_shell_session(
+        &mut writer,
+        &mut reader,
+        9_601,
+        "idle-after-stall",
+        "ws-1",
+        "idle-after-stall-tab",
+        &["-c", "stty -echo; cat"],
+    );
+    expect_ok(request(
+        &mut writer,
+        &mut reader,
+        9_602,
+        "orchestration.agentStatus",
+        json!({"entries": [{"terminalSessionId": "idle-after-stall", "agentType": "codex", "state": "done"}]}),
+    ));
+    let run = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        9_603,
+        "orchestration.run",
+        json!({
+            "from": "coord",
+            "workspace": "ws-1",
+            "agent": "codex",
+            "spec": "coordinate",
+            "pollIntervalMs": 100,
+            "maxConcurrent": 1
+        }),
+    ));
+    let run_id = run["runId"].as_str().unwrap();
+
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    runtime.block_on(async {
+        let store = alera_core::runtime::RuntimeStore::open(host._dir.path())
+            .await
+            .unwrap();
+        let future_threshold = chrono::Utc::now()
+            .checked_add_signed(chrono::Duration::hours(1))
+            .unwrap()
+            .format("%Y-%m-%d %H:%M:%S")
+            .to_string();
+        let stalled = store
+            .stall_expired_orchestration_dispatches(&future_threshold)
+            .await
+            .unwrap();
+        assert_eq!(stalled.len(), 1);
+    });
+
+    std::thread::sleep(Duration::from_millis(450));
+    let queued_show = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        9_604,
+        "orchestration.dispatchShow",
+        json!({"task": queued_task_id}),
+    ));
+    assert!(queued_show["active"].is_null(), "{queued_show}");
+    let run = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        97,
+        "orchestration.runShow",
+        json!({"id": run_id}),
+    ));
+    assert_eq!(run["run"]["status"], json!("running"), "{run}");
+    let recovered = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        98,
+        "orchestration.taskRecover",
+        json!({"id": task_id, "status": "ready", "reason": "worker stopped", "actor": "coord"}),
+    ));
+    assert_eq!(recovered["task"]["status"], json!("ready"));
+}
+
+#[test]
+#[cfg(unix)]
+fn cancelling_active_worker_interrupts_before_idle_banner_delivery() {
+    let host = start_host();
+    let (mut writer, mut reader) = connect(host.port);
+    handshake(&mut writer, &mut reader, &host.token);
+    let session_id = "cancel-worker";
+    attach_shell_session(
+        &mut writer,
+        &mut reader,
+        99,
+        session_id,
+        "ws-1",
+        "tab-1",
+        &[
+            "-c",
+            "stty -echo; trap 'printf INTERRUPTED' INT; while :; do IFS= read -r line || continue; printf 'LINE:%s' \"$line\"; done",
+        ],
+    );
+    expect_ok(request(
+        &mut writer,
+        &mut reader,
+        100,
+        "orchestration.agentStatus",
+        json!({"entries": [{"terminalSessionId": session_id, "agentType": "codex", "state": "working"}]}),
+    ));
+    let task = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        101,
+        "orchestration.taskCreate",
+        json!({"spec": "cancel me", "coordinator": "coord"}),
+    ));
+    let task_id = task["id"].as_str().unwrap();
+    expect_ok(request(
+        &mut writer,
+        &mut reader,
+        102,
+        "orchestration.dispatch",
+        json!({"task": task_id, "to": session_id, "from": "coord"}),
+    ));
+    expect_ok(request(
+        &mut writer,
+        &mut reader,
+        103,
+        "orchestration.taskCancel",
+        json!({"id": task_id, "reason": "stop now", "actor": "coord"}),
+    ));
+
+    let active_output = collect_output(&mut reader, session_id, Duration::from_secs(1));
+    assert!(active_output.contains("INTERRUPTED"), "{active_output:?}");
+    assert!(
+        !active_output.contains("Task Cancelled"),
+        "{active_output:?}"
+    );
+    let queued = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        104,
+        "orchestration.inbox",
+        json!({"terminal": session_id, "direction": "inbound"}),
+    ));
+    assert_eq!(queued["items"][0]["subject"], json!("Task Cancelled"));
+    assert!(queued["items"][0]["delivered_at"].is_null(), "{queued}");
+
+    expect_ok(request(
+        &mut writer,
+        &mut reader,
+        105,
+        "orchestration.agentStatus",
+        json!({"entries": [{"terminalSessionId": session_id, "agentType": "codex", "state": "done"}]}),
+    ));
+    std::thread::sleep(Duration::from_secs(1));
+    let delivered = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        106,
+        "orchestration.inbox",
+        json!({"terminal": session_id, "direction": "inbound"}),
+    ));
+    assert!(
+        delivered["items"][0]["delivered_at"].is_string(),
+        "{delivered}"
+    );
+}
+
+#[test]
+#[cfg(unix)]
+fn pty_output_refreshes_active_dispatch_activity() {
+    let host = start_host();
+    let (mut writer, mut reader) = connect(host.port);
+    handshake(&mut writer, &mut reader, &host.token);
+    let session_id = "active-output-worker";
+    attach_shell_session(
+        &mut writer,
+        &mut reader,
+        107,
+        session_id,
+        "ws-1",
+        "tab-1",
+        &[
+            "-c",
+            "stty -echo; while IFS= read -r line; do printf 'OUTPUT:%s' \"$line\"; done",
+        ],
+    );
+    expect_ok(request(
+        &mut writer,
+        &mut reader,
+        108,
+        "orchestration.agentStatus",
+        json!({"entries": [{"terminalSessionId": session_id, "agentType": "codex", "state": "working"}]}),
+    ));
+    let task = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        109,
+        "orchestration.taskCreate",
+        json!({"spec": "long build", "coordinator": "coord"}),
+    ));
+    let task_id = task["id"].as_str().unwrap();
+    let dispatched = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        110,
+        "orchestration.dispatch",
+        json!({"task": task_id, "to": session_id, "from": "coord"}),
+    ));
+    let dispatch_id = dispatched["dispatch"]["id"].as_str().unwrap();
+    let context_token = dispatched["contextToken"].as_str().unwrap();
+    expect_ok(request(
+        &mut writer,
+        &mut reader,
+        111,
+        "orchestration.dispatchAccept",
+        json!({"terminal": session_id, "contextToken": context_token}),
+    ));
+
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    runtime.block_on(async {
+        let store = alera_core::runtime::RuntimeStore::open(host._dir.path())
+            .await
+            .unwrap();
+        sqlx::query(
+            "UPDATE orchestrationDispatchContexts SET last_activity_at = '2020-01-01 00:00:00' WHERE id = ?",
+        )
+        .bind(dispatch_id)
+        .execute(store.pool())
+        .await
+        .unwrap();
+    });
+    expect_ok(request(
+        &mut writer,
+        &mut reader,
+        112,
+        "write",
+        json!({"sessionId": session_id, "dataBase64": STANDARD.encode(b"go\n")}),
+    ));
+    std::thread::sleep(Duration::from_millis(150));
+    runtime.block_on(async {
+        let store = alera_core::runtime::RuntimeStore::open(host._dir.path())
+            .await
+            .unwrap();
+        let threshold = (chrono::Utc::now() - chrono::Duration::minutes(1))
+            .format("%Y-%m-%d %H:%M:%S")
+            .to_string();
+        assert!(store
+            .stall_expired_orchestration_dispatches(&threshold)
+            .await
+            .unwrap()
+            .is_empty());
+    });
+}
+
+#[test]
+#[cfg(unix)]
+fn timed_out_agent_spawn_cannot_dispatch_on_late_readiness() {
+    let host = start_host();
+    let (mut writer, mut reader) = connect(host.port);
+    handshake_app(&mut writer, &mut reader, &host.token);
+    seed_workspace(&mut writer, &mut reader, "ws-1");
+    let task = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        113,
+        "orchestration.taskCreate",
+        json!({"spec": "late worker", "workspace": "ws-1", "coordinator": "coord"}),
+    ));
+    let task_id = task["id"].as_str().unwrap();
+    let spawned = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        114,
+        "orchestration.agentSpawn",
+        json!({"workspace": "ws-1", "agent": "codex", "task": task_id, "from": "coord"}),
+    ));
+    let handle = spawned["terminalHandle"].as_str().unwrap();
+    expect_ok(request(
+        &mut writer,
+        &mut reader,
+        115,
+        "orchestration.agentSpawnTimeout",
+        json!({"terminal": handle}),
+    ));
+
+    attach_shell_session(
+        &mut writer,
+        &mut reader,
+        116,
+        handle,
+        "ws-1",
+        handle,
+        &["-c", "stty -echo; cat"],
+    );
+    expect_ok(request(
+        &mut writer,
+        &mut reader,
+        117,
+        "orchestration.agentStatus",
+        json!({"entries": [{"terminalSessionId": handle, "agentType": "codex", "state": "done"}]}),
+    ));
+    let show = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        118,
+        "orchestration.dispatchShow",
+        json!({"task": task_id}),
+    ));
+    assert!(show["active"].is_null(), "{show}");
+    assert!(show["history"].as_array().unwrap().is_empty(), "{show}");
+}
+
+#[test]
+fn task_create_rejects_invalid_run_scope() {
+    let host = start_host();
+    let (mut writer, mut reader) = connect(host.port);
+    handshake(&mut writer, &mut reader, &host.token);
+    expect_ok(request(
+        &mut writer,
+        &mut reader,
+        8_200,
+        "orchestration.taskCreate",
+        json!({"spec": "seed", "workspace": "ws-1", "coordinator": "owner"}),
+    ));
+    let run = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        8_201,
+        "orchestration.run",
+        json!({"from": "owner", "spec": "coordinate", "workspace": "ws-1", "pollIntervalMs": 60000}),
+    ));
+    let run_id = run["runId"].as_str().unwrap();
+
+    for (request_id, payload, expected) in [
+        (
+            8_202,
+            json!({"spec": "missing", "workspace": "ws-1", "run": "run_missing"}),
+            "coordinator run not found",
+        ),
+        (
+            8_203,
+            json!({"spec": "wrong workspace", "workspace": "ws-2", "run": run_id}),
+            "does not match run workspace",
+        ),
+        (
+            8_204,
+            json!({"spec": "wrong owner", "workspace": "ws-1", "run": run_id, "coordinator": "other"}),
+            "does not match run coordinator",
+        ),
+    ] {
+        let rejected = request(
+            &mut writer,
+            &mut reader,
+            request_id,
+            "orchestration.taskCreate",
+            payload,
+        );
+        assert_eq!(rejected["ok"], json!(false), "{rejected}");
+        assert!(rejected["error"].as_str().unwrap().contains(expected));
+    }
+    let valid = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        8_205,
+        "orchestration.taskCreate",
+        json!({"spec": "valid", "workspace": "ws-1", "run": run_id}),
+    ));
+    assert_eq!(valid["run_id"], json!(run_id));
+    assert_eq!(valid["coordinator_handle"], json!("owner"));
+    let transfer = request(
+        &mut writer,
+        &mut reader,
+        82_051,
+        "orchestration.transferCoordinator",
+        json!({
+            "task": valid["id"],
+            "to": "replacement",
+            "reason": "partial handoff",
+            "actor": "owner",
+            "force": true
+        }),
+    );
+    assert_eq!(transfer["ok"], json!(false), "{transfer}");
+    assert!(transfer["error"]
+        .as_str()
+        .unwrap()
+        .contains("transfer the run instead"));
+    expect_ok(request(
+        &mut writer,
+        &mut reader,
+        8_206,
+        "orchestration.runStop",
+        json!({"id": run_id, "actor": "owner"}),
+    ));
+}
+
+#[test]
+fn active_worker_questions_follow_run_coordinator_transfer() {
+    let host = start_host();
+    let (mut writer, mut reader) = connect(host.port);
+    handshake(&mut writer, &mut reader, &host.token);
+    let task = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        8_230,
+        "orchestration.taskCreate",
+        json!({"spec": "ask", "workspace": "ws-1", "coordinator": "old-coord"}),
+    ));
+    let task_id = task["id"].as_str().unwrap();
+    let run = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        8_231,
+        "orchestration.run",
+        json!({"from": "old-coord", "spec": "coordinate", "workspace": "ws-1", "pollIntervalMs": 60000}),
+    ));
+    let run_id = run["runId"].as_str().unwrap();
+    let dispatched = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        8_232,
+        "orchestration.dispatch",
+        json!({"task": task_id, "to": "worker", "from": "old-coord"}),
+    ));
+    let context_token = dispatched["contextToken"].as_str().unwrap();
+    expect_ok(request(
+        &mut writer,
+        &mut reader,
+        8_233,
+        "orchestration.dispatchAccept",
+        json!({"terminal": "worker", "contextToken": context_token}),
+    ));
+    expect_ok(request(
+        &mut writer,
+        &mut reader,
+        8_234,
+        "orchestration.transferCoordinator",
+        json!({
+            "run": run_id,
+            "to": "new-coord",
+            "reason": "handoff",
+            "actor": "old-coord"
+        }),
+    ));
+
+    send(
+        &mut writer,
+        json!({
+            "id": 8_235,
+            "type": "orchestration.ask",
+            "payload": {
+                "from": "worker",
+                "to": "old-coord",
+                "question": "Where next?",
+                "timeoutMs": 5000
+            }
+        }),
+    );
+    let new_inbox = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        8_236,
+        "orchestration.inbox",
+        json!({"terminal": "new-coord"}),
+    ));
+    assert_eq!(
+        new_inbox["items"].as_array().unwrap().len(),
+        1,
+        "{new_inbox}"
+    );
+    assert_eq!(new_inbox["items"][0]["to_handle"], json!("new-coord"));
+    assert_eq!(
+        new_inbox["items"][0]["dispatch_id"],
+        dispatched["dispatch"]["id"]
+    );
+    let old_inbox = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        8_237,
+        "orchestration.inbox",
+        json!({"terminal": "old-coord"}),
+    ));
+    assert!(old_inbox["items"].as_array().unwrap().is_empty());
+}
+
+#[test]
+#[cfg(unix)]
+fn injected_dispatch_rejects_terminal_from_another_workspace() {
+    let host = start_host();
+    let (mut writer, mut reader) = connect(host.port);
+    handshake(&mut writer, &mut reader, &host.token);
+    attach_shell_session(
+        &mut writer,
+        &mut reader,
+        8_210,
+        "worker-ws-2",
+        "ws-2",
+        "worker-tab",
+        &["-c", "stty -echo; cat"],
+    );
+    expect_ok(request(
+        &mut writer,
+        &mut reader,
+        8_211,
+        "orchestration.agentStatus",
+        json!({"entries": [{"terminalSessionId": "worker-ws-2", "agentType": "codex", "state": "done"}]}),
+    ));
+    let task = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        8_212,
+        "orchestration.taskCreate",
+        json!({"spec": "scoped", "workspace": "ws-1", "coordinator": "owner"}),
+    ));
+    let rejected = request(
+        &mut writer,
+        &mut reader,
+        8_213,
+        "orchestration.dispatch",
+        json!({
+            "task": task["id"],
+            "to": "worker-ws-2",
+            "from": "owner",
+            "inject": true
+        }),
+    );
+    assert_eq!(rejected["ok"], json!(false), "{rejected}");
+    assert!(rejected["error"]
+        .as_str()
+        .unwrap()
+        .contains("not task workspace ws-1"));
+}
+
+#[test]
+#[cfg(unix)]
+fn close_on_success_removes_the_persisted_worker_tab() {
+    let host = start_host();
+    let (mut writer, mut reader) = connect(host.port);
+    handshake(&mut writer, &mut reader, &host.token);
+    seed_workspace(&mut writer, &mut reader, "ws-1");
+    let now = chrono::Utc::now().to_rfc3339();
+    expect_ok(request(
+        &mut writer,
+        &mut reader,
+        8_220,
+        "tab.upsert",
+        json!({
+            "id": "close-tab",
+            "workspaceId": "ws-1",
+            "kind": "terminal",
+            "title": "Close Worker",
+            "createdAt": now,
+            "updatedAt": now,
+            "payload": {"terminalSessionId": "close-worker"}
+        }),
+    ));
+    attach_shell_session(
+        &mut writer,
+        &mut reader,
+        8_221,
+        "close-worker",
+        "ws-1",
+        "close-tab",
+        &["-c", "stty -echo; cat"],
+    );
+    let task = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        8_222,
+        "orchestration.taskCreate",
+        json!({"spec": "close", "workspace": "ws-1", "coordinator": "coord"}),
+    ));
+    let dispatched = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        8_223,
+        "orchestration.dispatch",
+        json!({
+            "task": task["id"],
+            "to": "close-worker",
+            "from": "coord",
+            "terminalPolicy": "close-on-success"
+        }),
+    ));
+    let context_token = dispatched["contextToken"].as_str().unwrap();
+    expect_ok(request(
+        &mut writer,
+        &mut reader,
+        8_224,
+        "orchestration.dispatchAccept",
+        json!({"terminal": "close-worker", "contextToken": context_token}),
+    ));
+    expect_ok(request(
+        &mut writer,
+        &mut reader,
+        8_225,
+        "orchestration.complete",
+        json!({
+            "terminal": "close-worker",
+            "contextToken": context_token,
+            "result": {
+                "summary": "done",
+                "completionKind": "success",
+                "artifacts": [],
+                "filesModified": [],
+                "validation": []
+            }
+        }),
+    ));
+
+    let tab = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        8_226,
+        "tab.find",
+        json!({"id": "close-tab"}),
+    ));
+    assert!(tab.is_null(), "{tab}");
+    let terminal = request(
+        &mut writer,
+        &mut reader,
+        8_227,
+        "orchestration.terminalShow",
+        json!({"handle": "close-worker"}),
+    );
+    assert_eq!(terminal["ok"], json!(false), "{terminal}");
+}
+
+#[test]
+#[cfg(unix)]
+fn completed_dispatch_does_not_hide_an_exited_terminal() {
+    let host = start_host();
+    let (mut writer, mut reader) = connect(host.port);
+    handshake(&mut writer, &mut reader, &host.token);
+    attach_shell_session(
+        &mut writer,
+        &mut reader,
+        8_228,
+        "exited-worker",
+        "ws-1",
+        "exited-tab",
+        &["-c", "stty -echo; cat"],
+    );
+    let task = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        8_229,
+        "orchestration.taskCreate",
+        json!({"spec": "exit after completion", "workspace": "ws-1", "coordinator": "coord"}),
+    ));
+    let dispatched = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        8_230,
+        "orchestration.dispatch",
+        json!({"task": task["id"], "to": "exited-worker", "from": "coord"}),
+    ));
+    let context_token = dispatched["contextToken"].as_str().unwrap();
+    expect_ok(request(
+        &mut writer,
+        &mut reader,
+        8_231,
+        "orchestration.dispatchAccept",
+        json!({"terminal": "exited-worker", "contextToken": context_token}),
+    ));
+    expect_ok(request(
+        &mut writer,
+        &mut reader,
+        8_232,
+        "orchestration.complete",
+        json!({
+            "terminal": "exited-worker",
+            "contextToken": context_token,
+            "result": {
+                "summary": "done",
+                "completionKind": "success",
+                "artifacts": [],
+                "filesModified": [],
+                "validation": []
+            }
+        }),
+    ));
+    expect_ok(request(
+        &mut writer,
+        &mut reader,
+        8_233,
+        "write",
+        json!({"sessionId": "exited-worker", "dataBase64": STANDARD.encode([3_u8])}),
+    ));
+
+    let deadline = Instant::now() + Duration::from_secs(3);
+    loop {
+        let terminal = expect_ok(request(
+            &mut writer,
+            &mut reader,
+            8_234,
+            "orchestration.terminalShow",
+            json!({"handle": "exited-worker"}),
+        ));
+        if terminal["running"] == json!(false) {
+            assert_eq!(terminal["startupState"], json!("failed"), "{terminal}");
+            break;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "terminal did not exit: {terminal}"
+        );
+        std::thread::sleep(Duration::from_millis(50));
+    }
 }

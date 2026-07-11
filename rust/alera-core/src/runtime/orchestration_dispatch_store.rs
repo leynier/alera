@@ -15,13 +15,16 @@ use super::{
 pub const ORCHESTRATION_CIRCUIT_BREAKER_THRESHOLD: i64 = 3;
 
 const DISPATCH_COLUMNS: &str = "id, task_id, assignee_handle, status, failure_count, \
-     last_failure, dispatched_at, completed_at, created_at, last_heartbeat_at";
+     last_failure, dispatched_at, completed_at, created_at, last_heartbeat_at, run_id, workspace_id, \
+     coordinator_handle, accepted_at, last_activity_at, context_token_hash, completion_policy, \
+     terminal_policy, startup_error";
 
 const GATE_COLUMNS: &str =
     "id, task_id, question, options, status, resolution, created_at, resolved_at";
 
 const RUN_COLUMNS: &str =
-    "id, spec, status, coordinator_handle, poll_interval_ms, created_at, completed_at";
+    "id, spec, status, coordinator_handle, poll_interval_ms, created_at, completed_at, \
+     workspace_id, max_concurrent, last_activity_at, stop_reason";
 
 fn dispatch_from_row(row: SqliteRow) -> Result<OrchestrationDispatchContext> {
     let status_raw: String = row.try_get("status")?;
@@ -37,6 +40,15 @@ fn dispatch_from_row(row: SqliteRow) -> Result<OrchestrationDispatchContext> {
         completed_at: row.try_get("completed_at")?,
         created_at: row.try_get("created_at")?,
         last_heartbeat_at: row.try_get("last_heartbeat_at")?,
+        run_id: row.try_get("run_id")?,
+        workspace_id: row.try_get("workspace_id")?,
+        coordinator_handle: row.try_get("coordinator_handle")?,
+        accepted_at: row.try_get("accepted_at")?,
+        last_activity_at: row.try_get("last_activity_at")?,
+        context_token_hash: row.try_get("context_token_hash")?,
+        completion_policy: row.try_get("completion_policy")?,
+        terminal_policy: row.try_get("terminal_policy")?,
+        startup_error: row.try_get("startup_error")?,
     })
 }
 
@@ -67,6 +79,10 @@ fn run_from_row(row: SqliteRow) -> Result<OrchestrationCoordinatorRun> {
         poll_interval_ms: row.try_get("poll_interval_ms")?,
         created_at: row.try_get("created_at")?,
         completed_at: row.try_get("completed_at")?,
+        workspace_id: row.try_get("workspace_id")?,
+        max_concurrent: row.try_get("max_concurrent")?,
+        last_activity_at: row.try_get("last_activity_at")?,
+        stop_reason: row.try_get("stop_reason")?,
     })
 }
 
@@ -80,6 +96,34 @@ impl RuntimeStore {
         &self,
         task_id: &str,
         assignee_handle: &str,
+    ) -> Result<OrchestrationDispatchContext> {
+        let dispatch = self
+            .create_scoped_orchestration_dispatch(
+                task_id,
+                assignee_handle,
+                None,
+                "global",
+                "coordinator",
+                None,
+                "return-immediately",
+                "keep-open",
+            )
+            .await?;
+        self.accept_orchestration_dispatch(&dispatch.id, assignee_handle, "")
+            .await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub async fn create_scoped_orchestration_dispatch(
+        &self,
+        task_id: &str,
+        assignee_handle: &str,
+        run_id: Option<&str>,
+        workspace_id: &str,
+        coordinator_handle: &str,
+        context_token_hash: Option<&str>,
+        completion_policy: &str,
+        terminal_policy: &str,
     ) -> Result<OrchestrationDispatchContext> {
         let mut tx = self.pool().begin().await?;
         let task_status: Option<String> =
@@ -96,7 +140,7 @@ impl RuntimeStore {
         }
         let busy: Option<String> = sqlx::query(
             "SELECT id FROM orchestrationDispatchContexts \
-             WHERE assignee_handle = ? AND status IN ('pending','dispatched') LIMIT 1",
+             WHERE assignee_handle = ? AND status IN ('pending','dispatched','awaiting_acceptance','stalled') LIMIT 1",
         )
         .bind(assignee_handle)
         .fetch_optional(&mut *tx)
@@ -117,13 +161,21 @@ impl RuntimeStore {
         let id = orchestration_id("ctx");
         sqlx::query(
             "INSERT INTO orchestrationDispatchContexts \
-             (id, task_id, assignee_handle, status, failure_count, dispatched_at) \
-             VALUES (?, ?, ?, 'dispatched', ?, datetime('now'))",
+             (id, task_id, assignee_handle, status, failure_count, dispatched_at, run_id, \
+              workspace_id, coordinator_handle, context_token_hash, completion_policy, terminal_policy, \
+              last_activity_at) \
+             VALUES (?, ?, ?, 'awaiting_acceptance', ?, datetime('now'), ?, ?, ?, ?, ?, ?, datetime('now'))",
         )
         .bind(&id)
         .bind(task_id)
         .bind(assignee_handle)
         .bind(carried_failures)
+        .bind(run_id)
+        .bind(workspace_id)
+        .bind(coordinator_handle)
+        .bind(context_token_hash)
+        .bind(completion_policy)
+        .bind(terminal_policy)
         .execute(&mut *tx)
         .await?;
         sqlx::query("UPDATE orchestrationTasks SET status = 'dispatched' WHERE id = ?")
@@ -156,7 +208,7 @@ impl RuntimeStore {
     ) -> Result<Option<OrchestrationDispatchContext>> {
         let row = sqlx::query(&format!(
             "SELECT {DISPATCH_COLUMNS} FROM orchestrationDispatchContexts \
-             WHERE task_id = ? AND status IN ('pending','dispatched') \
+             WHERE task_id = ? AND status IN ('pending','dispatched','awaiting_acceptance','stalled') \
              ORDER BY rowid DESC LIMIT 1"
         ))
         .bind(task_id)
@@ -171,8 +223,22 @@ impl RuntimeStore {
     ) -> Result<Option<OrchestrationDispatchContext>> {
         let row = sqlx::query(&format!(
             "SELECT {DISPATCH_COLUMNS} FROM orchestrationDispatchContexts \
-             WHERE assignee_handle = ? AND status IN ('pending','dispatched') \
+             WHERE assignee_handle = ? AND status IN ('pending','dispatched','awaiting_acceptance','stalled') \
              ORDER BY rowid DESC LIMIT 1"
+        ))
+        .bind(assignee_handle)
+        .fetch_optional(self.pool())
+        .await?;
+        row.map(dispatch_from_row).transpose()
+    }
+
+    pub async fn latest_orchestration_dispatch_for_handle(
+        &self,
+        assignee_handle: &str,
+    ) -> Result<Option<OrchestrationDispatchContext>> {
+        let row = sqlx::query(&format!(
+            "SELECT {DISPATCH_COLUMNS} FROM orchestrationDispatchContexts \
+             WHERE assignee_handle = ? ORDER BY rowid DESC LIMIT 1"
         ))
         .bind(assignee_handle)
         .fetch_optional(self.pool())
@@ -202,6 +268,16 @@ impl RuntimeStore {
         &self,
         dispatch_id: &str,
         error: &str,
+    ) -> Result<OrchestrationDispatchContext> {
+        self.fail_orchestration_dispatch_with_result(dispatch_id, error, None)
+            .await
+    }
+
+    pub async fn fail_orchestration_dispatch_with_result(
+        &self,
+        dispatch_id: &str,
+        error: &str,
+        result: Option<&str>,
     ) -> Result<OrchestrationDispatchContext> {
         let mut tx = self.pool().begin().await?;
         let row = sqlx::query(&format!(
@@ -239,13 +315,21 @@ impl RuntimeStore {
         .await?;
         sqlx::query(
             "UPDATE orchestrationTasks \
-             SET status = ?, \
+             SET status = ?, result = COALESCE(?, result), \
                  completed_at = CASE WHEN ? = 'failed' THEN datetime('now') ELSE NULL END \
              WHERE id = ?",
         )
         .bind(task_status.as_str())
+        .bind(result)
         .bind(task_status.as_str())
         .bind(&ctx.task_id)
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query(
+            "UPDATE orchestrationMessages SET state = 'obsolete', obsolete_at = datetime('now') \
+             WHERE dispatch_id = ? AND state = 'queued'",
+        )
+        .bind(dispatch_id)
         .execute(&mut *tx)
         .await?;
         if task_status == OrchestrationTaskStatus::Failed {
@@ -263,12 +347,232 @@ impl RuntimeStore {
         let result = sqlx::query(
             "UPDATE orchestrationDispatchContexts \
              SET last_heartbeat_at = datetime('now') \
-             WHERE id = ? AND status = 'dispatched'",
+             WHERE id = ? AND status IN ('dispatched','awaiting_acceptance')",
         )
         .bind(dispatch_id)
         .execute(self.pool())
         .await?;
         Ok(result.rows_affected() > 0)
+    }
+
+    pub async fn accept_orchestration_dispatch(
+        &self,
+        dispatch_id: &str,
+        assignee_handle: &str,
+        context_token_hash: &str,
+    ) -> Result<OrchestrationDispatchContext> {
+        let result = sqlx::query(
+            "UPDATE orchestrationDispatchContexts \
+             SET status = 'dispatched', accepted_at = COALESCE(accepted_at, datetime('now')), \
+                 last_activity_at = datetime('now') \
+             WHERE id = ? AND assignee_handle = ? \
+             AND (context_token_hash = ? OR context_token_hash IS NULL) \
+             AND status IN ('awaiting_acceptance','dispatched')",
+        )
+        .bind(dispatch_id)
+        .bind(assignee_handle)
+        .bind(context_token_hash)
+        .execute(self.pool())
+        .await?;
+        if result.rows_affected() == 0 {
+            bail!("dispatch acceptance rejected: stale context or wrong assignee");
+        }
+        self.orchestration_dispatch_by_id(dispatch_id)
+            .await?
+            .ok_or_else(|| anyhow!("dispatch context not found after acceptance: {dispatch_id}"))
+    }
+
+    pub async fn record_orchestration_activity(&self, dispatch_id: &str) -> Result<bool> {
+        let mut tx = self.pool().begin().await?;
+        let result = sqlx::query(
+            "UPDATE orchestrationDispatchContexts SET last_activity_at = datetime('now') \
+             WHERE id = ? AND status = 'dispatched'",
+        )
+        .bind(dispatch_id)
+        .execute(&mut *tx)
+        .await?;
+        if result.rows_affected() > 0 {
+            sqlx::query(
+                "UPDATE orchestrationCoordinatorRuns SET last_activity_at = datetime('now') \
+                 WHERE id = (SELECT run_id FROM orchestrationDispatchContexts WHERE id = ?)",
+            )
+            .bind(dispatch_id)
+            .execute(&mut *tx)
+            .await?;
+        }
+        tx.commit().await?;
+        Ok(result.rows_affected() > 0)
+    }
+
+    pub async fn fail_orchestration_startup(
+        &self,
+        dispatch_id: &str,
+        error: &str,
+    ) -> Result<OrchestrationDispatchContext> {
+        let mut tx = self.pool().begin().await?;
+        let row = sqlx::query(&format!(
+            "SELECT {DISPATCH_COLUMNS} FROM orchestrationDispatchContexts WHERE id = ?"
+        ))
+        .bind(dispatch_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+        let ctx = row
+            .map(dispatch_from_row)
+            .transpose()?
+            .ok_or_else(|| anyhow!("dispatch context not found: {dispatch_id}"))?;
+        if ctx.status == OrchestrationDispatchStatus::StartupFailed {
+            return Ok(ctx);
+        }
+        if ctx.status != OrchestrationDispatchStatus::AwaitingAcceptance {
+            bail!("dispatch {dispatch_id} is not awaiting acceptance");
+        }
+        sqlx::query(
+            "UPDATE orchestrationDispatchContexts SET status = 'startup_failed', startup_error = ?, \
+             completed_at = datetime('now') WHERE id = ?",
+        )
+        .bind(error)
+        .bind(dispatch_id)
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query(
+            "UPDATE orchestrationTasks SET startup_failure_count = startup_failure_count + 1, \
+             status = CASE WHEN startup_failure_count + 1 >= 3 THEN 'stalled' ELSE 'ready' END, \
+             stalled_at = CASE WHEN startup_failure_count + 1 >= 3 THEN datetime('now') ELSE NULL END \
+             WHERE id = ?",
+        )
+        .bind(&ctx.task_id)
+        .execute(&mut *tx)
+        .await?;
+        tx.commit().await?;
+        self.orchestration_dispatch_by_id(dispatch_id)
+            .await?
+            .ok_or_else(|| anyhow!("dispatch context not found after startup failure"))
+    }
+
+    pub async fn complete_orchestration_dispatch(
+        &self,
+        dispatch_id: &str,
+        assignee_handle: &str,
+        result: &str,
+    ) -> Result<OrchestrationDispatchContext> {
+        let mut tx = self.pool().begin().await?;
+        let row = sqlx::query(&format!(
+            "SELECT {DISPATCH_COLUMNS} FROM orchestrationDispatchContexts WHERE id = ?"
+        ))
+        .bind(dispatch_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+        let ctx = row
+            .map(dispatch_from_row)
+            .transpose()?
+            .ok_or_else(|| anyhow!("dispatch context not found: {dispatch_id}"))?;
+        if ctx.status == OrchestrationDispatchStatus::Completed {
+            if ctx.assignee_handle.as_deref() != Some(assignee_handle) {
+                bail!("dispatch completion rejected: inactive context or wrong assignee");
+            }
+            let task_status: Option<String> =
+                sqlx::query("SELECT status FROM orchestrationTasks WHERE id = ?")
+                    .bind(&ctx.task_id)
+                    .fetch_optional(&mut *tx)
+                    .await?
+                    .map(|row| row.try_get("status"))
+                    .transpose()?;
+            if task_status.as_deref() != Some("completed") {
+                bail!("dispatch completion rejected: dispatch closed without task completion");
+            }
+            return Ok(ctx);
+        }
+        if ctx.status != OrchestrationDispatchStatus::Dispatched
+            || ctx.assignee_handle.as_deref() != Some(assignee_handle)
+        {
+            bail!("dispatch completion rejected: inactive context or wrong assignee");
+        }
+        sqlx::query(
+            "UPDATE orchestrationDispatchContexts SET status = 'completed', \
+             completed_at = datetime('now'), last_activity_at = datetime('now') WHERE id = ?",
+        )
+        .bind(dispatch_id)
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query(
+            "UPDATE orchestrationTasks SET status = 'completed', result = ?, \
+             completed_at = datetime('now') WHERE id = ?",
+        )
+        .bind(result)
+        .bind(&ctx.task_id)
+        .execute(&mut *tx)
+        .await?;
+        refresh_pending_dependents_after_task_status(&mut tx, &ctx.task_id).await?;
+        sqlx::query(
+            "UPDATE orchestrationMessages SET state = 'obsolete', obsolete_at = datetime('now') \
+             WHERE dispatch_id = ? AND state = 'queued'",
+        )
+        .bind(dispatch_id)
+        .execute(&mut *tx)
+        .await?;
+        tx.commit().await?;
+        self.orchestration_dispatch_by_id(dispatch_id)
+            .await?
+            .ok_or_else(|| anyhow!("dispatch context not found after completion"))
+    }
+
+    pub async fn stall_expired_orchestration_dispatches(
+        &self,
+        threshold_iso: &str,
+    ) -> Result<Vec<OrchestrationDispatchContext>> {
+        let rows = sqlx::query(&format!(
+            "SELECT {DISPATCH_COLUMNS} FROM orchestrationDispatchContexts \
+             WHERE status = 'dispatched' AND COALESCE(last_activity_at, accepted_at, dispatched_at) < ?"
+        ))
+        .bind(threshold_iso)
+        .fetch_all(self.pool())
+        .await?;
+        let contexts: Vec<_> = rows
+            .into_iter()
+            .map(dispatch_from_row)
+            .collect::<Result<_>>()?;
+        for ctx in &contexts {
+            let mut tx = self.pool().begin().await?;
+            sqlx::query(
+                "UPDATE orchestrationDispatchContexts SET status = 'stalled' WHERE id = ? AND status = 'dispatched'",
+            )
+            .bind(&ctx.id)
+            .execute(&mut *tx)
+            .await?;
+            sqlx::query(
+                "UPDATE orchestrationTasks SET status = 'stalled', stalled_at = datetime('now') WHERE id = ?",
+            )
+            .bind(&ctx.task_id)
+            .execute(&mut *tx)
+            .await?;
+            tx.commit().await?;
+        }
+        Ok(contexts)
+    }
+
+    pub async fn expire_unaccepted_orchestration_dispatches(
+        &self,
+        threshold_iso: &str,
+    ) -> Result<Vec<OrchestrationDispatchContext>> {
+        let rows = sqlx::query(&format!(
+            "SELECT {DISPATCH_COLUMNS} FROM orchestrationDispatchContexts \
+             WHERE status = 'awaiting_acceptance' AND dispatched_at < ?"
+        ))
+        .bind(threshold_iso)
+        .fetch_all(self.pool())
+        .await?;
+        let contexts: Vec<_> = rows
+            .into_iter()
+            .map(dispatch_from_row)
+            .collect::<Result<_>>()?;
+        let mut expired = Vec::with_capacity(contexts.len());
+        for ctx in contexts {
+            expired.push(
+                self.fail_orchestration_startup(&ctx.id, "dispatch acceptance timed out")
+                    .await?,
+            );
+        }
+        Ok(expired)
     }
 
     /// Dispatched contexts whose dispatch and last heartbeat both predate the
@@ -279,7 +583,7 @@ impl RuntimeStore {
     ) -> Result<Vec<OrchestrationDispatchContext>> {
         let rows = sqlx::query(&format!(
             "SELECT {DISPATCH_COLUMNS} FROM orchestrationDispatchContexts \
-             WHERE status = 'dispatched' AND dispatched_at < ? \
+             WHERE status IN ('dispatched','awaiting_acceptance') AND dispatched_at < ? \
              AND (last_heartbeat_at IS NULL OR last_heartbeat_at < ?)"
         ))
         .bind(threshold_iso)
@@ -326,7 +630,7 @@ impl RuntimeStore {
         sqlx::query(
             "UPDATE orchestrationDispatchContexts \
              SET status = 'completed', completed_at = datetime('now') \
-             WHERE task_id = ? AND status IN ('pending','dispatched')",
+             WHERE task_id = ? AND status IN ('pending','dispatched','awaiting_acceptance','stalled')",
         )
         .bind(task_id)
         .execute(&mut *tx)
@@ -435,10 +739,30 @@ impl RuntimeStore {
         coordinator_handle: Option<&str>,
         poll_interval_ms: i64,
     ) -> Result<OrchestrationCoordinatorRun> {
+        self.create_scoped_orchestration_coordinator_run(
+            spec,
+            coordinator_handle,
+            poll_interval_ms,
+            "global",
+            4,
+        )
+        .await
+    }
+
+    pub async fn create_scoped_orchestration_coordinator_run(
+        &self,
+        spec: &str,
+        coordinator_handle: Option<&str>,
+        poll_interval_ms: i64,
+        workspace_id: &str,
+        max_concurrent: i64,
+    ) -> Result<OrchestrationCoordinatorRun> {
         let mut tx = self.pool().begin().await?;
         let active: Option<String> = sqlx::query(
-            "SELECT id FROM orchestrationCoordinatorRuns WHERE status = 'running' LIMIT 1",
+            "SELECT id FROM orchestrationCoordinatorRuns \
+             WHERE workspace_id = ? AND status IN ('running','stopping') LIMIT 1",
         )
+        .bind(workspace_id)
         .fetch_optional(&mut *tx)
         .await?
         .map(|row| row.try_get("id"))
@@ -449,13 +773,15 @@ impl RuntimeStore {
         let id = orchestration_id("run");
         sqlx::query(
             "INSERT INTO orchestrationCoordinatorRuns \
-             (id, spec, status, coordinator_handle, poll_interval_ms) \
-             VALUES (?, ?, 'running', ?, ?)",
+             (id, spec, status, coordinator_handle, poll_interval_ms, workspace_id, max_concurrent) \
+             VALUES (?, ?, 'running', ?, ?, ?, ?)",
         )
         .bind(&id)
         .bind(spec)
         .bind(coordinator_handle)
         .bind(poll_interval_ms)
+        .bind(workspace_id)
+        .bind(max_concurrent)
         .execute(&mut *tx)
         .await?;
         tx.commit().await?;
@@ -489,6 +815,27 @@ impl RuntimeStore {
         row.map(run_from_row).transpose()
     }
 
+    pub async fn list_orchestration_coordinator_runs(
+        &self,
+        workspace_id: Option<&str>,
+    ) -> Result<Vec<OrchestrationCoordinatorRun>> {
+        let mut sql = format!("SELECT {RUN_COLUMNS} FROM orchestrationCoordinatorRuns");
+        if workspace_id.is_some() {
+            sql.push_str(" WHERE workspace_id = ?");
+        }
+        sql.push_str(" ORDER BY created_at DESC, id DESC");
+        let mut query = sqlx::query(&sql);
+        if let Some(workspace_id) = workspace_id {
+            query = query.bind(workspace_id);
+        }
+        query
+            .fetch_all(self.pool())
+            .await?
+            .into_iter()
+            .map(run_from_row)
+            .collect()
+    }
+
     pub async fn finish_orchestration_coordinator_run(
         &self,
         id: &str,
@@ -503,5 +850,69 @@ impl RuntimeStore {
         .execute(self.pool())
         .await?;
         Ok(())
+    }
+
+    pub async fn stop_orchestration_coordinator_run(&self, id: &str, reason: &str) -> Result<()> {
+        sqlx::query(
+            "UPDATE orchestrationCoordinatorRuns \
+             SET status = 'stopped', completed_at = datetime('now'), stop_reason = ? \
+             WHERE id = ?",
+        )
+        .bind(reason)
+        .bind(id)
+        .execute(self.pool())
+        .await?;
+        Ok(())
+    }
+
+    pub async fn transfer_orchestration_run_coordinator(
+        &self,
+        run_id: &str,
+        actor_handle: &str,
+        new_coordinator_handle: &str,
+        reason: &str,
+        force: bool,
+    ) -> Result<OrchestrationCoordinatorRun> {
+        let run = self
+            .orchestration_coordinator_run_by_id(run_id)
+            .await?
+            .ok_or_else(|| anyhow!("coordinator run not found: {run_id}"))?;
+        if !force && run.coordinator_handle.as_deref() != Some(actor_handle) {
+            bail!("only the current coordinator can transfer this run; use --force for audited recovery");
+        }
+        let mut tx = self.pool().begin().await?;
+        sqlx::query("UPDATE orchestrationCoordinatorRuns SET coordinator_handle = ? WHERE id = ?")
+            .bind(new_coordinator_handle)
+            .bind(run_id)
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query("UPDATE orchestrationTasks SET coordinator_handle = ? WHERE run_id = ?")
+            .bind(new_coordinator_handle)
+            .bind(run_id)
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query(
+            "UPDATE orchestrationDispatchContexts SET coordinator_handle = ? \
+             WHERE run_id = ? AND status IN ('pending','dispatched','awaiting_acceptance','stalled')",
+        )
+        .bind(new_coordinator_handle)
+        .bind(run_id)
+        .execute(&mut *tx)
+        .await?;
+        tx.commit().await?;
+        self.insert_orchestration_audit_event(
+            Some(actor_handle),
+            if force {
+                "run.transfer.force"
+            } else {
+                "run.transfer"
+            },
+            run_id,
+            reason,
+        )
+        .await?;
+        self.orchestration_coordinator_run_by_id(run_id)
+            .await?
+            .ok_or_else(|| anyhow!("run not found after transfer"))
     }
 }
