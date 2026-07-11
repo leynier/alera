@@ -100,24 +100,27 @@ void main() {
       },
     );
 
-    test('resolveAleraReleaseTagPageUrl falls back without a releases segment', () {
-      expect(
-        resolveAleraReleaseTagPageUrl(
-          releasePageUrl: Uri.parse('https://example.com/downloads'),
-          version: '1.2.3',
-        ),
-        Uri.parse('https://example.com/downloads/tag/v1.2.3'),
-      );
-      expect(
-        resolveAleraReleaseTagPageUrl(
-          releasePageUrl: Uri.parse(
-            'https://github.com/leynier/alera/releases/tag/v0.9.0',
+    test(
+      'resolveAleraReleaseTagPageUrl falls back without a releases segment',
+      () {
+        expect(
+          resolveAleraReleaseTagPageUrl(
+            releasePageUrl: Uri.parse('https://example.com/downloads'),
+            version: '1.2.3',
           ),
-          version: '  ',
-        ),
-        Uri.parse('https://github.com/leynier/alera/releases/tag/v0.9.0'),
-      );
-    });
+          Uri.parse('https://example.com/downloads/tag/v1.2.3'),
+        );
+        expect(
+          resolveAleraReleaseTagPageUrl(
+            releasePageUrl: Uri.parse(
+              'https://github.com/leynier/alera/releases/tag/v0.9.0',
+            ),
+            version: '  ',
+          ),
+          Uri.parse('https://github.com/leynier/alera/releases/tag/v0.9.0'),
+        );
+      },
+    );
   });
 
   group('AleraUpdateState', () {
