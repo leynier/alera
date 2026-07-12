@@ -471,174 +471,45 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   }
 
   void _handlePrivateOsc(String code, List<String> args) {
-    if (code == '52') {
-      _handleOsc52(args);
-      return;
-    }
-    _osc8LinkTracker.handlePrivateOsc(code, args);
+    _handleTerminalPrivateOsc(this, code, args);
   }
 
-  void _handleOsc52(List<String> args) {
-    final request = parseTerminalOsc52Request(args);
-    if (request is! TerminalOsc52Write) {
-      return;
-    }
-    if (!_settings.allowOsc52Clipboard) {
-      _osc52Blocked();
-      return;
-    }
-    unawaited(
-      _clipboard.writeText(request.text).catchError((Object error) {
-        _notifyInteraction('Could Not Copy Terminal Selection.', error: true);
-      }),
-    );
-  }
-
-  Future<void> _pasteFromClipboard() async {
-    String? text;
-    try {
-      text = await _clipboard.readText();
-    } catch (_) {
-      // Image-only clipboards can reject text-flavor reads on some platforms.
-    }
-    if (_disposed) {
-      return;
-    }
-    if (text != null && text.isNotEmpty) {
-      _terminal.paste(text);
-      return;
-    }
-    try {
-      final imagePath = await _clipboard.saveImageAsTempFile();
-      if (_disposed || imagePath == null || imagePath.isEmpty) {
-        return;
-      }
-      // Shell quoting would corrupt the generated path for at least one of
-      // POSIX, PowerShell, cmd, or the foreground TUI. Let the terminal apply
-      // bracketed paste only when the foreground program enabled DECSET 2004.
-      _terminal.paste(sanitizeTerminalImagePastePath(imagePath));
-    } catch (error) {
-      _notifyInteraction('Could Not Paste Clipboard Image.', error: true);
-    }
-  }
+  Future<void> _pasteFromClipboard() => _pasteTerminalClipboard(this);
 
   void _handleSelectionChanged() {
-    _selectionCopyTimer?.cancel();
-    _selectionCopyTimer = null;
-    if (_disposed || !_settings.clipboardOnSelect) {
-      return;
-    }
-    final selection = _terminalController.selection;
-    if (selection == null) {
-      return;
-    }
-    _selectionCopyTimer = Timer(const Duration(milliseconds: 100), () {
-      if (_disposed || !_settings.clipboardOnSelect) {
-        return;
-      }
-      final currentSelection = _terminalController.selection;
-      if (currentSelection == null) {
-        return;
-      }
-      final text = _terminal.buffer.getText(currentSelection);
-      if (text.isEmpty) {
-        return;
-      }
-      unawaited(
-        _clipboard.writeText(text).catchError((Object error) {
-          _notifyInteraction('Could Not Copy Terminal Selection.', error: true);
-        }),
-      );
-    });
+    _handleTerminalSelectionChanged(this);
   }
 
   void _notifyInteraction(String message, {bool error = false}) {
-    _interactionNotice?.call(message, error: error);
+    _publishTerminalInteraction(this, message, error: error);
   }
 
-  xterm.Terminal _createTerminal() {
-    return xterm.Terminal(
-      maxLines: _settings.scrollbackLines,
-      platform: _xtermTargetPlatform,
-      wordSeparators: _wordSeparatorsFromSettings(_settings.wordSeparators),
-    );
-  }
+  xterm.Terminal _createTerminal() => _createSessionTerminal(this);
 
   void _attachTerminal(xterm.Terminal terminal) {
-    terminal.onTitleChange = _handleTitleChanged;
-    terminal.onOutput = _handleTerminalInput;
-    terminal.onResize = _handleTerminalResize;
-    terminal.onPrivateOSC = _handlePrivateOsc;
+    _attachSessionTerminal(this, terminal);
   }
 
   void _detachTerminal(xterm.Terminal terminal) {
-    terminal.onTitleChange = null;
-    terminal.onOutput = null;
-    terminal.onResize = null;
-    terminal.onPrivateOSC = null;
+    _detachSessionTerminal(terminal);
   }
 
-  void _handleTerminalOutput(String data) {
-    _queueTerminalOutput(data);
-  }
+  void _handleTerminalOutput(String data) => _queueTerminalOutput(data);
 
-  void _writeToTerminal(String data) {
-    if (data.isEmpty || _disposed) {
-      return;
-    }
-    _terminal.write(data);
-  }
+  void _writeToTerminal(String data) => _writeSessionTerminal(this, data);
 
-  void _queueTerminalOutput(String data) {
-    if (data.isEmpty || _disposed) {
-      return;
-    }
-    _pendingTerminalOutput.write(data);
-    _scheduleTerminalOutputFlush();
-  }
+  void _queueTerminalOutput(String data) =>
+      _queueSessionTerminalOutput(this, data);
 
-  void _scheduleTerminalOutputFlush() {
-    if (_terminalOutputFlushScheduled || _disposed) {
-      return;
-    }
-    _terminalOutputFlushScheduled = true;
-    SchedulerBinding.instance.scheduleFrameCallback((_) {
-      _flushPendingTerminalOutputFrame();
-    });
-    SchedulerBinding.instance.ensureVisualUpdate();
-  }
+  void _scheduleTerminalOutputFlush() =>
+      _scheduleSessionTerminalOutputFlush(this);
 
-  void _flushPendingTerminalOutputFrame() {
-    _terminalOutputFlushScheduled = false;
-    if (_disposed) {
-      _clearPendingTerminalOutput();
-      return;
-    }
-    final pending = _pendingTerminalOutput.toString();
-    if (pending.isEmpty) {
-      return;
-    }
-    final cutoff = _terminalOutputFrameCutoff(pending);
-    _clearPendingTerminalOutput();
-    _writeToTerminal(pending.substring(0, cutoff));
-    if (cutoff < pending.length) {
-      _pendingTerminalOutput.write(pending.substring(cutoff));
-      _scheduleTerminalOutputFlush();
-    }
-  }
+  void _flushPendingTerminalOutputFrame() =>
+      _flushSessionTerminalOutputFrame(this);
 
-  void _flushPendingTerminalOutputNow() {
-    if (_disposed || _pendingTerminalOutput.isEmpty) {
-      return;
-    }
-    final pending = _pendingTerminalOutput.toString();
-    _clearPendingTerminalOutput();
-    _writeToTerminal(pending);
-  }
+  void _flushPendingTerminalOutputNow() => _flushSessionTerminalOutputNow(this);
 
-  void _clearPendingTerminalOutput() {
-    _pendingTerminalOutput.clear();
-  }
+  void _clearPendingTerminalOutput() => _pendingTerminalOutput.clear();
 
   void _replaceTerminalWithSnapshot(
     List<int> data, {

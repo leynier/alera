@@ -30,6 +30,7 @@ part 'terminal_runtime_posix_adapter.dart';
 part 'terminal_runtime_ghostty_adapter.dart';
 part 'terminal_runtime_xterm_runtime.dart';
 part 'terminal_runtime_session_handle.dart';
+part 'terminal_runtime_clipboard.dart';
 part 'terminal_runtime_output_batching.dart';
 part 'terminal_runtime_startup_delivery.dart';
 part 'terminal_runtime_interactive_view.dart';
