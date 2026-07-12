@@ -20,4 +20,14 @@ void main() {
     expect(entry.matches('xai'), isTrue);
     expect(entry.groupId, 'hooks');
   });
+
+  test('terminal TUI interaction settings are searchable', () {
+    final entry = terminalSearchEntries.singleWhere(
+      (candidate) => candidate.title == 'TUI Scroll Speed',
+    );
+
+    expect(entry.matches('opencode'), isTrue);
+    expect(entry.matches('mouse wheel'), isTrue);
+    expect(entry.groupId, 'interaction');
+  });
 }

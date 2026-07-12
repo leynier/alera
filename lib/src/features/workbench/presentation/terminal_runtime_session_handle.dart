@@ -11,11 +11,15 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     this._agentHookEnvironmentBuilder,
     this._shellStartupPreparer,
     this._terminalProcessCreated,
+    this._clipboard,
+    this._interactionNotice,
+    this._osc52Blocked,
     this._onExit,
   ) {
     _terminal = _createTerminal();
     _osc8LinkTracker = Osc8TerminalLinkTracker(terminal: _terminal);
     _attachTerminal(_terminal);
+    _terminalController.addListener(_handleSelectionChanged);
     _decodedOutputSub = _ptyOutputController.stream
         .transform(const Utf8Decoder(allowMalformed: true))
         .listen(_handleTerminalOutput);
@@ -29,14 +33,18 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   final TerminalLaunchEnvironmentBuilder? _agentHookEnvironmentBuilder;
   final TerminalShellStartupPreparer? _shellStartupPreparer;
   final TerminalProcessCreated? _terminalProcessCreated;
+  final TerminalClipboard _clipboard;
+  final void Function(String message, {bool error})? _interactionNotice;
+  final VoidCallback _osc52Blocked;
   final void Function(TerminalRuntimeExitEvent event) _onExit;
   TerminalSettings _settings;
   late xterm.Terminal _terminal;
   late Osc8TerminalLinkTracker _osc8LinkTracker;
   final GlobalKey<xterm.TerminalViewState> _terminalViewKey =
       GlobalKey<xterm.TerminalViewState>();
-  final xterm.TerminalController _terminalController =
-      xterm.TerminalController();
+  final xterm.TerminalController _terminalController = xterm.TerminalController(
+    pointerInputs: const xterm.PointerInputs.all(),
+  );
 
   /// Survives TerminalSurface dispose/rebuild so scroll position is preserved
   /// when switching tabs and coming back.
@@ -49,6 +57,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   TerminalPtySession? _ptySession;
   StreamSubscription<TerminalPtySessionEvent>? _ptySessionSub;
   Timer? _pendingPtyResizeTimer;
+  Timer? _selectionCopyTimer;
   _TerminalPtySize? _pendingPtySize;
   int _ptyGeneration = 0;
   int _startAttempt = 0;
@@ -122,6 +131,12 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
 
   void applySettings(TerminalSettings settings) {
     _settings = settings;
+    if (!settings.clipboardOnSelect) {
+      _selectionCopyTimer?.cancel();
+      _selectionCopyTimer = null;
+    } else {
+      _handleSelectionChanged();
+    }
     notifyListeners();
   }
 
@@ -232,6 +247,9 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
       cursorBlink: _settings.cursorBlink,
       backgroundOpacity: _settings.backgroundOpacity,
       hardwareKeyboardOnly: _terminalHardwareKeyboardOnly,
+      mouseWheelSensitivity: _settings.tuiScrollSensitivity.clamp(1, 10),
+      onPaste: _pasteFromClipboard,
+      onCopy: _clipboard.writeText,
     );
   }
 
@@ -453,7 +471,89 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   }
 
   void _handlePrivateOsc(String code, List<String> args) {
+    if (code == '52') {
+      _handleOsc52(args);
+      return;
+    }
     _osc8LinkTracker.handlePrivateOsc(code, args);
+  }
+
+  void _handleOsc52(List<String> args) {
+    final request = parseTerminalOsc52Request(args);
+    if (request is! TerminalOsc52Write) {
+      return;
+    }
+    if (!_settings.allowOsc52Clipboard) {
+      _osc52Blocked();
+      return;
+    }
+    unawaited(
+      _clipboard.writeText(request.text).catchError((Object error) {
+        _notifyInteraction('Could Not Copy Terminal Selection.', error: true);
+      }),
+    );
+  }
+
+  Future<void> _pasteFromClipboard() async {
+    String? text;
+    try {
+      text = await _clipboard.readText();
+    } catch (_) {
+      // Image-only clipboards can reject text-flavor reads on some platforms.
+    }
+    if (_disposed) {
+      return;
+    }
+    if (text != null && text.isNotEmpty) {
+      _terminal.paste(text);
+      return;
+    }
+    try {
+      final imagePath = await _clipboard.saveImageAsTempFile();
+      if (_disposed || imagePath == null || imagePath.isEmpty) {
+        return;
+      }
+      // Shell quoting would corrupt the generated path for at least one of
+      // POSIX, PowerShell, cmd, or the foreground TUI. Let the terminal apply
+      // bracketed paste only when the foreground program enabled DECSET 2004.
+      _terminal.paste(sanitizeTerminalImagePastePath(imagePath));
+    } catch (error) {
+      _notifyInteraction('Could Not Paste Clipboard Image.', error: true);
+    }
+  }
+
+  void _handleSelectionChanged() {
+    _selectionCopyTimer?.cancel();
+    _selectionCopyTimer = null;
+    if (_disposed || !_settings.clipboardOnSelect) {
+      return;
+    }
+    final selection = _terminalController.selection;
+    if (selection == null) {
+      return;
+    }
+    _selectionCopyTimer = Timer(const Duration(milliseconds: 100), () {
+      if (_disposed || !_settings.clipboardOnSelect) {
+        return;
+      }
+      final currentSelection = _terminalController.selection;
+      if (currentSelection == null) {
+        return;
+      }
+      final text = _terminal.buffer.getText(currentSelection);
+      if (text.isEmpty) {
+        return;
+      }
+      unawaited(
+        _clipboard.writeText(text).catchError((Object error) {
+          _notifyInteraction('Could Not Copy Terminal Selection.', error: true);
+        }),
+      );
+    });
+  }
+
+  void _notifyInteraction(String message, {bool error = false}) {
+    _interactionNotice?.call(message, error: error);
   }
 
   xterm.Terminal _createTerminal() {
@@ -548,6 +648,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
       return;
     }
     _clearPendingTerminalOutput();
+    _terminalController.clearSelection();
     final previousTerminal = _terminal;
     final viewWidth = previousTerminal.viewWidth;
     final viewHeight = previousTerminal.viewHeight;
@@ -610,6 +711,8 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     _pendingPtyResizeTimer?.cancel();
     _pendingPtyResizeTimer = null;
     _pendingPtySize = null;
+    _selectionCopyTimer?.cancel();
+    _selectionCopyTimer = null;
     final generation = _activePtyGeneration;
     if (suppressExit && generation != null) {
       _suppressedExitPtyGenerations.add(generation);
@@ -652,6 +755,8 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     _visibilityLeases.clear();
     _visible = false;
     _osc8LinkTracker.dispose();
+    _terminalController.removeListener(_handleSelectionChanged);
+    _terminalController.dispose();
     _detachTerminal(_terminal);
     _clearPendingTerminalOutput();
     unawaited(

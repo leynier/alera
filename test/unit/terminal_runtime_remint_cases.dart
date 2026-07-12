@@ -14,6 +14,38 @@ void _registerXtermRuntimeRemintTests() {
     expect(cursorTerminal.reportFocusMode, isFalse);
     expect(cursorTerminal.appKeypadMode, isFalse);
 
+    for (final encodingMode in <int>[1005, 1015]) {
+      final terminal = xterm.Terminal()..write('\x1b[?${encodingMode}h');
+      expect(
+        terminal.mouseReportMode,
+        isNot(xterm.MouseReportMode.normal),
+        reason: 'mode $encodingMode enabled',
+      );
+
+      terminal.write(terminalInteractionModeReset);
+
+      expect(
+        terminal.mouseReportMode,
+        xterm.MouseReportMode.normal,
+        reason: 'mode $encodingMode reset',
+      );
+    }
+
+    final mouseOutput = <String>[];
+    final mouseTerminal = xterm.Terminal(onOutput: mouseOutput.add)
+      ..write('\x1b[?1000h\x1b[?1005h\x1b[?1006h\x1b[?1015h\x1b[?1016h');
+    expect(mouseTerminal.mouseReportMode, xterm.MouseReportMode.sgrPixels);
+    mouseTerminal
+      ..write(terminalInteractionModeReset)
+      ..write('\x1b[?1000h')
+      ..mouseInput(
+        xterm.TerminalMouseButton.left,
+        xterm.TerminalMouseButtonState.down,
+        const xterm.CellOffset(1, 2),
+      );
+    expect(mouseTerminal.mouseReportMode, xterm.MouseReportMode.normal);
+    expect(mouseOutput, <String>['\x1b[M "#']);
+
     for (final mode in <int>[47, 1047, 1049]) {
       final terminal = xterm.Terminal();
       terminal.write('\x1b[?${mode}h');

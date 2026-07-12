@@ -31,6 +31,7 @@ void _registerSettingsDialogAdvancedTests() {
     await tapStepper(AleraIcons.chevronUp, 8);
     await tapStepper(AleraIcons.chevronUp, 9);
     await tapStepper(AleraIcons.chevronUp, 10);
+    await tapStepper(AleraIcons.chevronUp, 11);
 
     Future<void> setSwatchColor(int index, Color color) async {
       final swatch = find.byType(AleraColorSwatch).at(index);
@@ -56,6 +57,10 @@ void _registerSettingsDialogAdvancedTests() {
     expect(after.backgroundOpacity, lessThan(before.backgroundOpacity));
     expect(after.paddingX, greaterThan(before.paddingX));
     expect(after.paddingY, greaterThan(before.paddingY));
+    expect(
+      after.tuiScrollSensitivity,
+      greaterThan(before.tuiScrollSensitivity),
+    );
     expect(after.scrollbackLines, greaterThan(before.scrollbackLines));
     expect(after.hostScrollbackBytes, greaterThan(before.hostScrollbackBytes));
     expect(

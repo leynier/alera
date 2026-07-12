@@ -32,6 +32,14 @@ abstract final class AleraToast {
       return;
     }
 
+    publish(message: message, tone: tone, duration: duration);
+  }
+
+  static void publish({
+    required String message,
+    AleraToastTone tone = AleraToastTone.info,
+    Duration? duration,
+  }) {
     final trimmedMessage = message.trim();
     if (trimmedMessage.isEmpty) {
       return;

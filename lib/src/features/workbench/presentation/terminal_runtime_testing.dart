@@ -153,6 +153,24 @@ void handlePrivateOscForTesting(
 }
 
 @visibleForTesting
+Future<void> pasteTerminalClipboardForTesting(TerminalSessionHandle session) {
+  return (session as _XtermTerminalSessionHandle)._pasteFromClipboard();
+}
+
+@visibleForTesting
+void selectTerminalRangeForTesting(
+  TerminalSessionHandle session,
+  xterm.CellOffset start,
+  xterm.CellOffset end,
+) {
+  final handle = session as _XtermTerminalSessionHandle;
+  handle._terminalController.setSelection(
+    handle._terminal.buffer.createAnchorFromOffset(start),
+    handle._terminal.buffer.createAnchorFromOffset(end),
+  );
+}
+
+@visibleForTesting
 FocusNode terminalFocusNodeForTesting(TerminalSessionHandle session) {
   return (session as _XtermTerminalSessionHandle)._focusNode;
 }

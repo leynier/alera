@@ -7,6 +7,7 @@
 // ignore_for_file: argument_type_not_assignable
 
 import 'api/agent_hooks.dart';
+import 'api/clipboard.dart';
 import 'api/git.dart';
 import 'api/merman_viewer.dart';
 import 'api/workspace_files.dart';

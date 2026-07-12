@@ -200,6 +200,43 @@ class TerminalSettingsPane extends StatelessWidget {
         ),
         const SizedBox(height: AleraTokens.space16),
         KeyedSubtree(
+          key: groupKeys['interaction'],
+          child: AleraSettingsGroup(
+            title: 'Interaction',
+            description: 'Mouse, scrolling and clipboard behavior for TUIs.',
+            children: <Widget>[
+              SettingsIntegerRow(
+                title: 'TUI Scroll Speed',
+                description:
+                    'Mouse reports sent per wheel step while a TUI owns scrolling.',
+                value: settings.tuiScrollSensitivity,
+                min: 1,
+                max: 10,
+                step: 1,
+                onChanged: (value) =>
+                    onChanged(settings.copyWith(tuiScrollSensitivity: value)),
+              ),
+              SettingsSwitchRow(
+                title: 'Copy On Select',
+                description:
+                    'Copy local terminal selections to the system clipboard.',
+                value: settings.clipboardOnSelect,
+                onChanged: (value) =>
+                    onChanged(settings.copyWith(clipboardOnSelect: value)),
+              ),
+              SettingsSwitchRow(
+                title: 'Allow OSC 52 Clipboard Writes',
+                description:
+                    'Let terminal applications replace the system clipboard.',
+                value: settings.allowOsc52Clipboard,
+                onChanged: (value) =>
+                    onChanged(settings.copyWith(allowOsc52Clipboard: value)),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AleraTokens.space16),
+        KeyedSubtree(
           key: groupKeys['advanced'],
           child: AleraSettingsGroup(
             title: 'Advanced',

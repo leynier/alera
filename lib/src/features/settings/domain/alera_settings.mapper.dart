@@ -336,6 +336,29 @@ class TerminalSettingsMapper extends ClassMapperBase<TerminalSettings> {
     'scrollbackLines',
     _$scrollbackLines,
   );
+  static int _$tuiScrollSensitivity(TerminalSettings v) =>
+      v.tuiScrollSensitivity;
+  static const Field<TerminalSettings, int> _f$tuiScrollSensitivity = Field(
+    'tuiScrollSensitivity',
+    _$tuiScrollSensitivity,
+    opt: true,
+    def: 1,
+  );
+  static bool _$clipboardOnSelect(TerminalSettings v) => v.clipboardOnSelect;
+  static const Field<TerminalSettings, bool> _f$clipboardOnSelect = Field(
+    'clipboardOnSelect',
+    _$clipboardOnSelect,
+    opt: true,
+    def: false,
+  );
+  static bool _$allowOsc52Clipboard(TerminalSettings v) =>
+      v.allowOsc52Clipboard;
+  static const Field<TerminalSettings, bool> _f$allowOsc52Clipboard = Field(
+    'allowOsc52Clipboard',
+    _$allowOsc52Clipboard,
+    opt: true,
+    def: false,
+  );
   static int _$hostEmptyShutdownDelaySeconds(TerminalSettings v) =>
       v.hostEmptyShutdownDelaySeconds;
   static const Field<TerminalSettings, int> _f$hostEmptyShutdownDelaySeconds =
@@ -378,6 +401,9 @@ class TerminalSettingsMapper extends ClassMapperBase<TerminalSettings> {
     #wordSeparators: _f$wordSeparators,
     #colorOverrides: _f$colorOverrides,
     #scrollbackLines: _f$scrollbackLines,
+    #tuiScrollSensitivity: _f$tuiScrollSensitivity,
+    #clipboardOnSelect: _f$clipboardOnSelect,
+    #allowOsc52Clipboard: _f$allowOsc52Clipboard,
     #hostEmptyShutdownDelaySeconds: _f$hostEmptyShutdownDelaySeconds,
     #hostDetachedSessionShutdownDelaySeconds:
         _f$hostDetachedSessionShutdownDelaySeconds,
@@ -400,6 +426,9 @@ class TerminalSettingsMapper extends ClassMapperBase<TerminalSettings> {
       wordSeparators: data.dec(_f$wordSeparators),
       colorOverrides: data.dec(_f$colorOverrides),
       scrollbackLines: data.dec(_f$scrollbackLines),
+      tuiScrollSensitivity: data.dec(_f$tuiScrollSensitivity),
+      clipboardOnSelect: data.dec(_f$clipboardOnSelect),
+      allowOsc52Clipboard: data.dec(_f$allowOsc52Clipboard),
       hostEmptyShutdownDelaySeconds: data.dec(_f$hostEmptyShutdownDelaySeconds),
       hostDetachedSessionShutdownDelaySeconds: data.dec(
         _f$hostDetachedSessionShutdownDelaySeconds,
@@ -491,6 +520,9 @@ abstract class TerminalSettingsCopyWith<$R, $In extends TerminalSettings, $Out>
     String? wordSeparators,
     TerminalColorOverrides? colorOverrides,
     int? scrollbackLines,
+    int? tuiScrollSensitivity,
+    bool? clipboardOnSelect,
+    bool? allowOsc52Clipboard,
     int? hostEmptyShutdownDelaySeconds,
     int? hostDetachedSessionShutdownDelaySeconds,
     int? hostScrollbackBytes,
@@ -532,6 +564,9 @@ class _TerminalSettingsCopyWithImpl<$R, $Out>
     Object? wordSeparators = $none,
     TerminalColorOverrides? colorOverrides,
     int? scrollbackLines,
+    int? tuiScrollSensitivity,
+    bool? clipboardOnSelect,
+    bool? allowOsc52Clipboard,
     int? hostEmptyShutdownDelaySeconds,
     int? hostDetachedSessionShutdownDelaySeconds,
     int? hostScrollbackBytes,
@@ -551,6 +586,11 @@ class _TerminalSettingsCopyWithImpl<$R, $Out>
       if (wordSeparators != $none) #wordSeparators: wordSeparators,
       if (colorOverrides != null) #colorOverrides: colorOverrides,
       if (scrollbackLines != null) #scrollbackLines: scrollbackLines,
+      if (tuiScrollSensitivity != null)
+        #tuiScrollSensitivity: tuiScrollSensitivity,
+      if (clipboardOnSelect != null) #clipboardOnSelect: clipboardOnSelect,
+      if (allowOsc52Clipboard != null)
+        #allowOsc52Clipboard: allowOsc52Clipboard,
       if (hostEmptyShutdownDelaySeconds != null)
         #hostEmptyShutdownDelaySeconds: hostEmptyShutdownDelaySeconds,
       if (hostDetachedSessionShutdownDelaySeconds != null)
@@ -579,6 +619,18 @@ class _TerminalSettingsCopyWithImpl<$R, $Out>
     wordSeparators: data.get(#wordSeparators, or: $value.wordSeparators),
     colorOverrides: data.get(#colorOverrides, or: $value.colorOverrides),
     scrollbackLines: data.get(#scrollbackLines, or: $value.scrollbackLines),
+    tuiScrollSensitivity: data.get(
+      #tuiScrollSensitivity,
+      or: $value.tuiScrollSensitivity,
+    ),
+    clipboardOnSelect: data.get(
+      #clipboardOnSelect,
+      or: $value.clipboardOnSelect,
+    ),
+    allowOsc52Clipboard: data.get(
+      #allowOsc52Clipboard,
+      or: $value.allowOsc52Clipboard,
+    ),
     hostEmptyShutdownDelaySeconds: data.get(
       #hostEmptyShutdownDelaySeconds,
       or: $value.hostEmptyShutdownDelaySeconds,
