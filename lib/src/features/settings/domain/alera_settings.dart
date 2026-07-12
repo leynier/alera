@@ -65,6 +65,9 @@ class TerminalSettings with TerminalSettingsMappable {
     this.wordSeparators,
     this.colorOverrides = const TerminalColorOverrides(),
     required this.scrollbackLines,
+    this.tuiScrollSensitivity = 1,
+    this.clipboardOnSelect = false,
+    this.allowOsc52Clipboard = false,
     this.hostEmptyShutdownDelaySeconds = 30,
     this.hostDetachedSessionShutdownDelaySeconds = 60 * 60,
     this.hostScrollbackBytes = 10 * 1000 * 1000,
@@ -84,6 +87,9 @@ class TerminalSettings with TerminalSettingsMappable {
   final String? wordSeparators;
   final TerminalColorOverrides colorOverrides;
   final int scrollbackLines;
+  final int tuiScrollSensitivity;
+  final bool clipboardOnSelect;
+  final bool allowOsc52Clipboard;
   final int hostEmptyShutdownDelaySeconds;
   final int hostDetachedSessionShutdownDelaySeconds;
   final int hostScrollbackBytes;
@@ -104,6 +110,9 @@ class TerminalSettings with TerminalSettingsMappable {
     themeName: TerminalThemeNames.aleraDark,
     backgroundOpacity: 1,
     scrollbackLines: 10000,
+    tuiScrollSensitivity: 1,
+    clipboardOnSelect: false,
+    allowOsc52Clipboard: false,
     hostEmptyShutdownDelaySeconds: 30,
     hostDetachedSessionShutdownDelaySeconds: 60 * 60,
     hostScrollbackBytes: 10 * 1000 * 1000,

@@ -3,6 +3,7 @@ import 'dart:io' show Platform;
 
 import 'package:alera/src/features/agent_status/application/agent_status_controller.dart';
 import 'package:alera/src/features/agent_status/application/agent_status_providers.dart';
+import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/features/projects/application/project_providers.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
@@ -207,6 +208,15 @@ TerminalRuntime terminalRuntime(Ref ref) {
     terminalProcessCreated: (terminalSessionId) => ref
         .read(agentStatusControllerProvider.notifier)
         .clearTerminal(terminalSessionId),
+    interactionNotice: (message, {error = false}) {
+      AleraToast.publish(
+        message: message,
+        tone: error ? AleraToastTone.error : AleraToastTone.info,
+        duration: error
+            ? const Duration(seconds: 6)
+            : const Duration(seconds: 12),
+      );
+    },
     agentHookEnvironmentBuilder:
         ({required terminalSessionId, required workspaceId, required tabId}) {
           final environment = <String, String>{};

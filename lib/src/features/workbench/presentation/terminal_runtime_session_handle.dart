@@ -11,11 +11,15 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     this._agentHookEnvironmentBuilder,
     this._shellStartupPreparer,
     this._terminalProcessCreated,
+    this._clipboard,
+    this._interactionNotice,
+    this._osc52Blocked,
     this._onExit,
   ) {
     _terminal = _createTerminal();
     _osc8LinkTracker = Osc8TerminalLinkTracker(terminal: _terminal);
     _attachTerminal(_terminal);
+    _terminalController.addListener(_handleSelectionChanged);
     _decodedOutputSub = _ptyOutputController.stream
         .transform(const Utf8Decoder(allowMalformed: true))
         .listen(_handleTerminalOutput);
@@ -29,14 +33,18 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   final TerminalLaunchEnvironmentBuilder? _agentHookEnvironmentBuilder;
   final TerminalShellStartupPreparer? _shellStartupPreparer;
   final TerminalProcessCreated? _terminalProcessCreated;
+  final TerminalClipboard _clipboard;
+  final void Function(String message, {bool error})? _interactionNotice;
+  final VoidCallback _osc52Blocked;
   final void Function(TerminalRuntimeExitEvent event) _onExit;
   TerminalSettings _settings;
   late xterm.Terminal _terminal;
   late Osc8TerminalLinkTracker _osc8LinkTracker;
   final GlobalKey<xterm.TerminalViewState> _terminalViewKey =
       GlobalKey<xterm.TerminalViewState>();
-  final xterm.TerminalController _terminalController =
-      xterm.TerminalController();
+  final xterm.TerminalController _terminalController = xterm.TerminalController(
+    pointerInputs: const xterm.PointerInputs.all(),
+  );
 
   /// Survives TerminalSurface dispose/rebuild so scroll position is preserved
   /// when switching tabs and coming back.
@@ -49,6 +57,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   TerminalPtySession? _ptySession;
   StreamSubscription<TerminalPtySessionEvent>? _ptySessionSub;
   Timer? _pendingPtyResizeTimer;
+  Timer? _selectionCopyTimer;
   _TerminalPtySize? _pendingPtySize;
   int _ptyGeneration = 0;
   int _startAttempt = 0;
@@ -122,6 +131,12 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
 
   void applySettings(TerminalSettings settings) {
     _settings = settings;
+    if (!settings.clipboardOnSelect) {
+      _selectionCopyTimer?.cancel();
+      _selectionCopyTimer = null;
+    } else {
+      _handleSelectionChanged();
+    }
     notifyListeners();
   }
 
@@ -232,6 +247,9 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
       cursorBlink: _settings.cursorBlink,
       backgroundOpacity: _settings.backgroundOpacity,
       hardwareKeyboardOnly: _terminalHardwareKeyboardOnly,
+      mouseWheelSensitivity: _settings.tuiScrollSensitivity.clamp(1, 10),
+      onPaste: _pasteFromClipboard,
+      onCopy: _clipboard.writeText,
     );
   }
 
@@ -453,92 +471,45 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
   }
 
   void _handlePrivateOsc(String code, List<String> args) {
-    _osc8LinkTracker.handlePrivateOsc(code, args);
+    _handleTerminalPrivateOsc(this, code, args);
   }
 
-  xterm.Terminal _createTerminal() {
-    return xterm.Terminal(
-      maxLines: _settings.scrollbackLines,
-      platform: _xtermTargetPlatform,
-      wordSeparators: _wordSeparatorsFromSettings(_settings.wordSeparators),
-    );
+  Future<void> _pasteFromClipboard() => _pasteTerminalClipboard(this);
+
+  void _handleSelectionChanged() {
+    _handleTerminalSelectionChanged(this);
   }
+
+  void _notifyInteraction(String message, {bool error = false}) {
+    _publishTerminalInteraction(this, message, error: error);
+  }
+
+  xterm.Terminal _createTerminal() => _createSessionTerminal(this);
 
   void _attachTerminal(xterm.Terminal terminal) {
-    terminal.onTitleChange = _handleTitleChanged;
-    terminal.onOutput = _handleTerminalInput;
-    terminal.onResize = _handleTerminalResize;
-    terminal.onPrivateOSC = _handlePrivateOsc;
+    _attachSessionTerminal(this, terminal);
   }
 
   void _detachTerminal(xterm.Terminal terminal) {
-    terminal.onTitleChange = null;
-    terminal.onOutput = null;
-    terminal.onResize = null;
-    terminal.onPrivateOSC = null;
+    _detachSessionTerminal(terminal);
   }
 
-  void _handleTerminalOutput(String data) {
-    _queueTerminalOutput(data);
-  }
+  void _handleTerminalOutput(String data) => _queueTerminalOutput(data);
 
-  void _writeToTerminal(String data) {
-    if (data.isEmpty || _disposed) {
-      return;
-    }
-    _terminal.write(data);
-  }
+  void _writeToTerminal(String data) => _writeSessionTerminal(this, data);
 
-  void _queueTerminalOutput(String data) {
-    if (data.isEmpty || _disposed) {
-      return;
-    }
-    _pendingTerminalOutput.write(data);
-    _scheduleTerminalOutputFlush();
-  }
+  void _queueTerminalOutput(String data) =>
+      _queueSessionTerminalOutput(this, data);
 
-  void _scheduleTerminalOutputFlush() {
-    if (_terminalOutputFlushScheduled || _disposed) {
-      return;
-    }
-    _terminalOutputFlushScheduled = true;
-    SchedulerBinding.instance.scheduleFrameCallback((_) {
-      _flushPendingTerminalOutputFrame();
-    });
-    SchedulerBinding.instance.ensureVisualUpdate();
-  }
+  void _scheduleTerminalOutputFlush() =>
+      _scheduleSessionTerminalOutputFlush(this);
 
-  void _flushPendingTerminalOutputFrame() {
-    _terminalOutputFlushScheduled = false;
-    if (_disposed) {
-      _clearPendingTerminalOutput();
-      return;
-    }
-    final pending = _pendingTerminalOutput.toString();
-    if (pending.isEmpty) {
-      return;
-    }
-    final cutoff = _terminalOutputFrameCutoff(pending);
-    _clearPendingTerminalOutput();
-    _writeToTerminal(pending.substring(0, cutoff));
-    if (cutoff < pending.length) {
-      _pendingTerminalOutput.write(pending.substring(cutoff));
-      _scheduleTerminalOutputFlush();
-    }
-  }
+  void _flushPendingTerminalOutputFrame() =>
+      _flushSessionTerminalOutputFrame(this);
 
-  void _flushPendingTerminalOutputNow() {
-    if (_disposed || _pendingTerminalOutput.isEmpty) {
-      return;
-    }
-    final pending = _pendingTerminalOutput.toString();
-    _clearPendingTerminalOutput();
-    _writeToTerminal(pending);
-  }
+  void _flushPendingTerminalOutputNow() => _flushSessionTerminalOutputNow(this);
 
-  void _clearPendingTerminalOutput() {
-    _pendingTerminalOutput.clear();
-  }
+  void _clearPendingTerminalOutput() => _pendingTerminalOutput.clear();
 
   void _replaceTerminalWithSnapshot(
     List<int> data, {
@@ -548,6 +519,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
       return;
     }
     _clearPendingTerminalOutput();
+    _terminalController.clearSelection();
     final previousTerminal = _terminal;
     final viewWidth = previousTerminal.viewWidth;
     final viewHeight = previousTerminal.viewHeight;
@@ -610,6 +582,8 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     _pendingPtyResizeTimer?.cancel();
     _pendingPtyResizeTimer = null;
     _pendingPtySize = null;
+    _selectionCopyTimer?.cancel();
+    _selectionCopyTimer = null;
     final generation = _activePtyGeneration;
     if (suppressExit && generation != null) {
       _suppressedExitPtyGenerations.add(generation);
@@ -652,6 +626,8 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
     _visibilityLeases.clear();
     _visible = false;
     _osc8LinkTracker.dispose();
+    _terminalController.removeListener(_handleSelectionChanged);
+    _terminalController.dispose();
     _detachTerminal(_terminal);
     _clearPendingTerminalOutput();
     unawaited(

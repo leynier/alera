@@ -10,6 +10,8 @@ class XtermTerminalRuntime implements TerminalRuntime {
     TerminalShellStartupPreparer? shellStartupPreparer,
     TerminalSessionCleanup? terminalSessionCleanup,
     TerminalProcessCreated? terminalProcessCreated,
+    TerminalClipboard? terminalClipboard,
+    void Function(String message, {bool error})? interactionNotice,
   }) {
     return XtermTerminalRuntime._(
       ptySessionFactory ?? const DefaultTerminalPtySessionFactory(),
@@ -20,6 +22,8 @@ class XtermTerminalRuntime implements TerminalRuntime {
       shellStartupPreparer,
       terminalSessionCleanup,
       terminalProcessCreated,
+      terminalClipboard ?? const NativeTerminalClipboard(),
+      interactionNotice,
     );
   }
 
@@ -32,6 +36,8 @@ class XtermTerminalRuntime implements TerminalRuntime {
     this._shellStartupPreparer,
     this._terminalSessionCleanup,
     this._terminalProcessCreated,
+    this._terminalClipboard,
+    this._interactionNotice,
   );
 
   final TerminalPtySessionFactory _ptySessionFactory;
@@ -41,11 +47,14 @@ class XtermTerminalRuntime implements TerminalRuntime {
   final TerminalShellStartupPreparer? _shellStartupPreparer;
   final TerminalSessionCleanup? _terminalSessionCleanup;
   final TerminalProcessCreated? _terminalProcessCreated;
+  final TerminalClipboard _terminalClipboard;
+  final void Function(String message, {bool error})? _interactionNotice;
   TerminalSettings _settings;
   final StreamController<TerminalRuntimeExitEvent> _exitController =
       StreamController<TerminalRuntimeExitEvent>.broadcast();
   final Map<String, _XtermTerminalSessionHandle> _sessions =
       <String, _XtermTerminalSessionHandle>{};
+  bool _osc52BlockedNoticeShown = false;
 
   @override
   Stream<TerminalRuntimeExitEvent> get exits => _exitController.stream;
@@ -74,10 +83,23 @@ class XtermTerminalRuntime implements TerminalRuntime {
             _agentHookEnvironmentBuilder,
             _shellStartupPreparer,
             _terminalProcessCreated,
+            _terminalClipboard,
+            _interactionNotice,
+            _notifyOsc52Blocked,
             _handleSessionExit,
           );
         })
         .sync(workspace: workspace, tab: tab);
+  }
+
+  void _notifyOsc52Blocked() {
+    if (_osc52BlockedNoticeShown) {
+      return;
+    }
+    _osc52BlockedNoticeShown = true;
+    _interactionNotice?.call(
+      'Terminal Clipboard Write Blocked. Enable OSC 52 Clipboard Writes In Terminal Settings.',
+    );
   }
 
   void _handleSessionExit(TerminalRuntimeExitEvent event) {

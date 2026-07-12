@@ -86,6 +86,39 @@ class _FakeTerminalPtySessionFactory implements TerminalPtySessionFactory {
   }
 }
 
+class _FakeTerminalClipboard implements TerminalClipboard {
+  _FakeTerminalClipboard({this.text, this.imagePath});
+
+  String? text;
+  String? imagePath;
+  Object? readError;
+  Object? imageError;
+  final List<String> writes = <String>[];
+  int imageReadCount = 0;
+
+  @override
+  Future<String?> readText() async {
+    if (readError case final error?) {
+      throw error;
+    }
+    return text;
+  }
+
+  @override
+  Future<String?> saveImageAsTempFile() async {
+    imageReadCount += 1;
+    if (imageError case final error?) {
+      throw error;
+    }
+    return imagePath;
+  }
+
+  @override
+  Future<void> writeText(String text) async {
+    writes.add(text);
+  }
+}
+
 class _RecordingTerminalShellStartupPreparer
     implements TerminalShellStartupPreparer {
   final List<GhosttyTerminalShellLaunch> launches =

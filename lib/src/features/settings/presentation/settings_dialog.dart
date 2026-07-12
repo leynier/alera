@@ -122,6 +122,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
       SettingsGroupSpec(id: 'typography', title: 'Typography'),
       SettingsGroupSpec(id: 'cursor', title: 'Cursor'),
       SettingsGroupSpec(id: 'appearance', title: 'Appearance'),
+      SettingsGroupSpec(id: 'interaction', title: 'Interaction'),
       SettingsGroupSpec(id: 'advanced', title: 'Advanced'),
     ];
 

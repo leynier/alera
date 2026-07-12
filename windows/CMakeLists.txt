@@ -67,7 +67,8 @@ set(ALERA_CLI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../rust")
 set(ALERA_CLI_PROFILE_DIR "$<IF:$<CONFIG:Release>,release,debug>")
 set(ALERA_CLI_OUTPUT "${ALERA_CLI_DIR}/target/${ALERA_CLI_PROFILE_DIR}/alera.exe")
 add_custom_target(alera_cli_sidecar ALL
-  COMMAND "${CARGO_EXECUTABLE}" build --locked -p alera-cli $<$<CONFIG:Release>:--release>
+  COMMAND "${CARGO_EXECUTABLE}" build --locked -p alera-cli
+    --profile $<IF:$<CONFIG:Release>,release,dev>
   BYPRODUCTS "${ALERA_CLI_OUTPUT}"
   WORKING_DIRECTORY "${ALERA_CLI_DIR}"
   COMMENT "Building Alera CLI sidecar (Rust)"

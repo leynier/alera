@@ -309,6 +309,24 @@ const List<SettingsSearchEntry> terminalSearchEntries = <SettingsSearchEntry>[
     groupId: 'appearance',
   ),
   SettingsSearchEntry(
+    title: 'TUI Scroll Speed',
+    description: 'Mouse wheel speed for interactive terminal applications.',
+    keywords: <String>['mouse', 'wheel', 'opencode', 'amp', 'claude'],
+    groupId: 'interaction',
+  ),
+  SettingsSearchEntry(
+    title: 'Copy On Select',
+    description: 'Copy local terminal selections automatically.',
+    keywords: <String>['clipboard', 'selection', 'mouse'],
+    groupId: 'interaction',
+  ),
+  SettingsSearchEntry(
+    title: 'Allow OSC 52 Clipboard Writes',
+    description: 'Allow terminal applications to replace the clipboard.',
+    keywords: <String>['clipboard', 'tui', 'ssh', 'tmux', 'osc52'],
+    groupId: 'interaction',
+  ),
+  SettingsSearchEntry(
     title: 'Scrollback Lines',
     description: 'Maximum terminal history retained per session.',
     keywords: <String>['history', 'buffer'],
