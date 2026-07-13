@@ -15,6 +15,9 @@ void main() {
         DateTime.utc(2026, 5, 26, 1, 2),
         DateTime.utc(2026, 5, 26, 1, 3),
         DateTime.utc(2026, 5, 26, 1, 4),
+        DateTime.utc(2026, 5, 26, 1, 5),
+        DateTime.utc(2026, 5, 26, 1, 6),
+        DateTime.utc(2026, 5, 26, 1, 7),
       ];
       var index = 0;
       container = ProviderContainer(
@@ -70,6 +73,73 @@ void main() {
       expect(entry.toolInput, 'dart format .');
       expect(entry.lastAssistantMessage, 'All set.');
       expect(entry.interrupted, isTrue);
+    });
+
+    test('keeps Amp lifecycle scoped to each completed thread', () {
+      final controller = container.read(agentStatusControllerProvider.notifier);
+
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.amp,
+          hookEventName: 'session.start',
+          payload: <String, Object?>{'threadId': 'thread-1'},
+        ),
+      );
+      expect(container.read(agentStatusControllerProvider), isEmpty);
+
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.amp,
+          hookEventName: 'agent.start',
+          payload: <String, Object?>{
+            'threadId': 'thread-1',
+            'message': 'first turn',
+          },
+        ),
+      );
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.amp,
+          hookEventName: 'agent.end',
+          payload: <String, Object?>{'threadId': 'thread-1', 'status': 'done'},
+        ),
+      );
+      final completed = container.read(
+        agentStatusControllerProvider,
+      )['session-1']!;
+      expect(completed.state, AgentStatusState.done);
+
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.amp,
+          hookEventName: 'tool.result',
+          payload: <String, Object?>{
+            'threadId': 'thread-1',
+            'tool': 'bash',
+            'input': <String, Object?>{'command': 'late command'},
+          },
+        ),
+      );
+      expect(
+        container.read(agentStatusControllerProvider)['session-1'],
+        same(completed),
+      );
+
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.amp,
+          hookEventName: 'agent.start',
+          payload: <String, Object?>{
+            'threadId': 'thread-2',
+            'message': 'second turn',
+          },
+        ),
+      );
+      final nextTurn = container.read(
+        agentStatusControllerProvider,
+      )['session-1']!;
+      expect(nextTurn.state, AgentStatusState.working);
+      expect(nextTurn.prompt, 'second turn');
     });
 
     test('marks active terminal exits as inferred done', () {

@@ -20,6 +20,11 @@ void main() {
         DateTime.utc(2026, 5, 26, 1, 4),
         DateTime.utc(2026, 5, 26, 1, 5),
         DateTime.utc(2026, 5, 26, 1, 6),
+        DateTime.utc(2026, 5, 26, 1, 7),
+        DateTime.utc(2026, 5, 26, 1, 8),
+        DateTime.utc(2026, 5, 26, 1, 9),
+        DateTime.utc(2026, 5, 26, 1, 10),
+        DateTime.utc(2026, 5, 26, 1, 11),
       ];
       var index = 0;
       container = ProviderContainer(
@@ -328,15 +333,83 @@ void main() {
         _event(
           agentType: AgentType.agy,
           hookEventName: 'Stop',
-          payload: <String, Object?>{},
+          payload: <String, Object?>{
+            'fullyIdle': false,
+            'transcriptPath': '/tmp/agy-turn.jsonl',
+          },
         ),
       );
 
-      final stoppedEntry = container.read(
+      var stoppedEntry = container.read(
+        agentStatusControllerProvider,
+      )['session-1']!;
+      expect(stoppedEntry.state, AgentStatusState.working);
+
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.agy,
+          hookEventName: 'PostToolUse',
+          payload: <String, Object?>{
+            'transcriptPath': '/tmp/agy-turn.jsonl',
+            'toolCall': <String, Object?>{
+              'name': 'run_command',
+              'args': <String, Object?>{'CommandLine': 'flutter test'},
+            },
+          },
+        ),
+      );
+      expect(
+        container.read(agentStatusControllerProvider)['session-1']!.toolName,
+        'run_command',
+      );
+
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.agy,
+          hookEventName: 'Stop',
+          payload: <String, Object?>{
+            'fullyIdle': true,
+            'transcriptPath': '/tmp/agy-turn.jsonl',
+          },
+        ),
+      );
+      stoppedEntry = container.read(
         agentStatusControllerProvider,
       )['session-1']!;
       expect(stoppedEntry.state, AgentStatusState.done);
       expect(stoppedEntry.prompt, 'fix test');
+
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.agy,
+          hookEventName: 'PostToolUse',
+          payload: <String, Object?>{
+            'transcriptPath': '/tmp/agy-turn.jsonl',
+            'toolCall': <String, Object?>{
+              'name': 'run_command',
+              'args': <String, Object?>{'CommandLine': 'late command'},
+            },
+          },
+        ),
+      );
+      expect(
+        container.read(agentStatusControllerProvider)['session-1'],
+        same(stoppedEntry),
+      );
+
+      controller.applyHookEvent(
+        _event(
+          agentType: AgentType.agy,
+          hookEventName: 'PreInvocation',
+          payload: <String, Object?>{'prompt': 'next turn'},
+        ),
+      );
+      final nextTurn = container.read(
+        agentStatusControllerProvider,
+      )['session-1']!;
+      expect(nextTurn.state, AgentStatusState.working);
+      expect(nextTurn.prompt, 'next turn');
+      expect(nextTurn.toolName, isNull);
     });
 
     test('normalizes Cursor tool, waiting, done, and response states', () {

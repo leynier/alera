@@ -2,10 +2,7 @@ part of '../agent_hook_event_normalizer.dart';
 
 AgentStatusState? _normalizeAmpState(String eventName) {
   return switch (eventName) {
-    'session.start' ||
-    'agent.start' ||
-    'tool.call' ||
-    'tool.result' => AgentStatusState.working,
+    'agent.start' || 'tool.call' || 'tool.result' => AgentStatusState.working,
     'agent.end' => AgentStatusState.done,
     _ => null,
   };

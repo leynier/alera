@@ -559,6 +559,8 @@ void main() {
       ).readAsStringSync();
       expect(statusPlugin, contains('ALERA_AGENT_STATUS_MANAGED_FILE'));
       expect(statusPlugin, contains('/hook/amp'));
+      expect(statusPlugin, contains('const MAX_PENDING_POSTS = 50'));
+      expect(statusPlugin, contains("enqueuePost('agent.start'"));
       expect(
         File(p.join(plugins.path, 'alera-agent-status.ts')).readAsStringSync(),
         'USER OWNED PLUGIN\n',

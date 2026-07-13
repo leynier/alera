@@ -1,8 +1,15 @@
 part of '../agent_hook_event_normalizer.dart';
 
-AgentStatusState? _normalizeAgyState(String eventName, String? toolName) {
+AgentStatusState? _normalizeAgyState(
+  String eventName,
+  String? toolName,
+  Map<String, Object?> payload,
+) {
   if (eventName == 'PreToolUse' && _isAgyFeedbackTool(toolName)) {
     return AgentStatusState.waiting;
+  }
+  if (eventName == 'Stop' && _agyStopStillBusy(payload)) {
+    return AgentStatusState.working;
   }
   return switch (eventName) {
     'PreInvocation' ||
@@ -12,6 +19,10 @@ AgentStatusState? _normalizeAgyState(String eventName, String? toolName) {
     'Stop' => AgentStatusState.done,
     _ => null,
   };
+}
+
+bool _agyStopStillBusy(Map<String, Object?> payload) {
+  return payload['fullyIdle'] == false || payload['fully_idle'] == false;
 }
 
 bool _isAgyNewTurn(String eventName) {

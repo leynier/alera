@@ -604,6 +604,59 @@ void main() {
       );
       expect(normalized?.state, AgentStatusState.working);
       expect(normalized?.prompt, 'Ship the feature');
+      expect(
+        normalizeAgentHookEvent(
+          _event(
+            agentType: AgentType.amp,
+            hookEventName: 'session.start',
+            payload: const <String, Object?>{'threadId': 'thread-1'},
+          ),
+        ),
+        isNull,
+      );
+    });
+
+    test('keeps AGY working until Stop reports fully idle', () {
+      expect(
+        normalizeAgentHookEvent(
+          _event(
+            agentType: AgentType.agy,
+            hookEventName: 'Stop',
+            payload: const <String, Object?>{'fullyIdle': false},
+          ),
+        )?.state,
+        AgentStatusState.working,
+      );
+      expect(
+        normalizeAgentHookEvent(
+          _event(
+            agentType: AgentType.agy,
+            hookEventName: 'Stop',
+            payload: const <String, Object?>{'fully_idle': false},
+          ),
+        )?.state,
+        AgentStatusState.working,
+      );
+      expect(
+        normalizeAgentHookEvent(
+          _event(
+            agentType: AgentType.agy,
+            hookEventName: 'Stop',
+            payload: const <String, Object?>{'fullyIdle': true},
+          ),
+        )?.state,
+        AgentStatusState.done,
+      );
+      expect(
+        normalizeAgentHookEvent(
+          _event(
+            agentType: AgentType.agy,
+            hookEventName: 'Stop',
+            payload: const <String, Object?>{},
+          ),
+        )?.state,
+        AgentStatusState.done,
+      );
     });
   });
 }

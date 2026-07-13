@@ -39,7 +39,7 @@ NormalizedAgentStatus? normalizeAgentHookEvent(
   AgentHookEvent event, {
   AgentStatusEntry? previous,
 }) {
-  final eventName = _hookEventName(event);
+  final eventName = agentHookEventName(event);
   if (eventName == null) {
     return null;
   }
@@ -53,7 +53,11 @@ NormalizedAgentStatus? normalizeAgentHookEvent(
       toolSnapshot.toolName,
     ),
     AgentType.cursor => _normalizeCursorState(eventName, previous),
-    AgentType.agy => _normalizeAgyState(eventName, toolSnapshot.toolName),
+    AgentType.agy => _normalizeAgyState(
+      eventName,
+      toolSnapshot.toolName,
+      event.payload,
+    ),
     AgentType.opencode => _normalizeOpenCodeState(eventName),
     AgentType.pi => _normalizePiState(eventName),
     AgentType.amp => _normalizeAmpState(eventName),
@@ -89,7 +93,7 @@ NormalizedAgentStatus? normalizeAgentHookEvent(
 }
 
 bool isAgentSessionCloseHookEvent(AgentHookEvent event) {
-  final eventName = _hookEventName(event);
+  final eventName = agentHookEventName(event);
   if (eventName == null) {
     return false;
   }
@@ -107,11 +111,11 @@ bool isAgentSessionCloseHookEvent(AgentHookEvent event) {
 }
 
 bool isAgentSessionResetHookEvent(AgentHookEvent event) {
-  final eventName = _hookEventName(event);
+  final eventName = agentHookEventName(event);
   return event.agentType == AgentType.grok && eventName == 'SessionStart';
 }
 
-String? _hookEventName(AgentHookEvent event) {
+String? agentHookEventName(AgentHookEvent event) {
   final explicit = _readFirstString(
     <String, Object?>{'hookEventName': event.hookEventName},
     const <String>['hookEventName'],
