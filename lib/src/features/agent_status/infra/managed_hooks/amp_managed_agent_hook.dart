@@ -133,36 +133,77 @@ async function post(hookEventName: string, extra: Record<string, unknown> = {}) 
   } catch {}
 }
 
-export default function (amp: any) {
-  amp.on('session.start', async (event: any) => {
-    await post('session.start', event || {})
-  })
+const MAX_PENDING_POSTS = 50
+type QueuedPost = { hookEventName: string; payload: Record<string, unknown> }
+let postQueue: QueuedPost[] = []
+let postDraining = false
 
-  amp.on('agent.start', async (event: any) => {
-    await post('agent.start', {
-      message: event?.message ?? '',
-      thread: event?.thread,
+async function drainPostQueue() {
+  if (postDraining) return
+  postDraining = true
+  try {
+    while (postQueue.length > 0) {
+      const next = postQueue.shift()
+      if (!next) continue
+      await post(next.hookEventName, next.payload)
+    }
+  } finally {
+    postDraining = false
+    if (postQueue.length > 0) {
+      void drainPostQueue()
+    }
+  }
+}
+
+function enqueuePost(hookEventName: string, payload: Record<string, unknown> = {}) {
+  if (postQueue.length >= MAX_PENDING_POSTS) {
+    postQueue.shift()
+  }
+  postQueue.push({ hookEventName, payload })
+  void drainPostQueue()
+}
+
+export default function (amp: any) {
+  amp.on('session.start', (event: any) => {
+    enqueuePost('session.start', {
+      threadId: event?.thread?.id,
     })
   })
 
-  amp.on('tool.call', async (event: any) => {
-    await post('tool.call', {
+  amp.on('agent.start', (event: any) => {
+    enqueuePost('agent.start', {
+      threadId: event?.thread?.id,
+      id: event?.id,
+      message: event?.message ?? '',
+    })
+  })
+
+  amp.on('tool.call', (event: any) => {
+    enqueuePost('tool.call', {
+      threadId: event?.thread?.id,
+      toolUseId: event?.toolUseID,
       tool: event?.tool,
       input: event?.input,
     })
     return { action: 'allow' }
   })
 
-  amp.on('tool.result', async (event: any) => {
-    await post('tool.result', {
+  amp.on('tool.result', (event: any) => {
+    enqueuePost('tool.result', {
+      threadId: event?.thread?.id,
+      toolUseId: event?.toolUseID,
       tool: event?.tool,
+      input: event?.input,
       status: event?.status,
-      result: event?.result ?? event?.output,
+      error: event?.error,
+      output: event?.output ?? event?.result,
     })
   })
 
-  amp.on('agent.end', async (event: any) => {
-    await post('agent.end', {
+  amp.on('agent.end', (event: any) => {
+    enqueuePost('agent.end', {
+      threadId: event?.thread?.id,
+      id: event?.id,
       status: event?.status,
       messages: event?.messages,
       message: event?.message,

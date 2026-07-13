@@ -6,11 +6,13 @@ import 'package:alera/src/features/agent_status/infra/agent_hook_event_normalize
 import 'package:flutter_test/flutter_test.dart';
 
 part 'grok_agent_hook_event_normalizer_test_cases.dart';
+part 'agy_agent_hook_event_normalizer_test_cases.dart';
 part 'agent_hook_event_normalizer_test_harness.dart';
 
 void main() {
   group('agent hook event normalizer', () {
     _registerGrokAgentHookEventNormalizerTests();
+    _registerAgyAgentHookEventNormalizerTests();
 
     test('reads assistant messages from Codex transcript formats', () {
       expect(
@@ -604,6 +606,16 @@ void main() {
       );
       expect(normalized?.state, AgentStatusState.working);
       expect(normalized?.prompt, 'Ship the feature');
+      expect(
+        normalizeAgentHookEvent(
+          _event(
+            agentType: AgentType.amp,
+            hookEventName: 'session.start',
+            payload: const <String, Object?>{'threadId': 'thread-1'},
+          ),
+        ),
+        isNull,
+      );
     });
   });
 }

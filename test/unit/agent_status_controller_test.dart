@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 part 'grok_agent_status_controller_test_cases.dart';
+part 'agy_agent_status_controller_test_cases.dart';
 part 'agent_status_controller_test_harness.dart';
 
 void main() {
@@ -20,6 +21,11 @@ void main() {
         DateTime.utc(2026, 5, 26, 1, 4),
         DateTime.utc(2026, 5, 26, 1, 5),
         DateTime.utc(2026, 5, 26, 1, 6),
+        DateTime.utc(2026, 5, 26, 1, 7),
+        DateTime.utc(2026, 5, 26, 1, 8),
+        DateTime.utc(2026, 5, 26, 1, 9),
+        DateTime.utc(2026, 5, 26, 1, 10),
+        DateTime.utc(2026, 5, 26, 1, 11),
       ];
       var index = 0;
       container = ProviderContainer(
@@ -31,6 +37,7 @@ void main() {
     });
 
     _registerGrokAgentStatusControllerTests(() => container);
+    _registerAgyAgentStatusControllerTests(() => container);
 
     test('normalizes Codex events and preserves state start time', () {
       final controller = container.read(agentStatusControllerProvider.notifier);
@@ -279,64 +286,6 @@ void main() {
         container.read(agentStatusControllerProvider).containsKey('session-1'),
         isFalse,
       );
-    });
-
-    test('normalizes AGY invocation and feedback tool states', () {
-      final controller = container.read(agentStatusControllerProvider.notifier);
-
-      controller.applyHookEvent(
-        _event(
-          agentType: AgentType.agy,
-          hookEventName: 'PreInvocation',
-          payload: <String, Object?>{'prompt': 'fix test'},
-        ),
-      );
-      controller.applyHookEvent(
-        _event(
-          agentType: AgentType.agy,
-          hookEventName: 'PreToolUse',
-          payload: <String, Object?>{
-            'toolCall': <String, Object?>{
-              'name': 'ask_question',
-              'args': <String, Object?>{'Prompt': 'Which file?'},
-            },
-          },
-        ),
-      );
-
-      final entry = container.read(agentStatusControllerProvider)['session-1']!;
-      expect(entry.state, AgentStatusState.waiting);
-      expect(entry.prompt, 'fix test');
-      expect(entry.toolName, 'ask_question');
-      expect(entry.toolInput, 'Which file?');
-
-      controller.applyHookEvent(
-        _event(
-          agentType: AgentType.agy,
-          hookEventName: 'PostInvocation',
-          payload: <String, Object?>{},
-        ),
-      );
-
-      final postInvocationEntry = container.read(
-        agentStatusControllerProvider,
-      )['session-1']!;
-      expect(postInvocationEntry.state, AgentStatusState.working);
-      expect(postInvocationEntry.prompt, 'fix test');
-
-      controller.applyHookEvent(
-        _event(
-          agentType: AgentType.agy,
-          hookEventName: 'Stop',
-          payload: <String, Object?>{},
-        ),
-      );
-
-      final stoppedEntry = container.read(
-        agentStatusControllerProvider,
-      )['session-1']!;
-      expect(stoppedEntry.state, AgentStatusState.done);
-      expect(stoppedEntry.prompt, 'fix test');
     });
 
     test('normalizes Cursor tool, waiting, done, and response states', () {

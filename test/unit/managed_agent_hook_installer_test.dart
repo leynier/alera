@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 
 part 'managed_agent_hook_installer_test_harness.dart';
 part 'managed_agent_hook_installer_grok_test_cases.dart';
+part 'managed_agent_hook_installer_amp_test_cases.dart';
 
 void main() {
   group('ManagedAgentHookInstallService', () {
@@ -29,6 +30,7 @@ void main() {
       }
     });
     _registerGrokHookInstallerTests(() => home, () => service);
+    _registerAmpHookInstallerTests(() => home, () => service);
     test('does not install Codex hooks into the user config', () {
       final configPath = p.join(home.path, '.codex', 'hooks.json');
       _writeJson(configPath, <String, Object?>{
@@ -617,37 +619,6 @@ void main() {
       expect(source, contains("pi.on('before_agent_start'"));
       expect(source, contains('/hook/pi'));
       expect(source, contains('ALERA_AGENT_HOOK_ENDPOINT'));
-    });
-
-    test('installs and removes the managed Amp system plugin', () {
-      final pluginPath = p.join(
-        home.path,
-        '.config',
-        'amp',
-        'plugins',
-        'alera-agent-status.ts',
-      );
-
-      expect(
-        service.status(AgentType.amp).state,
-        ManagedAgentHookInstallState.notInstalled,
-      );
-      expect(
-        service.install(AgentType.amp).state,
-        ManagedAgentHookInstallState.installed,
-      );
-
-      final source = File(pluginPath).readAsStringSync();
-      expect(source, contains('ALERA_AGENT_STATUS_MANAGED_FILE'));
-      expect(source, contains("amp.on('agent.start'"));
-      expect(source, contains("amp.on('tool.call'"));
-      expect(source, contains("return { action: 'allow' }"));
-      expect(source, contains('/hook/amp'));
-      expect(source, contains('ALERA_AGENT_HOOK_ENDPOINT'));
-
-      final removed = service.remove(AgentType.amp);
-      expect(removed.state, ManagedAgentHookInstallState.notInstalled);
-      expect(File(pluginPath).existsSync(), isFalse);
     });
 
     test('resolves Amp artifact paths from env and Windows defaults', () {

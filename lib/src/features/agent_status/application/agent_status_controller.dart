@@ -1,3 +1,4 @@
+import 'package:alera/src/features/agent_status/application/agent_hook_lifecycle_guard.dart';
 import 'package:alera/src/features/agent_status/application/agent_status_identity_resolver.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/agent_status/infra/agent_hook_event_normalizer.dart';
@@ -31,9 +32,11 @@ AgentStatusEntry? agentStatusByTerminalSession(
 class AgentStatusController extends _$AgentStatusController
     implements AgentStatusSink {
   late DateTime Function() _now;
+  final AgentHookLifecycleGuard _lifecycleGuard = AgentHookLifecycleGuard();
 
   @override
   Map<String, AgentStatusEntry> build() {
+    _lifecycleGuard.reset();
     _now = ref.watch(agentStatusClockProvider);
     return const <String, AgentStatusEntry>{};
   }
@@ -51,6 +54,9 @@ class AgentStatusController extends _$AgentStatusController
     var changed = false;
     final receivedAt = _now();
     for (final event in events) {
+      if (!_lifecycleGuard.shouldApply(event)) {
+        continue;
+      }
       final previous = next[event.terminalSessionId];
       if (isAgentSessionResetHookEvent(event)) {
         if (previous == null) {
@@ -148,6 +154,7 @@ class AgentStatusController extends _$AgentStatusController
   }
 
   void clearTerminal(String terminalSessionId) {
+    _lifecycleGuard.clearTerminal(terminalSessionId);
     if (!state.containsKey(terminalSessionId)) {
       return;
     }
@@ -158,6 +165,7 @@ class AgentStatusController extends _$AgentStatusController
 
   /// Drops every in-memory status entry for a workspace (e.g. after delete).
   void clearWorkspace(String workspaceId) {
+    _lifecycleGuard.clearWorkspace(workspaceId);
     final next = <String, AgentStatusEntry>{
       for (final entry in state.entries)
         if (entry.value.workspaceId != workspaceId) entry.key: entry.value,
