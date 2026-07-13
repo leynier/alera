@@ -6,11 +6,13 @@ import 'package:alera/src/features/agent_status/infra/agent_hook_event_normalize
 import 'package:flutter_test/flutter_test.dart';
 
 part 'grok_agent_hook_event_normalizer_test_cases.dart';
+part 'agy_agent_hook_event_normalizer_test_cases.dart';
 part 'agent_hook_event_normalizer_test_harness.dart';
 
 void main() {
   group('agent hook event normalizer', () {
     _registerGrokAgentHookEventNormalizerTests();
+    _registerAgyAgentHookEventNormalizerTests();
 
     test('reads assistant messages from Codex transcript formats', () {
       expect(
@@ -613,49 +615,6 @@ void main() {
           ),
         ),
         isNull,
-      );
-    });
-
-    test('keeps AGY working until Stop reports fully idle', () {
-      expect(
-        normalizeAgentHookEvent(
-          _event(
-            agentType: AgentType.agy,
-            hookEventName: 'Stop',
-            payload: const <String, Object?>{'fullyIdle': false},
-          ),
-        )?.state,
-        AgentStatusState.working,
-      );
-      expect(
-        normalizeAgentHookEvent(
-          _event(
-            agentType: AgentType.agy,
-            hookEventName: 'Stop',
-            payload: const <String, Object?>{'fully_idle': false},
-          ),
-        )?.state,
-        AgentStatusState.working,
-      );
-      expect(
-        normalizeAgentHookEvent(
-          _event(
-            agentType: AgentType.agy,
-            hookEventName: 'Stop',
-            payload: const <String, Object?>{'fullyIdle': true},
-          ),
-        )?.state,
-        AgentStatusState.done,
-      );
-      expect(
-        normalizeAgentHookEvent(
-          _event(
-            agentType: AgentType.agy,
-            hookEventName: 'Stop',
-            payload: const <String, Object?>{},
-          ),
-        )?.state,
-        AgentStatusState.done,
       );
     });
   });

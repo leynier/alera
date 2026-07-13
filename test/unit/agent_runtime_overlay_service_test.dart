@@ -6,6 +6,8 @@ import 'package:alera/src/features/agent_status/infra/managed_agent_hook_install
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
+part 'agent_runtime_overlay_amp_test_cases.dart';
+
 void main() {
   group('AgentRuntimeOverlayService', () {
     late Directory home;
@@ -45,6 +47,8 @@ void main() {
         resourceLinkCreator: resourceLinkCreator,
       );
     }
+
+    _registerAmpRuntimeOverlayTests(() => home, () => service());
 
     test('creates an OpenCode overlay with only the Alera plugin', () async {
       final preparation = await service().prepareOpenCodeForTerminalLaunch(
@@ -520,56 +524,6 @@ void main() {
       expect(wrapper, startsWith('#!/bin/sh'));
       expect(wrapper, contains('--plugin-dir'));
       expect(wrapper, contains(pluginDir));
-    });
-
-    test('creates an Amp overlay and wrapper', () async {
-      final ampConfig = Directory(p.join(home.path, '.config', 'amp'))
-        ..createSync(recursive: true);
-      File(
-        p.join(ampConfig.path, 'settings.json'),
-      ).writeAsStringSync('{"theme":"dark"}\n');
-      final plugins = Directory(p.join(ampConfig.path, 'plugins'))
-        ..createSync();
-      File(
-        p.join(plugins.path, 'user-plugin.ts'),
-      ).writeAsStringSync('export default function userPlugin() {}\n');
-      File(
-        p.join(plugins.path, 'alera-agent-status.ts'),
-      ).writeAsStringSync('USER OWNED PLUGIN\n');
-
-      final preparation = await service().prepareAmpForTerminalLaunch(
-        terminalSessionId: 'session-amp',
-      );
-
-      final ampOverlay = preparation.environment['ALERA_AMP_CONFIG_DIR']!;
-      final wrapperPath = preparation.environment['ALERA_AGENT_WRAPPER_PATH']!;
-      expect(preparation.sourcePath, ampConfig.path);
-      expect(
-        File(p.join(ampOverlay, 'settings.json')).readAsStringSync(),
-        '{"theme":"dark"}\n',
-      );
-      expect(
-        File(
-          p.join(ampOverlay, 'plugins', 'user-plugin.ts'),
-        ).readAsStringSync(),
-        'export default function userPlugin() {}\n',
-      );
-      final statusPlugin = File(
-        p.join(ampOverlay, 'plugins', 'alera-agent-status.ts'),
-      ).readAsStringSync();
-      expect(statusPlugin, contains('ALERA_AGENT_STATUS_MANAGED_FILE'));
-      expect(statusPlugin, contains('/hook/amp'));
-      expect(statusPlugin, contains('const MAX_PENDING_POSTS = 50'));
-      expect(statusPlugin, contains("enqueuePost('agent.start'"));
-      expect(
-        File(p.join(plugins.path, 'alera-agent-status.ts')).readAsStringSync(),
-        'USER OWNED PLUGIN\n',
-      );
-      final wrapper = File(p.join(wrapperPath, 'amp')).readAsStringSync();
-      expect(wrapper, startsWith('#!/bin/sh'));
-      expect(wrapper, contains('XDG_CONFIG_HOME'));
-      expect(wrapper, contains('AMP_SETTINGS_FILE'));
-      expect(wrapper, contains('command -v amp'));
     });
 
     test(
