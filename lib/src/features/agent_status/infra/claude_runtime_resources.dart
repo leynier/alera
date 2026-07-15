@@ -30,7 +30,7 @@ extension _ClaudeRuntimeResources on ClaudeRuntimeHomeService {
   }
 
   /// External Claude settings files that may load hooks when CCS overrides
-  /// `CLAUDE_CONFIG_DIR` (aliases like `cc41` / `ccs <profile>`).
+  /// `CLAUDE_CONFIG_DIR` for a multi-profile launch.
   ///
   /// Paths are de-duplicated after symlink resolution so a shared
   /// `~/.ccs/shared/settings.json` is only written once.
