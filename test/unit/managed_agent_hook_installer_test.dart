@@ -434,6 +434,16 @@ void main() {
         _commandsFor(bundle, 'PreInvocation').last,
         contains('ALERA_AGY_EVENT'),
       );
+      // Lifecycle events must be flat `{ type, command }` (AGY does not run
+      // the nested Claude-style `{ hooks: [...] }` shape for PreInvocation).
+      final preInvocation = (bundle['PreInvocation'] as List).last as Map;
+      expect(preInvocation['type'], 'command');
+      expect(preInvocation['command'], contains('ALERA_AGY_EVENT'));
+      expect(preInvocation.containsKey('hooks'), isFalse);
+      expect(preInvocation['timeout'], 10);
+      final postToolUse = (bundle['PostToolUse'] as List).single as Map;
+      expect(postToolUse['matcher'], '*');
+      expect(postToolUse['hooks'], isA<List>());
       expect(
         _commandsFor(bundle, 'PostToolUse').single,
         contains('alera-agy-hook.sh'),
@@ -444,6 +454,9 @@ void main() {
       expect(script, contains('/hook/agy'));
       expect(script, contains(r'case "$ALERA_AGY_EVENT" in'));
       expect(script, contains("payload='{}'"));
+      expect(script, contains('payload@-'));
+      // Empty stdin must still post the lifecycle event name.
+      expect(script, isNot(contains('*)\n      exit 0')));
     });
 
     test('installs AGY wrapper scripts on Windows', () {
@@ -474,7 +487,10 @@ void main() {
         File(
           p.join(home.path, '.alera', 'agent-hooks', 'alera-agy-hook.cmd'),
         ).readAsStringSync(),
-        allOf(contains('/hook/agy'), contains("-ieq 'Stop'")),
+        allOf(
+          contains('/hook/agy'),
+          contains(r'if ([string]::IsNullOrWhiteSpace($inputData)) { $payload=@{} }'),
+        ),
       );
     });
 
