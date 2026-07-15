@@ -6,6 +6,9 @@ import 'package:alera/src/features/agent_status/infra/managed_agent_hook_install
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
+part 'claude_runtime_home_service_test_harness.dart';
+part 'claude_runtime_home_service_ccs_test_cases.dart';
+
 void main() {
   group('ClaudeRuntimeHomeService', () {
     late Directory root;
@@ -32,6 +35,8 @@ void main() {
         root.deleteSync(recursive: true);
       }
     });
+
+    _registerClaudeRuntimeCcsTests(() => home, () => support, () => service);
 
     test('prepares a runtime config without mutating user settings', () async {
       final sourceSettingsPath = p.join(home.path, '.claude', 'settings.json');
@@ -152,130 +157,6 @@ void main() {
             p.join(preparation.runtimeHomePath, '.claude.json'),
           ).existsSync(),
           isFalse,
-        );
-      },
-    );
-
-    test(
-      'installs status hooks into user Claude and CCS shared settings',
-      () async {
-        final userClaudeSettingsPath = p.join(
-          home.path,
-          '.claude',
-          'settings.json',
-        );
-        _writeJson(userClaudeSettingsPath, <String, Object?>{
-          'hooks': <String, Object?>{
-            'UserPromptSubmit': <Object?>[_userHook('echo orca-hook')],
-            'Stop': <Object?>[_userHook('echo orca-stop')],
-          },
-        });
-        final sharedSettingsPath = p.join(
-          home.path,
-          '.ccs',
-          'shared',
-          'settings.json',
-        );
-        _writeJson(sharedSettingsPath, <String, Object?>{
-          'hooks': <String, Object?>{
-            'UserPromptSubmit': <Object?>[_userHook('echo orca-hook')],
-            'Stop': <Object?>[_userHook('echo orca-stop')],
-          },
-        });
-        // CCS instance settings.json is a symlink to the shared file.
-        final instanceDir = Directory(
-          p.join(home.path, '.ccs', 'instances', 'profile-a'),
-        )..createSync(recursive: true);
-        Link(
-          p.join(instanceDir.path, 'settings.json'),
-        ).createSync(sharedSettingsPath);
-        // Private credentials file must not be touched.
-        final credentials = File(p.join(instanceDir.path, '.credentials.json'))
-          ..writeAsStringSync('{"secret":"keep"}\n');
-
-        final preparation = await service.prepareForTerminalLaunch();
-
-        expect(
-          preparation.hookStatus.state,
-          ManagedAgentHookInstallState.installed,
-        );
-        // Durable user Claude settings get Alera hooks (CCS re-syncs from here).
-        final userHooks = _hooks(userClaudeSettingsPath);
-        expect(
-          _commandsFor(userHooks, 'UserPromptSubmit'),
-          contains('echo orca-hook'),
-        );
-        expect(_managedCommandCount(userHooks, 'alera-claude-hook.sh'), 6);
-        // Shared file also gets Alera hooks and keeps foreign hooks.
-        final sharedHooks = _hooks(sharedSettingsPath);
-        expect(
-          _commandsFor(sharedHooks, 'UserPromptSubmit'),
-          contains('echo orca-hook'),
-        );
-        expect(_managedCommandCount(sharedHooks, 'alera-claude-hook.sh'), 6);
-        // Symlink still points at shared settings (not replaced by a regular file).
-        expect(
-          FileSystemEntity.typeSync(
-            p.join(instanceDir.path, 'settings.json'),
-            followLinks: false,
-          ),
-          FileSystemEntityType.link,
-        );
-        expect(credentials.readAsStringSync(), '{"secret":"keep"}\n');
-        // Bare-claude runtime home still has hooks and env injection.
-        expect(
-          preparation.environment['CLAUDE_CONFIG_DIR'],
-          preparation.runtimeHomePath,
-        );
-        expect(
-          _managedCommandCount(
-            _hooks(p.join(preparation.runtimeHomePath, 'settings.json')),
-            'alera-claude-hook.sh',
-          ),
-          6,
-        );
-
-        final removed = await service.remove();
-        expect(removed.state, ManagedAgentHookInstallState.notInstalled);
-        final userAfter = _hooks(userClaudeSettingsPath);
-        expect(_commandsFor(userAfter, 'UserPromptSubmit'), <String>[
-          'echo orca-hook',
-        ]);
-        expect(_managedCommandCount(userAfter, 'alera-claude-hook.sh'), 0);
-        final sharedAfter = _hooks(sharedSettingsPath);
-        expect(_commandsFor(sharedAfter, 'UserPromptSubmit'), <String>[
-          'echo orca-hook',
-        ]);
-        expect(_managedCommandCount(sharedAfter, 'alera-claude-hook.sh'), 0);
-        expect(_commandsFor(sharedAfter, 'Stop'), <String>['echo orca-stop']);
-      },
-    );
-
-    test(
-      'reports partial when runtime is ready but CCS shared hooks are missing',
-      () async {
-        final preparation = await service.prepareForTerminalLaunch();
-        final sharedSettingsPath = p.join(
-          home.path,
-          '.ccs',
-          'shared',
-          'settings.json',
-        );
-        // Create CCS shared settings without Alera hooks after install.
-        _writeJson(sharedSettingsPath, <String, Object?>{
-          'hooks': <String, Object?>{
-            'UserPromptSubmit': <Object?>[_userHook('echo only-orca')],
-          },
-        });
-
-        final status = await service.status();
-
-        expect(status.state, ManagedAgentHookInstallState.partial);
-        expect(status.managedHooksPresent, isTrue);
-        expect(status.detail, contains(sharedSettingsPath));
-        expect(
-          status.configPath,
-          p.join(preparation.runtimeHomePath, 'settings.json'),
         );
       },
     );
@@ -835,72 +716,4 @@ final class _ThrowingClaudeKeychainCredentialsStore
 
   @override
   void deleteScopedCredentials(String configDir) {}
-}
-
-String _markerFingerprint(File marker) {
-  final decoded = jsonDecode(marker.readAsStringSync()) as Map;
-  return decoded['sourceFingerprint'] as String;
-}
-
-Map<String, Object?> _userHook(String command) {
-  return <String, Object?>{
-    'hooks': <Object?>[
-      <String, Object?>{'type': 'command', 'command': command},
-    ],
-  };
-}
-
-void _writeJson(String path, Map<String, Object?> value) {
-  final file = File(path)..createSync(recursive: true);
-  file.writeAsStringSync(
-    '${const JsonEncoder.withIndent('  ').convert(value)}\n',
-  );
-}
-
-Map<String, Object?> _readJson(String path) {
-  return Map<String, Object?>.from(
-    jsonDecode(File(path).readAsStringSync()) as Map,
-  );
-}
-
-Map<String, Object?> _hooks(String configPath) {
-  final decoded = _readJson(configPath);
-  return Map<String, Object?>.from(decoded['hooks'] as Map);
-}
-
-List<String> _commandsFor(Map<String, Object?> hooks, String eventName) {
-  final definitions = hooks[eventName] as List? ?? const <Object?>[];
-  return <String>[
-    for (final definition in definitions)
-      if (definition is Map)
-        for (final hook in (definition['hooks'] as List? ?? const <Object?>[]))
-          if (hook is Map && hook['command'] is String)
-            hook['command'] as String,
-  ];
-}
-
-int _managedCommandCount(Map<String, Object?> hooks, String fileName) {
-  var count = 0;
-  for (final event in hooks.values) {
-    if (event is! List) {
-      continue;
-    }
-    for (final definition in event) {
-      if (definition is! Map) {
-        continue;
-      }
-      final hooksList = definition['hooks'];
-      if (hooksList is! List) {
-        continue;
-      }
-      for (final hook in hooksList) {
-        if (hook is Map &&
-            hook['command'] is String &&
-            (hook['command'] as String).contains(fileName)) {
-          count += 1;
-        }
-      }
-    }
-  }
-  return count;
 }
