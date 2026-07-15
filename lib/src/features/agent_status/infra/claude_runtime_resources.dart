@@ -29,35 +29,41 @@ extension _ClaudeRuntimeResources on ClaudeRuntimeHomeService {
     return p.join(_homeDirectory, '.ccs');
   }
 
-  /// External Claude settings files that may load hooks when CCS overrides
-  /// `CLAUDE_CONFIG_DIR` for a multi-profile launch.
+  /// External Claude settings files that may load hooks when a multi-profile
+  /// launcher overrides `CLAUDE_CONFIG_DIR` (e.g. CCS instance homes).
   ///
-  /// Paths are de-duplicated after symlink resolution so a shared
-  /// `~/.ccs/shared/settings.json` is only written once.
+  /// Paths are de-duplicated after symlink resolution. CCS often re-syncs
+  /// `~/.ccs/shared/settings.json` from `~/.claude/settings.json`, so the
+  /// user Claude settings file is the durable install target for CCS-launched
+  /// sessions (hooks still no-op outside Alera without session env coords).
   List<String> _externalClaudeSettingsPaths() {
     final seen = <String>{};
     final paths = <String>[];
 
-    void considerResolved(String resolvedPath) {
-      if (!File(resolvedPath).existsSync()) {
+    void consider(String path) {
+      final type = FileSystemEntity.typeSync(path, followLinks: false);
+      if (type == FileSystemEntityType.notFound) {
         return;
       }
-      final key = _absoluteNormalizedPath(resolvedPath);
+      if (type != FileSystemEntityType.file &&
+          type != FileSystemEntityType.link) {
+        return;
+      }
+      final resolved = _resolvedWritablePath(path);
+      if (!File(resolved).existsSync()) {
+        return;
+      }
+      final key = _absoluteNormalizedPath(resolved);
       if (seen.add(key)) {
-        paths.add(resolvedPath);
+        paths.add(resolved);
       }
     }
 
+    // Durable source of truth for CCS shared settings re-sync.
+    consider(p.join(_homeDirectory, '.claude', 'settings.json'));
+
     final ccsRoot = _ccsRootDirectory();
-    final sharedSettings = p.join(ccsRoot, 'shared', 'settings.json');
-    final sharedType = FileSystemEntity.typeSync(
-      sharedSettings,
-      followLinks: false,
-    );
-    if (sharedType == FileSystemEntityType.file ||
-        sharedType == FileSystemEntityType.link) {
-      considerResolved(_resolvedWritablePath(sharedSettings));
-    }
+    consider(p.join(ccsRoot, 'shared', 'settings.json'));
 
     final instancesDir = Directory(p.join(ccsRoot, 'instances'));
     if (instancesDir.existsSync()) {
@@ -70,10 +76,10 @@ extension _ClaudeRuntimeResources on ClaudeRuntimeHomeService {
           settingsPath,
           followLinks: false,
         );
-        // Symlinks typically point at shared/settings.json (already considered).
+        // Symlinks usually resolve to shared/user settings (already considered).
         // Only install into private per-instance settings files.
         if (type == FileSystemEntityType.file) {
-          considerResolved(settingsPath);
+          consider(settingsPath);
         }
       }
     }

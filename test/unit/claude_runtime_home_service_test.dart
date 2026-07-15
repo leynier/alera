@@ -70,12 +70,18 @@ void main() {
 
       final sourceSettings = _readJson(sourceSettingsPath);
       expect(sourceSettings['apiKeyHelper'], 'echo api-key');
+      // User Claude settings also receive managed hooks so multi-profile
+      // launchers that re-sync from ~/.claude keep status reporting.
       expect(
         _managedCommandCount(
           _hooks(sourceSettingsPath),
           'alera-claude-hook.sh',
         ),
-        0,
+        6,
+      );
+      expect(
+        _commandsFor(_hooks(sourceSettingsPath), 'UserPromptSubmit'),
+        contains('echo user-hook'),
       );
 
       final runtimeSettingsPath = p.join(
@@ -151,8 +157,19 @@ void main() {
     );
 
     test(
-      'installs status hooks into CCS shared settings without breaking isolation',
+      'installs status hooks into user Claude and CCS shared settings',
       () async {
+        final userClaudeSettingsPath = p.join(
+          home.path,
+          '.claude',
+          'settings.json',
+        );
+        _writeJson(userClaudeSettingsPath, <String, Object?>{
+          'hooks': <String, Object?>{
+            'UserPromptSubmit': <Object?>[_userHook('echo orca-hook')],
+            'Stop': <Object?>[_userHook('echo orca-stop')],
+          },
+        });
         final sharedSettingsPath = p.join(
           home.path,
           '.ccs',
@@ -167,7 +184,7 @@ void main() {
         });
         // CCS instance settings.json is a symlink to the shared file.
         final instanceDir = Directory(
-          p.join(home.path, '.ccs', 'instances', 'leynier41'),
+          p.join(home.path, '.ccs', 'instances', 'profile-a'),
         )..createSync(recursive: true);
         Link(
           p.join(instanceDir.path, 'settings.json'),
@@ -182,7 +199,14 @@ void main() {
           preparation.hookStatus.state,
           ManagedAgentHookInstallState.installed,
         );
-        // Shared file gets Alera hooks and keeps foreign hooks.
+        // Durable user Claude settings get Alera hooks (CCS re-syncs from here).
+        final userHooks = _hooks(userClaudeSettingsPath);
+        expect(
+          _commandsFor(userHooks, 'UserPromptSubmit'),
+          contains('echo orca-hook'),
+        );
+        expect(_managedCommandCount(userHooks, 'alera-claude-hook.sh'), 6);
+        // Shared file also gets Alera hooks and keeps foreign hooks.
         final sharedHooks = _hooks(sharedSettingsPath);
         expect(
           _commandsFor(sharedHooks, 'UserPromptSubmit'),
@@ -213,6 +237,12 @@ void main() {
 
         final removed = await service.remove();
         expect(removed.state, ManagedAgentHookInstallState.notInstalled);
+        final userAfter = _hooks(userClaudeSettingsPath);
+        expect(
+          _commandsFor(userAfter, 'UserPromptSubmit'),
+          <String>['echo orca-hook'],
+        );
+        expect(_managedCommandCount(userAfter, 'alera-claude-hook.sh'), 0);
         final sharedAfter = _hooks(sharedSettingsPath);
         expect(
           _commandsFor(sharedAfter, 'UserPromptSubmit'),
