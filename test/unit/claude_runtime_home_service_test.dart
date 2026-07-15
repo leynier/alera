@@ -238,21 +238,16 @@ void main() {
         final removed = await service.remove();
         expect(removed.state, ManagedAgentHookInstallState.notInstalled);
         final userAfter = _hooks(userClaudeSettingsPath);
-        expect(
-          _commandsFor(userAfter, 'UserPromptSubmit'),
-          <String>['echo orca-hook'],
-        );
+        expect(_commandsFor(userAfter, 'UserPromptSubmit'), <String>[
+          'echo orca-hook',
+        ]);
         expect(_managedCommandCount(userAfter, 'alera-claude-hook.sh'), 0);
         final sharedAfter = _hooks(sharedSettingsPath);
-        expect(
-          _commandsFor(sharedAfter, 'UserPromptSubmit'),
-          <String>['echo orca-hook'],
-        );
+        expect(_commandsFor(sharedAfter, 'UserPromptSubmit'), <String>[
+          'echo orca-hook',
+        ]);
         expect(_managedCommandCount(sharedAfter, 'alera-claude-hook.sh'), 0);
-        expect(
-          _commandsFor(sharedAfter, 'Stop'),
-          <String>['echo orca-stop'],
-        );
+        expect(_commandsFor(sharedAfter, 'Stop'), <String>['echo orca-stop']);
       },
     );
 

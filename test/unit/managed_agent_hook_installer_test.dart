@@ -489,7 +489,9 @@ void main() {
         ).readAsStringSync(),
         allOf(
           contains('/hook/agy'),
-          contains(r'if ([string]::IsNullOrWhiteSpace($inputData)) { $payload=@{} }'),
+          contains(
+            r'if ([string]::IsNullOrWhiteSpace($inputData)) { $payload=@{} }',
+          ),
         ),
       );
     });

@@ -938,7 +938,10 @@ void main() {
         expect(environment, contains('ALERA_AMP_CONFIG_DIR'));
         expect(environment, contains('ALERA_AGENT_WRAPPER_PATH'));
         final ampWrapper = environment!['ALERA_AGENT_WRAPPER_PATH']!;
-        expect(ampWrapper, isNot(contains(Platform.pathSeparator == '/' ? '//' : r'\\')));
+        expect(
+          ampWrapper,
+          isNot(contains(Platform.pathSeparator == '/' ? '//' : r'\\')),
+        );
         expect(File(p.join(ampWrapper, 'amp')).existsSync(), isTrue);
       },
     );
