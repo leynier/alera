@@ -150,6 +150,111 @@ void main() {
       },
     );
 
+    test(
+      'installs status hooks into CCS shared settings without breaking isolation',
+      () async {
+        final sharedSettingsPath = p.join(
+          home.path,
+          '.ccs',
+          'shared',
+          'settings.json',
+        );
+        _writeJson(sharedSettingsPath, <String, Object?>{
+          'hooks': <String, Object?>{
+            'UserPromptSubmit': <Object?>[_userHook('echo orca-hook')],
+            'Stop': <Object?>[_userHook('echo orca-stop')],
+          },
+        });
+        // CCS instance settings.json is a symlink to the shared file.
+        final instanceDir = Directory(
+          p.join(home.path, '.ccs', 'instances', 'leynier41'),
+        )..createSync(recursive: true);
+        Link(
+          p.join(instanceDir.path, 'settings.json'),
+        ).createSync(sharedSettingsPath);
+        // Private credentials file must not be touched.
+        final credentials = File(p.join(instanceDir.path, '.credentials.json'))
+          ..writeAsStringSync('{"secret":"keep"}\n');
+
+        final preparation = await service.prepareForTerminalLaunch();
+
+        expect(
+          preparation.hookStatus.state,
+          ManagedAgentHookInstallState.installed,
+        );
+        // Shared file gets Alera hooks and keeps foreign hooks.
+        final sharedHooks = _hooks(sharedSettingsPath);
+        expect(
+          _commandsFor(sharedHooks, 'UserPromptSubmit'),
+          contains('echo orca-hook'),
+        );
+        expect(_managedCommandCount(sharedHooks, 'alera-claude-hook.sh'), 6);
+        // Symlink still points at shared settings (not replaced by a regular file).
+        expect(
+          FileSystemEntity.typeSync(
+            p.join(instanceDir.path, 'settings.json'),
+            followLinks: false,
+          ),
+          FileSystemEntityType.link,
+        );
+        expect(credentials.readAsStringSync(), '{"secret":"keep"}\n');
+        // Bare-claude runtime home still has hooks and env injection.
+        expect(
+          preparation.environment['CLAUDE_CONFIG_DIR'],
+          preparation.runtimeHomePath,
+        );
+        expect(
+          _managedCommandCount(
+            _hooks(p.join(preparation.runtimeHomePath, 'settings.json')),
+            'alera-claude-hook.sh',
+          ),
+          6,
+        );
+
+        final removed = await service.remove();
+        expect(removed.state, ManagedAgentHookInstallState.notInstalled);
+        final sharedAfter = _hooks(sharedSettingsPath);
+        expect(
+          _commandsFor(sharedAfter, 'UserPromptSubmit'),
+          <String>['echo orca-hook'],
+        );
+        expect(_managedCommandCount(sharedAfter, 'alera-claude-hook.sh'), 0);
+        expect(
+          _commandsFor(sharedAfter, 'Stop'),
+          <String>['echo orca-stop'],
+        );
+      },
+    );
+
+    test(
+      'reports partial when runtime is ready but CCS shared hooks are missing',
+      () async {
+        final preparation = await service.prepareForTerminalLaunch();
+        final sharedSettingsPath = p.join(
+          home.path,
+          '.ccs',
+          'shared',
+          'settings.json',
+        );
+        // Create CCS shared settings without Alera hooks after install.
+        _writeJson(sharedSettingsPath, <String, Object?>{
+          'hooks': <String, Object?>{
+            'UserPromptSubmit': <Object?>[_userHook('echo only-orca')],
+          },
+        });
+
+        final status = await service.status();
+
+        expect(status.state, ManagedAgentHookInstallState.partial);
+        expect(status.managedHooksPresent, isTrue);
+        expect(status.detail, contains(sharedSettingsPath));
+        expect(
+          status.configPath,
+          p.join(preparation.runtimeHomePath, 'settings.json'),
+        );
+      },
+    );
+
     test('reports not installed before runtime hooks exist', () async {
       final status = await service.status();
 

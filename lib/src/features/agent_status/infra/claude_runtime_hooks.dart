@@ -18,7 +18,10 @@ extension _ClaudeRuntimeHooks on ClaudeRuntimeHomeService {
   }
 
   void _writeJsonObject(String path, Map<String, Object?> config) {
-    final file = File(path);
+    // Resolve symlinks first so CCS instance settings.json -> shared/settings.json
+    // is updated in place without replacing the symlink with a regular file.
+    final targetPath = _resolvedWritablePath(path);
+    final file = File(targetPath);
     file.parent.createSync(recursive: true);
     final serialized =
         '${const JsonEncoder.withIndent('  ').convert(config)}\n';
@@ -30,7 +33,156 @@ extension _ClaudeRuntimeHooks on ClaudeRuntimeHomeService {
       '.${DateTime.now().microsecondsSinceEpoch}.tmp',
     );
     final tmp = File(tmpPath)..writeAsStringSync(serialized);
-    tmp.renameSync(path);
+    tmp.renameSync(targetPath);
+  }
+
+  /// Absolute path to write, following a symlink when [path] is one.
+  String _resolvedWritablePath(String path) {
+    final type = FileSystemEntity.typeSync(path, followLinks: false);
+    if (type == FileSystemEntityType.link) {
+      try {
+        return Link(path).resolveSymbolicLinksSync();
+      } catch (_) {
+        return path;
+      }
+    }
+    return path;
+  }
+
+  /// Install Alera-managed Claude status hooks into [settingsPath].
+  ///
+  /// When [baseConfig] is provided (runtime home), it is used as the starting
+  /// document. Otherwise the existing file at [settingsPath] is merged so
+  /// external homes (CCS shared settings) keep user/Orca hooks.
+  bool _installManagedHooksAtSettings({
+    required String settingsPath,
+    required _ClaudeRuntimeHookDescriptor descriptor,
+    Map<String, Object?>? baseConfig,
+  }) {
+    final existing = baseConfig ?? _readJsonObject(settingsPath);
+    if (existing == null) {
+      return false;
+    }
+    final nextConfig = <String, Object?>{...existing};
+    final hooks = _hooksMap(nextConfig);
+    for (final entry in hooks.entries.toList(growable: false)) {
+      final definitions = _definitionsFromValue(entry.value);
+      final cleaned = _removeManagedCommands(
+        definitions,
+        descriptor.managedScriptFileNames,
+      );
+      if (cleaned.isEmpty) {
+        hooks.remove(entry.key);
+      } else {
+        hooks[entry.key] = cleaned;
+      }
+    }
+    for (final event in _claudeEvents) {
+      final current = _definitionsFromValue(hooks[event.eventName]);
+      final cleaned = _removeManagedCommands(
+        current,
+        descriptor.managedScriptFileNames,
+      );
+      hooks[event.eventName] = <Object?>[
+        ...cleaned,
+        _managedHookDefinition(
+          event,
+          _managedCommand(descriptor: descriptor, event: event),
+        ),
+      ];
+    }
+    nextConfig['hooks'] = hooks;
+    _writeJsonObject(settingsPath, nextConfig);
+    return true;
+  }
+
+  bool _removeManagedHooksAtSettings({
+    required String settingsPath,
+    required _ClaudeRuntimeHookDescriptor descriptor,
+  }) {
+    final config = _readJsonObject(settingsPath);
+    if (config == null) {
+      return false;
+    }
+    final hooks = _hooksMap(config);
+    var changed = false;
+    for (final entry in hooks.entries.toList(growable: false)) {
+      final definitions = _definitionsFromValue(entry.value);
+      final cleaned = _removeManagedCommands(
+        definitions,
+        descriptor.managedScriptFileNames,
+      );
+      if (jsonEncode(cleaned) != jsonEncode(definitions)) {
+        changed = true;
+      }
+      if (cleaned.isEmpty) {
+        hooks.remove(entry.key);
+      } else {
+        hooks[entry.key] = cleaned;
+      }
+    }
+    if (changed) {
+      config['hooks'] = hooks;
+      _writeJsonObject(settingsPath, config);
+    }
+    return true;
+  }
+
+  /// Status of managed hooks for a single settings.json.
+  ManagedAgentHookInstallStatus _statusForSettings({
+    required String settingsPath,
+    required _ClaudeRuntimeHookDescriptor descriptor,
+  }) {
+    final config = _readJsonObject(settingsPath);
+    if (config == null) {
+      return ManagedAgentHookInstallStatus(
+        agentType: AgentType.claude,
+        state: ManagedAgentHookInstallState.error,
+        configPath: settingsPath,
+        managedHooksPresent: false,
+        detail: 'Could not parse Claude settings.json.',
+      );
+    }
+
+    final missing = <String>[];
+    var presentCount = 0;
+    final hooks = _hooksMap(config);
+    for (final event in _claudeEvents) {
+      final command = _managedCommand(descriptor: descriptor, event: event);
+      final definitions = _definitionsFromValue(hooks[event.eventName]);
+      final hasCommand = definitions.any(
+        (definition) => _definitionHasCommand(definition, command),
+      );
+      if (hasCommand) {
+        presentCount += 1;
+      } else {
+        missing.add(event.eventName);
+      }
+    }
+
+    if (presentCount == 0) {
+      return ManagedAgentHookInstallStatus(
+        agentType: AgentType.claude,
+        state: ManagedAgentHookInstallState.notInstalled,
+        configPath: settingsPath,
+        managedHooksPresent: false,
+      );
+    }
+    if (missing.isEmpty) {
+      return ManagedAgentHookInstallStatus(
+        agentType: AgentType.claude,
+        state: ManagedAgentHookInstallState.installed,
+        configPath: settingsPath,
+        managedHooksPresent: true,
+      );
+    }
+    return ManagedAgentHookInstallStatus(
+      agentType: AgentType.claude,
+      state: ManagedAgentHookInstallState.partial,
+      configPath: settingsPath,
+      managedHooksPresent: true,
+      detail: 'Managed hook missing for events: ${missing.join(', ')}.',
+    );
   }
 
   void _writeManagedScript(String path, String content) {

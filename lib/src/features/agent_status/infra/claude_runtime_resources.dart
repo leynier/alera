@@ -20,6 +20,67 @@ extension _ClaudeRuntimeResources on ClaudeRuntimeHomeService {
     return Directory(p.join(_homeDirectory, '.claude'));
   }
 
+  /// CCS root: `$CCS_DIR` or `~/.ccs`.
+  String _ccsRootDirectory() {
+    final fromEnv = _environment['CCS_DIR']?.trim();
+    if (fromEnv != null && fromEnv.isNotEmpty) {
+      return fromEnv;
+    }
+    return p.join(_homeDirectory, '.ccs');
+  }
+
+  /// External Claude settings files that may load hooks when CCS overrides
+  /// `CLAUDE_CONFIG_DIR` (aliases like `cc41` / `ccs <profile>`).
+  ///
+  /// Paths are de-duplicated after symlink resolution so a shared
+  /// `~/.ccs/shared/settings.json` is only written once.
+  List<String> _externalClaudeSettingsPaths() {
+    final seen = <String>{};
+    final paths = <String>[];
+
+    void considerResolved(String resolvedPath) {
+      if (!File(resolvedPath).existsSync()) {
+        return;
+      }
+      final key = _absoluteNormalizedPath(resolvedPath);
+      if (seen.add(key)) {
+        paths.add(resolvedPath);
+      }
+    }
+
+    final ccsRoot = _ccsRootDirectory();
+    final sharedSettings = p.join(ccsRoot, 'shared', 'settings.json');
+    final sharedType = FileSystemEntity.typeSync(
+      sharedSettings,
+      followLinks: false,
+    );
+    if (sharedType == FileSystemEntityType.file ||
+        sharedType == FileSystemEntityType.link) {
+      considerResolved(_resolvedWritablePath(sharedSettings));
+    }
+
+    final instancesDir = Directory(p.join(ccsRoot, 'instances'));
+    if (instancesDir.existsSync()) {
+      for (final entity in instancesDir.listSync(followLinks: false)) {
+        if (entity is! Directory) {
+          continue;
+        }
+        final settingsPath = p.join(entity.path, 'settings.json');
+        final type = FileSystemEntity.typeSync(
+          settingsPath,
+          followLinks: false,
+        );
+        // Symlinks typically point at shared/settings.json (already considered).
+        // Only install into private per-instance settings files.
+        if (type == FileSystemEntityType.file) {
+          considerResolved(settingsPath);
+        }
+      }
+    }
+
+    return paths;
+  }
+
   _ClaudeRuntimeHookDescriptor _descriptor(Directory runtimeHome) {
     final extension = switch (_platform) {
       ManagedAgentHookPlatform.posix => 'sh',
