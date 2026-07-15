@@ -41,6 +41,7 @@ import 'package:alera/src/shared/infra/runtime/runtime_state_migration.dart';
 import 'package:alera/src/shared/infra/storage/storage_providers.dart';
 import 'package:alera/src/shared/infra/uri/uri_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:meta/meta.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'workbench_providers.g.dart';
@@ -369,6 +370,20 @@ WorkspaceTabRecord? findTabById(
 void _ignoreProviderAsyncError(Object error, StackTrace stackTrace) {}
 // coverage:ignore-end
 
+/// Joins path-list environment values (PATH-style), not filesystem path segments.
+///
+/// `ALERA_AGENT_WRAPPER_PATH` holds one or more wrapper *directories* separated
+/// by `:` on POSIX and `;` on Windows. Using [Platform.pathSeparator] (`/` or
+/// `\`) would split absolute paths into garbage fragments and drop the Amp /
+/// Cursor wrappers from PATH, so status plugins never load.
+@visibleForTesting
+void mergeTerminalLaunchEnvironmentForTesting(
+  Map<String, String> target,
+  Map<String, String>? source,
+) {
+  _mergeTerminalLaunchEnvironment(target, source);
+}
+
 void _mergeTerminalLaunchEnvironment(
   Map<String, String> target,
   Map<String, String>? source,
@@ -388,12 +403,17 @@ void _mergeTerminalLaunchEnvironment(
   final seen = <String>{};
   target['ALERA_AGENT_WRAPPER_PATH'] = wrapperEntries
       .where((entry) => entry.isNotEmpty && seen.add(entry))
-      .join(Platform.pathSeparator);
+      .join(_pathListSeparator);
 }
 
 List<String> _splitPathList(String? value) {
   if (value == null || value.isEmpty) {
     return const <String>[];
   }
-  return value.split(Platform.pathSeparator);
+  return value
+      .split(_pathListSeparator)
+      .where((entry) => entry.isNotEmpty)
+      .toList(growable: false);
 }
+
+String get _pathListSeparator => Platform.isWindows ? ';' : ':';

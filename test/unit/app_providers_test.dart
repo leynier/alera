@@ -46,6 +46,7 @@ import 'fake_git_backend.dart';
 import 'fake_project_config.dart';
 
 part 'app_providers_test_harness.dart';
+part 'app_providers_wrapper_path_test_cases.dart';
 
 void main() {
   group('app providers', () {
@@ -938,6 +939,8 @@ void main() {
         expect(environment, contains('ALERA_AMP_CONFIG_DIR'));
       },
     );
+
+    _registerAppProvidersWrapperPathTests();
 
     test(
       'terminal launch environment clears overlays for every overlay hook kind',

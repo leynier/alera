@@ -20,6 +20,73 @@ extension _ClaudeRuntimeResources on ClaudeRuntimeHomeService {
     return Directory(p.join(_homeDirectory, '.claude'));
   }
 
+  /// CCS root: `$CCS_DIR` or `~/.ccs`.
+  String _ccsRootDirectory() {
+    final fromEnv = _environment['CCS_DIR']?.trim();
+    if (fromEnv != null && fromEnv.isNotEmpty) {
+      return fromEnv;
+    }
+    return p.join(_homeDirectory, '.ccs');
+  }
+
+  /// External Claude settings files that may load hooks when a multi-profile
+  /// launcher overrides `CLAUDE_CONFIG_DIR` (e.g. CCS instance homes).
+  ///
+  /// Paths are de-duplicated after symlink resolution. CCS often re-syncs
+  /// `~/.ccs/shared/settings.json` from `~/.claude/settings.json`, so the
+  /// user Claude settings file is the durable install target for CCS-launched
+  /// sessions (hooks still no-op outside Alera without session env coords).
+  List<String> _externalClaudeSettingsPaths() {
+    final seen = <String>{};
+    final paths = <String>[];
+
+    void consider(String path) {
+      final type = FileSystemEntity.typeSync(path, followLinks: false);
+      if (type == FileSystemEntityType.notFound) {
+        return;
+      }
+      if (type != FileSystemEntityType.file &&
+          type != FileSystemEntityType.link) {
+        return;
+      }
+      final resolved = _resolvedWritablePath(path);
+      if (!File(resolved).existsSync()) {
+        return;
+      }
+      final key = _absoluteNormalizedPath(resolved);
+      if (seen.add(key)) {
+        paths.add(resolved);
+      }
+    }
+
+    // Durable source of truth for CCS shared settings re-sync.
+    consider(p.join(_homeDirectory, '.claude', 'settings.json'));
+
+    final ccsRoot = _ccsRootDirectory();
+    consider(p.join(ccsRoot, 'shared', 'settings.json'));
+
+    final instancesDir = Directory(p.join(ccsRoot, 'instances'));
+    if (instancesDir.existsSync()) {
+      for (final entity in instancesDir.listSync(followLinks: false)) {
+        if (entity is! Directory) {
+          continue;
+        }
+        final settingsPath = p.join(entity.path, 'settings.json');
+        final type = FileSystemEntity.typeSync(
+          settingsPath,
+          followLinks: false,
+        );
+        // Symlinks usually resolve to shared/user settings (already considered).
+        // Only install into private per-instance settings files.
+        if (type == FileSystemEntityType.file) {
+          consider(settingsPath);
+        }
+      }
+    }
+
+    return paths;
+  }
+
   _ClaudeRuntimeHookDescriptor _descriptor(Directory runtimeHome) {
     final extension = switch (_platform) {
       ManagedAgentHookPlatform.posix => 'sh',

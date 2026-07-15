@@ -29,6 +29,11 @@ enum _ManagedHookDefinitionShape {
   nestedCommand,
   directCommand,
   topLevelCommand,
+
+  /// Antigravity lifecycle hooks: `[{ "type": "command", "command": "..." }]`.
+  agyLifecycleCommand,
+
+  /// Antigravity tool hooks: `[{ "matcher": "*", "hooks": [{ "type": "command", ... }] }]`.
   agyToolCommand,
 }
 

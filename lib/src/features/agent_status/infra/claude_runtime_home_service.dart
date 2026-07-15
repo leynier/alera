@@ -88,55 +88,36 @@ final class ClaudeRuntimeHomeService {
   Future<ManagedAgentHookInstallStatus> status() async {
     final runtimeHome = await _runtimeHomeDirectory();
     final descriptor = _descriptor(runtimeHome);
-    final config = _readJsonObject(descriptor.settingsPath);
-    if (config == null) {
-      return ManagedAgentHookInstallStatus(
-        agentType: AgentType.claude,
-        state: ManagedAgentHookInstallState.error,
-        configPath: descriptor.settingsPath,
-        managedHooksPresent: false,
-        detail: 'Could not parse Claude runtime settings.json.',
-      );
+    final runtimeStatus = _statusForSettings(
+      settingsPath: descriptor.settingsPath,
+      descriptor: descriptor,
+    );
+    if (runtimeStatus.state == ManagedAgentHookInstallState.error ||
+        runtimeStatus.state == ManagedAgentHookInstallState.notInstalled) {
+      return runtimeStatus;
     }
 
-    final missing = <String>[];
-    var presentCount = 0;
-    final hooks = _hooksMap(config);
-    for (final event in _claudeEvents) {
-      final command = _managedCommand(descriptor: descriptor, event: event);
-      final definitions = _definitionsFromValue(hooks[event.eventName]);
-      final hasCommand = definitions.any(
-        (definition) => _definitionHasCommand(definition, command),
+    final incompleteExternal = <String>[];
+    for (final settingsPath in _externalClaudeSettingsPaths()) {
+      final externalStatus = _statusForSettings(
+        settingsPath: settingsPath,
+        descriptor: descriptor,
       );
-      if (hasCommand) {
-        presentCount += 1;
-      } else {
-        missing.add(event.eventName);
+      if (externalStatus.state != ManagedAgentHookInstallState.installed) {
+        incompleteExternal.add(settingsPath);
       }
     }
-
-    if (presentCount == 0) {
-      return ManagedAgentHookInstallStatus(
-        agentType: AgentType.claude,
-        state: ManagedAgentHookInstallState.notInstalled,
-        configPath: descriptor.settingsPath,
-        managedHooksPresent: false,
-      );
-    }
-    if (missing.isEmpty) {
-      return ManagedAgentHookInstallStatus(
-        agentType: AgentType.claude,
-        state: ManagedAgentHookInstallState.installed,
-        configPath: descriptor.settingsPath,
-        managedHooksPresent: true,
-      );
+    if (incompleteExternal.isEmpty) {
+      return runtimeStatus;
     }
     return ManagedAgentHookInstallStatus(
       agentType: AgentType.claude,
       state: ManagedAgentHookInstallState.partial,
-      configPath: descriptor.settingsPath,
-      managedHooksPresent: true,
-      detail: 'Managed hook missing for events: ${missing.join(', ')}.',
+      configPath: runtimeStatus.configPath,
+      managedHooksPresent: runtimeStatus.managedHooksPresent,
+      detail:
+          'Runtime hooks installed, but missing from: '
+          '${incompleteExternal.join(', ')}.',
     );
   }
 
@@ -161,45 +142,41 @@ final class ClaudeRuntimeHomeService {
       );
     }
 
-    final nextConfig = <String, Object?>{...sourceConfig};
-    final hooks = _hooksMap(nextConfig);
-    for (final entry in hooks.entries.toList(growable: false)) {
-      final definitions = _definitionsFromValue(entry.value);
-      final cleaned = _removeManagedCommands(
-        definitions,
-        descriptor.managedScriptFileNames,
-      );
-      if (cleaned.isEmpty) {
-        hooks.remove(entry.key);
-      } else {
-        hooks[entry.key] = cleaned;
-      }
-    }
-    for (final event in _claudeEvents) {
-      final current = _definitionsFromValue(hooks[event.eventName]);
-      final cleaned = _removeManagedCommands(
-        current,
-        descriptor.managedScriptFileNames,
-      );
-      hooks[event.eventName] = <Object?>[
-        ...cleaned,
-        _managedHookDefinition(
-          event,
-          _managedCommand(descriptor: descriptor, event: event),
-        ),
-      ];
-    }
-    nextConfig['hooks'] = hooks;
     _writeManagedScript(descriptor.scriptPath, _managedScript());
-    _writeJsonObject(descriptor.settingsPath, nextConfig);
+    final runtimeOk = _installManagedHooksAtSettings(
+      settingsPath: descriptor.settingsPath,
+      descriptor: descriptor,
+      baseConfig: sourceConfig,
+    );
+    if (!runtimeOk) {
+      return ManagedAgentHookInstallStatus(
+        agentType: AgentType.claude,
+        state: ManagedAgentHookInstallState.error,
+        configPath: descriptor.settingsPath,
+        managedHooksPresent: false,
+        detail: 'Could not write Claude runtime settings.json.',
+      );
+    }
+
+    // CCS aliases override CLAUDE_CONFIG_DIR to instance homes whose
+    // settings.json usually symlinks to ~/.ccs/shared/settings.json.
+    for (final settingsPath in _externalClaudeSettingsPaths()) {
+      _installManagedHooksAtSettings(
+        settingsPath: settingsPath,
+        descriptor: descriptor,
+      );
+    }
     return status();
   }
 
   Future<ManagedAgentHookInstallStatus> remove() async {
     final runtimeHome = await _runtimeHomeDirectory();
     final descriptor = _descriptor(runtimeHome);
-    final config = _readJsonObject(descriptor.settingsPath);
-    if (config == null) {
+    final runtimeOk = _removeManagedHooksAtSettings(
+      settingsPath: descriptor.settingsPath,
+      descriptor: descriptor,
+    );
+    if (!runtimeOk) {
       return ManagedAgentHookInstallStatus(
         agentType: AgentType.claude,
         state: ManagedAgentHookInstallState.error,
@@ -208,26 +185,11 @@ final class ClaudeRuntimeHomeService {
         detail: 'Could not parse Claude runtime settings.json.',
       );
     }
-    final hooks = _hooksMap(config);
-    var changed = false;
-    for (final entry in hooks.entries.toList(growable: false)) {
-      final definitions = _definitionsFromValue(entry.value);
-      final cleaned = _removeManagedCommands(
-        definitions,
-        descriptor.managedScriptFileNames,
+    for (final settingsPath in _externalClaudeSettingsPaths()) {
+      _removeManagedHooksAtSettings(
+        settingsPath: settingsPath,
+        descriptor: descriptor,
       );
-      if (jsonEncode(cleaned) != jsonEncode(definitions)) {
-        changed = true;
-      }
-      if (cleaned.isEmpty) {
-        hooks.remove(entry.key);
-      } else {
-        hooks[entry.key] = cleaned;
-      }
-    }
-    if (changed) {
-      config['hooks'] = hooks;
-      _writeJsonObject(descriptor.settingsPath, config);
     }
     return status();
   }

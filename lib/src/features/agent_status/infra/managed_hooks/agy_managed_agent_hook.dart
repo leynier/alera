@@ -5,10 +5,23 @@ extension _AgyManagedAgentHook on ManagedAgentHookInstallService {
     required String scriptFileName,
     required String scriptPath,
   }) {
+    // Antigravity uses two schemas (same as Orca):
+    // - lifecycle events: flat `{ type, command }` entries
+    // - tool events: matcher + nested `hooks` array
+    // Using nestedCommand for lifecycle silently prevents AGY from running them.
     final events = const <_ManagedHookEvent>[
-      _ManagedHookEvent('PreInvocation'),
-      _ManagedHookEvent('PostInvocation'),
-      _ManagedHookEvent('Stop'),
+      _ManagedHookEvent(
+        'PreInvocation',
+        definitionShape: _ManagedHookDefinitionShape.agyLifecycleCommand,
+      ),
+      _ManagedHookEvent(
+        'PostInvocation',
+        definitionShape: _ManagedHookDefinitionShape.agyLifecycleCommand,
+      ),
+      _ManagedHookEvent(
+        'Stop',
+        definitionShape: _ManagedHookDefinitionShape.agyLifecycleCommand,
+      ),
       _ManagedHookEvent(
         'PostToolUse',
         matcher: '*',
@@ -30,7 +43,7 @@ extension _AgyManagedAgentHook on ManagedAgentHookInstallService {
       scriptPath: scriptPath,
       eventEnvVar: 'ALERA_AGY_EVENT',
       configShape: _AgentHookConfigShape.agyBundle,
-      definitionShape: _ManagedHookDefinitionShape.nestedCommand,
+      definitionShape: _ManagedHookDefinitionShape.agyLifecycleCommand,
       bundleName: 'alera-status',
       managedScriptFileNames: <String>[
         scriptFileName,
@@ -62,7 +75,7 @@ extension _AgyManagedAgentHook on ManagedAgentHookInstallService {
         _windowsPostCommand(
           descriptor.agentType.key,
           descriptor.eventEnvVar,
-          emptyPayloadFallbackEvent: 'Stop',
+          allowEmptyPayload: true,
         ),
         'exit /b 0',
         '',
@@ -85,17 +98,13 @@ extension _AgyManagedAgentHook on ManagedAgentHookInstallService {
       '  exit 0',
       'fi',
       'payload=\$(cat)',
+      // Some AGY lifecycle events arrive without stdin; still report the event.
       'if [ -z "\$payload" ]; then',
-      '  case "\$${descriptor.eventEnvVar}" in',
-      '    Stop)',
-      "      payload='{}'",
-      '      ;;',
-      '    *)',
-      '      exit 0',
-      '      ;;',
-      '  esac',
+      "  payload='{}'",
       'fi',
-      'curl -sS -X POST "http://127.0.0.1:\${ALERA_AGENT_HOOK_PORT}/hook/${descriptor.agentType.key}" \\',
+      // Pipe payload via stdin (`payload@-`) so large tool JSON stays off argv.
+      'printf \'%s\' "\$payload" | curl -sS -X POST "http://127.0.0.1:\${ALERA_AGENT_HOOK_PORT}/hook/${descriptor.agentType.key}" \\',
+      '  --connect-timeout 0.5 --max-time 1.5 \\',
       '  -H "Content-Type: application/x-www-form-urlencoded" \\',
       '  -H "$aleraAgentHookTokenHeader: \${ALERA_AGENT_HOOK_TOKEN}" \\',
       '  --data-urlencode "terminalSessionId=\${ALERA_TERMINAL_SESSION_ID}" \\',
@@ -103,7 +112,7 @@ extension _AgyManagedAgentHook on ManagedAgentHookInstallService {
       '  --data-urlencode "tabId=\${ALERA_TAB_ID}" \\',
       '  --data-urlencode "hook_event_name=\${${descriptor.eventEnvVar}}" \\',
       '  --data-urlencode "version=\${ALERA_AGENT_HOOK_VERSION}" \\',
-      '  --data-urlencode "payload=\${payload}" >/dev/null 2>&1 || true',
+      '  --data-urlencode "payload@-" >/dev/null 2>&1 || true',
       'exit 0',
       '',
     ].join('\n');

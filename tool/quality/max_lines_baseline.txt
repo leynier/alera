@@ -2,7 +2,7 @@
 1067	test/widget/settings_dialog_interaction_test_cases.dart
 1249	rust/alera-cli/src/managed_workspace.rs
 1145	rust/alera-cli/src/ssh_bootstrap.rs
-1147	test/unit/app_providers_test.dart
+1150	test/unit/app_providers_test.dart
 1294	rust/alera-cli/src/main.rs
 1194	lib/src/features/workbench/presentation/create_workspace_dialog.dart
 1202	test/unit/workspace_tab_service_test.dart
