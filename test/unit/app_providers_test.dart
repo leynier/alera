@@ -936,6 +936,48 @@ void main() {
         expect(environment, contains('OPENCODE_CONFIG_DIR'));
         expect(environment, contains('PI_CODING_AGENT_DIR'));
         expect(environment, contains('ALERA_AMP_CONFIG_DIR'));
+        expect(environment, contains('ALERA_AGENT_WRAPPER_PATH'));
+        final ampWrapper = environment!['ALERA_AGENT_WRAPPER_PATH']!;
+        expect(ampWrapper, isNot(contains(Platform.pathSeparator == '/' ? '//' : r'\\')));
+        expect(File(p.join(ampWrapper, 'amp')).existsSync(), isTrue);
+      },
+    );
+
+    test(
+      'mergeTerminalLaunchEnvironment joins wrapper dirs with PATH list separator',
+      () {
+        final pathListSeparator = Platform.isWindows ? ';' : ':';
+        final aleraShim = Platform.isWindows
+            ? r'C:\alera\terminal_tools\bin'
+            : '/alera/terminal_tools/bin';
+        final ampWrapper = Platform.isWindows
+            ? r'C:\alera\wrappers\session\bin'
+            : '/alera/wrappers/session/bin';
+        final target = <String, String>{
+          'ALERA_RUNTIME_DIR': '/runtime',
+          'ALERA_AGENT_WRAPPER_PATH': aleraShim,
+        };
+
+        mergeTerminalLaunchEnvironmentForTesting(target, <String, String>{
+          'ALERA_AMP_CONFIG_DIR': '/overlay/amp',
+          'ALERA_AGENT_WRAPPER_PATH': ampWrapper,
+        });
+
+        expect(
+          target['ALERA_AGENT_WRAPPER_PATH'],
+          '$aleraShim$pathListSeparator$ampWrapper',
+        );
+        expect(target['ALERA_AMP_CONFIG_DIR'], '/overlay/amp');
+        expect(target['ALERA_RUNTIME_DIR'], '/runtime');
+
+        // Merging again must not re-split absolute paths on filesystem separators.
+        mergeTerminalLaunchEnvironmentForTesting(target, <String, String>{
+          'ALERA_AGENT_WRAPPER_PATH': ampWrapper,
+        });
+        expect(
+          target['ALERA_AGENT_WRAPPER_PATH'],
+          '$aleraShim$pathListSeparator$ampWrapper',
+        );
       },
     );
 
