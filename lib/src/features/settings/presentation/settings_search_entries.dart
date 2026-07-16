@@ -144,6 +144,64 @@ const List<SettingsSearchEntry> agentsSearchEntries = <SettingsSearchEntry>[
   ),
 ];
 
+const List<SettingsSearchEntry> quotaSearchEntries = <SettingsSearchEntry>[
+  SettingsSearchEntry(
+    title: 'Provider Quotas',
+    description: 'Choose Quota Providers And Their Display Order.',
+    keywords: <String>[
+      'quota',
+      'usage',
+      'codex',
+      'kimi',
+      'grok',
+      'antigravity',
+      'minimax',
+      'z.ai',
+      'order',
+    ],
+    groupId: 'providers',
+  ),
+  SettingsSearchEntry(
+    title: 'Claude Code Quotas',
+    description: 'Enable Claude Quotas For Default And CCS Accounts.',
+    keywords: <String>['claude', 'quota', 'usage'],
+    groupId: 'claude',
+  ),
+  SettingsSearchEntry(
+    title: 'Claude Default Quotas',
+    description: 'Configure The Default Claude Account Independently.',
+    keywords: <String>['claude', 'default', 'account', 'quota'],
+    groupId: 'claude',
+  ),
+  SettingsSearchEntry(
+    title: 'Claude CCS Profiles',
+    description: 'Configure CCS Alias And Profile Pairs For Claude Quotas.',
+    keywords: <String>['claude', 'ccs', 'profile', 'alias', 'quota'],
+    groupId: 'claude',
+  ),
+  SettingsSearchEntry(
+    title: 'Kimi API Key Variable',
+    description: 'Configure The Kimi API Key Environment Variable Name.',
+    keywords: <String>['kimi', 'environment', 'api key', 'KIMI_APY_KEY'],
+    groupId: 'credentials',
+  ),
+  SettingsSearchEntry(
+    title: 'Quota Credential Environment',
+    description:
+        'Configure Environment Variable Names For Kimi, Z.ai And MiniMax.',
+    keywords: <String>[
+      'environment',
+      'api key',
+      'kimi',
+      'z.ai',
+      'minimax',
+      'remote',
+      'host',
+    ],
+    groupId: 'credentials',
+  ),
+];
+
 const List<SettingsSearchEntry> projectSearchEntries = <SettingsSearchEntry>[
   SettingsSearchEntry(
     title: 'Project Worktree Setup',

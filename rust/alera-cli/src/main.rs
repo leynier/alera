@@ -1,3 +1,4 @@
+mod agent_quota;
 mod cli;
 mod cli_orchestration;
 mod managed_workspace;
@@ -21,18 +22,16 @@ use base64::engine::general_purpose::STANDARD;
 use base64::Engine as _;
 use chrono::Utc;
 use clap::Parser;
-use serde::de::DeserializeOwned;
-use serde::Serialize;
+use serde::{de::DeserializeOwned, Serialize};
 use serde_json::{json, Value};
 use uuid::Uuid;
 
-use crate::cli::TerminalHostArgs;
 use crate::cli::{
     CascadePreviewArgs, Cli, Command, IdArgs, ProjectAction, ProjectAddArgs, ProjectCommand,
     ProjectKindArg, RuntimeAction, RuntimeCommand, RuntimeDirArgs, SshAuthKindArg, SshTargetAction,
     SshTargetAddArgs, SshTargetBootstrapArgs, SshTargetBootstrapPlanArgs, SshTargetCommand,
-    SshTargetStatusArgs, TabAction, TabCommand, TabCreateArgs, WorkspaceAction, WorkspaceAddArgs,
-    WorkspaceCommand, WorkspaceKindArg, WorkspaceRegisterArgs,
+    SshTargetStatusArgs, TabAction, TabCommand, TabCreateArgs, TerminalHostArgs, WorkspaceAction,
+    WorkspaceAddArgs, WorkspaceCommand, WorkspaceKindArg, WorkspaceRegisterArgs,
 };
 use crate::cli::{MobileAction, MobileCommand, MobileDevicesAction, MobilePairingAction};
 use crate::cli::{TerminalAction, TerminalCommand};
@@ -80,6 +79,7 @@ async fn run() -> i32 {
 
     match cli.command {
         Command::RuntimeHost(args) => run_terminal_host(args).await,
+        Command::RuntimeProxy => agent_quota::run_runtime_proxy().await,
         Command::Version(command) => run_version_command(command).await,
         Command::TerminalHost(args) => run_terminal_host(args).await,
         Command::Runtime(command) => run_runtime_command(command).await,

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/features/agent_quota/domain/agent_quota.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_providers.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_registry.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_model_discovery_service.dart';
@@ -42,6 +43,7 @@ import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import '../unit/fake_project_config.dart';
 
 part 'settings_dialog_core_test_cases.dart';
+part 'settings_dialog_quota_test_cases.dart';
 part 'settings_dialog_terminal_test_cases.dart';
 part 'settings_dialog_interaction_test_cases.dart';
 part 'settings_dialog_test_harness.dart';
@@ -105,6 +107,7 @@ Future<void> _selectTerminalSection(WidgetTester tester) async {
 
 void main() {
   _registerSettingsDialogCoreTests();
+  _registerSettingsDialogQuotaTests();
   _registerSettingsDialogTerminalTests();
   _registerSettingsDialogAdvancedTests();
 }

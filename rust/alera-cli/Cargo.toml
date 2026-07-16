@@ -17,6 +17,7 @@ tokio = { version = "1", features = [
     "macros",
     "net",
     "io-util",
+    "io-std",
     "process",
     "sync",
     "time",
@@ -43,6 +44,8 @@ jsonschema = { version = "0.47", default-features = false }
 tokio-tungstenite = "0.27"
 toml = "0.8"
 url = "2.5"
+dirs = "6"
+regex = "1"
 
 [dev-dependencies]
 tempfile = "3"

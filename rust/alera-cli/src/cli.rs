@@ -25,7 +25,7 @@ pub enum Command {
     /// Run the persistent runtime host sidecar.
     #[command(name = RUNTIME_HOST_COMMAND)]
     RuntimeHost(TerminalHostArgs),
-
+    RuntimeProxy,
     /// Run the persistent terminal host sidecar.
     #[command(name = TERMINAL_HOST_COMMAND)]
     TerminalHost(TerminalHostArgs),

@@ -5,6 +5,7 @@ import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/features/keyboard/presentation/keyboard_settings_pane.dart';
 import 'package:alera/src/features/settings/infra/system_font_service.dart';
 import 'package:alera/src/features/settings/presentation/panes/agents_pane.dart';
+import 'package:alera/src/features/settings/presentation/panes/agent_quota_settings_group.dart';
 import 'package:alera/src/features/settings/presentation/panes/ai_text_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/application_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/editor_pane.dart';
@@ -114,6 +115,11 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
       SettingsGroupSpec(id: 'hooks', title: 'Status Hooks'),
       SettingsGroupSpec(id: 'behavior', title: 'Behavior'),
     ];
+    const quotaGroups = <SettingsGroupSpec>[
+      SettingsGroupSpec(id: 'providers', title: 'Providers'),
+      SettingsGroupSpec(id: 'claude', title: 'Claude'),
+      SettingsGroupSpec(id: 'credentials', title: 'Credentials'),
+    ];
     const aiTextGroups = <SettingsGroupSpec>[
       SettingsGroupSpec(id: 'generation', title: 'Generation'),
       SettingsGroupSpec(id: 'instructions', title: 'Instructions'),
@@ -149,6 +155,19 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         builder: (_) => AgentsSettingsPane(
           agents: settings.agents,
           groupKeys: _paneKeys('agents', agentsGroups),
+        ),
+      ),
+      SettingsSectionData(
+        id: 'quotas',
+        title: 'Quotas',
+        description:
+            'Provider Usage, Claude Profiles And Credential Environment.',
+        icon: AleraIcons.quota,
+        entries: quotaSearchEntries,
+        groups: quotaGroups,
+        builder: (_) => AgentQuotaSettingsPane(
+          settings: settings.agents.quotas,
+          groupKeys: _paneKeys('quotas', quotaGroups),
         ),
       ),
       SettingsSectionData(

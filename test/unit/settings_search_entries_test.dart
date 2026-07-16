@@ -21,6 +21,18 @@ void main() {
     expect(entry.groupId, 'hooks');
   });
 
+  test(
+    'Kimi API key variable is searchable in the quota credentials group',
+    () {
+      final entry = quotaSearchEntries.singleWhere(
+        (candidate) => candidate.title == 'Kimi API Key Variable',
+      );
+
+      expect(entry.matches('kimi_apy_key'), isTrue);
+      expect(entry.groupId, 'credentials');
+    },
+  );
+
   test('terminal TUI interaction settings are searchable', () {
     final entry = terminalSearchEntries.singleWhere(
       (candidate) => candidate.title == 'TUI Scroll Speed',

@@ -132,6 +132,7 @@ abstract final class AleraIcons {
   static const IconData settings = LucideIcons.settings;
   static const IconData tune = LucideIcons.slidersHorizontal;
   static const IconData agent = LucideIcons.bot;
+  static const IconData quota = LucideIcons.gauge;
   static const IconData terminal = LucideIcons.terminal;
   static const IconData code = LucideIcons.code;
   static const IconData keyboard = LucideIcons.keyboard;

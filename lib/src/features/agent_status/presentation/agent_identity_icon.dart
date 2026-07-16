@@ -9,37 +9,37 @@ class AgentIdentityIcon extends StatelessWidget {
     required this.agentType,
     this.size = 14,
     this.color = AleraTokens.foregroundMuted,
+    this.showTooltip = true,
   });
 
   final AgentType agentType;
   final double size;
   final Color color;
+  final bool showTooltip;
 
   @override
   Widget build(BuildContext context) {
     final label = agentDisplayName(agentType);
     final asset = _agentAsset(agentType);
-    return Tooltip(
-      message: label,
-      child: Semantics(
-        label: label,
-        child: asset.raster
-            ? Image.asset(
-                asset.path,
-                width: size,
-                height: size,
-                filterQuality: FilterQuality.medium,
-              )
-            : SvgPicture.asset(
-                asset.path,
-                width: size,
-                height: size,
-                colorFilter: asset.tintable
-                    ? ColorFilter.mode(color, BlendMode.srcIn)
-                    : null,
-              ),
-      ),
+    final icon = Semantics(
+      label: label,
+      child: asset.raster
+          ? Image.asset(
+              asset.path,
+              width: size,
+              height: size,
+              filterQuality: FilterQuality.medium,
+            )
+          : SvgPicture.asset(
+              asset.path,
+              width: size,
+              height: size,
+              colorFilter: asset.tintable
+                  ? ColorFilter.mode(color, BlendMode.srcIn)
+                  : null,
+            ),
     );
+    return showTooltip ? Tooltip(message: label, child: icon) : icon;
   }
 }
 
@@ -96,9 +96,6 @@ _AgentIconAsset _agentAsset(AgentType agentType) {
       path: 'assets/agents/amp.png',
       raster: true,
     ),
-    AgentType.grok => const _AgentIconAsset(
-      path: 'assets/agents/grok.png',
-      raster: true,
-    ),
+    AgentType.grok => const _AgentIconAsset(path: 'assets/agents/grok.svg'),
   };
 }
