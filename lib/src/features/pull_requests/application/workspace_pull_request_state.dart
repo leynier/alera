@@ -27,6 +27,7 @@ class WorkspacePullRequestState {
     this.unavailableReason,
     this.authStatus = ForgeAuthStatus.unknown,
     this.review,
+    this.suggestedReview,
     this.checks = const <ReviewCheck>[],
     this.comments = const <ReviewComment>[],
     this.linkedManually = false,
@@ -45,9 +46,17 @@ class WorkspacePullRequestState {
   final PullRequestUnavailableReason? unavailableReason;
   final ForgeAuthStatus authStatus;
   final HostedReview? review;
+
+  /// Active branch review currently ignored by the workspace. The link form
+  /// offers it as an explicit suggestion without displaying it automatically.
+  final HostedReview? suggestedReview;
+
   final List<ReviewCheck> checks;
   final List<ReviewComment> comments;
   final bool linkedManually;
+
+  /// Whether the workspace currently carries a dismissal record that applies
+  /// to the active branch review or no active review exists yet.
   final bool dismissed;
 
   /// The current branch of the controlled repository, or null when detached or
@@ -75,6 +84,7 @@ class WorkspacePullRequestState {
       providerAvailable &&
       isAuthenticated &&
       review == null &&
+      suggestedReview == null &&
       unavailableReason == null;
 
   ReviewChecksRollup get checksRollup => deriveReviewChecksRollup(checks);
@@ -84,6 +94,7 @@ class WorkspacePullRequestState {
     PullRequestUnavailableReason? unavailableReason,
     ForgeAuthStatus? authStatus,
     HostedReview? review,
+    HostedReview? suggestedReview,
     List<ReviewCheck>? checks,
     List<ReviewComment>? comments,
     bool? linkedManually,
@@ -104,6 +115,7 @@ class WorkspacePullRequestState {
       unavailableReason: unavailableReason ?? this.unavailableReason,
       authStatus: authStatus ?? this.authStatus,
       review: review ?? this.review,
+      suggestedReview: suggestedReview ?? this.suggestedReview,
       checks: checks ?? this.checks,
       comments: comments ?? this.comments,
       linkedManually: linkedManually ?? this.linkedManually,
@@ -129,6 +141,7 @@ class WorkspacePullRequestState {
         .map((comment) => '${comment.id}:${comment.createdAt}')
         .join('|');
     return '${review?.number}:${review?.state.name}:${review?.title}:'
+        '${suggestedReview?.number}:${suggestedReview?.state.name}:$dismissed:'
         '${review?.baseBranch}:$checkPart:$commentPart';
   }
 }

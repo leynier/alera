@@ -211,6 +211,7 @@ class _PullRequestBody extends StatelessWidget {
       suggestedBaseBranch: state.suggestedBaseBranch ?? 'main',
       canCreate: canCreate,
       busy: state.isBusy,
+      suggestedReview: state.suggestedReview,
       createAction: createAction,
       onCreate: (draft) {
         final identity = state.identity;

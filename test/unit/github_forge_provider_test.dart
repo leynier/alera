@@ -26,10 +26,11 @@ ProcessRunOutput _ok(String stdout) =>
 
 void main() {
   group('GitHubForgeProvider.getReviewForBranch', () {
-    test('builds gh pr list argv and maps the first PR', () async {
+    test('builds gh pr list argv and maps the newest PR', () async {
       final runner = FakeRecordingProcessRunner(<Object>[
         _ok('''
-[{"number":123,"title":"feat: x","state":"OPEN","url":"https://github.com/leynier/alera/pull/123","isDraft":false,"mergeable":"MERGEABLE","headRefName":"feature","baseRefName":"main","headRefOid":"abc","author":{"login":"leynier"}}]
+[{"number":123,"title":"feat: older","state":"OPEN","url":"https://github.com/leynier/alera/pull/123","createdAt":"2026-07-10T00:00:00Z","isDraft":false,"mergeable":"MERGEABLE","headRefName":"feature","baseRefName":"main","headRefOid":"abc","author":{"login":"leynier"}},
+ {"number":124,"title":"feat: newest","state":"OPEN","url":"https://github.com/leynier/alera/pull/124","createdAt":"2026-07-11T00:00:00Z","isDraft":false,"mergeable":"MERGEABLE","headRefName":"feature","baseRefName":"main","headRefOid":"def","author":{"login":"leynier"}}]
 '''),
       ]);
       final provider = GitHubForgeProvider(runner);
@@ -47,8 +48,11 @@ void main() {
       expect(call.optionValue('repo'), 'leynier/alera');
       expect(call.optionValue('head'), 'feature');
       expect(call.optionValue('state'), 'open');
+      expect(call.optionValue('limit'), '100');
       expect(review, isNotNull);
-      expect(review!.number, 123);
+      expect(review!.number, 124);
+      expect(review.title, 'feat: newest');
+      expect(review.createdAt, DateTime.parse('2026-07-11T00:00:00Z'));
       expect(review.state, HostedReviewState.open);
       expect(review.mergeable, HostedReviewMergeable.mergeable);
       expect(review.author, 'leynier');

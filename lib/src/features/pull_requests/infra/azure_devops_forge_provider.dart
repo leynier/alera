@@ -259,6 +259,8 @@ class AzureDevOpsForgeProvider
       branch,
       '--status',
       'active',
+      '--top',
+      '100',
       '--output',
       'json',
     ], repoPath);
@@ -266,7 +268,11 @@ class AzureDevOpsForgeProvider
     if (decoded is! List || decoded.isEmpty) {
       return null;
     }
-    return mapAzureReview(identity, decoded.first as Map<String, Object?>);
+    return pickNewestHostedReview(
+      decoded.whereType<Map>().map(
+        (item) => mapAzureReview(identity, Map<String, Object?>.from(item)),
+      ),
+    );
   }
 
   @override

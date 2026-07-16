@@ -37,6 +37,7 @@ class GitHubForgeProvider
     'title',
     'state',
     'url',
+    'createdAt',
     'isDraft',
     'mergeable',
     'headRefName',
@@ -118,7 +119,7 @@ class GitHubForgeProvider
       '--state',
       'open',
       '--limit',
-      '1',
+      '100',
       '--json',
       _reviewJsonFields.join(','),
     ], repoPath);
@@ -126,7 +127,11 @@ class GitHubForgeProvider
     if (decoded is! List || decoded.isEmpty) {
       return null;
     }
-    return mapGitHubReview(decoded.first as Map<String, Object?>);
+    return pickNewestHostedReview(
+      decoded.whereType<Map>().map(
+        (item) => mapGitHubReview(Map<String, Object?>.from(item)),
+      ),
+    );
   }
 
   @override

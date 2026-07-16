@@ -23,6 +23,7 @@ import 'fake_git_backend.dart';
 HostedReview _review(
   int number, {
   HostedReviewState state = HostedReviewState.open,
+  DateTime? createdAt,
 }) => HostedReview(
   provider: GitHostingProvider.github,
   number: number,
@@ -30,6 +31,7 @@ HostedReview _review(
   state: state,
   url: 'https://github.com/leynier/alera/pull/$number',
   headBranch: 'feature',
+  createdAt: createdAt,
 );
 
 const _scope = WorkspacePullRequestScope(
@@ -154,26 +156,6 @@ void main() {
         .value!;
     expect(state.errorMessage, contains('999'));
     expect(state.review, isNull);
-  });
-
-  test('unlink dismisses and suppresses auto-detection', () async {
-    final forge = FakeForgeProvider()..branchReview = _review(123);
-    final repo = FakeLinkedReviewRepository();
-    final container = _container(forge: forge, repo: repo);
-    addTearDown(container.dispose);
-
-    await container.read(workspacePullRequestControllerProvider(_scope).future);
-    final controller = container.read(
-      workspacePullRequestControllerProvider(_scope).notifier,
-    );
-    await controller.unlink();
-
-    final state = container
-        .read(workspacePullRequestControllerProvider(_scope))
-        .value!;
-    expect(state.dismissed, isTrue);
-    expect(state.review, isNull);
-    expect(repo.store['w1']!.dismissed, isTrue);
   });
 
   test('createReview pushes, creates, and links the result', () async {

@@ -36,6 +36,7 @@ HostedReview mapAzureReview(
     title: json['title'] as String? ?? '',
     state: _mapState(status, isDraft),
     url: azureWebUrl(identity, number),
+    createdAt: _parseDate(json['creationDate']),
     author: createdBy is Map<String, Object?>
         ? createdBy['displayName'] as String?
         : null,

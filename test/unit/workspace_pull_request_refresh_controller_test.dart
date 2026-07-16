@@ -7,6 +7,7 @@ import 'package:alera/src/features/pull_requests/application/pull_request_provid
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_controller.dart';
 import 'package:alera/src/features/pull_requests/domain/git_hosting_provider.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
+import 'package:alera/src/features/pull_requests/domain/linked_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
 import 'package:alera/src/features/pull_requests/domain/workspace_pull_request_scope.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
@@ -34,6 +35,7 @@ const _scope = WorkspacePullRequestScope(
 ProviderContainer _container({
   required FakeForgeProvider forge,
   bool visible = true,
+  FakeLinkedReviewRepository? linkedReviews,
 }) {
   final backend = FakeGitBackend()
     ..remotesByName = <String, String?>{
@@ -46,7 +48,7 @@ ProviderContainer _container({
         ForgeProviderRegistry(<ForgeProvider>[forge]),
       ),
       linkedReviewRepositoryProvider.overrideWithValue(
-        FakeLinkedReviewRepository(),
+        linkedReviews ?? FakeLinkedReviewRepository(),
       ),
     ],
   );
@@ -207,5 +209,35 @@ void main() {
     expect(container.read(provider).value!.review?.number, 789);
     controller.detachPanel();
     subscription.close();
+  });
+
+  testWidgets('polling detects a different PR after an exact dismissal', (
+    tester,
+  ) async {
+    final forge = FakeForgeProvider()..branchReview = _review(123);
+    final linkedReviews = FakeLinkedReviewRepository()
+      ..store['w1'] = LinkedReview.dismissal(
+        workspaceId: 'w1',
+        provider: GitHostingProvider.github,
+        number: 123,
+        url: 'https://github.com/leynier/alera/pull/123',
+      );
+    final container = _container(forge: forge, linkedReviews: linkedReviews);
+    addTearDown(container.dispose);
+    final provider = workspacePullRequestControllerProvider(_scope);
+
+    await _pumpUntil(tester, () => container.read(provider).hasValue);
+    expect(container.read(provider).value?.suggestedReview?.number, 123);
+
+    forge.branchReview = _review(456);
+    await tester.pump(const Duration(seconds: 30));
+    await _pumpUntil(
+      tester,
+      () => container.read(provider).value?.review?.number == 456,
+    );
+
+    expect(container.read(provider).value?.suggestedReview, isNull);
+    container.read(provider.notifier).detachPanel();
+    await tester.pump();
   });
 }
