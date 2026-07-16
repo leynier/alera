@@ -5,6 +5,7 @@ import 'package:alera/src/features/pull_requests/domain/git_hosting_provider.dar
 import 'package:alera/src/features/pull_requests/domain/git_remote_identity.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
+import 'package:alera/src/features/pull_requests/domain/review_merge_method.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_result.dart';
 import 'package:alera/src/features/pull_requests/infra/github_forge_provider.dart';
@@ -298,6 +299,46 @@ void main() {
         (result as UpdateReviewFailure).code,
         UpdateReviewErrorCode.cliMissing,
       );
+    });
+  });
+
+  group('GitHubForgeProvider review actions', () {
+    for (final entry in <(ReviewMergeMethod, String)>[
+      (ReviewMergeMethod.mergeCommit, '--merge'),
+      (ReviewMergeMethod.squash, '--squash'),
+      (ReviewMergeMethod.rebase, '--rebase'),
+    ]) {
+      test('merges with ${entry.$2}', () async {
+        final runner = FakeRecordingProcessRunner(<Object>[_ok('')]);
+        final provider = GitHubForgeProvider(runner);
+
+        await provider.mergeReview(
+          identity: _identity,
+          repoPath: '/repo',
+          number: 123,
+          method: entry.$1,
+        );
+
+        final call = runner.calls.single;
+        expect(call.arguments.sublist(0, 3), <String>['pr', 'merge', '123']);
+        expect(call.optionValue('repo'), 'leynier/alera');
+        expect(call.arguments, contains(entry.$2));
+      });
+    }
+
+    test('closes the pull request through gh', () async {
+      final runner = FakeRecordingProcessRunner(<Object>[_ok('')]);
+      final provider = GitHubForgeProvider(runner);
+
+      await provider.closeReview(
+        identity: _identity,
+        repoPath: '/repo',
+        number: 123,
+      );
+
+      final call = runner.calls.single;
+      expect(call.arguments.sublist(0, 3), <String>['pr', 'close', '123']);
+      expect(call.optionValue('repo'), 'leynier/alera');
     });
   });
 

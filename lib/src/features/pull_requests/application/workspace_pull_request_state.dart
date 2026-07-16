@@ -2,12 +2,13 @@ import 'package:alera/src/features/pull_requests/domain/forge_auth_status.dart';
 import 'package:alera/src/features/pull_requests/domain/git_remote_identity.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
+import 'package:alera/src/features/pull_requests/domain/review_merge_method.dart';
 
 /// Why the pull-request panel has no provider to work with.
 enum PullRequestUnavailableReason { noRemote, undetectable, unsupported }
 
 /// In-flight action for busy indicators.
-enum PullRequestAction { refresh, link, unlink, create, update }
+enum PullRequestAction { refresh, link, unlink, create, update, merge, close }
 
 /// Immutable state of the pull-request panel for one workspace.
 class WorkspacePullRequestState {
@@ -22,6 +23,8 @@ class WorkspacePullRequestState {
     this.currentBranch,
     this.baseBranches = const <String>[],
     this.suggestedBaseBranch,
+    this.mergeMethods = const <ReviewMergeMethod>[],
+    this.canCloseReview = false,
     this.action,
     this.errorMessage,
   });
@@ -44,6 +47,8 @@ class WorkspacePullRequestState {
   /// Resolved default base branch for the create form.
   final String? suggestedBaseBranch;
 
+  final List<ReviewMergeMethod> mergeMethods;
+  final bool canCloseReview;
   final PullRequestAction? action;
   final String? errorMessage;
 
@@ -71,6 +76,8 @@ class WorkspacePullRequestState {
     String? currentBranch,
     List<String>? baseBranches,
     String? suggestedBaseBranch,
+    List<ReviewMergeMethod>? mergeMethods,
+    bool? canCloseReview,
     PullRequestAction? action,
     bool clearAction = false,
     String? errorMessage,
@@ -87,6 +94,8 @@ class WorkspacePullRequestState {
       currentBranch: currentBranch ?? this.currentBranch,
       baseBranches: baseBranches ?? this.baseBranches,
       suggestedBaseBranch: suggestedBaseBranch ?? this.suggestedBaseBranch,
+      mergeMethods: mergeMethods ?? this.mergeMethods,
+      canCloseReview: canCloseReview ?? this.canCloseReview,
       action: clearAction ? null : (action ?? this.action),
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
     );

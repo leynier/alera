@@ -9,6 +9,7 @@ import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/linked_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check_details.dart';
+import 'package:alera/src/features/pull_requests/domain/review_merge_method.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_result.dart';
 
@@ -37,12 +38,29 @@ class FakeForgeProvider implements ForgeProvider {
   );
   UpdateReviewInput? lastUpdateInput;
   int updateCalls = 0;
+  List<ReviewMergeMethod> mergeMethods = const <ReviewMergeMethod>[
+    ReviewMergeMethod.mergeCommit,
+    ReviewMergeMethod.squash,
+    ReviewMergeMethod.rebase,
+  ];
+  bool canCloseReview = true;
+  ReviewMergeMethod? lastMergeMethod;
+  int mergeCalls = 0;
+  Object? mergeError;
+  int closeCalls = 0;
+  Object? closeError;
 
   @override
   GitHostingProvider get id => GitHostingProvider.github;
 
   @override
   bool get supportsReviewCreation => true;
+
+  @override
+  List<ReviewMergeMethod> get supportedMergeMethods => mergeMethods;
+
+  @override
+  bool get supportsReviewClosure => canCloseReview;
 
   @override
   Future<ForgeAuthStatus> checkAuth({
@@ -118,6 +136,50 @@ class FakeForgeProvider implements ForgeProvider {
       }
     }
     return result;
+  }
+
+  @override
+  Future<void> mergeReview({
+    required GitRemoteIdentity identity,
+    required String repoPath,
+    required int number,
+    required ReviewMergeMethod method,
+  }) async {
+    mergeCalls++;
+    lastMergeMethod = method;
+    final error = mergeError;
+    if (error != null) {
+      throw error;
+    }
+    _setReviewState(number, HostedReviewState.merged);
+  }
+
+  @override
+  Future<void> closeReview({
+    required GitRemoteIdentity identity,
+    required String repoPath,
+    required int number,
+  }) async {
+    closeCalls++;
+    final error = closeError;
+    if (error != null) {
+      throw error;
+    }
+    _setReviewState(number, HostedReviewState.closed);
+  }
+
+  void _setReviewState(int number, HostedReviewState state) {
+    final current =
+        byNumber[number] ??
+        (branchReview?.number == number ? branchReview : null);
+    if (current == null) {
+      return;
+    }
+    final updated = current.copyWith(state: state);
+    byNumber[number] = updated;
+    if (branchReview?.number == number) {
+      branchReview = updated;
+    }
   }
 }
 

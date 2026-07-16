@@ -4,6 +4,7 @@ import 'package:alera/src/features/pull_requests/domain/git_hosting_provider.dar
 import 'package:alera/src/features/pull_requests/domain/git_remote_identity.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
+import 'package:alera/src/features/pull_requests/domain/review_merge_method.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_result.dart';
 import 'package:alera/src/features/pull_requests/infra/azure_devops_forge_provider.dart';
@@ -338,6 +339,62 @@ void main() {
         failure.message,
         contains('the title may already have been updated'),
       );
+    });
+  });
+
+  group('AzureDevOpsForgeProvider review actions', () {
+    for (final entry in <(ReviewMergeMethod, String)>[
+      (ReviewMergeMethod.mergeCommit, 'false'),
+      (ReviewMergeMethod.squash, 'true'),
+    ]) {
+      test('completes with squash=${entry.$2}', () async {
+        final runner = FakeRecordingProcessRunner(<Object>[_ok('')]);
+        final provider = AzureDevOpsForgeProvider(runner);
+
+        await provider.mergeReview(
+          identity: _identity,
+          repoPath: '/repo',
+          number: 42,
+          method: entry.$1,
+        );
+
+        final call = runner.calls.single;
+        expect(call.arguments.sublist(0, 3), <String>['repos', 'pr', 'update']);
+        expect(call.optionValue('status'), 'completed');
+        expect(call.optionValue('squash'), entry.$2);
+        expect(call.optionValue('organization'), 'https://dev.azure.com/myorg');
+      });
+    }
+
+    test('does not expose rebase through the Azure CLI', () async {
+      final runner = FakeRecordingProcessRunner(<Object>[]);
+      final provider = AzureDevOpsForgeProvider(runner);
+
+      expect(
+        () => provider.mergeReview(
+          identity: _identity,
+          repoPath: '/repo',
+          number: 42,
+          method: ReviewMergeMethod.rebase,
+        ),
+        throwsA(isA<Exception>()),
+      );
+      expect(runner.calls, isEmpty);
+    });
+
+    test('abandons the pull request when closing', () async {
+      final runner = FakeRecordingProcessRunner(<Object>[_ok('')]);
+      final provider = AzureDevOpsForgeProvider(runner);
+
+      await provider.closeReview(
+        identity: _identity,
+        repoPath: '/repo',
+        number: 42,
+      );
+
+      final call = runner.calls.single;
+      expect(call.optionValue('status'), 'abandoned');
+      expect(call.optionValue('organization'), 'https://dev.azure.com/myorg');
     });
   });
 

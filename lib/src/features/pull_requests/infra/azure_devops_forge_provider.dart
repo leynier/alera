@@ -11,6 +11,7 @@ import 'package:alera/src/features/pull_requests/domain/git_remote_identity.dart
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check_details.dart';
+import 'package:alera/src/features/pull_requests/domain/review_merge_method.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_result.dart';
 import 'package:alera/src/features/pull_requests/infra/azure_devops_cli_failures.dart';
@@ -19,10 +20,14 @@ import 'package:alera/src/shared/infra/process/process_runner.dart';
 import 'package:meta/meta.dart';
 import 'package:path/path.dart' as p;
 
+part 'azure_devops_review_actions.dart';
+
 /// [ForgeProvider] for Azure DevOps, wrapping the official `az` CLI (with the
 /// `azure-devops` extension). Authentication relies on `az login`. Checks are
 /// derived from PR policy evaluations.
-class AzureDevOpsForgeProvider implements ForgeProvider {
+class AzureDevOpsForgeProvider
+    with _AzureDevOpsReviewActions
+    implements ForgeProvider {
   const AzureDevOpsForgeProvider(this._processRunner);
 
   final ProcessRunner _processRunner;

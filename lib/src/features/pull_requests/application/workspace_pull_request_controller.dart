@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:alera/src/features/pull_requests/application/forge_exception.dart';
+import 'package:alera/src/features/pull_requests/application/forge_provider.dart';
 import 'package:alera/src/features/pull_requests/application/forge_provider_registry.dart';
 import 'package:alera/src/features/pull_requests/application/linked_review_repository.dart';
 import 'package:alera/src/features/pull_requests/application/pull_request_providers.dart';
@@ -9,9 +11,12 @@ import 'package:alera/src/features/pull_requests/application/workspace_pull_requ
 import 'package:alera/src/features/pull_requests/domain/create_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/create_review_result.dart';
 import 'package:alera/src/features/pull_requests/domain/forge_auth_status.dart';
+import 'package:alera/src/features/pull_requests/domain/git_remote_identity.dart';
+import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/linked_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check_details.dart';
+import 'package:alera/src/features/pull_requests/domain/review_merge_method.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_result.dart';
 import 'package:alera/src/features/pull_requests/domain/workspace_pull_request_scope.dart';
@@ -21,9 +26,11 @@ import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'workspace_pull_request_controller.g.dart';
+part 'workspace_pull_request_review_actions.dart';
 
 @Riverpod(keepAlive: true)
-class WorkspacePullRequestController extends _$WorkspacePullRequestController {
+class WorkspacePullRequestController extends _$WorkspacePullRequestController
+    with _WorkspacePullRequestReviewActions {
   static const Duration _minPollInterval = Duration(seconds: 30);
   static const Duration _maxPollInterval = Duration(seconds: 120);
 
@@ -295,6 +302,15 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController {
         _resetPollInterval();
       }
     } on _ActionError catch (error) {
+      if (!_disposed) {
+        state = AsyncData(
+          (state.value ?? current).copyWith(
+            clearAction: true,
+            errorMessage: error.message,
+          ),
+        );
+      }
+    } on ForgeException catch (error) {
       if (!_disposed) {
         state = AsyncData(
           (state.value ?? current).copyWith(

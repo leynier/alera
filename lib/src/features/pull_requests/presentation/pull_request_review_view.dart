@@ -1,16 +1,23 @@
+import 'dart:async';
+
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
+import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_state.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check_details.dart';
+import 'package:alera/src/features/pull_requests/domain/review_merge_method.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_result.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_check_list.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_field_decoration.dart';
 import 'package:flutter/material.dart';
+
+part 'pull_request_review_actions.dart';
 
 /// Presentational body for a linked review: header, inline title/base-branch
 /// editing, expandable checks, and a bottom Unlink button. Pure: data and
@@ -21,9 +28,13 @@ class PullRequestReviewView extends StatefulWidget {
     required this.review,
     required this.checks,
     required this.baseBranches,
+    required this.mergeMethods,
+    required this.canCloseReview,
     required this.action,
     required this.onOpenUrl,
     required this.onUnlink,
+    required this.onMerge,
+    required this.onClose,
     required this.onUpdate,
     required this.onLoadCheckDetails,
   });
@@ -31,9 +42,13 @@ class PullRequestReviewView extends StatefulWidget {
   final HostedReview review;
   final List<ReviewCheck> checks;
   final List<String> baseBranches;
+  final List<ReviewMergeMethod> mergeMethods;
+  final bool canCloseReview;
   final PullRequestAction? action;
   final Future<void> Function(String url) onOpenUrl;
   final VoidCallback onUnlink;
+  final Future<void> Function(ReviewMergeMethod method) onMerge;
+  final Future<void> Function() onClose;
   final Future<UpdateReviewResult> Function(UpdateReviewInput input) onUpdate;
   final Future<ReviewCheckDetails?> Function(ReviewCheck check)
   onLoadCheckDetails;
@@ -49,7 +64,6 @@ class _PullRequestReviewViewState extends State<PullRequestReviewView> {
 
   bool get _busy => widget.action != null;
   bool get _saving => widget.action == PullRequestAction.update;
-  bool get _unlinking => widget.action == PullRequestAction.unlink;
 
   @override
   void dispose() {
@@ -137,16 +151,14 @@ class _PullRequestReviewViewState extends State<PullRequestReviewView> {
             ),
           ),
           const SizedBox(height: AleraTokens.space8),
-          FilledButton.icon(
-            onPressed: _busy ? null : widget.onUnlink,
-            icon: _unlinking
-                ? const SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(AleraIcons.unlink, size: 16),
-            label: const Text('Unlink Pull Request'),
+          _PullRequestReviewActions(
+            review: review,
+            mergeMethods: widget.mergeMethods,
+            canCloseReview: widget.canCloseReview,
+            action: widget.action,
+            onMerge: widget.onMerge,
+            onClose: widget.onClose,
+            onUnlink: widget.onUnlink,
           ),
         ],
       ),

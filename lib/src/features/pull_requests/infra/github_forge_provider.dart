@@ -10,17 +10,20 @@ import 'package:alera/src/features/pull_requests/domain/git_remote_identity.dart
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check_details.dart';
+import 'package:alera/src/features/pull_requests/domain/review_merge_method.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_result.dart';
 import 'package:alera/src/features/pull_requests/infra/github_cli_failures.dart';
 import 'package:alera/src/features/pull_requests/infra/github_review_mappers.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 
+part 'github_review_actions.dart';
+
 /// [ForgeProvider] for GitHub, wrapping the official `gh` CLI. Authentication
 /// relies on the user being logged in via `gh auth login`. Follows the
 /// `GitHubStarService` pattern: constructor-injected [ProcessRunner], typed
 /// errors instead of leaked stderr.
-class GitHubForgeProvider implements ForgeProvider {
+class GitHubForgeProvider with _GitHubReviewActions implements ForgeProvider {
   const GitHubForgeProvider(this._processRunner);
 
   final ProcessRunner _processRunner;
