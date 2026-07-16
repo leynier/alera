@@ -3,11 +3,10 @@ import 'package:dart_mappable/dart_mappable.dart';
 
 part 'linked_review.mapper.dart';
 
-/// Per-workspace review intent, persisted via the runtime host. Three states:
-/// a linked review ([number] set, [dismissed] false), a dismissal ([dismissed]
-/// true — the panel stays empty and does not auto-detect), or no record at all
-/// (auto-detect from the branch). Replaces Orca's five per-provider fields with
-/// one neutral record keyed by [workspaceId].
+/// Per-workspace review intent, persisted via the runtime host. A linked review
+/// points at the review to display; a dismissal identifies the exact review to
+/// ignore while allowing a different review on the branch to be auto-detected.
+/// Legacy dismissals without provider/number remain readable.
 @MappableClass()
 class LinkedReview with LinkedReviewMappable {
   const LinkedReview({
@@ -34,13 +33,20 @@ class LinkedReview with LinkedReviewMappable {
     linkedAt: (linkedAt ?? DateTime.now()).toUtc(),
   );
 
-  /// A dismissal: the panel stays empty and auto-detection is suppressed.
+  /// A dismissal for one review. Optional identity fields preserve backwards
+  /// compatibility with legacy records that suppressed the whole workspace.
   factory LinkedReview.dismissal({
     required String workspaceId,
+    GitHostingProvider? provider,
+    int? number,
+    String? url,
     DateTime? linkedAt,
   }) => LinkedReview(
     workspaceId: workspaceId,
     dismissed: true,
+    provider: provider,
+    number: number,
+    url: url,
     linkedAt: (linkedAt ?? DateTime.now()).toUtc(),
   );
 
@@ -53,6 +59,10 @@ class LinkedReview with LinkedReviewMappable {
 
   /// Whether this record points at a concrete review to display.
   bool get hasReview => !dismissed && number != null && provider != null;
+
+  /// Whether this dismissal identifies one exact review.
+  bool get hasDismissedReview =>
+      dismissed && number != null && provider != null;
 
   factory LinkedReview.fromJson(Map<String, Object?> json) =>
       LinkedReviewMapper.fromMap(Map<String, dynamic>.from(json));

@@ -9,7 +9,9 @@ import 'package:alera/src/features/ai_text_generation/application/ai_text_genera
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_providers.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_service.dart';
 import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
+import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_field_decoration.dart';
+import 'package:alera/src/features/pull_requests/presentation/pull_request_link_form.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:flutter/material.dart';
@@ -44,6 +46,7 @@ class PullRequestComposer extends ConsumerStatefulWidget {
     required this.suggestedBaseBranch,
     required this.canCreate,
     required this.busy,
+    required this.suggestedReview,
     required this.createAction,
     required this.onCreate,
     required this.onLink,
@@ -56,6 +59,7 @@ class PullRequestComposer extends ConsumerStatefulWidget {
   final String suggestedBaseBranch;
   final bool canCreate;
   final bool busy;
+  final HostedReview? suggestedReview;
   final PullRequestCreateAction createAction;
   final ValueChanged<CreateReviewDraft> onCreate;
   final ValueChanged<String> onLink;
@@ -312,7 +316,17 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
                 if (_mode == _ComposerMode.create)
                   _buildCreateForm(theme, aiEnabled: aiEnabled)
                 else
-                  _buildLinkForm(theme),
+                  PullRequestLinkForm(
+                    controller: _linkController,
+                    busy: widget.busy,
+                    suggestedReview: widget.suggestedReview,
+                    onChanged: () {
+                      if (_errorText != null) {
+                        setState(() => _errorText = null);
+                      }
+                    },
+                    onSubmitted: _submitLink,
+                  ),
                 if (_errorText != null) ...<Widget>[
                   const SizedBox(height: AleraTokens.space8),
                   Text(
@@ -439,36 +453,6 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
               : descriptionField,
         ),
       ],
-    );
-  }
-
-  Widget _buildLinkForm(ThemeData theme) {
-    return _labeledField(
-      theme,
-      label: 'Pull Request',
-      child: TextField(
-        controller: _linkController,
-        enabled: !widget.busy,
-        autofocus: true,
-        style: theme.textTheme.bodySmall?.copyWith(
-          color: AleraTokens.foreground,
-        ),
-        cursorColor: AleraTokens.foreground,
-        decoration: pullRequestFieldDecoration(
-          theme,
-          hint: '#123 Or Pull Request URL',
-        ),
-        onChanged: (_) {
-          if (_errorText != null) {
-            setState(() => _errorText = null);
-          }
-        },
-        onSubmitted: (_) {
-          if (!widget.busy) {
-            _submitLink();
-          }
-        },
-      ),
     );
   }
 

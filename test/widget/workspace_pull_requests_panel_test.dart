@@ -5,7 +5,10 @@ import 'package:alera/src/features/pull_requests/application/forge_provider_regi
 import 'package:alera/src/features/pull_requests/application/pull_request_providers.dart';
 import 'package:alera/src/features/pull_requests/domain/git_hosting_provider.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
+import 'package:alera/src/features/pull_requests/domain/linked_review.dart';
 import 'package:alera/src/features/pull_requests/presentation/workspace_pull_requests_panel.dart';
+import 'package:alera/src/features/settings/application/settings_controller.dart';
+import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
@@ -133,5 +136,87 @@ void main() {
     resumeGate.complete(_review(789));
     await tester.pumpAndSettle();
     expect(find.text('feat: 789'), findsOneWidget);
+  });
+
+  testWidgets('suggests the ignored active PR without linking it immediately', (
+    tester,
+  ) async {
+    final now = DateTime.utc(2026, 7, 16);
+    final workspace = Workspace(
+      id: 'workspace-1',
+      projectId: 'project-1',
+      name: 'Feature',
+      branch: 'feature',
+      path: '/repo',
+      createdAt: now,
+      updatedAt: now,
+      kind: WorkspaceKind.linked,
+      status: WorkspaceStatus.active,
+    );
+    final review = _review(123);
+    final forge = FakeForgeProvider()
+      ..branchReview = review
+      ..byNumber[123] = review;
+    final linkedReviews = FakeLinkedReviewRepository()
+      ..store[workspace.id] = LinkedReview.dismissal(
+        workspaceId: workspace.id,
+        provider: GitHostingProvider.github,
+        number: 123,
+        url: review.url,
+      );
+    final git = FakeGitBackend()
+      ..remotesByName = <String, String?>{
+        'origin': 'https://github.com/leynier/alera.git',
+      };
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          effectiveHostingProviderOverrideProvider.overrideWith(
+            (ref, projectId) async => null,
+          ),
+          gitBackendProvider.overrideWithValue(git),
+          forgeProviderRegistryProvider.overrideWithValue(
+            ForgeProviderRegistry(<ForgeProvider>[forge]),
+          ),
+          linkedReviewRepositoryProvider.overrideWithValue(linkedReviews),
+          settingsControllerProvider.overrideWithValue(AleraSettings.defaults),
+          workbenchControllerProvider.overrideWith(
+            _PanelWorkbenchController.new,
+          ),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 360,
+              height: 640,
+              child: WorkspacePullRequestsPanel(
+                workspace: workspace,
+                repoPath: workspace.path,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Suggested Pull Request'), findsOneWidget);
+    expect(find.text('#123 · feat: 123'), findsOneWidget);
+    expect(linkedReviews.store[workspace.id]?.dismissed, isTrue);
+
+    await tester.tap(find.text('#123 · feat: 123'));
+    await tester.pump();
+
+    final field = tester.widget<TextField>(find.byType(TextField));
+    expect(field.controller?.text, '#123');
+    expect(linkedReviews.store[workspace.id]?.dismissed, isTrue);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Link'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Unlink Pull Request'), findsOneWidget);
+    expect(linkedReviews.store[workspace.id]?.dismissed, isFalse);
+    expect(linkedReviews.store[workspace.id]?.number, 123);
   });
 }

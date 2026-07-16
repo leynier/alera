@@ -30,12 +30,13 @@ void main() {
       repo: 'repo',
       project: 'project',
     );
-    const review = HostedReview(
+    final review = HostedReview(
       provider: GitHostingProvider.github,
       number: 42,
       title: 'Coverage',
       state: HostedReviewState.open,
       url: 'https://example.test/pull/42',
+      createdAt: DateTime.utc(2026, 7, 16),
       mergeable: HostedReviewMergeable.mergeable,
     );
     const check = ReviewCheck(
@@ -51,5 +52,28 @@ void main() {
     expect(review.isOpen, isTrue);
     expect(review.copyWith(state: HostedReviewState.draft).isOpen, isTrue);
     expect(review.copyWith(state: HostedReviewState.closed).isOpen, isFalse);
+  });
+
+  test('picks the newest review with number as a missing-date fallback', () {
+    final datedOlder = HostedReview(
+      provider: GitHostingProvider.github,
+      number: 40,
+      title: 'Dated',
+      state: HostedReviewState.open,
+      url: 'https://example.test/pull/40',
+      createdAt: DateTime.utc(2026, 7, 15),
+    );
+    const undatedNewerNumber = HostedReview(
+      provider: GitHostingProvider.github,
+      number: 41,
+      title: 'Undated',
+      state: HostedReviewState.open,
+      url: 'https://example.test/pull/41',
+    );
+
+    expect(
+      pickNewestHostedReview(<HostedReview>[datedOlder, undatedNewerNumber]),
+      undatedNewerNumber,
+    );
   });
 }

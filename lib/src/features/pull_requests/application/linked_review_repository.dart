@@ -13,6 +13,6 @@ abstract interface class LinkedReviewRepository {
   /// Persists (link or replace) the review association.
   Future<void> save(LinkedReview review);
 
-  /// Removes the review linked to [workspaceId] (unlink).
+  /// Clears the persisted link or dismissal for [workspaceId].
   Future<void> remove(String workspaceId);
 }

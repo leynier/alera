@@ -120,10 +120,10 @@ pub struct WorkspaceTabRecord {
     pub payload: serde_json::Value,
 }
 
-/// Per-workspace review intent. `dismissed` means the user unlinked and the PR
-/// panel should stay empty (no auto-detection); otherwise `provider`/`number`/
-/// `url` describe the explicitly linked review. Absence of a row means
-/// auto-detect from the branch.
+/// Per-workspace review intent. With `dismissed = true`, `provider`/`number`
+/// identify the exact review ignored by auto-detection; legacy dismissals may
+/// omit that identity. Otherwise those fields describe the explicitly linked
+/// review. Absence of a row means auto-detect from the branch.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct LinkedReview {

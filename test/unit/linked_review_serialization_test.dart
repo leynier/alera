@@ -39,14 +39,27 @@ void main() {
       expect(restored.linkedAt.toUtc(), review.linkedAt);
     });
 
-    test('a dismissal round-trips and reports no review', () {
-      final dismissal = LinkedReview.dismissal(workspaceId: 'w1');
+    test('an exact dismissal round-trips and reports no linked review', () {
+      final dismissal = LinkedReview.dismissal(
+        workspaceId: 'w1',
+        provider: GitHostingProvider.github,
+        number: 7,
+        url: 'https://github.com/o/r/pull/7',
+      );
       final map = dismissal.toMap();
       expect(map['dismissed'], true);
-      expect(map['number'], isNull);
+      expect(map['number'], 7);
       final restored = LinkedReview.fromJson(map);
       expect(restored.dismissed, isTrue);
       expect(restored.hasReview, isFalse);
+      expect(restored.hasDismissedReview, isTrue);
+    });
+
+    test('legacy dismissals without review identity remain readable', () {
+      final dismissal = LinkedReview.dismissal(workspaceId: 'w1');
+      final restored = LinkedReview.fromJson(dismissal.toMap());
+      expect(restored.dismissed, isTrue);
+      expect(restored.hasDismissedReview, isFalse);
     });
   });
 }

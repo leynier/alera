@@ -146,6 +146,12 @@ class HostedReviewMapper extends ClassMapperBase<HostedReview> {
   );
   static String _$url(HostedReview v) => v.url;
   static const Field<HostedReview, String> _f$url = Field('url', _$url);
+  static DateTime? _$createdAt(HostedReview v) => v.createdAt;
+  static const Field<HostedReview, DateTime> _f$createdAt = Field(
+    'createdAt',
+    _$createdAt,
+    opt: true,
+  );
   static String? _$author(HostedReview v) => v.author;
   static const Field<HostedReview, String> _f$author = Field(
     'author',
@@ -185,6 +191,7 @@ class HostedReviewMapper extends ClassMapperBase<HostedReview> {
     #title: _f$title,
     #state: _f$state,
     #url: _f$url,
+    #createdAt: _f$createdAt,
     #author: _f$author,
     #baseBranch: _f$baseBranch,
     #headBranch: _f$headBranch,
@@ -199,6 +206,7 @@ class HostedReviewMapper extends ClassMapperBase<HostedReview> {
       title: data.dec(_f$title),
       state: data.dec(_f$state),
       url: data.dec(_f$url),
+      createdAt: data.dec(_f$createdAt),
       author: data.dec(_f$author),
       baseBranch: data.dec(_f$baseBranch),
       headBranch: data.dec(_f$headBranch),
@@ -275,6 +283,7 @@ abstract class HostedReviewCopyWith<$R, $In extends HostedReview, $Out>
     String? title,
     HostedReviewState? state,
     String? url,
+    DateTime? createdAt,
     String? author,
     String? baseBranch,
     String? headBranch,
@@ -299,6 +308,7 @@ class _HostedReviewCopyWithImpl<$R, $Out>
     String? title,
     HostedReviewState? state,
     String? url,
+    Object? createdAt = $none,
     Object? author = $none,
     Object? baseBranch = $none,
     Object? headBranch = $none,
@@ -311,6 +321,7 @@ class _HostedReviewCopyWithImpl<$R, $Out>
       if (title != null) #title: title,
       if (state != null) #state: state,
       if (url != null) #url: url,
+      if (createdAt != $none) #createdAt: createdAt,
       if (author != $none) #author: author,
       if (baseBranch != $none) #baseBranch: baseBranch,
       if (headBranch != $none) #headBranch: headBranch,
@@ -325,6 +336,7 @@ class _HostedReviewCopyWithImpl<$R, $Out>
     title: data.get(#title, or: $value.title),
     state: data.get(#state, or: $value.state),
     url: data.get(#url, or: $value.url),
+    createdAt: data.get(#createdAt, or: $value.createdAt),
     author: data.get(#author, or: $value.author),
     baseBranch: data.get(#baseBranch, or: $value.baseBranch),
     headBranch: data.get(#headBranch, or: $value.headBranch),

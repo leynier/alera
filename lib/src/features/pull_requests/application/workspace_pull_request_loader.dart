@@ -8,6 +8,7 @@ import 'package:alera/src/features/pull_requests/application/workspace_pull_requ
 import 'package:alera/src/features/pull_requests/domain/forge_auth_status.dart';
 import 'package:alera/src/features/pull_requests/domain/git_remote_identity.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
+import 'package:alera/src/features/pull_requests/domain/linked_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
 import 'package:alera/src/features/pull_requests/domain/review_comment.dart';
 import 'package:alera/src/features/pull_requests/domain/workspace_pull_request_scope.dart';
@@ -47,16 +48,6 @@ class WorkspacePullRequestLoader {
     final baseInfo = await _resolveBaseBranches(scope);
     final persisted = await _linkedReviews.find(scope.workspaceId);
 
-    if (persisted != null && persisted.dismissed) {
-      return WorkspacePullRequestState(
-        identity: identity,
-        authStatus: authStatus,
-        currentBranch: branch,
-        baseBranches: baseInfo.branches,
-        suggestedBaseBranch: baseInfo.suggested,
-        dismissed: true,
-      );
-    }
     if (authStatus != ForgeAuthStatus.authenticated) {
       return WorkspacePullRequestState(
         identity: identity,
@@ -69,13 +60,28 @@ class WorkspacePullRequestLoader {
 
     final linkedManually = persisted != null && persisted.hasReview;
     try {
-      final review = linkedManually
-          ? await forge.getReviewByNumber(
-              identity: identity,
-              repoPath: scope.repoPath,
-              number: persisted.number!,
-            )
-          : await _detectReview(forge, identity, scope, branch);
+      HostedReview? review;
+      HostedReview? suggestedReview;
+      var dismissed = false;
+      if (linkedManually) {
+        review = await forge.getReviewByNumber(
+          identity: identity,
+          repoPath: scope.repoPath,
+          number: persisted.number!,
+        );
+      } else {
+        final detected = await _detectReview(forge, identity, scope, branch);
+        if (persisted != null &&
+            persisted.dismissed &&
+            detected != null &&
+            _dismisses(persisted, detected)) {
+          suggestedReview = detected;
+          dismissed = true;
+        } else {
+          review = detected;
+          dismissed = persisted?.dismissed == true && detected == null;
+        }
+      }
       var checks = const <ReviewCheck>[];
       var comments = const <ReviewComment>[];
       if (review != null) {
@@ -102,9 +108,11 @@ class WorkspacePullRequestLoader {
         identity: identity,
         authStatus: authStatus,
         review: review,
+        suggestedReview: suggestedReview,
         checks: checks,
         comments: comments,
         linkedManually: linkedManually,
+        dismissed: dismissed,
         currentBranch: branch,
         baseBranches: baseInfo.branches,
         suggestedBaseBranch: baseInfo.suggested,
@@ -184,6 +192,15 @@ class WorkspacePullRequestLoader {
       repoPath: scope.repoPath,
       branch: branch,
     );
+  }
+
+  bool _dismisses(LinkedReview dismissal, HostedReview review) {
+    if (dismissal.hasDismissedReview) {
+      return dismissal.provider == review.provider &&
+          dismissal.number == review.number;
+    }
+    final createdAt = review.createdAt;
+    return createdAt == null || !createdAt.isAfter(dismissal.linkedAt);
   }
 
   Future<({GitRemoteIdentity? identity, PullRequestUnavailableReason? reason})>

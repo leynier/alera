@@ -24,6 +24,7 @@ class HostedReview with HostedReviewMappable {
     required this.title,
     required this.state,
     required this.url,
+    this.createdAt,
     this.author,
     this.baseBranch,
     this.headBranch,
@@ -36,6 +37,7 @@ class HostedReview with HostedReviewMappable {
   final String title;
   final HostedReviewState state;
   final String url;
+  final DateTime? createdAt;
   final String? author;
   final String? baseBranch;
   final String? headBranch;
@@ -47,4 +49,29 @@ class HostedReview with HostedReviewMappable {
 
   factory HostedReview.fromJson(Map<String, Object?> json) =>
       HostedReviewMapper.fromMap(Map<String, dynamic>.from(json));
+}
+
+/// Selects the newest review deterministically. Creation time wins when both
+/// candidates provide it; otherwise the larger review number is the fallback.
+HostedReview? pickNewestHostedReview(Iterable<HostedReview> reviews) {
+  HostedReview? newest;
+  for (final candidate in reviews) {
+    final current = newest;
+    if (current == null || _compareReviewRecency(candidate, current) > 0) {
+      newest = candidate;
+    }
+  }
+  return newest;
+}
+
+int _compareReviewRecency(HostedReview left, HostedReview right) {
+  final leftCreatedAt = left.createdAt;
+  final rightCreatedAt = right.createdAt;
+  if (leftCreatedAt != null && rightCreatedAt != null) {
+    final dateComparison = leftCreatedAt.compareTo(rightCreatedAt);
+    if (dateComparison != 0) {
+      return dateComparison;
+    }
+  }
+  return left.number.compareTo(right.number);
 }

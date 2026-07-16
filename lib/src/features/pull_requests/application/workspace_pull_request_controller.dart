@@ -140,14 +140,23 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
     );
   }
 
-  /// Unlinks the review; the panel stays empty and auto-detection is suppressed.
+  /// Unlinks the review and suppresses auto-detection of that exact review.
   Future<void> unlink() {
     return _run(
       scope: scope,
       action: PullRequestAction.unlink,
       body: () async {
+        final review = state.value?.review;
+        if (review == null) {
+          throw const _ActionError('No linked pull request to unlink.');
+        }
         await _linkedReviews.save(
-          LinkedReview.dismissal(workspaceId: scope.workspaceId),
+          LinkedReview.dismissal(
+            workspaceId: scope.workspaceId,
+            provider: review.provider,
+            number: review.number,
+            url: review.url,
+          ),
         );
       },
     );
@@ -422,7 +431,6 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
         current == null ||
         current.isBusy ||
         current.identity == null ||
-        current.dismissed ||
         current.authStatus != ForgeAuthStatus.authenticated) {
       return;
     }

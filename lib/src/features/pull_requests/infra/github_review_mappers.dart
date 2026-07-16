@@ -15,6 +15,7 @@ HostedReview mapGitHubReview(Map<String, Object?> json) {
     title: json['title'] as String? ?? '',
     state: _mapState(state, isDraft),
     url: json['url'] as String? ?? '',
+    createdAt: _parseDate(json['createdAt']),
     author: author is Map<String, Object?> ? author['login'] as String? : null,
     baseBranch: json['baseRefName'] as String?,
     headBranch: json['headRefName'] as String?,

@@ -26,10 +26,11 @@ ProcessRunOutput _ok(String stdout) =>
 
 void main() {
   group('AzureDevOpsForgeProvider.getReviewForBranch', () {
-    test('builds az repos pr list argv and maps the first PR', () async {
+    test('builds az repos pr list argv and maps the newest PR', () async {
       final runner = FakeRecordingProcessRunner(<Object>[
         _ok('''
-[{"pullRequestId":42,"title":"feat: x","status":"active","isDraft":false,"sourceRefName":"refs/heads/feature","targetRefName":"refs/heads/main","mergeStatus":"succeeded","createdBy":{"displayName":"Ley"},"lastMergeSourceCommit":{"commitId":"abc"}}]
+[{"pullRequestId":42,"title":"feat: older","status":"active","creationDate":"2026-07-10T00:00:00Z","isDraft":false,"sourceRefName":"refs/heads/feature","targetRefName":"refs/heads/main","mergeStatus":"succeeded","createdBy":{"displayName":"Ley"},"lastMergeSourceCommit":{"commitId":"abc"}},
+ {"pullRequestId":43,"title":"feat: newest","status":"active","creationDate":"2026-07-11T00:00:00Z","isDraft":false,"sourceRefName":"refs/heads/feature","targetRefName":"refs/heads/main","mergeStatus":"succeeded","createdBy":{"displayName":"Ley"},"lastMergeSourceCommit":{"commitId":"def"}}]
 '''),
       ]);
       final provider = AzureDevOpsForgeProvider(runner);
@@ -47,15 +48,18 @@ void main() {
       expect(call.optionValue('project'), 'myproject');
       expect(call.optionValue('repository'), 'myrepo');
       expect(call.optionValue('source-branch'), 'feature');
+      expect(call.optionValue('top'), '100');
       expect(review, isNotNull);
-      expect(review!.number, 42);
+      expect(review!.number, 43);
+      expect(review.title, 'feat: newest');
+      expect(review.createdAt, DateTime.parse('2026-07-11T00:00:00Z'));
       expect(review.state, HostedReviewState.open);
       expect(review.mergeable, HostedReviewMergeable.mergeable);
       expect(review.headBranch, 'feature');
       expect(review.baseBranch, 'main');
       expect(
         review.url,
-        'https://dev.azure.com/myorg/myproject/_git/myrepo/pullrequest/42',
+        'https://dev.azure.com/myorg/myproject/_git/myrepo/pullrequest/43',
       );
     });
 
