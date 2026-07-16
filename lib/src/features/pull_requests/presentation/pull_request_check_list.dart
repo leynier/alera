@@ -25,10 +25,43 @@ class PullRequestCheckList extends StatefulWidget {
   State<PullRequestCheckList> createState() => _PullRequestCheckListState();
 }
 
+/// A run-status bucket used to group checks in the list.
+enum _CheckGroup { failing, inProgress, successful }
+
+/// Buckets a check by its lifecycle/outcome: unfinished runs (or a pending
+/// conclusion) are in progress, terminal non-passing outcomes are failing, and
+/// everything else counts as successful.
+_CheckGroup _groupOf(ReviewCheck check) {
+  if (check.status != ReviewCheckStatus.completed ||
+      check.conclusion == ReviewCheckConclusion.pending) {
+    return _CheckGroup.inProgress;
+  }
+  return switch (check.conclusion) {
+    ReviewCheckConclusion.failure ||
+    ReviewCheckConclusion.cancelled ||
+    ReviewCheckConclusion.timedOut ||
+    ReviewCheckConclusion.actionRequired => _CheckGroup.failing,
+    ReviewCheckConclusion.success ||
+    ReviewCheckConclusion.neutral ||
+    ReviewCheckConclusion.skipped ||
+    ReviewCheckConclusion.pending => _CheckGroup.successful,
+  };
+}
+
+String _groupLabel(_CheckGroup group, int count) {
+  final noun = count == 1 ? 'Check' : 'Checks';
+  return switch (group) {
+    _CheckGroup.failing => '$count Failing $noun',
+    _CheckGroup.inProgress => '$count In Progress $noun',
+    _CheckGroup.successful => '$count Successful $noun',
+  };
+}
+
 class _PullRequestCheckListState extends State<PullRequestCheckList> {
   final Set<String> _expandedKeys = <String>{};
   final Map<String, _CheckDetailsState> _detailsByKey =
       <String, _CheckDetailsState>{};
+  final Set<_CheckGroup> _collapsedGroups = <_CheckGroup>{};
 
   // Checks have no stable id; name+url is the closest unique key.
   String _key(ReviewCheck check) => '${check.name}|${check.url ?? ''}';
@@ -39,6 +72,14 @@ class _PullRequestCheckListState extends State<PullRequestCheckList> {
     final alive = <String>{for (final check in widget.checks) _key(check)};
     _expandedKeys.retainAll(alive);
     _detailsByKey.removeWhere((key, _) => !alive.contains(key));
+  }
+
+  void _toggleGroup(_CheckGroup group) {
+    setState(() {
+      if (!_collapsedGroups.remove(group)) {
+        _collapsedGroups.add(group);
+      }
+    });
   }
 
   void _toggle(ReviewCheck check) {
@@ -79,26 +120,105 @@ class _PullRequestCheckListState extends State<PullRequestCheckList> {
 
   @override
   Widget build(BuildContext context) {
+    final grouped = <_CheckGroup, List<ReviewCheck>>{};
+    for (final check in widget.checks) {
+      grouped.putIfAbsent(_groupOf(check), () => <ReviewCheck>[]).add(check);
+    }
+    for (final checks in grouped.values) {
+      checks.sort(
+        (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+      );
+    }
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        for (final check in widget.checks)
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              _CheckRow(
-                check: check,
-                expanded: _expandedKeys.contains(_key(check)),
-                onTap: () => _toggle(check),
-                onOpenUrl: widget.onOpenUrl,
-              ),
-              if (_expandedKeys.contains(_key(check)))
-                _CheckDetailsView(
-                  state:
-                      _detailsByKey[_key(check)] ??
-                      const _CheckDetailsState.loading(),
+        for (final group in _CheckGroup.values)
+          if (grouped[group] case final checks?)
+            _CheckGroupSection(
+              label: _groupLabel(group, checks.length),
+              expanded: !_collapsedGroups.contains(group),
+              onToggle: () => _toggleGroup(group),
+              children: <Widget>[
+                for (final check in checks)
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      _CheckRow(
+                        check: check,
+                        expanded: _expandedKeys.contains(_key(check)),
+                        onTap: () => _toggle(check),
+                        onOpenUrl: widget.onOpenUrl,
+                      ),
+                      if (_expandedKeys.contains(_key(check)))
+                        _CheckDetailsView(
+                          state:
+                              _detailsByKey[_key(check)] ??
+                              const _CheckDetailsState.loading(),
+                        ),
+                    ],
+                  ),
+              ],
+            ),
+      ],
+    );
+  }
+}
+
+class _CheckGroupSection extends StatelessWidget {
+  const _CheckGroupSection({
+    required this.label,
+    required this.expanded,
+    required this.onToggle,
+    required this.children,
+  });
+
+  final String label;
+  final bool expanded;
+  final VoidCallback onToggle;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        InkWell(
+          onTap: onToggle,
+          mouseCursor: SystemMouseCursors.click,
+          borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: AleraTokens.space4),
+            child: Row(
+              children: <Widget>[
+                Icon(
+                  expanded ? AleraIcons.chevronDown : AleraIcons.chevronRight,
+                  size: 16,
+                  color: AleraTokens.foregroundMuted,
                 ),
-            ],
+                const SizedBox(width: AleraTokens.space4),
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: AleraTokens.foregroundMuted,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (expanded)
+          Padding(
+            padding: const EdgeInsets.only(left: AleraTokens.space8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: children,
+            ),
           ),
       ],
     );
