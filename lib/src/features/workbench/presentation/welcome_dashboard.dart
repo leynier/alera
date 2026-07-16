@@ -8,9 +8,7 @@ import 'package:alera/src/features/keyboard/application/keybinding_resolver.dart
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
-import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_dialog_launchers.dart';
-import 'package:alera/src/features/workbench/presentation/workspace_graph_indicators.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -39,13 +37,13 @@ class WelcomeDashboard extends ConsumerWidget {
                   final isWide = constraints.maxWidth >= 760;
                   final content = [
                     if (isWide) ...[
-                      Expanded(flex: 11, child: _LeftColumn(state: state)),
+                      Expanded(child: _LeftColumn(state: state)),
                       const SizedBox(width: AleraTokens.space32),
-                      Expanded(flex: 13, child: _RightColumn(state: state)),
+                      const Expanded(child: _RightColumn()),
                     ] else ...[
                       _LeftColumn(state: state),
                       const SizedBox(height: AleraTokens.space32),
-                      _RightColumn(state: state),
+                      const _RightColumn(),
                     ],
                   ];
 

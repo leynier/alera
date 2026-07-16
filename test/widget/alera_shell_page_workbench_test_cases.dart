@@ -182,8 +182,9 @@ void _registerAleraShellWorkbenchTests() {
     );
 
     expect(find.text('Welcome to Alera'), findsOneWidget);
-    expect(find.text('Projects & Workspaces'), findsOneWidget);
-    expect(find.text('Main'), findsAtLeastNWidgets(1));
+    expect(find.text('Quick Start'), findsOneWidget);
+    expect(find.text('Keyboard Shortcuts'), findsOneWidget);
+    expect(find.text('Projects & Workspaces'), findsNothing);
     expect(find.byTooltip('New Terminal'), findsNothing);
   });
 
