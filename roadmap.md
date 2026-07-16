@@ -73,7 +73,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 | Diffs global | 3 | 4 | Shipped | Aggregated diff across all changed files |
 | Git status with operations | 4 | 5 | Shipped | Staging, commit, pull, push, discard with full UI |
 | Submodule inspection | 3 | 4 | Shipped | Lazy one-level read-only status and diffs; parent actions remain scoped to changed gitlinks |
-| Commit and PR messages with AI | 3 | 4 | Shipped | AI-generated commit messages (PR descriptions planned) |
+| Commit and PR messages with AI | 3 | 4 | Shipped | AI-generated commit messages and pull request titles/descriptions |
 | Conflict view and resolver | 4 | 4 | Planned | Visual conflict display with merge controls |
 | Conflict resolution with AI | 4 | 3 | Planned | AI-assisted three-way merge conflict resolution |
 | Git history panel with graph | 4 | 4 | Shipped | Collapsible Source Control commits section with HEAD/upstream graph and commit diff tabs |
@@ -87,7 +87,8 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 
 | Feature | Difficulty | Utility | Status | Notes |
 |---|:---:|:---:|:---:|---|
-| Checks panel (CI/CD) | 3 | 4 | Planned | CI status monitoring; implies GitHub/GitLab/Azure integration |
+| Pull requests panel | 4 | 4 | Shipped | Create, edit, comment (markdown), toggle draft, and merge PRs per worktree on GitHub and Azure DevOps |
+| Checks panel (CI/CD) | 3 | 4 | Shipped | CI checks grouped by status with drill-down details on GitHub and Azure DevOps; GitLab planned |
 | GitHub Projects integration | 4 | 3 | Planned | Full project board with columns, cards, filtering, inline editing |
 | Linear integration | 4 | 2 | Planned | Linear SDK, issue workspace, item drawer, team selection |
 | Multi-account support | 3 | 3 | Planned | Account switcher, manage multiple accounts per provider |
@@ -152,6 +153,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 
 | Feature | Difficulty | Utility | Status | Notes |
 |---|:---:|:---:|:---:|---|
+| Agent quota status bar | 3 | 4 | Shipped | Bottom status bar with local/remote quota usage for Claude Code and CCS profiles, Codex, Kimi, Grok Build, Antigravity, MiniMax, and Z.ai |
 | Per-agent usage charts | 3 | 4 | Planned | Daily usage visualization per agent provider |
 | Cost tracking | 3 | 4 | Planned | API cost monitoring and visualization |
 | Share/export usage | 2 | 2 | Planned | Export or share usage stats |
@@ -174,7 +176,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 |---|:---:|:---:|:---:|---|
 | SSH | 5 | 4 | Planned | SSH targets, remote PTY, remote filesystem, remote git |
 | Computer Use | 5 | 3 | Planned | Native desktop automation via Accessibility APIs |
-| Mobile App | 5 | 3 | Planned | Companion app for monitoring worktrees, viewing terminals, sending commands |
+| Mobile App | 5 | 3 | Shipped | Foundation: pairing via `alera mobile`, secure device tokens, WebSocket gateway, project/workspace listing, hosted terminal attach; richer live transport planned |
 
 ---
 

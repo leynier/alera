@@ -78,6 +78,10 @@ Open multiple terminals per workspace, organised in tabs. Run Claude Code in one
 
 Managed lifecycle hooks for Claude, Codex, Grok Build, Amp, OpenCode, Antigravity, Cursor, Copilot and Pi stream agent events into Alera. You can see which agents are **idle, working, or waiting on input** without staring at every terminal.
 
+### 📊 Agent quota tracking
+
+A bottom status bar keeps provider quota usage in sight while agents run: Claude Code and CCS profiles, Codex, Kimi, Grok Build, Antigravity, MiniMax, and Z.ai, resolved locally or remotely. Hover for the detailed breakdown, and know before an agent stalls that you're about to hit a limit.
+
 ### 🕸️ Inter-agent orchestration
 
 Agents coordinate through orchestration protocol v2: workspace-scoped coordinator runs, atomic spawn/readiness/acceptance, durable task ownership, context-aware completion and cancellation, runtime liveness leases, structured results, decision gates, and persistent messaging. A workspace has at most one active coordinator while unrelated workspaces can run concurrently.
@@ -89,6 +93,18 @@ Close Alera. Reboot. Reopen. Your terminals, their scrollback, their layouts, an
 ### 🎨 Terminal customization
 
 Per-terminal configuration: font, size, theme, behaviour. Built on top of the same engine that powers Ghostty for predictable, high-fidelity rendering.
+
+### 🗃️ File explorer, search & previews
+
+Browse workspace folders in a tree-based explorer with a git-ignored toggle and inline rename. Search and replace across the workspace with regex and include/exclude patterns. Preview Markdown, PDFs, Mermaid diagrams, and images in dedicated tabs, right next to your terminals.
+
+### 🔀 Visual source control
+
+Review structured diffs side-by-side or unified, with per-file and aggregated views. Stage, commit, amend, stash, and discard visually, with AI-powered commit message suggestions. A collapsible commit history graph (with a draggable divider) shows HEAD and upstream at a glance, and submodules get lazy read-only status and diff inspection.
+
+### ✅ Pull requests & checks
+
+Work with pull requests per worktree on GitHub and Azure DevOps without leaving Alera: create, edit, comment (with Markdown), toggle draft status, and merge. CI checks are grouped by status with drill-down into check details. PR titles and descriptions can be AI-generated from the branch changes, and the workspace menu opens the repository in your browser in one click.
 
 ### 🖥️ Truly native, truly cross-platform
 
@@ -110,10 +126,10 @@ Alera is shipping fast. A non-exhaustive list of what's on the roadmap:
 
 - **SSH worktrees**: run agents on remote machines as if they were local
 - **Mobile live transport expansion**: add agent status, file review, and richer workspace controls to the mobile app
-- **File explorer, search, and diff panels**: review and edit AI-generated changes without leaving Alera
-- **Git operations UI**: stage, commit, push, resolve conflicts visually
+- **Code editing with LSP support**: full editing with language-server autocomplete and diagnostics
+- **Git conflict resolution**: resolve merge conflicts visually with AI-assisted three-way merge
 - **Embedded browser & browser use**: give agents a real browser to drive
-- **GitHub / GitLab / Linear / CI integrations**: PRs, issues and checks linked per worktree
+- **More forge & tracker integrations**: GitLab pull requests and checks, Linear and issue-tracker linking per worktree
 - **Voice, automations, MCP management, skills, and more**
 
 See the full [roadmap](roadmap.md) for the complete picture, including difficulty/utility scoring per feature.
