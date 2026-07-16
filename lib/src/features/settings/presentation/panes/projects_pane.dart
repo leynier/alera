@@ -9,6 +9,7 @@ import 'package:alera/src/features/projects/domain/project_config.dart';
 import 'package:alera/src/features/projects/domain/project_config_paths.dart';
 import 'package:alera/src/features/pull_requests/domain/git_hosting_provider.dart';
 import 'package:alera/src/features/settings/presentation/panes/project_config_editor.dart';
+import 'package:alera/src/features/settings/presentation/panes/project_config_editor_loader.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -69,7 +70,7 @@ class _ProjectSettingsPaneState extends ConsumerState<ProjectSettingsPane> {
                 ),
               ),
               detail: SingleChildScrollView(
-                child: _ProjectConfigEditorLoader(
+                child: ProjectConfigEditorLoader(
                   project: selected,
                   overrideConfig: overrides[selected.id],
                   repoConfigFuture: _repoConfigFuture(selected),
@@ -298,130 +299,6 @@ class _ProjectSettingsPaneState extends ConsumerState<ProjectSettingsPane> {
         ],
       ),
       gitHostingProvider: _gitHostingProvider,
-    );
-  }
-}
-
-class _ProjectConfigEditorLoader extends ConsumerWidget {
-  const _ProjectConfigEditorLoader({
-    required this.project,
-    required this.overrideConfig,
-    required this.repoConfigFuture,
-    required this.saveError,
-    required this.saving,
-    required this.seedEditor,
-    required this.updateCopyRule,
-    required this.removeCopyRule,
-    required this.addCopyRule,
-    required this.updateSetupCommand,
-    required this.removeSetupCommand,
-    required this.addSetupCommand,
-    required this.saveOverride,
-    required this.useRepoFile,
-    required this.onGitHostingProviderChanged,
-  });
-
-  final Project project;
-  final ProjectConfig? overrideConfig;
-  final Future<ProjectConfig?> repoConfigFuture;
-  final String? saveError;
-  final bool saving;
-  final ({
-    List<EditableCopyRule> copyRules,
-    List<String> setupCommands,
-    GitHostingProvider? gitHostingProvider,
-  })
-  Function({required Project project, required ProjectConfig config})
-  seedEditor;
-  final ValueChanged<GitHostingProvider?> onGitHostingProviderChanged;
-  final void Function(int index, EditableCopyRule rule) updateCopyRule;
-  final ValueChanged<int> removeCopyRule;
-  final VoidCallback addCopyRule;
-  final void Function(int index, String command) updateSetupCommand;
-  final ValueChanged<int> removeSetupCommand;
-  final VoidCallback addSetupCommand;
-  final Future<void> Function(Project project) saveOverride;
-  final Future<void> Function()? useRepoFile;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final override = overrideConfig;
-    if (override != null) {
-      final editorState = seedEditor(project: project, config: override);
-      return ProjectConfigEditor(
-        project: project,
-        sourceLabel: 'UI Override',
-        gitHostingProvider: editorState.gitHostingProvider,
-        onGitHostingProviderChanged: onGitHostingProviderChanged,
-        copyRules: editorState.copyRules,
-        setupCommands: editorState.setupCommands,
-        saveError: saveError,
-        saving: saving,
-        updateCopyRule: updateCopyRule,
-        removeCopyRule: removeCopyRule,
-        addCopyRule: addCopyRule,
-        updateSetupCommand: updateSetupCommand,
-        removeSetupCommand: removeSetupCommand,
-        addSetupCommand: addSetupCommand,
-        saveOverride: saveOverride,
-        useRepoFile: useRepoFile,
-      );
-    }
-
-    return FutureBuilder<ProjectConfig?>(
-      key: ValueKey<String>('repo-config-${project.id}'),
-      future: repoConfigFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) {
-          final editorState = seedEditor(
-            project: project,
-            config: ProjectConfig.empty,
-          );
-          return ProjectConfigEditor(
-            project: project,
-            sourceLabel: 'Repo File Error',
-            sourceError: snapshot.error.toString(),
-            gitHostingProvider: editorState.gitHostingProvider,
-            onGitHostingProviderChanged: onGitHostingProviderChanged,
-            copyRules: editorState.copyRules,
-            setupCommands: editorState.setupCommands,
-            saveError: saveError,
-            saving: saving,
-            updateCopyRule: updateCopyRule,
-            removeCopyRule: removeCopyRule,
-            addCopyRule: addCopyRule,
-            updateSetupCommand: updateSetupCommand,
-            removeSetupCommand: removeSetupCommand,
-            addSetupCommand: addSetupCommand,
-            saveOverride: saveOverride,
-            useRepoFile: null,
-          );
-        }
-        final repoConfig = snapshot.data;
-        final seed = repoConfig ?? ProjectConfig.empty;
-        final editorState = seedEditor(project: project, config: seed);
-        return ProjectConfigEditor(
-          project: project,
-          sourceLabel: repoConfig == null ? 'None' : 'Repo File',
-          gitHostingProvider: editorState.gitHostingProvider,
-          onGitHostingProviderChanged: onGitHostingProviderChanged,
-          copyRules: editorState.copyRules,
-          setupCommands: editorState.setupCommands,
-          saveError: saveError,
-          saving: saving,
-          updateCopyRule: updateCopyRule,
-          removeCopyRule: removeCopyRule,
-          addCopyRule: addCopyRule,
-          updateSetupCommand: updateSetupCommand,
-          removeSetupCommand: removeSetupCommand,
-          addSetupCommand: addSetupCommand,
-          saveOverride: saveOverride,
-          useRepoFile: null,
-        );
-      },
     );
   }
 }
