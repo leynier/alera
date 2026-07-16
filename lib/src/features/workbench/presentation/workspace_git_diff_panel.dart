@@ -948,5 +948,4 @@ class _WorkspaceGitDiffPanelState extends ConsumerState<WorkspaceGitDiffPanel> {
       );
     }
   }
-
 }
