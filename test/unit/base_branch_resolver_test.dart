@@ -38,10 +38,11 @@ void main() {
   group('pickDefaultBaseBranch', () {
     test('prefers preferred when present', () {
       expect(
-        pickDefaultBaseBranch(
-          <String>['develop', 'main', 'master'],
-          preferred: 'origin/develop',
-        ),
+        pickDefaultBaseBranch(<String>[
+          'develop',
+          'main',
+          'master',
+        ], preferred: 'origin/develop'),
         'develop',
       );
     });

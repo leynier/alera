@@ -189,10 +189,7 @@ Claude Sonnet 4.6 (Thinking)
       expect(runner.stdinText, contains('Base branch: main'));
       expect(runner.stdinText, contains('feat: add pr ai'));
       expect(runner.stdinText, contains('+new line'));
-      expect(
-        git.calls.any((call) => call.method == 'rangeContext'),
-        isTrue,
-      );
+      expect(git.calls.any((call) => call.method == 'rangeContext'), isTrue);
     });
 
     test('rejects pull request generation without a base branch', () async {

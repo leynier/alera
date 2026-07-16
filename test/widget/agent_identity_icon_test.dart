@@ -27,8 +27,8 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.byType(SvgPicture), findsNWidgets(5));
-    expect(find.byType(Image), findsNWidgets(4));
+    expect(find.byType(SvgPicture), findsNWidgets(4));
+    expect(find.byType(Image), findsNWidgets(5));
     expect(find.byTooltip('Codex'), findsOneWidget);
     expect(find.byTooltip('Claude Code'), findsOneWidget);
     expect(find.byTooltip('GitHub Copilot'), findsOneWidget);

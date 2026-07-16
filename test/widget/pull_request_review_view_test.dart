@@ -63,9 +63,7 @@ void main() {
 
   testWidgets('disables Unlink while an action is in flight', (tester) async {
     final callbacks = _Callbacks();
-    await tester.pumpWidget(
-      _wrap(callbacks, action: PullRequestAction.unlink),
-    );
+    await tester.pumpWidget(_wrap(callbacks, action: PullRequestAction.unlink));
 
     final button = tester.widget<FilledButton>(
       find.widgetWithText(FilledButton, 'Unlink Pull Request'),

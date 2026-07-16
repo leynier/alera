@@ -79,9 +79,7 @@ void main() {
     expect(calls, 1);
   });
 
-  testWidgets('shows No Details Available for an empty result', (
-    tester,
-  ) async {
+  testWidgets('shows No Details Available for an empty result', (tester) async {
     await tester.pumpWidget(_wrap((check) async => null));
 
     await tester.tap(find.text('build'));

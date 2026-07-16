@@ -1,3 +1,6 @@
+part 'git_range_models.dart';
+part 'git_history_graph_models.dart';
+
 enum GitChangeArea {
   untracked('untracked'),
   unstaged('unstaged'),
@@ -540,77 +543,3 @@ class GitCommitCompareResult {
   final GitCommitCompareSummary summary;
   final List<GitCommitChangeEntry> entries;
 }
-
-/// One commit on the range from merge-base(base, HEAD) to HEAD.
-class GitRangeCommit {
-  const GitRangeCommit({
-    required this.oid,
-    required this.subject,
-    required this.message,
-  });
-
-  final String oid;
-  final String subject;
-  final String message;
-}
-
-/// One file changed between merge-base(base, HEAD) and HEAD.
-class GitRangeFile {
-  const GitRangeFile({
-    required this.path,
-    required this.status,
-    this.added,
-    this.removed,
-  });
-
-  final String path;
-  final GitChangeStatus status;
-  final int? added;
-  final int? removed;
-}
-
-/// Tree-to-tree range summary used for AI pull-request prompts.
-class GitRangeContext {
-  const GitRangeContext({
-    required this.baseRef,
-    required this.commits,
-    required this.files,
-    required this.patch,
-    this.headBranch,
-    this.mergeBase,
-  });
-
-  final String baseRef;
-  final String? headBranch;
-  final String? mergeBase;
-  final List<GitRangeCommit> commits;
-  final List<GitRangeFile> files;
-  final String patch;
-
-  bool get isEmpty => commits.isEmpty && files.isEmpty && patch.trim().isEmpty;
-}
-
-enum GitHistoryGraphColorId {
-  ref,
-  remoteRef,
-  baseRef,
-  lane1,
-  lane2,
-  lane3,
-  lane4,
-  lane5,
-}
-
-const GitHistoryGraphColorId gitHistoryRefColor = GitHistoryGraphColorId.ref;
-const GitHistoryGraphColorId gitHistoryRemoteRefColor =
-    GitHistoryGraphColorId.remoteRef;
-const GitHistoryGraphColorId gitHistoryBaseRefColor =
-    GitHistoryGraphColorId.baseRef;
-const List<GitHistoryGraphColorId> gitHistoryLaneColors =
-    <GitHistoryGraphColorId>[
-      GitHistoryGraphColorId.lane1,
-      GitHistoryGraphColorId.lane2,
-      GitHistoryGraphColorId.lane3,
-      GitHistoryGraphColorId.lane4,
-      GitHistoryGraphColorId.lane5,
-    ];

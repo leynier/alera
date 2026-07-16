@@ -33,10 +33,7 @@ List<String> normalizeBaseBranches(Iterable<String> rawBranches) {
 ///
 /// Order: preferred (when present in [branches] after normalization), then
 /// `main`, then `master`, then the first listed branch, else `main`.
-String pickDefaultBaseBranch(
-  List<String> branches, {
-  String? preferred,
-}) {
+String pickDefaultBaseBranch(List<String> branches, {String? preferred}) {
   final preferredShort = preferred == null || preferred.trim().isEmpty
       ? null
       : shortBranchName(preferred);

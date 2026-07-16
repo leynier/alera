@@ -170,7 +170,10 @@ void _registerAleraShellWorkbenchTests() {
     await _pumpShell(tester, state: const WorkbenchState(bootstrapped: true));
 
     expect(find.text('No Projects Yet'), findsAtLeastNWidgets(1));
-    expect(find.widgetWithText(FilledButton, 'Add Project'), findsOneWidget);
+    expect(
+      find.widgetWithText(FilledButton, 'Add Your First Project'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('shell shows the empty state when no workspace is selected', (

@@ -97,9 +97,7 @@ fn collect_commits_not_in_base(
     let mut revwalk = repo.revwalk().map_err(GitError::from_git2)?;
     revwalk.push(head_oid).map_err(GitError::from_git2)?;
     if merge_base_oid != head_oid {
-        revwalk
-            .hide(merge_base_oid)
-            .map_err(GitError::from_git2)?;
+        revwalk.hide(merge_base_oid).map_err(GitError::from_git2)?;
     }
     revwalk
         .set_sorting(Sort::TOPOLOGICAL | Sort::TIME)

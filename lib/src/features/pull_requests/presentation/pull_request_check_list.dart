@@ -215,10 +215,7 @@ class _CheckGroupSection extends StatelessWidget {
         if (expanded)
           Padding(
             padding: const EdgeInsets.only(left: AleraTokens.space8),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: children,
-            ),
+            child: Column(mainAxisSize: MainAxisSize.min, children: children),
           ),
       ],
     );

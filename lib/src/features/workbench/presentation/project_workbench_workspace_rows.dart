@@ -39,7 +39,6 @@ class _WorkspaceRow extends StatefulWidget {
   final bool isActive;
   final String? activeTabId;
 
-  /// When true (flat sidebar listing), show a project folder icon in the tray.
   final bool showProject;
   final bool expanded;
   final int visibleChildCount;
@@ -232,6 +231,7 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
               borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
             ),
             child: InkWell(
+              key: ValueKey<String>('workspace-row:${widget.workspace.path}'),
               onTap: widget.onTap,
               mouseCursor: SystemMouseCursors.click,
               borderRadius: BorderRadius.circular(AleraTokens.radiusLg),

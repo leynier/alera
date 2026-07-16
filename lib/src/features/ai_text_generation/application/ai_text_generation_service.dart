@@ -11,6 +11,8 @@ import 'package:alera/src/shared/infra/process/command_environment_resolver.dart
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 import 'package:path/path.dart' as p;
 
+part 'ai_text_generation_command_plan.dart';
+
 const int maxArgvPromptBytes = 24000;
 
 class AiTextGenerationException implements Exception {
@@ -476,35 +478,5 @@ class CliAiTextGenerationService implements AiTextGenerationService {
 
   String _laneKey(String workspacePath, AiTextGenerationOperation operation) {
     return '$workspacePath::${operation.key}';
-  }
-}
-
-class _AiTextCommandPlan {
-  const _AiTextCommandPlan({
-    required this.binary,
-    required this.args,
-    required this.stdinPayload,
-    required this.label,
-    this.environmentOverrides = const <String, String>{},
-    this.promptDirectory,
-  });
-
-  final String binary;
-  final List<String> args;
-  final String? stdinPayload;
-  final String label;
-  final Map<String, String> environmentOverrides;
-  final Directory? promptDirectory;
-
-  Future<void> dispose() async {
-    final directory = promptDirectory;
-    if (directory == null) {
-      return;
-    }
-    try {
-      if (await directory.exists()) {
-        await directory.delete(recursive: true);
-      }
-    } catch (_) {}
   }
 }
