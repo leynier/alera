@@ -29,4 +29,11 @@ void main() {
       AleraTokens.syntaxKeyword,
     );
   });
+
+  test('every catalog theme defines a root style', () {
+    expect(
+      editorSyntaxThemeCatalog.every((entry) => entry.theme['root'] != null),
+      isTrue,
+    );
+  });
 }

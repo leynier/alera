@@ -225,6 +225,7 @@ void main() {
           payload: <String, Object?>{'transcript_path': nextTranscript.path},
         ),
       );
+      await watcher.scanNowForTesting('session-1');
 
       nextTranscript.writeAsStringSync(
         '${jsonEncode(<String, Object?>{

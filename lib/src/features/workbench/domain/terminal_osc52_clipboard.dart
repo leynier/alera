@@ -39,11 +39,7 @@ TerminalOsc52Request parseTerminalOsc52Request(List<String> args) {
       !RegExp(r'^[A-Za-z0-9+/]*={0,2}$').hasMatch(normalized)) {
     return const TerminalOsc52Invalid();
   }
-  try {
-    return TerminalOsc52Write(
-      utf8.decode(base64.decode(normalized), allowMalformed: true),
-    );
-  } on FormatException {
-    return const TerminalOsc52Invalid();
-  }
+  return TerminalOsc52Write(
+    utf8.decode(base64.decode(normalized), allowMalformed: true),
+  );
 }

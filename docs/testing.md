@@ -27,7 +27,7 @@ Run unit and widget tests with line coverage:
 
 ```bash
 flutter test --coverage --exclude-tags golden
-dart run tool/quality/coverage_report.dart --input coverage/lcov.info --min-lines 65 --worst 25
+dart run tool/quality/coverage_report.dart --input coverage/lcov.info --min-lines 100 --worst 25
 ```
 
 Run golden tests:
@@ -52,7 +52,7 @@ Use `-d linux` or `-d windows` on those platforms. The checked-in E2E flow must 
 
 ## Coverage
 
-`tool/quality/coverage_report.dart` reads `coverage/lcov.info`, ignores generated `*.g.dart` and `*.mapper.dart` files, prints total line coverage, groups coverage by area, and lists the files with the most missed lines. The PR gate starts at 65% line coverage so the current suite has a useful floor without blocking incremental test expansion.
+`tool/quality/coverage_report.dart` reads `coverage/lcov.info` and enforces 100% line coverage for maintained domain sources under `lib/src/features/**/domain/`. Generated `*.g.dart` and `*.mapper.dart` files are excluded. Presentation code is validated by widget, golden, and desktop E2E suites; application and infrastructure code remains covered by focused unit and integration tests; generated `flutter_rust_bridge` bindings and the native implementation are validated by the Rust workspace and native build jobs.
 
 When coverage drops, use the "worst files by missed lines" section to decide whether to add focused unit tests, widget tests, or an E2E path. Do not chase coverage by snapshotting implementation details; cover behavior that would catch a real regression.
 

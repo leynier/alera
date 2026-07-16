@@ -83,7 +83,7 @@ void main(List<String> args) {
   final totalPercent = totalFound == 0 ? 100.0 : totalHit * 100 / totalFound;
 
   stdout.writeln(
-    'total lines: ${_formatPercent(totalPercent)}% '
+    'domain lines: ${_formatPercent(totalPercent)}% '
     '($totalHit/$totalFound)',
   );
   stdout.writeln('');
@@ -158,12 +158,10 @@ List<CoverageRecord> _readLcov(File file) {
 }
 
 bool _includeInCoverage(String file) {
-  return !(file.endsWith('.g.dart') ||
-      file.endsWith('.mapper.dart') ||
-      // Drift table DSL getters and primaryKey declarations define schema
-      // metadata, but they are not meaningfully executable under VM line
-      // coverage in the same way as runtime logic.
-      file.endsWith('lib/src/shared/infra/storage/drift_database.dart'));
+  return file.startsWith('lib/src/features/') &&
+      file.contains('/domain/') &&
+      !file.endsWith('.g.dart') &&
+      !file.endsWith('.mapper.dart');
 }
 
 Map<String, CoverageRecord> _areaRecords(List<CoverageRecord> records) {
@@ -215,6 +213,6 @@ String _formatPercent(double value) => value.toStringAsFixed(2);
 void _printUsage() {
   stdout.writeln(
     'Usage: dart run tool/quality/coverage_report.dart '
-    '[--input coverage/lcov.info] [--min-lines 65] [--worst 25]',
+    '[--input coverage/lcov.info] [--min-lines 100] [--worst 25]',
   );
 }

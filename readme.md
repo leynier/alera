@@ -205,7 +205,7 @@ Want to contribute or hack on Alera locally? Start with:
 ```bash
 flutter analyze
 flutter test --coverage --exclude-tags golden
-dart run tool/quality/coverage_report.dart --input coverage/lcov.info --min-lines 65 --worst 25
+dart run tool/quality/coverage_report.dart --input coverage/lcov.info --min-lines 100 --worst 25
 ```
 
 Use `flutter test --tags golden` for visual regression tests and `flutter test integration_test -d macos` for local desktop E2E smoke coverage. See [`docs/testing.md`](docs/testing.md).
