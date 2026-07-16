@@ -64,6 +64,10 @@ ProviderContainer _container({
       linkedReviewRepositoryProvider.overrideWithValue(repo),
     ],
   );
+  container.listen(workspacePullRequestControllerProvider(_scope), (_, _) {});
+  container
+      .read(workspacePullRequestControllerProvider(_scope).notifier)
+      .attachPanel();
   return container;
 }
 

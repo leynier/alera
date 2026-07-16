@@ -17,8 +17,12 @@ import 'package:alera/src/features/pull_requests/domain/update_review_result.dar
 class FakeForgeProvider implements ForgeProvider {
   ForgeAuthStatus auth = ForgeAuthStatus.authenticated;
   HostedReview? branchReview;
+  Future<HostedReview?> Function()? branchReviewLoader;
+  int branchReviewCalls = 0;
   final Map<int, HostedReview> byNumber = <int, HostedReview>{};
   List<ReviewCheck> checks = <ReviewCheck>[];
+  Future<List<ReviewCheck>> Function()? checksLoader;
+  int checksCalls = 0;
   CreateReviewResult createResult = const CreateReviewFailure(
     code: CreateReviewErrorCode.unknown,
     message: 'not set',
@@ -50,7 +54,11 @@ class FakeForgeProvider implements ForgeProvider {
     required GitRemoteIdentity identity,
     required String repoPath,
     required String branch,
-  }) async => branchReview;
+  }) async {
+    branchReviewCalls++;
+    final loader = branchReviewLoader;
+    return loader == null ? branchReview : loader();
+  }
 
   @override
   Future<HostedReview?> getReviewByNumber({
@@ -64,7 +72,11 @@ class FakeForgeProvider implements ForgeProvider {
     required GitRemoteIdentity identity,
     required String repoPath,
     required int number,
-  }) async => checks;
+  }) async {
+    checksCalls++;
+    final loader = checksLoader;
+    return loader == null ? checks : loader();
+  }
 
   @override
   Future<ReviewCheckDetails?> getCheckDetails({

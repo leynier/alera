@@ -43,7 +43,7 @@ LinkedReviewRepository linkedReviewRepository(Ref ref) {
 /// The effective git-hosting-provider override for a project (UI override or
 /// repo `alera.toml`), or null when the project should auto-detect. Feeds the
 /// per-workspace pull-request scope.
-@riverpod
+@Riverpod(keepAlive: true)
 Future<GitHostingProvider?> effectiveHostingProviderOverride(
   Ref ref,
   String projectId,

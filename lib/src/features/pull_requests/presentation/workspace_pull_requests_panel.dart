@@ -50,35 +50,79 @@ class WorkspacePullRequestsPanel extends ConsumerWidget {
           sourceBranch: workspace.sourceBranch,
           providerOverride: override,
         );
-        final async = ref.watch(workspacePullRequestControllerProvider(scope));
-        final createAction = ref.watch(
-          workbenchControllerProvider.select(
-            (state) => state.viewPrefs.pullRequestCreateAction,
-          ),
-        );
-        return async.when(
-          loading: _loading,
-          error: (error, _) =>
-              _MessageBody(icon: AleraIcons.error, message: error.toString()),
-          data: (state) => _PullRequestBody(
-            repoPath: repoPath,
-            state: state,
-            createAction: createAction,
-            controller: ref.read(
-              workspacePullRequestControllerProvider(scope).notifier,
-            ),
-            onOpenUrl: (url) =>
-                ref.read(externalUriLauncherProvider).open(Uri.parse(url)),
-            onCreateActionChanged: (action) => ref
-                .read(workbenchControllerProvider.notifier)
-                .setPullRequestCreateAction(action),
-          ),
+        return _VisiblePullRequestsPanel(
+          key: ValueKey<WorkspacePullRequestScope>(scope),
+          scope: scope,
+          repoPath: repoPath,
         );
       },
     );
   }
 
   static Widget _loading() => const Center(child: CircularProgressIndicator());
+}
+
+class _VisiblePullRequestsPanel extends ConsumerStatefulWidget {
+  const _VisiblePullRequestsPanel({
+    super.key,
+    required this.scope,
+    required this.repoPath,
+  });
+
+  final WorkspacePullRequestScope scope;
+  final String repoPath;
+
+  @override
+  ConsumerState<_VisiblePullRequestsPanel> createState() =>
+      _VisiblePullRequestsPanelState();
+}
+
+class _VisiblePullRequestsPanelState
+    extends ConsumerState<_VisiblePullRequestsPanel> {
+  late final WorkspacePullRequestController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = ref.read(
+      workspacePullRequestControllerProvider(widget.scope).notifier,
+    );
+    _controller.attachPanel();
+  }
+
+  @override
+  void dispose() {
+    _controller.detachPanel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final async = ref.watch(
+      workspacePullRequestControllerProvider(widget.scope),
+    );
+    final createAction = ref.watch(
+      workbenchControllerProvider.select(
+        (state) => state.viewPrefs.pullRequestCreateAction,
+      ),
+    );
+    return async.when(
+      loading: WorkspacePullRequestsPanel._loading,
+      error: (error, _) =>
+          _MessageBody(icon: AleraIcons.error, message: error.toString()),
+      data: (state) => _PullRequestBody(
+        repoPath: widget.repoPath,
+        state: state,
+        createAction: createAction,
+        controller: _controller,
+        onOpenUrl: (url) =>
+            ref.read(externalUriLauncherProvider).open(Uri.parse(url)),
+        onCreateActionChanged: (action) => ref
+            .read(workbenchControllerProvider.notifier)
+            .setPullRequestCreateAction(action),
+      ),
+    );
+  }
 }
 
 class _PullRequestBody extends StatelessWidget {
@@ -103,7 +147,11 @@ class _PullRequestBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        _Header(busy: state.isBusy, onRefresh: controller.refresh),
+        _Header(
+          refreshing: state.isRefreshing,
+          enabled: !state.isBusy,
+          onRefresh: controller.refresh,
+        ),
         if (state.errorMessage != null)
           _ErrorBanner(message: state.errorMessage!),
         Expanded(child: _content()),
@@ -202,9 +250,14 @@ class _PullRequestBody extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.busy, required this.onRefresh});
+  const _Header({
+    required this.refreshing,
+    required this.enabled,
+    required this.onRefresh,
+  });
 
-  final bool busy;
+  final bool refreshing;
+  final bool enabled;
   final VoidCallback onRefresh;
 
   @override
@@ -227,7 +280,7 @@ class _Header extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              if (busy)
+              if (refreshing)
                 const SizedBox(
                   width: 16,
                   height: 16,
@@ -237,7 +290,7 @@ class _Header extends StatelessWidget {
                 AleraIconButton(
                   tooltip: 'Refresh',
                   icon: AleraIcons.refresh,
-                  onPressed: onRefresh,
+                  onPressed: enabled ? onRefresh : null,
                 ),
             ],
           ),

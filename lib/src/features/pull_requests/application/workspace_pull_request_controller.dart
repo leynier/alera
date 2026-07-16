@@ -1,19 +1,14 @@
 import 'dart:async';
 
-import 'package:alera/src/features/pull_requests/application/base_branch_resolver.dart';
-import 'package:alera/src/features/pull_requests/application/forge_exception.dart';
-import 'package:alera/src/features/pull_requests/application/forge_provider.dart';
 import 'package:alera/src/features/pull_requests/application/forge_provider_registry.dart';
-import 'package:alera/src/features/pull_requests/application/hosting_provider_resolver.dart';
 import 'package:alera/src/features/pull_requests/application/linked_review_repository.dart';
 import 'package:alera/src/features/pull_requests/application/pull_request_providers.dart';
 import 'package:alera/src/features/pull_requests/application/review_reference_parser.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_state.dart';
+import 'package:alera/src/features/pull_requests/application/workspace_pull_request_loader.dart';
 import 'package:alera/src/features/pull_requests/domain/create_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/create_review_result.dart';
 import 'package:alera/src/features/pull_requests/domain/forge_auth_status.dart';
-import 'package:alera/src/features/pull_requests/domain/git_remote_identity.dart';
-import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/linked_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check_details.dart';
@@ -23,12 +18,11 @@ import 'package:alera/src/features/pull_requests/domain/workspace_pull_request_s
 import 'package:alera/src/shared/infra/git/git_backend.dart';
 import 'package:alera/src/shared/infra/git/git_exception.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
-import 'package:alera/src/shared/infra/git/git_remote.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'workspace_pull_request_controller.g.dart';
 
-@riverpod
+@Riverpod(keepAlive: true)
 class WorkspacePullRequestController extends _$WorkspacePullRequestController {
   static const Duration _minPollInterval = Duration(seconds: 30);
   static const Duration _maxPollInterval = Duration(seconds: 120);
@@ -36,9 +30,13 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController {
   late final GitBackend _gitBackend;
   late final ForgeProviderRegistry _registry;
   late final LinkedReviewRepository _linkedReviews;
+  late final WorkspacePullRequestLoader _loader;
 
   Timer? _pollTimer;
   Duration _pollInterval = _minPollInterval;
+  Future<void>? _refreshInFlight;
+  var _panelViewCount = 0;
+  bool _visible = false;
   bool _disposed = false;
 
   @override
@@ -48,18 +46,55 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController {
     _gitBackend = ref.read(gitBackendProvider);
     _registry = ref.read(forgeProviderRegistryProvider);
     _linkedReviews = ref.read(linkedReviewRepositoryProvider);
+    _loader = WorkspacePullRequestLoader(
+      _gitBackend,
+      _registry,
+      _linkedReviews,
+    );
+    _visible = false;
     ref.onDispose(() {
       _disposed = true;
       _pollTimer?.cancel();
     });
-    final state = await _load(scope);
-    _schedulePoll(scope);
-    return state;
+    final initial = await _loader.load(scope);
+    _schedulePoll(scope, snapshot: initial);
+    return initial;
   }
 
   /// Reloads review + checks now.
-  Future<void> refresh() =>
-      _run(scope: scope, action: PullRequestAction.refresh, body: () async {});
+  Future<void> refresh() => _refresh(origin: _RefreshOrigin.manual);
+
+  /// Marks one visible panel as attached and revalidates any cached snapshot.
+  void attachPanel() {
+    if (_disposed) {
+      return;
+    }
+    _panelViewCount++;
+    if (_panelViewCount > 1) {
+      return;
+    }
+    _visible = true;
+    _resetPollInterval();
+    if (state.value != null) {
+      Timer.run(() {
+        if (!_disposed && _visible) {
+          unawaited(_refresh(origin: _RefreshOrigin.resume));
+        }
+      });
+    }
+  }
+
+  /// Stops polling after the last visible panel for this scope is detached.
+  void detachPanel() {
+    if (_panelViewCount > 0) {
+      _panelViewCount--;
+    }
+    if (_panelViewCount != 0) {
+      return;
+    }
+    _visible = false;
+    _pollTimer?.cancel();
+  }
 
   /// Links the workspace to the review named by [reference] (`#123` or a URL).
   Future<void> link(String reference) {
@@ -124,6 +159,7 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController {
         message: 'No hosting provider is configured.',
       );
     }
+    _pollTimer?.cancel();
     state = AsyncData(
       (state.value ?? const WorkspacePullRequestState()).copyWith(
         action: PullRequestAction.create,
@@ -158,12 +194,8 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController {
     _applyActionOutcome(
       failureMessage: result is CreateReviewFailure ? result.message : null,
     );
-    if (!_disposed) {
-      await _run(
-        scope: scope,
-        action: PullRequestAction.refresh,
-        body: () async {},
-      );
+    if (!_disposed && _visible) {
+      await refresh();
     }
     return result;
   }
@@ -207,6 +239,7 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController {
         message: 'Nothing to update.',
       );
     }
+    _pollTimer?.cancel();
     state = AsyncData(
       (state.value ?? const WorkspacePullRequestState()).copyWith(
         action: PullRequestAction.update,
@@ -223,12 +256,8 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController {
       failureMessage: result is UpdateReviewFailure ? result.message : null,
     );
     // Reload only on success; the refresh path would clear the error message.
-    if (!_disposed && result is UpdateReviewSuccess) {
-      await _run(
-        scope: scope,
-        action: PullRequestAction.refresh,
-        body: () async {},
-      );
+    if (!_disposed && _visible && result is UpdateReviewSuccess) {
+      await refresh();
     }
     return result;
   }
@@ -246,6 +275,7 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController {
         clearError: failureMessage == null,
       ),
     );
+    _schedulePoll(scope);
   }
 
   /// Runs an action that mutates persisted state, then reloads.
@@ -254,15 +284,15 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController {
     required PullRequestAction action,
     required Future<void> Function() body,
   }) async {
+    _pollTimer?.cancel();
     final current = state.value ?? const WorkspacePullRequestState();
     state = AsyncData(current.copyWith(action: action, clearError: true));
     try {
       await body();
-      final reloaded = await _load(scope);
+      final reloaded = await _loader.load(scope);
       if (!_disposed) {
         state = AsyncData(reloaded);
         _resetPollInterval();
-        _schedulePoll(scope);
       }
     } on _ActionError catch (error) {
       if (!_disposed) {
@@ -283,215 +313,115 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController {
         );
       }
     }
+    _schedulePoll(scope);
   }
 
-  Future<WorkspacePullRequestState> _load(
-    WorkspacePullRequestScope scope,
-  ) async {
-    final resolution = await _resolveIdentity(scope);
-    if (resolution.identity == null) {
-      return WorkspacePullRequestState(unavailableReason: resolution.reason);
+  Future<void> _refresh({required _RefreshOrigin origin}) {
+    if (_disposed || !_visible) {
+      return Future<void>.value();
     }
-    final identity = resolution.identity!;
-    final forge = _registry.forProvider(identity.provider);
-    if (forge == null) {
-      return WorkspacePullRequestState(
-        identity: identity,
-        unavailableReason: PullRequestUnavailableReason.unsupported,
-      );
+    final current = state.value;
+    if (current == null ||
+        (current.isBusy && current.action != PullRequestAction.refresh)) {
+      return Future<void>.value();
     }
-    final authStatus = await forge.checkAuth(identity: identity);
-    final branch = await _resolveBranch(scope);
-    final baseInfo = await _resolveBaseBranches(scope);
-    final persisted = await _linkedReviews.find(scope.workspaceId);
-
-    if (persisted != null && persisted.dismissed) {
-      return WorkspacePullRequestState(
-        identity: identity,
-        authStatus: authStatus,
-        currentBranch: branch,
-        baseBranches: baseInfo.branches,
-        suggestedBaseBranch: baseInfo.suggested,
-        dismissed: true,
-      );
-    }
-    if (authStatus != ForgeAuthStatus.authenticated) {
-      return WorkspacePullRequestState(
-        identity: identity,
-        authStatus: authStatus,
-        currentBranch: branch,
-        baseBranches: baseInfo.branches,
-        suggestedBaseBranch: baseInfo.suggested,
-      );
+    final inFlight = _refreshInFlight;
+    if (inFlight != null) {
+      return inFlight;
     }
 
-    final linkedManually = persisted != null && persisted.hasReview;
-    try {
-      final review = linkedManually
-          ? await forge.getReviewByNumber(
-              identity: identity,
-              repoPath: scope.repoPath,
-              number: persisted.number!,
-            )
-          : await _detectReview(forge, identity, scope, branch);
-      final checks = review == null
-          ? const <ReviewCheck>[]
-          : await forge.getChecks(
-              identity: identity,
-              repoPath: scope.repoPath,
-              number: review.number,
-            );
-      return WorkspacePullRequestState(
-        identity: identity,
-        authStatus: authStatus,
-        review: review,
-        checks: checks,
-        linkedManually: linkedManually,
-        currentBranch: branch,
-        baseBranches: baseInfo.branches,
-        suggestedBaseBranch: baseInfo.suggested,
-      );
-    } on ForgeNotAuthenticated {
-      return WorkspacePullRequestState(
-        identity: identity,
-        authStatus: ForgeAuthStatus.notAuthenticated,
-        currentBranch: branch,
-        baseBranches: baseInfo.branches,
-        suggestedBaseBranch: baseInfo.suggested,
-      );
-    } on ForgeCliMissing {
-      return WorkspacePullRequestState(
-        identity: identity,
-        authStatus: ForgeAuthStatus.cliMissing,
-        currentBranch: branch,
-        baseBranches: baseInfo.branches,
-        suggestedBaseBranch: baseInfo.suggested,
-      );
-    } on ForgeException catch (error) {
-      return WorkspacePullRequestState(
-        identity: identity,
-        authStatus: authStatus,
-        currentBranch: branch,
-        baseBranches: baseInfo.branches,
-        suggestedBaseBranch: baseInfo.suggested,
-        errorMessage: error.message,
-      );
-    }
+    final operation = _performRefresh(current: current, origin: origin);
+    _refreshInFlight = operation;
+    return operation.whenComplete(() {
+      if (identical(_refreshInFlight, operation)) {
+        _refreshInFlight = null;
+      }
+    });
   }
 
-  Future<({List<String> branches, String suggested})> _resolveBaseBranches(
-    WorkspacePullRequestScope scope,
-  ) async {
-    List<String> raw;
-    try {
-      raw = await _gitBackend.listBranches(scope.repoPath);
-    } on GitException {
-      raw = const <String>[];
+  Future<void> _performRefresh({
+    required WorkspacePullRequestState current,
+    required _RefreshOrigin origin,
+  }) async {
+    _pollTimer?.cancel();
+    if (origin != _RefreshOrigin.poll) {
+      _resetPollInterval();
     }
-    final branches = normalizeBaseBranches(raw);
-    final suggested = pickDefaultBaseBranch(
-      branches,
-      preferred: scope.sourceBranch,
+    state = AsyncData(
+      current.copyWith(action: PullRequestAction.refresh, clearError: true),
     );
-    return (branches: branches, suggested: suggested);
-  }
 
-  /// The branch to detect/create against: the scope hint (a git-repository
-  /// workspace's branch) when present, otherwise the current branch of the
-  /// controlled repository. Null when detached or unavailable.
-  Future<String?> _resolveBranch(WorkspacePullRequestScope scope) async {
-    final hinted = scope.branch;
-    if (hinted != null && hinted.isNotEmpty && hinted != 'HEAD') {
-      return hinted;
-    }
     try {
-      final current = await _gitBackend.currentBranch(scope.repoPath);
-      return current.isEmpty || current == 'HEAD' ? null : current;
-    } on GitException {
-      return null;
+      final reloaded = await _loader.load(scope);
+      if (_disposed) {
+        return;
+      }
+      final failed = reloaded.errorMessage != null;
+      state = AsyncData(
+        failed
+            ? current.copyWith(
+                clearAction: true,
+                errorMessage: reloaded.errorMessage,
+              )
+            : reloaded,
+      );
+      if (origin == _RefreshOrigin.poll) {
+        _advancePollInterval(
+          changed: !failed && reloaded.pollSignature != current.pollSignature,
+        );
+      }
+    } catch (error) {
+      if (!_disposed) {
+        state = AsyncData(
+          current.copyWith(clearAction: true, errorMessage: error.toString()),
+        );
+        if (origin == _RefreshOrigin.poll) {
+          _advancePollInterval(changed: false);
+        }
+      }
+    } finally {
+      _schedulePoll(scope);
     }
-  }
-
-  Future<HostedReview?> _detectReview(
-    ForgeProvider forge,
-    GitRemoteIdentity identity,
-    WorkspacePullRequestScope scope,
-    String? branch,
-  ) async {
-    if (branch == null || branch.isEmpty) {
-      return null;
-    }
-    return forge.getReviewForBranch(
-      identity: identity,
-      repoPath: scope.repoPath,
-      branch: branch,
-    );
-  }
-
-  Future<({GitRemoteIdentity? identity, PullRequestUnavailableReason? reason})>
-  _resolveIdentity(WorkspacePullRequestScope scope) async {
-    List<GitRemote> remotes;
-    try {
-      remotes = await _gitBackend.listRemotes(scope.repoPath);
-    } on GitException {
-      return (identity: null, reason: PullRequestUnavailableReason.noRemote);
-    }
-    final resolution = resolveHostingProvider(
-      remotes: remotes,
-      override: scope.providerOverride,
-    );
-    return switch (resolution) {
-      HostingProviderResolved(:final identity) => (
-        identity: identity,
-        reason: null,
-      ),
-      HostingProviderUndetectable() => (
-        identity: null,
-        reason: PullRequestUnavailableReason.undetectable,
-      ),
-      HostingProviderNoRemote() => (
-        identity: null,
-        reason: PullRequestUnavailableReason.noRemote,
-      ),
-    };
   }
 
   void _resetPollInterval() => _pollInterval = _minPollInterval;
 
-  void _schedulePoll(WorkspacePullRequestScope scope) {
+  void _advancePollInterval({required bool changed}) {
+    if (changed) {
+      _resetPollInterval();
+      return;
+    }
+    final doubled = _pollInterval * 2;
+    _pollInterval = doubled > _maxPollInterval ? _maxPollInterval : doubled;
+  }
+
+  void _schedulePoll(
+    WorkspacePullRequestScope scope, {
+    WorkspacePullRequestState? snapshot,
+  }) {
     _pollTimer?.cancel();
-    final current = state.value;
-    // Only poll when there is a provider to talk to and the user hasn't
-    // dismissed the panel. Auto-dispose stops polling when the panel is hidden.
-    if (current == null ||
+    final current = snapshot ?? state.value;
+    if (_disposed ||
+        !_visible ||
+        current == null ||
+        current.isBusy ||
         current.identity == null ||
         current.dismissed ||
         current.authStatus != ForgeAuthStatus.authenticated) {
       return;
     }
-    _pollTimer = Timer(_pollInterval, () => _pollTick(scope));
+    _pollTimer = Timer(_pollInterval, () {
+      unawaited(_pollTick(scope));
+    });
   }
 
   Future<void> _pollTick(WorkspacePullRequestScope scope) async {
-    if (_disposed) {
-      return;
-    }
-    final previous = state.value?.pollSignature;
-    final next = await _load(scope);
-    if (_disposed) {
-      return;
-    }
-    state = AsyncData(next);
-    if (next.pollSignature == previous) {
-      _pollInterval = _pollInterval * 2 > _maxPollInterval
-          ? _maxPollInterval
-          : _pollInterval * 2;
-    } else {
-      _pollInterval = _minPollInterval;
-    }
-    _schedulePoll(scope);
+    _pollTimer = null;
+    await _refresh(origin: _RefreshOrigin.poll);
   }
 }
+
+enum _RefreshOrigin { manual, poll, resume }
 
 class _ActionError implements Exception {
   const _ActionError(this.message);

@@ -48,6 +48,7 @@ class WorkspacePullRequestState {
   final String? errorMessage;
 
   bool get isBusy => action != null;
+  bool get isRefreshing => action == PullRequestAction.refresh;
   bool get hasReview => review != null;
   bool get providerAvailable => identity != null;
   bool get isAuthenticated => authStatus == ForgeAuthStatus.authenticated;
