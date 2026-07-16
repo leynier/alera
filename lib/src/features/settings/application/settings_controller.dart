@@ -129,6 +129,95 @@ class SettingsController extends _$SettingsController {
     );
   }
 
+  Future<void> setAgentQuotaProviderEnabled({
+    required String hostId,
+    required AgentQuotaProviderId provider,
+    required bool value,
+  }) async {
+    final current = state.agents.quotas.forHost(hostId);
+    final enabled = <AgentQuotaProviderId>{...current.enabledProviders};
+    if (value) {
+      enabled.add(provider);
+    } else {
+      enabled.remove(provider);
+    }
+    await _saveQuotaHost(
+      hostId,
+      current.copyWith(enabledProviders: enabled.toList()),
+    );
+  }
+
+  Future<void> setAgentQuotaProviderOrder({
+    required String hostId,
+    required List<AgentQuotaProviderId> providers,
+  }) async {
+    final current = state.agents.quotas.forHost(hostId);
+    final enabled = current.enabledProviders.toSet();
+    final ordered = <AgentQuotaProviderId>[
+      for (final provider in providers)
+        if (enabled.remove(provider)) provider,
+      for (final provider in current.enabledProviders)
+        if (enabled.remove(provider)) provider,
+    ];
+    await _saveQuotaHost(hostId, current.copyWith(enabledProviders: ordered));
+  }
+
+  Future<void> setClaudeQuotaProfiles({
+    required String hostId,
+    required List<ClaudeQuotaProfileSettings> profiles,
+  }) async {
+    final current = state.agents.quotas.forHost(hostId);
+    final selected =
+        current.selectedClaudeProfile == 'default' ||
+            profiles.any(
+              (profile) => profile.profile == current.selectedClaudeProfile,
+            )
+        ? current.selectedClaudeProfile
+        : 'default';
+    await _saveQuotaHost(
+      hostId,
+      current.copyWith(
+        claudeProfiles: profiles,
+        selectedClaudeProfile: selected,
+      ),
+    );
+  }
+
+  Future<void> setClaudeDefaultQuotaEnabled({
+    required String hostId,
+    required bool value,
+  }) async {
+    final current = state.agents.quotas.forHost(hostId);
+    await _saveQuotaHost(hostId, current.copyWith(claudeDefaultEnabled: value));
+  }
+
+  Future<void> setSelectedClaudeQuotaProfile({
+    required String hostId,
+    required String profile,
+  }) async {
+    final current = state.agents.quotas.forHost(hostId);
+    await _saveQuotaHost(
+      hostId,
+      current.copyWith(selectedClaudeProfile: profile),
+    );
+  }
+
+  Future<void> setAgentQuotaEnvironment({
+    required String hostId,
+    required AgentQuotaEnvironmentSettings environment,
+  }) async {
+    final current = state.agents.quotas.forHost(hostId);
+    await _saveQuotaHost(hostId, current.copyWith(environment: environment));
+  }
+
+  Future<void> _saveQuotaHost(
+    String hostId,
+    AgentQuotaHostSettings hostSettings,
+  ) async {
+    final quotas = state.agents.quotas.withHost(hostId, hostSettings);
+    await _save(state.copyWith(agents: state.agents.copyWith(quotas: quotas)));
+  }
+
   /// Sets the bindings for [id]. A null [chords] restores the default; an empty
   /// list disables the action.
   Future<void> setActionBindings(

@@ -56,6 +56,17 @@ void main() {
       expect(agents.agentStatusHooks.anyEnabled, isFalse);
       expect(agents.agentStatusNotificationsEnabled, isFalse);
       expect(agents.keepComputerAwakeWhileAgentsWork, isFalse);
+      expect(
+        agents.quotas.forHost('local').enabledProviders,
+        AgentQuotaProviderId.values,
+      );
+      expect(agents.quotas.forHost('local').claudeProfiles, isEmpty);
+      expect(agents.quotas.forHost('local').claudeDefaultEnabled, isTrue);
+      expect(agents.quotas.forHost('local').selectedClaudeProfile, 'default');
+      expect(
+        agents.quotas.forHost('local').environment.kimiApiKey,
+        'KIMI_APY_KEY',
+      );
     });
 
     test('editor defaults match current editor behavior', () {
@@ -129,6 +140,46 @@ void main() {
       expect(hooks.pi, isTrue);
       expect(hooks.grok, isFalse);
       expect(hooks.anyEnabled, isTrue);
+
+      final quotas = AgentQuotaSettings.fromJson(<String, Object?>{
+        'hosts': <String, Object?>{
+          'remote': <String, Object?>{
+            'enabledProviders': <String>['claude', 'grok', 'zai'],
+            'claudeDefaultEnabled': false,
+            'claudeProfiles': <Object?>[
+              <String, Object?>{'alias': 'ccdev', 'profile': 'leynierdev'},
+            ],
+            'selectedClaudeProfile': 'leynierdev',
+            'environment': <String, Object?>{'kimiApiKey': 'REMOTE_KIMI_KEY'},
+          },
+        },
+      });
+      expect(quotas.forHost('remote').enabledProviders, <AgentQuotaProviderId>[
+        AgentQuotaProviderId.claude,
+        AgentQuotaProviderId.grok,
+        AgentQuotaProviderId.zai,
+      ]);
+      expect(quotas.forHost('remote').claudeProfiles.single.alias, 'ccdev');
+      expect(quotas.forHost('remote').claudeDefaultEnabled, isFalse);
+      expect(quotas.forHost('remote').selectedClaudeProfile, 'leynierdev');
+      expect(
+        quotas.forHost('remote').environment.kimiApiKey,
+        'REMOTE_KIMI_KEY',
+      );
+
+      final profile = ClaudeQuotaProfileSettings.fromJson(<String, Object?>{
+        'alias': 'cc41',
+        'profile': 'leynier41',
+      });
+      final environment = AgentQuotaEnvironmentSettings.fromJson(
+        <String, Object?>{'kimiApiKey': 'CUSTOM_KIMI_KEY'},
+      );
+      final host = AgentQuotaHostSettings.fromJson(<String, Object?>{
+        'claudeProfiles': <Object?>[profile.toMap()],
+        'environment': environment.toMap(),
+      });
+      expect(host.claudeProfiles.single.alias, 'cc41');
+      expect(host.environment.kimiApiKey, 'CUSTOM_KIMI_KEY');
     });
 
     test('round-trips through json', () {

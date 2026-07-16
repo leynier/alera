@@ -26,6 +26,10 @@ pub enum Command {
     #[command(name = RUNTIME_HOST_COMMAND)]
     RuntimeHost(TerminalHostArgs),
 
+    /// Serve newline-delimited runtime proxy requests over stdin/stdout.
+    #[command(name = "runtime-proxy")]
+    RuntimeProxy,
+
     /// Run the persistent terminal host sidecar.
     #[command(name = TERMINAL_HOST_COMMAND)]
     TerminalHost(TerminalHostArgs),

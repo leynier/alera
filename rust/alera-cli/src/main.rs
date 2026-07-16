@@ -1,3 +1,4 @@
+mod agent_quota;
 mod cli;
 mod cli_orchestration;
 mod managed_workspace;
@@ -80,6 +81,7 @@ async fn run() -> i32 {
 
     match cli.command {
         Command::RuntimeHost(args) => run_terminal_host(args).await,
+        Command::RuntimeProxy => agent_quota::run_runtime_proxy().await,
         Command::Version(command) => run_version_command(command).await,
         Command::TerminalHost(args) => run_terminal_host(args).await,
         Command::Runtime(command) => run_runtime_command(command).await,

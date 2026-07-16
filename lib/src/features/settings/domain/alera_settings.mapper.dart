@@ -58,6 +58,73 @@ extension TerminalCursorShapeMapperExtension on TerminalCursorShape {
   }
 }
 
+class AgentQuotaProviderIdMapper extends EnumMapper<AgentQuotaProviderId> {
+  AgentQuotaProviderIdMapper._();
+
+  static AgentQuotaProviderIdMapper? _instance;
+  static AgentQuotaProviderIdMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = AgentQuotaProviderIdMapper._());
+    }
+    return _instance!;
+  }
+
+  static AgentQuotaProviderId fromValue(dynamic value) {
+    ensureInitialized();
+    return MapperContainer.globals.fromValue(value);
+  }
+
+  @override
+  AgentQuotaProviderId decode(dynamic value) {
+    switch (value) {
+      case r'claude':
+        return AgentQuotaProviderId.claude;
+      case r'codex':
+        return AgentQuotaProviderId.codex;
+      case r'kimi':
+        return AgentQuotaProviderId.kimi;
+      case r'grok':
+        return AgentQuotaProviderId.grok;
+      case r'antigravity':
+        return AgentQuotaProviderId.antigravity;
+      case r'minimax':
+        return AgentQuotaProviderId.minimax;
+      case r'zai':
+        return AgentQuotaProviderId.zai;
+      default:
+        throw MapperException.unknownEnumValue(value);
+    }
+  }
+
+  @override
+  dynamic encode(AgentQuotaProviderId self) {
+    switch (self) {
+      case AgentQuotaProviderId.claude:
+        return r'claude';
+      case AgentQuotaProviderId.codex:
+        return r'codex';
+      case AgentQuotaProviderId.kimi:
+        return r'kimi';
+      case AgentQuotaProviderId.grok:
+        return r'grok';
+      case AgentQuotaProviderId.antigravity:
+        return r'antigravity';
+      case AgentQuotaProviderId.minimax:
+        return r'minimax';
+      case AgentQuotaProviderId.zai:
+        return r'zai';
+    }
+  }
+}
+
+extension AgentQuotaProviderIdMapperExtension on AgentQuotaProviderId {
+  String toValue() {
+    AgentQuotaProviderIdMapper.ensureInitialized();
+    return MapperContainer.globals.toValue<AgentQuotaProviderId>(this)
+        as String;
+  }
+}
+
 class TerminalColorOverridesMapper
     extends ClassMapperBase<TerminalColorOverrides> {
   TerminalColorOverridesMapper._();
@@ -1224,6 +1291,7 @@ class AgentSettingsMapper extends ClassMapperBase<AgentSettings> {
     if (_instance == null) {
       MapperContainer.globals.use(_instance = AgentSettingsMapper._());
       AgentStatusHookSettingsMapper.ensureInitialized();
+      AgentQuotaSettingsMapper.ensureInitialized();
     }
     return _instance!;
   }
@@ -1258,12 +1326,20 @@ class AgentSettingsMapper extends ClassMapperBase<AgentSettings> {
         opt: true,
         def: false,
       );
+  static AgentQuotaSettings _$quotas(AgentSettings v) => v.quotas;
+  static const Field<AgentSettings, AgentQuotaSettings> _f$quotas = Field(
+    'quotas',
+    _$quotas,
+    opt: true,
+    def: AgentQuotaSettings.defaults,
+  );
 
   @override
   final MappableFields<AgentSettings> fields = const {
     #agentStatusHooks: _f$agentStatusHooks,
     #agentStatusNotificationsEnabled: _f$agentStatusNotificationsEnabled,
     #keepComputerAwakeWhileAgentsWork: _f$keepComputerAwakeWhileAgentsWork,
+    #quotas: _f$quotas,
   };
 
   static AgentSettings _instantiate(DecodingData data) {
@@ -1275,6 +1351,7 @@ class AgentSettingsMapper extends ClassMapperBase<AgentSettings> {
       keepComputerAwakeWhileAgentsWork: data.dec(
         _f$keepComputerAwakeWhileAgentsWork,
       ),
+      quotas: data.dec(_f$quotas),
     );
   }
 
@@ -1346,10 +1423,13 @@ abstract class AgentSettingsCopyWith<$R, $In extends AgentSettings, $Out>
     AgentStatusHookSettings
   >
   get agentStatusHooks;
+  AgentQuotaSettingsCopyWith<$R, AgentQuotaSettings, AgentQuotaSettings>
+  get quotas;
   $R call({
     AgentStatusHookSettings? agentStatusHooks,
     bool? agentStatusNotificationsEnabled,
     bool? keepComputerAwakeWhileAgentsWork,
+    AgentQuotaSettings? quotas,
   });
   AgentSettingsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
 }
@@ -1371,10 +1451,14 @@ class _AgentSettingsCopyWithImpl<$R, $Out>
   get agentStatusHooks =>
       $value.agentStatusHooks.copyWith.$chain((v) => call(agentStatusHooks: v));
   @override
+  AgentQuotaSettingsCopyWith<$R, AgentQuotaSettings, AgentQuotaSettings>
+  get quotas => $value.quotas.copyWith.$chain((v) => call(quotas: v));
+  @override
   $R call({
     AgentStatusHookSettings? agentStatusHooks,
     bool? agentStatusNotificationsEnabled,
     bool? keepComputerAwakeWhileAgentsWork,
+    AgentQuotaSettings? quotas,
   }) => $apply(
     FieldCopyWithData({
       if (agentStatusHooks != null) #agentStatusHooks: agentStatusHooks,
@@ -1382,6 +1466,7 @@ class _AgentSettingsCopyWithImpl<$R, $Out>
         #agentStatusNotificationsEnabled: agentStatusNotificationsEnabled,
       if (keepComputerAwakeWhileAgentsWork != null)
         #keepComputerAwakeWhileAgentsWork: keepComputerAwakeWhileAgentsWork,
+      if (quotas != null) #quotas: quotas,
     }),
   );
   @override
@@ -1395,12 +1480,799 @@ class _AgentSettingsCopyWithImpl<$R, $Out>
       #keepComputerAwakeWhileAgentsWork,
       or: $value.keepComputerAwakeWhileAgentsWork,
     ),
+    quotas: data.get(#quotas, or: $value.quotas),
   );
 
   @override
   AgentSettingsCopyWith<$R2, AgentSettings, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
   ) => _AgentSettingsCopyWithImpl<$R2, $Out2>($value, $cast, t);
+}
+
+class AgentQuotaSettingsMapper extends ClassMapperBase<AgentQuotaSettings> {
+  AgentQuotaSettingsMapper._();
+
+  static AgentQuotaSettingsMapper? _instance;
+  static AgentQuotaSettingsMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = AgentQuotaSettingsMapper._());
+      AgentQuotaHostSettingsMapper.ensureInitialized();
+    }
+    return _instance!;
+  }
+
+  @override
+  final String id = 'AgentQuotaSettings';
+
+  static Map<String, AgentQuotaHostSettings> _$hosts(AgentQuotaSettings v) =>
+      v.hosts;
+  static const Field<AgentQuotaSettings, Map<String, AgentQuotaHostSettings>>
+  _f$hosts = Field(
+    'hosts',
+    _$hosts,
+    opt: true,
+    def: const <String, AgentQuotaHostSettings>{},
+  );
+
+  @override
+  final MappableFields<AgentQuotaSettings> fields = const {#hosts: _f$hosts};
+
+  static AgentQuotaSettings _instantiate(DecodingData data) {
+    return AgentQuotaSettings(hosts: data.dec(_f$hosts));
+  }
+
+  @override
+  final Function instantiate = _instantiate;
+
+  static AgentQuotaSettings fromMap(Map<String, dynamic> map) {
+    return ensureInitialized().decodeMap<AgentQuotaSettings>(map);
+  }
+
+  static AgentQuotaSettings fromJson(String json) {
+    return ensureInitialized().decodeJson<AgentQuotaSettings>(json);
+  }
+}
+
+mixin AgentQuotaSettingsMappable {
+  String toJson() {
+    return AgentQuotaSettingsMapper.ensureInitialized()
+        .encodeJson<AgentQuotaSettings>(this as AgentQuotaSettings);
+  }
+
+  Map<String, dynamic> toMap() {
+    return AgentQuotaSettingsMapper.ensureInitialized()
+        .encodeMap<AgentQuotaSettings>(this as AgentQuotaSettings);
+  }
+
+  AgentQuotaSettingsCopyWith<
+    AgentQuotaSettings,
+    AgentQuotaSettings,
+    AgentQuotaSettings
+  >
+  get copyWith =>
+      _AgentQuotaSettingsCopyWithImpl<AgentQuotaSettings, AgentQuotaSettings>(
+        this as AgentQuotaSettings,
+        $identity,
+        $identity,
+      );
+  @override
+  String toString() {
+    return AgentQuotaSettingsMapper.ensureInitialized().stringifyValue(
+      this as AgentQuotaSettings,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return AgentQuotaSettingsMapper.ensureInitialized().equalsValue(
+      this as AgentQuotaSettings,
+      other,
+    );
+  }
+
+  @override
+  int get hashCode {
+    return AgentQuotaSettingsMapper.ensureInitialized().hashValue(
+      this as AgentQuotaSettings,
+    );
+  }
+}
+
+extension AgentQuotaSettingsValueCopy<$R, $Out>
+    on ObjectCopyWith<$R, AgentQuotaSettings, $Out> {
+  AgentQuotaSettingsCopyWith<$R, AgentQuotaSettings, $Out>
+  get $asAgentQuotaSettings => $base.as(
+    (v, t, t2) => _AgentQuotaSettingsCopyWithImpl<$R, $Out>(v, t, t2),
+  );
+}
+
+abstract class AgentQuotaSettingsCopyWith<
+  $R,
+  $In extends AgentQuotaSettings,
+  $Out
+>
+    implements ClassCopyWith<$R, $In, $Out> {
+  MapCopyWith<
+    $R,
+    String,
+    AgentQuotaHostSettings,
+    AgentQuotaHostSettingsCopyWith<
+      $R,
+      AgentQuotaHostSettings,
+      AgentQuotaHostSettings
+    >
+  >
+  get hosts;
+  $R call({Map<String, AgentQuotaHostSettings>? hosts});
+  AgentQuotaSettingsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
+    Then<$Out2, $R2> t,
+  );
+}
+
+class _AgentQuotaSettingsCopyWithImpl<$R, $Out>
+    extends ClassCopyWithBase<$R, AgentQuotaSettings, $Out>
+    implements AgentQuotaSettingsCopyWith<$R, AgentQuotaSettings, $Out> {
+  _AgentQuotaSettingsCopyWithImpl(super.value, super.then, super.then2);
+
+  @override
+  late final ClassMapperBase<AgentQuotaSettings> $mapper =
+      AgentQuotaSettingsMapper.ensureInitialized();
+  @override
+  MapCopyWith<
+    $R,
+    String,
+    AgentQuotaHostSettings,
+    AgentQuotaHostSettingsCopyWith<
+      $R,
+      AgentQuotaHostSettings,
+      AgentQuotaHostSettings
+    >
+  >
+  get hosts => MapCopyWith(
+    $value.hosts,
+    (v, t) => v.copyWith.$chain(t),
+    (v) => call(hosts: v),
+  );
+  @override
+  $R call({Map<String, AgentQuotaHostSettings>? hosts}) =>
+      $apply(FieldCopyWithData({if (hosts != null) #hosts: hosts}));
+  @override
+  AgentQuotaSettings $make(CopyWithData data) =>
+      AgentQuotaSettings(hosts: data.get(#hosts, or: $value.hosts));
+
+  @override
+  AgentQuotaSettingsCopyWith<$R2, AgentQuotaSettings, $Out2> $chain<$R2, $Out2>(
+    Then<$Out2, $R2> t,
+  ) => _AgentQuotaSettingsCopyWithImpl<$R2, $Out2>($value, $cast, t);
+}
+
+class AgentQuotaHostSettingsMapper
+    extends ClassMapperBase<AgentQuotaHostSettings> {
+  AgentQuotaHostSettingsMapper._();
+
+  static AgentQuotaHostSettingsMapper? _instance;
+  static AgentQuotaHostSettingsMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = AgentQuotaHostSettingsMapper._());
+      AgentQuotaProviderIdMapper.ensureInitialized();
+      ClaudeQuotaProfileSettingsMapper.ensureInitialized();
+      AgentQuotaEnvironmentSettingsMapper.ensureInitialized();
+    }
+    return _instance!;
+  }
+
+  @override
+  final String id = 'AgentQuotaHostSettings';
+
+  static List<AgentQuotaProviderId> _$enabledProviders(
+    AgentQuotaHostSettings v,
+  ) => v.enabledProviders;
+  static const Field<AgentQuotaHostSettings, List<AgentQuotaProviderId>>
+  _f$enabledProviders = Field(
+    'enabledProviders',
+    _$enabledProviders,
+    opt: true,
+    def: AgentQuotaProviderId.values,
+  );
+  static bool _$claudeDefaultEnabled(AgentQuotaHostSettings v) =>
+      v.claudeDefaultEnabled;
+  static const Field<AgentQuotaHostSettings, bool> _f$claudeDefaultEnabled =
+      Field(
+        'claudeDefaultEnabled',
+        _$claudeDefaultEnabled,
+        opt: true,
+        def: true,
+      );
+  static List<ClaudeQuotaProfileSettings> _$claudeProfiles(
+    AgentQuotaHostSettings v,
+  ) => v.claudeProfiles;
+  static const Field<AgentQuotaHostSettings, List<ClaudeQuotaProfileSettings>>
+  _f$claudeProfiles = Field(
+    'claudeProfiles',
+    _$claudeProfiles,
+    opt: true,
+    def: const <ClaudeQuotaProfileSettings>[],
+  );
+  static String _$selectedClaudeProfile(AgentQuotaHostSettings v) =>
+      v.selectedClaudeProfile;
+  static const Field<AgentQuotaHostSettings, String> _f$selectedClaudeProfile =
+      Field(
+        'selectedClaudeProfile',
+        _$selectedClaudeProfile,
+        opt: true,
+        def: 'default',
+      );
+  static AgentQuotaEnvironmentSettings _$environment(
+    AgentQuotaHostSettings v,
+  ) => v.environment;
+  static const Field<AgentQuotaHostSettings, AgentQuotaEnvironmentSettings>
+  _f$environment = Field(
+    'environment',
+    _$environment,
+    opt: true,
+    def: AgentQuotaEnvironmentSettings.defaults,
+  );
+
+  @override
+  final MappableFields<AgentQuotaHostSettings> fields = const {
+    #enabledProviders: _f$enabledProviders,
+    #claudeDefaultEnabled: _f$claudeDefaultEnabled,
+    #claudeProfiles: _f$claudeProfiles,
+    #selectedClaudeProfile: _f$selectedClaudeProfile,
+    #environment: _f$environment,
+  };
+
+  static AgentQuotaHostSettings _instantiate(DecodingData data) {
+    return AgentQuotaHostSettings(
+      enabledProviders: data.dec(_f$enabledProviders),
+      claudeDefaultEnabled: data.dec(_f$claudeDefaultEnabled),
+      claudeProfiles: data.dec(_f$claudeProfiles),
+      selectedClaudeProfile: data.dec(_f$selectedClaudeProfile),
+      environment: data.dec(_f$environment),
+    );
+  }
+
+  @override
+  final Function instantiate = _instantiate;
+
+  static AgentQuotaHostSettings fromMap(Map<String, dynamic> map) {
+    return ensureInitialized().decodeMap<AgentQuotaHostSettings>(map);
+  }
+
+  static AgentQuotaHostSettings fromJson(String json) {
+    return ensureInitialized().decodeJson<AgentQuotaHostSettings>(json);
+  }
+}
+
+mixin AgentQuotaHostSettingsMappable {
+  String toJson() {
+    return AgentQuotaHostSettingsMapper.ensureInitialized()
+        .encodeJson<AgentQuotaHostSettings>(this as AgentQuotaHostSettings);
+  }
+
+  Map<String, dynamic> toMap() {
+    return AgentQuotaHostSettingsMapper.ensureInitialized()
+        .encodeMap<AgentQuotaHostSettings>(this as AgentQuotaHostSettings);
+  }
+
+  AgentQuotaHostSettingsCopyWith<
+    AgentQuotaHostSettings,
+    AgentQuotaHostSettings,
+    AgentQuotaHostSettings
+  >
+  get copyWith =>
+      _AgentQuotaHostSettingsCopyWithImpl<
+        AgentQuotaHostSettings,
+        AgentQuotaHostSettings
+      >(this as AgentQuotaHostSettings, $identity, $identity);
+  @override
+  String toString() {
+    return AgentQuotaHostSettingsMapper.ensureInitialized().stringifyValue(
+      this as AgentQuotaHostSettings,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return AgentQuotaHostSettingsMapper.ensureInitialized().equalsValue(
+      this as AgentQuotaHostSettings,
+      other,
+    );
+  }
+
+  @override
+  int get hashCode {
+    return AgentQuotaHostSettingsMapper.ensureInitialized().hashValue(
+      this as AgentQuotaHostSettings,
+    );
+  }
+}
+
+extension AgentQuotaHostSettingsValueCopy<$R, $Out>
+    on ObjectCopyWith<$R, AgentQuotaHostSettings, $Out> {
+  AgentQuotaHostSettingsCopyWith<$R, AgentQuotaHostSettings, $Out>
+  get $asAgentQuotaHostSettings => $base.as(
+    (v, t, t2) => _AgentQuotaHostSettingsCopyWithImpl<$R, $Out>(v, t, t2),
+  );
+}
+
+abstract class AgentQuotaHostSettingsCopyWith<
+  $R,
+  $In extends AgentQuotaHostSettings,
+  $Out
+>
+    implements ClassCopyWith<$R, $In, $Out> {
+  ListCopyWith<
+    $R,
+    AgentQuotaProviderId,
+    ObjectCopyWith<$R, AgentQuotaProviderId, AgentQuotaProviderId>
+  >
+  get enabledProviders;
+  ListCopyWith<
+    $R,
+    ClaudeQuotaProfileSettings,
+    ClaudeQuotaProfileSettingsCopyWith<
+      $R,
+      ClaudeQuotaProfileSettings,
+      ClaudeQuotaProfileSettings
+    >
+  >
+  get claudeProfiles;
+  AgentQuotaEnvironmentSettingsCopyWith<
+    $R,
+    AgentQuotaEnvironmentSettings,
+    AgentQuotaEnvironmentSettings
+  >
+  get environment;
+  $R call({
+    List<AgentQuotaProviderId>? enabledProviders,
+    bool? claudeDefaultEnabled,
+    List<ClaudeQuotaProfileSettings>? claudeProfiles,
+    String? selectedClaudeProfile,
+    AgentQuotaEnvironmentSettings? environment,
+  });
+  AgentQuotaHostSettingsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
+    Then<$Out2, $R2> t,
+  );
+}
+
+class _AgentQuotaHostSettingsCopyWithImpl<$R, $Out>
+    extends ClassCopyWithBase<$R, AgentQuotaHostSettings, $Out>
+    implements
+        AgentQuotaHostSettingsCopyWith<$R, AgentQuotaHostSettings, $Out> {
+  _AgentQuotaHostSettingsCopyWithImpl(super.value, super.then, super.then2);
+
+  @override
+  late final ClassMapperBase<AgentQuotaHostSettings> $mapper =
+      AgentQuotaHostSettingsMapper.ensureInitialized();
+  @override
+  ListCopyWith<
+    $R,
+    AgentQuotaProviderId,
+    ObjectCopyWith<$R, AgentQuotaProviderId, AgentQuotaProviderId>
+  >
+  get enabledProviders => ListCopyWith(
+    $value.enabledProviders,
+    (v, t) => ObjectCopyWith(v, $identity, t),
+    (v) => call(enabledProviders: v),
+  );
+  @override
+  ListCopyWith<
+    $R,
+    ClaudeQuotaProfileSettings,
+    ClaudeQuotaProfileSettingsCopyWith<
+      $R,
+      ClaudeQuotaProfileSettings,
+      ClaudeQuotaProfileSettings
+    >
+  >
+  get claudeProfiles => ListCopyWith(
+    $value.claudeProfiles,
+    (v, t) => v.copyWith.$chain(t),
+    (v) => call(claudeProfiles: v),
+  );
+  @override
+  AgentQuotaEnvironmentSettingsCopyWith<
+    $R,
+    AgentQuotaEnvironmentSettings,
+    AgentQuotaEnvironmentSettings
+  >
+  get environment =>
+      $value.environment.copyWith.$chain((v) => call(environment: v));
+  @override
+  $R call({
+    List<AgentQuotaProviderId>? enabledProviders,
+    bool? claudeDefaultEnabled,
+    List<ClaudeQuotaProfileSettings>? claudeProfiles,
+    String? selectedClaudeProfile,
+    AgentQuotaEnvironmentSettings? environment,
+  }) => $apply(
+    FieldCopyWithData({
+      if (enabledProviders != null) #enabledProviders: enabledProviders,
+      if (claudeDefaultEnabled != null)
+        #claudeDefaultEnabled: claudeDefaultEnabled,
+      if (claudeProfiles != null) #claudeProfiles: claudeProfiles,
+      if (selectedClaudeProfile != null)
+        #selectedClaudeProfile: selectedClaudeProfile,
+      if (environment != null) #environment: environment,
+    }),
+  );
+  @override
+  AgentQuotaHostSettings $make(CopyWithData data) => AgentQuotaHostSettings(
+    enabledProviders: data.get(#enabledProviders, or: $value.enabledProviders),
+    claudeDefaultEnabled: data.get(
+      #claudeDefaultEnabled,
+      or: $value.claudeDefaultEnabled,
+    ),
+    claudeProfiles: data.get(#claudeProfiles, or: $value.claudeProfiles),
+    selectedClaudeProfile: data.get(
+      #selectedClaudeProfile,
+      or: $value.selectedClaudeProfile,
+    ),
+    environment: data.get(#environment, or: $value.environment),
+  );
+
+  @override
+  AgentQuotaHostSettingsCopyWith<$R2, AgentQuotaHostSettings, $Out2>
+  $chain<$R2, $Out2>(Then<$Out2, $R2> t) =>
+      _AgentQuotaHostSettingsCopyWithImpl<$R2, $Out2>($value, $cast, t);
+}
+
+class ClaudeQuotaProfileSettingsMapper
+    extends ClassMapperBase<ClaudeQuotaProfileSettings> {
+  ClaudeQuotaProfileSettingsMapper._();
+
+  static ClaudeQuotaProfileSettingsMapper? _instance;
+  static ClaudeQuotaProfileSettingsMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(
+        _instance = ClaudeQuotaProfileSettingsMapper._(),
+      );
+    }
+    return _instance!;
+  }
+
+  @override
+  final String id = 'ClaudeQuotaProfileSettings';
+
+  static String _$alias(ClaudeQuotaProfileSettings v) => v.alias;
+  static const Field<ClaudeQuotaProfileSettings, String> _f$alias = Field(
+    'alias',
+    _$alias,
+  );
+  static String _$profile(ClaudeQuotaProfileSettings v) => v.profile;
+  static const Field<ClaudeQuotaProfileSettings, String> _f$profile = Field(
+    'profile',
+    _$profile,
+  );
+
+  @override
+  final MappableFields<ClaudeQuotaProfileSettings> fields = const {
+    #alias: _f$alias,
+    #profile: _f$profile,
+  };
+
+  static ClaudeQuotaProfileSettings _instantiate(DecodingData data) {
+    return ClaudeQuotaProfileSettings(
+      alias: data.dec(_f$alias),
+      profile: data.dec(_f$profile),
+    );
+  }
+
+  @override
+  final Function instantiate = _instantiate;
+
+  static ClaudeQuotaProfileSettings fromMap(Map<String, dynamic> map) {
+    return ensureInitialized().decodeMap<ClaudeQuotaProfileSettings>(map);
+  }
+
+  static ClaudeQuotaProfileSettings fromJson(String json) {
+    return ensureInitialized().decodeJson<ClaudeQuotaProfileSettings>(json);
+  }
+}
+
+mixin ClaudeQuotaProfileSettingsMappable {
+  String toJson() {
+    return ClaudeQuotaProfileSettingsMapper.ensureInitialized()
+        .encodeJson<ClaudeQuotaProfileSettings>(
+          this as ClaudeQuotaProfileSettings,
+        );
+  }
+
+  Map<String, dynamic> toMap() {
+    return ClaudeQuotaProfileSettingsMapper.ensureInitialized()
+        .encodeMap<ClaudeQuotaProfileSettings>(
+          this as ClaudeQuotaProfileSettings,
+        );
+  }
+
+  ClaudeQuotaProfileSettingsCopyWith<
+    ClaudeQuotaProfileSettings,
+    ClaudeQuotaProfileSettings,
+    ClaudeQuotaProfileSettings
+  >
+  get copyWith =>
+      _ClaudeQuotaProfileSettingsCopyWithImpl<
+        ClaudeQuotaProfileSettings,
+        ClaudeQuotaProfileSettings
+      >(this as ClaudeQuotaProfileSettings, $identity, $identity);
+  @override
+  String toString() {
+    return ClaudeQuotaProfileSettingsMapper.ensureInitialized().stringifyValue(
+      this as ClaudeQuotaProfileSettings,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return ClaudeQuotaProfileSettingsMapper.ensureInitialized().equalsValue(
+      this as ClaudeQuotaProfileSettings,
+      other,
+    );
+  }
+
+  @override
+  int get hashCode {
+    return ClaudeQuotaProfileSettingsMapper.ensureInitialized().hashValue(
+      this as ClaudeQuotaProfileSettings,
+    );
+  }
+}
+
+extension ClaudeQuotaProfileSettingsValueCopy<$R, $Out>
+    on ObjectCopyWith<$R, ClaudeQuotaProfileSettings, $Out> {
+  ClaudeQuotaProfileSettingsCopyWith<$R, ClaudeQuotaProfileSettings, $Out>
+  get $asClaudeQuotaProfileSettings => $base.as(
+    (v, t, t2) => _ClaudeQuotaProfileSettingsCopyWithImpl<$R, $Out>(v, t, t2),
+  );
+}
+
+abstract class ClaudeQuotaProfileSettingsCopyWith<
+  $R,
+  $In extends ClaudeQuotaProfileSettings,
+  $Out
+>
+    implements ClassCopyWith<$R, $In, $Out> {
+  $R call({String? alias, String? profile});
+  ClaudeQuotaProfileSettingsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
+    Then<$Out2, $R2> t,
+  );
+}
+
+class _ClaudeQuotaProfileSettingsCopyWithImpl<$R, $Out>
+    extends ClassCopyWithBase<$R, ClaudeQuotaProfileSettings, $Out>
+    implements
+        ClaudeQuotaProfileSettingsCopyWith<
+          $R,
+          ClaudeQuotaProfileSettings,
+          $Out
+        > {
+  _ClaudeQuotaProfileSettingsCopyWithImpl(super.value, super.then, super.then2);
+
+  @override
+  late final ClassMapperBase<ClaudeQuotaProfileSettings> $mapper =
+      ClaudeQuotaProfileSettingsMapper.ensureInitialized();
+  @override
+  $R call({String? alias, String? profile}) => $apply(
+    FieldCopyWithData({
+      if (alias != null) #alias: alias,
+      if (profile != null) #profile: profile,
+    }),
+  );
+  @override
+  ClaudeQuotaProfileSettings $make(CopyWithData data) =>
+      ClaudeQuotaProfileSettings(
+        alias: data.get(#alias, or: $value.alias),
+        profile: data.get(#profile, or: $value.profile),
+      );
+
+  @override
+  ClaudeQuotaProfileSettingsCopyWith<$R2, ClaudeQuotaProfileSettings, $Out2>
+  $chain<$R2, $Out2>(Then<$Out2, $R2> t) =>
+      _ClaudeQuotaProfileSettingsCopyWithImpl<$R2, $Out2>($value, $cast, t);
+}
+
+class AgentQuotaEnvironmentSettingsMapper
+    extends ClassMapperBase<AgentQuotaEnvironmentSettings> {
+  AgentQuotaEnvironmentSettingsMapper._();
+
+  static AgentQuotaEnvironmentSettingsMapper? _instance;
+  static AgentQuotaEnvironmentSettingsMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(
+        _instance = AgentQuotaEnvironmentSettingsMapper._(),
+      );
+    }
+    return _instance!;
+  }
+
+  @override
+  final String id = 'AgentQuotaEnvironmentSettings';
+
+  static String _$kimiApiKey(AgentQuotaEnvironmentSettings v) => v.kimiApiKey;
+  static const Field<AgentQuotaEnvironmentSettings, String> _f$kimiApiKey =
+      Field('kimiApiKey', _$kimiApiKey, opt: true, def: 'KIMI_APY_KEY');
+  static String _$zaiApiKey(AgentQuotaEnvironmentSettings v) => v.zaiApiKey;
+  static const Field<AgentQuotaEnvironmentSettings, String> _f$zaiApiKey =
+      Field('zaiApiKey', _$zaiApiKey, opt: true, def: 'ZAI_API_KEY');
+  static String _$zaiBaseUrl(AgentQuotaEnvironmentSettings v) => v.zaiBaseUrl;
+  static const Field<AgentQuotaEnvironmentSettings, String> _f$zaiBaseUrl =
+      Field('zaiBaseUrl', _$zaiBaseUrl, opt: true, def: 'ZAI_BASE_URL');
+  static String _$minimaxApiKey(AgentQuotaEnvironmentSettings v) =>
+      v.minimaxApiKey;
+  static const Field<AgentQuotaEnvironmentSettings, String> _f$minimaxApiKey =
+      Field(
+        'minimaxApiKey',
+        _$minimaxApiKey,
+        opt: true,
+        def: 'MINIMAX_API_KEY',
+      );
+  static String _$minimaxApiHost(AgentQuotaEnvironmentSettings v) =>
+      v.minimaxApiHost;
+  static const Field<AgentQuotaEnvironmentSettings, String> _f$minimaxApiHost =
+      Field(
+        'minimaxApiHost',
+        _$minimaxApiHost,
+        opt: true,
+        def: 'MINIMAX_API_HOST',
+      );
+
+  @override
+  final MappableFields<AgentQuotaEnvironmentSettings> fields = const {
+    #kimiApiKey: _f$kimiApiKey,
+    #zaiApiKey: _f$zaiApiKey,
+    #zaiBaseUrl: _f$zaiBaseUrl,
+    #minimaxApiKey: _f$minimaxApiKey,
+    #minimaxApiHost: _f$minimaxApiHost,
+  };
+
+  static AgentQuotaEnvironmentSettings _instantiate(DecodingData data) {
+    return AgentQuotaEnvironmentSettings(
+      kimiApiKey: data.dec(_f$kimiApiKey),
+      zaiApiKey: data.dec(_f$zaiApiKey),
+      zaiBaseUrl: data.dec(_f$zaiBaseUrl),
+      minimaxApiKey: data.dec(_f$minimaxApiKey),
+      minimaxApiHost: data.dec(_f$minimaxApiHost),
+    );
+  }
+
+  @override
+  final Function instantiate = _instantiate;
+
+  static AgentQuotaEnvironmentSettings fromMap(Map<String, dynamic> map) {
+    return ensureInitialized().decodeMap<AgentQuotaEnvironmentSettings>(map);
+  }
+
+  static AgentQuotaEnvironmentSettings fromJson(String json) {
+    return ensureInitialized().decodeJson<AgentQuotaEnvironmentSettings>(json);
+  }
+}
+
+mixin AgentQuotaEnvironmentSettingsMappable {
+  String toJson() {
+    return AgentQuotaEnvironmentSettingsMapper.ensureInitialized()
+        .encodeJson<AgentQuotaEnvironmentSettings>(
+          this as AgentQuotaEnvironmentSettings,
+        );
+  }
+
+  Map<String, dynamic> toMap() {
+    return AgentQuotaEnvironmentSettingsMapper.ensureInitialized()
+        .encodeMap<AgentQuotaEnvironmentSettings>(
+          this as AgentQuotaEnvironmentSettings,
+        );
+  }
+
+  AgentQuotaEnvironmentSettingsCopyWith<
+    AgentQuotaEnvironmentSettings,
+    AgentQuotaEnvironmentSettings,
+    AgentQuotaEnvironmentSettings
+  >
+  get copyWith =>
+      _AgentQuotaEnvironmentSettingsCopyWithImpl<
+        AgentQuotaEnvironmentSettings,
+        AgentQuotaEnvironmentSettings
+      >(this as AgentQuotaEnvironmentSettings, $identity, $identity);
+  @override
+  String toString() {
+    return AgentQuotaEnvironmentSettingsMapper.ensureInitialized()
+        .stringifyValue(this as AgentQuotaEnvironmentSettings);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return AgentQuotaEnvironmentSettingsMapper.ensureInitialized().equalsValue(
+      this as AgentQuotaEnvironmentSettings,
+      other,
+    );
+  }
+
+  @override
+  int get hashCode {
+    return AgentQuotaEnvironmentSettingsMapper.ensureInitialized().hashValue(
+      this as AgentQuotaEnvironmentSettings,
+    );
+  }
+}
+
+extension AgentQuotaEnvironmentSettingsValueCopy<$R, $Out>
+    on ObjectCopyWith<$R, AgentQuotaEnvironmentSettings, $Out> {
+  AgentQuotaEnvironmentSettingsCopyWith<$R, AgentQuotaEnvironmentSettings, $Out>
+  get $asAgentQuotaEnvironmentSettings => $base.as(
+    (v, t, t2) =>
+        _AgentQuotaEnvironmentSettingsCopyWithImpl<$R, $Out>(v, t, t2),
+  );
+}
+
+abstract class AgentQuotaEnvironmentSettingsCopyWith<
+  $R,
+  $In extends AgentQuotaEnvironmentSettings,
+  $Out
+>
+    implements ClassCopyWith<$R, $In, $Out> {
+  $R call({
+    String? kimiApiKey,
+    String? zaiApiKey,
+    String? zaiBaseUrl,
+    String? minimaxApiKey,
+    String? minimaxApiHost,
+  });
+  AgentQuotaEnvironmentSettingsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
+    Then<$Out2, $R2> t,
+  );
+}
+
+class _AgentQuotaEnvironmentSettingsCopyWithImpl<$R, $Out>
+    extends ClassCopyWithBase<$R, AgentQuotaEnvironmentSettings, $Out>
+    implements
+        AgentQuotaEnvironmentSettingsCopyWith<
+          $R,
+          AgentQuotaEnvironmentSettings,
+          $Out
+        > {
+  _AgentQuotaEnvironmentSettingsCopyWithImpl(
+    super.value,
+    super.then,
+    super.then2,
+  );
+
+  @override
+  late final ClassMapperBase<AgentQuotaEnvironmentSettings> $mapper =
+      AgentQuotaEnvironmentSettingsMapper.ensureInitialized();
+  @override
+  $R call({
+    String? kimiApiKey,
+    String? zaiApiKey,
+    String? zaiBaseUrl,
+    String? minimaxApiKey,
+    String? minimaxApiHost,
+  }) => $apply(
+    FieldCopyWithData({
+      if (kimiApiKey != null) #kimiApiKey: kimiApiKey,
+      if (zaiApiKey != null) #zaiApiKey: zaiApiKey,
+      if (zaiBaseUrl != null) #zaiBaseUrl: zaiBaseUrl,
+      if (minimaxApiKey != null) #minimaxApiKey: minimaxApiKey,
+      if (minimaxApiHost != null) #minimaxApiHost: minimaxApiHost,
+    }),
+  );
+  @override
+  AgentQuotaEnvironmentSettings $make(CopyWithData data) =>
+      AgentQuotaEnvironmentSettings(
+        kimiApiKey: data.get(#kimiApiKey, or: $value.kimiApiKey),
+        zaiApiKey: data.get(#zaiApiKey, or: $value.zaiApiKey),
+        zaiBaseUrl: data.get(#zaiBaseUrl, or: $value.zaiBaseUrl),
+        minimaxApiKey: data.get(#minimaxApiKey, or: $value.minimaxApiKey),
+        minimaxApiHost: data.get(#minimaxApiHost, or: $value.minimaxApiHost),
+      );
+
+  @override
+  AgentQuotaEnvironmentSettingsCopyWith<
+    $R2,
+    AgentQuotaEnvironmentSettings,
+    $Out2
+  >
+  $chain<$R2, $Out2>(Then<$Out2, $R2> t) =>
+      _AgentQuotaEnvironmentSettingsCopyWithImpl<$R2, $Out2>($value, $cast, t);
 }
 
 class AleraSettingsMapper extends ClassMapperBase<AleraSettings> {

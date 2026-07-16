@@ -679,6 +679,54 @@ void _registerSettingsDialogCoreTests() {
     );
   });
 
+  testWidgets('shows quotas separately and keeps Claude settings together', (
+    tester,
+  ) async {
+    final container = await pumpSettingsDialogLocal(
+      tester,
+      extraOverrides: <dynamic>[
+        agentQuotaStateProvider.overrideWith(
+          (ref) async => AgentQuotaState.empty('local'),
+        ),
+      ],
+    );
+
+    expect(find.text('Quotas'), findsOneWidget);
+    await tester.tap(find.text('Agents').first);
+    await tester.pump();
+    expect(find.text('Claude Default Quotas'), findsNothing);
+
+    await tester.tap(find.text('Quotas').first);
+    await tester.pump();
+
+    expect(find.text('Provider Quotas'), findsWidgets);
+    expect(find.text('Claude Code Quotas'), findsOneWidget);
+    expect(find.text('Claude Default Quotas'), findsOneWidget);
+    expect(find.text('Claude CCS Profiles'), findsOneWidget);
+    expect(find.text('Kimi API Key Variable'), findsOneWidget);
+
+    final kimiField = find.descendant(
+      of: find.byKey(const ValueKey<String>('kimi-api-key-variable')),
+      matching: find.byType(TextField),
+    );
+    await tester.ensureVisible(kimiField);
+    await tester.pump();
+    await tester.enterText(kimiField, 'CUSTOM_KIMI_KEY');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(
+      container
+          .read(settingsControllerProvider)
+          .agents
+          .quotas
+          .forHost('local')
+          .environment
+          .kimiApiKey,
+      'CUSTOM_KIMI_KEY',
+    );
+  });
+
   testWidgets('edits terminal color override via color picker dialog', (
     tester,
   ) async {
@@ -859,6 +907,7 @@ void _registerSettingsDialogCoreTests() {
     expect(find.text('RESOURCES'), findsOneWidget);
     expect(find.text('Application'), findsWidgets);
     expect(find.text('Agents'), findsOneWidget);
+    expect(find.text('Quotas'), findsOneWidget);
     expect(find.text('General'), findsNothing);
 
     // Let pending timers (tooltips, animations) finish before teardown.

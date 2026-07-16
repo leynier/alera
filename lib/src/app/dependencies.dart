@@ -1,5 +1,6 @@
 export 'package:alera/src/features/projects/application/project_providers.dart';
 export 'package:alera/src/features/settings/application/settings_providers.dart';
+export 'package:alera/src/features/agent_quota/application/agent_quota_providers.dart';
 export 'package:alera/src/features/updater/application/update_providers.dart';
 export 'package:alera/src/features/workbench/application/workbench_providers.dart'
     show

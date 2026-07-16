@@ -6,6 +6,7 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/feedback/alera_status_dot.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
+import 'package:alera/src/features/agent_quota/domain/agent_quota.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/shell/presentation/alera_shell_page.dart';
@@ -63,6 +64,10 @@ Future<_ShellPumpHarness> _pumpShell(
         workbenchControllerProvider.overrideWith(() => shellController),
         agentStatusControllerProvider.overrideWith(
           () => _ShellTestAgentStatusController(agentStatuses),
+        ),
+        agentQuotaStateProvider.overrideWith(
+          (ref) async =>
+              AgentQuotaState.empty(state.activeWorkspace?.hostId ?? 'local'),
         ),
         terminalRuntimeProvider.overrideWith((ref) => runtime),
         terminalHostWarmupCoordinatorProvider.overrideWith((ref) {}),
