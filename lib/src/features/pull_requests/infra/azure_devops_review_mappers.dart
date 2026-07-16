@@ -1,20 +1,12 @@
-import 'package:alera/src/features/pull_requests/domain/git_hosting_provider.dart';
-import 'package:alera/src/features/pull_requests/domain/git_remote_identity.dart';
+import 'package:alera/src/shared/git_hosting/application/repository_web_url.dart';
+import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
+import 'package:alera/src/shared/git_hosting/domain/git_remote_identity.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check_details.dart';
 
 /// Pure JSON-to-domain mappers for `az` CLI output, kept apart from the
 /// command construction and error classification in `AzureDevOpsForgeProvider`.
-
-/// The organization base URL. Legacy `*.visualstudio.com` hosts embed the org
-/// in the subdomain; modern hosts use `dev.azure.com/{org}`.
-String azureOrgUrl(GitRemoteIdentity identity) {
-  if (identity.host.contains('visualstudio.com')) {
-    return 'https://${identity.owner}.visualstudio.com';
-  }
-  return 'https://dev.azure.com/${identity.owner}';
-}
 
 String azureWebUrl(GitRemoteIdentity identity, int number) {
   final project = identity.project ?? '';

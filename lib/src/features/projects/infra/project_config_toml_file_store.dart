@@ -4,7 +4,7 @@ import 'package:alera/src/features/projects/application/project_config_service.d
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/domain/project_config.dart';
 import 'package:alera/src/features/projects/domain/project_config_paths.dart';
-import 'package:alera/src/features/pull_requests/domain/git_hosting_provider.dart';
+import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:toml/toml.dart';
 

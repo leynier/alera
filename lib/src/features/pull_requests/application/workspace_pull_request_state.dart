@@ -1,5 +1,5 @@
 import 'package:alera/src/features/pull_requests/domain/forge_auth_status.dart';
-import 'package:alera/src/features/pull_requests/domain/git_remote_identity.dart';
+import 'package:alera/src/shared/git_hosting/domain/git_remote_identity.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
 import 'package:alera/src/features/pull_requests/domain/review_comment.dart';

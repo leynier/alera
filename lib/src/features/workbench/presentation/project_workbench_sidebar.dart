@@ -21,6 +21,10 @@ import 'package:alera/src/features/workbench/application/workbench_listing.dart'
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/application/workspace_agent_run_groups.dart';
 import 'package:alera/src/features/workbench/application/workspace_agent_status_projection.dart';
+import 'package:alera/src/features/workbench/application/repository_browser_opener.dart';
+import 'package:alera/src/features/workbench/application/repository_browser_providers.dart';
+import 'package:alera/src/features/pull_requests/application/pull_request_providers.dart';
+import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/widgets/agent_run_state_indicator.dart';
@@ -35,6 +39,7 @@ import 'package:flutter/services.dart';
 
 part 'project_workbench_collapsed_sidebar.dart';
 part 'project_workbench_sidebar_body.dart';
+part 'project_workbench_workspace_actions.dart';
 part 'project_workbench_workspace_rows.dart';
 part 'project_workbench_agent_rows.dart';
 part 'project_workbench_sidebar_footer.dart';
@@ -50,7 +55,8 @@ class ProjectWorkbenchSidebar extends ConsumerStatefulWidget {
 }
 
 class _ProjectWorkbenchSidebarState
-    extends ConsumerState<ProjectWorkbenchSidebar> {
+    extends ConsumerState<ProjectWorkbenchSidebar>
+    with _WorkspaceSidebarActions {
   final FocusNode _searchFocus = FocusNode();
 
   @override
@@ -115,9 +121,10 @@ class _ProjectWorkbenchSidebarState
                           lastActivityByWorkspaceId: lastActivity,
                           orderMemory: orderMemory,
                           onOpenWorkspace: _openWorkspace,
-                          onOpenWorkspaceFolder: _openWorkspaceFolder,
-                          onCopyWorkspacePath: _copyWorkspacePath,
-                          onSleepWorkspace: _sleepWorkspace,
+                          onOpenWorkspaceFolder: openWorkspaceFolder,
+                          onCopyWorkspacePath: copyWorkspacePath,
+                          onOpenWorkspaceInBrowser: openWorkspaceInBrowser,
+                          onSleepWorkspace: sleepWorkspace,
                           onCreateWorkspace: _createWorkspace,
                           onDeleteWorkspace: _deleteWorkspace,
                           onRenameProject: _renameProject,
@@ -180,40 +187,6 @@ class _ProjectWorkbenchSidebarState
   Future<void> _openWorkspace(Project project, Workspace workspace) async {
     final controller = ref.read(workbenchControllerProvider.notifier);
     await controller.selectWorkspace(project: project, workspace: workspace);
-  }
-
-  Future<void> _openWorkspaceFolder(Workspace workspace) async {
-    final result = await ref
-        .read(workspaceFolderOpenerProvider)
-        .open(workspace.path);
-    if (!result.ok && mounted) {
-      AleraToast.show(
-        context,
-        message: result.message ?? 'Could not open workspace folder.',
-        tone: AleraToastTone.error,
-      );
-    }
-  }
-
-  Future<void> _copyWorkspacePath(Workspace workspace) async {
-    await Clipboard.setData(ClipboardData(text: workspace.path));
-    if (!mounted) {
-      return;
-    }
-    AleraToast.show(
-      context,
-      message: 'Workspace path copied',
-      tone: AleraToastTone.success,
-    );
-  }
-
-  void _sleepWorkspace(Workspace workspace) {
-    ref.read(terminalRuntimeProvider).closeWorkspace(workspace.id);
-    AleraToast.show(
-      context,
-      message: 'Workspace Slept',
-      tone: AleraToastTone.success,
-    );
   }
 
   Future<void> _renameProject(Project project) async {

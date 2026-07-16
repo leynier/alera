@@ -3,7 +3,7 @@ import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/pull_requests/application/forge_provider.dart';
 import 'package:alera/src/features/pull_requests/application/forge_provider_registry.dart';
 import 'package:alera/src/features/pull_requests/application/linked_review_repository.dart';
-import 'package:alera/src/features/pull_requests/domain/git_hosting_provider.dart';
+import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:alera/src/features/pull_requests/infra/azure_devops_forge_provider.dart';
 import 'package:alera/src/features/pull_requests/infra/github_forge_provider.dart';
 import 'package:alera/src/features/pull_requests/infra/runtime_linked_review_repository.dart';

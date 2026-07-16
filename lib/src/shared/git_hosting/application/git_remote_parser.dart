@@ -1,5 +1,5 @@
-import 'package:alera/src/features/pull_requests/domain/git_hosting_provider.dart';
-import 'package:alera/src/features/pull_requests/domain/git_remote_identity.dart';
+import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
+import 'package:alera/src/shared/git_hosting/domain/git_remote_identity.dart';
 
 /// Pure parsing of git remote URLs into a [GitRemoteIdentity]. No I/O — the
 /// caller reads the remote URL through `GitBackend.listRemotes` and passes the

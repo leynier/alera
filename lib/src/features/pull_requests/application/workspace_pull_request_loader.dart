@@ -2,11 +2,11 @@ import 'package:alera/src/features/pull_requests/application/base_branch_resolve
 import 'package:alera/src/features/pull_requests/application/forge_exception.dart';
 import 'package:alera/src/features/pull_requests/application/forge_provider.dart';
 import 'package:alera/src/features/pull_requests/application/forge_provider_registry.dart';
-import 'package:alera/src/features/pull_requests/application/hosting_provider_resolver.dart';
+import 'package:alera/src/shared/git_hosting/application/hosting_provider_resolver.dart';
 import 'package:alera/src/features/pull_requests/application/linked_review_repository.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_state.dart';
 import 'package:alera/src/features/pull_requests/domain/forge_auth_status.dart';
-import 'package:alera/src/features/pull_requests/domain/git_remote_identity.dart';
+import 'package:alera/src/shared/git_hosting/domain/git_remote_identity.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/linked_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';

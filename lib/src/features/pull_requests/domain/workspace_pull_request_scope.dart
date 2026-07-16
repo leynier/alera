@@ -1,4 +1,4 @@
-import 'package:alera/src/features/pull_requests/domain/git_hosting_provider.dart';
+import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 
 /// Immutable inputs the pull-request controller is keyed by. The feature-level
 /// panel builds this from the active [Workspace] and the project's resolved
