@@ -10,6 +10,7 @@ import 'package:alera/src/features/pull_requests/application/workspace_pull_requ
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check_details.dart';
+import 'package:alera/src/features/pull_requests/domain/review_comment.dart';
 import 'package:alera/src/features/pull_requests/domain/review_merge_method.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_result.dart';
@@ -18,6 +19,7 @@ import 'package:alera/src/features/pull_requests/presentation/pull_request_field
 import 'package:flutter/material.dart';
 
 part 'pull_request_review_actions.dart';
+part 'pull_request_review_comments.dart';
 
 /// Presentational body for a linked review: header, inline title/base-branch
 /// editing, expandable checks, and a bottom Unlink button. Pure: data and
@@ -27,28 +29,34 @@ class PullRequestReviewView extends StatefulWidget {
     super.key,
     required this.review,
     required this.checks,
+    required this.comments,
     required this.baseBranches,
     required this.mergeMethods,
     required this.canCloseReview,
+    required this.canComment,
     required this.action,
     required this.onOpenUrl,
     required this.onUnlink,
     required this.onMerge,
     required this.onClose,
+    required this.onAddComment,
     required this.onUpdate,
     required this.onLoadCheckDetails,
   });
 
   final HostedReview review;
   final List<ReviewCheck> checks;
+  final List<ReviewComment> comments;
   final List<String> baseBranches;
   final List<ReviewMergeMethod> mergeMethods;
   final bool canCloseReview;
+  final bool canComment;
   final PullRequestAction? action;
   final Future<void> Function(String url) onOpenUrl;
   final VoidCallback onUnlink;
   final Future<void> Function(ReviewMergeMethod method) onMerge;
   final Future<void> Function() onClose;
+  final Future<bool> Function(String body) onAddComment;
   final Future<UpdateReviewResult> Function(UpdateReviewInput input) onUpdate;
   final Future<ReviewCheckDetails?> Function(ReviewCheck check)
   onLoadCheckDetails;
@@ -147,6 +155,14 @@ class _PullRequestReviewViewState extends State<PullRequestReviewView> {
                     onOpenUrl: widget.onOpenUrl,
                     onLoadDetails: widget.onLoadCheckDetails,
                   ),
+                const SizedBox(height: AleraTokens.space16),
+                _PullRequestCommentsSection(
+                  comments: widget.comments,
+                  canComment: widget.canComment && review.isOpen,
+                  action: widget.action,
+                  onAddComment: widget.onAddComment,
+                  onOpenUrl: widget.onOpenUrl,
+                ),
               ],
             ),
           ),

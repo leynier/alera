@@ -11,6 +11,7 @@ import 'package:alera/src/features/pull_requests/domain/git_remote_identity.dart
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check_details.dart';
+import 'package:alera/src/features/pull_requests/domain/review_comment.dart';
 import 'package:alera/src/features/pull_requests/domain/review_merge_method.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_result.dart';
@@ -21,12 +22,13 @@ import 'package:meta/meta.dart';
 import 'package:path/path.dart' as p;
 
 part 'azure_devops_review_actions.dart';
+part 'azure_devops_review_comments.dart';
 
 /// [ForgeProvider] for Azure DevOps, wrapping the official `az` CLI (with the
 /// `azure-devops` extension). Authentication relies on `az login`. Checks are
 /// derived from PR policy evaluations.
 class AzureDevOpsForgeProvider
-    with _AzureDevOpsReviewActions
+    with _AzureDevOpsReviewActions, _AzureDevOpsReviewComments
     implements ForgeProvider {
   const AzureDevOpsForgeProvider(this._processRunner);
 
@@ -37,6 +39,23 @@ class AzureDevOpsForgeProvider
 
   @override
   bool get supportsReviewCreation => true;
+
+  @override
+  bool get supportsReviewComments => true;
+
+  @visibleForTesting
+  static String commentThreadBodyJson(String body) {
+    return jsonEncode(<String, Object>{
+      'comments': <Object>[
+        <String, Object>{
+          'parentCommentId': 0,
+          'content': body,
+          'commentType': 1,
+        },
+      ],
+      'status': 1,
+    });
+  }
 
   /// PATCH body for retargeting a pull request via `az devops invoke`.
   @visibleForTesting
