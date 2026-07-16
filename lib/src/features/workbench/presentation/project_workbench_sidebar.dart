@@ -39,6 +39,7 @@ import 'package:flutter/services.dart';
 
 part 'project_workbench_collapsed_sidebar.dart';
 part 'project_workbench_sidebar_body.dart';
+part 'project_workbench_workspace_actions.dart';
 part 'project_workbench_workspace_rows.dart';
 part 'project_workbench_agent_rows.dart';
 part 'project_workbench_sidebar_footer.dart';
@@ -54,7 +55,8 @@ class ProjectWorkbenchSidebar extends ConsumerStatefulWidget {
 }
 
 class _ProjectWorkbenchSidebarState
-    extends ConsumerState<ProjectWorkbenchSidebar> {
+    extends ConsumerState<ProjectWorkbenchSidebar>
+    with _WorkspaceSidebarActions {
   final FocusNode _searchFocus = FocusNode();
 
   @override
@@ -119,10 +121,10 @@ class _ProjectWorkbenchSidebarState
                           lastActivityByWorkspaceId: lastActivity,
                           orderMemory: orderMemory,
                           onOpenWorkspace: _openWorkspace,
-                          onOpenWorkspaceFolder: _openWorkspaceFolder,
-                          onCopyWorkspacePath: _copyWorkspacePath,
-                          onOpenWorkspaceInBrowser: _openWorkspaceInBrowser,
-                          onSleepWorkspace: _sleepWorkspace,
+                          onOpenWorkspaceFolder: openWorkspaceFolder,
+                          onCopyWorkspacePath: copyWorkspacePath,
+                          onOpenWorkspaceInBrowser: openWorkspaceInBrowser,
+                          onSleepWorkspace: sleepWorkspace,
                           onCreateWorkspace: _createWorkspace,
                           onDeleteWorkspace: _deleteWorkspace,
                           onRenameProject: _renameProject,
@@ -185,101 +187,6 @@ class _ProjectWorkbenchSidebarState
   Future<void> _openWorkspace(Project project, Workspace workspace) async {
     final controller = ref.read(workbenchControllerProvider.notifier);
     await controller.selectWorkspace(project: project, workspace: workspace);
-  }
-
-  Future<void> _openWorkspaceFolder(Workspace workspace) async {
-    final result = await ref
-        .read(workspaceFolderOpenerProvider)
-        .open(workspace.path);
-    if (!result.ok && mounted) {
-      AleraToast.show(
-        context,
-        message: result.message ?? 'Could not open workspace folder.',
-        tone: AleraToastTone.error,
-      );
-    }
-  }
-
-  Future<void> _copyWorkspacePath(Workspace workspace) async {
-    await Clipboard.setData(ClipboardData(text: workspace.path));
-    if (!mounted) {
-      return;
-    }
-    AleraToast.show(
-      context,
-      message: 'Workspace path copied',
-      tone: AleraToastTone.success,
-    );
-  }
-
-  Future<void> _openWorkspaceInBrowser(Workspace workspace) async {
-    // The project-level provider override is best-effort: it must never block
-    // or break opening the repo. Fall back to auto-detection on timeout/error.
-    GitHostingProvider? override;
-    try {
-      override = await ref
-          .read(
-            effectiveHostingProviderOverrideProvider(
-              workspace.projectId,
-            ).future,
-          )
-          .timeout(const Duration(seconds: 2));
-    } catch (_) {
-      override = null;
-    }
-
-    final OpenRepositoryOutcome outcome;
-    try {
-      outcome = await ref
-          .read(repositoryBrowserOpenerProvider)
-          .open(repoPath: workspace.path, override: override);
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      AleraToast.show(
-        context,
-        message: 'Could not open the repository: $error',
-        tone: AleraToastTone.error,
-      );
-      return;
-    }
-    if (!mounted) {
-      return;
-    }
-    switch (outcome) {
-      case OpenRepositoryOutcome.opened:
-        break;
-      case OpenRepositoryOutcome.noRemote:
-        AleraToast.show(
-          context,
-          message: 'No git remote configured for this workspace.',
-          tone: AleraToastTone.info,
-        );
-      case OpenRepositoryOutcome.undetectable:
-        AleraToast.show(
-          context,
-          message:
-              'Could not detect a supported git hosting provider '
-              '(GitHub or Azure DevOps).',
-          tone: AleraToastTone.info,
-        );
-      case OpenRepositoryOutcome.openFailed:
-        AleraToast.show(
-          context,
-          message: 'Could not open the browser.',
-          tone: AleraToastTone.error,
-        );
-    }
-  }
-
-  void _sleepWorkspace(Workspace workspace) {
-    ref.read(terminalRuntimeProvider).closeWorkspace(workspace.id);
-    AleraToast.show(
-      context,
-      message: 'Workspace Slept',
-      tone: AleraToastTone.success,
-    );
   }
 
   Future<void> _renameProject(Project project) async {

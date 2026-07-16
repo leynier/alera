@@ -65,16 +65,6 @@ class _WorkspaceRow extends StatefulWidget {
 }
 
 class _WorkspaceRowState extends State<_WorkspaceRow> {
-  static const String _renameAction = 'rename';
-  static const String _openFolderAction = 'open-folder';
-  static const String _copyPathAction = 'copy-path';
-  static const String _openInBrowserAction = 'open-in-browser';
-  static const String _sleepAction = 'sleep';
-  static const String _manageTagsAction = 'manage-tags';
-  static const String _setParentAction = 'set-parent';
-  static const String _clearParentAction = 'clear-parent';
-  static const String _removeAction = 'remove';
-
   /// Fixed leading slot so the status dot (8) and agent glyphs (~12–13) do not
   /// shift the workspace name when the indicator swaps.
   static const double _statusSlotSize = 14;
@@ -93,79 +83,11 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
         Rect.fromPoints(globalPosition, globalPosition),
         Offset.zero & overlay.size,
       ),
-      items: <PopupMenuEntry<String>>[
-        const AleraDropdownEntry<String>(
-          value: _renameAction,
-          leading: Icon(AleraIcons.edit, size: 16),
-          label: 'Rename',
-        ),
-        const AleraDropdownEntry<String>(
-          value: _manageTagsAction,
-          leading: Icon(AleraIcons.tag, size: 16),
-          label: 'Manage Tags',
-        ),
-        const AleraDropdownEntry<String>(
-          value: _setParentAction,
-          leading: Icon(AleraIcons.link, size: 16),
-          label: 'Set Parent Workspace',
-        ),
-        if (widget.onClearParent != null)
-          const AleraDropdownEntry<String>(
-            value: _clearParentAction,
-            leading: Icon(AleraIcons.close, size: 16),
-            label: 'Clear Parent Workspace',
-          ),
-        const PopupMenuDivider(height: AleraTokens.space8),
-        const AleraDropdownEntry<String>(
-          value: _openInBrowserAction,
-          leading: Icon(
-            AleraIcons.external,
-            size: 16,
-            color: AleraTokens.foreground,
-          ),
-          label: 'Open in Browser',
-        ),
-        AleraDropdownEntry<String>(
-          value: _openFolderAction,
-          leading: const Icon(
-            AleraIcons.folderOpen,
-            size: 16,
-            color: AleraTokens.foreground,
-          ),
-          label: 'Open in ${widget.fileManagerLabel}',
-        ),
-        const AleraDropdownEntry<String>(
-          value: _copyPathAction,
-          leading: Icon(
-            AleraIcons.copy,
-            size: 16,
-            color: AleraTokens.foreground,
-          ),
-          label: 'Copy Path',
-        ),
-        const PopupMenuDivider(height: AleraTokens.space8),
-        const AleraDropdownEntry<String>(
-          value: _sleepAction,
-          leading: Icon(
-            AleraIcons.theme,
-            size: 16,
-            color: AleraTokens.foreground,
-          ),
-          label: 'Sleep',
-        ),
-        AleraDropdownEntry<String>(
-          value: _removeAction,
-          leading: Icon(
-            AleraIcons.delete,
-            size: 16,
-            color: widget.onDelete != null
-                ? AleraTokens.foreground
-                : AleraTokens.foregroundFaint,
-          ),
-          label: 'Remove',
-          enabled: widget.onDelete != null,
-        ),
-      ],
+      items: workspaceContextMenuEntries(
+        fileManagerLabel: widget.fileManagerLabel,
+        hasClearParent: widget.onClearParent != null,
+        canRemove: widget.onDelete != null,
+      ),
     );
 
     if (selected == _renameAction) {
