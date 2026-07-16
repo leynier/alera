@@ -91,6 +91,8 @@ class WorkspacePullRequestLoader {
         currentBranch: branch,
         baseBranches: baseInfo.branches,
         suggestedBaseBranch: baseInfo.suggested,
+        mergeMethods: forge.supportedMergeMethods,
+        canCloseReview: forge.supportsReviewClosure,
       );
     } on ForgeNotAuthenticated {
       return WorkspacePullRequestState(

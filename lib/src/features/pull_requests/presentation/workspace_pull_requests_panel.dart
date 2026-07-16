@@ -189,9 +189,13 @@ class _PullRequestBody extends StatelessWidget {
         review: review,
         checks: state.checks,
         baseBranches: state.baseBranches,
+        mergeMethods: state.mergeMethods,
+        canCloseReview: state.canCloseReview,
         action: state.action,
         onOpenUrl: onOpenUrl,
         onUnlink: controller.unlink,
+        onMerge: controller.mergeReview,
+        onClose: controller.closeReview,
         onUpdate: controller.updateReview,
         onLoadCheckDetails: controller.loadCheckDetails,
       );

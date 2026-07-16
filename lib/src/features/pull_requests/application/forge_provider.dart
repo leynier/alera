@@ -6,6 +6,7 @@ import 'package:alera/src/features/pull_requests/domain/git_remote_identity.dart
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check_details.dart';
+import 'package:alera/src/features/pull_requests/domain/review_merge_method.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_result.dart';
 
@@ -23,6 +24,12 @@ abstract interface class ForgeProvider {
 
   /// Whether this provider can create reviews (some are read-only).
   bool get supportsReviewCreation;
+
+  /// Merge strategies this provider can execute.
+  List<ReviewMergeMethod> get supportedMergeMethods;
+
+  /// Whether this provider can close an open review without merging it.
+  bool get supportsReviewClosure;
 
   /// Reports whether the provider's CLI is installed and authenticated for the
   /// host in [identity]. Never throws.
@@ -79,5 +86,21 @@ abstract interface class ForgeProvider {
     required String repoPath,
     required int number,
     required UpdateReviewInput input,
+  });
+
+  /// Merges review [number] using [method]. Expected provider failures throw a
+  /// typed [ForgeException].
+  Future<void> mergeReview({
+    required GitRemoteIdentity identity,
+    required String repoPath,
+    required int number,
+    required ReviewMergeMethod method,
+  });
+
+  /// Closes review [number] without merging it.
+  Future<void> closeReview({
+    required GitRemoteIdentity identity,
+    required String repoPath,
+    required int number,
   });
 }

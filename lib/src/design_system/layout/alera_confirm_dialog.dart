@@ -50,14 +50,15 @@ class AleraConfirmDialog extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AleraTokens.space20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+            Wrap(
+              alignment: WrapAlignment.end,
+              spacing: AleraTokens.space8,
+              runSpacing: AleraTokens.space8,
               children: <Widget>[
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(false),
                   child: Text(cancelLabel),
                 ),
-                const SizedBox(width: AleraTokens.space8),
                 FilledButton(
                   onPressed: () => Navigator.of(context).pop(true),
                   style: confirmStyle,

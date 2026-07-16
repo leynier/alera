@@ -9,6 +9,7 @@ import 'package:alera/src/features/pull_requests/domain/git_hosting_provider.dar
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check_details.dart';
+import 'package:alera/src/features/pull_requests/domain/review_merge_method.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_result.dart';
 import 'package:alera/src/features/pull_requests/domain/workspace_pull_request_scope.dart';
@@ -362,6 +363,79 @@ void main() {
     expect(result, isA<UpdateReviewFailure>());
     expect((result as UpdateReviewFailure).code, UpdateReviewErrorCode.blocked);
     expect(forge.updateCalls, 0);
+  });
+
+  test(
+    'merge keeps an auto-detected PR linked and shows its merged state',
+    () async {
+      final forge = FakeForgeProvider()..branchReview = _review(123);
+      final repo = FakeLinkedReviewRepository();
+      final container = _container(forge: forge, repo: repo);
+      addTearDown(container.dispose);
+
+      await container.read(
+        workspacePullRequestControllerProvider(_scope).future,
+      );
+      final controller = container.read(
+        workspacePullRequestControllerProvider(_scope).notifier,
+      );
+
+      await controller.mergeReview(ReviewMergeMethod.squash);
+
+      final state = container
+          .read(workspacePullRequestControllerProvider(_scope))
+          .value!;
+      expect(forge.lastMergeMethod, ReviewMergeMethod.squash);
+      expect(state.review?.state, HostedReviewState.merged);
+      expect(state.linkedManually, isTrue);
+      expect(repo.store['w1']?.number, 123);
+    },
+  );
+
+  test('close keeps the terminal closed state visible', () async {
+    final forge = FakeForgeProvider()..branchReview = _review(123);
+    final repo = FakeLinkedReviewRepository();
+    final container = _container(forge: forge, repo: repo);
+    addTearDown(container.dispose);
+
+    await container.read(workspacePullRequestControllerProvider(_scope).future);
+    final controller = container.read(
+      workspacePullRequestControllerProvider(_scope).notifier,
+    );
+
+    await controller.closeReview();
+
+    final state = container
+        .read(workspacePullRequestControllerProvider(_scope))
+        .value!;
+    expect(forge.closeCalls, 1);
+    expect(state.review?.state, HostedReviewState.closed);
+    expect(state.linkedManually, isTrue);
+  });
+
+  test('blocks a merge method that the provider does not support', () async {
+    final forge = FakeForgeProvider()
+      ..branchReview = _review(123)
+      ..mergeMethods = const <ReviewMergeMethod>[ReviewMergeMethod.mergeCommit];
+    final container = _container(
+      forge: forge,
+      repo: FakeLinkedReviewRepository(),
+    );
+    addTearDown(container.dispose);
+
+    await container.read(workspacePullRequestControllerProvider(_scope).future);
+    final controller = container.read(
+      workspacePullRequestControllerProvider(_scope).notifier,
+    );
+
+    await controller.mergeReview(ReviewMergeMethod.rebase);
+
+    final state = container
+        .read(workspacePullRequestControllerProvider(_scope))
+        .value!;
+    expect(forge.mergeCalls, 0);
+    expect(state.errorMessage, 'This Pull Request Cannot Be Merged.');
+    expect(state.review?.state, HostedReviewState.open);
   });
 
   test('loadCheckDetails queries the linked review number', () async {
