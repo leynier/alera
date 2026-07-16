@@ -94,8 +94,7 @@ Map<String, TextStyle> editorSyntaxThemeForName(String name) {
 }
 
 TextStyle editorSyntaxRootStyleForName(String name) {
-  return editorSyntaxThemeForName(name)['root'] ??
-      _aleraEditorSyntaxTheme['root']!;
+  return editorSyntaxThemeForName(name)['root']!;
 }
 
 const Map<String, TextStyle> _aleraEditorSyntaxTheme = <String, TextStyle>{

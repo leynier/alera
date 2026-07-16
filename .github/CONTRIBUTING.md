@@ -81,10 +81,10 @@ Run the relevant checks:
 dart format --set-exit-if-changed lib test integration_test tool
 flutter analyze
 flutter test --coverage --exclude-tags golden
-dart run tool/quality/coverage_report.dart --input coverage/lcov.info --min-lines 65 --worst 25
+dart run tool/quality/coverage_report.dart --input coverage/lcov.info --min-lines 100 --worst 25
 ```
 
-The coverage report excludes generated `*.g.dart` and `*.mapper.dart` files so the gate reflects maintained source code instead of build output.
+The coverage report requires 100% line coverage for maintained domain sources under `lib/src/features/**/domain/`. Generated mapping/provider output is excluded; presentation, infrastructure, and native surfaces are validated by the widget, golden, E2E, integration, Rust, and native build checks that match those layers.
 
 For visual UI changes, run the golden suite and update snapshots only when the visual diff is intentional:
 

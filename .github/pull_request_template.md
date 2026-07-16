@@ -12,7 +12,7 @@ Describe the user-visible change.
 - [ ] `dart format --set-exit-if-changed lib test integration_test tool`
 - [ ] `flutter analyze`
 - [ ] `flutter test --coverage --exclude-tags golden`
-- [ ] `dart run tool/quality/coverage_report.dart --input coverage/lcov.info --min-lines 65 --worst 25`
+- [ ] `dart run tool/quality/coverage_report.dart --input coverage/lcov.info --min-lines 100 --worst 25`
 - [ ] Golden tests, if UI changed: `flutter test --tags golden`
 - [ ] Desktop E2E, if app-shell flow changed: `flutter test integration_test -d macos`
 - [ ] Relevant desktop build: `flutter build macos`, `flutter build windows`, or `flutter build linux`

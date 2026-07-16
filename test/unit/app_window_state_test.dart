@@ -34,6 +34,56 @@ void main() {
       );
     });
 
+    test('covers value equality, copy variants, and invalid JSON', () {
+      const bounds = AppWindowBounds(left: 1, top: 2, width: 3, height: 4);
+      const sameBounds = AppWindowBounds(left: 1, top: 2, width: 3, height: 4);
+      const state = AppWindowState(normalBounds: bounds, maximized: true);
+
+      expect(bounds, sameBounds);
+      expect(bounds.hashCode, sameBounds.hashCode);
+      expect(AppWindowBounds.fromRect(bounds.toRect()), bounds);
+      expect(AppWindowBounds.fromJson(null), isNull);
+      expect(
+        AppWindowBounds.fromJson(<String, Object?>{
+          'left': double.nan,
+          'top': 0,
+          'width': 10,
+          'height': 10,
+        }),
+        isNull,
+      );
+      expect(AppWindowState.fromJson(null), isNull);
+      expect(
+        AppWindowState.fromJson(<String, Object?>{
+          'maximized': true,
+          'fullScreen': true,
+        }),
+        const AppWindowState(fullScreen: true),
+      );
+
+      final copied = state.copyWith(
+        normalBounds: const AppWindowBounds(
+          left: 5,
+          top: 6,
+          width: 7,
+          height: 8,
+        ),
+        maximized: false,
+      );
+      expect(copied.maximized, isFalse);
+      expect(copied.normalBounds?.left, 5);
+      expect(state.copyWith(clearNormalBounds: true).normalBounds, isNull);
+      expect(state.copyWith(fullScreen: true).maximized, isFalse);
+      expect(
+        state,
+        const AppWindowState(normalBounds: bounds, maximized: true),
+      );
+      expect(
+        state.hashCode,
+        const AppWindowState(normalBounds: bounds, maximized: true).hashCode,
+      );
+    });
+
     test('clamps restored bounds into the nearest visible display', () {
       final clamped = clampWindowBoundsToVisibleDisplays(
         const Rect.fromLTWH(2500, 100, 2000, 1200),
@@ -44,6 +94,33 @@ void main() {
       );
 
       expect(clamped, const Rect.fromLTWH(1440, 0, 1280, 800));
+    });
+
+    test('clamps to the nearest display when there is no intersection', () {
+      final clamped = clampWindowBoundsToVisibleDisplays(
+        const Rect.fromLTWH(5000, 5000, 500, 400),
+        const <Rect>[
+          Rect.fromLTWH(0, 0, 1000, 800),
+          Rect.fromLTWH(1200, 0, 1000, 800),
+        ],
+      );
+
+      expect(clamped, const Rect.fromLTWH(1700, 400, 500, 400));
+      expect(
+        clampWindowBoundsToVisibleDisplays(
+          const Rect.fromLTWH(1, 2, 3, 4),
+          const <Rect>[Rect.fromLTWH(0, 0, -1, 10)],
+        ),
+        const Rect.fromLTWH(1, 2, 3, 4),
+      );
+      expect(clampWindowBoundsToVisibleDisplays(null, const <Rect>[]), isNull);
+      expect(
+        clampWindowBoundsToVisibleDisplays(
+          const Rect.fromLTWH(0, 0, double.nan, 10),
+          const <Rect>[],
+        ),
+        isNull,
+      );
     });
   });
 

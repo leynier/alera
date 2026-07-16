@@ -75,7 +75,7 @@ jobs:
         run: flutter test --coverage --exclude-tags golden
 
       - name: Coverage report
-        run: dart run tool/quality/coverage_report.dart --input coverage/lcov.info --min-lines 65 --worst 25
+        run: dart run tool/quality/coverage_report.dart --input coverage/lcov.info --min-lines 100 --worst 25
 
       - name: Upload coverage
         if: always()

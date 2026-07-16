@@ -39,6 +39,10 @@ void main() {
       isA<TerminalOsc52Invalid>(),
     );
     expect(
+      parseTerminalOsc52Request(const <String>['c', '====']),
+      isA<TerminalOsc52Invalid>(),
+    );
+    expect(
       parseTerminalOsc52Request(<String>[
         'c',
         'A' * (terminalOsc52MaxPayloadCharacters + 1),
