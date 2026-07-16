@@ -26,6 +26,7 @@ const _review = HostedReview(
 class _Callbacks {
   int unlinkCalls = 0;
   int closeCalls = 0;
+  bool? draftStatus;
   final List<String> commentBodies = <String>[];
   bool addCommentResult = true;
   ReviewMergeMethod? mergeMethod;
@@ -45,6 +46,7 @@ Widget _wrap(
     ReviewMergeMethod.rebase,
   ],
   bool canCloseReview = true,
+  bool canChangeDraftStatus = true,
   bool canComment = true,
 }) {
   return MaterialApp(
@@ -56,6 +58,7 @@ Widget _wrap(
         baseBranches: const <String>['develop', 'main'],
         mergeMethods: mergeMethods,
         canCloseReview: canCloseReview,
+        canChangeDraftStatus: canChangeDraftStatus,
         canComment: canComment,
         action: action,
         onOpenUrl: (_) async {},
@@ -64,6 +67,9 @@ Widget _wrap(
         },
         onMerge: (method) async => callbacks.mergeMethod = method,
         onClose: () async => callbacks.closeCalls++,
+        onDraftStatusChanged: (draft) async {
+          callbacks.draftStatus = draft;
+        },
         onAddComment: (body) async {
           callbacks.commentBodies.add(body);
           return callbacks.addCommentResult;
@@ -95,6 +101,7 @@ void main() {
     expect(find.text('Create Merge Commit'), findsWidgets);
     expect(find.text('Squash and Merge'), findsOneWidget);
     expect(find.text('Rebase and Merge'), findsOneWidget);
+    expect(find.text('Convert To Draft'), findsOneWidget);
     expect(find.text('Close Pull Request'), findsOneWidget);
     expect(find.text('Unlink Pull Request'), findsOneWidget);
     expect(callbacks.mergeMethod, isNull);
@@ -225,7 +232,31 @@ void main() {
     expect(find.text('Close Pull Request #42?'), findsOneWidget);
   });
 
-  testWidgets('keeps close and unlink available for a draft PR', (
+  testWidgets('defaults a draft PR to Mark Ready For Review', (tester) async {
+    final callbacks = _Callbacks();
+    await tester.pumpWidget(
+      _wrap(
+        callbacks,
+        review: _review.copyWith(state: HostedReviewState.draft),
+      ),
+    );
+
+    expect(find.text('Mark Ready For Review'), findsOneWidget);
+    expect(find.text('Create Merge Commit'), findsNothing);
+
+    await tester.tap(find.text('Mark Ready For Review'));
+    await tester.pumpAndSettle();
+    expect(find.text('Mark Ready For Review PR #42?'), findsOneWidget);
+    expect(callbacks.draftStatus, isNull);
+
+    await tester.tap(
+      find.widgetWithText(FilledButton, 'Mark Ready For Review'),
+    );
+    await tester.pumpAndSettle();
+    expect(callbacks.draftStatus, isFalse);
+  });
+
+  testWidgets('keeps merge, close, and unlink available for a draft PR', (
     tester,
   ) async {
     final callbacks = _Callbacks();
@@ -236,14 +267,34 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('Create Merge Commit'));
+    await tester.tap(find.byTooltip('Pull Request Actions'));
     await tester.pumpAndSettle();
-    expect(find.text('Create Merge Commit PR #42?'), findsNothing);
+    expect(find.text('Mark Ready For Review'), findsWidgets);
+    expect(find.text('Create Merge Commit'), findsOneWidget);
+    expect(find.text('Close Pull Request'), findsOneWidget);
+    expect(find.text('Unlink Pull Request'), findsOneWidget);
+  });
+
+  testWidgets('converts an open PR to draft from the action menu', (
+    tester,
+  ) async {
+    final callbacks = _Callbacks();
+    await tester.pumpWidget(_wrap(callbacks));
 
     await tester.tap(find.byTooltip('Pull Request Actions'));
     await tester.pumpAndSettle();
-    expect(find.text('Close Pull Request'), findsOneWidget);
-    expect(find.text('Unlink Pull Request'), findsOneWidget);
+    await tester.tap(find.text('Convert To Draft'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Convert To Draft PR #42?'), findsNothing);
+    expect(callbacks.draftStatus, isNull);
+
+    await tester.tap(find.text('Convert To Draft'));
+    await tester.pumpAndSettle();
+    expect(find.text('Convert To Draft PR #42?'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Convert To Draft'));
+    await tester.pumpAndSettle();
+    expect(callbacks.draftStatus, isTrue);
   });
 
   testWidgets('omits close when the provider does not support it', (
@@ -257,6 +308,18 @@ void main() {
 
     expect(find.text('Close Pull Request'), findsNothing);
     expect(find.text('Unlink Pull Request'), findsOneWidget);
+  });
+
+  testWidgets('omits draft conversion when the provider does not support it', (
+    tester,
+  ) async {
+    final callbacks = _Callbacks();
+    await tester.pumpWidget(_wrap(callbacks, canChangeDraftStatus: false));
+
+    await tester.tap(find.byTooltip('Pull Request Actions'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Convert To Draft'), findsNothing);
   });
 
   testWidgets('disables the unified action control while work is in flight', (

@@ -395,6 +395,84 @@ void main() {
     expect(state.linkedManually, isTrue);
   });
 
+  test('marks a draft pull request ready for review', () async {
+    final forge = FakeForgeProvider()
+      ..branchReview = _review(123).copyWith(state: HostedReviewState.draft);
+    final container = _container(
+      forge: forge,
+      repo: FakeLinkedReviewRepository(),
+    );
+    addTearDown(container.dispose);
+
+    await container.read(workspacePullRequestControllerProvider(_scope).future);
+    final controller = container.read(
+      workspacePullRequestControllerProvider(_scope).notifier,
+    );
+
+    await controller.setReviewDraft(false);
+
+    final state = container
+        .read(workspacePullRequestControllerProvider(_scope))
+        .value!;
+    expect(forge.lastDraftStatus, isFalse);
+    expect(state.review?.state, HostedReviewState.open);
+  });
+
+  test('converts an open pull request to draft', () async {
+    final forge = FakeForgeProvider()..branchReview = _review(123);
+    final container = _container(
+      forge: forge,
+      repo: FakeLinkedReviewRepository(),
+    );
+    addTearDown(container.dispose);
+
+    await container.read(workspacePullRequestControllerProvider(_scope).future);
+    final controller = container.read(
+      workspacePullRequestControllerProvider(_scope).notifier,
+    );
+
+    await controller.setReviewDraft(true);
+
+    final state = container
+        .read(workspacePullRequestControllerProvider(_scope))
+        .value!;
+    expect(forge.lastDraftStatus, isTrue);
+    expect(state.review?.state, HostedReviewState.draft);
+  });
+
+  test(
+    'blocks draft conversion when the provider does not support it',
+    () async {
+      final forge = FakeForgeProvider()
+        ..branchReview = _review(123)
+        ..canChangeDraftStatus = false;
+      final container = _container(
+        forge: forge,
+        repo: FakeLinkedReviewRepository(),
+      );
+      addTearDown(container.dispose);
+
+      await container.read(
+        workspacePullRequestControllerProvider(_scope).future,
+      );
+      final controller = container.read(
+        workspacePullRequestControllerProvider(_scope).notifier,
+      );
+
+      await controller.setReviewDraft(true);
+
+      final state = container
+          .read(workspacePullRequestControllerProvider(_scope))
+          .value!;
+      expect(forge.draftStatusCalls, 0);
+      expect(
+        state.errorMessage,
+        'This Pull Request Draft Status Cannot Be Changed.',
+      );
+      expect(state.review?.state, HostedReviewState.open);
+    },
+  );
+
   test('blocks a merge method that the provider does not support', () async {
     final forge = FakeForgeProvider()
       ..branchReview = _review(123)

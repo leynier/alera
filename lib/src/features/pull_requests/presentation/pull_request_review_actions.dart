@@ -5,18 +5,22 @@ class _PullRequestReviewActions extends StatefulWidget {
     required this.review,
     required this.mergeMethods,
     required this.canCloseReview,
+    required this.canChangeDraftStatus,
     required this.action,
     required this.onMerge,
     required this.onClose,
+    required this.onDraftStatusChanged,
     required this.onUnlink,
   });
 
   final HostedReview review;
   final List<ReviewMergeMethod> mergeMethods;
   final bool canCloseReview;
+  final bool canChangeDraftStatus;
   final PullRequestAction? action;
   final Future<void> Function(ReviewMergeMethod method) onMerge;
   final Future<void> Function() onClose;
+  final Future<void> Function(bool draft) onDraftStatusChanged;
   final Future<void> Function() onUnlink;
 
   @override
@@ -28,10 +32,16 @@ class _PullRequestReviewActionsState extends State<_PullRequestReviewActions> {
   _PullRequestReviewAction? _selectedAction;
 
   List<_PullRequestReviewAction> get _availableActions {
+    final review = widget.review;
     final actions = <_PullRequestReviewAction>[
-      if (widget.review.isOpen)
+      if (review.state == HostedReviewState.draft &&
+          widget.canChangeDraftStatus)
+        _PullRequestReviewAction.markReady,
+      if (review.isOpen)
         ...widget.mergeMethods.map(_PullRequestReviewAction.fromMergeMethod),
-      if (widget.review.isOpen && widget.canCloseReview)
+      if (review.state == HostedReviewState.open && widget.canChangeDraftStatus)
+        _PullRequestReviewAction.convertToDraft,
+      if (review.isOpen && widget.canCloseReview)
         _PullRequestReviewAction.close,
       _PullRequestReviewAction.unlink,
     ];
@@ -65,6 +75,12 @@ class _PullRequestReviewActionsState extends State<_PullRequestReviewActions> {
           _PullRequestReviewAction.rebase => mergeEnabled,
           _PullRequestReviewAction.close =>
             review.isOpen && widget.canCloseReview,
+          _PullRequestReviewAction.markReady =>
+            review.state == HostedReviewState.draft &&
+                widget.canChangeDraftStatus,
+          _PullRequestReviewAction.convertToDraft =>
+            review.state == HostedReviewState.open &&
+                widget.canChangeDraftStatus,
           _PullRequestReviewAction.unlink => true,
         };
     final showProgress = switch (action) {
@@ -74,6 +90,9 @@ class _PullRequestReviewActionsState extends State<_PullRequestReviewActions> {
         widget.action == PullRequestAction.merge,
       _PullRequestReviewAction.close =>
         widget.action == PullRequestAction.close,
+      _PullRequestReviewAction.markReady ||
+      _PullRequestReviewAction.convertToDraft =>
+        widget.action == PullRequestAction.draftStatus,
       _PullRequestReviewAction.unlink =>
         widget.action == PullRequestAction.unlink,
     };
@@ -102,6 +121,12 @@ class _PullRequestReviewActionsState extends State<_PullRequestReviewActions> {
         return;
       case _PullRequestReviewAction.unlink:
         await _confirmUnlink();
+        return;
+      case _PullRequestReviewAction.markReady:
+        await _confirmDraftStatus(draft: false);
+        return;
+      case _PullRequestReviewAction.convertToDraft:
+        await _confirmDraftStatus(draft: true);
         return;
       case _PullRequestReviewAction.mergeCommit:
       case _PullRequestReviewAction.squash:
@@ -157,12 +182,33 @@ class _PullRequestReviewActionsState extends State<_PullRequestReviewActions> {
       await widget.onUnlink();
     }
   }
+
+  Future<void> _confirmDraftStatus({required bool draft}) async {
+    final label = draft ? 'Convert To Draft' : 'Mark Ready For Review';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AleraConfirmDialog(
+        title: '$label PR #${widget.review.number}?',
+        message: draft
+            ? 'This Will Convert The Pull Request To Draft On '
+                  '${widget.review.provider.label}.'
+            : 'This Will Mark The Pull Request As Ready For Review On '
+                  '${widget.review.provider.label}.',
+        confirmLabel: label,
+      ),
+    );
+    if (confirmed == true) {
+      await widget.onDraftStatusChanged(draft);
+    }
+  }
 }
 
 enum _PullRequestReviewAction {
   mergeCommit,
   squash,
   rebase,
+  markReady,
+  convertToDraft,
   close,
   unlink;
 
@@ -178,13 +224,18 @@ enum _PullRequestReviewAction {
     _PullRequestReviewAction.mergeCommit => ReviewMergeMethod.mergeCommit,
     _PullRequestReviewAction.squash => ReviewMergeMethod.squash,
     _PullRequestReviewAction.rebase => ReviewMergeMethod.rebase,
-    _PullRequestReviewAction.close || _PullRequestReviewAction.unlink => null,
+    _PullRequestReviewAction.markReady ||
+    _PullRequestReviewAction.convertToDraft ||
+    _PullRequestReviewAction.close ||
+    _PullRequestReviewAction.unlink => null,
   };
 
   String get label => switch (this) {
     _PullRequestReviewAction.mergeCommit => ReviewMergeMethod.mergeCommit.label,
     _PullRequestReviewAction.squash => ReviewMergeMethod.squash.label,
     _PullRequestReviewAction.rebase => ReviewMergeMethod.rebase.label,
+    _PullRequestReviewAction.markReady => 'Mark Ready For Review',
+    _PullRequestReviewAction.convertToDraft => 'Convert To Draft',
     _PullRequestReviewAction.close => 'Close Pull Request',
     _PullRequestReviewAction.unlink => 'Unlink Pull Request',
   };
@@ -193,6 +244,8 @@ enum _PullRequestReviewAction {
     _PullRequestReviewAction.mergeCommit ||
     _PullRequestReviewAction.squash ||
     _PullRequestReviewAction.rebase => AleraIcons.gitMerge,
+    _PullRequestReviewAction.markReady => AleraIcons.success,
+    _PullRequestReviewAction.convertToDraft => AleraIcons.edit,
     _PullRequestReviewAction.close => AleraIcons.gitPullRequestClosed,
     _PullRequestReviewAction.unlink => AleraIcons.unlink,
   };
@@ -331,8 +384,15 @@ class _PullRequestActionButton extends StatelessWidget {
       renderBox.size.bottomRight(Offset.zero),
       ancestor: overlay,
     );
+    final readyActions = actions.where(
+      (option) => option == _PullRequestReviewAction.markReady,
+    );
     final mergeActions = actions.where((option) => option.mergeMethod != null);
-    final otherActions = actions.where((option) => option.mergeMethod == null);
+    final otherActions = actions.where(
+      (option) =>
+          option.mergeMethod == null &&
+          option != _PullRequestReviewAction.markReady,
+    );
     final selected = await showMenu<_PullRequestReviewAction>(
       context: context,
       position: RelativeRect.fromRect(
@@ -345,6 +405,15 @@ class _PullRequestActionButton extends StatelessWidget {
         side: const BorderSide(color: AleraTokens.border),
       ),
       items: <PopupMenuEntry<_PullRequestReviewAction>>[
+        for (final option in readyActions)
+          AleraDropdownEntry<_PullRequestReviewAction>(
+            value: option,
+            label: option.label,
+            selected: option == action,
+            leading: Icon(option.icon, size: 16),
+          ),
+        if (readyActions.isNotEmpty && mergeActions.isNotEmpty)
+          const PopupMenuDivider(height: AleraTokens.space8),
         for (final option in mergeActions)
           AleraDropdownEntry<_PullRequestReviewAction>(
             value: option,
@@ -352,7 +421,8 @@ class _PullRequestActionButton extends StatelessWidget {
             selected: option == action,
             leading: Icon(option.icon, size: 16),
           ),
-        if (mergeActions.isNotEmpty && otherActions.isNotEmpty)
+        if ((readyActions.isNotEmpty || mergeActions.isNotEmpty) &&
+            otherActions.isNotEmpty)
           const PopupMenuDivider(height: AleraTokens.space8),
         for (final option in otherActions)
           AleraDropdownEntry<_PullRequestReviewAction>(

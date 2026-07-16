@@ -45,6 +45,7 @@ class FakeForgeProvider implements ForgeProvider {
     ReviewMergeMethod.rebase,
   ];
   bool canCloseReview = true;
+  bool canChangeDraftStatus = true;
   bool canComment = true;
   List<ReviewComment> comments = <ReviewComment>[];
   Future<List<ReviewComment>> Function()? commentsLoader;
@@ -57,6 +58,9 @@ class FakeForgeProvider implements ForgeProvider {
   Object? mergeError;
   int closeCalls = 0;
   Object? closeError;
+  bool? lastDraftStatus;
+  int draftStatusCalls = 0;
+  Object? draftStatusError;
 
   @override
   GitHostingProvider get id => GitHostingProvider.github;
@@ -69,6 +73,9 @@ class FakeForgeProvider implements ForgeProvider {
 
   @override
   bool get supportsReviewClosure => canCloseReview;
+
+  @override
+  bool get supportsReviewDraftConversion => canChangeDraftStatus;
 
   @override
   bool get supportsReviewComments => canComment;
@@ -213,6 +220,25 @@ class FakeForgeProvider implements ForgeProvider {
       throw error;
     }
     _setReviewState(number, HostedReviewState.closed);
+  }
+
+  @override
+  Future<void> setReviewDraft({
+    required GitRemoteIdentity identity,
+    required String repoPath,
+    required int number,
+    required bool draft,
+  }) async {
+    draftStatusCalls++;
+    lastDraftStatus = draft;
+    final error = draftStatusError;
+    if (error != null) {
+      throw error;
+    }
+    _setReviewState(
+      number,
+      draft ? HostedReviewState.draft : HostedReviewState.open,
+    );
   }
 
   void _setReviewState(int number, HostedReviewState state) {

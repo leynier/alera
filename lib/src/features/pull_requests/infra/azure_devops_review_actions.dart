@@ -9,6 +9,8 @@ mixin _AzureDevOpsReviewActions {
 
   bool get supportsReviewClosure => true;
 
+  bool get supportsReviewDraftConversion => true;
+
   Future<void> mergeReview({
     required GitRemoteIdentity identity,
     required String repoPath,
@@ -54,6 +56,28 @@ mixin _AzureDevOpsReviewActions {
       azureOrgUrl(identity),
       '--status',
       'abandoned',
+      '--output',
+      'none',
+    ], repoPath);
+  }
+
+  Future<void> setReviewDraft({
+    required GitRemoteIdentity identity,
+    required String repoPath,
+    required int number,
+    required bool draft,
+  }) async {
+    final provider = this as AzureDevOpsForgeProvider;
+    await provider._run(<String>[
+      'repos',
+      'pr',
+      'update',
+      '--id',
+      '$number',
+      '--organization',
+      azureOrgUrl(identity),
+      '--draft',
+      '$draft',
       '--output',
       'none',
     ], repoPath);

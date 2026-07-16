@@ -118,6 +118,7 @@ class WorkspacePullRequestLoader {
         suggestedBaseBranch: baseInfo.suggested,
         mergeMethods: forge.supportedMergeMethods,
         canCloseReview: forge.supportsReviewClosure,
+        canChangeDraftStatus: forge.supportsReviewDraftConversion,
         canComment: forge.supportsReviewComments,
       );
     } on ForgeNotAuthenticated {

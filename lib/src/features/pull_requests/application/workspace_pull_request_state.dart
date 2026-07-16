@@ -17,6 +17,7 @@ enum PullRequestAction {
   update,
   merge,
   close,
+  draftStatus,
   comment,
 }
 
@@ -37,6 +38,7 @@ class WorkspacePullRequestState {
     this.suggestedBaseBranch,
     this.mergeMethods = const <ReviewMergeMethod>[],
     this.canCloseReview = false,
+    this.canChangeDraftStatus = false,
     this.canComment = false,
     this.action,
     this.errorMessage,
@@ -71,6 +73,7 @@ class WorkspacePullRequestState {
 
   final List<ReviewMergeMethod> mergeMethods;
   final bool canCloseReview;
+  final bool canChangeDraftStatus;
   final bool canComment;
   final PullRequestAction? action;
   final String? errorMessage;
@@ -104,6 +107,7 @@ class WorkspacePullRequestState {
     String? suggestedBaseBranch,
     List<ReviewMergeMethod>? mergeMethods,
     bool? canCloseReview,
+    bool? canChangeDraftStatus,
     bool? canComment,
     PullRequestAction? action,
     bool clearAction = false,
@@ -125,6 +129,7 @@ class WorkspacePullRequestState {
       suggestedBaseBranch: suggestedBaseBranch ?? this.suggestedBaseBranch,
       mergeMethods: mergeMethods ?? this.mergeMethods,
       canCloseReview: canCloseReview ?? this.canCloseReview,
+      canChangeDraftStatus: canChangeDraftStatus ?? this.canChangeDraftStatus,
       canComment: canComment ?? this.canComment,
       action: clearAction ? null : (action ?? this.action),
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
