@@ -50,6 +50,31 @@ mixin _WorkspacePullRequestReviewActions on _$WorkspacePullRequestController {
     );
   }
 
+  /// Converts the linked review between draft and ready-for-review states.
+  Future<void> setReviewDraft(bool draft) async {
+    final current = state.value;
+    final review = current?.review;
+    final alreadyDraft = review?.state == HostedReviewState.draft;
+    if (current == null ||
+        review == null ||
+        !review.isOpen ||
+        !current.canChangeDraftStatus ||
+        alreadyDraft == draft) {
+      _surfaceActionError('This Pull Request Draft Status Cannot Be Changed.');
+      return;
+    }
+    await _runReviewMutation(
+      current: current,
+      action: PullRequestAction.draftStatus,
+      mutate: (forge, identity) => forge.setReviewDraft(
+        identity: identity,
+        repoPath: _controller.scope.repoPath,
+        number: review.number,
+        draft: draft,
+      ),
+    );
+  }
+
   /// Adds a top-level conversation comment and refreshes the visible snapshot.
   Future<bool> addReviewComment(String rawBody) async {
     final controller = _controller;

@@ -32,6 +32,9 @@ abstract interface class ForgeProvider {
   /// Whether this provider can close an open review without merging it.
   bool get supportsReviewClosure;
 
+  /// Whether this provider can convert reviews between draft and ready states.
+  bool get supportsReviewDraftConversion;
+
   /// Whether this provider can read and create pull-request comments.
   bool get supportsReviewComments;
 
@@ -121,5 +124,13 @@ abstract interface class ForgeProvider {
     required GitRemoteIdentity identity,
     required String repoPath,
     required int number,
+  });
+
+  /// Sets whether review [number] is a draft.
+  Future<void> setReviewDraft({
+    required GitRemoteIdentity identity,
+    required String repoPath,
+    required int number,
+    required bool draft,
   });
 }

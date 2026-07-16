@@ -215,6 +215,9 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Link'));
     await tester.pumpAndSettle();
 
+    expect(find.text('Create Merge Commit'), findsOneWidget);
+    await tester.tap(find.byTooltip('Pull Request Actions'));
+    await tester.pumpAndSettle();
     expect(find.text('Unlink Pull Request'), findsOneWidget);
     expect(linkedReviews.store[workspace.id]?.dismissed, isFalse);
     expect(linkedReviews.store[workspace.id]?.number, 123);

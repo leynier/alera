@@ -400,6 +400,25 @@ void main() {
       expect(call.optionValue('status'), 'abandoned');
       expect(call.optionValue('organization'), 'https://dev.azure.com/myorg');
     });
+
+    for (final draft in <bool>[false, true]) {
+      test('sets draft=$draft through the Azure CLI', () async {
+        final runner = FakeRecordingProcessRunner(<Object>[_ok('')]);
+        final provider = AzureDevOpsForgeProvider(runner);
+
+        await provider.setReviewDraft(
+          identity: _identity,
+          repoPath: '/repo',
+          number: 42,
+          draft: draft,
+        );
+
+        final call = runner.calls.single;
+        expect(call.arguments.sublist(0, 3), <String>['repos', 'pr', 'update']);
+        expect(call.optionValue('draft'), '$draft');
+        expect(call.optionValue('organization'), 'https://dev.azure.com/myorg');
+      });
+    }
   });
 
   group('AzureDevOpsForgeProvider.createReview', () {

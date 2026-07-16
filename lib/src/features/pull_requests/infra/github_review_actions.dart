@@ -10,6 +10,8 @@ mixin _GitHubReviewActions {
 
   bool get supportsReviewClosure => true;
 
+  bool get supportsReviewDraftConversion => true;
+
   Future<void> mergeReview({
     required GitRemoteIdentity identity,
     required String repoPath,
@@ -44,6 +46,23 @@ mixin _GitHubReviewActions {
       '$number',
       '--repo',
       provider._repoSlug(identity),
+    ], repoPath);
+  }
+
+  Future<void> setReviewDraft({
+    required GitRemoteIdentity identity,
+    required String repoPath,
+    required int number,
+    required bool draft,
+  }) async {
+    final provider = this as GitHubForgeProvider;
+    await provider._run(<String>[
+      'pr',
+      'ready',
+      '$number',
+      '--repo',
+      provider._repoSlug(identity),
+      if (draft) '--undo',
     ], repoPath);
   }
 }

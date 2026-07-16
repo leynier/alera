@@ -344,6 +344,30 @@ void main() {
       expect(call.arguments.sublist(0, 3), <String>['pr', 'close', '123']);
       expect(call.optionValue('repo'), 'leynier/alera');
     });
+
+    for (final entry in <(bool, bool)>[(false, false), (true, true)]) {
+      test(
+        entry.$1
+            ? 'converts the pull request to draft through gh'
+            : 'marks the pull request ready through gh',
+        () async {
+          final runner = FakeRecordingProcessRunner(<Object>[_ok('')]);
+          final provider = GitHubForgeProvider(runner);
+
+          await provider.setReviewDraft(
+            identity: _identity,
+            repoPath: '/repo',
+            number: 123,
+            draft: entry.$1,
+          );
+
+          final call = runner.calls.single;
+          expect(call.arguments.sublist(0, 3), <String>['pr', 'ready', '123']);
+          expect(call.optionValue('repo'), 'leynier/alera');
+          expect(call.arguments.contains('--undo'), entry.$2);
+        },
+      );
+    }
   });
 
   group('GitHubForgeProvider.checkAuth', () {

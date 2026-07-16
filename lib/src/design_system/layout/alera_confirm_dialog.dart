@@ -2,9 +2,9 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:flutter/material.dart';
 
-/// Compact confirmation modal with a title, supporting copy, and a Cancel +
-/// primary action footer. Pops `true` from the [Navigator] when the primary
-/// action is taken and `false` otherwise.
+/// Compact confirmation modal with a title, supporting copy, and an equal-width
+/// Cancel + primary action footer. Pops `true` from the [Navigator] when the
+/// primary action is taken and `false` otherwise.
 ///
 /// Pass [destructive] when the action removes data; the primary button then
 /// uses the error background so the consequence is visually obvious.
@@ -50,19 +50,29 @@ class AleraConfirmDialog extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AleraTokens.space20),
-            Wrap(
-              alignment: WrapAlignment.end,
-              spacing: AleraTokens.space8,
-              runSpacing: AleraTokens.space8,
+            Row(
               children: <Widget>[
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: Text(cancelLabel),
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: Text(
+                      cancelLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 ),
-                FilledButton(
-                  onPressed: () => Navigator.of(context).pop(true),
-                  style: confirmStyle,
-                  child: Text(confirmLabel),
+                const SizedBox(width: AleraTokens.space8),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    style: confirmStyle,
+                    child: Text(
+                      confirmLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 ),
               ],
             ),

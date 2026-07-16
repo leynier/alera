@@ -22,8 +22,8 @@ part 'pull_request_review_actions.dart';
 part 'pull_request_review_comments.dart';
 
 /// Presentational body for a linked review: header, inline title/base-branch
-/// editing, expandable checks, and a bottom Unlink button. Pure: data and
-/// callbacks in via parameters, no Riverpod reads.
+/// editing, expandable checks, and review actions. Pure: data and callbacks in
+/// via parameters, no Riverpod reads.
 class PullRequestReviewView extends StatefulWidget {
   const PullRequestReviewView({
     super.key,
@@ -33,12 +33,14 @@ class PullRequestReviewView extends StatefulWidget {
     required this.baseBranches,
     required this.mergeMethods,
     required this.canCloseReview,
+    required this.canChangeDraftStatus,
     required this.canComment,
     required this.action,
     required this.onOpenUrl,
     required this.onUnlink,
     required this.onMerge,
     required this.onClose,
+    required this.onDraftStatusChanged,
     required this.onAddComment,
     required this.onUpdate,
     required this.onLoadCheckDetails,
@@ -50,12 +52,14 @@ class PullRequestReviewView extends StatefulWidget {
   final List<String> baseBranches;
   final List<ReviewMergeMethod> mergeMethods;
   final bool canCloseReview;
+  final bool canChangeDraftStatus;
   final bool canComment;
   final PullRequestAction? action;
   final Future<void> Function(String url) onOpenUrl;
-  final VoidCallback onUnlink;
+  final Future<void> Function() onUnlink;
   final Future<void> Function(ReviewMergeMethod method) onMerge;
   final Future<void> Function() onClose;
+  final Future<void> Function(bool draft) onDraftStatusChanged;
   final Future<bool> Function(String body) onAddComment;
   final Future<UpdateReviewResult> Function(UpdateReviewInput input) onUpdate;
   final Future<ReviewCheckDetails?> Function(ReviewCheck check)
@@ -171,9 +175,11 @@ class _PullRequestReviewViewState extends State<PullRequestReviewView> {
             review: review,
             mergeMethods: widget.mergeMethods,
             canCloseReview: widget.canCloseReview,
+            canChangeDraftStatus: widget.canChangeDraftStatus,
             action: widget.action,
             onMerge: widget.onMerge,
             onClose: widget.onClose,
+            onDraftStatusChanged: widget.onDraftStatusChanged,
             onUnlink: widget.onUnlink,
           ),
         ],

@@ -84,6 +84,7 @@ Motion:
 - Inline micro-actions may use `IconButton` or tokenized `InkWell` patterns.
 - Default Material button shape uses `radiusLg`.
 - Default Material button minimum height is `34`.
+- Confirmation dialogs use equal-width secondary and primary footer actions.
 
 ## Surface Model
 
