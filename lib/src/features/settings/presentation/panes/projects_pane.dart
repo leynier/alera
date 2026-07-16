@@ -447,6 +447,7 @@ class _ProjectConfigProjectList extends StatelessWidget {
         for (final project in projects)
           InkWell(
             onTap: () => onSelect(project),
+            mouseCursor: SystemMouseCursors.click,
             child: Container(
               padding: const EdgeInsets.all(AleraTokens.space12),
               color: project.id == selectedProjectId
