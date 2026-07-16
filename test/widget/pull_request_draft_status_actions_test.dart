@@ -1,4 +1,4 @@
-import 'package:alera/src/features/pull_requests/domain/git_hosting_provider.dart';
+import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check_details.dart';
 import 'package:alera/src/features/pull_requests/domain/review_merge_method.dart';

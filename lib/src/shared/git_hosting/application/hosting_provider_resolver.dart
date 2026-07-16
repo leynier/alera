@@ -1,6 +1,6 @@
-import 'package:alera/src/features/pull_requests/application/git_remote_parser.dart';
-import 'package:alera/src/features/pull_requests/domain/git_hosting_provider.dart';
-import 'package:alera/src/features/pull_requests/domain/git_remote_identity.dart';
+import 'package:alera/src/shared/git_hosting/application/git_remote_parser.dart';
+import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
+import 'package:alera/src/shared/git_hosting/domain/git_remote_identity.dart';
 import 'package:alera/src/shared/infra/git/git_remote.dart';
 
 /// Typed outcome of resolving which hosting provider a repository belongs to.

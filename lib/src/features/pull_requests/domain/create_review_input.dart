@@ -1,4 +1,4 @@
-import 'package:alera/src/features/pull_requests/domain/git_hosting_provider.dart';
+import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 
 /// User-supplied parameters for creating a new hosted review from a workspace.
 /// Transient (not persisted), so this stays a plain value type.

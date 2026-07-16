@@ -1,6 +1,6 @@
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/domain/project_config.dart';
-import 'package:alera/src/features/pull_requests/domain/git_hosting_provider.dart';
+import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:alera/src/features/settings/presentation/panes/project_config_editor.dart';
 import 'package:flutter/material.dart';
 

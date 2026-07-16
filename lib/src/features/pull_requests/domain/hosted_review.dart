@@ -1,4 +1,4 @@
-import 'package:alera/src/features/pull_requests/domain/git_hosting_provider.dart';
+import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:dart_mappable/dart_mappable.dart';
 
 part 'hosted_review.mapper.dart';

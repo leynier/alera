@@ -15,6 +15,7 @@ class _WorkspaceRow extends StatefulWidget {
     required this.onTap,
     required this.onOpenFolder,
     required this.onCopyPath,
+    required this.onOpenInBrowser,
     required this.onSleep,
     required this.onToggleExpanded,
     required this.fileManagerLabel,
@@ -47,6 +48,7 @@ class _WorkspaceRow extends StatefulWidget {
   final VoidCallback onTap;
   final VoidCallback onOpenFolder;
   final VoidCallback onCopyPath;
+  final VoidCallback onOpenInBrowser;
   final VoidCallback onSleep;
   final VoidCallback onToggleExpanded;
   final String fileManagerLabel;
@@ -66,6 +68,7 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
   static const String _renameAction = 'rename';
   static const String _openFolderAction = 'open-folder';
   static const String _copyPathAction = 'copy-path';
+  static const String _openInBrowserAction = 'open-in-browser';
   static const String _sleepAction = 'sleep';
   static const String _manageTagsAction = 'manage-tags';
   static const String _setParentAction = 'set-parent';
@@ -113,6 +116,15 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
             label: 'Clear Parent Workspace',
           ),
         const PopupMenuDivider(height: AleraTokens.space8),
+        const AleraDropdownEntry<String>(
+          value: _openInBrowserAction,
+          leading: Icon(
+            AleraIcons.external,
+            size: 16,
+            color: AleraTokens.foreground,
+          ),
+          label: 'Open in Browser',
+        ),
         AleraDropdownEntry<String>(
           value: _openFolderAction,
           leading: const Icon(
@@ -168,6 +180,8 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
       widget.onOpenFolder();
     } else if (selected == _copyPathAction) {
       widget.onCopyPath();
+    } else if (selected == _openInBrowserAction) {
+      widget.onOpenInBrowser();
     } else if (selected == _sleepAction) {
       widget.onSleep();
     } else if (selected == _removeAction) {

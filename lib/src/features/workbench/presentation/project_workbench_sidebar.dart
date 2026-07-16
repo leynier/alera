@@ -21,6 +21,10 @@ import 'package:alera/src/features/workbench/application/workbench_listing.dart'
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/application/workspace_agent_run_groups.dart';
 import 'package:alera/src/features/workbench/application/workspace_agent_status_projection.dart';
+import 'package:alera/src/features/workbench/application/repository_browser_opener.dart';
+import 'package:alera/src/features/workbench/application/repository_browser_providers.dart';
+import 'package:alera/src/features/pull_requests/application/pull_request_providers.dart';
+import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/presentation/widgets/agent_run_state_indicator.dart';
@@ -117,6 +121,7 @@ class _ProjectWorkbenchSidebarState
                           onOpenWorkspace: _openWorkspace,
                           onOpenWorkspaceFolder: _openWorkspaceFolder,
                           onCopyWorkspacePath: _copyWorkspacePath,
+                          onOpenWorkspaceInBrowser: _openWorkspaceInBrowser,
                           onSleepWorkspace: _sleepWorkspace,
                           onCreateWorkspace: _createWorkspace,
                           onDeleteWorkspace: _deleteWorkspace,
@@ -205,6 +210,67 @@ class _ProjectWorkbenchSidebarState
       message: 'Workspace path copied',
       tone: AleraToastTone.success,
     );
+  }
+
+  Future<void> _openWorkspaceInBrowser(Workspace workspace) async {
+    // The project-level provider override is best-effort: it must never block
+    // or break opening the repo. Fall back to auto-detection on timeout/error.
+    GitHostingProvider? override;
+    try {
+      override = await ref
+          .read(
+            effectiveHostingProviderOverrideProvider(
+              workspace.projectId,
+            ).future,
+          )
+          .timeout(const Duration(seconds: 2));
+    } catch (_) {
+      override = null;
+    }
+
+    final OpenRepositoryOutcome outcome;
+    try {
+      outcome = await ref
+          .read(repositoryBrowserOpenerProvider)
+          .open(repoPath: workspace.path, override: override);
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      AleraToast.show(
+        context,
+        message: 'Could not open the repository: $error',
+        tone: AleraToastTone.error,
+      );
+      return;
+    }
+    if (!mounted) {
+      return;
+    }
+    switch (outcome) {
+      case OpenRepositoryOutcome.opened:
+        break;
+      case OpenRepositoryOutcome.noRemote:
+        AleraToast.show(
+          context,
+          message: 'No git remote configured for this workspace.',
+          tone: AleraToastTone.info,
+        );
+      case OpenRepositoryOutcome.undetectable:
+        AleraToast.show(
+          context,
+          message:
+              'Could not detect a supported git hosting provider '
+              '(GitHub or Azure DevOps).',
+          tone: AleraToastTone.info,
+        );
+      case OpenRepositoryOutcome.openFailed:
+        AleraToast.show(
+          context,
+          message: 'Could not open the browser.',
+          tone: AleraToastTone.error,
+        );
+    }
   }
 
   void _sleepWorkspace(Workspace workspace) {

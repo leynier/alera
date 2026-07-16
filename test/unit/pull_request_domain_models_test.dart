@@ -1,6 +1,6 @@
 import 'package:alera/src/features/pull_requests/domain/create_review_input.dart';
-import 'package:alera/src/features/pull_requests/domain/git_hosting_provider.dart';
-import 'package:alera/src/features/pull_requests/domain/git_remote_identity.dart';
+import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
+import 'package:alera/src/shared/git_hosting/domain/git_remote_identity.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
 import 'package:flutter_test/flutter_test.dart';

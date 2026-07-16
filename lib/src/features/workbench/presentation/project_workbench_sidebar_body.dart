@@ -10,6 +10,7 @@ class _SidebarBody extends StatelessWidget {
     required this.onOpenWorkspace,
     required this.onOpenWorkspaceFolder,
     required this.onCopyWorkspacePath,
+    required this.onOpenWorkspaceInBrowser,
     required this.onSleepWorkspace,
     required this.onCreateWorkspace,
     required this.onDeleteWorkspace,
@@ -33,6 +34,7 @@ class _SidebarBody extends StatelessWidget {
   onOpenWorkspace;
   final Future<void> Function(Workspace workspace) onOpenWorkspaceFolder;
   final Future<void> Function(Workspace workspace) onCopyWorkspacePath;
+  final Future<void> Function(Workspace workspace) onOpenWorkspaceInBrowser;
   final void Function(Workspace workspace) onSleepWorkspace;
   final Future<void> Function(Project project) onCreateWorkspace;
   final Future<void> Function(Project project, Workspace workspace)
@@ -124,6 +126,8 @@ class _SidebarBody extends StatelessWidget {
           onTap: () => onOpenWorkspace(row.project, row.workspace),
           onOpenFolder: () => unawaited(onOpenWorkspaceFolder(row.workspace)),
           onCopyPath: () => unawaited(onCopyWorkspacePath(row.workspace)),
+          onOpenInBrowser: () =>
+              unawaited(onOpenWorkspaceInBrowser(row.workspace)),
           onSleep: () => onSleepWorkspace(row.workspace),
           onToggleExpanded: () =>
               controller.toggleWorkspaceExpanded(row.workspace.id),

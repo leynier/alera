@@ -1,5 +1,5 @@
-import 'package:alera/src/features/pull_requests/application/hosting_provider_resolver.dart';
-import 'package:alera/src/features/pull_requests/domain/git_hosting_provider.dart';
+import 'package:alera/src/shared/git_hosting/application/hosting_provider_resolver.dart';
+import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:alera/src/shared/infra/git/git_remote.dart';
 import 'package:flutter_test/flutter_test.dart';
 
