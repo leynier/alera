@@ -5,18 +5,20 @@ class _GitHistoryGraph extends StatelessWidget {
 
   final GitHistoryItemViewModel viewModel;
 
-  @override
-  Widget build(BuildContext context) {
-    final width =
-        11.0 *
+  static double widthFor(GitHistoryItemViewModel viewModel) {
+    return 11.0 *
         ([
               viewModel.inputSwimlanes.length,
               viewModel.outputSwimlanes.length,
               1,
             ].reduce((a, b) => a > b ? a : b) +
             1);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return SizedBox(
-      width: width,
+      width: widthFor(viewModel),
       height: 24,
       child: CustomPaint(painter: _GitHistoryGraphPainter(viewModel)),
     );
