@@ -25,7 +25,7 @@ final class WorkspacePullRequestControllerProvider
   }) : super(
          retry: null,
          name: r'workspacePullRequestControllerProvider',
-         isAutoDispose: true,
+         isAutoDispose: false,
          dependencies: null,
          $allTransitiveDependencies: null,
        );
@@ -57,7 +57,7 @@ final class WorkspacePullRequestControllerProvider
 }
 
 String _$workspacePullRequestControllerHash() =>
-    r'f289cd544a0b18e99127744cab43572afc22936c';
+    r'5d9806bea7ed91659f0face3ce11f1a87db834de';
 
 final class WorkspacePullRequestControllerFamily extends $Family
     with
@@ -74,7 +74,7 @@ final class WorkspacePullRequestControllerFamily extends $Family
         name: r'workspacePullRequestControllerProvider',
         dependencies: null,
         $allTransitiveDependencies: null,
-        isAutoDispose: true,
+        isAutoDispose: false,
       );
 
   WorkspacePullRequestControllerProvider call(

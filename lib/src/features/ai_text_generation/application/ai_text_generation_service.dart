@@ -11,6 +11,8 @@ import 'package:alera/src/shared/infra/process/command_environment_resolver.dart
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 import 'package:path/path.dart' as p;
 
+part 'ai_text_generation_command_plan.dart';
+
 const int maxArgvPromptBytes = 24000;
 
 class AiTextGenerationException implements Exception {
@@ -31,11 +33,19 @@ class AiTextGenerationRequest {
     required this.operation,
     required this.workspacePath,
     required this.settings,
+    this.baseBranch,
+    this.headBranch,
   });
 
   final AiTextGenerationOperation operation;
   final String workspacePath;
   final AiTextGenerationSettings settings;
+
+  /// Required when [operation] is [AiTextGenerationOperation.pullRequestDetails].
+  final String? baseBranch;
+
+  /// Optional head branch hint for pull-request prompts.
+  final String? headBranch;
 }
 
 class AiTextGenerationResult {
@@ -174,11 +184,77 @@ class CliAiTextGenerationService implements AiTextGenerationService {
           AiTextGenerationOperation.commitMessage,
         ),
       ),
-      AiTextGenerationOperation.pullRequestDetails ||
+      AiTextGenerationOperation.pullRequestDetails =>
+        buildPullRequestDetailsPrompt(
+          context: await _pullRequestContext(request),
+          customInstructions: promptInstructionsFor(
+            request.settings,
+            AiTextGenerationOperation.pullRequestDetails,
+          ),
+        ),
       AiTextGenerationOperation.branchName => throw AiTextGenerationException(
         '${request.operation.label} generation is not wired yet.',
       ),
     };
+  }
+
+  Future<AiTextPullRequestContext> _pullRequestContext(
+    AiTextGenerationRequest request,
+  ) async {
+    final base = request.baseBranch?.trim() ?? '';
+    if (base.isEmpty) {
+      throw const AiTextGenerationException(
+        'Select a base branch before generating pull request details.',
+      );
+    }
+    final range = await gitBackend.rangeContext(
+      request.workspacePath,
+      baseRef: base,
+    );
+    if (range.isEmpty) {
+      throw const AiTextGenerationException(
+        'No commits or changes found against the base branch.',
+      );
+    }
+    final head = request.headBranch?.trim().isNotEmpty == true
+        ? request.headBranch!.trim()
+        : range.headBranch;
+    if (head != null && head == base) {
+      throw const AiTextGenerationException(
+        'Head branch is the same as the base branch.',
+      );
+    }
+    final commitSummary = range.commits.isEmpty
+        ? '(no commits in range)'
+        : range.commits
+              .map((commit) {
+                final short = commit.oid.length > 7
+                    ? commit.oid.substring(0, 7)
+                    : commit.oid;
+                return '- $short ${commit.subject}';
+              })
+              .join('\n');
+    final fileSummary = range.files.isEmpty
+        ? '(no file list)'
+        : range.files
+              .map((file) {
+                final counts = <String>[
+                  if (file.added != null) '+${file.added}',
+                  if (file.removed != null) '-${file.removed}',
+                ].join(' ');
+                final badge = file.status.badge;
+                return counts.isEmpty
+                    ? '- $badge ${file.path}'
+                    : '- $badge ${file.path} ($counts)';
+              })
+              .join('\n');
+    return AiTextPullRequestContext(
+      baseBranch: base,
+      headBranch: head,
+      commitSummary: commitSummary,
+      fileSummary: fileSummary,
+      patch: range.patch,
+    );
   }
 
   Future<AiTextCommitContext> _commitContext(String workspacePath) async {
@@ -402,35 +478,5 @@ class CliAiTextGenerationService implements AiTextGenerationService {
 
   String _laneKey(String workspacePath, AiTextGenerationOperation operation) {
     return '$workspacePath::${operation.key}';
-  }
-}
-
-class _AiTextCommandPlan {
-  const _AiTextCommandPlan({
-    required this.binary,
-    required this.args,
-    required this.stdinPayload,
-    required this.label,
-    this.environmentOverrides = const <String, String>{},
-    this.promptDirectory,
-  });
-
-  final String binary;
-  final List<String> args;
-  final String? stdinPayload;
-  final String label;
-  final Map<String, String> environmentOverrides;
-  final Directory? promptDirectory;
-
-  Future<void> dispose() async {
-    final directory = promptDirectory;
-    if (directory == null) {
-      return;
-    }
-    try {
-      if (await directory.exists()) {
-        await directory.delete(recursive: true);
-      }
-    } catch (_) {}
   }
 }

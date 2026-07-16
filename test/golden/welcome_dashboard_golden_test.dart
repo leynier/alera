@@ -75,6 +75,7 @@ class _GoldenLogoAssetBundle extends CachingAssetBundle {
   }
 }
 
+/// Populated state keeps New Workspace enabled in Quick Start for goldens.
 WorkbenchState _populatedState() {
   final now = DateTime.utc(2026, 5, 25);
   final project = Project(
@@ -95,23 +96,11 @@ WorkbenchState _populatedState() {
     kind: WorkspaceKind.main,
     status: WorkspaceStatus.active,
   );
-  final linkedWorkspace = Workspace(
-    id: 'workspace-terminal-refactor',
-    projectId: project.id,
-    name: 'Terminal refactor',
-    branch: 'feature/terminal-refactor',
-    path: '/projects/.alera/workspaces/alera/terminal-refactor',
-    createdAt: now,
-    updatedAt: now,
-    kind: WorkspaceKind.linked,
-    status: WorkspaceStatus.active,
-    sourceBranch: 'main',
-  );
 
   return WorkbenchState(
     projects: <Project>[project],
     workspacesByProject: <String, List<Workspace>>{
-      project.id: <Workspace>[mainWorkspace, linkedWorkspace],
+      project.id: <Workspace>[mainWorkspace],
     },
     activeProjectId: project.id,
     bootstrapped: true,

@@ -38,7 +38,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1099627496;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 446564713;
 
 // Section: executor
 
@@ -837,6 +837,45 @@ fn wire__crate__api__git__git_push_impl(
             move |context| {
                 transform_result_sse::<_, crate::api::git::GitError>((move || {
                     let output_ok = crate::api::git::git_push(api_path)?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__git__git_range_context_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "git_range_context",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_path = <String>::sse_decode(&mut deserializer);
+            let api_base_ref = <String>::sse_decode(&mut deserializer);
+            let api_commit_limit = <Option<u32>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::git::GitError>((move || {
+                    let output_ok = crate::api::git::git_range_context(
+                        api_path,
+                        api_base_ref,
+                        api_commit_limit,
+                    )?;
                     Ok(output_ok)
                 })())
             }
@@ -2891,6 +2930,56 @@ impl SseDecode for crate::api::git::GitHistoryResult {
     }
 }
 
+impl SseDecode for crate::api::git::GitRangeCommit {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_oid = <String>::sse_decode(deserializer);
+        let mut var_subject = <String>::sse_decode(deserializer);
+        let mut var_message = <String>::sse_decode(deserializer);
+        return crate::api::git::GitRangeCommit {
+            oid: var_oid,
+            subject: var_subject,
+            message: var_message,
+        };
+    }
+}
+
+impl SseDecode for crate::api::git::GitRangeContext {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_baseRef = <String>::sse_decode(deserializer);
+        let mut var_headBranch = <Option<String>>::sse_decode(deserializer);
+        let mut var_mergeBase = <Option<String>>::sse_decode(deserializer);
+        let mut var_commits = <Vec<crate::api::git::GitRangeCommit>>::sse_decode(deserializer);
+        let mut var_files = <Vec<crate::api::git::GitRangeFile>>::sse_decode(deserializer);
+        let mut var_patch = <String>::sse_decode(deserializer);
+        return crate::api::git::GitRangeContext {
+            base_ref: var_baseRef,
+            head_branch: var_headBranch,
+            merge_base: var_mergeBase,
+            commits: var_commits,
+            files: var_files,
+            patch: var_patch,
+        };
+    }
+}
+
+impl SseDecode for crate::api::git::GitRangeFile {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_path = <String>::sse_decode(deserializer);
+        let mut var_status = <crate::api::git::GitChangeStatus>::sse_decode(deserializer);
+        let mut var_added = <Option<u32>>::sse_decode(deserializer);
+        let mut var_removed = <Option<u32>>::sse_decode(deserializer);
+        return crate::api::git::GitRangeFile {
+            path: var_path,
+            status: var_status,
+            added: var_added,
+            removed: var_removed,
+        };
+    }
+}
+
 impl SseDecode for crate::api::git::GitRemote {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -3116,6 +3205,30 @@ impl SseDecode for Vec<crate::api::git::GitHistoryItemRef> {
             ans_.push(<crate::api::git::GitHistoryItemRef>::sse_decode(
                 deserializer,
             ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::git::GitRangeCommit> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::git::GitRangeCommit>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::git::GitRangeFile> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::git::GitRangeFile>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -3978,163 +4091,164 @@ fn pde_ffi_dispatcher_primary_impl(
         20 => wire__crate__api__git__git_list_stashes_impl(port, ptr, rust_vec_len, data_len),
         21 => wire__crate__api__git__git_pull_impl(port, ptr, rust_vec_len, data_len),
         22 => wire__crate__api__git__git_push_impl(port, ptr, rust_vec_len, data_len),
-        23 => wire__crate__api__git__git_repository_state_impl(port, ptr, rust_vec_len, data_len),
-        24 => wire__crate__api__git__git_stage_impl(port, ptr, rust_vec_len, data_len),
-        25 => wire__crate__api__git__git_stage_area_impl(port, ptr, rust_vec_len, data_len),
-        26 => wire__crate__api__git__git_stash_impl(port, ptr, rust_vec_len, data_len),
-        27 => wire__crate__api__git__git_stash_pop_impl(port, ptr, rust_vec_len, data_len),
-        28 => wire__crate__api__git__git_status_impl(port, ptr, rust_vec_len, data_len),
-        29 => wire__crate__api__git__git_status_for_path_impl(port, ptr, rust_vec_len, data_len),
-        30 => wire__crate__api__git__git_submodule_status_impl(port, ptr, rust_vec_len, data_len),
-        31 => wire__crate__api__git__git_unstage_impl(port, ptr, rust_vec_len, data_len),
-        32 => wire__crate__api__git__git_unstage_area_impl(port, ptr, rust_vec_len, data_len),
-        33 => wire__crate__api__init_app_impl(port, ptr, rust_vec_len, data_len),
-        34 => wire__crate__api__git__is_git_repository_impl(port, ptr, rust_vec_len, data_len),
-        35 => wire__crate__api__git__is_valid_branch_name_impl(port, ptr, rust_vec_len, data_len),
-        36 => wire__crate__api__git__list_branches_impl(port, ptr, rust_vec_len, data_len),
-        37 => wire__crate__api__git__list_remotes_impl(port, ptr, rust_vec_len, data_len),
-        38 => wire__crate__api__workspace_files__list_workspace_children_impl(
+        23 => wire__crate__api__git__git_range_context_impl(port, ptr, rust_vec_len, data_len),
+        24 => wire__crate__api__git__git_repository_state_impl(port, ptr, rust_vec_len, data_len),
+        25 => wire__crate__api__git__git_stage_impl(port, ptr, rust_vec_len, data_len),
+        26 => wire__crate__api__git__git_stage_area_impl(port, ptr, rust_vec_len, data_len),
+        27 => wire__crate__api__git__git_stash_impl(port, ptr, rust_vec_len, data_len),
+        28 => wire__crate__api__git__git_stash_pop_impl(port, ptr, rust_vec_len, data_len),
+        29 => wire__crate__api__git__git_status_impl(port, ptr, rust_vec_len, data_len),
+        30 => wire__crate__api__git__git_status_for_path_impl(port, ptr, rust_vec_len, data_len),
+        31 => wire__crate__api__git__git_submodule_status_impl(port, ptr, rust_vec_len, data_len),
+        32 => wire__crate__api__git__git_unstage_impl(port, ptr, rust_vec_len, data_len),
+        33 => wire__crate__api__git__git_unstage_area_impl(port, ptr, rust_vec_len, data_len),
+        34 => wire__crate__api__init_app_impl(port, ptr, rust_vec_len, data_len),
+        35 => wire__crate__api__git__is_git_repository_impl(port, ptr, rust_vec_len, data_len),
+        36 => wire__crate__api__git__is_valid_branch_name_impl(port, ptr, rust_vec_len, data_len),
+        37 => wire__crate__api__git__list_branches_impl(port, ptr, rust_vec_len, data_len),
+        38 => wire__crate__api__git__list_remotes_impl(port, ptr, rust_vec_len, data_len),
+        39 => wire__crate__api__workspace_files__list_workspace_children_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        39 => wire__crate__api__git__list_worktrees_impl(port, ptr, rust_vec_len, data_len),
-        40 => wire__crate__api__workspace_files__move_workspace_entry_impl(
+        40 => wire__crate__api__git__list_worktrees_impl(port, ptr, rust_vec_len, data_len),
+        41 => wire__crate__api__workspace_files__move_workspace_entry_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        41 => wire__crate__api__workspace_search__preview_workspace_replace_impl(
+        42 => wire__crate__api__workspace_search__preview_workspace_replace_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        42 => wire__crate__api__workspace_files__project_workspace_explorer_tree_impl(
+        43 => wire__crate__api__workspace_files__project_workspace_explorer_tree_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        43 => wire__crate__api__workspace_files__read_workspace_editor_text_file_impl(
+        44 => wire__crate__api__workspace_files__read_workspace_editor_text_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        44 => wire__crate__api__workspace_files__read_workspace_text_file_impl(
+        45 => wire__crate__api__workspace_files__read_workspace_text_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        45 => wire__crate__api__git__refresh_source_branch_impl(port, ptr, rust_vec_len, data_len),
-        46 => wire__crate__api__git__remove_worktree_impl(port, ptr, rust_vec_len, data_len),
-        47 => wire__crate__api__workspace_files__rename_workspace_entry_impl(
+        46 => wire__crate__api__git__refresh_source_branch_impl(port, ptr, rust_vec_len, data_len),
+        47 => wire__crate__api__git__remove_worktree_impl(port, ptr, rust_vec_len, data_len),
+        48 => wire__crate__api__workspace_files__rename_workspace_entry_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        48 => wire__crate__api__merman_viewer__render_merman_workspace_file_impl(
+        49 => wire__crate__api__merman_viewer__render_merman_workspace_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        49 => wire__crate__api__workspace_search__replace_workspace_matches_impl(
+        50 => wire__crate__api__workspace_search__replace_workspace_matches_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        50 => wire__crate__api__clipboard__save_clipboard_image_as_temp_file_impl(
+        51 => wire__crate__api__clipboard__save_clipboard_image_as_temp_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        51 => wire__crate__api__workspace_search__search_workspace_impl(
+        52 => wire__crate__api__workspace_search__search_workspace_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        52 => wire__crate__api__agent_hooks__set_agent_hook_enabled_agents_impl(
+        53 => wire__crate__api__agent_hooks__set_agent_hook_enabled_agents_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        53 => wire__crate__api__agent_hooks__start_agent_hook_receiver_impl(
+        54 => wire__crate__api__agent_hooks__start_agent_hook_receiver_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        54 => wire__crate__api__workspace_files__start_source_control_watcher_impl(
+        55 => wire__crate__api__workspace_files__start_source_control_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        55 => wire__crate__api__workspace_files__start_workspace_explorer_watcher_impl(
+        56 => wire__crate__api__workspace_files__start_workspace_explorer_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        56 => wire__crate__api__agent_hooks__stop_agent_hook_receiver_impl(
+        57 => wire__crate__api__agent_hooks__stop_agent_hook_receiver_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        57 => wire__crate__api__workspace_files__stop_source_control_watcher_impl(
+        58 => wire__crate__api__workspace_files__stop_source_control_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        58 => wire__crate__api__workspace_files__stop_workspace_explorer_watcher_impl(
+        59 => wire__crate__api__workspace_files__stop_workspace_explorer_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        59 => wire__crate__api__workspace_files__update_workspace_explorer_watcher_impl(
+        60 => wire__crate__api__workspace_files__update_workspace_explorer_watcher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        60 => wire__crate__api__agent_hooks__watch_agent_hook_event_batches_impl(
+        61 => wire__crate__api__agent_hooks__watch_agent_hook_event_batches_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        61 => wire__crate__api__workspace_files__watch_source_control_events_impl(
+        62 => wire__crate__api__workspace_files__watch_source_control_events_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        62 => wire__crate__api__workspace_files__watch_workspace_explorer_events_impl(
+        63 => wire__crate__api__workspace_files__watch_workspace_explorer_events_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        63 => wire__crate__api__workspace_files__write_workspace_editor_text_file_impl(
+        64 => wire__crate__api__workspace_files__write_workspace_editor_text_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        64 => wire__crate__api__workspace_files__write_workspace_text_file_impl(
+        65 => wire__crate__api__workspace_files__write_workspace_text_file_impl(
             port,
             ptr,
             rust_vec_len,
@@ -4700,6 +4814,73 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitHistoryResult>
     for crate::api::git::GitHistoryResult
 {
     fn into_into_dart(self) -> crate::api::git::GitHistoryResult {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::git::GitRangeCommit {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.oid.into_into_dart().into_dart(),
+            self.subject.into_into_dart().into_dart(),
+            self.message.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::git::GitRangeCommit
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitRangeCommit>
+    for crate::api::git::GitRangeCommit
+{
+    fn into_into_dart(self) -> crate::api::git::GitRangeCommit {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::git::GitRangeContext {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.base_ref.into_into_dart().into_dart(),
+            self.head_branch.into_into_dart().into_dart(),
+            self.merge_base.into_into_dart().into_dart(),
+            self.commits.into_into_dart().into_dart(),
+            self.files.into_into_dart().into_dart(),
+            self.patch.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::git::GitRangeContext
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitRangeContext>
+    for crate::api::git::GitRangeContext
+{
+    fn into_into_dart(self) -> crate::api::git::GitRangeContext {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::git::GitRangeFile {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.path.into_into_dart().into_dart(),
+            self.status.into_into_dart().into_dart(),
+            self.added.into_into_dart().into_dart(),
+            self.removed.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::git::GitRangeFile {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::git::GitRangeFile>
+    for crate::api::git::GitRangeFile
+{
+    fn into_into_dart(self) -> crate::api::git::GitRangeFile {
         self
     }
 }
@@ -5917,6 +6098,37 @@ impl SseEncode for crate::api::git::GitHistoryResult {
     }
 }
 
+impl SseEncode for crate::api::git::GitRangeCommit {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.oid, serializer);
+        <String>::sse_encode(self.subject, serializer);
+        <String>::sse_encode(self.message, serializer);
+    }
+}
+
+impl SseEncode for crate::api::git::GitRangeContext {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.base_ref, serializer);
+        <Option<String>>::sse_encode(self.head_branch, serializer);
+        <Option<String>>::sse_encode(self.merge_base, serializer);
+        <Vec<crate::api::git::GitRangeCommit>>::sse_encode(self.commits, serializer);
+        <Vec<crate::api::git::GitRangeFile>>::sse_encode(self.files, serializer);
+        <String>::sse_encode(self.patch, serializer);
+    }
+}
+
+impl SseEncode for crate::api::git::GitRangeFile {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.path, serializer);
+        <crate::api::git::GitChangeStatus>::sse_encode(self.status, serializer);
+        <Option<u32>>::sse_encode(self.added, serializer);
+        <Option<u32>>::sse_encode(self.removed, serializer);
+    }
+}
+
 impl SseEncode for crate::api::git::GitRemote {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -6083,6 +6295,26 @@ impl SseEncode for Vec<crate::api::git::GitHistoryItemRef> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::git::GitHistoryItemRef>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::git::GitRangeCommit> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::git::GitRangeCommit>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::git::GitRangeFile> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::git::GitRangeFile>::sse_encode(item, serializer);
         }
     }
 }

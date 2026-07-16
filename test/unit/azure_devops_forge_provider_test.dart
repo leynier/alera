@@ -4,6 +4,8 @@ import 'package:alera/src/features/pull_requests/domain/git_hosting_provider.dar
 import 'package:alera/src/features/pull_requests/domain/git_remote_identity.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
+import 'package:alera/src/features/pull_requests/domain/update_review_input.dart';
+import 'package:alera/src/features/pull_requests/domain/update_review_result.dart';
 import 'package:alera/src/features/pull_requests/infra/azure_devops_forge_provider.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -110,6 +112,232 @@ void main() {
       expect(checks[1].conclusion, ReviewCheckConclusion.failure);
       expect(checks[2].conclusion, ReviewCheckConclusion.pending);
       expect(checks[2].status, ReviewCheckStatus.inProgress);
+    });
+  });
+
+  group('AzureDevOpsForgeProvider.getCheckDetails', () {
+    const check = ReviewCheck(
+      name: 'Build',
+      status: ReviewCheckStatus.inProgress,
+      conclusion: ReviewCheckConclusion.pending,
+    );
+
+    test('maps policy evaluation metadata and build url', () async {
+      final runner = FakeRecordingProcessRunner(<Object>[
+        _ok('''
+[{"status":"running","startedDate":"2026-07-15T10:00:00Z","completedDate":"2026-07-15T10:05:00Z","configuration":{"type":{"displayName":"Build"},"settings":{"displayName":"CI Build"}},"context":{"buildId":991}}]
+'''),
+      ]);
+      final provider = AzureDevOpsForgeProvider(runner);
+
+      final details = await provider.getCheckDetails(
+        identity: _identity,
+        repoPath: '/repo',
+        number: 42,
+        check: check,
+      );
+      expect(details, isNotNull);
+      expect(details!.workflow, 'Build');
+      expect(details.description, 'CI Build');
+      expect(details.event, isNull);
+      expect(details.startedAt, DateTime.parse('2026-07-15T10:00:00Z'));
+      expect(details.completedAt, DateTime.parse('2026-07-15T10:05:00Z'));
+      expect(
+        details.url,
+        'https://dev.azure.com/myorg/myproject/_build/results?buildId=991',
+      );
+    });
+
+    test('returns null when no policy matches the check name', () async {
+      final runner = FakeRecordingProcessRunner(<Object>[
+        _ok(
+          '[{"status":"approved",'
+          '"configuration":{"type":{"displayName":"Other"}}}]',
+        ),
+      ]);
+      final provider = AzureDevOpsForgeProvider(runner);
+
+      final details = await provider.getCheckDetails(
+        identity: _identity,
+        repoPath: '/repo',
+        number: 42,
+        check: check,
+      );
+      expect(details, isNull);
+    });
+  });
+
+  group('AzureDevOpsForgeProvider.retargetBodyJson', () {
+    test('prefixes bare branch names with refs/heads/', () {
+      expect(
+        AzureDevOpsForgeProvider.retargetBodyJson('main'),
+        '{"targetRefName":"refs/heads/main"}',
+      );
+    });
+
+    test('keeps already-prefixed refs unchanged', () {
+      expect(
+        AzureDevOpsForgeProvider.retargetBodyJson('refs/heads/develop'),
+        '{"targetRefName":"refs/heads/develop"}',
+      );
+    });
+  });
+
+  group('AzureDevOpsForgeProvider.updateReview', () {
+    const readBack = '''
+{"pullRequestId":42,"title":"feat: renamed","status":"active","isDraft":false,"sourceRefName":"refs/heads/feature","targetRefName":"refs/heads/develop","mergeStatus":"succeeded","createdBy":{"displayName":"Ley"}}
+''';
+
+    test('updates the title then reads the PR back', () async {
+      final runner = FakeRecordingProcessRunner(<Object>[
+        _ok('{}'),
+        _ok(readBack),
+      ]);
+      final provider = AzureDevOpsForgeProvider(runner);
+
+      final result = await provider.updateReview(
+        identity: _identity,
+        repoPath: '/repo',
+        number: 42,
+        input: const UpdateReviewInput(title: 'feat: renamed'),
+      );
+
+      expect(runner.calls, hasLength(2));
+      final updateCall = runner.calls.first;
+      expect(updateCall.arguments.sublist(0, 3), <String>[
+        'repos',
+        'pr',
+        'update',
+      ]);
+      expect(updateCall.optionValue('id'), '42');
+      expect(updateCall.optionValue('title'), 'feat: renamed');
+      expect(runner.calls[1].arguments.sublist(0, 3), <String>[
+        'repos',
+        'pr',
+        'show',
+      ]);
+      expect(result, isA<UpdateReviewSuccess>());
+      expect((result as UpdateReviewSuccess).review.title, 'feat: renamed');
+    });
+
+    test('retargets via az devops invoke PATCH', () async {
+      final runner = FakeRecordingProcessRunner(<Object>[
+        _ok('{}'),
+        _ok(readBack),
+      ]);
+      final provider = AzureDevOpsForgeProvider(runner);
+
+      final result = await provider.updateReview(
+        identity: _identity,
+        repoPath: '/repo',
+        number: 42,
+        input: const UpdateReviewInput(baseBranch: 'develop'),
+      );
+
+      expect(runner.calls, hasLength(2));
+      final invokeCall = runner.calls.first;
+      expect(invokeCall.arguments.sublist(0, 2), <String>['devops', 'invoke']);
+      expect(invokeCall.optionValue('area'), 'git');
+      expect(invokeCall.optionValue('resource'), 'pullrequests');
+      expect(invokeCall.optionValue('http-method'), 'PATCH');
+      expect(invokeCall.optionValue('api-version'), '7.1');
+      expect(invokeCall.arguments, contains('project=myproject'));
+      expect(invokeCall.arguments, contains('repositoryId=myrepo'));
+      expect(invokeCall.arguments, contains('pullRequestId=42'));
+      expect(invokeCall.optionValue('in-file'), isNotNull);
+      expect(
+        invokeCall.optionValue('organization'),
+        'https://dev.azure.com/myorg',
+      );
+      expect(result, isA<UpdateReviewSuccess>());
+      expect((result as UpdateReviewSuccess).review.baseBranch, 'develop');
+    });
+
+    test('blocks retargeting when the project is unknown', () async {
+      final runner = FakeRecordingProcessRunner(<Object>[]);
+      final provider = AzureDevOpsForgeProvider(runner);
+
+      final result = await provider.updateReview(
+        identity: const GitRemoteIdentity(
+          provider: GitHostingProvider.azureDevops,
+          host: 'dev.azure.com',
+          owner: 'myorg',
+          repo: 'myrepo',
+        ),
+        repoPath: '/repo',
+        number: 42,
+        input: const UpdateReviewInput(baseBranch: 'develop'),
+      );
+      expect(runner.calls, isEmpty);
+      expect(result, isA<UpdateReviewFailure>());
+      expect(
+        (result as UpdateReviewFailure).code,
+        UpdateReviewErrorCode.blocked,
+      );
+    });
+
+    test('runs title update before retarget and then reads back', () async {
+      final runner = FakeRecordingProcessRunner(<Object>[
+        _ok('{}'),
+        _ok('{}'),
+        _ok(readBack),
+      ]);
+      final provider = AzureDevOpsForgeProvider(runner);
+
+      final result = await provider.updateReview(
+        identity: _identity,
+        repoPath: '/repo',
+        number: 42,
+        input: const UpdateReviewInput(
+          title: 'feat: renamed',
+          baseBranch: 'develop',
+        ),
+      );
+      expect(runner.calls, hasLength(3));
+      expect(runner.calls[0].arguments.sublist(0, 3), <String>[
+        'repos',
+        'pr',
+        'update',
+      ]);
+      expect(runner.calls[1].arguments.sublist(0, 2), <String>[
+        'devops',
+        'invoke',
+      ]);
+      expect(runner.calls[2].arguments.sublist(0, 3), <String>[
+        'repos',
+        'pr',
+        'show',
+      ]);
+      expect(result, isA<UpdateReviewSuccess>());
+    });
+
+    test('notes a possible partial update when retargeting fails', () async {
+      final runner = FakeRecordingProcessRunner(<Object>[
+        _ok('{}'),
+        const ProcessRunOutput(
+          exitCode: 1,
+          stdout: '',
+          stderr: 'TF401027: You need the Git PullRequestContribute permission',
+        ),
+      ]);
+      final provider = AzureDevOpsForgeProvider(runner);
+
+      final result = await provider.updateReview(
+        identity: _identity,
+        repoPath: '/repo',
+        number: 42,
+        input: const UpdateReviewInput(
+          title: 'feat: renamed',
+          baseBranch: 'develop',
+        ),
+      );
+      expect(result, isA<UpdateReviewFailure>());
+      final failure = result as UpdateReviewFailure;
+      expect(failure.code, UpdateReviewErrorCode.unknown);
+      expect(
+        failure.message,
+        contains('the title may already have been updated'),
+      );
     });
   });
 

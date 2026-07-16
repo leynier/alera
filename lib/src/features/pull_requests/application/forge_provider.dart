@@ -5,6 +5,9 @@ import 'package:alera/src/features/pull_requests/domain/git_hosting_provider.dar
 import 'package:alera/src/features/pull_requests/domain/git_remote_identity.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
+import 'package:alera/src/features/pull_requests/domain/review_check_details.dart';
+import 'package:alera/src/features/pull_requests/domain/update_review_input.dart';
+import 'package:alera/src/features/pull_requests/domain/update_review_result.dart';
 
 /// A git hosting provider integration. One implementation per forge, each
 /// wrapping that forge's official CLI. The interface is neutral: no
@@ -49,6 +52,16 @@ abstract interface class ForgeProvider {
     required int number,
   });
 
+  /// Detail metadata for one check of review [number], matched by [check]'s
+  /// name (and url when names are ambiguous). Null when the check cannot be
+  /// found anymore.
+  Future<ReviewCheckDetails?> getCheckDetails({
+    required GitRemoteIdentity identity,
+    required String repoPath,
+    required int number,
+    required ReviewCheck check,
+  });
+
   /// Creates a review from [input]. The head branch is expected to already be
   /// pushed to the remote (the caller pushes first). Returns a discriminated
   /// success/failure result rather than throwing for expected failures.
@@ -56,5 +69,15 @@ abstract interface class ForgeProvider {
     required GitRemoteIdentity identity,
     required String repoPath,
     required CreateReviewInput input,
+  });
+
+  /// Updates title and/or base branch of review [number]. Callers must not
+  /// pass an empty [input]. Returns a discriminated result, mirroring
+  /// [createReview].
+  Future<UpdateReviewResult> updateReview({
+    required GitRemoteIdentity identity,
+    required String repoPath,
+    required int number,
+    required UpdateReviewInput input,
   });
 }

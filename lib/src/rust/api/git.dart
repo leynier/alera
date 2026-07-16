@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `commit_parent_commits`, `current_head_commit`, `delete_workspace_relative_path`, `discard_status_entries`, `entries_for_area_and_scope`, `from_git2`, `from_io`, `git_cli_in_path`, `git_signature`, `head_branch_name`, `is_parent_discardable`, `is_submodule_worktree_only`, `merge_head_oids`, `new`, `open_repo`, `pathspec_string`, `reject_out_of_scope_staged_entries`, `reject_out_of_scope_stash_pop`, `reject_out_of_scope_tracked_changes`, `reject_tree_diff_out_of_scope`, `relative_path`, `remove_index_path_if_present`, `repo_path_is_in_scope`, `repo_relative_path_from_workspace`, `repo_relative_path`, `repo_workdir_path_exists`, `repository_has_conflicts`, `scoped_pathspecs`, `split_clone_destination`, `stage_selected_path`, `stage_status_entries`, `stash_oid`, `unborn_branch_name`, `unstage_selected_path`, `unstage_status_entries`, `workspace_path_is_in_scope`, `workspace_repo_relative_path`
+// These functions are ignored because they are not marked as `pub`: `delete_workspace_relative_path`, `discard_status_entries`, `entries_for_area_and_scope`, `from_git2`, `from_io`, `git_cli_in_path`, `git_signature`, `head_branch_name`, `is_parent_discardable`, `is_submodule_worktree_only`, `new`, `open_repo`, `pathspec_string`, `reject_out_of_scope_staged_entries`, `reject_out_of_scope_stash_pop`, `reject_out_of_scope_tracked_changes`, `reject_tree_diff_out_of_scope`, `relative_path`, `remove_index_path_if_present`, `repo_path_is_in_scope`, `repo_relative_path_from_workspace`, `repo_relative_path`, `repo_workdir_path_exists`, `scoped_pathspecs`, `split_clone_destination`, `stage_selected_path`, `stage_status_entries`, `stash_oid`, `unborn_branch_name`, `unstage_selected_path`, `unstage_status_entries`, `workspace_path_is_in_scope`, `workspace_repo_relative_path`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`
 
 Future<bool> isGitRepository({required String path}) =>
@@ -91,6 +91,18 @@ Future<GitDiffResult> gitCommitDiff({
   parentOid: parentOid,
   filePath: filePath,
   oldPath: oldPath,
+);
+
+/// Summarizes commits and the tree-to-tree patch from merge-base([base_ref], HEAD)
+/// to HEAD for AI pull-request generation.
+Future<GitRangeContext> gitRangeContext({
+  required String path,
+  required String baseRef,
+  int? commitLimit,
+}) => RustLib.instance.api.crateApiGitGitRangeContext(
+  path: path,
+  baseRef: baseRef,
+  commitLimit: commitLimit,
 );
 
 Future<GitRepositoryState> gitRepositoryState({required String path}) =>
@@ -725,6 +737,100 @@ class GitHistoryResult {
           hasOutgoingChanges == other.hasOutgoingChanges &&
           hasMore == other.hasMore &&
           limit == other.limit;
+}
+
+/// One commit on the range from merge-base(base, HEAD) to HEAD.
+class GitRangeCommit {
+  final String oid;
+  final String subject;
+  final String message;
+
+  const GitRangeCommit({
+    required this.oid,
+    required this.subject,
+    required this.message,
+  });
+
+  @override
+  int get hashCode => oid.hashCode ^ subject.hashCode ^ message.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GitRangeCommit &&
+          runtimeType == other.runtimeType &&
+          oid == other.oid &&
+          subject == other.subject &&
+          message == other.message;
+}
+
+/// Tree-to-tree range summary used for AI pull-request prompts.
+class GitRangeContext {
+  final String baseRef;
+  final String? headBranch;
+  final String? mergeBase;
+  final List<GitRangeCommit> commits;
+  final List<GitRangeFile> files;
+  final String patch;
+
+  const GitRangeContext({
+    required this.baseRef,
+    this.headBranch,
+    this.mergeBase,
+    required this.commits,
+    required this.files,
+    required this.patch,
+  });
+
+  @override
+  int get hashCode =>
+      baseRef.hashCode ^
+      headBranch.hashCode ^
+      mergeBase.hashCode ^
+      commits.hashCode ^
+      files.hashCode ^
+      patch.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GitRangeContext &&
+          runtimeType == other.runtimeType &&
+          baseRef == other.baseRef &&
+          headBranch == other.headBranch &&
+          mergeBase == other.mergeBase &&
+          commits == other.commits &&
+          files == other.files &&
+          patch == other.patch;
+}
+
+/// One file changed between merge-base(base, HEAD) and HEAD.
+class GitRangeFile {
+  final String path;
+  final GitChangeStatus status;
+  final int? added;
+  final int? removed;
+
+  const GitRangeFile({
+    required this.path,
+    required this.status,
+    this.added,
+    this.removed,
+  });
+
+  @override
+  int get hashCode =>
+      path.hashCode ^ status.hashCode ^ added.hashCode ^ removed.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GitRangeFile &&
+          runtimeType == other.runtimeType &&
+          path == other.path &&
+          status == other.status &&
+          added == other.added &&
+          removed == other.removed;
 }
 
 class GitRemote {

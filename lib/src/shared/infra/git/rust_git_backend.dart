@@ -5,6 +5,8 @@ import 'package:alera/src/shared/infra/git/git_exception.dart';
 import 'package:alera/src/shared/infra/git/git_remote.dart';
 import 'package:alera/src/shared/infra/git/git_worktree_entry.dart';
 
+part 'rust_git_backend_enum_mappers.dart';
+
 /// [GitBackend] backed by the Rust crate through flutter_rust_bridge. This is
 /// the only place that knows about the generated bridge types; it translates
 /// the native `GitError` into a domain [GitException] and the native worktree
@@ -193,6 +195,44 @@ class RustGitBackend implements GitBackend {
       oldPath: oldPath,
     );
     return _toDiffResult(result, sourceLabel: 'Commit');
+  });
+
+  @override
+  Future<GitRangeContext> rangeContext(
+    String path, {
+    required String baseRef,
+    int commitLimit = 40,
+  }) => _guard(() async {
+    final result = await rust.gitRangeContext(
+      path: path,
+      baseRef: baseRef,
+      commitLimit: commitLimit,
+    );
+    return GitRangeContext(
+      baseRef: result.baseRef,
+      headBranch: result.headBranch,
+      mergeBase: result.mergeBase,
+      commits: result.commits
+          .map(
+            (commit) => GitRangeCommit(
+              oid: commit.oid,
+              subject: commit.subject,
+              message: commit.message,
+            ),
+          )
+          .toList(growable: false),
+      files: result.files
+          .map(
+            (file) => GitRangeFile(
+              path: file.path,
+              status: _toStatus(file.status),
+              added: file.added?.toInt(),
+              removed: file.removed?.toInt(),
+            ),
+          )
+          .toList(growable: false),
+      patch: result.patch,
+    );
   });
 
   @override
@@ -517,50 +557,6 @@ class RustGitBackend implements GitBackend {
     return switch (kind) {
       rust.GitChangeTreeRowKind.directory => GitChangeTreeRowKind.directory,
       rust.GitChangeTreeRowKind.file => GitChangeTreeRowKind.file,
-    };
-  }
-
-  GitDiffLineKind _toDiffLineKind(rust.GitDiffLineKind kind) {
-    return switch (kind) {
-      rust.GitDiffLineKind.addition => GitDiffLineKind.addition,
-      rust.GitDiffLineKind.deletion => GitDiffLineKind.deletion,
-      rust.GitDiffLineKind.hunk => GitDiffLineKind.hunk,
-      rust.GitDiffLineKind.header => GitDiffLineKind.header,
-      rust.GitDiffLineKind.context => GitDiffLineKind.context,
-    };
-  }
-
-  GitHistoryRefCategory _toHistoryRefCategory(
-    rust.GitHistoryRefCategory category,
-  ) {
-    return switch (category) {
-      rust.GitHistoryRefCategory.branches => GitHistoryRefCategory.branches,
-      rust.GitHistoryRefCategory.remoteBranches =>
-        GitHistoryRefCategory.remoteBranches,
-      rust.GitHistoryRefCategory.tags => GitHistoryRefCategory.tags,
-      rust.GitHistoryRefCategory.commits => GitHistoryRefCategory.commits,
-    };
-  }
-
-  GitCommitCompareStatus _toCommitCompareStatus(
-    rust.GitCommitCompareStatus status,
-  ) {
-    return switch (status) {
-      rust.GitCommitCompareStatus.ready => GitCommitCompareStatus.ready,
-      rust.GitCommitCompareStatus.invalidCommit =>
-        GitCommitCompareStatus.invalidCommit,
-      rust.GitCommitCompareStatus.error => GitCommitCompareStatus.error,
-    };
-  }
-
-  GitChangeStatus _toStatus(rust.GitChangeStatus status) {
-    return switch (status) {
-      rust.GitChangeStatus.modified => GitChangeStatus.modified,
-      rust.GitChangeStatus.added => GitChangeStatus.added,
-      rust.GitChangeStatus.deleted => GitChangeStatus.deleted,
-      rust.GitChangeStatus.renamed => GitChangeStatus.renamed,
-      rust.GitChangeStatus.copied => GitChangeStatus.copied,
-      rust.GitChangeStatus.untracked => GitChangeStatus.untracked,
     };
   }
 }

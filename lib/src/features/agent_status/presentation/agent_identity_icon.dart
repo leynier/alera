@@ -97,8 +97,8 @@ _AgentIconAsset _agentAsset(AgentType agentType) {
       raster: true,
     ),
     AgentType.grok => const _AgentIconAsset(
-      path: 'assets/agents/grok.svg',
-      tintable: false,
+      path: 'assets/agents/grok.png',
+      raster: true,
     ),
   };
 }

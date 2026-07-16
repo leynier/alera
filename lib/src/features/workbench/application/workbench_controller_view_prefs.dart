@@ -239,6 +239,13 @@ mixin _WorkbenchControllerViewPrefs
     _updateViewPrefs(state.viewPrefs.copyWith(gitDiffViewMode: mode));
   }
 
+  void setPullRequestCreateAction(PullRequestCreateAction action) {
+    if (state.viewPrefs.pullRequestCreateAction == action) {
+      return;
+    }
+    _updateViewPrefs(state.viewPrefs.copyWith(pullRequestCreateAction: action));
+  }
+
   Future<bool> focusSourceControlFolder({
     required Workspace workspace,
     required String relativePath,

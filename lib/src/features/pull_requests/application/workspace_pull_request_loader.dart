@@ -1,0 +1,196 @@
+import 'package:alera/src/features/pull_requests/application/base_branch_resolver.dart';
+import 'package:alera/src/features/pull_requests/application/forge_exception.dart';
+import 'package:alera/src/features/pull_requests/application/forge_provider.dart';
+import 'package:alera/src/features/pull_requests/application/forge_provider_registry.dart';
+import 'package:alera/src/features/pull_requests/application/hosting_provider_resolver.dart';
+import 'package:alera/src/features/pull_requests/application/linked_review_repository.dart';
+import 'package:alera/src/features/pull_requests/application/workspace_pull_request_state.dart';
+import 'package:alera/src/features/pull_requests/domain/forge_auth_status.dart';
+import 'package:alera/src/features/pull_requests/domain/git_remote_identity.dart';
+import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
+import 'package:alera/src/features/pull_requests/domain/review_check.dart';
+import 'package:alera/src/features/pull_requests/domain/workspace_pull_request_scope.dart';
+import 'package:alera/src/shared/infra/git/git_backend.dart';
+import 'package:alera/src/shared/infra/git/git_exception.dart';
+import 'package:alera/src/shared/infra/git/git_remote.dart';
+
+/// Loads the forge and repository snapshot displayed by the pull-request panel.
+class WorkspacePullRequestLoader {
+  const WorkspacePullRequestLoader(
+    this._gitBackend,
+    this._registry,
+    this._linkedReviews,
+  );
+
+  final GitBackend _gitBackend;
+  final ForgeProviderRegistry _registry;
+  final LinkedReviewRepository _linkedReviews;
+
+  Future<WorkspacePullRequestState> load(
+    WorkspacePullRequestScope scope,
+  ) async {
+    final resolution = await _resolveIdentity(scope);
+    if (resolution.identity == null) {
+      return WorkspacePullRequestState(unavailableReason: resolution.reason);
+    }
+    final identity = resolution.identity!;
+    final forge = _registry.forProvider(identity.provider);
+    if (forge == null) {
+      return WorkspacePullRequestState(
+        identity: identity,
+        unavailableReason: PullRequestUnavailableReason.unsupported,
+      );
+    }
+    final authStatus = await forge.checkAuth(identity: identity);
+    final branch = await _resolveBranch(scope);
+    final baseInfo = await _resolveBaseBranches(scope);
+    final persisted = await _linkedReviews.find(scope.workspaceId);
+
+    if (persisted != null && persisted.dismissed) {
+      return WorkspacePullRequestState(
+        identity: identity,
+        authStatus: authStatus,
+        currentBranch: branch,
+        baseBranches: baseInfo.branches,
+        suggestedBaseBranch: baseInfo.suggested,
+        dismissed: true,
+      );
+    }
+    if (authStatus != ForgeAuthStatus.authenticated) {
+      return WorkspacePullRequestState(
+        identity: identity,
+        authStatus: authStatus,
+        currentBranch: branch,
+        baseBranches: baseInfo.branches,
+        suggestedBaseBranch: baseInfo.suggested,
+      );
+    }
+
+    final linkedManually = persisted != null && persisted.hasReview;
+    try {
+      final review = linkedManually
+          ? await forge.getReviewByNumber(
+              identity: identity,
+              repoPath: scope.repoPath,
+              number: persisted.number!,
+            )
+          : await _detectReview(forge, identity, scope, branch);
+      final checks = review == null
+          ? const <ReviewCheck>[]
+          : await forge.getChecks(
+              identity: identity,
+              repoPath: scope.repoPath,
+              number: review.number,
+            );
+      return WorkspacePullRequestState(
+        identity: identity,
+        authStatus: authStatus,
+        review: review,
+        checks: checks,
+        linkedManually: linkedManually,
+        currentBranch: branch,
+        baseBranches: baseInfo.branches,
+        suggestedBaseBranch: baseInfo.suggested,
+      );
+    } on ForgeNotAuthenticated {
+      return WorkspacePullRequestState(
+        identity: identity,
+        authStatus: ForgeAuthStatus.notAuthenticated,
+        currentBranch: branch,
+        baseBranches: baseInfo.branches,
+        suggestedBaseBranch: baseInfo.suggested,
+      );
+    } on ForgeCliMissing {
+      return WorkspacePullRequestState(
+        identity: identity,
+        authStatus: ForgeAuthStatus.cliMissing,
+        currentBranch: branch,
+        baseBranches: baseInfo.branches,
+        suggestedBaseBranch: baseInfo.suggested,
+      );
+    } on ForgeException catch (error) {
+      return WorkspacePullRequestState(
+        identity: identity,
+        authStatus: authStatus,
+        currentBranch: branch,
+        baseBranches: baseInfo.branches,
+        suggestedBaseBranch: baseInfo.suggested,
+        errorMessage: error.message,
+      );
+    }
+  }
+
+  Future<({List<String> branches, String suggested})> _resolveBaseBranches(
+    WorkspacePullRequestScope scope,
+  ) async {
+    List<String> raw;
+    try {
+      raw = await _gitBackend.listBranches(scope.repoPath);
+    } on GitException {
+      raw = const <String>[];
+    }
+    final branches = normalizeBaseBranches(raw);
+    final suggested = pickDefaultBaseBranch(
+      branches,
+      preferred: scope.sourceBranch,
+    );
+    return (branches: branches, suggested: suggested);
+  }
+
+  Future<String?> _resolveBranch(WorkspacePullRequestScope scope) async {
+    final hinted = scope.branch;
+    if (hinted != null && hinted.isNotEmpty && hinted != 'HEAD') {
+      return hinted;
+    }
+    try {
+      final current = await _gitBackend.currentBranch(scope.repoPath);
+      return current.isEmpty || current == 'HEAD' ? null : current;
+    } on GitException {
+      return null;
+    }
+  }
+
+  Future<HostedReview?> _detectReview(
+    ForgeProvider forge,
+    GitRemoteIdentity identity,
+    WorkspacePullRequestScope scope,
+    String? branch,
+  ) async {
+    if (branch == null || branch.isEmpty) {
+      return null;
+    }
+    return forge.getReviewForBranch(
+      identity: identity,
+      repoPath: scope.repoPath,
+      branch: branch,
+    );
+  }
+
+  Future<({GitRemoteIdentity? identity, PullRequestUnavailableReason? reason})>
+  _resolveIdentity(WorkspacePullRequestScope scope) async {
+    List<GitRemote> remotes;
+    try {
+      remotes = await _gitBackend.listRemotes(scope.repoPath);
+    } on GitException {
+      return (identity: null, reason: PullRequestUnavailableReason.noRemote);
+    }
+    final resolution = resolveHostingProvider(
+      remotes: remotes,
+      override: scope.providerOverride,
+    );
+    return switch (resolution) {
+      HostingProviderResolved(:final identity) => (
+        identity: identity,
+        reason: null,
+      ),
+      HostingProviderUndetectable() => (
+        identity: null,
+        reason: PullRequestUnavailableReason.undetectable,
+      ),
+      HostingProviderNoRemote() => (
+        identity: null,
+        reason: PullRequestUnavailableReason.noRemote,
+      ),
+    };
+  }
+}

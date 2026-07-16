@@ -37,6 +37,40 @@ void main() {
       expect(prompt, contains('Use conventional commits.'));
     });
 
+    test('builds pull request prompts with range context and instructions', () {
+      final prompt = buildPullRequestDetailsPrompt(
+        context: const AiTextPullRequestContext(
+          baseBranch: 'main',
+          headBranch: 'feature/ai-pr',
+          commitSummary: '- abc1234 feat: add ai pr',
+          fileSummary: '- M lib/foo.dart (+2 -1)',
+          patch: '+new line',
+        ),
+        customInstructions: 'Prefer conventional titles.',
+      );
+
+      expect(prompt, contains('Base branch: main'));
+      expect(prompt, contains('Head branch: feature/ai-pr'));
+      expect(prompt, contains('feat: add ai pr'));
+      expect(prompt, contains('+new line'));
+      expect(prompt, contains('Prefer conventional titles.'));
+    });
+
+    test('parses generated pull request title and body', () {
+      final details = parseGeneratedPullRequestDetails('''
+Generating...
+```text
+feat: ship pull request ai
+
+- Add title and description generation
+- Reuse range context from git
+```
+''');
+
+      expect(details.title, 'feat: ship pull request ai');
+      expect(details.body, contains('Add title and description generation'));
+    });
+
     test('cleans fenced commit output and caps subject length', () {
       final message = cleanGeneratedCommitMessage('''
 Generating...
@@ -109,6 +143,79 @@ Claude Sonnet 4.6 (Thinking)
       expect(runner.arguments, contains('Gemini 3.5 Flash (Medium)'));
       expect(runner.stdinText, contains('feature/ai-text'));
       expect(runner.stdinClosed, isTrue);
+    });
+
+    test('generates pull request details from base range context', () async {
+      final git = FakeGitBackend()
+        ..gitRangeContextResult = const GitRangeContext(
+          baseRef: 'main',
+          headBranch: 'feature/ai-pr',
+          commits: <GitRangeCommit>[
+            GitRangeCommit(
+              oid: 'abcdef1',
+              subject: 'feat: add pr ai',
+              message: 'feat: add pr ai',
+            ),
+          ],
+          files: <GitRangeFile>[
+            GitRangeFile(
+              path: 'lib/foo.dart',
+              status: GitChangeStatus.modified,
+              added: 2,
+              removed: 1,
+            ),
+          ],
+          patch: '+new line',
+        );
+      final runner = _FakeProcessRunner(
+        stdout: 'feat: ship pr ai\n\n- Generate title and body\n',
+      );
+      final service = CliAiTextGenerationService(
+        gitBackend: git,
+        processRunner: runner,
+      );
+
+      final result = await service.generate(
+        const AiTextGenerationRequest(
+          operation: AiTextGenerationOperation.pullRequestDetails,
+          workspacePath: '/repo',
+          settings: AiTextGenerationSettings(agent: AiTextGenerationAgent.agy),
+          baseBranch: 'main',
+          headBranch: 'feature/ai-pr',
+        ),
+      );
+
+      expect(result.text, contains('feat: ship pr ai'));
+      expect(runner.stdinText, contains('Base branch: main'));
+      expect(runner.stdinText, contains('feat: add pr ai'));
+      expect(runner.stdinText, contains('+new line'));
+      expect(git.calls.any((call) => call.method == 'rangeContext'), isTrue);
+    });
+
+    test('rejects pull request generation without a base branch', () async {
+      final service = CliAiTextGenerationService(
+        gitBackend: FakeGitBackend(),
+        processRunner: _FakeProcessRunner(stdout: 'unused'),
+      );
+
+      await expectLater(
+        service.generate(
+          const AiTextGenerationRequest(
+            operation: AiTextGenerationOperation.pullRequestDetails,
+            workspacePath: '/repo',
+            settings: AiTextGenerationSettings(
+              agent: AiTextGenerationAgent.agy,
+            ),
+          ),
+        ),
+        throwsA(
+          isA<AiTextGenerationException>().having(
+            (error) => error.message,
+            'message',
+            contains('base branch'),
+          ),
+        ),
+      );
     });
 
     test(

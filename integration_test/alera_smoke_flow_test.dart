@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:alera/src/app/app.dart';
 import 'package:alera/src/app/providers.dart';
-import 'package:alera/src/design_system/surfaces/hover_container.dart';
 import 'package:alera/src/features/projects/infra/drift_project_config_repository.dart';
 import 'package:alera/src/features/projects/infra/drift_project_repository.dart';
 import 'package:alera/src/features/projects/presentation/add_project_dialog.dart';
@@ -106,19 +105,12 @@ void main() {
     );
     await tester.tap(submitButton);
 
-    // Wait for the main workspace path (not just the project name) so we know
-    // ensureMainWorkspace finished and the dashboard row is interactive.
-    await _pumpUntilFound(tester, find.text(projectDir.path));
-
-    final workspacePath = find.text(projectDir.path).first;
-    await tester.ensureVisible(workspacePath);
+    final workspaceRow = find.byKey(
+      ValueKey<String>('workspace-row:${projectDir.path}'),
+    );
+    await _pumpUntilFound(tester, workspaceRow);
+    await tester.ensureVisible(workspaceRow);
     await tester.pumpAndSettle();
-    // Open via the dashboard HoverContainer that wraps the path — more reliable
-    // than tapping find.text(projectName).last, which can hit a non-opening
-    // project header when several rows share the same display name.
-    final workspaceRow = find
-        .ancestor(of: workspacePath, matching: find.byType(HoverContainer))
-        .first;
     await tester.tap(workspaceRow);
     await _pumpUntilFound(tester, find.byTooltip('New Terminal'));
     await _pumpUntilFound(tester, find.text('E2E terminal: Terminal 1'));
@@ -281,6 +273,18 @@ class _E2eGitBackend implements GitBackend {
     String? filePath,
     String? oldPath,
   }) async => const GitDiffResult(files: <GitDiffFile>[]);
+
+  @override
+  Future<GitRangeContext> rangeContext(
+    String path, {
+    required String baseRef,
+    int commitLimit = 40,
+  }) async => GitRangeContext(
+    baseRef: baseRef,
+    commits: const <GitRangeCommit>[],
+    files: const <GitRangeFile>[],
+    patch: '',
+  );
 
   @override
   Future<GitRepositoryState> repositoryState(String path) async =>

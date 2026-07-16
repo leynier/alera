@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:alera/src/features/pull_requests/application/forge_exception.dart';
 import 'package:alera/src/features/pull_requests/application/forge_provider.dart';
@@ -9,7 +10,14 @@ import 'package:alera/src/features/pull_requests/domain/git_hosting_provider.dar
 import 'package:alera/src/features/pull_requests/domain/git_remote_identity.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
+import 'package:alera/src/features/pull_requests/domain/review_check_details.dart';
+import 'package:alera/src/features/pull_requests/domain/update_review_input.dart';
+import 'package:alera/src/features/pull_requests/domain/update_review_result.dart';
+import 'package:alera/src/features/pull_requests/infra/azure_devops_cli_failures.dart';
+import 'package:alera/src/features/pull_requests/infra/azure_devops_review_mappers.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
+import 'package:meta/meta.dart';
+import 'package:path/path.dart' as p;
 
 /// [ForgeProvider] for Azure DevOps, wrapping the official `az` CLI (with the
 /// `azure-devops` extension). Authentication relies on `az login`. Checks are
@@ -25,18 +33,11 @@ class AzureDevOpsForgeProvider implements ForgeProvider {
   @override
   bool get supportsReviewCreation => true;
 
-  /// The organization base URL. Legacy `*.visualstudio.com` hosts embed the org
-  /// in the subdomain; modern hosts use `dev.azure.com/{org}`.
-  String _orgUrl(GitRemoteIdentity identity) {
-    if (identity.host.contains('visualstudio.com')) {
-      return 'https://${identity.owner}.visualstudio.com';
-    }
-    return 'https://dev.azure.com/${identity.owner}';
-  }
-
-  String _webUrl(GitRemoteIdentity identity, int number) {
-    final project = identity.project ?? '';
-    return '${_orgUrl(identity)}/$project/_git/${identity.repo}/pullrequest/$number';
+  /// PATCH body for retargeting a pull request via `az devops invoke`.
+  @visibleForTesting
+  static String retargetBodyJson(String branch) {
+    final ref = branch.startsWith('refs/') ? branch : 'refs/heads/$branch';
+    return jsonEncode(<String, String>{'targetRefName': ref});
   }
 
   @override
@@ -53,12 +54,164 @@ class AzureDevOpsForgeProvider implements ForgeProvider {
       if (result.exitCode == 0) {
         return ForgeAuthStatus.authenticated;
       }
-      if (_looksLikeMissingCli(result)) {
+      if (azLooksLikeMissingCli(result)) {
         return ForgeAuthStatus.cliMissing;
       }
       return ForgeAuthStatus.notAuthenticated;
     } catch (_) {
       return ForgeAuthStatus.cliMissing;
+    }
+  }
+
+  @override
+  Future<UpdateReviewResult> updateReview({
+    required GitRemoteIdentity identity,
+    required String repoPath,
+    required int number,
+    required UpdateReviewInput input,
+  }) async {
+    final project = identity.project;
+    if (input.baseBranch != null && (project == null || project.isEmpty)) {
+      return const UpdateReviewFailure(
+        code: UpdateReviewErrorCode.blocked,
+        message:
+            'The Azure DevOps project could not be determined from the '
+            'remote.',
+      );
+    }
+    if (input.title != null) {
+      final failure = await _updateTitle(
+        identity,
+        repoPath,
+        number,
+        input.title!,
+      );
+      if (failure != null) {
+        return failure;
+      }
+    }
+    if (input.baseBranch != null) {
+      final failure = await _retarget(
+        identity,
+        repoPath,
+        number,
+        input.baseBranch!,
+        titleUpdated: input.title != null,
+      );
+      if (failure != null) {
+        return failure;
+      }
+    }
+    final review = await getReviewByNumber(
+      identity: identity,
+      repoPath: repoPath,
+      number: number,
+    );
+    if (review == null) {
+      return const UpdateReviewFailure(
+        code: UpdateReviewErrorCode.unknown,
+        message: 'The pull request was updated but could not be read back.',
+      );
+    }
+    return UpdateReviewSuccess(review);
+  }
+
+  Future<UpdateReviewFailure?> _updateTitle(
+    GitRemoteIdentity identity,
+    String repoPath,
+    int number,
+    String title,
+  ) async {
+    ProcessRunOutput result;
+    try {
+      result = await _processRunner.run('az', <String>[
+        'repos',
+        'pr',
+        'update',
+        '--id',
+        '$number',
+        '--organization',
+        azureOrgUrl(identity),
+        '--title',
+        title,
+        '--output',
+        'json',
+      ], workingDirectory: repoPath);
+    } catch (_) {
+      return const UpdateReviewFailure(
+        code: UpdateReviewErrorCode.cliMissing,
+        message: 'The az CLI was not found on PATH.',
+      );
+    }
+    if (result.exitCode != 0) {
+      return mapAzureUpdateFailure(result);
+    }
+    return null;
+  }
+
+  /// `az repos pr update` cannot change the target branch, so retargeting
+  /// PATCHes the pull request through the azure-devops extension's generic
+  /// invoker, which shares its authentication (including `az devops login`
+  /// PATs) with every other call in this provider.
+  Future<UpdateReviewFailure?> _retarget(
+    GitRemoteIdentity identity,
+    String repoPath,
+    int number,
+    String baseBranch, {
+    required bool titleUpdated,
+  }) async {
+    UpdateReviewFailure? annotate(UpdateReviewFailure failure) {
+      if (!titleUpdated) {
+        return failure;
+      }
+      return UpdateReviewFailure(
+        code: failure.code,
+        message: '${failure.message} (the title may already have been updated)',
+      );
+    }
+
+    final tempDir = await Directory.systemTemp.createTemp('alera-pr-retarget');
+    try {
+      final bodyFile = File(p.join(tempDir.path, 'body.json'));
+      await bodyFile.writeAsString(retargetBodyJson(baseBranch));
+      ProcessRunOutput result;
+      try {
+        result = await _processRunner.run('az', <String>[
+          'devops',
+          'invoke',
+          '--area',
+          'git',
+          '--resource',
+          'pullrequests',
+          '--route-parameters',
+          'project=${identity.project}',
+          'repositoryId=${identity.repo}',
+          'pullRequestId=$number',
+          '--http-method',
+          'PATCH',
+          '--api-version',
+          '7.1',
+          '--in-file',
+          bodyFile.path,
+          '--organization',
+          azureOrgUrl(identity),
+          '--output',
+          'json',
+        ], workingDirectory: repoPath);
+      } catch (_) {
+        return annotate(
+          const UpdateReviewFailure(
+            code: UpdateReviewErrorCode.cliMissing,
+            message: 'The az CLI was not found on PATH.',
+          ),
+        );
+      }
+      if (result.exitCode != 0) {
+        return annotate(mapAzureUpdateFailure(result));
+      }
+      return null;
+    } finally {
+      await tempDir.delete(recursive: true);
     }
   }
 
@@ -73,7 +226,7 @@ class AzureDevOpsForgeProvider implements ForgeProvider {
       'pr',
       'list',
       '--organization',
-      _orgUrl(identity),
+      azureOrgUrl(identity),
       '--project',
       identity.project ?? '',
       '--repository',
@@ -89,7 +242,7 @@ class AzureDevOpsForgeProvider implements ForgeProvider {
     if (decoded is! List || decoded.isEmpty) {
       return null;
     }
-    return _mapReview(identity, decoded.first as Map<String, Object?>);
+    return mapAzureReview(identity, decoded.first as Map<String, Object?>);
   }
 
   @override
@@ -106,7 +259,7 @@ class AzureDevOpsForgeProvider implements ForgeProvider {
         '--id',
         '$number',
         '--organization',
-        _orgUrl(identity),
+        azureOrgUrl(identity),
         '--output',
         'json',
       ],
@@ -120,7 +273,7 @@ class AzureDevOpsForgeProvider implements ForgeProvider {
     if (decoded is! Map<String, Object?>) {
       return null;
     }
-    return _mapReview(identity, decoded);
+    return mapAzureReview(identity, decoded);
   }
 
   @override
@@ -129,6 +282,31 @@ class AzureDevOpsForgeProvider implements ForgeProvider {
     required String repoPath,
     required int number,
   }) async {
+    final entries = await _fetchPolicyEvaluations(identity, repoPath, number);
+    return <ReviewCheck>[for (final entry in entries) mapAzureCheck(entry)];
+  }
+
+  @override
+  Future<ReviewCheckDetails?> getCheckDetails({
+    required GitRemoteIdentity identity,
+    required String repoPath,
+    required int number,
+    required ReviewCheck check,
+  }) async {
+    final entries = await _fetchPolicyEvaluations(identity, repoPath, number);
+    for (final entry in entries) {
+      if (azurePolicyName(entry) == check.name) {
+        return mapAzureCheckDetails(identity, entry);
+      }
+    }
+    return null;
+  }
+
+  Future<List<Map<String, Object?>>> _fetchPolicyEvaluations(
+    GitRemoteIdentity identity,
+    String repoPath,
+    int number,
+  ) async {
     final output = await _run(
       <String>[
         'repos',
@@ -138,7 +316,7 @@ class AzureDevOpsForgeProvider implements ForgeProvider {
         '--id',
         '$number',
         '--organization',
-        _orgUrl(identity),
+        azureOrgUrl(identity),
         '--output',
         'json',
       ],
@@ -147,11 +325,11 @@ class AzureDevOpsForgeProvider implements ForgeProvider {
     );
     final decoded = _decodeJson(output);
     if (decoded is! List) {
-      return const <ReviewCheck>[];
+      return const <Map<String, Object?>>[];
     }
-    return <ReviewCheck>[
+    return <Map<String, Object?>>[
       for (final entry in decoded)
-        if (entry is Map<String, Object?>) _mapCheck(entry),
+        if (entry is Map<String, Object?>) entry,
     ];
   }
 
@@ -168,7 +346,7 @@ class AzureDevOpsForgeProvider implements ForgeProvider {
         'pr',
         'create',
         '--organization',
-        _orgUrl(identity),
+        azureOrgUrl(identity),
         '--project',
         identity.project ?? '',
         '--repository',
@@ -192,11 +370,11 @@ class AzureDevOpsForgeProvider implements ForgeProvider {
       );
     }
     if (result.exitCode != 0) {
-      return _mapCreateFailure(result);
+      return mapAzureCreateFailure(result);
     }
     final decoded = _tryDecode(result.stdout.trim());
     if (decoded is Map<String, Object?>) {
-      return CreateReviewSuccess(_mapReview(identity, decoded));
+      return CreateReviewSuccess(mapAzureReview(identity, decoded));
     }
     return const CreateReviewFailure(
       code: CreateReviewErrorCode.unknown,
@@ -222,7 +400,7 @@ class AzureDevOpsForgeProvider implements ForgeProvider {
     if (result.exitCode == 0) {
       return result.stdout;
     }
-    if (_looksLikeMissingCli(result)) {
+    if (azLooksLikeMissingCli(result)) {
       throw const ForgeCliMissing(
         'The az CLI or azure-devops extension is not installed.',
       );
@@ -241,119 +419,6 @@ class AzureDevOpsForgeProvider implements ForgeProvider {
     throw ForgeRequestFailed(
       result.stderr.trim().isEmpty ? 'az command failed' : result.stderr.trim(),
     );
-  }
-
-  CreateReviewFailure _mapCreateFailure(ProcessRunOutput result) {
-    if (_looksLikeMissingCli(result)) {
-      return const CreateReviewFailure(
-        code: CreateReviewErrorCode.cliMissing,
-        message: 'The az CLI or azure-devops extension is not installed.',
-      );
-    }
-    final stderr = result.stderr.toLowerCase();
-    if (stderr.contains('az login') || stderr.contains('not logged in')) {
-      return const CreateReviewFailure(
-        code: CreateReviewErrorCode.notAuthenticated,
-        message: 'Run `az login` to authenticate.',
-      );
-    }
-    if (stderr.contains('already exists') ||
-        stderr.contains('active pull request')) {
-      return const CreateReviewFailure(
-        code: CreateReviewErrorCode.alreadyExists,
-        message: 'A pull request already exists for this branch.',
-      );
-    }
-    return CreateReviewFailure(
-      code: CreateReviewErrorCode.unknown,
-      message: result.stderr.trim().isEmpty
-          ? 'az repos pr create failed.'
-          : result.stderr.trim(),
-    );
-  }
-
-  HostedReview _mapReview(
-    GitRemoteIdentity identity,
-    Map<String, Object?> json,
-  ) {
-    final number = (json['pullRequestId'] as num?)?.toInt() ?? 0;
-    final status = (json['status'] as String? ?? 'active').toLowerCase();
-    final isDraft = json['isDraft'] as bool? ?? false;
-    final createdBy = json['createdBy'];
-    final lastMerge = json['lastMergeSourceCommit'];
-    return HostedReview(
-      provider: GitHostingProvider.azureDevops,
-      number: number,
-      title: json['title'] as String? ?? '',
-      state: _mapState(status, isDraft),
-      url: _webUrl(identity, number),
-      author: createdBy is Map<String, Object?>
-          ? createdBy['displayName'] as String?
-          : null,
-      baseBranch: _shortRef(json['targetRefName'] as String?),
-      headBranch: _shortRef(json['sourceRefName'] as String?),
-      headSha: lastMerge is Map<String, Object?>
-          ? lastMerge['commitId'] as String?
-          : null,
-      mergeable: _mapMergeable(json['mergeStatus'] as String?),
-    );
-  }
-
-  HostedReviewState _mapState(String status, bool isDraft) {
-    return switch (status) {
-      'completed' => HostedReviewState.merged,
-      'abandoned' => HostedReviewState.closed,
-      _ => isDraft ? HostedReviewState.draft : HostedReviewState.open,
-    };
-  }
-
-  HostedReviewMergeable _mapMergeable(String? value) {
-    return switch (value?.toLowerCase()) {
-      'succeeded' => HostedReviewMergeable.mergeable,
-      'conflicts' => HostedReviewMergeable.conflicting,
-      _ => HostedReviewMergeable.unknown,
-    };
-  }
-
-  ReviewCheck _mapCheck(Map<String, Object?> json) {
-    final status = (json['status'] as String? ?? '').toLowerCase();
-    final conclusion = switch (status) {
-      'approved' => ReviewCheckConclusion.success,
-      'rejected' => ReviewCheckConclusion.failure,
-      'notapplicable' => ReviewCheckConclusion.skipped,
-      'queued' || 'running' => ReviewCheckConclusion.pending,
-      _ => ReviewCheckConclusion.neutral,
-    };
-    final checkStatus = (status == 'queued' || status == 'running')
-        ? ReviewCheckStatus.inProgress
-        : ReviewCheckStatus.completed;
-    return ReviewCheck(
-      name: _policyName(json),
-      status: checkStatus,
-      conclusion: conclusion,
-    );
-  }
-
-  String _policyName(Map<String, Object?> json) {
-    final configuration = json['configuration'];
-    if (configuration is Map<String, Object?>) {
-      final type = configuration['type'];
-      if (type is Map<String, Object?>) {
-        final displayName = type['displayName'];
-        if (displayName is String && displayName.isNotEmpty) {
-          return displayName;
-        }
-      }
-    }
-    return 'Policy';
-  }
-
-  String? _shortRef(String? ref) {
-    if (ref == null) {
-      return null;
-    }
-    const prefix = 'refs/heads/';
-    return ref.startsWith(prefix) ? ref.substring(prefix.length) : ref;
   }
 
   Object? _decodeJson(String? raw) {
@@ -377,18 +442,6 @@ class AzureDevOpsForgeProvider implements ForgeProvider {
     } catch (_) {
       return null;
     }
-  }
-
-  bool _looksLikeMissingCli(ProcessRunOutput result) {
-    if (result.exitCode == 127) {
-      return true;
-    }
-    final combined = '${result.stdout} ${result.stderr}'.toLowerCase();
-    return combined.contains('command not found') ||
-        combined.contains('is not recognized') ||
-        combined.contains('no such file') ||
-        combined.contains("'repos' is misspelled") ||
-        combined.contains('az extension add');
   }
 
   bool _mentionsNotFound(String stderr) {

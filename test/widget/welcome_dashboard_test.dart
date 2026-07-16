@@ -44,16 +44,12 @@ void main() {
       );
 
       expect(find.text('Welcome to Alera'), findsOneWidget);
-      expect(find.text('No Projects Registered Yet'), findsOneWidget);
+      expect(find.text('Quick Start'), findsOneWidget);
+      expect(find.text('Keyboard Shortcuts'), findsOneWidget);
+      expect(find.text('Projects & Workspaces'), findsNothing);
+      expect(find.text('No Projects Registered Yet'), findsNothing);
 
       await tester.tap(find.text('Add Project').first);
-      await tester.pumpAndSettle();
-      expect(find.widgetWithText(TextField, 'Project Path'), findsOneWidget);
-      await tester.tap(find.text('Cancel').first);
-      await tester.pumpAndSettle();
-
-      await tester.ensureVisible(find.text('Add Project').last);
-      await tester.tap(find.text('Add Project').last);
       await tester.pumpAndSettle();
       expect(find.widgetWithText(TextField, 'Project Path'), findsOneWidget);
       await tester.tap(find.text('Cancel').first);
@@ -66,7 +62,7 @@ void main() {
     },
   );
 
-  testWidgets('renders project content and opens the create-workspace flow', (
+  testWidgets('renders quick start and opens the create-workspace flow', (
     tester,
   ) async {
     final now = DateTime.utc(2026, 5, 22);
@@ -74,13 +70,6 @@ void main() {
       id: 'project-1',
       name: 'Alera',
       repoPath: '/repo/alera',
-      createdAt: now,
-      updatedAt: now,
-    );
-    final sideProject = Project(
-      id: 'project-2',
-      name: 'Docs',
-      repoPath: '/repo/docs',
       createdAt: now,
       updatedAt: now,
     );
@@ -98,10 +87,9 @@ void main() {
 
     final controller = _WelcomeDashboardController(
       WorkbenchState(
-        projects: <Project>[project, sideProject],
+        projects: <Project>[project],
         workspacesByProject: <String, List<Workspace>>{
           project.id: <Workspace>[workspace],
-          sideProject.id: const <Workspace>[],
         },
         activeProjectId: project.id,
         activeWorkspaceId: workspace.id,
@@ -112,10 +100,9 @@ void main() {
       tester,
       controller: controller,
       state: WorkbenchState(
-        projects: <Project>[project, sideProject],
+        projects: <Project>[project],
         workspacesByProject: <String, List<Workspace>>{
           project.id: <Workspace>[workspace],
-          sideProject.id: const <Workspace>[],
         },
         activeProjectId: project.id,
         activeWorkspaceId: workspace.id,
@@ -123,15 +110,10 @@ void main() {
       ),
     );
 
-    expect(find.text('Projects & Workspaces'), findsOneWidget);
-    expect(find.text('Alera'), findsAtLeastNWidgets(1));
-    expect(find.text('Main'), findsAtLeastNWidgets(1));
-    expect(find.text('Docs'), findsOneWidget);
-    expect(find.text('No Workspaces for This Project'), findsOneWidget);
-
-    await tester.tap(find.text('Main').first);
-    await tester.pumpAndSettle();
-    expect(controller.selectedWorkspaceIds, <String>['workspace-1']);
+    expect(find.text('Quick Start'), findsOneWidget);
+    expect(find.text('Keyboard Shortcuts'), findsOneWidget);
+    expect(find.text('Projects & Workspaces'), findsNothing);
+    expect(find.text('Main'), findsNothing);
 
     await tester.tap(find.text('New Workspace').first);
     await tester.pumpAndSettle();
@@ -145,99 +127,18 @@ void main() {
       findsOneWidget,
     );
   });
-
-  testWidgets('caps the project list at five with a +N More hint', (
-    tester,
-  ) async {
-    final now = DateTime.utc(2026, 5, 22);
-    final projects = <Project>[
-      for (var i = 1; i <= 7; i++)
-        Project(
-          id: 'project-$i',
-          name: 'Project $i',
-          repoPath: '/repo/project-$i',
-          createdAt: now,
-          updatedAt: now,
-        ),
-    ];
-
-    await pumpDashboard(
-      tester,
-      state: WorkbenchState(
-        projects: projects,
-        workspacesByProject: const <String, List<Workspace>>{},
-        bootstrapped: true,
-      ),
-    );
-
-    expect(find.text('Project 1'), findsOneWidget);
-    expect(find.text('Project 5'), findsOneWidget);
-    expect(find.text('Project 6'), findsNothing);
-    expect(find.text('Project 7'), findsNothing);
-    expect(find.text('+2 More'), findsOneWidget);
-  });
-
-  testWidgets('caps the workspace list at five with a +N More hint', (
-    tester,
-  ) async {
-    final now = DateTime.utc(2026, 5, 22);
-    final project = Project(
-      id: 'project-1',
-      name: 'Alera',
-      repoPath: '/repo/alera',
-      createdAt: now,
-      updatedAt: now,
-    );
-    final workspaces = <Workspace>[
-      for (var i = 1; i <= 7; i++)
-        Workspace(
-          id: 'workspace-$i',
-          projectId: project.id,
-          name: 'Workspace $i',
-          path: '/repo/alera/ws-$i',
-          createdAt: now,
-          updatedAt: now,
-          kind: WorkspaceKind.linked,
-          status: WorkspaceStatus.active,
-        ),
-    ];
-
-    await pumpDashboard(
-      tester,
-      state: WorkbenchState(
-        projects: <Project>[project],
-        workspacesByProject: <String, List<Workspace>>{project.id: workspaces},
-        bootstrapped: true,
-      ),
-    );
-
-    expect(find.text('Workspace 1'), findsOneWidget);
-    expect(find.text('Workspace 5'), findsOneWidget);
-    expect(find.text('Workspace 6'), findsNothing);
-    expect(find.text('Workspace 7'), findsNothing);
-    expect(find.text('+2 More'), findsOneWidget);
-  });
 }
 
 class _WelcomeDashboardController extends WorkbenchController {
   _WelcomeDashboardController(this._seed);
 
   final WorkbenchState _seed;
-  final List<String> selectedWorkspaceIds = <String>[];
 
   @override
   WorkbenchState build() => _seed;
 
   @override
   Future<void> bootstrap() async {}
-
-  @override
-  Future<void> selectWorkspace({
-    required Project project,
-    required Workspace workspace,
-  }) async {
-    selectedWorkspaceIds.add(workspace.id);
-  }
 
   @override
   Future<List<String>> listSourceBranches(Project project) async {

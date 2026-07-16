@@ -232,7 +232,7 @@ final class EffectiveHostingProviderOverrideProvider
   }) : super(
          retry: null,
          name: r'effectiveHostingProviderOverrideProvider',
-         isAutoDispose: true,
+         isAutoDispose: false,
          dependencies: null,
          $allTransitiveDependencies: null,
        );
@@ -272,7 +272,7 @@ final class EffectiveHostingProviderOverrideProvider
 }
 
 String _$effectiveHostingProviderOverrideHash() =>
-    r'6958d7ab0e1e50156d1eaccf681c76ff00eaf028';
+    r'4a1e0c5d0a466146e45d4df86d2185edc0ef9011';
 
 /// The effective git-hosting-provider override for a project (UI override or
 /// repo `alera.toml`), or null when the project should auto-detect. Feeds the
@@ -286,7 +286,7 @@ final class EffectiveHostingProviderOverrideFamily extends $Family
         name: r'effectiveHostingProviderOverrideProvider',
         dependencies: null,
         $allTransitiveDependencies: null,
-        isAutoDispose: true,
+        isAutoDispose: false,
       );
 
   /// The effective git-hosting-provider override for a project (UI override or

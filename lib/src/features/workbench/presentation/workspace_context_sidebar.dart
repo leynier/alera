@@ -212,8 +212,8 @@ class _CollapsedContextRail extends StatelessWidget {
             _ContextTabButton(
               tab: WorkbenchContextPanelTab.pullRequests,
               activeTab: activeTab,
-              tooltip: 'Checks',
-              icon: AleraIcons.checks,
+              tooltip: 'Pull Request',
+              icon: AleraIcons.gitPullRequest,
               onPressed: () => onOpenTab(WorkbenchContextPanelTab.pullRequests),
             ),
           ],
@@ -289,8 +289,8 @@ class _ContextTabHeader extends StatelessWidget {
                 _ContextTabButton(
                   tab: WorkbenchContextPanelTab.pullRequests,
                   activeTab: activeTab,
-                  tooltip: 'Checks',
-                  icon: AleraIcons.checks,
+                  tooltip: 'Pull Request',
+                  icon: AleraIcons.gitPullRequest,
                   onPressed: () =>
                       onSetActiveTab(WorkbenchContextPanelTab.pullRequests),
                 ),

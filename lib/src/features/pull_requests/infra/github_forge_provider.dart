@@ -9,6 +9,11 @@ import 'package:alera/src/features/pull_requests/domain/git_hosting_provider.dar
 import 'package:alera/src/features/pull_requests/domain/git_remote_identity.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
+import 'package:alera/src/features/pull_requests/domain/review_check_details.dart';
+import 'package:alera/src/features/pull_requests/domain/update_review_input.dart';
+import 'package:alera/src/features/pull_requests/domain/update_review_result.dart';
+import 'package:alera/src/features/pull_requests/infra/github_cli_failures.dart';
+import 'package:alera/src/features/pull_requests/infra/github_review_mappers.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 
 /// [ForgeProvider] for GitHub, wrapping the official `gh` CLI. Authentication
@@ -31,6 +36,22 @@ class GitHubForgeProvider implements ForgeProvider {
     'baseRefName',
     'headRefOid',
     'author',
+  ];
+
+  static const List<String> _checkJsonFields = <String>[
+    'name',
+    'state',
+    'bucket',
+    'link',
+  ];
+
+  static const List<String> _checkDetailJsonFields = <String>[
+    ..._checkJsonFields,
+    'description',
+    'event',
+    'workflow',
+    'startedAt',
+    'completedAt',
   ];
 
   @override
@@ -62,7 +83,7 @@ class GitHubForgeProvider implements ForgeProvider {
       if (result.exitCode == 0) {
         return ForgeAuthStatus.authenticated;
       }
-      if (_looksLikeMissingCli(result)) {
+      if (ghLooksLikeMissingCli(result)) {
         return ForgeAuthStatus.cliMissing;
       }
       return ForgeAuthStatus.notAuthenticated;
@@ -95,7 +116,7 @@ class GitHubForgeProvider implements ForgeProvider {
     if (decoded is! List || decoded.isEmpty) {
       return null;
     }
-    return _mapReview(decoded.first as Map<String, Object?>);
+    return mapGitHubReview(decoded.first as Map<String, Object?>);
   }
 
   @override
@@ -124,7 +145,7 @@ class GitHubForgeProvider implements ForgeProvider {
     if (decoded is! Map<String, Object?>) {
       return null;
     }
-    return _mapReview(decoded);
+    return mapGitHubReview(decoded);
   }
 
   @override
@@ -133,9 +154,55 @@ class GitHubForgeProvider implements ForgeProvider {
     required String repoPath,
     required int number,
   }) async {
-    // `gh pr checks` exits non-zero when checks are pending or failing, so the
-    // exit code is not a success signal — parse stdout regardless and only
-    // treat a genuine "no checks" as an empty list.
+    final entries = await _fetchCheckEntries(
+      identity,
+      repoPath,
+      number,
+      _checkJsonFields,
+    );
+    return <ReviewCheck>[for (final entry in entries) mapGitHubCheck(entry)];
+  }
+
+  @override
+  Future<ReviewCheckDetails?> getCheckDetails({
+    required GitRemoteIdentity identity,
+    required String repoPath,
+    required int number,
+    required ReviewCheck check,
+  }) async {
+    final entries = await _fetchCheckEntries(
+      identity,
+      repoPath,
+      number,
+      _checkDetailJsonFields,
+    );
+    Map<String, Object?>? match;
+    for (final entry in entries) {
+      if ((entry['name'] as String?) != check.name) {
+        continue;
+      }
+      match ??= entry;
+      if (check.url != null && (entry['link'] as String?) == check.url) {
+        match = entry;
+        break;
+      }
+    }
+    if (match == null) {
+      return null;
+    }
+    return mapGitHubCheckDetails(match);
+  }
+
+  /// Fetches the raw `gh pr checks` entries for review [number]. `gh pr
+  /// checks` exits non-zero when checks are pending or failing, so the exit
+  /// code is not a success signal — parse stdout regardless and only treat a
+  /// genuine "no checks" as an empty list.
+  Future<List<Map<String, Object?>>> _fetchCheckEntries(
+    GitRemoteIdentity identity,
+    String repoPath,
+    int number,
+    List<String> fields,
+  ) async {
     ProcessRunOutput result;
     try {
       result = await _processRunner.run('gh', <String>[
@@ -145,31 +212,31 @@ class GitHubForgeProvider implements ForgeProvider {
         '--repo',
         _repoSlug(identity),
         '--json',
-        'name,state,bucket,link',
+        fields.join(','),
       ], workingDirectory: repoPath);
     } catch (_) {
       throw const ForgeCliMissing('gh not found');
     }
-    if (_looksLikeMissingCli(result)) {
+    if (ghLooksLikeMissingCli(result)) {
       throw const ForgeCliMissing('gh not found');
     }
     final stdout = result.stdout.trim();
     if (stdout.isEmpty) {
       if (_mentionsNoChecks(result.stderr)) {
-        return const <ReviewCheck>[];
+        return const <Map<String, Object?>>[];
       }
       _throwClassified(result);
     }
     final decoded = _tryDecode(stdout);
     if (decoded is! List) {
       if (_mentionsNoChecks(result.stderr)) {
-        return const <ReviewCheck>[];
+        return const <Map<String, Object?>>[];
       }
       throw ForgeRequestFailed('Unexpected gh pr checks output: $stdout');
     }
-    return <ReviewCheck>[
+    return <Map<String, Object?>>[
       for (final entry in decoded)
-        if (entry is Map<String, Object?>) _mapCheck(entry),
+        if (entry is Map<String, Object?>) entry,
     ];
   }
 
@@ -203,7 +270,7 @@ class GitHubForgeProvider implements ForgeProvider {
       );
     }
     if (result.exitCode != 0) {
-      return _mapCreateFailure(result);
+      return mapGitHubCreateFailure(result);
     }
     final number = _pullNumberFromUrl(result.stdout.trim());
     if (number != null) {
@@ -237,6 +304,47 @@ class GitHubForgeProvider implements ForgeProvider {
     );
   }
 
+  @override
+  Future<UpdateReviewResult> updateReview({
+    required GitRemoteIdentity identity,
+    required String repoPath,
+    required int number,
+    required UpdateReviewInput input,
+  }) async {
+    ProcessRunOutput result;
+    try {
+      result = await _processRunner.run('gh', <String>[
+        'pr',
+        'edit',
+        '$number',
+        '--repo',
+        _repoSlug(identity),
+        if (input.title != null) ...<String>['--title', input.title!],
+        if (input.baseBranch != null) ...<String>['--base', input.baseBranch!],
+      ], workingDirectory: repoPath);
+    } catch (_) {
+      return const UpdateReviewFailure(
+        code: UpdateReviewErrorCode.cliMissing,
+        message: 'The gh CLI was not found on PATH.',
+      );
+    }
+    if (result.exitCode != 0) {
+      return mapGitHubUpdateFailure(result);
+    }
+    final review = await getReviewByNumber(
+      identity: identity,
+      repoPath: repoPath,
+      number: number,
+    );
+    if (review == null) {
+      return const UpdateReviewFailure(
+        code: UpdateReviewErrorCode.unknown,
+        message: 'The pull request was updated but could not be read back.',
+      );
+    }
+    return UpdateReviewSuccess(review);
+  }
+
   /// Runs a read `gh` command expected to emit JSON on stdout. Throws a typed
   /// [ForgeException] on failure. When [allowNotFound] is set, a not-found
   /// result yields null instead of throwing.
@@ -258,7 +366,7 @@ class GitHubForgeProvider implements ForgeProvider {
     if (result.exitCode == 0) {
       return result.stdout;
     }
-    if (_looksLikeMissingCli(result)) {
+    if (ghLooksLikeMissingCli(result)) {
       throw const ForgeCliMissing('gh not found');
     }
     if (allowNotFound && _mentionsNotFound(result.stderr)) {
@@ -276,94 +384,6 @@ class GitHubForgeProvider implements ForgeProvider {
     }
     throw ForgeRequestFailed(
       result.stderr.trim().isEmpty ? 'gh command failed' : result.stderr.trim(),
-    );
-  }
-
-  CreateReviewFailure _mapCreateFailure(ProcessRunOutput result) {
-    if (_looksLikeMissingCli(result)) {
-      return const CreateReviewFailure(
-        code: CreateReviewErrorCode.cliMissing,
-        message: 'The gh CLI was not found on PATH.',
-      );
-    }
-    final stderr = result.stderr.toLowerCase();
-    if (stderr.contains('not logged') ||
-        stderr.contains('authentication') ||
-        stderr.contains('gh auth login')) {
-      return CreateReviewFailure(
-        code: CreateReviewErrorCode.notAuthenticated,
-        message: 'Run `gh auth login` to authenticate.',
-      );
-    }
-    if (stderr.contains('already exists') ||
-        stderr.contains('a pull request for branch')) {
-      return CreateReviewFailure(
-        code: CreateReviewErrorCode.alreadyExists,
-        message: 'A pull request already exists for this branch.',
-      );
-    }
-    return CreateReviewFailure(
-      code: CreateReviewErrorCode.unknown,
-      message: result.stderr.trim().isEmpty
-          ? 'gh pr create failed.'
-          : result.stderr.trim(),
-    );
-  }
-
-  HostedReview _mapReview(Map<String, Object?> json) {
-    final state = (json['state'] as String? ?? 'OPEN').toUpperCase();
-    final isDraft = json['isDraft'] as bool? ?? false;
-    final author = json['author'];
-    return HostedReview(
-      provider: GitHostingProvider.github,
-      number: (json['number'] as num?)?.toInt() ?? 0,
-      title: json['title'] as String? ?? '',
-      state: _mapState(state, isDraft),
-      url: json['url'] as String? ?? '',
-      author: author is Map<String, Object?>
-          ? author['login'] as String?
-          : null,
-      baseBranch: json['baseRefName'] as String?,
-      headBranch: json['headRefName'] as String?,
-      headSha: json['headRefOid'] as String?,
-      mergeable: _mapMergeable(json['mergeable'] as String?),
-    );
-  }
-
-  HostedReviewState _mapState(String state, bool isDraft) {
-    return switch (state) {
-      'MERGED' => HostedReviewState.merged,
-      'CLOSED' => HostedReviewState.closed,
-      _ => isDraft ? HostedReviewState.draft : HostedReviewState.open,
-    };
-  }
-
-  HostedReviewMergeable _mapMergeable(String? value) {
-    return switch (value?.toUpperCase()) {
-      'MERGEABLE' => HostedReviewMergeable.mergeable,
-      'CONFLICTING' => HostedReviewMergeable.conflicting,
-      _ => HostedReviewMergeable.unknown,
-    };
-  }
-
-  ReviewCheck _mapCheck(Map<String, Object?> json) {
-    final bucket = (json['bucket'] as String? ?? '').toLowerCase();
-    final conclusion = switch (bucket) {
-      'pass' => ReviewCheckConclusion.success,
-      'fail' => ReviewCheckConclusion.failure,
-      'cancel' => ReviewCheckConclusion.cancelled,
-      'skipping' => ReviewCheckConclusion.skipped,
-      _ => ReviewCheckConclusion.pending,
-    };
-    final status = bucket == 'pending'
-        ? ReviewCheckStatus.inProgress
-        : ReviewCheckStatus.completed;
-    final link = json['link'] as String?;
-    return ReviewCheck(
-      name: json['name'] as String? ?? 'check',
-      status: status,
-      conclusion: conclusion,
-      url: link != null && link.isNotEmpty ? link : null,
     );
   }
 
@@ -388,16 +408,6 @@ class GitHubForgeProvider implements ForgeProvider {
     } catch (_) {
       return null;
     }
-  }
-
-  bool _looksLikeMissingCli(ProcessRunOutput result) {
-    if (result.exitCode != 127) {
-      final combined = '${result.stdout} ${result.stderr}'.toLowerCase();
-      return combined.contains('command not found') ||
-          combined.contains('is not recognized') ||
-          combined.contains('no such file');
-    }
-    return true;
   }
 
   bool _mentionsNoChecks(String stderr) {

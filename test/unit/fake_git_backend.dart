@@ -6,14 +6,7 @@ import 'package:alera/src/shared/infra/git/git_exception.dart';
 import 'package:alera/src/shared/infra/git/git_remote.dart';
 import 'package:alera/src/shared/infra/git/git_worktree_entry.dart';
 
-/// A recorded [GitBackend] invocation, used by tests to assert which git
-/// operations a service performed and with which arguments.
-class GitBackendCall {
-  GitBackendCall(this.method, [this.args = const <String, Object?>{}]);
-
-  final String method;
-  final Map<String, Object?> args;
-}
+part 'fake_git_backend_defaults.dart';
 
 /// In-memory [GitBackend] for unit tests. Field names mirror the behaviours the
 /// previous `ProcessRunner` fakes configured, so tests can program repository
@@ -21,13 +14,10 @@ class GitBackendCall {
 class FakeGitBackend implements GitBackend {
   final List<GitBackendCall> calls = <GitBackendCall>[];
 
-  /// Result for [isGitRepository] when [isRepositoryError] is null.
   bool isRepository = true;
 
-  /// When set, [isGitRepository] throws this instead of returning a value.
   GitException? isRepositoryError;
 
-  /// Optional hook for tests that need to pause [isGitRepository].
   Future<void> Function(String path)? beforeIsGitRepository;
 
   /// Branches reported by [listBranches] and treated as existing by
@@ -35,13 +25,10 @@ class FakeGitBackend implements GitBackend {
   /// too so callers observe the same shape.
   List<String> sourceBranches = <String>['main'];
 
-  /// When set, [listBranches] throws instead of returning a value.
   bool listBranchesFails = false;
 
-  /// Value returned by [currentBranch] unless [headBranchFails] is set.
   String headBranch = 'main';
 
-  /// When set, [currentBranch] throws (callers fall back to `HEAD`).
   bool headBranchFails = false;
 
   /// Names rejected by [isValidBranchName].
@@ -96,18 +83,11 @@ class FakeGitBackend implements GitBackend {
   );
   final List<Future<GitHistoryResult>> gitHistoryResultQueue =
       <Future<GitHistoryResult>>[];
-  GitCommitCompareResult gitCommitCompareResult = const GitCommitCompareResult(
-    summary: GitCommitCompareSummary(
-      commitOid: 'abc123',
-      parentOid: 'def456',
-      compareRef: 'abc123',
-      baseRef: 'def456',
-      changedFiles: 0,
-      status: GitCommitCompareStatus.ready,
-    ),
-    entries: <GitCommitChangeEntry>[],
-  );
+  GitCommitCompareResult gitCommitCompareResult =
+      _defaultGitCommitCompareResult();
   GitDiffResult gitCommitDiffResult = const GitDiffResult(files: []);
+  GitRangeContext gitRangeContextResult = _defaultGitRangeContext();
+  GitException? rangeContextError;
   GitRepositoryState gitRepositoryStateResult = const GitRepositoryState(
     branch: 'main',
   );
@@ -450,6 +430,26 @@ class FakeGitBackend implements GitBackend {
       throw error;
     }
     return gitCommitDiffResult;
+  }
+
+  @override
+  Future<GitRangeContext> rangeContext(
+    String path, {
+    required String baseRef,
+    int commitLimit = 40,
+  }) async {
+    calls.add(
+      GitBackendCall('rangeContext', <String, Object?>{
+        'path': path,
+        'baseRef': baseRef,
+        'commitLimit': commitLimit,
+      }),
+    );
+    final error = rangeContextError;
+    if (error != null) {
+      throw error;
+    }
+    return gitRangeContextResult;
   }
 
   @override

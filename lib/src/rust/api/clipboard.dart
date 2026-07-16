@@ -6,8 +6,6 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `cleanup_expired_clipboard_images`, `clipboard_error`, `is_expired_clipboard_image`, `write_clipboard_png`
-
 /// Saves an image-only clipboard payload as a private temporary PNG.
 ///
 /// Returns `Ok(None)` when the clipboard has no image representation. The

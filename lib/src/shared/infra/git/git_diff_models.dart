@@ -1,3 +1,6 @@
+part 'git_range_models.dart';
+part 'git_history_graph_models.dart';
+
 enum GitChangeArea {
   untracked('untracked'),
   unstaged('unstaged'),
@@ -540,28 +543,3 @@ class GitCommitCompareResult {
   final GitCommitCompareSummary summary;
   final List<GitCommitChangeEntry> entries;
 }
-
-enum GitHistoryGraphColorId {
-  ref,
-  remoteRef,
-  baseRef,
-  lane1,
-  lane2,
-  lane3,
-  lane4,
-  lane5,
-}
-
-const GitHistoryGraphColorId gitHistoryRefColor = GitHistoryGraphColorId.ref;
-const GitHistoryGraphColorId gitHistoryRemoteRefColor =
-    GitHistoryGraphColorId.remoteRef;
-const GitHistoryGraphColorId gitHistoryBaseRefColor =
-    GitHistoryGraphColorId.baseRef;
-const List<GitHistoryGraphColorId> gitHistoryLaneColors =
-    <GitHistoryGraphColorId>[
-      GitHistoryGraphColorId.lane1,
-      GitHistoryGraphColorId.lane2,
-      GitHistoryGraphColorId.lane3,
-      GitHistoryGraphColorId.lane4,
-      GitHistoryGraphColorId.lane5,
-    ];

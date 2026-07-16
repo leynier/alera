@@ -229,8 +229,14 @@ const List<SettingsSearchEntry> aiTextSearchEntries = <SettingsSearchEntry>[
   ),
   SettingsSearchEntry(
     title: 'AI Text Instructions',
-    description: 'Commit message instructions for generated text.',
-    keywords: <String>['prompt', 'instructions', 'commit message'],
+    description: 'Commit and pull request instructions for generated text.',
+    keywords: <String>[
+      'prompt',
+      'instructions',
+      'commit message',
+      'pull request',
+      'pr',
+    ],
     groupId: 'instructions',
   ),
 ];

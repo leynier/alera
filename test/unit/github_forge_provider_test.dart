@@ -5,6 +5,8 @@ import 'package:alera/src/features/pull_requests/domain/git_hosting_provider.dar
 import 'package:alera/src/features/pull_requests/domain/git_remote_identity.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
+import 'package:alera/src/features/pull_requests/domain/update_review_input.dart';
+import 'package:alera/src/features/pull_requests/domain/update_review_result.dart';
 import 'package:alera/src/features/pull_requests/infra/github_forge_provider.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -126,6 +128,176 @@ void main() {
         number: 123,
       );
       expect(checks, isEmpty);
+    });
+  });
+
+  group('GitHubForgeProvider.getCheckDetails', () {
+    const check = ReviewCheck(
+      name: 'build',
+      status: ReviewCheckStatus.completed,
+      conclusion: ReviewCheckConclusion.success,
+      url: 'https://ci/build/2',
+    );
+
+    test('requests detail fields and maps the matching entry', () async {
+      final runner = FakeRecordingProcessRunner(<Object>[
+        // Non-zero exit with valid stdout mirrors pending/failing checks.
+        const ProcessRunOutput(
+          exitCode: 1,
+          stdout: '''
+[{"name":"build","state":"SUCCESS","bucket":"pass","link":"https://ci/build/2","description":"Build finished","event":"push","workflow":"CI","startedAt":"2026-07-15T10:00:00Z","completedAt":"2026-07-15T10:05:00Z"}]
+''',
+          stderr: '',
+        ),
+      ]);
+      final provider = GitHubForgeProvider(runner);
+
+      final details = await provider.getCheckDetails(
+        identity: _identity,
+        repoPath: '/repo',
+        number: 123,
+        check: check,
+      );
+
+      final call = runner.calls.single;
+      expect(call.arguments.sublist(0, 2), <String>['pr', 'checks']);
+      expect(
+        call.optionValue('json'),
+        'name,state,bucket,link,description,event,workflow,'
+        'startedAt,completedAt',
+      );
+      expect(details, isNotNull);
+      expect(details!.description, 'Build finished');
+      expect(details.workflow, 'CI');
+      expect(details.event, 'push');
+      expect(details.startedAt, DateTime.parse('2026-07-15T10:00:00Z'));
+      expect(details.completedAt, DateTime.parse('2026-07-15T10:05:00Z'));
+      expect(details.url, 'https://ci/build/2');
+    });
+
+    test('disambiguates duplicate names by link', () async {
+      final runner = FakeRecordingProcessRunner(<Object>[
+        _ok('''
+[{"name":"build","state":"SUCCESS","bucket":"pass","link":"https://ci/build/1","workflow":"CI 1"},
+ {"name":"build","state":"SUCCESS","bucket":"pass","link":"https://ci/build/2","workflow":"CI 2"}]
+'''),
+      ]);
+      final provider = GitHubForgeProvider(runner);
+
+      final details = await provider.getCheckDetails(
+        identity: _identity,
+        repoPath: '/repo',
+        number: 123,
+        check: check,
+      );
+      expect(details!.workflow, 'CI 2');
+    });
+
+    test('returns null when no entry matches the check name', () async {
+      final runner = FakeRecordingProcessRunner(<Object>[
+        _ok('[{"name":"other","state":"SUCCESS","bucket":"pass","link":""}]'),
+      ]);
+      final provider = GitHubForgeProvider(runner);
+
+      final details = await provider.getCheckDetails(
+        identity: _identity,
+        repoPath: '/repo',
+        number: 123,
+        check: check,
+      );
+      expect(details, isNull);
+    });
+  });
+
+  group('GitHubForgeProvider.updateReview', () {
+    const readBack = '''
+{"number":123,"title":"feat: renamed","state":"OPEN","url":"https://github.com/leynier/alera/pull/123","isDraft":false,"mergeable":"MERGEABLE","headRefName":"feature","baseRefName":"develop","headRefOid":"abc","author":{"login":"leynier"}}
+''';
+
+    test('edits title and base then reads the PR back', () async {
+      final runner = FakeRecordingProcessRunner(<Object>[
+        _ok(''),
+        _ok(readBack),
+      ]);
+      final provider = GitHubForgeProvider(runner);
+
+      final result = await provider.updateReview(
+        identity: _identity,
+        repoPath: '/repo',
+        number: 123,
+        input: const UpdateReviewInput(
+          title: 'feat: renamed',
+          baseBranch: 'develop',
+        ),
+      );
+
+      final editCall = runner.calls.first;
+      expect(editCall.arguments.sublist(0, 3), <String>['pr', 'edit', '123']);
+      expect(editCall.optionValue('title'), 'feat: renamed');
+      expect(editCall.optionValue('base'), 'develop');
+      expect(result, isA<UpdateReviewSuccess>());
+      expect((result as UpdateReviewSuccess).review.title, 'feat: renamed');
+      expect(result.review.baseBranch, 'develop');
+    });
+
+    test('omits --base when only the title changes', () async {
+      final runner = FakeRecordingProcessRunner(<Object>[
+        _ok(''),
+        _ok(readBack),
+      ]);
+      final provider = GitHubForgeProvider(runner);
+
+      await provider.updateReview(
+        identity: _identity,
+        repoPath: '/repo',
+        number: 123,
+        input: const UpdateReviewInput(title: 'feat: renamed'),
+      );
+      final editCall = runner.calls.first;
+      expect(editCall.optionValue('title'), 'feat: renamed');
+      expect(editCall.arguments, isNot(contains('--base')));
+    });
+
+    test('maps an authentication failure', () async {
+      final runner = FakeRecordingProcessRunner(<Object>[
+        const ProcessRunOutput(
+          exitCode: 1,
+          stdout: '',
+          stderr: 'error: not logged in, run gh auth login',
+        ),
+      ]);
+      final provider = GitHubForgeProvider(runner);
+
+      final result = await provider.updateReview(
+        identity: _identity,
+        repoPath: '/repo',
+        number: 123,
+        input: const UpdateReviewInput(title: 't'),
+      );
+      expect(result, isA<UpdateReviewFailure>());
+      expect(
+        (result as UpdateReviewFailure).code,
+        UpdateReviewErrorCode.notAuthenticated,
+      );
+    });
+
+    test('maps a launch failure to cliMissing', () async {
+      final runner = FakeRecordingProcessRunner(<Object>[
+        StateError('gh missing'),
+      ]);
+      final provider = GitHubForgeProvider(runner);
+
+      final result = await provider.updateReview(
+        identity: _identity,
+        repoPath: '/repo',
+        number: 123,
+        input: const UpdateReviewInput(title: 't'),
+      );
+      expect(result, isA<UpdateReviewFailure>());
+      expect(
+        (result as UpdateReviewFailure).code,
+        UpdateReviewErrorCode.cliMissing,
+      );
     });
   });
 

@@ -10,6 +10,7 @@ class WorkspacePullRequestScope {
     required this.workspaceId,
     required this.repoPath,
     this.branch,
+    this.sourceBranch,
     this.providerOverride,
   });
 
@@ -23,6 +24,10 @@ class WorkspacePullRequestScope {
   /// workspaces, where the controller resolves the branch from [repoPath].
   final String? branch;
 
+  /// Source branch the workspace was created from, used as the preferred base
+  /// branch when creating a pull request. Null for main/folder workspaces.
+  final String? sourceBranch;
+
   /// Project-level provider override; null means auto-detect from the remote.
   final GitHostingProvider? providerOverride;
 
@@ -32,9 +37,15 @@ class WorkspacePullRequestScope {
       other.workspaceId == workspaceId &&
       other.repoPath == repoPath &&
       other.branch == branch &&
+      other.sourceBranch == sourceBranch &&
       other.providerOverride == providerOverride;
 
   @override
-  int get hashCode =>
-      Object.hash(workspaceId, repoPath, branch, providerOverride);
+  int get hashCode => Object.hash(
+    workspaceId,
+    repoPath,
+    branch,
+    sourceBranch,
+    providerOverride,
+  );
 }

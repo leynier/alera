@@ -14,6 +14,29 @@ class AiTextCommitContext {
   final String stagedPatch;
 }
 
+class AiTextPullRequestContext {
+  const AiTextPullRequestContext({
+    required this.baseBranch,
+    required this.headBranch,
+    required this.commitSummary,
+    required this.fileSummary,
+    required this.patch,
+  });
+
+  final String baseBranch;
+  final String? headBranch;
+  final String commitSummary;
+  final String fileSummary;
+  final String patch;
+}
+
+class GeneratedPullRequestDetails {
+  const GeneratedPullRequestDetails({required this.title, this.body});
+
+  final String title;
+  final String? body;
+}
+
 String buildCommitMessagePrompt({
   required AiTextCommitContext context,
   required String customInstructions,
@@ -40,6 +63,43 @@ String buildCommitMessagePrompt({
     '```',
   ].join('\n');
 
+  return _withCustomInstructions(base, customInstructions);
+}
+
+String buildPullRequestDetailsPrompt({
+  required AiTextPullRequestContext context,
+  required String customInstructions,
+}) {
+  final base = <String>[
+    'You are generating a GitHub-style pull request title and description.',
+    'Return only the PR text. Do not include a preamble, quotes, or code fences.',
+    '',
+    'Rules:',
+    '- First line: concise PR title (imperative mood preferred, <= 72 chars, no trailing period).',
+    '- Then a blank line.',
+    '- Then a markdown-friendly description explaining WHAT changed and WHY.',
+    '- Use only the commits and patch range below as context.',
+    '- Do not invent reviewers, issue numbers, or screenshots that are not in the context.',
+    '',
+    'Base branch: ${context.baseBranch}',
+    'Head branch: ${context.headBranch ?? '(detached)'}',
+    '',
+    'Commits (newest first):',
+    limitPromptSection(context.commitSummary, 8000),
+    '',
+    'Changed files:',
+    limitPromptSection(context.fileSummary, 6000),
+    '',
+    'Patch range:',
+    '```diff',
+    truncateDiffForPrompt(context.patch),
+    '```',
+  ].join('\n');
+
+  return _withCustomInstructions(base, customInstructions);
+}
+
+String _withCustomInstructions(String base, String customInstructions) {
   final trimmed = customInstructions.trim();
   if (trimmed.isEmpty) {
     return base;
@@ -50,6 +110,25 @@ String buildCommitMessagePrompt({
     'Additional user instructions:',
     limitPromptSection(trimmed, 4000),
   ].join('\n');
+}
+
+GeneratedPullRequestDetails parseGeneratedPullRequestDetails(String raw) {
+  final normalized = cleanGeneratedText(raw);
+  final lines = normalized.split('\n');
+  final subject = (lines.isEmpty ? '' : lines.first).trim().replaceFirst(
+    RegExp(r'[.]+$'),
+    '',
+  );
+  final title = subject.isEmpty
+      ? 'Update Project'
+      : subject
+            .substring(0, subject.length > 72 ? 72 : subject.length)
+            .trimRight();
+  final body = lines.skip(1).join('\n').trim();
+  return GeneratedPullRequestDetails(
+    title: title,
+    body: body.isEmpty ? null : body,
+  );
 }
 
 String limitPromptSection(String value, int maxChars) {
