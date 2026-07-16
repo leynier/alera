@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera/src/features/pull_requests/application/base_branch_resolver.dart';
 import 'package:alera/src/features/pull_requests/application/forge_exception.dart';
 import 'package:alera/src/features/pull_requests/application/forge_provider.dart';
 import 'package:alera/src/features/pull_requests/application/forge_provider_registry.dart';
@@ -40,6 +41,8 @@ class WorkspacePullRequestState {
     this.linkedManually = false,
     this.dismissed = false,
     this.currentBranch,
+    this.baseBranches = const <String>[],
+    this.suggestedBaseBranch,
     this.action,
     this.errorMessage,
   });
@@ -55,6 +58,12 @@ class WorkspacePullRequestState {
   /// The current branch of the controlled repository, or null when detached or
   /// unavailable. Drives auto-detection and the create-review head branch.
   final String? currentBranch;
+
+  /// Short branch names available as create-PR base targets.
+  final List<String> baseBranches;
+
+  /// Resolved default base branch for the create form.
+  final String? suggestedBaseBranch;
 
   final PullRequestAction? action;
   final String? errorMessage;
@@ -80,6 +89,8 @@ class WorkspacePullRequestState {
     bool? linkedManually,
     bool? dismissed,
     String? currentBranch,
+    List<String>? baseBranches,
+    String? suggestedBaseBranch,
     PullRequestAction? action,
     bool clearAction = false,
     String? errorMessage,
@@ -94,6 +105,8 @@ class WorkspacePullRequestState {
       linkedManually: linkedManually ?? this.linkedManually,
       dismissed: dismissed ?? this.dismissed,
       currentBranch: currentBranch ?? this.currentBranch,
+      baseBranches: baseBranches ?? this.baseBranches,
+      suggestedBaseBranch: suggestedBaseBranch ?? this.suggestedBaseBranch,
       action: clearAction ? null : (action ?? this.action),
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
     );
@@ -315,6 +328,7 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController {
     }
     final authStatus = await forge.checkAuth(identity: identity);
     final branch = await _resolveBranch(scope);
+    final baseInfo = await _resolveBaseBranches(scope);
     final persisted = await _linkedReviews.find(scope.workspaceId);
 
     if (persisted != null && persisted.dismissed) {
@@ -322,6 +336,8 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController {
         identity: identity,
         authStatus: authStatus,
         currentBranch: branch,
+        baseBranches: baseInfo.branches,
+        suggestedBaseBranch: baseInfo.suggested,
         dismissed: true,
       );
     }
@@ -330,6 +346,8 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController {
         identity: identity,
         authStatus: authStatus,
         currentBranch: branch,
+        baseBranches: baseInfo.branches,
+        suggestedBaseBranch: baseInfo.suggested,
       );
     }
 
@@ -356,27 +374,52 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController {
         checks: checks,
         linkedManually: linkedManually,
         currentBranch: branch,
+        baseBranches: baseInfo.branches,
+        suggestedBaseBranch: baseInfo.suggested,
       );
     } on ForgeNotAuthenticated {
       return WorkspacePullRequestState(
         identity: identity,
         authStatus: ForgeAuthStatus.notAuthenticated,
         currentBranch: branch,
+        baseBranches: baseInfo.branches,
+        suggestedBaseBranch: baseInfo.suggested,
       );
     } on ForgeCliMissing {
       return WorkspacePullRequestState(
         identity: identity,
         authStatus: ForgeAuthStatus.cliMissing,
         currentBranch: branch,
+        baseBranches: baseInfo.branches,
+        suggestedBaseBranch: baseInfo.suggested,
       );
     } on ForgeException catch (error) {
       return WorkspacePullRequestState(
         identity: identity,
         authStatus: authStatus,
         currentBranch: branch,
+        baseBranches: baseInfo.branches,
+        suggestedBaseBranch: baseInfo.suggested,
         errorMessage: error.message,
       );
     }
+  }
+
+  Future<({List<String> branches, String suggested})> _resolveBaseBranches(
+    WorkspacePullRequestScope scope,
+  ) async {
+    List<String> raw;
+    try {
+      raw = await _gitBackend.listBranches(scope.repoPath);
+    } on GitException {
+      raw = const <String>[];
+    }
+    final branches = normalizeBaseBranches(raw);
+    final suggested = pickDefaultBaseBranch(
+      branches,
+      preferred: scope.sourceBranch,
+    );
+    return (branches: branches, suggested: suggested);
   }
 
   /// The branch to detect/create against: the scope hint (a git-repository

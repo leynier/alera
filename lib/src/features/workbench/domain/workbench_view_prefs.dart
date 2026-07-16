@@ -18,6 +18,10 @@ enum WorkspaceExplorerMode { hideIgnored, showAll }
 @MappableEnum()
 enum GitDiffViewMode { tree, flat }
 
+/// Preferred primary action for the Checks-panel create-PR split button.
+@MappableEnum()
+enum PullRequestCreateAction { publish, draft }
+
 @MappableClass()
 class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
   const WorkbenchViewPrefs({
@@ -36,6 +40,7 @@ class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
     this.activeContextPanelTab = WorkbenchContextPanelTab.explorer,
     this.explorerMode = WorkspaceExplorerMode.hideIgnored,
     this.gitDiffViewMode = GitDiffViewMode.tree,
+    this.pullRequestCreateAction = PullRequestCreateAction.publish,
   });
 
   final WorkbenchGroupBy groupBy;
@@ -77,6 +82,10 @@ class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
   final WorkspaceExplorerMode explorerMode;
   final GitDiffViewMode gitDiffViewMode;
 
+  /// Sticky create-PR split-button action (publish vs draft). App-wide and
+  /// persisted with the rest of the workbench view prefs.
+  final PullRequestCreateAction pullRequestCreateAction;
+
   static const WorkbenchViewPrefs defaults = WorkbenchViewPrefs(
     groupBy: WorkbenchGroupBy.project,
     projectSort: WorkbenchSortBy.name,
@@ -93,6 +102,7 @@ class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
     activeContextPanelTab: WorkbenchContextPanelTab.explorer,
     explorerMode: WorkspaceExplorerMode.hideIgnored,
     gitDiffViewMode: GitDiffViewMode.tree,
+    pullRequestCreateAction: PullRequestCreateAction.publish,
   );
 
   factory WorkbenchViewPrefs.fromJson(Map<String, Object?> json) =>

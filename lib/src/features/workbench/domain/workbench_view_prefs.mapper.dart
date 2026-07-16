@@ -255,6 +255,56 @@ extension GitDiffViewModeMapperExtension on GitDiffViewMode {
   }
 }
 
+class PullRequestCreateActionMapper
+    extends EnumMapper<PullRequestCreateAction> {
+  PullRequestCreateActionMapper._();
+
+  static PullRequestCreateActionMapper? _instance;
+  static PullRequestCreateActionMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(
+        _instance = PullRequestCreateActionMapper._(),
+      );
+    }
+    return _instance!;
+  }
+
+  static PullRequestCreateAction fromValue(dynamic value) {
+    ensureInitialized();
+    return MapperContainer.globals.fromValue(value);
+  }
+
+  @override
+  PullRequestCreateAction decode(dynamic value) {
+    switch (value) {
+      case r'publish':
+        return PullRequestCreateAction.publish;
+      case r'draft':
+        return PullRequestCreateAction.draft;
+      default:
+        throw MapperException.unknownEnumValue(value);
+    }
+  }
+
+  @override
+  dynamic encode(PullRequestCreateAction self) {
+    switch (self) {
+      case PullRequestCreateAction.publish:
+        return r'publish';
+      case PullRequestCreateAction.draft:
+        return r'draft';
+    }
+  }
+}
+
+extension PullRequestCreateActionMapperExtension on PullRequestCreateAction {
+  String toValue() {
+    PullRequestCreateActionMapper.ensureInitialized();
+    return MapperContainer.globals.toValue<PullRequestCreateAction>(this)
+        as String;
+  }
+}
+
 class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
   WorkbenchViewPrefsMapper._();
 
@@ -267,6 +317,7 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
       WorkbenchContextPanelTabMapper.ensureInitialized();
       WorkspaceExplorerModeMapper.ensureInitialized();
       GitDiffViewModeMapper.ensureInitialized();
+      PullRequestCreateActionMapper.ensureInitialized();
     }
     return _instance!;
   }
@@ -375,6 +426,16 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
         opt: true,
         def: GitDiffViewMode.tree,
       );
+  static PullRequestCreateAction _$pullRequestCreateAction(
+    WorkbenchViewPrefs v,
+  ) => v.pullRequestCreateAction;
+  static const Field<WorkbenchViewPrefs, PullRequestCreateAction>
+  _f$pullRequestCreateAction = Field(
+    'pullRequestCreateAction',
+    _$pullRequestCreateAction,
+    opt: true,
+    def: PullRequestCreateAction.publish,
+  );
 
   @override
   final MappableFields<WorkbenchViewPrefs> fields = const {
@@ -393,6 +454,7 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
     #activeContextPanelTab: _f$activeContextPanelTab,
     #explorerMode: _f$explorerMode,
     #gitDiffViewMode: _f$gitDiffViewMode,
+    #pullRequestCreateAction: _f$pullRequestCreateAction,
   };
 
   static WorkbenchViewPrefs _instantiate(DecodingData data) {
@@ -414,6 +476,7 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
       activeContextPanelTab: data.dec(_f$activeContextPanelTab),
       explorerMode: data.dec(_f$explorerMode),
       gitDiffViewMode: data.dec(_f$gitDiffViewMode),
+      pullRequestCreateAction: data.dec(_f$pullRequestCreateAction),
     );
   }
 
@@ -506,6 +569,7 @@ abstract class WorkbenchViewPrefsCopyWith<
     WorkbenchContextPanelTab? activeContextPanelTab,
     WorkspaceExplorerMode? explorerMode,
     GitDiffViewMode? gitDiffViewMode,
+    PullRequestCreateAction? pullRequestCreateAction,
   });
   WorkbenchViewPrefsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -544,6 +608,7 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
     WorkbenchContextPanelTab? activeContextPanelTab,
     WorkspaceExplorerMode? explorerMode,
     GitDiffViewMode? gitDiffViewMode,
+    PullRequestCreateAction? pullRequestCreateAction,
   }) => $apply(
     FieldCopyWithData({
       if (groupBy != null) #groupBy: groupBy,
@@ -567,6 +632,8 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
         #activeContextPanelTab: activeContextPanelTab,
       if (explorerMode != null) #explorerMode: explorerMode,
       if (gitDiffViewMode != null) #gitDiffViewMode: gitDiffViewMode,
+      if (pullRequestCreateAction != null)
+        #pullRequestCreateAction: pullRequestCreateAction,
     }),
   );
   @override
@@ -610,6 +677,10 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
     ),
     explorerMode: data.get(#explorerMode, or: $value.explorerMode),
     gitDiffViewMode: data.get(#gitDiffViewMode, or: $value.gitDiffViewMode),
+    pullRequestCreateAction: data.get(
+      #pullRequestCreateAction,
+      or: $value.pullRequestCreateAction,
+    ),
   );
 
   @override

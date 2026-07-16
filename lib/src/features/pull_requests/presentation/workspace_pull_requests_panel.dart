@@ -10,8 +10,9 @@ import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
 import 'package:alera/src/features/pull_requests/domain/workspace_pull_request_scope.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_check_icon.dart';
-import 'package:alera/src/features/pull_requests/presentation/pull_request_create_dialog.dart';
-import 'package:alera/src/features/pull_requests/presentation/pull_request_link_dialog.dart';
+import 'package:alera/src/features/pull_requests/presentation/pull_request_composer.dart';
+import 'package:alera/src/features/workbench/application/workbench_controller.dart';
+import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/shared/infra/uri/uri_providers.dart';
 import 'package:flutter/material.dart';
@@ -47,21 +48,30 @@ class WorkspacePullRequestsPanel extends ConsumerWidget {
           workspaceId: workspace.id,
           repoPath: repoPath,
           branch: workspace.branch,
+          sourceBranch: workspace.sourceBranch,
           providerOverride: override,
         );
         final async = ref.watch(workspacePullRequestControllerProvider(scope));
+        final createAction = ref.watch(
+          workbenchControllerProvider.select(
+            (state) => state.viewPrefs.pullRequestCreateAction,
+          ),
+        );
         return async.when(
           loading: _loading,
           error: (error, _) =>
               _MessageBody(icon: AleraIcons.error, message: error.toString()),
           data: (state) => _PullRequestBody(
-            workspace: workspace,
             state: state,
+            createAction: createAction,
             controller: ref.read(
               workspacePullRequestControllerProvider(scope).notifier,
             ),
             onOpenUrl: (url) =>
                 ref.read(externalUriLauncherProvider).open(Uri.parse(url)),
+            onCreateActionChanged: (action) => ref
+                .read(workbenchControllerProvider.notifier)
+                .setPullRequestCreateAction(action),
           ),
         );
       },
@@ -73,16 +83,18 @@ class WorkspacePullRequestsPanel extends ConsumerWidget {
 
 class _PullRequestBody extends StatelessWidget {
   const _PullRequestBody({
-    required this.workspace,
     required this.state,
+    required this.createAction,
     required this.controller,
     required this.onOpenUrl,
+    required this.onCreateActionChanged,
   });
 
-  final Workspace workspace;
   final WorkspacePullRequestState state;
+  final PullRequestCreateAction createAction;
   final WorkspacePullRequestController controller;
   final Future<void> Function(String url) onOpenUrl;
+  final ValueChanged<PullRequestCreateAction> onCreateActionChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -92,12 +104,12 @@ class _PullRequestBody extends StatelessWidget {
         _Header(busy: state.isBusy, onRefresh: controller.refresh),
         if (state.errorMessage != null)
           _ErrorBanner(message: state.errorMessage!),
-        Expanded(child: _content(context)),
+        Expanded(child: _content()),
       ],
     );
   }
 
-  Widget _content(BuildContext context) {
+  Widget _content() {
     if (state.unavailableReason != null) {
       return _unavailable(state.unavailableReason!);
     }
@@ -131,12 +143,34 @@ class _PullRequestBody extends StatelessWidget {
         onUnlink: controller.unlink,
       );
     }
-    return _EmptyReview(
-      workspace: workspace,
-      canCreate: state.supportsCreation && state.currentBranch != null,
+    final canCreate = state.supportsCreation && state.currentBranch != null;
+    return PullRequestComposer(
+      headBranch: state.currentBranch,
+      baseBranches: state.baseBranches,
+      suggestedBaseBranch: state.suggestedBaseBranch ?? 'main',
+      canCreate: canCreate,
+      busy: state.isBusy,
+      createAction: createAction,
       providerLabel: state.identity?.provider.label,
-      onLink: () => _link(context),
-      onCreate: () => _create(context),
+      onCreate: (draft) {
+        final identity = state.identity;
+        final head = state.currentBranch;
+        if (identity == null || head == null) {
+          return;
+        }
+        controller.createReview(
+          CreateReviewInput(
+            provider: identity.provider,
+            title: draft.title,
+            baseBranch: draft.baseBranch,
+            headBranch: head,
+            body: draft.body,
+            draft: draft.draft,
+          ),
+        );
+      },
+      onLink: controller.link,
+      onCreateActionChanged: onCreateActionChanged,
     );
   }
 
@@ -159,40 +193,6 @@ class _PullRequestBody extends StatelessWidget {
         message: 'This hosting provider is not supported yet.',
       ),
     };
-  }
-
-  Future<void> _link(BuildContext context) async {
-    final reference = await showLinkReviewDialog(context);
-    if (reference != null) {
-      await controller.link(reference);
-    }
-  }
-
-  Future<void> _create(BuildContext context) async {
-    final identity = state.identity;
-    final head = state.currentBranch;
-    if (identity == null || head == null) {
-      return;
-    }
-    final draft = await showCreateReviewDialog(
-      context,
-      defaultTitle: head,
-      defaultBaseBranch: workspace.sourceBranch ?? 'main',
-      headBranch: head,
-    );
-    if (draft == null) {
-      return;
-    }
-    await controller.createReview(
-      CreateReviewInput(
-        provider: identity.provider,
-        title: draft.title,
-        baseBranch: draft.baseBranch,
-        headBranch: head,
-        body: draft.body,
-        draft: draft.draft,
-      ),
-    );
   }
 }
 
@@ -362,51 +362,6 @@ class _CheckRow extends StatelessWidget {
               icon: AleraIcons.external,
               onPressed: () => onOpenUrl(url),
             ),
-        ],
-      ),
-    );
-  }
-}
-
-class _EmptyReview extends StatelessWidget {
-  const _EmptyReview({
-    required this.workspace,
-    required this.canCreate,
-    required this.providerLabel,
-    required this.onLink,
-    required this.onCreate,
-  });
-
-  final Workspace workspace;
-  final bool canCreate;
-  final String? providerLabel;
-  final VoidCallback onLink;
-  final VoidCallback onCreate;
-
-  @override
-  Widget build(BuildContext context) {
-    return AleraEmptyState(
-      icon: AleraIcons.gitPullRequest,
-      title: 'No Pull Request',
-      message: providerLabel == null
-          ? 'This branch has no linked pull request.'
-          : 'This branch has no $providerLabel pull request.',
-      action: Wrap(
-        alignment: WrapAlignment.center,
-        spacing: AleraTokens.space8,
-        runSpacing: AleraTokens.space8,
-        children: <Widget>[
-          if (canCreate)
-            FilledButton.icon(
-              onPressed: onCreate,
-              icon: const Icon(AleraIcons.gitPullRequest, size: 16),
-              label: const Text('Create Pull Request'),
-            ),
-          OutlinedButton.icon(
-            onPressed: onLink,
-            icon: const Icon(AleraIcons.link, size: 16),
-            label: const Text('Link Existing'),
-          ),
         ],
       ),
     );

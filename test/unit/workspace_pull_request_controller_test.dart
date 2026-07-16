@@ -240,6 +240,53 @@ void main() {
     expect(state.currentBranch, isNull);
     expect(state.review, isNull);
   });
+
+  test('loads normalized base branches and suggests main by default', () async {
+    final backend = FakeGitBackend()
+      ..sourceBranches = <String>['feature', 'origin/main', 'main', 'develop']
+      ..remotesByName = <String, String?>{
+        'origin': 'https://github.com/leynier/alera.git',
+      };
+    final forge = _FakeForge();
+    final container = _container(
+      forge: forge,
+      repo: _FakeLinkedReviewRepo(),
+      git: backend,
+    );
+    addTearDown(container.dispose);
+
+    final state = await container.read(
+      workspacePullRequestControllerProvider(_scope).future,
+    );
+    expect(state.baseBranches, <String>['develop', 'feature', 'main']);
+    expect(state.suggestedBaseBranch, 'main');
+  });
+
+  test('prefers scope sourceBranch as suggested base', () async {
+    const scope = WorkspacePullRequestScope(
+      workspaceId: 'w1',
+      repoPath: '/repo',
+      branch: 'feature',
+      sourceBranch: 'origin/develop',
+    );
+    final backend = FakeGitBackend()
+      ..sourceBranches = <String>['main', 'develop', 'feature']
+      ..remotesByName = <String, String?>{
+        'origin': 'https://github.com/leynier/alera.git',
+      };
+    final forge = _FakeForge();
+    final container = _container(
+      forge: forge,
+      repo: _FakeLinkedReviewRepo(),
+      git: backend,
+    );
+    addTearDown(container.dispose);
+
+    final state = await container.read(
+      workspacePullRequestControllerProvider(scope).future,
+    );
+    expect(state.suggestedBaseBranch, 'develop');
+  });
 }
 
 class _FakeForge implements ForgeProvider {
