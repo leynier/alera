@@ -1,75 +1,187 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+@theme {
+  --color-bg: #101010;
+  --color-surface: #181818;
+  --color-surface-variant: #202020;
+  --color-surface-elevated: #242424;
+  --color-border: #323232;
+  --color-border-subtle: #272727;
+  --color-accent: #e0e0e0;
+  --color-accent-subtle: rgba(224, 224, 224, 0.1);
+  --color-on-accent: #101010;
+  --color-foreground: #f5f5f5;
+  --color-foreground-muted: #a1a1a1;
+  --color-foreground-faint: #606060;
+  --color-success: #22c55e;
+  --color-error: #f87171;
+  --color-on-error: #2c0d0d;
+  --color-warning: #f59e0b;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-pill: 20px;
+
+  --font-sans: Inter, system-ui, sans-serif;
+  --font-mono: JetBrains Mono, monospace;
+
+  --text-headline-lg: 28px;
+  --text-headline-lg--line-height: 1.2;
+  --text-headline-lg--letter-spacing: -0.5px;
+  --text-headline-lg--font-weight: 600;
+  --text-headline-md: 22px;
+  --text-headline-md--line-height: 1.3;
+  --text-headline-md--letter-spacing: -0.3px;
+  --text-headline-md--font-weight: 600;
+  --text-headline-sm: 18px;
+  --text-headline-sm--line-height: 1.4;
+  --text-headline-sm--letter-spacing: -0.2px;
+  --text-headline-sm--font-weight: 600;
+  --text-title-lg: 16px;
+  --text-title-lg--line-height: 1.5;
+  --text-title-lg--font-weight: 600;
+  --text-title-md: 14px;
+  --text-title-md--line-height: 1.5;
+  --text-title-md--font-weight: 500;
+  --text-body-lg: 14px;
+  --text-body-lg--line-height: 1.6;
+  --text-body-lg--font-weight: 400;
+  --text-body-md: 13px;
+  --text-body-md--line-height: 1.6;
+  --text-body-md--font-weight: 400;
+  --text-label-md: 11px;
+  --text-label-md--line-height: 1.4;
+  --text-label-md--letter-spacing: 0.5px;
+  --text-label-md--font-weight: 500;
+
+  --transition-duration-fast: 100ms;
+  --transition-duration-mid: 180ms;
+  --transition-duration-slow: 280ms;
+
+  --animate-fade-in-up: fade-in-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-fade-in: fade-in 0.5s ease-out forwards;
+  --animate-float: float 5s ease-in-out infinite;
+  --animate-glow-pulse: glow-pulse 3s ease-in-out infinite;
+  --animate-cursor-blink: cursor-blink 1.2s step-end infinite;
+
+  @keyframes fade-in-up {
+    0% {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes fade-in {
+    0% {
+      opacity: 0;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-8px);
+    }
+  }
+  @keyframes glow-pulse {
+    0%,
+    100% {
+      opacity: 0.4;
+    }
+    50% {
+      opacity: 0.8;
+    }
+  }
+  @keyframes cursor-blink {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0;
+    }
+  }
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+@utility text-gradient {
+  background: linear-gradient(135deg, #f5f5f5 0%, #a1a1a1 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+@utility text-gradient-accent {
+  background: linear-gradient(135deg, #ffffff 0%, #e0e0e0 40%, #a1a1a1 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+@utility opacity-0-initial {
+  opacity: 0;
+}
+
+@utility hero-glow {
+  /* Subtle breathing glow behind the hero. */
+  background: radial-gradient(
+    ellipse 80% 50% at 50% -10%,
+    rgba(224, 224, 224, 0.04) 0%,
+    transparent 70%
+  );
+  animation: hero-glow-breathe 9s ease-in-out infinite;
+}
+
+@utility mockup-shadow {
+  box-shadow:
+    0 0 0 1px rgba(50, 50, 50, 0.5),
+    0 25px 50px -12px rgba(0, 0, 0, 0.6),
+    0 0 80px -20px rgba(224, 224, 224, 0.03);
+}
+
+@utility hero-caret {
+  /* Blinking terminal caret at the end of the hero highlight. */
+  display: inline-block;
+  margin-left: 0.1em;
+  color: var(--color-foreground);
+  -webkit-text-fill-color: var(--color-foreground);
+  animation: hero-caret-blink 1.1s steps(1, end) infinite;
+}
 
 @layer base {
-  :root {
-    --color-bg: #101010;
-    --color-surface: #181818;
-    --color-surface-variant: #202020;
-    --color-surface-elevated: #242424;
-    --color-border: #323232;
-    --color-border-subtle: #272727;
-    --color-accent: #E0E0E0;
-    --color-accent-subtle: rgba(224, 224, 224, 0.1);
-    --color-on-accent: #101010;
-    --color-foreground: #F5F5F5;
-    --color-foreground-muted: #A1A1A1;
-    --color-foreground-faint: #606060;
-    --color-success: #22C55E;
-    --color-error: #F87171;
-    --color-on-error: #2C0D0D;
-    --color-warning: #F59E0B;
-  }
-
   html {
     font-family: 'Inter', system-ui, sans-serif;
   }
 
   [id] {
     scroll-margin-top: 5rem;
-  }
-}
-
-@layer utilities {
-  .text-gradient {
-    background: linear-gradient(135deg, #F5F5F5 0%, #A1A1A1 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  .text-gradient-accent {
-    background: linear-gradient(135deg, #FFFFFF 0%, #E0E0E0 40%, #A1A1A1 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  .opacity-0-initial {
-    opacity: 0;
-  }
-
-  /* Subtle breathing glow behind the hero. */
-  .hero-glow {
-    background: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(224, 224, 224, 0.04) 0%, transparent 70%);
-    animation: hero-glow-breathe 9s ease-in-out infinite;
-  }
-
-  .mockup-shadow {
-    box-shadow:
-      0 0 0 1px rgba(50, 50, 50, 0.5),
-      0 25px 50px -12px rgba(0, 0, 0, 0.6),
-      0 0 80px -20px rgba(224, 224, 224, 0.03);
-  }
-
-  /* Blinking terminal caret at the end of the hero highlight. */
-  .hero-caret {
-    display: inline-block;
-    margin-left: 0.1em;
-    color: var(--color-foreground);
-    -webkit-text-fill-color: var(--color-foreground);
-    animation: hero-caret-blink 1.1s steps(1, end) infinite;
   }
 }
 

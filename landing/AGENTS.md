@@ -16,8 +16,7 @@ This document defines governance only. It does not change runtime APIs, schemas,
   - `src/pages/index.astro` for page composition.
   - `src/layouts/Layout.astro` for document metadata, global imports, fonts, analytics, and page shell.
   - `src/components/*.astro` for page sections and reusable UI.
-  - `src/styles/global.css` for global Tailwind layers, CSS variables, and shared utilities.
-  - `tailwind.config.mjs` for theme tokens and Tailwind extensions.
+  - `src/styles/global.css` for the Tailwind `@theme` tokens, global layers, CSS variables, and shared `@utility` definitions (Tailwind CSS v4 has no `tailwind.config.mjs`; the plugin is registered in `astro.config.mjs` via `@tailwindcss/vite`).
   - `public/` for static assets referenced with root-relative paths.
 - Do not edit `dist/`, `.astro/`, `node_modules/`, or other generated output as source.
 
@@ -34,7 +33,7 @@ This document defines governance only. It does not change runtime APIs, schemas,
 
 ## Landing Design System
 
-- Landing UI values SHOULD come from `tailwind.config.mjs` and `src/styles/global.css` before adding ad-hoc literals.
+- Landing UI values SHOULD come from the `@theme` tokens in `src/styles/global.css` before adding ad-hoc literals.
 - Keep the landing aligned with the app design direction: dark mode, grayscale-first palette, neutral accent emphasis, Inter for general text, and JetBrains Mono for terminal/code-adjacent text.
 - Visible UI copy (headings, labels, CTAs, tooltips, alt text, and messages) MUST use title case (e.g., "New Workspace", "AI Text").
 - New colors, spacing, radii, type sizes, animation durations, and shared effects SHOULD be added as Tailwind theme values or CSS variables before repeated use.
