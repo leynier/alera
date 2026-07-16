@@ -74,6 +74,7 @@ Motion:
 | `durationFast` | `100ms` |
 | `durationMid` | `180ms` |
 | `durationSlow` | `280ms` |
+| `durationSpin` | `1200ms` (full turn of continuously rotating progress indicators) |
 
 ## Component Rules
 

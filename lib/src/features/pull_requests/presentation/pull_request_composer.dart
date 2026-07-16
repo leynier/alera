@@ -9,6 +9,7 @@ import 'package:alera/src/features/ai_text_generation/application/ai_text_genera
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_providers.dart';
 import 'package:alera/src/features/ai_text_generation/application/ai_text_generation_service.dart';
 import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
+import 'package:alera/src/features/pull_requests/presentation/pull_request_field_decoration.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:flutter/material.dart';
@@ -372,11 +373,9 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
     final titleField = TextField(
       controller: _titleController,
       enabled: enabled,
-      style: theme.textTheme.bodySmall?.copyWith(
-        color: AleraTokens.foreground,
-      ),
+      style: theme.textTheme.bodySmall?.copyWith(color: AleraTokens.foreground),
       cursorColor: AleraTokens.foreground,
-      decoration: _inputDecoration(theme, hint: 'Title'),
+      decoration: pullRequestFieldDecoration(theme, hint: 'Title'),
       onChanged: (_) {
         if (_errorText != null) {
           setState(() => _errorText = null);
@@ -388,11 +387,9 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
       enabled: enabled,
       minLines: 3,
       maxLines: 20,
-      style: theme.textTheme.bodySmall?.copyWith(
-        color: AleraTokens.foreground,
-      ),
+      style: theme.textTheme.bodySmall?.copyWith(color: AleraTokens.foreground),
       cursorColor: AleraTokens.foreground,
-      decoration: _inputDecoration(theme, hint: 'Description'),
+      decoration: pullRequestFieldDecoration(theme, hint: 'Description'),
     );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -455,7 +452,7 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
           color: AleraTokens.foreground,
         ),
         cursorColor: AleraTokens.foreground,
-        decoration: _inputDecoration(
+        decoration: pullRequestFieldDecoration(
           theme,
           hint: '#123 Or Pull Request URL',
         ),
@@ -490,19 +487,6 @@ class _PullRequestComposerState extends ConsumerState<PullRequestComposer> {
         const SizedBox(height: AleraTokens.space4),
         child,
       ],
-    );
-  }
-
-  InputDecoration _inputDecoration(ThemeData theme, {required String hint}) {
-    return InputDecoration(
-      isDense: true,
-      filled: true,
-      fillColor: AleraTokens.surface,
-      hintText: hint,
-      hintStyle: theme.textTheme.bodySmall?.copyWith(
-        color: AleraTokens.foregroundFaint,
-      ),
-      contentPadding: const EdgeInsets.all(AleraTokens.space12),
     );
   }
 }

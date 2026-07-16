@@ -64,6 +64,9 @@ abstract final class AleraTokens {
   static const Duration durationMid = Duration(milliseconds: 180);
   static const Duration durationSlow = Duration(milliseconds: 280);
 
+  /// Full-turn period for continuously rotating progress indicators.
+  static const Duration durationSpin = Duration(milliseconds: 1200);
+
   static TextStyle get monoStyle {
     const fallback = TextStyle(
       fontFamily: 'JetBrains Mono',

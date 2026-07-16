@@ -4,13 +4,12 @@ import 'package:alera/src/design_system/feedback/alera_empty_state.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/pull_requests/application/pull_request_providers.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_controller.dart';
+import 'package:alera/src/features/pull_requests/application/workspace_pull_request_state.dart';
 import 'package:alera/src/features/pull_requests/domain/create_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/forge_auth_status.dart';
-import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
-import 'package:alera/src/features/pull_requests/domain/review_check.dart';
 import 'package:alera/src/features/pull_requests/domain/workspace_pull_request_scope.dart';
-import 'package:alera/src/features/pull_requests/presentation/pull_request_check_icon.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_composer.dart';
+import 'package:alera/src/features/pull_requests/presentation/pull_request_review_view.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
@@ -138,12 +137,15 @@ class _PullRequestBody extends StatelessWidget {
     }
     final review = state.review;
     if (review != null) {
-      return _ReviewView(
+      return PullRequestReviewView(
         review: review,
         checks: state.checks,
-        rollup: state.checksRollup,
+        baseBranches: state.baseBranches,
+        action: state.action,
         onOpenUrl: onOpenUrl,
         onUnlink: controller.unlink,
+        onUpdate: controller.updateReview,
+        onLoadCheckDetails: controller.loadCheckDetails,
       );
     }
     final canCreate = state.supportsCreation && state.currentBranch != null;
@@ -239,166 +241,6 @@ class _Header extends StatelessWidget {
                 ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ReviewView extends StatelessWidget {
-  const _ReviewView({
-    required this.review,
-    required this.checks,
-    required this.rollup,
-    required this.onOpenUrl,
-    required this.onUnlink,
-  });
-
-  final HostedReview review;
-  final List<ReviewCheck> checks;
-  final ReviewChecksRollup rollup;
-  final Future<void> Function(String url) onOpenUrl;
-  final VoidCallback onUnlink;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return ListView(
-      padding: const EdgeInsets.all(AleraTokens.space12),
-      children: <Widget>[
-        Row(
-          children: <Widget>[
-            const Icon(
-              AleraIcons.gitPullRequest,
-              size: 16,
-              color: AleraTokens.foregroundMuted,
-            ),
-            const SizedBox(width: AleraTokens.space6),
-            Text(
-              '#${review.number}',
-              style: theme.textTheme.labelLarge?.copyWith(
-                color: AleraTokens.foreground,
-              ),
-            ),
-            const SizedBox(width: AleraTokens.space8),
-            _StateChip(state: review.state),
-            const Spacer(),
-            AleraIconButton(
-              tooltip: 'Open In Browser',
-              icon: AleraIcons.external,
-              onPressed: () => onOpenUrl(review.url),
-            ),
-            AleraIconButton(
-              tooltip: 'Unlink',
-              icon: AleraIcons.link,
-              onPressed: onUnlink,
-            ),
-          ],
-        ),
-        const SizedBox(height: AleraTokens.space8),
-        Text(review.title, style: theme.textTheme.bodyMedium),
-        if (review.author != null || review.headBranch != null) ...<Widget>[
-          const SizedBox(height: AleraTokens.space4),
-          Text(
-            <String>[
-              if (review.author != null) review.author!,
-              if (review.headBranch != null) review.headBranch!,
-            ].join(' · '),
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: AleraTokens.foregroundMuted,
-            ),
-          ),
-        ],
-        const SizedBox(height: AleraTokens.space16),
-        Text(
-          checks.isEmpty ? 'Checks' : 'Checks (${checks.length})',
-          style: theme.textTheme.labelMedium?.copyWith(
-            color: AleraTokens.foregroundMuted,
-          ),
-        ),
-        const SizedBox(height: AleraTokens.space8),
-        if (checks.isEmpty)
-          Text(
-            'No Checks Reported',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: AleraTokens.foregroundMuted,
-            ),
-          )
-        else
-          for (final check in checks)
-            _CheckRow(check: check, onOpenUrl: onOpenUrl),
-      ],
-    );
-  }
-}
-
-class _CheckRow extends StatelessWidget {
-  const _CheckRow({required this.check, required this.onOpenUrl});
-
-  final ReviewCheck check;
-  final Future<void> Function(String url) onOpenUrl;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final url = check.url;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AleraTokens.space4),
-      child: Row(
-        children: <Widget>[
-          PullRequestCheckIcon(
-            status: check.status,
-            conclusion: check.conclusion,
-          ),
-          const SizedBox(width: AleraTokens.space8),
-          Expanded(
-            child: Text(
-              check.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodySmall,
-            ),
-          ),
-          if (url != null && url.isNotEmpty)
-            AleraIconButton(
-              tooltip: 'Open Check',
-              icon: AleraIcons.external,
-              onPressed: () => onOpenUrl(url),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StateChip extends StatelessWidget {
-  const _StateChip({required this.state});
-
-  final HostedReviewState state;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final (label, color) = switch (state) {
-      HostedReviewState.open => ('Open', AleraTokens.success),
-      HostedReviewState.draft => ('Draft', AleraTokens.foregroundMuted),
-      HostedReviewState.merged => ('Merged', AleraTokens.accent),
-      HostedReviewState.closed => ('Closed', AleraTokens.error),
-    };
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AleraTokens.space8,
-        vertical: AleraTokens.space2,
-      ),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
-      ),
-      child: Text(
-        label,
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: color,
-          fontWeight: FontWeight.w600,
         ),
       ),
     );

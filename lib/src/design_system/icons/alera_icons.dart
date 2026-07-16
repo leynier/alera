@@ -68,6 +68,7 @@ abstract final class AleraIcons {
   static const IconData copyFiles = LucideIcons.files;
   static const IconData symlink = LucideIcons.link;
   static const IconData link = LucideIcons.link;
+  static const IconData unlink = LucideIcons.unlink;
   static const IconData unarchive = LucideIcons.archiveRestore;
 
   // Workspace graph

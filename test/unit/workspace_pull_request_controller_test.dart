@@ -1,21 +1,22 @@
 import 'package:alera/src/features/pull_requests/application/forge_provider.dart';
 import 'package:alera/src/features/pull_requests/application/forge_provider_registry.dart';
-import 'package:alera/src/features/pull_requests/application/linked_review_repository.dart';
 import 'package:alera/src/features/pull_requests/application/pull_request_providers.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_controller.dart';
 import 'package:alera/src/features/pull_requests/domain/create_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/create_review_result.dart';
 import 'package:alera/src/features/pull_requests/domain/forge_auth_status.dart';
 import 'package:alera/src/features/pull_requests/domain/git_hosting_provider.dart';
-import 'package:alera/src/features/pull_requests/domain/git_remote_identity.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
-import 'package:alera/src/features/pull_requests/domain/linked_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
+import 'package:alera/src/features/pull_requests/domain/review_check_details.dart';
+import 'package:alera/src/features/pull_requests/domain/update_review_input.dart';
+import 'package:alera/src/features/pull_requests/domain/update_review_result.dart';
 import 'package:alera/src/features/pull_requests/domain/workspace_pull_request_scope.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'fake_forge_provider.dart';
 import 'fake_git_backend.dart';
 
 HostedReview _review(
@@ -44,8 +45,8 @@ const _folderScope = WorkspacePullRequestScope(
 );
 
 ProviderContainer _container({
-  required _FakeForge forge,
-  required _FakeLinkedReviewRepo repo,
+  required FakeForgeProvider forge,
+  required FakeLinkedReviewRepository repo,
   FakeGitBackend? git,
 }) {
   final backend =
@@ -68,7 +69,7 @@ ProviderContainer _container({
 
 void main() {
   test('auto-detects the review for the branch on open', () async {
-    final forge = _FakeForge()
+    final forge = FakeForgeProvider()
       ..branchReview = _review(123)
       ..checks = <ReviewCheck>[
         const ReviewCheck(
@@ -77,7 +78,10 @@ void main() {
           conclusion: ReviewCheckConclusion.success,
         ),
       ];
-    final container = _container(forge: forge, repo: _FakeLinkedReviewRepo());
+    final container = _container(
+      forge: forge,
+      repo: FakeLinkedReviewRepository(),
+    );
     addTearDown(container.dispose);
 
     final state = await container.read(
@@ -90,10 +94,13 @@ void main() {
   });
 
   test('reports not-authenticated without showing a review', () async {
-    final forge = _FakeForge()
+    final forge = FakeForgeProvider()
       ..auth = ForgeAuthStatus.notAuthenticated
       ..branchReview = _review(123);
-    final container = _container(forge: forge, repo: _FakeLinkedReviewRepo());
+    final container = _container(
+      forge: forge,
+      repo: FakeLinkedReviewRepository(),
+    );
     addTearDown(container.dispose);
 
     final state = await container.read(
@@ -104,8 +111,8 @@ void main() {
   });
 
   test('link persists the review and displays it', () async {
-    final forge = _FakeForge()..byNumber[456] = _review(456);
-    final repo = _FakeLinkedReviewRepo();
+    final forge = FakeForgeProvider()..byNumber[456] = _review(456);
+    final repo = FakeLinkedReviewRepository();
     final container = _container(forge: forge, repo: repo);
     addTearDown(container.dispose);
 
@@ -124,8 +131,11 @@ void main() {
   });
 
   test('link reports an error for an unknown PR', () async {
-    final forge = _FakeForge();
-    final container = _container(forge: forge, repo: _FakeLinkedReviewRepo());
+    final forge = FakeForgeProvider();
+    final container = _container(
+      forge: forge,
+      repo: FakeLinkedReviewRepository(),
+    );
     addTearDown(container.dispose);
 
     await container.read(workspacePullRequestControllerProvider(_scope).future);
@@ -142,8 +152,8 @@ void main() {
   });
 
   test('unlink dismisses and suppresses auto-detection', () async {
-    final forge = _FakeForge()..branchReview = _review(123);
-    final repo = _FakeLinkedReviewRepo();
+    final forge = FakeForgeProvider()..branchReview = _review(123);
+    final repo = FakeLinkedReviewRepository();
     final container = _container(forge: forge, repo: repo);
     addTearDown(container.dispose);
 
@@ -166,10 +176,10 @@ void main() {
       ..remotesByName = <String, String?>{
         'origin': 'https://github.com/leynier/alera.git',
       };
-    final forge = _FakeForge()
+    final forge = FakeForgeProvider()
       ..createResult = CreateReviewSuccess(_review(789))
       ..byNumber[789] = _review(789);
-    final repo = _FakeLinkedReviewRepo();
+    final repo = FakeLinkedReviewRepository();
     final container = _container(forge: forge, repo: repo, git: backend);
     addTearDown(container.dispose);
 
@@ -204,10 +214,10 @@ void main() {
         ..remotesByName = <String, String?>{
           'origin': 'https://github.com/leynier/alera.git',
         };
-      final forge = _FakeForge()..branchReview = _review(321);
+      final forge = FakeForgeProvider()..branchReview = _review(321);
       final container = _container(
         forge: forge,
-        repo: _FakeLinkedReviewRepo(),
+        repo: FakeLinkedReviewRepository(),
         git: backend,
       );
       addTearDown(container.dispose);
@@ -226,10 +236,10 @@ void main() {
       ..remotesByName = <String, String?>{
         'origin': 'https://github.com/leynier/alera.git',
       };
-    final forge = _FakeForge()..branchReview = _review(321);
+    final forge = FakeForgeProvider()..branchReview = _review(321);
     final container = _container(
       forge: forge,
-      repo: _FakeLinkedReviewRepo(),
+      repo: FakeLinkedReviewRepository(),
       git: backend,
     );
     addTearDown(container.dispose);
@@ -247,10 +257,10 @@ void main() {
       ..remotesByName = <String, String?>{
         'origin': 'https://github.com/leynier/alera.git',
       };
-    final forge = _FakeForge();
+    final forge = FakeForgeProvider();
     final container = _container(
       forge: forge,
-      repo: _FakeLinkedReviewRepo(),
+      repo: FakeLinkedReviewRepository(),
       git: backend,
     );
     addTearDown(container.dispose);
@@ -260,6 +270,121 @@ void main() {
     );
     expect(state.baseBranches, <String>['develop', 'feature', 'main']);
     expect(state.suggestedBaseBranch, 'main');
+  });
+
+  test('updateReview applies the edit and reloads the new title', () async {
+    final forge = FakeForgeProvider()..branchReview = _review(123);
+    final container = _container(
+      forge: forge,
+      repo: FakeLinkedReviewRepository(),
+    );
+    addTearDown(container.dispose);
+
+    await container.read(workspacePullRequestControllerProvider(_scope).future);
+    final controller = container.read(
+      workspacePullRequestControllerProvider(_scope).notifier,
+    );
+    final updated = HostedReview(
+      provider: GitHostingProvider.github,
+      number: 123,
+      title: 'feat: renamed',
+      state: HostedReviewState.open,
+      url: 'https://github.com/leynier/alera/pull/123',
+      headBranch: 'feature',
+      baseBranch: 'develop',
+    );
+    forge.updateResult = UpdateReviewSuccess(updated);
+
+    final result = await controller.updateReview(
+      const UpdateReviewInput(title: 'feat: renamed', baseBranch: 'develop'),
+    );
+
+    expect(result, isA<UpdateReviewSuccess>());
+    expect(forge.lastUpdateInput?.title, 'feat: renamed');
+    expect(forge.lastUpdateInput?.baseBranch, 'develop');
+    final state = container
+        .read(workspacePullRequestControllerProvider(_scope))
+        .value!;
+    expect(state.review?.title, 'feat: renamed');
+    expect(state.review?.baseBranch, 'develop');
+    expect(state.errorMessage, isNull);
+  });
+
+  test('updateReview failure surfaces the message and keeps the PR', () async {
+    final forge = FakeForgeProvider()..branchReview = _review(123);
+    final container = _container(
+      forge: forge,
+      repo: FakeLinkedReviewRepository(),
+    );
+    addTearDown(container.dispose);
+
+    await container.read(workspacePullRequestControllerProvider(_scope).future);
+    final controller = container.read(
+      workspacePullRequestControllerProvider(_scope).notifier,
+    );
+    forge.updateResult = const UpdateReviewFailure(
+      code: UpdateReviewErrorCode.unknown,
+      message: 'permission denied',
+    );
+
+    final result = await controller.updateReview(
+      const UpdateReviewInput(title: 'feat: renamed'),
+    );
+
+    expect(result, isA<UpdateReviewFailure>());
+    final state = container
+        .read(workspacePullRequestControllerProvider(_scope))
+        .value!;
+    expect(state.errorMessage, 'permission denied');
+    expect(state.review?.number, 123);
+  });
+
+  test('updateReview is blocked without a linked review', () async {
+    final forge = FakeForgeProvider();
+    final container = _container(
+      forge: forge,
+      repo: FakeLinkedReviewRepository(),
+    );
+    addTearDown(container.dispose);
+
+    await container.read(workspacePullRequestControllerProvider(_scope).future);
+    final controller = container.read(
+      workspacePullRequestControllerProvider(_scope).notifier,
+    );
+
+    final result = await controller.updateReview(
+      const UpdateReviewInput(title: 't'),
+    );
+    expect(result, isA<UpdateReviewFailure>());
+    expect((result as UpdateReviewFailure).code, UpdateReviewErrorCode.blocked);
+    expect(forge.updateCalls, 0);
+  });
+
+  test('loadCheckDetails queries the linked review number', () async {
+    const check = ReviewCheck(
+      name: 'build',
+      status: ReviewCheckStatus.inProgress,
+      conclusion: ReviewCheckConclusion.pending,
+    );
+    final forge = FakeForgeProvider()
+      ..branchReview = _review(123)
+      ..checks = <ReviewCheck>[check]
+      ..details = const ReviewCheckDetails(workflow: 'CI');
+    final container = _container(
+      forge: forge,
+      repo: FakeLinkedReviewRepository(),
+    );
+    addTearDown(container.dispose);
+
+    await container.read(workspacePullRequestControllerProvider(_scope).future);
+    final controller = container.read(
+      workspacePullRequestControllerProvider(_scope).notifier,
+    );
+
+    final details = await controller.loadCheckDetails(check);
+    expect(details?.workflow, 'CI');
+    expect(forge.lastDetailsNumber, 123);
+    expect(forge.lastDetailsCheck?.name, 'build');
   });
 
   test('prefers scope sourceBranch as suggested base', () async {
@@ -274,10 +399,10 @@ void main() {
       ..remotesByName = <String, String?>{
         'origin': 'https://github.com/leynier/alera.git',
       };
-    final forge = _FakeForge();
+    final forge = FakeForgeProvider();
     final container = _container(
       forge: forge,
-      repo: _FakeLinkedReviewRepo(),
+      repo: FakeLinkedReviewRepository(),
       git: backend,
     );
     addTearDown(container.dispose);
@@ -287,80 +412,4 @@ void main() {
     );
     expect(state.suggestedBaseBranch, 'develop');
   });
-}
-
-class _FakeForge implements ForgeProvider {
-  ForgeAuthStatus auth = ForgeAuthStatus.authenticated;
-  HostedReview? branchReview;
-  final Map<int, HostedReview> byNumber = <int, HostedReview>{};
-  List<ReviewCheck> checks = <ReviewCheck>[];
-  CreateReviewResult createResult = const CreateReviewFailure(
-    code: CreateReviewErrorCode.unknown,
-    message: 'not set',
-  );
-  int createCalls = 0;
-
-  @override
-  GitHostingProvider get id => GitHostingProvider.github;
-
-  @override
-  bool get supportsReviewCreation => true;
-
-  @override
-  Future<ForgeAuthStatus> checkAuth({
-    required GitRemoteIdentity identity,
-  }) async => auth;
-
-  @override
-  Future<HostedReview?> getReviewForBranch({
-    required GitRemoteIdentity identity,
-    required String repoPath,
-    required String branch,
-  }) async => branchReview;
-
-  @override
-  Future<HostedReview?> getReviewByNumber({
-    required GitRemoteIdentity identity,
-    required String repoPath,
-    required int number,
-  }) async => byNumber[number];
-
-  @override
-  Future<List<ReviewCheck>> getChecks({
-    required GitRemoteIdentity identity,
-    required String repoPath,
-    required int number,
-  }) async => checks;
-
-  @override
-  Future<CreateReviewResult> createReview({
-    required GitRemoteIdentity identity,
-    required String repoPath,
-    required CreateReviewInput input,
-  }) async {
-    createCalls++;
-    return createResult;
-  }
-}
-
-class _FakeLinkedReviewRepo implements LinkedReviewRepository {
-  final Map<String, LinkedReview> store = <String, LinkedReview>{};
-
-  @override
-  Future<LinkedReview?> find(String workspaceId) async => store[workspaceId];
-
-  @override
-  Stream<LinkedReview?> watch(String workspaceId) async* {
-    yield store[workspaceId];
-  }
-
-  @override
-  Future<void> save(LinkedReview review) async {
-    store[review.workspaceId] = review;
-  }
-
-  @override
-  Future<void> remove(String workspaceId) async {
-    store.remove(workspaceId);
-  }
 }
