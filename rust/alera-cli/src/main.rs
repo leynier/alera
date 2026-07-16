@@ -22,18 +22,16 @@ use base64::engine::general_purpose::STANDARD;
 use base64::Engine as _;
 use chrono::Utc;
 use clap::Parser;
-use serde::de::DeserializeOwned;
-use serde::Serialize;
+use serde::{de::DeserializeOwned, Serialize};
 use serde_json::{json, Value};
 use uuid::Uuid;
 
-use crate::cli::TerminalHostArgs;
 use crate::cli::{
     CascadePreviewArgs, Cli, Command, IdArgs, ProjectAction, ProjectAddArgs, ProjectCommand,
     ProjectKindArg, RuntimeAction, RuntimeCommand, RuntimeDirArgs, SshAuthKindArg, SshTargetAction,
     SshTargetAddArgs, SshTargetBootstrapArgs, SshTargetBootstrapPlanArgs, SshTargetCommand,
-    SshTargetStatusArgs, TabAction, TabCommand, TabCreateArgs, WorkspaceAction, WorkspaceAddArgs,
-    WorkspaceCommand, WorkspaceKindArg, WorkspaceRegisterArgs,
+    SshTargetStatusArgs, TabAction, TabCommand, TabCreateArgs, TerminalHostArgs, WorkspaceAction,
+    WorkspaceAddArgs, WorkspaceCommand, WorkspaceKindArg, WorkspaceRegisterArgs,
 };
 use crate::cli::{MobileAction, MobileCommand, MobileDevicesAction, MobilePairingAction};
 use crate::cli::{TerminalAction, TerminalCommand};
