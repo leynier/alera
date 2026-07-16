@@ -22,8 +22,8 @@ part 'pull_request_review_actions.dart';
 part 'pull_request_review_comments.dart';
 
 /// Presentational body for a linked review: header, inline title/base-branch
-/// editing, expandable checks, and a bottom Unlink button. Pure: data and
-/// callbacks in via parameters, no Riverpod reads.
+/// editing, expandable checks, and review actions. Pure: data and callbacks in
+/// via parameters, no Riverpod reads.
 class PullRequestReviewView extends StatefulWidget {
   const PullRequestReviewView({
     super.key,
@@ -53,7 +53,7 @@ class PullRequestReviewView extends StatefulWidget {
   final bool canComment;
   final PullRequestAction? action;
   final Future<void> Function(String url) onOpenUrl;
-  final VoidCallback onUnlink;
+  final Future<void> Function() onUnlink;
   final Future<void> Function(ReviewMergeMethod method) onMerge;
   final Future<void> Function() onClose;
   final Future<bool> Function(String body) onAddComment;

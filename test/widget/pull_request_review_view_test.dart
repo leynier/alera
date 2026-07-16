@@ -1,3 +1,4 @@
+import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/pull_requests/application/workspace_pull_request_state.dart';
 import 'package:alera/src/features/pull_requests/domain/git_hosting_provider.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
@@ -58,7 +59,9 @@ Widget _wrap(
         canComment: canComment,
         action: action,
         onOpenUrl: (_) async {},
-        onUnlink: () => callbacks.unlinkCalls++,
+        onUnlink: () async {
+          callbacks.unlinkCalls++;
+        },
         onMerge: (method) async => callbacks.mergeMethod = method,
         onClose: () async => callbacks.closeCalls++,
         onAddComment: (body) async {
@@ -76,31 +79,27 @@ Widget _wrap(
 }
 
 void main() {
-  testWidgets('shows merge, close, and unlink actions for an open PR', (
+  testWidgets('offers every available review action in one menu', (
     tester,
   ) async {
     final callbacks = _Callbacks();
     await tester.pumpWidget(_wrap(callbacks));
 
     expect(find.text('Create Merge Commit'), findsOneWidget);
-    expect(
-      find.widgetWithText(OutlinedButton, 'Close Pull Request'),
-      findsOneWidget,
-    );
-    final unlink = find.widgetWithText(TextButton, 'Unlink Pull Request');
-    expect(unlink, findsOneWidget);
-    await tester.tap(unlink);
-    expect(callbacks.unlinkCalls, 1);
-  });
+    expect(find.text('Close Pull Request'), findsNothing);
+    expect(find.text('Unlink Pull Request'), findsNothing);
 
-  testWidgets('disables Unlink while an action is in flight', (tester) async {
-    final callbacks = _Callbacks();
-    await tester.pumpWidget(_wrap(callbacks, action: PullRequestAction.unlink));
+    await tester.tap(find.byTooltip('Pull Request Actions'));
+    await tester.pumpAndSettle();
 
-    final button = tester.widget<TextButton>(
-      find.widgetWithText(TextButton, 'Unlink Pull Request'),
-    );
-    expect(button.onPressed, isNull);
+    expect(find.text('Create Merge Commit'), findsWidgets);
+    expect(find.text('Squash and Merge'), findsOneWidget);
+    expect(find.text('Rebase and Merge'), findsOneWidget);
+    expect(find.text('Close Pull Request'), findsOneWidget);
+    expect(find.text('Unlink Pull Request'), findsOneWidget);
+    expect(callbacks.mergeMethod, isNull);
+    expect(callbacks.closeCalls, 0);
+    expect(callbacks.unlinkCalls, 0);
   });
 
   testWidgets('confirms the primary merge method before invoking it', (
@@ -118,17 +117,20 @@ void main() {
     expect(callbacks.mergeMethod, ReviewMergeMethod.mergeCommit);
   });
 
-  testWidgets('offers all provider merge methods in the split menu', (
+  testWidgets('selecting a merge method only changes the primary action', (
     tester,
   ) async {
     final callbacks = _Callbacks();
     await tester.pumpWidget(_wrap(callbacks));
 
-    await tester.tap(find.byTooltip('Merge Options'));
+    await tester.tap(find.byTooltip('Pull Request Actions'));
     await tester.pumpAndSettle();
-    expect(find.text('Create Merge Commit'), findsWidgets);
+    await tester.tap(find.text('Squash and Merge'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Squash and Merge PR #42?'), findsNothing);
+    expect(callbacks.mergeMethod, isNull);
     expect(find.text('Squash and Merge'), findsOneWidget);
-    expect(find.text('Rebase and Merge'), findsOneWidget);
 
     await tester.tap(find.text('Squash and Merge'));
     await tester.pumpAndSettle();
@@ -142,15 +144,142 @@ void main() {
     final callbacks = _Callbacks();
     await tester.pumpWidget(_wrap(callbacks));
 
-    await tester.tap(find.widgetWithText(OutlinedButton, 'Close Pull Request'));
+    await tester.tap(find.byTooltip('Pull Request Actions'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Close Pull Request'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Close Pull Request #42?'), findsNothing);
+    expect(callbacks.closeCalls, 0);
+    final closeButton = tester.widget<Material>(
+      find.byKey(const ValueKey<String>('pull-request-action-button-close')),
+    );
+    expect(closeButton.color, AleraTokens.error);
+
+    await tester.tap(find.text('Close Pull Request'));
     await tester.pumpAndSettle();
     expect(find.text('Close Pull Request #42?'), findsOneWidget);
+    await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+    await tester.pumpAndSettle();
+    expect(callbacks.closeCalls, 0);
+
+    await tester.tap(find.text('Close Pull Request'));
+    await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Close Pull Request'));
     await tester.pumpAndSettle();
     expect(callbacks.closeCalls, 1);
   });
 
-  testWidgets('hides remote mutation actions after the PR is merged', (
+  testWidgets('confirms unlinking without changing the remote pull request', (
+    tester,
+  ) async {
+    final callbacks = _Callbacks();
+    await tester.pumpWidget(_wrap(callbacks));
+
+    await tester.tap(find.byTooltip('Pull Request Actions'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Unlink Pull Request'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Unlink Pull Request #42?'), findsNothing);
+    expect(callbacks.unlinkCalls, 0);
+    final unlinkButton = tester.widget<Material>(
+      find.byKey(const ValueKey<String>('pull-request-action-button-unlink')),
+    );
+    expect(unlinkButton.color, AleraTokens.accent);
+
+    await tester.tap(find.text('Unlink Pull Request'));
+    await tester.pumpAndSettle();
+    expect(find.text('Unlink Pull Request #42?'), findsOneWidget);
+    expect(
+      find.textContaining('The Pull Request On GitHub Will Not Be Changed.'),
+      findsOneWidget,
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Unlink Pull Request'));
+    await tester.pumpAndSettle();
+    expect(callbacks.unlinkCalls, 1);
+  });
+
+  testWidgets('keeps the action menu available when merge is blocked', (
+    tester,
+  ) async {
+    final callbacks = _Callbacks();
+    await tester.pumpWidget(
+      _wrap(
+        callbacks,
+        review: _review.copyWith(mergeable: HostedReviewMergeable.conflicting),
+      ),
+    );
+
+    await tester.tap(find.text('Create Merge Commit'));
+    await tester.pumpAndSettle();
+    expect(find.text('Create Merge Commit PR #42?'), findsNothing);
+
+    await tester.tap(find.byTooltip('Pull Request Actions'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Close Pull Request'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Close Pull Request'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Close Pull Request #42?'), findsOneWidget);
+  });
+
+  testWidgets('keeps close and unlink available for a draft PR', (
+    tester,
+  ) async {
+    final callbacks = _Callbacks();
+    await tester.pumpWidget(
+      _wrap(
+        callbacks,
+        review: _review.copyWith(state: HostedReviewState.draft),
+      ),
+    );
+
+    await tester.tap(find.text('Create Merge Commit'));
+    await tester.pumpAndSettle();
+    expect(find.text('Create Merge Commit PR #42?'), findsNothing);
+
+    await tester.tap(find.byTooltip('Pull Request Actions'));
+    await tester.pumpAndSettle();
+    expect(find.text('Close Pull Request'), findsOneWidget);
+    expect(find.text('Unlink Pull Request'), findsOneWidget);
+  });
+
+  testWidgets('omits close when the provider does not support it', (
+    tester,
+  ) async {
+    final callbacks = _Callbacks();
+    await tester.pumpWidget(_wrap(callbacks, canCloseReview: false));
+
+    await tester.tap(find.byTooltip('Pull Request Actions'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Close Pull Request'), findsNothing);
+    expect(find.text('Unlink Pull Request'), findsOneWidget);
+  });
+
+  testWidgets('disables the unified action control while work is in flight', (
+    tester,
+  ) async {
+    final callbacks = _Callbacks();
+    await tester.pumpWidget(_wrap(callbacks));
+    await tester.tap(find.byTooltip('Pull Request Actions'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Unlink Pull Request'));
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(_wrap(callbacks, action: PullRequestAction.unlink));
+
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    await tester.tap(find.text('Unlink Pull Request'));
+    await tester.tap(find.byTooltip('Pull Request Actions'));
+    await tester.pump();
+
+    expect(find.text('Unlink Pull Request #42?'), findsNothing);
+    expect(callbacks.unlinkCalls, 0);
+  });
+
+  testWidgets('shows a single unlink action after the PR is merged', (
     tester,
   ) async {
     final callbacks = _Callbacks();
@@ -164,6 +293,11 @@ void main() {
     expect(find.text('Create Merge Commit'), findsNothing);
     expect(find.text('Close Pull Request'), findsNothing);
     expect(find.text('Unlink Pull Request'), findsOneWidget);
+    expect(find.byTooltip('Pull Request Actions'), findsNothing);
+
+    await tester.tap(find.text('Unlink Pull Request'));
+    await tester.pumpAndSettle();
+    expect(find.text('Unlink Pull Request #42?'), findsOneWidget);
   });
 
   testWidgets('edit mode sends only the changed fields on save', (

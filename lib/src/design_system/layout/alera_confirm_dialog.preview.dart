@@ -11,6 +11,6 @@ WidgetBuilder aleraConfirmDialogPreview() =>
     (context) => const AleraConfirmDialog(
       title: 'Remove Workspace?',
       message: 'This removes the worktree and deletes its branch.',
-      confirmLabel: 'Remove',
+      confirmLabel: 'Remove Workspace',
       destructive: true,
     );
