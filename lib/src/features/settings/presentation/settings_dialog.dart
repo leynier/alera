@@ -18,14 +18,14 @@ import 'package:alera/src/features/settings/presentation/settings_sections.dart'
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-// The dialog tracks the screen so settings stay comfortable on small laptops
-// while using the extra room of large desktop displays.
-const double _kDialogWidthFraction = 0.75;
-const double _kDialogHeightFraction = 0.82;
+// The dialog fills most of the screen so the settings surface feels like a
+// full window while still leaving a small breathing margin on large displays.
+const double _kDialogWidthFraction = 0.92;
+const double _kDialogHeightFraction = 0.92;
 const double _kDialogMinWidth = 760;
-const double _kDialogMaxWidth = 1240;
+const double _kDialogMaxWidth = 1800;
 const double _kDialogMinHeight = 560;
-const double _kDialogMaxHeight = 920;
+const double _kDialogMaxHeight = 1280;
 
 class SettingsDialog extends ConsumerStatefulWidget {
   const SettingsDialog({super.key});
