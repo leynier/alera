@@ -283,6 +283,18 @@ class _E2eGitBackend implements GitBackend {
   }) async => const GitDiffResult(files: <GitDiffFile>[]);
 
   @override
+  Future<GitRangeContext> rangeContext(
+    String path, {
+    required String baseRef,
+    int commitLimit = 40,
+  }) async => GitRangeContext(
+    baseRef: baseRef,
+    commits: const <GitRangeCommit>[],
+    files: const <GitRangeFile>[],
+    patch: '',
+  );
+
+  @override
   Future<GitRepositoryState> repositoryState(String path) async =>
       const GitRepositoryState(branch: 'HEAD');
 

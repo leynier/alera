@@ -50,7 +50,7 @@ Alera works with **any CLI agent**. The agents below ship with first-class integ
   <a href="https://cursor.com/cli"><kbd><img src="assets/agents/cursor.png" width="16" valign="middle" /> Cursor</kbd></a> &nbsp;
   <a href="https://docs.github.com/en/copilot/how-tos/set-up/install-copilot-cli"><kbd><img src="assets/agents/copilot.svg" width="16" valign="middle" /> GitHub Copilot</kbd></a> &nbsp;
   <a href="https://pi.dev"><kbd><img src="assets/agents/pi.svg" width="16" valign="middle" /> Pi</kbd></a>
-  <a href="https://x.ai/cli"><kbd><img src="assets/agents/grok.svg" width="16" valign="middle" /> Grok Build</kbd></a>
+  <a href="https://x.ai/cli"><kbd><img src="assets/agents/grok.png" width="16" valign="middle" /> Grok Build</kbd></a>
 </p>
 
 Anything else that runs in a terminal (Gemini CLI, Goose, Kimi, Crush, Continue, Aider, your own scripts) works out of the box. Activity tracking is incrementally rolling out per agent.

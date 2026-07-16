@@ -14,6 +14,8 @@ mod git_diff_impl;
 mod git_diff_paths;
 #[path = "git_history_impl.rs"]
 mod git_history_impl;
+#[path = "git_range_impl.rs"]
+mod git_range_impl;
 
 pub struct GitWorktreeEntry {
     pub path: String,
@@ -212,6 +214,31 @@ pub struct GitCommitCompareSummary {
 pub struct GitCommitCompareResult {
     pub summary: GitCommitCompareSummary,
     pub entries: Vec<GitCommitChangeEntry>,
+}
+
+/// One commit on the range from merge-base(base, HEAD) to HEAD.
+pub struct GitRangeCommit {
+    pub oid: String,
+    pub subject: String,
+    pub message: String,
+}
+
+/// One file changed between merge-base(base, HEAD) and HEAD.
+pub struct GitRangeFile {
+    pub path: String,
+    pub status: GitChangeStatus,
+    pub added: Option<u32>,
+    pub removed: Option<u32>,
+}
+
+/// Tree-to-tree range summary used for AI pull-request prompts.
+pub struct GitRangeContext {
+    pub base_ref: String,
+    pub head_branch: Option<String>,
+    pub merge_base: Option<String>,
+    pub commits: Vec<GitRangeCommit>,
+    pub files: Vec<GitRangeFile>,
+    pub patch: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -420,6 +447,16 @@ pub fn git_commit_diff(
     old_path: Option<String>,
 ) -> Result<GitDiffResult, GitError> {
     git_diff_impl::git_commit_diff(path, commit_oid, parent_oid, file_path, old_path)
+}
+
+/// Summarizes commits and the tree-to-tree patch from merge-base([base_ref], HEAD)
+/// to HEAD for AI pull-request generation.
+pub fn git_range_context(
+    path: String,
+    base_ref: String,
+    commit_limit: Option<u32>,
+) -> Result<GitRangeContext, GitError> {
+    git_range_impl::git_range_context(path, base_ref, commit_limit)
 }
 
 pub fn git_repository_state(path: String) -> Result<GitRepositoryState, GitError> {

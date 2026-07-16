@@ -117,6 +117,14 @@ abstract interface class GitBackend {
     String? oldPath,
   });
 
+  /// Commits and tree-to-tree patch from merge-base([baseRef], HEAD) to HEAD.
+  /// Used for AI pull-request title/description generation.
+  Future<GitRangeContext> rangeContext(
+    String path, {
+    required String baseRef,
+    int commitLimit = 40,
+  });
+
   /// Branch/upstream/divergence information for the repository containing
   /// [path].
   Future<GitRepositoryState> repositoryState(String path);

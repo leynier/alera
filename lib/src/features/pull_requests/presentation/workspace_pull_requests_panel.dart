@@ -62,6 +62,7 @@ class WorkspacePullRequestsPanel extends ConsumerWidget {
           error: (error, _) =>
               _MessageBody(icon: AleraIcons.error, message: error.toString()),
           data: (state) => _PullRequestBody(
+            repoPath: repoPath,
             state: state,
             createAction: createAction,
             controller: ref.read(
@@ -83,6 +84,7 @@ class WorkspacePullRequestsPanel extends ConsumerWidget {
 
 class _PullRequestBody extends StatelessWidget {
   const _PullRequestBody({
+    required this.repoPath,
     required this.state,
     required this.createAction,
     required this.controller,
@@ -90,6 +92,7 @@ class _PullRequestBody extends StatelessWidget {
     required this.onCreateActionChanged,
   });
 
+  final String repoPath;
   final WorkspacePullRequestState state;
   final PullRequestCreateAction createAction;
   final WorkspacePullRequestController controller;
@@ -145,13 +148,13 @@ class _PullRequestBody extends StatelessWidget {
     }
     final canCreate = state.supportsCreation && state.currentBranch != null;
     return PullRequestComposer(
+      repoPath: repoPath,
       headBranch: state.currentBranch,
       baseBranches: state.baseBranches,
       suggestedBaseBranch: state.suggestedBaseBranch ?? 'main',
       canCreate: canCreate,
       busy: state.isBusy,
       createAction: createAction,
-      providerLabel: state.identity?.provider.label,
       onCreate: (draft) {
         final identity = state.identity;
         final head = state.currentBranch;
@@ -216,7 +219,7 @@ class _Header extends StatelessWidget {
           child: Row(
             children: <Widget>[
               Text(
-                'Checks',
+                'Pull Request',
                 style: theme.textTheme.labelLarge?.copyWith(
                   color: AleraTokens.foreground,
                 ),

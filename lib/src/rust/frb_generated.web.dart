@@ -168,6 +168,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   GitHistoryResult dco_decode_git_history_result(dynamic raw);
 
   @protected
+  GitRangeCommit dco_decode_git_range_commit(dynamic raw);
+
+  @protected
+  GitRangeContext dco_decode_git_range_context(dynamic raw);
+
+  @protected
+  GitRangeFile dco_decode_git_range_file(dynamic raw);
+
+  @protected
   GitRemote dco_decode_git_remote(dynamic raw);
 
   @protected
@@ -222,6 +231,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<GitHistoryItemRef> dco_decode_list_git_history_item_ref(dynamic raw);
+
+  @protected
+  List<GitRangeCommit> dco_decode_list_git_range_commit(dynamic raw);
+
+  @protected
+  List<GitRangeFile> dco_decode_list_git_range_file(dynamic raw);
 
   @protected
   List<GitRemote> dco_decode_list_git_remote(dynamic raw);
@@ -614,6 +629,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   GitHistoryResult sse_decode_git_history_result(SseDeserializer deserializer);
 
   @protected
+  GitRangeCommit sse_decode_git_range_commit(SseDeserializer deserializer);
+
+  @protected
+  GitRangeContext sse_decode_git_range_context(SseDeserializer deserializer);
+
+  @protected
+  GitRangeFile sse_decode_git_range_file(SseDeserializer deserializer);
+
+  @protected
   GitRemote sse_decode_git_remote(SseDeserializer deserializer);
 
   @protected
@@ -682,6 +706,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<GitHistoryItemRef> sse_decode_list_git_history_item_ref(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<GitRangeCommit> sse_decode_list_git_range_commit(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<GitRangeFile> sse_decode_list_git_range_file(
     SseDeserializer deserializer,
   );
 
@@ -1181,6 +1215,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_git_range_commit(
+    GitRangeCommit self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_git_range_context(
+    GitRangeContext self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_git_range_file(GitRangeFile self, SseSerializer serializer);
+
+  @protected
   void sse_encode_git_remote(GitRemote self, SseSerializer serializer);
 
   @protected
@@ -1270,6 +1319,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_git_history_item_ref(
     List<GitHistoryItemRef> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_git_range_commit(
+    List<GitRangeCommit> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_git_range_file(
+    List<GitRangeFile> self,
     SseSerializer serializer,
   );
 

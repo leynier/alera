@@ -196,6 +196,44 @@ class RustGitBackend implements GitBackend {
   });
 
   @override
+  Future<GitRangeContext> rangeContext(
+    String path, {
+    required String baseRef,
+    int commitLimit = 40,
+  }) => _guard(() async {
+    final result = await rust.gitRangeContext(
+      path: path,
+      baseRef: baseRef,
+      commitLimit: commitLimit,
+    );
+    return GitRangeContext(
+      baseRef: result.baseRef,
+      headBranch: result.headBranch,
+      mergeBase: result.mergeBase,
+      commits: result.commits
+          .map(
+            (commit) => GitRangeCommit(
+              oid: commit.oid,
+              subject: commit.subject,
+              message: commit.message,
+            ),
+          )
+          .toList(growable: false),
+      files: result.files
+          .map(
+            (file) => GitRangeFile(
+              path: file.path,
+              status: _toStatus(file.status),
+              added: file.added?.toInt(),
+              removed: file.removed?.toInt(),
+            ),
+          )
+          .toList(growable: false),
+      patch: result.patch,
+    );
+  });
+
+  @override
   Future<GitRepositoryState> repositoryState(String path) => _guard(() async {
     final state = await rust.gitRepositoryState(path: path);
     return GitRepositoryState(

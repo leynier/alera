@@ -77,7 +77,8 @@ class _AiTextSettingsPaneState extends ConsumerState<AiTextSettingsPane> {
             children: <Widget>[
               SettingsSwitchRow(
                 title: 'Enable AI Text',
-                description: 'Show generation actions in source control.',
+                description:
+                    'Show generation actions in source control and pull requests.',
                 value: widget.settings.enabled,
                 onChanged: (value) =>
                     widget.onChanged(settings.copyWith(enabled: value)),
@@ -141,7 +142,7 @@ class _AiTextSettingsPaneState extends ConsumerState<AiTextSettingsPane> {
           key: widget.groupKeys['instructions'],
           child: AleraSettingsGroup(
             title: 'Instructions',
-            description: 'Extra guidance appended to commit-message prompts.',
+            description: 'Extra guidance appended to generation prompts.',
             children: <Widget>[
               InstructionSettingRow(
                 title: AiTextGenerationOperation.commitMessage.label,
@@ -154,6 +155,21 @@ class _AiTextSettingsPaneState extends ConsumerState<AiTextSettingsPane> {
                         <AiTextGenerationOperation, String>{
                           ...settings.instructionsByOperation,
                           AiTextGenerationOperation.commitMessage: value,
+                        },
+                  ),
+                ),
+              ),
+              InstructionSettingRow(
+                title: AiTextGenerationOperation.pullRequestDetails.label,
+                value: settings.instructionsFor(
+                  AiTextGenerationOperation.pullRequestDetails,
+                ),
+                onChanged: (value) => widget.onChanged(
+                  settings.copyWith(
+                    instructionsByOperation:
+                        <AiTextGenerationOperation, String>{
+                          ...settings.instructionsByOperation,
+                          AiTextGenerationOperation.pullRequestDetails: value,
                         },
                   ),
                 ),

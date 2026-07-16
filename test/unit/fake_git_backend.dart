@@ -108,6 +108,27 @@ class FakeGitBackend implements GitBackend {
     entries: <GitCommitChangeEntry>[],
   );
   GitDiffResult gitCommitDiffResult = const GitDiffResult(files: []);
+  GitRangeContext gitRangeContextResult = const GitRangeContext(
+    baseRef: 'main',
+    headBranch: 'feature',
+    commits: <GitRangeCommit>[
+      GitRangeCommit(
+        oid: 'abc1234',
+        subject: 'feat: example',
+        message: 'feat: example\n\nDetails',
+      ),
+    ],
+    files: <GitRangeFile>[
+      GitRangeFile(
+        path: 'lib/foo.dart',
+        status: GitChangeStatus.modified,
+        added: 2,
+        removed: 1,
+      ),
+    ],
+    patch: 'diff --git a/lib/foo.dart b/lib/foo.dart\n+new line',
+  );
+  GitException? rangeContextError;
   GitRepositoryState gitRepositoryStateResult = const GitRepositoryState(
     branch: 'main',
   );
@@ -450,6 +471,26 @@ class FakeGitBackend implements GitBackend {
       throw error;
     }
     return gitCommitDiffResult;
+  }
+
+  @override
+  Future<GitRangeContext> rangeContext(
+    String path, {
+    required String baseRef,
+    int commitLimit = 40,
+  }) async {
+    calls.add(
+      GitBackendCall('rangeContext', <String, Object?>{
+        'path': path,
+        'baseRef': baseRef,
+        'commitLimit': commitLimit,
+      }),
+    );
+    final error = rangeContextError;
+    if (error != null) {
+      throw error;
+    }
+    return gitRangeContextResult;
   }
 
   @override
