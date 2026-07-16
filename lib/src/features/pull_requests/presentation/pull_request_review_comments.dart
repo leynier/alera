@@ -228,11 +228,9 @@ class _ReviewCommentCard extends StatelessWidget {
               ),
             ],
             const SizedBox(height: AleraTokens.space8),
-            SelectableText(
-              comment.body,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: AleraTokens.foreground,
-              ),
+            PullRequestCommentMarkdown(
+              body: comment.body,
+              onOpenUrl: onOpenUrl,
             ),
           ],
         ),

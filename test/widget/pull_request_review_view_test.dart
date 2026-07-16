@@ -8,6 +8,7 @@ import 'package:alera/src/features/pull_requests/domain/review_comment.dart';
 import 'package:alera/src/features/pull_requests/domain/review_merge_method.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_result.dart';
+import 'package:alera/src/features/pull_requests/presentation/pull_request_comment_markdown.dart';
 import 'package:alera/src/features/pull_requests/presentation/pull_request_review_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -378,6 +379,7 @@ void main() {
     );
 
     expect(find.text('Comments (2)'), findsOneWidget);
+    expect(find.byType(PullRequestCommentMarkdown), findsNWidgets(2));
     expect(find.text('General feedback'), findsOneWidget);
     expect(find.text('Please cover this branch'), findsOneWidget);
     expect(find.text('lib/src/example.dart:42'), findsOneWidget);
