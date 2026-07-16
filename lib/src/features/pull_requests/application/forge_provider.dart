@@ -6,6 +6,7 @@ import 'package:alera/src/features/pull_requests/domain/git_remote_identity.dart
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check_details.dart';
+import 'package:alera/src/features/pull_requests/domain/review_comment.dart';
 import 'package:alera/src/features/pull_requests/domain/review_merge_method.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_result.dart';
@@ -30,6 +31,9 @@ abstract interface class ForgeProvider {
 
   /// Whether this provider can close an open review without merging it.
   bool get supportsReviewClosure;
+
+  /// Whether this provider can read and create pull-request comments.
+  bool get supportsReviewComments;
 
   /// Reports whether the provider's CLI is installed and authenticated for the
   /// host in [identity]. Never throws.
@@ -67,6 +71,21 @@ abstract interface class ForgeProvider {
     required String repoPath,
     required int number,
     required ReviewCheck check,
+  });
+
+  /// Conversation and inline review comments attached to review [number].
+  Future<List<ReviewComment>> getReviewComments({
+    required GitRemoteIdentity identity,
+    required String repoPath,
+    required int number,
+  });
+
+  /// Adds a top-level conversation comment to review [number].
+  Future<void> addReviewComment({
+    required GitRemoteIdentity identity,
+    required String repoPath,
+    required int number,
+    required String body,
   });
 
   /// Creates a review from [input]. The head branch is expected to already be

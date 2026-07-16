@@ -34,6 +34,7 @@ abstract final class AleraIcons {
   static const IconData blocked = LucideIcons.ban;
   static const IconData check = LucideIcons.check;
   static const IconData doneAll = LucideIcons.checkCheck;
+  static const IconData send = LucideIcons.send;
 
   // Search
   static const IconData search = LucideIcons.search;

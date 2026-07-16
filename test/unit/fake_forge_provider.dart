@@ -9,6 +9,7 @@ import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/linked_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check_details.dart';
+import 'package:alera/src/features/pull_requests/domain/review_comment.dart';
 import 'package:alera/src/features/pull_requests/domain/review_merge_method.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_result.dart';
@@ -44,6 +45,13 @@ class FakeForgeProvider implements ForgeProvider {
     ReviewMergeMethod.rebase,
   ];
   bool canCloseReview = true;
+  bool canComment = true;
+  List<ReviewComment> comments = <ReviewComment>[];
+  Future<List<ReviewComment>> Function()? commentsLoader;
+  int commentsCalls = 0;
+  String? lastCommentBody;
+  int addCommentCalls = 0;
+  Object? addCommentError;
   ReviewMergeMethod? lastMergeMethod;
   int mergeCalls = 0;
   Object? mergeError;
@@ -61,6 +69,9 @@ class FakeForgeProvider implements ForgeProvider {
 
   @override
   bool get supportsReviewClosure => canCloseReview;
+
+  @override
+  bool get supportsReviewComments => canComment;
 
   @override
   Future<ForgeAuthStatus> checkAuth({
@@ -106,6 +117,42 @@ class FakeForgeProvider implements ForgeProvider {
     lastDetailsNumber = number;
     lastDetailsCheck = check;
     return details;
+  }
+
+  @override
+  Future<List<ReviewComment>> getReviewComments({
+    required GitRemoteIdentity identity,
+    required String repoPath,
+    required int number,
+  }) async {
+    commentsCalls++;
+    final loader = commentsLoader;
+    return loader == null ? comments : loader();
+  }
+
+  @override
+  Future<void> addReviewComment({
+    required GitRemoteIdentity identity,
+    required String repoPath,
+    required int number,
+    required String body,
+  }) async {
+    addCommentCalls++;
+    lastCommentBody = body;
+    final error = addCommentError;
+    if (error != null) {
+      throw error;
+    }
+    comments = <ReviewComment>[
+      ...comments,
+      ReviewComment(
+        id: 'new-$addCommentCalls',
+        author: 'me',
+        body: body,
+        createdAt: DateTime.utc(2026, 7, 16),
+        kind: ReviewCommentKind.conversation,
+      ),
+    ];
   }
 
   @override

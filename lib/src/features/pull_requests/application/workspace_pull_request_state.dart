@@ -2,13 +2,23 @@ import 'package:alera/src/features/pull_requests/domain/forge_auth_status.dart';
 import 'package:alera/src/features/pull_requests/domain/git_remote_identity.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
+import 'package:alera/src/features/pull_requests/domain/review_comment.dart';
 import 'package:alera/src/features/pull_requests/domain/review_merge_method.dart';
 
 /// Why the pull-request panel has no provider to work with.
 enum PullRequestUnavailableReason { noRemote, undetectable, unsupported }
 
 /// In-flight action for busy indicators.
-enum PullRequestAction { refresh, link, unlink, create, update, merge, close }
+enum PullRequestAction {
+  refresh,
+  link,
+  unlink,
+  create,
+  update,
+  merge,
+  close,
+  comment,
+}
 
 /// Immutable state of the pull-request panel for one workspace.
 class WorkspacePullRequestState {
@@ -18,6 +28,7 @@ class WorkspacePullRequestState {
     this.authStatus = ForgeAuthStatus.unknown,
     this.review,
     this.checks = const <ReviewCheck>[],
+    this.comments = const <ReviewComment>[],
     this.linkedManually = false,
     this.dismissed = false,
     this.currentBranch,
@@ -25,6 +36,7 @@ class WorkspacePullRequestState {
     this.suggestedBaseBranch,
     this.mergeMethods = const <ReviewMergeMethod>[],
     this.canCloseReview = false,
+    this.canComment = false,
     this.action,
     this.errorMessage,
   });
@@ -34,6 +46,7 @@ class WorkspacePullRequestState {
   final ForgeAuthStatus authStatus;
   final HostedReview? review;
   final List<ReviewCheck> checks;
+  final List<ReviewComment> comments;
   final bool linkedManually;
   final bool dismissed;
 
@@ -49,6 +62,7 @@ class WorkspacePullRequestState {
 
   final List<ReviewMergeMethod> mergeMethods;
   final bool canCloseReview;
+  final bool canComment;
   final PullRequestAction? action;
   final String? errorMessage;
 
@@ -71,6 +85,7 @@ class WorkspacePullRequestState {
     ForgeAuthStatus? authStatus,
     HostedReview? review,
     List<ReviewCheck>? checks,
+    List<ReviewComment>? comments,
     bool? linkedManually,
     bool? dismissed,
     String? currentBranch,
@@ -78,6 +93,7 @@ class WorkspacePullRequestState {
     String? suggestedBaseBranch,
     List<ReviewMergeMethod>? mergeMethods,
     bool? canCloseReview,
+    bool? canComment,
     PullRequestAction? action,
     bool clearAction = false,
     String? errorMessage,
@@ -89,6 +105,7 @@ class WorkspacePullRequestState {
       authStatus: authStatus ?? this.authStatus,
       review: review ?? this.review,
       checks: checks ?? this.checks,
+      comments: comments ?? this.comments,
       linkedManually: linkedManually ?? this.linkedManually,
       dismissed: dismissed ?? this.dismissed,
       currentBranch: currentBranch ?? this.currentBranch,
@@ -96,6 +113,7 @@ class WorkspacePullRequestState {
       suggestedBaseBranch: suggestedBaseBranch ?? this.suggestedBaseBranch,
       mergeMethods: mergeMethods ?? this.mergeMethods,
       canCloseReview: canCloseReview ?? this.canCloseReview,
+      canComment: canComment ?? this.canComment,
       action: clearAction ? null : (action ?? this.action),
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
     );
@@ -107,7 +125,10 @@ class WorkspacePullRequestState {
     final checkPart = checks
         .map((c) => '${c.name}:${c.status.name}:${c.conclusion.name}')
         .join('|');
+    final commentPart = comments
+        .map((comment) => '${comment.id}:${comment.createdAt}')
+        .join('|');
     return '${review?.number}:${review?.state.name}:${review?.title}:'
-        '${review?.baseBranch}:$checkPart';
+        '${review?.baseBranch}:$checkPart:$commentPart';
   }
 }

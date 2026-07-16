@@ -188,14 +188,17 @@ class _PullRequestBody extends StatelessWidget {
       return PullRequestReviewView(
         review: review,
         checks: state.checks,
+        comments: state.comments,
         baseBranches: state.baseBranches,
         mergeMethods: state.mergeMethods,
         canCloseReview: state.canCloseReview,
+        canComment: state.canComment,
         action: state.action,
         onOpenUrl: onOpenUrl,
         onUnlink: controller.unlink,
         onMerge: controller.mergeReview,
         onClose: controller.closeReview,
+        onAddComment: controller.addReviewComment,
         onUpdate: controller.updateReview,
         onLoadCheckDetails: controller.loadCheckDetails,
       );

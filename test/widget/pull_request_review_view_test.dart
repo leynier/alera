@@ -3,6 +3,7 @@ import 'package:alera/src/features/pull_requests/domain/git_hosting_provider.dar
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check_details.dart';
+import 'package:alera/src/features/pull_requests/domain/review_comment.dart';
 import 'package:alera/src/features/pull_requests/domain/review_merge_method.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_input.dart';
 import 'package:alera/src/features/pull_requests/domain/update_review_result.dart';
@@ -24,6 +25,8 @@ const _review = HostedReview(
 class _Callbacks {
   int unlinkCalls = 0;
   int closeCalls = 0;
+  final List<String> commentBodies = <String>[];
+  bool addCommentResult = true;
   ReviewMergeMethod? mergeMethod;
   UpdateReviewInput? lastInput;
   UpdateReviewResult updateResult = const UpdateReviewSuccess(_review);
@@ -34,26 +37,34 @@ Widget _wrap(
   HostedReview review = _review,
   PullRequestAction? action,
   List<ReviewCheck> checks = const <ReviewCheck>[],
+  List<ReviewComment> comments = const <ReviewComment>[],
   List<ReviewMergeMethod> mergeMethods = const <ReviewMergeMethod>[
     ReviewMergeMethod.mergeCommit,
     ReviewMergeMethod.squash,
     ReviewMergeMethod.rebase,
   ],
   bool canCloseReview = true,
+  bool canComment = true,
 }) {
   return MaterialApp(
     home: Scaffold(
       body: PullRequestReviewView(
         review: review,
         checks: checks,
+        comments: comments,
         baseBranches: const <String>['develop', 'main'],
         mergeMethods: mergeMethods,
         canCloseReview: canCloseReview,
+        canComment: canComment,
         action: action,
         onOpenUrl: (_) async {},
         onUnlink: () => callbacks.unlinkCalls++,
         onMerge: (method) async => callbacks.mergeMethod = method,
         onClose: () async => callbacks.closeCalls++,
+        onAddComment: (body) async {
+          callbacks.commentBodies.add(body);
+          return callbacks.addCommentResult;
+        },
         onUpdate: (input) async {
           callbacks.lastInput = input;
           return callbacks.updateResult;
@@ -217,5 +228,88 @@ void main() {
     await tester.pumpWidget(_wrap(callbacks));
 
     expect(find.text('leynier · feature → main'), findsOneWidget);
+  });
+
+  testWidgets('shows conversation and inline review comments', (tester) async {
+    final callbacks = _Callbacks();
+    await tester.pumpWidget(
+      _wrap(
+        callbacks,
+        comments: <ReviewComment>[
+          ReviewComment(
+            id: '1',
+            author: 'alice',
+            body: 'General feedback',
+            createdAt: DateTime.utc(2026, 7, 16, 12),
+            kind: ReviewCommentKind.conversation,
+          ),
+          ReviewComment(
+            id: '2',
+            author: 'bob',
+            body: 'Please cover this branch',
+            createdAt: DateTime.utc(2026, 7, 16, 13),
+            kind: ReviewCommentKind.review,
+            path: 'lib/src/example.dart',
+            line: 42,
+            resolved: true,
+          ),
+        ],
+      ),
+    );
+
+    expect(find.text('Comments (2)'), findsOneWidget);
+    expect(find.text('General feedback'), findsOneWidget);
+    expect(find.text('Please cover this branch'), findsOneWidget);
+    expect(find.text('lib/src/example.dart:42'), findsOneWidget);
+    expect(find.text('Resolved'), findsOneWidget);
+  });
+
+  testWidgets('posts a comment and closes the composer on success', (
+    tester,
+  ) async {
+    final callbacks = _Callbacks();
+    await tester.pumpWidget(_wrap(callbacks));
+
+    await tester.tap(find.byTooltip('Start Conversation'));
+    await tester.pumpAndSettle();
+    expect(find.text('Post Comment'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'Ready to merge');
+    await tester.tap(find.widgetWithText(FilledButton, 'Post Comment'));
+    await tester.pumpAndSettle();
+
+    expect(callbacks.commentBodies, <String>['Ready to merge']);
+    expect(find.text('Post Comment'), findsNothing);
+  });
+
+  testWidgets('keeps the comment draft open when posting fails', (
+    tester,
+  ) async {
+    final callbacks = _Callbacks()..addCommentResult = false;
+    await tester.pumpWidget(_wrap(callbacks));
+
+    await tester.tap(find.byTooltip('Start Conversation'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Keep this draft');
+    await tester.tap(find.widgetWithText(FilledButton, 'Post Comment'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Post Comment'), findsOneWidget);
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).controller?.text,
+      'Keep this draft',
+    );
+  });
+
+  testWidgets('comments are read-only after the PR is merged', (tester) async {
+    final callbacks = _Callbacks();
+    await tester.pumpWidget(
+      _wrap(
+        callbacks,
+        review: _review.copyWith(state: HostedReviewState.merged),
+      ),
+    );
+
+    expect(find.byTooltip('Start Conversation'), findsNothing);
+    expect(find.text('No Comments Yet'), findsOneWidget);
   });
 }

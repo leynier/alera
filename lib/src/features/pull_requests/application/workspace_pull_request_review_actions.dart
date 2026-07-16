@@ -50,6 +50,67 @@ mixin _WorkspacePullRequestReviewActions on _$WorkspacePullRequestController {
     );
   }
 
+  /// Adds a top-level conversation comment and refreshes the visible snapshot.
+  Future<bool> addReviewComment(String rawBody) async {
+    final controller = _controller;
+    final current = state.value;
+    final review = current?.review;
+    final body = rawBody.trim();
+    if (current == null ||
+        review == null ||
+        !review.isOpen ||
+        !current.canComment) {
+      _surfaceActionError('Comments Are Not Available For This Pull Request.');
+      return false;
+    }
+    if (body.isEmpty) {
+      _surfaceActionError('Enter A Comment Before Posting.');
+      return false;
+    }
+    final identity = current.identity;
+    final forge = identity == null
+        ? null
+        : controller._registry.forProvider(identity.provider);
+    if (identity == null || forge == null) {
+      _surfaceActionError('No Hosting Provider Is Configured.');
+      return false;
+    }
+
+    controller._pollTimer?.cancel();
+    state = AsyncData(
+      current.copyWith(action: PullRequestAction.comment, clearError: true),
+    );
+    try {
+      await forge.addReviewComment(
+        identity: identity,
+        repoPath: controller.scope.repoPath,
+        number: review.number,
+        body: body,
+      );
+      final reloaded = await controller._loader.load(controller.scope);
+      if (!controller._disposed) {
+        state = AsyncData(
+          reloaded.errorMessage == null
+              ? reloaded
+              : current.copyWith(
+                  clearAction: true,
+                  errorMessage: reloaded.errorMessage,
+                ),
+        );
+        controller._resetPollInterval();
+      }
+      return true;
+    } on ForgeException catch (error) {
+      _surfaceActionError(error.message);
+      return false;
+    } catch (error) {
+      _surfaceActionError(error.toString());
+      return false;
+    } finally {
+      controller._schedulePoll(controller.scope);
+    }
+  }
+
   Future<void> _runReviewMutation({
     required WorkspacePullRequestState current,
     required PullRequestAction action,

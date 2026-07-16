@@ -9,6 +9,7 @@ import 'package:alera/src/features/pull_requests/domain/forge_auth_status.dart';
 import 'package:alera/src/features/pull_requests/domain/git_remote_identity.dart';
 import 'package:alera/src/features/pull_requests/domain/hosted_review.dart';
 import 'package:alera/src/features/pull_requests/domain/review_check.dart';
+import 'package:alera/src/features/pull_requests/domain/review_comment.dart';
 import 'package:alera/src/features/pull_requests/domain/workspace_pull_request_scope.dart';
 import 'package:alera/src/shared/infra/git/git_backend.dart';
 import 'package:alera/src/shared/infra/git/git_exception.dart';
@@ -75,24 +76,41 @@ class WorkspacePullRequestLoader {
               number: persisted.number!,
             )
           : await _detectReview(forge, identity, scope, branch);
-      final checks = review == null
-          ? const <ReviewCheck>[]
-          : await forge.getChecks(
-              identity: identity,
-              repoPath: scope.repoPath,
-              number: review.number,
-            );
+      var checks = const <ReviewCheck>[];
+      var comments = const <ReviewComment>[];
+      if (review != null) {
+        final checksFuture = forge.getChecks(
+          identity: identity,
+          repoPath: scope.repoPath,
+          number: review.number,
+        );
+        final commentsFuture = forge.supportsReviewComments
+            ? forge.getReviewComments(
+                identity: identity,
+                repoPath: scope.repoPath,
+                number: review.number,
+              )
+            : Future<List<ReviewComment>>.value(const <ReviewComment>[]);
+        final results = await Future.wait<Object>([
+          checksFuture,
+          commentsFuture,
+        ]);
+        checks = results[0] as List<ReviewCheck>;
+        comments = results[1] as List<ReviewComment>;
+      }
       return WorkspacePullRequestState(
         identity: identity,
         authStatus: authStatus,
         review: review,
         checks: checks,
+        comments: comments,
         linkedManually: linkedManually,
         currentBranch: branch,
         baseBranches: baseInfo.branches,
         suggestedBaseBranch: baseInfo.suggested,
         mergeMethods: forge.supportedMergeMethods,
         canCloseReview: forge.supportsReviewClosure,
+        canComment: forge.supportsReviewComments,
       );
     } on ForgeNotAuthenticated {
       return WorkspacePullRequestState(
