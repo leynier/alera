@@ -182,7 +182,7 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
     try {
       final tabs = await _workspaceTabService.listTabs(workspaceId);
       final layout = await _ensureWorkbenchLayout(workspaceId, tabs);
-      await _applyLayout(layout, persist: true);
+      await _applyLayout(layout, persist: false);
     } catch (error) {
       if (!_disposed) {
         state = state.copyWith(error: error.toString());
@@ -204,7 +204,9 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
           tabIds: <String>[for (final tab in tabs) tab.id],
         );
     final sanitized = layout.sanitize(tabs);
-    await _repository.upsertWorkbenchLayout(sanitized);
+    if (stored == null || sanitized != stored) {
+      await _repository.upsertWorkbenchLayout(sanitized);
+    }
     return sanitized;
   }
 
@@ -233,6 +235,30 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
     );
     if (persist) {
       await _repository.upsertWorkbenchLayout(layout);
+    }
+  }
+
+  void _applyLayoutInBackground(
+    WorkbenchLayout layout, {
+    required bool persist,
+  }) {
+    unawaited(
+      _applyLayout(layout, persist: persist).catchError(_recordLayoutError),
+    );
+  }
+
+  void _persistLayoutInBackground(WorkbenchLayout layout) {
+    unawaited(
+      _repository
+          .upsertWorkbenchLayout(layout)
+          .then<void>((_) {})
+          .catchError(_recordLayoutError),
+    );
+  }
+
+  void _recordLayoutError(Object error) {
+    if (!_disposed) {
+      state = state.copyWith(error: error.toString());
     }
   }
 
@@ -268,7 +294,7 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
         groupId: resolvedGroupId,
         tabId: tabId,
       );
-      unawaited(_applyLayout(nextLayout, persist: true));
+      _applyLayoutInBackground(nextLayout, persist: true);
       return;
     }
     final next = Map<String, String>.from(state.activeTabIdByWorkspace)

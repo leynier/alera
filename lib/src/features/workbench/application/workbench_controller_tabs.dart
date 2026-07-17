@@ -429,7 +429,7 @@ mixin _WorkbenchControllerTabs
       return;
     }
     final nextLayout = layout.setActiveTab(groupId: groupId, tabId: tabId);
-    unawaited(_applyLayout(nextLayout, persist: false));
+    _applyLayoutInBackground(nextLayout, persist: false);
   }
 
   Future<void> moveWorkspaceTab({
@@ -518,6 +518,6 @@ mixin _WorkbenchControllerTabs
       workspaceId,
       tabs,
     ).updateSplitRatio(nodePath, ratio).sanitize(tabs);
-    unawaited(_applyLayout(layout, persist: true));
+    _applyLayoutInBackground(layout, persist: true);
   }
 }

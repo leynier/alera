@@ -274,7 +274,7 @@ impl ServerActor {
         let result = self
             .clients
             .get(&client_id)
-            .map(|client| client.handle.out.try_send(frame));
+            .map(|client| client.handle.terminal_out.try_send(frame));
         match result {
             Some(Ok(())) => {}
             Some(Err(TrySendError::Full(_))) => {
@@ -304,7 +304,7 @@ impl ServerActor {
         let result = self
             .clients
             .get(&client_id)
-            .map(|client| client.handle.out.try_send(frame));
+            .map(|client| client.handle.terminal_out.try_send(frame));
         match result {
             Some(Ok(())) => {
                 if let Some(session) = self.sessions.get_mut(&session_id) {

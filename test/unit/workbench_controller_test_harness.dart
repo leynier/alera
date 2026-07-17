@@ -439,10 +439,9 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
   final Map<String, StreamController<List<WorkspaceTabRecord>>>
   _tabControllers = <String, StreamController<List<WorkspaceTabRecord>>>{};
   Future<WorkbenchLayout?>? _findWorkbenchLayoutOverride;
-  Object? upsertWorkspaceError;
-  Object? upsertWorkspaceTabError;
-  Object? upsertWorkbenchLayoutError;
-  Object? removeWorkspaceTabError;
+  Object? upsertWorkspaceError, upsertWorkspaceTabError;
+  Object? upsertWorkbenchLayoutError, removeWorkspaceTabError;
+  int upsertWorkbenchLayoutCalls = 0;
   @override
   Future<List<Workspace>> listWorkspaces(String projectId) async {
     return List<Workspace>.from(
@@ -607,6 +606,7 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
 
   @override
   Future<WorkbenchLayout> upsertWorkbenchLayout(WorkbenchLayout layout) async {
+    upsertWorkbenchLayoutCalls += 1;
     if (upsertWorkbenchLayoutError case final Object error) {
       throw error;
     }

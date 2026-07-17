@@ -16,6 +16,54 @@ Future<TerminalHostOutputResyncRequiredEvent> _sendOutputResyncEvent(
 }
 
 void _registerTerminalHostClientResilienceTests() {
+  test(
+    'write-side host closure does not escape as an uncaught error',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'alera-host-client-write-close-',
+      );
+      addTearDown(() async {
+        if (await tempDir.exists()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+      final server = await _TerminalHostTestServer.start(closeForType: 'write');
+      addTearDown(server.dispose);
+      await _writeControlFile(
+        tempDir: tempDir,
+        port: server.port,
+        token: 'existing-token',
+      );
+      final client = SocketTerminalHostClient(
+        launcher: _NoopTerminalHostLauncher(),
+        applicationSupportDirectory: () async => tempDir,
+      );
+      addTearDown(client.dispose);
+      final uncaughtErrors = <Object>[];
+      final completed = Completer<void>();
+
+      runZonedGuarded(
+        () async {
+          await expectLater(
+            client.write(sessionId: 'session-1', bytes: const <int>[1]),
+            throwsA(isA<StateError>()),
+          );
+          completed.complete();
+        },
+        (error, _) {
+          uncaughtErrors.add(error);
+          if (!completed.isCompleted) {
+            completed.complete();
+          }
+        },
+      );
+      await completed.future;
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      expect(uncaughtErrors, isEmpty);
+    },
+  );
+
   test('waits for authenticated hello before sending requests', () async {
     final tempDir = await Directory.systemTemp.createTemp(
       'alera-host-client-authentication-',

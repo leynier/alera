@@ -21,7 +21,9 @@ use crate::ssh_bootstrap::{
     cancel_ssh_bootstrap, mark_ssh_bootstrap_installing, new_bootstrap_job_id, run_ssh_bootstrap,
     SshTargetBootstrapJob, SshTargetBootstrapProgress, SshTargetBootstrapRequest,
 };
-use crate::terminal_host::client::{connection_loop, ClientHandle, CLIENT_OUT_QUEUE_CAPACITY};
+use crate::terminal_host::client::{
+    connection_loop, ClientHandle, CLIENT_TERMINAL_OUT_QUEUE_CAPACITY,
+};
 use crate::terminal_host::control_file;
 use crate::terminal_host::history_store::TerminalHostHistoryStore;
 use crate::terminal_host::host_error::{HostError, HostResult};
@@ -225,21 +227,32 @@ fn spawn_accept_loop(
         while let Ok((stream, _)) = listener.accept().await {
             let _ = stream.set_nodelay(true);
             let id = next_client_id.fetch_add(1, Ordering::Relaxed);
-            let (out_tx, out_rx) = mpsc::channel::<Value>(CLIENT_OUT_QUEUE_CAPACITY);
+            let (control_out_tx, control_out_rx) = mpsc::unbounded_channel::<Value>();
+            let (terminal_out_tx, terminal_out_rx) =
+                mpsc::channel::<Value>(CLIENT_TERMINAL_OUT_QUEUE_CAPACITY);
             // Register the client before its lines can arrive: the
             // ClientConnected command is enqueued before the connection loop
             // (and thus any ClientLine) starts.
             if inbox
                 .send(ServerCommand::ClientConnected {
                     id,
-                    handle: ClientHandle { out: out_tx },
+                    handle: ClientHandle {
+                        control_out: control_out_tx,
+                        terminal_out: terminal_out_tx,
+                    },
                     kind: ClientKind::Local,
                 })
                 .is_err()
             {
                 break;
             }
-            tokio::spawn(connection_loop(stream, id, inbox.clone(), out_rx));
+            tokio::spawn(connection_loop(
+                stream,
+                id,
+                inbox.clone(),
+                control_out_rx,
+                terminal_out_rx,
+            ));
         }
     });
 }
@@ -1203,7 +1216,7 @@ mod tests {
         let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
         let runtime_store = RuntimeStore::open(dir.path()).await.unwrap();
         let (inbox, _rx) = mpsc::unbounded_channel();
-        let (out, mut out_rx) = mpsc::channel(CLIENT_OUT_QUEUE_CAPACITY);
+        let (handle, mut out_rx) = ClientHandle::test_channels();
         let mut actor = ServerActor {
             runtime_dir: dir.path().to_path_buf(),
             control_file_path: dir.path().join("runtime-host.json"),
@@ -1225,7 +1238,7 @@ mod tests {
             clients: HashMap::from([(
                 1,
                 ClientState {
-                    handle: ClientHandle { out },
+                    handle,
                     authenticated: true,
                     kind: ClientKind::Local,
                     mobile_device_id: None,
@@ -1630,7 +1643,7 @@ mod tests {
             .await
             .unwrap();
         let (inbox, _rx) = mpsc::unbounded_channel();
-        let (out, _out_rx) = mpsc::channel(CLIENT_OUT_QUEUE_CAPACITY);
+        let (handle, _control_out_rx) = ClientHandle::test_channels();
         let mut actor = ServerActor {
             runtime_dir: dir.path().to_path_buf(),
             control_file_path: dir.path().join("runtime-host.json"),
@@ -1644,7 +1657,7 @@ mod tests {
             clients: HashMap::from([(
                 1,
                 ClientState {
-                    handle: ClientHandle { out },
+                    handle,
                     authenticated: true,
                     kind: ClientKind::Local,
                     mobile_device_id: None,
@@ -1694,9 +1707,9 @@ mod tests {
         let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
         let runtime_store = RuntimeStore::open(dir.path()).await.unwrap();
         let (inbox, _rx) = mpsc::unbounded_channel();
-        let (first_app_out, _first_app_rx) = mpsc::channel(CLIENT_OUT_QUEUE_CAPACITY);
-        let (second_app_out, _second_app_rx) = mpsc::channel(CLIENT_OUT_QUEUE_CAPACITY);
-        let (cli_out, _cli_rx) = mpsc::channel(CLIENT_OUT_QUEUE_CAPACITY);
+        let (first_app_handle, _first_app_rx) = ClientHandle::test_channels();
+        let (second_app_handle, _second_app_rx) = ClientHandle::test_channels();
+        let (cli_handle, _cli_rx) = ClientHandle::test_channels();
         let mut actor = ServerActor {
             runtime_dir: dir.path().to_path_buf(),
             control_file_path: dir.path().join("runtime-host.json"),
@@ -1711,7 +1724,7 @@ mod tests {
                 (
                     1,
                     ClientState {
-                        handle: ClientHandle { out: first_app_out },
+                        handle: first_app_handle,
                         authenticated: true,
                         kind: ClientKind::Local,
                         mobile_device_id: None,
@@ -1721,9 +1734,7 @@ mod tests {
                 (
                     2,
                     ClientState {
-                        handle: ClientHandle {
-                            out: second_app_out,
-                        },
+                        handle: second_app_handle,
                         authenticated: true,
                         kind: ClientKind::Local,
                         mobile_device_id: None,
@@ -1733,7 +1744,7 @@ mod tests {
                 (
                     3,
                     ClientState {
-                        handle: ClientHandle { out: cli_out },
+                        handle: cli_handle,
                         authenticated: true,
                         kind: ClientKind::Local,
                         mobile_device_id: None,
