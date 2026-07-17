@@ -4,6 +4,7 @@ import 'package:alera/src/app/providers.dart';
 import 'package:alera/src/app/theme/alera_dark_theme.dart';
 import 'package:alera/src/core/build_flavor.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
+import 'package:alera/src/features/app_menu/infra/native_app_menu_channel.dart';
 import 'package:alera/src/features/app_menu/presentation/alera_app_menu_scope.dart';
 import 'package:alera/src/features/app_menu/presentation/app_menu_actions.dart';
 import 'package:alera/src/features/app_window/application/app_window_controller.dart';
@@ -12,6 +13,7 @@ import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/updater/domain/alera_update.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -97,37 +99,128 @@ void main() {
   });
 
   group('AleraAppMenuScope', () {
-    testWidgets('shows Material menu bar items on Linux', (tester) async {
-      await _withPlatform(TargetPlatform.linux, () async {
-        await _pumpMenuScope(tester);
+    for (final platform in <TargetPlatform>[
+      TargetPlatform.linux,
+      TargetPlatform.windows,
+    ]) {
+      group('on $platform (native runner menu)', () {
+        testWidgets('renders no in-window menu bar', (tester) async {
+          await _withPlatform(platform, () async {
+            await _pumpMenuScope(tester);
 
-        expect(find.byType(MenuBar), findsOneWidget);
-        expect(find.text(kAleraAppName), findsOneWidget);
+            expect(find.byType(MenuBar), findsNothing);
+            expect(find.byType(PlatformMenuBar), findsNothing);
+          });
+        });
 
-        await tester.tap(find.text(kAleraAppName));
-        await tester.pumpAndSettle();
-        expect(find.text('Settings ...'), findsOneWidget);
-        expect(find.text('Check for Updates ...'), findsOneWidget);
-        expect(find.text('About $kAleraAppName'), findsOneWidget);
-        expect(find.text('Exit'), findsOneWidget);
+        testWidgets('native channel opens the settings dialog', (tester) async {
+          await _withPlatform(platform, () async {
+            await _pumpMenuScope(tester);
+
+            await _invokeNativeMenuMethod(
+              tester,
+              NativeAppMenuMethod.openSettings,
+            );
+            await tester.pump();
+            await tester.pump(const Duration(milliseconds: 300));
+
+            expect(find.text('Application'), findsWidgets);
+          });
+        });
+
+        testWidgets('native channel runs the update check', (tester) async {
+          await _withPlatform(platform, () async {
+            final updateController = _FakeUpdateController(
+              AleraUpdateState(status: AleraUpdateStatus.idle, config: _config()),
+            );
+            final toastMessages = <String>[];
+            final sub = AleraToast.stream.listen((data) {
+              toastMessages.add(data.message);
+            });
+            addTearDown(sub.cancel);
+
+            await _pumpMenuScope(tester, updateController: updateController);
+
+            await _invokeNativeMenuMethod(
+              tester,
+              NativeAppMenuMethod.checkForUpdates,
+            );
+            await tester.pump();
+            await tester.pump();
+
+            expect(updateController.checkForUpdatesCalls, 1);
+            expect(toastMessages, <String>['Alera is up to date.']);
+          });
+        });
+
+        testWidgets('native channel shows the about dialog', (tester) async {
+          await _withPlatform(platform, () async {
+            _mockPackageInfo(tester);
+
+            await _pumpMenuScope(tester);
+
+            await _invokeNativeMenuMethod(tester, NativeAppMenuMethod.showAbout);
+            await tester.pumpAndSettle();
+
+            expect(find.text(kAleraAppName), findsWidgets);
+            expect(find.text('Version 1.2.3 (45)'), findsOneWidget);
+          });
+        });
+
+        testWidgets('native channel closes the app window', (tester) async {
+          await _withPlatform(platform, () async {
+            final window = _FakeAppWindowController();
+            await _pumpMenuScope(tester, window: window);
+
+            await _invokeNativeMenuMethod(tester, NativeAppMenuMethod.exitApp);
+            await tester.pump();
+
+            expect(window.closeCalls, 1);
+          });
+        });
+
+        testWidgets('native channel edit methods act on the focused text field', (
+          tester,
+        ) async {
+          await _withPlatform(platform, () async {
+            final controller = TextEditingController();
+            addTearDown(controller.dispose);
+            _mockClipboard();
+            await _pumpMenuScope(
+              tester,
+              child: Scaffold(
+                body: Center(child: TextField(controller: controller)),
+              ),
+            );
+
+            await tester.tap(find.byType(TextField));
+            await tester.pump();
+            await tester.enterText(find.byType(TextField), 'hello');
+            await tester.pump();
+
+            await _invokeNativeMenuMethod(
+              tester,
+              NativeAppMenuMethod.selectAll,
+            );
+            await tester.pump();
+            expect(
+              controller.selection,
+              const TextSelection(baseOffset: 0, extentOffset: 5),
+            );
+
+            await _invokeNativeMenuMethod(tester, NativeAppMenuMethod.cut);
+            await tester.pump();
+            expect(controller.text, isEmpty);
+            final clipboard = await Clipboard.getData(Clipboard.kTextPlain);
+            expect(clipboard?.text, 'hello');
+
+            await _invokeNativeMenuMethod(tester, NativeAppMenuMethod.paste);
+            await tester.pump();
+            expect(controller.text, 'hello');
+          });
+        });
       });
-    });
-
-    testWidgets('shows Material menu bar items on Windows', (tester) async {
-      await _withPlatform(TargetPlatform.windows, () async {
-        await _pumpMenuScope(tester);
-
-        expect(find.byType(MenuBar), findsOneWidget);
-        expect(find.text('Check for Updates ...'), findsNothing);
-
-        await tester.tap(find.text(kAleraAppName));
-        await tester.pumpAndSettle();
-        expect(find.text('Settings ...'), findsOneWidget);
-        expect(find.text('Check for Updates ...'), findsOneWidget);
-        expect(find.text('About $kAleraAppName'), findsOneWidget);
-        expect(find.text('Exit'), findsOneWidget);
-      });
-    });
+    }
 
     testWidgets('uses PlatformMenuBar on macOS without in-window MenuBar', (
       tester,
@@ -200,17 +293,27 @@ Future<void> _pumpActionHarness(
   );
 }
 
-Future<void> _pumpMenuScope(WidgetTester tester) async {
+Future<void> _pumpMenuScope(
+  WidgetTester tester, {
+  _FakeUpdateController? updateController,
+  _FakeAppWindowController? window,
+  Widget? child,
+}) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
         aleraUpdateControllerProvider.overrideWith(
-          () => _FakeUpdateController(
-            AleraUpdateState(status: AleraUpdateStatus.idle, config: _config()),
-          ),
+          () =>
+              updateController ??
+              _FakeUpdateController(
+                AleraUpdateState(
+                  status: AleraUpdateStatus.idle,
+                  config: _config(),
+                ),
+              ),
         ),
         appWindowControllerProvider.overrideWithValue(
-          _FakeAppWindowController(),
+          window ?? _FakeAppWindowController(),
         ),
         settingsControllerProvider.overrideWith(
           () => _FakeSettingsController(AleraSettings.defaults),
@@ -218,11 +321,63 @@ Future<void> _pumpMenuScope(WidgetTester tester) async {
       ],
       child: MaterialApp(
         theme: buildAleraDarkTheme(),
-        home: const AleraAppMenuScope(child: Scaffold(body: SizedBox.expand())),
+        home: AleraAppMenuScope(
+          child: child ?? const Scaffold(body: SizedBox.expand()),
+        ),
       ),
     ),
   );
   await tester.pump();
+}
+
+/// Simulates a native (GTK/Win32) menu activation arriving over the app-menu
+/// channel.
+Future<void> _invokeNativeMenuMethod(WidgetTester tester, String method) async {
+  await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+      .handlePlatformMessage(
+        nativeAppMenuChannelName,
+        const StandardMethodCodec().encodeMethodCall(MethodCall(method)),
+        (_) {},
+      );
+}
+
+void _mockPackageInfo(WidgetTester tester) {
+  const channel = MethodChannel('dev.fluttercommunity.plus/package_info');
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+      .setMockMethodCallHandler(channel, (call) async {
+        return <String, String>{
+          'appName': kAleraAppName,
+          'packageName': 'dev.leynier.alera',
+          'version': '1.2.3',
+          'buildNumber': '45',
+        };
+      });
+  addTearDown(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, null);
+  });
+}
+
+/// The test binding does not answer clipboard platform messages, so the edit
+/// menu intents would hang without an in-memory mock.
+void _mockClipboard() {
+  String? clipboardText;
+  final messenger =
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+  messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+    switch (call.method) {
+      case 'Clipboard.getData':
+        final text = clipboardText;
+        return text == null ? null : <String, dynamic>{'text': text};
+      case 'Clipboard.setData':
+        clipboardText =
+            (call.arguments as Map<Object?, Object?>)['text'] as String?;
+    }
+    return null;
+  });
+  addTearDown(() {
+    messenger.setMockMethodCallHandler(SystemChannels.platform, null);
+  });
 }
 
 AleraUpdateConfig _config() {

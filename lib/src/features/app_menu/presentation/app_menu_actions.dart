@@ -4,17 +4,13 @@ import 'package:alera/src/core/build_flavor.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/features/app_window/application/app_window_providers.dart';
-import 'package:alera/src/features/keyboard/application/keybinding_resolver.dart';
-import 'package:alera/src/features/keyboard/domain/key_chord.dart';
-import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
 import 'package:alera/src/features/updater/domain/alera_update.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_dialog_launchers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
-/// Shared actions for the desktop application menu (native on macOS,
-/// Material menu bar on Windows/Linux).
+/// Shared actions for the desktop application menu (native on all platforms).
 
 typedef AppMenuPackageInfoLoader = Future<PackageInfo> Function();
 
@@ -90,35 +86,6 @@ Future<void> showAppMenuAbout(
 /// Closes through the app-window lifecycle (flush state, then destroy).
 Future<void> exitAppFromMenu(WidgetRef ref) {
   return ref.read(appWindowControllerProvider).close();
-}
-
-/// Display-only menu shortcut for Settings, from the effective openSettings
-/// binding. Returns null when the action is disabled or has no binding.
-MenuSerializableShortcut? settingsMenuShortcut(WidgetRef ref) {
-  final keyboard = ref.read(settingsControllerProvider).keyboard;
-  final resolver = KeybindingResolver(settings: keyboard);
-  final chords = resolver.effectiveChords(KeyboardActionId.openSettings);
-  if (chords.isEmpty) {
-    return null;
-  }
-  return keyChordToMenuShortcut(
-    chords.first,
-    isMacOS: resolver.platform.isMacOS,
-  );
-}
-
-/// Converts a [KeyChord] into a [SingleActivator] for menu display.
-MenuSerializableShortcut keyChordToMenuShortcut(
-  KeyChord chord, {
-  required bool isMacOS,
-}) {
-  return SingleActivator(
-    chord.trigger,
-    control: chord.control || (!isMacOS && chord.useMod),
-    meta: chord.meta || (isMacOS && chord.useMod),
-    alt: chord.alt,
-    shift: chord.shift,
-  );
 }
 
 /// Invokes a text-editing intent on the primary focus, if any action handles it.

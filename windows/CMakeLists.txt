@@ -5,8 +5,10 @@ project(alera LANGUAGES CXX)
 # The on-disk name of the executable. Driven by ALERA_FLAVOR so that a dev
 # build coexists with an installed release build.
 set(BINARY_NAME "alera-dev")
+set(ALERA_APP_NAME "Alera Dev")
 if("$ENV{ALERA_FLAVOR}" STREQUAL "release")
   set(BINARY_NAME "Alera")
+  set(ALERA_APP_NAME "Alera")
 endif()
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent

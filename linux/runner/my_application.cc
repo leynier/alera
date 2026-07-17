@@ -14,6 +14,7 @@ struct _MyApplication {
   GtkApplication parent_instance;
   char** dart_entrypoint_arguments;
   FlMethodChannel* clipboard_channel;
+  FlMethodChannel* app_menu_channel;
 };
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
@@ -27,6 +28,76 @@ constexpr char kClipboardImageSuffix[] = ".png";
 constexpr gint64 kClipboardImageMaxPixels = 32LL * 1024LL * 1024LL;
 constexpr goffset kClipboardImageMaxPngBytes = 18LL * 1024LL * 1024LL;
 constexpr time_t kClipboardImageMaxAgeSeconds = 24 * 60 * 60;
+
+constexpr char kAppMenuChannel[] = "dev.leynier.alera/app_menu";
+
+// Forwards native GTK menu activation to Dart over the app-menu channel. The
+// action name doubles as the channel method name (see NativeAppMenuMethod in
+// lib/src/features/app_menu/infra/native_app_menu_channel.dart).
+void app_menu_action_cb(GSimpleAction* action, GVariant*,
+                        gpointer user_data) {
+  auto* self = MY_APPLICATION(user_data);
+  if (self->app_menu_channel == nullptr) {
+    return;
+  }
+  fl_method_channel_invoke_method(self->app_menu_channel,
+                                  g_action_get_name(G_ACTION(action)), nullptr,
+                                  nullptr, nullptr, nullptr);
+}
+
+const GActionEntry kAppMenuActionEntries[] = {
+    {"openSettings", app_menu_action_cb, nullptr, nullptr, nullptr},
+    {"checkForUpdates", app_menu_action_cb, nullptr, nullptr, nullptr},
+    {"showAbout", app_menu_action_cb, nullptr, nullptr, nullptr},
+    {"exitApp", app_menu_action_cb, nullptr, nullptr, nullptr},
+    {"undo", app_menu_action_cb, nullptr, nullptr, nullptr},
+    {"redo", app_menu_action_cb, nullptr, nullptr, nullptr},
+    {"cut", app_menu_action_cb, nullptr, nullptr, nullptr},
+    {"copy", app_menu_action_cb, nullptr, nullptr, nullptr},
+    {"paste", app_menu_action_cb, nullptr, nullptr, nullptr},
+    {"selectAll", app_menu_action_cb, nullptr, nullptr, nullptr},
+};
+
+// Builds the classic GTK menu bar shown above the Flutter view. No keyboard
+// accelerators are registered: global accelerators would swallow keys like
+// Ctrl+C before text fields and the terminal-first shortcut policy see them.
+GtkWidget* build_app_menu_bar() {
+  g_autoptr(GMenu) app_actions_section = g_menu_new();
+  g_menu_append(app_actions_section, "Settings ...", "app.openSettings");
+  g_menu_append(app_actions_section, "Check for Updates ...",
+                "app.checkForUpdates");
+  g_autoptr(GMenu) app_about_section = g_menu_new();
+  g_autofree gchar* about_label =
+      g_strdup_printf("About %s", ALERA_APP_NAME);
+  g_menu_append(app_about_section, about_label, "app.showAbout");
+  g_autoptr(GMenu) app_exit_section = g_menu_new();
+  g_menu_append(app_exit_section, "Exit", "app.exitApp");
+  g_autoptr(GMenu) app_submenu = g_menu_new();
+  g_menu_append_section(app_submenu, nullptr,
+                        G_MENU_MODEL(app_actions_section));
+  g_menu_append_section(app_submenu, nullptr, G_MENU_MODEL(app_about_section));
+  g_menu_append_section(app_submenu, nullptr, G_MENU_MODEL(app_exit_section));
+
+  g_autoptr(GMenu) edit_history_section = g_menu_new();
+  g_menu_append(edit_history_section, "Undo", "app.undo");
+  g_menu_append(edit_history_section, "Redo", "app.redo");
+  g_autoptr(GMenu) edit_clipboard_section = g_menu_new();
+  g_menu_append(edit_clipboard_section, "Cut", "app.cut");
+  g_menu_append(edit_clipboard_section, "Copy", "app.copy");
+  g_menu_append(edit_clipboard_section, "Paste", "app.paste");
+  g_menu_append(edit_clipboard_section, "Select All", "app.selectAll");
+  g_autoptr(GMenu) edit_submenu = g_menu_new();
+  g_menu_append_section(edit_submenu, nullptr,
+                        G_MENU_MODEL(edit_history_section));
+  g_menu_append_section(edit_submenu, nullptr,
+                        G_MENU_MODEL(edit_clipboard_section));
+
+  g_autoptr(GMenu) menu_model = g_menu_new();
+  g_menu_append_submenu(menu_model, ALERA_APP_NAME, G_MENU_MODEL(app_submenu));
+  g_menu_append_submenu(menu_model, "Edit", G_MENU_MODEL(edit_submenu));
+
+  return gtk_menu_bar_new_from_model(G_MENU_MODEL(menu_model));
+}
 
 struct ClipboardImageRequest {
   FlMethodCall* method_call;
@@ -217,14 +288,30 @@ static void my_application_activate(GApplication* application) {
   if (use_header_bar) {
     GtkHeaderBar* header_bar = GTK_HEADER_BAR(gtk_header_bar_new());
     gtk_widget_show(GTK_WIDGET(header_bar));
-    gtk_header_bar_set_title(header_bar, "Alera");
+    gtk_header_bar_set_title(header_bar, ALERA_APP_NAME);
     gtk_header_bar_set_show_close_button(header_bar, TRUE);
     gtk_window_set_titlebar(window, GTK_WIDGET(header_bar));
   } else {
-    gtk_window_set_title(window, "Alera");
+    gtk_window_set_title(window, ALERA_APP_NAME);
   }
 
   gtk_window_set_default_size(window, 1280, 720);
+
+  // The app is dark-only; keep native GTK menus on the dark system theme too.
+  g_object_set(gtk_settings_get_default(), "gtk-application-prefer-dark-theme",
+               TRUE, nullptr);
+
+  g_action_map_add_action_entries(G_ACTION_MAP(application),
+                                  kAppMenuActionEntries,
+                                  G_N_ELEMENTS(kAppMenuActionEntries), self);
+
+  GtkWidget* box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+  gtk_widget_show(box);
+  gtk_container_add(GTK_CONTAINER(window), box);
+
+  GtkWidget* menu_bar = build_app_menu_bar();
+  gtk_widget_show(menu_bar);
+  gtk_box_pack_start(GTK_BOX(box), menu_bar, FALSE, FALSE, 0);
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
   fl_dart_project_set_dart_entrypoint_arguments(
@@ -237,7 +324,7 @@ static void my_application_activate(GApplication* application) {
   gdk_rgba_parse(&background_color, "#000000");
   fl_view_set_background_color(view, &background_color);
   gtk_widget_show(GTK_WIDGET(view));
-  gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(view));
+  gtk_box_pack_start(GTK_BOX(box), GTK_WIDGET(view), TRUE, TRUE, 0);
 
   // Show the window when Flutter renders.
   // Requires the view to be realized so we can start rendering.
@@ -253,6 +340,12 @@ static void my_application_activate(GApplication* application) {
       FL_METHOD_CODEC(clipboard_codec));
   fl_method_channel_set_method_call_handler(
       self->clipboard_channel, clipboard_channel_method_cb, self, nullptr);
+
+  g_autoptr(FlStandardMethodCodec) app_menu_codec =
+      fl_standard_method_codec_new();
+  self->app_menu_channel = fl_method_channel_new(
+      fl_engine_get_binary_messenger(engine), kAppMenuChannel,
+      FL_METHOD_CODEC(app_menu_codec));
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
 
@@ -303,6 +396,7 @@ static void my_application_dispose(GObject* object) {
   MyApplication* self = MY_APPLICATION(object);
   g_clear_pointer(&self->dart_entrypoint_arguments, g_strfreev);
   g_clear_object(&self->clipboard_channel);
+  g_clear_object(&self->app_menu_channel);
   G_OBJECT_CLASS(my_application_parent_class)->dispose(object);
 }
 
