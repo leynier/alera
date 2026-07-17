@@ -1,11 +1,9 @@
-use clap::{Args, Parser, Subcommand, ValueEnum};
-
 use crate::cli_orchestration::OrchestrationCommand;
 use crate::terminal_host::protocol::{
     DEFAULT_DETACHED_SESSION_SHUTDOWN_DELAY_SECONDS, DEFAULT_EMPTY_SHUTDOWN_DELAY_SECONDS,
     DEFAULT_SCROLLBACK_BYTES, TERMINAL_HOST_COMMAND,
 };
-
+use clap::{Args, Parser, Subcommand, ValueEnum};
 /// Top-level CLI, mirroring the Dart `AleraCliCommandRunner`.
 #[derive(Debug, Parser)]
 #[command(
@@ -29,13 +27,11 @@ pub enum Command {
     /// Run the persistent terminal host sidecar.
     #[command(name = TERMINAL_HOST_COMMAND)]
     TerminalHost(TerminalHostArgs),
-
     /// Inspect or operate the local Alera runtime profile.
     Runtime(RuntimeCommand),
 
     /// Create, list, update, and remove runtime-owned projects.
     Project(ProjectCommand),
-
     /// Create, list, tag, relate, and remove runtime-owned workspaces.
     Workspace(WorkspaceCommand),
 
@@ -243,6 +239,10 @@ pub enum WorkspaceAction {
     Register(WorkspaceRegisterArgs),
     /// Remove a workspace record and related runtime records without touching Git worktrees.
     Unregister(IdArgs),
+    /// Pin a workspace in the desktop sidebar.
+    Pin(IdArgs),
+    /// Unpin a workspace from the desktop sidebar.
+    Unpin(IdArgs),
     /// Add a parent/child relationship.
     Link(WorkspaceLinkArgs),
     /// Remove a parent/child relationship.

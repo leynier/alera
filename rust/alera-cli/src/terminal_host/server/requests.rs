@@ -595,6 +595,7 @@ impl ServerActor {
                 self.broadcast_authenticated(event("workspacesChanged", json!({})));
                 Ok(value)
             }
+            "workspace.setPinned" => self.handle_workspace_pinning(client_id, payload).await,
             "workspace.remove" => {
                 self.require_auth(client_id)?;
                 let id = require_string_key(payload, "id")?;

@@ -41,12 +41,9 @@ Future<HttpClientResponse> _postHook(
 
 class _TestSettingsController extends SettingsController {
   _TestSettingsController(this._seed);
-
   final AleraSettings _seed;
-
   @override
   AleraSettings build() => _seed;
-
   void setState(AleraSettings next) {
     state = next;
   }
@@ -62,17 +59,14 @@ final class _FakeTerminalHostClient implements TerminalHostClient {
             running: true,
             snapshot: Uint8List(0),
           );
-
   final TerminalHostAttachment attachment;
   final List<TerminalHostConfig> ensureStartedConfigs = <TerminalHostConfig>[];
   final List<TerminalHostConfig> configureConfigs = <TerminalHostConfig>[];
   final List<GhosttyTerminalShellLaunch> launches =
       <GhosttyTerminalShellLaunch>[];
-
   @override
   Stream<TerminalHostEvent> get events =>
       const Stream<TerminalHostEvent>.empty();
-
   @override
   Future<void> configure(TerminalHostConfig config) async {
     configureConfigs.add(config);
@@ -100,10 +94,8 @@ final class _FakeTerminalHostClient implements TerminalHostClient {
 
   @override
   Future<void> detach(String sessionId) async {}
-
   @override
   void dispose() {}
-
   @override
   Future<void> ensureStarted({required TerminalHostConfig config}) async {
     ensureStartedConfigs.add(config);
@@ -115,7 +107,6 @@ final class _FakeTerminalHostClient implements TerminalHostClient {
     required int cols,
     required int rows,
   }) async {}
-
   @override
   Future<Uint8List> setOutputPaused({
     required String sessionId,
@@ -242,6 +233,15 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
       workspaces[index] = workspace;
     }
     return workspace;
+  }
+
+  @override
+  Future<Workspace> setWorkspacePinned(
+    String workspaceId,
+    bool isPinned,
+  ) async {
+    final current = (await findWorkspaceById(workspaceId))!;
+    return upsertWorkspace(current.copyWith(isPinned: isPinned));
   }
 
   @override

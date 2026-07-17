@@ -16,9 +16,7 @@ void main() {
           repository: repository,
           now: () => DateTime.utc(2026, 5, 21),
         );
-
         final tab = await service.ensureInitialTerminalTab('workspace-1');
-
         expect(tab.title, 'Terminal 1');
         expect(tab.terminalSessionId, tab.id);
         expect(repository.tabs.single.title, 'Terminal 1');
@@ -49,9 +47,7 @@ void main() {
           repository: repository,
           now: () => DateTime.utc(2026, 5, 21, 1),
         );
-
         final tab = await service.createTerminalTab('workspace-1');
-
         expect(tab.title, 'Terminal 2');
         expect(tab.payload[workspaceTabTerminalSessionIdPayloadKey], tab.id);
         expect(
@@ -60,7 +56,6 @@ void main() {
         );
       },
     );
-
     test(
       'openOrCreateEditorTab creates an editor tab for a normalized path',
       () async {
@@ -1191,6 +1186,11 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
 
   @override
   Future<Workspace> upsertWorkspace(Workspace workspace) async => workspace;
+  @override
+  Future<Workspace> setWorkspacePinned(
+    String workspaceId,
+    bool isPinned,
+  ) async => throw StateError('Workspace not found');
 
   @override
   Stream<List<WorkspaceTabRecord>> watchWorkspaceTabs(String workspaceId) =>

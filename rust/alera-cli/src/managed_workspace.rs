@@ -19,7 +19,6 @@ use uuid::Uuid;
 const SHELL_PATH_HYDRATION_DELIMITER: &str = "__ALERA_SHELL_PATH__";
 const SHELL_PATH_HYDRATION_TIMEOUT: Duration = Duration::from_secs(5);
 const SETUP_OUTPUT_TAIL_BYTES: usize = 16 * 1024;
-
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ManagedWorkspaceCreateRequest {
@@ -40,7 +39,6 @@ pub struct ManagedWorkspaceCreateRequest {
     #[serde(default)]
     pub parent_workspace_id: Option<String>,
 }
-
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ManagedWorkspaceRemoveRequest {
@@ -48,7 +46,6 @@ pub struct ManagedWorkspaceRemoveRequest {
     #[serde(default)]
     pub delete_branch: Option<bool>,
 }
-
 pub async fn create_managed_workspace(
     store: &RuntimeStore,
     request: ManagedWorkspaceCreateRequest,
@@ -163,6 +160,7 @@ pub async fn create_managed_workspace(
             source_branch
         },
         reuses_existing_branch: request.reuse_existing_branch,
+        is_pinned: false,
         tag_ids: Vec::new(),
         tag_names: Vec::new(),
         parent_workspace_id: None,
@@ -1051,6 +1049,7 @@ mod tests {
                 status: WorkspaceStatus::Active,
                 source_branch: None,
                 reuses_existing_branch: false,
+                is_pinned: false,
                 tag_ids: Vec::new(),
                 tag_names: Vec::new(),
                 parent_workspace_id: None,
@@ -1168,6 +1167,7 @@ mod tests {
                 status: WorkspaceStatus::Active,
                 source_branch: None,
                 reuses_existing_branch: false,
+                is_pinned: false,
                 tag_ids: Vec::new(),
                 tag_names: Vec::new(),
                 parent_workspace_id: None,

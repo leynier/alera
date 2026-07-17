@@ -1,7 +1,6 @@
 part of 'workbench_controller_test.dart';
 
 Future<void> _flush() => Future<void>.delayed(Duration.zero);
-
 Future<Workspace> _selectMainWorkspace(
   WorkbenchController controller,
   _WorkbenchHarness harness,
@@ -93,7 +92,6 @@ class _WorkbenchHarness {
     );
     _controller = container.read(workbenchControllerProvider.notifier);
   }
-
   late final Directory tempDir;
   late final Project project;
   late final _FakeProjectRepository projectRepository;
@@ -105,7 +103,6 @@ class _WorkbenchHarness {
   late final _FakeTerminalRuntime terminalRuntime;
   late final ProviderContainer container;
   late final WorkbenchController _controller;
-
   Future<Project> addProject(String id, String name) async {
     final repoPath = p.join(tempDir.path, id);
     Directory(repoPath).createSync(recursive: true);
@@ -136,10 +133,8 @@ class _FakeTerminalRuntime implements TerminalRuntime {
       <String, _FakeTerminalSessionHandle>{};
   final StreamController<TerminalRuntimeExitEvent> _exits =
       StreamController<TerminalRuntimeExitEvent>.broadcast();
-
   @override
   Stream<TerminalRuntimeExitEvent> get exits => _exits.stream;
-
   @override
   TerminalSessionHandle sessionFor({
     required Workspace workspace,
@@ -181,7 +176,6 @@ class _FakeTerminalSessionHandle extends TerminalSessionHandle {
     required this.workspaceId,
     required this.displayTitle,
   });
-
   @override
   final String tabId;
 
@@ -190,7 +184,6 @@ class _FakeTerminalSessionHandle extends TerminalSessionHandle {
 
   @override
   final String displayTitle;
-
   int ensureStartedCalls = 0;
   bool failStarts = false;
   bool _running = false;
@@ -436,8 +429,7 @@ class _FakeProjectRepository implements ProjectRepository {
 }
 
 class _FakeWorkbenchRepository implements WorkbenchRepository {
-  final Map<String, List<Workspace>> _workspacesByProject =
-      <String, List<Workspace>>{};
+  final Map<String, List<Workspace>> _workspacesByProject = {};
   final Map<String, List<WorkspaceTabRecord>> _tabsByWorkspace =
       <String, List<WorkspaceTabRecord>>{};
   final Map<String, WorkbenchLayout> _layoutsByWorkspace =
@@ -451,7 +443,6 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
   Object? upsertWorkspaceTabError;
   Object? upsertWorkbenchLayoutError;
   Object? removeWorkspaceTabError;
-
   @override
   Future<List<Workspace>> listWorkspaces(String projectId) async {
     return List<Workspace>.from(
@@ -506,6 +497,15 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
       List<Workspace>.from(current),
     );
     return workspace;
+  }
+
+  @override
+  Future<Workspace> setWorkspacePinned(
+    String workspaceId,
+    bool isPinned,
+  ) async {
+    final current = (await findWorkspaceById(workspaceId))!;
+    return upsertWorkspace(current.copyWith(isPinned: isPinned));
   }
 
   @override

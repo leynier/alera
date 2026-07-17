@@ -12,6 +12,7 @@ class _WorkspaceRow extends StatefulWidget {
     required this.activeTabId,
     required this.showProject,
     required this.expanded,
+    required this.isPinnedCopy,
     required this.onTap,
     required this.onOpenFolder,
     required this.onCopyPath,
@@ -20,6 +21,7 @@ class _WorkspaceRow extends StatefulWidget {
     required this.onToggleExpanded,
     required this.fileManagerLabel,
     required this.onRename,
+    required this.onSetPinned,
     required this.onManageTags,
     required this.onSetParent,
     required this.onSelectTerminal,
@@ -42,6 +44,7 @@ class _WorkspaceRow extends StatefulWidget {
 
   final bool showProject;
   final bool expanded;
+  final bool isPinnedCopy;
   final int visibleChildCount;
   final bool childrenCollapsed;
   final VoidCallback? onToggleChildren;
@@ -53,6 +56,7 @@ class _WorkspaceRow extends StatefulWidget {
   final VoidCallback onToggleExpanded;
   final String fileManagerLabel;
   final VoidCallback onRename;
+  final VoidCallback onSetPinned;
   final VoidCallback onManageTags;
   final VoidCallback onSetParent;
   final _TerminalTabCallback onSelectTerminal;
@@ -87,11 +91,14 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
         fileManagerLabel: widget.fileManagerLabel,
         hasClearParent: widget.onClearParent != null,
         canRemove: widget.onDelete != null,
+        isPinned: widget.workspace.isPinned,
       ),
     );
 
     if (selected == _renameAction) {
       widget.onRename();
+    } else if (selected == _togglePinAction) {
+      widget.onSetPinned();
     } else if (selected == _manageTagsAction) {
       widget.onManageTags();
     } else if (selected == _setParentAction) {
@@ -167,7 +174,9 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
               borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
             ),
             child: InkWell(
-              key: ValueKey<String>('workspace-row:${widget.workspace.path}'),
+              key: ValueKey<String>(
+                'workspace-row:${widget.isPinnedCopy ? 'pinned' : 'regular'}:${widget.workspace.id}',
+              ),
               onTap: widget.onTap,
               mouseCursor: SystemMouseCursors.click,
               borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
@@ -238,6 +247,18 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                                       size: 12,
                                       color: AleraTokens.foregroundMuted,
                                       key: Key('workspace-tray-home'),
+                                    ),
+                                  ),
+                                ],
+                                if (widget.workspace.isPinned) ...<Widget>[
+                                  const SizedBox(width: AleraTokens.space6),
+                                  const Tooltip(
+                                    message: 'Pinned Workspace',
+                                    child: Icon(
+                                      AleraIcons.pin,
+                                      size: 12,
+                                      color: AleraTokens.foregroundMuted,
+                                      key: Key('workspace-tray-pinned'),
                                     ),
                                   ),
                                 ],

@@ -92,6 +92,8 @@ impl RuntimeStore {
             .await?;
         self.ensure_column("sshTargets", "lastError", "TEXT")
             .await?;
+        self.ensure_column("workspaces", "isPinned", "INTEGER NOT NULL DEFAULT 0")
+            .await?;
         Ok(())
     }
 
@@ -214,24 +216,6 @@ impl RuntimeStore {
                 .await?;
         }
         tx.commit().await?;
-        Ok(())
-    }
-
-    async fn ensure_column(&self, table: &str, column: &str, definition: &str) -> Result<()> {
-        let rows = sqlx::query(&format!("PRAGMA table_info({table})"))
-            .fetch_all(&self.pool)
-            .await?;
-        let exists = rows.iter().any(|row| {
-            row.try_get::<String, _>("name")
-                .is_ok_and(|name| name == column)
-        });
-        if !exists {
-            sqlx::query(&format!(
-                "ALTER TABLE {table} ADD COLUMN {column} {definition}"
-            ))
-            .execute(&self.pool)
-            .await?;
-        }
         Ok(())
     }
 
@@ -673,7 +657,7 @@ impl RuntimeStore {
     pub async fn list_workspaces(&self, project_id: &str) -> Result<Vec<Workspace>> {
         let rows = sqlx::query(
             "SELECT id, instanceId, hostId, projectId, name, branch, path, createdAt, updatedAt, \
-             kind, status, sourceBranch, reusesExistingBranch \
+             kind, status, sourceBranch, reusesExistingBranch, isPinned \
              FROM workspaces WHERE projectId = ? AND status = 'active' \
              ORDER BY CASE kind WHEN 'main' THEN 0 ELSE 1 END, createdAt ASC, name COLLATE NOCASE ASC",
         )
@@ -686,7 +670,7 @@ impl RuntimeStore {
     pub async fn list_all_workspaces(&self) -> Result<Vec<Workspace>> {
         let rows = sqlx::query(
             "SELECT id, instanceId, hostId, projectId, name, branch, path, createdAt, updatedAt, \
-             kind, status, sourceBranch, reusesExistingBranch \
+             kind, status, sourceBranch, reusesExistingBranch, isPinned \
              FROM workspaces WHERE status = 'active' \
              ORDER BY projectId ASC, CASE kind WHEN 'main' THEN 0 ELSE 1 END, createdAt ASC",
         )
@@ -698,7 +682,7 @@ impl RuntimeStore {
     pub async fn find_workspace(&self, workspace_id: &str) -> Result<Option<Workspace>> {
         let row = sqlx::query(
             "SELECT id, instanceId, hostId, projectId, name, branch, path, createdAt, updatedAt, \
-             kind, status, sourceBranch, reusesExistingBranch FROM workspaces WHERE id = ?",
+             kind, status, sourceBranch, reusesExistingBranch, isPinned FROM workspaces WHERE id = ?",
         )
         .bind(workspace_id)
         .fetch_optional(&self.pool)
@@ -719,13 +703,14 @@ impl RuntimeStore {
         sqlx::query(
             "INSERT INTO workspaces \
              (id, instanceId, hostId, projectId, name, branch, path, createdAt, updatedAt, \
-              kind, status, sourceBranch, reusesExistingBranch) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
+              kind, status, sourceBranch, reusesExistingBranch, isPinned) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
              ON CONFLICT(id) DO UPDATE SET \
              instanceId = excluded.instanceId, hostId = excluded.hostId, projectId = excluded.projectId, \
              name = excluded.name, branch = excluded.branch, path = excluded.path, \
              updatedAt = excluded.updatedAt, kind = excluded.kind, status = excluded.status, \
-             sourceBranch = excluded.sourceBranch, reusesExistingBranch = excluded.reusesExistingBranch",
+             sourceBranch = excluded.sourceBranch, reusesExistingBranch = excluded.reusesExistingBranch, \
+             isPinned = excluded.isPinned",
         )
         .bind(&workspace.id)
         .bind(&workspace.instance_id)
@@ -740,6 +725,7 @@ impl RuntimeStore {
         .bind(workspace.status.as_str())
         .bind(&workspace.source_branch)
         .bind(if workspace.reuses_existing_branch { 1_i64 } else { 0_i64 })
+        .bind(if workspace.is_pinned { 1_i64 } else { 0_i64 })
         .execute(&self.pool)
         .await?;
         self.find_workspace(&workspace.id).await?.ok_or_else(|| {
@@ -1289,6 +1275,7 @@ impl RuntimeStore {
             status: WorkspaceStatus::from_db(row.try_get::<String, _>("status")?.as_str()),
             source_branch: empty_to_none(row.try_get("sourceBranch")?),
             reuses_existing_branch: row.try_get::<i64, _>("reusesExistingBranch")? == 1,
+            is_pinned: row.try_get::<i64, _>("isPinned")? == 1,
             tag_ids,
             tag_names,
             parent_workspace_id,
@@ -1556,7 +1543,8 @@ const RUNTIME_SCHEMA: &[&str] = &[
         kind TEXT NOT NULL,
         status TEXT NOT NULL,
         sourceBranch TEXT,
-        reusesExistingBranch INTEGER NOT NULL DEFAULT 0
+        reusesExistingBranch INTEGER NOT NULL DEFAULT 0,
+        isPinned INTEGER NOT NULL DEFAULT 0
     );",
     "CREATE INDEX IF NOT EXISTS workspacesProjectStatusIdx ON workspaces(projectId, status, kind, createdAt);",
     "CREATE UNIQUE INDEX IF NOT EXISTS workspacesInstanceIdx ON workspaces(instanceId);",
@@ -1700,6 +1688,7 @@ mod tests {
             status: WorkspaceStatus::Active,
             source_branch: None,
             reuses_existing_branch: false,
+            is_pinned: false,
             tag_ids: Vec::new(),
             tag_names: Vec::new(),
             parent_workspace_id: None,

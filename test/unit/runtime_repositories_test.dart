@@ -35,7 +35,6 @@ void main() {
           _projectJson(id: 'project-2', name: 'Mobile'),
         ],
       ];
-
       final expectation = expectLater(
         repository.watchAll(),
         emitsInOrder(<Matcher>[
@@ -54,7 +53,6 @@ void main() {
       client.emit(
         const RuntimeHostEvent('projectsChanged', <String, Object?>{}),
       );
-
       await expectation;
     },
   );
@@ -69,18 +67,17 @@ void main() {
         tagNames: <String>['Review', 'Mobile'],
         parentWorkspaceId: 'parent-1',
         childCount: 2,
+        isPinned: true,
       ),
     ];
-
     final workspaces = await repository.listWorkspaces('project-1');
-
     expect(workspaces.single.hostId, 'remote-mac');
     expect(workspaces.single.tagIds, <String>['review', 'mobile']);
     expect(workspaces.single.tagNames, <String>['Review', 'Mobile']);
     expect(workspaces.single.parentWorkspaceId, 'parent-1');
     expect(workspaces.single.childCount, 2);
+    expect(workspaces.single.isPinned, isTrue);
   });
-
   test('RuntimeWorkspaceGraphRepository maps tag and relation RPCs', () async {
     final client = _FakeRuntimeHostClient();
     final repository = RuntimeWorkspaceGraphRepository(client);
@@ -99,7 +96,6 @@ void main() {
       parentWorkspaceId: 'parent-2',
       childWorkspaceId: 'child-2',
     );
-
     final tags = await repository.listTags();
     final created = await repository.upsertTag(
       WorkspaceTag.create(name: 'Mobile', now: DateTime.utc(2026, 6, 27)),
@@ -115,7 +111,6 @@ void main() {
       parentWorkspaceId: 'parent-2',
       childWorkspaceId: 'child-2',
     );
-
     expect(tags.single.name, 'Review');
     expect(created.color, WorkspaceTag.defaultColor);
     expect(relations.single.parentWorkspaceId, 'parent-1');
@@ -134,7 +129,6 @@ void main() {
       'tagId': 'tag-1',
     });
   });
-
   test(
     'RuntimeSettingsRepository waits for migration before runtime reads',
     () async {
@@ -358,6 +352,7 @@ Map<String, Object?> _workspaceJson({
   List<String> tagNames = const <String>[],
   String? parentWorkspaceId,
   int childCount = 0,
+  bool isPinned = false,
 }) {
   return <String, Object?>{
     'id': id,
@@ -373,6 +368,7 @@ Map<String, Object?> _workspaceJson({
     'status': WorkspaceStatus.active.name,
     'sourceBranch': 'main',
     'reusesExistingBranch': false,
+    'isPinned': isPinned,
     'tagIds': tagIds,
     'tagNames': tagNames,
     'parentWorkspaceId': parentWorkspaceId,
@@ -443,7 +439,6 @@ final class _FakeRuntimeHostClient implements RuntimeHostClient {
   final payloads = <String, List<Map<String, Object?>>>{};
   final timeouts = <String, List<Duration?>>{};
   final _events = StreamController<RuntimeHostEvent>.broadcast();
-
   @override
   Stream<RuntimeHostEvent> get runtimeEvents => _events.stream;
 
@@ -473,7 +468,6 @@ final class _MemoryProjectRepository implements ProjectRepository {
 
   @override
   Future<List<Project>> listAll() async => List<Project>.of(projects);
-
   @override
   Stream<List<Project>> watchAll() => Stream<List<Project>>.value(projects);
 
@@ -486,7 +480,6 @@ final class _MemoryProjectRepository implements ProjectRepository {
 
   @override
   Future<Project> update(Project project) => add(project);
-
   @override
   Future<void> remove(String projectId) async {
     projects.removeWhere((project) => project.id == projectId);
@@ -495,7 +488,6 @@ final class _MemoryProjectRepository implements ProjectRepository {
 
 final class _MemoryProjectConfigRepository implements ProjectConfigRepository {
   final configs = <String, ProjectConfig>{};
-
   @override
   Future<ProjectConfig?> findByProjectId(String projectId) async {
     return configs[projectId];
@@ -542,7 +534,6 @@ final class _MemoryWorkbenchRepository implements WorkbenchRepository {
   final workspaces = <String, Workspace>{};
   final tabs = <String, WorkspaceTabRecord>{};
   final layouts = <String, WorkbenchLayout>{};
-
   @override
   Future<List<Workspace>> listWorkspaces(String projectId) async {
     return <Workspace>[
@@ -572,6 +563,15 @@ final class _MemoryWorkbenchRepository implements WorkbenchRepository {
   Future<Workspace> upsertWorkspace(Workspace workspace) async {
     workspaces[workspace.id] = workspace;
     return workspace;
+  }
+
+  @override
+  Future<Workspace> setWorkspacePinned(
+    String workspaceId,
+    bool isPinned,
+  ) async {
+    final workspace = workspaces[workspaceId]!;
+    return upsertWorkspace(workspace.copyWith(isPinned: isPinned));
   }
 
   @override

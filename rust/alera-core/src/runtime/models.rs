@@ -53,6 +53,8 @@ pub struct Workspace {
     pub source_branch: Option<String>,
     pub reuses_existing_branch: bool,
     #[serde(default)]
+    pub is_pinned: bool,
+    #[serde(default)]
     pub tag_ids: Vec<String>,
     #[serde(default)]
     pub tag_names: Vec<String>,

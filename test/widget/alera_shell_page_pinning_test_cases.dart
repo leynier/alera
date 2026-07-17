@@ -1,0 +1,98 @@
+part of 'alera_shell_page_test.dart';
+
+class _PinningShellTestWorkbenchController
+    extends _ShellTestWorkbenchController {
+  _PinningShellTestWorkbenchController(super.bootstrapState);
+
+  final List<({String workspaceId, bool isPinned})> pinUpdates =
+      <({String workspaceId, bool isPinned})>[];
+
+  @override
+  Future<void> setWorkspacePinned({
+    required String workspaceId,
+    required bool isPinned,
+  }) async {
+    pinUpdates.add((workspaceId: workspaceId, isPinned: isPinned));
+    state = state.copyWith(
+      workspacesByProject: <String, List<Workspace>>{
+        for (final entry in state.workspacesByProject.entries)
+          entry.key: <Workspace>[
+            for (final workspace in entry.value)
+              workspace.id == workspaceId
+                  ? workspace.copyWith(isPinned: isPinned)
+                  : workspace,
+          ],
+      },
+    );
+  }
+}
+
+void _registerAleraShellPinningTests() {
+  testWidgets('pinned section duplicates the workspace and shows indicators', (
+    tester,
+  ) async {
+    final seeded = _linkedWorkbenchState();
+    final linked = seeded
+        .workspacesFor('project-1')[1]
+        .copyWith(isPinned: true);
+    await _pumpShell(
+      tester,
+      state: seeded.copyWith(
+        workspacesByProject: <String, List<Workspace>>{
+          'project-1': <Workspace>[
+            seeded.workspacesFor('project-1').first,
+            linked,
+          ],
+        },
+      ),
+    );
+
+    expect(find.text('PINNED 1'), findsOneWidget);
+    expect(find.text('Feature login'), findsNWidgets(2));
+    expect(find.byKey(const Key('workspace-tray-pinned')), findsNWidgets(2));
+    expect(
+      find.byKey(const ValueKey<String>('workspace-row:pinned:workspace-2')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('workspace context menu pins and unpins without confirmation', (
+    tester,
+  ) async {
+    final controller = _PinningShellTestWorkbenchController(
+      _linkedWorkbenchState(),
+    );
+    await _pumpShell(
+      tester,
+      state: _linkedWorkbenchState(),
+      controller: controller,
+    );
+    final regular = find.byKey(
+      const ValueKey<String>('workspace-row:regular:workspace-2'),
+    );
+
+    await tester.tapAt(
+      tester.getCenter(regular),
+      buttons: kSecondaryMouseButton,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Pin Workspace'));
+    await tester.pumpAndSettle();
+
+    expect(controller.pinUpdates, <({String workspaceId, bool isPinned})>[
+      (workspaceId: 'workspace-2', isPinned: true),
+    ]);
+    expect(find.text('PINNED 1'), findsOneWidget);
+
+    await tester.tapAt(
+      tester.getCenter(regular),
+      buttons: kSecondaryMouseButton,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Unpin Workspace'));
+    await tester.pumpAndSettle();
+
+    expect(controller.pinUpdates.last.isPinned, isFalse);
+    expect(find.text('PINNED 1'), findsNothing);
+  });
+}

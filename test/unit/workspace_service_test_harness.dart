@@ -118,6 +118,16 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
   }
 
   @override
+  Future<Workspace> setWorkspacePinned(
+    String workspaceId,
+    bool isPinned,
+  ) async {
+    final workspace = await findWorkspaceById(workspaceId);
+    if (workspace == null) throw StateError('Workspace not found');
+    return upsertWorkspace(workspace.copyWith(isPinned: isPinned));
+  }
+
+  @override
   Stream<List<WorkspaceTabRecord>> watchWorkspaceTabs(String workspaceId) =>
       const Stream<List<WorkspaceTabRecord>>.empty();
 

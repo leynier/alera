@@ -65,6 +65,20 @@ class DriftWorkbenchRepository implements WorkbenchRepository {
   }
 
   @override
+  Future<Workspace> setWorkspacePinned(
+    String workspaceId,
+    bool isPinned,
+  ) async {
+    final workspace = await findWorkspaceById(workspaceId);
+    if (workspace == null) {
+      throw StateError('Workspace not found: $workspaceId');
+    }
+    final updated = workspace.copyWith(isPinned: isPinned);
+    await upsertWorkspace(updated);
+    return updated;
+  }
+
+  @override
   Future<void> removeWorkspace(
     String workspaceId, {
     bool cascadeTabs = true,
@@ -216,6 +230,7 @@ Workspace _workspaceFromRow(WorkspacesTableData row) {
     branch: row.branch?.isEmpty ?? true ? null : row.branch,
     sourceBranch: row.sourceBranch?.isEmpty ?? true ? null : row.sourceBranch,
     reusesExistingBranch: row.reusesExistingBranch,
+    isPinned: row.isPinned,
     hostId: 'local',
   );
 }
@@ -233,6 +248,7 @@ WorkspacesTableCompanion _workspaceCompanion(Workspace workspace) {
     status: workspace.status.name,
     sourceBranch: Value(workspace.sourceBranch),
     reusesExistingBranch: Value(workspace.reusesExistingBranch),
+    isPinned: Value(workspace.isPinned),
   );
 }
 

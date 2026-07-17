@@ -58,6 +58,19 @@ class RuntimeWorkbenchRepository implements WorkbenchRepository {
   }
 
   @override
+  Future<Workspace> setWorkspacePinned(
+    String workspaceId,
+    bool isPinned,
+  ) async {
+    await _ensureReady();
+    final payload = await _client.runtimeRequest(
+      'workspace.setPinned',
+      <String, Object?>{'id': workspaceId, 'isPinned': isPinned},
+    );
+    return _workspaceFromJson(_asMap(payload));
+  }
+
+  @override
   Future<void> removeWorkspace(
     String workspaceId, {
     bool cascadeTabs = true,
@@ -197,6 +210,7 @@ Workspace _workspaceFromJson(Map<String, Object?> json) {
     ),
     sourceBranch: _emptyToNull(json['sourceBranch']),
     reusesExistingBranch: json['reusesExistingBranch'] == true,
+    isPinned: json['isPinned'] == true,
     tagIds: _stringList(json['tagIds']),
     tagNames: _stringList(json['tagNames']),
     parentWorkspaceId: _emptyToNull(json['parentWorkspaceId']),
@@ -219,6 +233,7 @@ Map<String, Object?> _workspaceToJson(Workspace workspace) {
     'status': workspace.status.name,
     'sourceBranch': workspace.sourceBranch,
     'reusesExistingBranch': workspace.reusesExistingBranch,
+    'isPinned': workspace.isPinned,
     'tagIds': workspace.tagIds,
     'tagNames': workspace.tagNames,
     'parentWorkspaceId': workspace.parentWorkspaceId,

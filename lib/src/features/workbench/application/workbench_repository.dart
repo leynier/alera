@@ -11,6 +11,8 @@ abstract interface class WorkbenchRepository {
 
   Future<Workspace> upsertWorkspace(Workspace workspace);
 
+  Future<Workspace> setWorkspacePinned(String workspaceId, bool isPinned);
+
   Future<void> removeWorkspace(String workspaceId, {bool cascadeTabs = true});
 
   Future<void> removeWorkspacesForProject(String projectId);

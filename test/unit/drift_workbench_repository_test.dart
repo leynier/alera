@@ -72,6 +72,24 @@ void main() {
       },
     );
 
+    test('persists workspace pin state', () async {
+      final db = AleraDatabase(executor: NativeDatabase.memory());
+      addTearDown(db.close);
+      final repository = DriftWorkbenchRepository(db);
+      final workspace = _workspace(
+        id: 'workspace-pinned',
+        projectId: 'project-1',
+        now: DateTime.utc(2026, 7, 16),
+      );
+      await repository.upsertWorkspace(workspace);
+
+      final pinned = await repository.setWorkspacePinned(workspace.id, true);
+      final stored = await repository.findWorkspaceById(workspace.id);
+
+      expect(pinned.isPinned, isTrue);
+      expect(stored?.isPinned, isTrue);
+    });
+
     test(
       'removes one workspace without cascading tabs when requested',
       () async {
@@ -386,6 +404,7 @@ Future<void> _insertWorkspace(AleraDatabase db, Workspace workspace) {
           status: workspace.status.name,
           sourceBranch: Value(workspace.sourceBranch),
           reusesExistingBranch: Value(workspace.reusesExistingBranch),
+          isPinned: Value(workspace.isPinned),
         ),
       );
 }

@@ -5,7 +5,11 @@ mod orchestration_models;
 #[cfg(test)]
 mod orchestration_store_tests;
 mod orchestration_task_store;
+mod schema_migrations;
 mod store;
+mod workspace_pin_store;
+#[cfg(test)]
+mod workspace_pin_store_tests;
 
 pub use models::*;
 pub use orchestration_dispatch_store::ORCHESTRATION_CIRCUIT_BREAKER_THRESHOLD;

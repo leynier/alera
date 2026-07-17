@@ -227,6 +227,8 @@ alera tag upsert --name "Review" --color "#3b82f6"
 alera workspace tag --workspace-id <workspace-id> --tag-id <tag-id>
 alera workspace untag --workspace-id <workspace-id> --tag-id <tag-id>
 alera workspace link --parent-workspace-id <parent-id> --child-workspace-id <child-id>
+alera workspace pin --id <workspace-id>
+alera workspace unpin --id <workspace-id>
 alera tab list --workspace-id <workspace-id>
 alera tab create --workspace-id <workspace-id> --title "Terminal" --kind terminal
 ```
@@ -247,6 +249,7 @@ JSON list commands return a consistent `{ "kind": "...", "items": [...], "filter
 - Prefer `alera workspace add/remove` over raw Git when operating Alera-managed workspaces.
 - Use metadata-only `register/unregister` only when intentionally avoiding filesystem or Git changes.
 - Run list/status commands before destructive operations so you have the exact IDs.
+- Use `workspace pin/unpin` for the persisted desktop sidebar section instead of editing runtime metadata directly.
 - Keep user-created branches unless the user explicitly requests deletion or the workspace metadata shows Alera created the branch.
 - If a command fails because no runtime host is available, retry the same CLI command; managed commands auto-start the runtime host when possible.
 
