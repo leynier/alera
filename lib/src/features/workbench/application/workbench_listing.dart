@@ -260,9 +260,15 @@ List<WorkbenchSidebarRow> buildSidebarRows(
       );
   }
   if (pinnedRows.isNotEmpty) {
-    rows
-      ..add(WorkbenchPinnedHeaderRow(workspaceCount: pinnedWorkspaceCount))
-      ..addAll(pinnedRows);
+    rows.add(
+      WorkbenchPinnedHeaderRow(
+        workspaceCount: pinnedWorkspaceCount,
+        collapsed: prefs.pinnedSectionCollapsed,
+      ),
+    );
+    if (!prefs.pinnedSectionCollapsed) {
+      rows.addAll(pinnedRows);
+    }
   }
 
   switch (prefs.groupBy) {
@@ -310,13 +316,26 @@ List<WorkbenchSidebarRow> buildSidebarRows(
           workspaces.add(workspace);
         }
       }
-      appendWorkspaceTreeRows(
-        rows,
-        workspaces: sortWorkspaces(workspaces, pinMainOnRecent: false),
-        projectOf: (workspace) => projectByWorkspaceId[workspace.id]!,
-        baseIndent: 0,
-        showProjectChip: true,
-      );
+      // The flat list only gets an "All" header when a pinned section sits
+      // above it — without pins there is nothing to separate it from.
+      final hasPinnedSection = pinnedRows.isNotEmpty;
+      if (hasPinnedSection) {
+        rows.add(
+          WorkbenchAllHeaderRow(
+            workspaceCount: workspaces.length,
+            collapsed: prefs.allSectionCollapsed,
+          ),
+        );
+      }
+      if (!hasPinnedSection || !prefs.allSectionCollapsed) {
+        appendWorkspaceTreeRows(
+          rows,
+          workspaces: sortWorkspaces(workspaces, pinMainOnRecent: false),
+          projectOf: (workspace) => projectByWorkspaceId[workspace.id]!,
+          baseIndent: 0,
+          showProjectChip: true,
+        );
+      }
   }
 
   return rows;

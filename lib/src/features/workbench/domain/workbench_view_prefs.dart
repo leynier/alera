@@ -33,6 +33,8 @@ class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
     required this.expandedWorkspaceIds,
     this.selectedTagIds = const <String>{},
     this.collapsedParentWorkspaceIds = const <String>{},
+    this.pinnedSectionCollapsed = false,
+    this.allSectionCollapsed = false,
     this.sourceControlRootByWorkspaceId = const <String, String>{},
     this.rightSidebarVisible = true,
     this.rightSidebarWidth = 280,
@@ -68,6 +70,13 @@ class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
   /// sidebar tree.
   final Set<String> collapsedParentWorkspaceIds;
 
+  /// Whether the pinned-workspaces sidebar section is currently collapsed.
+  final bool pinnedSectionCollapsed;
+
+  /// Whether the flat "All" sidebar section (group-by-none mode) is currently
+  /// collapsed.
+  final bool allSectionCollapsed;
+
   /// Folder-workspace ids mapped to the workspace-relative Git folder that
   /// should back the Source Control tab.
   final Map<String, String> sourceControlRootByWorkspaceId;
@@ -95,6 +104,8 @@ class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
     expandedWorkspaceIds: <String>{},
     selectedTagIds: <String>{},
     collapsedParentWorkspaceIds: <String>{},
+    pinnedSectionCollapsed: false,
+    allSectionCollapsed: false,
     sourceControlRootByWorkspaceId: <String, String>{},
     rightSidebarVisible: true,
     rightSidebarWidth: 280,

@@ -47,9 +47,26 @@ class WorkbenchProjectHeaderRow extends WorkbenchSidebarRow {
 }
 
 class WorkbenchPinnedHeaderRow extends WorkbenchSidebarRow {
-  const WorkbenchPinnedHeaderRow({required this.workspaceCount});
+  const WorkbenchPinnedHeaderRow({
+    required this.workspaceCount,
+    required this.collapsed,
+  });
 
   final int workspaceCount;
+  final bool collapsed;
+}
+
+/// Header for the flat "All" section that follows the pinned section when the
+/// sidebar is not grouped by project. It marks where the pinned copies end
+/// and the full workspace list begins, and can collapse the whole list.
+class WorkbenchAllHeaderRow extends WorkbenchSidebarRow {
+  const WorkbenchAllHeaderRow({
+    required this.workspaceCount,
+    required this.collapsed,
+  });
+
+  final int workspaceCount;
+  final bool collapsed;
 }
 
 class WorkbenchWorkspaceRow extends WorkbenchSidebarRow {

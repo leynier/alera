@@ -71,17 +71,31 @@ class _SidebarBody extends StatelessWidget {
       ),
       itemCount: rows.length,
       itemBuilder: (context, index) {
-        final row = rows[index];
-        return _buildRow(row);
+        return _buildRow(rows, index);
       },
     );
   }
 
-  Widget _buildRow(WorkbenchSidebarRow row) {
+  Widget _buildRow(List<WorkbenchSidebarRow> rows, int index) {
+    final row = rows[index];
     if (row is WorkbenchPinnedHeaderRow) {
-      return SidebarSectionHeader(
-        label: 'Pinned ${row.workspaceCount}',
+      return _SidebarSectionTile(
         leadingIcon: AleraIcons.pin,
+        label: 'Pinned',
+        count: row.workspaceCount,
+        expanded: !row.collapsed,
+        onToggle: controller.togglePinnedSectionCollapsed,
+      );
+    }
+    if (row is WorkbenchAllHeaderRow) {
+      final previous = index > 0 ? rows[index - 1] : null;
+      return _SidebarSectionTile(
+        leadingIcon: AleraIcons.listView,
+        label: 'All',
+        count: row.workspaceCount,
+        expanded: !row.collapsed,
+        showTopDivider: previous is WorkbenchWorkspaceRow,
+        onToggle: controller.toggleAllSectionCollapsed,
       );
     }
     if (row is WorkbenchProjectHeaderRow) {
@@ -184,6 +198,113 @@ class _EmptyResultsView extends StatelessWidget {
         ? 'No workspaces match the current filters'
         : 'No workspaces match "$trimmed"';
     return AleraEmptyState(message: message);
+  }
+}
+
+/// Collapsible section header for the flat sidebar groupings (Pinned / All).
+/// Mirrors the project header tile so the sections read as clear boundaries.
+class _SidebarSectionTile extends StatefulWidget {
+  const _SidebarSectionTile({
+    required this.leadingIcon,
+    required this.label,
+    required this.count,
+    required this.expanded,
+    required this.onToggle,
+    this.showTopDivider = false,
+  });
+
+  final IconData leadingIcon;
+  final String label;
+  final int count;
+  final bool expanded;
+  final VoidCallback onToggle;
+
+  /// Draws a full-width divider above the header so the end of the previous
+  /// section is visually marked.
+  final bool showTopDivider;
+
+  @override
+  State<_SidebarSectionTile> createState() => _SidebarSectionTileState();
+}
+
+class _SidebarSectionTileState extends State<_SidebarSectionTile> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        if (widget.showTopDivider)
+          const Divider(height: 1, color: AleraTokens.borderSubtle),
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AleraTokens.space8,
+            vertical: AleraTokens.space2,
+          ),
+          child: MouseRegion(
+            onEnter: (_) => setState(() => _hovered = true),
+            onExit: (_) => setState(() => _hovered = false),
+            child: InkWell(
+              onTap: widget.onToggle,
+              mouseCursor: SystemMouseCursors.click,
+              borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+              child: AnimatedContainer(
+                duration: AleraTokens.durationFast,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AleraTokens.space8,
+                  vertical: AleraTokens.space6,
+                ),
+                decoration: BoxDecoration(
+                  color: _hovered ? AleraTokens.surface : Colors.transparent,
+                  borderRadius: BorderRadius.circular(AleraTokens.radiusLg),
+                ),
+                child: Row(
+                  children: <Widget>[
+                    Icon(
+                      widget.leadingIcon,
+                      size: 14,
+                      color: AleraTokens.foregroundMuted,
+                    ),
+                    const SizedBox(width: AleraTokens.space6),
+                    Expanded(
+                      child: Text(
+                        widget.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: _hovered
+                              ? AleraTokens.foreground
+                              : AleraTokens.foregroundMuted,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: AleraTokens.space6),
+                    Text(
+                      widget.count.toString(),
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: AleraTokens.foregroundFaint,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(width: AleraTokens.space4),
+                    Icon(
+                      widget.expanded
+                          ? AleraIcons.chevronUp
+                          : AleraIcons.chevronDown,
+                      size: 14,
+                      color: AleraTokens.foregroundMuted,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 
