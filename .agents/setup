@@ -27,6 +27,8 @@ sudo -n apt-get install -y --no-install-recommends \
   ninja-build \
   pkg-config \
   unzip \
+  xauth \
+  xvfb \
   xz-utils \
   zip
 
