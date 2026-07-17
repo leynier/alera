@@ -62,12 +62,18 @@ pub async fn connection_loop(
             message = control_out_rx.recv() => {
                 match message {
                     Some(value) => {
-                        let mut bytes = match serde_json::to_vec(&value) {
-                            Ok(bytes) => bytes,
-                            Err(_) => continue,
-                        };
-                        bytes.push(b'\n');
-                        if write_half.write_all(&bytes).await.is_err() {
+                        let queued_terminal_frames = terminal_out_rx.len();
+                        let mut failed = false;
+                        for _ in 0..queued_terminal_frames {
+                            let Ok(terminal_value) = terminal_out_rx.try_recv() else {
+                                break;
+                            };
+                            if write_json_line(&mut write_half, &terminal_value).await.is_err() {
+                                failed = true;
+                                break;
+                            }
+                        }
+                        if failed || write_json_line(&mut write_half, &value).await.is_err() {
                             let _ = inbox.send(ServerCommand::ClientDisconnected { id });
                             break;
                         }
@@ -79,12 +85,7 @@ pub async fn connection_loop(
             message = terminal_out_rx.recv() => {
                 match message {
                     Some(value) => {
-                        let mut bytes = match serde_json::to_vec(&value) {
-                            Ok(bytes) => bytes,
-                            Err(_) => continue,
-                        };
-                        bytes.push(b'\n');
-                        if write_half.write_all(&bytes).await.is_err() {
+                        if write_json_line(&mut write_half, &value).await.is_err() {
                             let _ = inbox.send(ServerCommand::ClientDisconnected { id });
                             break;
                         }
@@ -95,4 +96,49 @@ pub async fn connection_loop(
         }
     }
 }
+
+async fn write_json_line(
+    write_half: &mut tokio::net::tcp::OwnedWriteHalf,
+    value: &Value,
+) -> std::io::Result<()> {
+    let mut bytes = serde_json::to_vec(value).map_err(std::io::Error::other)?;
+    bytes.push(b'\n');
+    write_half.write_all(&bytes).await
+}
+
 pub const CLIENT_TERMINAL_OUT_QUEUE_CAPACITY: usize = 8;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+    use tokio::net::TcpListener;
+
+    #[tokio::test]
+    async fn queued_terminal_frames_keep_causal_order_before_control() {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let client = TcpStream::connect(address).await.unwrap();
+        let (server, _) = listener.accept().await.unwrap();
+        let (inbox, _inbox_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (control_tx, control_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (terminal_tx, terminal_rx) =
+            tokio::sync::mpsc::channel(CLIENT_TERMINAL_OUT_QUEUE_CAPACITY);
+
+        terminal_tx.send(json!({"event": "output"})).await.unwrap();
+        control_tx.send(json!({"event": "exit"})).unwrap();
+        let task = tokio::spawn(connection_loop(server, 1, inbox, control_rx, terminal_rx));
+        let mut lines = BufReader::new(client).lines();
+
+        let first: Value =
+            serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+        let second: Value =
+            serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+        assert_eq!(first["event"], json!("output"));
+        assert_eq!(second["event"], json!("exit"));
+
+        drop(control_tx);
+        drop(terminal_tx);
+        task.await.unwrap();
+    }
+}

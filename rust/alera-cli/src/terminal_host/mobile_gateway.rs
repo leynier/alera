@@ -3,7 +3,7 @@ use std::sync::{
     Arc,
 };
 
-use futures_util::{SinkExt as _, StreamExt as _};
+use futures_util::{stream::SplitSink, SinkExt as _, StreamExt as _};
 use serde_json::Value;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc::{self, Receiver, UnboundedReceiver, UnboundedSender};
@@ -96,10 +96,18 @@ async fn mobile_websocket_loop(
             outbound = control_out_rx.recv() => {
                 match outbound {
                     Some(value) => {
-                        let Ok(text) = serde_json::to_string(&value) else {
-                            continue;
-                        };
-                        if write.send(Message::Text(text.into())).await.is_err() {
+                        let queued_terminal_frames = terminal_out_rx.len();
+                        let mut failed = false;
+                        for _ in 0..queued_terminal_frames {
+                            let Ok(terminal_value) = terminal_out_rx.try_recv() else {
+                                break;
+                            };
+                            if send_mobile_value(&mut write, &terminal_value).await.is_err() {
+                                failed = true;
+                                break;
+                            }
+                        }
+                        if failed || send_mobile_value(&mut write, &value).await.is_err() {
                             let _ = inbox.send(ServerCommand::ClientDisconnected { id });
                             break;
                         }
@@ -110,10 +118,7 @@ async fn mobile_websocket_loop(
             outbound = terminal_out_rx.recv() => {
                 match outbound {
                     Some(value) => {
-                        let Ok(text) = serde_json::to_string(&value) else {
-                            continue;
-                        };
-                        if write.send(Message::Text(text.into())).await.is_err() {
+                        if send_mobile_value(&mut write, &value).await.is_err() {
                             let _ = inbox.send(ServerCommand::ClientDisconnected { id });
                             break;
                         }
@@ -123,4 +128,13 @@ async fn mobile_websocket_loop(
             }
         }
     }
+}
+
+async fn send_mobile_value(
+    write: &mut SplitSink<tokio_tungstenite::WebSocketStream<TcpStream>, Message>,
+    value: &Value,
+) -> anyhow::Result<()> {
+    let text = serde_json::to_string(value)?;
+    write.send(Message::Text(text.into())).await?;
+    Ok(())
 }
