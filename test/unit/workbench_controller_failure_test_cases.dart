@@ -339,6 +339,7 @@ void _registerWorkbenchControllerFailureTests() {
         activeWorkspaceId: workspace.id,
         layoutByWorkspace: <String, WorkbenchLayout>{},
       );
+      await _harness.workbenchRepository.removeWorkbenchLayout(workspace.id);
       _harness.workbenchRepository.upsertWorkbenchLayoutError = StateError(
         'bad layout',
       );

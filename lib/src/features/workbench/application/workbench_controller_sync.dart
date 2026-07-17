@@ -246,7 +246,9 @@ mixin _WorkbenchControllerSync
       layoutByWorkspace: nextLayouts,
       activeTabIdByWorkspace: activeTabs,
     );
-    unawaited(_repository.upsertWorkbenchLayout(layout));
+    if (layout != currentLayout) {
+      _persistLayoutInBackground(layout);
+    }
     _ensureSelectionHasTab();
   }
 

@@ -6,11 +6,11 @@ use std::sync::{
 use futures_util::{SinkExt as _, StreamExt as _};
 use serde_json::Value;
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::mpsc::{self, Receiver, UnboundedSender};
+use tokio::sync::mpsc::{self, Receiver, UnboundedReceiver, UnboundedSender};
 use tokio::task::JoinHandle;
 use tokio_tungstenite::{accept_async, tungstenite::Message};
 
-use crate::terminal_host::client::{ClientHandle, CLIENT_OUT_QUEUE_CAPACITY};
+use crate::terminal_host::client::{ClientHandle, CLIENT_TERMINAL_OUT_QUEUE_CAPACITY};
 use crate::terminal_host::server::{ClientKind, ServerCommand};
 
 pub fn spawn_mobile_gateway_accept_loop(
@@ -38,13 +38,18 @@ async fn accept_mobile_connection(
     inbox: UnboundedSender<ServerCommand>,
 ) -> anyhow::Result<()> {
     let socket = accept_async(stream).await?;
-    let (out_tx, out_rx) = mpsc::channel::<Value>(CLIENT_OUT_QUEUE_CAPACITY);
+    let (control_out_tx, control_out_rx) = mpsc::unbounded_channel::<Value>();
+    let (terminal_out_tx, terminal_out_rx) =
+        mpsc::channel::<Value>(CLIENT_TERMINAL_OUT_QUEUE_CAPACITY);
     inbox.send(ServerCommand::ClientConnected {
         id,
-        handle: ClientHandle { out: out_tx },
+        handle: ClientHandle {
+            control_out: control_out_tx,
+            terminal_out: terminal_out_tx,
+        },
         kind: ClientKind::Mobile,
     })?;
-    mobile_websocket_loop(socket, id, inbox, out_rx).await;
+    mobile_websocket_loop(socket, id, inbox, control_out_rx, terminal_out_rx).await;
     Ok(())
 }
 
@@ -52,7 +57,8 @@ async fn mobile_websocket_loop(
     socket: tokio_tungstenite::WebSocketStream<TcpStream>,
     id: u64,
     inbox: UnboundedSender<ServerCommand>,
-    mut out_rx: Receiver<Value>,
+    mut control_out_rx: UnboundedReceiver<Value>,
+    mut terminal_out_rx: Receiver<Value>,
 ) {
     let (mut write, mut read) = socket.split();
     loop {
@@ -87,7 +93,21 @@ async fn mobile_websocket_loop(
                     }
                 }
             }
-            outbound = out_rx.recv() => {
+            outbound = control_out_rx.recv() => {
+                match outbound {
+                    Some(value) => {
+                        let Ok(text) = serde_json::to_string(&value) else {
+                            continue;
+                        };
+                        if write.send(Message::Text(text.into())).await.is_err() {
+                            let _ = inbox.send(ServerCommand::ClientDisconnected { id });
+                            break;
+                        }
+                    }
+                    None => break,
+                }
+            }
+            outbound = terminal_out_rx.recv() => {
                 match outbound {
                     Some(value) => {
                         let Ok(text) = serde_json::to_string(&value) else {

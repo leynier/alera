@@ -20,6 +20,8 @@ final class _TerminalHostConnection {
 
   Future<void> get authenticated => _authenticated.future;
 
+  Future<void> get done => _socket.done;
+
   bool get isClosed => _isClosed;
 
   void completeAuthentication() {
@@ -35,6 +37,9 @@ final class _TerminalHostConnection {
   }
 
   void write(Map<String, Object?> message) {
+    if (_isClosed) {
+      throw StateError('Terminal host connection is closed.');
+    }
     _socket.writeln(jsonEncode(message));
   }
 

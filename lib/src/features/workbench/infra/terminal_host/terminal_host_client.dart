@@ -15,6 +15,7 @@ export 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_c
 export 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_process_launcher.dart';
 
 part 'terminal_host_client_types.dart';
+part 'terminal_host_client_requests.dart';
 
 const Set<String> _runtimeHostEventNames = <String>{
   'projectsChanged',
@@ -229,31 +230,13 @@ final class SocketTerminalHostClient
     String type,
     Map<String, Object?> payload, {
     Duration? timeout,
-  }) {
-    final id = _nextRequestId++;
-    final completer = Completer<Object?>();
-    _pending[id] = _PendingHostRequest(connection, completer);
-    final requestTimeout = timeout ?? _terminalHostRequestTimeout;
-    connection.write(<String, Object?>{
-      'id': id,
-      'type': type,
-      'payload': payload,
-    });
-    return completer.future.timeout(
-      requestTimeout,
-      onTimeout: () {
-        final pending = _pending[id];
-        if (pending != null &&
-            identical(pending.connection, connection) &&
-            identical(pending.completer, completer)) {
-          _pending.remove(id);
-        }
-        final error = TerminalHostRequestTimeoutException(type, requestTimeout);
-        _handleConnectionClosed(connection, error);
-        throw error;
-      },
-    );
-  }
+  }) => _sendTerminalHostRequest(
+    this,
+    connection,
+    type,
+    payload,
+    timeout: timeout,
+  );
 
   @override
   Future<Object?> runtimeRequest(
@@ -491,6 +474,14 @@ final class SocketTerminalHostClient
       supportsRuntime: control.supportsRuntime,
       supportsOrchestration: control.supportsOrchestration,
     );
+    unawaited(
+      connection.done.then(
+        (_) => _handleConnectionClosed(connection),
+        onError: (Object error, StackTrace _) {
+          _handleConnectionClosed(connection, error);
+        },
+      ),
+    );
     final lineSub = connection.lines.listen(
       (line) {
         try {
@@ -635,6 +626,9 @@ final class SocketTerminalHostClient
     _TerminalHostConnection connection, [
     Object? error,
   ]) {
+    if (connection.isClosed) {
+      return;
+    }
     connection.completeAuthenticationError(
       StateError('Terminal host connection closed: $error'),
     );

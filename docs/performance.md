@@ -11,7 +11,7 @@ Alera treats performance as a product contract. Optimization work starts with a 
 - The explorer computes one Git status snapshot per workspace refresh and reuses it for expanded directories.
 - Obsolete workspace searches are cancelled in Rust as soon as the query generation changes.
 - Bundled Inter and JetBrains Mono assets remove runtime font-network and font-loader work.
-- Terminal output is batched, byte-bounded in the host, character-bounded before Flutter rendering, and recovered from a snapshot when a client falls behind.
+- Terminal output is batched, byte-bounded in the host, character-bounded before Flutter rendering, and recovered from a snapshot when a client falls behind. RPC responses and runtime events use a separate control lane so terminal backpressure cannot disconnect the workbench.
 
 ## Linux Startup Harness
 
