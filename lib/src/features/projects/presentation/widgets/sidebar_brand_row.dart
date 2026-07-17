@@ -2,6 +2,7 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/core/build_flavor.dart';
 import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/features/app_menu/presentation/alera_app_menu_scope.dart';
 import 'package:flutter/material.dart';
 
 class SidebarBrandRow extends StatelessWidget {
@@ -38,15 +39,16 @@ class SidebarBrandRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space12),
       child: Row(
         children: <Widget>[
-          Expanded(
-            child: Text(
-              kAleraAppName,
-              style: theme.textTheme.titleSmall?.copyWith(
-                color: AleraTokens.foreground,
-                fontWeight: FontWeight.w600,
-              ),
+          Text(
+            kAleraAppName,
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: AleraTokens.foreground,
+              fontWeight: FontWeight.w600,
             ),
           ),
+          const SizedBox(width: AleraTokens.space4),
+          const AleraAppMenuButton(),
+          const Spacer(),
           if (onAddProject != null) ...<Widget>[
             AleraIconButton(
               tooltip: 'Add Project',

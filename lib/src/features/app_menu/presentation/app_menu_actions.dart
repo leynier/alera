@@ -10,7 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
-/// Shared actions for the desktop application menu (native on all platforms).
+/// Shared actions for the native macOS and in-window Windows/Linux menus.
 
 typedef AppMenuPackageInfoLoader = Future<PackageInfo> Function();
 
@@ -89,12 +89,12 @@ Future<void> exitAppFromMenu(WidgetRef ref) {
 }
 
 /// Invokes a text-editing intent on the primary focus, if any action handles it.
-void invokeFocusedTextIntent(Intent intent) {
-  final primaryContext = primaryFocus?.context;
-  if (primaryContext == null) {
+void invokeFocusedTextIntent(Intent intent, {BuildContext? focusContext}) {
+  final targetContext = focusContext ?? primaryFocus?.context;
+  if (targetContext == null) {
     return;
   }
-  Actions.maybeInvoke<Intent>(primaryContext, intent);
+  Actions.maybeInvoke<Intent>(targetContext, intent);
 }
 
 AleraToastTone _toastToneForUpdateStatus(AleraUpdateStatus status) {

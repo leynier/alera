@@ -4,9 +4,14 @@
 
 #include "flutter_window.h"
 #include "utils.h"
+#include "win32_dark_mode.h"
 
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
+  // Alera is dark-only; must run before any menu or window is created so the
+  // OS renders dark popup menus for the whole process.
+  EnableAleraDarkMode();
+
   // Attach to console when present (e.g., 'flutter run') or create a
   // new console when running with a debugger.
   if (!::AttachConsole(ATTACH_PARENT_PROCESS) && ::IsDebuggerPresent()) {

@@ -6,6 +6,7 @@
 
 #include "flutter/generated_plugin_registrant.h"
 #include "win32_app_menu.h"
+#include "win32_dark_mode.h"
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
     : project_(project) {}
@@ -15,12 +16,6 @@ FlutterWindow::~FlutterWindow() {}
 bool FlutterWindow::OnCreate() {
   if (!Win32Window::OnCreate()) {
     return false;
-  }
-
-  // Attach the native menu before sizing the Flutter view so the initial
-  // client area already excludes the menu height.
-  if (HMENU app_menu = CreateWin32AppMenu()) {
-    ::SetMenu(GetHandle(), app_menu);
   }
 
   RECT frame = GetClientArea();
@@ -85,6 +80,19 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
         }
         return 0;
       }
+      break;
+    case WM_MEASUREITEM:
+      if (HandleAleraMenuBarMeasureItem(hwnd, lparam)) {
+        return TRUE;
+      }
+      break;
+    case WM_DRAWITEM:
+      if (HandleAleraMenuBarDrawItem(hwnd, wparam, lparam)) {
+        return TRUE;
+      }
+      break;
+    case WM_DPICHANGED:
+      RefreshAleraMenuBarForDpi(hwnd);
       break;
     case WM_FONTCHANGE:
       flutter_controller_->engine()->ReloadSystemFonts();

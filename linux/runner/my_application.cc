@@ -58,47 +58,6 @@ const GActionEntry kAppMenuActionEntries[] = {
     {"selectAll", app_menu_action_cb, nullptr, nullptr, nullptr},
 };
 
-// Builds the classic GTK menu bar shown above the Flutter view. No keyboard
-// accelerators are registered: global accelerators would swallow keys like
-// Ctrl+C before text fields and the terminal-first shortcut policy see them.
-GtkWidget* build_app_menu_bar() {
-  g_autoptr(GMenu) app_actions_section = g_menu_new();
-  g_menu_append(app_actions_section, "Settings ...", "app.openSettings");
-  g_menu_append(app_actions_section, "Check for Updates ...",
-                "app.checkForUpdates");
-  g_autoptr(GMenu) app_about_section = g_menu_new();
-  g_autofree gchar* about_label =
-      g_strdup_printf("About %s", ALERA_APP_NAME);
-  g_menu_append(app_about_section, about_label, "app.showAbout");
-  g_autoptr(GMenu) app_exit_section = g_menu_new();
-  g_menu_append(app_exit_section, "Exit", "app.exitApp");
-  g_autoptr(GMenu) app_submenu = g_menu_new();
-  g_menu_append_section(app_submenu, nullptr,
-                        G_MENU_MODEL(app_actions_section));
-  g_menu_append_section(app_submenu, nullptr, G_MENU_MODEL(app_about_section));
-  g_menu_append_section(app_submenu, nullptr, G_MENU_MODEL(app_exit_section));
-
-  g_autoptr(GMenu) edit_history_section = g_menu_new();
-  g_menu_append(edit_history_section, "Undo", "app.undo");
-  g_menu_append(edit_history_section, "Redo", "app.redo");
-  g_autoptr(GMenu) edit_clipboard_section = g_menu_new();
-  g_menu_append(edit_clipboard_section, "Cut", "app.cut");
-  g_menu_append(edit_clipboard_section, "Copy", "app.copy");
-  g_menu_append(edit_clipboard_section, "Paste", "app.paste");
-  g_menu_append(edit_clipboard_section, "Select All", "app.selectAll");
-  g_autoptr(GMenu) edit_submenu = g_menu_new();
-  g_menu_append_section(edit_submenu, nullptr,
-                        G_MENU_MODEL(edit_history_section));
-  g_menu_append_section(edit_submenu, nullptr,
-                        G_MENU_MODEL(edit_clipboard_section));
-
-  g_autoptr(GMenu) menu_model = g_menu_new();
-  g_menu_append_submenu(menu_model, ALERA_APP_NAME, G_MENU_MODEL(app_submenu));
-  g_menu_append_submenu(menu_model, "Edit", G_MENU_MODEL(edit_submenu));
-
-  return gtk_menu_bar_new_from_model(G_MENU_MODEL(menu_model));
-}
-
 struct ClipboardImageRequest {
   FlMethodCall* method_call;
   GdkPixbuf* pixbuf;
@@ -308,10 +267,6 @@ static void my_application_activate(GApplication* application) {
   GtkWidget* box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
   gtk_widget_show(box);
   gtk_container_add(GTK_CONTAINER(window), box);
-
-  GtkWidget* menu_bar = build_app_menu_bar();
-  gtk_widget_show(menu_bar);
-  gtk_box_pack_start(GTK_BOX(box), menu_bar, FALSE, FALSE, 0);
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
   fl_dart_project_set_dart_entrypoint_arguments(

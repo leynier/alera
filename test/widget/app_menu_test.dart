@@ -103,7 +103,7 @@ void main() {
       TargetPlatform.linux,
       TargetPlatform.windows,
     ]) {
-      group('on $platform (native runner menu)', () {
+      group('on $platform (native bridge compatibility)', () {
         testWidgets('renders no in-window menu bar', (tester) async {
           await _withPlatform(platform, () async {
             await _pumpMenuScope(tester);
