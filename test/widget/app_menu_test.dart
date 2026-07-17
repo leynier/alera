@@ -103,7 +103,7 @@ void main() {
       TargetPlatform.linux,
       TargetPlatform.windows,
     ]) {
-      group('on $platform (native runner menu)', () {
+      group('on $platform (native bridge compatibility)', () {
         testWidgets('renders no in-window menu bar', (tester) async {
           await _withPlatform(platform, () async {
             await _pumpMenuScope(tester);
@@ -237,6 +237,75 @@ void main() {
 
         expect(find.byType(PlatformMenuBar), findsOneWidget);
         expect(find.byType(MenuBar), findsNothing);
+      });
+    });
+  });
+
+  group('AleraAppMenuButton', () {
+    for (final platform in <TargetPlatform>[
+      TargetPlatform.linux,
+      TargetPlatform.windows,
+    ]) {
+      testWidgets('shows the in-window menu on $platform', (tester) async {
+        await _withPlatform(platform, () async {
+          await _pumpMenuScope(
+            tester,
+            child: const Scaffold(body: AleraAppMenuButton()),
+          );
+
+          await tester.tap(find.byTooltip('Application Menu'));
+          await tester.pumpAndSettle();
+
+          expect(find.text('Settings ...'), findsOneWidget);
+          expect(find.text('Check for Updates ...'), findsOneWidget);
+          expect(find.text('Undo'), findsOneWidget);
+          expect(find.text('Cut'), findsOneWidget);
+          expect(find.text('About $kAleraAppName'), findsOneWidget);
+          expect(find.text('Exit'), findsOneWidget);
+        });
+      });
+    }
+
+    testWidgets('stays out of the window on macOS', (tester) async {
+      await _withPlatform(TargetPlatform.macOS, () async {
+        await _pumpMenuScope(
+          tester,
+          child: const Scaffold(body: AleraAppMenuButton()),
+        );
+
+        expect(find.byTooltip('Application Menu'), findsNothing);
+      });
+    });
+
+    testWidgets('keeps edit commands targeted at the focused field', (
+      tester,
+    ) async {
+      await _withPlatform(TargetPlatform.linux, () async {
+        final controller = TextEditingController();
+        addTearDown(controller.dispose);
+        await _pumpMenuScope(
+          tester,
+          child: Scaffold(
+            body: Row(
+              children: <Widget>[
+                Expanded(child: TextField(controller: controller)),
+                const AleraAppMenuButton(),
+              ],
+            ),
+          ),
+        );
+
+        await tester.tap(find.byType(TextField));
+        await tester.enterText(find.byType(TextField), 'hello');
+        await tester.tap(find.byTooltip('Application Menu'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Select All'));
+        await tester.pumpAndSettle();
+
+        expect(
+          controller.selection,
+          const TextSelection(baseOffset: 0, extentOffset: 5),
+        );
       });
     });
   });

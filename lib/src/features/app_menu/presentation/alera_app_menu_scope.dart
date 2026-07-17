@@ -1,7 +1,11 @@
 import 'dart:async';
 
 import 'package:alera/src/app/providers.dart';
+import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/core/build_flavor.dart';
+import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
+import 'package:alera/src/design_system/icons/alera_icons.dart';
+import 'package:alera/src/design_system/menus/alera_dropdown_entry.dart';
 import 'package:alera/src/features/app_menu/infra/native_app_menu_channel.dart';
 import 'package:alera/src/features/app_menu/presentation/app_menu_actions.dart';
 import 'package:flutter/foundation.dart';
@@ -12,9 +16,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// Installs the desktop application menu.
 ///
 /// - **macOS:** [PlatformMenuBar] (system menu bar; replaces MainMenu.xib).
-/// - **Windows / Linux:** the runners install a native menu (Win32 `HMENU`,
-///   GTK `GtkMenuBar`) and forward activation over [nativeAppMenuChannel];
-///   this scope only registers the Dart-side handler.
+/// - **Windows / Linux:** [AleraAppMenuButton] provides the in-window menu;
+///   this scope keeps the native channel bridge for backwards compatibility.
 class AleraAppMenuScope extends ConsumerWidget {
   const AleraAppMenuScope({super.key, required this.child});
 
@@ -65,6 +68,167 @@ class _NativeAppMenuBridgeState extends ConsumerState<_NativeAppMenuBridge> {
 
   @override
   Widget build(BuildContext context) => widget.child;
+}
+
+enum _AppMenuAction {
+  openSettings,
+  checkForUpdates,
+  undo,
+  redo,
+  cut,
+  copy,
+  paste,
+  selectAll,
+  showAbout,
+  exitApp,
+}
+
+/// Compact application menu shown beside the app name on Windows and Linux.
+/// macOS keeps these commands in the system menu bar instead.
+class AleraAppMenuButton extends ConsumerStatefulWidget {
+  const AleraAppMenuButton({super.key});
+
+  @override
+  ConsumerState<AleraAppMenuButton> createState() => _AleraAppMenuButtonState();
+}
+
+class _AleraAppMenuButtonState extends ConsumerState<AleraAppMenuButton> {
+  final _buttonKey = GlobalKey();
+  FocusNode? _pointerFocusNode;
+
+  bool get _isSupportedPlatform =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.windows ||
+          defaultTargetPlatform == TargetPlatform.linux);
+
+  Future<void> _openMenu() async {
+    final focusNode = _pointerFocusNode ?? primaryFocus;
+    _pointerFocusNode = null;
+    final focusContext = focusNode?.context;
+    final button = _buttonKey.currentContext?.findRenderObject() as RenderBox?;
+    final overlay =
+        Navigator.of(context).overlay?.context.findRenderObject() as RenderBox?;
+    if (button == null || overlay == null) {
+      return;
+    }
+
+    final topLeft = button.localToGlobal(
+      button.size.bottomLeft(Offset.zero),
+      ancestor: overlay,
+    );
+    final bottomRight = button.localToGlobal(
+      button.size.bottomRight(Offset.zero),
+      ancestor: overlay,
+    );
+    final selected = await showMenu<_AppMenuAction>(
+      context: context,
+      position: RelativeRect.fromRect(
+        Rect.fromPoints(topLeft, bottomRight),
+        Offset.zero & overlay.size,
+      ),
+      requestFocus: false,
+      items: const <PopupMenuEntry<_AppMenuAction>>[
+        AleraDropdownEntry<_AppMenuAction>(
+          value: _AppMenuAction.openSettings,
+          label: 'Settings ...',
+        ),
+        AleraDropdownEntry<_AppMenuAction>(
+          value: _AppMenuAction.checkForUpdates,
+          label: 'Check for Updates ...',
+        ),
+        PopupMenuDivider(height: AleraTokens.space8),
+        AleraDropdownEntry<_AppMenuAction>(
+          value: _AppMenuAction.undo,
+          label: 'Undo',
+        ),
+        AleraDropdownEntry<_AppMenuAction>(
+          value: _AppMenuAction.redo,
+          label: 'Redo',
+        ),
+        PopupMenuDivider(height: AleraTokens.space8),
+        AleraDropdownEntry<_AppMenuAction>(
+          value: _AppMenuAction.cut,
+          label: 'Cut',
+        ),
+        AleraDropdownEntry<_AppMenuAction>(
+          value: _AppMenuAction.copy,
+          label: 'Copy',
+        ),
+        AleraDropdownEntry<_AppMenuAction>(
+          value: _AppMenuAction.paste,
+          label: 'Paste',
+        ),
+        AleraDropdownEntry<_AppMenuAction>(
+          value: _AppMenuAction.selectAll,
+          label: 'Select All',
+        ),
+        PopupMenuDivider(height: AleraTokens.space8),
+        AleraDropdownEntry<_AppMenuAction>(
+          value: _AppMenuAction.showAbout,
+          label: 'About $kAleraAppName',
+        ),
+        AleraDropdownEntry<_AppMenuAction>(
+          value: _AppMenuAction.exitApp,
+          label: 'Exit',
+        ),
+      ],
+    );
+    if (selected == null || !mounted) {
+      return;
+    }
+    void invokeEditIntent(Intent intent) {
+      if (focusContext != null && focusContext.mounted) {
+        focusNode?.requestFocus();
+        invokeFocusedTextIntent(intent, focusContext: focusContext);
+      }
+    }
+
+    switch (selected) {
+      case _AppMenuAction.openSettings:
+        await openAppMenuSettings(context);
+      case _AppMenuAction.checkForUpdates:
+        await checkForUpdatesFromAppMenu(context, ref);
+      case _AppMenuAction.undo:
+        invokeEditIntent(const UndoTextIntent(SelectionChangedCause.keyboard));
+      case _AppMenuAction.redo:
+        invokeEditIntent(const RedoTextIntent(SelectionChangedCause.keyboard));
+      case _AppMenuAction.cut:
+        invokeEditIntent(
+          const CopySelectionTextIntent.cut(SelectionChangedCause.keyboard),
+        );
+      case _AppMenuAction.copy:
+        invokeEditIntent(CopySelectionTextIntent.copy);
+      case _AppMenuAction.paste:
+        invokeEditIntent(const PasteTextIntent(SelectionChangedCause.keyboard));
+      case _AppMenuAction.selectAll:
+        invokeEditIntent(
+          const SelectAllTextIntent(SelectionChangedCause.keyboard),
+        );
+      case _AppMenuAction.showAbout:
+        await showAppMenuAbout(context);
+      case _AppMenuAction.exitApp:
+        await exitAppFromMenu(ref);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_isSupportedPlatform) {
+      return const SizedBox.shrink();
+    }
+    return Listener(
+      onPointerDown: (_) => _pointerFocusNode = primaryFocus,
+      child: KeyedSubtree(
+        key: _buttonKey,
+        child: AleraIconButton(
+          tooltip: 'Application Menu',
+          onPressed: () => unawaited(_openMenu()),
+          icon: AleraIcons.more,
+          minSize: 28,
+        ),
+      ),
+    );
+  }
 }
 
 class _MacOsPlatformMenuBar extends ConsumerWidget {

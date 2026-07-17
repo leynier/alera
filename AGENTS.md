@@ -148,7 +148,7 @@ When planning is needed, use a spec-driven development flow. Do not jump straigh
 - Use `path` package utilities for filesystem paths.
 - Keep terminal, process, workspace, updater, and release code explicit about platform support.
 - UI shortcut labels must match the actual shortcut behavior for the current platform.
-- The application menu is native on every desktop platform: `PlatformMenuBar` on macOS, a GTK `GtkMenuBar` built in `linux/runner/my_application.cc`, and a Win32 `HMENU` built in `windows/runner/win32_app_menu.cpp`. The Linux/Windows runners forward menu activation to Dart over the `dev.leynier.alera/app_menu` method channel (see `lib/src/features/app_menu/infra/native_app_menu_channel.dart`); menu items must stay in sync across the three implementations. The native menus MUST NOT register keyboard accelerators, so keys like Ctrl+C keep flowing to text fields and the terminal-first shortcut policy.
+- The application menu uses the global `PlatformMenuBar` on macOS and a compact Flutter menu beside the app name on Windows/Linux, so those platforms do not lose client-area height to a native `GtkMenuBar` or `HMENU`. Menu actions share `lib/src/features/app_menu/presentation/app_menu_actions.dart`; keep their labels and behavior in sync across the platform presentations. Menu controls MUST NOT register keyboard accelerators, so keys like Ctrl+C keep flowing to text fields and the terminal-first shortcut policy. Because Alera is dark-only, Windows enables process-wide dark mode through `windows/runner/win32_dark_mode.cpp`.
 
 ## Flutter Performance
 

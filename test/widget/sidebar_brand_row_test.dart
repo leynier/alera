@@ -1,6 +1,7 @@
 import 'package:alera/src/core/build_flavor.dart';
 import 'package:alera/src/features/projects/presentation/widgets/sidebar_brand_row.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -69,9 +70,11 @@ class _Host extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      home: Scaffold(
-        body: Center(child: SizedBox(width: 300, child: child)),
+    return ProviderScope(
+      child: MaterialApp(
+        home: Scaffold(
+          body: Center(child: SizedBox(width: 300, child: child)),
+        ),
       ),
     );
   }
