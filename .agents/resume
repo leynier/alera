@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+export PATH="${HOME}/.local/bin:${HOME}/.cargo/bin:${HOME}/.bun/bin:${PATH}"
+
+for command in flutter dart cargo rustup zig node bun; do
+  if ! command -v "${command}" >/dev/null 2>&1; then
+    echo "Missing ${command}; rerun .agents/setup to repair this orb." >&2
+    exit 1
+  fi
+done
+
+if [[ ! -f third_party/xterm/pubspec.yaml || ! -f third_party/dart_terminal/pubspec.yaml ]]; then
+  echo "Required Git submodules are missing; rerun .agents/setup to repair this orb." >&2
+  exit 1
+fi
+
+# This repository has no persistent backing services or tunnels to reconnect.
+echo "Orb toolchains and required submodules are ready."

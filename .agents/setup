@@ -1,0 +1,143 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly FLUTTER_DIR="${HOME}/.local/share/flutter"
+readonly NODE_VERSION="22.17.1"
+readonly NODE_DIR="${HOME}/.local/share/node-v${NODE_VERSION}"
+readonly ZIG_VERSION="0.15.2"
+readonly ZIG_DIR="${HOME}/.local/share/zig-${ZIG_VERSION}"
+readonly RUST_TOOLCHAIN="1.96"
+readonly PORTABLE_PTY_RUST_TOOLCHAIN="1.92.0"
+
+export DEBIAN_FRONTEND=noninteractive
+export PATH="${HOME}/.local/bin:${HOME}/.cargo/bin:${HOME}/.bun/bin:${PATH}"
+
+mkdir -p "${HOME}/.local/bin" "${HOME}/.local/share"
+
+echo "Installing Linux build dependencies..."
+sudo -n apt-get update
+sudo -n apt-get install -y --no-install-recommends \
+  ca-certificates \
+  clang \
+  cmake \
+  curl \
+  git \
+  libgtk-3-dev \
+  liblzma-dev \
+  ninja-build \
+  pkg-config \
+  unzip \
+  xz-utils \
+  zip
+
+if [[ ! -x "${FLUTTER_DIR}/bin/flutter" ]]; then
+  echo "Installing the stable Flutter SDK..."
+  rm -rf "${FLUTTER_DIR}"
+  git clone --depth 1 --branch stable https://github.com/flutter/flutter.git "${FLUTTER_DIR}"
+fi
+ln -sfn "${FLUTTER_DIR}/bin/flutter" "${HOME}/.local/bin/flutter"
+ln -sfn "${FLUTTER_DIR}/bin/dart" "${HOME}/.local/bin/dart"
+
+echo "Preparing Flutter for Linux desktop builds..."
+flutter config --no-analytics --enable-linux-desktop
+dart --disable-analytics
+flutter precache --linux
+
+if ! command -v rustup >/dev/null 2>&1; then
+  echo "Installing rustup..."
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain none
+fi
+
+echo "Installing Rust ${RUST_TOOLCHAIN}..."
+rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal --component rustfmt --component clippy
+echo "Installing portable_pty hook Rust ${PORTABLE_PTY_RUST_TOOLCHAIN}..."
+rustup toolchain install "${PORTABLE_PTY_RUST_TOOLCHAIN}" --profile minimal
+for command in cargo cargo-clippy clippy-driver rustc rustfmt rustup; do
+  if [[ -x "${HOME}/.cargo/bin/${command}" ]]; then
+    ln -sfn "${HOME}/.cargo/bin/${command}" "${HOME}/.local/bin/${command}"
+  fi
+done
+
+if [[ ! -x "${ZIG_DIR}/zig" ]]; then
+  case "$(uname -m)" in
+    x86_64) zig_arch="x86_64" ;;
+    aarch64|arm64) zig_arch="aarch64" ;;
+    *) echo "Unsupported Zig architecture: $(uname -m)" >&2; exit 1 ;;
+  esac
+  echo "Installing Zig ${ZIG_VERSION}..."
+  archive="$(mktemp --suffix=.tar.xz)"
+  trap 'rm -f "${archive}"' EXIT
+  curl --fail --location --retry 3 \
+    "https://ziglang.org/download/${ZIG_VERSION}/zig-${zig_arch}-linux-${ZIG_VERSION}.tar.xz" \
+    --output "${archive}"
+  rm -rf "${ZIG_DIR}"
+  mkdir -p "${ZIG_DIR}"
+  tar -xJf "${archive}" --strip-components=1 -C "${ZIG_DIR}"
+  rm -f "${archive}"
+  trap - EXIT
+fi
+ln -sfn "${ZIG_DIR}/zig" "${HOME}/.local/bin/zig"
+
+if [[ ! -x "${NODE_DIR}/bin/node" ]]; then
+  case "$(uname -m)" in
+    x86_64) node_arch="x64" ;;
+    aarch64|arm64) node_arch="arm64" ;;
+    *) echo "Unsupported Node.js architecture: $(uname -m)" >&2; exit 1 ;;
+  esac
+  echo "Installing Node.js ${NODE_VERSION}..."
+  archive="$(mktemp --suffix=.tar.xz)"
+  trap 'rm -f "${archive}"' EXIT
+  curl --fail --location --retry 3 \
+    "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${node_arch}.tar.xz" \
+    --output "${archive}"
+  rm -rf "${NODE_DIR}"
+  mkdir -p "${NODE_DIR}"
+  tar -xJf "${archive}" --strip-components=1 -C "${NODE_DIR}"
+  rm -f "${archive}"
+  trap - EXIT
+fi
+for command in node npm npx corepack; do
+  ln -sfn "${NODE_DIR}/bin/${command}" "${HOME}/.local/bin/${command}"
+done
+
+if ! command -v bun >/dev/null 2>&1; then
+  echo "Installing Bun..."
+  curl --fail --location --retry 3 https://bun.sh/install | bash
+  ln -sfn "${HOME}/.bun/bin/bun" "${HOME}/.local/bin/bun"
+fi
+
+echo "Initializing Git submodules..."
+git submodule sync --recursive
+git submodule update --init --recursive --depth 1
+
+echo "Installing Flutter dependencies..."
+flutter pub get
+(cd mobile && flutter pub get)
+
+echo "Installing landing-page dependencies..."
+(cd landing && bun install --frozen-lockfile)
+
+echo "Fetching pinned Rust dependencies..."
+cargo fetch --locked --manifest-path rust/Cargo.toml
+
+echo "Applying native-asset compatibility patches..."
+dart tool/ci/patch_native_asset_ci_workarounds.dart
+
+echo "Building a Debian-compatible portable PTY native asset..."
+readonly PORTABLE_PTY_RUST_DIR="${HOME}/.pub-cache/hosted/pub.dev/portable_pty-0.0.5/rust"
+if [[ ! -f "${PORTABLE_PTY_RUST_DIR}/Cargo.toml" ]]; then
+  echo "The locked portable_pty Rust package was not found at ${PORTABLE_PTY_RUST_DIR}." >&2
+  exit 1
+fi
+RUSTUP_TOOLCHAIN="${RUST_TOOLCHAIN}" cargo build \
+  --release \
+  --locked \
+  --manifest-path "${PORTABLE_PTY_RUST_DIR}/Cargo.toml"
+mkdir -p .prebuilt/linux-x64
+cp "${PORTABLE_PTY_RUST_DIR}/target/release/libportable_pty_rs.so" \
+  .prebuilt/linux-x64/libportable_pty_rs.so
+if ! grep -Fqx '/.prebuilt/' .git/info/exclude; then
+  printf '\n/.prebuilt/\n' >> .git/info/exclude
+fi
+
+echo "Orb setup complete."
