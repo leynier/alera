@@ -67,6 +67,11 @@ int terminalOutputFrameCutoffForTesting(String value) {
 }
 
 @visibleForTesting
+int pendingTerminalOutputCharsForTesting(TerminalSessionHandle session) {
+  return (session as _XtermTerminalSessionHandle)._pendingTerminalOutput.length;
+}
+
+@visibleForTesting
 String terminalBufferTextForTesting(TerminalSessionHandle session) {
   final terminal = (session as _XtermTerminalSessionHandle)._terminal;
   return <String>[

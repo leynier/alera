@@ -75,6 +75,7 @@ class _CapturingWorkspaceSearchService extends WorkspaceSearchService {
   @override
   Future<native.WorkspaceSearchResult> search({
     required native.WorkspaceSearchOptions options,
+    required String requestId,
   }) async {
     lastOptions = options;
     return _searchResult;

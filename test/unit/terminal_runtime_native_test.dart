@@ -25,6 +25,7 @@ part 'terminal_runtime_helper_group.dart';
 part 'terminal_runtime_factory_group.dart';
 part 'terminal_runtime_clipboard_cases.dart';
 part 'terminal_runtime_xterm_session_cases.dart';
+part 'terminal_runtime_output_backpressure_cases.dart';
 part 'terminal_runtime_remint_cases.dart';
 part 'terminal_runtime_xterm_widget_cases.dart';
 part 'terminal_runtime_native_test_harness.dart';
@@ -35,6 +36,7 @@ void main() {
   group('XtermTerminalRuntime', () {
     _registerXtermRuntimeClipboardTests();
     _registerXtermRuntimeSessionTests();
+    _registerTerminalRuntimeOutputBackpressureTests();
     _registerXtermRuntimeRemintTests();
     _registerXtermRuntimeWidgetTests();
   });

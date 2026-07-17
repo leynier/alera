@@ -32,6 +32,7 @@ use crate::terminal_host::protocol::{
 use crate::terminal_host::session::Session;
 use uuid::Uuid;
 
+use super::pty_event_forwarder::forward_pty_event;
 use super::{ClientKind, ServerActor, ServerCommand};
 
 #[derive(Debug, serde::Deserialize)]
@@ -1103,12 +1104,7 @@ impl ServerActor {
             &initial_scrollback,
             initial_output_stream_bytes,
             &store,
-            move |event| {
-                let _ = inbox.send(ServerCommand::Pty {
-                    session_id: reader_session_id.clone(),
-                    event,
-                });
-            },
+            move |event| forward_pty_event(&inbox, &reader_session_id, event),
         )
         .await?;
         self.sessions.insert(session_id.clone(), session);

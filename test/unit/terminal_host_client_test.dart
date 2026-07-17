@@ -75,6 +75,7 @@ void main() {
       'event': 'error',
       'payload': <String, Object?>{'sessionId': 'session-1', 'error': 'boom'},
     });
+    final outputResyncEvent = _sendOutputResyncEvent(client, server);
 
     expect(launcher.starts, 1);
     expect(
@@ -115,6 +116,7 @@ void main() {
     expect((await outputEvent).data, <int>[65]);
     expect((await exitEvent).exitCode, 7);
     expect((await errorEvent).error, 'boom');
+    expect((await outputResyncEvent).sessionId, 'session-1');
 
     client.dispose();
     client.dispose();

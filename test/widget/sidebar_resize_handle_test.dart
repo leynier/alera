@@ -8,6 +8,7 @@ void main() {
     tester,
   ) async {
     final resizedWidths = <double>[];
+    final committedWidths = <double>[];
 
     await tester.pumpWidget(
       MaterialApp(
@@ -17,6 +18,7 @@ void main() {
             child: SidebarResizeHandle(
               currentWidth: 240,
               onResize: resizedWidths.add,
+              onResizeEnd: committedWidths.add,
             ),
           ),
         ),
@@ -41,6 +43,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(resizedWidths, <double>[264]);
+    expect(committedWidths, <double>[264]);
 
     final cancelledDrag = await tester.startGesture(
       tester.getCenter(find.byType(SidebarResizeHandle)),

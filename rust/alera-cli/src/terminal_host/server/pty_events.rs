@@ -264,7 +264,62 @@ impl ServerActor {
             Some((event("output", batch.payload), session.output_clients()))
         });
         if let Some((frame, clients)) = broadcast {
-            self.broadcast(&clients, frame);
+            for client_id in clients {
+                self.send_terminal_output(session_id, client_id, frame.clone());
+            }
+        }
+    }
+
+    fn send_terminal_output(&mut self, session_id: &str, client_id: u64, frame: Value) {
+        let result = self
+            .clients
+            .get(&client_id)
+            .map(|client| client.handle.out.try_send(frame));
+        match result {
+            Some(Ok(())) => {}
+            Some(Err(TrySendError::Full(_))) => {
+                let newly_backpressured = self
+                    .sessions
+                    .get_mut(session_id)
+                    .is_some_and(|session| session.mark_output_backpressured(client_id));
+                if newly_backpressured {
+                    self.spawn_output_resync_timer(session_id.to_string(), client_id);
+                }
+            }
+            Some(Err(TrySendError::Closed(_))) | None => {
+                self.disconnect_client_soon(client_id);
+            }
+        }
+    }
+
+    pub(super) fn handle_output_resync_tick(&mut self, session_id: String, client_id: u64) {
+        if !self
+            .sessions
+            .get(&session_id)
+            .is_some_and(|session| session.output_resync_pending(client_id))
+        {
+            return;
+        }
+        let frame = event("outputResyncRequired", json!({ "sessionId": session_id }));
+        let result = self
+            .clients
+            .get(&client_id)
+            .map(|client| client.handle.out.try_send(frame));
+        match result {
+            Some(Ok(())) => {
+                if let Some(session) = self.sessions.get_mut(&session_id) {
+                    session.mark_output_resync_sent(client_id);
+                }
+            }
+            Some(Err(TrySendError::Full(_))) => {
+                self.spawn_output_resync_timer(session_id, client_id);
+            }
+            Some(Err(TrySendError::Closed(_))) | None => {
+                if let Some(session) = self.sessions.get_mut(&session_id) {
+                    session.mark_output_resync_sent(client_id);
+                }
+                self.disconnect_client_soon(client_id);
+            }
         }
     }
 

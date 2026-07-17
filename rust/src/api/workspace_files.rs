@@ -1,10 +1,8 @@
-use std::collections::HashMap;
 use std::fs;
 use std::io;
 use std::path::{Component, Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
-use git2::{Repository, Status, StatusOptions};
 use ignore::WalkBuilder;
 
 mod editor_text;
@@ -187,10 +185,9 @@ pub fn list_workspace_children(
         read_dir_children(&directory)?
     };
 
-    let git_statuses = GitStatusSnapshot::for_workspace(&root);
     let mut entries = Vec::with_capacity(paths.len());
     for path in paths {
-        if let Some(entry) = entry_for_path(&root, &path, hide_ignored, git_statuses.as_ref())? {
+        if let Some(entry) = entry_for_path(&root, &path, hide_ignored)? {
             entries.push(entry);
         }
     }
@@ -382,7 +379,7 @@ pub fn create_workspace_file(
         .create_new(true)
         .open(&path)
         .map_err(|error| WorkspaceFileError::from_io(error, &relative_path))?;
-    entry_for_path(&root, &path, false, None)?.ok_or_else(|| {
+    entry_for_path(&root, &path, false)?.ok_or_else(|| {
         WorkspaceFileError::new(WorkspaceFileErrorKind::NotFound, relative_path.clone())
     })
 }
@@ -398,7 +395,7 @@ pub fn create_workspace_directory(
     reject_protected(&relative_path)?;
     let path = resolve_new_child(&root, &parent, &name)?;
     fs::create_dir(&path).map_err(|error| WorkspaceFileError::from_io(error, &relative_path))?;
-    entry_for_path(&root, &path, false, None)?.ok_or_else(|| {
+    entry_for_path(&root, &path, false)?.ok_or_else(|| {
         WorkspaceFileError::new(WorkspaceFileErrorKind::NotFound, relative_path.clone())
     })
 }
@@ -425,7 +422,7 @@ pub fn rename_workspace_entry(
     ensure_inside_existing_parent(&root, &destination)?;
     fs::rename(&path, &destination)
         .map_err(|error| WorkspaceFileError::from_io(error, &relative_path))?;
-    entry_for_path(&root, &destination, false, None)?.ok_or_else(|| {
+    entry_for_path(&root, &destination, false)?.ok_or_else(|| {
         WorkspaceFileError::new(WorkspaceFileErrorKind::NotFound, relative_path.clone())
     })
 }
@@ -453,7 +450,7 @@ pub fn copy_workspace_entry(
     let destination = unique_copy_destination(&target_parent.join(name));
     ensure_not_descendant(&source, &destination)?;
     copy_recursively(&source, &destination)?;
-    entry_for_path(&root, &destination, false, None)?.ok_or_else(|| {
+    entry_for_path(&root, &destination, false)?.ok_or_else(|| {
         WorkspaceFileError::new(WorkspaceFileErrorKind::NotFound, relative_path.clone())
     })
 }
@@ -488,7 +485,7 @@ pub fn move_workspace_entry(
     ensure_not_descendant(&source, &destination)?;
     fs::rename(&source, &destination)
         .map_err(|error| WorkspaceFileError::from_io(error, &relative_path))?;
-    entry_for_path(&root, &destination, false, None)?.ok_or_else(|| {
+    entry_for_path(&root, &destination, false)?.ok_or_else(|| {
         WorkspaceFileError::new(WorkspaceFileErrorKind::NotFound, relative_path.clone())
     })
 }
@@ -654,7 +651,6 @@ fn entry_for_path(
     root: &Path,
     path: &Path,
     hide_ignored: bool,
-    git_statuses: Option<&GitStatusSnapshot>,
 ) -> Result<Option<WorkspaceFileEntry>, WorkspaceFileError> {
     let metadata = fs::symlink_metadata(path)
         .map_err(|error| WorkspaceFileError::from_io(error, path.to_string_lossy()))?;
@@ -693,93 +689,8 @@ fn entry_for_path(
         is_symlink,
         is_protected: false,
         has_children_hint,
-        git_status: git_statuses.and_then(|snapshot| snapshot.status_for(&relative_path, kind)),
+        git_status: None,
     }))
-}
-
-struct GitStatusSnapshot {
-    statuses: HashMap<String, WorkspaceFileGitStatus>,
-}
-
-impl GitStatusSnapshot {
-    fn for_workspace(root: &Path) -> Option<Self> {
-        let repo = Repository::discover(root).ok()?;
-        let workdir = repo.workdir()?;
-        let mut options = StatusOptions::new();
-        options
-            .include_untracked(true)
-            .recurse_untracked_dirs(true)
-            .renames_head_to_index(true)
-            .renames_index_to_workdir(true);
-        let entries = repo.statuses(Some(&mut options)).ok()?;
-        let mut statuses = HashMap::new();
-        for entry in entries.iter() {
-            let Ok(repo_relative_path) = entry.path() else {
-                continue;
-            };
-            let path = workdir.join(repo_relative_path);
-            let Ok(workspace_relative_path) = relative_string(root, &path) else {
-                continue;
-            };
-            if workspace_relative_path.is_empty()
-                || is_protected_relative_path(&workspace_relative_path)
-            {
-                continue;
-            }
-            let status = status_from_git2(entry.status());
-            merge_status(&mut statuses, workspace_relative_path, status);
-        }
-        Some(Self { statuses })
-    }
-
-    fn status_for(
-        &self,
-        relative_path: &str,
-        kind: WorkspaceFileKind,
-    ) -> Option<WorkspaceFileGitStatus> {
-        if let Some(status) = self.statuses.get(relative_path) {
-            return Some(*status);
-        }
-        if !matches!(kind, WorkspaceFileKind::Directory) {
-            return None;
-        }
-        let prefix = format!("{relative_path}/");
-        self.statuses
-            .iter()
-            .filter_map(|(path, status)| path.starts_with(&prefix).then_some(*status))
-            .max_by_key(|status| git_status_priority(*status))
-    }
-}
-
-fn status_from_git2(status: Status) -> WorkspaceFileGitStatus {
-    if status.contains(Status::WT_NEW) {
-        WorkspaceFileGitStatus::Untracked
-    } else if status.contains(Status::INDEX_NEW) {
-        WorkspaceFileGitStatus::Added
-    } else {
-        WorkspaceFileGitStatus::Modified
-    }
-}
-
-fn merge_status(
-    statuses: &mut HashMap<String, WorkspaceFileGitStatus>,
-    relative_path: String,
-    status: WorkspaceFileGitStatus,
-) {
-    match statuses.get(&relative_path).copied() {
-        Some(existing) if git_status_priority(existing) >= git_status_priority(status) => {}
-        _ => {
-            statuses.insert(relative_path, status);
-        }
-    }
-}
-
-fn git_status_priority(status: WorkspaceFileGitStatus) -> u8 {
-    match status {
-        WorkspaceFileGitStatus::Untracked => 1,
-        WorkspaceFileGitStatus::Added => 2,
-        WorkspaceFileGitStatus::Modified => 3,
-    }
 }
 
 fn ignored_aware_children(directory: &Path) -> Result<Vec<PathBuf>, WorkspaceFileError> {
@@ -1131,40 +1042,14 @@ mod tests {
     }
 
     #[test]
-    fn list_workspace_children_reports_git_status_for_git_repositories() {
+    fn list_workspace_children_leaves_git_status_to_the_git_backend() {
         let workspace = tempfile::tempdir().expect("tempdir");
-        let repo = Repository::init(workspace.path()).expect("init repo");
-        fs::write(workspace.path().join("tracked.txt"), "one").expect("write tracked");
-        commit_all(&repo, "initial");
-        fs::write(workspace.path().join("tracked.txt"), "two").expect("modify tracked");
-        fs::write(workspace.path().join("added.txt"), "added").expect("write added");
-        {
-            let mut index = repo.index().expect("index");
-            index
-                .add_path(Path::new("added.txt"))
-                .expect("add added file");
-            index.write().expect("write index");
-        }
-        fs::write(workspace.path().join("untracked.txt"), "untracked").expect("write untracked");
+        fs::write(workspace.path().join("note.txt"), "one").expect("write note");
 
         let entries =
             list_workspace_children(workspace_path(&workspace), String::new(), false).unwrap();
-        let status_for = |name: &str| {
-            entries
-                .iter()
-                .find(|entry| entry.name == name)
-                .and_then(|entry| entry.git_status)
-        };
 
-        assert_eq!(
-            status_for("tracked.txt"),
-            Some(WorkspaceFileGitStatus::Modified)
-        );
-        assert_eq!(status_for("added.txt"), Some(WorkspaceFileGitStatus::Added));
-        assert_eq!(
-            status_for("untracked.txt"),
-            Some(WorkspaceFileGitStatus::Untracked)
-        );
+        assert_eq!(entries[0].git_status, None);
     }
 
     #[test]
@@ -1379,18 +1264,5 @@ mod tests {
             fs::read_to_string(workspace.path().join("note copy 2.txt")).unwrap(),
             "one"
         );
-    }
-
-    fn commit_all(repo: &Repository, message: &str) {
-        let mut index = repo.index().expect("index");
-        index
-            .add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, None)
-            .expect("add all");
-        index.write().expect("write index");
-        let tree_id = index.write_tree().expect("write tree");
-        let tree = repo.find_tree(tree_id).expect("find tree");
-        let signature = git2::Signature::now("Alera", "alera@example.com").expect("signature");
-        repo.commit(Some("HEAD"), &signature, &signature, message, &tree, &[])
-            .expect("commit");
     }
 }

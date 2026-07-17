@@ -13,6 +13,7 @@ use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::{encode_bytes, TerminalHostLaunch};
 
 mod io_threads;
+mod output_backpressure;
 #[cfg(test)]
 mod tests;
 
@@ -82,6 +83,7 @@ pub struct Session {
     pub working_directory: String,
     pub clients: HashSet<u64>,
     output_paused_clients: HashSet<u64>,
+    output_resync_pending_clients: HashSet<u64>,
     pub(super) buffer: ScrollbackBuffer,
     running: bool,
     exit_code: Option<i32>,
@@ -177,6 +179,7 @@ impl Session {
             working_directory,
             clients: HashSet::new(),
             output_paused_clients: HashSet::new(),
+            output_resync_pending_clients: HashSet::new(),
             buffer: ScrollbackBuffer::new(max_bytes, initial_scrollback),
             running: true,
             exit_code: None,
@@ -231,6 +234,7 @@ impl Session {
             working_directory: checkpoint.working_directory,
             clients: HashSet::new(),
             output_paused_clients: HashSet::new(),
+            output_resync_pending_clients: HashSet::new(),
             buffer: ScrollbackBuffer::new(max_bytes, &checkpoint.buffer),
             running: false,
             exit_code,
@@ -269,27 +273,13 @@ impl Session {
     pub fn attach(&mut self, client_id: u64) {
         self.clients.insert(client_id);
         self.output_paused_clients.remove(&client_id);
+        self.output_resync_pending_clients.remove(&client_id);
     }
 
     pub fn detach(&mut self, client_id: u64) {
         self.clients.remove(&client_id);
         self.output_paused_clients.remove(&client_id);
-    }
-
-    pub fn set_output_paused(&mut self, client_id: u64, paused: bool) {
-        if paused {
-            self.output_paused_clients.insert(client_id);
-        } else {
-            self.output_paused_clients.remove(&client_id);
-        }
-    }
-
-    pub fn output_clients(&self) -> Vec<u64> {
-        self.clients
-            .iter()
-            .copied()
-            .filter(|client_id| !self.output_paused_clients.contains(client_id))
-            .collect()
+        self.output_resync_pending_clients.remove(&client_id);
     }
 
     /// Queue input for the session-local blocking writer.

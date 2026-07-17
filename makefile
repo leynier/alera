@@ -11,7 +11,7 @@ ALERA_HOST_DETACHED_SHUTDOWN_SECONDS ?= 3600
 ALERA_HOST_SCROLLBACK_BYTES ?= 10000000
 ALERA_DEBUG_TOOL = tool/debug/alera_debug.dart
 
-.PHONY: help init-submodules update-submodules frb-generate rust-test cli-build cli-help host-debug app-debug app-debug-bundled-cli debug-processes host-stop
+.PHONY: help init-submodules update-submodules frb-generate rust-test cli-build cli-help host-debug app-debug app-debug-bundled-cli debug-processes host-stop perf-linux
 
 # List available make targets.
 help:
@@ -63,3 +63,7 @@ debug-processes:
 # Stop the current debug terminal host for this app id.
 host-stop:
 	$(DART) $(ALERA_DEBUG_TOOL) host-stop --app-id "$(ALERA_APP_ID)"
+
+# Capture startup and first-frame timings from a real Linux profile build.
+perf-linux:
+	$(DART) tool/performance/alera_performance.dart --flutter "$(FLUTTER)"

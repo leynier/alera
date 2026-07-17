@@ -22,7 +22,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:portable_pty/portable_pty.dart';
 import 'package:xterm/xterm.dart' as xterm;
 

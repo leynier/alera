@@ -55,6 +55,7 @@ final class TerminalHostPtySession implements TerminalPtySession {
 
   StreamSubscription<TerminalHostEvent>? _hostSub;
   Future<TerminalHostAttachment>? _reattachFuture;
+  Future<void>? _outputResyncFuture;
   GhosttyTerminalShellLaunch? _launch;
   String? _workingDirectory;
   int? _cols;
@@ -62,6 +63,7 @@ final class TerminalHostPtySession implements TerminalPtySession {
   bool _disposed = false;
   bool _started = false;
   bool _startedNewProcess = false;
+  bool _outputPaused = false;
   Future<void>? _startFuture;
   Future<void> Function()? _onProcessCreated;
 
@@ -227,6 +229,7 @@ final class TerminalHostPtySession implements TerminalPtySession {
     if (_disposed || !_started) {
       return;
     }
+    _outputPaused = paused;
     try {
       final snapshot = await _client.setOutputPaused(
         sessionId: _sessionId,
@@ -335,6 +338,8 @@ final class TerminalHostPtySession implements TerminalPtySession {
     switch (event) {
       case TerminalHostOutputEvent(:final data):
         _events.add(TerminalPtyOutputEvent(data));
+      case TerminalHostOutputResyncRequiredEvent():
+        _requestOutputResync();
       case TerminalHostExitEvent(:final exitCode):
         _events.add(TerminalPtyExitEvent(exitCode));
       case TerminalHostErrorEvent(:final error):
@@ -342,6 +347,19 @@ final class TerminalHostPtySession implements TerminalPtySession {
           _events.add(TerminalPtyErrorEvent(error));
         }
     }
+  }
+
+  void _requestOutputResync() {
+    if (_disposed || _outputPaused || _outputResyncFuture != null) {
+      return;
+    }
+    late final Future<void> resync;
+    resync = setOutputPaused(false).whenComplete(() {
+      if (identical(_outputResyncFuture, resync)) {
+        _outputResyncFuture = null;
+      }
+    });
+    _outputResyncFuture = resync;
   }
 
   void _emitHostError(Object error) {

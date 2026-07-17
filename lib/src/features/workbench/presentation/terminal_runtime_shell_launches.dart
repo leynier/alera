@@ -557,7 +557,7 @@ xterm.TerminalTargetPlatform _xtermTargetPlatformFor(TargetPlatform platform) {
 
 String _resolveTerminalFontFamily(String fontFamily) {
   if (fontFamily.trim().toLowerCase() == 'jetbrains mono') {
-    return GoogleFonts.jetBrainsMono().fontFamily ?? fontFamily;
+    return 'JetBrains Mono';
   }
   return fontFamily.trim().isEmpty ? 'monospace' : fontFamily.trim();
 }

@@ -6,11 +6,11 @@ use std::sync::{
 use futures_util::{SinkExt as _, StreamExt as _};
 use serde_json::Value;
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::{self, Receiver, UnboundedSender};
 use tokio::task::JoinHandle;
 use tokio_tungstenite::{accept_async, tungstenite::Message};
 
-use crate::terminal_host::client::ClientHandle;
+use crate::terminal_host::client::{ClientHandle, CLIENT_OUT_QUEUE_CAPACITY};
 use crate::terminal_host::server::{ClientKind, ServerCommand};
 
 pub fn spawn_mobile_gateway_accept_loop(
@@ -38,7 +38,7 @@ async fn accept_mobile_connection(
     inbox: UnboundedSender<ServerCommand>,
 ) -> anyhow::Result<()> {
     let socket = accept_async(stream).await?;
-    let (out_tx, out_rx) = mpsc::unbounded_channel::<Value>();
+    let (out_tx, out_rx) = mpsc::channel::<Value>(CLIENT_OUT_QUEUE_CAPACITY);
     inbox.send(ServerCommand::ClientConnected {
         id,
         handle: ClientHandle { out: out_tx },
@@ -52,7 +52,7 @@ async fn mobile_websocket_loop(
     socket: tokio_tungstenite::WebSocketStream<TcpStream>,
     id: u64,
     inbox: UnboundedSender<ServerCommand>,
-    mut out_rx: UnboundedReceiver<Value>,
+    mut out_rx: Receiver<Value>,
 ) {
     let (mut write, mut read) = socket.split();
     loop {

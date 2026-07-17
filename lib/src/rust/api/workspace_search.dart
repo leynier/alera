@@ -6,13 +6,22 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `from_io`, `new`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These functions are ignored because they are not marked as `pub`: `active_searches`, `begin`, `from_io`, `new`, `prune_cancel_tombstones`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `SearchCancellation`, `SearchEntry`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 Future<WorkspaceSearchResult> searchWorkspace({
   required WorkspaceSearchOptions options,
 }) => RustLib.instance.api.crateApiWorkspaceSearchSearchWorkspace(
   options: options,
+);
+
+Future<WorkspaceSearchResult> searchWorkspaceCancelable({
+  required WorkspaceSearchOptions options,
+  required String requestId,
+}) => RustLib.instance.api.crateApiWorkspaceSearchSearchWorkspaceCancelable(
+  options: options,
+  requestId: requestId,
 );
 
 Future<WorkspaceReplacePreview> previewWorkspaceReplace({
@@ -21,11 +30,25 @@ Future<WorkspaceReplacePreview> previewWorkspaceReplace({
   options: options,
 );
 
+Future<WorkspaceReplacePreview> previewWorkspaceReplaceCancelable({
+  required WorkspaceReplaceOptions options,
+  required String requestId,
+}) => RustLib.instance.api
+    .crateApiWorkspaceSearchPreviewWorkspaceReplaceCancelable(
+      options: options,
+      requestId: requestId,
+    );
+
 Future<WorkspaceReplaceResult> replaceWorkspaceMatches({
   required WorkspaceReplaceRequest request,
 }) => RustLib.instance.api.crateApiWorkspaceSearchReplaceWorkspaceMatches(
   request: request,
 );
+
+Future<void> cancelWorkspaceSearch({required String requestId}) => RustLib
+    .instance
+    .api
+    .crateApiWorkspaceSearchCancelWorkspaceSearch(requestId: requestId);
 
 class WorkspaceReplaceConflict {
   final String relativePath;
@@ -192,6 +215,7 @@ enum WorkspaceSearchErrorKind {
   outsideWorkspace,
   invalidPattern,
   io,
+  cancelled,
 }
 
 class WorkspaceSearchFileResult {

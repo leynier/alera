@@ -11,6 +11,8 @@ import 'package:alera/src/features/workbench/presentation/workspace_context_side
 import 'package:alera/src/features/workbench/presentation/workspace_explorer.dart';
 import 'package:alera/src/rust/api/workspace_files.dart' as native;
 import 'package:alera/src/shared/infra/process/process_runner.dart';
+import 'package:alera/src/shared/infra/git/git_backend.dart';
+import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -18,7 +20,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../unit/fake_git_backend.dart';
+
+part 'workspace_explorer_git_snapshot_cases.dart';
+
 void main() {
+  _registerWorkspaceExplorerGitSnapshotTests();
+
   testWidgets('single click toggles folders and rows expose click cursors', (
     tester,
   ) async {
@@ -380,27 +388,6 @@ void main() {
 
     expect(service.writtenFiles, <String, String>{'note.txt': 'changed'});
     expect(registry.isDirty('tab-1'), isFalse);
-  });
-
-  testWidgets('rows show git status indicators', (tester) async {
-    final service = _FakeWorkspaceFileService()
-      ..childrenByDirectory[''] = <native.WorkspaceFileEntry>[
-        _file('added.dart', gitStatus: native.WorkspaceFileGitStatus.added),
-        _file(
-          'modified.dart',
-          gitStatus: native.WorkspaceFileGitStatus.modified,
-        ),
-        _file(
-          'untracked.dart',
-          gitStatus: native.WorkspaceFileGitStatus.untracked,
-        ),
-      ];
-
-    await _pumpExplorer(tester, service);
-
-    expect(find.text('A'), findsOneWidget);
-    expect(find.text('M'), findsOneWidget);
-    expect(find.text('U'), findsOneWidget);
   });
 
   testWidgets('background context menu creates items at workspace root', (
@@ -785,6 +772,7 @@ Future<void> _pumpExplorer(
   ValueChanged<String>? onOpenFile,
   EditorSessionRegistry? registry,
   WorkspaceFolderOpener? folderOpener,
+  GitBackend? gitBackend,
   String? focusedSourceControlRoot,
   Future<bool> Function(String relativePath)? onFocusSourceControlFolder,
   VoidCallback? onClearSourceControlRoot,
@@ -794,6 +782,7 @@ Future<void> _pumpExplorer(
       service,
       registry: registry,
       folderOpener: folderOpener,
+      gitBackend: gitBackend,
       child: MaterialApp(
         home: Scaffold(
           body: SizedBox(
@@ -846,10 +835,12 @@ Widget _withWorkspaceFiles(
   required Widget child,
   EditorSessionRegistry? registry,
   WorkspaceFolderOpener? folderOpener,
+  GitBackend? gitBackend,
 }) {
   return ProviderScope(
     overrides: [
       workspaceFileServiceProvider.overrideWithValue(service),
+      gitBackendProvider.overrideWithValue(gitBackend ?? FakeGitBackend()),
       if (folderOpener != null)
         workspaceFolderOpenerProvider.overrideWithValue(folderOpener),
       if (registry != null)

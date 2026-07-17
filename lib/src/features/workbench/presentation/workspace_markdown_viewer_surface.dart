@@ -43,13 +43,15 @@ class _WorkspaceMarkdownViewerSurfaceState
   bool _loading = true;
   bool _usingDirtyEditorContent = false;
   int _loadRequestId = 0;
+  Listenable? _editorDocumentChanges;
+  bool _editorUpdateScheduled = false;
 
   @override
   void initState() {
     super.initState();
     _workspaceFiles = ref.read(workspaceFileServiceProvider);
     _editorSessions = ref.read(editorSessionRegistryProvider);
-    _editorSessions.addListener(_handleEditorSessionChanged);
+    _subscribeToEditorDocument();
     unawaited(_load());
   }
 
@@ -58,13 +60,14 @@ class _WorkspaceMarkdownViewerSurfaceState
     super.didUpdateWidget(oldWidget);
     if (oldWidget.workspace.path != widget.workspace.path ||
         oldWidget.tab.filePath != widget.tab.filePath) {
+      _subscribeToEditorDocument();
       unawaited(_load());
     }
   }
 
   @override
   void dispose() {
-    _editorSessions.removeListener(_handleEditorSessionChanged);
+    _editorDocumentChanges?.removeListener(_handleEditorSessionChanged);
     super.dispose();
   }
 
@@ -192,9 +195,20 @@ class _WorkspaceMarkdownViewerSurfaceState
   }
 
   void _handleEditorSessionChanged() {
-    if (!mounted) {
+    if (!mounted || _editorUpdateScheduled) {
       return;
     }
+    _editorUpdateScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _editorUpdateScheduled = false;
+      if (mounted) {
+        _applyEditorSessionChange();
+      }
+    });
+    WidgetsBinding.instance.scheduleFrame();
+  }
+
+  void _applyEditorSessionChange() {
     final dirtyEditorContent = _dirtyEditorContentForCurrentFile();
     if (dirtyEditorContent != null) {
       _loadRequestId += 1;
@@ -209,6 +223,19 @@ class _WorkspaceMarkdownViewerSurfaceState
     if (_usingDirtyEditorContent) {
       unawaited(_load());
     }
+  }
+
+  void _subscribeToEditorDocument() {
+    _editorDocumentChanges?.removeListener(_handleEditorSessionChanged);
+    final filePath = widget.tab.filePath;
+    if (filePath == null) {
+      _editorDocumentChanges = null;
+      return;
+    }
+    _editorDocumentChanges = _editorSessions.documentChangesForPath(
+      workspacePath: widget.workspace.path,
+      relativePath: filePath,
+    )..addListener(_handleEditorSessionChanged);
   }
 
   String? _dirtyEditorContentForCurrentFile() {

@@ -134,11 +134,12 @@ extension _WorkspaceExplorerRefresh on _WorkspaceExplorerState {
   }
 
   Future<void> _refreshWatchedDirectories(List<String> relativePaths) async {
+    await _refreshGitStatusSnapshot();
     for (final relativePath in relativePaths.toSet()) {
       if (!mounted || !_childrenByDirectory.containsKey(relativePath)) {
         continue;
       }
-      await _refreshDirectory(relativePath);
+      await _refreshDirectory(relativePath, refreshGitStatus: false);
     }
   }
 }

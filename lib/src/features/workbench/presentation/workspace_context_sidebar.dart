@@ -61,71 +61,60 @@ class WorkspaceContextSidebar extends StatelessWidget {
         border: Border(left: BorderSide(color: AleraTokens.borderSubtle)),
       ),
       child: prefs.rightSidebarVisible
-          ? Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                _RightResizeHandle(
-                  currentWidth: prefs.rightSidebarWidth,
-                  onResize: onResize,
-                ),
-                SizedBox(
-                  width: prefs.rightSidebarWidth,
-                  child: Column(
-                    children: <Widget>[
-                      _ContextTabHeader(
-                        activeTab: activeTab,
-                        sourceControlAvailable: sourceControlScope != null,
-                        onSetActiveTab: onSetContextPanelTab,
-                        onToggleVisible: onToggleVisible,
-                      ),
-                      Expanded(
-                        child: switch (activeTab) {
-                          WorkbenchContextPanelTab.explorer => WorkspaceExplorer(
-                            key: ValueKey<String>(
-                              'workspace-explorer:${workspace.id}:${workspace.path}',
-                            ),
-                            workspace: workspace,
-                            mode: prefs.explorerMode,
-                            onModeChanged: onSetExplorerMode,
-                            onOpenFile: onOpenFile,
-                            focusedSourceControlRoot: focusedSourceControlRoot,
-                            onFocusSourceControlFolder:
-                                onFocusSourceControlFolder,
-                            onClearSourceControlRoot: onClearSourceControlRoot,
-                            onPathMoved: onPathMoved,
-                          ),
-                          WorkbenchContextPanelTab.search =>
-                            WorkspaceSearchPanel(
-                              workspace: workspace,
-                              onOpenMatch: onOpenSearchMatch,
-                            ),
-                          WorkbenchContextPanelTab.gitDiff =>
-                            WorkspaceGitDiffPanel(
-                              workspace: workspace,
-                              sourceControlScope: sourceControlScope!,
-                              viewMode: prefs.gitDiffViewMode,
-                              onViewModeChanged: onSetGitDiffViewMode,
-                              onOpenGitDiff: onOpenGitDiff,
-                              onOpenGitCommitDiff: onOpenGitCommitDiff,
-                              onClearSourceControlRoot:
-                                  sourceControlScope.isWorkspaceRoot
-                                  ? null
-                                  : onClearSourceControlRoot,
-                            ),
-                          WorkbenchContextPanelTab.pullRequests =>
-                            WorkspacePullRequestsPanel(
-                              key: ValueKey<String>(
-                                'workspace-pull-requests:${workspace.id}:${sourceControlScope!.path}',
-                              ),
-                              workspace: workspace,
-                              repoPath: sourceControlScope.path,
-                            ),
-                        },
-                      ),
-                    ],
+          ? _ResizableRightSidebar(
+              persistedWidth: prefs.rightSidebarWidth,
+              onPersistWidth: onResize,
+              child: Column(
+                children: <Widget>[
+                  _ContextTabHeader(
+                    activeTab: activeTab,
+                    sourceControlAvailable: sourceControlScope != null,
+                    onSetActiveTab: onSetContextPanelTab,
+                    onToggleVisible: onToggleVisible,
                   ),
-                ),
-              ],
+                  Expanded(
+                    child: switch (activeTab) {
+                      WorkbenchContextPanelTab.explorer => WorkspaceExplorer(
+                        key: ValueKey<String>(
+                          'workspace-explorer:${workspace.id}:${workspace.path}',
+                        ),
+                        workspace: workspace,
+                        mode: prefs.explorerMode,
+                        onModeChanged: onSetExplorerMode,
+                        onOpenFile: onOpenFile,
+                        focusedSourceControlRoot: focusedSourceControlRoot,
+                        onFocusSourceControlFolder: onFocusSourceControlFolder,
+                        onClearSourceControlRoot: onClearSourceControlRoot,
+                        onPathMoved: onPathMoved,
+                      ),
+                      WorkbenchContextPanelTab.search => WorkspaceSearchPanel(
+                        workspace: workspace,
+                        onOpenMatch: onOpenSearchMatch,
+                      ),
+                      WorkbenchContextPanelTab.gitDiff => WorkspaceGitDiffPanel(
+                        workspace: workspace,
+                        sourceControlScope: sourceControlScope!,
+                        viewMode: prefs.gitDiffViewMode,
+                        onViewModeChanged: onSetGitDiffViewMode,
+                        onOpenGitDiff: onOpenGitDiff,
+                        onOpenGitCommitDiff: onOpenGitCommitDiff,
+                        onClearSourceControlRoot:
+                            sourceControlScope.isWorkspaceRoot
+                            ? null
+                            : onClearSourceControlRoot,
+                      ),
+                      WorkbenchContextPanelTab.pullRequests =>
+                        WorkspacePullRequestsPanel(
+                          key: ValueKey<String>(
+                            'workspace-pull-requests:${workspace.id}:${sourceControlScope!.path}',
+                          ),
+                          workspace: workspace,
+                          repoPath: sourceControlScope.path,
+                        ),
+                    },
+                  ),
+                ],
+              ),
             )
           : _CollapsedContextRail(
               activeTab: activeTab,
@@ -160,6 +149,52 @@ class WorkspaceContextSidebar extends StatelessWidget {
       workspaceId: workspace.id,
       workspacePath: workspace.path,
       path: workspace.path,
+    );
+  }
+}
+
+class _ResizableRightSidebar extends StatefulWidget {
+  const _ResizableRightSidebar({
+    required this.persistedWidth,
+    required this.onPersistWidth,
+    required this.child,
+  });
+
+  final double persistedWidth;
+  final ValueChanged<double> onPersistWidth;
+  final Widget child;
+
+  @override
+  State<_ResizableRightSidebar> createState() => _ResizableRightSidebarState();
+}
+
+class _ResizableRightSidebarState extends State<_ResizableRightSidebar> {
+  double? _transientWidth;
+
+  double get _width => _transientWidth ?? widget.persistedWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        _RightResizeHandle(
+          currentWidth: _width,
+          onResize: (width) {
+            setState(() {
+              _transientWidth = width.clamp(
+                AleraTokens.sidebarMinWidth,
+                AleraTokens.sidebarMaxWidth,
+              );
+            });
+          },
+          onResizeEnd: (width) {
+            widget.onPersistWidth(width);
+            setState(() => _transientWidth = null);
+          },
+        ),
+        SizedBox(width: _width, child: widget.child),
+      ],
     );
   }
 }
@@ -342,10 +377,12 @@ class _RightResizeHandle extends StatefulWidget {
   const _RightResizeHandle({
     required this.currentWidth,
     required this.onResize,
+    required this.onResizeEnd,
   });
 
   final double currentWidth;
   final ValueChanged<double> onResize;
+  final ValueChanged<double> onResizeEnd;
 
   @override
   State<_RightResizeHandle> createState() => _RightResizeHandleState();
@@ -354,6 +391,7 @@ class _RightResizeHandle extends StatefulWidget {
 class _RightResizeHandleState extends State<_RightResizeHandle> {
   bool _hovered = false;
   bool _dragging = false;
+  double? _dragWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -364,11 +402,16 @@ class _RightResizeHandleState extends State<_RightResizeHandle> {
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
         behavior: HitTestBehavior.translucent,
-        onHorizontalDragStart: (_) => setState(() => _dragging = true),
-        onHorizontalDragEnd: (_) => setState(() => _dragging = false),
-        onHorizontalDragCancel: () => setState(() => _dragging = false),
+        onHorizontalDragStart: (_) {
+          _dragWidth = widget.currentWidth;
+          setState(() => _dragging = true);
+        },
+        onHorizontalDragEnd: (_) => _stopDragging(),
+        onHorizontalDragCancel: _stopDragging,
         onHorizontalDragUpdate: (details) {
-          widget.onResize(widget.currentWidth - details.delta.dx);
+          final next = (_dragWidth ?? widget.currentWidth) - details.delta.dx;
+          _dragWidth = next;
+          widget.onResize(next);
         },
         child: SizedBox(
           width: AleraTokens.space6,
@@ -382,5 +425,12 @@ class _RightResizeHandleState extends State<_RightResizeHandle> {
         ),
       ),
     );
+  }
+
+  void _stopDragging() {
+    final finalWidth = _dragWidth ?? widget.currentWidth;
+    _dragWidth = null;
+    setState(() => _dragging = false);
+    widget.onResizeEnd(finalWidth);
   }
 }

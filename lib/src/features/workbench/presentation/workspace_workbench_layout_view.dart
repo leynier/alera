@@ -211,49 +211,13 @@ class _WorkbenchSplitView extends StatelessWidget {
       onActivateGroup: onActivateGroup,
       onUpdateSplitRatio: onUpdateSplitRatio,
     );
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final horizontal = axis == WorkbenchSplitAxis.horizontal;
-        final available = horizontal
-            ? constraints.maxWidth
-            : constraints.maxHeight;
-        return buildSplitViewForAvailableSizeForTesting(
-          available: available,
-          axis: axis,
-          ratio: node.ratio!,
-          first: first,
-          second: second,
-          buildRegularView: () {
-            final handleExtent = AleraTokens.space6;
-            final contentExtent = available - handleExtent;
-            final firstExtent = contentExtent * node.ratio!;
-            final secondExtent = contentExtent - firstExtent;
-            return Flex(
-              direction: horizontal ? Axis.horizontal : Axis.vertical,
-              children: <Widget>[
-                SizedBox(
-                  width: horizontal ? firstExtent : null,
-                  height: horizontal ? null : firstExtent,
-                  child: first,
-                ),
-                _SplitResizeHandle(
-                  axis: axis,
-                  onRatioDelta: (delta) {
-                    onUpdateSplitRatio(
-                      nodePath: nodePath,
-                      ratio: node.ratio! + (delta / contentExtent),
-                    );
-                  },
-                ),
-                SizedBox(
-                  width: horizontal ? secondExtent : null,
-                  height: horizontal ? null : secondExtent,
-                  child: second,
-                ),
-              ],
-            );
-          },
-        );
+    return _TransientSplitLayout(
+      axis: axis,
+      persistedRatio: node.ratio!,
+      first: first,
+      second: second,
+      onPersistRatio: (ratio) {
+        onUpdateSplitRatio(nodePath: nodePath, ratio: ratio);
       },
     );
   }

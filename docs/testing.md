@@ -50,6 +50,18 @@ flutter test integration_test -d macos
 
 Use `-d linux` or `-d windows` on those platforms. The checked-in E2E flow must use temporary directories, temporary databases, fake process runners, and fake terminal runtimes unless the test explicitly needs a native boundary.
 
+## Performance Checks
+
+Run the Linux profile startup harness from a graphical Linux session:
+
+```bash
+make perf-linux
+```
+
+The harness performs five launches, records startup marks plus first-frame build/raster/total timings, and writes raw samples with median, p95, p99, and median absolute deviation to `.dart_tool/performance/startup_linux.json`. Use `dart tool/performance/alera_performance.dart --runs 5 --enforce` to fail when p95 exceeds `tool/performance/linux_startup_budget.json`; keep the default local command report-only while hardware and runner variance are being calibrated. PR CI runs three samples under Xvfb as an informative, non-blocking smoke and uploads the JSON report.
+
+Compare measurements only on the same machine, power mode, display configuration, Flutter revision, and build mode. Run at least five samples for a decision, use median for the typical result, p95/p99 for tails, and MAD to spot noisy runs. Do not tighten the checked-in budget from a single capture.
+
 ## Coverage
 
 `tool/quality/coverage_report.dart` reads `coverage/lcov.info` and enforces 100% line coverage for maintained domain sources under `lib/src/features/**/domain/`. Generated `*.g.dart` and `*.mapper.dart` files are excluded. Presentation code is validated by widget, golden, and desktop E2E suites; application and infrastructure code remains covered by focused unit and integration tests; generated `flutter_rust_bridge` bindings and the native implementation are validated by the Rust workspace and native build jobs.
@@ -96,7 +108,7 @@ Lifecycle changes must cover both host timeout paths. With the app closed and no
 
 Scrollback changes must check both rendering and host memory behavior. The terminal row scrollback controls xterm history in the app. The host scrollback size controls how many bytes are retained for detached-session snapshots and checkpoint restore. Tests should prove incremental output chunks are trimmed to the configured byte limit, oversized chunks keep only their tail, shrinking the configured limit trims existing retained output, and checkpoints remain restorable after restart. Schema changes that intentionally discard old terminal history should include a focused test for the legacy checkpoint database shape being reset.
 
-Output visibility changes must prove the PTY keeps running while a hidden terminal pauses only client output delivery. Cover the host protocol with two clients for the same session, confirm the paused client stops receiving `output` frames while another client continues, then resume and verify the returned snapshot restores the hidden terminal before new live output is rendered. Exit and error delivery should remain independent from output pause state.
+Output visibility and backpressure changes must prove the PTY keeps running while a hidden or slow terminal pauses only that client's output delivery. Cover the host protocol with two clients for the same session, confirm the paused client stops receiving `output` frames while another client continues, then resume and verify the returned snapshot restores the terminal before new live output is rendered. A saturated outbound queue must remain bounded, emit `outputResyncRequired` after capacity returns, and rebuild the client from a snapshot. Exit and error delivery should remain independent from output pause state.
 
 For local sidecar smoke tests, build the Rust CLI sidecar with the makefile (which drives cargo and stages the binary):
 

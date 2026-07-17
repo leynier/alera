@@ -1,9 +1,10 @@
 use std::fs;
+use std::sync::atomic::AtomicBool;
 
 use regex::Regex;
 
 use super::compile::{compile_search, CompiledSearch};
-use super::engine::run_search;
+use super::engine::{ensure_not_cancelled, run_search};
 use super::line_ranges::LineRanges;
 use super::paths::resolve_replace_file;
 use super::{
@@ -12,15 +13,18 @@ use super::{
 
 pub(super) fn preview_workspace_replace_impl(
     options: WorkspaceReplaceOptions,
+    cancellation: Option<&AtomicBool>,
 ) -> Result<WorkspaceReplacePreview, WorkspaceSearchError> {
     let compiled = compile_search(&options.search)?;
-    let mut result = run_search(&compiled, false)?;
+    let mut result = run_search(&compiled, false, cancellation)?;
     for file in &mut result.files {
+        ensure_not_cancelled(cancellation)?;
         let (path, _) = resolve_replace_file(&compiled.root, &file.relative_path)?;
         let content = fs::read_to_string(&path)
             .map_err(|error| WorkspaceSearchError::from_io(error, file.relative_path.clone()))?;
         let line_ranges = LineRanges::new(&content);
         for m in &mut file.matches {
+            ensure_not_cancelled(cancellation)?;
             m.replacement_preview = Some(preview_replacement(
                 m,
                 &content,

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 abstract final class AleraTokens {
   static const double space2 = 2.0;
@@ -67,20 +66,10 @@ abstract final class AleraTokens {
   /// Full-turn period for continuously rotating progress indicators.
   static const Duration durationSpin = Duration(milliseconds: 1200);
 
-  static TextStyle get monoStyle {
-    const fallback = TextStyle(
-      fontFamily: 'JetBrains Mono',
-      fontSize: 12,
-      fontWeight: FontWeight.w400,
-      color: foregroundMuted,
-    );
-    if (!GoogleFonts.config.allowRuntimeFetching) {
-      return fallback;
-    }
-    return GoogleFonts.jetBrainsMono(
-      fontSize: 12,
-      fontWeight: FontWeight.w400,
-      color: foregroundMuted,
-    );
-  }
+  static const TextStyle monoStyle = TextStyle(
+    fontFamily: 'JetBrains Mono',
+    fontSize: 12,
+    fontWeight: FontWeight.w400,
+    color: foregroundMuted,
+  );
 }
