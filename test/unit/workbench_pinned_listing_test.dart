@@ -42,6 +42,7 @@ Workspace _workspace(
 WorkbenchState _state({
   WorkbenchViewPrefs prefs = WorkbenchViewPrefs.defaults,
   String searchQuery = '',
+  bool pinFeature = true,
 }) {
   final alera = _project('alera');
   final orca = _project('orca');
@@ -50,7 +51,7 @@ WorkbenchState _state({
     workspacesByProject: <String, List<Workspace>>{
       alera.id: <Workspace>[
         _workspace('main', alera.id, name: 'Main'),
-        _workspace('feature', alera.id, name: 'Feature', isPinned: true),
+        _workspace('feature', alera.id, name: 'Feature', isPinned: pinFeature),
       ],
       orca.id: <Workspace>[_workspace('review', orca.id, name: 'Review')],
     },
@@ -146,5 +147,110 @@ void main() {
       pinned.firstWhere((row) => row.workspace.id == orphanedPin.id).indent,
       0,
     );
+  });
+
+  group('collapsible sections', () {
+    test(
+      'group by none adds a collapsible all section after the pinned copies',
+      () {
+        final prefs = WorkbenchViewPrefs.defaults.copyWith(
+          groupBy: WorkbenchGroupBy.none,
+        );
+        final rows = buildSidebarRows(_state(prefs: prefs));
+
+        final pinnedHeader = rows.first as WorkbenchPinnedHeaderRow;
+        expect(pinnedHeader.workspaceCount, 1);
+        expect(pinnedHeader.collapsed, isFalse);
+
+        final allHeader = rows.whereType<WorkbenchAllHeaderRow>().single;
+        expect(allHeader.workspaceCount, 3);
+        expect(allHeader.collapsed, isFalse);
+
+        final pinnedIndex = rows.indexOf(pinnedHeader);
+        final allIndex = rows.indexOf(allHeader);
+        final copies = rows
+            .sublist(pinnedIndex + 1, allIndex)
+            .whereType<WorkbenchWorkspaceRow>()
+            .toList();
+        expect(copies, hasLength(1));
+        expect(copies.single.isPinnedCopy, isTrue);
+
+        final regular = rows
+            .sublist(allIndex + 1)
+            .whereType<WorkbenchWorkspaceRow>()
+            .toList();
+        expect(regular, hasLength(3));
+        expect(regular.every((row) => !row.isPinnedCopy), isTrue);
+      },
+    );
+
+    test('collapsed pinned section keeps the headers and drops the copies', () {
+      final prefs = WorkbenchViewPrefs.defaults.copyWith(
+        groupBy: WorkbenchGroupBy.none,
+        pinnedSectionCollapsed: true,
+      );
+      final rows = buildSidebarRows(_state(prefs: prefs));
+
+      expect(
+        rows.whereType<WorkbenchPinnedHeaderRow>().single.collapsed,
+        isTrue,
+      );
+      expect(rows.whereType<WorkbenchAllHeaderRow>(), hasLength(1));
+      final workspaces = rows.whereType<WorkbenchWorkspaceRow>().toList();
+      expect(workspaces, hasLength(3));
+      expect(workspaces.every((row) => !row.isPinnedCopy), isTrue);
+    });
+
+    test(
+      'collapsed all section keeps pinned copies and drops the flat list',
+      () {
+        final prefs = WorkbenchViewPrefs.defaults.copyWith(
+          groupBy: WorkbenchGroupBy.none,
+          allSectionCollapsed: true,
+        );
+        final rows = buildSidebarRows(_state(prefs: prefs));
+
+        expect(
+          rows.whereType<WorkbenchAllHeaderRow>().single.collapsed,
+          isTrue,
+        );
+        final workspaces = rows.whereType<WorkbenchWorkspaceRow>().toList();
+        expect(workspaces, hasLength(1));
+        expect(workspaces.single.isPinnedCopy, isTrue);
+      },
+    );
+
+    test(
+      'group by project has no all section but still collapses pinned copies',
+      () {
+        final prefs = WorkbenchViewPrefs.defaults.copyWith(
+          pinnedSectionCollapsed: true,
+        );
+        final rows = buildSidebarRows(_state(prefs: prefs));
+
+        expect(rows.whereType<WorkbenchAllHeaderRow>(), isEmpty);
+        expect(
+          rows.whereType<WorkbenchPinnedHeaderRow>().single.collapsed,
+          isTrue,
+        );
+        expect(
+          rows.whereType<WorkbenchWorkspaceRow>().any(
+            (row) => row.isPinnedCopy,
+          ),
+          isFalse,
+        );
+      },
+    );
+
+    test('flat list without pinned workspaces has no section headers', () {
+      final prefs = WorkbenchViewPrefs.defaults.copyWith(
+        groupBy: WorkbenchGroupBy.none,
+      );
+      final rows = buildSidebarRows(_state(prefs: prefs, pinFeature: false));
+
+      expect(rows.whereType<WorkbenchPinnedHeaderRow>(), isEmpty);
+      expect(rows.whereType<WorkbenchAllHeaderRow>(), isEmpty);
+      expect(rows.whereType<WorkbenchWorkspaceRow>(), hasLength(3));
+    });
   });
 }

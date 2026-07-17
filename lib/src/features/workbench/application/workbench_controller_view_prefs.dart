@@ -125,6 +125,22 @@ mixin _WorkbenchControllerViewPrefs
     );
   }
 
+  void togglePinnedSectionCollapsed() {
+    _updateViewPrefs(
+      state.viewPrefs.copyWith(
+        pinnedSectionCollapsed: !state.viewPrefs.pinnedSectionCollapsed,
+      ),
+    );
+  }
+
+  void toggleAllSectionCollapsed() {
+    _updateViewPrefs(
+      state.viewPrefs.copyWith(
+        allSectionCollapsed: !state.viewPrefs.allSectionCollapsed,
+      ),
+    );
+  }
+
   /// Collapses or expands every sidebar-visible grouping surface: project
   /// groups, parent workspace child trees, and workspace agent-run sections.
   void toggleCollapseAll() {

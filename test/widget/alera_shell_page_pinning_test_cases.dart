@@ -47,7 +47,7 @@ void _registerAleraShellPinningTests() {
       ),
     );
 
-    expect(find.text('PINNED 1'), findsOneWidget);
+    expect(find.text('Pinned'), findsOneWidget);
     expect(find.text('Feature login'), findsNWidgets(2));
     expect(find.byKey(const Key('workspace-tray-pinned')), findsNWidgets(2));
     expect(
@@ -82,7 +82,7 @@ void _registerAleraShellPinningTests() {
     expect(controller.pinUpdates, <({String workspaceId, bool isPinned})>[
       (workspaceId: 'workspace-2', isPinned: true),
     ]);
-    expect(find.text('PINNED 1'), findsOneWidget);
+    expect(find.text('Pinned'), findsOneWidget);
 
     await tester.tapAt(
       tester.getCenter(regular),
@@ -93,6 +93,54 @@ void _registerAleraShellPinningTests() {
     await tester.pumpAndSettle();
 
     expect(controller.pinUpdates.last.isPinned, isFalse);
-    expect(find.text('PINNED 1'), findsNothing);
+    expect(find.text('Pinned'), findsNothing);
+  });
+
+  testWidgets('flat grouping shows collapsible pinned and all sections', (
+    tester,
+  ) async {
+    final seeded = _linkedWorkbenchState();
+    final linked = seeded
+        .workspacesFor('project-1')[1]
+        .copyWith(isPinned: true);
+    final harness = await _pumpShell(
+      tester,
+      state: seeded.copyWith(
+        workspacesByProject: <String, List<Workspace>>{
+          'project-1': <Workspace>[
+            seeded.workspacesFor('project-1').first,
+            linked,
+          ],
+        },
+        viewPrefs: seeded.viewPrefs.copyWith(groupBy: WorkbenchGroupBy.none),
+      ),
+    );
+
+    final pinnedCopy = find.byKey(
+      const ValueKey<String>('workspace-row:pinned:workspace-2'),
+    );
+    final regularRow = find.byKey(
+      const ValueKey<String>('workspace-row:regular:workspace-2'),
+    );
+    expect(find.text('Pinned'), findsOneWidget);
+    expect(find.text('All'), findsOneWidget);
+    expect(pinnedCopy, findsOneWidget);
+    expect(regularRow, findsOneWidget);
+
+    await tester.tap(find.text('Pinned'));
+    await tester.pumpAndSettle();
+    expect(harness.controller.state.viewPrefs.pinnedSectionCollapsed, isTrue);
+    expect(pinnedCopy, findsNothing);
+    expect(regularRow, findsOneWidget);
+
+    await tester.tap(find.text('All'));
+    await tester.pumpAndSettle();
+    expect(harness.controller.state.viewPrefs.allSectionCollapsed, isTrue);
+    expect(regularRow, findsNothing);
+
+    await tester.tap(find.text('Pinned'));
+    await tester.pumpAndSettle();
+    expect(harness.controller.state.viewPrefs.pinnedSectionCollapsed, isFalse);
+    expect(pinnedCopy, findsOneWidget);
   });
 }
