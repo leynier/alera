@@ -10,6 +10,7 @@ add_executable(${BINARY_NAME} WIN32
   "flutter_window.cpp"
   "main.cpp"
   "utils.cpp"
+  "win32_app_menu.cpp"
   "win32_window.cpp"
   "${FLUTTER_MANAGED_DIR}/generated_plugin_registrant.cc"
   "Runner.rc"
@@ -29,6 +30,9 @@ target_compile_definitions(${BINARY_NAME} PRIVATE "FLUTTER_VERSION_BUILD=${FLUTT
 
 # Disable Windows macros that collide with C++ standard library functions.
 target_compile_definitions(${BINARY_NAME} PRIVATE "NOMINMAX")
+
+# Flavor-aware display name (wide literal) for the window title and app menu.
+target_compile_definitions(${BINARY_NAME} PRIVATE ALERA_APP_NAME=L"${ALERA_APP_NAME}")
 
 # Add dependency libraries and include directories. Add any application-specific
 # dependencies here.

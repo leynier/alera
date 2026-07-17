@@ -16,8 +16,9 @@ add_executable(${BINARY_NAME}
 # that need different build settings.
 apply_standard_settings(${BINARY_NAME})
 
-# Add preprocessor definitions for the application ID.
+# Add preprocessor definitions for the application ID and display name.
 add_definitions(-DAPPLICATION_ID="${APPLICATION_ID}")
+target_compile_definitions(${BINARY_NAME} PRIVATE ALERA_APP_NAME="${ALERA_APP_NAME}")
 
 # Add dependency libraries. Add any application-specific dependencies here.
 target_link_libraries(${BINARY_NAME} PRIVATE flutter)
