@@ -14,7 +14,18 @@ void _queueSessionTerminalOutput(
   if (data.isEmpty || handle._disposed) {
     return;
   }
-  handle._pendingTerminalOutput.write(data);
+  var offset = 0;
+  while (offset < data.length) {
+    if (handle._pendingTerminalOutput.length >=
+        _terminalOutputMaxPendingChars) {
+      _drainSessionTerminalOutputChunk(handle);
+    }
+    final available =
+        _terminalOutputMaxPendingChars - handle._pendingTerminalOutput.length;
+    final end = (offset + available).clamp(0, data.length);
+    handle._pendingTerminalOutput.write(data.substring(offset, end));
+    offset = end;
+  }
   handle._scheduleTerminalOutputFlush();
 }
 
@@ -35,6 +46,13 @@ void _flushSessionTerminalOutputFrame(_XtermTerminalSessionHandle handle) {
     handle._clearPendingTerminalOutput();
     return;
   }
+  _drainSessionTerminalOutputChunk(handle);
+  if (handle._pendingTerminalOutput.isNotEmpty) {
+    handle._scheduleTerminalOutputFlush();
+  }
+}
+
+void _drainSessionTerminalOutputChunk(_XtermTerminalSessionHandle handle) {
   final pending = handle._pendingTerminalOutput.toString();
   if (pending.isEmpty) {
     return;
@@ -44,7 +62,6 @@ void _flushSessionTerminalOutputFrame(_XtermTerminalSessionHandle handle) {
   handle._writeToTerminal(pending.substring(0, cutoff));
   if (cutoff < pending.length) {
     handle._pendingTerminalOutput.write(pending.substring(cutoff));
-    handle._scheduleTerminalOutputFlush();
   }
 }
 
@@ -70,3 +87,4 @@ int _terminalOutputFrameCutoff(String value) {
 }
 
 const int _terminalOutputMaxCharsPerFrame = 64 * 1024;
+const int _terminalOutputMaxPendingChars = 1024 * 1024;

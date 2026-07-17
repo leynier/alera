@@ -451,3 +451,34 @@ class _ExplorerBackgroundMenu extends StatelessWidget {
     );
   }
 }
+
+class _ExplorerClipboard {
+  const _ExplorerClipboard(this.relativePath, this.cut);
+
+  final String relativePath;
+  final bool cut;
+}
+
+class _ExplorerDragData {
+  const _ExplorerDragData({required this.relativePath});
+
+  final String relativePath;
+}
+
+enum _ExplorerAction {
+  collapse,
+  newFile,
+  newFolder,
+  rename,
+  copy,
+  cut,
+  paste,
+  copyPath,
+  copyRelativePath,
+  duplicate,
+  reveal,
+  delete,
+  refresh,
+  focusSourceControlRoot,
+  clearSourceControlRoot,
+}

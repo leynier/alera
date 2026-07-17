@@ -13,6 +13,7 @@ use alera_core::runtime::{
 use anyhow::Result;
 use serde_json::{json, Value};
 use tokio::net::TcpListener;
+use tokio::sync::mpsc::error::TrySendError;
 use tokio::sync::mpsc::{self, UnboundedSender};
 use tokio::task::JoinHandle;
 
@@ -20,7 +21,7 @@ use crate::ssh_bootstrap::{
     cancel_ssh_bootstrap, mark_ssh_bootstrap_installing, new_bootstrap_job_id, run_ssh_bootstrap,
     SshTargetBootstrapJob, SshTargetBootstrapProgress, SshTargetBootstrapRequest,
 };
-use crate::terminal_host::client::{connection_loop, ClientHandle};
+use crate::terminal_host::client::{connection_loop, ClientHandle, CLIENT_OUT_QUEUE_CAPACITY};
 use crate::terminal_host::control_file;
 use crate::terminal_host::history_store::TerminalHostHistoryStore;
 use crate::terminal_host::host_error::{HostError, HostResult};
@@ -36,9 +37,11 @@ use crate::terminal_host::orchestration::message_waiters::MessageWaiterRegistry;
 use crate::terminal_host::protocol::{event, TerminalHostConfig};
 use crate::terminal_host::session::{PtyEvent, PtyWriteCompletion, Session};
 
+mod client_delivery;
 mod coordinator_requests;
 mod orchestration_requests;
 mod orchestration_validation;
+mod pty_event_forwarder;
 mod pty_events;
 mod requests;
 mod terminal_input_requests;
@@ -47,6 +50,7 @@ mod terminal_input_requests;
 const CHECKPOINT_DELAY: Duration = Duration::from_secs(5);
 
 const OUTPUT_BATCH_DELAY: Duration = Duration::from_millis(8);
+const OUTPUT_RESYNC_RETRY_DELAY: Duration = Duration::from_millis(16);
 const DURABLE_OUTPUT_BATCH_DELAY: Duration = Duration::from_millis(100);
 const OUTPUT_PERSISTENCE_BARRIER_TIMEOUT: Duration = Duration::from_secs(2);
 const TERMINAL_INPUT_BACKPRESSURE_CODE: &str = "terminal_input_backpressure";
@@ -73,10 +77,15 @@ pub enum ServerCommand {
     Pty {
         session_id: String,
         event: PtyEvent,
+        handled: std::sync::mpsc::SyncSender<()>,
     },
     OutputBatchTick {
         session_id: String,
         generation: u64,
+    },
+    OutputResyncTick {
+        session_id: String,
+        client_id: u64,
     },
     DurableOutputBatchTick {
         session_id: String,
@@ -215,7 +224,7 @@ fn spawn_accept_loop(
         while let Ok((stream, _)) = listener.accept().await {
             let _ = stream.set_nodelay(true);
             let id = next_client_id.fetch_add(1, Ordering::Relaxed);
-            let (out_tx, out_rx) = mpsc::unbounded_channel::<Value>();
+            let (out_tx, out_rx) = mpsc::channel::<Value>(CLIENT_OUT_QUEUE_CAPACITY);
             // Register the client before its lines can arrive: the
             // ClientConnected command is enqueued before the connection loop
             // (and thus any ClientLine) starts.
@@ -429,13 +438,22 @@ impl ServerActor {
             }
             ServerCommand::ClientLine { id, line } => self.handle_line(id, line).await,
             ServerCommand::ClientDisconnected { id } => self.dispose_client(id).await,
-            ServerCommand::Pty { session_id, event } => {
-                self.handle_pty_event(session_id, event).await
+            ServerCommand::Pty {
+                session_id,
+                event,
+                handled,
+            } => {
+                self.handle_pty_event(session_id, event).await;
+                let _ = handled.send(());
             }
             ServerCommand::OutputBatchTick {
                 session_id,
                 generation,
             } => self.handle_output_batch_tick(session_id, generation),
+            ServerCommand::OutputResyncTick {
+                session_id,
+                client_id,
+            } => self.handle_output_resync_tick(session_id, client_id),
             ServerCommand::DurableOutputBatchTick {
                 session_id,
                 generation,
@@ -1022,50 +1040,6 @@ impl ServerActor {
         }
     }
 
-    fn client_write(&self, client_id: u64, message: Value) {
-        if let Some(client) = self.clients.get(&client_id) {
-            let _ = client.handle.out.send(message);
-        }
-    }
-
-    fn broadcast(&self, client_ids: &[u64], message: Value) {
-        for id in client_ids {
-            if let Some(client) = self.clients.get(id) {
-                let _ = client.handle.out.send(message.clone());
-            }
-        }
-    }
-
-    pub(super) fn broadcast_authenticated(&self, message: Value) {
-        for client in self.clients.values() {
-            if client.authenticated {
-                let _ = client.handle.out.send(message.clone());
-            }
-        }
-    }
-
-    fn require_auth(&self, client_id: u64) -> HostResult<()> {
-        match self.clients.get(&client_id) {
-            Some(client) if client.authenticated => Ok(()),
-            _ => Err(HostError::state(
-                "Terminal host client is not authenticated.",
-            )),
-        }
-    }
-
-    fn require_session(&self, payload: &Value) -> HostResult<String> {
-        let session_id = match payload.get("sessionId") {
-            Some(Value::String(value)) => value.clone(),
-            _ => return Err(HostError::format("Terminal session id is required.")),
-        };
-        if !self.sessions.contains_key(&session_id) {
-            return Err(HostError::state(format!(
-                "Terminal session is not attached: {session_id}"
-            )));
-        }
-        Ok(session_id)
-    }
-
     // --- Configuration and shutdown --------------------------------------
 
     async fn apply_config(&mut self, config: TerminalHostConfig) {
@@ -1146,6 +1120,17 @@ impl ServerActor {
         });
     }
 
+    fn spawn_output_resync_timer(&self, session_id: String, client_id: u64) {
+        let inbox = self.inbox.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(OUTPUT_RESYNC_RETRY_DELAY).await;
+            let _ = inbox.send(ServerCommand::OutputResyncTick {
+                session_id,
+                client_id,
+            });
+        });
+    }
+
     fn spawn_durable_output_batch_timer(&self, session_id: String, generation: u64) {
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
@@ -1217,7 +1202,7 @@ mod tests {
         let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
         let runtime_store = RuntimeStore::open(dir.path()).await.unwrap();
         let (inbox, _rx) = mpsc::unbounded_channel();
-        let (out, mut out_rx) = mpsc::unbounded_channel();
+        let (out, mut out_rx) = mpsc::channel(CLIENT_OUT_QUEUE_CAPACITY);
         let mut actor = ServerActor {
             runtime_dir: dir.path().to_path_buf(),
             control_file_path: dir.path().join("runtime-host.json"),
@@ -1644,7 +1629,7 @@ mod tests {
             .await
             .unwrap();
         let (inbox, _rx) = mpsc::unbounded_channel();
-        let (out, _out_rx) = mpsc::unbounded_channel();
+        let (out, _out_rx) = mpsc::channel(CLIENT_OUT_QUEUE_CAPACITY);
         let mut actor = ServerActor {
             runtime_dir: dir.path().to_path_buf(),
             control_file_path: dir.path().join("runtime-host.json"),
@@ -1708,9 +1693,9 @@ mod tests {
         let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
         let runtime_store = RuntimeStore::open(dir.path()).await.unwrap();
         let (inbox, _rx) = mpsc::unbounded_channel();
-        let (first_app_out, _first_app_rx) = mpsc::unbounded_channel();
-        let (second_app_out, _second_app_rx) = mpsc::unbounded_channel();
-        let (cli_out, _cli_rx) = mpsc::unbounded_channel();
+        let (first_app_out, _first_app_rx) = mpsc::channel(CLIENT_OUT_QUEUE_CAPACITY);
+        let (second_app_out, _second_app_rx) = mpsc::channel(CLIENT_OUT_QUEUE_CAPACITY);
+        let (cli_out, _cli_rx) = mpsc::channel(CLIENT_OUT_QUEUE_CAPACITY);
         let mut actor = ServerActor {
             runtime_dir: dir.path().to_path_buf(),
             control_file_path: dir.path().join("runtime-host.json"),

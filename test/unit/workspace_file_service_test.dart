@@ -152,6 +152,37 @@ void main() {
       },
     );
 
+    test('notifies only listeners for the changed document path', () {
+      final registry = EditorSessionRegistry();
+      var readmeNotifications = 0;
+      var otherNotifications = 0;
+      registry
+          .documentChangesForPath(
+            workspacePath: '/repo/alera',
+            relativePath: 'docs/readme.md',
+          )
+          .addListener(() => readmeNotifications += 1);
+      registry
+          .documentChangesForPath(
+            workspacePath: '/repo/alera',
+            relativePath: 'docs/other.md',
+          )
+          .addListener(() => otherNotifications += 1);
+
+      registry.documentFor('tab-1')
+        ..attachFile(
+          workspacePath: '/repo/alera',
+          relativePath: 'docs/readme.md',
+        )
+        ..acceptLoaded(
+          _editorFile(rawContent: '# Saved', displayContent: '# Saved'),
+        )
+        ..updateCurrentText('# Dirty');
+
+      expect(readmeNotifications, 3);
+      expect(otherNotifications, 0);
+    });
+
     test(
       'saveAll writes dirty documents without live editor widgets',
       () async {

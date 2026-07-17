@@ -9,6 +9,8 @@ import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
 
 import 'terminal_host_test_fakes.dart';
 
+part 'terminal_host_pty_output_resync_cases.dart';
+
 void main() {
   test('factory creates sessions with the provided ids', () {
     final client = FakeTerminalHostClient(
@@ -172,6 +174,8 @@ void main() {
     expect(snapshots.last.data, <int>[83, 78, 65, 80]);
     expect(snapshots.last.resetInteractionModes, isFalse);
   });
+
+  _registerTerminalHostPtyOutputResyncTests();
 
   test(
     'host PTY session ignores host operations while startup is pending',

@@ -6,10 +6,12 @@ class SidebarResizeHandle extends StatefulWidget {
     super.key,
     required this.currentWidth,
     required this.onResize,
+    this.onResizeEnd,
   });
 
   final double currentWidth;
   final ValueChanged<double> onResize;
+  final ValueChanged<double>? onResizeEnd;
 
   @override
   State<SidebarResizeHandle> createState() => _SidebarResizeHandleState();
@@ -18,6 +20,7 @@ class SidebarResizeHandle extends StatefulWidget {
 class _SidebarResizeHandleState extends State<SidebarResizeHandle> {
   bool _hovered = false;
   bool _dragging = false;
+  double? _dragWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -28,11 +31,15 @@ class _SidebarResizeHandleState extends State<SidebarResizeHandle> {
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
         behavior: HitTestBehavior.translucent,
-        onHorizontalDragStart: (_) => setState(() => _dragging = true),
+        onHorizontalDragStart: (_) {
+          _dragWidth = widget.currentWidth;
+          setState(() => _dragging = true);
+        },
         onHorizontalDragEnd: (_) => _stopDragging(),
         onHorizontalDragCancel: _stopDragging,
         onHorizontalDragUpdate: (details) {
-          final next = widget.currentWidth + details.delta.dx;
+          final next = (_dragWidth ?? widget.currentWidth) + details.delta.dx;
+          _dragWidth = next;
           widget.onResize(next);
         },
         child: SizedBox(
@@ -54,6 +61,9 @@ class _SidebarResizeHandleState extends State<SidebarResizeHandle> {
   }
 
   void _stopDragging() {
+    final finalWidth = _dragWidth ?? widget.currentWidth;
+    _dragWidth = null;
     setState(() => _dragging = false);
+    widget.onResizeEnd?.call(finalWidth);
   }
 }

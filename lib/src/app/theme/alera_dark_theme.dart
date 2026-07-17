@@ -1,6 +1,7 @@
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+
+final ThemeData aleraDarkTheme = buildAleraDarkTheme();
 
 ThemeData buildAleraDarkTheme() {
   final base = ThemeData.dark(useMaterial3: true);
@@ -29,73 +30,87 @@ ThemeData buildAleraDarkTheme() {
     outline: AleraTokens.border,
     onSurfaceVariant: AleraTokens.foregroundMuted,
   );
-  final textTheme = GoogleFonts.interTextTheme(base.textTheme).copyWith(
-    headlineLarge: GoogleFonts.inter(
-      fontSize: 28,
-      fontWeight: FontWeight.w600,
-      color: AleraTokens.foreground,
-      letterSpacing: -0.5,
-    ),
-    headlineMedium: GoogleFonts.inter(
-      fontSize: 22,
-      fontWeight: FontWeight.w600,
-      color: AleraTokens.foreground,
-      letterSpacing: -0.3,
-    ),
-    headlineSmall: GoogleFonts.inter(
-      fontSize: 18,
-      fontWeight: FontWeight.w600,
-      color: AleraTokens.foreground,
-      letterSpacing: -0.2,
-    ),
-    titleLarge: GoogleFonts.inter(
-      fontSize: 16,
-      fontWeight: FontWeight.w600,
-      color: AleraTokens.foreground,
-    ),
-    titleMedium: GoogleFonts.inter(
-      fontSize: 14,
-      fontWeight: FontWeight.w500,
-      color: AleraTokens.foreground,
-    ),
-    titleSmall: GoogleFonts.inter(
-      fontSize: 13,
-      fontWeight: FontWeight.w500,
-      color: AleraTokens.foreground,
-    ),
-    bodyLarge: GoogleFonts.inter(
-      fontSize: 14,
-      fontWeight: FontWeight.w400,
-      color: AleraTokens.foreground,
-    ),
-    bodyMedium: GoogleFonts.inter(
-      fontSize: 13,
-      fontWeight: FontWeight.w400,
-      color: AleraTokens.foreground,
-    ),
-    bodySmall: GoogleFonts.inter(
-      fontSize: 12,
-      fontWeight: FontWeight.w400,
-      color: AleraTokens.foregroundMuted,
-    ),
-    labelLarge: GoogleFonts.inter(
-      fontSize: 13,
-      fontWeight: FontWeight.w500,
-      color: AleraTokens.foreground,
-    ),
-    labelMedium: GoogleFonts.inter(
-      fontSize: 11,
-      fontWeight: FontWeight.w500,
-      color: AleraTokens.foregroundMuted,
-      letterSpacing: 0.5,
-    ),
-    labelSmall: GoogleFonts.inter(
-      fontSize: 10,
-      fontWeight: FontWeight.w500,
-      color: AleraTokens.foregroundMuted,
-      letterSpacing: 0.6,
-    ),
-  );
+  final textTheme = base.textTheme
+      .apply(fontFamily: 'Inter')
+      .copyWith(
+        headlineLarge: const TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 28,
+          fontWeight: FontWeight.w600,
+          color: AleraTokens.foreground,
+          letterSpacing: -0.5,
+        ),
+        headlineMedium: const TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 22,
+          fontWeight: FontWeight.w600,
+          color: AleraTokens.foreground,
+          letterSpacing: -0.3,
+        ),
+        headlineSmall: const TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          color: AleraTokens.foreground,
+          letterSpacing: -0.2,
+        ),
+        titleLarge: const TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          color: AleraTokens.foreground,
+        ),
+        titleMedium: const TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+          color: AleraTokens.foreground,
+        ),
+        titleSmall: const TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+          color: AleraTokens.foreground,
+        ),
+        bodyLarge: const TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 14,
+          fontWeight: FontWeight.w400,
+          color: AleraTokens.foreground,
+        ),
+        bodyMedium: const TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 13,
+          fontWeight: FontWeight.w400,
+          color: AleraTokens.foreground,
+        ),
+        bodySmall: const TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
+          color: AleraTokens.foregroundMuted,
+        ),
+        labelLarge: const TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+          color: AleraTokens.foreground,
+        ),
+        labelMedium: const TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 11,
+          fontWeight: FontWeight.w500,
+          color: AleraTokens.foregroundMuted,
+          letterSpacing: 0.5,
+        ),
+        labelSmall: const TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 10,
+          fontWeight: FontWeight.w500,
+          color: AleraTokens.foregroundMuted,
+          letterSpacing: 0.6,
+        ),
+      );
   final clickableCursor = WidgetStateProperty.resolveWith<MouseCursor>((
     states,
   ) {

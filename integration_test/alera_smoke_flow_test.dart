@@ -13,6 +13,7 @@ import 'package:alera/src/features/workbench/infra/drift_workbench_repository.da
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/shared/infra/git/git_backend.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
+import 'package:alera/src/shared/infra/git/git_explorer_status.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:alera/src/shared/infra/git/git_remote.dart';
 import 'package:alera/src/shared/infra/git/git_worktree_entry.dart';
@@ -208,6 +209,10 @@ class _E2eGitBackend implements GitBackend {
   @override
   Future<GitStatusResult> status(String path) async =>
       const GitStatusResult(entries: <GitChangeEntry>[]);
+
+  @override
+  Future<GitExplorerStatusSnapshot> explorerStatusSnapshot(String path) async =>
+      const GitExplorerStatusSnapshot.empty();
 
   @override
   Future<GitStatusResult> statusForPath({

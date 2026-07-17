@@ -45,7 +45,14 @@ pub(super) fn start_source_control_watcher(
     let (event_tx, event_rx) = mpsc::channel::<notify::Result<notify::Event>>();
     let (shutdown_tx, shutdown_rx) = mpsc::channel::<()>();
     let sink = Arc::new(Mutex::new(None));
-    let mut watcher = notify::recommended_watcher(move |result| {
+    let event_root = root.clone();
+    let mut watcher = notify::recommended_watcher(move |result: notify::Result<notify::Event>| {
+        if result
+            .as_ref()
+            .is_ok_and(|event| !event_is_relevant(&event_root, event))
+        {
+            return;
+        }
         let _ = event_tx.send(result);
     })
     .map_err(notify_error)?;
@@ -74,6 +81,39 @@ pub(super) fn start_source_control_watcher(
         .map_err(|_| WorkspaceFileError::new(WorkspaceFileErrorKind::Io, "watcher lock poisoned"))?
         .insert(id.clone(), session);
     Ok(SourceControlWatcherHandle { id })
+}
+
+fn event_is_relevant(root: &std::path::Path, event: &notify::Event) -> bool {
+    event
+        .paths
+        .iter()
+        .any(|path| path_is_relevant(root, path.as_path()))
+}
+
+fn path_is_relevant(root: &std::path::Path, path: &std::path::Path) -> bool {
+    let Ok(relative) = path.strip_prefix(root) else {
+        return false;
+    };
+    let components = relative
+        .components()
+        .filter_map(|component| component.as_os_str().to_str())
+        .collect::<Vec<_>>();
+    let Some(first) = components.first().copied() else {
+        return true;
+    };
+    if matches!(first, ".dart_tool" | "build" | "node_modules" | "target") {
+        return false;
+    }
+    if components.contains(&"node_modules") {
+        return false;
+    }
+    if first != ".git" {
+        return true;
+    }
+    matches!(
+        components.get(1).copied(),
+        Some("HEAD" | "index" | "packed-refs" | "config" | "refs" | "worktrees")
+    )
 }
 
 pub(super) fn watch_source_control_events(
@@ -240,5 +280,21 @@ mod tests {
             collect_signal(&event_rx, &shutdown_rx),
             CollectOutcome::Shutdown
         ));
+    }
+
+    #[test]
+    fn filters_generated_output_but_keeps_worktree_and_git_state_changes() {
+        let root = std::path::PathBuf::from("repo");
+        let event = |path: &str| Event {
+            paths: vec![root.join(path)],
+            ..Event::new(EventKind::Any)
+        };
+
+        assert!(!event_is_relevant(&root, &event(".dart_tool/cache")));
+        assert!(!event_is_relevant(&root, &event("app/node_modules/pkg")));
+        assert!(!event_is_relevant(&root, &event(".git/objects/aa/bb")));
+        assert!(event_is_relevant(&root, &event("lib/main.dart")));
+        assert!(event_is_relevant(&root, &event(".git/index")));
+        assert!(event_is_relevant(&root, &event(".git/refs/heads/main")));
     }
 }

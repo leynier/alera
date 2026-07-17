@@ -1,4 +1,5 @@
 use std::fs;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use grep_matcher::Matcher;
 use ignore::WalkBuilder;
@@ -18,6 +19,7 @@ use super::{
 pub(super) fn run_search(
     compiled: &CompiledSearch,
     full_lines: bool,
+    cancellation: Option<&AtomicBool>,
 ) -> Result<WorkspaceSearchResult, WorkspaceSearchError> {
     let mut files = Vec::<WorkspaceSearchFileResult>::new();
     let mut total_matches = 0_u32;
@@ -39,6 +41,7 @@ pub(super) fn run_search(
     }
 
     for entry in walker.build() {
+        ensure_not_cancelled(cancellation)?;
         if total_matches >= compiled.max_results {
             truncated = true;
             break;
@@ -81,6 +84,7 @@ pub(super) fn run_search(
             Ok(bytes) => bytes,
             Err(_) => continue,
         };
+        ensure_not_cancelled(cancellation)?;
         if bytes.contains(&0) {
             continue;
         }
@@ -95,6 +99,7 @@ pub(super) fn run_search(
             full_lines,
             &mut total_matches,
             &mut truncated,
+            cancellation,
         )?;
         if !matches.is_empty() {
             files.push(WorkspaceSearchFileResult {
@@ -119,9 +124,11 @@ fn matches_in_file(
     full_lines: bool,
     total_matches: &mut u32,
     truncated: &mut bool,
+    cancellation: Option<&AtomicBool>,
 ) -> Result<Vec<WorkspaceSearchMatch>, WorkspaceSearchError> {
     let mut out = Vec::new();
     for (line_index, line) in text.lines().enumerate() {
+        ensure_not_cancelled(cancellation)?;
         if *total_matches >= compiled.max_results {
             *truncated = true;
             break;
@@ -172,6 +179,18 @@ fn matches_in_file(
             })?;
     }
     Ok(out)
+}
+
+pub(super) fn ensure_not_cancelled(
+    cancellation: Option<&AtomicBool>,
+) -> Result<(), WorkspaceSearchError> {
+    if cancellation.is_some_and(|flag| flag.load(Ordering::Relaxed)) {
+        return Err(WorkspaceSearchError::new(
+            WorkspaceSearchErrorKind::Cancelled,
+            "search cancelled",
+        ));
+    }
+    Ok(())
 }
 
 struct LinePreview {

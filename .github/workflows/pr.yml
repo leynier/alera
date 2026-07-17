@@ -173,7 +173,7 @@ jobs:
 
   desktop-e2e-linux:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -241,6 +241,18 @@ jobs:
 
       - name: Desktop E2E
         run: xvfb-run -a flutter test integration_test -d linux -r github
+
+      - name: Linux startup performance smoke
+        continue-on-error: true
+        run: xvfb-run -a dart tool/performance/alera_performance.dart --runs 3 --output .dart_tool/performance-ci
+
+      - name: Upload Linux startup performance report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-startup-performance
+          path: .dart_tool/performance-ci/startup_linux.json
+          if-no-files-found: ignore
 
   rust:
     runs-on: ubuntu-latest

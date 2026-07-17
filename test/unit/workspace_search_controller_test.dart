@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:alera/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
 import 'package:alera/src/features/workbench/application/workspace_search_controller.dart';
@@ -5,6 +7,8 @@ import 'package:alera/src/features/workbench/application/workspace_search_servic
 import 'package:alera/src/rust/api/workspace_search.dart' as native;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+part 'workspace_search_controller_cancellation_cases.dart';
 
 void main() {
   test('whitespace-only query counts as searchable', () async {
@@ -44,6 +48,8 @@ void main() {
     expect(state.loading, isTrue);
     expect(state.error, isNull);
   });
+
+  _registerWorkspaceSearchCancellationTests();
 
   test('toggle all files collapsed collapses every result file', () async {
     final service = _FakeWorkspaceSearchService(result: _multiFileSearchResult);
@@ -327,6 +333,7 @@ class _FakeWorkspaceSearchService extends WorkspaceSearchService {
   @override
   Future<native.WorkspaceSearchResult> search({
     required native.WorkspaceSearchOptions options,
+    required String requestId,
   }) async {
     return _result;
   }
@@ -334,6 +341,7 @@ class _FakeWorkspaceSearchService extends WorkspaceSearchService {
   @override
   Future<native.WorkspaceReplacePreview> previewReplace({
     required native.WorkspaceReplaceOptions options,
+    required String requestId,
   }) async {
     return native.WorkspaceReplacePreview(
       result: _result,

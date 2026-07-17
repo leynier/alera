@@ -2,11 +2,9 @@ import 'package:alchemist/alchemist.dart';
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 void runAleraGoldenTests(void Function() body) {
   TestWidgetsFlutterBinding.ensureInitialized();
-  GoogleFonts.config.allowRuntimeFetching = false;
   final theme = _buildAleraGoldenTheme();
   AlchemistConfig.runWithConfig(
     config: AlchemistConfig(

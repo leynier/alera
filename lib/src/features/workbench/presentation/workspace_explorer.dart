@@ -14,6 +14,9 @@ import 'package:alera/src/features/workbench/application/workspace_folder_opener
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/rust/api/workspace_files.dart' as native;
+import 'package:alera/src/shared/infra/git/git_backend.dart';
+import 'package:alera/src/shared/infra/git/git_explorer_status.dart';
+import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -73,6 +76,9 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
   late final WorkspaceFileService _workspaceFiles;
   late final EditorSessionRegistry _editorSessions;
   late final WorkspaceFolderOpener _folderOpener;
+  late final GitBackend _gitBackend;
+  GitExplorerStatusSnapshot _gitStatusSnapshot =
+      const GitExplorerStatusSnapshot.empty();
   _ExplorerClipboard? _clipboard;
   bool _loading = true;
   bool _suppressNextBackgroundMenu = false;
@@ -83,6 +89,7 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
     _workspaceFiles = ref.read(workspaceFileServiceProvider);
     _editorSessions = ref.read(editorSessionRegistryProvider);
     _folderOpener = ref.read(workspaceFolderOpenerProvider);
+    _gitBackend = ref.read(gitBackendProvider);
     _controller = tree.DirectoryTreeController(
       data: _buildTreeData(),
       flattenStrategy: const _AleraFlattenStrategy(),
@@ -232,6 +239,7 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
     setState(() => _loading = true);
     try {
       _resetExplorerProjection();
+      await _refreshGitStatusSnapshot();
       await _syncWatchedDirectories();
       await _loadDirectory('');
       if (!mounted) {
@@ -259,6 +267,7 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
     setState(() => _loading = true);
     try {
       _resetExplorerProjection();
+      await _refreshGitStatusSnapshot();
       await _syncWatchedDirectories();
       await _loadDirectory('');
       for (final relativePath in loadedDirectories) {
@@ -287,15 +296,29 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
   }
 
   Future<void> _loadDirectory(String relativePath) async {
-    final children = await _workspaceFiles.listChildren(
+    final rawChildren = await _workspaceFiles.listChildren(
       workspacePath: widget.workspace.path,
       relativePath: relativePath,
       hideIgnored: widget.mode == WorkspaceExplorerMode.hideIgnored,
+    );
+    final children = _workspaceFiles.applyGitStatusSnapshot(
+      rawChildren,
+      _gitStatusSnapshot,
     );
     if (!mounted) {
       return;
     }
     await _replaceDirectoryChildren(relativePath, children);
+  }
+
+  Future<void> _refreshGitStatusSnapshot() async {
+    try {
+      _gitStatusSnapshot = await _gitBackend.explorerStatusSnapshot(
+        widget.workspace.path,
+      );
+    } catch (_) {
+      _gitStatusSnapshot = const GitExplorerStatusSnapshot.empty();
+    }
   }
 
   void _rebuildTree({bool tryPreserveState = true}) {
@@ -444,35 +467,4 @@ class _AleraFlattenStrategy extends tree.FlattenStrategy {
         )
         .toList(growable: false);
   }
-}
-
-class _ExplorerClipboard {
-  const _ExplorerClipboard(this.relativePath, this.cut);
-
-  final String relativePath;
-  final bool cut;
-}
-
-class _ExplorerDragData {
-  const _ExplorerDragData({required this.relativePath});
-
-  final String relativePath;
-}
-
-enum _ExplorerAction {
-  collapse,
-  newFile,
-  newFolder,
-  rename,
-  copy,
-  cut,
-  paste,
-  copyPath,
-  copyRelativePath,
-  duplicate,
-  reveal,
-  delete,
-  refresh,
-  focusSourceControlRoot,
-  clearSourceControlRoot,
 }

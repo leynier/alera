@@ -24,8 +24,8 @@ class AleraApp extends StatelessWidget {
           ),
         );
       },
-      theme: buildAleraDarkTheme(),
-      darkTheme: buildAleraDarkTheme(),
+      theme: aleraDarkTheme,
+      darkTheme: aleraDarkTheme,
       themeMode: ThemeMode.dark,
     );
   }

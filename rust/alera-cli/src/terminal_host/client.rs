@@ -1,7 +1,7 @@
 use serde_json::Value;
 use tokio::io::{AsyncBufReadExt as _, AsyncWriteExt as _, BufReader};
 use tokio::net::TcpStream;
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::{Receiver, Sender, UnboundedSender};
 
 use crate::terminal_host::server::ServerCommand;
 
@@ -10,7 +10,7 @@ use crate::terminal_host::server::ServerCommand;
 /// connection loop, which closes the socket.
 #[derive(Clone)]
 pub struct ClientHandle {
-    pub out: UnboundedSender<Value>,
+    pub out: Sender<Value>,
 }
 
 /// Drive one client connection: forward inbound newline-delimited JSON lines to
@@ -22,7 +22,7 @@ pub async fn connection_loop(
     stream: TcpStream,
     id: u64,
     inbox: UnboundedSender<ServerCommand>,
-    mut out_rx: UnboundedReceiver<Value>,
+    mut out_rx: Receiver<Value>,
 ) {
     let (read_half, mut write_half) = stream.into_split();
     let mut lines = BufReader::new(read_half).lines();
@@ -62,3 +62,4 @@ pub async fn connection_loop(
         }
     }
 }
+pub const CLIENT_OUT_QUEUE_CAPACITY: usize = 8;

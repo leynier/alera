@@ -156,11 +156,15 @@ class WorkspaceSearchDirtyFilesException implements Exception {
 class WorkspaceSearchController extends _$WorkspaceSearchController {
   Timer? _debounce;
   int _requestGeneration = 0;
+  String? _activeRequestId;
+  WorkspaceSearchService? _searchService;
 
   @override
   WorkspaceSearchState build(String workspaceId) {
+    _searchService = ref.read(workspaceSearchServiceProvider);
     ref.onDispose(() {
       _debounce?.cancel();
+      _cancelActiveSearch();
       _requestGeneration += 1;
     });
     return const WorkspaceSearchState();
@@ -271,6 +275,7 @@ class WorkspaceSearchController extends _$WorkspaceSearchController {
 
   void clearSearchResults() {
     _debounce?.cancel();
+    _cancelActiveSearch();
     _requestGeneration += 1;
     state = state.copyWith(
       query: '',
@@ -286,12 +291,15 @@ class WorkspaceSearchController extends _$WorkspaceSearchController {
 
   Future<void> searchNow(String workspacePath) async {
     _debounce?.cancel();
+    _cancelActiveSearch();
     final query = state.query;
     final generation = ++_requestGeneration;
     if (query.isEmpty) {
       state = state.copyWith(loading: false, error: null, result: null);
       return;
     }
+    final requestId = '$workspacePath:${identityHashCode(this)}:$generation';
+    _activeRequestId = requestId;
     state = state.copyWith(loading: true, error: null);
     try {
       final searchOptions = _searchOptions(workspacePath);
@@ -302,8 +310,9 @@ class WorkspaceSearchController extends _$WorkspaceSearchController {
                 replacement: state.replacement,
                 preserveCase: state.preserveCase,
               ),
+              requestId: requestId,
             )).result
-          : await _service.search(options: searchOptions);
+          : await _service.search(options: searchOptions, requestId: requestId);
       if (generation != _requestGeneration) {
         return;
       }
@@ -317,6 +326,10 @@ class WorkspaceSearchController extends _$WorkspaceSearchController {
         result: null,
         error: _messageFor(error),
       );
+    } finally {
+      if (_activeRequestId == requestId) {
+        _activeRequestId = null;
+      }
     }
   }
 
@@ -378,8 +391,7 @@ class WorkspaceSearchController extends _$WorkspaceSearchController {
     }
   }
 
-  WorkspaceSearchService get _service =>
-      ref.read(workspaceSearchServiceProvider);
+  WorkspaceSearchService get _service => _searchService!;
 
   native.WorkspaceSearchOptions _searchOptions(String workspacePath) {
     return native.WorkspaceSearchOptions(
@@ -416,6 +428,7 @@ class WorkspaceSearchController extends _$WorkspaceSearchController {
     String workspacePath,
     WorkspaceSearchState next,
   ) {
+    _cancelActiveSearch();
     _requestGeneration += 1;
     state = next.copyWith(
       loading: next.hasQuery,
@@ -424,6 +437,23 @@ class WorkspaceSearchController extends _$WorkspaceSearchController {
       collapsedResultNodeKeys: const <String>{},
     );
     _scheduleSearch(workspacePath);
+  }
+
+  void _cancelActiveSearch() {
+    final requestId = _activeRequestId;
+    if (requestId == null) {
+      return;
+    }
+    _activeRequestId = null;
+    unawaited(_ignoreCancellationFailure(requestId));
+  }
+
+  Future<void> _ignoreCancellationFailure(String requestId) async {
+    try {
+      await _service.cancel(requestId: requestId);
+    } on Object {
+      // Cancellation is best effort because stale generations are also ignored.
+    }
   }
 
   List<native.WorkspaceSearchFileResult> _affectedFiles(Set<String> matchIds) {

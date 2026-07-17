@@ -9,6 +9,7 @@
 import 'api/agent_hooks.dart';
 import 'api/clipboard.dart';
 import 'api/git.dart';
+import 'api/git_explorer_status.dart';
 import 'api/merman_viewer.dart';
 import 'api/workspace_files.dart';
 import 'api/workspace_search.dart';
@@ -156,6 +157,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   GitErrorKind dco_decode_git_error_kind(dynamic raw);
 
   @protected
+  GitExplorerStatus dco_decode_git_explorer_status(dynamic raw);
+
+  @protected
+  GitExplorerStatusEntry dco_decode_git_explorer_status_entry(dynamic raw);
+
+  @protected
+  GitExplorerStatusSnapshot dco_decode_git_explorer_status_snapshot(
+    dynamic raw,
+  );
+
+  @protected
   GitHistoryItem dco_decode_git_history_item(dynamic raw);
 
   @protected
@@ -225,6 +237,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<GitDiffLine> dco_decode_list_git_diff_line(dynamic raw);
+
+  @protected
+  List<GitExplorerStatusEntry> dco_decode_list_git_explorer_status_entry(
+    dynamic raw,
+  );
 
   @protected
   List<GitHistoryItem> dco_decode_list_git_history_item(dynamic raw);
@@ -613,6 +630,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   GitErrorKind sse_decode_git_error_kind(SseDeserializer deserializer);
 
   @protected
+  GitExplorerStatus sse_decode_git_explorer_status(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  GitExplorerStatusEntry sse_decode_git_explorer_status_entry(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  GitExplorerStatusSnapshot sse_decode_git_explorer_status_snapshot(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   GitHistoryItem sse_decode_git_history_item(SseDeserializer deserializer);
 
   @protected
@@ -698,6 +730,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<GitDiffLine> sse_decode_list_git_diff_line(SseDeserializer deserializer);
+
+  @protected
+  List<GitExplorerStatusEntry> sse_decode_list_git_explorer_status_entry(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<GitHistoryItem> sse_decode_list_git_history_item(
@@ -1191,6 +1228,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_git_error_kind(GitErrorKind self, SseSerializer serializer);
 
   @protected
+  void sse_encode_git_explorer_status(
+    GitExplorerStatus self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_git_explorer_status_entry(
+    GitExplorerStatusEntry self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_git_explorer_status_snapshot(
+    GitExplorerStatusSnapshot self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_git_history_item(
     GitHistoryItem self,
     SseSerializer serializer,
@@ -1307,6 +1362,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_git_diff_line(
     List<GitDiffLine> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_git_explorer_status_entry(
+    List<GitExplorerStatusEntry> self,
     SseSerializer serializer,
   );
 

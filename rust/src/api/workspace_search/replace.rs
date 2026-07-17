@@ -25,7 +25,7 @@ pub(super) fn replace_workspace_matches_impl(
     } else {
         Some(request.match_ids.into_iter().collect::<HashSet<_>>())
     };
-    let matches = run_search(&compiled, true)?;
+    let matches = run_search(&compiled, true, None)?;
     if selected.is_none() && matches.truncated {
         return Err(WorkspaceSearchError::new(
             WorkspaceSearchErrorKind::InvalidPattern,

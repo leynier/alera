@@ -3,15 +3,18 @@ import 'dart:async';
 import 'package:alera/src/shared/infra/git/git_backend.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_exception.dart';
+import 'package:alera/src/shared/infra/git/git_explorer_status.dart';
 import 'package:alera/src/shared/infra/git/git_remote.dart';
 import 'package:alera/src/shared/infra/git/git_worktree_entry.dart';
 
 part 'fake_git_backend_defaults.dart';
+part 'fake_git_backend_status.dart';
 
 /// In-memory [GitBackend] for unit tests. Field names mirror the behaviours the
 /// previous `ProcessRunner` fakes configured, so tests can program repository
 /// state and failure injection without spawning git.
-class FakeGitBackend implements GitBackend {
+class FakeGitBackend with _FakeGitBackendStatus implements GitBackend {
+  @override
   final List<GitBackendCall> calls = <GitBackendCall>[];
 
   bool isRepository = true;
@@ -70,7 +73,6 @@ class FakeGitBackend implements GitBackend {
   /// destination on disk).
   void Function(String url, String destinationPath)? onClone;
 
-  GitStatusResult gitStatusResult = const GitStatusResult(entries: []);
   GitStatusResult gitSubmoduleStatusResult = const GitStatusResult(entries: []);
   GitDiffResult gitDiffResult = const GitDiffResult(files: []);
   GitDiffResult gitDiffAllResult = const GitDiffResult(files: []);
@@ -94,6 +96,7 @@ class FakeGitBackend implements GitBackend {
   List<GitStashEntry> gitStashEntries = const <GitStashEntry>[];
   String gitCommitOid = 'abc123';
 
+  @override
   GitException? statusError;
   GitException? submoduleStatusError;
   GitException? historyError;
@@ -286,16 +289,6 @@ class FakeGitBackend implements GitBackend {
       throw cloneError;
     }
     onClone?.call(url, destinationPath);
-  }
-
-  @override
-  Future<GitStatusResult> status(String path) async {
-    calls.add(GitBackendCall('status', <String, Object?>{'path': path}));
-    final error = statusError;
-    if (error != null) {
-      throw error;
-    }
-    return gitStatusResult;
   }
 
   @override

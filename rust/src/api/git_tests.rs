@@ -5,6 +5,8 @@ use std::process::Command;
 
 #[path = "git_diff_edge_tests.rs"]
 mod git_diff_edge_tests;
+#[path = "git_explorer_status_tests.rs"]
+mod git_explorer_status_tests;
 #[path = "git_submodule_tests.rs"]
 mod git_submodule_tests;
 
@@ -114,15 +116,6 @@ fn diff_text(file: &GitDiffFile) -> String {
         .map(|line| line.text.as_str())
         .collect::<Vec<_>>()
         .join("\n")
-}
-
-#[test]
-fn detects_repository() {
-    let repo = init_repo();
-    assert!(is_git_repository(path_str(repo.path())).unwrap());
-
-    let plain = tempfile::tempdir().expect("tempdir");
-    assert!(!is_git_repository(path_str(plain.path())).unwrap());
 }
 
 #[test]

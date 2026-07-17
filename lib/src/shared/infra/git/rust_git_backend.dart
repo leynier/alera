@@ -1,7 +1,9 @@
 import 'package:alera/src/rust/api/git.dart' as rust;
+import 'package:alera/src/rust/api/git_explorer_status.dart' as explorer_rust;
 import 'package:alera/src/shared/infra/git/git_backend.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_exception.dart';
+import 'package:alera/src/shared/infra/git/git_explorer_status.dart';
 import 'package:alera/src/shared/infra/git/git_remote.dart';
 import 'package:alera/src/shared/infra/git/git_worktree_entry.dart';
 
@@ -111,6 +113,14 @@ class RustGitBackend implements GitBackend {
     final result = await rust.gitStatus(path: path);
     return _toStatusResult(result);
   });
+
+  @override
+  Future<GitExplorerStatusSnapshot> explorerStatusSnapshot(String path) =>
+      _guard(
+        () async => _toExplorerStatusSnapshot(
+          await explorer_rust.gitExplorerStatusSnapshot(path: path),
+        ),
+      );
 
   @override
   Future<GitStatusResult> statusForPath({
@@ -531,32 +541,5 @@ class RustGitBackend implements GitBackend {
       added: entry.added,
       removed: entry.removed,
     );
-  }
-
-  GitDiffLine _toDiffLine(rust.GitDiffLine line) {
-    return GitDiffLine(text: line.text, kind: _toDiffLineKind(line.kind));
-  }
-
-  GitChangeArea _toArea(rust.GitChangeArea area) {
-    return switch (area) {
-      rust.GitChangeArea.untracked => GitChangeArea.untracked,
-      rust.GitChangeArea.unstaged => GitChangeArea.unstaged,
-      rust.GitChangeArea.staged => GitChangeArea.staged,
-    };
-  }
-
-  rust.GitChangeArea _toRustArea(GitChangeArea area) {
-    return switch (area) {
-      GitChangeArea.untracked => rust.GitChangeArea.untracked,
-      GitChangeArea.unstaged => rust.GitChangeArea.unstaged,
-      GitChangeArea.staged => rust.GitChangeArea.staged,
-    };
-  }
-
-  GitChangeTreeRowKind _toTreeRowKind(rust.GitChangeTreeRowKind kind) {
-    return switch (kind) {
-      rust.GitChangeTreeRowKind.directory => GitChangeTreeRowKind.directory,
-      rust.GitChangeTreeRowKind.file => GitChangeTreeRowKind.file,
-    };
   }
 }

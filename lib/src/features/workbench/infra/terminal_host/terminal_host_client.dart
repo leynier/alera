@@ -615,6 +615,8 @@ final class SocketTerminalHostClient
             decodeTerminalHostBytes(payload['dataBase64']),
           ),
         );
+      case 'outputResyncRequired':
+        _events.add(TerminalHostOutputResyncRequiredEvent(sessionId));
       case 'exit':
         _events.add(
           TerminalHostExitEvent(sessionId, (payload['exitCode'] as int?) ?? -1),

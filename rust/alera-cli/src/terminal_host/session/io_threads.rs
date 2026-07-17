@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use super::{PtyEvent, PtyWrite};
 
-const READ_CHUNK_BYTES: usize = 8192;
+const READ_CHUNK_BYTES: usize = 64 * 1024;
 
 /// Read the PTY on a dedicated thread, forwarding output and the final exit code.
 pub(super) fn spawn_reader(

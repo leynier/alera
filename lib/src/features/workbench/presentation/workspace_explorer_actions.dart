@@ -283,8 +283,14 @@ extension _WorkspaceExplorerActions on _WorkspaceExplorerState {
     }
   }
 
-  Future<void> _refreshDirectory(String relativePath) async {
+  Future<void> _refreshDirectory(
+    String relativePath, {
+    bool refreshGitStatus = true,
+  }) async {
     try {
+      if (refreshGitStatus) {
+        await _refreshGitStatusSnapshot();
+      }
       await _loadDirectory(relativePath);
       if (!mounted) {
         return;

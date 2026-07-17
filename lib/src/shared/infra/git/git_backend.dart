@@ -1,5 +1,6 @@
 import 'package:alera/src/shared/infra/git/git_worktree_entry.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
+import 'package:alera/src/shared/infra/git/git_explorer_status.dart';
 import 'package:alera/src/shared/infra/git/git_remote.dart';
 
 /// Injectable boundary for git operations. Mirrors the raw git plumbing only;
@@ -72,6 +73,9 @@ abstract interface class GitBackend {
 
   /// Lists changed files in the working tree split by Git area.
   Future<GitStatusResult> status(String path);
+
+  /// Compact file and ancestor status projection for the workspace explorer.
+  Future<GitExplorerStatusSnapshot> explorerStatusSnapshot(String path);
 
   /// Lists changed entries for a single workspace-relative file.
   Future<GitStatusResult> statusForPath({

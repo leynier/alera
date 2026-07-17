@@ -103,6 +103,10 @@ final class TerminalHostOutputEvent extends TerminalHostEvent {
   final Uint8List data;
 }
 
+final class TerminalHostOutputResyncRequiredEvent extends TerminalHostEvent {
+  const TerminalHostOutputResyncRequiredEvent(super.sessionId);
+}
+
 final class TerminalHostExitEvent extends TerminalHostEvent {
   const TerminalHostExitEvent(super.sessionId, this.exitCode);
 

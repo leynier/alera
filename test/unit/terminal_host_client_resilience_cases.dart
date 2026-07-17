@@ -1,5 +1,20 @@
 part of 'terminal_host_client_test.dart';
 
+Future<TerminalHostOutputResyncRequiredEvent> _sendOutputResyncEvent(
+  SocketTerminalHostClient client,
+  _TerminalHostTestServer server,
+) {
+  final event = client.events
+      .where((event) => event is TerminalHostOutputResyncRequiredEvent)
+      .cast<TerminalHostOutputResyncRequiredEvent>()
+      .first;
+  server.send(<String, Object?>{
+    'event': 'outputResyncRequired',
+    'payload': <String, Object?>{'sessionId': 'session-1'},
+  });
+  return event;
+}
+
 void _registerTerminalHostClientResilienceTests() {
   test('waits for authenticated hello before sending requests', () async {
     final tempDir = await Directory.systemTemp.createTemp(

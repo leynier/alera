@@ -40,6 +40,7 @@ fn test_session() -> Session {
         working_directory: "/repo".to_string(),
         clients: HashSet::new(),
         output_paused_clients: HashSet::new(),
+        output_resync_pending_clients: HashSet::new(),
         buffer: ScrollbackBuffer::new(1024, &[]),
         running: true,
         exit_code: None,
@@ -78,6 +79,27 @@ fn output_batch_coalesces_until_flush() {
     let durable = session.flush_durable_output_batch().expect("durable batch");
     assert_eq!(durable.data, b"abcd");
     assert_eq!(durable.sequence, 0);
+}
+
+#[test]
+fn output_backpressure_pauses_only_the_slow_client_until_resumed() {
+    let mut session = test_session();
+    session.attach(1);
+    session.attach(2);
+
+    assert!(session.mark_output_backpressured(1));
+    assert!(!session.mark_output_backpressured(1));
+    assert_eq!(session.output_clients(), vec![2]);
+    assert!(session.output_resync_pending(1));
+
+    session.mark_output_resync_sent(1);
+    assert!(!session.output_resync_pending(1));
+    assert_eq!(session.output_clients(), vec![2]);
+
+    session.set_output_paused(1, false);
+    let mut clients = session.output_clients();
+    clients.sort_unstable();
+    assert_eq!(clients, vec![1, 2]);
 }
 
 #[test]

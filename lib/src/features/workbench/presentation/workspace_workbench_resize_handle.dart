@@ -1,10 +1,100 @@
 part of 'workspace_workbench_view.dart';
 
+class _TransientSplitLayout extends StatefulWidget {
+  const _TransientSplitLayout({
+    required this.axis,
+    required this.persistedRatio,
+    required this.first,
+    required this.second,
+    required this.onPersistRatio,
+  });
+
+  final WorkbenchSplitAxis axis;
+  final double persistedRatio;
+  final Widget first;
+  final Widget second;
+  final ValueChanged<double> onPersistRatio;
+
+  @override
+  State<_TransientSplitLayout> createState() => _TransientSplitLayoutState();
+}
+
+class _TransientSplitLayoutState extends State<_TransientSplitLayout> {
+  double? _transientRatio;
+
+  double get _ratio => _transientRatio ?? widget.persistedRatio;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final horizontal = widget.axis == WorkbenchSplitAxis.horizontal;
+        final available = horizontal
+            ? constraints.maxWidth
+            : constraints.maxHeight;
+        return buildSplitViewForAvailableSizeForTesting(
+          available: available,
+          axis: widget.axis,
+          ratio: _ratio,
+          first: widget.first,
+          second: widget.second,
+          buildRegularView: () {
+            final contentExtent = available - AleraTokens.space6;
+            final firstExtent = contentExtent * _ratio;
+            final secondExtent = contentExtent - firstExtent;
+            return Flex(
+              direction: horizontal ? Axis.horizontal : Axis.vertical,
+              children: <Widget>[
+                SizedBox(
+                  width: horizontal ? firstExtent : null,
+                  height: horizontal ? null : firstExtent,
+                  child: widget.first,
+                ),
+                _SplitResizeHandle(
+                  axis: widget.axis,
+                  onRatioDelta: (delta) {
+                    setState(() {
+                      _transientRatio = (_ratio + delta / contentExtent).clamp(
+                        workbenchMinSplitRatio,
+                        workbenchMaxSplitRatio,
+                      );
+                    });
+                  },
+                  onDragEnd: _persistRatio,
+                ),
+                SizedBox(
+                  width: horizontal ? secondExtent : null,
+                  height: horizontal ? null : secondExtent,
+                  child: widget.second,
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _persistRatio() {
+    final ratio = _transientRatio;
+    if (ratio == null) {
+      return;
+    }
+    widget.onPersistRatio(ratio);
+    setState(() => _transientRatio = null);
+  }
+}
+
 class _SplitResizeHandle extends StatefulWidget {
-  const _SplitResizeHandle({required this.axis, required this.onRatioDelta});
+  const _SplitResizeHandle({
+    required this.axis,
+    required this.onRatioDelta,
+    this.onDragEnd,
+  });
 
   final WorkbenchSplitAxis axis;
   final ValueChanged<double> onRatioDelta;
+  final VoidCallback? onDragEnd;
 
   @override
   State<_SplitResizeHandle> createState() => _SplitResizeHandleState();
@@ -60,6 +150,7 @@ class _SplitResizeHandleState extends State<_SplitResizeHandle> {
 
   void _stopDragging() {
     setState(() => _dragging = false);
+    widget.onDragEnd?.call();
   }
 }
 
