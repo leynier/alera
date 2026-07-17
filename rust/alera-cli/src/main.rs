@@ -1,6 +1,8 @@
 mod agent_quota;
 mod cli;
 mod cli_orchestration;
+#[cfg(test)]
+mod cli_tests;
 mod managed_workspace;
 mod mobile_access;
 mod orchestration_commands;
@@ -8,6 +10,9 @@ mod runtime_archive;
 mod runtime_host_client;
 mod ssh_bootstrap;
 mod terminal_host;
+mod workspace_pinning;
+
+mod workspace_registration;
 
 use std::future::Future;
 use std::io::Read;
@@ -15,8 +20,7 @@ use std::path::{Path, PathBuf};
 
 use alera_core::runtime::{
     CascadePreview, MobileAccessSettings, Project, ProjectKind, RuntimeStore, SshAuthKind,
-    SshTarget, Workspace, WorkspaceKind, WorkspaceStatus, WorkspaceTabRecord, WorkspaceTag,
-    LOCAL_HOST_ID, RUNTIME_DATABASE_FILE_NAME,
+    SshTarget, WorkspaceTabRecord, WorkspaceTag, RUNTIME_DATABASE_FILE_NAME,
 };
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine as _;
@@ -31,7 +35,7 @@ use crate::cli::{
     ProjectKindArg, RuntimeAction, RuntimeCommand, RuntimeDirArgs, SshAuthKindArg, SshTargetAction,
     SshTargetAddArgs, SshTargetBootstrapArgs, SshTargetBootstrapPlanArgs, SshTargetCommand,
     SshTargetStatusArgs, TabAction, TabCommand, TabCreateArgs, TerminalHostArgs, WorkspaceAction,
-    WorkspaceAddArgs, WorkspaceCommand, WorkspaceKindArg, WorkspaceRegisterArgs,
+    WorkspaceAddArgs, WorkspaceCommand,
 };
 use crate::cli::{MobileAction, MobileCommand, MobileDevicesAction, MobilePairingAction};
 use crate::cli::{TerminalAction, TerminalCommand};
@@ -358,7 +362,7 @@ async fn run_workspace_command(command: WorkspaceCommand) -> i32 {
             print_value(&value, json_output, "workspace removed");
         }
         WorkspaceAction::Register(args) => {
-            let workspace = workspace_from_args(args);
+            let workspace = workspace_registration::from_args(args);
             let fallback_workspace = workspace.clone();
             match runtime_host_or_store(
                 &runtime,
@@ -390,6 +394,12 @@ async fn run_workspace_command(command: WorkspaceCommand) -> i32 {
                 ),
                 Err(error) => return print_error(error),
             }
+        }
+        WorkspaceAction::Pin(IdArgs { id }) => {
+            return workspace_pinning::run(runtime_dir(&runtime), json_output, id, true).await
+        }
+        WorkspaceAction::Unpin(IdArgs { id }) => {
+            return workspace_pinning::run(runtime_dir(&runtime), json_output, id, false).await
         }
         WorkspaceAction::Link(args) => {
             let payload = json!({
@@ -1029,34 +1039,6 @@ fn project_from_args(args: ProjectAddArgs) -> Project {
             ProjectKindArg::GitRepository => ProjectKind::GitRepository,
             ProjectKindArg::Folder => ProjectKind::Folder,
         },
-    }
-}
-
-fn workspace_from_args(args: WorkspaceRegisterArgs) -> Workspace {
-    let now = Utc::now();
-    Workspace {
-        id: args.id.unwrap_or_else(|| Uuid::new_v4().to_string()),
-        instance_id: args
-            .instance_id
-            .unwrap_or_else(|| Uuid::new_v4().to_string()),
-        host_id: args.host_id.unwrap_or_else(|| LOCAL_HOST_ID.to_string()),
-        project_id: args.project_id,
-        name: args.name,
-        branch: args.branch,
-        path: args.path,
-        created_at: now,
-        updated_at: now,
-        kind: match args.kind {
-            WorkspaceKindArg::Main => WorkspaceKind::Main,
-            WorkspaceKindArg::Linked => WorkspaceKind::Linked,
-        },
-        status: WorkspaceStatus::Active,
-        source_branch: args.source_branch,
-        reuses_existing_branch: args.reuses_existing_branch,
-        tag_ids: Vec::new(),
-        tag_names: Vec::new(),
-        parent_workspace_id: None,
-        child_count: 0,
     }
 }
 

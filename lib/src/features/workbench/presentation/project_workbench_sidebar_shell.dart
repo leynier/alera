@@ -117,6 +117,7 @@ class _ProjectWorkbenchSidebarState
                               onRenameProject: _renameProject,
                               onRemoveProject: _removeProject,
                               onRenameWorkspace: _renameWorkspace,
+                              onSetWorkspacePinned: _setWorkspacePinned,
                               onManageWorkspaceTags: _manageWorkspaceTags,
                               onSetWorkspaceParent: _setWorkspaceParent,
                               onClearWorkspaceParent: _clearWorkspaceParent,

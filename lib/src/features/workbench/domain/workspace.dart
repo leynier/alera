@@ -24,6 +24,7 @@ class Workspace with WorkspaceMappable {
     this.reusesExistingBranch = false,
     this.instanceId,
     this.hostId = 'local',
+    this.isPinned = false,
     this.tagIds = const <String>[],
     this.tagNames = const <String>[],
     this.parentWorkspaceId,
@@ -43,6 +44,7 @@ class Workspace with WorkspaceMappable {
   final bool reusesExistingBranch;
   final String? instanceId;
   final String hostId;
+  final bool isPinned;
   final List<String> tagIds;
   final List<String> tagNames;
   final String? parentWorkspaceId;

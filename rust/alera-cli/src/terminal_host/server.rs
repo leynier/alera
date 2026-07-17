@@ -45,6 +45,7 @@ mod pty_event_forwarder;
 mod pty_events;
 mod requests;
 mod terminal_input_requests;
+mod workspace_pinning;
 
 /// Delay before a debounced checkpoint write fires.
 const CHECKPOINT_DELAY: Duration = Duration::from_secs(5);

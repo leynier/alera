@@ -38,6 +38,7 @@ part 'workbench_controller_lifecycle_test_cases.dart';
 part 'workbench_controller_view_prefs_test_cases.dart';
 part 'workbench_controller_failure_test_cases.dart';
 part 'workbench_controller_workspace_graph_test_cases.dart';
+part 'workbench_controller_pinning_test_cases.dart';
 part 'workbench_controller_test_harness.dart';
 
 late _WorkbenchHarness _harness;
@@ -58,5 +59,6 @@ void main() {
     _registerWorkbenchControllerViewPrefsTests();
     _registerWorkbenchControllerFailureTests();
     _registerWorkbenchControllerWorkspaceGraphTests();
+    _registerWorkbenchControllerPinningTests();
   });
 }

@@ -34,6 +34,7 @@ part 'alera_shell_page_test_harness.dart';
 part 'alera_shell_page_workbench_test_cases.dart';
 part 'alera_shell_page_sidebar_actions_test_cases.dart';
 part 'alera_shell_page_sidebar_states_test_cases.dart';
+part 'alera_shell_page_pinning_test_cases.dart';
 
 Future<AleraDatabase> _openMemoryDb() async {
   return AleraDatabase(executor: NativeDatabase.memory());
@@ -91,6 +92,7 @@ void main() {
   _registerAleraShellWorkbenchTests();
   _registerAleraShellSidebarActionTests();
   _registerAleraShellSidebarStateTests();
+  _registerAleraShellPinningTests();
 }
 
 WorkbenchState _stackedWorkbenchState() {

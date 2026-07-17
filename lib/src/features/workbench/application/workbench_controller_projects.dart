@@ -176,6 +176,32 @@ mixin _WorkbenchControllerProjects
     }
   }
 
+  Future<void> setWorkspacePinned({
+    required String workspaceId,
+    required bool isPinned,
+  }) async {
+    try {
+      final workspace = await _repository.setWorkspacePinned(
+        workspaceId,
+        isPinned,
+      );
+      final current = state.workspacesFor(workspace.projectId);
+      state = state.copyWith(
+        workspacesByProject: <String, List<Workspace>>{
+          ...state.workspacesByProject,
+          workspace.projectId: <Workspace>[
+            for (final candidate in current)
+              if (candidate.id == workspace.id) workspace else candidate,
+          ],
+        },
+        error: null,
+      );
+    } catch (error) {
+      state = state.copyWith(error: error.toString());
+      rethrow;
+    }
+  }
+
   Future<List<WorkspaceTag>> listWorkspaceTags() async {
     try {
       final tags = await _workspaceGraphRepository.listTags();

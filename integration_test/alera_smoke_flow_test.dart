@@ -106,8 +106,14 @@ void main() {
     );
     await tester.tap(submitButton);
 
+    final workspace = await _pumpUntilWorkspaceCreated(
+      tester,
+      projectRepository: projectRepository,
+      workbenchRepository: workbenchRepository,
+      workspacePath: projectDir.path,
+    );
     final workspaceRow = find.byKey(
-      ValueKey<String>('workspace-row:${projectDir.path}'),
+      ValueKey<String>('workspace-row:regular:${workspace.id}'),
     );
     await _pumpUntilFound(tester, workspaceRow);
     await tester.ensureVisible(workspaceRow);
@@ -124,6 +130,27 @@ void main() {
       containsAll(<String>['Terminal 1', 'Terminal 2']),
     );
   });
+}
+
+Future<Workspace> _pumpUntilWorkspaceCreated(
+  WidgetTester tester, {
+  required DriftProjectRepository projectRepository,
+  required DriftWorkbenchRepository workbenchRepository,
+  required String workspacePath,
+}) async {
+  for (var attempt = 0; attempt < 100; attempt++) {
+    await tester.pump(const Duration(milliseconds: 100));
+    final projects = await projectRepository.listAll();
+    for (final project in projects) {
+      final workspaces = await workbenchRepository.listWorkspaces(project.id);
+      for (final workspace in workspaces) {
+        if (workspace.path == workspacePath) {
+          return workspace;
+        }
+      }
+    }
+  }
+  fail('Expected workspace to be persisted for path: $workspacePath');
 }
 
 Future<void> _pumpUntilFound(

@@ -100,6 +100,27 @@ mixin _ProjectWorkbenchSidebarActions
     }
   }
 
+  Future<void> _setWorkspacePinned(Workspace workspace, bool isPinned) async {
+    try {
+      await ref
+          .read(workbenchControllerProvider.notifier)
+          .setWorkspacePinned(workspaceId: workspace.id, isPinned: isPinned);
+      if (!mounted) return;
+      AleraToast.show(
+        context,
+        message: isPinned ? 'Workspace Pinned' : 'Workspace Unpinned',
+        tone: AleraToastTone.success,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      AleraToast.show(
+        context,
+        message: error.toString(),
+        tone: AleraToastTone.error,
+      );
+    }
+  }
+
   Future<void> _deleteWorkspace(Project project, Workspace workspace) async {
     if (workspace.isMain) {
       return;

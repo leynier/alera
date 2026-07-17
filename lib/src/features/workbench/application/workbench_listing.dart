@@ -6,81 +6,7 @@ import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 
-/// A row to render in the workbench sidebar. The list returned by
-/// [buildSidebarRows] is flat and self-describing — callers iterate and render
-/// each variant with the right widget.
-sealed class WorkbenchSidebarRow {
-  const WorkbenchSidebarRow();
-}
-
-class WorkbenchSidebarCollapseTargets {
-  const WorkbenchSidebarCollapseTargets({
-    required this.projectIds,
-    required this.workspaceIds,
-    required this.parentWorkspaceIds,
-  });
-
-  final Set<String> projectIds;
-  final Set<String> workspaceIds;
-  final Set<String> parentWorkspaceIds;
-
-  bool get isEmpty =>
-      projectIds.isEmpty && workspaceIds.isEmpty && parentWorkspaceIds.isEmpty;
-
-  bool isCollapsed(WorkbenchViewPrefs prefs) {
-    final projectsCollapsed = projectIds.every(
-      prefs.collapsedProjectIds.contains,
-    );
-    final childTreesCollapsed = parentWorkspaceIds.every(
-      prefs.collapsedParentWorkspaceIds.contains,
-    );
-    final agentsCollapsed = !workspaceIds.any(
-      prefs.expandedWorkspaceIds.contains,
-    );
-    return projectsCollapsed && childTreesCollapsed && agentsCollapsed;
-  }
-}
-
-class WorkbenchProjectHeaderRow extends WorkbenchSidebarRow {
-  const WorkbenchProjectHeaderRow({
-    required this.project,
-    required this.workspaceCount,
-    required this.collapsed,
-  });
-
-  final Project project;
-  final int workspaceCount;
-  final bool collapsed;
-}
-
-class WorkbenchWorkspaceRow extends WorkbenchSidebarRow {
-  const WorkbenchWorkspaceRow({
-    required this.project,
-    required this.workspace,
-    required this.showProjectChip,
-    required this.indent,
-    required this.expanded,
-    this.visibleChildCount = 0,
-    this.childrenCollapsed = false,
-  });
-
-  final Project project;
-  final Workspace workspace;
-  final bool showProjectChip;
-  final bool expanded;
-
-  /// How many children nest under this row in the current filtered tree.
-  final int visibleChildCount;
-
-  /// Whether child workspaces are nested (or collapsed) under this row.
-  bool get hasVisibleChildren => visibleChildCount > 0;
-  final bool childrenCollapsed;
-
-  /// How deeply the row should be indented from the left edge of the sidebar
-  /// (in token-space units). `0` for top-level rows, `1` for workspaces inside
-  /// a project group, etc.
-  final int indent;
-}
+part 'workbench_sidebar_rows.dart';
 
 /// Builds the flat list of rows the sidebar should render for the current
 /// [state]. Pure function — easy to unit test.
@@ -254,10 +180,13 @@ List<WorkbenchSidebarRow> buildSidebarRows(
     required Project Function(Workspace) projectOf,
     required int baseIndent,
     required bool showProjectChip,
+    bool isPinnedCopy = false,
+    Set<String>? collapsedParentIds,
   }) {
     final tree = buildWorkspaceTree(
       entries: workspaces,
-      collapsedParentIds: prefs.collapsedParentWorkspaceIds,
+      collapsedParentIds:
+          collapsedParentIds ?? prefs.collapsedParentWorkspaceIds,
     );
     for (final entry in tree) {
       final indent = baseIndent + entry.depth;
@@ -270,6 +199,7 @@ List<WorkbenchSidebarRow> buildSidebarRows(
           expanded: prefs.expandedWorkspaceIds.contains(entry.workspace.id),
           visibleChildCount: entry.visibleChildCount,
           childrenCollapsed: entry.childrenCollapsed,
+          isPinnedCopy: isPinnedCopy,
         ),
       );
     }
@@ -279,6 +209,61 @@ List<WorkbenchSidebarRow> buildSidebarRows(
   final visibleProjects = state.projects.where(projectVisible).toList();
   final filtersHideEmptyProjects =
       query.isNotEmpty || prefs.selectedTagIds.isNotEmpty;
+
+  final pinnedRows = <WorkbenchSidebarRow>[];
+  var pinnedWorkspaceCount = 0;
+  switch (prefs.groupBy) {
+    case WorkbenchGroupBy.project:
+      for (final project in sortProjects(visibleProjects)) {
+        final pinned = sortWorkspaces(
+          state
+              .workspacesFor(project.id)
+              .where(
+                (workspace) =>
+                    workspace.isPinned && workspaceVisible(project, workspace),
+              )
+              .toList(),
+          pinMainOnRecent: true,
+        );
+        pinnedWorkspaceCount += pinned.length;
+        appendWorkspaceTreeRows(
+          pinnedRows,
+          workspaces: pinned,
+          projectOf: (_) => project,
+          baseIndent: 0,
+          showProjectChip: true,
+          isPinnedCopy: true,
+          collapsedParentIds: const <String>{},
+        );
+      }
+    case WorkbenchGroupBy.none:
+      final projectByWorkspaceId = <String, Project>{};
+      final pinned = <Workspace>[];
+      for (final project in visibleProjects) {
+        for (final workspace in state.workspacesFor(project.id)) {
+          if (!workspace.isPinned || !workspaceVisible(project, workspace)) {
+            continue;
+          }
+          projectByWorkspaceId[workspace.id] = project;
+          pinned.add(workspace);
+        }
+      }
+      pinnedWorkspaceCount = pinned.length;
+      appendWorkspaceTreeRows(
+        pinnedRows,
+        workspaces: sortWorkspaces(pinned, pinMainOnRecent: false),
+        projectOf: (workspace) => projectByWorkspaceId[workspace.id]!,
+        baseIndent: 0,
+        showProjectChip: true,
+        isPinnedCopy: true,
+        collapsedParentIds: const <String>{},
+      );
+  }
+  if (pinnedRows.isNotEmpty) {
+    rows
+      ..add(WorkbenchPinnedHeaderRow(workspaceCount: pinnedWorkspaceCount))
+      ..addAll(pinnedRows);
+  }
 
   switch (prefs.groupBy) {
     case WorkbenchGroupBy.project:
@@ -453,7 +438,7 @@ bool _workspaceVisible(
 List<String> workspaceOrderOfRows(List<WorkbenchSidebarRow> rows) {
   return <String>[
     for (final row in rows)
-      if (row is WorkbenchWorkspaceRow) row.workspace.id,
+      if (row is WorkbenchWorkspaceRow && !row.isPinnedCopy) row.workspace.id,
   ];
 }
 

@@ -15,6 +15,7 @@ void main() {
       'status': 'active',
       'sourceBranch': 'origin/main',
       'reusesExistingBranch': true,
+      'isPinned': true,
     });
 
     expect(workspace.id, 'workspace-1');
@@ -24,6 +25,7 @@ void main() {
     expect(workspace.status, WorkspaceStatus.active);
     expect(workspace.sourceBranch, 'origin/main');
     expect(workspace.reusesExistingBranch, isTrue);
+    expect(workspace.isPinned, isTrue);
     expect(workspace.isMain, isTrue);
     expect(workspace.isActive, isTrue);
   });
@@ -42,5 +44,6 @@ void main() {
     });
 
     expect(workspace.reusesExistingBranch, isFalse);
+    expect(workspace.isPinned, isFalse);
   });
 }

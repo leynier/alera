@@ -11,6 +11,7 @@ const String _copyPathAction = 'copy-path';
 const String _openInBrowserAction = 'open-in-browser';
 const String _sleepAction = 'sleep';
 const String _manageTagsAction = 'manage-tags';
+const String _togglePinAction = 'toggle-pin';
 const String _setParentAction = 'set-parent';
 const String _clearParentAction = 'clear-parent';
 const String _removeAction = 'remove';
@@ -22,12 +23,18 @@ List<PopupMenuEntry<String>> workspaceContextMenuEntries({
   required String fileManagerLabel,
   required bool hasClearParent,
   required bool canRemove,
+  required bool isPinned,
 }) {
   return <PopupMenuEntry<String>>[
     const AleraDropdownEntry<String>(
       value: _renameAction,
       leading: Icon(AleraIcons.edit, size: 16),
       label: 'Rename',
+    ),
+    AleraDropdownEntry<String>(
+      value: _togglePinAction,
+      leading: Icon(isPinned ? AleraIcons.pinOff : AleraIcons.pin, size: 16),
+      label: isPinned ? 'Unpin Workspace' : 'Pin Workspace',
     ),
     const AleraDropdownEntry<String>(
       value: _manageTagsAction,

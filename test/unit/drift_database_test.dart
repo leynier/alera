@@ -42,6 +42,7 @@ void main() {
       expect(workspaces.status, isNotNull);
       expect(workspaces.sourceBranch, isNotNull);
       expect(workspaces.reusesExistingBranch, isNotNull);
+      expect(workspaces.isPinned, isNotNull);
       expect(workspaces.primaryKey, hasLength(1));
 
       expect(tabs.id, isNotNull);

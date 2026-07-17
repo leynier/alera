@@ -17,6 +17,7 @@ class _SidebarBody extends StatelessWidget {
     required this.onRenameProject,
     required this.onRemoveProject,
     required this.onRenameWorkspace,
+    required this.onSetWorkspacePinned,
     required this.onManageWorkspaceTags,
     required this.onSetWorkspaceParent,
     required this.onClearWorkspaceParent,
@@ -42,6 +43,8 @@ class _SidebarBody extends StatelessWidget {
   final Future<void> Function(Project project) onRenameProject;
   final Future<void> Function(Project project) onRemoveProject;
   final Future<void> Function(Workspace workspace) onRenameWorkspace;
+  final Future<void> Function(Workspace workspace, bool isPinned)
+  onSetWorkspacePinned;
   final Future<void> Function(Workspace workspace) onManageWorkspaceTags;
   final Future<void> Function(Workspace workspace) onSetWorkspaceParent;
   final Future<void> Function(Workspace workspace) onClearWorkspaceParent;
@@ -75,6 +78,12 @@ class _SidebarBody extends StatelessWidget {
   }
 
   Widget _buildRow(WorkbenchSidebarRow row) {
+    if (row is WorkbenchPinnedHeaderRow) {
+      return SidebarSectionHeader(
+        label: 'Pinned ${row.workspaceCount}',
+        leadingIcon: AleraIcons.pin,
+      );
+    }
     if (row is WorkbenchProjectHeaderRow) {
       return Padding(
         padding: const EdgeInsets.symmetric(
@@ -119,7 +128,8 @@ class _SidebarBody extends StatelessWidget {
           expanded: row.expanded,
           visibleChildCount: row.visibleChildCount,
           childrenCollapsed: row.childrenCollapsed,
-          onToggleChildren: row.hasVisibleChildren
+          isPinnedCopy: row.isPinnedCopy,
+          onToggleChildren: row.hasVisibleChildren && !row.isPinnedCopy
               ? () =>
                     controller.toggleParentWorkspaceCollapsed(row.workspace.id)
               : null,
@@ -133,6 +143,8 @@ class _SidebarBody extends StatelessWidget {
               controller.toggleWorkspaceExpanded(row.workspace.id),
           fileManagerLabel: fileManagerLabel,
           onRename: () => onRenameWorkspace(row.workspace),
+          onSetPinned: () =>
+              onSetWorkspacePinned(row.workspace, !row.workspace.isPinned),
           onManageTags: () => onManageWorkspaceTags(row.workspace),
           onSetParent: () => onSetWorkspaceParent(row.workspace),
           onClearParent: row.workspace.hasParentWorkspace
