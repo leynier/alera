@@ -131,7 +131,10 @@ void main() {
         testWidgets('native channel runs the update check', (tester) async {
           await _withPlatform(platform, () async {
             final updateController = _FakeUpdateController(
-              AleraUpdateState(status: AleraUpdateStatus.idle, config: _config()),
+              AleraUpdateState(
+                status: AleraUpdateStatus.idle,
+                config: _config(),
+              ),
             );
             final toastMessages = <String>[];
             final sub = AleraToast.stream.listen((data) {
@@ -159,7 +162,10 @@ void main() {
 
             await _pumpMenuScope(tester);
 
-            await _invokeNativeMenuMethod(tester, NativeAppMenuMethod.showAbout);
+            await _invokeNativeMenuMethod(
+              tester,
+              NativeAppMenuMethod.showAbout,
+            );
             await tester.pumpAndSettle();
 
             expect(find.text(kAleraAppName), findsWidgets);
@@ -179,46 +185,47 @@ void main() {
           });
         });
 
-        testWidgets('native channel edit methods act on the focused text field', (
-          tester,
-        ) async {
-          await _withPlatform(platform, () async {
-            final controller = TextEditingController();
-            addTearDown(controller.dispose);
-            _mockClipboard();
-            await _pumpMenuScope(
-              tester,
-              child: Scaffold(
-                body: Center(child: TextField(controller: controller)),
-              ),
-            );
+        testWidgets(
+          'native channel edit methods act on the focused text field',
+          (tester) async {
+            await _withPlatform(platform, () async {
+              final controller = TextEditingController();
+              addTearDown(controller.dispose);
+              _mockClipboard();
+              await _pumpMenuScope(
+                tester,
+                child: Scaffold(
+                  body: Center(child: TextField(controller: controller)),
+                ),
+              );
 
-            await tester.tap(find.byType(TextField));
-            await tester.pump();
-            await tester.enterText(find.byType(TextField), 'hello');
-            await tester.pump();
+              await tester.tap(find.byType(TextField));
+              await tester.pump();
+              await tester.enterText(find.byType(TextField), 'hello');
+              await tester.pump();
 
-            await _invokeNativeMenuMethod(
-              tester,
-              NativeAppMenuMethod.selectAll,
-            );
-            await tester.pump();
-            expect(
-              controller.selection,
-              const TextSelection(baseOffset: 0, extentOffset: 5),
-            );
+              await _invokeNativeMenuMethod(
+                tester,
+                NativeAppMenuMethod.selectAll,
+              );
+              await tester.pump();
+              expect(
+                controller.selection,
+                const TextSelection(baseOffset: 0, extentOffset: 5),
+              );
 
-            await _invokeNativeMenuMethod(tester, NativeAppMenuMethod.cut);
-            await tester.pump();
-            expect(controller.text, isEmpty);
-            final clipboard = await Clipboard.getData(Clipboard.kTextPlain);
-            expect(clipboard?.text, 'hello');
+              await _invokeNativeMenuMethod(tester, NativeAppMenuMethod.cut);
+              await tester.pump();
+              expect(controller.text, isEmpty);
+              final clipboard = await Clipboard.getData(Clipboard.kTextPlain);
+              expect(clipboard?.text, 'hello');
 
-            await _invokeNativeMenuMethod(tester, NativeAppMenuMethod.paste);
-            await tester.pump();
-            expect(controller.text, 'hello');
-          });
-        });
+              await _invokeNativeMenuMethod(tester, NativeAppMenuMethod.paste);
+              await tester.pump();
+              expect(controller.text, 'hello');
+            });
+          },
+        );
       });
     }
 

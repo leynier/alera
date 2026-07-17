@@ -269,4 +269,3 @@ class _MacOsPlatformMenuBar extends ConsumerWidget {
     );
   }
 }
-
