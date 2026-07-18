@@ -21,6 +21,7 @@ class FakeForgeProvider implements ForgeProvider {
   HostedReview? branchReview;
   Future<HostedReview?> Function()? branchReviewLoader;
   int branchReviewCalls = 0;
+  String? lastBranchQuery;
   final Map<int, HostedReview> byNumber = <int, HostedReview>{};
   List<ReviewCheck> checks = <ReviewCheck>[];
   Future<List<ReviewCheck>> Function()? checksLoader;
@@ -30,6 +31,7 @@ class FakeForgeProvider implements ForgeProvider {
     message: 'not set',
   );
   int createCalls = 0;
+  Object? createError;
   ReviewCheckDetails? details;
   ReviewCheck? lastDetailsCheck;
   int lastDetailsNumber = -1;
@@ -92,6 +94,7 @@ class FakeForgeProvider implements ForgeProvider {
     required String branch,
   }) async {
     branchReviewCalls++;
+    lastBranchQuery = branch;
     final loader = branchReviewLoader;
     return loader == null ? branchReview : loader();
   }
@@ -169,6 +172,10 @@ class FakeForgeProvider implements ForgeProvider {
     required CreateReviewInput input,
   }) async {
     createCalls++;
+    final error = createError;
+    if (error != null) {
+      throw error;
+    }
     return createResult;
   }
 
