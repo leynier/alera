@@ -106,6 +106,10 @@ class _FakeCommandEnvironmentResolver implements CommandEnvironmentResolver {
   Future<Map<String, String>> environment() async {
     return Map<String, String>.from(value);
   }
+
+  @override
+  Future<Map<String, String>> environmentVariables(List<String> names) async =>
+      const <String, String>{};
 }
 
 class _DelayedDiffGitBackend extends FakeGitBackend {

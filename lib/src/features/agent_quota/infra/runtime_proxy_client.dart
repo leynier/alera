@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/alera_cli_sidecar.dart';
+import 'package:alera/src/shared/infra/process/command_environment_resolver.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -11,6 +12,8 @@ import 'package:path_provider/path_provider.dart';
 class RuntimeProxyClient {
   RuntimeProxyClient({
     required this.processRunner,
+    this._environmentResolver,
+    this._platformEnvironment,
     AleraCliResolver? cliResolver,
     Future<Directory> Function()? applicationSupportDirectory,
   }) : _cliResolver = cliResolver ?? DefaultAleraCliResolver(),
@@ -18,6 +21,8 @@ class RuntimeProxyClient {
            applicationSupportDirectory ?? getApplicationSupportDirectory;
 
   final ProcessRunner processRunner;
+  final CommandEnvironmentResolver? _environmentResolver;
+  final Map<String, String>? _platformEnvironment;
   final AleraCliResolver _cliResolver;
   final Future<Directory> Function() _applicationSupportDirectory;
 
@@ -26,15 +31,20 @@ class RuntimeProxyClient {
     required SshTarget? target,
     required String type,
     required Map<String, Object?> payload,
+    List<String> localEnvironmentNames = const <String>[],
     Duration timeout = const Duration(seconds: 35),
   }) async {
     final invocation = hostId == 'local'
         ? await _localInvocation()
         : _remoteInvocation(target);
+    final environment = hostId == 'local'
+        ? await _localEnvironment(localEnvironmentNames)
+        : null;
     final process = await processRunner.start(
       invocation.executable,
       invocation.arguments,
       workingDirectory: invocation.workingDirectory,
+      environment: environment,
     );
     final stdout = process.stdout.transform(utf8.decoder).join();
     final stderr = process.stderr.transform(utf8.decoder).join();
@@ -82,6 +92,26 @@ class RuntimeProxyClient {
       process.kill();
       throw TimeoutException('Runtime proxy request timed out.', timeout);
     }
+  }
+
+  /// Shell-rc exports for [names] that the GUI process does not already
+  /// carry. Remote hosts run through a login shell and see them natively;
+  /// this fills the same gap for the local sidecar. Variables present in the
+  /// process environment win and are never overridden.
+  Future<Map<String, String>?> _localEnvironment(List<String> names) async {
+    final resolver = _environmentResolver;
+    if (resolver == null || names.isEmpty) {
+      return null;
+    }
+    final parent = _platformEnvironment ?? Platform.environment;
+    final missing = names
+        .where((name) => name.trim().isNotEmpty && !parent.containsKey(name))
+        .toList(growable: false);
+    if (missing.isEmpty) {
+      return null;
+    }
+    final hydrated = await resolver.environmentVariables(missing);
+    return hydrated.isEmpty ? null : hydrated;
   }
 
   Future<_RuntimeProxyInvocation> _localInvocation() async {

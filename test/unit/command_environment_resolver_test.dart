@@ -95,6 +95,83 @@ void main() {
       },
     );
 
+    test('parses hydrated shell variables and skips empty values', () {
+      final values = parseHydratedShellVariables(
+        '\x1B[32mbanner\x1B[0m\n'
+        '${shellVariableHydrationDelimiter}KIMI_API_KEY=secret-key'
+        '$shellVariableHydrationDelimiter'
+        '${shellVariableHydrationDelimiter}ZAI_API_KEY='
+        '$shellVariableHydrationDelimiter'
+        '${shellVariableHydrationDelimiter}OTHER=value'
+        '$shellVariableHydrationDelimiter\nprompt',
+        <String>['KIMI_API_KEY', 'ZAI_API_KEY'],
+      );
+
+      expect(values, <String, String>{'KIMI_API_KEY': 'secret-key'});
+    });
+
+    test('keeps equals signs inside hydrated variable values', () {
+      final values = parseHydratedShellVariables(
+        '${shellVariableHydrationDelimiter}TOKEN=abc==def'
+        '$shellVariableHydrationDelimiter',
+        <String>['TOKEN'],
+      );
+
+      expect(values, <String, String>{'TOKEN': 'abc==def'});
+    });
+
+    test('validates environment variable names before shell interpolation', () {
+      expect(isValidEnvironmentVariableName('KIMI_API_KEY'), isTrue);
+      expect(isValidEnvironmentVariableName('_private'), isTrue);
+      expect(isValidEnvironmentVariableName('9LEADING'), isFalse);
+      expect(isValidEnvironmentVariableName(''), isFalse);
+      expect(isValidEnvironmentVariableName(r'X; rm -rf $HOME'), isFalse);
+      expect(isValidEnvironmentVariableName('A B'), isFalse);
+    });
+
+    test(
+      'hydrates shell variables once per name set and skips Windows',
+      () async {
+        var hydrateCount = 0;
+        final resolver = UserCommandEnvironmentResolver(
+          platformEnvironment: const <String, String>{'SHELL': '/bin/zsh'},
+          isWindows: false,
+          isMacOS: true,
+          variablesHydrator: (shell, names) async {
+            hydrateCount += 1;
+            expect(shell, '/bin/zsh');
+            expect(names, <String>['KIMI_API_KEY']);
+            return <String, String>{'KIMI_API_KEY': 'secret'};
+          },
+        );
+
+        // Invalid names are dropped before reaching the hydrator.
+        final first = await resolver.environmentVariables(<String>[
+          'KIMI_API_KEY',
+          'bad name',
+        ]);
+        final second = await resolver.environmentVariables(<String>[
+          'KIMI_API_KEY',
+        ]);
+
+        expect(hydrateCount, 1);
+        expect(first, <String, String>{'KIMI_API_KEY': 'secret'});
+        expect(second, <String, String>{'KIMI_API_KEY': 'secret'});
+
+        final windowsResolver = UserCommandEnvironmentResolver(
+          platformEnvironment: const <String, String>{},
+          isWindows: true,
+          variablesHydrator: (_, _) async {
+            throw StateError('hydrator must not run on Windows');
+          },
+        );
+        expect(
+          await windowsResolver.environmentVariables(<String>['KIMI_API_KEY']),
+          isEmpty,
+        );
+      },
+    );
+
     test(
       'falls back to platform environment when shell hydration fails',
       () async {

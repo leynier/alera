@@ -6,6 +6,7 @@ import 'package:alera/src/features/agent_quota/infra/runtime_proxy_client.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/alera_cli_sidecar.dart';
+import 'package:alera/src/shared/infra/process/command_environment_resolver.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -66,6 +67,117 @@ void main() {
     expect(runner.arguments!.last, contains('runtime-proxy'));
   });
 
+  test(
+    'hydrates missing shell credential variables for local requests',
+    () async {
+      final runner = _RecordingRunner();
+      final resolver = _FakeEnvironmentResolver(<String, String>{
+        'KIMI_API_KEY': 'secret-from-zshrc',
+      });
+      final client = RuntimeProxyClient(
+        processRunner: runner,
+        environmentResolver: resolver,
+        platformEnvironment: const <String, String>{'PATH': '/usr/bin'},
+        cliResolver: const _Resolver(),
+        applicationSupportDirectory: () async => Directory('/tmp/alera'),
+      );
+
+      await client.request(
+        hostId: 'local',
+        target: null,
+        type: 'agentQuota.fetch',
+        payload: const <String, Object?>{},
+        localEnvironmentNames: const <String>['KIMI_API_KEY', 'ZAI_API_KEY'],
+      );
+
+      expect(resolver.requests, <List<String>>[
+        <String>['KIMI_API_KEY', 'ZAI_API_KEY'],
+      ]);
+      expect(runner.environment, <String, String>{
+        'KIMI_API_KEY': 'secret-from-zshrc',
+      });
+    },
+  );
+
+  test(
+    'does not override variables already in the process environment',
+    () async {
+      final runner = _RecordingRunner();
+      final resolver = _FakeEnvironmentResolver(<String, String>{
+        'KIMI_API_KEY': 'stale-from-zshrc',
+      });
+      final client = RuntimeProxyClient(
+        processRunner: runner,
+        environmentResolver: resolver,
+        platformEnvironment: const <String, String>{
+          'KIMI_API_KEY': 'from-process',
+        },
+        cliResolver: const _Resolver(),
+        applicationSupportDirectory: () async => Directory('/tmp/alera'),
+      );
+
+      await client.request(
+        hostId: 'local',
+        target: null,
+        type: 'agentQuota.fetch',
+        payload: const <String, Object?>{},
+        localEnvironmentNames: const <String>['KIMI_API_KEY'],
+      );
+
+      expect(resolver.requests, isEmpty);
+      expect(runner.environment, isNull);
+    },
+  );
+
+  test('remote requests never consult the environment resolver', () async {
+    final runner = _RecordingRunner();
+    final resolver = _FakeEnvironmentResolver(<String, String>{
+      'KIMI_API_KEY': 'secret-from-zshrc',
+    });
+    final client = RuntimeProxyClient(
+      processRunner: runner,
+      environmentResolver: resolver,
+      platformEnvironment: const <String, String>{},
+    );
+
+    await client.request(
+      hostId: 'linux',
+      target: _target(runtimePlatform: 'linux'),
+      type: 'agentQuota.fetch',
+      payload: const <String, Object?>{},
+      localEnvironmentNames: const <String>['KIMI_API_KEY'],
+    );
+
+    expect(resolver.requests, isEmpty);
+    expect(runner.environment, isNull);
+  });
+
+  test('fetch requests hydration for the configured variable names', () async {
+    final runner = _RecordingRunner();
+    final resolver = _FakeEnvironmentResolver(const <String, String>{});
+    final client = RuntimeProxyClient(
+      processRunner: runner,
+      environmentResolver: resolver,
+      platformEnvironment: const <String, String>{},
+      cliResolver: const _Resolver(),
+      applicationSupportDirectory: () async => Directory('/tmp/alera'),
+    );
+    final service = AgentQuotaService(client);
+
+    await service.fetch(
+      hostId: 'local',
+      target: null,
+      settings: const AgentQuotaHostSettings(
+        enabledProviders: <AgentQuotaProviderId>[AgentQuotaProviderId.kimi],
+        environment: AgentQuotaEnvironmentSettings(
+          kimiApiKey: 'CUSTOM_KIMI_KEY',
+        ),
+      ),
+    );
+
+    expect(resolver.requests.single, contains('CUSTOM_KIMI_KEY'));
+  });
+
   test('sends the independent Claude Default setting to the sidecar', () async {
     final runner = _RecordingRunner();
     final client = RuntimeProxyClient(
@@ -100,6 +212,25 @@ void main() {
   });
 }
 
+class _FakeEnvironmentResolver implements CommandEnvironmentResolver {
+  _FakeEnvironmentResolver(this.values);
+
+  final Map<String, String> values;
+  final List<List<String>> requests = <List<String>>[];
+
+  @override
+  Future<Map<String, String>> environment() async => values;
+
+  @override
+  Future<Map<String, String>> environmentVariables(List<String> names) async {
+    requests.add(List<String>.of(names));
+    return <String, String>{
+      for (final name in names)
+        if (values.containsKey(name)) name: values[name]!,
+    };
+  }
+}
+
 SshTarget _target({required String runtimePlatform}) {
   final now = DateTime.utc(2026);
   return SshTarget(
@@ -131,6 +262,7 @@ class _Resolver implements AleraCliResolver {
 class _RecordingRunner implements ProcessRunner {
   String? executable;
   List<String>? arguments;
+  Map<String, String>? environment;
   String stdin = '';
 
   @override
@@ -142,6 +274,7 @@ class _RecordingRunner implements ProcessRunner {
   }) async {
     this.executable = executable;
     this.arguments = arguments;
+    this.environment = environment;
     return StartedProcess(
       stdinWrite: (data) => stdin += utf8.decode(data),
       stdout: Stream<List<int>>.value(
