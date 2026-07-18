@@ -28,6 +28,35 @@ void main() {
       );
     });
 
+    test('Accepts plaintext tailscale tailnet endpoints', () {
+      final ipv4 = PairingOffer.fromJson(
+        _offer(endpoint: 'ws://100.64.1.5:6768'),
+      );
+      final ipv6 = PairingOffer.fromJson(
+        _offer(endpoint: 'ws://[fd7a:115c:a1e0:ab12::4]:6768'),
+      );
+
+      expect(ipv4.endpoint, 'ws://100.64.1.5:6768');
+      expect(ipv6.endpoint, 'ws://[fd7a:115c:a1e0:ab12::4]:6768');
+    });
+
+    test('Rejects plaintext cgnat endpoints outside the tailscale range', () {
+      expect(
+        () => PairingOffer.fromJson(_offer(endpoint: 'ws://100.63.0.1:6768')),
+        throwsA(isA<FormatException>()),
+      );
+      expect(
+        () => PairingOffer.fromJson(_offer(endpoint: 'ws://100.128.0.0:6768')),
+        throwsA(isA<FormatException>()),
+      );
+      expect(
+        () => PairingOffer.fromJson(
+          _offer(endpoint: 'ws://[fd7a:115c:a1e1::1]:6768'),
+        ),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
     test('Rejects endpoints without explicit ports', () {
       expect(
         () => PairingOffer.fromJson(_offer(endpoint: 'wss://alera.example')),
@@ -45,6 +74,44 @@ void main() {
         throwsA(isA<FormatException>()),
       );
     });
+
+    test('Reloads saved tailscale endpoints', () {
+      final profile = PairedHostProfile.fromJson(
+        _profile(endpoint: 'ws://100.64.1.5:6768'),
+      );
+
+      expect(profile.endpoint, 'ws://100.64.1.5:6768');
+    });
+
+    test('Pairing result requires the runtime id promised by the offer', () {
+      final offer = PairingOffer.fromJson(
+        _offer(endpoint: 'ws://100.64.1.5:6768'),
+      );
+
+      expect(
+        () => PairedHostProfile.fromPairingResult(
+          offer,
+          _credentials(runtimeId: 'runtime-other'),
+        ),
+        throwsA(isA<FormatException>()),
+      );
+
+      final profile = PairedHostProfile.fromPairingResult(
+        offer,
+        _credentials(runtimeId: 'runtime-1'),
+      );
+      expect(profile.runtimeId, 'runtime-1');
+      expect(profile.id, 'runtime-1');
+    });
+  });
+}
+
+PairedDeviceCredentials _credentials({required String runtimeId}) {
+  return PairedDeviceCredentials.fromJson(<String, Object?>{
+    'deviceId': 'device-1',
+    'displayName': 'My Phone',
+    'runtimeId': runtimeId,
+    'deviceToken': 'token-1',
   });
 }
 
