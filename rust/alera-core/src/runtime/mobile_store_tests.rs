@@ -1,5 +1,6 @@
 use super::*;
 use chrono::Utc;
+use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 
 async fn store() -> (tempfile::TempDir, RuntimeStore) {
     let dir = tempfile::tempdir().unwrap();
@@ -32,6 +33,7 @@ async fn mobile_access_settings_roundtrip() {
             enabled: true,
             bind_host: "127.0.0.1".to_string(),
             port: 7777,
+            endpoint_mode: MobileEndpointMode::Tailscale,
             server_public_key_b64: Some("pub".to_string()),
             updated_at: Utc::now(),
         })
@@ -41,7 +43,51 @@ async fn mobile_access_settings_roundtrip() {
     assert!(saved.enabled);
     assert_eq!(saved.bind_host, "127.0.0.1");
     assert_eq!(saved.port, 7777);
+    assert_eq!(saved.endpoint_mode, MobileEndpointMode::Tailscale);
     assert_eq!(saved.server_public_key_b64.as_deref(), Some("pub"));
+
+    let reloaded = store.mobile_access_settings().await.unwrap();
+    assert_eq!(reloaded.endpoint_mode, MobileEndpointMode::Tailscale);
+}
+
+#[tokio::test]
+async fn mobile_endpoint_mode_column_is_added_to_legacy_runtime_databases() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join(RUNTIME_DATABASE_FILE_NAME);
+    let pool = SqlitePoolOptions::new()
+        .connect_with(
+            SqliteConnectOptions::new()
+                .filename(path)
+                .create_if_missing(true),
+        )
+        .await
+        .unwrap();
+    sqlx::query(
+        "CREATE TABLE mobileAccessSettings (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            enabled INTEGER NOT NULL DEFAULT 0,
+            bindHost TEXT NOT NULL,
+            port INTEGER NOT NULL,
+            serverPublicKeyB64 TEXT,
+            updatedAt TEXT NOT NULL
+        )",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO mobileAccessSettings (id, enabled, bindHost, port, updatedAt) \
+         VALUES (1, 1, '127.0.0.1', 6768, '2026-01-01T00:00:00Z')",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    pool.close().await;
+
+    let store = RuntimeStore::open(dir.path()).await.unwrap();
+    let settings = store.mobile_access_settings().await.unwrap();
+    assert!(settings.enabled);
+    assert_eq!(settings.endpoint_mode, MobileEndpointMode::Loopback);
 }
 
 #[tokio::test]
