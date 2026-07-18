@@ -25,4 +25,16 @@ class PairedHostsController extends _$PairedHostsController {
     ref.invalidateSelf();
     await future;
   }
+
+  Future<void> updateHostAlias(String hostId, String? alias) async {
+    final normalized = alias?.trim();
+    await ref
+        .read(hostRepositoryProvider)
+        .updateHostAlias(
+          hostId,
+          normalized == null || normalized.isEmpty ? null : normalized,
+        );
+    ref.invalidateSelf();
+    await future;
+  }
 }

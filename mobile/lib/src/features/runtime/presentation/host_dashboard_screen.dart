@@ -1,5 +1,7 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/features/hosts/application/paired_hosts_controller.dart';
 import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
+import 'package:alera_mobile/src/features/hosts/presentation/host_list_screen.dart';
 import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
 import 'package:alera_mobile/src/features/runtime/application/host_dashboard_controller.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_runtime_status.dart';
@@ -18,8 +20,34 @@ class HostDashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final data = ref.watch(hostDashboardDataProvider(host.id));
     final connection = ref.watch(hostConnectionControllerProvider(host.id));
+    // Resolve the freshest profile so a rename reflects while this screen is
+    // open; the constructor argument is the fallback before the list loads.
+    final currentHost =
+        ref
+            .watch(pairedHostsControllerProvider)
+            .value
+            ?.where((profile) => profile.id == host.id)
+            .firstOrNull ??
+        host;
     return Scaffold(
-      appBar: AppBar(title: Text(host.displayName)),
+      appBar: AppBar(
+        title: Text(currentHost.effectiveName),
+        actions: <Widget>[
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'rename') {
+                showRenameHostDialog(context, ref, currentHost);
+              }
+            },
+            itemBuilder: (context) => <PopupMenuEntry<String>>[
+              const PopupMenuItem<String>(
+                value: 'rename',
+                child: Text('Rename Host'),
+              ),
+            ],
+          ),
+        ],
+      ),
       body: SafeArea(
         child: switch (data) {
           AsyncData(value: final dashboard) => ListView(

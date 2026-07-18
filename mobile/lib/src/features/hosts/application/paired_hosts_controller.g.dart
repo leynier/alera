@@ -35,7 +35,7 @@ final class PairedHostsControllerProvider
 }
 
 String _$pairedHostsControllerHash() =>
-    r'fbdf24cf91a1be0c96dc33add8e17d6ae2c65aed';
+    r'8f4ba28ebd7c4f16bcd75aefbd02669f582e9e8b';
 
 abstract class _$PairedHostsController
     extends $AsyncNotifier<List<PairedHostProfile>> {

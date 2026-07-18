@@ -1,10 +1,34 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/design_system/forms/alera_rename_dialog.dart';
 import 'package:alera_mobile/src/features/hosts/application/paired_hosts_controller.dart';
 import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
 import 'package:alera_mobile/src/features/hosts/presentation/pair_host_screen.dart';
 import 'package:alera_mobile/src/features/runtime/presentation/host_dashboard_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+Future<void> showRenameHostDialog(
+  BuildContext context,
+  WidgetRef ref,
+  PairedHostProfile host,
+) async {
+  final name = await showDialog<String>(
+    context: context,
+    builder: (_) => AleraRenameDialog(
+      title: 'Rename Host',
+      labelText: 'Host Name',
+      initialValue: host.alias ?? host.displayName,
+      helperText: 'Leave Empty To Use The Advertised Host Name',
+      allowEmpty: true,
+    ),
+  );
+  if (name == null) {
+    return;
+  }
+  await ref
+      .read(pairedHostsControllerProvider.notifier)
+      .updateHostAlias(host.id, name);
+}
 
 class HostListScreen extends ConsumerWidget {
   const HostListScreen({super.key});
@@ -43,6 +67,44 @@ class HostListScreen extends ConsumerWidget {
     await ref.read(pairedHostsControllerProvider.notifier).removeHost(host.id);
   }
 
+  Future<void> _showHostActions(
+    BuildContext context,
+    WidgetRef ref,
+    PairedHostProfile host,
+  ) async {
+    final action = await showModalBottomSheet<_HostAction>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            ListTile(
+              leading: const Icon(Icons.drive_file_rename_outline),
+              title: const Text('Rename Host'),
+              onTap: () => Navigator.of(context).pop(_HostAction.rename),
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline),
+              title: const Text('Remove Host'),
+              onTap: () => Navigator.of(context).pop(_HostAction.remove),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!context.mounted) {
+      return;
+    }
+    switch (action) {
+      case _HostAction.rename:
+        await showRenameHostDialog(context, ref, host);
+      case _HostAction.remove:
+        await _removeHost(context, ref, host);
+      case null:
+        break;
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final hosts = ref.watch(pairedHostsControllerProvider);
@@ -76,6 +138,7 @@ class HostListScreen extends ConsumerWidget {
                   );
                 },
                 onRemove: () => _removeHost(context, ref, host),
+                onLongPress: () => _showHostActions(context, ref, host),
               );
             },
             separatorBuilder: (_, _) =>
@@ -131,16 +194,20 @@ class _EmptyHosts extends StatelessWidget {
   }
 }
 
+enum _HostAction { rename, remove }
+
 class _HostCard extends StatelessWidget {
   const _HostCard({
     required this.host,
     required this.onOpen,
     required this.onRemove,
+    required this.onLongPress,
   });
 
   final PairedHostProfile host;
   final VoidCallback onOpen;
   final VoidCallback onRemove;
+  final VoidCallback onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -148,6 +215,7 @@ class _HostCard extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
         onTap: onOpen,
+        onLongPress: onLongPress,
         child: Padding(
           padding: AleraTokens.contentPadding,
           child: Row(
@@ -172,10 +240,18 @@ class _HostCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text(
-                      host.displayName,
+                      host.effectiveName,
                       style: Theme.of(context).textTheme.titleMedium,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    if (host.alias != null) ...<Widget>[
+                      const SizedBox(height: AleraTokens.spaceXs),
+                      Text(
+                        host.displayName,
+                        style: Theme.of(context).textTheme.bodySmall,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                     const SizedBox(height: AleraTokens.spaceXs),
                     Text(
                       host.endpoint,
