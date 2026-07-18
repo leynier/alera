@@ -13,6 +13,7 @@ This file applies to GitHub metadata and GitHub Actions workflows.
 - Pull request workflows must initialize required submodules before dependency resolution.
 - Do not expose partial releases to users.
 - Release automation must publish drafts first, verify required assets and update manifests, then publish public releases.
+- Release notes must be product-scoped via `tool/release/generate_release_notes.dart` (desktop excludes `mobile/` and `landing/`; mobile includes only `mobile/`), and only desktop stable releases may carry the Latest badge.
 - Release workflows must not push release commits or tags until platform artifacts and update manifests have been generated and verified.
 - Update indexes must be deployed only after the corresponding GitHub Release is public.
 - Existing stable and release-candidate update indexes must be preserved when publishing the other channel; ignore only confirmed first-time 404 responses.
