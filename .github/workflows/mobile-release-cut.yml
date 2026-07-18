@@ -256,7 +256,11 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           dart tool/release/update_mobile_pubspec_version.dart "$ARTIFACT_VERSION" "$BUILD_NUMBER"
           git add mobile/pubspec.yaml
-          git commit -m "release: $TAG"
+          if git diff --cached --quiet; then
+            echo "::notice::mobile/pubspec.yaml already at $ARTIFACT_VERSION+$BUILD_NUMBER; skipping release commit."
+          else
+            git commit -m "release: $TAG"
+          fi
           git tag -a "$TAG" -m "$TAG"
           echo "release_sha=$(git rev-parse HEAD)" >>"$GITHUB_OUTPUT"
 
@@ -275,9 +279,11 @@ jobs:
             fi
           }
           trap cleanup_failed_push ERR
-          current_sha="$(git rev-parse HEAD~1)"
+          head_sha="$(git rev-parse HEAD)"
           main_sha="$(git rev-parse origin/main)"
-          if [[ "$current_sha" == "$main_sha" ]]; then
+          if [[ "$head_sha" == "$main_sha" ]]; then
+            echo "::notice::No release commit was needed; only the mobile tag will be pushed."
+          elif [[ "$(git rev-parse HEAD~1)" == "$main_sha" ]]; then
             git push origin "HEAD:refs/heads/main"
             pushed_main=true
           else
