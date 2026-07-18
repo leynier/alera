@@ -12,7 +12,7 @@ class AleraMobileApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Alera Mobile',
+      title: 'Alera',
       debugShowCheckedModeBanner: false,
       theme: _darkTheme,
       home: HostListScreen(

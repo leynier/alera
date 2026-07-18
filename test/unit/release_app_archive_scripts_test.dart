@@ -6,6 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
 import '../../tool/release/latest_stable_release.dart' as latest_stable;
+import '../../tool/release/update_mobile_pubspec_version.dart'
+    as mobile_version;
 
 void main() {
   group('latest stable release script', () {
@@ -35,6 +37,28 @@ void main() {
         ]),
         '0.1.0',
       );
+    });
+  });
+
+  group('mobile release version script', () {
+    test('updates only the mobile pubspec version', () async {
+      final temp = await Directory.systemTemp.createTemp(
+        'alera-mobile-version-',
+      );
+      addTearDown(() => temp.deleteSync(recursive: true));
+      final pubspec = File(p.join(temp.path, 'pubspec.yaml'))
+        ..writeAsStringSync(
+          'name: alera_mobile\nversion: 0.0.1+1\nenvironment:\n  sdk: ^3.12.2\n',
+        );
+
+      mobile_version.updateMobilePubspecVersion(
+        '1.2.3',
+        45,
+        pubspecPath: pubspec.path,
+      );
+
+      expect(pubspec.readAsStringSync(), contains('version: 1.2.3+45'));
+      expect(pubspec.readAsStringSync(), contains('name: alera_mobile'));
     });
   });
 

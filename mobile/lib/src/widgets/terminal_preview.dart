@@ -35,7 +35,7 @@ class _TerminalPreviewState extends State<TerminalPreview> {
     super.initState();
     _terminal = Terminal(maxLines: 1000, onOutput: _handleTerminalOutput);
     _controller = TerminalController();
-    _terminal.write('Alera Mobile\r\n');
+    _terminal.write('Alera\r\n');
     _terminal.write('No Session Attached\r\n');
     _outputSub = widget.client.terminalOutput.listen((event) {
       if (event.sessionId != _sessionId) {
