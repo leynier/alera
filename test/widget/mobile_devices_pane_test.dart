@@ -10,8 +10,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  Future<_FakeMobileRuntimeHostClient> pumpPane(WidgetTester tester) async {
-    final client = _FakeMobileRuntimeHostClient();
+  Future<_FakeMobileRuntimeHostClient> pumpPane(
+    WidgetTester tester, {
+    _FakeMobileRuntimeHostClient? client,
+  }) async {
+    client ??= _FakeMobileRuntimeHostClient();
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -37,6 +40,73 @@ void main() {
     expect(find.text('Paired Devices'), findsOneWidget);
     expect(find.text('Phone'), findsOneWidget);
     expect(find.textContaining('ws://127.0.0.1:6768'), findsOneWidget);
+  });
+
+  testWidgets('renders the connection mode selector segments', (tester) async {
+    await pumpPane(tester);
+
+    expect(find.text('This Device'), findsOneWidget);
+    expect(find.text('Tailscale'), findsOneWidget);
+    expect(find.text('Manual'), findsOneWidget);
+    // Loopback mode keeps the manual bind host field hidden.
+    expect(find.text('Bind Host'), findsNothing);
+  });
+
+  testWidgets('selecting tailscale sends only the endpoint mode', (
+    tester,
+  ) async {
+    final client = _FakeMobileRuntimeHostClient()
+      ..tailscaleStatus = <String, Object?>{
+        'detected': true,
+        'running': true,
+        'tailnetIp': '100.101.102.103',
+      };
+    await pumpPane(tester, client: client);
+
+    await tester.tap(find.text('Tailscale'));
+    await tester.pumpAndSettle();
+
+    expect(client.requestsOfType('mobile.settings.update').single, {
+      'endpointMode': 'tailscale',
+    });
+    expect(find.text('Tailscale Status'), findsOneWidget);
+    expect(find.text('Running · 100.101.102.103'), findsOneWidget);
+  });
+
+  testWidgets('tailscale mode hides the pairing endpoint field', (
+    tester,
+  ) async {
+    final client = _FakeMobileRuntimeHostClient()
+      ..endpointMode = 'tailscale'
+      ..bindHost = '100.101.102.103'
+      ..tailscaleStatus = <String, Object?>{
+        'detected': true,
+        'running': true,
+        'tailnetIp': '100.101.102.103',
+      };
+    await pumpPane(tester, client: client);
+
+    expect(find.text('Endpoint'), findsNothing);
+    expect(find.text('Tailscale Status'), findsOneWidget);
+  });
+
+  testWidgets('runtime errors from mode selection surface in the pane', (
+    tester,
+  ) async {
+    final client = _FakeMobileRuntimeHostClient()..failSettingsUpdate = true;
+    await pumpPane(tester, client: client);
+
+    await tester.tap(find.text('Tailscale'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('not running'), findsOneWidget);
+  });
+
+  testWidgets('legacy custom bind hosts render as manual mode', (tester) async {
+    final client = _FakeMobileRuntimeHostClient()..bindHost = '192.168.1.10';
+    await pumpPane(tester, client: client);
+
+    expect(find.text('Bind Host'), findsOneWidget);
   });
 
   testWidgets('revoke asks for confirmation and calls the runtime', (
@@ -137,6 +207,10 @@ final class _FakeMobileRuntimeHostClient implements RuntimeHostClient {
   bool deviceRevoked = false;
   String deviceName = 'Phone';
   bool offerCancelled = false;
+  String bindHost = '127.0.0.1';
+  String endpointMode = 'loopback';
+  Map<String, Object?>? tailscaleStatus;
+  bool failSettingsUpdate = false;
 
   List<Map<String, Object?>> requestsOfType(String type) {
     return <Map<String, Object?>>[
@@ -191,10 +265,24 @@ final class _FakeMobileRuntimeHostClient implements RuntimeHostClient {
               .toIso8601String(),
         };
       case 'mobile.settings.update':
+        if (failSettingsUpdate) {
+          throw StateError('tailscale is installed but not running');
+        }
+        final requestedMode = payload['endpointMode'];
+        if (requestedMode is String) {
+          endpointMode = requestedMode;
+          bindHost = requestedMode == 'tailscale'
+              ? '100.101.102.103'
+              : '127.0.0.1';
+        }
+        _events.add(
+          const RuntimeHostEvent('mobileSettingsChanged', <String, Object?>{}),
+        );
         return <String, Object?>{
           'enabled': payload['enabled'] ?? true,
-          'bindHost': payload['bindHost'] ?? '127.0.0.1',
+          'bindHost': payload['bindHost'] ?? bindHost,
           'port': payload['port'] ?? 6768,
+          'endpointMode': endpointMode,
         };
       default:
         throw UnimplementedError(type);
@@ -206,9 +294,11 @@ final class _FakeMobileRuntimeHostClient implements RuntimeHostClient {
       'protocolVersion': 1,
       'settings': <String, Object?>{
         'enabled': true,
-        'bindHost': '127.0.0.1',
+        'bindHost': bindHost,
         'port': 6768,
+        'endpointMode': endpointMode,
       },
+      if (tailscaleStatus != null) 'tailscale': tailscaleStatus,
       'devices': <Object?>[_device()],
       'activePairings': offerCancelled
           ? const <Object?>[]
