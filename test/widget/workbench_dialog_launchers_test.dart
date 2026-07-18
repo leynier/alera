@@ -273,6 +273,53 @@ void main() {
       },
     );
 
+    testWidgets('showCreateWorkspaceFlow warns when setup steps fail', (
+      tester,
+    ) async {
+      final project = _project('project-1', 'Alera');
+      final controller =
+          _DialogLaunchersTestController(
+              WorkbenchState(projects: <Project>[project]),
+            )
+            ..sourceBranches = <String>['main']
+            ..setupReport = const WorktreeSetupReport(
+              steps: <WorktreeSetupStepReport>[
+                WorktreeSetupStepReport(
+                  kind: WorktreeSetupStepKind.command,
+                  label: 'make bootstrap',
+                  succeeded: false,
+                  message: 'failed',
+                ),
+              ],
+            );
+
+      await _pumpFlowHarness(
+        tester,
+        controller: controller,
+        onPressed: (context, ref) => showCreateWorkspaceFlow(context, ref),
+      );
+
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Continue'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextField, 'New Branch Name *'),
+        'feature/setup-warning',
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Create Workspace'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(
+          'Workspace Created With Setup Warnings: 1 Setup Action Failed',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Workspace Created'), findsNothing);
+    });
+
     testWidgets('showCreateWorkspaceFlow warns when the parent link fails', (
       tester,
     ) async {
@@ -430,6 +477,7 @@ class _DialogLaunchersTestController extends WorkbenchController {
   List<String> sourceBranches = const <String>['main'];
   Exception? createWorkspaceError;
   String? parentLinkError;
+  WorktreeSetupReport setupReport = WorktreeSetupReport.empty;
   ({
     Project project,
     String sourceBranch,
@@ -504,7 +552,7 @@ class _DialogLaunchersTestController extends WorkbenchController {
         projectId: project.id,
         name: name ?? newBranchName,
       ),
-      setupReport: WorktreeSetupReport.empty,
+      setupReport: setupReport,
       parentLinkError: parentLinkError,
     );
   }
