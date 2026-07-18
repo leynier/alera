@@ -32,8 +32,8 @@ install_payload() {
   mkdir -p "$root/opt/alera" "$root/usr/bin" "$root/usr/share/applications" "$root/usr/share/icons/hicolor/256x256/apps"
   cp -R "$bundle_dir/." "$root/opt/alera/"
   ln -s /opt/alera/alera "$root/usr/bin/alera"
-  if [[ -f assets/logo/alera-logo.png ]]; then
-    cp assets/logo/alera-logo.png "$root/usr/share/icons/hicolor/256x256/apps/alera.png"
+  if [[ -f assets/logo/alera-logo-desktop.png ]]; then
+    cp assets/logo/alera-logo-desktop.png "$root/usr/share/icons/hicolor/256x256/apps/alera.png"
   fi
   cat >"$root/usr/share/applications/dev.leynier.alera.desktop" <<'DESKTOP'
 [Desktop Entry]
