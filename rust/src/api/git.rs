@@ -13,7 +13,7 @@ mod git_commit_state_impl;
 #[path = "git_diff_impl.rs"]
 mod git_diff_impl;
 #[path = "git_diff_paths.rs"]
-mod git_diff_paths;
+pub(in crate::api) mod git_diff_paths;
 #[path = "git_history_impl.rs"]
 mod git_history_impl;
 #[path = "git_range_impl.rs"]
@@ -280,7 +280,7 @@ impl GitError {
         }
     }
 
-    fn from_git2(error: git2::Error) -> Self {
+    pub(in crate::api) fn from_git2(error: git2::Error) -> Self {
         let message = error.message().to_string();
         let lowered = message.to_lowercase();
         let kind = if lowered.contains("permission denied")
@@ -326,7 +326,7 @@ impl From<core_git::GitError> for GitError {
     }
 }
 
-fn open_repo(path: &str) -> Result<Repository, GitError> {
+pub(in crate::api) fn open_repo(path: &str) -> Result<Repository, GitError> {
     // `discover` (rather than `open`) so operations work when `path` is a
     // subdirectory of the work tree, matching `is_git_repository` and the
     // behaviour of `git -C <path> ...`.

@@ -86,4 +86,32 @@ extension on RustGitBackend {
       rust.GitChangeStatus.untracked => GitChangeStatus.untracked,
     };
   }
+
+  GitDiffResult _toDiffResult(
+    rust.GitDiffResult result, {
+    String? sourceLabel,
+  }) {
+    return GitDiffResult(
+      truncated: result.truncated,
+      files: result.files
+          .map(
+            (file) => GitDiffFile(
+              path: file.path,
+              oldPath: file.oldPath,
+              area: _toArea(file.area),
+              status: _toStatus(file.status),
+              lines: file.lines.map(_toDiffLine).toList(growable: false),
+              added: file.added,
+              removed: file.removed,
+              isBinary: file.isBinary,
+              isLarge: file.isLarge,
+              isGitlink: file.isGitlink,
+              truncated: file.truncated,
+              linePreviewTruncated: file.linePreviewTruncated,
+              sourceLabel: sourceLabel,
+            ),
+          )
+          .toList(growable: false),
+    );
+  }
 }

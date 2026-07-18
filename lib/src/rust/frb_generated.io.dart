@@ -6,6 +6,7 @@
 import 'api/agent_hooks.dart';
 import 'api/clipboard.dart';
 import 'api/git.dart';
+import 'api/git_diff_blob.dart';
 import 'api/git_explorer_status.dart';
 import 'api/merman_viewer.dart';
 import 'api/workspace_files.dart';
@@ -53,6 +54,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   bool dco_decode_bool(dynamic raw);
+
+  @protected
+  GitChangeArea dco_decode_box_autoadd_git_change_area(dynamic raw);
 
   @protected
   GitChangeEntry dco_decode_box_autoadd_git_change_entry(dynamic raw);
@@ -313,6 +317,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String? dco_decode_opt_String(dynamic raw);
 
   @protected
+  GitChangeArea? dco_decode_opt_box_autoadd_git_change_area(dynamic raw);
+
+  @protected
   GitChangeEntry? dco_decode_opt_box_autoadd_git_change_entry(dynamic raw);
 
   @protected
@@ -344,6 +351,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   WorkspaceFileGitStatus? dco_decode_opt_box_autoadd_workspace_file_git_status(
     dynamic raw,
   );
+
+  @protected
+  Uint8List? dco_decode_opt_list_prim_u_8_strict(dynamic raw);
 
   @protected
   SourceControlWatchSignal dco_decode_source_control_watch_signal(dynamic raw);
@@ -504,6 +514,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   bool sse_decode_bool(SseDeserializer deserializer);
+
+  @protected
+  GitChangeArea sse_decode_box_autoadd_git_change_area(
+    SseDeserializer deserializer,
+  );
 
   @protected
   GitChangeEntry sse_decode_box_autoadd_git_change_entry(
@@ -832,6 +847,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String? sse_decode_opt_String(SseDeserializer deserializer);
 
   @protected
+  GitChangeArea? sse_decode_opt_box_autoadd_git_change_area(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   GitChangeEntry? sse_decode_opt_box_autoadd_git_change_entry(
     SseDeserializer deserializer,
   );
@@ -867,6 +887,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   WorkspaceFileGitStatus? sse_decode_opt_box_autoadd_workspace_file_git_status(
     SseDeserializer deserializer,
   );
+
+  @protected
+  Uint8List? sse_decode_opt_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
   SourceControlWatchSignal sse_decode_source_control_watch_signal(
@@ -1071,6 +1094,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_git_change_area(
+    GitChangeArea self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_git_change_entry(
@@ -1487,6 +1516,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_opt_String(String? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_box_autoadd_git_change_area(
+    GitChangeArea? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_git_change_entry(
     GitChangeEntry? self,
     SseSerializer serializer,
@@ -1528,6 +1563,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_workspace_file_git_status(
     WorkspaceFileGitStatus? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_list_prim_u_8_strict(
+    Uint8List? self,
     SseSerializer serializer,
   );
 

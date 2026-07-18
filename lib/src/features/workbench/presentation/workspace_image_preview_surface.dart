@@ -6,6 +6,7 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/icons/alera_file_icon.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_preview_kind.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
+import 'package:alera/src/features/workbench/application/workspace_image_decoding.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_editor_surface.dart';
@@ -13,7 +14,6 @@ import 'package:alera/src/rust/api/workspace_files.dart' as native;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image/image.dart' as image_lib;
 
 class WorkspaceImagePreviewSurface extends ConsumerStatefulWidget {
   const WorkspaceImagePreviewSurface({
@@ -194,10 +194,7 @@ class _WorkspaceImagePreviewSurfaceState
   }) async {
     if (workspaceImagePreviewUsesIcoDecoderForTesting(openedPath)) {
       final bytes = await File(file.path).readAsBytes();
-      final pngBytes = await compute(
-        workspaceImagePreviewDecodeIcoToPngBytesForTesting,
-        bytes,
-      );
+      final pngBytes = await compute(decodeWorkspaceIcoToPngBytes, bytes);
       return _ResolvedPreviewImage(file: file, provider: MemoryImage(pngBytes));
     }
     return _ResolvedPreviewImage(
@@ -319,33 +316,7 @@ class _ResolvedPreviewImage {
 
 @visibleForTesting
 Uint8List workspaceImagePreviewDecodeIcoToPngBytesForTesting(Uint8List bytes) {
-  final image = _decodeLargestIcoFrame(bytes) ?? image_lib.decodeImage(bytes);
-  if (image == null) {
-    throw const FormatException('ICO image cannot be decoded');
-  }
-  return image_lib.encodePng(image);
-}
-
-image_lib.Image? _decodeLargestIcoFrame(Uint8List bytes) {
-  final decoder = image_lib.IcoDecoder();
-  final info = decoder.startDecode(bytes);
-  if (info is! image_lib.IcoInfo || info.images.isEmpty) {
-    return null;
-  }
-
-  var largestFrame = 0;
-  var largestArea = 0;
-  for (var index = 0; index < info.images.length; index += 1) {
-    final image = info.images[index];
-    final width = image.width == 0 ? 256 : image.width;
-    final height = image.height == 0 ? 256 : image.height;
-    final area = width * height;
-    if (area > largestArea) {
-      largestArea = area;
-      largestFrame = index;
-    }
-  }
-  return decoder.decodeFrame(largestFrame);
+  return decodeWorkspaceIcoToPngBytes(bytes);
 }
 
 class _ImagePreviewMessage extends StatelessWidget {
