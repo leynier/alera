@@ -1,5 +1,6 @@
 use alera_core::runtime::{
-    MobileAccessSettings, MobileDevice, MobileDevicePermission, MobilePairingOffer, RuntimeStore,
+    MobileAccessSettings, MobileDevice, MobileDevicePermission, MobileEndpointMode,
+    MobilePairingOffer, RuntimeStore,
 };
 use anyhow::{bail, Result};
 use chrono::{Duration, Utc};
@@ -19,6 +20,8 @@ pub struct MobileSettingsUpdateRequest {
     pub bind_host: Option<String>,
     #[serde(default)]
     pub port: Option<i64>,
+    #[serde(default)]
+    pub endpoint_mode: Option<MobileEndpointMode>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -52,6 +55,8 @@ pub struct MobileStatusPayload {
     pub active_pairings: Vec<MobilePairingOfferSummary>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub runtime_host_active: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tailscale: Option<crate::tailscale::TailscaleStatusSummary>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -122,6 +127,7 @@ pub async fn mobile_status(
         devices,
         active_pairings,
         runtime_host_active,
+        tailscale: Some(crate::tailscale::detect().await),
     })
 }
 
@@ -154,7 +160,55 @@ pub fn apply_mobile_settings_update(
         }
         settings.port = port;
     }
+    if let Some(endpoint_mode) = request.endpoint_mode {
+        settings.endpoint_mode = endpoint_mode;
+    }
     Ok(settings)
+}
+
+pub async fn apply_mobile_settings_update_resolved(
+    current: MobileAccessSettings,
+    request: MobileSettingsUpdateRequest,
+) -> Result<MobileAccessSettings> {
+    let previous_mode = current.endpoint_mode;
+    let request_has_bind_host = request
+        .bind_host
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .is_some();
+    let mut settings = apply_mobile_settings_update(current, request)?;
+    let switched_mode = settings.endpoint_mode != previous_mode;
+    match settings.endpoint_mode {
+        MobileEndpointMode::Tailscale if settings.enabled || switched_mode => {
+            settings.bind_host = crate::tailscale::resolve_tailnet_bind_ip()
+                .await?
+                .to_string();
+        }
+        MobileEndpointMode::Loopback if switched_mode && !request_has_bind_host => {
+            settings.bind_host = MobileAccessSettings::default().bind_host;
+        }
+        _ => {}
+    }
+    Ok(settings)
+}
+
+pub async fn prepare_mobile_pairing_offer_settings_resolved(
+    mut settings: MobileAccessSettings,
+    request: &MobilePairingCreateRequest,
+) -> Result<(MobileAccessSettings, String)> {
+    let has_explicit_endpoint = request
+        .endpoint
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .is_some();
+    if settings.endpoint_mode == MobileEndpointMode::Tailscale && !has_explicit_endpoint {
+        settings.bind_host = crate::tailscale::resolve_tailnet_bind_ip()
+            .await?
+            .to_string();
+    }
+    prepare_mobile_pairing_offer_settings(settings, request)
 }
 
 pub fn prepare_mobile_pairing_offer_settings(
@@ -430,8 +484,11 @@ fn validate_pairing_endpoint(endpoint: String) -> Result<ValidPairingEndpoint> {
     if port == 0 {
         bail!("mobile pairing endpoint port must be between 1 and 65535");
     }
-    if parsed.scheme() == "ws" && !is_loopback_endpoint_host(host) {
-        bail!("mobile pairing endpoints outside loopback must use wss://");
+    if parsed.scheme() == "ws"
+        && !is_loopback_endpoint_host(host)
+        && !is_tailscale_endpoint_host(host)
+    {
+        bail!("mobile pairing endpoints outside loopback or a tailscale tailnet must use wss://");
     }
     Ok(ValidPairingEndpoint {
         value: endpoint,
@@ -450,17 +507,26 @@ fn endpoint_host(bind_host: &str) -> String {
 }
 
 fn is_loopback_endpoint_host(host: &str) -> bool {
-    let normalized = host
-        .trim()
-        .strip_prefix('[')
-        .and_then(|value| value.strip_suffix(']'))
-        .unwrap_or(host)
-        .trim_end_matches('.')
-        .to_ascii_lowercase();
+    let normalized = normalize_endpoint_host(host);
     normalized == "localhost"
         || normalized
             .parse::<std::net::IpAddr>()
             .is_ok_and(|address| address.is_loopback())
+}
+
+fn is_tailscale_endpoint_host(host: &str) -> bool {
+    normalize_endpoint_host(host)
+        .parse::<std::net::IpAddr>()
+        .is_ok_and(crate::tailscale::is_tailscale_ip)
+}
+
+fn normalize_endpoint_host(host: &str) -> String {
+    host.trim()
+        .strip_prefix('[')
+        .and_then(|value| value.strip_suffix(']'))
+        .unwrap_or(host)
+        .trim_end_matches('.')
+        .to_ascii_lowercase()
 }
 
 fn endpoint_port(endpoint: &str) -> Option<u16> {

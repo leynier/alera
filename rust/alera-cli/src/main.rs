@@ -9,6 +9,7 @@ mod orchestration_commands;
 mod runtime_archive;
 mod runtime_host_client;
 mod ssh_bootstrap;
+mod tailscale;
 mod terminal_host;
 mod workspace_pinning;
 
@@ -19,8 +20,8 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use alera_core::runtime::{
-    CascadePreview, MobileAccessSettings, Project, ProjectKind, RuntimeStore, SshAuthKind,
-    SshTarget, WorkspaceTabRecord, WorkspaceTag, RUNTIME_DATABASE_FILE_NAME,
+    CascadePreview, MobileAccessSettings, MobileEndpointMode, Project, ProjectKind, RuntimeStore,
+    SshAuthKind, SshTarget, WorkspaceTabRecord, WorkspaceTag, RUNTIME_DATABASE_FILE_NAME,
 };
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine as _;
@@ -760,6 +761,7 @@ async fn run_mobile_command(command: MobileCommand) -> i32 {
                 enabled: Some(true),
                 bind_host: args.bind_host,
                 port: args.port,
+                endpoint_mode: args.tailscale.then_some(MobileEndpointMode::Tailscale),
             };
             match mobile_runtime_host_request::<MobileAccessSettings, _>(
                 &runtime,
@@ -777,6 +779,7 @@ async fn run_mobile_command(command: MobileCommand) -> i32 {
                 enabled: Some(false),
                 bind_host: None,
                 port: None,
+                endpoint_mode: None,
             };
             let fallback_request = request.clone();
             match mobile_runtime_host_or_store(

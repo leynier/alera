@@ -10,9 +10,10 @@ use uuid::Uuid;
 
 use super::{
     CascadePreview, LinkedReview, MobileAccessSettings, MobileDevice, MobileDevicePermission,
-    MobilePairingOffer, Project, ProjectConfig, ProjectConfigMap, ProjectConfigRecord, ProjectKind,
-    RuntimeSettings, SshAuthKind, SshBootstrapStatus, SshTarget, WorkbenchLayoutRecord, Workspace,
-    WorkspaceKind, WorkspaceRelation, WorkspaceStatus, WorkspaceTabRecord, WorkspaceTag,
+    MobileEndpointMode, MobilePairingOffer, Project, ProjectConfig, ProjectConfigMap,
+    ProjectConfigRecord, ProjectKind, RuntimeSettings, SshAuthKind, SshBootstrapStatus, SshTarget,
+    WorkbenchLayoutRecord, Workspace, WorkspaceKind, WorkspaceRelation, WorkspaceStatus,
+    WorkspaceTabRecord, WorkspaceTag,
 };
 
 pub const RUNTIME_DATABASE_FILE_NAME: &str = "runtime.sqlite";
@@ -94,6 +95,12 @@ impl RuntimeStore {
             .await?;
         self.ensure_column("workspaces", "isPinned", "INTEGER NOT NULL DEFAULT 0")
             .await?;
+        self.ensure_column(
+            "mobileAccessSettings",
+            "endpointMode",
+            "TEXT NOT NULL DEFAULT 'loopback'",
+        )
+        .await?;
         Ok(())
     }
 
@@ -271,7 +278,7 @@ impl RuntimeStore {
 
     pub async fn mobile_access_settings(&self) -> Result<MobileAccessSettings> {
         let row = sqlx::query(
-            "SELECT enabled, bindHost, port, serverPublicKeyB64, updatedAt \
+            "SELECT enabled, bindHost, port, endpointMode, serverPublicKeyB64, updatedAt \
              FROM mobileAccessSettings WHERE id = 1",
         )
         .fetch_optional(&self.pool)
@@ -295,15 +302,17 @@ impl RuntimeStore {
         settings.updated_at = Utc::now();
         sqlx::query(
             "INSERT INTO mobileAccessSettings \
-             (id, enabled, bindHost, port, serverPublicKeyB64, updatedAt) \
-             VALUES (1, ?, ?, ?, ?, ?) \
+             (id, enabled, bindHost, port, endpointMode, serverPublicKeyB64, updatedAt) \
+             VALUES (1, ?, ?, ?, ?, ?, ?) \
              ON CONFLICT(id) DO UPDATE SET \
              enabled = excluded.enabled, bindHost = excluded.bindHost, port = excluded.port, \
+             endpointMode = excluded.endpointMode, \
              serverPublicKeyB64 = excluded.serverPublicKeyB64, updatedAt = excluded.updatedAt",
         )
         .bind(if settings.enabled { 1_i64 } else { 0_i64 })
         .bind(&settings.bind_host)
         .bind(settings.port)
+        .bind(settings.endpoint_mode.as_str())
         .bind(&settings.server_public_key_b64)
         .bind(format_timestamp(settings.updated_at))
         .execute(&self.pool)
@@ -1469,6 +1478,9 @@ fn mobile_access_settings_from_row(row: sqlx::sqlite::SqliteRow) -> Result<Mobil
         enabled: row.try_get::<i64, _>("enabled")? == 1,
         bind_host: row.try_get("bindHost")?,
         port: row.try_get("port")?,
+        endpoint_mode: MobileEndpointMode::from_db(
+            row.try_get::<String, _>("endpointMode")?.as_str(),
+        ),
         server_public_key_b64: row.try_get("serverPublicKeyB64")?,
         updated_at: parse_timestamp(row.try_get::<String, _>("updatedAt")?.as_str()),
     })
@@ -1650,6 +1662,7 @@ const RUNTIME_SCHEMA: &[&str] = &[
         enabled INTEGER NOT NULL DEFAULT 0,
         bindHost TEXT NOT NULL,
         port INTEGER NOT NULL,
+        endpointMode TEXT NOT NULL DEFAULT 'loopback',
         serverPublicKeyB64 TEXT,
         updatedAt TEXT NOT NULL
     );",

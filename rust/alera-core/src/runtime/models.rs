@@ -209,6 +209,8 @@ pub struct MobileAccessSettings {
     pub bind_host: String,
     pub port: i64,
     #[serde(default)]
+    pub endpoint_mode: MobileEndpointMode,
+    #[serde(default)]
     pub server_public_key_b64: Option<String>,
     pub updated_at: DateTime<Utc>,
 }
@@ -219,8 +221,36 @@ impl Default for MobileAccessSettings {
             enabled: false,
             bind_host: "127.0.0.1".to_string(),
             port: 6768,
+            endpoint_mode: MobileEndpointMode::default(),
             server_public_key_b64: None,
             updated_at: Utc::now(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase")]
+pub enum MobileEndpointMode {
+    #[default]
+    Loopback,
+    Tailscale,
+    Manual,
+}
+
+impl MobileEndpointMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            MobileEndpointMode::Loopback => "loopback",
+            MobileEndpointMode::Tailscale => "tailscale",
+            MobileEndpointMode::Manual => "manual",
+        }
+    }
+
+    pub fn from_db(value: &str) -> Self {
+        match value {
+            "tailscale" => MobileEndpointMode::Tailscale,
+            "manual" => MobileEndpointMode::Manual,
+            _ => MobileEndpointMode::Loopback,
         }
     }
 }
