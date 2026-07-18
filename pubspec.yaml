@@ -1,7 +1,7 @@
 name: alera
 description: "Alera desktop agentic development environment for workspace terminals"
 publish_to: 'none'
-version: 0.18.0+35
+version: 0.19.0+36
 
 environment:
   sdk: ^3.12.0
