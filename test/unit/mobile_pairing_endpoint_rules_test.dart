@@ -38,6 +38,15 @@ void main() {
       expect(parts.port, 443);
     });
 
+    test('parses endpoints with authority user info', () {
+      final parts = parseMobilePairingEndpoint(
+        'wss://pairing-token@alera.example.test:443',
+      );
+      expect(parts, isNotNull);
+      expect(parts!.host, 'alera.example.test');
+      expect(parts.port, 443);
+    });
+
     test('parses bracketed IPv6 hosts', () {
       final parts = parseMobilePairingEndpoint('ws://[::1]:6768');
       expect(parts, isNotNull);
