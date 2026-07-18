@@ -47,7 +47,7 @@ jobs:
       release_base_ref: ${{ steps.version.outputs.release_base_ref }}
     steps:
       - name: Checkout ref
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           ref: ${{ inputs.ref }}
           fetch-depth: 0
@@ -131,7 +131,7 @@ jobs:
     timeout-minutes: 35
     steps:
       - name: Checkout release ref
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           ref: ${{ needs.cut.outputs.release_base_ref }}
           submodules: recursive
@@ -184,7 +184,7 @@ jobs:
           (cd release-assets && sha256sum -c ./*.sha256)
 
       - name: Upload Android release assets
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: mobile-android-release-assets
           path: release-assets
@@ -200,7 +200,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout release ref
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           ref: ${{ needs.cut.outputs.release_base_ref }}
           fetch-depth: 0
@@ -210,7 +210,7 @@ jobs:
         uses: dart-lang/setup-dart@65eb853c7ba17dde3be364c3d2858773e7144260
 
       - name: Download Android release assets
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: mobile-android-release-assets
           path: release-assets
