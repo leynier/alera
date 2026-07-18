@@ -29,6 +29,29 @@ void main() {
     });
   });
 
+  group('isTailscaleEndpointHost', () {
+    test('accepts tailnet IPv4 range boundaries', () {
+      expect(isTailscaleEndpointHost('100.64.0.0'), isTrue);
+      expect(isTailscaleEndpointHost('100.101.102.103'), isTrue);
+      expect(isTailscaleEndpointHost('100.127.255.255'), isTrue);
+    });
+
+    test('rejects addresses outside the tailnet IPv4 range', () {
+      expect(isTailscaleEndpointHost('100.63.255.255'), isFalse);
+      expect(isTailscaleEndpointHost('100.128.0.0'), isFalse);
+      expect(isTailscaleEndpointHost('192.168.1.10'), isFalse);
+      expect(isTailscaleEndpointHost('127.0.0.1'), isFalse);
+      expect(isTailscaleEndpointHost('alera.example.test'), isFalse);
+    });
+
+    test('accepts only the tailscale IPv6 prefix', () {
+      expect(isTailscaleEndpointHost('[fd7a:115c:a1e0::1]'), isTrue);
+      expect(isTailscaleEndpointHost('fd7a:115c:a1e0:ab12::4'), isTrue);
+      expect(isTailscaleEndpointHost('[fd7a:115c:a1e1::1]'), isFalse);
+      expect(isTailscaleEndpointHost('[::1]'), isFalse);
+    });
+  });
+
   group('parseMobilePairingEndpoint', () {
     test('parses explicit authority ports', () {
       final parts = parseMobilePairingEndpoint('wss://alera.example.test:443');
@@ -102,6 +125,47 @@ void main() {
       );
     });
 
+    test('accepts plaintext tailscale endpoints', () {
+      expect(
+        validateMobilePairingEndpoint(
+          endpoint: 'ws://100.101.102.103:6768',
+          gatewayEnabled: true,
+          gatewayPort: 6768,
+        ),
+        isNull,
+      );
+      expect(
+        validateMobilePairingEndpoint(
+          endpoint: 'ws://[fd7a:115c:a1e0:ab12::4]:6768',
+          gatewayEnabled: false,
+          gatewayPort: 6768,
+        ),
+        isNull,
+      );
+    });
+
+    test('rejects plaintext cgnat endpoints outside the tailscale range', () {
+      expect(
+        validateMobilePairingEndpoint(
+          endpoint: 'ws://100.63.0.1:6768',
+          gatewayEnabled: false,
+          gatewayPort: 6768,
+        ),
+        contains('wss://'),
+      );
+    });
+
+    test('keeps the port match rule for tailscale ws endpoints', () {
+      expect(
+        validateMobilePairingEndpoint(
+          endpoint: 'ws://100.101.102.103:7000',
+          gatewayEnabled: true,
+          gatewayPort: 6768,
+        ),
+        contains('Match The Enabled Gateway Port 6768'),
+      );
+    });
+
     test('accepts wss endpoints outside loopback', () {
       expect(
         validateMobilePairingEndpoint(
@@ -159,6 +223,15 @@ void main() {
         mobileGatewayBindHostHint(bindHost: '192.168.1.10', port: 6768),
         contains('wss://'),
       );
+    });
+
+    test('hints tailscale binds toward the tailnet instead of wss', () {
+      final hint = mobileGatewayBindHostHint(
+        bindHost: '100.101.102.103',
+        port: 6768,
+      );
+      expect(hint, contains('Tailnet'));
+      expect(hint, isNot(contains('wss://')));
     });
 
     test('returns no hint for loopback binds', () {

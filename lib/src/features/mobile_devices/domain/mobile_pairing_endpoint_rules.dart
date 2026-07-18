@@ -11,6 +11,38 @@ bool isWildcardBindHost(String value) {
 }
 
 bool isLoopbackEndpointHost(String host) {
+  final normalized = _normalizeEndpointHost(host);
+  if (normalized == 'localhost') {
+    return true;
+  }
+  return _isLoopbackIpLiteral(normalized);
+}
+
+/// True when the host is an IP literal inside the Tailscale tailnet ranges
+/// (IPv4 100.64.0.0/10 or IPv6 fd7a:115c:a1e0::/48). Mirrors the Rust
+/// `is_tailscale_ip`.
+bool isTailscaleEndpointHost(String host) {
+  final normalized = _normalizeEndpointHost(host);
+  try {
+    final bytes = Uri.parseIPv4Address(normalized);
+    return bytes[0] == 100 && bytes[1] >= 64 && bytes[1] <= 127;
+  } on FormatException {
+    // Not an IPv4 literal; fall through to IPv6.
+  }
+  try {
+    final bytes = Uri.parseIPv6Address(normalized);
+    return bytes[0] == 0xfd &&
+        bytes[1] == 0x7a &&
+        bytes[2] == 0x11 &&
+        bytes[3] == 0x5c &&
+        bytes[4] == 0xa1 &&
+        bytes[5] == 0xe0;
+  } on FormatException {
+    return false;
+  }
+}
+
+String _normalizeEndpointHost(String host) {
   var normalized = host.trim();
   if (normalized.startsWith('[') && normalized.endsWith(']')) {
     normalized = normalized.substring(1, normalized.length - 1);
@@ -18,11 +50,7 @@ bool isLoopbackEndpointHost(String host) {
   while (normalized.endsWith('.')) {
     normalized = normalized.substring(0, normalized.length - 1);
   }
-  normalized = normalized.toLowerCase();
-  if (normalized == 'localhost') {
-    return true;
-  }
-  return _isLoopbackIpLiteral(normalized);
+  return normalized.toLowerCase();
 }
 
 bool _isLoopbackIpLiteral(String value) {
@@ -122,8 +150,10 @@ String? validateMobilePairingEndpoint({
   if (parts.port < 1 || parts.port > 65535) {
     return 'Endpoint Port Must Be Between 1 And 65535';
   }
-  if (parts.scheme == 'ws' && !isLoopbackEndpointHost(parts.host)) {
-    return 'Endpoints Outside Loopback Must Use wss://';
+  if (parts.scheme == 'ws' &&
+      !isLoopbackEndpointHost(parts.host) &&
+      !isTailscaleEndpointHost(parts.host)) {
+    return 'Endpoints Outside Loopback Or A Tailscale Tailnet Must Use wss://';
   }
   if (parts.scheme == 'ws' && gatewayEnabled && parts.port != gatewayPort) {
     return 'ws:// Endpoint Port Must Match The Enabled Gateway Port '
@@ -141,6 +171,10 @@ String? mobileGatewayBindHostHint({
   if (isWildcardBindHost(bindHost)) {
     return 'Wildcard Bind Hosts Require An Explicit wss:// Endpoint When '
         'Linking (For Example wss://<host-or-vpn-name>:$port)';
+  }
+  if (isTailscaleEndpointHost(bindHost)) {
+    return 'Devices Connect Over Your Tailnet - Both Devices Must Be Signed '
+        'In To Tailscale';
   }
   if (!isLoopbackEndpointHost(bindHost)) {
     return 'Devices Outside This Machine Must Connect Through wss:// - Use A '

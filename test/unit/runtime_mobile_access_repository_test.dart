@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera/src/features/mobile_devices/domain/mobile_access_status.dart';
 import 'package:alera/src/features/mobile_devices/infra/runtime_mobile_access_repository.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -24,6 +25,43 @@ void main() {
       expect(status.devices.last.isRevoked, isTrue);
       expect(status.activePairings, hasLength(1));
       expect(status.activePairings.first.endpoint, 'ws://127.0.0.1:6768');
+    });
+
+    test(
+      'status tolerates payloads without endpoint mode or tailscale',
+      () async {
+        final client = _FakeRuntimeHostClient();
+        client.responses['mobile.status.get'] = _statusPayload();
+        final repository = RuntimeMobileAccessRepository(client);
+
+        final status = await repository.status();
+
+        expect(status.settings.endpointMode, MobileEndpointMode.loopback);
+        expect(status.tailscale, isNull);
+      },
+    );
+
+    test('status parses endpoint mode and tailscale detection', () async {
+      final client = _FakeRuntimeHostClient();
+      final payload = _statusPayload();
+      (payload['settings']! as Map<String, Object?>)['endpointMode'] =
+          'tailscale';
+      payload['tailscale'] = <String, Object?>{
+        'detected': true,
+        'running': true,
+        'tailnetIp': '100.101.102.103',
+      };
+      client.responses['mobile.status.get'] = payload;
+      final repository = RuntimeMobileAccessRepository(client);
+
+      final status = await repository.status();
+
+      expect(status.settings.endpointMode, MobileEndpointMode.tailscale);
+      expect(status.tailscale, isNotNull);
+      expect(status.tailscale!.detected, isTrue);
+      expect(status.tailscale!.running, isTrue);
+      expect(status.tailscale!.tailnetIp, '100.101.102.103');
+      expect(status.tailscale!.error, isNull);
     });
 
     test('watchStatus refetches on every mobile change event', () async {
@@ -74,6 +112,29 @@ void main() {
       expect(client.payloads['mobile.settings.update']!.single, {
         'enabled': true,
         'port': 7000,
+      });
+    });
+
+    test('updateSettings sends the endpoint mode when provided', () async {
+      final client = _FakeRuntimeHostClient();
+      client.responses['mobile.settings.update'] = <String, Object?>{
+        'enabled': true,
+        'bindHost': '100.101.102.103',
+        'port': 6768,
+        'endpointMode': 'tailscale',
+      };
+      final repository = RuntimeMobileAccessRepository(client);
+
+      final settings = await repository.updateSettings(
+        enabled: true,
+        endpointMode: MobileEndpointMode.tailscale,
+      );
+
+      expect(settings.endpointMode, MobileEndpointMode.tailscale);
+      expect(settings.bindHost, '100.101.102.103');
+      expect(client.payloads['mobile.settings.update']!.single, {
+        'enabled': true,
+        'endpointMode': 'tailscale',
       });
     });
 

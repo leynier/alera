@@ -35,15 +35,15 @@ class RuntimeMobileAccessRepository {
     bool? enabled,
     String? bindHost,
     int? port,
+    MobileEndpointMode? endpointMode,
   }) async {
-    final payload = await _client.runtimeRequest(
-      'mobile.settings.update',
-      <String, Object?>{
-        'enabled': ?enabled,
-        'bindHost': ?bindHost,
-        'port': ?port,
-      },
-    );
+    final payload = await _client
+        .runtimeRequest('mobile.settings.update', <String, Object?>{
+          'enabled': ?enabled,
+          'bindHost': ?bindHost,
+          'port': ?port,
+          'endpointMode': ?endpointMode?.wireName,
+        });
     return MobileGatewaySettings.fromJson(_mapFromPayload(payload));
   }
 
