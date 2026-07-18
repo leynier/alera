@@ -1,0 +1,15 @@
+flutter_native_splash:
+  android: true
+  ios: true
+  web: false
+  color: "#101010"
+  color_dark: "#101010"
+  image: assets/branding/alera-splash.png
+  image_dark: assets/branding/alera-splash.png
+  android_gravity: center
+  ios_content_mode: center
+  android_12:
+    color: "#101010"
+    color_dark: "#101010"
+    image: assets/branding/alera-splash-android12.png
+    image_dark: assets/branding/alera-splash-android12.png

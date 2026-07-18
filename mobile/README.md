@@ -16,6 +16,13 @@ flutter analyze
 flutter test
 ```
 
+Regenerate the native launcher icons and splash screens after changing files under `assets/branding/`:
+
+```bash
+dart run flutter_launcher_icons -f flutter_launcher_icons.yaml
+dart run flutter_native_splash:create --path=flutter_native_splash.yaml
+```
+
 Pairing payloads come from the runtime profile:
 
 ```bash
