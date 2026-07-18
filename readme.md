@@ -167,11 +167,11 @@ Regenerate the `flutter_rust_bridge` bindings after changing the Rust API (`rust
 Alera is built around three deliberate engineering choices:
 
 ```diagram
-╭──────────────────────────╮      ╭──────────────────────────╮      ╭──────────────────────────╮
-│         Flutter          │      │           Rust           │      │      Ghostty VTE         │
-│    Native desktop UI,    │ ───> │   PTY + process layer    │ ───> │    Terminal parser &     │
-│   shell, design system   │      │    via portable_pty      │      │  renderer (no Electron)  │
-╰──────────────────────────╯      ╰──────────────────────────╯      ╰──────────────────────────╯
+╭──────────────────────────╮     ╭──────────────────────────╮     ╭──────────────────────────╮
+│         Flutter          │     │           Rust           │     │      Ghostty VTE         │
+│    Native desktop UI,    │ ──> │   PTY + process layer    │ ──> │    Terminal parser &     │
+│   shell, design system   │     │    via portable_pty      │     │  renderer (no Electron)  │
+╰──────────────────────────╯     ╰──────────────────────────╯     ╰──────────────────────────╯
 ```
 
 - **Flutter** for the desktop shell, design system, and UI: fast startup, consistent look across macOS / Windows / Linux, fully native rendering
