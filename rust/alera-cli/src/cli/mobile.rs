@@ -31,6 +31,9 @@ pub struct MobileEnableArgs {
     pub bind_host: Option<String>,
     #[arg(long)]
     pub port: Option<i64>,
+    /// Bind the gateway to this machine's Tailscale tailnet IP.
+    #[arg(long, conflicts_with = "bind_host")]
+    pub tailscale: bool,
 }
 
 #[derive(Debug, Args)]

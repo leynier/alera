@@ -15,9 +15,9 @@ use crate::managed_workspace::{
     ManagedWorkspaceRemoveRequest,
 };
 use crate::mobile_access::{
-    apply_mobile_settings_update, authenticate_mobile_device, cancel_mobile_pairing_offer,
+    apply_mobile_settings_update_resolved, authenticate_mobile_device, cancel_mobile_pairing_offer,
     create_mobile_pairing_offer_for_settings, list_mobile_devices, mobile_status,
-    pair_mobile_device, prepare_mobile_pairing_offer_settings, rename_mobile_device,
+    pair_mobile_device, prepare_mobile_pairing_offer_settings_resolved, rename_mobile_device,
     revoke_mobile_device, MobileDevicePairRequest, MobilePairingCreateRequest,
     MobileSettingsUpdateRequest, MOBILE_PROTOCOL_VERSION,
 };
@@ -866,7 +866,8 @@ impl ServerActor {
                     .mobile_access_settings()
                     .await
                     .map_err(|error| HostError::state(error.to_string()))?;
-                let next = apply_mobile_settings_update(current.clone(), request)
+                let next = apply_mobile_settings_update_resolved(current.clone(), request)
+                    .await
                     .map_err(|error| HostError::state(error.to_string()))?;
                 let value =
                     serde_json::to_value(self.apply_mobile_gateway_settings(current, next).await?)
@@ -883,7 +884,8 @@ impl ServerActor {
                     .await
                     .map_err(|error| HostError::state(error.to_string()))?;
                 let (next, endpoint) =
-                    prepare_mobile_pairing_offer_settings(current.clone(), &request)
+                    prepare_mobile_pairing_offer_settings_resolved(current.clone(), &request)
+                        .await
                         .map_err(|error| HostError::state(error.to_string()))?;
                 let settings = if next == current {
                     if self.mobile_gateway.is_none() {
