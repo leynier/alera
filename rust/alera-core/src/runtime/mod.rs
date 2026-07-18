@@ -1,3 +1,5 @@
+#[cfg(test)]
+mod mobile_store_tests;
 mod models;
 mod orchestration_dispatch_store;
 mod orchestration_message_store;
