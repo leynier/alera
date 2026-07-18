@@ -27,7 +27,8 @@ use crate::terminal_host::protocol::{
     error_response, event, int_or, ok_response, require_object, TerminalHostConfig,
     TerminalHostLaunch, PROTOCOL_VERSION, RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
     RUNTIME_HOST_CAPABILITY, RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
-    RUNTIME_HOST_MOBILE_CAPABILITY, RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
+    RUNTIME_HOST_MOBILE_CAPABILITY, RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY,
+    RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
 };
 use crate::terminal_host::session::Session;
 use uuid::Uuid;
@@ -295,6 +296,7 @@ impl ServerActor {
                         RUNTIME_HOST_CAPABILITY,
                         RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
                         RUNTIME_HOST_MOBILE_CAPABILITY,
+                        RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY,
                     ],
                     "authenticated": true,
                     "device": device,
@@ -447,6 +449,7 @@ impl ServerActor {
                         RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
                         RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
                         RUNTIME_HOST_MOBILE_CAPABILITY,
+                        RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY,
                         RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
                     ],
                     "authenticated": true,
@@ -1273,12 +1276,18 @@ fn mobile_request_allowed(request_type: &str) -> bool {
             | "workspace.list"
             | "workspace.listAll"
             | "workspace.find"
+            | "workspace.setPinned"
+            | "workspace.createManaged"
+            | "workspace.removeManaged"
             | "tab.list"
             | "tab.find"
+            | "tab.remove"
             | "linkedReview.find"
             | "layout.find"
             | "workspaceTag.list"
             | "workspaceRelation.list"
+            | "workspaceRelation.link"
+            | "workspaceRelation.unlink"
             | "workspaceCascade.preview"
             | "terminal.create"
             | "terminal.attach"

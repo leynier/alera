@@ -6,7 +6,8 @@ Alera is the Android/iOS companion app for remote Alera work. It is a separate F
 
 - Pair a host with a QR-first flow: scan the pairing QR from the desktop pairing dialog (torch toggle included), or paste the JSON payload from `alera mobile --json pairing create` through the manual entry sheet. A confirmation step shows the host identity, endpoint, and a live offer-expiry countdown, plus an optional device name before pairing. Failures surface as titled states (Invalid Offer, Offer Expired, Runtime Mismatch, Could Not Reach Runtime) with retry and manual-entry actions.
 - Claim the pairing offer over the mobile WebSocket gateway and store the returned device token in platform secure storage.
-- Authenticate with `mobile.hello`, show host status, projects, workspaces, and branch summaries, and start or attach to a terminal session with Flutter `xterm`.
+- Authenticate with `mobile.hello`, then land on a workspace list mirroring the desktop sidebar: a pinned section, group-by-project toggle, and the parent/child workspace tree with collapse state persisted per host. Long-press a workspace for actions: pin/unpin, configure or unlink the parent, and create or delete managed workspaces (with a cascade preview and a delete-branch toggle). Mutations are feature-detected through the `mobileWorkspaceMutations` runtime capability and hidden against older runtimes.
+- Host status, projects, and branch summaries remain available under Host Details, including the embedded terminal preview with Flutter `xterm`.
 
 ## Local Commands
 

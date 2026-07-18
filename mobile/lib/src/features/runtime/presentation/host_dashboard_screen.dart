@@ -1,7 +1,7 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/features/hosts/application/paired_hosts_controller.dart';
 import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
-import 'package:alera_mobile/src/features/hosts/presentation/host_list_screen.dart';
+import 'package:alera_mobile/src/features/hosts/presentation/rename_host_dialog.dart';
 import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
 import 'package:alera_mobile/src/features/runtime/application/host_dashboard_controller.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_runtime_status.dart';
