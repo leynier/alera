@@ -28,6 +28,10 @@ const Set<String> _runtimeHostEventNames = <String>{
   'linkedReviewsChanged',
   'sshTargetsChanged',
   'sshTargetBootstrapProgress',
+  'mobileSettingsChanged',
+  'mobilePairingsChanged',
+  'mobileDevicesChanged',
+  'mobileGatewayChanged',
 };
 
 final class SocketTerminalHostClient

@@ -339,6 +339,16 @@ impl RuntimeStore {
         row.map(mobile_pairing_offer_from_row).transpose()
     }
 
+    pub async fn delete_mobile_pairing_offer(&self, offer_id: &str) -> Result<bool> {
+        // Claimed offers stay in place as the audit trail of a completed pairing.
+        let result =
+            sqlx::query("DELETE FROM mobilePairingOffers WHERE id = ? AND claimedDeviceId IS NULL")
+                .bind(offer_id)
+                .execute(&self.pool)
+                .await?;
+        Ok(result.rows_affected() > 0)
+    }
+
     pub async fn upsert_mobile_pairing_offer(
         &self,
         offer: MobilePairingOffer,
@@ -515,6 +525,24 @@ impl RuntimeStore {
             .execute(&self.pool)
             .await?;
         Ok(())
+    }
+
+    pub async fn rename_mobile_device(
+        &self,
+        device_id: &str,
+        display_name: &str,
+    ) -> Result<Option<MobileDevice>> {
+        let result = sqlx::query(
+            "UPDATE mobileDevices SET displayName = ? WHERE id = ? AND revokedAt IS NULL",
+        )
+        .bind(display_name)
+        .bind(device_id)
+        .execute(&self.pool)
+        .await?;
+        if result.rows_affected() == 0 {
+            return Ok(None);
+        }
+        self.find_mobile_device(device_id).await
     }
 
     pub async fn list_projects(&self) -> Result<Vec<Project>> {
@@ -1830,6 +1858,83 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(offer.claimed_device_id.as_deref(), Some("phone-1"));
+    }
+
+    #[tokio::test]
+    async fn mobile_pairing_offer_delete_only_removes_unclaimed_entries() {
+        let (_dir, store) = store().await;
+        let now = Utc::now();
+        store
+            .upsert_mobile_pairing_offer(MobilePairingOffer {
+                id: "open".to_string(),
+                endpoint: "ws://localhost:6768".to_string(),
+                secret_hash: "hash".to_string(),
+                expected_device_name: None,
+                server_public_key_b64: None,
+                created_at: now,
+                expires_at: now + chrono::Duration::minutes(10),
+                claimed_device_id: None,
+            })
+            .await
+            .unwrap();
+        store
+            .upsert_mobile_pairing_offer(MobilePairingOffer {
+                id: "claimed".to_string(),
+                endpoint: "ws://localhost:6768".to_string(),
+                secret_hash: "hash".to_string(),
+                expected_device_name: None,
+                server_public_key_b64: None,
+                created_at: now,
+                expires_at: now + chrono::Duration::minutes(10),
+                claimed_device_id: Some("phone".to_string()),
+            })
+            .await
+            .unwrap();
+
+        assert!(store.delete_mobile_pairing_offer("open").await.unwrap());
+        assert!(store
+            .find_mobile_pairing_offer("open")
+            .await
+            .unwrap()
+            .is_none());
+        assert!(!store.delete_mobile_pairing_offer("missing").await.unwrap());
+        assert!(!store.delete_mobile_pairing_offer("claimed").await.unwrap());
+        assert!(store
+            .find_mobile_pairing_offer("claimed")
+            .await
+            .unwrap()
+            .is_some());
+    }
+
+    #[tokio::test]
+    async fn mobile_device_rename_skips_revoked_and_unknown_devices() {
+        let (_dir, store) = store().await;
+        store
+            .upsert_mobile_device(mobile_device("phone", "hash"))
+            .await
+            .unwrap();
+
+        let renamed = store
+            .rename_mobile_device("phone", "Leynier's Phone")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(renamed.display_name, "Leynier's Phone");
+
+        assert!(store
+            .rename_mobile_device("missing", "Name")
+            .await
+            .unwrap()
+            .is_none());
+
+        store.revoke_mobile_device("phone").await.unwrap();
+        assert!(store
+            .rename_mobile_device("phone", "Other")
+            .await
+            .unwrap()
+            .is_none());
+        let stored = store.find_mobile_device("phone").await.unwrap().unwrap();
+        assert_eq!(stored.display_name, "Leynier's Phone");
     }
 
     #[tokio::test]

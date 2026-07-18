@@ -116,7 +116,7 @@ Stable and release-candidate update channels with a manual download flow today, 
 
 ### 📱 Mobile companion foundation
 
-A separate Flutter app lives under `mobile/` for Android and iOS. It pairs from `alera mobile --json pairing create`, stores device tokens in platform secure storage, connects to the runtime-host mobile WebSocket gateway, lists projects/workspaces/branches, and can start or attach to a hosted terminal session. Runtime-owned mobile settings, pairing offers, device revocation, and the gateway lifecycle are available through `alera mobile ...`.
+A separate Flutter app lives under `mobile/` for Android and iOS. Pairing starts from **Settings → Mobile Devices** in the desktop app, which shows a scannable QR pairing offer (with a copy-JSON fallback) and manages the gateway, active offers, and paired devices. The mobile app stores device tokens in platform secure storage, connects to the runtime-host mobile WebSocket gateway, lists projects/workspaces/branches, and can start or attach to a hosted terminal session. The same lifecycle (settings, pairing offers, device rename/revocation, gateway) is also scriptable through `alera mobile ...`.
 
 ---
 

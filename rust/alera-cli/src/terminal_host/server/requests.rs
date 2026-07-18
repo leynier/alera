@@ -15,11 +15,11 @@ use crate::managed_workspace::{
     ManagedWorkspaceRemoveRequest,
 };
 use crate::mobile_access::{
-    apply_mobile_settings_update, authenticate_mobile_device,
+    apply_mobile_settings_update, authenticate_mobile_device, cancel_mobile_pairing_offer,
     create_mobile_pairing_offer_for_settings, list_mobile_devices, mobile_status,
-    pair_mobile_device, prepare_mobile_pairing_offer_settings, revoke_mobile_device,
-    MobileDevicePairRequest, MobilePairingCreateRequest, MobileSettingsUpdateRequest,
-    MOBILE_PROTOCOL_VERSION,
+    pair_mobile_device, prepare_mobile_pairing_offer_settings, rename_mobile_device,
+    revoke_mobile_device, MobileDevicePairRequest, MobilePairingCreateRequest,
+    MobileSettingsUpdateRequest, MOBILE_PROTOCOL_VERSION,
 };
 use crate::ssh_bootstrap::{build_ssh_bootstrap_plan, SshTargetBootstrapRequest};
 use crate::terminal_host::host_error::{HostError, HostResult};
@@ -905,6 +905,13 @@ impl ServerActor {
                 self.broadcast_authenticated(event("mobilePairingsChanged", json!({})));
                 Ok(value)
             }
+            "mobile.pairing.cancel" => {
+                self.require_auth(client_id)?;
+                let id = require_string_key(payload, "id")?;
+                json_result(cancel_mobile_pairing_offer(&self.runtime_store, &id).await)?;
+                self.broadcast_authenticated(event("mobilePairingsChanged", json!({})));
+                Ok(json!({}))
+            }
             "mobile.device.list" => {
                 self.require_auth(client_id)?;
                 let include_revoked = payload
@@ -928,6 +935,16 @@ impl ServerActor {
                 self.dispose_mobile_clients_for_device(&id).await;
                 self.broadcast_authenticated(event("mobileDevicesChanged", json!({})));
                 Ok(json!({}))
+            }
+            "mobile.device.rename" => {
+                self.require_auth(client_id)?;
+                let id = require_string_key(payload, "id")?;
+                let display_name = require_string_key(payload, "displayName")?;
+                let value = json_result(
+                    rename_mobile_device(&self.runtime_store, &id, &display_name).await,
+                )?;
+                self.broadcast_authenticated(event("mobileDevicesChanged", json!({})));
+                Ok(value)
             }
             other => Err(HostError::state(format!(
                 "Unknown terminal host request: {other}"

@@ -328,6 +328,37 @@ pub async fn revoke_mobile_device(store: &RuntimeStore, id: &str) -> Result<()> 
     store.revoke_mobile_device(id).await
 }
 
+pub async fn cancel_mobile_pairing_offer(store: &RuntimeStore, id: &str) -> Result<()> {
+    let id = id.trim();
+    if id.is_empty() {
+        bail!("pairing offer id is required");
+    }
+    if !store.delete_mobile_pairing_offer(id).await? {
+        bail!("pairing offer not found");
+    }
+    Ok(())
+}
+
+pub async fn rename_mobile_device(
+    store: &RuntimeStore,
+    id: &str,
+    display_name: &str,
+) -> Result<MobileDeviceSummary> {
+    let id = id.trim();
+    if id.is_empty() {
+        bail!("mobile device id is required");
+    }
+    let display_name = display_name.trim();
+    if display_name.is_empty() {
+        bail!("mobile device name is required");
+    }
+    let device = store
+        .rename_mobile_device(id, display_name)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("mobile device not found or revoked"))?;
+    Ok(MobileDeviceSummary::from(device))
+}
+
 impl From<MobileDevice> for MobileDeviceSummary {
     fn from(device: MobileDevice) -> Self {
         Self {

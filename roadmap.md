@@ -176,7 +176,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 |---|:---:|:---:|:---:|---|
 | SSH | 5 | 4 | Planned | SSH targets, remote PTY, remote filesystem, remote git |
 | Computer Use | 5 | 3 | Planned | Native desktop automation via Accessibility APIs |
-| Mobile App | 5 | 3 | Shipped | Foundation: pairing via `alera mobile`, secure device tokens, WebSocket gateway, project/workspace listing, hosted terminal attach; richer live transport planned |
+| Mobile App | 5 | 3 | Shipped | Foundation: desktop pairing UI with QR in Settings → Mobile Devices, `alera mobile` CLI, secure device tokens, WebSocket gateway, project/workspace listing, hosted terminal attach; richer live transport planned |
 
 ---
 

@@ -537,7 +537,7 @@ pub enum MobileAction {
     Disable,
     /// Create a short-lived pairing offer.
     Pairing(MobilePairingCommand),
-    /// List or revoke paired devices.
+    /// List, rename, or revoke paired devices.
     Devices(MobileDevicesCommand),
 }
 
@@ -561,6 +561,8 @@ pub enum MobilePairingAction {
     Create(MobilePairingCreateArgs),
     /// Claim a pairing offer and create a revocable device record.
     Claim(MobilePairingClaimArgs),
+    /// Cancel an active pairing offer.
+    Cancel(IdArgs),
 }
 
 #[derive(Debug, Args)]
@@ -595,8 +597,18 @@ pub struct MobileDevicesCommand {
 pub enum MobileDevicesAction {
     /// List paired mobile devices.
     List(MobileDeviceListArgs),
+    /// Rename a paired mobile device.
+    Rename(MobileDeviceRenameArgs),
     /// Revoke a paired mobile device.
     Revoke(IdArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct MobileDeviceRenameArgs {
+    #[arg(long)]
+    pub id: String,
+    #[arg(long)]
+    pub name: String,
 }
 
 #[derive(Debug, Args)]
