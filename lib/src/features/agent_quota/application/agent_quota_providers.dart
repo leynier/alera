@@ -18,7 +18,10 @@ const agentQuotaRefreshInterval = Duration(minutes: 5);
 
 @Riverpod(keepAlive: true)
 RuntimeProxyClient runtimeProxyClient(Ref ref) {
-  return RuntimeProxyClient(processRunner: ref.watch(processRunnerProvider));
+  return RuntimeProxyClient(
+    processRunner: ref.watch(processRunnerProvider),
+    environmentResolver: ref.watch(commandEnvironmentResolverProvider),
+  );
 }
 
 @Riverpod(keepAlive: true)
@@ -98,6 +101,13 @@ class AgentQuotaService {
         hostId: hostId,
         target: target,
         type: 'agentQuota.fetch',
+        localEnvironmentNames: <String>[
+          settings.environment.kimiApiKey,
+          settings.environment.zaiApiKey,
+          settings.environment.zaiBaseUrl,
+          settings.environment.minimaxApiKey,
+          settings.environment.minimaxApiHost,
+        ],
         payload: <String, Object?>{
           'providers': <String>[
             for (final provider in settings.enabledProviders) provider.name,

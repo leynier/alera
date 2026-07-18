@@ -322,6 +322,10 @@ class _FakeCommandEnvironmentResolver implements CommandEnvironmentResolver {
 
   @override
   Future<Map<String, String>> environment() async => _environment;
+
+  @override
+  Future<Map<String, String>> environmentVariables(List<String> names) async =>
+      const <String, String>{};
 }
 
 Stream<List<int>> _streamText(String value) {

@@ -187,4 +187,8 @@ class _EmptyEnvironmentResolver implements CommandEnvironmentResolver {
 
   @override
   Future<Map<String, String>> environment() async => const <String, String>{};
+
+  @override
+  Future<Map<String, String>> environmentVariables(List<String> names) async =>
+      const <String, String>{};
 }

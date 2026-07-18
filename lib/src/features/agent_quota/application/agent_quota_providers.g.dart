@@ -55,7 +55,7 @@ final class RuntimeProxyClientProvider
 }
 
 String _$runtimeProxyClientHash() =>
-    r'c73e8dd032ab297e7cac9cecac49e19e6c99b265';
+    r'4a49d417b1596ad9aa09937dca041bb2c2d16f17';
 
 @ProviderFor(agentQuotaService)
 final agentQuotaServiceProvider = AgentQuotaServiceProvider._();
