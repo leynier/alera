@@ -36,9 +36,23 @@ alera mobile --json enable --bind-host 127.0.0.1 --port 6768
 alera mobile --json pairing create --endpoint ws://127.0.0.1:6768
 ```
 
-The CLI starts or reuses a mobile-capable runtime host for enable and pairing creation so the gateway is accepting WebSocket connections before it returns a pairing payload. Mobile access defaults to a loopback bind. `ws://` pairing endpoints are accepted only for loopback/local development, and their explicit port must match the local gateway port. For phones over LAN/VPN, publish the loopback gateway through a TLS tunnel or proxy and create the pairing payload with an explicit `wss://<host-or-vpn-name>:<port>` endpoint; that public TLS port can differ from the local gateway port. When the gateway intentionally binds `0.0.0.0`, `pairing create` requires an explicit reachable `--endpoint` because phones cannot connect to a wildcard address. Mobile access is opt-in; use `alera mobile --json disable` to stop publishing the gateway and disconnect active mobile clients.
+The CLI starts or reuses a mobile-capable runtime host for enable and pairing creation so the gateway is accepting WebSocket connections before it returns a pairing payload. Mobile access is opt-in; use `alera mobile --json disable` to stop publishing the gateway and disconnect active mobile clients.
 
-Run `alera mobile --json enable --port <port>` first when changing the local gateway port for loopback `ws://` pairing.
+## Remote Access Modes
+
+The gateway has three endpoint modes, selectable from Settings > Mobile Devices in the desktop app (This Device / Tailscale / Manual) or persisted through the CLI:
+
+- **This Device (default)**: loopback bind. `ws://` pairing endpoints are accepted only for loopback/local development, and their explicit port must match the local gateway port. Run `alera mobile --json enable --port <port>` first when changing the local gateway port for loopback `ws://` pairing.
+- **Tailscale (recommended for remote access)**: run `alera mobile --json enable --tailscale` or pick the Tailscale mode in settings. The runtime verifies Tailscale is installed and running, binds the gateway to this machine's tailnet IPv4 (100.64.0.0/10), and emits pairing offers with `ws://<tailnet-ip>:<port>`. Plaintext `ws://` is acceptable here because traffic between tailnet devices rides Tailscale's WireGuard tunnel; the phone additionally refuses to store credentials when the pairing response's runtime id does not match the offer. The phone must have the Tailscale app installed and be signed in to the same tailnet. Tailscale is detected, never bundled: install it from https://tailscale.com/download on both devices.
+- **Manual (advanced)**: publish the gateway yourself through a TLS tunnel or proxy and create the pairing payload with an explicit `wss://<host-or-vpn-name>:<port>` endpoint; that public TLS port can differ from the local gateway port. When the gateway intentionally binds `0.0.0.0`, `pairing create` requires an explicit reachable `--endpoint` because phones cannot connect to a wildcard address.
+
+### Tailscale Troubleshooting
+
+- `tailscale is not installed`: install Tailscale on the desktop, or use the Manual mode with a `wss://` endpoint.
+- `tailscale is installed but not running`: run `tailscale up` and sign in, then retry.
+- The phone cannot connect on Windows: allow Alera through Windows Firewall for incoming connections on the gateway port (the settings pane shows a hint when the Tailscale mode is active on Windows).
+- The phone cannot connect anywhere: confirm the Tailscale app is connected on the phone, that both devices appear in the same tailnet, and that the tailnet's ACLs allow the connection.
+- After removing the machine from the tailnet, the gateway may fail to bind its stale tailnet IP on restart; re-run `alera mobile --json enable --tailscale` or switch modes in settings to re-resolve.
 
 ## Remaining Work
 
