@@ -64,9 +64,9 @@ jobs:
           set -euo pipefail
           git fetch origin main --tags --quiet
 
-          latest_stable="$(git tag --list 'mobile-v[0-9]*' \
+          latest_stable="$(git tag --list 'v[0-9]*-mobile' \
             | grep -Ev -- '-rc\.' \
-            | sed 's/^mobile-v//' \
+            | sed -E 's/^v//; s/-mobile$//' \
             | sort -V \
             | tail -n 1 || true)"
           if [[ -z "$latest_stable" ]]; then
@@ -85,8 +85,8 @@ jobs:
 
           if [[ "$KIND" == "rc" ]]; then
             artifact_version="$(bump "$latest_stable" patch)"
-            highest_rc="$(git tag --list "mobile-v${artifact_version}-rc.*" \
-              | sed -E "s/^mobile-v${artifact_version//./\\.}-rc\\.//" \
+            highest_rc="$(git tag --list "v${artifact_version}-rc.*-mobile" \
+              | sed -E "s/^v${artifact_version//./\\.}-rc\\.([0-9]+)-mobile$/\\1/" \
               | sort -n \
               | tail -n 1 || true)"
             if [[ -z "$highest_rc" ]]; then
@@ -101,7 +101,7 @@ jobs:
             channel="stable"
           fi
 
-          tag="mobile-v$release_version"
+          tag="v${release_version}-mobile"
           build_number="$GITHUB_RUN_NUMBER"
           {
             echo "tag=$tag"
@@ -302,36 +302,42 @@ jobs:
         run: |
           set -euo pipefail
           if [[ "$CHANNEL" == "stable" ]]; then
-            previous_tag="$(git tag --list 'mobile-v[0-9]*' \
+            previous_tag="$(git tag --list 'v[0-9]*-mobile' \
               | grep -Ev -- '-rc\.' \
               | grep -vx "$TAG" \
               | sort -V \
               | tail -n 1 || true)"
           else
-            previous_tag="$(git tag --list "mobile-v${ARTIFACT_VERSION}-rc.*" \
+            previous_tag="$(git tag --list "v${ARTIFACT_VERSION}-rc.*-mobile" \
               | grep -vx "$TAG" \
               | sort -V \
               | tail -n 1 || true)"
             if [[ -z "$previous_tag" ]]; then
-              previous_tag="$(git tag --list 'mobile-v[0-9]*' \
+              previous_tag="$(git tag --list 'v[0-9]*-mobile' \
                 | grep -Ev -- '-rc\.' \
                 | sort -V \
                 | tail -n 1 || true)"
             fi
           fi
 
-          args=(
-            "$TAG"
+          notes_args=(
+            --scope mobile
             --repo "$GITHUB_REPOSITORY"
-            --draft
+            --tag "$TAG"
             --target "${{ steps.release_commit.outputs.release_sha }}"
-            --title "Alera ${{ needs.cut.outputs.release_version }} (Android)"
-            --generate-notes
+            --output release-notes.md
           )
           if [[ -n "$previous_tag" ]]; then
-            args+=(--notes-start-tag "$previous_tag")
+            notes_args+=(--previous-tag "$previous_tag")
           fi
-          gh release create "${args[@]}"
+          dart tool/release/generate_release_notes.dart "${notes_args[@]}"
+
+          gh release create "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --draft \
+            --target "${{ steps.release_commit.outputs.release_sha }}" \
+            --title "Alera ${{ needs.cut.outputs.release_version }} (Android)" \
+            --notes-file release-notes.md
 
       - name: Upload mobile release assets
         env:
@@ -359,7 +365,8 @@ jobs:
           gh release edit "$TAG" \
             --repo "$GITHUB_REPOSITORY" \
             --draft=false \
-            --prerelease="$prerelease"
+            --prerelease="$prerelease" \
+            --latest=false
 
       - name: Cleanup pushed mobile release refs on failure
         if: failure() && steps.push_refs.outcome == 'success' && steps.publish_release.outcome != 'success'

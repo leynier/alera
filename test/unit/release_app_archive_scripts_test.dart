@@ -33,6 +33,8 @@ void main() {
         latest_stable.latestStableRelease(<String>[
           'v1.0.0-rc.0',
           'mobile-v0.0.12',
+          'v0.0.12-mobile',
+          'v0.0.12-rc.1-mobile',
           '',
         ]),
         '0.1.0',
