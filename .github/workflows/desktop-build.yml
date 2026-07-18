@@ -29,7 +29,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
 
@@ -52,7 +52,7 @@ jobs:
           version: 0.15.2
 
       - name: Cache native assets
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             .dart_tool/hooks_runner
