@@ -4,7 +4,7 @@ Alera is the Android/iOS companion app for remote Alera work. It is a separate F
 
 ## Current Surface
 
-- Pair a host by pasting or scanning the JSON payload from `alera mobile --json pairing create`.
+- Pair a host with a QR-first flow: scan the pairing QR from the desktop pairing dialog (torch toggle included), or paste the JSON payload from `alera mobile --json pairing create` through the manual entry sheet. A confirmation step shows the host identity, endpoint, and a live offer-expiry countdown, plus an optional device name before pairing. Failures surface as titled states (Invalid Offer, Offer Expired, Runtime Mismatch, Could Not Reach Runtime) with retry and manual-entry actions.
 - Claim the pairing offer over the mobile WebSocket gateway and store the returned device token in platform secure storage.
 - Authenticate with `mobile.hello`, show host status, projects, workspaces, and branch summaries, and start or attach to a terminal session with Flutter `xterm`.
 

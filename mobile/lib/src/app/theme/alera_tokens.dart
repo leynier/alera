@@ -22,17 +22,26 @@ abstract final class AleraTokens {
   static const double spaceMd = 12;
   static const double spaceLg = 16;
   static const double spaceXl = 24;
+  static const double spaceXxl = 32;
   static const double iconLg = 42;
   static const double emptyIcon = 44;
+  static const double successIcon = 64;
   static const double terminalPreviewHeight = 280;
   static const double keyColumnWidth = 104;
   static const double radiusSm = 8;
+  static const double radiusMd = 12;
   static const double strokeSm = 2;
+  static const double strokeMd = 3;
   static const double emphasisOverlayAlpha = 0.16;
+  static const double scrimAlpha = 0.55;
   static const double squareAspectRatio = 1;
-  static const int pairingInputMinLines = 8;
-  static const int pairingInputMaxLines = 12;
+  static const double pairingViewfinderSize = 260;
+  static const int pairingInputMinLines = 6;
+  static const int pairingInputMaxLines = 10;
   static const int previewRowLimit = 3;
+
+  static const Duration pairingSuccessAutoClose = Duration(milliseconds: 1200);
+  static const Duration expiryTickInterval = Duration(seconds: 1);
 
   static const String fontFamily = 'Inter';
   static const String monoFontFamily = 'JetBrains Mono';
