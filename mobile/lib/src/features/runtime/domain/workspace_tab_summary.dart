@@ -15,6 +15,13 @@ class WorkspaceTabSummary {
   final String title;
   final Map<String, Object?> payload;
 
+  bool get isTerminal => kind == 'terminal';
+
+  /// The PTY session handle for terminal tabs; the runtime falls back to the
+  /// tab id when the payload carries no explicit session id.
+  String get terminalSessionId =>
+      payload.optionalString('terminalSessionId') ?? id;
+
   factory WorkspaceTabSummary.fromJson(Map<String, Object?> json) {
     return WorkspaceTabSummary(
       id: json.requiredString('id'),

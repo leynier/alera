@@ -7,7 +7,6 @@ import 'package:alera_mobile/src/features/runtime/application/host_dashboard_con
 import 'package:alera_mobile/src/features/runtime/domain/mobile_runtime_status.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
-import 'package:alera_mobile/src/features/runtime/presentation/terminal_preview.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -19,7 +18,6 @@ class HostDashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final data = ref.watch(hostDashboardDataProvider(host.id));
-    final connection = ref.watch(hostConnectionControllerProvider(host.id));
     // Resolve the freshest profile so a rename reflects while this screen is
     // open; the constructor argument is the fallback before the list loads.
     final currentHost =
@@ -61,16 +59,6 @@ class HostDashboardScreen extends ConsumerWidget {
               ),
               const SizedBox(height: AleraTokens.spaceMd),
               _WorkspacesCard(workspaces: dashboard.workspaces),
-              const SizedBox(height: AleraTokens.spaceMd),
-              Text('Terminal', style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: AleraTokens.spaceSm),
-              switch (connection) {
-                AsyncData(value: final client) => TerminalPreview(
-                  client: client,
-                  workspaces: dashboard.workspaces,
-                ),
-                _ => const _MutedPanel(text: 'Connection Closed'),
-              },
             ],
           ),
           AsyncError(:final error) => _ErrorState(
@@ -285,26 +273,6 @@ class _ErrorState extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _MutedPanel extends StatelessWidget {
-  const _MutedPanel({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border.all(color: AleraTokens.border),
-        borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
-      ),
-      child: Padding(
-        padding: AleraTokens.contentPadding,
-        child: _MutedText(text),
       ),
     );
   }

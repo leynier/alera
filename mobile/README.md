@@ -7,7 +7,8 @@ Alera is the Android/iOS companion app for remote Alera work. It is a separate F
 - Pair a host with a QR-first flow: scan the pairing QR from the desktop pairing dialog (torch toggle included), or paste the JSON payload from `alera mobile --json pairing create` through the manual entry sheet. A confirmation step shows the host identity, endpoint, and a live offer-expiry countdown, plus an optional device name before pairing. Failures surface as titled states (Invalid Offer, Offer Expired, Runtime Mismatch, Could Not Reach Runtime) with retry and manual-entry actions.
 - Claim the pairing offer over the mobile WebSocket gateway and store the returned device token in platform secure storage.
 - Authenticate with `mobile.hello`, then land on a workspace list mirroring the desktop sidebar: a pinned section, group-by-project toggle, and the parent/child workspace tree with collapse state persisted per host. Long-press a workspace for actions: pin/unpin, configure or unlink the parent, and create or delete managed workspaces (with a cascade preview and a delete-branch toggle). Mutations are feature-detected through the `mobileWorkspaceMutations` runtime capability and hidden against older runtimes.
-- Host status, projects, and branch summaries remain available under Host Details, including the embedded terminal preview with Flutter `xterm`.
+- Tapping a workspace opens its tabs screen: horizontally scrollable tab chips (one tab visible at a time, no splits on the phone), a `+` button that creates numbered terminal tabs, and chip delete to close a tab (terminating its session). The full-screen terminal uses the vendored Flutter `xterm` with JetBrains Mono, attaches with the measured viewport, and forwards resizes as the keyboard opens and closes.
+- Host status, projects, and branch summaries remain available under Host Details.
 
 ## Local Commands
 
@@ -57,4 +58,4 @@ The gateway has three endpoint modes, selectable from Settings > Mobile Devices 
 
 ## Remaining Work
 
-The first live transport includes status, projects, branches, workspaces, tabs, and terminal streaming. Agent status, file review, workspace creation/removal UX, and end-to-end encrypted payloads are intentionally left for later mobile iterations.
+The live transport includes status, projects, branches, the workspace tree with mutations (pin, link/unlink, create/remove), tabs, and terminal streaming. Agent status, file review, non-terminal tab surfaces, and end-to-end encrypted payloads are intentionally left for later mobile iterations.
