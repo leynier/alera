@@ -61,6 +61,28 @@ Future<GitDiffResult> gitDiff({
 Future<GitDiffResult> gitDiffAll({required String path, String? filePath}) =>
     RustLib.instance.api.crateApiGitGitDiffAll(path: path, filePath: filePath);
 
+/// Raw bytes of one side of a diffed file for binary previews (images).
+/// Pass `area` for worktree diffs or `commit_oid`/`parent_oid` for commit
+/// diffs. Returns `None` when that side does not exist or exceeds the 20 MB
+/// preview cap.
+Future<Uint8List?> gitDiffBlobBytes({
+  required String path,
+  required String filePath,
+  String? oldPath,
+  GitChangeArea? area,
+  String? commitOid,
+  String? parentOid,
+  required bool oldSide,
+}) => RustLib.instance.api.crateApiGitGitDiffBlobBytes(
+  path: path,
+  filePath: filePath,
+  oldPath: oldPath,
+  area: area,
+  commitOid: commitOid,
+  parentOid: parentOid,
+  oldSide: oldSide,
+);
+
 Future<GitHistoryResult> gitHistory({
   required String path,
   int? limit,

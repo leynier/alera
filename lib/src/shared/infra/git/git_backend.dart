@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:alera/src/shared/infra/git/git_worktree_entry.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
 import 'package:alera/src/shared/infra/git/git_explorer_status.dart';
@@ -100,6 +102,20 @@ abstract interface class GitBackend {
   /// Loads a combined read-only diff for all changed files, or a single file
   /// when [filePath] is provided.
   Future<GitDiffResult> diffAll({required String path, String? filePath});
+
+  /// Raw bytes of one side of a diffed file for binary previews (images).
+  /// Pass [area] for worktree diffs or [commitOid]/[parentOid] for commit
+  /// diffs. Returns null when that side does not exist (added or deleted
+  /// files) or exceeds the preview size cap.
+  Future<Uint8List?> diffBlobBytes({
+    required String path,
+    required String filePath,
+    String? oldPath,
+    GitChangeArea? area,
+    String? commitOid,
+    String? parentOid,
+    required bool oldSide,
+  });
 
   /// Loads commit history for the repository containing [path].
   Future<GitHistoryResult> history(String path, {int? limit, String? baseRef});

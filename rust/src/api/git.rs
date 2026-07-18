@@ -428,6 +428,24 @@ pub fn git_diff_all(path: String, file_path: Option<String>) -> Result<GitDiffRe
     git_diff_impl::git_diff_all(path, file_path)
 }
 
+/// Raw bytes of one side of a diffed file for binary previews (images).
+/// Pass `area` for worktree diffs or `commit_oid`/`parent_oid` for commit
+/// diffs. Returns `None` when that side does not exist or exceeds the 20 MB
+/// preview cap.
+pub fn git_diff_blob_bytes(
+    path: String,
+    file_path: String,
+    old_path: Option<String>,
+    area: Option<GitChangeArea>,
+    commit_oid: Option<String>,
+    parent_oid: Option<String>,
+    old_side: bool,
+) -> Result<Option<Vec<u8>>, GitError> {
+    git_diff_impl::git_diff_blob_bytes(
+        path, file_path, old_path, area, commit_oid, parent_oid, old_side,
+    )
+}
+
 pub fn git_history(
     path: String,
     limit: Option<u32>,

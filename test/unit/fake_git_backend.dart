@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:alera/src/shared/infra/git/git_backend.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
@@ -76,6 +77,10 @@ class FakeGitBackend with _FakeGitBackendStatus implements GitBackend {
   GitStatusResult gitSubmoduleStatusResult = const GitStatusResult(entries: []);
   GitDiffResult gitDiffResult = const GitDiffResult(files: []);
   GitDiffResult gitDiffAllResult = const GitDiffResult(files: []);
+
+  /// Bytes served by [diffBlobBytes], keyed by file path and requested side.
+  final Map<({String filePath, bool oldSide}), Uint8List> diffBlobBytesBySide =
+      <({String filePath, bool oldSide}), Uint8List>{};
   GitHistoryResult gitHistoryResult = const GitHistoryResult(
     items: <GitHistoryItem>[],
     hasIncomingChanges: false,
@@ -358,6 +363,30 @@ class FakeGitBackend with _FakeGitBackendStatus implements GitBackend {
       }),
     );
     return gitDiffAllResult;
+  }
+
+  @override
+  Future<Uint8List?> diffBlobBytes({
+    required String path,
+    required String filePath,
+    String? oldPath,
+    GitChangeArea? area,
+    String? commitOid,
+    String? parentOid,
+    required bool oldSide,
+  }) async {
+    calls.add(
+      GitBackendCall('diffBlobBytes', <String, Object?>{
+        'path': path,
+        'filePath': filePath,
+        'oldPath': oldPath,
+        'area': area,
+        'commitOid': commitOid,
+        'parentOid': parentOid,
+        'oldSide': oldSide,
+      }),
+    );
+    return diffBlobBytesBySide[(filePath: filePath, oldSide: oldSide)];
   }
 
   @override
