@@ -182,7 +182,7 @@ const List<SettingsSearchEntry> quotaSearchEntries = <SettingsSearchEntry>[
   SettingsSearchEntry(
     title: 'Kimi API Key Variable',
     description: 'Configure The Kimi API Key Environment Variable Name.',
-    keywords: <String>['kimi', 'environment', 'api key', 'KIMI_APY_KEY'],
+    keywords: <String>['kimi', 'environment', 'api key', 'KIMI_API_KEY'],
     groupId: 'credentials',
   ),
   SettingsSearchEntry(

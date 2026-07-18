@@ -171,7 +171,7 @@ class AgentQuotaSettingsPane extends ConsumerWidget {
                 description:
                     'Environment Variable Read On The Active Host. The Secret Value Is Never Stored By Alera.',
                 value: hostSettings.environment.kimiApiKey,
-                hintText: 'KIMI_APY_KEY',
+                hintText: 'KIMI_API_KEY',
                 onChanged: (value) => _saveEnvironment(
                   controller,
                   hostId,

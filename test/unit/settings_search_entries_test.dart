@@ -28,7 +28,7 @@ void main() {
         (candidate) => candidate.title == 'Kimi API Key Variable',
       );
 
-      expect(entry.matches('kimi_apy_key'), isTrue);
+      expect(entry.matches('kimi_api_key'), isTrue);
       expect(entry.groupId, 'credentials');
     },
   );

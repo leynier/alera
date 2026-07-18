@@ -11,7 +11,7 @@ void main() {
       expect(local.claudeProfiles, isEmpty);
       expect(local.claudeDefaultEnabled, isTrue);
       expect(local.selectedClaudeProfile, 'default');
-      expect(local.environment.kimiApiKey, 'KIMI_APY_KEY');
+      expect(local.environment.kimiApiKey, 'KIMI_API_KEY');
     });
 
     test('parses host-specific quota configuration', () {
