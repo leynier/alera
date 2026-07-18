@@ -77,36 +77,39 @@ void main() {
       });
     });
 
-    test('createPairingOffer returns a grant that round-trips the payload', () async {
-      final client = _FakeRuntimeHostClient();
-      client.responses['mobile.pairing.create'] = <String, Object?>{
-        'v': 1,
-        'pairingId': 'offer-1',
-        'endpoint': 'wss://alera.example.test:6768',
-        'runtimeId': 'runtime-1',
-        'hostName': 'Test Host',
-        'pairingSecret': 'secret',
-        'serverPublicKeyB64': null,
-        'expiresAt': '2026-07-17T00:10:00.000Z',
-      };
-      final repository = RuntimeMobileAccessRepository(client);
+    test(
+      'createPairingOffer returns a grant that round-trips the payload',
+      () async {
+        final client = _FakeRuntimeHostClient();
+        client.responses['mobile.pairing.create'] = <String, Object?>{
+          'v': 1,
+          'pairingId': 'offer-1',
+          'endpoint': 'wss://alera.example.test:6768',
+          'runtimeId': 'runtime-1',
+          'hostName': 'Test Host',
+          'pairingSecret': 'secret',
+          'serverPublicKeyB64': null,
+          'expiresAt': '2026-07-17T00:10:00.000Z',
+        };
+        final repository = RuntimeMobileAccessRepository(client);
 
-      final grant = await repository.createPairingOffer(
-        endpoint: 'wss://alera.example.test:6768',
-        deviceName: 'My Phone',
-        expiresMinutes: 5,
-      );
+        final grant = await repository.createPairingOffer(
+          endpoint: 'wss://alera.example.test:6768',
+          deviceName: 'My Phone',
+          expiresMinutes: 5,
+        );
 
-      expect(grant.pairingId, 'offer-1');
-      expect(grant.hostName, 'Test Host');
-      expect(grant.toQrJson(), contains('"pairingSecret":"secret"'));
-      expect(grant.toQrJson(), contains('"v":1'));
-      expect(client.payloads['mobile.pairing.create']!.single, {
-        'endpoint': 'wss://alera.example.test:6768',
-        'deviceName': 'My Phone',
-        'expiresMinutes': 5,
-      });
-    });
+        expect(grant.pairingId, 'offer-1');
+        expect(grant.hostName, 'Test Host');
+        expect(grant.toQrJson(), contains('"pairingSecret":"secret"'));
+        expect(grant.toQrJson(), contains('"v":1'));
+        expect(client.payloads['mobile.pairing.create']!.single, {
+          'endpoint': 'wss://alera.example.test:6768',
+          'deviceName': 'My Phone',
+          'expiresMinutes': 5,
+        });
+      },
+    );
 
     test('cancel, rename, and revoke send the expected payloads', () async {
       final client = _FakeRuntimeHostClient();

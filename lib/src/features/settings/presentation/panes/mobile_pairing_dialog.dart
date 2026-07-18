@@ -52,9 +52,7 @@ class _MobilePairingDialogState extends State<MobilePairingDialog> {
   }
 
   Duration _timeLeft() {
-    final remaining = widget.grant.expiresAt.difference(
-      DateTime.now().toUtc(),
-    );
+    final remaining = widget.grant.expiresAt.difference(DateTime.now().toUtc());
     return remaining.isNegative ? Duration.zero : remaining;
   }
 

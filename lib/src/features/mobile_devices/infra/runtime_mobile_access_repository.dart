@@ -36,12 +36,14 @@ class RuntimeMobileAccessRepository {
     String? bindHost,
     int? port,
   }) async {
-    final payload = await _client
-        .runtimeRequest('mobile.settings.update', <String, Object?>{
-          'enabled': ?enabled,
-          'bindHost': ?bindHost,
-          'port': ?port,
-        });
+    final payload = await _client.runtimeRequest(
+      'mobile.settings.update',
+      <String, Object?>{
+        'enabled': ?enabled,
+        'bindHost': ?bindHost,
+        'port': ?port,
+      },
+    );
     return MobileGatewaySettings.fromJson(_mapFromPayload(payload));
   }
 
@@ -69,11 +71,10 @@ class RuntimeMobileAccessRepository {
     required String id,
     required String displayName,
   }) async {
-    final payload = await _client
-        .runtimeRequest('mobile.device.rename', <String, Object?>{
-          'id': id,
-          'displayName': displayName,
-        });
+    final payload = await _client.runtimeRequest(
+      'mobile.device.rename',
+      <String, Object?>{'id': id, 'displayName': displayName},
+    );
     return MobileDevice.fromJson(_mapFromPayload(payload));
   }
 

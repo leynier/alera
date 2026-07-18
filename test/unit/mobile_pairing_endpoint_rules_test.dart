@@ -62,7 +62,10 @@ void main() {
 
     test('rejects missing ports and non-websocket schemes', () {
       expect(parseMobilePairingEndpoint('wss://alera.example.test'), isNull);
-      expect(parseMobilePairingEndpoint('https://alera.example.test:443'), isNull);
+      expect(
+        parseMobilePairingEndpoint('https://alera.example.test:443'),
+        isNull,
+      );
       expect(parseMobilePairingEndpoint('not a url'), isNull);
     });
   });
