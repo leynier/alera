@@ -79,7 +79,7 @@ dependency_overrides:
 flutter_launcher_icons:
   windows:
     generate: true
-    image_path: "assets/logo/alera-logo.png"
+    image_path: "assets/logo/alera-logo-desktop.png"
     icon_size: 256
   macos:
     generate: true

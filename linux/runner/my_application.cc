@@ -256,6 +256,10 @@ static void my_application_activate(GApplication* application) {
 
   gtk_window_set_default_size(window, 1280, 720);
 
+  // Resolved from the hicolor theme installed by the Linux packages; a no-op
+  // in dev runs where the icon is not installed.
+  gtk_window_set_icon_name(window, "alera");
+
   // The app is dark-only; keep native GTK menus on the dark system theme too.
   g_object_set(gtk_settings_get_default(), "gtk-application-prefer-dark-theme",
                TRUE, nullptr);
