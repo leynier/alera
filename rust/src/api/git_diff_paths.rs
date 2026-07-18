@@ -4,12 +4,12 @@ use git2::Repository;
 
 use super::{GitError, GitErrorKind};
 
-pub(super) struct GitPathContext {
+pub(in crate::api) struct GitPathContext {
     workspace_prefix: String,
 }
 
 impl GitPathContext {
-    pub(super) fn new(repo: &Repository, workspace_path: &str) -> Result<Self, GitError> {
+    pub(in crate::api) fn new(repo: &Repository, workspace_path: &str) -> Result<Self, GitError> {
         let Some(workdir) = repo.workdir() else {
             return Err(GitError::new(GitErrorKind::NotARepository, workspace_path));
         };
@@ -23,11 +23,11 @@ impl GitPathContext {
         Ok(Self { workspace_prefix })
     }
 
-    pub(super) fn is_workspace_root(&self) -> bool {
+    pub(in crate::api) fn is_workspace_root(&self) -> bool {
         self.workspace_prefix.is_empty()
     }
 
-    pub(super) fn to_workspace_path(&self, repo_path: &str) -> Option<String> {
+    pub(in crate::api) fn to_workspace_path(&self, repo_path: &str) -> Option<String> {
         let repo_path = normalize_repo_path(repo_path);
         if self.workspace_prefix.is_empty() {
             return Some(repo_path);
@@ -40,7 +40,7 @@ impl GitPathContext {
             .map(ToString::to_string)
     }
 
-    pub(super) fn to_repo_path(&self, workspace_path: &str) -> String {
+    pub(in crate::api) fn to_repo_path(&self, workspace_path: &str) -> String {
         let workspace_path = normalize_repo_path(workspace_path);
         if self.workspace_prefix.is_empty() {
             workspace_path

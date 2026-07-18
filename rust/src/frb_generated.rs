@@ -38,7 +38,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -45669172;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -201271375;
 
 // Section: executor
 
@@ -640,7 +640,7 @@ fn wire__crate__api__git__git_diff_all_impl(
         },
     )
 }
-fn wire__crate__api__git__git_diff_blob_bytes_impl(
+fn wire__crate__api__git_diff_blob__git_diff_blob_bytes_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -672,7 +672,7 @@ fn wire__crate__api__git__git_diff_blob_bytes_impl(
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, crate::api::git::GitError>((move || {
-                    let output_ok = crate::api::git::git_diff_blob_bytes(
+                    let output_ok = crate::api::git_diff_blob::git_diff_blob_bytes(
                         api_path,
                         api_file_path,
                         api_old_path,
@@ -4365,7 +4365,12 @@ fn pde_ffi_dispatcher_primary_impl(
         14 => wire__crate__api__git__git_commit_diff_impl(port, ptr, rust_vec_len, data_len),
         15 => wire__crate__api__git__git_diff_impl(port, ptr, rust_vec_len, data_len),
         16 => wire__crate__api__git__git_diff_all_impl(port, ptr, rust_vec_len, data_len),
-        17 => wire__crate__api__git__git_diff_blob_bytes_impl(port, ptr, rust_vec_len, data_len),
+        17 => wire__crate__api__git_diff_blob__git_diff_blob_bytes_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
         18 => wire__crate__api__git__git_discard_impl(port, ptr, rust_vec_len, data_len),
         19 => wire__crate__api__git__git_discard_area_impl(port, ptr, rust_vec_len, data_len),
         20 => wire__crate__api__git_explorer_status__git_explorer_status_snapshot_impl(

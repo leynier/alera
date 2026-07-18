@@ -9,12 +9,15 @@ import 'package:alera/src/shared/infra/git/git_remote.dart';
 import 'package:alera/src/shared/infra/git/git_worktree_entry.dart';
 
 part 'fake_git_backend_defaults.dart';
+part 'fake_git_backend_diffs.dart';
 part 'fake_git_backend_status.dart';
 
 /// In-memory [GitBackend] for unit tests. Field names mirror the behaviours the
 /// previous `ProcessRunner` fakes configured, so tests can program repository
 /// state and failure injection without spawning git.
-class FakeGitBackend with _FakeGitBackendStatus implements GitBackend {
+class FakeGitBackend
+    with _FakeGitBackendStatus, _FakeGitBackendDiffs
+    implements GitBackend {
   @override
   final List<GitBackendCall> calls = <GitBackendCall>[];
 
@@ -75,12 +78,6 @@ class FakeGitBackend with _FakeGitBackendStatus implements GitBackend {
   void Function(String url, String destinationPath)? onClone;
 
   GitStatusResult gitSubmoduleStatusResult = const GitStatusResult(entries: []);
-  GitDiffResult gitDiffResult = const GitDiffResult(files: []);
-  GitDiffResult gitDiffAllResult = const GitDiffResult(files: []);
-
-  /// Bytes served by [diffBlobBytes], keyed by file path and requested side.
-  final Map<({String filePath, bool oldSide}), Uint8List> diffBlobBytesBySide =
-      <({String filePath, bool oldSide}), Uint8List>{};
   GitHistoryResult gitHistoryResult = const GitHistoryResult(
     items: <GitHistoryItem>[],
     hasIncomingChanges: false,
@@ -333,60 +330,6 @@ class FakeGitBackend with _FakeGitBackendStatus implements GitBackend {
       throw error;
     }
     return gitSubmoduleStatusResult;
-  }
-
-  @override
-  Future<GitDiffResult> diff({
-    required String path,
-    required String filePath,
-    required GitChangeArea area,
-  }) async {
-    calls.add(
-      GitBackendCall('diff', <String, Object?>{
-        'path': path,
-        'filePath': filePath,
-        'area': area,
-      }),
-    );
-    return gitDiffResult;
-  }
-
-  @override
-  Future<GitDiffResult> diffAll({
-    required String path,
-    String? filePath,
-  }) async {
-    calls.add(
-      GitBackendCall('diffAll', <String, Object?>{
-        'path': path,
-        'filePath': filePath,
-      }),
-    );
-    return gitDiffAllResult;
-  }
-
-  @override
-  Future<Uint8List?> diffBlobBytes({
-    required String path,
-    required String filePath,
-    String? oldPath,
-    GitChangeArea? area,
-    String? commitOid,
-    String? parentOid,
-    required bool oldSide,
-  }) async {
-    calls.add(
-      GitBackendCall('diffBlobBytes', <String, Object?>{
-        'path': path,
-        'filePath': filePath,
-        'oldPath': oldPath,
-        'area': area,
-        'commitOid': commitOid,
-        'parentOid': parentOid,
-        'oldSide': oldSide,
-      }),
-    );
-    return diffBlobBytesBySide[(filePath: filePath, oldSide: oldSide)];
   }
 
   @override

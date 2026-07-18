@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:alera/src/rust/api/git.dart' as rust;
+import 'package:alera/src/rust/api/git_diff_blob.dart' as rust_blob;
 import 'package:alera/src/rust/api/git_explorer_status.dart' as explorer_rust;
 import 'package:alera/src/shared/infra/git/git_backend.dart';
 import 'package:alera/src/shared/infra/git/git_diff_models.dart';
@@ -178,7 +179,7 @@ class RustGitBackend implements GitBackend {
     String? parentOid,
     required bool oldSide,
   }) => _guard(
-    () => rust.gitDiffBlobBytes(
+    () => rust_blob.gitDiffBlobBytes(
       path: path,
       filePath: filePath,
       oldPath: oldPath,
@@ -452,34 +453,6 @@ class RustGitBackend implements GitBackend {
       depth: row.depth,
       fileCount: row.fileCount,
       entry: row.entry == null ? null : _toChangeEntry(row.entry!),
-    );
-  }
-
-  GitDiffResult _toDiffResult(
-    rust.GitDiffResult result, {
-    String? sourceLabel,
-  }) {
-    return GitDiffResult(
-      truncated: result.truncated,
-      files: result.files
-          .map(
-            (file) => GitDiffFile(
-              path: file.path,
-              oldPath: file.oldPath,
-              area: _toArea(file.area),
-              status: _toStatus(file.status),
-              lines: file.lines.map(_toDiffLine).toList(growable: false),
-              added: file.added,
-              removed: file.removed,
-              isBinary: file.isBinary,
-              isLarge: file.isLarge,
-              isGitlink: file.isGitlink,
-              truncated: file.truncated,
-              linePreviewTruncated: file.linePreviewTruncated,
-              sourceLabel: sourceLabel,
-            ),
-          )
-          .toList(growable: false),
     );
   }
 
