@@ -53,6 +53,9 @@ List<WorkbenchSidebarRow> buildSidebarRows(
   }
 
   bool workspaceVisible(Project project, Workspace workspace) {
+    if (!workspaceMatchesKindFilter(prefs, workspace)) {
+      return false;
+    }
     if (!workspaceMatchesTagFilter(prefs, workspace)) {
       return false;
     }
@@ -208,7 +211,9 @@ List<WorkbenchSidebarRow> buildSidebarRows(
   final rows = <WorkbenchSidebarRow>[];
   final visibleProjects = state.projects.where(projectVisible).toList();
   final filtersHideEmptyProjects =
-      query.isNotEmpty || prefs.selectedTagIds.isNotEmpty;
+      query.isNotEmpty ||
+      prefs.selectedTagIds.isNotEmpty ||
+      prefs.workspaceKindFilter != WorkspaceKindFilter.all;
 
   final pinnedRows = <WorkbenchSidebarRow>[];
   var pinnedWorkspaceCount = 0;
@@ -350,6 +355,16 @@ bool workspaceMatchesTagFilter(WorkbenchViewPrefs prefs, Workspace workspace) {
   return workspace.tagIds.any(prefs.selectedTagIds.contains);
 }
 
+/// Whether [workspace] passes the workspace-kind visibility filter: the main
+/// worktree counts as the project's default workspace.
+bool workspaceMatchesKindFilter(WorkbenchViewPrefs prefs, Workspace workspace) {
+  return switch (prefs.workspaceKindFilter) {
+    WorkspaceKindFilter.all => true,
+    WorkspaceKindFilter.defaultOnly => workspace.isMain,
+    WorkspaceKindFilter.nonDefaultOnly => !workspace.isMain,
+  };
+}
+
 WorkbenchSidebarCollapseTargets visibleSidebarCollapseTargets(
   WorkbenchState state, {
   bool includeCollapsedProjectDescendants = false,
@@ -357,7 +372,9 @@ WorkbenchSidebarCollapseTargets visibleSidebarCollapseTargets(
   final prefs = state.viewPrefs;
   final query = state.searchQuery.trim().toLowerCase();
   final filtersHideEmptyProjects =
-      query.isNotEmpty || prefs.selectedTagIds.isNotEmpty;
+      query.isNotEmpty ||
+      prefs.selectedTagIds.isNotEmpty ||
+      prefs.workspaceKindFilter != WorkspaceKindFilter.all;
   final visibleProjects = state.projects
       .where((project) => _projectVisible(prefs, project))
       .toList(growable: false);
@@ -430,6 +447,9 @@ bool _workspaceVisible(
   Project project,
   Workspace workspace,
 ) {
+  if (!workspaceMatchesKindFilter(prefs, workspace)) {
+    return false;
+  }
   if (!workspaceMatchesTagFilter(prefs, workspace)) {
     return false;
   }

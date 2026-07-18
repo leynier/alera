@@ -126,6 +126,44 @@ void main() {
       expect(find.text('No Projects Match "missing"'), findsOneWidget);
     });
 
+    testWidgets('updates the workspace kind filter and shows the active dot', (
+      tester,
+    ) async {
+      final controller = _ViewOptionsTestController(
+        WorkbenchState(projects: <Project>[_project('project-1', 'Alera')]),
+      );
+
+      await _pumpButton(tester, controller);
+
+      expect(_activeDot(), findsNothing);
+
+      await tester.tap(_viewOptionsButton());
+      await tester.pumpAndSettle();
+
+      expect(find.text('Show Workspaces'), findsOneWidget);
+      await tester.tap(find.text('Default'));
+      await tester.pumpAndSettle();
+
+      expect(
+        controller.state.viewPrefs.workspaceKindFilter,
+        WorkspaceKindFilter.defaultOnly,
+      );
+
+      await tester.tap(find.byTooltip('Close'));
+      await tester.pumpAndSettle();
+      expect(_activeDot(), findsOneWidget);
+
+      await tester.tap(_viewOptionsButton());
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('All').first);
+      await tester.pumpAndSettle();
+
+      expect(
+        controller.state.viewPrefs.workspaceKindFilter,
+        WorkspaceKindFilter.all,
+      );
+    });
+
     testWidgets('available project rows animate their hover state', (
       tester,
     ) async {
@@ -194,6 +232,16 @@ Finder _projectSearchField() {
 Finder _viewOptionsButton() {
   return find.byWidgetPredicate(
     (widget) => widget is IconButton && widget.tooltip == 'View options',
+  );
+}
+
+Finder _activeDot() {
+  return find.byWidgetPredicate(
+    (widget) =>
+        widget is Container &&
+        widget.decoration is BoxDecoration &&
+        (widget.decoration! as BoxDecoration).shape == BoxShape.circle &&
+        (widget.decoration! as BoxDecoration).color == AleraTokens.accent,
   );
 }
 
@@ -267,6 +315,13 @@ class _ViewOptionsTestController extends WorkbenchController {
   void clearProjectFilters() {
     state = state.copyWith(
       viewPrefs: state.viewPrefs.copyWith(selectedProjectIds: <String>{}),
+    );
+  }
+
+  @override
+  void setWorkspaceKindFilter(WorkspaceKindFilter filter) {
+    state = state.copyWith(
+      viewPrefs: state.viewPrefs.copyWith(workspaceKindFilter: filter),
     );
   }
 }

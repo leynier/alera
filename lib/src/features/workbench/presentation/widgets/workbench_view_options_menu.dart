@@ -33,6 +33,8 @@ class WorkbenchViewOptionsButton extends ConsumerWidget {
     final hasFilters =
         prefs.selectedProjectIds.isNotEmpty ||
         prefs.selectedTagIds.isNotEmpty ||
+        prefs.workspaceKindFilter !=
+            WorkbenchViewPrefs.defaults.workspaceKindFilter ||
         prefs.groupBy != WorkbenchViewPrefs.defaults.groupBy ||
         prefs.projectSort != WorkbenchViewPrefs.defaults.projectSort ||
         prefs.workspaceSort != WorkbenchViewPrefs.defaults.workspaceSort;
@@ -44,7 +46,14 @@ class WorkbenchViewOptionsButton extends ConsumerWidget {
           onPressed: () => _showOptions(context),
           icon: AleraIcons.tune,
         ),
-        if (hasFilters) const Positioned(right: 6, top: 6, child: _ActiveDot()),
+        // Decorative only: without IgnorePointer the dot swallows clicks on
+        // the small icon button underneath it.
+        if (hasFilters)
+          const Positioned(
+            right: 6,
+            top: 6,
+            child: IgnorePointer(child: _ActiveDot()),
+          ),
       ],
     );
   }
@@ -232,91 +241,111 @@ class _WorkbenchViewOptionsPanelState
         children: <Widget>[
           AleraDialogHeader(title: 'View Options', onClose: widget.onDismiss),
           const SizedBox(height: AleraTokens.space12),
-          _SectionLabel(text: 'Group By'),
-          const SizedBox(height: AleraTokens.space6),
-          _GroupBySegmented(
-            value: prefs.groupBy,
-            onChanged: controller.setGroupBy,
-          ),
-          const SizedBox(height: AleraTokens.space12),
-          _SortRow(
-            label: prefs.groupBy == WorkbenchGroupBy.project
-                ? 'Sort Projects By'
-                : 'Sort Workspaces By',
-            value: prefs.groupBy == WorkbenchGroupBy.project
-                ? prefs.projectSort
-                : prefs.workspaceSort,
-            onChanged: prefs.groupBy == WorkbenchGroupBy.project
-                ? controller.setProjectSort
-                : controller.setWorkspaceSort,
-          ),
-          if (prefs.groupBy == WorkbenchGroupBy.project) ...<Widget>[
-            const SizedBox(height: AleraTokens.space8),
-            _SortRow(
-              label: 'Then By',
-              value: prefs.workspaceSort,
-              onChanged: controller.setWorkspaceSort,
-            ),
-          ],
-          const SizedBox(height: AleraTokens.space16),
-          const Divider(height: 1, color: AleraTokens.borderSubtle),
-          const SizedBox(height: AleraTokens.space12),
-          _ProjectsHeader(
-            count: prefs.selectedProjectIds.length,
-            onClear: prefs.selectedProjectIds.isEmpty
-                ? null
-                : controller.clearProjectFilters,
-          ),
-          if (selectedProjects.isNotEmpty) ...<Widget>[
-            const SizedBox(height: AleraTokens.space8),
-            Wrap(
-              spacing: AleraTokens.space6,
-              runSpacing: AleraTokens.space6,
-              children: <Widget>[
-                for (final project in selectedProjects)
-                  AleraChip(
-                    label: project.name,
-                    onRemove: () => controller.removeProjectFilter(project.id),
+          // The option sections can outgrow short windows, so they scroll
+          // under the fixed header.
+          Flexible(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  _SectionLabel(text: 'Group By'),
+                  const SizedBox(height: AleraTokens.space6),
+                  _GroupBySegmented(
+                    value: prefs.groupBy,
+                    onChanged: controller.setGroupBy,
                   ),
-              ],
+                  const SizedBox(height: AleraTokens.space12),
+                  _SortRow(
+                    label: prefs.groupBy == WorkbenchGroupBy.project
+                        ? 'Sort Projects By'
+                        : 'Sort Workspaces By',
+                    value: prefs.groupBy == WorkbenchGroupBy.project
+                        ? prefs.projectSort
+                        : prefs.workspaceSort,
+                    onChanged: prefs.groupBy == WorkbenchGroupBy.project
+                        ? controller.setProjectSort
+                        : controller.setWorkspaceSort,
+                  ),
+                  if (prefs.groupBy == WorkbenchGroupBy.project) ...<Widget>[
+                    const SizedBox(height: AleraTokens.space8),
+                    _SortRow(
+                      label: 'Then By',
+                      value: prefs.workspaceSort,
+                      onChanged: controller.setWorkspaceSort,
+                    ),
+                  ],
+                  const SizedBox(height: AleraTokens.space12),
+                  _SectionLabel(text: 'Show Workspaces'),
+                  const SizedBox(height: AleraTokens.space6),
+                  _WorkspaceKindSegmented(
+                    value: prefs.workspaceKindFilter,
+                    onChanged: controller.setWorkspaceKindFilter,
+                  ),
+                  const SizedBox(height: AleraTokens.space16),
+                  const Divider(height: 1, color: AleraTokens.borderSubtle),
+                  const SizedBox(height: AleraTokens.space12),
+                  _ProjectsHeader(
+                    count: prefs.selectedProjectIds.length,
+                    onClear: prefs.selectedProjectIds.isEmpty
+                        ? null
+                        : controller.clearProjectFilters,
+                  ),
+                  if (selectedProjects.isNotEmpty) ...<Widget>[
+                    const SizedBox(height: AleraTokens.space8),
+                    Wrap(
+                      spacing: AleraTokens.space6,
+                      runSpacing: AleraTokens.space6,
+                      children: <Widget>[
+                        for (final project in selectedProjects)
+                          AleraChip(
+                            label: project.name,
+                            onRemove: () =>
+                                controller.removeProjectFilter(project.id),
+                          ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: AleraTokens.space8),
+                  AleraTextField(
+                    dense: true,
+                    prefixIcon: AleraIcons.add,
+                    hintText: 'Add Project…',
+                    controller: _searchController,
+                    onSubmitted: (_) => _addFirstMatch(availableProjects),
+                  ),
+                  const SizedBox(height: AleraTokens.space8),
+                  _AvailableProjectsList(
+                    projects: availableProjects,
+                    hasSelection: prefs.selectedProjectIds.isNotEmpty,
+                    query: _projectQuery,
+                    onPick: (project) {
+                      controller.addProjectFilter(project.id);
+                      _searchController.clear();
+                    },
+                    theme: theme,
+                  ),
+                  const SizedBox(height: AleraTokens.space16),
+                  const Divider(height: 1, color: AleraTokens.borderSubtle),
+                  const SizedBox(height: AleraTokens.space12),
+                  _TagsFilterSection(
+                    selectedTags: selectedTags,
+                    availableTags: availableTags,
+                    query: _tagQuery,
+                    searchController: _tagSearchController,
+                    onAdd: (tagId) {
+                      controller.addTagFilter(tagId);
+                      _tagSearchController.clear();
+                    },
+                    onRemove: controller.removeTagFilter,
+                    onClear: prefs.selectedTagIds.isEmpty
+                        ? null
+                        : controller.clearTagFilters,
+                    theme: theme,
+                  ),
+                ],
+              ),
             ),
-          ],
-          const SizedBox(height: AleraTokens.space8),
-          AleraTextField(
-            dense: true,
-            prefixIcon: AleraIcons.add,
-            hintText: 'Add Project…',
-            controller: _searchController,
-            onSubmitted: (_) => _addFirstMatch(availableProjects),
-          ),
-          const SizedBox(height: AleraTokens.space8),
-          _AvailableProjectsList(
-            projects: availableProjects,
-            hasSelection: prefs.selectedProjectIds.isNotEmpty,
-            query: _projectQuery,
-            onPick: (project) {
-              controller.addProjectFilter(project.id);
-              _searchController.clear();
-            },
-            theme: theme,
-          ),
-          const SizedBox(height: AleraTokens.space16),
-          const Divider(height: 1, color: AleraTokens.borderSubtle),
-          const SizedBox(height: AleraTokens.space12),
-          _TagsFilterSection(
-            selectedTags: selectedTags,
-            availableTags: availableTags,
-            query: _tagQuery,
-            searchController: _tagSearchController,
-            onAdd: (tagId) {
-              controller.addTagFilter(tagId);
-              _tagSearchController.clear();
-            },
-            onRemove: controller.removeTagFilter,
-            onClear: prefs.selectedTagIds.isEmpty
-                ? null
-                : controller.clearTagFilters,
-            theme: theme,
           ),
         ],
       ),
