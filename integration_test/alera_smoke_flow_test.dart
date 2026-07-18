@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:alera/src/app/app.dart';
 import 'package:alera/src/app/providers.dart';
@@ -266,6 +267,17 @@ class _E2eGitBackend implements GitBackend {
     required String path,
     String? filePath,
   }) async => const GitDiffResult(files: <GitDiffFile>[]);
+
+  @override
+  Future<Uint8List?> diffBlobBytes({
+    required String path,
+    required String filePath,
+    String? oldPath,
+    GitChangeArea? area,
+    String? commitOid,
+    String? parentOid,
+    required bool oldSide,
+  }) async => null;
 
   @override
   Future<GitHistoryResult> history(
