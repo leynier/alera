@@ -46,7 +46,7 @@ Future<Object?> handleNativeAppMenuCall(
       }
     case NativeAppMenuMethod.showAbout:
       if (context.mounted) {
-        unawaited(showAppMenuAbout(context));
+        unawaited(showAppMenuAbout(context, ref));
       }
     case NativeAppMenuMethod.exitApp:
       unawaited(exitAppFromMenu(ref));

@@ -1,8 +1,8 @@
+import 'dart:async';
+
 import 'package:alera/src/app/providers.dart';
-import 'package:alera/src/app/theme/alera_tokens.dart';
-import 'package:alera/src/core/build_flavor.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
-import 'package:alera/src/design_system/layout/alera_dialog.dart';
+import 'package:alera/src/features/app_menu/presentation/app_menu_about_dialog.dart';
 import 'package:alera/src/features/app_window/application/app_window_providers.dart';
 import 'package:alera/src/features/updater/domain/alera_update.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_dialog_launchers.dart';
@@ -40,44 +40,25 @@ Future<void> checkForUpdatesFromAppMenu(
 }
 
 Future<void> showAppMenuAbout(
-  BuildContext context, {
+  BuildContext context,
+  WidgetRef ref, {
   AppMenuPackageInfoLoader loadPackageInfo = PackageInfo.fromPlatform,
 }) async {
   final info = await loadPackageInfo();
   if (!context.mounted) {
     return;
   }
-  final theme = Theme.of(context);
   await showDialog<void>(
     context: context,
     builder: (dialogContext) {
-      return AleraDialog(
-        maxWidth: 360,
-        child: Padding(
-          padding: const EdgeInsets.all(AleraTokens.space20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              Text(kAleraAppName, style: theme.textTheme.titleMedium),
-              const SizedBox(height: AleraTokens.space8),
-              Text(
-                'Version ${info.version} (${info.buildNumber})',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: AleraTokens.foregroundMuted,
-                ),
-              ),
-              const SizedBox(height: AleraTokens.space20),
-              Align(
-                alignment: Alignment.centerRight,
-                child: FilledButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: const Text('Close'),
-                ),
-              ),
-            ],
-          ),
-        ),
+      return AppMenuAboutDialog(
+        info: info,
+        onCheckForUpdates: () {
+          // Close first: the update result surfaces as a toast under the
+          // launcher context, not the dialog's.
+          Navigator.of(dialogContext).pop();
+          unawaited(checkForUpdatesFromAppMenu(context, ref));
+        },
       );
     },
   );

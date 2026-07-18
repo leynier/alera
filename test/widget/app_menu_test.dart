@@ -64,8 +64,9 @@ void main() {
     testWidgets('showAppMenuAbout opens the about dialog', (tester) async {
       await _pumpActionHarness(
         tester,
-        onPressed: (context, _) => showAppMenuAbout(
+        onPressed: (context, ref) => showAppMenuAbout(
           context,
+          ref,
           loadPackageInfo: () async => PackageInfo(
             appName: kAleraAppName,
             packageName: 'dev.leynier.alera',
@@ -81,6 +82,79 @@ void main() {
       expect(find.text(kAleraAppName), findsWidgets);
       expect(find.text('Version 1.2.3 (45)'), findsOneWidget);
       expect(find.text('Close'), findsOneWidget);
+      expect(find.text('Check For Updates'), findsOneWidget);
+      expect(find.byType(Image), findsOneWidget);
+    });
+
+    testWidgets('about dialog copies the version to the clipboard', (
+      tester,
+    ) async {
+      _mockClipboard();
+      final toastMessages = <String>[];
+      final sub = AleraToast.stream.listen((data) {
+        toastMessages.add(data.message);
+      });
+      addTearDown(sub.cancel);
+
+      await _pumpActionHarness(
+        tester,
+        onPressed: (context, ref) => showAppMenuAbout(
+          context,
+          ref,
+          loadPackageInfo: () async => PackageInfo(
+            appName: kAleraAppName,
+            packageName: 'dev.leynier.alera',
+            version: '1.2.3',
+            buildNumber: '45',
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Run'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Copy Version'));
+      await tester.pumpAndSettle();
+
+      final clipboard = await Clipboard.getData(Clipboard.kTextPlain);
+      expect(clipboard?.text, '1.2.3 (45)');
+      expect(toastMessages, <String>['Version Copied']);
+    });
+
+    testWidgets('about dialog runs the update check and closes', (
+      tester,
+    ) async {
+      final updateController = _FakeUpdateController(
+        AleraUpdateState(status: AleraUpdateStatus.idle, config: _config()),
+      );
+      final toastMessages = <String>[];
+      final sub = AleraToast.stream.listen((data) {
+        toastMessages.add(data.message);
+      });
+      addTearDown(sub.cancel);
+
+      await _pumpActionHarness(
+        tester,
+        updateController: updateController,
+        onPressed: (context, ref) => showAppMenuAbout(
+          context,
+          ref,
+          loadPackageInfo: () async => PackageInfo(
+            appName: kAleraAppName,
+            packageName: 'dev.leynier.alera',
+            version: '1.2.3',
+            buildNumber: '45',
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Run'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Check For Updates'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Check For Updates'), findsNothing);
+      expect(updateController.checkForUpdatesCalls, 1);
+      expect(toastMessages, <String>['Alera is up to date.']);
     });
 
     testWidgets('exitAppFromMenu closes the app window', (tester) async {

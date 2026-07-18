@@ -205,7 +205,7 @@ class _AleraAppMenuButtonState extends ConsumerState<AleraAppMenuButton> {
           const SelectAllTextIntent(SelectionChangedCause.keyboard),
         );
       case _AppMenuAction.showAbout:
-        await showAppMenuAbout(context);
+        await showAppMenuAbout(context, ref);
       case _AppMenuAction.exitApp:
         await exitAppFromMenu(ref);
     }
@@ -249,7 +249,7 @@ class _MacOsPlatformMenuBar extends ConsumerWidget {
             PlatformMenuItem(
               label: 'About $kAleraAppName',
               onSelected: () {
-                unawaited(showAppMenuAbout(context));
+                unawaited(showAppMenuAbout(context, ref));
               },
             ),
             PlatformMenuItemGroup(
