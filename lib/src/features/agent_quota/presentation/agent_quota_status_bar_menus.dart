@@ -290,7 +290,7 @@ String _quotaTooltipLine({
 
 String _normalizeQuotaText(String value) {
   return value
-      .replaceAll('—', '-')
+      .replaceAll('-', '-')
       .replaceAll('–', '-')
       .replaceAll(RegExp(r'\bGpt\b'), 'GPT');
 }

@@ -75,7 +75,7 @@ class WorkspaceActivityController extends _$WorkspaceActivityController {
 }
 
 /// Feeds [WorkspaceActivityController] from discrete agent status transitions.
-/// Tool-by-tool updates within one state do not count as activity — only a
+/// Tool-by-tool updates within one state do not count as activity - only a
 /// `state`/`stateStartedAt` change marks the workspace as active.
 @Riverpod(keepAlive: true)
 void workspaceActivityCoordinator(Ref ref) {

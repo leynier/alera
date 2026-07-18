@@ -690,7 +690,7 @@ impl ServerActor {
 
     /// Mints a terminal tab with spawnOnCreate + the default agent command.
     /// Requires the app to be connected (it owns PTY spawn + hook env); with
-    /// no app this logs and retries next tick — documented v1 limitation.
+    /// no app this logs and retries next tick - documented v1 limitation.
     async fn coordinator_create_worker_terminal(
         &mut self,
         config: &CoordinatorConfig,

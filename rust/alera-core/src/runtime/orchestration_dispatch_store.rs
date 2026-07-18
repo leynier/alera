@@ -261,7 +261,7 @@ impl RuntimeStore {
     }
 
     /// Records a dispatch failure. Below the circuit-breaker threshold the
-    /// task returns to `ready` (deps are already satisfied — `pending` would
+    /// task returns to `ready` (deps are already satisfied - `pending` would
     /// strand it because promotion only runs when a dep completes). At the
     /// threshold the dispatch is circuit-broken and the task fails.
     pub async fn fail_orchestration_dispatch(

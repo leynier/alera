@@ -45,7 +45,7 @@ pub enum WorkerKind {
 
 /// The dispatch preamble teaches agents Alera's CLI commands for structured
 /// communication. Behavioral rules live as inline comments above the relevant
-/// CLI example, not as a separate prose block — LLM readers anchor on
+/// CLI example, not as a separate prose block - LLM readers anchor on
 /// examples and skim trailing prose, so rules must land at the point of use.
 pub fn build_dispatch_preamble(params: &PreambleParams<'_>) -> String {
     let PreambleParams {
@@ -83,7 +83,7 @@ Slack, GitHub comments, or any other channel to reach a human during the run.
   # BEHAVIOR RULE #1 (MUST NOT VIOLATE):
   # NEVER use AskUserQuestion; use `alera orchestration ask` or send
   # --type decision_gate. AskUserQuestion opens a local TUI prompt that the
-  # coordinator cannot see and cannot answer — your session will hang forever
+  # coordinator cannot see and cannot answer - your session will hang forever
   # waiting on a human. Every interactive question goes through `ask` below.
   #
   # The `ask` verb is a thin wrapper: it sends a decision_gate message and
@@ -148,7 +148,7 @@ fn build_post_worker_done_instructions(worker_kind: WorkerKind) -> String {
         WorkerKind::BareShell => r#"=== AFTER COMPLETE RETURNS ===
 
 Successful completion ends your turn for this task. Your dispatched work is complete:
-stop and take no further actions — do NOT start new or unrelated work,
+stop and take no further actions - do NOT start new or unrelated work,
 do NOT run a sleep/poll loop, and do NOT keep calling
 `alera orchestration check`. The coordinator has already recorded your
 completion and expects no further output.
@@ -160,7 +160,7 @@ dispatch or prompt another worker with a fresh TASK block."#
         WorkerKind::PromptReturningAgent => r#"=== AFTER COMPLETE RETURNS ===
 
 Successful completion ends your turn for this task. Your dispatched work is complete:
-stop, return to an idle prompt, and take no further actions — do NOT start
+stop, return to an idle prompt, and take no further actions - do NOT start
 new or unrelated work, do NOT run a sleep/poll loop, and do NOT keep calling
 `alera orchestration check`. The coordinator has already recorded your
 completion and expects no further output.

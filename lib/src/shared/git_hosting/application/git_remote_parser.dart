@@ -1,7 +1,7 @@
 import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:alera/src/shared/git_hosting/domain/git_remote_identity.dart';
 
-/// Pure parsing of git remote URLs into a [GitRemoteIdentity]. No I/O — the
+/// Pure parsing of git remote URLs into a [GitRemoteIdentity]. No I/O - the
 /// caller reads the remote URL through `GitBackend.listRemotes` and passes the
 /// string here. Detection is a single host/path parse per remote, avoiding
 /// Orca's per-provider subprocess probing.
@@ -78,7 +78,7 @@ _ParsedRemoteUrl? _parseRemoteUrl(String raw) {
     host = uri.host;
     path = uri.path;
   } else {
-    // scp-like: [user@]host:path — the first ':' separates host from path.
+    // scp-like: [user@]host:path - the first ':' separates host from path.
     final colon = url.indexOf(':');
     if (colon <= 0) {
       return null;

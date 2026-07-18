@@ -169,7 +169,7 @@ void main() {
     });
 
     test('main worktree is pinned to the top regardless of name sort', () {
-      // 'feature' would normally come before 'main' alphabetically — main wins.
+      // 'feature' would normally come before 'main' alphabetically - main wins.
       final rows = buildSidebarRows(_fixtureState());
       final aleraWorkspaces = rows
           .whereType<WorkbenchWorkspaceRow>()

@@ -603,7 +603,7 @@ pub struct GitBaseDrift {
 const BASE_DRIFT_SUBJECT_LIMIT: usize = 5;
 
 /// Measures drift between a worktree's HEAD and its upstream tracking branch
-/// without fetching. Returns `None` when the branch has no upstream — a
+/// without fetching. Returns `None` when the branch has no upstream - a
 /// worktree with no tracking base has nothing to drift from.
 pub fn probe_base_drift(worktree_path: &str) -> Result<Option<GitBaseDrift>, GitError> {
     let repo = open_repo(worktree_path)?;

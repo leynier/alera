@@ -115,7 +115,7 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
   Future<void> _activateAddedProject(Project project) async {
     await _ensureMainWorkspaceForProject(project);
     // Expand the project (remove from collapsed set if a stale id lingered).
-    // Selection set is a positive filter — leave it untouched so we don't
+    // Selection set is a positive filter - leave it untouched so we don't
     // accidentally start showing this brand-new project alone.
     final prefs = state.viewPrefs;
     final nextCollapsed = Set<String>.from(prefs.collapsedProjectIds)
