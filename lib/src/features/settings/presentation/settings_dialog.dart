@@ -9,6 +9,7 @@ import 'package:alera/src/features/settings/presentation/panes/agent_quota_setti
 import 'package:alera/src/features/settings/presentation/panes/ai_text_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/application_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/editor_pane.dart';
+import 'package:alera/src/features/settings/presentation/panes/mobile_devices_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/projects_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/remote_hosts_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/terminal_pane.dart';
@@ -131,6 +132,12 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
       SettingsGroupSpec(id: 'interaction', title: 'Interaction'),
       SettingsGroupSpec(id: 'advanced', title: 'Advanced'),
     ];
+    const mobileDeviceGroups = <SettingsGroupSpec>[
+      SettingsGroupSpec(id: 'gateway', title: 'Mobile Gateway'),
+      SettingsGroupSpec(id: 'pairing', title: 'Link A Device'),
+      SettingsGroupSpec(id: 'offers', title: 'Active Pairing Offers'),
+      SettingsGroupSpec(id: 'devices', title: 'Paired Devices'),
+    ];
 
     final sections = <SettingsSectionData>[
       SettingsSectionData(
@@ -228,6 +235,18 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         entries: projectSearchEntries,
         navGroup: SettingsNavGroup.resources,
         builder: (_) => const ProjectSettingsPane(),
+      ),
+      SettingsSectionData(
+        id: 'mobileDevices',
+        title: 'Mobile Devices',
+        description: 'Pair and manage the mobile companion app.',
+        icon: AleraIcons.mobileDevice,
+        entries: mobileDeviceSearchEntries,
+        groups: mobileDeviceGroups,
+        navGroup: SettingsNavGroup.resources,
+        builder: (_) => MobileDevicesSettingsPane(
+          groupKeys: _paneKeys('mobileDevices', mobileDeviceGroups),
+        ),
       ),
       SettingsSectionData(
         id: 'remoteHosts',

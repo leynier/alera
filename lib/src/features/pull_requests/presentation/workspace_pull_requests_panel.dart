@@ -28,7 +28,7 @@ class WorkspacePullRequestsPanel extends ConsumerWidget {
 
   final Workspace workspace;
 
-  /// The git repository Source Control controls for this workspace — the
+  /// The git repository Source Control controls for this workspace - the
   /// workspace path for git projects, or a designated git subfolder for Folder
   /// workspaces (`WorkspaceSourceControlScope.path`).
   final String repoPath;

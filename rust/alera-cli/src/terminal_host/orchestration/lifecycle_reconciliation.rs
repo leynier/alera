@@ -134,7 +134,7 @@ async fn reconcile_worker_done(
     log: &mut impl FnMut(String),
 ) -> Result<LifecycleReconciliation> {
     log(format!(
-        "Worker done: {} — {}",
+        "Worker done: {} - {}",
         message.from_handle, message.subject
     ));
     let payload = object_payload(message);

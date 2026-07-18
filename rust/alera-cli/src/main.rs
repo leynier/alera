@@ -40,9 +40,10 @@ use crate::cli::{
 use crate::cli::{MobileAction, MobileCommand, MobileDevicesAction, MobilePairingAction};
 use crate::cli::{TerminalAction, TerminalCommand};
 use crate::mobile_access::{
-    list_mobile_devices, mobile_status, pair_mobile_device, revoke_mobile_device,
-    update_mobile_settings, MobileDevicePairRequest, MobilePairingCreateRequest,
-    MobilePairingOfferPayload, MobileSettingsUpdateRequest,
+    cancel_mobile_pairing_offer, list_mobile_devices, mobile_status, pair_mobile_device,
+    rename_mobile_device, revoke_mobile_device, update_mobile_settings, MobileDevicePairRequest,
+    MobileDeviceSummary, MobilePairingCreateRequest, MobilePairingOfferPayload,
+    MobileSettingsUpdateRequest,
 };
 use crate::runtime_host_client::RuntimeHostRpcClient;
 use crate::ssh_bootstrap::{
@@ -828,6 +829,25 @@ async fn run_mobile_command(command: MobileCommand) -> i32 {
                     Err(error) => return print_error(error),
                 }
             }
+            MobilePairingAction::Cancel(IdArgs { id }) => {
+                let payload = json!({ "id": id });
+                let cancelled_id = id.clone();
+                match mobile_runtime_host_or_store_unit(
+                    &runtime,
+                    "mobile.pairing.cancel",
+                    &payload,
+                    |store| async move { cancel_mobile_pairing_offer(&store, &id).await },
+                )
+                .await
+                {
+                    Ok(()) => print_value(
+                        &json!({ "id": cancelled_id }),
+                        json_output,
+                        "mobile pairing offer cancelled",
+                    ),
+                    Err(error) => return print_error(error),
+                }
+            }
         },
         MobileAction::Devices(command) => {
             match command.action {
@@ -844,6 +864,22 @@ async fn run_mobile_command(command: MobileCommand) -> i32 {
                     Ok(devices) => print_value(&json!({ "kind": "mobileDevices", "items": devices, "filters": { "includeRevoked": args.include_revoked } }), json_output, "mobile devices listed"),
                     Err(error) => return print_error(error),
                 }
+                }
+                MobileDevicesAction::Rename(args) => {
+                    let payload = json!({ "id": args.id, "displayName": args.name });
+                    match mobile_runtime_host_or_store::<MobileDeviceSummary, _, _>(
+                        &runtime,
+                        "mobile.device.rename",
+                        &payload,
+                        |store| async move {
+                            rename_mobile_device(&store, &args.id, &args.name).await
+                        },
+                    )
+                    .await
+                    {
+                        Ok(device) => print_value(&device, json_output, "mobile device renamed"),
+                        Err(error) => return print_error(error),
+                    }
                 }
                 MobileDevicesAction::Revoke(IdArgs { id }) => {
                     let payload = json!({ "id": id });
@@ -1233,44 +1269,4 @@ fn print_error(error: impl std::fmt::Display) -> i32 {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn host_accessible_path_resolves_relative_paths_against_current_dir() {
-        let current_dir = std::env::temp_dir().join("alera-cli-path-test");
-        let resolved = host_accessible_path("runtime/archive.json".to_string(), &current_dir);
-
-        assert_eq!(resolved, current_dir.join("runtime/archive.json"));
-    }
-
-    #[test]
-    fn host_accessible_path_keeps_absolute_paths() {
-        let current_dir = Path::new("ignored");
-        let absolute_path = std::env::temp_dir().join("alera-runtime.tar.gz");
-        let resolved =
-            host_accessible_path(absolute_path.to_string_lossy().into_owned(), current_dir);
-
-        assert_eq!(resolved, absolute_path);
-    }
-
-    #[test]
-    fn workspace_path_value_trims_empty_arguments() {
-        assert_eq!(normalized_workspace_path_value(" \t "), None);
-        assert_eq!(
-            normalized_workspace_path_value(" relative-worktree "),
-            Some("relative-worktree".to_string())
-        );
-    }
-
-    #[test]
-    fn host_accessible_path_resolves_relative_workspace_paths_for_rpc() {
-        let current_dir = std::env::temp_dir().join("alera-cli-workspace-path-test");
-        let resolved = host_accessible_path(
-            normalized_workspace_path_value("relative-worktree").unwrap(),
-            &current_dir,
-        );
-
-        assert_eq!(resolved, current_dir.join("relative-worktree"));
-    }
-}
+mod main_tests;

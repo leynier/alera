@@ -9,7 +9,7 @@ import 'package:alera/src/features/workbench/domain/workspace.dart';
 part 'workbench_sidebar_rows.dart';
 
 /// Builds the flat list of rows the sidebar should render for the current
-/// [state]. Pure function — easy to unit test.
+/// [state]. Pure function - easy to unit test.
 ///
 /// [lastActivityByWorkspaceId] supplies the persisted recency fallback for the
 /// Agent Activity sort; [previousWorkspaceOrder] is the workspace-id order of
@@ -77,7 +77,7 @@ List<WorkbenchSidebarRow> buildSidebarRows(
 
   // The flat view mixes several projects, so pinning each project's main
   // worktree only applies to the name sort there; grouped mode pins it for
-  // name and recent. Agent Activity never pins — urgency owns the order.
+  // name and recent. Agent Activity never pins - urgency owns the order.
   List<Workspace> sortWorkspaces(
     List<Workspace> workspaces, {
     required bool pinMainOnRecent,
@@ -317,7 +317,7 @@ List<WorkbenchSidebarRow> buildSidebarRows(
         }
       }
       // The flat list only gets an "All" header when a pinned section sits
-      // above it — without pins there is nothing to separate it from.
+      // above it - without pins there is nothing to separate it from.
       final hasPinnedSection = pinnedRows.isNotEmpty;
       if (hasPinnedSection) {
         rows.add(

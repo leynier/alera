@@ -1,6 +1,6 @@
-# Alera Mobile
+# Alera
 
-Alera Mobile is the Android/iOS companion app for remote Alera work. It is a separate Flutter app so mobile plugins and platform manifests do not leak into the desktop app package.
+Alera is the Android/iOS companion app for remote Alera work. It is a separate Flutter app so mobile plugins and platform manifests do not leak into the desktop app package.
 
 ## Current Surface
 
@@ -15,6 +15,19 @@ flutter pub get
 flutter analyze
 flutter test
 ```
+
+Regenerate the native launcher icons and splash screens after changing files under `assets/branding/`:
+
+```bash
+dart run flutter_launcher_icons -f flutter_launcher_icons.yaml
+dart run flutter_native_splash:create --path=flutter_native_splash.yaml
+```
+
+## Android Releases
+
+Run the **Cut Mobile Release** GitHub Actions workflow to create an Android release. Mobile tags use `mobile-vX.Y.Z` for stable releases and `mobile-vX.Y.Z-rc.N` for release candidates, independently from desktop tags. The workflow analyzes and tests the app, builds universal and architecture-specific APKs, verifies SHA-256 checksums, creates a draft GitHub Release, uploads and attests every artifact, and publishes only after the complete asset set passes verification. Use its `dry_run` input to preview the next version without creating commits, tags, or releases.
+
+iOS publishing remains disabled until Apple signing and provisioning are configured; the generated iOS icon and splash resources continue to be maintained in the project.
 
 Pairing payloads come from the runtime profile:
 

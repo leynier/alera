@@ -2,7 +2,7 @@ use clap::{Args, Subcommand};
 
 use crate::cli::{OutputArgs, RuntimeDirArgs};
 
-/// `alera orchestration ...` — inter-agent messaging, task DAG, dispatch,
+/// `alera orchestration ...` - inter-agent messaging, task DAG, dispatch,
 /// decision gates, and the coordinator loop. All verbs are RPC calls to the
 /// running runtime-host; there is no direct-store fallback because waiters,
 /// presence, and the coordinator are in-process host state.

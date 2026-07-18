@@ -1,6 +1,6 @@
 part of 'pull_request_composer.dart';
 
-/// Blocks [child] with a dimmed barrier only — no loading chip.
+/// Blocks [child] with a dimmed barrier only - no loading chip.
 class _AiDimmedBlock extends StatelessWidget {
   const _AiDimmedBlock({required this.child});
 

@@ -55,21 +55,25 @@ When the runtime host is running, `bootstrap` starts a host job and returns imme
 
 ## Mobile Access
 
-Mobile companion pairing starts from the runtime profile rather than the desktop Flutter process. The current CLI surface is:
+Mobile companion pairing is managed from **Settings → Mobile Devices** in the desktop app: enable the gateway, tune bind host/port, generate a pairing offer rendered as a QR code (with a copy-JSON fallback), watch active offers with their expiry, and rename or revoke paired devices. The pane pre-validates custom endpoints with the same rules the runtime enforces and updates live through the `mobileSettingsChanged`, `mobilePairingsChanged`, `mobileDevicesChanged`, and `mobileGatewayChanged` events. The equivalent CLI surface remains available:
 
 ```bash
 alera mobile --json enable --bind-host 127.0.0.1 --port 6768
 alera mobile --json pairing create --endpoint wss://<host-or-vpn-name>:6768
+alera mobile --json pairing cancel --id <pairing-id>
 alera mobile --json devices list
+alera mobile --json devices rename --id <device-id> --name <new-name>
 alera mobile --json devices revoke --id <device-id>
 alera mobile --json disable
 ```
 
-The generated pairing payload can be pasted or scanned in the Flutter app under `mobile/`. The CLI starts or reuses a mobile-capable runtime host for enable and pairing creation so the WebSocket listener is live before a pairing payload is returned. The app opens the configured WebSocket endpoint, claims the pairing offer with `mobile.device.pair`, stores the returned device token in secure storage, then authenticates future sessions with `mobile.hello`. Authenticated mobile clients can read status, projects, branches, workspaces, and tabs, and can create or attach to terminal sessions through the mobile terminal RPCs. Mobile access defaults to a loopback bind. Plain `ws://` endpoints are accepted only for loopback/local development because pairing secrets and device tokens are bearer credentials; their explicit port must match the local gateway port. Phone/LAN/VPN access should expose the loopback gateway through a TLS tunnel or proxy and advertise `wss://`; the public TLS endpoint port can differ from the local gateway port. When intentionally binding `0.0.0.0`, pass a reachable `--endpoint` because the pairing payload cannot advertise a wildcard address. Device revocation remains a host-side CLI/runtime-host operation and immediately disconnects active sessions for the revoked device.
+The generated pairing payload can be pasted or scanned in the Flutter app under `mobile/`. The CLI starts or reuses a mobile-capable runtime host for enable and pairing creation so the WebSocket listener is live before a pairing payload is returned. The app opens the configured WebSocket endpoint, claims the pairing offer with `mobile.device.pair`, stores the returned device token in secure storage, then authenticates future sessions with `mobile.hello`. Authenticated mobile clients can read status, projects, branches, workspaces, and tabs, and can create or attach to terminal sessions through the mobile terminal RPCs. Mobile access defaults to a loopback bind. Plain `ws://` endpoints are accepted only for loopback/local development because pairing secrets and device tokens are bearer credentials; their explicit port must match the local gateway port. Phone/LAN/VPN access should expose the loopback gateway through a TLS tunnel or proxy and advertise `wss://`; the public TLS endpoint port can differ from the local gateway port. When intentionally binding `0.0.0.0`, pass a reachable `--endpoint` because the pairing payload cannot advertise a wildcard address. Device revocation, device rename, and pairing-offer cancellation are host-side operations (settings pane, CLI, or runtime-host RPCs `mobile.device.revoke`, `mobile.device.rename`, `mobile.pairing.cancel`); they are excluded from the mobile request allowlist, and revocation immediately disconnects active sessions for the revoked device. The pairing secret is returned only once at creation time, so the QR for an existing offer cannot be shown again - cancel it and generate a new one instead.
 
 ## Settings
 
 Settings includes a **Remote Hosts** section for adding SSH targets, choosing optional platform/architecture/install directory overrides, previewing the bootstrap plan, starting bootstrap, and cancelling an active job. Bootstrap progress is delivered through runtime-host events and the persisted target status records the install directory, runtime version, platform, architecture, timestamps, and last redacted error.
+
+Settings also includes a **Mobile Devices** section covering the full mobile companion lifecycle: gateway enable/bind host/port, pairing QR generation, active offer management, and paired device rename/revocation, all backed by the local runtime host.
 
 ## Non-Goals For This Version
 

@@ -593,8 +593,8 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                 Expanded(
                   child: Text(
                     isStep1
-                        ? 'New Workspace — Selection'
-                        : 'New Workspace — Settings',
+                        ? 'New Workspace - Selection'
+                        : 'New Workspace - Settings',
                     overflow: TextOverflow.ellipsis,
                     maxLines: 1,
                     style: theme.textTheme.titleMedium?.copyWith(

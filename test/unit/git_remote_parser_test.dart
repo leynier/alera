@@ -3,7 +3,7 @@ import 'package:alera/src/shared/git_hosting/domain/git_hosting_provider.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  group('parseGitRemoteIdentity — GitHub', () {
+  group('parseGitRemoteIdentity - GitHub', () {
     test('parses HTTPS with .git suffix', () {
       final id = parseGitRemoteIdentity('https://github.com/leynier/alera.git');
       expect(id, isNotNull);
@@ -36,7 +36,7 @@ void main() {
     });
   });
 
-  group('parseGitRemoteIdentity — Azure DevOps', () {
+  group('parseGitRemoteIdentity - Azure DevOps', () {
     test('parses dev.azure.com HTTPS', () {
       final id = parseGitRemoteIdentity(
         'https://dev.azure.com/myorg/myproject/_git/myrepo',
@@ -86,7 +86,7 @@ void main() {
     });
   });
 
-  group('parseGitRemoteIdentity — unsupported / malformed', () {
+  group('parseGitRemoteIdentity - unsupported / malformed', () {
     test('returns null for an unknown host', () {
       expect(parseGitRemoteIdentity('https://gitlab.com/o/r.git'), isNull);
     });
@@ -100,7 +100,7 @@ void main() {
     });
   });
 
-  group('parseRemoteAsProvider — override forces interpretation', () {
+  group('parseRemoteAsProvider - override forces interpretation', () {
     test('forces GitHub on a self-hosted enterprise host', () {
       final id = parseRemoteAsProvider(
         'https://github.mycorp.com/team/service.git',

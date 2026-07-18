@@ -1,0 +1,150 @@
+/// Client-side mirror of the pairing endpoint rules enforced by the Rust
+/// runtime (`rust/alera-cli/src/mobile_access.rs`). Pre-validating here gives
+/// immediate feedback in the settings pane; the runtime remains the authority.
+library;
+
+bool isWildcardBindHost(String value) {
+  return switch (value.trim()) {
+    '0.0.0.0' || '::' || '[::]' => true,
+    _ => false,
+  };
+}
+
+bool isLoopbackEndpointHost(String host) {
+  var normalized = host.trim();
+  if (normalized.startsWith('[') && normalized.endsWith(']')) {
+    normalized = normalized.substring(1, normalized.length - 1);
+  }
+  while (normalized.endsWith('.')) {
+    normalized = normalized.substring(0, normalized.length - 1);
+  }
+  normalized = normalized.toLowerCase();
+  if (normalized == 'localhost') {
+    return true;
+  }
+  return _isLoopbackIpLiteral(normalized);
+}
+
+bool _isLoopbackIpLiteral(String value) {
+  try {
+    final bytes = Uri.parseIPv4Address(value);
+    return bytes[0] == 127;
+  } on FormatException {
+    // Not an IPv4 literal; fall through to IPv6.
+  }
+  try {
+    final bytes = Uri.parseIPv6Address(value);
+    for (var i = 0; i < bytes.length - 1; i++) {
+      if (bytes[i] != 0) {
+        return false;
+      }
+    }
+    return bytes.last == 1;
+  } on FormatException {
+    return false;
+  }
+}
+
+class MobilePairingEndpointParts {
+  const MobilePairingEndpointParts({
+    required this.scheme,
+    required this.host,
+    required this.port,
+  });
+
+  final String scheme;
+  final String host;
+  final int port;
+}
+
+/// Extracts scheme, host, and the explicit authority port. Returns null when
+/// the value is not a ws:// or wss:// URL with a parsable authority. The port
+/// must appear in the authority itself; a port-like value inside the query or
+/// fragment does not count (mirrors the Rust `endpoint_port`).
+MobilePairingEndpointParts? parseMobilePairingEndpoint(String endpoint) {
+  final trimmed = endpoint.trim();
+  final schemeSplit = trimmed.split('://');
+  if (schemeSplit.length != 2) {
+    return null;
+  }
+  final scheme = schemeSplit[0].toLowerCase();
+  if (scheme != 'ws' && scheme != 'wss') {
+    return null;
+  }
+  var authority = schemeSplit[1].split(RegExp('[/?#]')).first;
+  final userInfoIndex = authority.lastIndexOf('@');
+  if (userInfoIndex >= 0) {
+    authority = authority.substring(userInfoIndex + 1);
+  }
+  String host;
+  String portText;
+  if (authority.startsWith('[')) {
+    final closing = authority.indexOf(']');
+    if (closing < 0) {
+      return null;
+    }
+    host = authority.substring(0, closing + 1);
+    final rest = authority.substring(closing + 1);
+    if (!rest.startsWith(':')) {
+      return null;
+    }
+    portText = rest.substring(1);
+  } else {
+    final colon = authority.lastIndexOf(':');
+    if (colon < 0) {
+      return null;
+    }
+    host = authority.substring(0, colon);
+    portText = authority.substring(colon + 1);
+  }
+  if (host.trim().isEmpty) {
+    return null;
+  }
+  final port = int.tryParse(portText);
+  if (port == null) {
+    return null;
+  }
+  return MobilePairingEndpointParts(scheme: scheme, host: host, port: port);
+}
+
+/// Validates a custom pairing endpoint, returning a user-facing error or null
+/// when valid. Mirrors `validate_pairing_endpoint` plus the ws-port match rule
+/// from `prepare_mobile_pairing_offer_settings`.
+String? validateMobilePairingEndpoint({
+  required String endpoint,
+  required bool gatewayEnabled,
+  required int gatewayPort,
+}) {
+  final parts = parseMobilePairingEndpoint(endpoint);
+  if (parts == null) {
+    return 'Endpoint Must Be A ws:// Or wss:// URL With An Explicit Port';
+  }
+  if (parts.port < 1 || parts.port > 65535) {
+    return 'Endpoint Port Must Be Between 1 And 65535';
+  }
+  if (parts.scheme == 'ws' && !isLoopbackEndpointHost(parts.host)) {
+    return 'Endpoints Outside Loopback Must Use wss://';
+  }
+  if (parts.scheme == 'ws' && gatewayEnabled && parts.port != gatewayPort) {
+    return 'ws:// Endpoint Port Must Match The Enabled Gateway Port '
+        '$gatewayPort';
+  }
+  return null;
+}
+
+/// Contextual hint for the gateway settings group, or null when no hint is
+/// needed for the given bind host.
+String? mobileGatewayBindHostHint({
+  required String bindHost,
+  required int port,
+}) {
+  if (isWildcardBindHost(bindHost)) {
+    return 'Wildcard Bind Hosts Require An Explicit wss:// Endpoint When '
+        'Linking (For Example wss://<host-or-vpn-name>:$port)';
+  }
+  if (!isLoopbackEndpointHost(bindHost)) {
+    return 'Devices Outside This Machine Must Connect Through wss:// - Use A '
+        'TLS Proxy Or A VPN Address And Provide A Custom Endpoint';
+  }
+  return null;
+}

@@ -129,7 +129,7 @@ Components are **presentational**: they take data and callbacks as parameters an
 | Buttons | `AleraIconButton`, `AleraSegmentedButton` |
 | Badges & chips | `AleraBadge`, `AleraChip` |
 | Surfaces | `AleraPanel`, `HoverContainer` |
-| Feedback | `AleraStatusDot`, `AleraStatusIndicator`, `AleraColorSwatch`, `AleraEmptyState`, `AleraToast` |
+| Feedback | `AleraStatusDot`, `AleraStatusIndicator`, `AleraColorSwatch`, `AleraEmptyState`, `AleraToast`, `AleraQrCode` |
 | Forms | `AleraTextField`, `AleraSearchField`, `AleraNumberField`, `AleraSettingRow`, `AleraDropdownField`, `AleraCheckbox` |
 | Layout | `AleraSectionHeader`, `AleraDialog`, `AleraDialogHeader`, `AleraConfirmDialog`, `AleraSettingsGroup`, `AleraMasterDetail` |
 | Menus | `AleraDropdownEntry`, `AleraMenuItem` |
@@ -141,4 +141,4 @@ Every component ships a co-located `*.preview.dart` file so it can be developed 
 
 - Annotate preview functions with `@AleraPreview` (from `lib/src/design_system/alera_preview.dart`), which applies the Alera dark theme and ambient scaffolding automatically. Do not use the bare `@Preview`.
 - A preview function must be public and return a `Widget` or `WidgetBuilder`; its arguments and callbacks must be `const`/static.
-- Launch the previewer from the repo root with `flutter widget-preview start` (requires Chrome). Previews render on Flutter Web, so they cover UI only — terminal runtime, updater, and other native code paths are not previewable and stay out of the design system.
+- Launch the previewer from the repo root with `flutter widget-preview start` (requires Chrome). Previews render on Flutter Web, so they cover UI only - terminal runtime, updater, and other native code paths are not previewable and stay out of the design system.

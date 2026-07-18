@@ -328,6 +328,37 @@ pub async fn revoke_mobile_device(store: &RuntimeStore, id: &str) -> Result<()> 
     store.revoke_mobile_device(id).await
 }
 
+pub async fn cancel_mobile_pairing_offer(store: &RuntimeStore, id: &str) -> Result<()> {
+    let id = id.trim();
+    if id.is_empty() {
+        bail!("pairing offer id is required");
+    }
+    if !store.delete_mobile_pairing_offer(id).await? {
+        bail!("pairing offer not found");
+    }
+    Ok(())
+}
+
+pub async fn rename_mobile_device(
+    store: &RuntimeStore,
+    id: &str,
+    display_name: &str,
+) -> Result<MobileDeviceSummary> {
+    let id = id.trim();
+    if id.is_empty() {
+        bail!("mobile device id is required");
+    }
+    let display_name = display_name.trim();
+    if display_name.is_empty() {
+        bail!("mobile device name is required");
+    }
+    let device = store
+        .rename_mobile_device(id, display_name)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("mobile device not found or revoked"))?;
+    Ok(MobileDeviceSummary::from(device))
+}
+
 impl From<MobileDevice> for MobileDeviceSummary {
     fn from(device: MobileDevice) -> Self {
         Self {
@@ -464,191 +495,4 @@ fn sha256_hex(value: &str) -> String {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn pairing_settings_adopt_plaintext_loopback_endpoint_port_before_persistence() {
-        let settings = MobileAccessSettings::default();
-        let request = MobilePairingCreateRequest {
-            endpoint: Some("ws://127.0.0.1:6123".to_string()),
-            device_name: None,
-            expires_minutes: None,
-        };
-
-        let (next, endpoint) = prepare_mobile_pairing_offer_settings(settings, &request).unwrap();
-
-        assert!(next.enabled);
-        assert_eq!(next.port, 6123);
-        assert_eq!(endpoint, "ws://127.0.0.1:6123");
-    }
-
-    #[test]
-    fn pairing_settings_keep_wss_proxy_endpoint_port_separate_when_disabled() {
-        let settings = MobileAccessSettings::default();
-        let request = MobilePairingCreateRequest {
-            endpoint: Some("wss://alera.example.test:443".to_string()),
-            device_name: None,
-            expires_minutes: None,
-        };
-
-        let (next, endpoint) = prepare_mobile_pairing_offer_settings(settings, &request).unwrap();
-
-        assert!(next.enabled);
-        assert_eq!(next.port, 6768);
-        assert_eq!(endpoint, "wss://alera.example.test:443");
-    }
-
-    #[test]
-    fn pairing_settings_allow_wss_proxy_endpoint_port_mismatch_when_enabled() {
-        let settings = MobileAccessSettings {
-            enabled: true,
-            port: 6768,
-            ..MobileAccessSettings::default()
-        };
-        let request = MobilePairingCreateRequest {
-            endpoint: Some("wss://alera.example.test:443".to_string()),
-            device_name: None,
-            expires_minutes: None,
-        };
-
-        let (next, endpoint) = prepare_mobile_pairing_offer_settings(settings, &request).unwrap();
-
-        assert!(next.enabled);
-        assert_eq!(next.port, 6768);
-        assert_eq!(endpoint, "wss://alera.example.test:443");
-    }
-
-    #[test]
-    fn pairing_settings_reject_mismatched_endpoint_port_when_enabled() {
-        let settings = MobileAccessSettings {
-            enabled: true,
-            port: 6123,
-            ..MobileAccessSettings::default()
-        };
-        let request = MobilePairingCreateRequest {
-            endpoint: Some("ws://127.0.0.1:7123".to_string()),
-            device_name: None,
-            expires_minutes: None,
-        };
-
-        let error = prepare_mobile_pairing_offer_settings(settings, &request)
-            .unwrap_err()
-            .to_string();
-
-        assert!(error.contains("does not match enabled mobile gateway port 6123"));
-    }
-
-    #[test]
-    fn pairing_settings_reject_endpoint_without_explicit_port() {
-        let settings = MobileAccessSettings::default();
-        let request = MobilePairingCreateRequest {
-            endpoint: Some("wss://alera.example.test".to_string()),
-            device_name: None,
-            expires_minutes: None,
-        };
-
-        let error = prepare_mobile_pairing_offer_settings(settings, &request)
-            .unwrap_err()
-            .to_string();
-
-        assert!(error.contains("must include an explicit port"));
-    }
-
-    #[test]
-    fn pairing_settings_accept_endpoint_with_query_after_explicit_port() {
-        let settings = MobileAccessSettings::default();
-        let request = MobilePairingCreateRequest {
-            endpoint: Some("wss://alera.example.test:443?token=abc".to_string()),
-            device_name: None,
-            expires_minutes: None,
-        };
-
-        let (next, endpoint) = prepare_mobile_pairing_offer_settings(settings, &request).unwrap();
-
-        assert!(next.enabled);
-        assert_eq!(next.port, 6768);
-        assert_eq!(endpoint, "wss://alera.example.test:443?token=abc");
-    }
-
-    #[test]
-    fn pairing_settings_reject_query_that_only_looks_like_port() {
-        let settings = MobileAccessSettings::default();
-        let request = MobilePairingCreateRequest {
-            endpoint: Some("wss://alera.example.test?token=:443".to_string()),
-            device_name: None,
-            expires_minutes: None,
-        };
-
-        let error = prepare_mobile_pairing_offer_settings(settings, &request)
-            .unwrap_err()
-            .to_string();
-
-        assert!(error.contains("must include an explicit port"));
-    }
-
-    #[test]
-    fn pairing_settings_reject_endpoint_zero_port() {
-        let settings = MobileAccessSettings::default();
-        let request = MobilePairingCreateRequest {
-            endpoint: Some("ws://127.0.0.1:0".to_string()),
-            device_name: None,
-            expires_minutes: None,
-        };
-
-        let error = prepare_mobile_pairing_offer_settings(settings, &request)
-            .unwrap_err()
-            .to_string();
-
-        assert!(error.contains("port must be between 1 and 65535"));
-    }
-
-    #[test]
-    fn pairing_settings_reject_plaintext_external_endpoint() {
-        let settings = MobileAccessSettings::default();
-        let request = MobilePairingCreateRequest {
-            endpoint: Some("ws://192.168.1.50:6768".to_string()),
-            device_name: None,
-            expires_minutes: None,
-        };
-
-        let error = prepare_mobile_pairing_offer_settings(settings, &request)
-            .unwrap_err()
-            .to_string();
-
-        assert!(error.contains("outside loopback must use wss://"));
-    }
-
-    #[test]
-    fn pairing_settings_allow_plaintext_loopback_endpoint() {
-        let settings = MobileAccessSettings::default();
-        let request = MobilePairingCreateRequest {
-            endpoint: Some("ws://127.0.0.1:6768".to_string()),
-            device_name: None,
-            expires_minutes: None,
-        };
-
-        let (next, endpoint) = prepare_mobile_pairing_offer_settings(settings, &request).unwrap();
-
-        assert!(next.enabled);
-        assert_eq!(endpoint, "ws://127.0.0.1:6768");
-    }
-
-    #[test]
-    fn pairing_settings_bracket_ipv6_default_endpoint() {
-        let settings = MobileAccessSettings {
-            bind_host: "::1".to_string(),
-            ..MobileAccessSettings::default()
-        };
-        let request = MobilePairingCreateRequest {
-            endpoint: None,
-            device_name: None,
-            expires_minutes: None,
-        };
-
-        let (next, endpoint) = prepare_mobile_pairing_offer_settings(settings, &request).unwrap();
-
-        assert!(next.enabled);
-        assert_eq!(endpoint, "ws://[::1]:6768");
-    }
-}
+mod tests;

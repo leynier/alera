@@ -1,14 +1,21 @@
 import 'package:flutter/material.dart';
 
 abstract final class AleraTokens {
-  static const Color background = Color(0xFF090B0F);
-  static const Color surface = Color(0xFF111318);
-  static const Color surfaceRaised = Color(0xFF1C2028);
-  static const Color border = Color(0xFF252A34);
-  static const Color primary = Color(0xFF6EE7F9);
-  static const Color secondary = Color(0xFFA7F3D0);
-  static const Color error = Color(0xFFFCA5A5);
-  static const Color foreground = Color(0xFFE5E7EB);
+  static const Color background = Color(0xFF101010);
+  static const Color surface = Color(0xFF181818);
+  static const Color surfaceVariant = Color(0xFF202020);
+  static const Color surfaceElevated = Color(0xFF242424);
+  static const Color border = Color(0xFF323232);
+  static const Color borderSubtle = Color(0xFF272727);
+  static const Color accent = Color(0xFFE0E0E0);
+  static const Color onAccent = Color(0xFF101010);
+  static const Color foreground = Color(0xFFF5F5F5);
+  static const Color foregroundMuted = Color(0xFFA1A1A1);
+  static const Color success = Color(0xFF22C55E);
+  static const Color info = Color(0xFF60A5FA);
+  static const Color error = Color(0xFFF87171);
+  static const Color onError = Color(0xFF2C0D0D);
+  static const Color warning = Color(0xFFF59E0B);
 
   static const double spaceXs = 4;
   static const double spaceSm = 8;

@@ -72,7 +72,7 @@ class _HostListScreenState extends State<HostListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Alera Mobile'),
+        title: const Text('Alera'),
         actions: <Widget>[
           IconButton(
             tooltip: 'Pair Host',

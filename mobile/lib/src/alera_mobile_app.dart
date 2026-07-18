@@ -12,7 +12,7 @@ class AleraMobileApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Alera Mobile',
+      title: 'Alera',
       debugShowCheckedModeBanner: false,
       theme: _darkTheme,
       home: HostListScreen(
@@ -25,11 +25,26 @@ class AleraMobileApp extends StatelessWidget {
 final ThemeData _darkTheme = ThemeData(
   brightness: Brightness.dark,
   colorScheme: const ColorScheme.dark(
-    primary: AleraTokens.primary,
-    secondary: AleraTokens.secondary,
+    primary: AleraTokens.accent,
+    onPrimary: AleraTokens.onAccent,
+    primaryContainer: AleraTokens.surfaceElevated,
+    onPrimaryContainer: AleraTokens.foreground,
+    secondary: AleraTokens.accent,
+    onSecondary: AleraTokens.onAccent,
+    secondaryContainer: AleraTokens.surfaceVariant,
+    onSecondaryContainer: AleraTokens.foreground,
     surface: AleraTokens.surface,
-    surfaceContainerHighest: AleraTokens.surfaceRaised,
+    onSurface: AleraTokens.foreground,
+    surfaceContainerLowest: AleraTokens.background,
+    surfaceContainerLow: AleraTokens.surface,
+    surfaceContainer: AleraTokens.surfaceVariant,
+    surfaceContainerHigh: AleraTokens.surfaceElevated,
+    surfaceContainerHighest: AleraTokens.surfaceElevated,
+    onSurfaceVariant: AleraTokens.foregroundMuted,
     error: AleraTokens.error,
+    onError: AleraTokens.onError,
+    outline: AleraTokens.border,
+    outlineVariant: AleraTokens.borderSubtle,
   ),
   scaffoldBackgroundColor: AleraTokens.background,
   fontFamily: 'Inter',

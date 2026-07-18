@@ -1,0 +1,11 @@
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/branding/alera-app-icon.png
+  min_sdk_android: 21
+  adaptive_icon_background: "#101010"
+  adaptive_icon_foreground: assets/branding/alera-icon-foreground.png
+  adaptive_icon_foreground_inset: 0
+  adaptive_icon_monochrome: assets/branding/alera-icon-monochrome.png
+  remove_alpha_ios: true
+  background_color_ios: "#101010"

@@ -10,7 +10,7 @@ ThemeData buildAleraDarkTheme() {
     primary: AleraTokens.accent,
     onPrimary: AleraTokens.onAccent,
     // Neutralize the remaining Material baseline roles (purple/teal) so widgets
-    // that read container/tertiary roles — Switch, SegmentedButton, Chips —
+    // that read container/tertiary roles - Switch, SegmentedButton, Chips -
     // stay on Alera's grayscale palette.
     primaryContainer: AleraTokens.surfaceElevated,
     onPrimaryContainer: AleraTokens.foreground,

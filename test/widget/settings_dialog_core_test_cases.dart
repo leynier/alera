@@ -54,7 +54,7 @@ void _registerSettingsDialogCoreTests() {
   }
 
   Future<void> selectTerminalSectionLocal(WidgetTester tester) async {
-    // The sidebar lists General and Terminal — tap the Terminal nav item to
+    // The sidebar lists General and Terminal - tap the Terminal nav item to
     // switch content. The first 'Terminal' text in the tree belongs to the
     // sidebar nav item (the section header inside the content uses titleLarge
     // and shows only when active).
@@ -859,10 +859,23 @@ void _registerSettingsDialogCoreTests() {
     expect(find.text('RESOURCES'), findsOneWidget);
     expect(find.text('Application'), findsWidgets);
     expect(find.text('Agents'), findsOneWidget);
+    expect(find.text('Mobile Devices'), findsOneWidget);
     expect(find.text('General'), findsNothing);
 
     // Let pending timers (tooltips, animations) finish before teardown.
     await tester.pump(const Duration(seconds: 2));
+  });
+
+  testWidgets('searching qr surfaces the mobile devices section', (
+    tester,
+  ) async {
+    await pumpSettingsDialogLocal(tester);
+
+    await tester.enterText(find.byType(TextField).first, 'qr');
+    await tester.pump();
+
+    expect(find.text('Mobile Devices'), findsWidgets);
+    expect(find.text('Remote Hosts'), findsNothing);
   });
 
   testWidgets('tapping a subsection chip scrolls its group into view', (

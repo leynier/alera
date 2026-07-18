@@ -210,7 +210,7 @@ class GitHubForgeProvider
 
   /// Fetches the raw `gh pr checks` entries for review [number]. `gh pr
   /// checks` exits non-zero when checks are pending or failing, so the exit
-  /// code is not a success signal — parse stdout regardless and only treat a
+  /// code is not a success signal - parse stdout regardless and only treat a
   /// genuine "no checks" as an empty list.
   Future<List<Map<String, Object?>>> _fetchCheckEntries(
     GitRemoteIdentity identity,
