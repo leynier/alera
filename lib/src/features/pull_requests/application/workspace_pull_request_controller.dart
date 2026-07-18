@@ -27,10 +27,13 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'workspace_pull_request_controller.g.dart';
 part 'workspace_pull_request_review_actions.dart';
+part 'workspace_pull_request_review_editing.dart';
 
 @Riverpod(keepAlive: true)
 class WorkspacePullRequestController extends _$WorkspacePullRequestController
-    with _WorkspacePullRequestReviewActions {
+    with
+        _WorkspacePullRequestReviewActions,
+        _WorkspacePullRequestReviewEditing {
   static const Duration _minPollInterval = Duration(seconds: 30);
   static const Duration _maxPollInterval = Duration(seconds: 120);
 
@@ -88,6 +91,42 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
           unawaited(_refresh(origin: _RefreshOrigin.resume));
         }
       });
+      return;
+    }
+    // A failed initial load leaves the provider in AsyncError with no timer;
+    // without this recovery an opened panel would stay dead forever.
+    if (state.hasError) {
+      Timer.run(() {
+        unawaited(_recoverFromError());
+      });
+    }
+  }
+
+  Future<void> _recoverFromError() async {
+    if (_disposed || !_visible) {
+      return;
+    }
+    try {
+      final loaded = await _loader.load(scope);
+      if (!_disposed) {
+        state = AsyncData(loaded);
+      }
+    } catch (error, stackTrace) {
+      if (!_disposed) {
+        state = AsyncError<WorkspacePullRequestState>(error, stackTrace);
+      }
+    } finally {
+      if (!_disposed && _visible) {
+        if (state.value != null) {
+          _schedulePoll(scope);
+        } else {
+          // Still failing: keep retrying slowly while the panel stays open.
+          _pollTimer?.cancel();
+          _pollTimer = Timer(_maxPollInterval, () {
+            unawaited(_recoverFromError());
+          });
+        }
+      }
     }
   }
 
@@ -160,122 +199,6 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
         );
       },
     );
-  }
-
-  /// Creates a review from [input]: pushes the branch, calls the forge, and
-  /// links the result on success.
-  Future<CreateReviewResult> createReview(CreateReviewInput input) async {
-    final identity = state.value?.identity;
-    final forge = identity == null
-        ? null
-        : _registry.forProvider(identity.provider);
-    if (identity == null || forge == null) {
-      return const CreateReviewFailure(
-        code: CreateReviewErrorCode.blocked,
-        message: 'No hosting provider is configured.',
-      );
-    }
-    _pollTimer?.cancel();
-    state = AsyncData(
-      (state.value ?? const WorkspacePullRequestState()).copyWith(
-        action: PullRequestAction.create,
-        clearError: true,
-      ),
-    );
-    try {
-      await _gitBackend.push(scope.repoPath);
-    } on GitException catch (error) {
-      final result = CreateReviewFailure(
-        code: CreateReviewErrorCode.pushFailed,
-        message: 'Could not push the branch: ${error.context}',
-      );
-      _applyActionOutcome(failureMessage: result.message);
-      return result;
-    }
-    final result = await forge.createReview(
-      identity: identity,
-      repoPath: scope.repoPath,
-      input: input,
-    );
-    if (result is CreateReviewSuccess) {
-      await _linkedReviews.save(
-        LinkedReview.linked(
-          workspaceId: scope.workspaceId,
-          provider: identity.provider,
-          number: result.review.number,
-          url: result.review.url,
-        ),
-      );
-    }
-    _applyActionOutcome(
-      failureMessage: result is CreateReviewFailure ? result.message : null,
-    );
-    if (!_disposed && _visible) {
-      await refresh();
-    }
-    return result;
-  }
-
-  /// Detail metadata for [check] of the linked review; null when nothing is
-  /// linked or the check is gone. Transport/auth failures throw.
-  Future<ReviewCheckDetails?> loadCheckDetails(ReviewCheck check) async {
-    final current = state.value;
-    final identity = current?.identity;
-    final review = current?.review;
-    final forge = identity == null
-        ? null
-        : _registry.forProvider(identity.provider);
-    if (identity == null || review == null || forge == null) {
-      return null;
-    }
-    return forge.getCheckDetails(
-      identity: identity,
-      repoPath: scope.repoPath,
-      number: review.number,
-      check: check,
-    );
-  }
-
-  /// Updates the linked review from [input], then reloads.
-  Future<UpdateReviewResult> updateReview(UpdateReviewInput input) async {
-    final identity = state.value?.identity;
-    final review = state.value?.review;
-    final forge = identity == null
-        ? null
-        : _registry.forProvider(identity.provider);
-    if (identity == null || review == null || forge == null) {
-      return const UpdateReviewFailure(
-        code: UpdateReviewErrorCode.blocked,
-        message: 'No linked pull request to update.',
-      );
-    }
-    if (input.isEmpty) {
-      return const UpdateReviewFailure(
-        code: UpdateReviewErrorCode.blocked,
-        message: 'Nothing to update.',
-      );
-    }
-    _pollTimer?.cancel();
-    state = AsyncData(
-      (state.value ?? const WorkspacePullRequestState()).copyWith(
-        action: PullRequestAction.update,
-        clearError: true,
-      ),
-    );
-    final result = await forge.updateReview(
-      identity: identity,
-      repoPath: scope.repoPath,
-      number: review.number,
-      input: input,
-    );
-    _applyActionOutcome(
-      failureMessage: result is UpdateReviewFailure ? result.message : null,
-    );
-    // Reload only on success; the refresh path would clear the error message.
-    if (!_disposed && _visible && result is UpdateReviewSuccess) {
-      await refresh();
-    }
-    return result;
   }
 
   /// Clears the in-flight action; a non-null [failureMessage] surfaces it.
@@ -426,15 +349,15 @@ class WorkspacePullRequestController extends _$WorkspacePullRequestController
   }) {
     _pollTimer?.cancel();
     final current = snapshot ?? state.value;
-    if (_disposed ||
-        !_visible ||
-        current == null ||
-        current.isBusy ||
-        current.identity == null ||
-        current.authStatus != ForgeAuthStatus.authenticated) {
+    if (_disposed || !_visible || current == null || current.isBusy) {
       return;
     }
-    _pollTimer = Timer(_pollInterval, () {
+    // Missing identity or auth can heal outside the app (the user signs in,
+    // adds a remote); keep polling slowly instead of never retrying.
+    final degraded =
+        current.identity == null ||
+        current.authStatus != ForgeAuthStatus.authenticated;
+    _pollTimer = Timer(degraded ? _maxPollInterval : _pollInterval, () {
       unawaited(_pollTick(scope));
     });
   }

@@ -167,16 +167,22 @@ class WorkspacePullRequestLoader {
   }
 
   Future<String?> _resolveBranch(WorkspacePullRequestScope scope) async {
+    // The scope hint is the branch recorded at workspace creation; agents can
+    // switch branches inside the worktree afterwards, so live HEAD wins and
+    // the hint only covers detached HEAD or git failures.
+    try {
+      final current = await _gitBackend.currentBranch(scope.repoPath);
+      if (current.isNotEmpty && current != 'HEAD') {
+        return current;
+      }
+    } on GitException {
+      // Fall back to the scope hint below.
+    }
     final hinted = scope.branch;
     if (hinted != null && hinted.isNotEmpty && hinted != 'HEAD') {
       return hinted;
     }
-    try {
-      final current = await _gitBackend.currentBranch(scope.repoPath);
-      return current.isEmpty || current == 'HEAD' ? null : current;
-    } on GitException {
-      return null;
-    }
+    return null;
   }
 
   Future<HostedReview?> _detectReview(
