@@ -280,7 +280,7 @@ class ClaudeQuotaProfileSettings with ClaudeQuotaProfileSettingsMappable {
 @MappableClass()
 class AgentQuotaEnvironmentSettings with AgentQuotaEnvironmentSettingsMappable {
   const AgentQuotaEnvironmentSettings({
-    this.kimiApiKey = 'KIMI_APY_KEY',
+    this.kimiApiKey = 'KIMI_API_KEY',
     this.zaiApiKey = 'ZAI_API_KEY',
     this.zaiBaseUrl = 'ZAI_BASE_URL',
     this.minimaxApiKey = 'MINIMAX_API_KEY',

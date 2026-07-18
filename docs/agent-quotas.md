@@ -29,7 +29,7 @@ Alera sets `CLAUDE_CONFIG_DIR` only for the hidden quota query. The default Clau
 
 Alera stores only environment variable names, never API key values. Configure the values on every local or remote host where the provider is enabled:
 
-- Kimi Code: `KIMI_APY_KEY` and optionally `KIMI_CODE_BASE_URL`.
+- Kimi Code: `KIMI_API_KEY` and optionally `KIMI_CODE_BASE_URL`.
 - MiniMax: `MINIMAX_API_KEY` and optionally `MINIMAX_API_HOST`.
 - Z.ai: `ZAI_API_KEY` and optionally `ZAI_BASE_URL`.
 
@@ -39,7 +39,7 @@ The Kimi, MiniMax, and Z.ai variable names can be changed per host in settings. 
 
 - Claude and Antigravity use their official interactive usage commands in hidden PTYs.
 - Codex uses the read-only app-server rate-limit method.
-- Kimi calls its usage endpoint with the API key from the configured host environment variable, which defaults to `KIMI_APY_KEY`.
+- Kimi calls its usage endpoint with the API key from the configured host environment variable, which defaults to `KIMI_API_KEY`.
 - Grok reads its existing local login metadata and calls its usage endpoint.
 - MiniMax and Z.ai call their plan usage endpoints with credentials read from the target host environment.
 

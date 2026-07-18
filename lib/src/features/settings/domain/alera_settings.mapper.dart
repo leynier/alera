@@ -2091,7 +2091,7 @@ class AgentQuotaEnvironmentSettingsMapper
 
   static String _$kimiApiKey(AgentQuotaEnvironmentSettings v) => v.kimiApiKey;
   static const Field<AgentQuotaEnvironmentSettings, String> _f$kimiApiKey =
-      Field('kimiApiKey', _$kimiApiKey, opt: true, def: 'KIMI_APY_KEY');
+      Field('kimiApiKey', _$kimiApiKey, opt: true, def: 'KIMI_API_KEY');
   static String _$zaiApiKey(AgentQuotaEnvironmentSettings v) => v.zaiApiKey;
   static const Field<AgentQuotaEnvironmentSettings, String> _f$zaiApiKey =
       Field('zaiApiKey', _$zaiApiKey, opt: true, def: 'ZAI_API_KEY');
