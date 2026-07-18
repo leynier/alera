@@ -305,6 +305,56 @@ extension PullRequestCreateActionMapperExtension on PullRequestCreateAction {
   }
 }
 
+class WorkspaceKindFilterMapper extends EnumMapper<WorkspaceKindFilter> {
+  WorkspaceKindFilterMapper._();
+
+  static WorkspaceKindFilterMapper? _instance;
+  static WorkspaceKindFilterMapper ensureInitialized() {
+    if (_instance == null) {
+      MapperContainer.globals.use(_instance = WorkspaceKindFilterMapper._());
+    }
+    return _instance!;
+  }
+
+  static WorkspaceKindFilter fromValue(dynamic value) {
+    ensureInitialized();
+    return MapperContainer.globals.fromValue(value);
+  }
+
+  @override
+  WorkspaceKindFilter decode(dynamic value) {
+    switch (value) {
+      case r'all':
+        return WorkspaceKindFilter.all;
+      case r'defaultOnly':
+        return WorkspaceKindFilter.defaultOnly;
+      case r'nonDefaultOnly':
+        return WorkspaceKindFilter.nonDefaultOnly;
+      default:
+        throw MapperException.unknownEnumValue(value);
+    }
+  }
+
+  @override
+  dynamic encode(WorkspaceKindFilter self) {
+    switch (self) {
+      case WorkspaceKindFilter.all:
+        return r'all';
+      case WorkspaceKindFilter.defaultOnly:
+        return r'defaultOnly';
+      case WorkspaceKindFilter.nonDefaultOnly:
+        return r'nonDefaultOnly';
+    }
+  }
+}
+
+extension WorkspaceKindFilterMapperExtension on WorkspaceKindFilter {
+  String toValue() {
+    WorkspaceKindFilterMapper.ensureInitialized();
+    return MapperContainer.globals.toValue<WorkspaceKindFilter>(this) as String;
+  }
+}
+
 class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
   WorkbenchViewPrefsMapper._();
 
@@ -318,6 +368,7 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
       WorkspaceExplorerModeMapper.ensureInitialized();
       GitDiffViewModeMapper.ensureInitialized();
       PullRequestCreateActionMapper.ensureInitialized();
+      WorkspaceKindFilterMapper.ensureInitialized();
     }
     return _instance!;
   }
@@ -453,6 +504,15 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
     opt: true,
     def: PullRequestCreateAction.publish,
   );
+  static WorkspaceKindFilter _$workspaceKindFilter(WorkbenchViewPrefs v) =>
+      v.workspaceKindFilter;
+  static const Field<WorkbenchViewPrefs, WorkspaceKindFilter>
+  _f$workspaceKindFilter = Field(
+    'workspaceKindFilter',
+    _$workspaceKindFilter,
+    opt: true,
+    def: WorkspaceKindFilter.all,
+  );
 
   @override
   final MappableFields<WorkbenchViewPrefs> fields = const {
@@ -474,6 +534,7 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
     #explorerMode: _f$explorerMode,
     #gitDiffViewMode: _f$gitDiffViewMode,
     #pullRequestCreateAction: _f$pullRequestCreateAction,
+    #workspaceKindFilter: _f$workspaceKindFilter,
   };
 
   static WorkbenchViewPrefs _instantiate(DecodingData data) {
@@ -498,6 +559,7 @@ class WorkbenchViewPrefsMapper extends ClassMapperBase<WorkbenchViewPrefs> {
       explorerMode: data.dec(_f$explorerMode),
       gitDiffViewMode: data.dec(_f$gitDiffViewMode),
       pullRequestCreateAction: data.dec(_f$pullRequestCreateAction),
+      workspaceKindFilter: data.dec(_f$workspaceKindFilter),
     );
   }
 
@@ -593,6 +655,7 @@ abstract class WorkbenchViewPrefsCopyWith<
     WorkspaceExplorerMode? explorerMode,
     GitDiffViewMode? gitDiffViewMode,
     PullRequestCreateAction? pullRequestCreateAction,
+    WorkspaceKindFilter? workspaceKindFilter,
   });
   WorkbenchViewPrefsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -634,6 +697,7 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
     WorkspaceExplorerMode? explorerMode,
     GitDiffViewMode? gitDiffViewMode,
     PullRequestCreateAction? pullRequestCreateAction,
+    WorkspaceKindFilter? workspaceKindFilter,
   }) => $apply(
     FieldCopyWithData({
       if (groupBy != null) #groupBy: groupBy,
@@ -663,6 +727,8 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
       if (gitDiffViewMode != null) #gitDiffViewMode: gitDiffViewMode,
       if (pullRequestCreateAction != null)
         #pullRequestCreateAction: pullRequestCreateAction,
+      if (workspaceKindFilter != null)
+        #workspaceKindFilter: workspaceKindFilter,
     }),
   );
   @override
@@ -717,6 +783,10 @@ class _WorkbenchViewPrefsCopyWithImpl<$R, $Out>
     pullRequestCreateAction: data.get(
       #pullRequestCreateAction,
       or: $value.pullRequestCreateAction,
+    ),
+    workspaceKindFilter: data.get(
+      #workspaceKindFilter,
+      or: $value.workspaceKindFilter,
     ),
   );
 

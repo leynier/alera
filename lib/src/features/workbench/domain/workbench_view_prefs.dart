@@ -22,6 +22,11 @@ enum GitDiffViewMode { tree, flat }
 @MappableEnum()
 enum PullRequestCreateAction { publish, draft }
 
+/// Sidebar visibility filter by workspace kind: the project's main worktree
+/// ("Default Workspace" in the UI) versus linked worktrees.
+@MappableEnum()
+enum WorkspaceKindFilter { all, defaultOnly, nonDefaultOnly }
+
 @MappableClass()
 class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
   const WorkbenchViewPrefs({
@@ -43,6 +48,7 @@ class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
     this.explorerMode = WorkspaceExplorerMode.hideIgnored,
     this.gitDiffViewMode = GitDiffViewMode.tree,
     this.pullRequestCreateAction = PullRequestCreateAction.publish,
+    this.workspaceKindFilter = WorkspaceKindFilter.all,
   });
 
   final WorkbenchGroupBy groupBy;
@@ -95,6 +101,10 @@ class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
   /// persisted with the rest of the workbench view prefs.
   final PullRequestCreateAction pullRequestCreateAction;
 
+  /// Which workspace kinds the sidebar shows. Defaults to [WorkspaceKindFilter.all]
+  /// so previously persisted prefs (missing the key) keep today's behavior.
+  final WorkspaceKindFilter workspaceKindFilter;
+
   static const WorkbenchViewPrefs defaults = WorkbenchViewPrefs(
     groupBy: WorkbenchGroupBy.project,
     projectSort: WorkbenchSortBy.name,
@@ -114,6 +124,7 @@ class WorkbenchViewPrefs with WorkbenchViewPrefsMappable {
     explorerMode: WorkspaceExplorerMode.hideIgnored,
     gitDiffViewMode: GitDiffViewMode.tree,
     pullRequestCreateAction: PullRequestCreateAction.publish,
+    workspaceKindFilter: WorkspaceKindFilter.all,
   );
 
   factory WorkbenchViewPrefs.fromJson(Map<String, Object?> json) =>

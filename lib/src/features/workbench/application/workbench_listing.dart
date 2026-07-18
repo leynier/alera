@@ -3,6 +3,7 @@ import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_agent_activity_sort.dart';
 import 'package:alera/src/features/workbench/application/workbench_listing_tree.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
+import 'package:alera/src/features/workbench/application/workbench_workspace_filters.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 
@@ -53,6 +54,9 @@ List<WorkbenchSidebarRow> buildSidebarRows(
   }
 
   bool workspaceVisible(Project project, Workspace workspace) {
+    if (!workspaceMatchesKindFilter(prefs, workspace)) {
+      return false;
+    }
     if (!workspaceMatchesTagFilter(prefs, workspace)) {
       return false;
     }
@@ -208,7 +212,9 @@ List<WorkbenchSidebarRow> buildSidebarRows(
   final rows = <WorkbenchSidebarRow>[];
   final visibleProjects = state.projects.where(projectVisible).toList();
   final filtersHideEmptyProjects =
-      query.isNotEmpty || prefs.selectedTagIds.isNotEmpty;
+      query.isNotEmpty ||
+      prefs.selectedTagIds.isNotEmpty ||
+      prefs.workspaceKindFilter != WorkspaceKindFilter.all;
 
   final pinnedRows = <WorkbenchSidebarRow>[];
   var pinnedWorkspaceCount = 0;
@@ -341,15 +347,6 @@ List<WorkbenchSidebarRow> buildSidebarRows(
   return rows;
 }
 
-/// OR semantics over the selected tag filter: an empty selection shows every
-/// workspace; otherwise a workspace must carry at least one selected tag.
-bool workspaceMatchesTagFilter(WorkbenchViewPrefs prefs, Workspace workspace) {
-  if (prefs.selectedTagIds.isEmpty) {
-    return true;
-  }
-  return workspace.tagIds.any(prefs.selectedTagIds.contains);
-}
-
 WorkbenchSidebarCollapseTargets visibleSidebarCollapseTargets(
   WorkbenchState state, {
   bool includeCollapsedProjectDescendants = false,
@@ -357,7 +354,9 @@ WorkbenchSidebarCollapseTargets visibleSidebarCollapseTargets(
   final prefs = state.viewPrefs;
   final query = state.searchQuery.trim().toLowerCase();
   final filtersHideEmptyProjects =
-      query.isNotEmpty || prefs.selectedTagIds.isNotEmpty;
+      query.isNotEmpty ||
+      prefs.selectedTagIds.isNotEmpty ||
+      prefs.workspaceKindFilter != WorkspaceKindFilter.all;
   final visibleProjects = state.projects
       .where((project) => _projectVisible(prefs, project))
       .toList(growable: false);
@@ -430,6 +429,9 @@ bool _workspaceVisible(
   Project project,
   Workspace workspace,
 ) {
+  if (!workspaceMatchesKindFilter(prefs, workspace)) {
+    return false;
+  }
   if (!workspaceMatchesTagFilter(prefs, workspace)) {
     return false;
   }

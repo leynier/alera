@@ -79,7 +79,7 @@ abstract class _$WorkspaceActivityController
 }
 
 /// Feeds [WorkspaceActivityController] from discrete agent status transitions.
-/// Tool-by-tool updates within one state do not count as activity — only a
+/// Tool-by-tool updates within one state do not count as activity - only a
 /// `state`/`stateStartedAt` change marks the workspace as active.
 
 @ProviderFor(workspaceActivityCoordinator)
@@ -87,14 +87,14 @@ final workspaceActivityCoordinatorProvider =
     WorkspaceActivityCoordinatorProvider._();
 
 /// Feeds [WorkspaceActivityController] from discrete agent status transitions.
-/// Tool-by-tool updates within one state do not count as activity — only a
+/// Tool-by-tool updates within one state do not count as activity - only a
 /// `state`/`stateStartedAt` change marks the workspace as active.
 
 final class WorkspaceActivityCoordinatorProvider
     extends $FunctionalProvider<void, void, void>
     with $Provider<void> {
   /// Feeds [WorkspaceActivityController] from discrete agent status transitions.
-  /// Tool-by-tool updates within one state do not count as activity — only a
+  /// Tool-by-tool updates within one state do not count as activity - only a
   /// `state`/`stateStartedAt` change marks the workspace as active.
   WorkspaceActivityCoordinatorProvider._()
     : super(

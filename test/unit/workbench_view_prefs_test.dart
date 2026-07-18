@@ -110,6 +110,17 @@ void main() {
       expect(restored.selectedTagIds, isEmpty);
       expect(restored.collapsedParentWorkspaceIds, isEmpty);
       expect(restored.workspaceSort, WorkbenchSortBy.recent);
+      expect(restored.workspaceKindFilter, WorkspaceKindFilter.all);
+    });
+
+    test('round-trips the workspace kind filter', () {
+      final prefs = WorkbenchViewPrefs.defaults.copyWith(
+        workspaceKindFilter: WorkspaceKindFilter.nonDefaultOnly,
+      );
+      final restored = WorkbenchViewPrefs.fromJson(
+        Map<String, Object?>.from(prefs.toMap()),
+      );
+      expect(restored.workspaceKindFilter, WorkspaceKindFilter.nonDefaultOnly);
     });
 
     test('fromJson decodes the activity sort value', () {

@@ -35,6 +35,13 @@ mixin _WorkbenchControllerViewPrefs
     _updateViewPrefs(state.viewPrefs.copyWith(workspaceSort: sort));
   }
 
+  void setWorkspaceKindFilter(WorkspaceKindFilter filter) {
+    if (state.viewPrefs.workspaceKindFilter == filter) {
+      return;
+    }
+    _updateViewPrefs(state.viewPrefs.copyWith(workspaceKindFilter: filter));
+  }
+
   void toggleProjectFilter(String projectId) {
     final next = Set<String>.from(state.viewPrefs.selectedProjectIds);
     if (!next.add(projectId)) {
