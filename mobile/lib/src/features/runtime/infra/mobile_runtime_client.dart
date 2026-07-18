@@ -2,9 +2,15 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:alera_mobile/src/core/json_payload_fields.dart';
+import 'package:alera_mobile/src/core/mobile_protocol.dart';
+import 'package:alera_mobile/src/features/hosts/domain/paired_device_credentials.dart';
+import 'package:alera_mobile/src/features/hosts/domain/pairing_offer.dart';
+import 'package:alera_mobile/src/features/runtime/domain/mobile_runtime_status.dart';
+import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
+import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
+import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
-
-import '../models.dart';
 
 const Duration _defaultRequestTimeout = Duration(seconds: 20);
 
@@ -124,7 +130,8 @@ class MobileRuntimeClient implements MobileTerminalClient {
     final payload = await requestList('project.list');
     return <ProjectSummary>[
       for (final item in payload)
-        if (_asMap(item).isNotEmpty) ProjectSummary.fromJson(_asMap(item)),
+        if (asJsonMap(item).isNotEmpty)
+          ProjectSummary.fromJson(asJsonMap(item)),
     ];
   }
 
@@ -139,7 +146,8 @@ class MobileRuntimeClient implements MobileTerminalClient {
     final payload = await requestList('workspace.listAll');
     return <WorkspaceSummary>[
       for (final item in payload)
-        if (_asMap(item).isNotEmpty) WorkspaceSummary.fromJson(_asMap(item)),
+        if (asJsonMap(item).isNotEmpty)
+          WorkspaceSummary.fromJson(asJsonMap(item)),
     ];
   }
 
@@ -150,7 +158,8 @@ class MobileRuntimeClient implements MobileTerminalClient {
     });
     return <WorkspaceTabSummary>[
       for (final item in payload)
-        if (_asMap(item).isNotEmpty) WorkspaceTabSummary.fromJson(_asMap(item)),
+        if (asJsonMap(item).isNotEmpty)
+          WorkspaceTabSummary.fromJson(asJsonMap(item)),
     ];
   }
 
@@ -235,7 +244,7 @@ class MobileRuntimeClient implements MobileTerminalClient {
     Map<String, Object?> payload = const <String, Object?>{},
   ]) async {
     final value = await request(type, payload);
-    return _asMap(value);
+    return asJsonMap(value);
   }
 
   Future<List<Object?>> requestList(
@@ -275,10 +284,10 @@ class MobileRuntimeClient implements MobileTerminalClient {
       List<int> bytes => jsonDecode(utf8.decode(bytes)),
       _ => null,
     };
-    final message = _asMap(decoded);
+    final message = asJsonMap(decoded);
     final event = message['event'];
     if (event is String) {
-      final payload = _asMap(message['payload']);
+      final payload = asJsonMap(message['payload']);
       if (!_events.isClosed) {
         _events.add(MobileRuntimeEvent(event, payload));
       }
@@ -324,14 +333,4 @@ class MobileRuntimeClient implements MobileTerminalClient {
   void _handleSocketClosed() {
     _handleSocketError(StateError('Mobile Runtime Connection Closed.'));
   }
-}
-
-Map<String, Object?> _asMap(Object? value) {
-  if (value is Map<String, Object?>) {
-    return value;
-  }
-  if (value is Map) {
-    return Map<String, Object?>.from(value);
-  }
-  return const <String, Object?>{};
 }

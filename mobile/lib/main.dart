@@ -1,7 +1,7 @@
+import 'package:alera_mobile/src/app/alera_mobile_app.dart';
 import 'package:flutter/material.dart';
-
-import 'src/alera_mobile_app.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 void main() {
-  runApp(const AleraMobileApp());
+  runApp(const ProviderScope(child: AleraMobileApp()));
 }

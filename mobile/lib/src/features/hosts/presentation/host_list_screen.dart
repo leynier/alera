@@ -1,47 +1,25 @@
+import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/features/hosts/application/paired_hosts_controller.dart';
+import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
+import 'package:alera_mobile/src/features/hosts/presentation/pair_host_screen.dart';
+import 'package:alera_mobile/src/features/runtime/presentation/host_dashboard_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../models.dart';
-import '../storage/host_repository.dart';
-import '../theme/alera_tokens.dart';
-import 'host_dashboard_screen.dart';
-import 'pair_host_screen.dart';
+class HostListScreen extends ConsumerWidget {
+  const HostListScreen({super.key});
 
-class HostListScreen extends StatefulWidget {
-  const HostListScreen({super.key, required this.hostRepository});
-
-  final HostRepository hostRepository;
-
-  @override
-  State<HostListScreen> createState() => _HostListScreenState();
-}
-
-class _HostListScreenState extends State<HostListScreen> {
-  late Future<List<PairedHostProfile>> _hostsFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _hostsFuture = widget.hostRepository.loadHosts();
-  }
-
-  void _refresh() {
-    setState(() {
-      _hostsFuture = widget.hostRepository.loadHosts();
-    });
-  }
-
-  Future<void> _pairHost() async {
-    final paired = await Navigator.of(context).push<bool>(
-      MaterialPageRoute<bool>(
-        builder: (_) => PairHostScreen(hostRepository: widget.hostRepository),
-      ),
+  Future<void> _pairHost(BuildContext context) async {
+    await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(builder: (_) => const PairHostScreen()),
     );
-    if (paired == true) {
-      _refresh();
-    }
   }
 
-  Future<void> _removeHost(PairedHostProfile host) async {
+  Future<void> _removeHost(
+    BuildContext context,
+    WidgetRef ref,
+    PairedHostProfile host,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -62,65 +40,55 @@ class _HostListScreenState extends State<HostListScreen> {
     if (confirmed != true) {
       return;
     }
-    await widget.hostRepository.removeHost(host.id);
-    if (mounted) {
-      _refresh();
-    }
+    await ref.read(pairedHostsControllerProvider.notifier).removeHost(host.id);
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final hosts = ref.watch(pairedHostsControllerProvider);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Alera'),
         actions: <Widget>[
           IconButton(
             tooltip: 'Pair Host',
-            onPressed: _pairHost,
+            onPressed: () => _pairHost(context),
             icon: const Icon(Icons.qr_code_scanner),
           ),
         ],
       ),
       body: SafeArea(
-        child: FutureBuilder<List<PairedHostProfile>>(
-          future: _hostsFuture,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            final hosts = snapshot.data ?? const <PairedHostProfile>[];
-            if (hosts.isEmpty) {
-              return _EmptyHosts(onPairHost: _pairHost);
-            }
-            return ListView.separated(
-              padding: AleraTokens.pagePadding,
-              itemBuilder: (context, index) {
-                final host = hosts[index];
-                return _HostCard(
-                  host: host,
-                  onOpen: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => HostDashboardScreen(
-                          host: host,
-                          hostRepository: widget.hostRepository,
-                        ),
-                      ),
-                    );
-                  },
-                  onRemove: () => _removeHost(host),
-                );
-              },
-              separatorBuilder: (_, _) =>
-                  const SizedBox(height: AleraTokens.spaceMd),
-              itemCount: hosts.length,
-            );
-          },
-        ),
+        child: switch (hosts) {
+          AsyncData(value: final hostList) when hostList.isEmpty => _EmptyHosts(
+            onPairHost: () => _pairHost(context),
+          ),
+          AsyncData(value: final hostList) => ListView.separated(
+            padding: AleraTokens.pagePadding,
+            itemBuilder: (context, index) {
+              final host = hostList[index];
+              return _HostCard(
+                host: host,
+                onOpen: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => HostDashboardScreen(host: host),
+                    ),
+                  );
+                },
+                onRemove: () => _removeHost(context, ref, host),
+              );
+            },
+            separatorBuilder: (_, _) =>
+                const SizedBox(height: AleraTokens.spaceMd),
+            itemCount: hostList.length,
+          ),
+          AsyncError(:final error) => Center(child: Text(error.toString())),
+          _ => const Center(child: CircularProgressIndicator()),
+        },
       ),
       floatingActionButton: FloatingActionButton(
         tooltip: 'Pair Host',
-        onPressed: _pairHost,
+        onPressed: () => _pairHost(context),
         child: const Icon(Icons.add_link),
       ),
     );

@@ -1,4 +1,7 @@
-import 'package:alera_mobile/src/models.dart';
+import 'package:alera_mobile/src/core/mobile_protocol.dart';
+import 'package:alera_mobile/src/features/hosts/domain/paired_device_credentials.dart';
+import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
+import 'package:alera_mobile/src/features/hosts/domain/pairing_offer.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

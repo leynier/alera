@@ -1,12 +1,20 @@
 import 'dart:async';
 
-import 'package:alera_mobile/src/alera_mobile_app.dart';
-import 'package:alera_mobile/src/models.dart';
-import 'package:alera_mobile/src/network/mobile_runtime_client.dart';
-import 'package:alera_mobile/src/storage/host_repository.dart';
-import 'package:alera_mobile/src/widgets/terminal_preview.dart';
+import 'package:alera_mobile/src/app/alera_mobile_app.dart';
+import 'package:alera_mobile/src/core/mobile_protocol.dart';
+import 'package:alera_mobile/src/features/hosts/application/host_providers.dart';
+import 'package:alera_mobile/src/features/hosts/domain/paired_device_credentials.dart';
+import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
+import 'package:alera_mobile/src/features/hosts/domain/pairing_offer.dart';
+import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
+import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
+import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_client.dart';
+import 'package:alera_mobile/src/features/runtime/presentation/terminal_preview.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'support/memory_host_repository.dart';
 
 void main() {
   test('Pairing Result Uses Host Name For Stored Profile', () {
@@ -45,7 +53,12 @@ void main() {
       'device-token',
     );
 
-    await tester.pumpWidget(AleraMobileApp(hostRepository: repository));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [hostRepositoryProvider.overrideWithValue(repository)],
+        child: const AleraMobileApp(),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Alera Dev'), findsOneWidget);

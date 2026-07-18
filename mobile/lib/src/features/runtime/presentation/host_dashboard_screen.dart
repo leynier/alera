@@ -1,162 +1,61 @@
-import 'dart:async';
-
+import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
+import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
+import 'package:alera_mobile/src/features/runtime/application/host_dashboard_controller.dart';
+import 'package:alera_mobile/src/features/runtime/domain/mobile_runtime_status.dart';
+import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
+import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
+import 'package:alera_mobile/src/features/runtime/presentation/terminal_preview.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../models.dart';
-import '../network/mobile_runtime_client.dart';
-import '../storage/host_repository.dart';
-import '../theme/alera_tokens.dart';
-import '../widgets/terminal_preview.dart';
-
-class HostDashboardScreen extends StatefulWidget {
-  const HostDashboardScreen({
-    super.key,
-    required this.host,
-    required this.hostRepository,
-  });
+class HostDashboardScreen extends ConsumerWidget {
+  const HostDashboardScreen({super.key, required this.host});
 
   final PairedHostProfile host;
-  final HostRepository hostRepository;
 
   @override
-  State<HostDashboardScreen> createState() => _HostDashboardScreenState();
-}
-
-class _HostDashboardScreenState extends State<HostDashboardScreen> {
-  late Future<_DashboardData> _dataFuture;
-  MobileRuntimeClient? _client;
-
-  @override
-  void initState() {
-    super.initState();
-    _dataFuture = _connectAndLoad();
-  }
-
-  @override
-  void dispose() {
-    final client = _client;
-    _client = null;
-    if (client != null) {
-      unawaited(client.dispose());
-    }
-    super.dispose();
-  }
-
-  void _retry() {
-    final client = _client;
-    _client = null;
-    if (client != null) {
-      unawaited(client.dispose());
-    }
-    setState(() {
-      _dataFuture = _connectAndLoad();
-    });
-  }
-
-  Future<_DashboardData> _connectAndLoad() async {
-    final deviceToken = await widget.hostRepository.readDeviceToken(
-      widget.host.id,
-    );
-    if (deviceToken == null || deviceToken.trim().isEmpty) {
-      throw StateError('Device Token Is Missing.');
-    }
-    final client = await MobileRuntimeClient.connect(widget.host.endpoint);
-    var retainedByState = false;
-    try {
-      await client.authenticate(
-        deviceId: widget.host.deviceId,
-        deviceToken: deviceToken,
-      );
-      final status = await client.mobileStatus();
-      final projects = await client.listProjects();
-      final workspaces = await client.listWorkspaces();
-      final branchesByProject = <String, ProjectBranches>{};
-      for (final project in projects.take(AleraTokens.previewRowLimit)) {
-        try {
-          branchesByProject[project.id] = await client.listBranches(project.id);
-        } on Object {
-          // Branch discovery can fail for invalid or moved repos; keep the
-          // dashboard usable and surface the project/workspace state.
-        }
-      }
-      if (!mounted) {
-        throw StateError('Connection Closed.');
-      }
-      _client = client;
-      retainedByState = true;
-      return _DashboardData(
-        status: status,
-        projects: projects,
-        workspaces: workspaces,
-        branchesByProject: branchesByProject,
-      );
-    } on Object {
-      if (!retainedByState) {
-        await client.dispose();
-      }
-      rethrow;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final data = ref.watch(hostDashboardDataProvider(host.id));
+    final connection = ref.watch(hostConnectionControllerProvider(host.id));
     return Scaffold(
-      appBar: AppBar(title: Text(widget.host.displayName)),
+      appBar: AppBar(title: Text(host.displayName)),
       body: SafeArea(
-        child: FutureBuilder<_DashboardData>(
-          future: _dataFuture,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            final error = snapshot.error;
-            if (error != null) {
-              return _ErrorState(error: error, onRetry: _retry);
-            }
-            final data = snapshot.requireData;
-            final client = _client;
-            return ListView(
-              padding: AleraTokens.pagePadding,
-              children: <Widget>[
-                _StatusCard(host: widget.host, status: data.status),
-                const SizedBox(height: AleraTokens.spaceMd),
-                _ProjectsCard(
-                  projects: data.projects,
-                  branchesByProject: data.branchesByProject,
+        child: switch (data) {
+          AsyncData(value: final dashboard) => ListView(
+            padding: AleraTokens.pagePadding,
+            children: <Widget>[
+              _StatusCard(host: host, status: dashboard.status),
+              const SizedBox(height: AleraTokens.spaceMd),
+              _ProjectsCard(
+                projects: dashboard.projects,
+                branchesByProject: dashboard.branchesByProject,
+              ),
+              const SizedBox(height: AleraTokens.spaceMd),
+              _WorkspacesCard(workspaces: dashboard.workspaces),
+              const SizedBox(height: AleraTokens.spaceMd),
+              Text('Terminal', style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: AleraTokens.spaceSm),
+              switch (connection) {
+                AsyncData(value: final client) => TerminalPreview(
+                  client: client,
+                  workspaces: dashboard.workspaces,
                 ),
-                const SizedBox(height: AleraTokens.spaceMd),
-                _WorkspacesCard(workspaces: data.workspaces),
-                const SizedBox(height: AleraTokens.spaceMd),
-                Text(
-                  'Terminal',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: AleraTokens.spaceSm),
-                if (client == null)
-                  const _MutedPanel(text: 'Connection Closed')
-                else
-                  TerminalPreview(client: client, workspaces: data.workspaces),
-              ],
-            );
-          },
-        ),
+                _ => const _MutedPanel(text: 'Connection Closed'),
+              },
+            ],
+          ),
+          AsyncError(:final error) => _ErrorState(
+            error: error,
+            onRetry: () {
+              ref.invalidate(hostConnectionControllerProvider(host.id));
+            },
+          ),
+          _ => const Center(child: CircularProgressIndicator()),
+        },
       ),
     );
   }
-}
-
-class _DashboardData {
-  const _DashboardData({
-    required this.status,
-    required this.projects,
-    required this.workspaces,
-    required this.branchesByProject,
-  });
-
-  final MobileRuntimeStatus status;
-  final List<ProjectSummary> projects;
-  final List<WorkspaceSummary> workspaces;
-  final Map<String, ProjectBranches> branchesByProject;
 }
 
 class _StatusCard extends StatelessWidget {

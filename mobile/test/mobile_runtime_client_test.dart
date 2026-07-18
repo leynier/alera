@@ -2,8 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:alera_mobile/src/models.dart';
-import 'package:alera_mobile/src/network/mobile_runtime_client.dart';
+import 'package:alera_mobile/src/core/mobile_protocol.dart';
+import 'package:alera_mobile/src/features/hosts/domain/pairing_offer.dart';
+import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_client.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
