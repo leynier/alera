@@ -13,7 +13,7 @@ mod git_commit_state_impl;
 #[path = "git_diff_impl.rs"]
 mod git_diff_impl;
 #[path = "git_diff_paths.rs"]
-mod git_diff_paths;
+pub(in crate::api) mod git_diff_paths;
 #[path = "git_history_impl.rs"]
 mod git_history_impl;
 #[path = "git_range_impl.rs"]
@@ -280,7 +280,7 @@ impl GitError {
         }
     }
 
-    fn from_git2(error: git2::Error) -> Self {
+    pub(in crate::api) fn from_git2(error: git2::Error) -> Self {
         let message = error.message().to_string();
         let lowered = message.to_lowercase();
         let kind = if lowered.contains("permission denied")
@@ -326,7 +326,7 @@ impl From<core_git::GitError> for GitError {
     }
 }
 
-fn open_repo(path: &str) -> Result<Repository, GitError> {
+pub(in crate::api) fn open_repo(path: &str) -> Result<Repository, GitError> {
     // `discover` (rather than `open`) so operations work when `path` is a
     // subdirectory of the work tree, matching `is_git_repository` and the
     // behaviour of `git -C <path> ...`.
@@ -426,24 +426,6 @@ pub fn git_diff(
 
 pub fn git_diff_all(path: String, file_path: Option<String>) -> Result<GitDiffResult, GitError> {
     git_diff_impl::git_diff_all(path, file_path)
-}
-
-/// Raw bytes of one side of a diffed file for binary previews (images).
-/// Pass `area` for worktree diffs or `commit_oid`/`parent_oid` for commit
-/// diffs. Returns `None` when that side does not exist or exceeds the 20 MB
-/// preview cap.
-pub fn git_diff_blob_bytes(
-    path: String,
-    file_path: String,
-    old_path: Option<String>,
-    area: Option<GitChangeArea>,
-    commit_oid: Option<String>,
-    parent_oid: Option<String>,
-    old_side: bool,
-) -> Result<Option<Vec<u8>>, GitError> {
-    git_diff_impl::git_diff_blob_bytes(
-        path, file_path, old_path, area, commit_oid, parent_oid, old_side,
-    )
 }
 
 pub fn git_history(

@@ -6,6 +6,7 @@
 import 'api/agent_hooks.dart';
 import 'api/clipboard.dart';
 import 'api/git.dart';
+import 'api/git_diff_blob.dart';
 import 'api/git_explorer_status.dart';
 import 'api/merman_viewer.dart';
 import 'api/workspace_files.dart';

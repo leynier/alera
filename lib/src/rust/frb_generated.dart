@@ -6,6 +6,7 @@
 import 'api/agent_hooks.dart';
 import 'api/clipboard.dart';
 import 'api/git.dart';
+import 'api/git_diff_blob.dart';
 import 'api/git_explorer_status.dart';
 import 'api/merman_viewer.dart';
 import 'api/workspace_files.dart';
@@ -72,7 +73,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => -45669172;
+  int get rustContentHash => -201271375;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -172,7 +173,7 @@ abstract class RustLibApi extends BaseApi {
     String? filePath,
   });
 
-  Future<Uint8List?> crateApiGitGitDiffBlobBytes({
+  Future<Uint8List?> crateApiGitDiffBlobGitDiffBlobBytes({
     required String path,
     required String filePath,
     String? oldPath,
@@ -1003,7 +1004,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
-  Future<Uint8List?> crateApiGitGitDiffBlobBytes({
+  Future<Uint8List?> crateApiGitDiffBlobGitDiffBlobBytes({
     required String path,
     required String filePath,
     String? oldPath,
@@ -1034,7 +1035,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_opt_list_prim_u_8_strict,
           decodeErrorData: sse_decode_git_error,
         ),
-        constMeta: kCrateApiGitGitDiffBlobBytesConstMeta,
+        constMeta: kCrateApiGitDiffBlobGitDiffBlobBytesConstMeta,
         argValues: [
           path,
           filePath,
@@ -1049,7 +1050,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     );
   }
 
-  TaskConstMeta get kCrateApiGitGitDiffBlobBytesConstMeta =>
+  TaskConstMeta get kCrateApiGitDiffBlobGitDiffBlobBytesConstMeta =>
       const TaskConstMeta(
         debugName: "git_diff_blob_bytes",
         argNames: [
