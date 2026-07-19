@@ -219,11 +219,6 @@ impl ServerActor {
                 .await?;
             return Ok(response);
         }
-        if !self.has_app_clients() {
-            return Err(HostError::state(
-                "agent-spawn requires the Alera app to be connected so it can create the PTY",
-            ));
-        }
         let workspace = self
             .runtime_store
             .find_workspace(&workspace_id)
@@ -258,14 +253,7 @@ impl ServerActor {
                 }
             }),
         };
-        self.runtime_store
-            .upsert_workspace_tab(tab)
-            .await
-            .map_err(state_error)?;
-        self.broadcast_authenticated(crate::terminal_host::protocol::event(
-            "workspaceTabsChanged",
-            json!({}),
-        ));
+        self.upsert_workspace_tab_and_spawn(tab).await?;
         Ok(json!({
             "terminalHandle": id,
             "agentType": adapter.agent_type,
@@ -274,7 +262,7 @@ impl ServerActor {
             "workspaceId": workspace_id,
             "coordinatorHandle": task.coordinator_handle,
             "assigneeHandle": id,
-            "startupState": "terminal_created",
+            "startupState": "terminal_started",
             "acceptanceState": "pending_agent_readiness",
         }))
     }

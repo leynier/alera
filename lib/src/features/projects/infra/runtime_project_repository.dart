@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:alera/src/features/projects/application/project_repository.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/projects/infra/runtime_project_management_client.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 
 class RuntimeProjectRepository implements ProjectRepository {
@@ -14,7 +15,7 @@ class RuntimeProjectRepository implements ProjectRepository {
   Future<List<Project>> listAll() async {
     await _ensureReady();
     final payload = await _client.runtimeRequest('project.list');
-    return _asList(payload).map(_projectFromJson).toList(growable: false);
+    return _asList(payload).map(projectFromRuntimeJson).toList(growable: false);
   }
 
   @override
@@ -43,7 +44,7 @@ class RuntimeProjectRepository implements ProjectRepository {
       'project.upsert',
       _projectToJson(project),
     );
-    return _projectFromJson(_asMap(payload));
+    return projectFromRuntimeJson(_asMap(payload));
   }
 
   @override
@@ -60,20 +61,6 @@ class RuntimeProjectRepository implements ProjectRepository {
       await callback();
     }
   }
-}
-
-Project _projectFromJson(Map<String, Object?> json) {
-  return Project(
-    id: json['id'] as String,
-    name: json['name'] as String,
-    repoPath: json['repoPath'] as String,
-    createdAt: DateTime.parse(json['createdAt'] as String).toUtc(),
-    updatedAt: DateTime.parse(json['updatedAt'] as String).toUtc(),
-    kind: ProjectKind.values.firstWhere(
-      (kind) => kind.name == json['kind'],
-      orElse: () => ProjectKind.gitRepository,
-    ),
-  );
 }
 
 Map<String, Object?> _projectToJson(Project project) {

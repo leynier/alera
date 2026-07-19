@@ -7,6 +7,7 @@ mod cli_tests;
 mod managed_workspace;
 mod mobile_access;
 mod orchestration_commands;
+mod project_management;
 mod runtime_archive;
 mod runtime_commands;
 mod runtime_host_client;

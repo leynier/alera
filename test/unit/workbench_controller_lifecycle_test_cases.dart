@@ -202,7 +202,7 @@ void _registerWorkbenchControllerLifecycleTests() {
     );
   });
 
-  test('retries eager terminal spawn after startup error', () async {
+  test('does not spawn runtime-owned terminals while syncing tabs', () async {
     await _controller.bootstrap();
     final workspace = await _selectMainWorkspace(_controller, _harness);
     await _flushUntil(
@@ -223,19 +223,16 @@ void _registerWorkbenchControllerLifecycleTests() {
     final session =
         _harness.terminalRuntime.sessionFor(workspace: workspace, tab: tab)
             as _FakeTerminalSessionHandle;
-    session.failStarts = true;
 
     await _harness.workbenchRepository.upsertWorkspaceTab(tab);
-    await _flushUntil(() => session.ensureStartedCalls == 1);
+    await _flushUntil(
+      () => _controller.state
+          .tabsFor(workspace.id)
+          .any((candidate) => candidate.id == tab.id),
+    );
+
+    expect(session.ensureStartedCalls, 0);
     expect(session.isRunning, isFalse);
-    expect(session.errorMessage, isNotNull);
-
-    session.failStarts = false;
-    _harness.workbenchRepository.emitTabs(workspace.id);
-    await _flushUntil(() => session.ensureStartedCalls == 2);
-
-    expect(session.isRunning, isTrue);
-    expect(session.errorMessage, isNull);
   });
 
   test('path sync closes markdown viewer tabs renamed away from md', () async {

@@ -2,6 +2,7 @@ import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/features/hosts/application/paired_hosts_controller.dart';
 import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
 import 'package:alera_mobile/src/features/hosts/presentation/rename_host_dialog.dart';
+import 'package:alera_mobile/src/features/projects/presentation/projects_screen.dart';
 import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
 import 'package:alera_mobile/src/features/runtime/application/host_dashboard_controller.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_runtime_status.dart';
@@ -56,6 +57,11 @@ class HostDashboardScreen extends ConsumerWidget {
               _ProjectsCard(
                 projects: dashboard.projects,
                 branchesByProject: dashboard.branchesByProject,
+                onOpen: () => Navigator.of(context).push<void>(
+                  MaterialPageRoute<void>(
+                    builder: (_) => ProjectsScreen(host: currentHost),
+                  ),
+                ),
               ),
               const SizedBox(height: AleraTokens.spaceMd),
               _WorkspacesCard(workspaces: dashboard.workspaces),
@@ -119,10 +125,12 @@ class _ProjectsCard extends StatelessWidget {
   const _ProjectsCard({
     required this.projects,
     required this.branchesByProject,
+    required this.onOpen,
   });
 
   final List<ProjectSummary> projects;
   final Map<String, ProjectBranches> branchesByProject;
+  final VoidCallback onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -143,6 +151,12 @@ class _ProjectsCard extends StatelessWidget {
                   'Projects',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
+                const Spacer(),
+                IconButton(
+                  onPressed: onOpen,
+                  icon: const Icon(Icons.arrow_forward),
+                  tooltip: 'Open Projects',
+                ),
               ],
             ),
             const SizedBox(height: AleraTokens.spaceMd),
@@ -154,6 +168,7 @@ class _ProjectsCard extends StatelessWidget {
                 _ProjectRow(
                   project: project,
                   branches: branchesByProject[project.id],
+                  onTap: onOpen,
                 ),
           ],
         ),
@@ -163,10 +178,15 @@ class _ProjectsCard extends StatelessWidget {
 }
 
 class _ProjectRow extends StatelessWidget {
-  const _ProjectRow({required this.project, required this.branches});
+  const _ProjectRow({
+    required this.project,
+    required this.branches,
+    required this.onTap,
+  });
 
   final ProjectSummary project;
   final ProjectBranches? branches;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -180,6 +200,7 @@ class _ProjectRow extends StatelessWidget {
       leading: const Icon(Icons.folder_outlined),
       title: Text(project.name, overflow: TextOverflow.ellipsis),
       subtitle: Text(subtitle, overflow: TextOverflow.ellipsis),
+      onTap: onTap,
     );
   }
 }

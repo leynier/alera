@@ -12,6 +12,7 @@ import 'package:alera_mobile/src/features/workbench/domain/mobile_view_prefs.dar
 const String mobileWorkspaceMutationsCapability = 'mobileWorkspaceMutations';
 const String mobileWorkspaceSidebarParityCapability =
     'mobileWorkspaceSidebarParityV1';
+const String mobileProjectManagementCapability = 'mobileProjectManagementV1';
 
 class MobileRuntimeEvent {
   const MobileRuntimeEvent(this.name, this.payload);

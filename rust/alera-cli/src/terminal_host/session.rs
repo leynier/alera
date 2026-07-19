@@ -60,6 +60,15 @@ pub enum PtyWriteCompletion {
         session_instance_id: u64,
         message_ids: Vec<String>,
     },
+    StartupPlain {
+        session_instance_id: u64,
+    },
+    StartupPaste {
+        session_instance_id: u64,
+    },
+    StartupSubmit {
+        session_instance_id: u64,
+    },
 }
 
 struct PtyWrite {
@@ -226,6 +235,10 @@ impl Session {
 
     pub fn running(&self) -> bool {
         self.running
+    }
+
+    pub fn workspace_id(&self) -> &str {
+        &self.workspace_id
     }
 
     pub fn instance_id(&self) -> u64 {

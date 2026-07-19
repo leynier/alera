@@ -5,9 +5,10 @@ import 'package:alera/src/features/projects/application/project_config_service.d
 import 'package:alera/src/features/projects/application/projects_service.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/projects/domain/project_config.dart';
-import 'package:alera/src/features/projects/infra/project_config_toml_file_store.dart';
 import 'package:alera/src/features/projects/infra/runtime_project_config_repository.dart';
+import 'package:alera/src/features/projects/infra/runtime_project_config_file_store.dart';
 import 'package:alera/src/features/projects/infra/runtime_project_repository.dart';
+import 'package:alera/src/features/projects/infra/runtime_project_management_client.dart';
 import 'package:alera/src/features/workbench/application/workspace_folder_opener.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:alera/src/shared/infra/process/process_providers.dart';
@@ -50,7 +51,7 @@ ProjectConfigRepository projectConfigRepository(Ref ref) {
 
 @Riverpod(keepAlive: true)
 ProjectConfigFileStore projectConfigFileStore(Ref ref) {
-  return const TomlProjectConfigFileStore();
+  return RuntimeProjectConfigFileStore(ref.watch(runtimeHostClientProvider));
 }
 
 @Riverpod(keepAlive: true)
@@ -74,5 +75,8 @@ ProjectsService projectsService(Ref ref) {
     removeProjectConfigOverride: ref
         .watch(projectConfigServiceProvider)
         .removeUiOverride,
+    runtimeProjectManagement: RuntimeProjectManagementClient(
+      ref.watch(runtimeHostClientProvider),
+    ),
   );
 }

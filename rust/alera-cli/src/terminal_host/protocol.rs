@@ -21,6 +21,7 @@ pub const RUNTIME_HOST_MOBILE_CAPABILITY: &str = "mobileCompanionAccess";
 // of the strict-equality mobile protocol version.
 pub const RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY: &str = "mobileWorkspaceMutations";
 pub const RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY: &str = "mobileWorkspaceSidebarParityV1";
+pub const RUNTIME_HOST_MOBILE_PROJECT_MANAGEMENT_CAPABILITY: &str = "mobileProjectManagementV1";
 // Advertised additively: older hosts stay usable for non-orchestration verbs,
 // so clients must feature-check this capability instead of the protocol version.
 pub const RUNTIME_HOST_ORCHESTRATION_CAPABILITY: &str = "orchestration";
@@ -122,6 +123,15 @@ impl TerminalHostLaunch {
             shell,
             arguments: as_string_list(value.get("arguments")),
             environment: as_string_map(value.get("environment")),
+        })
+    }
+
+    pub fn to_json(&self) -> Value {
+        json!({
+            "label": self.label,
+            "shell": self.shell,
+            "arguments": self.arguments,
+            "environment": self.environment,
         })
     }
 }

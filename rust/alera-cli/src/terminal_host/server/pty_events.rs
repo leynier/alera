@@ -176,6 +176,30 @@ impl ServerActor {
                     self.deliver_pending_messages(&session_id).await;
                 }
             }
+            PtyWriteCompletion::StartupPlain {
+                session_instance_id,
+            }
+            | PtyWriteCompletion::StartupSubmit {
+                session_instance_id,
+            } => {
+                let current = self.sessions.get(&session_id).map(Session::instance_id);
+                if let Some(message) = error.filter(|_| current == Some(session_instance_id)) {
+                    self.broadcast_terminal_error(&session_id, message);
+                }
+            }
+            PtyWriteCompletion::StartupPaste {
+                session_instance_id,
+            } => {
+                let current = self.sessions.get(&session_id).map(Session::instance_id);
+                if current != Some(session_instance_id) {
+                    return;
+                }
+                if let Some(message) = error {
+                    self.broadcast_terminal_error(&session_id, message);
+                    return;
+                }
+                self.schedule_terminal_startup_submit(session_id, session_instance_id);
+            }
         }
     }
 
@@ -191,9 +215,60 @@ impl ServerActor {
         });
         if let Some((frame, clients)) = broadcast {
             self.broadcast(&clients, frame);
-            self.immediate_checkpoint(&session_id).await;
+            match self.remove_terminal_session_tab(&session_id).await {
+                Ok(true) => {}
+                Ok(false) => self.immediate_checkpoint(&session_id).await,
+                Err(error) => {
+                    eprintln!(
+                        "failed to remove tab for exited terminal {session_id}: {}",
+                        error.wire_message()
+                    );
+                    self.immediate_checkpoint(&session_id).await;
+                }
+            }
         }
         self.schedule_shutdown_if_idle();
+    }
+
+    pub(super) async fn remove_terminal_session_tab(
+        &mut self,
+        session_id: &str,
+    ) -> HostResult<bool> {
+        let metadata = self
+            .sessions
+            .get(session_id)
+            .map(|session| (session.workspace_id.clone(), session.tab_id.clone()));
+        let Some((workspace_id, tab_id)) = metadata else {
+            return Ok(false);
+        };
+        let tab_exists = self
+            .runtime_store
+            .find_workspace_tab(&tab_id)
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?
+            .is_some();
+        if !tab_exists {
+            return Ok(false);
+        }
+        self.runtime_store
+            .remove_workspace_tab(&tab_id)
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?;
+        if let Err(error) = self
+            .runtime_store
+            .record_workspace_activity(&workspace_id, chrono::Utc::now())
+            .await
+        {
+            eprintln!("failed to record activity for workspace {workspace_id}: {error}");
+        }
+        self.flush_all_output(session_id);
+        self.await_output_writes(session_id).await;
+        if let Some(mut session) = self.sessions.remove(session_id) {
+            session.terminate(true, &self.store).await;
+        }
+        self.broadcast_authenticated(event("workspaceTabsChanged", json!({})));
+        self.broadcast_authenticated(event("workspaceActivityChanged", json!({})));
+        Ok(true)
     }
 
     pub(super) async fn cleanup_orchestration_for_closed_session(

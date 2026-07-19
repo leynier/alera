@@ -62,7 +62,7 @@ class _PairingManualEntrySheetState extends State<_PairingManualEntrySheet> {
           ),
           const SizedBox(height: AleraTokens.spaceSm),
           Text(
-            'Copy The Offer JSON From The Desktop Pairing Dialog.',
+            'Copy The Offer JSON From alera mobile --json pairing create.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: AleraTokens.spaceLg),

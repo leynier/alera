@@ -431,6 +431,7 @@ jobs:
           if-no-files-found: error
 
   build_android:
+    name: build android
     needs: plan
     if: needs.plan.outputs.mobile_should_release == 'true'
     runs-on: ubuntu-latest

@@ -278,7 +278,7 @@ final class ProjectConfigFileStoreProvider
 }
 
 String _$projectConfigFileStoreHash() =>
-    r'85375f65b3a9e7d2705dd8c4eeddeddcdc700e65';
+    r'158534d28919faa37d9e8b85965c8962b0341cd0';
 
 @ProviderFor(projectConfigService)
 final projectConfigServiceProvider = ProjectConfigServiceProvider._();
@@ -410,4 +410,4 @@ final class ProjectsServiceProvider
   }
 }
 
-String _$projectsServiceHash() => r'ec2992f681ee8e948bc068961efc34656f219b8a';
+String _$projectsServiceHash() => r'bdf7c1734c4abc3bb875a53a72f8ade310bb451b';

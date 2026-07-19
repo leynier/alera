@@ -2,6 +2,7 @@ import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/features/hosts/application/paired_hosts_controller.dart';
 import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
 import 'package:alera_mobile/src/features/hosts/presentation/rename_host_dialog.dart';
+import 'package:alera_mobile/src/features/projects/presentation/projects_screen.dart';
 import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
 import 'package:alera_mobile/src/features/runtime/presentation/host_dashboard_screen.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/workspace_tabs_screen.dart';
@@ -19,7 +20,7 @@ import 'package:alera_mobile/src/features/workbench/presentation/workspace_view_
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-enum _ScreenMenuAction { groupByProject, hostDetails, renameHost }
+enum _ScreenMenuAction { groupByProject, projects, hostDetails, renameHost }
 
 /// Host detail screen: the workspace list mirroring the desktop sidebar,
 /// with pinning, project grouping, and the parent/child tree.
@@ -63,6 +64,10 @@ class RuntimeWorkspacesScreen extends ConsumerWidget {
                 value: _ScreenMenuAction.groupByProject,
                 checked: prefs.value?.groupBy == MobileWorkspaceGroupBy.project,
                 child: const Text('Group By Project'),
+              ),
+              const PopupMenuItem<_ScreenMenuAction>(
+                value: _ScreenMenuAction.projects,
+                child: Text('Projects'),
               ),
               const PopupMenuItem<_ScreenMenuAction>(
                 value: _ScreenMenuAction.hostDetails,
@@ -147,6 +152,14 @@ class RuntimeWorkspacesScreen extends ConsumerWidget {
           Navigator.of(context).push(
             MaterialPageRoute<void>(
               builder: (_) => HostDashboardScreen(host: currentHost),
+            ),
+          );
+        }
+      case _ScreenMenuAction.projects:
+        if (context.mounted) {
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => ProjectsScreen(host: currentHost),
             ),
           );
         }

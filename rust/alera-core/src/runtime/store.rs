@@ -64,6 +64,9 @@ impl RuntimeStore {
         for statement in RUNTIME_SCHEMA {
             sqlx::query(statement).execute(&self.pool).await?;
         }
+        for statement in super::project_clone_job_store::PROJECT_CLONE_JOB_SCHEMA {
+            sqlx::query(statement).execute(&self.pool).await?;
+        }
         self.migrate_legacy_orchestration_schema().await?;
         for statement in super::orchestration_message_store::ORCHESTRATION_SCHEMA {
             sqlx::query(statement).execute(&self.pool).await?;
@@ -675,6 +678,10 @@ impl RuntimeStore {
                 .bind(&workspace_id)
                 .execute(&mut *tx)
                 .await?;
+            sqlx::query("DELETE FROM linkedReviews WHERE workspaceId = ?")
+                .bind(&workspace_id)
+                .execute(&mut *tx)
+                .await?;
             sqlx::query(
                 "DELETE FROM workspaceRelations \
                  WHERE parentWorkspaceId = ? OR childWorkspaceId = ?",
@@ -693,6 +700,10 @@ impl RuntimeStore {
             .execute(&mut *tx)
             .await?;
         sqlx::query("DELETE FROM projectConfigs WHERE projectId = ?")
+            .bind(project_id)
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query("DELETE FROM projectCloneJobs WHERE projectId = ?")
             .bind(project_id)
             .execute(&mut *tx)
             .await?;

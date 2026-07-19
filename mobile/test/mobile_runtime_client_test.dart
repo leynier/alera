@@ -139,4 +139,93 @@ void main() {
 
     expect(client.debugPendingRequestCount, 0);
   });
+
+  test(
+    'Project management requests use high-level runtime contracts',
+    () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      final sockets = <WebSocket>[];
+      final requests = <Map<String, Object?>>[];
+      addTearDown(() async {
+        for (final socket in sockets) {
+          await socket.close();
+        }
+        await server.close(force: true);
+      });
+      final subscription = server.listen((request) async {
+        final socket = await WebSocketTransformer.upgrade(request);
+        sockets.add(socket);
+        socket.listen((raw) {
+          final message = jsonDecode(raw as String) as Map<String, Object?>;
+          requests.add(message);
+          final type = message['type'];
+          final payload = switch (type) {
+            'project.register' => <String, Object?>{
+              'project': <String, Object?>{
+                'id': 'project-1',
+                'name': 'Alera',
+                'repoPath': '/srv/alera',
+                'kind': 'gitRepository',
+              },
+              'mainWorkspace': <String, Object?>{
+                'id': 'workspace-1',
+                'instanceId': 'instance-1',
+                'hostId': 'local',
+                'projectId': 'project-1',
+                'name': 'Alera',
+                'path': '/srv/alera',
+                'kind': 'main',
+                'status': 'active',
+              },
+              'created': true,
+            },
+            'project.clone.start' => <String, Object?>{
+              'id': 'job-1',
+              'source': 'https://example.com/alera.git',
+              'destinationPath': '/srv/alera',
+              'status': 'queued',
+              'phase': 'cloning',
+              'updatedAt': DateTime.utc(2026).toIso8601String(),
+            },
+            _ => <String, Object?>{},
+          };
+          socket.add(
+            jsonEncode(<String, Object?>{
+              'id': message['id'],
+              'ok': true,
+              'payload': payload,
+            }),
+          );
+        });
+      });
+      addTearDown(subscription.cancel);
+
+      final client = await MobileRuntimeClient.connect(
+        'ws://${server.address.address}:${server.port}',
+      );
+      addTearDown(client.dispose);
+
+      final registration = await client.registerProject(
+        path: '/srv/alera',
+        name: 'Alera',
+      );
+      final job = await client.startProjectClone(
+        url: 'https://example.com/alera.git',
+        parentPath: '/srv',
+        directoryName: 'alera',
+      );
+
+      expect(registration.mainWorkspace.id, 'workspace-1');
+      expect(registration.created, isTrue);
+      expect(job.id, 'job-1');
+      expect(requests.map((request) => request['type']), <Object?>[
+        'project.register',
+        'project.clone.start',
+      ]);
+      expect(
+        (requests.last['payload']! as Map<String, Object?>)['parentPath'],
+        '/srv',
+      );
+    },
+  );
 }

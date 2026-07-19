@@ -399,7 +399,7 @@ async fn effective_project_config(
     parse_project_config_toml(&contents)
 }
 
-fn parse_project_config_toml(contents: &str) -> Result<ProjectConfig> {
+pub(crate) fn parse_project_config_toml(contents: &str) -> Result<ProjectConfig> {
     let value: toml::Value = contents.parse().context("Invalid alera.toml")?;
     let Some(root) = value.as_table() else {
         bail!("alera.toml must contain a table");

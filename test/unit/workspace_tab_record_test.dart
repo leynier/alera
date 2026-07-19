@@ -67,4 +67,28 @@ void main() {
     expect(legacy.terminalSessionId, 'tab-1');
     expect(bound.terminalSessionId, 'session-2');
   });
+
+  test('spawnOnCreate reflects the terminal payload flag', () {
+    final now = DateTime.utc(2026, 5, 25);
+    final regular = WorkspaceTabRecord(
+      id: 'tab-1',
+      workspaceId: 'workspace-1',
+      title: 'Terminal 1',
+      createdAt: now,
+      updatedAt: now,
+    );
+    final eager = WorkspaceTabRecord(
+      id: 'tab-2',
+      workspaceId: 'workspace-1',
+      title: 'Terminal 2',
+      createdAt: now,
+      updatedAt: now,
+      payload: const <String, Object?>{
+        workspaceTabSpawnOnCreatePayloadKey: true,
+      },
+    );
+
+    expect(regular.spawnOnCreate, isFalse);
+    expect(eager.spawnOnCreate, isTrue);
+  });
 }
