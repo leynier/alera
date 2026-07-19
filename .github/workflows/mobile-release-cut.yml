@@ -336,7 +336,7 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --draft \
             --target "${{ steps.release_commit.outputs.release_sha }}" \
-            --title "Alera ${{ needs.cut.outputs.release_version }} (Android)" \
+            --title "$TAG" \
             --notes-file release-notes.md
 
       - name: Upload mobile release assets
