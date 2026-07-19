@@ -1,6 +1,6 @@
 name: Feature request
 description: Suggest an improvement for Alera
-title: "[Feature]: "
+title: "feat: "
 labels:
   - feature
 body:

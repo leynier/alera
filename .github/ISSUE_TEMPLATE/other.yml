@@ -1,6 +1,6 @@
 name: Other
 description: Report another Alera issue type
-title: "[Other]: "
+title: "other: "
 body:
   - type: textarea
     id: details

@@ -1,6 +1,6 @@
 name: Bug report
 description: Report a problem with Alera
-title: "[Bug]: "
+title: "bug: "
 labels:
   - bug
 body:
