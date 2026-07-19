@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:alera/src/app/app.dart';
 import 'package:alera/src/app/providers.dart';
+import 'package:alera/src/features/projects/application/project_service.dart';
+import 'package:alera/src/features/projects/application/projects_service.dart';
 import 'package:alera/src/features/projects/infra/drift_project_config_repository.dart';
 import 'package:alera/src/features/projects/infra/drift_project_repository.dart';
 import 'package:alera/src/features/projects/presentation/add_project_dialog.dart';
@@ -63,6 +65,12 @@ void main() {
     final workbenchRepository = DriftWorkbenchRepository(db);
     final projectConfigRepository = DriftProjectConfigRepository(db);
     final settingsRepository = DriftSettingsRepository(db);
+    const gitBackend = E2eGitBackend();
+    final projectsService = ProjectsService(
+      projectService: ProjectService(gitBackend),
+      projectRepository: projectRepository,
+      removeProjectConfigOverride: projectConfigRepository.remove,
+    );
 
     await tester.pumpWidget(
       ProviderScope(
@@ -72,13 +80,14 @@ void main() {
             return db;
           }),
           projectRepositoryProvider.overrideWithValue(projectRepository),
+          projectsServiceProvider.overrideWithValue(projectsService),
           workbenchRepositoryProvider.overrideWithValue(workbenchRepository),
           projectConfigRepositoryProvider.overrideWithValue(
             projectConfigRepository,
           ),
           settingsRepositoryProvider.overrideWithValue(settingsRepository),
           managedWorkspaceRuntimeProvider.overrideWithValue(null),
-          gitBackendProvider.overrideWithValue(const E2eGitBackend()),
+          gitBackendProvider.overrideWithValue(gitBackend),
           terminalRuntimeProvider.overrideWith((ref) => terminalRuntime),
         ],
         child: const AleraApp(),
