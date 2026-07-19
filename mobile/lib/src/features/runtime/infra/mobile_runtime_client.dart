@@ -8,11 +8,20 @@ import 'package:alera_mobile/src/features/hosts/domain/paired_device_credentials
 import 'package:alera_mobile/src/features/hosts/domain/pairing_offer.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_runtime_status.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
+import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 const Duration _defaultRequestTimeout = Duration(seconds: 20);
+// Managed workspace lifecycle mirrors the desktop client timeouts
+// (lib/src/features/workbench/infra/runtime_managed_workspace_client.dart).
+const Duration _managedWorkspaceCreateTimeout = Duration(minutes: 30);
+const Duration _managedWorkspaceRemoveTimeout = Duration(minutes: 10);
+
+/// Capability advertised by runtimes whose mobile gateway accepts workspace
+/// mutations (pin, link/unlink, create/remove managed, tab removal).
+const String mobileWorkspaceMutationsCapability = 'mobileWorkspaceMutations';
 
 class MobileRuntimeEvent {
   const MobileRuntimeEvent(this.name, this.payload);
@@ -37,7 +46,38 @@ abstract interface class MobileTerminalClient {
   Future<void> detachTerminal(String sessionId);
 }
 
-class MobileRuntimeClient implements MobileTerminalClient {
+/// Workspace listing and mutation surface consumed by the workbench
+/// controllers; kept as an interface so tests can fake the runtime.
+abstract interface class MobileWorkspaceClient {
+  Stream<MobileRuntimeEvent> get events;
+  bool get supportsWorkspaceMutations;
+  Future<List<ProjectSummary>> listProjects();
+  Future<ProjectBranches> listBranches(String projectId);
+  Future<List<WorkspaceSummary>> listWorkspaces();
+  Future<void> setWorkspacePinned(String workspaceId, bool isPinned);
+  Future<void> linkWorkspaces({
+    required String parentWorkspaceId,
+    required String childWorkspaceId,
+  });
+  Future<void> unlinkWorkspaces({
+    required String parentWorkspaceId,
+    required String childWorkspaceId,
+  });
+  Future<WorkspaceCreationResult> createManagedWorkspace({
+    required String projectId,
+    required String branch,
+    String? sourceBranch,
+    bool reuseExistingBranch = false,
+    String? name,
+    String? parentWorkspaceId,
+  });
+  Future<void> removeManagedWorkspace(String workspaceId, {bool? deleteBranch});
+  Future<List<String>> cascadePreview(String workspaceId);
+  Future<void> removeTab(String tabId);
+}
+
+class MobileRuntimeClient
+    implements MobileTerminalClient, MobileWorkspaceClient {
   MobileRuntimeClient._(
     this._channel, {
     this._requestTimeout = _defaultRequestTimeout,
@@ -104,21 +144,34 @@ class MobileRuntimeClient implements MobileTerminalClient {
   Object? _closedError;
   StackTrace? _closedStackTrace;
 
+  Set<String> _runtimeCapabilities = const <String>{};
+
+  @override
   Stream<MobileRuntimeEvent> get events => _events.stream;
   @override
   Stream<MobileTerminalOutputEvent> get terminalOutput =>
       _terminalOutput.stream;
   int get debugPendingRequestCount => _pending.length;
 
+  /// Capabilities advertised by the runtime in the `mobile.hello` response.
+  /// Empty until [authenticate] completes.
+  Set<String> get runtimeCapabilities => _runtimeCapabilities;
+
+  @override
+  bool get supportsWorkspaceMutations =>
+      _runtimeCapabilities.contains(mobileWorkspaceMutationsCapability);
+
   Future<Map<String, Object?>> authenticate({
     required String deviceId,
     required String deviceToken,
-  }) {
-    return requestMap('mobile.hello', <String, Object?>{
+  }) async {
+    final payload = await requestMap('mobile.hello', <String, Object?>{
       'protocolVersion': aleraMobileProtocolVersion,
       'deviceId': deviceId,
       'deviceToken': deviceToken,
     });
+    _runtimeCapabilities = payload.stringList('runtimeCapabilities').toSet();
+    return payload;
   }
 
   Future<MobileRuntimeStatus> mobileStatus() async {
@@ -126,6 +179,87 @@ class MobileRuntimeClient implements MobileTerminalClient {
     return MobileRuntimeStatus.fromJson(payload);
   }
 
+  @override
+  Future<void> setWorkspacePinned(String workspaceId, bool isPinned) async {
+    await request('workspace.setPinned', <String, Object?>{
+      'id': workspaceId,
+      'isPinned': isPinned,
+    });
+  }
+
+  @override
+  Future<void> linkWorkspaces({
+    required String parentWorkspaceId,
+    required String childWorkspaceId,
+  }) async {
+    await request('workspaceRelation.link', <String, Object?>{
+      'parentWorkspaceId': parentWorkspaceId,
+      'childWorkspaceId': childWorkspaceId,
+    });
+  }
+
+  @override
+  Future<void> unlinkWorkspaces({
+    required String parentWorkspaceId,
+    required String childWorkspaceId,
+  }) async {
+    await request('workspaceRelation.unlink', <String, Object?>{
+      'parentWorkspaceId': parentWorkspaceId,
+      'childWorkspaceId': childWorkspaceId,
+    });
+  }
+
+  @override
+  Future<WorkspaceCreationResult> createManagedWorkspace({
+    required String projectId,
+    required String branch,
+    String? sourceBranch,
+    bool reuseExistingBranch = false,
+    String? name,
+    String? parentWorkspaceId,
+  }) async {
+    final payload =
+        await requestMap('workspace.createManaged', <String, Object?>{
+          'projectId': projectId,
+          'branch': branch,
+          'reuseExistingBranch': reuseExistingBranch,
+          if (!reuseExistingBranch && sourceBranch != null)
+            'sourceBranch': sourceBranch,
+          'name': ?name,
+          'parentWorkspaceId': ?parentWorkspaceId,
+        }, _managedWorkspaceCreateTimeout);
+    return WorkspaceCreationResult.fromJson(payload);
+  }
+
+  @override
+  Future<void> removeManagedWorkspace(
+    String workspaceId, {
+    bool? deleteBranch,
+  }) async {
+    await request('workspace.removeManaged', <String, Object?>{
+      'id': workspaceId,
+      'deleteBranch': ?deleteBranch,
+    }, _managedWorkspaceRemoveTimeout);
+  }
+
+  @override
+  Future<List<String>> cascadePreview(String workspaceId) async {
+    final payload = await requestMap(
+      'workspaceCascade.preview',
+      <String, Object?>{
+        'workspaceIds': <String>[workspaceId],
+        'includeDescendants': true,
+      },
+    );
+    return payload.stringList('workspaceIds');
+  }
+
+  @override
+  Future<void> removeTab(String tabId) async {
+    await request('tab.remove', <String, Object?>{'id': tabId});
+  }
+
+  @override
   Future<List<ProjectSummary>> listProjects() async {
     final payload = await requestList('project.list');
     return <ProjectSummary>[
@@ -135,6 +269,7 @@ class MobileRuntimeClient implements MobileTerminalClient {
     ];
   }
 
+  @override
   Future<ProjectBranches> listBranches(String projectId) async {
     final payload = await requestMap('project.branches.list', <String, Object?>{
       'projectId': projectId,
@@ -142,6 +277,7 @@ class MobileRuntimeClient implements MobileTerminalClient {
     return ProjectBranches.fromJson(payload);
   }
 
+  @override
   Future<List<WorkspaceSummary>> listWorkspaces() async {
     final payload = await requestList('workspace.listAll');
     return <WorkspaceSummary>[
@@ -203,6 +339,7 @@ class MobileRuntimeClient implements MobileTerminalClient {
   Future<Object?> request(
     String type, [
     Map<String, Object?> payload = const <String, Object?>{},
+    Duration? timeout,
   ]) {
     if (_disposed) {
       throw StateError('Mobile Runtime Client Is Disposed.');
@@ -227,13 +364,14 @@ class MobileRuntimeClient implements MobileTerminalClient {
       _handleSocketError(error, stackTrace);
       return Future<Object?>.error(error, stackTrace);
     }
+    final effectiveTimeout = timeout ?? _requestTimeout;
     return completer.future.timeout(
-      _requestTimeout,
+      effectiveTimeout,
       onTimeout: () {
         _pending.remove(id);
         throw TimeoutException(
           'Mobile Runtime Request Timed Out.',
-          _requestTimeout,
+          effectiveTimeout,
         );
       },
     );
@@ -242,8 +380,9 @@ class MobileRuntimeClient implements MobileTerminalClient {
   Future<Map<String, Object?>> requestMap(
     String type, [
     Map<String, Object?> payload = const <String, Object?>{},
+    Duration? timeout,
   ]) async {
-    final value = await request(type, payload);
+    final value = await request(type, payload, timeout);
     return asJsonMap(value);
   }
 

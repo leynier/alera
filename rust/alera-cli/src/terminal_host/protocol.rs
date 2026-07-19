@@ -16,6 +16,10 @@ pub const RUNTIME_HOST_CAPABILITY: &str = "runtimeStore";
 pub const RUNTIME_HOST_BOOTSTRAP_CAPABILITY: &str = "sshTargetBootstrap";
 pub const RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY: &str = "managedWorkspaceLifecycle";
 pub const RUNTIME_HOST_MOBILE_CAPABILITY: &str = "mobileCompanionAccess";
+// Advertised once mobile clients may call workspace mutations (pin, link,
+// create/remove managed, tab removal). Mobile apps feature-check this instead
+// of the strict-equality mobile protocol version.
+pub const RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY: &str = "mobileWorkspaceMutations";
 // Advertised additively: older hosts stay usable for non-orchestration verbs,
 // so clients must feature-check this capability instead of the protocol version.
 pub const RUNTIME_HOST_ORCHESTRATION_CAPABILITY: &str = "orchestration";

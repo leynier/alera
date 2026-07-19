@@ -1,9 +1,25 @@
 use super::*;
 
 #[test]
-fn mobile_allowlist_excludes_managed_workspace_mutations() {
-    assert!(!mobile_request_allowed("workspace.createManaged"));
-    assert!(!mobile_request_allowed("workspace.removeManaged"));
+fn mobile_allowlist_includes_workspace_mutations() {
+    assert!(mobile_request_allowed("workspace.setPinned"));
+    assert!(mobile_request_allowed("workspace.createManaged"));
+    assert!(mobile_request_allowed("workspace.removeManaged"));
+    assert!(mobile_request_allowed("workspaceRelation.link"));
+    assert!(mobile_request_allowed("workspaceRelation.unlink"));
+    assert!(mobile_request_allowed("tab.remove"));
+}
+
+#[test]
+fn mobile_allowlist_still_excludes_raw_and_admin_mutations() {
+    assert!(!mobile_request_allowed("workspace.upsert"));
+    assert!(!mobile_request_allowed("workspace.remove"));
+    assert!(!mobile_request_allowed("tab.upsert"));
+    assert!(!mobile_request_allowed("tab.removeForWorkspace"));
+    assert!(!mobile_request_allowed("project.upsert"));
+    assert!(!mobile_request_allowed("sshTarget.upsert"));
+    assert!(!mobile_request_allowed("mobile.settings.update"));
+    assert!(!mobile_request_allowed("runtimeMetadata.set"));
 }
 
 #[test]
