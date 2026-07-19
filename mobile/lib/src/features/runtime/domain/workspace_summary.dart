@@ -15,6 +15,9 @@ class WorkspaceSummary {
     this.parentWorkspaceId,
     this.childCount = 0,
     this.tagIds = const <String>[],
+    this.tagNames = const <String>[],
+    this.sourceBranch,
+    this.reusesExistingBranch = false,
     this.updatedAt,
   });
 
@@ -29,6 +32,9 @@ class WorkspaceSummary {
   final String? parentWorkspaceId;
   final int childCount;
   final List<String> tagIds;
+  final List<String> tagNames;
+  final String? sourceBranch;
+  final bool reusesExistingBranch;
   final DateTime? updatedAt;
 
   bool get isMain => kind == 'main';
@@ -47,6 +53,9 @@ class WorkspaceSummary {
       parentWorkspaceId: json.optionalString('parentWorkspaceId'),
       childCount: (json['childCount'] as num?)?.toInt() ?? 0,
       tagIds: json.stringList('tagIds'),
+      tagNames: json.stringList('tagNames'),
+      sourceBranch: json.optionalString('sourceBranch'),
+      reusesExistingBranch: json['reusesExistingBranch'] == true,
       updatedAt: json.optionalDateTime('updatedAt'),
     );
   }

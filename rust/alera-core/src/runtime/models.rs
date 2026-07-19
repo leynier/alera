@@ -374,11 +374,26 @@ pub struct CascadePreview {
     pub workspace_ids: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct RuntimeSettings {
     #[serde(default)]
     pub workspace_directory: Option<String>,
+    #[serde(default = "default_true")]
+    pub confirm_workspace_removal: bool,
+}
+
+impl Default for RuntimeSettings {
+    fn default() -> Self {
+        Self {
+            workspace_directory: None,
+            confirm_workspace_removal: true,
+        }
+    }
+}
+
+fn default_true() -> bool {
+    true
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

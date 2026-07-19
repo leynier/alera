@@ -11,6 +11,7 @@ import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_resu
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
+import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_workspace_sidebar_client.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 export 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
@@ -22,6 +23,7 @@ const Duration _managedWorkspaceCreateTimeout = Duration(minutes: 30);
 const Duration _managedWorkspaceRemoveTimeout = Duration(minutes: 10);
 
 class MobileRuntimeClient
+    with MobileRuntimeWorkspaceSidebarClient
     implements MobileTerminalClient, MobileWorkspaceClient {
   MobileRuntimeClient._(
     this._channel, {
@@ -100,6 +102,7 @@ class MobileRuntimeClient
 
   /// Capabilities advertised by the runtime in the `mobile.hello` response.
   /// Empty until [authenticate] completes.
+  @override
   Set<String> get runtimeCapabilities => _runtimeCapabilities;
 
   @override
@@ -304,6 +307,7 @@ class MobileRuntimeClient
     await request('terminate', <String, Object?>{'sessionId': sessionId});
   }
 
+  @override
   Future<Object?> request(
     String type, [
     Map<String, Object?> payload = const <String, Object?>{},
@@ -345,6 +349,7 @@ class MobileRuntimeClient
     );
   }
 
+  @override
   Future<Map<String, Object?>> requestMap(
     String type, [
     Map<String, Object?> payload = const <String, Object?>{},
@@ -354,6 +359,7 @@ class MobileRuntimeClient
     return asJsonMap(value);
   }
 
+  @override
   Future<List<Object?>> requestList(
     String type, [
     Map<String, Object?> payload = const <String, Object?>{},

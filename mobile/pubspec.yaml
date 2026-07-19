@@ -37,6 +37,7 @@ dependencies:
   mobile_scanner: ^7.3.0
   riverpod_annotation: ^4.0.2
   shared_preferences: ^2.5.5
+  url_launcher: ^6.3.2
   web_socket_channel: ^3.0.3
   xterm:
     path: ../third_party/xterm

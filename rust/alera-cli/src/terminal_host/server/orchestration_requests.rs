@@ -111,9 +111,7 @@ impl ServerActor {
         let _ = std::fs::remove_file(self.dispatch_context_path(handle));
     }
 
-    /// Handles `orchestration.*` requests. Wait-capable verbs return
-    /// `Ok(None)` when the request parked a waiter; the response is written
-    /// later by a wake or timeout.
+    /// Handles requests; wait-capable verbs return `Ok(None)` until a wake or timeout writes the response.
     pub(super) async fn handle_orchestration_request(
         &mut self,
         client_id: u64,
@@ -703,7 +701,9 @@ impl ServerActor {
                 .and_then(Value::as_str)
                 .unwrap_or("unknown")
                 .to_string();
-            self.agent_presence.update(handle, agent_type, state);
+            let state_started_at = self.agent_presence_timestamp(entry);
+            self.agent_presence
+                .update_at(handle, agent_type, state, state_started_at);
             if let Ok(Some(dispatch)) = self
                 .runtime_store
                 .active_orchestration_dispatch_for_handle(handle)
@@ -718,12 +718,11 @@ impl ServerActor {
                 became_ready.push(handle.to_string());
             }
         }
-        // A transition into an injection-ready state flushes that handle's
-        // undelivered queue (push-on-idle).
         for handle in became_ready {
             self.dispatch_pending_agent_spawn(&handle).await;
             self.deliver_pending_messages(&handle).await;
         }
+        self.broadcast_agent_presence_changed();
         Ok(json!({}))
     }
 
@@ -786,6 +785,7 @@ impl ServerActor {
                     "running": session.running(),
                     "agentType": presence.map(|entry| entry.agent_type.clone()),
                     "agentState": presence.map(|entry| entry.state.as_str()),
+                    "stateStartedAt": presence.map(|entry| entry.state_started_at),
                 })
             })
             .collect();

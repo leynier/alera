@@ -8,10 +8,12 @@ import 'package:alera_mobile/src/features/terminal/presentation/workspace_tabs_s
 import 'package:alera_mobile/src/features/workbench/application/mobile_view_prefs_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/mobile_workspace_rows.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_list_controller.dart';
+import 'package:alera_mobile/src/features/workbench/application/workspace_search_controller.dart';
 import 'package:alera_mobile/src/features/workbench/domain/mobile_view_prefs.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/create_workspace_screen.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_actions_sheet.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_row_widgets.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/workspace_view_options_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -73,27 +75,34 @@ class RuntimeWorkspacesScreen extends ConsumerWidget {
         ],
       ),
       body: SafeArea(
-        child: switch ((data, prefs)) {
-          (AsyncData(value: final listData), AsyncData())
-              when listData.workspaces.isEmpty =>
-            const _EmptyWorkspaces(),
-          (
-            AsyncData(value: final listData),
-            AsyncData(value: final viewPrefs),
-          ) =>
-            _WorkspaceListBody(
-              hostId: host.id,
-              data: listData,
-              prefs: viewPrefs,
+        child: Column(
+          children: <Widget>[
+            _WorkspaceToolbar(hostId: host.id, data: data.value),
+            Expanded(
+              child: switch ((data, prefs)) {
+                (AsyncData(value: final listData), AsyncData())
+                    when listData.workspaces.isEmpty =>
+                  const _EmptyWorkspaces(),
+                (
+                  AsyncData(value: final listData),
+                  AsyncData(value: final viewPrefs),
+                ) =>
+                  _WorkspaceListBody(
+                    hostId: host.id,
+                    data: listData,
+                    prefs: viewPrefs,
+                  ),
+                (AsyncError(:final error), _) => _ConnectionError(
+                  error: error,
+                  onRetry: () {
+                    ref.invalidate(hostConnectionControllerProvider(host.id));
+                  },
+                ),
+                _ => const Center(child: CircularProgressIndicator()),
+              },
             ),
-          (AsyncError(:final error), _) => _ConnectionError(
-            error: error,
-            onRetry: () {
-              ref.invalidate(hostConnectionControllerProvider(host.id));
-            },
-          ),
-          _ => const Center(child: CircularProgressIndicator()),
-        },
+          ],
+        ),
       ),
       floatingActionButton: data.value?.supportsMutations == true
           ? FloatingActionButton.extended(
@@ -103,6 +112,7 @@ class RuntimeWorkspacesScreen extends ConsumerWidget {
                     builder: (_) => CreateWorkspaceScreen(
                       hostId: host.id,
                       projects: data.value!.projects,
+                      workspaces: data.value!.workspaces,
                     ),
                   ),
                 );
@@ -163,61 +173,149 @@ class _WorkspaceListBody extends ConsumerWidget {
       workspaces: data.workspaces,
       projects: data.projects,
       prefs: prefs,
+      activity: data.activity,
+      agentPresence: data.agentPresence,
+      searchQuery: ref.watch(workspaceSearchControllerProvider(hostId)),
     );
     final prefsController = ref.read(
       mobileViewPrefsControllerProvider(hostId).notifier,
     );
-    return ListView.builder(
-      padding: const EdgeInsets.only(bottom: AleraTokens.spaceXxl * 2),
-      itemCount: rows.length,
-      itemBuilder: (context, index) {
-        final row = rows[index];
-        return switch (row) {
-          MobilePinnedHeaderRow(:final count, :final collapsed) =>
-            MobileSectionHeader(
-              label: 'Pinned',
-              icon: Icons.push_pin,
-              count: count,
-              collapsed: collapsed,
-              onToggle: prefsController.togglePinnedSection,
-            ),
-          MobileProjectHeaderRow(
-            :final projectId,
-            :final projectName,
-            :final count,
-            :final collapsed,
-          ) =>
-            MobileSectionHeader(
-              label: projectName,
-              icon: Icons.folder_outlined,
-              count: count,
-              collapsed: collapsed,
-              onToggle: () => prefsController.toggleProjectCollapsed(projectId),
-            ),
-          MobileWorkspaceEntryRow() => MobileWorkspaceListRow(
-            row: row,
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => WorkspaceTabsScreen(
-                    hostId: hostId,
-                    workspace: row.entry.workspace,
-                  ),
-                ),
-              );
-            },
-            onLongPress: () => showWorkspaceActionsSheet(
-              context,
-              ref,
-              hostId: hostId,
-              workspace: row.entry.workspace,
-              data: data,
-            ),
-            onToggleChildren: () =>
-                prefsController.toggleParentCollapsed(row.entry.workspace.id),
-          ),
-        };
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(workspaceListControllerProvider(hostId));
+        await ref.read(workspaceListControllerProvider(hostId).future);
       },
+      child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.only(bottom: AleraTokens.spaceXxl * 2),
+        itemCount: rows.length,
+        itemBuilder: (context, index) {
+          final row = rows[index];
+          return switch (row) {
+            MobilePinnedHeaderRow(:final count, :final collapsed) =>
+              MobileSectionHeader(
+                label: 'Pinned',
+                icon: Icons.push_pin,
+                count: count,
+                collapsed: collapsed,
+                onToggle: prefsController.togglePinnedSection,
+              ),
+            MobileProjectHeaderRow(
+              :final projectId,
+              :final projectName,
+              :final count,
+              :final collapsed,
+            ) =>
+              MobileSectionHeader(
+                label: projectName,
+                icon: Icons.folder_outlined,
+                count: count,
+                collapsed: collapsed,
+                onToggle: () =>
+                    prefsController.toggleProjectCollapsed(projectId),
+              ),
+            MobileAllHeaderRow(:final count, :final collapsed) =>
+              MobileSectionHeader(
+                label: 'All',
+                icon: Icons.workspaces_outline,
+                count: count,
+                collapsed: collapsed,
+                onToggle: prefsController.toggleAllSection,
+              ),
+            MobileWorkspaceEntryRow() => MobileWorkspaceListRow(
+              row: row,
+              agentPresence: data.agentPresence
+                  .where(
+                    (status) => status.workspaceId == row.entry.workspace.id,
+                  )
+                  .toList(),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => WorkspaceTabsScreen(
+                      hostId: hostId,
+                      workspace: row.entry.workspace,
+                    ),
+                  ),
+                );
+              },
+              onLongPress: () => showWorkspaceActionsSheet(
+                context,
+                ref,
+                hostId: hostId,
+                workspace: row.entry.workspace,
+                data: data,
+              ),
+              onMore: () => showWorkspaceActionsSheet(
+                context,
+                ref,
+                hostId: hostId,
+                workspace: row.entry.workspace,
+                data: data,
+              ),
+              onToggleChildren: () =>
+                  prefsController.toggleParentCollapsed(row.entry.workspace.id),
+            ),
+          };
+        },
+      ),
+    );
+  }
+}
+
+class _WorkspaceToolbar extends ConsumerWidget {
+  const _WorkspaceToolbar({required this.hostId, required this.data});
+
+  final String hostId;
+  final WorkspaceListData? data;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final query = ref.watch(workspaceSearchControllerProvider(hostId));
+    final controller = ref.read(
+      workspaceSearchControllerProvider(hostId).notifier,
+    );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AleraTokens.spaceMd,
+        AleraTokens.spaceSm,
+        AleraTokens.spaceSm,
+        AleraTokens.spaceSm,
+      ),
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: TextField(
+              onChanged: controller.setQuery,
+              decoration: InputDecoration(
+                hintText: 'Search Workspaces',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: query.isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: 'Clear Search',
+                        onPressed: controller.clear,
+                        icon: const Icon(Icons.close),
+                      ),
+                isDense: true,
+              ),
+            ),
+          ),
+          const SizedBox(width: AleraTokens.spaceSm),
+          IconButton.filledTonal(
+            tooltip: 'View Options',
+            onPressed: data == null
+                ? null
+                : () => showWorkspaceViewOptionsSheet(
+                    context,
+                    ref,
+                    hostId: hostId,
+                    data: data!,
+                  ),
+            icon: const Icon(Icons.tune),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -281,6 +379,7 @@ class _ConnectionError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final updateRequired = error is UnsupportedError;
     return Center(
       child: Padding(
         padding: AleraTokens.contentPadding,
@@ -288,13 +387,15 @@ class _ConnectionError extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Icon(
-              Icons.cloud_off_outlined,
+              updateRequired
+                  ? Icons.system_update_outlined
+                  : Icons.cloud_off_outlined,
               size: AleraTokens.emptyIcon,
               color: Theme.of(context).colorScheme.error,
             ),
             const SizedBox(height: AleraTokens.spaceLg),
             Text(
-              'Connection Failed',
+              updateRequired ? 'Update Required' : 'Connection Failed',
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: AleraTokens.spaceSm),

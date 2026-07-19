@@ -107,6 +107,7 @@ void main() {
     expect(entries.single['agentType'], 'claude');
     expect(entries.single['workspaceId'], 'ws-1');
     expect(entries.single['tabId'], 'tab-1');
+    expect(entries.single['stateStartedAt'], '2026-07-05T00:00:00.000Z');
   });
 
   test('skips entries whose state and agent type are unchanged', () async {

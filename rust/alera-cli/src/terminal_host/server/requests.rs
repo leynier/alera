@@ -26,7 +26,8 @@ use crate::terminal_host::protocol::{
     TerminalHostLaunch, PROTOCOL_VERSION, RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
     RUNTIME_HOST_CAPABILITY, RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
     RUNTIME_HOST_MOBILE_CAPABILITY, RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY,
-    RUNTIME_HOST_ORCHESTRATION_CAPABILITY, RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
+    RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY, RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
+    RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
 };
 use crate::terminal_host::session::{Session, SessionDriver};
 
@@ -296,6 +297,7 @@ impl ServerActor {
                         RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
                         RUNTIME_HOST_MOBILE_CAPABILITY,
                         RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY,
+                        RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY,
                         RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
                     ],
                     "authenticated": true,
@@ -500,22 +502,49 @@ impl ServerActor {
             }
             "runtimeSettings.update" => {
                 self.require_auth(client_id)?;
-                let workspace_directory = match payload.get("workspaceDirectory") {
-                    Some(Value::String(value)) => Some(value.as_str()),
-                    Some(Value::Null) | None => None,
-                    _ => {
-                        return Err(HostError::format(
-                            "workspaceDirectory must be a string or null.",
-                        ))
-                    }
-                };
-                let value = json_result(
-                    self.runtime_store
-                        .set_workspace_directory(workspace_directory)
-                        .await,
-                )?;
+                if let Some(value) = payload.get("workspaceDirectory") {
+                    let workspace_directory = match value {
+                        Value::String(value) => Some(value.as_str()),
+                        Value::Null => None,
+                        _ => {
+                            return Err(HostError::format(
+                                "workspaceDirectory must be a string or null.",
+                            ))
+                        }
+                    };
+                    json_result(
+                        self.runtime_store
+                            .set_workspace_directory(workspace_directory)
+                            .await,
+                    )?;
+                }
+                if let Some(value) = payload.get("confirmWorkspaceRemoval") {
+                    let value = value.as_bool().ok_or_else(|| {
+                        HostError::format("confirmWorkspaceRemoval must be a boolean.")
+                    })?;
+                    json_result(
+                        self.runtime_store
+                            .set_confirm_workspace_removal(value)
+                            .await,
+                    )?;
+                }
+                let value = json_result(self.runtime_store.runtime_settings().await)?;
                 self.broadcast_authenticated(event("runtimeSettingsChanged", json!({})));
                 Ok(value)
+            }
+            "workspaceSidebar.snapshot" => self.workspace_sidebar_snapshot(client_id).await,
+            "workbenchViewPrefs.get" => self.workbench_view_prefs(client_id).await,
+            "workbenchViewPrefs.update" => {
+                self.update_workbench_view_prefs(client_id, payload).await
+            }
+            "workspaceActivity.list" => self.workspace_activity(client_id).await,
+            "workspaceActivity.upsertAll" => {
+                self.upsert_workspace_activity(client_id, payload).await
+            }
+            "workspaceActivity.remove" => self.remove_workspace_activity(client_id, payload).await,
+            "agentPresence.list" => {
+                self.require_auth(client_id)?;
+                Ok(self.agent_presence_items())
             }
             "project.list" => {
                 self.require_auth(client_id)?;
@@ -626,6 +655,11 @@ impl ServerActor {
                 Ok(value)
             }
             "workspace.setPinned" => self.handle_workspace_pinning(client_id, payload).await,
+            "workspace.rename" => self.rename_workspace_request(client_id, payload).await,
+            "workspace.sleep" => self.sleep_workspace_request(client_id, payload).await,
+            "workspace.repositoryWebUrl" => {
+                self.workspace_repository_web_url(client_id, payload).await
+            }
             "workspace.remove" => {
                 self.require_auth(client_id)?;
                 let id = require_string_key(payload, "id")?;
@@ -747,6 +781,8 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 json_result(self.runtime_store.list_tags().await)
             }
+            "workspaceTag.create" => self.create_workspace_tag(client_id, payload).await,
+            "workspaceTag.setForWorkspace" => self.set_tags_for_workspace(client_id, payload).await,
             "workspaceTag.upsert" => {
                 self.require_auth(client_id)?;
                 let tag: WorkspaceTag = parse_payload(payload)?;
@@ -984,7 +1020,7 @@ impl ServerActor {
         }
     }
 
-    fn is_mobile_client(&self, client_id: u64) -> bool {
+    pub(super) fn is_mobile_client(&self, client_id: u64) -> bool {
         self.clients
             .get(&client_id)
             .is_some_and(|client| client.kind == ClientKind::Mobile)

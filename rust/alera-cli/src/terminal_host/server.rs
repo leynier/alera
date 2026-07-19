@@ -50,6 +50,7 @@ mod requests;
 mod terminal_driver;
 mod terminal_input_requests;
 mod workspace_pinning;
+mod workspace_sidebar_requests;
 
 /// Delay before a debounced checkpoint write fires.
 const CHECKPOINT_DELAY: Duration = Duration::from_secs(5);
@@ -1025,10 +1026,9 @@ impl ServerActor {
     // --- Client lifecycle -------------------------------------------------
 
     async fn dispose_client(&mut self, client_id: u64) {
-        let Some(disconnecting_client) = self.clients.get(&client_id) else {
+        let Some(_) = self.clients.get(&client_id) else {
             return;
         };
-        let disconnects_app_client = disconnecting_client.app_client;
         // Parked long-poll requests die with their connection.
         self.orchestration_waiters.remove_client(client_id);
         // A vanished phone must not leave terminals locked at phone size.
@@ -1043,9 +1043,6 @@ impl ServerActor {
         }
         // Dropping the handle ends the connection loop and closes the socket.
         self.clients.remove(&client_id);
-        if disconnects_app_client && !self.has_app_clients() {
-            self.agent_presence.clear();
-        }
         self.schedule_shutdown_if_idle();
     }
 
@@ -1705,7 +1702,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn last_app_client_disconnect_clears_agent_presence() {
+    async fn last_app_client_disconnect_preserves_host_agent_presence() {
         let dir = tempfile::tempdir().unwrap();
         let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
         let runtime_store = RuntimeStore::open(dir.path()).await.unwrap();
@@ -1751,6 +1748,6 @@ mod tests {
         assert!(actor.agent_presence.is_injection_ready("term-1"));
         actor.dispose_client(2).await;
 
-        assert!(actor.agent_presence.get("term-1").is_none());
+        assert!(actor.agent_presence.is_injection_ready("term-1"));
     }
 }

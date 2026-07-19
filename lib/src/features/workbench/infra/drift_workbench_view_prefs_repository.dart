@@ -14,6 +14,10 @@ class DriftWorkbenchViewPrefsRepository
   static const int _rowId = 1;
 
   @override
+  Stream<WorkbenchViewPrefs> get changes =>
+      const Stream<WorkbenchViewPrefs>.empty();
+
+  @override
   Future<WorkbenchViewPrefs> load() async {
     final row = await (_db.select(
       _db.workbenchViewPrefsTable,

@@ -1,4 +1,4 @@
-name: Label Issues By OS
+name: Normalize Issue Metadata
 
 on:
   issues:
@@ -11,16 +11,28 @@ permissions:
   issues: write
 
 jobs:
-  apply-os-label:
+  normalize-issue:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Apply OS label from issue form
+      - name: Normalize title and apply OS label
         uses: actions/github-script@v8
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const issue = context.payload.issue;
+            const normalizedTitle = issue.title.toLowerCase();
+
+            if (normalizedTitle !== issue.title) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                title: normalizedTitle,
+              });
+              core.info(`Normalized title for issue #${issue.number}.`);
+            }
+
             const body = issue.body || "";
             const osMatch = body.match(/^### Operating system\s+(.+)$/m);
 

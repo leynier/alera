@@ -2,6 +2,8 @@ import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/terminal/application/tabs_controller.dart';
+import 'package:alera_mobile/src/features/terminal/application/agent_presence_controller.dart';
+import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snapshot.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_session_controller.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_tab_view.dart';
 import 'package:flutter/material.dart';
@@ -120,6 +122,9 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
     final tabs = ref.watch(
       tabsControllerProvider(widget.hostId, widget.workspace.id),
     );
+    final agentPresence =
+        ref.watch(agentPresenceControllerProvider(widget.hostId)).value ??
+        const <AgentPresenceSummary>[];
     final selectedTab = tabs.value == null ? null : _selectedTab(tabs.value!);
     if (selectedTab != null) {
       // The desktop taking the viewport back sends this phone to the
@@ -157,6 +162,7 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
                   },
                   onClose: _closeTab,
                   onCreate: _createTab,
+                  agentPresence: agentPresence,
                 ),
               )
             : null,
@@ -192,6 +198,7 @@ class _TabStrip extends StatelessWidget {
     required this.onSelect,
     required this.onClose,
     required this.onCreate,
+    required this.agentPresence,
   });
 
   final List<WorkspaceTabSummary> tabs;
@@ -200,6 +207,7 @@ class _TabStrip extends StatelessWidget {
   final ValueChanged<WorkspaceTabSummary> onSelect;
   final ValueChanged<WorkspaceTabSummary> onClose;
   final VoidCallback onCreate;
+  final List<AgentPresenceSummary> agentPresence;
 
   IconData _kindIcon(String kind) {
     return switch (kind) {
@@ -226,7 +234,12 @@ class _TabStrip extends StatelessWidget {
         children: <Widget>[
           for (final tab in tabs) ...<Widget>[
             InputChip(
-              avatar: Icon(_kindIcon(tab.kind), size: AleraTokens.spaceLg),
+              avatar: _TabAvatar(
+                icon: _kindIcon(tab.kind),
+                status: agentPresence
+                    .where((status) => status.tabId == tab.id)
+                    .firstOrNull,
+              ),
               label: Text(tab.title, overflow: TextOverflow.ellipsis),
               selected: tab.id == selectedTabId,
               // Non-terminal tabs (editors, diffs, ...) are desktop surfaces;
@@ -250,6 +263,34 @@ class _TabStrip extends StatelessWidget {
                 : const Icon(Icons.add),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _TabAvatar extends StatelessWidget {
+  const _TabAvatar({required this.icon, this.status});
+
+  final IconData icon;
+  final AgentPresenceSummary? status;
+
+  @override
+  Widget build(BuildContext context) {
+    final current = status;
+    if (current == null) {
+      return Icon(icon, size: AleraTokens.spaceLg);
+    }
+    final color = switch (current.state) {
+      'blocked' => Theme.of(context).colorScheme.error,
+      'waiting' => AleraTokens.warning,
+      'working' => AleraTokens.info,
+      _ => AleraTokens.success,
+    };
+    return Tooltip(
+      message: '${current.agentType} ${current.state}',
+      child: Badge(
+        backgroundColor: color,
+        child: Icon(icon, size: AleraTokens.spaceLg),
       ),
     );
   }

@@ -252,6 +252,7 @@ impl RuntimeStore {
     pub async fn runtime_settings(&self) -> Result<RuntimeSettings> {
         Ok(RuntimeSettings {
             workspace_directory: self.get_workspace_directory().await?,
+            confirm_workspace_removal: self.confirm_workspace_removal().await?,
         })
     }
 
@@ -274,6 +275,41 @@ impl RuntimeStore {
             }
         }
         self.runtime_settings().await
+    }
+
+    pub async fn confirm_workspace_removal(&self) -> Result<bool> {
+        Ok(self
+            .get_metadata("settings.general.confirmWorkspaceRemoval")
+            .await?
+            .and_then(|value| value.parse::<bool>().ok())
+            .unwrap_or(true))
+    }
+
+    pub async fn set_confirm_workspace_removal(&self, value: bool) -> Result<RuntimeSettings> {
+        self.set_metadata(
+            "settings.general.confirmWorkspaceRemoval",
+            if value { "true" } else { "false" },
+        )
+        .await?;
+        self.runtime_settings().await
+    }
+
+    pub async fn rename_workspace(&self, workspace_id: &str, name: &str) -> Result<Workspace> {
+        let name = name.trim();
+        if name.is_empty() {
+            anyhow::bail!(RuntimeStoreError::Message(
+                "Workspace name cannot be empty.".to_string(),
+            ));
+        }
+        sqlx::query("UPDATE workspaces SET name = ?, updatedAt = ? WHERE id = ?")
+            .bind(name)
+            .bind(format_timestamp(Utc::now()))
+            .bind(workspace_id)
+            .execute(&self.pool)
+            .await?;
+        self.find_workspace(workspace_id).await?.ok_or_else(|| {
+            RuntimeStoreError::Message(format!("Workspace not found: {workspace_id}")).into()
+        })
     }
 
     pub async fn mobile_access_settings(&self) -> Result<MobileAccessSettings> {
@@ -1024,6 +1060,31 @@ impl RuntimeStore {
             .execute(&self.pool)
             .await?;
         Ok(())
+    }
+
+    pub async fn set_workspace_tags(
+        &self,
+        workspace_id: &str,
+        tag_ids: &[String],
+    ) -> Result<Workspace> {
+        let mut tx = self.pool.begin().await?;
+        sqlx::query("DELETE FROM workspaceTagAssignments WHERE workspaceId = ?")
+            .bind(workspace_id)
+            .execute(&mut *tx)
+            .await?;
+        for tag_id in tag_ids {
+            sqlx::query(
+                "INSERT OR IGNORE INTO workspaceTagAssignments (workspaceId, tagId) VALUES (?, ?)",
+            )
+            .bind(workspace_id)
+            .bind(tag_id)
+            .execute(&mut *tx)
+            .await?;
+        }
+        tx.commit().await?;
+        self.find_workspace(workspace_id).await?.ok_or_else(|| {
+            RuntimeStoreError::Message(format!("Workspace not found: {workspace_id}")).into()
+        })
     }
 
     pub async fn list_relations(&self) -> Result<Vec<WorkspaceRelation>> {

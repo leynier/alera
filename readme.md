@@ -116,7 +116,7 @@ Stable and release-candidate update channels with a manual download flow today, 
 
 ### 📱 Mobile companion foundation
 
-A separate Flutter app lives under `mobile/` for Android and iOS. Pairing starts from **Settings → Mobile Devices** in the desktop app, which shows a scannable QR pairing offer (with a copy-JSON fallback) and manages the gateway, active offers, and paired devices. The mobile app stores device tokens in platform secure storage, connects to the runtime-host mobile WebSocket gateway, lists projects/workspaces/branches, and can start or attach to a hosted terminal session. The same lifecycle (settings, pairing offers, device rename/revocation, gateway) is also scriptable through `alera mobile ...`.
+A separate Flutter app lives under `mobile/` for Android and iOS. Pairing starts from **Settings → Mobile Devices** in the desktop app, which shows a scannable QR pairing offer (with a copy-JSON fallback) and manages the gateway, active offers, and paired devices. The mobile app stores device tokens in platform secure storage and connects directly to the runtime-host mobile WebSocket gateway. Its workspace surface mirrors the desktop sidebar with shared grouping, sorting, filtering, tags, collapse state, pins, workspace activity, agent presence, and managed-workspace actions. It can also create or attach to hosted terminal sessions. The same pairing lifecycle remains scriptable through `alera mobile ...`.
 
 ---
 
@@ -125,7 +125,7 @@ A separate Flutter app lives under `mobile/` for Android and iOS. Pairing starts
 Alera is shipping fast. A non-exhaustive list of what's on the roadmap:
 
 - **SSH worktrees**: run agents on remote machines as if they were local
-- **Mobile live transport expansion**: add agent status, file review, and richer workspace controls to the mobile app
+- **Mobile live transport expansion**: add file review and non-terminal tab surfaces to the mobile app
 - **Code editing with LSP support**: full editing with language-server autocomplete and diagnostics
 - **Git conflict resolution**: resolve merge conflicts visually with AI-assisted three-way merge
 - **Embedded browser & browser use**: give agents a real browser to drive

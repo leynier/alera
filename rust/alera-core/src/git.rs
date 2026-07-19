@@ -4,6 +4,9 @@ use std::path::Path;
 use camino::Utf8Path;
 use git2::{Branch, BranchType, ErrorCode, Repository, WorktreeAddOptions, WorktreePruneOptions};
 
+mod repository_metadata;
+pub use repository_metadata::{current_branch, repository_remote_url};
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GitWorktreeEntry {
     pub path: String,
@@ -81,10 +84,6 @@ pub fn list_branches(path: &str) -> Result<Vec<String>, GitError> {
     names.sort();
     names.dedup();
     Ok(names)
-}
-
-pub fn current_branch(path: &str) -> Result<String, GitError> {
-    Ok(head_branch_name(&open_repo(path)?))
 }
 
 pub fn branch_exists(repo_path: &str, branch: &str) -> Result<bool, GitError> {

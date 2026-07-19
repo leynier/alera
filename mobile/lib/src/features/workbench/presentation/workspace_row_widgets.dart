@@ -1,5 +1,6 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/features/workbench/application/mobile_workspace_rows.dart';
+import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snapshot.dart';
 import 'package:flutter/material.dart';
 
 const double _treeIndentStep = 16;
@@ -74,13 +75,17 @@ class MobileWorkspaceListRow extends StatelessWidget {
     required this.row,
     required this.onTap,
     required this.onLongPress,
+    required this.onMore,
     required this.onToggleChildren,
+    this.agentPresence = const <AgentPresenceSummary>[],
   });
 
   final MobileWorkspaceEntryRow row;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
+  final VoidCallback onMore;
   final VoidCallback onToggleChildren;
+  final List<AgentPresenceSummary> agentPresence;
 
   @override
   Widget build(BuildContext context) {
@@ -147,6 +152,8 @@ class MobileWorkspaceListRow extends StatelessWidget {
                 ],
               ),
             ),
+            if (agentPresence.isNotEmpty)
+              _AgentPresenceBadge(statuses: agentPresence),
             if (!row.isPinnedCopy && entry.hasVisibleChildren)
               IconButton(
                 tooltip: entry.childrenCollapsed
@@ -160,9 +167,51 @@ class MobileWorkspaceListRow extends StatelessWidget {
                       )
                     : const Icon(Icons.expand_more),
               ),
+            IconButton(
+              tooltip: 'Workspace Actions',
+              onPressed: onMore,
+              icon: const Icon(Icons.more_vert),
+            ),
           ],
         ),
       ),
     );
   }
+}
+
+class _AgentPresenceBadge extends StatelessWidget {
+  const _AgentPresenceBadge({required this.statuses});
+
+  final List<AgentPresenceSummary> statuses;
+
+  @override
+  Widget build(BuildContext context) {
+    final state = _mostUrgentState(statuses);
+    final color = switch (state) {
+      'blocked' => Theme.of(context).colorScheme.error,
+      'waiting' => AleraTokens.warning,
+      'working' => AleraTokens.info,
+      _ => AleraTokens.success,
+    };
+    return Badge(
+      label: Text(statuses.length.toString()),
+      backgroundColor: color,
+      child: Icon(Icons.smart_toy_outlined, color: color),
+    );
+  }
+}
+
+String _mostUrgentState(List<AgentPresenceSummary> statuses) {
+  const priority = <String, int>{
+    'blocked': 4,
+    'waiting': 3,
+    'working': 2,
+    'done': 1,
+  };
+  return statuses
+      .map((status) => status.state)
+      .reduce(
+        (left, right) =>
+            (priority[left] ?? 0) >= (priority[right] ?? 0) ? left : right,
+      );
 }

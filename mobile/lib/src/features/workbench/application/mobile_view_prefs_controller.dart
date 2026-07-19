@@ -7,8 +7,20 @@ part 'mobile_view_prefs_controller.g.dart';
 @riverpod
 class MobileViewPrefsController extends _$MobileViewPrefsController {
   @override
-  Future<MobileViewPrefs> build(String hostId) {
-    return ref.watch(viewPrefsRepositoryProvider).load(hostId);
+  Future<MobileViewPrefs> build(String hostId) async {
+    final client = await ref.watch(workspaceClientProvider(hostId).future);
+    if (!client.supportsWorkspaceSidebarParity) {
+      throw UnsupportedError(
+        'Update Alera On This Host To Use Mobile Workspaces.',
+      );
+    }
+    final subscription = client.events.listen((event) {
+      if (event.name == 'workbenchViewPrefsChanged') {
+        ref.invalidateSelf();
+      }
+    });
+    ref.onDispose(subscription.cancel);
+    return client.loadWorkbenchViewPrefs();
   }
 
   Future<void> setGroupBy(MobileWorkspaceGroupBy groupBy) {
@@ -20,6 +32,33 @@ class MobileViewPrefsController extends _$MobileViewPrefsController {
       (prefs) =>
           prefs.copyWith(pinnedSectionCollapsed: !prefs.pinnedSectionCollapsed),
     );
+  }
+
+  Future<void> toggleAllSection() {
+    return _update(
+      (prefs) =>
+          prefs.copyWith(allSectionCollapsed: !prefs.allSectionCollapsed),
+    );
+  }
+
+  Future<void> setProjectSort(MobileWorkbenchSortBy value) {
+    return _update((prefs) => prefs.copyWith(projectSort: value));
+  }
+
+  Future<void> setWorkspaceSort(MobileWorkbenchSortBy value) {
+    return _update((prefs) => prefs.copyWith(workspaceSort: value));
+  }
+
+  Future<void> setKindFilter(MobileWorkspaceKindFilter value) {
+    return _update((prefs) => prefs.copyWith(workspaceKindFilter: value));
+  }
+
+  Future<void> setProjectFilter(Set<String> ids) {
+    return _update((prefs) => prefs.copyWith(selectedProjectIds: ids));
+  }
+
+  Future<void> setTagFilter(Set<String> ids) {
+    return _update((prefs) => prefs.copyWith(selectedTagIds: ids));
   }
 
   Future<void> toggleProjectCollapsed(String projectId) {
@@ -45,9 +84,15 @@ class MobileViewPrefsController extends _$MobileViewPrefsController {
     MobileViewPrefs Function(MobileViewPrefs) transform,
   ) async {
     final current = await future;
-    final next = transform(current);
+    final next = transform(current).copyWith(revision: current.revision);
     state = AsyncData(next);
-    await ref.read(viewPrefsRepositoryProvider).save(hostId, next);
+    try {
+      final client = await ref.read(workspaceClientProvider(hostId).future);
+      state = AsyncData(await client.updateWorkbenchViewPrefs(next));
+    } on Object {
+      ref.invalidateSelf();
+      rethrow;
+    }
   }
 
   Set<String> _toggled(Set<String> ids, String id) {
