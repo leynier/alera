@@ -29,6 +29,7 @@ class WorkspaceListData {
     required this.activity,
     required this.confirmWorkspaceRemoval,
     required this.agentPresence,
+    this.terminalTabCountByWorkspaceId = const <String, int>{},
   });
 
   final List<WorkspaceSummary> workspaces;
@@ -41,6 +42,7 @@ class WorkspaceListData {
   final Map<String, DateTime> activity;
   final bool confirmWorkspaceRemoval;
   final List<AgentPresenceSummary> agentPresence;
+  final Map<String, int> terminalTabCountByWorkspaceId;
 
   WorkspaceSummary? workspaceById(String id) {
     for (final workspace in workspaces) {
@@ -77,6 +79,7 @@ class WorkspaceListController extends _$WorkspaceListController {
       activity: snapshot.activity,
       confirmWorkspaceRemoval: snapshot.confirmWorkspaceRemoval,
       agentPresence: snapshot.agentPresence,
+      terminalTabCountByWorkspaceId: snapshot.terminalTabCountByWorkspaceId,
     );
   }
 

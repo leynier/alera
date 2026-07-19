@@ -175,4 +175,10 @@ class AgentStatusController extends _$AgentStatusController
     }
     state = next;
   }
+
+  void replaceRuntimeSnapshot(Iterable<AgentStatusEntry> entries) {
+    state = <String, AgentStatusEntry>{
+      for (final entry in entries) entry.terminalSessionId: entry,
+    };
+  }
 }

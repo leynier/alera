@@ -46,7 +46,9 @@ version = "0.1.0"
 dependencies = [
  "alera-core",
  "anyhow",
+ "axum",
  "base64",
+ "bytes",
  "chrono",
  "clap",
  "dirs",
@@ -60,6 +62,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "serde_urlencoded",
  "sha2",
  "sqlx",
  "tempfile",

@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::path::Path;
 
 use anyhow::Result;
@@ -11,9 +11,9 @@ use uuid::Uuid;
 use super::{
     CascadePreview, LinkedReview, MobileAccessSettings, MobileDevice, MobileDevicePermission,
     MobileEndpointMode, MobilePairingOffer, Project, ProjectConfig, ProjectConfigMap,
-    ProjectConfigRecord, ProjectKind, RuntimeSettings, SshAuthKind, SshBootstrapStatus, SshTarget,
-    WorkbenchLayoutRecord, Workspace, WorkspaceKind, WorkspaceRelation, WorkspaceStatus,
-    WorkspaceTabRecord, WorkspaceTag,
+    ProjectConfigRecord, ProjectKind, RuntimeAgentStatusHookSettings, RuntimeSettings, SshAuthKind,
+    SshBootstrapStatus, SshTarget, WorkbenchLayoutRecord, Workspace, WorkspaceKind,
+    WorkspaceRelation, WorkspaceStatus, WorkspaceTabRecord, WorkspaceTag,
 };
 
 pub const RUNTIME_DATABASE_FILE_NAME: &str = "runtime.sqlite";
@@ -253,7 +253,30 @@ impl RuntimeStore {
         Ok(RuntimeSettings {
             workspace_directory: self.get_workspace_directory().await?,
             confirm_workspace_removal: self.confirm_workspace_removal().await?,
+            agent_status_hooks: self.agent_status_hook_settings().await?,
         })
+    }
+
+    pub async fn agent_status_hook_settings(&self) -> Result<RuntimeAgentStatusHookSettings> {
+        let Some(encoded) = self
+            .get_metadata("settings.agents.agentStatusHooks")
+            .await?
+        else {
+            return Ok(RuntimeAgentStatusHookSettings::default());
+        };
+        Ok(serde_json::from_str(&encoded).unwrap_or_default())
+    }
+
+    pub async fn set_agent_status_hook_settings(
+        &self,
+        settings: &RuntimeAgentStatusHookSettings,
+    ) -> Result<RuntimeSettings> {
+        self.set_metadata(
+            "settings.agents.agentStatusHooks",
+            &serde_json::to_string(settings)?,
+        )
+        .await?;
+        self.runtime_settings().await
     }
 
     pub async fn get_workspace_directory(&self) -> Result<Option<String>> {
@@ -861,6 +884,23 @@ impl RuntimeStore {
         .fetch_all(&self.pool)
         .await?;
         rows.into_iter().map(tab_from_row).collect()
+    }
+
+    pub async fn terminal_tab_counts_by_workspace(&self) -> Result<BTreeMap<String, i64>> {
+        let rows = sqlx::query(
+            "SELECT workspaceId, COUNT(*) AS terminalCount FROM workspaceTabs \
+             WHERE kind = 'terminal' GROUP BY workspaceId",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        let mut counts = BTreeMap::new();
+        for row in rows {
+            counts.insert(
+                row.try_get::<String, _>("workspaceId")?,
+                row.try_get::<i64, _>("terminalCount")?,
+            );
+        }
+        Ok(counts)
     }
 
     pub async fn find_workspace_tab(&self, tab_id: &str) -> Result<Option<WorkspaceTabRecord>> {

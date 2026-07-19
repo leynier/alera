@@ -202,9 +202,6 @@ void terminalHostWarmupCoordinator(Ref ref) {
 @Riverpod(keepAlive: true)
 TerminalRuntime terminalRuntime(Ref ref) {
   final terminalHostClient = ref.watch(terminalHostClientProvider);
-  final agentHookReceiver = ref.watch(agentHookReceiverProvider);
-  final codexRuntimeHome = ref.watch(codexRuntimeHomeServiceProvider);
-  final claudeRuntimeHome = ref.watch(claudeRuntimeHomeServiceProvider);
   final agentRuntimeOverlay = ref.watch(agentRuntimeOverlayServiceProvider);
   final aleraCliShim = ref.watch(aleraCliTerminalShimServiceProvider);
   final shellStartupPreparer = ref.watch(terminalShellStartupPreparerProvider);
@@ -240,30 +237,9 @@ TerminalRuntime terminalRuntime(Ref ref) {
             } catch (_) {}
           }
 
-          final hooks = ref
-              .read(settingsControllerProvider)
-              .agents
-              .agentStatusHooks;
-          if (!hooks.anyEnabled) {
-            return addAleraCliShim().then(
-              (_) => environment.isEmpty ? null : environment,
-            );
-          }
-          return () async {
-            await addAleraCliShim();
-            final hooksEnvironment = await terminalLaunchEnvironmentFor(
-              agentHookReceiver: agentHookReceiver,
-              codexRuntimeHome: codexRuntimeHome,
-              claudeRuntimeHome: claudeRuntimeHome,
-              agentRuntimeOverlay: agentRuntimeOverlay,
-              hooks: hooks,
-              terminalSessionId: terminalSessionId,
-              workspaceId: workspaceId,
-              tabId: tabId,
-            );
-            _mergeTerminalLaunchEnvironment(environment, hooksEnvironment);
-            return environment.isEmpty ? null : environment;
-          }();
+          return addAleraCliShim().then(
+            (_) => environment.isEmpty ? null : environment,
+          );
         },
   );
   ref.listen<TerminalSettings>(

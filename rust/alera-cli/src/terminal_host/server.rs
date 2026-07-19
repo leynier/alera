@@ -17,6 +17,7 @@ use tokio::sync::mpsc::error::TrySendError;
 use tokio::sync::mpsc::{self, UnboundedSender};
 use tokio::task::JoinHandle;
 
+use crate::agent_status::{start_hook_receiver, AgentHookEvent};
 use crate::ssh_bootstrap::{
     cancel_ssh_bootstrap, mark_ssh_bootstrap_installing, new_bootstrap_job_id, run_ssh_bootstrap,
     SshTargetBootstrapJob, SshTargetBootstrapProgress, SshTargetBootstrapRequest,
@@ -39,10 +40,12 @@ use crate::terminal_host::orchestration::message_waiters::MessageWaiterRegistry;
 use crate::terminal_host::protocol::{event, TerminalHostConfig};
 use crate::terminal_host::session::{PtyEvent, PtyWriteCompletion, Session};
 
+mod agent_hook_events;
 mod client_delivery;
 mod coordinator_requests;
 mod mobile_terminal_requests;
 mod orchestration_requests;
+mod orchestration_terminal_requests;
 mod orchestration_validation;
 mod pty_event_forwarder;
 mod pty_events;
@@ -103,6 +106,10 @@ pub enum ServerCommand {
     },
     ShutdownTick {
         generation: u64,
+    },
+    RequestedShutdown,
+    AgentHookEvent {
+        event: AgentHookEvent,
     },
     SshBootstrapProgress {
         progress: SshTargetBootstrapProgress,
@@ -193,9 +200,12 @@ pub async fn run_terminal_host_server(
     let runtime_store = RuntimeStore::open(&runtime_dir).await?;
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let port = listener.local_addr()?.port();
-    control_file::write_control_file(&control_file_path, port, &token)?;
+    control_file::write_control_file(&control_file_path, port, &token, config.persistent)?;
 
     let (inbox, mut rx) = mpsc::unbounded_channel::<ServerCommand>();
+    if let Err(error) = start_hook_receiver(&runtime_dir, inbox.clone()).await {
+        eprintln!("alera agent hook receiver unavailable: {error}");
+    }
     let next_client_id = Arc::new(AtomicU64::new(1));
     spawn_accept_loop(listener, inbox.clone(), next_client_id.clone());
 
@@ -499,6 +509,8 @@ impl ServerActor {
             ServerCommand::ShutdownTick { generation } => {
                 self.handle_shutdown_tick(generation).await
             }
+            ServerCommand::RequestedShutdown => self.dispose().await,
+            ServerCommand::AgentHookEvent { event } => self.handle_agent_hook_event(event).await,
             ServerCommand::SshBootstrapProgress { progress } => {
                 self.handle_ssh_bootstrap_progress(progress)
             }
@@ -1075,7 +1087,10 @@ impl ServerActor {
     // --- Configuration and shutdown --------------------------------------
 
     async fn apply_config(&mut self, config: TerminalHostConfig) {
-        self.config = config;
+        self.config = TerminalHostConfig {
+            persistent: self.config.persistent,
+            ..config
+        };
         let max_bytes = config.scrollback_bytes as usize;
         let session_ids: Vec<String> = self.sessions.keys().cloned().collect();
         for session_id in session_ids {
@@ -1118,6 +1133,7 @@ impl ServerActor {
 
     fn schedule_shutdown_if_idle(&mut self) {
         if self.disposed
+            || self.config.persistent
             || self.has_authenticated_clients()
             || self.has_active_bootstrap_jobs()
             || self.has_active_managed_workspace_jobs()

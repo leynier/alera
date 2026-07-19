@@ -16,10 +16,12 @@ class WorkspaceTabsScreen extends ConsumerStatefulWidget {
     super.key,
     required this.hostId,
     required this.workspace,
+    this.initialTabId,
   });
 
   final String hostId;
   final WorkspaceSummary workspace;
+  final String? initialTabId;
 
   @override
   ConsumerState<WorkspaceTabsScreen> createState() =>
@@ -29,6 +31,12 @@ class WorkspaceTabsScreen extends ConsumerStatefulWidget {
 class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
   String? _selectedTabId;
   bool _creating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedTabId = widget.initialTabId;
+  }
 
   Future<void> _createTab() async {
     if (_creating) {

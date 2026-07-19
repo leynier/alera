@@ -1,4 +1,5 @@
 mod agent_quota;
+mod agent_status;
 mod cli;
 mod cli_orchestration;
 #[cfg(test)]
@@ -7,6 +8,7 @@ mod managed_workspace;
 mod mobile_access;
 mod orchestration_commands;
 mod runtime_archive;
+mod runtime_commands;
 mod runtime_host_client;
 mod ssh_bootstrap;
 mod tailscale;
@@ -21,7 +23,7 @@ use std::path::{Path, PathBuf};
 
 use alera_core::runtime::{
     CascadePreview, MobileAccessSettings, MobileEndpointMode, Project, ProjectKind, RuntimeStore,
-    SshAuthKind, SshTarget, WorkspaceTabRecord, WorkspaceTag, RUNTIME_DATABASE_FILE_NAME,
+    SshAuthKind, SshTarget, WorkspaceTabRecord, WorkspaceTag,
 };
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine as _;
@@ -33,10 +35,10 @@ use uuid::Uuid;
 
 use crate::cli::{
     CascadePreviewArgs, Cli, Command, IdArgs, ProjectAction, ProjectAddArgs, ProjectCommand,
-    ProjectKindArg, RuntimeAction, RuntimeCommand, RuntimeDirArgs, SshAuthKindArg, SshTargetAction,
-    SshTargetAddArgs, SshTargetBootstrapArgs, SshTargetBootstrapPlanArgs, SshTargetCommand,
-    SshTargetStatusArgs, TabAction, TabCommand, TabCreateArgs, TerminalHostArgs, WorkspaceAction,
-    WorkspaceAddArgs, WorkspaceCommand,
+    ProjectKindArg, RuntimeDirArgs, SshAuthKindArg, SshTargetAction, SshTargetAddArgs,
+    SshTargetBootstrapArgs, SshTargetBootstrapPlanArgs, SshTargetCommand, SshTargetStatusArgs,
+    TabAction, TabCommand, TabCreateArgs, TerminalHostArgs, WorkspaceAction, WorkspaceAddArgs,
+    WorkspaceCommand,
 };
 use crate::cli::{MobileAction, MobileCommand, MobileDevicesAction, MobilePairingAction};
 use crate::cli::{TerminalAction, TerminalCommand};
@@ -88,7 +90,7 @@ async fn run() -> i32 {
         Command::RuntimeProxy => agent_quota::run_runtime_proxy().await,
         Command::Version(command) => run_version_command(command).await,
         Command::TerminalHost(args) => run_terminal_host(args).await,
-        Command::Runtime(command) => run_runtime_command(command).await,
+        Command::Runtime(command) => runtime_commands::run_runtime_command(command).await,
         Command::Project(command) => run_project_command(command).await,
         Command::Workspace(command) => run_workspace_command(command).await,
         Command::Tag(command) => run_tag_command(command).await,
@@ -203,6 +205,7 @@ async fn run_terminal_host(args: TerminalHostArgs) -> i32 {
         empty_shutdown_delay_seconds: args.empty_shutdown_delay_seconds,
         detached_session_shutdown_delay_seconds: args.detached_session_shutdown_delay_seconds,
         scrollback_bytes: args.scrollback_bytes,
+        persistent: args.persistent,
     };
 
     match run_terminal_host_server(
@@ -227,26 +230,6 @@ fn required_option_error(value: &str, name: &str) -> Option<i32> {
         Some(USAGE_EXIT_CODE)
     } else {
         None
-    }
-}
-
-async fn run_runtime_command(command: RuntimeCommand) -> i32 {
-    let store = match open_store(&command.runtime).await {
-        Ok(store) => store,
-        Err(error) => return print_error(error),
-    };
-    match command.action {
-        RuntimeAction::Status => {
-            let runtime_dir = runtime_dir(&command.runtime);
-            let payload = json!({
-                "runtimeDir": runtime_dir.display().to_string(),
-                "database": runtime_dir.join(RUNTIME_DATABASE_FILE_NAME).display().to_string(),
-                "status": "ok",
-            });
-            print_value(&payload, command.output.json, "runtime ok");
-            drop(store);
-            0
-        }
     }
 }
 

@@ -30,6 +30,11 @@ class RuntimeSettingsRepository implements SettingsRepository {
               runtime['confirmWorkspaceRemoval'] as bool? ??
               legacy.general.confirmWorkspaceRemoval,
         ),
+        agents: legacy.agents.copyWith(
+          agentStatusHooks: AgentStatusHookSettings.fromJson(
+            _asMap(runtime['agentStatusHooks']),
+          ),
+        ),
       );
     } catch (_) {
       return legacy;
@@ -43,6 +48,7 @@ class RuntimeSettingsRepository implements SettingsRepository {
     await client.runtimeRequest('runtimeSettings.update', <String, Object?>{
       'workspaceDirectory': settings.general.workspaceDirectory,
       'confirmWorkspaceRemoval': settings.general.confirmWorkspaceRemoval,
+      'agentStatusHooks': settings.agents.agentStatusHooks.toJson(),
     });
   }
 }

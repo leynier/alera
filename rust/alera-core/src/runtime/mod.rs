@@ -8,6 +8,7 @@ mod orchestration_models;
 mod orchestration_store_tests;
 mod orchestration_task_store;
 mod schema_migrations;
+mod settings_models;
 mod store;
 mod workbench_shared_state_models;
 mod workbench_shared_state_store;
@@ -26,5 +27,6 @@ pub use orchestration_message_store::{
 };
 pub use orchestration_models::*;
 pub use orchestration_task_store::NewOrchestrationTask;
+pub use settings_models::*;
 pub use store::*;
 pub use workbench_shared_state_models::*;

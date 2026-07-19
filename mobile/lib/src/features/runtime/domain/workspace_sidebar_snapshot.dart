@@ -27,6 +27,12 @@ class AgentPresenceSummary {
     required this.agentType,
     required this.state,
     this.stateStartedAt,
+    this.updatedAt,
+    this.prompt = '',
+    this.toolName,
+    this.toolInput,
+    this.lastAssistantMessage,
+    this.interrupted,
   });
 
   final String terminalSessionId;
@@ -35,6 +41,12 @@ class AgentPresenceSummary {
   final String agentType;
   final String state;
   final DateTime? stateStartedAt;
+  final DateTime? updatedAt;
+  final String prompt;
+  final String? toolName;
+  final String? toolInput;
+  final String? lastAssistantMessage;
+  final bool? interrupted;
 
   factory AgentPresenceSummary.fromJson(Map<String, Object?> json) {
     return AgentPresenceSummary(
@@ -46,6 +58,14 @@ class AgentPresenceSummary {
       stateStartedAt: DateTime.tryParse(
         json.optionalString('stateStartedAt') ?? '',
       )?.toUtc(),
+      updatedAt: DateTime.tryParse(
+        json.optionalString('updatedAt') ?? '',
+      )?.toUtc(),
+      prompt: json.optionalString('prompt') ?? '',
+      toolName: json.optionalString('toolName'),
+      toolInput: json.optionalString('toolInput'),
+      lastAssistantMessage: json.optionalString('lastAssistantMessage'),
+      interrupted: json['interrupted'] as bool?,
     );
   }
 }
@@ -59,6 +79,7 @@ class WorkspaceSidebarSnapshot {
     required this.viewPrefs,
     required this.confirmWorkspaceRemoval,
     this.agentPresence = const <AgentPresenceSummary>[],
+    this.terminalTabCountByWorkspaceId = const <String, int>{},
   });
 
   final List<ProjectSummary> projects;
@@ -68,6 +89,7 @@ class WorkspaceSidebarSnapshot {
   final MobileViewPrefs viewPrefs;
   final bool confirmWorkspaceRemoval;
   final List<AgentPresenceSummary> agentPresence;
+  final Map<String, int> terminalTabCountByWorkspaceId;
 
   factory WorkspaceSidebarSnapshot.fromJson(Map<String, Object?> json) {
     final activity = <String, DateTime>{};
@@ -101,6 +123,11 @@ class WorkspaceSidebarSnapshot {
         for (final item in json.objectList('agentPresence'))
           AgentPresenceSummary.fromJson(asJsonMap(item)),
       ],
+      terminalTabCountByWorkspaceId: <String, int>{
+        for (final entry
+            in json.mapValue('terminalTabCountByWorkspaceId').entries)
+          if (entry.value is num) entry.key: (entry.value as num).toInt(),
+      },
     );
   }
 }

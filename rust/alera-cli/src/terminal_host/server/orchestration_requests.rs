@@ -10,7 +10,7 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
-use crate::terminal_host::orchestration::agent_presence::AgentPresenceState;
+use crate::terminal_host::orchestration::agent_presence::{AgentPresence, AgentPresenceState};
 use crate::terminal_host::orchestration::agent_registry::adapter_for;
 use crate::terminal_host::orchestration::dispatch_preamble::{
     build_dispatch_preamble, parse_allow_stale_base_from_spec, GateResolution, PreambleParams,
@@ -667,7 +667,10 @@ impl ServerActor {
 
     // --- agent status forwarding -------------------------------------------
 
-    async fn orchestration_agent_status(&mut self, payload: &Value) -> HostResult<Value> {
+    pub(super) async fn orchestration_agent_status(
+        &mut self,
+        payload: &Value,
+    ) -> HostResult<Value> {
         let Some(entries) = payload.get("entries").and_then(Value::as_array) else {
             return Err(HostError::format("entries must be an array."));
         };
@@ -702,8 +705,36 @@ impl ServerActor {
                 .unwrap_or("unknown")
                 .to_string();
             let state_started_at = self.agent_presence_timestamp(entry);
-            self.agent_presence
-                .update_at(handle, agent_type, state, state_started_at);
+            let previous = self.agent_presence.get(handle);
+            let updated_at = entry
+                .get("updatedAt")
+                .and_then(Value::as_str)
+                .and_then(|value| chrono::DateTime::parse_from_rfc3339(value).ok())
+                .map(|value| value.with_timezone(&chrono::Utc))
+                .unwrap_or_else(chrono::Utc::now);
+            let presence = AgentPresence {
+                agent_type,
+                state,
+                state_started_at,
+                updated_at,
+                prompt: entry
+                    .get("prompt")
+                    .and_then(Value::as_str)
+                    .map(str::to_string)
+                    .or_else(|| previous.map(|value| value.prompt.clone()))
+                    .unwrap_or_default(),
+                tool_name: optional_status_string(entry, "toolName")
+                    .or_else(|| previous.and_then(|value| value.tool_name.clone())),
+                tool_input: optional_status_string(entry, "toolInput")
+                    .or_else(|| previous.and_then(|value| value.tool_input.clone())),
+                last_assistant_message: optional_status_string(entry, "lastAssistantMessage")
+                    .or_else(|| previous.and_then(|value| value.last_assistant_message.clone())),
+                interrupted: entry
+                    .get("interrupted")
+                    .and_then(Value::as_bool)
+                    .or_else(|| previous.and_then(|value| value.interrupted)),
+            };
+            self.agent_presence.update_full(handle, presence);
             if let Ok(Some(dispatch)) = self
                 .runtime_store
                 .active_orchestration_dispatch_for_handle(handle)
@@ -771,74 +802,6 @@ impl ServerActor {
     }
 
     // --- terminals ---------------------------------------------------------
-
-    pub(super) fn orchestration_terminals(&self) -> Value {
-        let terminals: Vec<Value> = self
-            .sessions
-            .iter()
-            .map(|(session_id, session)| {
-                let presence = self.agent_presence.get(session_id);
-                json!({
-                    "handle": session_id,
-                    "workspaceId": session.workspace_id,
-                    "tabId": session.tab_id,
-                    "running": session.running(),
-                    "agentType": presence.map(|entry| entry.agent_type.clone()),
-                    "agentState": presence.map(|entry| entry.state.as_str()),
-                    "stateStartedAt": presence.map(|entry| entry.state_started_at),
-                })
-            })
-            .collect();
-        json!({ "kind": "terminals", "items": terminals, "terminals": terminals, "filters": {} })
-    }
-
-    async fn orchestration_terminal_show(&mut self, payload: &Value) -> HostResult<Value> {
-        let handle = require_string(payload, "handle")?;
-        let session = self
-            .sessions
-            .get(&handle)
-            .ok_or_else(|| HostError::state(format!("terminal not found: {handle}")))?;
-        let presence = self.agent_presence.get(&handle);
-        let active_dispatch = self
-            .runtime_store
-            .active_orchestration_dispatch_for_handle(&handle)
-            .await
-            .map_err(state_error)?;
-        let dispatch = match active_dispatch {
-            Some(dispatch) => Some(dispatch),
-            None => self
-                .runtime_store
-                .latest_orchestration_dispatch_for_handle(&handle)
-                .await
-                .map_err(state_error)?,
-        };
-        let startup_state = match dispatch.as_ref().map(|value| value.status) {
-            _ if !session.running() => "failed",
-            Some(OrchestrationDispatchStatus::AwaitingAcceptance) => {
-                "dispatch_submitted_unconfirmed"
-            }
-            Some(OrchestrationDispatchStatus::Dispatched) => "accepted",
-            Some(OrchestrationDispatchStatus::Completed) => "completed",
-            Some(OrchestrationDispatchStatus::StartupFailed) => "failed",
-            Some(OrchestrationDispatchStatus::Stalled) => "stalled",
-            _ if presence.is_some_and(|entry| entry.state == AgentPresenceState::Done) => {
-                "agent_ready"
-            }
-            _ if presence.is_some() => "agent_detected",
-            _ => "process_started",
-        };
-        Ok(json!({
-            "handle": handle,
-            "workspaceId": session.workspace_id,
-            "tabId": session.tab_id,
-            "running": session.running(),
-            "agentType": presence.map(|entry| entry.agent_type.clone()),
-            "agentState": presence.map(|entry| entry.state.as_str()),
-            "startupState": startup_state,
-            "startupError": dispatch.as_ref().and_then(|value| value.startup_error.clone()),
-            "dispatch": dispatch,
-        }))
-    }
 
     pub(super) fn group_resolution_terminals(&self) -> Vec<GroupResolutionTerminal> {
         self.sessions
@@ -1980,6 +1943,15 @@ impl ServerActor {
             });
         });
     }
+}
+
+fn optional_status_string(entry: &Value, key: &str) -> Option<String> {
+    entry
+        .get(key)
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
 }
 
 fn generated_group_thread_id() -> String {

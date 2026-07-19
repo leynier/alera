@@ -47,6 +47,12 @@ pub struct AgentPresence {
     pub agent_type: String,
     pub state: AgentPresenceState,
     pub state_started_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub prompt: String,
+    pub tool_name: Option<String>,
+    pub tool_input: Option<String>,
+    pub last_assistant_message: Option<String>,
+    pub interrupted: Option<bool>,
 }
 
 /// Last known agent presence per terminal handle, fed by the Flutter app's
@@ -65,6 +71,7 @@ impl AgentPresenceRegistry {
         self.update_at(handle, agent_type, state, Utc::now())
     }
 
+    #[cfg(test)]
     pub fn update_at(
         &mut self,
         handle: &str,
@@ -83,9 +90,30 @@ impl AgentPresenceRegistry {
                 agent_type,
                 state,
                 state_started_at,
+                updated_at: Utc::now(),
+                prompt: String::new(),
+                tool_name: None,
+                tool_input: None,
+                last_assistant_message: None,
+                interrupted: None,
             },
         );
         state.accepts_injection() && !was_ready
+    }
+
+    pub fn update_full(&mut self, handle: &str, presence: AgentPresence) -> bool {
+        let was_ready = self
+            .entries
+            .get(handle)
+            .is_some_and(|entry| entry.state.accepts_injection());
+        let is_ready = presence.state.accepts_injection();
+        self.entries.insert(handle.to_string(), presence);
+        is_ready && !was_ready
+    }
+
+    pub fn retain_enabled(&mut self, enabled_agents: &[&str]) {
+        self.entries
+            .retain(|_, entry| enabled_agents.contains(&entry.agent_type.as_str()));
     }
 
     pub fn remove(&mut self, handle: &str) {
