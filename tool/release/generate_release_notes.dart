@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'release_plan.dart' as release_plan;
+
 /// Generates product-scoped release notes from first-parent history.
 ///
 /// Usage:
@@ -119,15 +121,15 @@ List<HistoryEntry> parseHistory(String log) {
 }
 
 bool isReleaseBookkeepingSubject(String subject) {
-  return RegExp(r'^release: (mobile-)?v\d').hasMatch(subject);
+  return release_plan.isReleaseBookkeepingSubject(subject);
 }
 
 bool pathsMatchScope(String scope, Iterable<String> paths) {
-  if (scope == 'mobile') {
-    return paths.any((path) => path.startsWith('mobile/'));
-  }
-  return paths.any(
-    (path) => !path.startsWith('mobile/') && !path.startsWith('landing/'),
+  return release_plan.pathsMatchProduct(
+    scope == 'mobile'
+        ? release_plan.ReleaseProduct.mobile
+        : release_plan.ReleaseProduct.desktop,
+    paths,
   );
 }
 
