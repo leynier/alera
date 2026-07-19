@@ -37,6 +37,10 @@ abstract final class AleraTokens {
   static const double squareAspectRatio = 1;
   static const double pairingViewfinderSize = 260;
   static const double tabStripHeight = 56;
+  static const double accessoryBarHeight = 44;
+  static const int composeBarMaxLines = 4;
+
+  static const Duration keyRepeatInterval = Duration(milliseconds: 90);
   static const int pairingInputMinLines = 6;
   static const int pairingInputMaxLines = 10;
   static const int previewRowLimit = 3;
