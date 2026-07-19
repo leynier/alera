@@ -12,6 +12,7 @@ class PairedHostProfile {
     required this.deviceId,
     required this.pairedAt,
     this.serverPublicKeyB64,
+    this.alias,
   });
 
   final String id;
@@ -21,6 +22,25 @@ class PairedHostProfile {
   final String deviceId;
   final String? serverPublicKeyB64;
   final DateTime pairedAt;
+
+  /// Local, user-chosen name for this host. Never sent to the runtime; the
+  /// desktop keeps advertising its own host name.
+  final String? alias;
+
+  String get effectiveName => alias ?? displayName;
+
+  PairedHostProfile withAlias(String? alias) {
+    return PairedHostProfile(
+      id: id,
+      displayName: displayName,
+      endpoint: endpoint,
+      runtimeId: runtimeId,
+      deviceId: deviceId,
+      pairedAt: pairedAt,
+      serverPublicKeyB64: serverPublicKeyB64,
+      alias: alias,
+    );
+  }
 
   factory PairedHostProfile.fromPairingResult(
     PairingOffer offer,
@@ -56,6 +76,7 @@ class PairedHostProfile {
       deviceId: json.requiredString('deviceId'),
       serverPublicKeyB64: json.optionalString('serverPublicKeyB64'),
       pairedAt: DateTime.parse(json.requiredString('pairedAt')),
+      alias: json.optionalString('alias'),
     );
   }
 
@@ -68,6 +89,7 @@ class PairedHostProfile {
       'deviceId': deviceId,
       'serverPublicKeyB64': serverPublicKeyB64,
       'pairedAt': pairedAt.toUtc().toIso8601String(),
+      if (alias != null) 'alias': alias,
     };
   }
 }

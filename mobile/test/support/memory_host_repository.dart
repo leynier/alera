@@ -29,4 +29,12 @@ class MemoryHostRepository implements HostRepository {
   Future<String?> readDeviceToken(String hostId) async {
     return _secrets[hostId];
   }
+
+  @override
+  Future<void> updateHostAlias(String hostId, String? alias) async {
+    final host = _hosts[hostId];
+    if (host != null) {
+      _hosts[hostId] = host.withAlias(alias);
+    }
+  }
 }

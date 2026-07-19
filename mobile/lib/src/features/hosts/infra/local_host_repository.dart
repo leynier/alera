@@ -75,6 +75,15 @@ class LocalHostRepository implements HostRepository {
     return _secureStorage.read(key: '$_deviceTokenPrefix$hostId');
   }
 
+  @override
+  Future<void> updateHostAlias(String hostId, String? alias) async {
+    final hosts = await loadHosts();
+    await _writeHosts(<PairedHostProfile>[
+      for (final host in hosts)
+        if (host.id == hostId) host.withAlias(alias) else host,
+    ]);
+  }
+
   Future<void> _writeHosts(List<PairedHostProfile> hosts) {
     return _preferences.setString(
       _hostsKey,
