@@ -41,6 +41,7 @@ part 'workbench_controller_failure_test_cases.dart';
 part 'workbench_controller_create_workspace_test_cases.dart';
 part 'workbench_controller_workspace_graph_test_cases.dart';
 part 'workbench_controller_pinning_test_cases.dart';
+part 'workbench_controller_view_prefs_test_repository.dart';
 part 'workbench_controller_test_harness.dart';
 
 late _WorkbenchHarness _harness;

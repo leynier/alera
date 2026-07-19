@@ -25,6 +25,8 @@ import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/infra/drift_workbench_view_prefs_repository.dart';
 import 'package:alera/src/features/workbench/infra/drift_workspace_activity_repository.dart';
+import 'package:alera/src/features/workbench/infra/runtime_workspace_activity_repository.dart';
+import 'package:alera/src/features/workbench/infra/runtime_workbench_view_prefs_repository.dart';
 import 'package:alera/src/features/workbench/infra/alera_cli_terminal_shim.dart';
 import 'package:alera/src/features/workbench/infra/runtime_managed_workspace_client.dart';
 import 'package:alera/src/features/workbench/infra/runtime_workspace_graph_repository.dart';
@@ -66,7 +68,11 @@ WorkspaceGraphRepository workspaceGraphRepository(Ref ref) {
 WorkbenchViewPrefsRepository workbenchViewPrefsRepository(Ref ref) {
   final dbAsync = ref.watch(aleraDatabaseProvider);
   final db = dbAsync.requireValue;
-  return DriftWorkbenchViewPrefsRepository(db);
+  return RuntimeWorkbenchViewPrefsRepository(
+    client: ref.watch(runtimeHostClientProvider),
+    legacyRepository: DriftWorkbenchViewPrefsRepository(db),
+    beforeAccess: ref.watch(runtimeStateMigrationProvider).ensureMigrated,
+  );
 }
 
 @Riverpod(keepAlive: true)
@@ -78,11 +84,15 @@ SidebarOrderMemory sidebarOrderMemory(Ref ref) {
 WorkspaceActivityRepository workspaceActivityRepository(Ref ref) {
   final dbAsync = ref.watch(aleraDatabaseProvider);
   final db = dbAsync.requireValue;
-  return DriftWorkspaceActivityRepository(db);
+  return RuntimeWorkspaceActivityRepository(
+    client: ref.watch(runtimeHostClientProvider),
+    legacyRepository: DriftWorkspaceActivityRepository(db),
+    beforeAccess: ref.watch(runtimeStateMigrationProvider).ensureMigrated,
+  );
 }
 
-/// Seeds [WorkspaceActivityController] from Drift once the database is ready
-/// so the Agent Activity sort keeps its recency ordering across restarts.
+/// Seeds [WorkspaceActivityController] from shared runtime state, merging the
+/// legacy Drift timestamps during migration.
 @Riverpod(keepAlive: true)
 void workspaceActivityPersistenceCoordinator(Ref ref) {
   final repository = ref.watch(workspaceActivityRepositoryProvider);

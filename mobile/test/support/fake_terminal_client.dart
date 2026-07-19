@@ -5,7 +5,9 @@ import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
+import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snapshot.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_client.dart';
+import 'package:alera_mobile/src/features/workbench/domain/mobile_view_prefs.dart';
 
 WorkspaceTabSummary fakeTab({
   required String id,
@@ -66,6 +68,34 @@ class FakeTerminalClient
 
   @override
   bool get supportsWorkspaceMutations => true;
+
+  @override
+  bool get supportsWorkspaceSidebarParity => true;
+
+  @override
+  Future<WorkspaceSidebarSnapshot> workspaceSidebarSnapshot() async {
+    return const WorkspaceSidebarSnapshot(
+      projects: <ProjectSummary>[],
+      workspaces: <WorkspaceSummary>[],
+      tags: <WorkspaceTagSummary>[],
+      activity: <String, DateTime>{},
+      viewPrefs: MobileViewPrefs(),
+      confirmWorkspaceRemoval: true,
+    );
+  }
+
+  @override
+  Future<MobileViewPrefs> loadWorkbenchViewPrefs() async =>
+      const MobileViewPrefs();
+
+  @override
+  Future<MobileViewPrefs> updateWorkbenchViewPrefs(
+    MobileViewPrefs prefs,
+  ) async => prefs.copyWith(revision: prefs.revision + 1);
+
+  @override
+  Future<List<AgentPresenceSummary>> listAgentPresence() async =>
+      const <AgentPresenceSummary>[];
 
   @override
   Future<List<WorkspaceTabSummary>> listTabs(String workspaceId) async {
@@ -220,4 +250,36 @@ class FakeTerminalClient
         if (tab.id != tabId) tab,
     ];
   }
+
+  @override
+  Future<WorkspaceSummary> renameWorkspace(String id, String name) async =>
+      WorkspaceSummary(id: id, projectId: 'p1', name: name, path: '/tmp/$id');
+
+  @override
+  Future<void> sleepWorkspace(String workspaceId) async {}
+
+  @override
+  Future<String?> workspaceRepositoryRemoteUrl(String workspaceId) async =>
+      null;
+
+  @override
+  Future<WorkspaceTagSummary> createWorkspaceTag(
+    String name, {
+    String? color,
+  }) async => WorkspaceTagSummary(id: name, name: name, color: color);
+
+  @override
+  Future<void> removeWorkspaceTag(String tagId) async {}
+
+  @override
+  Future<WorkspaceSummary> setWorkspaceTags(
+    String workspaceId,
+    List<String> tagIds,
+  ) async => WorkspaceSummary(
+    id: workspaceId,
+    projectId: 'p1',
+    name: workspaceId,
+    path: '/tmp/$workspaceId',
+    tagIds: tagIds,
+  );
 }

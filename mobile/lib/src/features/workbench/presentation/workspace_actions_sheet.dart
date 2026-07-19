@@ -2,10 +2,24 @@ import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart'
 import 'package:alera_mobile/src/features/workbench/application/workspace_list_controller.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/delete_workspace_dialog.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/parent_picker_sheet.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/workspace_tags_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-enum _WorkspaceAction { pin, unpin, configureParent, unlinkParent, delete }
+enum _WorkspaceAction {
+  rename,
+  pin,
+  unpin,
+  tags,
+  configureParent,
+  unlinkParent,
+  openRepository,
+  copyPath,
+  sleep,
+  delete,
+}
 
 /// Long-press actions for one workspace row. Mutating entries only appear
 /// when the runtime advertises the mobile mutations capability.
@@ -38,6 +52,11 @@ Future<void> showWorkspaceActionsSheet(
           ),
           const Divider(height: 1),
           ListTile(
+            leading: const Icon(Icons.edit_outlined),
+            title: const Text('Rename Workspace'),
+            onTap: () => Navigator.of(context).pop(_WorkspaceAction.rename),
+          ),
+          ListTile(
             leading: Icon(
               workspace.isPinned ? Icons.push_pin_outlined : Icons.push_pin,
             ),
@@ -47,6 +66,11 @@ Future<void> showWorkspaceActionsSheet(
                   ? _WorkspaceAction.unpin
                   : _WorkspaceAction.pin,
             ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.sell_outlined),
+            title: const Text('Tags'),
+            onTap: () => Navigator.of(context).pop(_WorkspaceAction.tags),
           ),
           ListTile(
             leading: const Icon(Icons.account_tree_outlined),
@@ -61,6 +85,22 @@ Future<void> showWorkspaceActionsSheet(
               onTap: () =>
                   Navigator.of(context).pop(_WorkspaceAction.unlinkParent),
             ),
+          ListTile(
+            leading: const Icon(Icons.open_in_browser),
+            title: const Text('Open Repository'),
+            onTap: () =>
+                Navigator.of(context).pop(_WorkspaceAction.openRepository),
+          ),
+          ListTile(
+            leading: const Icon(Icons.copy_outlined),
+            title: const Text('Copy Path'),
+            onTap: () => Navigator.of(context).pop(_WorkspaceAction.copyPath),
+          ),
+          ListTile(
+            leading: const Icon(Icons.bedtime_outlined),
+            title: const Text('Sleep Workspace'),
+            onTap: () => Navigator.of(context).pop(_WorkspaceAction.sleep),
+          ),
           if (!workspace.isMain)
             ListTile(
               leading: Icon(
@@ -83,6 +123,9 @@ Future<void> showWorkspaceActionsSheet(
   final controller = ref.read(workspaceListControllerProvider(hostId).notifier);
   try {
     switch (action) {
+      case _WorkspaceAction.rename:
+        final name = await _promptForWorkspaceName(context, workspace.name);
+        if (name != null) await controller.renameWorkspace(workspace.id, name);
       case _WorkspaceAction.pin:
         await controller.setPinned(workspace.id, true);
       case _WorkspaceAction.unpin:
@@ -101,8 +144,31 @@ Future<void> showWorkspaceActionsSheet(
         }
       case _WorkspaceAction.unlinkParent:
         await controller.unlinkParent(workspace);
+      case _WorkspaceAction.tags:
+        await showWorkspaceTagsSheet(
+          context,
+          ref,
+          hostId: hostId,
+          workspace: workspace,
+          data: data,
+        );
+      case _WorkspaceAction.openRepository:
+        final remote = await controller.repositoryRemoteUrl(workspace.id);
+        final uri = remote == null ? null : _repositoryUri(remote);
+        if (uri == null || !await launchUrl(uri)) {
+          throw StateError('Repository URL Is Not Available.');
+        }
+      case _WorkspaceAction.copyPath:
+        await Clipboard.setData(ClipboardData(text: workspace.path));
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Workspace Path Copied')),
+          );
+        }
+      case _WorkspaceAction.sleep:
+        await controller.sleepWorkspace(workspace.id);
       case _WorkspaceAction.delete:
-        await _confirmAndDelete(context, controller, workspace);
+        await _confirmAndDelete(context, controller, workspace, data);
     }
   } on Object catch (error) {
     if (context.mounted) {
@@ -117,6 +183,7 @@ Future<void> _confirmAndDelete(
   BuildContext context,
   WorkspaceListController controller,
   WorkspaceSummary workspace,
+  WorkspaceListData data,
 ) async {
   var cascadeCount = 1;
   try {
@@ -127,11 +194,13 @@ Future<void> _confirmAndDelete(
   if (!context.mounted) {
     return;
   }
-  final decision = await showDeleteWorkspaceDialog(
-    context,
-    workspace: workspace,
-    cascadeCount: cascadeCount,
-  );
+  final decision = data.confirmWorkspaceRemoval
+      ? await showDeleteWorkspaceDialog(
+          context,
+          workspace: workspace,
+          cascadeCount: cascadeCount,
+        )
+      : DeleteWorkspaceDecision(deleteBranch: !workspace.reusesExistingBranch);
   if (decision == null || !context.mounted) {
     return;
   }
@@ -142,4 +211,56 @@ Future<void> _confirmAndDelete(
     deleteBranch: decision.deleteBranch,
   );
   messenger.showSnackBar(SnackBar(content: Text('Removed ${workspace.name}')));
+}
+
+Future<String?> _promptForWorkspaceName(
+  BuildContext context,
+  String currentName,
+) async {
+  final controller = TextEditingController(text: currentName);
+  controller.selection = TextSelection.collapsed(offset: currentName.length);
+  try {
+    return await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Rename Workspace'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'Workspace Name'),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final value = controller.text.trim();
+              if (value.isNotEmpty) Navigator.of(context).pop(value);
+            },
+            child: const Text('Rename'),
+          ),
+        ],
+      ),
+    );
+  } finally {
+    controller.dispose();
+  }
+}
+
+Uri? _repositoryUri(String remote) {
+  var value = remote.trim();
+  final scp = RegExp(r'^[^@]+@([^:]+):(.+)$').firstMatch(value);
+  if (scp != null) {
+    value = 'https://${scp.group(1)}/${scp.group(2)}';
+  } else {
+    final uri = Uri.tryParse(value);
+    if (uri?.scheme == 'ssh' && uri != null) {
+      value = 'https://${uri.host}${uri.path}';
+    }
+  }
+  if (value.endsWith('.git')) value = value.substring(0, value.length - 4);
+  final uri = Uri.tryParse(value);
+  return uri != null && uri.hasScheme ? uri : null;
 }

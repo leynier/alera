@@ -8,55 +8,6 @@ part of 'workbench_providers.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-
-@ProviderFor(viewPrefsRepository)
-final viewPrefsRepositoryProvider = ViewPrefsRepositoryProvider._();
-
-final class ViewPrefsRepositoryProvider
-    extends
-        $FunctionalProvider<
-          ViewPrefsRepository,
-          ViewPrefsRepository,
-          ViewPrefsRepository
-        >
-    with $Provider<ViewPrefsRepository> {
-  ViewPrefsRepositoryProvider._()
-    : super(
-        from: null,
-        argument: null,
-        retry: null,
-        name: r'viewPrefsRepositoryProvider',
-        isAutoDispose: false,
-        dependencies: null,
-        $allTransitiveDependencies: null,
-      );
-
-  @override
-  String debugGetCreateSourceHash() => _$viewPrefsRepositoryHash();
-
-  @$internal
-  @override
-  $ProviderElement<ViewPrefsRepository> $createElement(
-    $ProviderPointer pointer,
-  ) => $ProviderElement(pointer);
-
-  @override
-  ViewPrefsRepository create(Ref ref) {
-    return viewPrefsRepository(ref);
-  }
-
-  /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(ViewPrefsRepository value) {
-    return $ProviderOverride(
-      origin: this,
-      providerOverride: $SyncValueProvider<ViewPrefsRepository>(value),
-    );
-  }
-}
-
-String _$viewPrefsRepositoryHash() =>
-    r'7e6e618b2f430c6bcb25d5cb73536701d35abf42';
-
 /// The workspace surface of the host connection. Tests override this with a
 /// fake so workbench controllers can run without a live gateway.
 

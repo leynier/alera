@@ -1,6 +1,7 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
+import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_list_controller.dart';
 import 'package:flutter/material.dart';
@@ -11,10 +12,12 @@ class CreateWorkspaceScreen extends ConsumerStatefulWidget {
     super.key,
     required this.hostId,
     required this.projects,
+    required this.workspaces,
   });
 
   final String hostId;
   final List<ProjectSummary> projects;
+  final List<WorkspaceSummary> workspaces;
 
   @override
   ConsumerState<CreateWorkspaceScreen> createState() =>
@@ -27,6 +30,7 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
   String? _projectId;
   List<String> _branches = const <String>[];
   String? _sourceBranch;
+  String? _parentWorkspaceId;
   bool _reuseExistingBranch = false;
   bool _loadingBranches = false;
   bool _creating = false;
@@ -53,6 +57,7 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
       _projectId = projectId;
       _branches = const <String>[];
       _sourceBranch = null;
+      _parentWorkspaceId = null;
       _loadingBranches = true;
     });
     try {
@@ -106,6 +111,7 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
             sourceBranch: _reuseExistingBranch ? null : _sourceBranch,
             reuseExistingBranch: _reuseExistingBranch,
             name: name.isEmpty ? null : name,
+            parentWorkspaceId: _parentWorkspaceId,
           );
       if (mounted) {
         setState(() {
@@ -219,6 +225,30 @@ class _CreateWorkspaceScreenState extends ConsumerState<CreateWorkspaceScreen> {
           decoration: const InputDecoration(
             labelText: 'Display Name (Optional)',
           ),
+        ),
+        const SizedBox(height: AleraTokens.spaceLg),
+        DropdownButtonFormField<String?>(
+          initialValue: _parentWorkspaceId,
+          decoration: const InputDecoration(labelText: 'Parent Workspace'),
+          items: <DropdownMenuItem<String?>>[
+            const DropdownMenuItem<String?>(
+              value: null,
+              child: Text('No Parent'),
+            ),
+            for (final workspace in widget.workspaces)
+              if (workspace.projectId == _projectId)
+                DropdownMenuItem<String?>(
+                  value: workspace.id,
+                  child: Text(workspace.name, overflow: TextOverflow.ellipsis),
+                ),
+          ],
+          onChanged: _creating
+              ? null
+              : (value) {
+                  setState(() {
+                    _parentWorkspaceId = value;
+                  });
+                },
         ),
         if (_error != null) ...<Widget>[
           const SizedBox(height: AleraTokens.spaceMd),

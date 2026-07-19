@@ -24,7 +24,7 @@ Future<DeleteWorkspaceDecision?> showDeleteWorkspaceDialog(
   );
 }
 
-class _DeleteWorkspaceDialog extends StatefulWidget {
+class _DeleteWorkspaceDialog extends StatelessWidget {
   const _DeleteWorkspaceDialog({
     required this.workspace,
     required this.cascadeCount,
@@ -34,27 +34,21 @@ class _DeleteWorkspaceDialog extends StatefulWidget {
   final int cascadeCount;
 
   @override
-  State<_DeleteWorkspaceDialog> createState() => _DeleteWorkspaceDialogState();
-}
-
-class _DeleteWorkspaceDialogState extends State<_DeleteWorkspaceDialog> {
-  bool _deleteBranch = false;
-
-  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final descendants = widget.cascadeCount - 1;
+    final descendants = cascadeCount - 1;
+    final deleteBranch = !workspace.reusesExistingBranch;
     return AlertDialog(
       title: const Text('Delete Workspace'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(widget.workspace.name, style: theme.textTheme.titleSmall),
-          if (widget.workspace.branch != null) ...<Widget>[
+          Text(workspace.name, style: theme.textTheme.titleSmall),
+          if (workspace.branch != null) ...<Widget>[
             const SizedBox(height: AleraTokens.spaceXs),
             Text(
-              widget.workspace.branch!,
+              workspace.branch!,
               style: theme.textTheme.bodySmall?.copyWith(
                 fontFamily: AleraTokens.monoFontFamily,
               ),
@@ -72,15 +66,11 @@ class _DeleteWorkspaceDialogState extends State<_DeleteWorkspaceDialog> {
             ),
           ],
           const SizedBox(height: AleraTokens.spaceMd),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            value: _deleteBranch,
-            onChanged: (value) {
-              setState(() {
-                _deleteBranch = value;
-              });
-            },
-            title: const Text('Delete Branch'),
+          Text(
+            deleteBranch
+                ? 'The Alera-Created Branch Will Also Be Deleted.'
+                : 'The Existing Branch Will Be Preserved.',
+            style: theme.textTheme.bodySmall,
           ),
         ],
       ),
@@ -96,7 +86,7 @@ class _DeleteWorkspaceDialogState extends State<_DeleteWorkspaceDialog> {
           ),
           onPressed: () => Navigator.of(
             context,
-          ).pop(DeleteWorkspaceDecision(deleteBranch: _deleteBranch)),
+          ).pop(DeleteWorkspaceDecision(deleteBranch: deleteBranch)),
           child: const Text('Delete'),
         ),
       ],

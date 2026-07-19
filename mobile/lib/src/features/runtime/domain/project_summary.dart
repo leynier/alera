@@ -5,17 +5,23 @@ class ProjectSummary {
     required this.id,
     required this.name,
     required this.repoPath,
+    this.kind = 'gitRepository',
+    this.updatedAt,
   });
 
   final String id;
   final String name;
   final String repoPath;
+  final String kind;
+  final DateTime? updatedAt;
 
   factory ProjectSummary.fromJson(Map<String, Object?> json) {
     return ProjectSummary(
       id: json.requiredString('id'),
       name: json.requiredString('name'),
       repoPath: json.requiredString('repoPath'),
+      kind: json.optionalString('kind') ?? 'gitRepository',
+      updatedAt: json.optionalDateTime('updatedAt'),
     );
   }
 }

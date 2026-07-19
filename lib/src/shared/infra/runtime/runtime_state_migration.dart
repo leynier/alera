@@ -151,12 +151,11 @@ final class RuntimeStateMigration {
     RuntimeStateLegacyRepositories legacy,
   ) async {
     final settings = await legacy.settingsRepository.load();
-    await _runtimeClient.runtimeRequest(
-      'runtimeSettings.update',
-      <String, Object?>{
-        'workspaceDirectory': settings.general.workspaceDirectory,
-      },
-    );
+    await _runtimeClient
+        .runtimeRequest('runtimeSettings.update', <String, Object?>{
+          'workspaceDirectory': settings.general.workspaceDirectory,
+          'confirmWorkspaceRemoval': settings.general.confirmWorkspaceRemoval,
+        });
     final configs = await legacy.projectConfigRepository.loadAll();
     for (final entry in configs.entries) {
       await _runtimeClient.runtimeRequest(

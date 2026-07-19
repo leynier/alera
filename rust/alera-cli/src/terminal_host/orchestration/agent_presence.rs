@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use chrono::{DateTime, Utc};
+
 /// Agent state as reported by the Flutter app's agent-status hooks.
 /// `Waiting` includes approval and user-input prompts, so it is not safe for
 /// auto-submitted injection. Only `Done` means the agent has returned to an
@@ -44,6 +46,7 @@ impl AgentPresenceState {
 pub struct AgentPresence {
     pub agent_type: String,
     pub state: AgentPresenceState,
+    pub state_started_at: DateTime<Utc>,
 }
 
 /// Last known agent presence per terminal handle, fed by the Flutter app's
@@ -57,23 +60,36 @@ impl AgentPresenceRegistry {
     /// Records a presence update. Returns true when this update is a
     /// transition into an injection-ready state (used to trigger
     /// push-on-idle delivery).
+    #[cfg(test)]
     pub fn update(&mut self, handle: &str, agent_type: String, state: AgentPresenceState) -> bool {
+        self.update_at(handle, agent_type, state, Utc::now())
+    }
+
+    pub fn update_at(
+        &mut self,
+        handle: &str,
+        agent_type: String,
+        state: AgentPresenceState,
+        state_started_at: DateTime<Utc>,
+    ) -> bool {
         let was_ready = self
             .entries
             .get(handle)
             .map(|entry| entry.state.accepts_injection())
             .unwrap_or(false);
-        self.entries
-            .insert(handle.to_string(), AgentPresence { agent_type, state });
+        self.entries.insert(
+            handle.to_string(),
+            AgentPresence {
+                agent_type,
+                state,
+                state_started_at,
+            },
+        );
         state.accepts_injection() && !was_ready
     }
 
     pub fn remove(&mut self, handle: &str) {
         self.entries.remove(handle);
-    }
-
-    pub fn clear(&mut self) {
-        self.entries.clear();
     }
 
     pub fn get(&self, handle: &str) -> Option<&AgentPresence> {
@@ -140,15 +156,5 @@ mod tests {
         registry.remove("t1");
         assert!(registry.get("t1").is_none());
         assert!(!registry.is_injection_ready("t1"));
-    }
-
-    #[test]
-    fn clear_removes_all_presence() {
-        let mut registry = AgentPresenceRegistry::default();
-        registry.update("t1", "claude".into(), AgentPresenceState::Waiting);
-        registry.update("t2", "codex".into(), AgentPresenceState::Working);
-        registry.clear();
-        assert!(registry.get("t1").is_none());
-        assert!(registry.get("t2").is_none());
     }
 }

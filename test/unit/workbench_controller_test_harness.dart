@@ -328,31 +328,6 @@ class _FakeWorkspaceGraphRepository implements WorkspaceGraphRepository {
   }
 }
 
-class _FakeWorkbenchViewPrefsRepository
-    implements WorkbenchViewPrefsRepository {
-  WorkbenchViewPrefs prefs = WorkbenchViewPrefs.defaults;
-  Object? loadError;
-  Object? saveError;
-  int saveCount = 0;
-
-  @override
-  Future<WorkbenchViewPrefs> load() async {
-    if (loadError case final Object error) {
-      throw error;
-    }
-    return prefs;
-  }
-
-  @override
-  Future<void> save(WorkbenchViewPrefs prefs) async {
-    saveCount += 1;
-    if (saveError case final Object error) {
-      throw error;
-    }
-    this.prefs = prefs;
-  }
-}
-
 class _FakeWorktreeSetupRunner implements WorktreeSetupRunner {
   WorktreeSetupReport report = WorktreeSetupReport.empty;
   final List<({Project project, Workspace workspace, ProjectConfig config})>

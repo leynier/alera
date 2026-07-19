@@ -26,6 +26,9 @@ class RuntimeSettingsRepository implements SettingsRepository {
       return legacy.copyWith(
         general: legacy.general.copyWith(
           workspaceDirectory: runtime['workspaceDirectory'] as String?,
+          confirmWorkspaceRemoval:
+              runtime['confirmWorkspaceRemoval'] as bool? ??
+              legacy.general.confirmWorkspaceRemoval,
         ),
       );
     } catch (_) {
@@ -39,6 +42,7 @@ class RuntimeSettingsRepository implements SettingsRepository {
     await beforeAccess?.call();
     await client.runtimeRequest('runtimeSettings.update', <String, Object?>{
       'workspaceDirectory': settings.general.workspaceDirectory,
+      'confirmWorkspaceRemoval': settings.general.confirmWorkspaceRemoval,
     });
   }
 }

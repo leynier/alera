@@ -50,6 +50,7 @@ class WorkbenchController extends _$WorkbenchController
     ref.onDispose(() {
       _disposed = true;
       unawaited(_projectsSub?.cancel());
+      unawaited(_viewPrefsSub?.cancel());
       for (final subscription in _workspaceSubs.values) {
         unawaited(subscription.cancel());
       }
@@ -71,6 +72,9 @@ class WorkbenchController extends _$WorkbenchController
         try {
           final prefs = await repo.load();
           state = state.copyWith(viewPrefs: prefs);
+          _viewPrefsSub = repo.changes.listen((prefs) {
+            if (!_disposed) state = state.copyWith(viewPrefs: prefs);
+          });
         } catch (_) {
           // Fall back to defaults if loading fails; never block bootstrap.
         }

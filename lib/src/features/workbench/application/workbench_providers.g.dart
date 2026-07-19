@@ -152,7 +152,7 @@ final class WorkbenchViewPrefsRepositoryProvider
 }
 
 String _$workbenchViewPrefsRepositoryHash() =>
-    r'b7726a6ea38683368a484b1c0015eebc3e65bda8';
+    r'307cb46e7f48379a186243cc2863d6f89141eebc';
 
 @ProviderFor(sidebarOrderMemory)
 final sidebarOrderMemoryProvider = SidebarOrderMemoryProvider._();
@@ -249,23 +249,23 @@ final class WorkspaceActivityRepositoryProvider
 }
 
 String _$workspaceActivityRepositoryHash() =>
-    r'07afee80ccb3807edd70367eac0c5d2d0a7c5be0';
+    r'e1bf0872d3ce08efa3e4848b1f5e9a995f928a9d';
 
-/// Seeds [WorkspaceActivityController] from Drift once the database is ready
-/// so the Agent Activity sort keeps its recency ordering across restarts.
+/// Seeds [WorkspaceActivityController] from shared runtime state, merging the
+/// legacy Drift timestamps during migration.
 
 @ProviderFor(workspaceActivityPersistenceCoordinator)
 final workspaceActivityPersistenceCoordinatorProvider =
     WorkspaceActivityPersistenceCoordinatorProvider._();
 
-/// Seeds [WorkspaceActivityController] from Drift once the database is ready
-/// so the Agent Activity sort keeps its recency ordering across restarts.
+/// Seeds [WorkspaceActivityController] from shared runtime state, merging the
+/// legacy Drift timestamps during migration.
 
 final class WorkspaceActivityPersistenceCoordinatorProvider
     extends $FunctionalProvider<void, void, void>
     with $Provider<void> {
-  /// Seeds [WorkspaceActivityController] from Drift once the database is ready
-  /// so the Agent Activity sort keeps its recency ordering across restarts.
+  /// Seeds [WorkspaceActivityController] from shared runtime state, merging the
+  /// legacy Drift timestamps during migration.
   WorkspaceActivityPersistenceCoordinatorProvider._()
     : super(
         from: null,

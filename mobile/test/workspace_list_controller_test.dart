@@ -3,9 +3,11 @@ import 'dart:async';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
+import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snapshot.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_client.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_list_controller.dart';
+import 'package:alera_mobile/src/features/workbench/domain/mobile_view_prefs.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -54,9 +56,10 @@ void main() {
       projectId: 'p1',
       branch: 'feature/x',
       sourceBranch: 'main',
+      parentWorkspaceId: 'b',
     );
     expect(result.workspace.id, 'created');
-    expect(client.calls, contains('create p1 feature/x main'));
+    expect(client.calls, contains('create p1 feature/x main b'));
   });
 
   test('Cascade preview returns the subtree ids', () async {
@@ -117,6 +120,34 @@ class _FakeWorkspaceClient implements MobileWorkspaceClient {
   bool get supportsWorkspaceMutations => true;
 
   @override
+  bool get supportsWorkspaceSidebarParity => true;
+
+  @override
+  Future<WorkspaceSidebarSnapshot> workspaceSidebarSnapshot() async {
+    return WorkspaceSidebarSnapshot(
+      projects: await listProjects(),
+      workspaces: workspaces,
+      tags: const <WorkspaceTagSummary>[],
+      activity: const <String, DateTime>{},
+      viewPrefs: const MobileViewPrefs(),
+      confirmWorkspaceRemoval: true,
+    );
+  }
+
+  @override
+  Future<MobileViewPrefs> loadWorkbenchViewPrefs() async =>
+      const MobileViewPrefs();
+
+  @override
+  Future<MobileViewPrefs> updateWorkbenchViewPrefs(
+    MobileViewPrefs prefs,
+  ) async => prefs.copyWith(revision: prefs.revision + 1);
+
+  @override
+  Future<List<AgentPresenceSummary>> listAgentPresence() async =>
+      const <AgentPresenceSummary>[];
+
+  @override
   Future<List<ProjectSummary>> listProjects() async {
     return <ProjectSummary>[
       const ProjectSummary(id: 'p1', name: 'Project', repoPath: '/repo'),
@@ -167,7 +198,7 @@ class _FakeWorkspaceClient implements MobileWorkspaceClient {
     String? name,
     String? parentWorkspaceId,
   }) async {
-    calls.add('create $projectId $branch $sourceBranch');
+    calls.add('create $projectId $branch $sourceBranch $parentWorkspaceId');
     return WorkspaceCreationResult(
       workspace: _workspace('created'),
       steps: const <WorkspaceSetupStep>[],
@@ -191,4 +222,39 @@ class _FakeWorkspaceClient implements MobileWorkspaceClient {
   Future<void> removeTab(String tabId) async {
     calls.add('removeTab $tabId');
   }
+
+  @override
+  Future<WorkspaceSummary> renameWorkspace(String id, String name) async {
+    calls.add('rename $id $name');
+    return WorkspaceSummary(
+      id: id,
+      projectId: 'p1',
+      name: name,
+      path: '/tmp/$id',
+    );
+  }
+
+  @override
+  Future<void> sleepWorkspace(String workspaceId) async {
+    calls.add('sleep $workspaceId');
+  }
+
+  @override
+  Future<String?> workspaceRepositoryRemoteUrl(String workspaceId) async =>
+      null;
+
+  @override
+  Future<WorkspaceTagSummary> createWorkspaceTag(
+    String name, {
+    String? color,
+  }) async => WorkspaceTagSummary(id: name, name: name, color: color);
+
+  @override
+  Future<void> removeWorkspaceTag(String tagId) async {}
+
+  @override
+  Future<WorkspaceSummary> setWorkspaceTags(
+    String workspaceId,
+    List<String> tagIds,
+  ) async => _workspace(workspaceId);
 }

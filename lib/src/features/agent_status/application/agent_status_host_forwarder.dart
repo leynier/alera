@@ -69,6 +69,7 @@ class AgentStatusHostForwarder {
         'tabId': entry.tabId,
         'agentType': entry.agentType.key,
         'state': entry.state.key,
+        'stateStartedAt': entry.stateStartedAt.toUtc().toIso8601String(),
       };
     }
     for (final sessionId in before.keys) {
@@ -97,6 +98,7 @@ class AgentStatusHostForwarder {
         'tabId': entry.tabId,
         'agentType': entry.agentType.key,
         'state': entry.state.key,
+        'stateStartedAt': entry.stateStartedAt.toUtc().toIso8601String(),
       };
     }
     _timer ??= Timer(debounce, _flush);

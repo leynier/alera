@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
+import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snapshot.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -13,6 +14,10 @@ const Set<String> _refreshEvents = <String>{
   'workspaceRelationsChanged',
   'workspaceTabsChanged',
   'projectsChanged',
+  'workspaceTagsChanged',
+  'workspaceActivityChanged',
+  'runtimeSettingsChanged',
+  'agentPresenceChanged',
 };
 
 class WorkspaceListData {
@@ -20,6 +25,10 @@ class WorkspaceListData {
     required this.workspaces,
     required this.projects,
     required this.supportsMutations,
+    required this.tags,
+    required this.activity,
+    required this.confirmWorkspaceRemoval,
+    required this.agentPresence,
   });
 
   final List<WorkspaceSummary> workspaces;
@@ -28,6 +37,10 @@ class WorkspaceListData {
   /// False against runtimes that predate the mobile mutation allowlist; the
   /// UI hides mutating actions in that case.
   final bool supportsMutations;
+  final List<WorkspaceTagSummary> tags;
+  final Map<String, DateTime> activity;
+  final bool confirmWorkspaceRemoval;
+  final List<AgentPresenceSummary> agentPresence;
 
   WorkspaceSummary? workspaceById(String id) {
     for (final workspace in workspaces) {
@@ -44,20 +57,26 @@ class WorkspaceListController extends _$WorkspaceListController {
   @override
   Future<WorkspaceListData> build(String hostId) async {
     final client = await ref.watch(workspaceClientProvider(hostId).future);
+    if (!client.supportsWorkspaceSidebarParity) {
+      throw UnsupportedError(
+        'Update Alera On This Host To Use Mobile Workspaces.',
+      );
+    }
     final subscription = client.events.listen((event) {
       if (_refreshEvents.contains(event.name)) {
         ref.invalidateSelf();
       }
     });
     ref.onDispose(subscription.cancel);
-    final results = await Future.wait(<Future<Object?>>[
-      client.listWorkspaces(),
-      client.listProjects(),
-    ]);
+    final snapshot = await client.workspaceSidebarSnapshot();
     return WorkspaceListData(
-      workspaces: results[0]! as List<WorkspaceSummary>,
-      projects: results[1]! as List<ProjectSummary>,
+      workspaces: snapshot.workspaces,
+      projects: snapshot.projects,
       supportsMutations: client.supportsWorkspaceMutations,
+      tags: snapshot.tags,
+      activity: snapshot.activity,
+      confirmWorkspaceRemoval: snapshot.confirmWorkspaceRemoval,
+      agentPresence: snapshot.agentPresence,
     );
   }
 
@@ -98,6 +117,7 @@ class WorkspaceListController extends _$WorkspaceListController {
     String? sourceBranch,
     bool reuseExistingBranch = false,
     String? name,
+    String? parentWorkspaceId,
   }) async {
     final client = await ref.read(workspaceClientProvider(hostId).future);
     final result = await client.createManagedWorkspace(
@@ -106,6 +126,7 @@ class WorkspaceListController extends _$WorkspaceListController {
       sourceBranch: sourceBranch,
       reuseExistingBranch: reuseExistingBranch,
       name: name,
+      parentWorkspaceId: parentWorkspaceId,
     );
     ref.invalidateSelf();
     return result;
@@ -123,5 +144,41 @@ class WorkspaceListController extends _$WorkspaceListController {
   Future<List<String>> cascadePreview(String workspaceId) async {
     final client = await ref.read(workspaceClientProvider(hostId).future);
     return client.cascadePreview(workspaceId);
+  }
+
+  Future<void> renameWorkspace(String workspaceId, String name) async {
+    final client = await ref.read(workspaceClientProvider(hostId).future);
+    await client.renameWorkspace(workspaceId, name);
+    ref.invalidateSelf();
+  }
+
+  Future<void> sleepWorkspace(String workspaceId) async {
+    final client = await ref.read(workspaceClientProvider(hostId).future);
+    await client.sleepWorkspace(workspaceId);
+    ref.invalidateSelf();
+  }
+
+  Future<String?> repositoryRemoteUrl(String workspaceId) async {
+    final client = await ref.read(workspaceClientProvider(hostId).future);
+    return client.workspaceRepositoryRemoteUrl(workspaceId);
+  }
+
+  Future<WorkspaceTagSummary> createTag(String name, {String? color}) async {
+    final client = await ref.read(workspaceClientProvider(hostId).future);
+    final tag = await client.createWorkspaceTag(name, color: color);
+    ref.invalidateSelf();
+    return tag;
+  }
+
+  Future<void> removeTag(String tagId) async {
+    final client = await ref.read(workspaceClientProvider(hostId).future);
+    await client.removeWorkspaceTag(tagId);
+    ref.invalidateSelf();
+  }
+
+  Future<void> setTags(String workspaceId, List<String> tagIds) async {
+    final client = await ref.read(workspaceClientProvider(hostId).future);
+    await client.setWorkspaceTags(workspaceId, tagIds);
+    ref.invalidateSelf();
   }
 }
