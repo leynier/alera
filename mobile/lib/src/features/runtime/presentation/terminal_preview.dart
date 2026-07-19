@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
+import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
+import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_client.dart';
 import 'package:flutter/material.dart';
 import 'package:xterm/xterm.dart';
-
-import '../models.dart';
-import '../network/mobile_runtime_client.dart';
-import '../theme/alera_tokens.dart';
 
 class TerminalPreview extends StatefulWidget {
   const TerminalPreview({

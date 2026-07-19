@@ -1,16 +1,9 @@
 import 'dart:convert';
 
+import 'package:alera_mobile/src/features/hosts/application/host_repository.dart';
+import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-import '../models.dart';
-
-abstract interface class HostRepository {
-  Future<List<PairedHostProfile>> loadHosts();
-  Future<void> savePairedHost(PairedHostProfile host, String deviceToken);
-  Future<void> removeHost(String hostId);
-  Future<String?> readDeviceToken(String hostId);
-}
 
 class LocalHostRepository implements HostRepository {
   LocalHostRepository({
@@ -56,10 +49,7 @@ class LocalHostRepository implements HostRepository {
     final previousToken = await _secureStorage.read(key: tokenKey);
     await _secureStorage.write(key: tokenKey, value: deviceToken);
     try {
-      await _preferences.setString(
-        _hostsKey,
-        jsonEncode(next.map((host) => host.toJson()).toList(growable: false)),
-      );
+      await _writeHosts(next);
     } on Object {
       if (previousToken == null) {
         await _secureStorage.delete(key: tokenKey);
@@ -73,14 +63,10 @@ class LocalHostRepository implements HostRepository {
   @override
   Future<void> removeHost(String hostId) async {
     final hosts = await loadHosts();
-    final next = <PairedHostProfile>[
+    await _writeHosts(<PairedHostProfile>[
       for (final host in hosts)
         if (host.id != hostId) host,
-    ];
-    await _preferences.setString(
-      _hostsKey,
-      jsonEncode(next.map((host) => host.toJson()).toList(growable: false)),
-    );
+    ]);
     await _secureStorage.delete(key: '$_deviceTokenPrefix$hostId');
   }
 
@@ -88,34 +74,11 @@ class LocalHostRepository implements HostRepository {
   Future<String?> readDeviceToken(String hostId) {
     return _secureStorage.read(key: '$_deviceTokenPrefix$hostId');
   }
-}
 
-class MemoryHostRepository implements HostRepository {
-  final Map<String, PairedHostProfile> _hosts = <String, PairedHostProfile>{};
-  final Map<String, String> _secrets = <String, String>{};
-
-  @override
-  Future<List<PairedHostProfile>> loadHosts() async {
-    return _hosts.values.toList(growable: false);
-  }
-
-  @override
-  Future<void> savePairedHost(
-    PairedHostProfile host,
-    String deviceToken,
-  ) async {
-    _hosts[host.id] = host;
-    _secrets[host.id] = deviceToken;
-  }
-
-  @override
-  Future<void> removeHost(String hostId) async {
-    _hosts.remove(hostId);
-    _secrets.remove(hostId);
-  }
-
-  @override
-  Future<String?> readDeviceToken(String hostId) async {
-    return _secrets[hostId];
+  Future<void> _writeHosts(List<PairedHostProfile> hosts) {
+    return _preferences.setString(
+      _hostsKey,
+      jsonEncode(hosts.map((host) => host.toJson()).toList(growable: false)),
+    );
   }
 }

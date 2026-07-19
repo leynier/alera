@@ -127,6 +127,8 @@ class _Args {
     var maxLines = 500;
     var roots = <String>[
       'lib',
+      'mobile/lib',
+      'mobile/test',
       'rust/src',
       'rust/alera-cli/src',
       'rust/alera-cli/tests',

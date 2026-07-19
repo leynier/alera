@@ -201,6 +201,7 @@ When planning is needed, use a spec-driven development flow. Do not jump straigh
 ## Nested Instructions
 
 - `landing/AGENTS.md` applies under `landing/`.
+- `mobile/AGENTS.md` applies under `mobile/`.
 - `test/AGENTS.md` applies under `test/`.
 - `.github/AGENTS.md` applies under `.github/`.
 - `tool/release/AGENTS.md` applies under `tool/release/`.

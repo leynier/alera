@@ -34,6 +34,9 @@ abstract final class AleraTokens {
   static const int pairingInputMaxLines = 12;
   static const int previewRowLimit = 3;
 
+  static const String fontFamily = 'Inter';
+  static const String monoFontFamily = 'JetBrains Mono';
+
   static const EdgeInsets pagePadding = EdgeInsets.all(spaceLg);
   static const EdgeInsets contentPadding = EdgeInsets.all(spaceLg);
 }
