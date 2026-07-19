@@ -100,6 +100,55 @@ void main() {
     await Future<void>.delayed(Duration.zero);
     expect(client.calls, contains('detach session-tab-1'));
   });
+
+  test(
+    'Desktop reclaim flips the session into the reclaimed error state',
+    () async {
+      final client = FakeTerminalClient()
+        ..tabs = <WorkspaceTabSummary>[
+          fakeTab(id: 'tab-1', title: 'Terminal 1'),
+        ];
+      final container = _container(client);
+      final subscription = container.listen(
+        terminalSessionControllerProvider('host-1', 'tab-1'),
+        (_, _) {},
+      );
+      addTearDown(subscription.close);
+      await container.read(
+        terminalSessionControllerProvider('host-1', 'tab-1').future,
+      );
+
+      // A driver change for another session is ignored.
+      client.emitDriverChanged('other-session', 'desktop');
+      await Future<void>.delayed(Duration.zero);
+      expect(
+        container.read(terminalSessionControllerProvider('host-1', 'tab-1')),
+        isA<AsyncData<Object?>>(),
+      );
+
+      // A mobile driver change (another phone claiming) does not eject.
+      client.emitDriverChanged('session-tab-1', 'mobile');
+      await Future<void>.delayed(Duration.zero);
+      expect(
+        container.read(terminalSessionControllerProvider('host-1', 'tab-1')),
+        isA<AsyncData<Object?>>(),
+      );
+
+      client.emitDriverChanged('session-tab-1', 'desktop');
+      await Future<void>.delayed(Duration.zero);
+      final state = container.read(
+        terminalSessionControllerProvider('host-1', 'tab-1'),
+      );
+      expect(
+        state,
+        isA<AsyncError<Object?>>().having(
+          (error) => error.error,
+          'error',
+          isA<DesktopReclaimedTerminal>(),
+        ),
+      );
+    },
+  );
 }
 
 ProviderContainer _container(FakeTerminalClient client) {

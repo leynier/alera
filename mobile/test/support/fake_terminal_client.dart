@@ -38,6 +38,17 @@ class FakeTerminalClient
     _events.add(MobileRuntimeEvent(name, const <String, Object?>{}));
   }
 
+  void emitDriverChanged(String sessionId, String driverKind) {
+    _events.add(
+      MobileRuntimeEvent('terminalDriverChanged', <String, Object?>{
+        'sessionId': sessionId,
+        'driver': <String, Object?>{'kind': driverKind},
+        'cols': 80,
+        'rows': 24,
+      }),
+    );
+  }
+
   void emitOutput(String sessionId, Uint8List data) {
     _output.add(MobileTerminalOutputEvent(sessionId, data));
   }

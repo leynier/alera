@@ -253,6 +253,12 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
     return Consumer(
       builder: (context, ref, _) {
         final agentStatuses = ref.watch(agentStatusControllerProvider);
+        final mobileDrivers = ref.watch(
+          terminalDriverPresenceControllerProvider,
+        );
+        final driverPresence = ref.read(
+          terminalDriverPresenceControllerProvider.notifier,
+        );
         return WorkspaceWorkbenchView(
           project: project,
           workspace: workspace,
@@ -260,6 +266,12 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
           tabs: tabs,
           layout: layout,
           terminalRuntime: terminalRuntime,
+          mobileDriverPresence: WorkbenchMobileDriverPresence(
+            drivers: mobileDrivers,
+            onReclaim: (sessionId) =>
+                unawaited(driverPresence.reclaim(sessionId)),
+            onReclaimAll: () => unawaited(driverPresence.reclaimAll()),
+          ),
           agentStatuses: agentStatuses,
           completionAcknowledgements: _completionAcknowledgements,
           onCreateTab: ({targetGroupId}) async {

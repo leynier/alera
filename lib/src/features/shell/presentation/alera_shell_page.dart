@@ -20,6 +20,8 @@ import 'package:alera/src/features/workbench/domain/workspace_source_control_sco
 import 'package:alera/src/features/workbench/presentation/workspace_context_sidebar.dart';
 import 'package:alera/src/features/workbench/presentation/project_workbench_sidebar.dart';
 import 'package:alera/src/features/workbench/presentation/welcome_dashboard.dart';
+import 'package:alera/src/features/workbench/application/terminal_driver_presence_controller.dart';
+import 'package:alera/src/features/workbench/presentation/mobile_driver_overlay.dart';
 import 'package:alera/src/features/workbench/presentation/workspace_workbench_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

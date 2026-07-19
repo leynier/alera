@@ -119,6 +119,13 @@ final class _FakeTerminalHostClient implements TerminalHostClient {
   Future<void> terminate(String sessionId) async {}
 
   @override
+  Future<bool> reclaimTerminal(String sessionId) async => false;
+
+  @override
+  Future<Map<String, TerminalSessionDriver>> listTerminalDrivers() async =>
+      const <String, TerminalSessionDriver>{};
+
+  @override
   Future<void> write({
     required String sessionId,
     required List<int> bytes,

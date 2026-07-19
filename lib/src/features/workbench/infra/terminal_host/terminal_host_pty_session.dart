@@ -346,6 +346,10 @@ final class TerminalHostPtySession implements TerminalPtySession {
         if (!_isInputBackpressure(error)) {
           _events.add(TerminalPtyErrorEvent(error));
         }
+      case TerminalHostDriverChangedEvent():
+        // Driver presence is consumed by the workbench overlay, not the PTY
+        // session stream.
+        break;
     }
   }
 

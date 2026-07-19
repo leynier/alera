@@ -17,23 +17,6 @@ export 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_p
 part 'terminal_host_client_types.dart';
 part 'terminal_host_client_requests.dart';
 
-const Set<String> _runtimeHostEventNames = <String>{
-  'projectsChanged',
-  'workspacesChanged',
-  'workspaceTabsChanged',
-  'workspaceTagsChanged',
-  'workspaceRelationsChanged',
-  'runtimeSettingsChanged',
-  'projectConfigsChanged',
-  'linkedReviewsChanged',
-  'sshTargetsChanged',
-  'sshTargetBootstrapProgress',
-  'mobileSettingsChanged',
-  'mobilePairingsChanged',
-  'mobileDevicesChanged',
-  'mobileGatewayChanged',
-};
-
 final class SocketTerminalHostClient
     implements TerminalHostClient, RuntimeHostClient {
   factory SocketTerminalHostClient({
@@ -171,6 +154,22 @@ final class SocketTerminalHostClient
       'cols': cols,
       'rows': rows,
     });
+  }
+
+  @override
+  Future<bool> reclaimTerminal(String sessionId) async {
+    final payload = await _terminalRequestMap(
+      'terminal.reclaim',
+      <String, Object?>{'sessionId': sessionId},
+    );
+    return payload['restored'] == true;
+  }
+
+  @override
+  Future<Map<String, TerminalSessionDriver>> listTerminalDrivers() async {
+    return TerminalSessionDriver.mapFromListPayload(
+      await _terminalRequest('terminal.driver.list', const <String, Object?>{}),
+    );
   }
 
   @override
@@ -595,7 +594,7 @@ final class SocketTerminalHostClient
   }
 
   void _handleEvent(String event, Map<String, Object?> payload) {
-    if (_runtimeHostEventNames.contains(event) && !_runtimeEvents.isClosed) {
+    if (runtimeHostEventNames.contains(event) && !_runtimeEvents.isClosed) {
       _runtimeEvents.add(RuntimeHostEvent(event, payload));
     }
     final sessionId = payload['sessionId'];
@@ -622,6 +621,10 @@ final class SocketTerminalHostClient
             sessionId,
             payload['error'] ?? 'Unknown terminal host error.',
           ),
+        );
+      case 'terminalDriverChanged':
+        _events.add(
+          TerminalHostDriverChangedEvent.fromPayload(sessionId, payload),
         );
     }
   }

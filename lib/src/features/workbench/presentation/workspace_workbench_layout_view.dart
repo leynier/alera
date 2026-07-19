@@ -9,6 +9,7 @@ class _WorkbenchLayoutView extends StatelessWidget {
     required this.node,
     required this.nodePath,
     required this.terminalRuntime,
+    required this.mobileDriverPresence,
     required this.agentStatuses,
     required this.completionAcknowledgements,
     required this.onCreateTab,
@@ -34,6 +35,7 @@ class _WorkbenchLayoutView extends StatelessWidget {
   final WorkbenchLayoutNode node;
   final List<int> nodePath;
   final TerminalRuntime terminalRuntime;
+  final WorkbenchMobileDriverPresence? mobileDriverPresence;
   final Map<String, AgentStatusEntry> agentStatuses;
   final WorkbenchTabCompletionAcknowledgements completionAcknowledgements;
   final CreateTerminalTabCallback onCreateTab;
@@ -62,6 +64,7 @@ class _WorkbenchLayoutView extends StatelessWidget {
         layout: layout,
         groupId: groupId,
         terminalRuntime: terminalRuntime,
+        mobileDriverPresence: mobileDriverPresence,
         agentStatuses: agentStatuses,
         completionAcknowledgements: completionAcknowledgements,
         onCreateTab: onCreateTab,
@@ -87,6 +90,7 @@ class _WorkbenchLayoutView extends StatelessWidget {
       node: node,
       nodePath: nodePath,
       terminalRuntime: terminalRuntime,
+      mobileDriverPresence: mobileDriverPresence,
       agentStatuses: agentStatuses,
       completionAcknowledgements: completionAcknowledgements,
       onCreateTab: onCreateTab,
@@ -116,6 +120,7 @@ class _WorkbenchSplitView extends StatelessWidget {
     required this.node,
     required this.nodePath,
     required this.terminalRuntime,
+    required this.mobileDriverPresence,
     required this.agentStatuses,
     required this.completionAcknowledgements,
     required this.onCreateTab,
@@ -141,6 +146,7 @@ class _WorkbenchSplitView extends StatelessWidget {
   final WorkbenchLayoutNode node;
   final List<int> nodePath;
   final TerminalRuntime terminalRuntime;
+  final WorkbenchMobileDriverPresence? mobileDriverPresence;
   final Map<String, AgentStatusEntry> agentStatuses;
   final WorkbenchTabCompletionAcknowledgements completionAcknowledgements;
   final CreateTerminalTabCallback onCreateTab;
@@ -169,6 +175,7 @@ class _WorkbenchSplitView extends StatelessWidget {
       node: node.first!,
       nodePath: <int>[...nodePath, 0],
       terminalRuntime: terminalRuntime,
+      mobileDriverPresence: mobileDriverPresence,
       agentStatuses: agentStatuses,
       completionAcknowledgements: completionAcknowledgements,
       onCreateTab: onCreateTab,
@@ -194,6 +201,7 @@ class _WorkbenchSplitView extends StatelessWidget {
       node: node.second!,
       nodePath: <int>[...nodePath, 1],
       terminalRuntime: terminalRuntime,
+      mobileDriverPresence: mobileDriverPresence,
       agentStatuses: agentStatuses,
       completionAcknowledgements: completionAcknowledgements,
       onCreateTab: onCreateTab,

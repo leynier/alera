@@ -41,11 +41,13 @@ use crate::terminal_host::session::{PtyEvent, PtyWriteCompletion, Session};
 
 mod client_delivery;
 mod coordinator_requests;
+mod mobile_terminal_requests;
 mod orchestration_requests;
 mod orchestration_validation;
 mod pty_event_forwarder;
 mod pty_events;
 mod requests;
+mod terminal_driver;
 mod terminal_input_requests;
 mod workspace_pinning;
 
@@ -148,7 +150,23 @@ struct ClientState {
     authenticated: bool,
     kind: ClientKind,
     mobile_device_id: Option<String>,
+    mobile_device_name: Option<String>,
     app_client: bool,
+}
+
+impl ClientState {
+    /// Authenticated loopback client (the desktop app or a CLI).
+    #[cfg(test)]
+    fn local(handle: ClientHandle, app_client: bool) -> ClientState {
+        ClientState {
+            handle,
+            authenticated: true,
+            kind: ClientKind::Local,
+            mobile_device_id: None,
+            mobile_device_name: None,
+            app_client,
+        }
+    }
 }
 
 struct SshBootstrapJobState {
@@ -446,6 +464,7 @@ impl ServerActor {
                         authenticated: false,
                         kind,
                         mobile_device_id: None,
+                        mobile_device_name: None,
                         app_client: false,
                     },
                 );
@@ -1012,6 +1031,8 @@ impl ServerActor {
         let disconnects_app_client = disconnecting_client.app_client;
         // Parked long-poll requests die with their connection.
         self.orchestration_waiters.remove_client(client_id);
+        // A vanished phone must not leave terminals locked at phone size.
+        self.release_mobile_driver_for_client(client_id);
         let session_ids: Vec<String> = self.sessions.keys().cloned().collect();
         for session_id in session_ids {
             self.flush_all_output(&session_id);
@@ -1235,16 +1256,7 @@ mod tests {
                 },
             )]),
             managed_workspace_jobs: 0,
-            clients: HashMap::from([(
-                1,
-                ClientState {
-                    handle,
-                    authenticated: true,
-                    kind: ClientKind::Local,
-                    mobile_device_id: None,
-                    app_client: true,
-                },
-            )]),
+            clients: HashMap::from([(1, ClientState::local(handle, true))]),
             pending_output_writes: HashMap::new(),
             agent_presence: AgentPresenceRegistry::default(),
             orchestration_waiters: MessageWaiterRegistry::default(),
@@ -1654,16 +1666,7 @@ mod tests {
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
-            clients: HashMap::from([(
-                1,
-                ClientState {
-                    handle,
-                    authenticated: true,
-                    kind: ClientKind::Local,
-                    mobile_device_id: None,
-                    app_client: false,
-                },
-            )]),
+            clients: HashMap::from([(1, ClientState::local(handle, false))]),
             pending_output_writes: HashMap::new(),
             agent_presence: AgentPresenceRegistry::default(),
             orchestration_waiters: MessageWaiterRegistry::default(),
@@ -1721,36 +1724,9 @@ mod tests {
             ssh_bootstrap_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
             clients: HashMap::from([
-                (
-                    1,
-                    ClientState {
-                        handle: first_app_handle,
-                        authenticated: true,
-                        kind: ClientKind::Local,
-                        mobile_device_id: None,
-                        app_client: true,
-                    },
-                ),
-                (
-                    2,
-                    ClientState {
-                        handle: second_app_handle,
-                        authenticated: true,
-                        kind: ClientKind::Local,
-                        mobile_device_id: None,
-                        app_client: true,
-                    },
-                ),
-                (
-                    3,
-                    ClientState {
-                        handle: cli_handle,
-                        authenticated: true,
-                        kind: ClientKind::Local,
-                        mobile_device_id: None,
-                        app_client: false,
-                    },
-                ),
+                (1, ClientState::local(first_app_handle, true)),
+                (2, ClientState::local(second_app_handle, true)),
+                (3, ClientState::local(cli_handle, false)),
             ]),
             pending_output_writes: HashMap::new(),
             agent_presence: AgentPresenceRegistry::default(),

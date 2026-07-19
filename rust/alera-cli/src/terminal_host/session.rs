@@ -12,6 +12,9 @@ use crate::terminal_host::history_store::{TerminalHostCheckpoint, TerminalHostHi
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::{encode_bytes, TerminalHostLaunch};
 
+mod checkpoint_restore;
+#[cfg(test)]
+mod driver_test_stub;
 mod io_threads;
 mod output_backpressure;
 #[cfg(test)]
@@ -68,6 +71,10 @@ pub struct OutputBatch {
     pub payload: Value,
 }
 
+mod driver;
+
+pub use driver::SessionDriver;
+
 pub struct DurableOutputBatch {
     pub data: Vec<u8>,
     pub sequence: i64,
@@ -82,6 +89,12 @@ pub struct Session {
     pub tab_id: String,
     pub working_directory: String,
     pub clients: HashSet<u64>,
+    pub driver: SessionDriver,
+    /// Last dims a desktop client applied or requested; restored on reclaim
+    /// and when the mobile driver releases the session.
+    pub desktop_dims: Option<(u16, u16)>,
+    /// Dims currently applied to the PTY.
+    pub current_dims: (u16, u16),
     output_paused_clients: HashSet<u64>,
     output_resync_pending_clients: HashSet<u64>,
     pub(super) buffer: ScrollbackBuffer,
@@ -178,6 +191,9 @@ impl Session {
             tab_id,
             working_directory,
             clients: HashSet::new(),
+            driver: SessionDriver::Idle,
+            desktop_dims: None,
+            current_dims: (cols, rows),
             output_paused_clients: HashSet::new(),
             output_resync_pending_clients: HashSet::new(),
             buffer: ScrollbackBuffer::new(max_bytes, initial_scrollback),
@@ -206,56 +222,6 @@ impl Session {
         spawn_reader(reader, child, Arc::clone(&on_event));
         spawn_writer(writer, input_rx, on_event);
         Ok(session)
-    }
-
-    /// Rebuild a non-running session from a persisted checkpoint, or `None` if
-    /// there is no usable checkpoint.
-    pub async fn restore_exited(
-        session_id: String,
-        workspace_id: String,
-        tab_id: String,
-        store: &TerminalHostHistoryStore,
-        max_bytes: usize,
-    ) -> Option<Session> {
-        let checkpoint = match store.read(&session_id, max_bytes).await {
-            Ok(Some(checkpoint)) => checkpoint,
-            _ => return None,
-        };
-        let (exit_code, ended_at) = if checkpoint.ended_at.is_none() {
-            (Some(-1), None)
-        } else {
-            (Some(checkpoint.exit_code.unwrap_or(0)), checkpoint.ended_at)
-        };
-        Some(Session {
-            instance_id: next_session_instance_id(),
-            id: session_id,
-            workspace_id,
-            tab_id,
-            working_directory: checkpoint.working_directory,
-            clients: HashSet::new(),
-            output_paused_clients: HashSet::new(),
-            output_resync_pending_clients: HashSet::new(),
-            buffer: ScrollbackBuffer::new(max_bytes, &checkpoint.buffer),
-            running: false,
-            exit_code,
-            ended_at,
-            master: None,
-            input_tx: None,
-            killer: None,
-            terminated: false,
-            checkpoint_gen: 0,
-            checkpoint_armed: false,
-            output_batch: Vec::new(),
-            output_batch_gen: 0,
-            output_batch_armed: false,
-            durable_output_batch: Vec::new(),
-            durable_output_batch_gen: 0,
-            durable_output_batch_armed: false,
-            durable_output_batch_sequence: 0,
-            output_stream_bytes: checkpoint
-                .output_stream_bytes
-                .max(checkpoint.buffer.len() as u64),
-        })
     }
 
     pub fn running(&self) -> bool {
@@ -312,6 +278,7 @@ impl Session {
         if !self.running {
             return;
         }
+        self.current_dims = (cols, rows);
         if let Some(master) = self.master.as_ref() {
             let _ = master.resize(PtySize {
                 rows,
@@ -415,6 +382,7 @@ impl Session {
             "created": created,
             "running": self.running,
             "exitCode": self.exit_code,
+            "driver": self.driver.payload(),
             "snapshotBase64": encode_bytes(&self.buffer.to_bytes()),
         })
     }
