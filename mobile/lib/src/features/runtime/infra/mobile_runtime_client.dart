@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:alera_mobile/src/core/json_payload_fields.dart';
 import 'package:alera_mobile/src/core/mobile_protocol.dart';
@@ -11,70 +10,16 @@ import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
+import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+
+export 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 
 const Duration _defaultRequestTimeout = Duration(seconds: 20);
 // Managed workspace lifecycle mirrors the desktop client timeouts
 // (lib/src/features/workbench/infra/runtime_managed_workspace_client.dart).
 const Duration _managedWorkspaceCreateTimeout = Duration(minutes: 30);
 const Duration _managedWorkspaceRemoveTimeout = Duration(minutes: 10);
-
-/// Capability advertised by runtimes whose mobile gateway accepts workspace
-/// mutations (pin, link/unlink, create/remove managed, tab removal).
-const String mobileWorkspaceMutationsCapability = 'mobileWorkspaceMutations';
-
-class MobileRuntimeEvent {
-  const MobileRuntimeEvent(this.name, this.payload);
-
-  final String name;
-  final Map<String, Object?> payload;
-}
-
-class MobileTerminalOutputEvent {
-  const MobileTerminalOutputEvent(this.sessionId, this.data);
-
-  final String sessionId;
-  final Uint8List data;
-}
-
-abstract interface class MobileTerminalClient {
-  Stream<MobileTerminalOutputEvent> get terminalOutput;
-  Future<List<WorkspaceTabSummary>> listTabs(String workspaceId);
-  Future<MobileTerminalSession> createTerminal(String workspaceId);
-  Future<MobileTerminalSession> attachTerminal(String tabId);
-  Future<void> writeTerminal(String sessionId, List<int> bytes);
-  Future<void> detachTerminal(String sessionId);
-}
-
-/// Workspace listing and mutation surface consumed by the workbench
-/// controllers; kept as an interface so tests can fake the runtime.
-abstract interface class MobileWorkspaceClient {
-  Stream<MobileRuntimeEvent> get events;
-  bool get supportsWorkspaceMutations;
-  Future<List<ProjectSummary>> listProjects();
-  Future<ProjectBranches> listBranches(String projectId);
-  Future<List<WorkspaceSummary>> listWorkspaces();
-  Future<void> setWorkspacePinned(String workspaceId, bool isPinned);
-  Future<void> linkWorkspaces({
-    required String parentWorkspaceId,
-    required String childWorkspaceId,
-  });
-  Future<void> unlinkWorkspaces({
-    required String parentWorkspaceId,
-    required String childWorkspaceId,
-  });
-  Future<WorkspaceCreationResult> createManagedWorkspace({
-    required String projectId,
-    required String branch,
-    String? sourceBranch,
-    bool reuseExistingBranch = false,
-    String? name,
-    String? parentWorkspaceId,
-  });
-  Future<void> removeManagedWorkspace(String workspaceId, {bool? deleteBranch});
-  Future<List<String>> cascadePreview(String workspaceId);
-  Future<void> removeTab(String tabId);
-}
 
 class MobileRuntimeClient
     implements MobileTerminalClient, MobileWorkspaceClient {
@@ -300,22 +245,31 @@ class MobileRuntimeClient
   }
 
   @override
-  Future<MobileTerminalSession> createTerminal(String workspaceId) async {
+  Future<MobileTerminalSession> createTerminal(
+    String workspaceId, {
+    String? title,
+    int cols = defaultTerminalCols,
+    int rows = defaultTerminalRows,
+  }) async {
     final payload = await requestMap('terminal.create', <String, Object?>{
       'workspaceId': workspaceId,
-      'title': 'Mobile Terminal',
-      'cols': 80,
-      'rows': 24,
+      'title': title ?? 'Mobile Terminal',
+      'cols': cols,
+      'rows': rows,
     });
     return MobileTerminalSession.fromJson(payload);
   }
 
   @override
-  Future<MobileTerminalSession> attachTerminal(String tabId) async {
+  Future<MobileTerminalSession> attachTerminal(
+    String tabId, {
+    int cols = defaultTerminalCols,
+    int rows = defaultTerminalRows,
+  }) async {
     final payload = await requestMap('terminal.attach', <String, Object?>{
       'tabId': tabId,
-      'cols': 80,
-      'rows': 24,
+      'cols': cols,
+      'rows': rows,
     });
     return MobileTerminalSession.fromJson(payload);
   }
@@ -332,8 +286,22 @@ class MobileRuntimeClient
   }
 
   @override
+  Future<void> resizeTerminal(String sessionId, int cols, int rows) async {
+    await request('resize', <String, Object?>{
+      'sessionId': sessionId,
+      'cols': cols,
+      'rows': rows,
+    });
+  }
+
+  @override
   Future<void> detachTerminal(String sessionId) async {
     await request('detach', <String, Object?>{'sessionId': sessionId});
+  }
+
+  @override
+  Future<void> terminateSession(String sessionId) async {
+    await request('terminate', <String, Object?>{'sessionId': sessionId});
   }
 
   Future<Object?> request(

@@ -36,6 +36,7 @@ abstract final class AleraTokens {
   static const double scrimAlpha = 0.55;
   static const double squareAspectRatio = 1;
   static const double pairingViewfinderSize = 260;
+  static const double tabStripHeight = 56;
   static const int pairingInputMinLines = 6;
   static const int pairingInputMaxLines = 10;
   static const int previewRowLimit = 3;

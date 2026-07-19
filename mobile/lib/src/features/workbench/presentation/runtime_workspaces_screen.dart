@@ -4,6 +4,7 @@ import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart'
 import 'package:alera_mobile/src/features/hosts/presentation/rename_host_dialog.dart';
 import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
 import 'package:alera_mobile/src/features/runtime/presentation/host_dashboard_screen.dart';
+import 'package:alera_mobile/src/features/terminal/presentation/workspace_tabs_screen.dart';
 import 'package:alera_mobile/src/features/workbench/application/mobile_view_prefs_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/mobile_workspace_rows.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_list_controller.dart';
@@ -195,13 +196,16 @@ class _WorkspaceListBody extends ConsumerWidget {
             ),
           MobileWorkspaceEntryRow() => MobileWorkspaceListRow(
             row: row,
-            onTap: () => showWorkspaceActionsSheet(
-              context,
-              ref,
-              hostId: hostId,
-              workspace: row.entry.workspace,
-              data: data,
-            ),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => WorkspaceTabsScreen(
+                    hostId: hostId,
+                    workspace: row.entry.workspace,
+                  ),
+                ),
+              );
+            },
             onLongPress: () => showWorkspaceActionsSheet(
               context,
               ref,
