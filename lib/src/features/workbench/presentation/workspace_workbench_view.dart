@@ -15,6 +15,7 @@ import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
 import 'package:alera/src/features/workbench/domain/workspace.dart';
 import 'package:alera/src/features/workbench/domain/workspace_source_control_scope.dart';
 import 'package:alera/src/features/workbench/application/workspace_file_preview_kind.dart';
+import 'package:alera/src/features/workbench/presentation/mobile_driver_overlay.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_runtime.dart';
 import 'package:alera/src/features/workbench/presentation/terminal_surface.dart';
 import 'package:alera/src/features/workbench/presentation/workbench_dialog_launchers.dart';
@@ -28,6 +29,7 @@ import 'package:flutter/material.dart';
 
 part 'workspace_workbench_layout_view.dart';
 part 'workspace_workbench_pane.dart';
+part 'workspace_workbench_tab_content.dart';
 part 'workspace_workbench_tab_strip.dart';
 part 'workspace_workbench_tab_chips.dart';
 part 'workspace_workbench_resize_handle.dart';
@@ -156,6 +158,7 @@ class WorkspaceWorkbenchView extends StatelessWidget {
     required this.tabs,
     required this.layout,
     required this.terminalRuntime,
+    this.mobileDriverPresence,
     required this.agentStatuses,
     required this.completionAcknowledgements,
     required this.onCreateTab,
@@ -180,6 +183,7 @@ class WorkspaceWorkbenchView extends StatelessWidget {
   final List<WorkspaceTabRecord> tabs;
   final WorkbenchLayout? layout;
   final TerminalRuntime terminalRuntime;
+  final WorkbenchMobileDriverPresence? mobileDriverPresence;
   final Map<String, AgentStatusEntry> agentStatuses;
   final WorkbenchTabCompletionAcknowledgements completionAcknowledgements;
   final CreateTerminalTabCallback onCreateTab;
@@ -213,6 +217,7 @@ class WorkspaceWorkbenchView extends StatelessWidget {
       node: resolvedLayout.root,
       nodePath: const <int>[],
       terminalRuntime: terminalRuntime,
+      mobileDriverPresence: mobileDriverPresence,
       agentStatuses: agentStatuses,
       completionAcknowledgements: completionAcknowledgements,
       onCreateTab: onCreateTab,

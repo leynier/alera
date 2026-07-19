@@ -37,6 +37,13 @@ abstract interface class TerminalHostClient {
 
   Future<void> terminate(String sessionId);
 
+  /// Takes the viewport back from a mobile driver, restoring the last desktop
+  /// dims. Returns whether there was a claim to undo.
+  Future<bool> reclaimTerminal(String sessionId);
+
+  /// Current driver per session, for rebuilding overlay state on (re)connect.
+  Future<Map<String, TerminalSessionDriver>> listTerminalDrivers();
+
   void dispose();
 }
 
@@ -118,3 +125,112 @@ final class TerminalHostErrorEvent extends TerminalHostEvent {
 
   final Object error;
 }
+
+enum TerminalSessionDriverKind { idle, desktop, mobile }
+
+/// Who owns a session's viewport (the mobile presence lock). While a mobile
+/// device drives, the desktop pane shows an overlay instead of fighting over
+/// the PTY dims.
+final class TerminalSessionDriver {
+  const TerminalSessionDriver({
+    required this.kind,
+    this.deviceId,
+    this.deviceName,
+  });
+
+  static const TerminalSessionDriver idle = TerminalSessionDriver(
+    kind: TerminalSessionDriverKind.idle,
+  );
+
+  factory TerminalSessionDriver.fromJson(Map<String, Object?> json) {
+    return TerminalSessionDriver(
+      kind: switch (json['kind']) {
+        'mobile' => TerminalSessionDriverKind.mobile,
+        'desktop' => TerminalSessionDriverKind.desktop,
+        _ => TerminalSessionDriverKind.idle,
+      },
+      deviceId: json['deviceId'] as String?,
+      deviceName: json['deviceName'] as String?,
+    );
+  }
+
+  factory TerminalSessionDriver.fromPayloadValue(Object? value) {
+    return TerminalSessionDriver.fromJson(switch (value) {
+      final Map<String, Object?> driver => driver,
+      final Map<dynamic, dynamic> driver => Map<String, Object?>.from(driver),
+      _ => const <String, Object?>{},
+    });
+  }
+
+  /// Parses the `terminal.driver.list` response into a session-id keyed map.
+  static Map<String, TerminalSessionDriver> mapFromListPayload(
+    Object? payload,
+  ) {
+    if (payload is! List) {
+      return const <String, TerminalSessionDriver>{};
+    }
+    final drivers = <String, TerminalSessionDriver>{};
+    for (final item in payload) {
+      if (item is! Map) {
+        continue;
+      }
+      final entry = Map<String, Object?>.from(item);
+      final sessionId = entry['sessionId'];
+      if (sessionId is String) {
+        drivers[sessionId] = TerminalSessionDriver.fromPayloadValue(
+          entry['driver'],
+        );
+      }
+    }
+    return drivers;
+  }
+
+  final TerminalSessionDriverKind kind;
+  final String? deviceId;
+  final String? deviceName;
+
+  bool get isMobile => kind == TerminalSessionDriverKind.mobile;
+}
+
+final class TerminalHostDriverChangedEvent extends TerminalHostEvent {
+  const TerminalHostDriverChangedEvent(
+    super.sessionId,
+    this.driver, {
+    required this.cols,
+    required this.rows,
+  });
+
+  factory TerminalHostDriverChangedEvent.fromPayload(
+    String sessionId,
+    Map<String, Object?> payload,
+  ) {
+    return TerminalHostDriverChangedEvent(
+      sessionId,
+      TerminalSessionDriver.fromPayloadValue(payload['driver']),
+      cols: (payload['cols'] as num?)?.toInt() ?? 0,
+      rows: (payload['rows'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  final TerminalSessionDriver driver;
+  final int cols;
+  final int rows;
+}
+
+/// Broadcast event names surfaced on the runtime host event stream.
+const Set<String> runtimeHostEventNames = <String>{
+  'projectsChanged',
+  'workspacesChanged',
+  'workspaceTabsChanged',
+  'workspaceTagsChanged',
+  'workspaceRelationsChanged',
+  'runtimeSettingsChanged',
+  'projectConfigsChanged',
+  'linkedReviewsChanged',
+  'sshTargetsChanged',
+  'sshTargetBootstrapProgress',
+  'mobileSettingsChanged',
+  'mobilePairingsChanged',
+  'mobileDevicesChanged',
+  'mobileGatewayChanged',
+};

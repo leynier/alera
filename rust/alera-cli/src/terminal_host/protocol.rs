@@ -23,6 +23,10 @@ pub const RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY: &str = "mobileWorkspaceMutat
 // Advertised additively: older hosts stay usable for non-orchestration verbs,
 // so clients must feature-check this capability instead of the protocol version.
 pub const RUNTIME_HOST_ORCHESTRATION_CAPABILITY: &str = "orchestration";
+// Advertised once the host tracks terminal viewport drivers (mobile presence
+// lock): `terminalDriverChanged` events, `terminal.reclaim`, and
+// `terminal.driver.list`.
+pub const RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY: &str = "terminalDriverPresence";
 
 // Retained for the later packaging/resolver phase (sidecar discovery).
 #[allow(dead_code)]

@@ -91,6 +91,7 @@ mod tests {
                     authenticated: true,
                     kind: ClientKind::Local,
                     mobile_device_id: None,
+                    mobile_device_name: None,
                     app_client: true,
                 },
             )]),

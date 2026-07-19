@@ -2,6 +2,7 @@ import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/terminal/application/tabs_controller.dart';
+import 'package:alera_mobile/src/features/terminal/application/terminal_session_controller.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_tab_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -119,6 +120,24 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
     final tabs = ref.watch(
       tabsControllerProvider(widget.hostId, widget.workspace.id),
     );
+    final selectedTab = tabs.value == null ? null : _selectedTab(tabs.value!);
+    if (selectedTab != null) {
+      // The desktop taking the viewport back sends this phone to the
+      // workspace list; re-entering the tab simply claims again.
+      ref.listen(
+        terminalSessionControllerProvider(widget.hostId, selectedTab.id),
+        (previous, next) {
+          if (next case AsyncError(
+            :final error,
+          ) when error is DesktopReclaimedTerminal) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Desktop Took Back The Terminal')),
+            );
+            Navigator.of(context).pop();
+          }
+        },
+      );
+    }
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.workspace.name, overflow: TextOverflow.ellipsis),

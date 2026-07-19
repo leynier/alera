@@ -4,6 +4,7 @@ use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::decode_bytes;
 use crate::terminal_host::session::PtyWriteCompletion;
 
+use super::ClientKind;
 use super::ServerActor;
 
 impl ServerActor {
@@ -29,6 +30,15 @@ impl ServerActor {
             },
             &bytes,
         )?;
+        // Typing from the phone claims the driver seat (most recent actor
+        // wins) without changing the current viewport.
+        let is_mobile = self
+            .clients
+            .get(&client_id)
+            .is_some_and(|client| client.kind == ClientKind::Mobile);
+        if is_mobile {
+            self.claim_mobile_driver(client_id, &session_id, None);
+        }
         Ok(true)
     }
 }

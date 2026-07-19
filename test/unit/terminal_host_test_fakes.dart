@@ -42,6 +42,9 @@ final class FakeTerminalHostClient implements TerminalHostClient {
   final List<(String, bool)> outputPaused = <(String, bool)>[];
   final List<String> detached = <String>[];
   final List<String> terminated = <String>[];
+  final List<String> reclaimed = <String>[];
+  Map<String, TerminalSessionDriver> drivers =
+      <String, TerminalSessionDriver>{};
   final List<Object> writeErrors = <Object>[];
   final List<Object> resizeErrors = <Object>[];
   String? attachedWorkingDirectory;
@@ -127,6 +130,17 @@ final class FakeTerminalHostClient implements TerminalHostClient {
   @override
   Future<void> terminate(String sessionId) async {
     terminated.add(sessionId);
+  }
+
+  @override
+  Future<bool> reclaimTerminal(String sessionId) async {
+    reclaimed.add(sessionId);
+    return true;
+  }
+
+  @override
+  Future<Map<String, TerminalSessionDriver>> listTerminalDrivers() async {
+    return drivers;
   }
 
   @override

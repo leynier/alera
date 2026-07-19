@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use alera_core::{
     git as core_git,
     runtime::{
@@ -28,11 +26,11 @@ use crate::terminal_host::protocol::{
     TerminalHostLaunch, PROTOCOL_VERSION, RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
     RUNTIME_HOST_CAPABILITY, RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
     RUNTIME_HOST_MOBILE_CAPABILITY, RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY,
-    RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
+    RUNTIME_HOST_ORCHESTRATION_CAPABILITY, RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
 };
-use crate::terminal_host::session::Session;
-use uuid::Uuid;
+use crate::terminal_host::session::{Session, SessionDriver};
 
+use super::mobile_terminal_requests::mobile_request_allowed;
 use super::pty_event_forwarder::forward_pty_event;
 use super::{ClientKind, ServerActor, ServerCommand};
 
@@ -286,6 +284,7 @@ impl ServerActor {
                 if let Some(client) = self.clients.get_mut(&client_id) {
                     client.authenticated = true;
                     client.mobile_device_id = Some(device.id.clone());
+                    client.mobile_device_name = Some(device.display_name.clone());
                 }
                 self.cancel_shutdown_timer();
                 self.broadcast_authenticated(event("mobileDevicesChanged", json!({})));
@@ -297,6 +296,7 @@ impl ServerActor {
                         RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
                         RUNTIME_HOST_MOBILE_CAPABILITY,
                         RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY,
+                        RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
                     ],
                     "authenticated": true,
                     "device": device,
@@ -376,12 +376,37 @@ impl ServerActor {
             "resize" => {
                 self.require_auth(client_id)?;
                 let session_id = self.require_session(payload)?;
-                let cols = int_or(payload, "cols", 80);
-                let rows = int_or(payload, "rows", 24);
-                if let Some(session) = self.sessions.get_mut(&session_id) {
-                    session.resize(cols as u16, rows as u16);
+                let cols = int_or(payload, "cols", 80) as u16;
+                let rows = int_or(payload, "rows", 24) as u16;
+                if self.is_mobile_client(client_id) {
+                    // A mobile resize (keyboard open/close, rotation) claims
+                    // the driver seat and applies the phone viewport in place.
+                    self.claim_mobile_driver(client_id, &session_id, Some((cols, rows)));
+                } else if let Some(session) = self.sessions.get_mut(&session_id) {
+                    if matches!(session.driver, SessionDriver::Mobile { .. }) {
+                        // The phone drives; remember the desktop's ask so
+                        // reclaim restores it instead of fighting over dims.
+                        session.desktop_dims = Some((cols, rows));
+                    } else {
+                        session.resize(cols, rows);
+                    }
                 }
                 Ok(json!({}))
+            }
+            "terminal.reclaim" => {
+                self.require_auth(client_id)?;
+                if self.is_mobile_client(client_id) {
+                    return Err(HostError::state(
+                        "terminal.reclaim is only available to desktop clients.",
+                    ));
+                }
+                let session_id = self.require_session(payload)?;
+                let restored = self.reclaim_terminal_for_desktop(&session_id);
+                Ok(json!({ "restored": restored }))
+            }
+            "terminal.driver.list" => {
+                self.require_auth(client_id)?;
+                Ok(self.terminal_driver_list_payload())
             }
             "setOutputPaused" => {
                 self.require_auth(client_id)?;
@@ -406,6 +431,7 @@ impl ServerActor {
                 if let Some(session) = self.sessions.get_mut(&session_id) {
                     session.detach(client_id);
                 }
+                self.release_mobile_driver_for_session(client_id, &session_id);
                 self.immediate_checkpoint(&session_id).await;
                 Ok(json!({}))
             }
@@ -451,6 +477,7 @@ impl ServerActor {
                         RUNTIME_HOST_MOBILE_CAPABILITY,
                         RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY,
                         RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
+                        RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
                     ],
                     "authenticated": true,
                 }))
@@ -977,98 +1004,11 @@ impl ServerActor {
         )))
     }
 
-    async fn create_mobile_terminal(
+    pub(super) async fn create_or_attach(
         &mut self,
         client_id: u64,
         payload: &Value,
     ) -> HostResult<Value> {
-        let workspace_id = require_string_key(payload, "workspaceId")?;
-        let workspace = self
-            .runtime_store
-            .find_workspace(&workspace_id)
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?
-            .ok_or_else(|| HostError::state(format!("Workspace not found: {workspace_id}")))?;
-        let tab_id = Uuid::new_v4().to_string();
-        let session_id = Uuid::new_v4().to_string();
-        let title =
-            optional_string_key(payload, "title").unwrap_or_else(|| "Mobile Terminal".into());
-        let now = Utc::now();
-        let tab = WorkspaceTabRecord {
-            id: tab_id.clone(),
-            workspace_id: workspace.id.clone(),
-            kind: "terminal".to_string(),
-            title,
-            created_at: now,
-            updated_at: now,
-            payload: json!({
-                "terminalSessionId": session_id,
-                "source": "mobile",
-            }),
-        };
-        let tab = self
-            .runtime_store
-            .upsert_workspace_tab(tab)
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?;
-        let attachment_payload =
-            mobile_terminal_attachment_payload(&workspace, &tab.id, &session_id, payload);
-        match self.create_or_attach(client_id, &attachment_payload).await {
-            Ok(attachment) => {
-                self.broadcast_authenticated(event("workspaceTabsChanged", json!({})));
-                Ok(json!({
-                    "tab": tab,
-                    "attachment": attachment,
-                }))
-            }
-            Err(error) => {
-                let _ = self.runtime_store.remove_workspace_tab(&tab.id).await;
-                Err(error)
-            }
-        }
-    }
-
-    async fn attach_mobile_terminal(
-        &mut self,
-        client_id: u64,
-        payload: &Value,
-    ) -> HostResult<Value> {
-        let tab_id = require_string_key(payload, "tabId")?;
-        let tab = self
-            .runtime_store
-            .find_workspace_tab(&tab_id)
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?
-            .ok_or_else(|| HostError::state(format!("Workspace tab not found: {tab_id}")))?;
-        if tab.kind != "terminal" {
-            return Err(HostError::state(format!(
-                "Workspace tab is not a terminal: {}",
-                tab.id
-            )));
-        }
-        let workspace = self
-            .runtime_store
-            .find_workspace(&tab.workspace_id)
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?
-            .ok_or_else(|| {
-                HostError::state(format!("Workspace not found: {}", tab.workspace_id))
-            })?;
-        let session_id = optional_string_key(payload, "sessionId")
-            .or_else(|| terminal_session_id_from_tab(&tab))
-            .unwrap_or_else(|| tab.id.clone());
-        let attachment_payload =
-            mobile_terminal_attachment_payload(&workspace, &tab.id, &session_id, payload);
-        let attachment = self
-            .create_or_attach(client_id, &attachment_payload)
-            .await?;
-        Ok(json!({
-            "tab": tab,
-            "attachment": attachment,
-        }))
-    }
-
-    async fn create_or_attach(&mut self, client_id: u64, payload: &Value) -> HostResult<Value> {
         let session_id = require_string(payload, "sessionId")?;
         let workspace_id = require_string(payload, "workspaceId")?;
         let tab_id = require_string(payload, "tabId")?;
@@ -1161,7 +1101,7 @@ fn require_string(payload: &Value, key: &str) -> HostResult<String> {
     }
 }
 
-fn require_string_key(payload: &Value, key: &str) -> HostResult<String> {
+pub(super) fn require_string_key(payload: &Value, key: &str) -> HostResult<String> {
     match payload.get(key) {
         Some(Value::String(value)) if !value.trim().is_empty() => Ok(value.clone()),
         _ => Err(HostError::format(format!("{key} is required."))),
@@ -1178,7 +1118,7 @@ fn string_array(value: Option<&Value>) -> Vec<String> {
     }
 }
 
-fn optional_string_key(payload: &Value, key: &str) -> Option<String> {
+pub(super) fn optional_string_key(payload: &Value, key: &str) -> Option<String> {
     payload
         .get(key)
         .and_then(Value::as_str)
@@ -1187,116 +1127,13 @@ fn optional_string_key(payload: &Value, key: &str) -> Option<String> {
         .map(str::to_string)
 }
 
-fn terminal_session_id_from_tab(tab: &WorkspaceTabRecord) -> Option<String> {
+pub(super) fn terminal_session_id_from_tab(tab: &WorkspaceTabRecord) -> Option<String> {
     tab.payload
         .get("terminalSessionId")
         .and_then(Value::as_str)
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(str::to_string)
-}
-
-fn mobile_terminal_attachment_payload(
-    workspace: &Workspace,
-    tab_id: &str,
-    session_id: &str,
-    payload: &Value,
-) -> Value {
-    json!({
-        "sessionId": session_id,
-        "workspaceId": workspace.id.clone(),
-        "tabId": tab_id,
-        "workingDirectory": workspace.path.clone(),
-        "launch": default_mobile_terminal_launch(&workspace.path),
-        "cols": int_or(payload, "cols", 80),
-        "rows": int_or(payload, "rows", 24),
-    })
-}
-
-fn default_mobile_terminal_launch(working_directory: &str) -> Value {
-    let environment = mobile_terminal_environment();
-    #[cfg(windows)]
-    {
-        let shell = std::env::var("COMSPEC").unwrap_or_else(|_| "cmd.exe".to_string());
-        json!({
-            "label": "shell",
-            "shell": shell,
-            "arguments": ["/d", "/s", "/k", &format!("cd /d {}", cmd_quote(working_directory))],
-            "environment": environment,
-        })
-    }
-    #[cfg(not(windows))]
-    {
-        let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
-        let command = format!(
-            "cd {} || true; exec {}",
-            sh_quote(working_directory),
-            sh_quote(&shell)
-        );
-        json!({
-            "label": "shell",
-            "shell": "/bin/sh",
-            "arguments": ["-c", command],
-            "environment": environment,
-        })
-    }
-}
-
-fn mobile_terminal_environment() -> BTreeMap<String, String> {
-    let mut environment = std::env::vars().collect::<BTreeMap<_, _>>();
-    #[cfg(not(windows))]
-    {
-        environment
-            .entry("PATH".to_string())
-            .or_insert_with(|| "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin".to_string());
-        environment
-            .entry("TERM".to_string())
-            .or_insert_with(|| "xterm-256color".to_string());
-    }
-    environment
-}
-
-#[cfg(not(windows))]
-fn sh_quote(value: &str) -> String {
-    format!("'{}'", value.replace('\'', "'\\''"))
-}
-
-#[cfg(windows)]
-fn cmd_quote(value: &str) -> String {
-    format!("\"{}\"", value.replace('"', "\"\""))
-}
-
-fn mobile_request_allowed(request_type: &str) -> bool {
-    matches!(
-        request_type,
-        "status.get"
-            | "mobile.status.get"
-            | "project.list"
-            | "project.branches.list"
-            | "workspace.list"
-            | "workspace.listAll"
-            | "workspace.find"
-            | "workspace.setPinned"
-            | "workspace.createManaged"
-            | "workspace.removeManaged"
-            | "tab.list"
-            | "tab.find"
-            | "tab.remove"
-            | "linkedReview.find"
-            | "layout.find"
-            | "workspaceTag.list"
-            | "workspaceRelation.list"
-            | "workspaceRelation.link"
-            | "workspaceRelation.unlink"
-            | "workspaceCascade.preview"
-            | "terminal.create"
-            | "terminal.attach"
-            | "write"
-            | "resize"
-            | "setOutputPaused"
-            | "detach"
-            | "terminate"
-    )
 }
 
 fn terminal_read_window(
