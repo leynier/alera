@@ -80,6 +80,7 @@ mod tests {
             runtime_store,
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
+            project_clone_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
             clients: HashMap::from([(
                 1,
@@ -92,7 +93,6 @@ mod tests {
                     kind: ClientKind::Local,
                     mobile_device_id: None,
                     mobile_device_name: None,
-                    app_client: true,
                 },
             )]),
             pending_output_writes: HashMap::new(),

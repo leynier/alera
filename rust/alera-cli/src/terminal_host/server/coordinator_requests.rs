@@ -688,9 +688,7 @@ impl ServerActor {
         Ok(pending)
     }
 
-    /// Mints a terminal tab with spawnOnCreate + the default agent command.
-    /// Requires the app to be connected (it owns PTY spawn + hook env); with
-    /// no app this logs and retries next tick - documented v1 limitation.
+    /// Mints and starts a terminal tab with the default agent command.
     async fn coordinator_create_worker_terminal(
         &mut self,
         config: &CoordinatorConfig,
@@ -702,12 +700,6 @@ impl ServerActor {
             );
             return Ok(());
         };
-        if !self.has_app_clients() {
-            self.coordinator_log(
-                "no idle worker terminals and no app connected to spawn one; waiting",
-            );
-            return Ok(());
-        }
         let Some(workspace) = self.runtime_store.find_workspace(workspace_id).await? else {
             self.coordinator_log(&format!(
                 "workspace {workspace_id} not found; cannot create worker terminal"
@@ -741,8 +733,9 @@ impl ServerActor {
                 "spawnOnCreate": true,
             }),
         };
-        self.runtime_store.upsert_workspace_tab(tab).await?;
-        self.broadcast_authenticated(event("workspaceTabsChanged", json!({})));
+        self.upsert_workspace_tab_and_spawn(tab)
+            .await
+            .map_err(|error| anyhow::anyhow!(error.wire_message()))?;
         self.coordinator_log(&format!("created worker terminal tab {id}"));
         Ok(())
     }

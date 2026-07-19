@@ -23,6 +23,29 @@ fn mobile_allowlist_still_excludes_raw_and_admin_mutations() {
 }
 
 #[test]
+fn mobile_allowlist_includes_high_level_project_management() {
+    for request in [
+        "hostDirectory.roots",
+        "hostDirectory.list",
+        "project.register",
+        "project.rename",
+        "project.remove.preview",
+        "project.remove",
+        "project.clone.start",
+        "project.clone.list",
+        "project.clone.cancel",
+        "projectConfig.effective",
+        "projectConfig.upsert",
+        "projectConfig.remove",
+    ] {
+        assert!(
+            mobile_request_allowed(request),
+            "{request} should be allowed"
+        );
+    }
+}
+
+#[test]
 fn terminal_read_cursor_advances_across_trimmed_scrollback() {
     assert_eq!(terminal_read_window(0, 4, None, 4), (0, 0, 4));
     assert_eq!(terminal_read_window(2, 6, Some(4), 4), (4, 4, 6));

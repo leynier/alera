@@ -2,8 +2,6 @@
 //! that mint terminal tabs for phones, attach them to sessions, and claim the
 //! viewport driver seat right after.
 
-use std::collections::BTreeMap;
-
 use serde_json::{json, Value};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
@@ -13,6 +11,7 @@ use chrono::Utc;
 use uuid::Uuid;
 
 use super::requests::{optional_string_key, require_string_key, terminal_session_id_from_tab};
+use super::terminal_spawn::default_terminal_launch;
 use super::ServerActor;
 
 impl ServerActor {
@@ -146,63 +145,10 @@ fn mobile_terminal_attachment_payload(
         "workspaceId": workspace.id.clone(),
         "tabId": tab_id,
         "workingDirectory": workspace.path.clone(),
-        "launch": default_mobile_terminal_launch(&workspace.path),
+        "launch": default_terminal_launch(&workspace.path).launch.to_json(),
         "cols": int_or(payload, "cols", 80),
         "rows": int_or(payload, "rows", 24),
     })
-}
-
-fn default_mobile_terminal_launch(working_directory: &str) -> Value {
-    let environment = mobile_terminal_environment();
-    #[cfg(windows)]
-    {
-        let shell = std::env::var("COMSPEC").unwrap_or_else(|_| "cmd.exe".to_string());
-        json!({
-            "label": "shell",
-            "shell": shell,
-            "arguments": ["/d", "/s", "/k", &format!("cd /d {}", cmd_quote(working_directory))],
-            "environment": environment,
-        })
-    }
-    #[cfg(not(windows))]
-    {
-        let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
-        let command = format!(
-            "cd {} || true; exec {}",
-            sh_quote(working_directory),
-            sh_quote(&shell)
-        );
-        json!({
-            "label": "shell",
-            "shell": "/bin/sh",
-            "arguments": ["-c", command],
-            "environment": environment,
-        })
-    }
-}
-
-fn mobile_terminal_environment() -> BTreeMap<String, String> {
-    let mut environment = std::env::vars().collect::<BTreeMap<_, _>>();
-    #[cfg(not(windows))]
-    {
-        environment
-            .entry("PATH".to_string())
-            .or_insert_with(|| "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin".to_string());
-        environment
-            .entry("TERM".to_string())
-            .or_insert_with(|| "xterm-256color".to_string());
-    }
-    environment
-}
-
-#[cfg(not(windows))]
-fn sh_quote(value: &str) -> String {
-    format!("'{}'", value.replace('\'', "'\\''"))
-}
-
-#[cfg(windows)]
-fn cmd_quote(value: &str) -> String {
-    format!("\"{}\"", value.replace('"', "\"\""))
 }
 
 pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
@@ -211,6 +157,18 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
         "status.get"
             | "mobile.status.get"
             | "project.list"
+            | "hostDirectory.roots"
+            | "hostDirectory.list"
+            | "project.register"
+            | "project.rename"
+            | "project.remove.preview"
+            | "project.remove"
+            | "project.clone.start"
+            | "project.clone.list"
+            | "project.clone.cancel"
+            | "projectConfig.effective"
+            | "projectConfig.upsert"
+            | "projectConfig.remove"
             | "project.branches.list"
             | "workspace.list"
             | "workspace.listAll"

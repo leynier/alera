@@ -222,7 +222,6 @@ mixin _WorkbenchControllerSync
   }
 
   void _onTabsChanged(String workspaceId, List<WorkspaceTabRecord> tabs) {
-    _eagerlySpawnRequestedTerminals(workspaceId, tabs);
     final nextTabs = Map<String, List<WorkspaceTabRecord>>.from(
       state.tabsByWorkspace,
     )..[workspaceId] = tabs;
@@ -250,55 +249,5 @@ mixin _WorkbenchControllerSync
       _persistLayoutInBackground(layout);
     }
     _ensureSelectionHasTab();
-  }
-
-  /// Terminal tabs flagged `spawnOnCreate` (orchestration-created workers)
-  /// start their PTY as soon as the record arrives, without waiting for a
-  /// TerminalSurface to become visible. Attempted ids are tracked so a tab
-  /// is only eagerly started once per app session.
-  void _eagerlySpawnRequestedTerminals(
-    String workspaceId,
-    List<WorkspaceTabRecord> tabs,
-  ) {
-    final workspace = _workspaceForEagerSpawn(workspaceId);
-    if (workspace == null) {
-      return;
-    }
-    for (final tab in tabs) {
-      if (tab.kind != WorkspaceTabKind.terminal ||
-          !tab.spawnOnCreate ||
-          !_eagerlySpawnedTabIds.add(tab.id)) {
-        continue;
-      }
-      try {
-        final session = ref
-            .read(terminalRuntimeProvider)
-            .sessionFor(workspace: workspace, tab: tab);
-        unawaited(() async {
-          try {
-            await session.ensureStarted();
-          } catch (_) {
-            // Fall through to clear the retry guard below.
-          }
-          if (!session.isRunning) {
-            _eagerlySpawnedTabIds.remove(tab.id);
-          }
-        }());
-      } catch (_) {
-        // A failed eager start falls back to the normal visible-spawn path.
-        _eagerlySpawnedTabIds.remove(tab.id);
-      }
-    }
-  }
-
-  Workspace? _workspaceForEagerSpawn(String workspaceId) {
-    for (final workspaces in state.workspacesByProject.values) {
-      for (final workspace in workspaces) {
-        if (workspace.id == workspaceId) {
-          return workspace;
-        }
-      }
-    }
-    return null;
   }
 }

@@ -8,7 +8,6 @@ use alera_core::{
 use chrono::{DateTime, Utc};
 use serde_json::{json, Map, Value};
 
-use crate::agent_status::prepare_launch_environment;
 use crate::agent_status::reconcile_agent_integrations;
 use crate::managed_workspace::{
     create_managed_workspace, remove_managed_workspace, ManagedWorkspaceCreateRequest,
@@ -28,13 +27,13 @@ use crate::terminal_host::protocol::{
     TerminalHostLaunch, PROTOCOL_VERSION, RUNTIME_HOST_AGENT_STATUS_CAPABILITY,
     RUNTIME_HOST_BOOTSTRAP_CAPABILITY, RUNTIME_HOST_CAPABILITY, RUNTIME_HOST_LIFECYCLE_CAPABILITY,
     RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY, RUNTIME_HOST_MOBILE_CAPABILITY,
-    RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY, RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY,
-    RUNTIME_HOST_ORCHESTRATION_CAPABILITY, RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
+    RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY, RUNTIME_HOST_MOBILE_PROJECT_MANAGEMENT_CAPABILITY,
+    RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY, RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
+    RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
 };
 use crate::terminal_host::session::{Session, SessionDriver};
 
 use super::mobile_terminal_requests::mobile_request_allowed;
-use super::pty_event_forwarder::forward_pty_event;
 use super::{ClientKind, ServerActor, ServerCommand};
 
 #[derive(Debug, serde::Deserialize)]
@@ -258,8 +257,6 @@ impl ServerActor {
                 }
                 if let Some(client) = self.clients.get_mut(&client_id) {
                     client.authenticated = true;
-                    client.app_client =
-                        payload.get("clientKind").and_then(Value::as_str) == Some("app");
                 }
                 self.cancel_shutdown_timer();
                 Ok(json!({}))
@@ -299,6 +296,7 @@ impl ServerActor {
                         RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
                         RUNTIME_HOST_MOBILE_CAPABILITY,
                         RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY,
+                        RUNTIME_HOST_MOBILE_PROJECT_MANAGEMENT_CAPABILITY,
                         RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY,
                         RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
                         RUNTIME_HOST_LIFECYCLE_CAPABILITY,
@@ -475,16 +473,18 @@ impl ServerActor {
             "terminate" => {
                 self.require_auth(client_id)?;
                 let session_id = self.require_session(payload)?;
-                self.flush_all_output(&session_id);
-                self.await_output_writes(&session_id).await;
                 self.cleanup_orchestration_for_closed_session(
                     &session_id,
                     "terminal was explicitly terminated",
                 )
                 .await;
-                let store = self.store.clone();
-                if let Some(mut session) = self.sessions.remove(&session_id) {
-                    session.terminate(true, &store).await;
+                if !self.remove_terminal_session_tab(&session_id).await? {
+                    self.flush_all_output(&session_id);
+                    self.await_output_writes(&session_id).await;
+                    let store = self.store.clone();
+                    if let Some(mut session) = self.sessions.remove(&session_id) {
+                        session.terminate(true, &store).await;
+                    }
                 }
                 self.schedule_shutdown_if_idle();
                 Ok(json!({}))
@@ -513,6 +513,7 @@ impl ServerActor {
                         RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
                         RUNTIME_HOST_MOBILE_CAPABILITY,
                         RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY,
+                        RUNTIME_HOST_MOBILE_PROJECT_MANAGEMENT_CAPABILITY,
                         RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
                         RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
                         RUNTIME_HOST_LIFECYCLE_CAPABILITY,
@@ -614,6 +615,38 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 json_result(self.runtime_store.list_projects().await)
             }
+            "hostDirectory.roots" => {
+                self.require_auth(client_id)?;
+                self.host_directory_roots_request()
+            }
+            "hostDirectory.list" => {
+                self.require_auth(client_id)?;
+                self.host_directory_list_request(payload)
+            }
+            "project.register" => {
+                self.require_auth(client_id)?;
+                self.project_register_request(payload).await
+            }
+            "project.rename" => {
+                self.require_auth(client_id)?;
+                self.project_rename_request(payload).await
+            }
+            "project.remove.preview" => {
+                self.require_auth(client_id)?;
+                self.project_remove_preview_request(payload).await
+            }
+            "project.clone.start" => {
+                self.require_auth(client_id)?;
+                self.project_clone_start_request(payload).await
+            }
+            "project.clone.list" => {
+                self.require_auth(client_id)?;
+                self.project_clone_list_request().await
+            }
+            "project.clone.cancel" => {
+                self.require_auth(client_id)?;
+                self.project_clone_cancel_request(payload).await
+            }
             "project.branches.list" => {
                 self.require_auth(client_id)?;
                 let project_id = require_string_key(payload, "projectId")?;
@@ -664,12 +697,17 @@ impl ServerActor {
                 self.broadcast_authenticated(event("projectsChanged", json!({})));
                 self.broadcast_authenticated(event("workspacesChanged", json!({})));
                 self.broadcast_authenticated(event("workspaceTabsChanged", json!({})));
+                self.broadcast_authenticated(event("projectConfigsChanged", json!({})));
                 Ok(json!({}))
             }
             "projectConfig.find" => {
                 self.require_auth(client_id)?;
                 let project_id = require_string_key(payload, "projectId")?;
                 json_result(self.runtime_store.find_project_config(&project_id).await)
+            }
+            "projectConfig.effective" => {
+                self.require_auth(client_id)?;
+                self.project_effective_config_request(payload).await
             }
             "projectConfig.list" => {
                 self.require_auth(client_id)?;
@@ -771,9 +809,8 @@ impl ServerActor {
             "tab.upsert" => {
                 self.require_auth(client_id)?;
                 let tab: WorkspaceTabRecord = parse_payload(payload)?;
-                let value = json_result(self.runtime_store.upsert_workspace_tab(tab).await)?;
-                self.broadcast_authenticated(event("workspaceTabsChanged", json!({})));
-                Ok(value)
+                let value = self.upsert_workspace_tab_and_spawn(tab).await?;
+                Ok(json!(value))
             }
             "tab.remove" => {
                 self.require_auth(client_id)?;
@@ -1114,10 +1151,7 @@ impl ServerActor {
         let tab_id = require_string(payload, "tabId")?;
         let working_directory = require_string(payload, "workingDirectory")?;
 
-        let store = self.store.clone();
         let max_bytes = self.config.scrollback_bytes as usize;
-        let mut initial_scrollback = Vec::new();
-        let mut initial_output_stream_bytes = 0;
 
         // Live session: attach only. Dead session: remint with the same handle so
         // ALERA_TERMINAL_HANDLE / orchestration dispatch targets stay valid.
@@ -1129,72 +1163,28 @@ impl ServerActor {
                 session.attach(client_id);
                 return Ok(session.attachment_payload(false));
             }
-            if let Some(mut dead) = self.sessions.remove(&session_id) {
-                initial_scrollback = dead.buffer.to_bytes();
-                initial_output_stream_bytes = dead.output_stream_range().1;
-                dead.terminate(false, &store).await;
-            }
-            self.agent_presence.remove(&session_id);
-        } else if let Some(restored) = Session::restore_exited(
-            session_id.clone(),
-            workspace_id.clone(),
-            tab_id.clone(),
-            &store,
-            max_bytes,
-        )
-        .await
-        {
-            initial_scrollback = restored.buffer.to_bytes();
-            initial_output_stream_bytes = restored.output_stream_range().1;
         }
+        let (initial_scrollback, initial_output_stream_bytes) = self
+            .take_terminal_restart_state(&session_id, &workspace_id, &tab_id, max_bytes)
+            .await;
 
-        let mut launch = TerminalHostLaunch::from_json(&Value::Object(
+        let launch = TerminalHostLaunch::from_json(&Value::Object(
             require_object(payload.get("launch"), "launch")?.clone(),
         ))?;
-        let agent_settings = self
-            .runtime_store
-            .agent_status_hook_settings()
-            .await
-            .map_err(|error| HostError::state(error.to_string()))?;
-        let runtime_dir = self.runtime_dir.clone();
-        let launch_session_id = session_id.clone();
-        let launch_workspace_id = workspace_id.clone();
-        let launch_tab_id = tab_id.clone();
-        let mut environment = std::mem::take(&mut launch.environment);
-        launch.environment = tokio::task::spawn_blocking(move || {
-            prepare_launch_environment(
-                &runtime_dir,
-                &launch_session_id,
-                &launch_workspace_id,
-                &launch_tab_id,
-                &agent_settings,
-                &mut environment,
-            )?;
-            Ok::<_, anyhow::Error>(environment)
-        })
-        .await
-        .map_err(|error| HostError::state(error.to_string()))?
-        .map_err(|error| HostError::state(error.to_string()))?;
         let cols = int_or(payload, "cols", 80) as u16;
         let rows = int_or(payload, "rows", 24) as u16;
-        let inbox = self.inbox.clone();
-        let reader_session_id = session_id.clone();
-        let session = Session::start(
+        self.start_new_terminal_session(
             session_id.clone(),
             workspace_id,
             tab_id,
             working_directory,
-            &launch,
+            launch,
             cols,
             rows,
-            max_bytes,
-            &initial_scrollback,
+            initial_scrollback,
             initial_output_stream_bytes,
-            &store,
-            move |event| forward_pty_event(&inbox, &reader_session_id, event),
         )
         .await?;
-        self.sessions.insert(session_id.clone(), session);
         let session = self.sessions.get_mut(&session_id).expect("just inserted");
         session.attach(client_id);
         Ok(session.attachment_payload(true))

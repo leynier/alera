@@ -12,6 +12,7 @@ import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart'
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_workspace_sidebar_client.dart';
+import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_project_client.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 export 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
@@ -23,7 +24,7 @@ const Duration _managedWorkspaceCreateTimeout = Duration(minutes: 30);
 const Duration _managedWorkspaceRemoveTimeout = Duration(minutes: 10);
 
 class MobileRuntimeClient
-    with MobileRuntimeWorkspaceSidebarClient
+    with MobileRuntimeWorkspaceSidebarClient, MobileRuntimeProjectClient
     implements MobileTerminalClient, MobileWorkspaceClient {
   MobileRuntimeClient._(
     this._channel, {

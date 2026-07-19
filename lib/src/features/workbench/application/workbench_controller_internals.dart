@@ -31,7 +31,6 @@ mixin _WorkbenchControllerInternals on _$WorkbenchController {
   final Set<String> _ensuringMainWorkspaceProjectIds = <String>{};
   final Set<String> _loadingLayoutWorkspaceIds = <String>{};
   final Set<String> _closingTabWorkspaceIds = <String>{};
-  final Set<String> _eagerlySpawnedTabIds = <String>{};
 
   bool _bootstrapStarted = false;
 

@@ -1,6 +1,7 @@
 import 'package:alera/src/features/projects/application/project_repository.dart';
 import 'package:alera/src/features/projects/application/project_service.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
+import 'package:alera/src/features/projects/infra/runtime_project_management_client.dart';
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 
@@ -9,6 +10,7 @@ class ProjectsService {
     required this._projectService,
     required this._projectRepository,
     this.removeProjectConfigOverride,
+    this.runtimeProjectManagement,
     Uuid? uuid,
     DateTime Function()? now,
   }) : _uuid = uuid ?? const Uuid(),
@@ -17,6 +19,7 @@ class ProjectsService {
   final ProjectService _projectService;
   final ProjectRepository _projectRepository;
   final Future<void> Function(String projectId)? removeProjectConfigOverride;
+  final RuntimeProjectManagementClient? runtimeProjectManagement;
   final Uuid _uuid;
   final DateTime Function() _now;
 
@@ -27,6 +30,10 @@ class ProjectsService {
   /// Adds an existing local folder as a project. Git repositories are detected
   /// automatically; non-Git folders are registered as folder-only projects.
   Future<Project> addLocalProject({required String path, String? name}) async {
+    final runtime = runtimeProjectManagement;
+    if (runtime != null) {
+      return runtime.registerProject(path: path, name: name);
+    }
     final trimmed = path.trim();
     final normalized = p.normalize(trimmed);
     if (trimmed.isEmpty) {
@@ -64,6 +71,14 @@ class ProjectsService {
     required String destinationPath,
     String? name,
   }) async {
+    final runtime = runtimeProjectManagement;
+    if (runtime != null) {
+      return runtime.cloneProject(
+        gitUrl: gitUrl,
+        destinationPath: destinationPath,
+        name: name,
+      );
+    }
     final trimmedDestination = destinationPath.trim();
     final normalizedDestination = p.normalize(trimmedDestination);
     if (trimmedDestination.isEmpty) {
@@ -121,6 +136,10 @@ class ProjectsService {
     required String projectId,
     required String name,
   }) async {
+    final runtime = runtimeProjectManagement;
+    if (runtime != null) {
+      return runtime.renameProject(projectId: projectId, name: name);
+    }
     final trimmedName = name.trim();
     if (trimmedName.isEmpty) {
       throw StateError('Project name must not be empty');
@@ -142,6 +161,11 @@ class ProjectsService {
   }
 
   Future<void> removeProject(String projectId) async {
+    final runtime = runtimeProjectManagement;
+    if (runtime != null) {
+      await runtime.removeProject(projectId);
+      return;
+    }
     await _projectRepository.remove(projectId);
     await removeProjectConfigOverride?.call(projectId);
   }

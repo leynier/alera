@@ -7,6 +7,8 @@ mod orchestration_models;
 #[cfg(test)]
 mod orchestration_store_tests;
 mod orchestration_task_store;
+mod project_clone_job_store;
+mod project_clone_models;
 mod schema_migrations;
 mod settings_models;
 mod store;
@@ -27,6 +29,7 @@ pub use orchestration_message_store::{
 };
 pub use orchestration_models::*;
 pub use orchestration_task_store::NewOrchestrationTask;
+pub use project_clone_models::*;
 pub use settings_models::*;
 pub use store::*;
 pub use workbench_shared_state_models::*;

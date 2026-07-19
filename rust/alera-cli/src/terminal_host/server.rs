@@ -43,15 +43,18 @@ use crate::terminal_host::session::{PtyEvent, PtyWriteCompletion, Session};
 mod agent_hook_events;
 mod client_delivery;
 mod coordinator_requests;
+mod lifecycle;
 mod mobile_terminal_requests;
 mod orchestration_requests;
 mod orchestration_terminal_requests;
 mod orchestration_validation;
+mod project_requests;
 mod pty_event_forwarder;
 mod pty_events;
 mod requests;
 mod terminal_driver;
 mod terminal_input_requests;
+mod terminal_spawn;
 mod workspace_pinning;
 mod workspace_sidebar_requests;
 
@@ -141,6 +144,22 @@ pub enum ServerCommand {
         message_ids: Vec<String>,
         force_submit: bool,
     },
+    TerminalStartupInput {
+        session_id: String,
+        session_instance_id: u64,
+        interactive_shell: String,
+        command: String,
+    },
+    TerminalStartupSubmit {
+        session_id: String,
+        session_instance_id: u64,
+    },
+    ProjectCloneChanged {
+        job_id: String,
+    },
+    ProjectCloneFinished {
+        job_id: String,
+    },
     /// One coordinator loop iteration, enqueued by the ticker task.
     CoordinatorTick {
         run_id: String,
@@ -159,20 +178,18 @@ struct ClientState {
     kind: ClientKind,
     mobile_device_id: Option<String>,
     mobile_device_name: Option<String>,
-    app_client: bool,
 }
 
 impl ClientState {
     /// Authenticated loopback client (the desktop app or a CLI).
     #[cfg(test)]
-    fn local(handle: ClientHandle, app_client: bool) -> ClientState {
+    fn local(handle: ClientHandle, _app_client: bool) -> ClientState {
         ClientState {
             handle,
             authenticated: true,
             kind: ClientKind::Local,
             mobile_device_id: None,
             mobile_device_name: None,
-            app_client,
         }
     }
 }
@@ -218,6 +235,7 @@ pub async fn run_terminal_host_server(
         runtime_store,
         sessions: HashMap::new(),
         ssh_bootstrap_jobs: HashMap::new(),
+        project_clone_jobs: HashMap::new(),
         managed_workspace_jobs: 0,
         clients: HashMap::new(),
         pending_output_writes: HashMap::new(),
@@ -236,6 +254,8 @@ pub async fn run_terminal_host_server(
     if let Err(error) = actor.restart_mobile_gateway().await {
         eprintln!("alera mobile gateway unavailable: {}", error.wire_message());
     }
+    actor.reconcile_interrupted_project_clones().await;
+    actor.reconcile_spawn_on_create_tabs().await;
     actor.schedule_shutdown_if_idle();
 
     while let Some(command) = rx.recv().await {
@@ -295,6 +315,7 @@ struct ServerActor {
     runtime_store: RuntimeStore,
     sessions: HashMap<String, Session>,
     ssh_bootstrap_jobs: HashMap<String, SshBootstrapJobState>,
+    project_clone_jobs: HashMap<String, tokio::sync::oneshot::Sender<()>>,
     managed_workspace_jobs: usize,
     clients: HashMap<u64, ClientState>,
     pending_output_writes: HashMap<String, Vec<JoinHandle<()>>>,
@@ -476,7 +497,6 @@ impl ServerActor {
                         kind,
                         mobile_device_id: None,
                         mobile_device_name: None,
-                        app_client: false,
                     },
                 );
             }
@@ -555,6 +575,27 @@ impl ServerActor {
                     force_submit,
                 )
                 .await
+            }
+            ServerCommand::TerminalStartupInput {
+                session_id,
+                session_instance_id,
+                interactive_shell,
+                command,
+            } => self.handle_terminal_startup_input(
+                session_id,
+                session_instance_id,
+                interactive_shell,
+                command,
+            ),
+            ServerCommand::TerminalStartupSubmit {
+                session_id,
+                session_instance_id,
+            } => self.handle_terminal_startup_submit(session_id, session_instance_id),
+            ServerCommand::ProjectCloneChanged { job_id } => {
+                self.handle_project_clone_changed(job_id)
+            }
+            ServerCommand::ProjectCloneFinished { job_id } => {
+                self.handle_project_clone_finished(job_id).await
             }
             ServerCommand::CoordinatorTick { run_id } => self.handle_coordinator_tick(run_id).await,
         }
@@ -1084,123 +1125,6 @@ impl ServerActor {
         }
     }
 
-    // --- Configuration and shutdown --------------------------------------
-
-    async fn apply_config(&mut self, config: TerminalHostConfig) {
-        self.config = TerminalHostConfig {
-            persistent: self.config.persistent,
-            ..config
-        };
-        let max_bytes = config.scrollback_bytes as usize;
-        let session_ids: Vec<String> = self.sessions.keys().cloned().collect();
-        for session_id in session_ids {
-            self.flush_all_output(&session_id);
-            if let Some(session) = self.sessions.get_mut(&session_id) {
-                session.set_max_bytes(max_bytes);
-            }
-            self.await_output_writes(&session_id).await;
-            let _ = self.store.trim_session(&session_id, max_bytes).await;
-            self.immediate_checkpoint(&session_id).await;
-        }
-        self.schedule_shutdown_if_idle();
-    }
-
-    fn has_authenticated_clients(&self) -> bool {
-        self.clients.values().any(|client| client.authenticated)
-    }
-
-    fn has_app_clients(&self) -> bool {
-        self.clients
-            .values()
-            .any(|client| client.authenticated && client.app_client)
-    }
-
-    fn has_running_sessions(&self) -> bool {
-        self.sessions.values().any(Session::running)
-    }
-
-    fn has_active_bootstrap_jobs(&self) -> bool {
-        !self.ssh_bootstrap_jobs.is_empty()
-    }
-
-    fn has_active_managed_workspace_jobs(&self) -> bool {
-        self.managed_workspace_jobs > 0
-    }
-
-    fn has_active_mobile_gateway(&self) -> bool {
-        self.mobile_gateway.is_some()
-    }
-
-    fn schedule_shutdown_if_idle(&mut self) {
-        if self.disposed
-            || self.config.persistent
-            || self.has_authenticated_clients()
-            || self.has_active_bootstrap_jobs()
-            || self.has_active_managed_workspace_jobs()
-            || self.has_active_mobile_gateway()
-            || !self.coordinators.is_empty()
-        {
-            self.cancel_shutdown_timer();
-            return;
-        }
-        let seconds = if self.has_running_sessions() {
-            self.config.detached_session_shutdown_delay_seconds
-        } else {
-            self.config.empty_shutdown_delay_seconds
-        };
-        self.shutdown_gen += 1;
-        let generation = self.shutdown_gen;
-        let inbox = self.inbox.clone();
-        tokio::spawn(async move {
-            tokio::time::sleep(Duration::from_secs(seconds)).await;
-            let _ = inbox.send(ServerCommand::ShutdownTick { generation });
-        });
-    }
-
-    fn spawn_output_batch_timer(&self, session_id: String, generation: u64) {
-        let inbox = self.inbox.clone();
-        tokio::spawn(async move {
-            tokio::time::sleep(OUTPUT_BATCH_DELAY).await;
-            let _ = inbox.send(ServerCommand::OutputBatchTick {
-                session_id,
-                generation,
-            });
-        });
-    }
-
-    fn spawn_output_resync_timer(&self, session_id: String, client_id: u64) {
-        let inbox = self.inbox.clone();
-        tokio::spawn(async move {
-            tokio::time::sleep(OUTPUT_RESYNC_RETRY_DELAY).await;
-            let _ = inbox.send(ServerCommand::OutputResyncTick {
-                session_id,
-                client_id,
-            });
-        });
-    }
-
-    fn spawn_durable_output_batch_timer(&self, session_id: String, generation: u64) {
-        let inbox = self.inbox.clone();
-        tokio::spawn(async move {
-            tokio::time::sleep(DURABLE_OUTPUT_BATCH_DELAY).await;
-            let _ = inbox.send(ServerCommand::DurableOutputBatchTick {
-                session_id,
-                generation,
-            });
-        });
-    }
-
-    fn cancel_shutdown_timer(&mut self) {
-        // Bumping the generation invalidates any pending ShutdownTick.
-        self.shutdown_gen += 1;
-    }
-
-    async fn handle_shutdown_tick(&mut self, generation: u64) {
-        if generation == self.shutdown_gen && !self.disposed && !self.has_authenticated_clients() {
-            self.dispose().await;
-        }
-    }
-
     async fn dispose(&mut self) {
         if self.disposed {
             return;
@@ -1268,6 +1192,7 @@ mod tests {
                     handle: tokio::spawn(async {}),
                 },
             )]),
+            project_clone_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
             clients: HashMap::from([(1, ClientState::local(handle, true))]),
             pending_output_writes: HashMap::new(),
@@ -1330,6 +1255,7 @@ mod tests {
             runtime_store,
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
+            project_clone_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
             clients: HashMap::new(),
             pending_output_writes: HashMap::new(),
@@ -1381,6 +1307,7 @@ mod tests {
             runtime_store,
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
+            project_clone_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
             clients: HashMap::new(),
             pending_output_writes: HashMap::new(),
@@ -1436,6 +1363,7 @@ mod tests {
             runtime_store,
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
+            project_clone_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
             clients: HashMap::new(),
             pending_output_writes: HashMap::new(),
@@ -1511,6 +1439,7 @@ mod tests {
             runtime_store,
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
+            project_clone_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
             clients: HashMap::new(),
             pending_output_writes: HashMap::new(),
@@ -1608,6 +1537,7 @@ mod tests {
             runtime_store,
             sessions: HashMap::from([("term-1".to_string(), session)]),
             ssh_bootstrap_jobs: HashMap::new(),
+            project_clone_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
             clients: HashMap::new(),
             pending_output_writes: HashMap::new(),
@@ -1678,6 +1608,7 @@ mod tests {
             runtime_store,
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
+            project_clone_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
             clients: HashMap::from([(1, ClientState::local(handle, false))]),
             pending_output_writes: HashMap::new(),
@@ -1735,6 +1666,7 @@ mod tests {
             runtime_store,
             sessions: HashMap::new(),
             ssh_bootstrap_jobs: HashMap::new(),
+            project_clone_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
             clients: HashMap::from([
                 (1, ClientState::local(first_app_handle, true)),

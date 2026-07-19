@@ -13,6 +13,25 @@ pub const BRACKETED_PASTE_END: &[u8] = b"\x1b[201~";
 /// Submit after paste (carriage return, not LF).
 pub const AGENT_PROMPT_SUBMIT: &[u8] = b"\r";
 
+/// Interactive shells known to enable bracketed paste for their line editor.
+pub fn shell_supports_bracketed_paste(shell: &str) -> bool {
+    let executable = shell
+        .replace('\\', "/")
+        .rsplit('/')
+        .next()
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    matches!(executable.as_str(), "bash" | "zsh" | "fish")
+}
+
+/// Multiline, control-heavy, and long startup commands need paste delivery.
+pub fn should_use_bracketed_paste_for_startup(command: &str) -> bool {
+    command
+        .chars()
+        .any(|character| (character as u32) < 0x20 || character as u32 == 0x7f)
+        || command.len() > 512
+}
+
 /// Preserve printable text, LF, and tab while rendering terminal controls as
 /// inert ASCII markers.
 pub fn sanitize_agent_prompt_text(text: &str) -> String {
@@ -40,6 +59,14 @@ pub fn build_agent_prompt_paste_bytes(prompt: &str) -> Vec<u8> {
     bytes.extend_from_slice(sanitized.as_bytes());
     bytes.extend_from_slice(BRACKETED_PASTE_END);
     bytes
+}
+
+/// Build shell-neutral startup input without executable terminal controls.
+pub fn build_plain_startup_command_bytes(command: &str) -> Vec<u8> {
+    let single_line = sanitize_agent_prompt_text(command)
+        .replace('\n', "<LF>")
+        .replace('\t', "<TAB>");
+    format!("{single_line}\r").into_bytes()
 }
 
 #[cfg(test)]
@@ -83,5 +110,19 @@ mod tests {
         assert!(as_str.contains("<0x1B>"));
         let inner = &paste[BRACKETED_PASTE_START.len()..paste.len() - BRACKETED_PASTE_END.len()];
         assert!(!inner.contains(&0x1b));
+    }
+
+    #[test]
+    fn startup_delivery_matches_shell_capabilities_and_sanitizes_plain_input() {
+        assert!(shell_supports_bracketed_paste("/bin/zsh"));
+        assert!(shell_supports_bracketed_paste(r"C:\tools\fish"));
+        assert!(!shell_supports_bracketed_paste("pwsh"));
+        assert!(should_use_bracketed_paste_for_startup("line one\nline two"));
+        assert!(should_use_bracketed_paste_for_startup(&"x".repeat(513)));
+        assert!(!should_use_bracketed_paste_for_startup("codex"));
+        assert_eq!(
+            build_plain_startup_command_bytes("hello\x1b\nworld"),
+            b"hello<0x1B><LF>world\r"
+        );
     }
 }

@@ -1267,7 +1267,7 @@ fn coordinator_reuses_idle_worker_after_stale_base_skip() {
 fn coordinator_waits_for_spawned_worker_presence_before_creating_another() {
     let host = start_host();
     let (mut writer, mut reader) = connect(host.port);
-    handshake_app(&mut writer, &mut reader, &host.token);
+    handshake(&mut writer, &mut reader, &host.token);
     seed_workspace(&mut writer, &mut reader, "ws-1");
 
     expect_ok(request(
@@ -2564,7 +2564,7 @@ fn pty_output_refreshes_active_dispatch_activity() {
 fn timed_out_agent_spawn_cannot_dispatch_on_late_readiness() {
     let host = start_host();
     let (mut writer, mut reader) = connect(host.port);
-    handshake_app(&mut writer, &mut reader, &host.token);
+    handshake(&mut writer, &mut reader, &host.token);
     seed_workspace(&mut writer, &mut reader, "ws-1");
     let task = expect_ok(request(
         &mut writer,

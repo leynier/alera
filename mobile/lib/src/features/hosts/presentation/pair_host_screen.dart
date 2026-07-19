@@ -96,7 +96,7 @@ class _ManualFirstEntry extends StatelessWidget {
             ),
             const SizedBox(height: AleraTokens.spaceSm),
             Text(
-              'Paste The Pairing Offer From The Desktop Pairing Dialog.',
+              'Paste The Offer From alera mobile --json pairing create.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
@@ -173,12 +173,12 @@ class _PairingFailureView extends StatelessWidget {
       PairingFailureReason.invalidOffer =>
         'The Scanned Code Is Not A Valid Alera Pairing Offer.',
       PairingFailureReason.offerExpired =>
-        'Generate A Fresh Pairing Offer On The Desktop And Try Again.',
+        'Generate A Fresh Pairing Offer On The Runtime Host And Try Again.',
       PairingFailureReason.runtimeMismatch =>
         'The Endpoint Answered For A Different Runtime Than The Offer '
             'Promised. Check The Network And Generate A New Offer.',
       PairingFailureReason.unreachable =>
-        'Check That The Desktop Runtime Is Running And Reachable From This '
+        'Check That The Runtime Host Is Running And Reachable From This '
             'Phone, Then Try Again.',
     };
   }

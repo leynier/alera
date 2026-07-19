@@ -186,7 +186,6 @@ mod tests {
             kind: ClientKind::Mobile,
             mobile_device_id: Some(device.to_string()),
             mobile_device_name: Some(format!("{device} phone")),
-            app_client: false,
         }
     }
 
@@ -197,7 +196,6 @@ mod tests {
             kind: ClientKind::Local,
             mobile_device_id: None,
             mobile_device_name: None,
-            app_client: true,
         }
     }
 
@@ -214,6 +212,7 @@ mod tests {
             runtime_store,
             sessions: HashMap::from([("s1".to_string(), Session::driver_test_stub("s1", 120, 40))]),
             ssh_bootstrap_jobs: HashMap::new(),
+            project_clone_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
             clients,
             pending_output_writes: HashMap::new(),

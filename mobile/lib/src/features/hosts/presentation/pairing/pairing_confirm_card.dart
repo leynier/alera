@@ -138,7 +138,7 @@ class _PairingConfirmCardState extends State<PairingConfirmCard> {
           enabled: !widget.pairing,
           decoration: const InputDecoration(
             labelText: 'Device Name (Optional)',
-            helperText: 'How This Phone Appears On The Desktop',
+            helperText: 'How This Phone Appears On The Runtime Host',
           ),
         ),
         const SizedBox(height: AleraTokens.spaceLg),
