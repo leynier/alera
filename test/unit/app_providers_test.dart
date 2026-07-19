@@ -151,7 +151,7 @@ void main() {
     );
 
     test(
-      'terminalRuntimeProvider builds agent hook launch environments on start',
+      'terminalRuntimeProvider leaves agent hook launch environments to host',
       () async {
         debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
         addTearDown(() => debugDefaultTargetPlatformOverride = null);
@@ -269,7 +269,7 @@ void main() {
 
         expect(
           client.launches.single.environment,
-          contains('ALERA_TERMINAL_SESSION_ID'),
+          isNot(contains('ALERA_TERMINAL_SESSION_ID')),
         );
         runtime.dispose();
       },

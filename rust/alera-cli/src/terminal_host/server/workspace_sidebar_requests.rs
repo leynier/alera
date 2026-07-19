@@ -82,6 +82,11 @@ impl ServerActor {
             .runtime_settings()
             .await
             .map_err(state_error)?;
+        let terminal_tab_count_by_workspace_id = self
+            .runtime_store
+            .terminal_tab_counts_by_workspace()
+            .await
+            .map_err(state_error)?;
         Ok(json!({
             "projects": projects,
             "workspaces": workspaces,
@@ -90,6 +95,7 @@ impl ServerActor {
             "viewPrefs": view_prefs,
             "runtimeSettings": runtime_settings,
             "agentPresence": self.agent_presence_items(),
+            "terminalTabCountByWorkspaceId": terminal_tab_count_by_workspace_id,
         }))
     }
 

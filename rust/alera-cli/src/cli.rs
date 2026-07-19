@@ -151,6 +151,10 @@ pub struct TerminalHostArgs {
         value_parser = clap::value_parser!(u64).range(1..),
     )]
     pub scrollback_bytes: u64,
+
+    /// Keep the runtime alive until an explicit shutdown request.
+    #[arg(long)]
+    pub persistent: bool,
 }
 
 #[derive(Debug, Args, Clone)]
@@ -181,6 +185,46 @@ pub struct RuntimeCommand {
 pub enum RuntimeAction {
     /// Show runtime database and profile status.
     Status,
+    /// Start a persistent runtime host in the background.
+    Start,
+    /// Stop the running runtime host.
+    Stop(RuntimeStopArgs),
+    /// Inspect or change runtime-owned agent integrations.
+    Agents(RuntimeAgentsCommand),
+}
+
+#[derive(Debug, Args)]
+pub struct RuntimeStopArgs {
+    /// Stop even when terminals or background jobs are active.
+    #[arg(long)]
+    pub force: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct RuntimeAgentsCommand {
+    #[command(subcommand)]
+    pub action: RuntimeAgentsAction,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum RuntimeAgentsAction {
+    /// Show enabled runtime agent integrations.
+    Status,
+    /// Enable one or more agent integrations.
+    Enable(RuntimeAgentsChangeArgs),
+    /// Disable one or more agent integrations.
+    Disable(RuntimeAgentsChangeArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct RuntimeAgentsChangeArgs {
+    /// Agent keys: codex, claude, copilot, cursor, agy, opencode, pi, amp, grok.
+    #[arg(value_name = "agent", required_unless_present = "all")]
+    pub agents: Vec<String>,
+
+    /// Apply the change to every supported agent.
+    #[arg(long, conflicts_with = "agents")]
+    pub all: bool,
 }
 
 #[derive(Debug, Args)]

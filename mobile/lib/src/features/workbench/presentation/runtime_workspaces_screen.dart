@@ -8,10 +8,12 @@ import 'package:alera_mobile/src/features/terminal/presentation/workspace_tabs_s
 import 'package:alera_mobile/src/features/workbench/application/mobile_view_prefs_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/mobile_workspace_rows.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_list_controller.dart';
+import 'package:alera_mobile/src/features/workbench/application/workspace_agent_expansion_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_search_controller.dart';
 import 'package:alera_mobile/src/features/workbench/domain/mobile_view_prefs.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/create_workspace_screen.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_actions_sheet.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/workspace_agent_terminal_actions.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_row_widgets.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_view_options_sheet.dart';
 import 'package:flutter/material.dart';
@@ -169,6 +171,9 @@ class _WorkspaceListBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final expandedWorkspaceIds =
+        ref.watch(workspaceAgentExpansionControllerProvider(hostId)).value ??
+        const <String>{};
     final rows = buildMobileWorkspaceRows(
       workspaces: data.workspaces,
       projects: data.projects,
@@ -224,11 +229,40 @@ class _WorkspaceListBody extends ConsumerWidget {
               ),
             MobileWorkspaceEntryRow() => MobileWorkspaceListRow(
               row: row,
+              terminalTabCount:
+                  data.terminalTabCountByWorkspaceId[row.entry.workspace.id] ??
+                  0,
               agentPresence: data.agentPresence
                   .where(
                     (status) => status.workspaceId == row.entry.workspace.id,
                   )
                   .toList(),
+              agentsExpanded: expandedWorkspaceIds.contains(
+                row.entry.workspace.id,
+              ),
+              onToggleAgents: () => ref
+                  .read(
+                    workspaceAgentExpansionControllerProvider(hostId).notifier,
+                  )
+                  .toggle(row.entry.workspace.id),
+              onAgentTap: (status) {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => WorkspaceTabsScreen(
+                      hostId: hostId,
+                      workspace: row.entry.workspace,
+                      initialTabId: status.tabId,
+                    ),
+                  ),
+                );
+              },
+              onCloseAgent: (status) => closeWorkspaceAgentTerminal(
+                context,
+                ref,
+                status,
+                hostId: hostId,
+                workspaceId: row.entry.workspace.id,
+              ),
               onTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute<void>(

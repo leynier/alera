@@ -89,7 +89,14 @@ impl RuntimeHostRpcClient {
         if let Some(client) = Self::connect(runtime_dir).await? {
             return Ok(client);
         }
-        Self::start(runtime_dir, None).await
+        Self::start(runtime_dir, None, false).await
+    }
+
+    pub(crate) async fn connect_or_start_persistent(runtime_dir: &Path) -> Result<Self> {
+        if let Some(client) = Self::connect(runtime_dir).await? {
+            return Ok(client);
+        }
+        Self::start(runtime_dir, None, true).await
     }
 
     pub(crate) async fn connect_or_start_mobile(runtime_dir: &Path) -> Result<Self> {
@@ -106,16 +113,21 @@ impl RuntimeHostRpcClient {
         {
             return Ok(client);
         }
-        Self::start(runtime_dir, Some(required_capability)).await
+        Self::start(runtime_dir, Some(required_capability), false).await
     }
 
-    async fn start(runtime_dir: &Path, required_capability: Option<&str>) -> Result<Self> {
+    async fn start(
+        runtime_dir: &Path,
+        required_capability: Option<&str>,
+        persistent: bool,
+    ) -> Result<Self> {
         tokio::fs::create_dir_all(runtime_dir).await?;
         let control_file = runtime_dir.join(RUNTIME_CONTROL_FILE_NAME);
         let _ = tokio::fs::remove_file(&control_file).await;
         let token = Uuid::new_v4().to_string();
         let executable = std::env::current_exe().context("failed to resolve current alera CLI")?;
-        Command::new(executable)
+        let mut command = Command::new(executable);
+        command
             .arg("runtime-host")
             .arg("--runtime-dir")
             .arg(runtime_dir)
@@ -131,7 +143,11 @@ impl RuntimeHostRpcClient {
             .arg(DEFAULT_SCROLLBACK_BYTES.to_string())
             .stdin(Stdio::null())
             .stdout(Stdio::null())
-            .stderr(Stdio::null())
+            .stderr(Stdio::null());
+        if persistent {
+            command.arg("--persistent");
+        }
+        command
             .spawn()
             .context("failed to start alera runtime-host")?;
 

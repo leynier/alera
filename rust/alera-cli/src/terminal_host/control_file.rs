@@ -5,7 +5,8 @@ use chrono::{SecondsFormat, Utc};
 use serde_json::json;
 
 use crate::terminal_host::protocol::{
-    PROTOCOL_VERSION, RUNTIME_HOST_BOOTSTRAP_CAPABILITY, RUNTIME_HOST_CAPABILITY,
+    PROTOCOL_VERSION, RUNTIME_HOST_AGENT_STATUS_CAPABILITY, RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
+    RUNTIME_HOST_CAPABILITY, RUNTIME_HOST_LIFECYCLE_CAPABILITY,
     RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY, RUNTIME_HOST_MOBILE_CAPABILITY,
     RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
 };
@@ -14,7 +15,12 @@ use crate::terminal_host::protocol::{
 ///
 /// The JSON is written to a sibling `<path>.tmp` and atomically renamed into
 /// place so the app never observes a partially written file.
-pub fn write_control_file(path: &Path, port: u16, token: &str) -> std::io::Result<()> {
+pub fn write_control_file(
+    path: &Path,
+    port: u16,
+    token: &str,
+    persistent: bool,
+) -> std::io::Result<()> {
     let body = json!({
         "protocolVersion": PROTOCOL_VERSION,
         "pid": std::process::id(),
@@ -26,7 +32,10 @@ pub fn write_control_file(path: &Path, port: u16, token: &str) -> std::io::Resul
             RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
             RUNTIME_HOST_MOBILE_CAPABILITY,
             RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
+            RUNTIME_HOST_LIFECYCLE_CAPABILITY,
+            RUNTIME_HOST_AGENT_STATUS_CAPABILITY,
         ],
+        "persistent": persistent,
         "startedAt": Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true),
     });
     let temp = temp_path(path);
@@ -58,7 +67,7 @@ mod tests {
     fn writes_and_reads_back_metadata() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("host.json");
-        write_control_file(&path, 54321, "secret-token").unwrap();
+        write_control_file(&path, 54321, "secret-token", true).unwrap();
 
         let contents = std::fs::read_to_string(&path).unwrap();
         let value: Value = serde_json::from_str(&contents).unwrap();
@@ -73,8 +82,11 @@ mod tests {
                 RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
                 RUNTIME_HOST_MOBILE_CAPABILITY,
                 RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
+                RUNTIME_HOST_LIFECYCLE_CAPABILITY,
+                RUNTIME_HOST_AGENT_STATUS_CAPABILITY,
             ])
         );
+        assert_eq!(value["persistent"], json!(true));
         assert_eq!(value["pid"], json!(std::process::id()));
         assert!(value["startedAt"].as_str().unwrap().ends_with('Z'));
 
@@ -88,7 +100,7 @@ mod tests {
         let path = dir.path().join("host.json");
         // Deleting a missing file must not panic.
         delete_control_file(&path);
-        write_control_file(&path, 1, "t").unwrap();
+        write_control_file(&path, 1, "t", false).unwrap();
         delete_control_file(&path);
         assert!(!path.exists());
     }

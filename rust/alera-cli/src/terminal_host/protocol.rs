@@ -28,6 +28,8 @@ pub const RUNTIME_HOST_ORCHESTRATION_CAPABILITY: &str = "orchestration";
 // lock): `terminalDriverChanged` events, `terminal.reclaim`, and
 // `terminal.driver.list`.
 pub const RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY: &str = "terminalDriverPresence";
+pub const RUNTIME_HOST_LIFECYCLE_CAPABILITY: &str = "runtimeHostLifecycleV1";
+pub const RUNTIME_HOST_AGENT_STATUS_CAPABILITY: &str = "runtimeAgentStatusV1";
 
 // Retained for the later packaging/resolver phase (sidecar discovery).
 #[allow(dead_code)]
@@ -46,6 +48,7 @@ pub struct TerminalHostConfig {
     pub empty_shutdown_delay_seconds: u64,
     pub detached_session_shutdown_delay_seconds: u64,
     pub scrollback_bytes: u64,
+    pub persistent: bool,
 }
 
 impl Default for TerminalHostConfig {
@@ -55,6 +58,7 @@ impl Default for TerminalHostConfig {
             detached_session_shutdown_delay_seconds:
                 DEFAULT_DETACHED_SESSION_SHUTDOWN_DELAY_SECONDS,
             scrollback_bytes: DEFAULT_SCROLLBACK_BYTES,
+            persistent: false,
         }
     }
 }
@@ -73,6 +77,7 @@ impl TerminalHostConfig {
                 "detachedSessionShutdownDelaySeconds",
             )?,
             scrollback_bytes: positive_int(value.get("scrollbackBytes"), "scrollbackBytes")?,
+            persistent: false,
         })
     }
 
@@ -83,6 +88,7 @@ impl TerminalHostConfig {
             "emptyShutdownDelaySeconds": self.empty_shutdown_delay_seconds,
             "detachedSessionShutdownDelaySeconds": self.detached_session_shutdown_delay_seconds,
             "scrollbackBytes": self.scrollback_bytes,
+            "persistent": self.persistent,
         })
     }
 }
@@ -216,6 +222,7 @@ mod tests {
             empty_shutdown_delay_seconds: 5,
             detached_session_shutdown_delay_seconds: 6,
             scrollback_bytes: 7,
+            persistent: false,
         };
         let parsed = TerminalHostConfig::from_json(&config.to_json()).unwrap();
         assert_eq!(parsed.empty_shutdown_delay_seconds, 5);

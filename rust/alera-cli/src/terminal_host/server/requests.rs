@@ -8,6 +8,8 @@ use alera_core::{
 use chrono::{DateTime, Utc};
 use serde_json::{json, Map, Value};
 
+use crate::agent_status::prepare_launch_environment;
+use crate::agent_status::reconcile_agent_integrations;
 use crate::managed_workspace::{
     create_managed_workspace, remove_managed_workspace, ManagedWorkspaceCreateRequest,
     ManagedWorkspaceRemoveRequest,
@@ -23,11 +25,11 @@ use crate::ssh_bootstrap::{build_ssh_bootstrap_plan, SshTargetBootstrapRequest};
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::{
     error_response, event, int_or, ok_response, require_object, TerminalHostConfig,
-    TerminalHostLaunch, PROTOCOL_VERSION, RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
-    RUNTIME_HOST_CAPABILITY, RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
-    RUNTIME_HOST_MOBILE_CAPABILITY, RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY,
-    RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY, RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
-    RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
+    TerminalHostLaunch, PROTOCOL_VERSION, RUNTIME_HOST_AGENT_STATUS_CAPABILITY,
+    RUNTIME_HOST_BOOTSTRAP_CAPABILITY, RUNTIME_HOST_CAPABILITY, RUNTIME_HOST_LIFECYCLE_CAPABILITY,
+    RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY, RUNTIME_HOST_MOBILE_CAPABILITY,
+    RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY, RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY,
+    RUNTIME_HOST_ORCHESTRATION_CAPABILITY, RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
 };
 use crate::terminal_host::session::{Session, SessionDriver};
 
@@ -299,6 +301,8 @@ impl ServerActor {
                         RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY,
                         RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY,
                         RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
+                        RUNTIME_HOST_LIFECYCLE_CAPABILITY,
+                        RUNTIME_HOST_AGENT_STATUS_CAPABILITY,
                     ],
                     "authenticated": true,
                     "device": device,
@@ -332,6 +336,37 @@ impl ServerActor {
                 let config = TerminalHostConfig::from_json(payload)?;
                 self.apply_config(config).await;
                 Ok(json!({}))
+            }
+            "host.shutdown" => {
+                if self.is_mobile_client(client_id) {
+                    return Err(HostError::state(
+                        "Mobile clients cannot stop the runtime host.",
+                    ));
+                }
+                let force = payload
+                    .get("force")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false);
+                let active_sessions = self
+                    .sessions
+                    .values()
+                    .filter(|session| session.running())
+                    .count();
+                let active_jobs = self.ssh_bootstrap_jobs.len()
+                    + usize::from(self.managed_workspace_jobs > 0)
+                    + self.coordinators.len();
+                if !force && (active_sessions > 0 || active_jobs > 0) {
+                    return Err(HostError::state(format!(
+                        "Runtime host has {active_sessions} active terminal session(s) and {active_jobs} active background job(s). Retry with --force to stop it."
+                    )));
+                }
+                let _ = self.inbox.send(ServerCommand::RequestedShutdown);
+                Ok(json!({
+                    "stopped": true,
+                    "forced": force,
+                    "activeSessions": active_sessions,
+                    "activeJobs": active_jobs,
+                }))
             }
             "createOrAttach" => {
                 self.require_auth(client_id)?;
@@ -480,8 +515,14 @@ impl ServerActor {
                         RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY,
                         RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
                         RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
+                        RUNTIME_HOST_LIFECYCLE_CAPABILITY,
+                        RUNTIME_HOST_AGENT_STATUS_CAPABILITY,
                     ],
                     "authenticated": true,
+                    "persistent": self.config.persistent,
+                    "activeSessions": self.sessions.values().filter(|session| session.running()).count(),
+                    "activeAgents": self.agent_presence_items().as_array().map_or(0, Vec::len),
+                    "mobileGatewayEnabled": self.mobile_gateway.is_some(),
                 }))
             }
             "runtimeMetadata.get" => {
@@ -527,6 +568,29 @@ impl ServerActor {
                             .set_confirm_workspace_removal(value)
                             .await,
                     )?;
+                }
+                if let Some(value) = payload.get("agentStatusHooks") {
+                    let settings = serde_json::from_value(value.clone()).map_err(|_| {
+                        HostError::format("agentStatusHooks must contain boolean agent switches.")
+                    })?;
+                    json_result(
+                        self.runtime_store
+                            .set_agent_status_hook_settings(&settings)
+                            .await,
+                    )?;
+                    self.agent_presence
+                        .retain_enabled(&settings.enabled_agents());
+                    let runtime_dir = self.runtime_dir.clone();
+                    let reconcile_settings = settings.clone();
+                    let warnings = tokio::task::spawn_blocking(move || {
+                        reconcile_agent_integrations(&runtime_dir, &reconcile_settings)
+                    })
+                    .await
+                    .unwrap_or_else(|error| vec![error.to_string()]);
+                    for warning in warnings {
+                        eprintln!("alera agent integration warning: {warning}");
+                    }
+                    self.broadcast_agent_presence_changed();
                 }
                 let value = json_result(self.runtime_store.runtime_settings().await)?;
                 self.broadcast_authenticated(event("runtimeSettingsChanged", json!({})));
@@ -1084,9 +1148,33 @@ impl ServerActor {
             initial_output_stream_bytes = restored.output_stream_range().1;
         }
 
-        let launch = TerminalHostLaunch::from_json(&Value::Object(
+        let mut launch = TerminalHostLaunch::from_json(&Value::Object(
             require_object(payload.get("launch"), "launch")?.clone(),
         ))?;
+        let agent_settings = self
+            .runtime_store
+            .agent_status_hook_settings()
+            .await
+            .map_err(|error| HostError::state(error.to_string()))?;
+        let runtime_dir = self.runtime_dir.clone();
+        let launch_session_id = session_id.clone();
+        let launch_workspace_id = workspace_id.clone();
+        let launch_tab_id = tab_id.clone();
+        let mut environment = std::mem::take(&mut launch.environment);
+        launch.environment = tokio::task::spawn_blocking(move || {
+            prepare_launch_environment(
+                &runtime_dir,
+                &launch_session_id,
+                &launch_workspace_id,
+                &launch_tab_id,
+                &agent_settings,
+                &mut environment,
+            )?;
+            Ok::<_, anyhow::Error>(environment)
+        })
+        .await
+        .map_err(|error| HostError::state(error.to_string()))?
+        .map_err(|error| HostError::state(error.to_string()))?;
         let cols = int_or(payload, "cols", 80) as u16;
         let rows = int_or(payload, "rows", 24) as u16;
         let inbox = self.inbox.clone();

@@ -116,7 +116,9 @@ Stable and release-candidate update channels with a manual download flow today, 
 
 ### 📱 Mobile companion foundation
 
-A separate Flutter app lives under `mobile/` for Android and iOS. Pairing starts from **Settings → Mobile Devices** in the desktop app, which shows a scannable QR pairing offer (with a copy-JSON fallback) and manages the gateway, active offers, and paired devices. The mobile app stores device tokens in platform secure storage and connects directly to the runtime-host mobile WebSocket gateway. Its workspace surface mirrors the desktop sidebar with shared grouping, sorting, filtering, tags, collapse state, pins, workspace activity, agent presence, and managed-workspace actions. It can also create or attach to hosted terminal sessions. The same pairing lifecycle remains scriptable through `alera mobile ...`.
+A separate Flutter app lives under `mobile/` for Android and iOS. Pairing starts from **Settings → Mobile Devices** in the desktop app or through `alera mobile ...`. The mobile app stores device tokens in platform secure storage and connects directly to the runtime-host mobile WebSocket gateway, so the desktop app does not need to stay open. Its workspace surface mirrors the desktop sidebar with shared grouping, sorting, filtering, tags, collapse state, pins, workspace activity, direct-workspace agent presence, terminal indicators, and managed-workspace actions. Agent summaries expand locally per paired host, expose runtime-owned details, open the exact terminal tab, and confirm before closing it.
+
+The standalone runtime can be kept alive on a workstation or VPS with `alera runtime start`, inspected with `alera runtime status`, and stopped with `alera runtime stop`. A non-forced stop refuses to close while sessions or runtime jobs are active. Agent status integrations are runtime-owned and default off; use `alera runtime agents status`, `enable`, or `disable` to manage them without launching desktop Flutter.
 
 ---
 

@@ -78,3 +78,16 @@ Settings also includes a **Mobile Devices** section covering the full mobile com
 ## Non-Goals For This Version
 
 Bootstrap installs and validates the runtime sidecar only. It does not install launchd, systemd, or Windows services; it does not persist identity-file paths; and it does not repair missing remote prerequisites beyond returning actionable failures.
+
+The installed sidecar can run autonomously without the desktop app:
+
+```text
+alera runtime start
+alera runtime status
+alera runtime agents enable codex claude
+alera runtime agents status
+alera runtime stop
+alera runtime stop --force
+```
+
+`runtime start` launches a persistent detached host for the selected runtime directory. `runtime stop` refuses active terminal sessions and host jobs unless `--force` is present. This lifecycle is portable and intentionally does not install a system service. Mobile gateway, pairing, workspace state, terminals, and enabled agent integrations continue to operate directly against that host.
