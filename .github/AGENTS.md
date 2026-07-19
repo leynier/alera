@@ -11,7 +11,9 @@ This file applies to GitHub metadata and GitHub Actions workflows.
 - Any job that builds the desktop app or runs the Linux desktop integration tests must set up the pinned Rust toolchain (matching `rust/rust-toolchain.toml`) and the Rust build cache before the Flutter build, because the native build hooks compile the Rust `alera` terminal-host sidecar via `cargo build --locked`. Keep this consistent across `pr.yml`, `desktop-build.yml`, and `release-cut.yml`.
 - Flutter jobs that can run native asset hooks must set up Zig 0.15.2, restore the native asset cache, apply the temporary native asset CI workarounds, and run the native asset preflight before longer test/build commands. This keeps clean runners resilient when `ghostty_vte`, PDFium, or `portable_pty` prebuilt downloads are missing or transiently unavailable.
 - Pull request workflows must initialize required submodules before dependency resolution.
+- Pull request workflows must not rerun solely because a draft pull request becomes ready for review; the existing checks for the same commit remain authoritative.
 - Do not expose partial releases to users.
+- `release-cut.yml` is the single manual release entry point. It must plan desktop and mobile independently, skip unchanged products, and preserve their separate version and tag sequences.
 - Release automation must publish drafts first, verify required assets and update manifests, then publish public releases.
 - Release notes must be product-scoped via `tool/release/generate_release_notes.dart` (desktop excludes `mobile/` and `landing/`; mobile includes only `mobile/`), and only desktop stable releases may carry the Latest badge.
 - Release workflows must not push release commits or tags until platform artifacts and update manifests have been generated and verified.

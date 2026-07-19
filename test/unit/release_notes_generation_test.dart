@@ -27,6 +27,12 @@ void main() {
         isTrue,
       );
       expect(
+        release_notes.isReleaseBookkeepingSubject(
+          'release: v1.2.3 v0.4.0-mobile',
+        ),
+        isTrue,
+      );
+      expect(
         release_notes.isReleaseBookkeepingSubject('fix: release notes tool'),
         isFalse,
       );

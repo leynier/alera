@@ -130,4 +130,4 @@ If there is no visual change, say that explicitly in the PR description.
 
 ## Release Process
 
-Version bumps, release tags, update manifests, and published assets are maintainer-managed through GitHub Actions. Do not include release version changes in normal contributions unless a maintainer asks for them.
+Version bumps, release tags, update manifests, and published assets are maintainer-managed through the **Cut Release** GitHub Actions workflow. The workflow detects desktop and mobile changes independently and derives their SemVer bumps from Conventional Commit metadata. Do not include release version changes in normal contributions unless a maintainer asks for them.

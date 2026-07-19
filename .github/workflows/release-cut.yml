@@ -3,16 +3,14 @@ name: Cut Release
 on:
   workflow_dispatch:
     inputs:
-      kind:
-        description: Release kind
+      channel:
+        description: Release channel
         required: true
         type: choice
-        default: rc
+        default: stable
         options:
+          - stable
           - rc
-          - patch
-          - minor
-          - major
       ref:
         description: Branch, tag, or SHA to release from
         required: false
@@ -26,6 +24,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: read
 
 concurrency:
   group: release-cut
@@ -39,17 +38,29 @@ env:
   ALERA_FLAVOR: release
 
 jobs:
-  cut:
+  plan:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     outputs:
-      tag: ${{ steps.version.outputs.tag }}
-      release_version: ${{ steps.version.outputs.release_version }}
-      artifact_version: ${{ steps.version.outputs.artifact_version }}
-      build_number: ${{ steps.version.outputs.build_number }}
-      channel: ${{ steps.version.outputs.channel }}
-      should_release: ${{ steps.version.outputs.should_release }}
-      release_base_ref: ${{ steps.version.outputs.release_base_ref }}
+      target_sha: ${{ steps.release_plan.outputs.target_sha }}
+      channel: ${{ steps.release_plan.outputs.channel }}
+      any_should_release: ${{ steps.release_plan.outputs.any_should_release }}
+      desktop_has_changes: ${{ steps.release_plan.outputs.desktop_has_changes }}
+      desktop_should_release: ${{ steps.release_plan.outputs.desktop_should_release }}
+      desktop_bump: ${{ steps.release_plan.outputs.desktop_bump }}
+      desktop_artifact_version: ${{ steps.release_plan.outputs.desktop_artifact_version }}
+      desktop_release_version: ${{ steps.release_plan.outputs.desktop_release_version }}
+      desktop_build_number: ${{ steps.release_plan.outputs.desktop_build_number }}
+      desktop_tag: ${{ steps.release_plan.outputs.desktop_tag }}
+      desktop_previous_tag: ${{ steps.release_plan.outputs.desktop_previous_tag }}
+      mobile_has_changes: ${{ steps.release_plan.outputs.mobile_has_changes }}
+      mobile_should_release: ${{ steps.release_plan.outputs.mobile_should_release }}
+      mobile_bump: ${{ steps.release_plan.outputs.mobile_bump }}
+      mobile_artifact_version: ${{ steps.release_plan.outputs.mobile_artifact_version }}
+      mobile_release_version: ${{ steps.release_plan.outputs.mobile_release_version }}
+      mobile_build_number: ${{ steps.release_plan.outputs.mobile_build_number }}
+      mobile_tag: ${{ steps.release_plan.outputs.mobile_tag }}
+      mobile_previous_tag: ${{ steps.release_plan.outputs.mobile_previous_tag }}
     steps:
       - name: Checkout ref
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
@@ -61,71 +72,28 @@ jobs:
       - name: Setup Dart
         uses: dart-lang/setup-dart@65eb853c7ba17dde3be364c3d2858773e7144260
 
-      - name: Compute next version
-        id: version
-        shell: bash
+      - name: Plan product releases
+        id: release_plan
         env:
-          KIND: ${{ inputs.kind }}
+          GH_TOKEN: ${{ github.token }}
+          TARGET_REF: ${{ inputs.ref }}
+          RELEASE_CHANNEL: ${{ inputs.channel }}
           DRY_RUN: ${{ inputs.dry_run }}
-          RELEASE_BASE_REF: ${{ inputs.ref }}
         run: |
           set -euo pipefail
           git fetch origin main --tags --quiet
-
-          latest_stable="$(git tag --list 'v[0-9]*' | dart tool/release/latest_stable_release.dart)"
-
-          bump() {
-            node - "$1" "$2" <<'NODE'
-          const [version, kind] = process.argv.slice(2);
-          const parts = version.split(".").map(Number);
-          if (kind === "major") console.log(`${parts[0] + 1}.0.0`);
-          else if (kind === "minor") console.log(`${parts[0]}.${parts[1] + 1}.0`);
-          else console.log(`${parts[0]}.${parts[1]}.${parts[2] + 1}`);
-          NODE
-          }
-
-          if [[ "$KIND" == "rc" ]]; then
-            artifact_version="$(bump "$latest_stable" patch)"
-            highest_rc="$(git tag --list "v${artifact_version}-rc.*" | grep -v -- '-mobile$' | sed -E "s/^v${artifact_version//./\\.}-rc\\.//" | sort -n | tail -n 1 || true)"
-            if [[ -z "$highest_rc" ]]; then
-              release_version="${artifact_version}-rc.0"
-            else
-              release_version="${artifact_version}-rc.$((highest_rc + 1))"
-            fi
-            channel="rc"
-          else
-            artifact_version="$(bump "$latest_stable" "$KIND")"
-            release_version="$artifact_version"
-            channel="stable"
-          fi
-
-          tag="v$release_version"
-          build_number="$GITHUB_RUN_NUMBER"
-          {
-            echo "tag=$tag"
-            echo "release_version=$release_version"
-            echo "artifact_version=$artifact_version"
-            echo "build_number=$build_number"
-            echo "channel=$channel"
-            echo "release_base_ref=$RELEASE_BASE_REF"
-          } >>"$GITHUB_OUTPUT"
-
-          if [[ "$DRY_RUN" == "true" ]]; then
-            echo "should_release=false" >>"$GITHUB_OUTPUT"
-            echo "Dry run: $tag ($artifact_version+$build_number)"
-            exit 0
-          fi
-
-          if git rev-parse "$tag" >/dev/null 2>&1; then
-            echo "::error::Tag $tag already exists."
-            exit 1
-          fi
-
-          echo "should_release=true" >>"$GITHUB_OUTPUT"
+          dart tool/release/release_plan.dart \
+            --target "$TARGET_REF" \
+            --channel "$RELEASE_CHANNEL" \
+            --repository "$GITHUB_REPOSITORY" \
+            --run-number "$GITHUB_RUN_NUMBER" \
+            --dry-run "$DRY_RUN" \
+            --github-output "$GITHUB_OUTPUT" \
+            --summary "$GITHUB_STEP_SUMMARY"
 
   build:
-    needs: cut
-    if: needs.cut.outputs.should_release == 'true'
+    needs: plan
+    if: needs.plan.outputs.desktop_should_release == 'true'
     name: build ${{ matrix.platform }}
     timeout-minutes: 45
     strategy:
@@ -143,7 +111,7 @@ jobs:
       - name: Checkout release ref
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
-          ref: ${{ needs.cut.outputs.release_base_ref }}
+          ref: ${{ needs.plan.outputs.target_sha }}
           submodules: recursive
 
       - name: Setup Flutter
@@ -208,7 +176,7 @@ jobs:
           workspaces: rust
 
       - name: Apply release version locally
-        run: dart tool/release/update_pubspec_version.dart "${{ needs.cut.outputs.artifact_version }}" "${{ needs.cut.outputs.build_number }}"
+        run: dart tool/release/update_pubspec_version.dart "${{ needs.plan.outputs.desktop_artifact_version }}" "${{ needs.plan.outputs.desktop_build_number }}"
 
       - name: Native asset preflight
         shell: bash
@@ -227,9 +195,9 @@ jobs:
         shell: bash
         env:
           PLATFORM: ${{ matrix.platform }}
-          CHANNEL: ${{ needs.cut.outputs.channel }}
+          CHANNEL: ${{ needs.plan.outputs.channel }}
           BASE_URL: ${{ env.ALERA_UPDATE_BASE_URL }}
-          RELEASE_PAGE_URL: https://github.com/${{ github.repository }}/releases/tag/${{ needs.cut.outputs.tag }}
+          RELEASE_PAGE_URL: https://github.com/${{ github.repository }}/releases/tag/${{ needs.plan.outputs.desktop_tag }}
           ALERA_UPDATE_MANIFEST_PUBLIC_KEY: ${{ secrets.ALERA_UPDATE_MANIFEST_PUBLIC_KEY }}
         run: |
           set -euo pipefail
@@ -244,13 +212,13 @@ jobs:
             exit 64
           fi
           archive_url="${BASE_URL}/${archive_file}"
-          runtime_archive_url="https://github.com/${{ github.repository }}/releases/download/${{ needs.cut.outputs.tag }}/${runtime_archive_file}"
+          runtime_archive_url="https://github.com/${{ github.repository }}/releases/download/${{ needs.plan.outputs.desktop_tag }}/${runtime_archive_file}"
           dart run desktop_updater:release "$PLATFORM" \
             --dart-define "ALERA_FLAVOR=release" \
             --dart-define "ALERA_UPDATE_CHANNEL=$CHANNEL" \
             --dart-define "ALERA_UPDATE_ARCHIVE_URL=$archive_url" \
             --dart-define "ALERA_RUNTIME_ARCHIVE_URL=$runtime_archive_url" \
-            --dart-define "ALERA_RUNTIME_VERSION=${{ needs.cut.outputs.release_version }}" \
+            --dart-define "ALERA_RUNTIME_VERSION=${{ needs.plan.outputs.desktop_release_version }}" \
             --dart-define "ALERA_RELEASE_PAGE_URL=$RELEASE_PAGE_URL" \
             --dart-define "ALERA_UPDATE_AUTO_INSTALL_ENABLED=false" \
             --dart-define "ALERA_SIGNED_RELEASE=true" \
@@ -260,9 +228,9 @@ jobs:
         shell: bash
         env:
           PLATFORM: ${{ matrix.platform }}
-          CHANNEL: ${{ needs.cut.outputs.channel }}
-          ARTIFACT_VERSION: ${{ needs.cut.outputs.artifact_version }}
-          BUILD_NUMBER: ${{ needs.cut.outputs.build_number }}
+          CHANNEL: ${{ needs.plan.outputs.channel }}
+          ARTIFACT_VERSION: ${{ needs.plan.outputs.desktop_artifact_version }}
+          BUILD_NUMBER: ${{ needs.plan.outputs.desktop_build_number }}
         run: |
           set -euo pipefail
           app_name="$(grep -E '^name:' pubspec.yaml | awk '{print $2}')"
@@ -292,7 +260,7 @@ jobs:
         shell: bash
         env:
           PLATFORM: ${{ matrix.platform }}
-          RELEASE_VERSION: ${{ needs.cut.outputs.release_version }}
+          RELEASE_VERSION: ${{ needs.plan.outputs.desktop_release_version }}
         run: |
           set -euo pipefail
           bin_name="alera"
@@ -367,7 +335,7 @@ jobs:
         if: matrix.platform == 'macos'
         shell: bash
         env:
-          RELEASE_VERSION: ${{ needs.cut.outputs.release_version }}
+          RELEASE_VERSION: ${{ needs.plan.outputs.desktop_release_version }}
           APPLE_DEVELOPER_ID_APPLICATION: ${{ secrets.APPLE_DEVELOPER_ID_APPLICATION }}
           APPLE_DEVELOPER_ID_TEAM_ID: ${{ secrets.APPLE_DEVELOPER_ID_TEAM_ID }}
           APPLE_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
@@ -396,7 +364,7 @@ jobs:
         if: matrix.platform == 'windows'
         shell: pwsh
         env:
-          RELEASE_VERSION: ${{ needs.cut.outputs.release_version }}
+          RELEASE_VERSION: ${{ needs.plan.outputs.desktop_release_version }}
           WINDOWS_CERTIFICATE_PFX_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_PFX_BASE64 }}
           WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
           WINDOWS_TIMESTAMP_URL: ${{ vars.WINDOWS_TIMESTAMP_URL }}
@@ -413,21 +381,21 @@ jobs:
           tar -czf "release-assets/alera-$env:RELEASE_VERSION-windows.tar.gz" -C "$env:BUNDLE_DIR" .
 
       - name: Package stable Linux release
-        if: matrix.platform == 'linux' && needs.cut.outputs.channel == 'stable'
+        if: matrix.platform == 'linux' && needs.plan.outputs.channel == 'stable'
         shell: bash
         env:
-          RELEASE_VERSION: ${{ needs.cut.outputs.release_version }}
-          ARTIFACT_VERSION: ${{ needs.cut.outputs.artifact_version }}
-          BUILD_NUMBER: ${{ needs.cut.outputs.build_number }}
+          RELEASE_VERSION: ${{ needs.plan.outputs.desktop_release_version }}
+          ARTIFACT_VERSION: ${{ needs.plan.outputs.desktop_artifact_version }}
+          BUILD_NUMBER: ${{ needs.plan.outputs.desktop_build_number }}
         run: |
           set -euo pipefail
           bash tool/release/package_linux.sh "$BUNDLE_DIR" release-assets "$RELEASE_VERSION" "$ARTIFACT_VERSION" "$BUILD_NUMBER"
 
       - name: Package RC Linux release
-        if: matrix.platform == 'linux' && needs.cut.outputs.channel == 'rc'
+        if: matrix.platform == 'linux' && needs.plan.outputs.channel == 'rc'
         shell: bash
         env:
-          RELEASE_VERSION: ${{ needs.cut.outputs.release_version }}
+          RELEASE_VERSION: ${{ needs.plan.outputs.desktop_release_version }}
         run: |
           set -euo pipefail
           tar -czf "release-assets/alera-${RELEASE_VERSION}-linux.tar.gz" -C "$BUNDLE_DIR" .
@@ -462,11 +430,83 @@ jobs:
           retention-days: 1
           if-no-files-found: error
 
+  build_android:
+    needs: plan
+    if: needs.plan.outputs.mobile_should_release == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout release ref
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          ref: ${{ needs.plan.outputs.target_sha }}
+          submodules: recursive
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        working-directory: mobile
+        run: flutter pub get
+
+      - name: Apply mobile release version locally
+        run: dart tool/release/update_mobile_pubspec_version.dart "${{ needs.plan.outputs.mobile_artifact_version }}" "${{ needs.plan.outputs.mobile_build_number }}"
+
+      - name: Analyze mobile app
+        working-directory: mobile
+        run: flutter analyze
+
+      - name: Test mobile app
+        working-directory: mobile
+        run: flutter test
+
+      - name: Build Android release APKs
+        working-directory: mobile
+        run: |
+          set -euo pipefail
+          flutter build apk --release
+          flutter build apk --release --split-per-abi
+
+      - name: Stage and verify Android release assets
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ needs.plan.outputs.mobile_release_version }}
+        run: |
+          set -euo pipefail
+          source_dir="mobile/build/app/outputs/flutter-apk"
+          mkdir -p mobile-release-assets
+          cp "$source_dir/app-release.apk" "mobile-release-assets/alera-${RELEASE_VERSION}-android.apk"
+          cp "$source_dir/app-arm64-v8a-release.apk" "mobile-release-assets/alera-${RELEASE_VERSION}-android-arm64-v8a.apk"
+          cp "$source_dir/app-armeabi-v7a-release.apk" "mobile-release-assets/alera-${RELEASE_VERSION}-android-armeabi-v7a.apk"
+          cp "$source_dir/app-x86_64-release.apk" "mobile-release-assets/alera-${RELEASE_VERSION}-android-x86_64.apk"
+
+          for asset in mobile-release-assets/*.apk; do
+            asset_name="$(basename "$asset")"
+            (cd mobile-release-assets && sha256sum "$asset_name" >"${asset_name}.sha256")
+          done
+          (cd mobile-release-assets && sha256sum -c ./*.sha256)
+
+      - name: Upload Android release assets
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: mobile-android-release-assets
+          path: mobile-release-assets
+          if-no-files-found: error
+          retention-days: 7
+
   publish:
     needs:
-      - cut
+      - plan
       - build
-    if: needs.cut.outputs.should_release == 'true'
+      - build_android
+    if: >-
+      !cancelled() &&
+      needs.plan.outputs.any_should_release == 'true' &&
+      (needs.plan.outputs.desktop_should_release != 'true' || needs.build.result == 'success') &&
+      (needs.plan.outputs.mobile_should_release != 'true' || needs.build_android.result == 'success')
     permissions:
       contents: write
       id-token: write
@@ -477,7 +517,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
-          ref: ${{ needs.cut.outputs.release_base_ref }}
+          ref: ${{ needs.plan.outputs.target_sha }}
           fetch-depth: 0
           submodules: recursive
 
@@ -485,12 +525,14 @@ jobs:
         uses: dart-lang/setup-dart@65eb853c7ba17dde3be364c3d2858773e7144260
 
       - name: Setup Flutter
+        if: needs.plan.outputs.desktop_should_release == 'true'
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
         with:
           channel: stable
           cache: true
 
       - name: Install dependencies
+        if: needs.plan.outputs.desktop_should_release == 'true'
         run: flutter pub get
 
       - name: Configure git author
@@ -499,6 +541,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Download updater artifacts
+        if: needs.plan.outputs.desktop_should_release == 'true'
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           pattern: updater-*
@@ -506,17 +549,51 @@ jobs:
           merge-multiple: true
 
       - name: Download release assets
+        if: needs.plan.outputs.desktop_should_release == 'true'
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           pattern: release-*
           path: release-assets
           merge-multiple: true
 
+      - name: Download Android release assets
+        if: needs.plan.outputs.mobile_should_release == 'true'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: mobile-android-release-assets
+          path: mobile-release-assets
+
+      - name: Verify complete mobile release
+        if: needs.plan.outputs.mobile_should_release == 'true'
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ needs.plan.outputs.mobile_release_version }}
+        run: |
+          set -euo pipefail
+          expected=(
+            "alera-${RELEASE_VERSION}-android.apk"
+            "alera-${RELEASE_VERSION}-android-arm64-v8a.apk"
+            "alera-${RELEASE_VERSION}-android-armeabi-v7a.apk"
+            "alera-${RELEASE_VERSION}-android-x86_64.apk"
+          )
+          for asset in "${expected[@]}"; do
+            test -s "mobile-release-assets/$asset" || { echo "::error::Missing $asset"; exit 1; }
+            test -s "mobile-release-assets/$asset.sha256" || { echo "::error::Missing $asset.sha256"; exit 1; }
+          done
+          actual_count="$(find mobile-release-assets -maxdepth 1 -type f | wc -l)"
+          if [[ "$actual_count" -ne 8 ]]; then
+            echo "::error::Expected 8 mobile release files, found $actual_count."
+            find mobile-release-assets -maxdepth 1 -type f -print
+            exit 1
+          fi
+          (cd mobile-release-assets && sha256sum -c ./*.sha256)
+
       - name: Install Linux repository tools
-        if: needs.cut.outputs.channel == 'stable'
+        if: needs.plan.outputs.desktop_should_release == 'true' && needs.plan.outputs.channel == 'stable'
         run: sudo apt-get update && sudo apt-get install -y apt-utils createrepo-c
 
       - name: Preserve existing update indexes
+        if: needs.plan.outputs.desktop_should_release == 'true'
         run: |
           set -euo pipefail
           mkdir -p public
@@ -540,13 +617,14 @@ jobs:
           preserve_index app-archive-rc.json
 
       - name: Generate and verify app archive
+        if: needs.plan.outputs.desktop_should_release == 'true'
         env:
-          CHANNEL: ${{ needs.cut.outputs.channel }}
-          ALERA_RELEASE_VERSION: ${{ needs.cut.outputs.release_version }}
-          ALERA_ARTIFACT_VERSION: ${{ needs.cut.outputs.artifact_version }}
-          ALERA_RELEASE_BUILD_NUMBER: ${{ needs.cut.outputs.build_number }}
+          CHANNEL: ${{ needs.plan.outputs.channel }}
+          ALERA_RELEASE_VERSION: ${{ needs.plan.outputs.desktop_release_version }}
+          ALERA_ARTIFACT_VERSION: ${{ needs.plan.outputs.desktop_artifact_version }}
+          ALERA_RELEASE_BUILD_NUMBER: ${{ needs.plan.outputs.desktop_build_number }}
           ALERA_UPDATE_BASE_URL: ${{ env.ALERA_UPDATE_BASE_URL }}
-          ALERA_UPDATE_PATH_PREFIX: updates/${{ needs.cut.outputs.channel }}
+          ALERA_UPDATE_PATH_PREFIX: updates/${{ needs.plan.outputs.channel }}
           ALERA_UPDATE_MANIFEST_PRIVATE_KEY: ${{ secrets.ALERA_UPDATE_MANIFEST_PRIVATE_KEY }}
           ALERA_UPDATE_MANIFEST_PUBLIC_KEY: ${{ secrets.ALERA_UPDATE_MANIFEST_PUBLIC_KEY }}
           ALERA_UPDATE_MANIFEST_PUBLIC_KEY_ID: ${{ vars.ALERA_UPDATE_MANIFEST_PUBLIC_KEY_ID }}
@@ -561,13 +639,14 @@ jobs:
           echo "ALERA_ARCHIVE_FILE=$archive_file" >>"$GITHUB_ENV"
 
       - name: Generate and verify runtime archive
+        if: needs.plan.outputs.desktop_should_release == 'true'
         env:
-          CHANNEL: ${{ needs.cut.outputs.channel }}
-          ALERA_RELEASE_VERSION: ${{ needs.cut.outputs.release_version }}
-          ALERA_RELEASE_BUILD_NUMBER: ${{ needs.cut.outputs.build_number }}
-          ALERA_RELEASE_CHANNEL: ${{ needs.cut.outputs.channel }}
+          CHANNEL: ${{ needs.plan.outputs.channel }}
+          ALERA_RELEASE_VERSION: ${{ needs.plan.outputs.desktop_release_version }}
+          ALERA_RELEASE_BUILD_NUMBER: ${{ needs.plan.outputs.desktop_build_number }}
+          ALERA_RELEASE_CHANNEL: ${{ needs.plan.outputs.channel }}
           ALERA_RELEASE_ASSETS_DIR: release-assets
-          ALERA_RUNTIME_RELEASE_BASE_URL: https://github.com/${{ github.repository }}/releases/download/${{ needs.cut.outputs.tag }}
+          ALERA_RUNTIME_RELEASE_BASE_URL: https://github.com/${{ github.repository }}/releases/download/${{ needs.plan.outputs.desktop_tag }}
           ALERA_UPDATE_MANIFEST_PRIVATE_KEY: ${{ secrets.ALERA_UPDATE_MANIFEST_PRIVATE_KEY }}
           ALERA_UPDATE_MANIFEST_PUBLIC_KEY: ${{ secrets.ALERA_UPDATE_MANIFEST_PUBLIC_KEY }}
           ALERA_UPDATE_MANIFEST_PUBLIC_KEY_ID: ${{ vars.ALERA_UPDATE_MANIFEST_PUBLIC_KEY_ID }}
@@ -582,13 +661,14 @@ jobs:
           echo "ALERA_RUNTIME_ARCHIVE_FILE=$runtime_archive_file" >>"$GITHUB_ENV"
 
       - name: Build signed Linux package repositories
-        if: needs.cut.outputs.channel == 'stable'
+        if: needs.plan.outputs.desktop_should_release == 'true' && needs.plan.outputs.channel == 'stable'
         env:
           ALERA_LINUX_GPG_PRIVATE_KEY_BASE64: ${{ secrets.ALERA_LINUX_GPG_PRIVATE_KEY_BASE64 }}
           ALERA_LINUX_GPG_KEY_ID: ${{ secrets.ALERA_LINUX_GPG_KEY_ID }}
         run: bash tool/release/build_linux_repositories.sh public
 
       - name: Ensure AWS CLI
+        if: needs.plan.outputs.desktop_should_release == 'true'
         run: |
           set -euo pipefail
           if ! command -v aws >/dev/null 2>&1; then
@@ -599,6 +679,7 @@ jobs:
           aws --version
 
       - name: Verify R2 deployment prerequisites
+        if: needs.plan.outputs.desktop_should_release == 'true'
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
@@ -612,86 +693,92 @@ jobs:
           test -n "${CLOUDFLARE_ACCOUNT_ID:-}" || { echo "::error::CLOUDFLARE_ACCOUNT_ID secret is missing."; exit 1; }
           aws s3 ls "s3://${ALERA_R2_BUCKET}" --endpoint-url "$R2_ENDPOINT" >/dev/null
 
-      - name: Create release commit and tag
+      - name: Create release commit and tags
         id: release_commit
         env:
-          TAG: ${{ needs.cut.outputs.tag }}
-          ARTIFACT_VERSION: ${{ needs.cut.outputs.artifact_version }}
-          BUILD_NUMBER: ${{ needs.cut.outputs.build_number }}
+          DESKTOP_SHOULD_RELEASE: ${{ needs.plan.outputs.desktop_should_release }}
+          DESKTOP_TAG: ${{ needs.plan.outputs.desktop_tag }}
+          DESKTOP_ARTIFACT_VERSION: ${{ needs.plan.outputs.desktop_artifact_version }}
+          DESKTOP_BUILD_NUMBER: ${{ needs.plan.outputs.desktop_build_number }}
+          MOBILE_SHOULD_RELEASE: ${{ needs.plan.outputs.mobile_should_release }}
+          MOBILE_TAG: ${{ needs.plan.outputs.mobile_tag }}
+          MOBILE_ARTIFACT_VERSION: ${{ needs.plan.outputs.mobile_artifact_version }}
+          MOBILE_BUILD_NUMBER: ${{ needs.plan.outputs.mobile_build_number }}
         run: |
           set -euo pipefail
           git fetch origin main --tags --quiet
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "::error::Tag $TAG already exists."
+          tags=()
+          if [[ "$DESKTOP_SHOULD_RELEASE" == "true" ]]; then
+            tags+=("$DESKTOP_TAG")
+            dart tool/release/update_pubspec_version.dart "$DESKTOP_ARTIFACT_VERSION" "$DESKTOP_BUILD_NUMBER"
+            git add pubspec.yaml
+          fi
+          if [[ "$MOBILE_SHOULD_RELEASE" == "true" ]]; then
+            tags+=("$MOBILE_TAG")
+            dart tool/release/update_mobile_pubspec_version.dart "$MOBILE_ARTIFACT_VERSION" "$MOBILE_BUILD_NUMBER"
+            git add mobile/pubspec.yaml
+          fi
+          for tag in "${tags[@]}"; do
+            if git rev-parse "$tag" >/dev/null 2>&1; then
+              echo "::error::Tag $tag already exists."
+              exit 1
+            fi
+          done
+          if git diff --cached --quiet; then
+            echo "::error::Release plan did not change a pubspec version."
             exit 1
           fi
-          dart tool/release/update_pubspec_version.dart "$ARTIFACT_VERSION" "$BUILD_NUMBER"
-          git add pubspec.yaml
-          git commit -m "release: $TAG"
-          git tag -a "$TAG" -m "$TAG"
+          git commit -m "release: ${tags[*]}"
+          for tag in "${tags[@]}"; do
+            git tag -a "$tag" -m "$tag"
+          done
           echo "release_sha=$(git rev-parse HEAD)" >>"$GITHUB_OUTPUT"
 
       - name: Push release refs
         id: push_refs
         env:
-          TAG: ${{ needs.cut.outputs.tag }}
+          DESKTOP_SHOULD_RELEASE: ${{ needs.plan.outputs.desktop_should_release }}
+          DESKTOP_TAG: ${{ needs.plan.outputs.desktop_tag }}
+          MOBILE_SHOULD_RELEASE: ${{ needs.plan.outputs.mobile_should_release }}
+          MOBILE_TAG: ${{ needs.plan.outputs.mobile_tag }}
         run: |
           set -euo pipefail
+          tag_refspecs=()
+          if [[ "$DESKTOP_SHOULD_RELEASE" == "true" ]]; then
+            tag_refspecs+=("refs/tags/$DESKTOP_TAG")
+          fi
+          if [[ "$MOBILE_SHOULD_RELEASE" == "true" ]]; then
+            tag_refspecs+=("refs/tags/$MOBILE_TAG")
+          fi
           pushed_main=false
-          cleanup_failed_push() {
-            set +e
-            git push origin ":refs/tags/$TAG"
-            if [[ "$pushed_main" == "true" ]]; then
-              git push --force-with-lease origin HEAD~1:refs/heads/main
-            fi
-          }
-          trap cleanup_failed_push ERR
           current_sha="$(git rev-parse HEAD~1)"
           main_sha="$(git rev-parse origin/main)"
           if [[ "$current_sha" == "$main_sha" ]]; then
-            git push origin "HEAD:refs/heads/main"
+            git push --atomic origin "HEAD:refs/heads/main" "${tag_refspecs[@]}"
             pushed_main=true
           else
             echo "::notice::Release ref is not current origin/main; only the tag will be pushed."
+            git push --atomic origin "${tag_refspecs[@]}"
           fi
-          git push origin "$TAG"
-          trap - ERR
           echo "pushed_main=$pushed_main" >>"$GITHUB_OUTPUT"
 
-      - name: Create draft release
+      - name: Create draft desktop release
+        if: needs.plan.outputs.desktop_should_release == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ needs.cut.outputs.tag }}
-          CHANNEL: ${{ needs.cut.outputs.channel }}
+          TAG: ${{ needs.plan.outputs.desktop_tag }}
+          PREVIOUS_TAG: ${{ needs.plan.outputs.desktop_previous_tag }}
         run: |
           set -euo pipefail
-          # Stable releases diff against the previous stable tag; RCs against
-          # the previous desktop tag of any channel. Mobile tags (v*-mobile)
-          # are a separate product line and must never scope desktop notes.
-          if [[ "$CHANNEL" == "stable" ]]; then
-            previous_tag="$(git tag --list 'v[0-9]*' \
-              | grep -v -- '-mobile$' \
-              | grep -Ev -- '-rc\.' \
-              | grep -vx "$TAG" \
-              | sort -V \
-              | tail -n 1 || true)"
-          else
-            previous_tag="$(git tag --list 'v[0-9]*' \
-              | grep -v -- '-mobile$' \
-              | grep -vx "$TAG" \
-              | sort -V \
-              | tail -n 1 || true)"
-          fi
-
           notes_args=(
             --scope desktop
             --repo "$GITHUB_REPOSITORY"
             --tag "$TAG"
             --target "${{ steps.release_commit.outputs.release_sha }}"
-            --output release-notes.md
+            --output desktop-release-notes.md
           )
-          if [[ -n "$previous_tag" ]]; then
-            notes_args+=(--previous-tag "$previous_tag")
+          if [[ -n "$PREVIOUS_TAG" ]]; then
+            notes_args+=(--previous-tag "$PREVIOUS_TAG")
           fi
           dart tool/release/generate_release_notes.dart "${notes_args[@]}"
 
@@ -700,15 +787,51 @@ jobs:
             --draft \
             --target "${{ steps.release_commit.outputs.release_sha }}" \
             --title "$TAG" \
-            --notes-file release-notes.md
+            --notes-file desktop-release-notes.md
 
-      - name: Upload release assets
+      - name: Create draft mobile release
+        if: needs.plan.outputs.mobile_should_release == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ needs.cut.outputs.tag }}
+          TAG: ${{ needs.plan.outputs.mobile_tag }}
+          PREVIOUS_TAG: ${{ needs.plan.outputs.mobile_previous_tag }}
+        run: |
+          set -euo pipefail
+          notes_args=(
+            --scope mobile
+            --repo "$GITHUB_REPOSITORY"
+            --tag "$TAG"
+            --target "${{ steps.release_commit.outputs.release_sha }}"
+            --output mobile-release-notes.md
+          )
+          if [[ -n "$PREVIOUS_TAG" ]]; then
+            notes_args+=(--previous-tag "$PREVIOUS_TAG")
+          fi
+          dart tool/release/generate_release_notes.dart "${notes_args[@]}"
+
+          gh release create "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --draft \
+            --target "${{ steps.release_commit.outputs.release_sha }}" \
+            --title "$TAG" \
+            --notes-file mobile-release-notes.md
+
+      - name: Upload desktop release assets
+        if: needs.plan.outputs.desktop_should_release == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.plan.outputs.desktop_tag }}
         run: gh release upload "$TAG" release-assets/* "public/$ALERA_ARCHIVE_FILE" "public/$ALERA_RUNTIME_ARCHIVE_FILE" --repo "$GITHUB_REPOSITORY" --clobber
 
-      - name: Attest release assets
+      - name: Upload mobile release assets
+        if: needs.plan.outputs.mobile_should_release == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.plan.outputs.mobile_tag }}
+        run: gh release upload "$TAG" mobile-release-assets/* --repo "$GITHUB_REPOSITORY" --clobber
+
+      - name: Attest desktop release assets
+        if: needs.plan.outputs.desktop_should_release == 'true'
         uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be
         with:
           subject-path: |
@@ -716,12 +839,37 @@ jobs:
             public/${{ env.ALERA_ARCHIVE_FILE }}
             public/${{ env.ALERA_RUNTIME_ARCHIVE_FILE }}
 
-      - name: Publish release
-        id: publish_release
+      - name: Attest mobile release assets
+        if: needs.plan.outputs.mobile_should_release == 'true'
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be
+        with:
+          subject-path: mobile-release-assets/*
+
+      - name: Publish mobile release
+        if: needs.plan.outputs.mobile_should_release == 'true'
+        id: publish_mobile_release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ needs.cut.outputs.tag }}
-          CHANNEL: ${{ needs.cut.outputs.channel }}
+          TAG: ${{ needs.plan.outputs.mobile_tag }}
+          CHANNEL: ${{ needs.plan.outputs.channel }}
+        run: |
+          prerelease=false
+          if [[ "$CHANNEL" == "rc" ]]; then
+            prerelease=true
+          fi
+          gh release edit "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --draft=false \
+            --prerelease="$prerelease" \
+            --latest=false
+
+      - name: Publish desktop release
+        if: needs.plan.outputs.desktop_should_release == 'true'
+        id: publish_desktop_release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.plan.outputs.desktop_tag }}
+          CHANNEL: ${{ needs.plan.outputs.channel }}
         run: |
           prerelease=false
           latest_args=()
@@ -737,12 +885,13 @@ jobs:
             "${latest_args[@]}"
 
       - name: Publish update archive to R2
+        if: needs.plan.outputs.desktop_should_release == 'true'
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: auto
           R2_ENDPOINT: https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
-          CHANNEL: ${{ needs.cut.outputs.channel }}
+          CHANNEL: ${{ needs.plan.outputs.channel }}
         run: |
           set -euo pipefail
           aws s3 sync public/updates "s3://${ALERA_R2_BUCKET}/updates" \
@@ -762,6 +911,7 @@ jobs:
           done
 
       - name: Cleanup old R2 update folders
+        if: needs.plan.outputs.desktop_should_release == 'true'
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
@@ -847,16 +997,31 @@ jobs:
           cleanup_channel stable "$ALERA_STABLE_RELEASES_TO_KEEP"
           cleanup_channel rc "$ALERA_RC_RELEASES_TO_KEEP"
 
-      - name: Cleanup pushed release refs on pre-publish failure
-        if: failure() && steps.push_refs.outcome == 'success' && steps.publish_release.outcome != 'success'
+      - name: Cleanup unpublished release refs on failure
+        if: failure() && steps.push_refs.outcome == 'success'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ needs.cut.outputs.tag }}
+          DESKTOP_SHOULD_RELEASE: ${{ needs.plan.outputs.desktop_should_release }}
+          DESKTOP_TAG: ${{ needs.plan.outputs.desktop_tag }}
+          DESKTOP_PUBLISHED: ${{ steps.publish_desktop_release.outcome == 'success' }}
+          MOBILE_SHOULD_RELEASE: ${{ needs.plan.outputs.mobile_should_release }}
+          MOBILE_TAG: ${{ needs.plan.outputs.mobile_tag }}
+          MOBILE_PUBLISHED: ${{ steps.publish_mobile_release.outcome == 'success' }}
           PUSHED_MAIN: ${{ steps.push_refs.outputs.pushed_main }}
         run: |
           set +e
-          gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes
-          git push origin ":refs/tags/$TAG"
-          if [[ "$PUSHED_MAIN" == "true" ]]; then
+          delete_refspecs=()
+          if [[ "$DESKTOP_SHOULD_RELEASE" == "true" && "$DESKTOP_PUBLISHED" != "true" ]]; then
+            gh release delete "$DESKTOP_TAG" --repo "$GITHUB_REPOSITORY" --yes
+            delete_refspecs+=(":refs/tags/$DESKTOP_TAG")
+          fi
+          if [[ "$MOBILE_SHOULD_RELEASE" == "true" && "$MOBILE_PUBLISHED" != "true" ]]; then
+            gh release delete "$MOBILE_TAG" --repo "$GITHUB_REPOSITORY" --yes
+            delete_refspecs+=(":refs/tags/$MOBILE_TAG")
+          fi
+          if ((${#delete_refspecs[@]} > 0)); then
+            git push --atomic origin "${delete_refspecs[@]}"
+          fi
+          if [[ "$PUSHED_MAIN" == "true" && "$DESKTOP_PUBLISHED" != "true" && "$MOBILE_PUBLISHED" != "true" ]]; then
             git push --force-with-lease origin HEAD~1:refs/heads/main
           fi
