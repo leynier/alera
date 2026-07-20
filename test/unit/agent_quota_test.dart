@@ -1,7 +1,13 @@
+import 'dart:async';
+
 import 'package:alera/src/features/agent_quota/application/agent_quota_providers.dart';
 import 'package:alera/src/features/agent_quota/domain/agent_quota.dart';
+import 'package:alera/src/features/agent_quota/infra/runtime_proxy_client.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'fake_recording_process_runner.dart';
 
 void main() {
   test('quota request key ignores provider and CCS display order', () {
@@ -135,16 +141,131 @@ void main() {
     expect(snapshot, isNull);
   });
 
-  test('tryFromJson parses a known provider like fromJson', () {
-    final snapshot = AgentQuotaSnapshot.tryFromJson(<String, Object?>{
+  test('tryFromJson parses known payloads like fromJson', () {
+    final payload = <String, Object?>{
       'provider': 'claude',
       'accountId': 'ccdev',
-      'status': 'ok',
-    });
+      'displayName': 'Claude Dev',
+      'status': 'unexpected',
+      'updatedAt': 1_700_000_000_000,
+      'error': 'Quota metadata is stale.',
+      'windows': <Object?>[
+        <String, Object?>{
+          'label': 'Weekly',
+          'usedPercent': 35,
+          'windowMinutes': 10080,
+          'resetsAt': 1_700_100_000_000,
+          'resetDescription': 'Tomorrow',
+        },
+      ],
+      'buckets': <Object?>[
+        <String, Object?>{
+          'name': 'Sonnet',
+          'usedPercent': 20,
+          'windowMinutes': 300,
+        },
+      ],
+    };
+    final strict = AgentQuotaSnapshot.fromJson(payload);
+    final tolerant = AgentQuotaSnapshot.tryFromJson(payload);
 
-    expect(snapshot, isNotNull);
-    expect(snapshot!.provider, AgentQuotaProviderId.claude);
-    expect(snapshot.accountId, 'ccdev');
-    expect(snapshot.status, AgentQuotaStatus.ok);
+    expect(tolerant, isNotNull);
+    expect(tolerant!.provider, strict.provider);
+    expect(tolerant.accountId, strict.accountId);
+    expect(tolerant.displayName, strict.displayName);
+    expect(tolerant.status, strict.status);
+    expect(tolerant.updatedAt, strict.updatedAt);
+    expect(tolerant.error, strict.error);
+    expect(tolerant.windows.single.label, strict.windows.single.label);
+    expect(
+      tolerant.windows.single.remainingPercent,
+      strict.windows.single.remainingPercent,
+    );
+    expect(tolerant.buckets.single.name, strict.buckets.single.name);
+    expect(
+      tolerant.buckets.single.remainingPercent,
+      strict.buckets.single.remainingPercent,
+    );
   });
+
+  test(
+    'quota service keeps known snapshots beside unknown providers',
+    () async {
+      final runtime = _FixedQuotaRuntimeHostClient(<String, Object?>{
+        'snapshots': <Object?>[
+          <String, Object?>{
+            'provider': 'claude',
+            'accountId': 'default',
+            'displayName': 'Claude Code',
+            'status': 'ok',
+            'updatedAt': DateTime.now().toUtc().millisecondsSinceEpoch,
+          },
+          <String, Object?>{
+            'provider': 'newprovider',
+            'accountId': 'default',
+            'status': 'ok',
+          },
+        ],
+        'environment': <String, bool>{'KIMI_API_KEY': true},
+      });
+      final service = AgentQuotaService(
+        RuntimeProxyClient(
+          processRunner: FakeRecordingProcessRunner(<Object>[]),
+        ),
+        runtime,
+      );
+
+      final state = await service.fetch(
+        hostId: 'local',
+        target: null,
+        settings: AgentQuotaHostSettings.defaults,
+      );
+
+      expect(state.error, isNull);
+      expect(state.snapshots, hasLength(1));
+      expect(state.snapshots.single.provider, AgentQuotaProviderId.claude);
+      expect(state.snapshots.single.status, AgentQuotaStatus.ok);
+      expect(state.environment, <String, bool>{'KIMI_API_KEY': true});
+    },
+  );
+
+  test('quota service accepts payloads with only unknown providers', () async {
+    final runtime = _FixedQuotaRuntimeHostClient(<String, Object?>{
+      'snapshots': <Object?>[
+        <String, Object?>{'provider': 'newprovider', 'status': 'ok'},
+      ],
+    });
+    final service = AgentQuotaService(
+      RuntimeProxyClient(processRunner: FakeRecordingProcessRunner(<Object>[])),
+      runtime,
+    );
+
+    final state = await service.fetch(
+      hostId: 'local',
+      target: null,
+      settings: AgentQuotaHostSettings.defaults,
+    );
+
+    expect(state.error, isNull);
+    expect(state.snapshots, isEmpty);
+  });
+}
+
+final class _FixedQuotaRuntimeHostClient implements RuntimeHostClient {
+  _FixedQuotaRuntimeHostClient(this.payload);
+
+  final Map<String, Object?> payload;
+
+  @override
+  Stream<RuntimeHostEvent> get runtimeEvents => const Stream.empty();
+
+  @override
+  Future<Object?> runtimeRequest(
+    String type, [
+    Map<String, Object?> payload = const <String, Object?>{},
+    Duration? timeout,
+  ]) async {
+    expect(type, 'agentQuota.snapshot');
+    return this.payload;
+  }
 }

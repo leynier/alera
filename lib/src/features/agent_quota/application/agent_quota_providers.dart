@@ -160,8 +160,7 @@ class AgentQuotaService {
               },
             );
       final fresh = <AgentQuotaSnapshot>[];
-      for (final item
-          in (payload['snapshots'] as List? ?? const <Object?>[])) {
+      for (final item in (payload['snapshots'] as List? ?? const <Object?>[])) {
         if (item is! Map) continue;
         final snapshot = AgentQuotaSnapshot.tryFromJson(
           Map<String, Object?>.from(item),

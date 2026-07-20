@@ -71,10 +71,20 @@ class AgentQuotaSnapshot {
   });
 
   factory AgentQuotaSnapshot.fromJson(Map<String, Object?> json) {
-    return AgentQuotaSnapshot(
-      provider: AgentQuotaProviderId.values.firstWhere(
+    return AgentQuotaSnapshot._fromJson(
+      json,
+      AgentQuotaProviderId.values.firstWhere(
         (provider) => provider.name == json['provider'],
       ),
+    );
+  }
+
+  factory AgentQuotaSnapshot._fromJson(
+    Map<String, Object?> json,
+    AgentQuotaProviderId provider,
+  ) {
+    return AgentQuotaSnapshot(
+      provider: provider,
       accountId: (json['accountId'] as String?) ?? 'default',
       displayName: (json['displayName'] as String?) ?? 'Default',
       status: AgentQuotaStatus.values.firstWhere(
@@ -107,25 +117,7 @@ class AgentQuotaSnapshot {
       }
     }
     if (provider == null) return null;
-    return AgentQuotaSnapshot(
-      provider: provider,
-      accountId: (json['accountId'] as String?) ?? 'default',
-      displayName: (json['displayName'] as String?) ?? 'Default',
-      status: AgentQuotaStatus.values.firstWhere(
-        (status) => status.name == json['status'],
-        orElse: () => AgentQuotaStatus.error,
-      ),
-      updatedAt:
-          _dateFromMillis(json['updatedAt']) ??
-          DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
-      error: json['error'] as String?,
-      windows: _objectList(
-        json['windows'],
-      ).map(AgentQuotaWindow.fromJson).toList(growable: false),
-      buckets: _objectList(
-        json['buckets'],
-      ).map(AgentQuotaBucket.fromJson).toList(growable: false),
-    );
+    return AgentQuotaSnapshot._fromJson(json, provider);
   }
 
   final AgentQuotaProviderId provider;
