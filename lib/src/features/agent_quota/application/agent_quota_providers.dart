@@ -159,11 +159,14 @@ class AgentQuotaService {
                 },
               },
             );
-      final fresh = <AgentQuotaSnapshot>[
-        for (final item in (payload['snapshots'] as List? ?? const <Object?>[]))
-          if (item is Map)
-            AgentQuotaSnapshot.fromJson(Map<String, Object?>.from(item)),
-      ];
+      final fresh = <AgentQuotaSnapshot>[];
+      for (final item in (payload['snapshots'] as List? ?? const <Object?>[])) {
+        if (item is! Map) continue;
+        final snapshot = AgentQuotaSnapshot.tryFromJson(
+          Map<String, Object?>.from(item),
+        );
+        if (snapshot != null) fresh.add(snapshot);
+      }
       final previous = <String, AgentQuotaSnapshot>{
         for (final snapshot
             in _cache[hostId]?.snapshots ?? const <AgentQuotaSnapshot>[])
