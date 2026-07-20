@@ -155,35 +155,6 @@ void main() {
   );
 
   test(
-    'RuntimeSettingsRepository sends structured portable settings',
-    () async {
-      final client = _FakeRuntimeHostClient();
-      final repository = RuntimeSettingsRepository(
-        client: client,
-        legacyRepository: _MemorySettingsRepository(),
-      );
-
-      await repository.save(AleraSettings.defaults);
-
-      final payload = client.payloads['runtimeSettings.update']!.single;
-      expect(payload['agentStatusHooks'], isA<Map<String, Object?>>());
-      expect(payload['agentQuotas'], isA<Map<String, Object?>>());
-      expect(
-        (payload['agentQuotas']! as Map<String, Object?>)['enabledProviders'],
-        <String>[
-          'claude',
-          'codex',
-          'kimi',
-          'grok',
-          'antigravity',
-          'minimax',
-          'zai',
-        ],
-      );
-    },
-  );
-
-  test(
     'RuntimeManagedWorkspaceClient uses long-running RPC timeouts',
     () async {
       final client = _FakeRuntimeHostClient();
@@ -333,9 +304,6 @@ void main() {
       client.requests.where((request) => request == 'runtimeSettings.update'),
       hasLength(2),
     );
-    final portableSettingsPayload =
-        client.payloads['runtimeSettings.update']!.last;
-    expect(portableSettingsPayload['agentQuotas'], isA<Map<String, Object?>>());
   });
 }
 

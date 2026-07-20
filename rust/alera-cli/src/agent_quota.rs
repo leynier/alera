@@ -321,6 +321,7 @@ pub(crate) async fn fetch_agent_quotas(payload: Value) -> Result<Value> {
     Ok(json!({ "snapshots": snapshots, "environment": environment }))
 }
 
+include!("agent_quota/claude.rs");
 include!("agent_quota/tui.rs");
 include!("agent_quota/codex.rs");
 include!("agent_quota/grok.rs");
