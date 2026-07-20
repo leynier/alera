@@ -198,11 +198,27 @@ impl ServerActor {
     ) -> HostResult<Value> {
         self.require_auth(client_id)?;
         let workspace_id = string_field(payload, "workspaceId")?;
+        self.runtime_store
+            .sleep_workspace(workspace_id)
+            .await
+            .map_err(state_error)?;
         self.terminate_sessions_for_workspace(workspace_id).await;
         self.runtime_store
             .record_workspace_activity(workspace_id, Utc::now())
             .await
             .map_err(state_error)?;
+        self.broadcast_authenticated(event(
+            "workspaceTabsChanged",
+            json!({
+                "workspaceId": workspace_id,
+            }),
+        ));
+        self.broadcast_authenticated(event(
+            "workbenchLayoutsChanged",
+            json!({
+                "workspaceId": workspace_id,
+            }),
+        ));
         self.broadcast_authenticated(event(
             "workspaceActivityChanged",
             json!({

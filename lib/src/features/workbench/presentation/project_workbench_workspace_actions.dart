@@ -186,12 +186,58 @@ mixin _WorkspaceSidebarActions on ConsumerState<ProjectWorkbenchSidebar> {
     }
   }
 
-  void sleepWorkspace(Workspace workspace) {
-    ref.read(terminalRuntimeProvider).closeWorkspace(workspace.id);
-    AleraToast.show(
-      context,
-      message: 'Workspace Slept',
-      tone: AleraToastTone.success,
+  Future<void> sleepWorkspace(Workspace workspace) async {
+    final state = ref.read(workbenchControllerProvider);
+    final tabs = state.tabsFor(workspace.id);
+    final editorRegistry = ref.read(editorSessionRegistryProvider);
+    final dirtyEditorCount = tabs
+        .where((tab) => editorRegistry.isDirty(tab.id))
+        .length;
+    final dirtyWarning = dirtyEditorCount == 0
+        ? ''
+        : dirtyEditorCount == 1
+        ? ' One Editor Has Unsaved Changes That Will Be Discarded.'
+        : ' $dirtyEditorCount Editors Have Unsaved Changes That Will Be Discarded.';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AleraConfirmDialog(
+        title: 'Sleep Workspace?',
+        message:
+            'This Closes All Tabs And Terminal Sessions For "${workspace.name}". '
+            'The Workspace, Branch, And Files Will Be Preserved.$dirtyWarning',
+        confirmLabel: 'Sleep',
+        destructive: true,
+      ),
     );
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    try {
+      await ref
+          .read(workbenchControllerProvider.notifier)
+          .sleepWorkspace(workspace);
+      ref.read(terminalRuntimeProvider).closeWorkspace(workspace.id);
+      for (final tab in tabs) {
+        editorRegistry.forget(tab.id);
+      }
+      if (!mounted) {
+        return;
+      }
+      AleraToast.show(
+        context,
+        message: 'Workspace Slept',
+        tone: AleraToastTone.success,
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      AleraToast.show(
+        context,
+        message: 'Could Not Sleep Workspace: $error',
+        tone: AleraToastTone.error,
+      );
+    }
   }
 }

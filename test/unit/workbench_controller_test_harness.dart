@@ -634,6 +634,7 @@ class _FakeWorkbenchRepository implements WorkbenchRepository {
   @override
   Future<void> removeWorkspaceTabsForWorkspace(String workspaceId) async {
     _tabsByWorkspace.remove(workspaceId);
+    _layoutsByWorkspace.remove(workspaceId);
     _tabControllers[workspaceId]?.add(const <WorkspaceTabRecord>[]);
   }
 

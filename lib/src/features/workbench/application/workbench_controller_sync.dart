@@ -120,6 +120,7 @@ mixin _WorkbenchControllerSync
         _tabSubs.remove(workspaceId)?.cancel();
         _tabSubProjectIds.remove(workspaceId);
       }
+      _workspaceIdsWithClearedLayout.removeAll(removedWorkspaceIds);
     }
     _ensureSelectionHasTab();
   }
@@ -143,6 +144,7 @@ mixin _WorkbenchControllerSync
       _tabSubs.remove(workspaceId)?.cancel();
       _tabSubProjectIds.remove(workspaceId);
     }
+    _workspaceIdsWithClearedLayout.removeAll(removedWorkspaceIds);
     final nextLayouts = <String, WorkbenchLayout>{
       for (final entry in state.layoutByWorkspace.entries)
         if (!removedWorkspaceIds.contains(entry.key)) entry.key: entry.value,
@@ -225,6 +227,23 @@ mixin _WorkbenchControllerSync
     final nextTabs = Map<String, List<WorkspaceTabRecord>>.from(
       state.tabsByWorkspace,
     )..[workspaceId] = tabs;
+    if (tabs.isEmpty && _workspaceIdsWithClearedLayout.contains(workspaceId)) {
+      final nextLayouts = Map<String, WorkbenchLayout>.from(
+        state.layoutByWorkspace,
+      )..remove(workspaceId);
+      final activeTabs = Map<String, String>.from(state.activeTabIdByWorkspace)
+        ..remove(workspaceId);
+      state = state.copyWith(
+        tabsByWorkspace: nextTabs,
+        layoutByWorkspace: nextLayouts,
+        activeTabIdByWorkspace: activeTabs,
+      );
+      _ensureSelectionHasTab();
+      return;
+    }
+    if (tabs.isNotEmpty) {
+      _workspaceIdsWithClearedLayout.remove(workspaceId);
+    }
     final currentLayout = state.layoutFor(workspaceId);
     if (currentLayout == null) {
       state = state.copyWith(tabsByWorkspace: nextTabs);

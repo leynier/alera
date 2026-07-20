@@ -333,14 +333,46 @@ void _registerAleraShellWorkbenchTests() {
     expect(find.text('Remove Workspace?'), findsNothing);
   });
 
-  testWidgets('workspace context menu sleep closes live sessions only', (
+  testWidgets('workspace context menu sleep confirms and closes every tab', (
     tester,
   ) async {
     final runtime = _FakeTerminalRuntime();
+    final registry = EditorSessionRegistry();
+    addTearDown(registry.dispose);
+    final initialState = _populatedWorkbenchState();
+    final workspace = initialState.activeWorkspace!;
+    final editorTab = WorkspaceTabRecord(
+      id: 'editor-1',
+      workspaceId: workspace.id,
+      kind: WorkspaceTabKind.editor,
+      title: 'Notes',
+      createdAt: DateTime.utc(2026, 5, 22),
+      updatedAt: DateTime.utc(2026, 5, 22),
+      payload: const <String, Object?>{
+        workspaceTabFilePathPayloadKey: 'notes.txt',
+      },
+    );
+    registry.register(
+      editorTab.id,
+      EditorSessionHandle(
+        isDirty: () => true,
+        save: () async {},
+        discard: () async {},
+      ),
+    );
     await _pumpShell(
       tester,
-      state: _populatedWorkbenchState(),
+      state: initialState.copyWith(
+        tabsByWorkspace: <String, List<WorkspaceTabRecord>>{
+          ...initialState.tabsByWorkspace,
+          workspace.id: <WorkspaceTabRecord>[
+            ...initialState.tabsFor(workspace.id),
+            editorTab,
+          ],
+        },
+      ),
       terminalRuntime: runtime,
+      editorSessionRegistry: registry,
       workspaceFolderOpener: WorkspaceFolderOpener(
         processRunner: _NoopProcessRunner(),
         platform: WorkspaceFolderPlatform.macos,
@@ -356,8 +388,22 @@ void _registerAleraShellWorkbenchTests() {
     await tester.tap(find.text('Sleep'));
     await tester.pumpAndSettle();
 
-    expect(runtime.closedWorkspaceIds, <String>['workspace-1']);
+    expect(find.text('Sleep Workspace?'), findsOneWidget);
+    expect(
+      find.textContaining(
+        'One Editor Has Unsaved Changes That Will Be Discarded.',
+      ),
+      findsOneWidget,
+    );
+    expect(runtime.closedWorkspaceIds, isEmpty);
     expect(find.text('Terminal 1'), findsAtLeastNWidgets(1));
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Sleep'));
+    await tester.pumpAndSettle();
+
+    expect(runtime.closedWorkspaceIds, <String>['workspace-1']);
+    expect(find.text('Terminal 1'), findsNothing);
+    expect(find.text('Main'), findsAtLeastNWidgets(1));
   });
 
   testWidgets('collapsed rail can reopen the sidebar from a project avatar', (

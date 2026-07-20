@@ -2,7 +2,7 @@ use chrono::{Duration, Utc};
 
 use super::{
     RuntimeAgentQuotaSettings, RuntimeStore, SharedWorkbenchPrefsWriter, SharedWorkbenchSortBy,
-    SharedWorkbenchViewPrefs, WorkspaceTabRecord,
+    SharedWorkbenchViewPrefs, WorkbenchLayoutRecord, WorkspaceTabRecord,
 };
 
 #[tokio::test]
@@ -114,4 +114,69 @@ async fn tab_rename_preserves_payload_and_marks_manual_title() {
     assert_eq!(renamed.title, "Plan");
     assert_eq!(renamed.payload["path"], "readme.md");
     assert_eq!(renamed.payload["manualTitle"], true);
+}
+
+#[tokio::test]
+async fn sleeping_workspace_removes_its_tabs_and_layout_only() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = RuntimeStore::open(dir.path()).await.unwrap();
+    let now = Utc::now();
+    for (id, workspace_id, kind) in [
+        ("terminal-1", "workspace-1", "terminal"),
+        ("editor-1", "workspace-1", "editor"),
+        ("terminal-2", "workspace-2", "terminal"),
+    ] {
+        store
+            .upsert_workspace_tab(WorkspaceTabRecord {
+                id: id.to_string(),
+                workspace_id: workspace_id.to_string(),
+                kind: kind.to_string(),
+                title: id.to_string(),
+                created_at: now,
+                updated_at: now,
+                payload: serde_json::json!({}),
+            })
+            .await
+            .unwrap();
+    }
+    store
+        .upsert_workbench_layout(WorkbenchLayoutRecord {
+            workspace_id: "workspace-1".to_string(),
+            data: serde_json::json!({"activeTabId": "terminal-1"}),
+        })
+        .await
+        .unwrap();
+    store
+        .upsert_workbench_layout(WorkbenchLayoutRecord {
+            workspace_id: "workspace-2".to_string(),
+            data: serde_json::json!({"activeTabId": "terminal-2"}),
+        })
+        .await
+        .unwrap();
+
+    store.sleep_workspace("workspace-1").await.unwrap();
+
+    assert!(store
+        .list_workspace_tabs("workspace-1")
+        .await
+        .unwrap()
+        .is_empty());
+    assert!(store
+        .find_workbench_layout("workspace-1")
+        .await
+        .unwrap()
+        .is_none());
+    assert_eq!(
+        store
+            .list_workspace_tabs("workspace-2")
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
+    assert!(store
+        .find_workbench_layout("workspace-2")
+        .await
+        .unwrap()
+        .is_some());
 }

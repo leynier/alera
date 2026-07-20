@@ -984,6 +984,20 @@ impl RuntimeStore {
         Ok(())
     }
 
+    pub async fn sleep_workspace(&self, workspace_id: &str) -> Result<()> {
+        let mut tx = self.pool.begin().await?;
+        sqlx::query("DELETE FROM workspaceTabs WHERE workspaceId = ?")
+            .bind(workspace_id)
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query("DELETE FROM workbenchLayouts WHERE workspaceId = ?")
+            .bind(workspace_id)
+            .execute(&mut *tx)
+            .await?;
+        tx.commit().await?;
+        Ok(())
+    }
+
     pub async fn find_workbench_layout(
         &self,
         workspace_id: &str,

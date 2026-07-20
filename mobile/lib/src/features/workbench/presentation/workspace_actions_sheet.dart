@@ -2,6 +2,7 @@ import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart'
 import 'package:alera_mobile/src/features/workbench/application/workspace_list_controller.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/delete_workspace_dialog.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/parent_picker_sheet.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/sleep_workspace_dialog.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_tags_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -166,7 +167,13 @@ Future<void> showWorkspaceActionsSheet(
           );
         }
       case _WorkspaceAction.sleep:
-        await controller.sleepWorkspace(workspace.id);
+        final confirmed = await showSleepWorkspaceDialog(
+          context,
+          workspace: workspace,
+        );
+        if (confirmed) {
+          await controller.sleepWorkspace(workspace.id);
+        }
       case _WorkspaceAction.delete:
         await _confirmAndDelete(context, controller, workspace, data);
     }
