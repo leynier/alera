@@ -822,7 +822,7 @@ impl BoundedOutputTail {
     }
 }
 
-async fn setup_command_environment() -> Vec<(String, String)> {
+pub(crate) async fn setup_command_environment() -> Vec<(String, String)> {
     let mut environment = env::vars().collect::<Vec<_>>();
     if cfg!(windows) {
         return environment;

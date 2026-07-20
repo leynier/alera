@@ -102,7 +102,7 @@ final class AgentQuotaServiceProvider
   }
 }
 
-String _$agentQuotaServiceHash() => r'5d408b26f36f641e0a03f9bfb68aa6b955c27ade';
+String _$agentQuotaServiceHash() => r'c6aad5fd83eaa05569133c91176a90ec87215dbe';
 
 @ProviderFor(agentQuotaState)
 final agentQuotaStateProvider = AgentQuotaStateProvider._();

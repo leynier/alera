@@ -10,12 +10,16 @@ import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
+import 'package:alera_mobile/src/features/settings/domain/portable_host_settings.dart';
+import 'package:alera_mobile/src/features/quotas/domain/quota_snapshot.dart';
 import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_workspace_sidebar_client.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_project_client.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 export 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
+
+part 'mobile_runtime_client_host_tools.dart';
 
 const Duration _defaultRequestTimeout = Duration(seconds: 20);
 // Managed workspace lifecycle mirrors the desktop client timeouts
@@ -24,7 +28,10 @@ const Duration _managedWorkspaceCreateTimeout = Duration(minutes: 30);
 const Duration _managedWorkspaceRemoveTimeout = Duration(minutes: 10);
 
 class MobileRuntimeClient
-    with MobileRuntimeWorkspaceSidebarClient, MobileRuntimeProjectClient
+    with
+        MobileRuntimeWorkspaceSidebarClient,
+        MobileRuntimeProjectClient,
+        MobileRuntimeClientHostTools
     implements MobileTerminalClient, MobileWorkspaceClient {
   MobileRuntimeClient._(
     this._channel, {
@@ -109,6 +116,16 @@ class MobileRuntimeClient
   @override
   bool get supportsWorkspaceMutations =>
       _runtimeCapabilities.contains(mobileWorkspaceMutationsCapability);
+
+  @override
+  bool get supportsTabRename =>
+      _runtimeCapabilities.contains(mobileTabRenameCapability);
+  bool get supportsPortableSettings =>
+      _runtimeCapabilities.contains(mobilePortableSettingsCapability);
+  bool get supportsAgentQuotas =>
+      _runtimeCapabilities.contains(mobileAgentQuotaCapability);
+  bool get supportsHostTools =>
+      _runtimeCapabilities.contains(mobileHostToolsCapability);
 
   Future<Map<String, Object?>> authenticate({
     required String deviceId,
@@ -206,6 +223,15 @@ class MobileRuntimeClient
   @override
   Future<void> removeTab(String tabId) async {
     await request('tab.remove', <String, Object?>{'id': tabId});
+  }
+
+  @override
+  Future<WorkspaceTabSummary> renameTab(String tabId, String title) async {
+    final payload = await requestMap('tab.rename', <String, Object?>{
+      'id': tabId,
+      'title': title,
+    });
+    return WorkspaceTabSummary.fromJson(payload);
   }
 
   @override

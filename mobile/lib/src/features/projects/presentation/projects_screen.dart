@@ -8,6 +8,7 @@ import 'package:alera_mobile/src/features/projects/presentation/project_setup_sc
 import 'package:alera_mobile/src/features/projects/presentation/remote_directory_picker_screen.dart';
 import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
+import 'package:alera_mobile/src/features/settings/application/host_settings_controller.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/workspace_tabs_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -204,6 +205,20 @@ class ProjectsScreen extends ConsumerWidget {
         );
       case _ProjectAction.remove:
         try {
+          var confirmRemoval = true;
+          try {
+            confirmRemoval = (await ref.read(
+              hostSettingsControllerProvider(host.id).future,
+            )).confirmProjectRemoval;
+          } on Object {
+            // Older runtimes retain the safe confirmation behavior.
+          }
+          if (!confirmRemoval) {
+            await ref
+                .read(projectsControllerProvider(host.id).notifier)
+                .removeProject(project.id);
+            return;
+          }
           final preview = await ref
               .read(projectsControllerProvider(host.id).notifier)
               .previewRemoval(project.id);

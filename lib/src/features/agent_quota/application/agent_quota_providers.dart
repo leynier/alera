@@ -8,7 +8,9 @@ import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/shared/infra/process/process_providers.dart';
+import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -26,7 +28,10 @@ RuntimeProxyClient runtimeProxyClient(Ref ref) {
 
 @Riverpod(keepAlive: true)
 AgentQuotaService agentQuotaService(Ref ref) {
-  return AgentQuotaService(ref.watch(runtimeProxyClientProvider));
+  return AgentQuotaService(
+    ref.watch(runtimeProxyClientProvider),
+    ref.watch(runtimeHostClientProvider),
+  );
 }
 
 @Riverpod(keepAlive: true)
@@ -86,9 +91,10 @@ String agentQuotaRequestKey(AgentQuotaHostSettings settings) {
 }
 
 class AgentQuotaService {
-  AgentQuotaService(this._client);
+  AgentQuotaService(this._client, [this._runtimeClient]);
 
   final RuntimeProxyClient _client;
+  final RuntimeHostClient? _runtimeClient;
   final Map<String, AgentQuotaState> _cache = <String, AgentQuotaState>{};
 
   Future<AgentQuotaState> fetch({
@@ -97,38 +103,47 @@ class AgentQuotaService {
     required AgentQuotaHostSettings settings,
   }) async {
     try {
-      final payload = await _client.request(
-        hostId: hostId,
-        target: target,
-        type: 'agentQuota.fetch',
-        localEnvironmentNames: <String>[
-          settings.environment.kimiApiKey,
-          settings.environment.zaiApiKey,
-          settings.environment.zaiBaseUrl,
-          settings.environment.minimaxApiKey,
-          settings.environment.minimaxApiHost,
-        ],
-        payload: <String, Object?>{
-          'providers': <String>[
-            for (final provider in settings.enabledProviders) provider.name,
-          ],
-          'claudeDefaultEnabled': settings.claudeDefaultEnabled,
-          'claudeProfiles': <Map<String, String>>[
-            for (final profile in settings.claudeProfiles)
-              <String, String>{
-                'alias': profile.alias,
-                'profile': profile.profile,
+      final payload = hostId == 'local' && _runtimeClient != null
+          ? _mapValue(
+              await _runtimeClient.runtimeRequest(
+                'agentQuota.snapshot',
+                const <String, Object?>{'forceRefresh': true},
+                const Duration(seconds: 45),
+              ),
+            )
+          : await _client.request(
+              hostId: hostId,
+              target: target,
+              type: 'agentQuota.fetch',
+              localEnvironmentNames: <String>[
+                settings.environment.kimiApiKey,
+                settings.environment.zaiApiKey,
+                settings.environment.zaiBaseUrl,
+                settings.environment.minimaxApiKey,
+                settings.environment.minimaxApiHost,
+              ],
+              payload: <String, Object?>{
+                'providers': <String>[
+                  for (final provider in settings.enabledProviders)
+                    provider.name,
+                ],
+                'claudeDefaultEnabled': settings.claudeDefaultEnabled,
+                'claudeProfiles': <Map<String, String>>[
+                  for (final profile in settings.claudeProfiles)
+                    <String, String>{
+                      'alias': profile.alias,
+                      'profile': profile.profile,
+                    },
+                ],
+                'environmentNames': <String, String>{
+                  'kimiApiKey': settings.environment.kimiApiKey,
+                  'zaiApiKey': settings.environment.zaiApiKey,
+                  'zaiBaseUrl': settings.environment.zaiBaseUrl,
+                  'minimaxApiKey': settings.environment.minimaxApiKey,
+                  'minimaxApiHost': settings.environment.minimaxApiHost,
+                },
               },
-          ],
-          'environmentNames': <String, String>{
-            'kimiApiKey': settings.environment.kimiApiKey,
-            'zaiApiKey': settings.environment.zaiApiKey,
-            'zaiBaseUrl': settings.environment.zaiBaseUrl,
-            'minimaxApiKey': settings.environment.minimaxApiKey,
-            'minimaxApiHost': settings.environment.minimaxApiHost,
-          },
-        },
-      );
+            );
       final fresh = <AgentQuotaSnapshot>[
         for (final item in (payload['snapshots'] as List? ?? const <Object?>[]))
           if (item is Map)
@@ -178,6 +193,16 @@ class AgentQuotaService {
       );
     }
   }
+}
+
+Map<String, Object?> _mapValue(Object? value) {
+  if (value is Map<String, Object?>) {
+    return value;
+  }
+  if (value is Map) {
+    return Map<String, Object?>.from(value);
+  }
+  throw const FormatException('Agent quota response must be an object.');
 }
 
 AgentQuotaSnapshot _markOldSnapshotStale(AgentQuotaSnapshot snapshot) {

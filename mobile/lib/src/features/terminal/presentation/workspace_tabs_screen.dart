@@ -1,4 +1,5 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/design_system/forms/alera_rename_dialog.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/terminal/application/tabs_controller.dart';
@@ -6,6 +7,7 @@ import 'package:alera_mobile/src/features/terminal/application/agent_presence_co
 import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snapshot.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_session_controller.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_tab_view.dart';
+import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -112,6 +114,62 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
     }
   }
 
+  Future<void> _renameTab(WorkspaceTabSummary tab) async {
+    final title = await showDialog<String>(
+      context: context,
+      builder: (_) => AleraRenameDialog(
+        title: 'Rename Tab',
+        labelText: 'Tab Title',
+        initialValue: tab.title,
+      ),
+    );
+    if (title == null || !mounted) return;
+    try {
+      await ref
+          .read(
+            tabsControllerProvider(widget.hostId, widget.workspace.id).notifier,
+          )
+          .renameTab(tab, title);
+    } on Object catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could Not Rename Tab: $error')));
+      }
+    }
+  }
+
+  Future<void> _showTabActions(
+    WorkspaceTabSummary tab, {
+    required bool canRename,
+  }) async {
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            if (canRename)
+              ListTile(
+                leading: const Icon(Icons.edit_outlined),
+                title: const Text('Rename Tab'),
+                onTap: () => Navigator.of(context).pop('rename'),
+              ),
+            if (tab.isTerminal)
+              ListTile(
+                leading: const Icon(Icons.close),
+                title: const Text('Close Tab'),
+                onTap: () => Navigator.of(context).pop('close'),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (action == 'rename') await _renameTab(tab);
+    if (action == 'close') await _closeTab(tab);
+  }
+
   WorkspaceTabSummary? _selectedTab(List<WorkspaceTabSummary> tabs) {
     final terminals = tabs.where((tab) => tab.isTerminal).toList();
     if (terminals.isEmpty) {
@@ -134,6 +192,12 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
         ref.watch(agentPresenceControllerProvider(widget.hostId)).value ??
         const <AgentPresenceSummary>[];
     final selectedTab = tabs.value == null ? null : _selectedTab(tabs.value!);
+    final canRename =
+        ref
+            .watch(workspaceClientProvider(widget.hostId))
+            .value
+            ?.supportsTabRename ==
+        true;
     if (selectedTab != null) {
       // The desktop taking the viewport back sends this phone to the
       // workspace list; re-entering the tab simply claims again.
@@ -169,6 +233,8 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
                     });
                   },
                   onClose: _closeTab,
+                  onActions: (tab) =>
+                      _showTabActions(tab, canRename: canRename),
                   onCreate: _createTab,
                   agentPresence: agentPresence,
                 ),
@@ -205,6 +271,7 @@ class _TabStrip extends StatelessWidget {
     required this.creating,
     required this.onSelect,
     required this.onClose,
+    required this.onActions,
     required this.onCreate,
     required this.agentPresence,
   });
@@ -214,6 +281,7 @@ class _TabStrip extends StatelessWidget {
   final bool creating;
   final ValueChanged<WorkspaceTabSummary> onSelect;
   final ValueChanged<WorkspaceTabSummary> onClose;
+  final ValueChanged<WorkspaceTabSummary> onActions;
   final VoidCallback onCreate;
   final List<AgentPresenceSummary> agentPresence;
 
@@ -241,20 +309,23 @@ class _TabStrip extends StatelessWidget {
         ),
         children: <Widget>[
           for (final tab in tabs) ...<Widget>[
-            InputChip(
-              avatar: _TabAvatar(
-                icon: _kindIcon(tab.kind),
-                status: agentPresence
-                    .where((status) => status.tabId == tab.id)
-                    .firstOrNull,
+            GestureDetector(
+              onLongPress: () => onActions(tab),
+              child: InputChip(
+                avatar: _TabAvatar(
+                  icon: _kindIcon(tab.kind),
+                  status: agentPresence
+                      .where((status) => status.tabId == tab.id)
+                      .firstOrNull,
+                ),
+                label: Text(tab.title, overflow: TextOverflow.ellipsis),
+                selected: tab.id == selectedTabId,
+                // Non-terminal tabs remain disabled content surfaces, while
+                // their metadata actions stay available through long press.
+                onSelected: tab.isTerminal ? (_) => onSelect(tab) : null,
+                onDeleted: tab.isTerminal ? () => onClose(tab) : null,
+                deleteButtonTooltipMessage: 'Close Tab',
               ),
-              label: Text(tab.title, overflow: TextOverflow.ellipsis),
-              selected: tab.id == selectedTabId,
-              // Non-terminal tabs (editors, diffs, ...) are desktop surfaces;
-              // they render as disabled chips on the phone for now.
-              onSelected: tab.isTerminal ? (_) => onSelect(tab) : null,
-              onDeleted: tab.isTerminal ? () => onClose(tab) : null,
-              deleteButtonTooltipMessage: 'Close Tab',
             ),
             const SizedBox(width: AleraTokens.spaceSm),
           ],

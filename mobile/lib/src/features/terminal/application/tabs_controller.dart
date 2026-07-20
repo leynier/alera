@@ -58,4 +58,10 @@ class TabsController extends _$TabsController {
     await workspaceClient.removeTab(tab.id);
     ref.invalidateSelf();
   }
+
+  Future<void> renameTab(WorkspaceTabSummary tab, String title) async {
+    final client = await ref.read(workspaceClientProvider(hostId).future);
+    await client.renameTab(tab.id, title);
+    ref.invalidateSelf();
+  }
 }

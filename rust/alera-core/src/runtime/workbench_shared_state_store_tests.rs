@@ -1,7 +1,8 @@
 use chrono::{Duration, Utc};
 
 use super::{
-    RuntimeStore, SharedWorkbenchPrefsWriter, SharedWorkbenchSortBy, SharedWorkbenchViewPrefs,
+    RuntimeAgentQuotaSettings, RuntimeStore, SharedWorkbenchPrefsWriter, SharedWorkbenchSortBy,
+    SharedWorkbenchViewPrefs, WorkspaceTabRecord,
 };
 
 #[tokio::test]
@@ -66,4 +67,51 @@ async fn workspace_removal_confirmation_defaults_to_true() {
             .unwrap()
             .confirm_workspace_removal
     );
+}
+
+#[tokio::test]
+async fn portable_settings_round_trip_project_confirmation_and_empty_quotas() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = RuntimeStore::open(dir.path()).await.unwrap();
+
+    store.set_confirm_project_removal(false).await.unwrap();
+    store
+        .set_agent_quota_settings(RuntimeAgentQuotaSettings {
+            enabled_providers: Vec::new(),
+            ..RuntimeAgentQuotaSettings::default()
+        })
+        .await
+        .unwrap();
+
+    let settings = store.runtime_settings().await.unwrap();
+    assert!(!settings.confirm_project_removal);
+    assert!(settings.agent_quotas.enabled_providers.is_empty());
+}
+
+#[tokio::test]
+async fn tab_rename_preserves_payload_and_marks_manual_title() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = RuntimeStore::open(dir.path()).await.unwrap();
+    let now = Utc::now();
+    store
+        .upsert_workspace_tab(WorkspaceTabRecord {
+            id: "tab-1".to_string(),
+            workspace_id: "workspace-1".to_string(),
+            kind: "editor".to_string(),
+            title: "Notes".to_string(),
+            created_at: now,
+            updated_at: now,
+            payload: serde_json::json!({"path": "readme.md"}),
+        })
+        .await
+        .unwrap();
+
+    let renamed = store
+        .rename_workspace_tab("tab-1", "  Plan  ")
+        .await
+        .unwrap();
+
+    assert_eq!(renamed.title, "Plan");
+    assert_eq!(renamed.payload["path"], "readme.md");
+    assert_eq!(renamed.payload["manualTitle"], true);
 }

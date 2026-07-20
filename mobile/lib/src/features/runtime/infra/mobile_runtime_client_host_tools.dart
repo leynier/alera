@@ -1,0 +1,66 @@
+part of 'mobile_runtime_client.dart';
+
+mixin MobileRuntimeClientHostTools {
+  int _nextHostToolOperationId = 1;
+
+  Future<Map<String, Object?>> requestMap(
+    String type, [
+    Map<String, Object?> payload = const <String, Object?>{},
+    Duration? timeout,
+  ]);
+
+  Future<PortableHostSettings> loadPortableSettings() async {
+    final payload = await requestMap('mobile.runtimeSettings.get');
+    return PortableHostSettings.fromJson(payload);
+  }
+
+  Future<PortableHostSettings> updatePortableSettings(
+    Map<String, Object?> patch,
+  ) async {
+    final payload = await requestMap('mobile.runtimeSettings.update', patch);
+    return PortableHostSettings.fromJson(payload);
+  }
+
+  Future<QuotaSnapshotState> fetchAgentQuotas({
+    bool forceRefresh = false,
+  }) async {
+    final payload = await requestMap('agentQuota.snapshot', <String, Object?>{
+      'forceRefresh': forceRefresh,
+    }, const Duration(seconds: 45));
+    return QuotaSnapshotState.fromJson(payload);
+  }
+
+  Future<CliRegistrationStatus> cliRegistrationStatus() async {
+    final payload = await requestMap(
+      'cliRegistration.status',
+      const <String, Object?>{},
+      const Duration(seconds: 30),
+    );
+    return CliRegistrationStatus.fromJson(payload);
+  }
+
+  Future<CliRegistrationStatus> installCliRegistration() async {
+    final payload = await requestMap(
+      'cliRegistration.install',
+      const <String, Object?>{},
+      const Duration(seconds: 30),
+    );
+    return CliRegistrationStatus.fromJson(payload);
+  }
+
+  Future<SkillInstallResult> installSkill({
+    required String skill,
+    required String runner,
+    String? operationId,
+  }) async {
+    final effectiveOperationId =
+        operationId ??
+        '${DateTime.now().microsecondsSinceEpoch}-${_nextHostToolOperationId++}';
+    final payload = await requestMap('agentSkill.install', <String, Object?>{
+      'operationId': effectiveOperationId,
+      'skill': skill,
+      'runner': runner,
+    }, const Duration(minutes: 10));
+    return SkillInstallResult.fromJson(payload);
+  }
+}

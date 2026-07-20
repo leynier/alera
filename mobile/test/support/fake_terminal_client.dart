@@ -73,6 +73,9 @@ class FakeTerminalClient
   bool get supportsWorkspaceSidebarParity => true;
 
   @override
+  bool get supportsTabRename => true;
+
+  @override
   Future<WorkspaceSidebarSnapshot> workspaceSidebarSnapshot() async {
     return const WorkspaceSidebarSnapshot(
       projects: <ProjectSummary>[],
@@ -249,6 +252,24 @@ class FakeTerminalClient
       for (final tab in tabs)
         if (tab.id != tabId) tab,
     ];
+  }
+
+  @override
+  Future<WorkspaceTabSummary> renameTab(String tabId, String title) async {
+    calls.add('renameTab $tabId $title');
+    final current = tabs.firstWhere((tab) => tab.id == tabId);
+    final renamed = WorkspaceTabSummary(
+      id: current.id,
+      workspaceId: current.workspaceId,
+      kind: current.kind,
+      title: title,
+      payload: current.payload,
+    );
+    tabs = <WorkspaceTabSummary>[
+      for (final tab in tabs)
+        if (tab.id == tabId) renamed else tab,
+    ];
+    return renamed;
   }
 
   @override

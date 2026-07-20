@@ -8,6 +8,13 @@ fn mobile_allowlist_includes_workspace_mutations() {
     assert!(mobile_request_allowed("workspaceRelation.link"));
     assert!(mobile_request_allowed("workspaceRelation.unlink"));
     assert!(mobile_request_allowed("tab.remove"));
+    assert!(mobile_request_allowed("tab.rename"));
+    assert!(mobile_request_allowed("mobile.runtimeSettings.get"));
+    assert!(mobile_request_allowed("mobile.runtimeSettings.update"));
+    assert!(mobile_request_allowed("agentQuota.snapshot"));
+    assert!(mobile_request_allowed("cliRegistration.status"));
+    assert!(mobile_request_allowed("cliRegistration.install"));
+    assert!(mobile_request_allowed("agentSkill.install"));
 }
 
 #[test]

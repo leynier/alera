@@ -208,7 +208,7 @@ async fn handle_proxy_request(request: ProxyRequest) -> Value {
     }
 }
 
-async fn fetch_agent_quotas(payload: Value) -> Result<Value> {
+pub(crate) async fn fetch_agent_quotas(payload: Value) -> Result<Value> {
     let request: AgentQuotaFetchRequest =
         serde_json::from_value(payload).context("Invalid agent quota request")?;
     let providers = if request.providers.is_empty() {
