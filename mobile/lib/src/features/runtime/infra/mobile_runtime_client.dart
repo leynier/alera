@@ -120,6 +120,9 @@ class MobileRuntimeClient
   @override
   bool get supportsTabRename =>
       _runtimeCapabilities.contains(mobileTabRenameCapability);
+  @override
+  bool get supportsTerminalTitles =>
+      _runtimeCapabilities.contains(mobileTerminalTitlesCapability);
   bool get supportsPortableSettings =>
       _runtimeCapabilities.contains(mobilePortableSettingsCapability);
   bool get supportsAgentQuotas =>

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera_mobile/src/features/runtime/domain/runtime_client_surfaces.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
@@ -11,6 +12,8 @@ part 'tabs_controller.g.dart';
 /// a desktop concept.
 @riverpod
 class TabsController extends _$TabsController {
+  final Map<String, String> _runtimeTitles = <String, String>{};
+
   @override
   Future<List<WorkspaceTabSummary>> build(
     String hostId,
@@ -20,10 +23,52 @@ class TabsController extends _$TabsController {
     final subscription = client.events.listen((event) {
       if (event.name == 'workspaceTabsChanged') {
         ref.invalidateSelf();
+      } else if (client.supportsTerminalTitles &&
+          event.name == 'terminalTitleChanged') {
+        _applyRuntimeTitleEvent(event);
       }
     });
     ref.onDispose(subscription.cancel);
-    return client.listTabs(workspaceId);
+    final tabs = await client.listTabs(workspaceId);
+    if (!client.supportsTerminalTitles) {
+      _runtimeTitles.clear();
+      return tabs;
+    }
+    final tabIds = <String>{for (final tab in tabs) tab.id};
+    _runtimeTitles.removeWhere((tabId, _) => !tabIds.contains(tabId));
+    for (final tab in tabs) {
+      final runtimeTitle = tab.runtimeTitle;
+      if (runtimeTitle != null) {
+        _runtimeTitles[tab.id] = runtimeTitle;
+      }
+    }
+    return <WorkspaceTabSummary>[
+      for (final tab in tabs)
+        if (_runtimeTitles[tab.id] case final String runtimeTitle)
+          tab.copyWithRuntimeTitle(runtimeTitle)
+        else
+          tab,
+    ];
+  }
+
+  void _applyRuntimeTitleEvent(MobileRuntimeEvent event) {
+    final eventWorkspaceId = event.payload['workspaceId'];
+    final tabId = event.payload['tabId'];
+    final title = event.payload['title'];
+    if (eventWorkspaceId != workspaceId ||
+        tabId is! String ||
+        title is! String) {
+      return;
+    }
+    _runtimeTitles[tabId] = title;
+    final tabs = state.value;
+    if (tabs == null || !tabs.any((tab) => tab.id == tabId)) {
+      return;
+    }
+    state = AsyncData(<WorkspaceTabSummary>[
+      for (final tab in tabs)
+        if (tab.id == tabId) tab.copyWithRuntimeTitle(title) else tab,
+    ]);
   }
 
   /// Creates a terminal tab titled after the next free "Terminal N" slot and

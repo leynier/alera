@@ -158,11 +158,18 @@ void main() {
     await tester.ensureVisible(endpointField);
     await tester.enterText(endpointField, 'ws://192.168.1.50:6768');
     await tester.pump();
-    await tester.ensureVisible(find.widgetWithText(FilledButton, 'Generate'));
-    await tester.tap(find.widgetWithText(FilledButton, 'Generate'));
+    final generateButton = find.widgetWithText(FilledButton, 'Generate');
+    await tester.ensureVisible(generateButton);
+    await tester.pumpAndSettle();
+    await tester.tap(generateButton);
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('wss://'), findsWidgets);
+    expect(
+      find.text(
+        'Endpoints Outside Loopback Or A Tailscale Tailnet Must Use wss://',
+      ),
+      findsOneWidget,
+    );
     expect(client.requestsOfType('mobile.pairing.create'), isEmpty);
   });
 

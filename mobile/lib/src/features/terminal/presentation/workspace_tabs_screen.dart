@@ -78,7 +78,7 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Close Tab'),
-        content: Text(tab.title),
+        content: Text(tab.displayTitle),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -120,7 +120,7 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
       builder: (_) => AleraRenameDialog(
         title: 'Rename Tab',
         labelText: 'Tab Title',
-        initialValue: tab.title,
+        initialValue: tab.displayTitle,
       ),
     );
     if (title == null || !mounted) return;
@@ -318,7 +318,7 @@ class _TabStrip extends StatelessWidget {
                       .where((status) => status.tabId == tab.id)
                       .firstOrNull,
                 ),
-                label: Text(tab.title, overflow: TextOverflow.ellipsis),
+                label: Text(tab.displayTitle, overflow: TextOverflow.ellipsis),
                 selected: tab.id == selectedTabId,
                 // Non-terminal tabs remain disabled content surfaces, while
                 // their metadata actions stay available through long press.

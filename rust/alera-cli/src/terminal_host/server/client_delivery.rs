@@ -49,6 +49,17 @@ impl ServerActor {
         }
     }
 
+    pub(super) fn broadcast_authenticated_mobile(&self, message: Value) {
+        for (client_id, client) in &self.clients {
+            if client.authenticated
+                && client.kind == ClientKind::Mobile
+                && client.handle.control_out.send(message.clone()).is_err()
+            {
+                self.disconnect_client_soon(*client_id);
+            }
+        }
+    }
+
     pub(super) fn disconnect_client_soon(&self, client_id: u64) {
         let _ = self
             .inbox

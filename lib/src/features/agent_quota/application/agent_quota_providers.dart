@@ -16,7 +16,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'agent_quota_providers.g.dart';
 
-const agentQuotaRefreshInterval = Duration(minutes: 5);
+const agentQuotaRefreshInterval = Duration(minutes: 15);
 
 @Riverpod(keepAlive: true)
 RuntimeProxyClient runtimeProxyClient(Ref ref) {
@@ -58,9 +58,13 @@ Future<AgentQuotaState> agentQuotaState(Ref ref) async {
       : targets.where((candidate) => candidate.id == hostId).firstOrNull;
   final timer = Timer(agentQuotaRefreshInterval, ref.invalidateSelf);
   ref.onDispose(timer.cancel);
-  return ref
-      .watch(agentQuotaServiceProvider)
-      .fetch(hostId: hostId, target: target, settings: settings);
+  final service = ref.watch(agentQuotaServiceProvider);
+  return service.fetch(
+    hostId: hostId,
+    target: target,
+    settings: settings,
+    forceRefresh: service.consumeForceRefresh(hostId),
+  );
 }
 
 String agentQuotaRequestKey(AgentQuotaHostSettings settings) {
@@ -96,18 +100,28 @@ class AgentQuotaService {
   final RuntimeProxyClient _client;
   final RuntimeHostClient? _runtimeClient;
   final Map<String, AgentQuotaState> _cache = <String, AgentQuotaState>{};
+  final Set<String> _forceRefreshHosts = <String>{};
+
+  void requestForceRefresh(String hostId) {
+    _forceRefreshHosts.add(hostId);
+  }
+
+  bool consumeForceRefresh(String hostId) {
+    return _forceRefreshHosts.remove(hostId);
+  }
 
   Future<AgentQuotaState> fetch({
     required String hostId,
     required SshTarget? target,
     required AgentQuotaHostSettings settings,
+    bool forceRefresh = false,
   }) async {
     try {
       final payload = hostId == 'local' && _runtimeClient != null
           ? _mapValue(
               await _runtimeClient.runtimeRequest(
                 'agentQuota.snapshot',
-                const <String, Object?>{'forceRefresh': true},
+                <String, Object?>{'forceRefresh': forceRefresh},
                 const Duration(seconds: 45),
               ),
             )
@@ -135,6 +149,7 @@ class AgentQuotaService {
                       'profile': profile.profile,
                     },
                 ],
+                'allowCliFallback': forceRefresh,
                 'environmentNames': <String, String>{
                   'kimiApiKey': settings.environment.kimiApiKey,
                   'zaiApiKey': settings.environment.zaiApiKey,

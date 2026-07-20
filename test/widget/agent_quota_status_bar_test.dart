@@ -256,8 +256,8 @@ void main() {
     expect(find.text('General Weekly'), findsOneWidget);
   });
 
-  test('refreshes quotas automatically every five minutes', () {
-    expect(agentQuotaRefreshInterval, const Duration(minutes: 5));
+  test('refreshes quotas automatically every fifteen minutes', () {
+    expect(agentQuotaRefreshInterval, const Duration(minutes: 15));
   });
 }
 

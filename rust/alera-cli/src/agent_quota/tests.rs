@@ -69,6 +69,36 @@ fn maps_claude_oauth_usage_windows() {
 }
 
 #[test]
+fn parses_claude_auth_status_without_exposing_credentials() {
+    assert_eq!(
+        parse_claude_auth_status(br#"{"loggedIn":true,"authMethod":"oauth"}"#),
+        Some(true)
+    );
+    assert_eq!(
+        parse_claude_auth_status(br#"{"loggedIn":false,"authMethod":"none"}"#),
+        Some(false)
+    );
+    assert_eq!(parse_claude_auth_status(b"not-json"), None);
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn isolates_custom_claude_profiles_to_their_scoped_keychain() {
+    let services = claude_keychain_services(std::path::Path::new("/tmp/claude-profile"));
+    assert_eq!(services.len(), 1);
+    assert!(services[0].starts_with("Claude Code-credentials-"));
+    assert_eq!(services[0].len(), "Claude Code-credentials-".len() + 8);
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn default_claude_profile_falls_back_to_legacy_keychain() {
+    let services = claude_keychain_services(&home_dir().unwrap().join(".claude"));
+    assert_eq!(services.len(), 2);
+    assert_eq!(services[1], "Claude Code-credentials");
+}
+
+#[test]
 fn preserves_gpt_acronym_and_uses_normal_hyphens() {
     let snapshot = parse_tui_snapshot(
         "antigravity",
@@ -111,6 +141,7 @@ fn redacts_bearer_and_api_keys() {
 fn defaults_claude_default_to_enabled_for_older_clients() {
     let request: AgentQuotaFetchRequest = serde_json::from_value(json!({})).unwrap();
     assert!(request.claude_default_enabled);
+    assert!(request.allow_cli_fallback);
     assert_eq!(request.environment_names.kimi_api_key, KIMI_API_KEY_ENV);
 }
 
@@ -119,4 +150,11 @@ fn accepts_disabling_claude_default_independently() {
     let request: AgentQuotaFetchRequest =
         serde_json::from_value(json!({ "claudeDefaultEnabled": false })).unwrap();
     assert!(!request.claude_default_enabled);
+}
+
+#[test]
+fn accepts_disabling_cli_fallback_for_background_refreshes() {
+    let request: AgentQuotaFetchRequest =
+        serde_json::from_value(json!({ "allowCliFallback": false })).unwrap();
+    assert!(!request.allow_cli_fallback);
 }

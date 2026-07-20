@@ -23,6 +23,7 @@ pub const RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY: &str = "mobileWorkspaceMutat
 pub const RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY: &str = "mobileWorkspaceSidebarParityV1";
 pub const RUNTIME_HOST_MOBILE_PROJECT_MANAGEMENT_CAPABILITY: &str = "mobileProjectManagementV1";
 pub const RUNTIME_HOST_MOBILE_TAB_RENAME_CAPABILITY: &str = "mobileTabRenameV1";
+pub const RUNTIME_HOST_MOBILE_TERMINAL_TITLES_CAPABILITY: &str = "mobileTerminalTitlesV1";
 pub const RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY: &str = "mobilePortableSettingsV1";
 pub const RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY: &str = "mobileAgentQuotaV1";
 pub const RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY: &str = "mobileHostToolsV1";

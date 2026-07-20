@@ -87,6 +87,125 @@ void main() {
     expect(client.tabs.map((tab) => tab.title), <String>['Build', 'Plan']);
   });
 
+  test('Resolves automatic titles with desktop precedence', () async {
+    final automatic = fakeTab(
+      id: 'tab-1',
+      title: 'Terminal 1',
+      runtimeTitle: '  Review Tests  ',
+    );
+    final generic = fakeTab(
+      id: 'tab-2',
+      title: 'Terminal 2',
+      runtimeTitle: 'Terminal',
+    );
+    final manual = fakeTab(
+      id: 'tab-3',
+      title: 'Pinned Title',
+      runtimeTitle: 'Ignored Runtime Title',
+      manualTitle: true,
+    );
+
+    expect(automatic.displayTitle, 'Review Tests');
+    expect(generic.displayTitle, 'Terminal 2');
+    expect(manual.displayTitle, 'Pinned Title');
+  });
+
+  test('Loads the current runtime title from the initial tab list', () async {
+    final client = FakeTerminalClient()
+      ..tabs = <WorkspaceTabSummary>[
+        fakeTab(
+          id: 'tab-1',
+          title: 'Terminal 1',
+          runtimeTitle: 'Existing Agent Task',
+        ),
+      ];
+    final container = _container(client);
+
+    final tabs = await container.read(
+      tabsControllerProvider('host-1', 'workspace-1').future,
+    );
+
+    expect(tabs.single.displayTitle, 'Existing Agent Task');
+  });
+
+  test(
+    'Updates titles for selected and background tabs from host events',
+    () async {
+      final client = FakeTerminalClient()
+        ..tabs = <WorkspaceTabSummary>[
+          fakeTab(id: 'tab-1', title: 'Terminal 1'),
+          fakeTab(id: 'tab-2', title: 'Terminal 2'),
+          fakeTab(id: 'tab-3', title: 'Pinned Title', manualTitle: true),
+        ];
+      final container = _container(client);
+      await container.read(
+        tabsControllerProvider('host-1', 'workspace-1').future,
+      );
+
+      client.emitTerminalTitle(
+        workspaceId: 'workspace-1',
+        tabId: 'tab-1',
+        title: 'Implement Feature',
+      );
+      client.emitTerminalTitle(
+        workspaceId: 'workspace-1',
+        tabId: 'tab-2',
+        title: 'Run Tests',
+      );
+      client.emitTerminalTitle(
+        workspaceId: 'workspace-1',
+        tabId: 'tab-3',
+        title: 'Must Not Replace Manual',
+      );
+      client.emitTerminalTitle(
+        workspaceId: 'other-workspace',
+        tabId: 'tab-1',
+        title: 'Wrong Workspace',
+      );
+      await pumpEventQueue();
+
+      final tabs = container
+          .read(tabsControllerProvider('host-1', 'workspace-1'))
+          .requireValue;
+      expect(tabs.map((tab) => tab.displayTitle), <String>[
+        'Implement Feature',
+        'Run Tests',
+        'Pinned Title',
+      ]);
+    },
+  );
+
+  test(
+    'Keeps static titles when the host lacks title synchronization',
+    () async {
+      final client = FakeTerminalClient()
+        ..supportsTerminalTitles = false
+        ..tabs = <WorkspaceTabSummary>[
+          fakeTab(id: 'tab-1', title: 'Terminal 1'),
+        ];
+      final container = _container(client);
+      await container.read(
+        tabsControllerProvider('host-1', 'workspace-1').future,
+      );
+
+      client.emitTerminalTitle(
+        workspaceId: 'workspace-1',
+        tabId: 'tab-1',
+        title: 'Unsupported Title',
+      );
+      await pumpEventQueue();
+
+      expect(
+        container
+            .read(tabsControllerProvider('host-1', 'workspace-1'))
+            .requireValue
+            .single
+            .displayTitle,
+        'Terminal 1',
+      );
+    },
+  );
+
   test('Session controller attaches, writes, resizes, and detaches', () async {
     final client = FakeTerminalClient()
       ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')];

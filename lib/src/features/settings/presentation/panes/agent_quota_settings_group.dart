@@ -241,7 +241,12 @@ class AgentQuotaSettingsPane extends ConsumerWidget {
                   ],
                   presence: environment,
                   loading: quotaState.isLoading,
-                  onRefresh: () => ref.invalidate(agentQuotaStateProvider),
+                  onRefresh: () {
+                    ref
+                        .read(agentQuotaServiceProvider)
+                        .requestForceRefresh(hostId);
+                    ref.invalidate(agentQuotaStateProvider);
+                  },
                 ),
               ),
             ],

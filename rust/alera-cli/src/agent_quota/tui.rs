@@ -1,177 +1,3 @@
-async fn fetch_claude(profile: Option<&ClaudeProfileRequest>) -> QuotaSnapshot {
-    let (account_id, display_name, config_dir, env) = match profile {
-        None => {
-            let config_dir = home_dir().map(|home| home.join(".claude"));
-            (
-                "default".to_string(),
-                "Default".to_string(),
-                config_dir,
-                BTreeMap::new(),
-            )
-        }
-        Some(profile) => {
-            let Some(home) = home_dir() else {
-                return QuotaSnapshot::unavailable(
-                    "claude",
-                    &profile.profile,
-                    &profile.alias,
-                    "Home directory is unavailable",
-                );
-            };
-            let ccs_root = std::env::var("CCS_DIR")
-                .map(PathBuf::from)
-                .unwrap_or_else(|_| home.join(".ccs"));
-            let config_dir = ccs_root.join("instances").join(&profile.profile);
-            if !config_dir.exists() {
-                return QuotaSnapshot::unavailable(
-                    "claude",
-                    &profile.profile,
-                    &profile.alias,
-                    format!("CCS profile not found: {}", profile.profile),
-                );
-            }
-            (
-                profile.profile.clone(),
-                profile.alias.clone(),
-                Some(config_dir.clone()),
-                BTreeMap::from([(
-                    "CLAUDE_CONFIG_DIR".to_string(),
-                    config_dir.to_string_lossy().to_string(),
-                )]),
-            )
-        }
-    };
-    if let Some(config_dir) = config_dir {
-        if let Ok(Some(snapshot)) =
-            fetch_claude_oauth(&account_id, &display_name, &config_dir).await
-        {
-            return snapshot;
-        }
-    }
-    match run_tui_command("claude", "/usage", env, TuiCompletion::Generic).await {
-        Ok(output) => parse_tui_snapshot("claude", &account_id, &display_name, &output),
-        Err(error) => command_error_snapshot("claude", &account_id, &display_name, error),
-    }
-}
-
-async fn fetch_claude_oauth(
-    account_id: &str,
-    display_name: &str,
-    config_dir: &std::path::Path,
-) -> Result<Option<QuotaSnapshot>> {
-    let raw = match tokio::fs::read_to_string(config_dir.join(".credentials.json")).await {
-        Ok(value) => value,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-        Err(error) => return Err(error.into()),
-    };
-    let credentials: Value = serde_json::from_str(&raw)?;
-    let Some(token) = credentials
-        .get("claudeAiOauth")
-        .and_then(|value| value.get("accessToken"))
-        .and_then(Value::as_str)
-        .filter(|value| !value.trim().is_empty())
-    else {
-        return Ok(None);
-    };
-    let response = reqwest::Client::new()
-        .get("https://api.anthropic.com/api/oauth/usage")
-        .header(AUTHORIZATION, format!("Bearer {token}"))
-        .header("anthropic-beta", "oauth-2025-04-20")
-        .header("User-Agent", "claude-code/2.1.0")
-        .timeout(FETCH_TIMEOUT)
-        .send()
-        .await?;
-    if !response.status().is_success() {
-        return Ok(None);
-    }
-    let data: Value = response.json().await?;
-    let mut windows = Vec::new();
-    if let Some(window) = map_claude_oauth_window(
-        data.get("five_hour"),
-        "5 Hour",
-        SESSION_WINDOW_MINUTES,
-    ) {
-        windows.push(window);
-    }
-    if let Some(window) =
-        map_claude_oauth_window(data.get("seven_day"), "Weekly", WEEKLY_WINDOW_MINUTES)
-    {
-        windows.push(window);
-    }
-    let mut buckets = Vec::new();
-    if let Some(limits) = data.get("limits").and_then(Value::as_array) {
-        for limit in limits {
-            if limit.get("is_active").and_then(Value::as_bool) == Some(false) {
-                continue;
-            }
-            let Some(used_percent) = limit.get("percent").and_then(numeric) else {
-                continue;
-            };
-            let name = limit
-                .get("scope")
-                .and_then(|value| value.get("model"))
-                .and_then(|value| value.get("display_name"))
-                .and_then(Value::as_str)
-                .or_else(|| {
-                    limit
-                        .get("scope")
-                        .and_then(|value| value.get("model"))
-                        .and_then(|value| value.get("id"))
-                        .and_then(Value::as_str)
-                })
-                .unwrap_or("Model");
-            buckets.push(QuotaBucket {
-                name: format!("{name} Weekly"),
-                used_percent: used_percent.clamp(0.0, 100.0),
-                window_minutes: Some(WEEKLY_WINDOW_MINUTES),
-                resets_at: limit.get("resets_at").and_then(claude_reset_millis),
-                reset_description: None,
-            });
-        }
-    }
-    if windows.is_empty() && buckets.is_empty() {
-        Ok(None)
-    } else {
-        Ok(Some(QuotaSnapshot::ok(
-            "claude",
-            account_id,
-            display_name,
-            windows,
-            buckets,
-        )))
-    }
-}
-
-fn map_claude_oauth_window(
-    value: Option<&Value>,
-    label: &str,
-    minutes: i64,
-) -> Option<QuotaWindow> {
-    let value = value?;
-    let used_percent = value
-        .get("utilization")
-        .or_else(|| value.get("used_percentage"))
-        .and_then(numeric)?;
-    Some(QuotaWindow {
-        label: label.to_string(),
-        used_percent: used_percent.clamp(0.0, 100.0),
-        window_minutes: Some(minutes),
-        resets_at: value.get("resets_at").and_then(claude_reset_millis),
-        reset_description: None,
-    })
-}
-
-fn claude_reset_millis(value: &Value) -> Option<i64> {
-    if let Some(timestamp) = value.as_i64() {
-        return Some(normalize_timestamp_millis(timestamp));
-    }
-    let raw = value.as_str()?;
-    raw.parse::<i64>()
-        .ok()
-        .map(normalize_timestamp_millis)
-        .or_else(|| parse_timestamp_millis(raw))
-}
-
 async fn fetch_tui_provider(
     provider: &str,
     display_name: &str,
@@ -183,7 +9,15 @@ async fn fetch_tui_provider(
     } else {
         TuiCompletion::Generic
     };
-    match run_tui_command(command, slash_command, BTreeMap::new(), completion).await {
+    match run_tui_command(
+        command,
+        &[],
+        slash_command,
+        BTreeMap::new(),
+        completion,
+    )
+    .await
+    {
         Ok(output) => parse_tui_snapshot(provider, "default", display_name, &output),
         Err(error) => command_error_snapshot(provider, "default", display_name, error),
     }
@@ -211,11 +45,16 @@ enum TuiCompletion {
 
 async fn run_tui_command(
     command: &str,
+    arguments: &[&str],
     slash_command: &str,
     environment: BTreeMap<String, String>,
     completion: TuiCompletion,
 ) -> Result<String> {
     let command = command.to_string();
+    let arguments = arguments
+        .iter()
+        .map(|argument| (*argument).to_string())
+        .collect::<Vec<_>>();
     let slash_command = slash_command.to_string();
     tokio::task::spawn_blocking(move || -> Result<String> {
         let pty_system = native_pty_system();
@@ -226,11 +65,14 @@ async fn run_tui_command(
             pixel_height: 0,
         })?;
         let mut builder = CommandBuilder::new(&command);
+        for argument in arguments {
+            builder.arg(argument);
+        }
         for (key, value) in environment {
             builder.env(key, value);
         }
         builder.env("TERM", "xterm-256color");
-        let child = pair
+        let mut child = pair
             .slave
             .spawn_command(builder)
             .with_context(|| format!("{command} CLI not found or could not start"))?;
@@ -306,6 +148,7 @@ async fn run_tui_command(
             }
         }
         let _ = killer.kill();
+        let _ = child.wait();
         Ok(String::from_utf8_lossy(&output).to_string())
     })
     .await

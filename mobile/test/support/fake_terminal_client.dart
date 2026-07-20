@@ -14,13 +14,19 @@ WorkspaceTabSummary fakeTab({
   required String title,
   String kind = 'terminal',
   String workspaceId = 'workspace-1',
+  String? runtimeTitle,
+  bool manualTitle = false,
 }) {
   return WorkspaceTabSummary(
     id: id,
     workspaceId: workspaceId,
     kind: kind,
     title: title,
-    payload: <String, Object?>{'terminalSessionId': 'session-$id'},
+    payload: <String, Object?>{
+      'terminalSessionId': 'session-$id',
+      if (manualTitle) 'manualTitle': true,
+    },
+    runtimeTitle: runtimeTitle,
   );
 }
 
@@ -55,6 +61,21 @@ class FakeTerminalClient
     _output.add(MobileTerminalOutputEvent(sessionId, data));
   }
 
+  void emitTerminalTitle({
+    required String workspaceId,
+    required String tabId,
+    required String title,
+  }) {
+    _events.add(
+      MobileRuntimeEvent('terminalTitleChanged', <String, Object?>{
+        'sessionId': 'session-$tabId',
+        'workspaceId': workspaceId,
+        'tabId': tabId,
+        'title': title,
+      }),
+    );
+  }
+
   Future<void> dispose() async {
     await _events.close();
     await _output.close();
@@ -65,6 +86,9 @@ class FakeTerminalClient
 
   @override
   Stream<MobileTerminalOutputEvent> get terminalOutput => _output.stream;
+
+  @override
+  bool supportsTerminalTitles = true;
 
   @override
   bool get supportsWorkspaceMutations => true;
@@ -263,7 +287,8 @@ class FakeTerminalClient
       workspaceId: current.workspaceId,
       kind: current.kind,
       title: title,
-      payload: current.payload,
+      payload: <String, Object?>{...current.payload, 'manualTitle': true},
+      runtimeTitle: current.runtimeTitle,
     );
     tabs = <WorkspaceTabSummary>[
       for (final tab in tabs)
