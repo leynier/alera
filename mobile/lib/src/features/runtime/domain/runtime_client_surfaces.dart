@@ -14,6 +14,7 @@ const String mobileWorkspaceSidebarParityCapability =
     'mobileWorkspaceSidebarParityV1';
 const String mobileProjectManagementCapability = 'mobileProjectManagementV1';
 const String mobileTabRenameCapability = 'mobileTabRenameV1';
+const String mobileTerminalTitlesCapability = 'mobileTerminalTitlesV1';
 const String mobilePortableSettingsCapability = 'mobilePortableSettingsV1';
 const String mobileAgentQuotaCapability = 'mobileAgentQuotaV1';
 const String mobileHostToolsCapability = 'mobileHostToolsV1';
@@ -38,6 +39,7 @@ const int defaultTerminalRows = 24;
 abstract interface class MobileTerminalClient {
   Stream<MobileRuntimeEvent> get events;
   Stream<MobileTerminalOutputEvent> get terminalOutput;
+  bool get supportsTerminalTitles;
   Future<List<WorkspaceTabSummary>> listTabs(String workspaceId);
   Future<MobileTerminalSession> createTerminal(
     String workspaceId, {

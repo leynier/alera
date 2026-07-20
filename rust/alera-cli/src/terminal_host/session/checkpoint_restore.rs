@@ -19,6 +19,8 @@ impl Session {
         } else {
             (Some(checkpoint.exit_code.unwrap_or(0)), checkpoint.ended_at)
         };
+        let mut title_tracker = TerminalTitleTracker::default();
+        title_tracker.feed(&checkpoint.buffer);
         Some(Session {
             instance_id: next_session_instance_id(),
             id: session_id,
@@ -51,6 +53,7 @@ impl Session {
             output_stream_bytes: checkpoint
                 .output_stream_bytes
                 .max(checkpoint.buffer.len() as u64),
+            title_tracker,
         })
     }
 }

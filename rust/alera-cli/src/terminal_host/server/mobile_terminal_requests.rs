@@ -15,6 +15,26 @@ use super::terminal_spawn::default_terminal_launch;
 use super::ServerActor;
 
 impl ServerActor {
+    pub(super) fn mobile_workspace_tabs_payload(&self, tabs: Vec<WorkspaceTabRecord>) -> Value {
+        Value::Array(
+            tabs.into_iter()
+                .map(|tab| {
+                    let runtime_title = self
+                        .sessions
+                        .values()
+                        .find(|session| session.tab_id == tab.id)
+                        .and_then(|session| session.runtime_title())
+                        .map(str::to_string);
+                    let mut value = json!(tab);
+                    if let (Some(title), Some(object)) = (runtime_title, value.as_object_mut()) {
+                        object.insert("runtimeTitle".to_string(), Value::String(title));
+                    }
+                    value
+                })
+                .collect(),
+        )
+    }
+
     pub(super) async fn create_mobile_terminal(
         &mut self,
         client_id: u64,

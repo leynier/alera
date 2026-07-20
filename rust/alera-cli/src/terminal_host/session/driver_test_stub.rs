@@ -34,6 +34,7 @@ impl Session {
             durable_output_batch_armed: false,
             durable_output_batch_sequence: 0,
             output_stream_bytes: 0,
+            title_tracker: TerminalTitleTracker::default(),
         }
     }
 }

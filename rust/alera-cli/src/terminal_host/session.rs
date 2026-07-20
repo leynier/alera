@@ -19,8 +19,10 @@ mod io_threads;
 mod output_backpressure;
 #[cfg(test)]
 mod tests;
+mod title_tracker;
 
 use io_threads::{spawn_reader, spawn_writer};
+use title_tracker::TerminalTitleTracker;
 
 const INPUT_QUEUE_CAPACITY: usize = 64;
 static NEXT_SESSION_INSTANCE_ID: AtomicU64 = AtomicU64::new(1);
@@ -124,6 +126,7 @@ pub struct Session {
     durable_output_batch_armed: bool,
     durable_output_batch_sequence: i64,
     output_stream_bytes: u64,
+    title_tracker: TerminalTitleTracker,
 }
 
 impl Session {
@@ -193,6 +196,8 @@ impl Session {
         let (input_tx, input_rx) = sync_channel(INPUT_QUEUE_CAPACITY);
         let on_event: Arc<dyn Fn(PtyEvent) + Send + Sync> = Arc::new(on_event);
 
+        let mut title_tracker = TerminalTitleTracker::default();
+        title_tracker.feed(initial_scrollback);
         let mut session = Session {
             instance_id: next_session_instance_id(),
             id,
@@ -226,6 +231,7 @@ impl Session {
                 initial_output_stream_bytes,
                 initial_scrollback.len(),
             ),
+            title_tracker,
         };
         session.write_checkpoint(store, None).await?;
         spawn_reader(reader, child, Arc::clone(&on_event));
@@ -304,11 +310,12 @@ impl Session {
 
     /// Append PTY output to the scrollback and live-output batch. Returns a
     /// timer generation when a delayed flush should be armed.
-    pub fn append_output(&mut self, data: &[u8]) -> (Option<u64>, Option<u64>) {
+    pub fn append_output(&mut self, data: &[u8]) -> (Option<u64>, Option<u64>, Option<String>) {
         self.output_stream_bytes = self.output_stream_bytes.saturating_add(data.len() as u64);
         self.buffer.append(data);
         self.output_batch.extend_from_slice(data);
         self.durable_output_batch.extend_from_slice(data);
+        let title_change = self.title_tracker.feed(data);
         let output_generation = if self.output_batch_armed {
             None
         } else {
@@ -321,7 +328,11 @@ impl Session {
             self.durable_output_batch_armed = true;
             Some(self.durable_output_batch_gen)
         };
-        (output_generation, durable_generation)
+        (output_generation, durable_generation, title_change)
+    }
+
+    pub fn runtime_title(&self) -> Option<&str> {
+        self.title_tracker.current_title()
     }
 
     pub fn output_batch_len(&self) -> usize {

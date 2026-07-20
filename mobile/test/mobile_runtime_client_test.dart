@@ -9,6 +9,47 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 void main() {
+  test(
+    'Feature detects synchronized terminal titles during authentication',
+    () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      final sockets = <WebSocket>[];
+      addTearDown(() async {
+        for (final socket in sockets) {
+          await socket.close();
+        }
+        await server.close(force: true);
+      });
+      final subscription = server.listen((request) async {
+        final socket = await WebSocketTransformer.upgrade(request);
+        sockets.add(socket);
+        socket.listen((raw) {
+          final message = jsonDecode(raw as String) as Map<String, Object?>;
+          socket.add(
+            jsonEncode(<String, Object?>{
+              'id': message['id'],
+              'ok': true,
+              'payload': <String, Object?>{
+                'runtimeCapabilities': <String>[mobileTerminalTitlesCapability],
+              },
+            }),
+          );
+        });
+      });
+      addTearDown(subscription.cancel);
+
+      final client = await MobileRuntimeClient.connect(
+        'ws://${server.address.address}:${server.port}',
+      );
+      addTearDown(client.dispose);
+      expect(client.supportsTerminalTitles, isFalse);
+
+      await client.authenticate(deviceId: 'device-1', deviceToken: 'token-1');
+
+      expect(client.supportsTerminalTitles, isTrue);
+    },
+  );
+
   test('Pairing requests omit device name by default', () async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     final sockets = <WebSocket>[];
