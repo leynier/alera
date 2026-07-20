@@ -94,6 +94,40 @@ class AgentQuotaSnapshot {
     );
   }
 
+  /// Same as [fromJson] but returns `null` if the payload's `provider` value
+  /// is not a known [AgentQuotaProviderId] (e.g., a newer runtime version
+  /// added a provider the client does not know yet). This lets callers drop
+  /// the single unknown entry instead of failing the whole quota refresh.
+  static AgentQuotaSnapshot? tryFromJson(Map<String, Object?> json) {
+    AgentQuotaProviderId? provider;
+    for (final candidate in AgentQuotaProviderId.values) {
+      if (candidate.name == json['provider']) {
+        provider = candidate;
+        break;
+      }
+    }
+    if (provider == null) return null;
+    return AgentQuotaSnapshot(
+      provider: provider,
+      accountId: (json['accountId'] as String?) ?? 'default',
+      displayName: (json['displayName'] as String?) ?? 'Default',
+      status: AgentQuotaStatus.values.firstWhere(
+        (status) => status.name == json['status'],
+        orElse: () => AgentQuotaStatus.error,
+      ),
+      updatedAt:
+          _dateFromMillis(json['updatedAt']) ??
+          DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+      error: json['error'] as String?,
+      windows: _objectList(
+        json['windows'],
+      ).map(AgentQuotaWindow.fromJson).toList(growable: false),
+      buckets: _objectList(
+        json['buckets'],
+      ).map(AgentQuotaBucket.fromJson).toList(growable: false),
+    );
+  }
+
   final AgentQuotaProviderId provider;
   final String accountId;
   final String displayName;

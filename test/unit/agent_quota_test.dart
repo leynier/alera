@@ -124,4 +124,27 @@ void main() {
     );
     expect(state.snapshot(AgentQuotaProviderId.codex), isNull);
   });
+
+  test('tryFromJson returns null for an unknown provider name', () {
+    final snapshot = AgentQuotaSnapshot.tryFromJson(<String, Object?>{
+      'provider': 'newprovider',
+      'accountId': 'default',
+      'status': 'ok',
+    });
+
+    expect(snapshot, isNull);
+  });
+
+  test('tryFromJson parses a known provider like fromJson', () {
+    final snapshot = AgentQuotaSnapshot.tryFromJson(<String, Object?>{
+      'provider': 'claude',
+      'accountId': 'ccdev',
+      'status': 'ok',
+    });
+
+    expect(snapshot, isNotNull);
+    expect(snapshot!.provider, AgentQuotaProviderId.claude);
+    expect(snapshot.accountId, 'ccdev');
+    expect(snapshot.status, AgentQuotaStatus.ok);
+  });
 }
