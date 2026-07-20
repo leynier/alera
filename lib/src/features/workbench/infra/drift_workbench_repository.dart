@@ -173,9 +173,14 @@ class DriftWorkbenchRepository implements WorkbenchRepository {
 
   @override
   Future<void> removeWorkspaceTabsForWorkspace(String workspaceId) async {
-    await (_db.delete(
-      _db.workspaceTabsTable,
-    )..where((table) => table.workspaceId.equals(workspaceId))).go();
+    await _db.transaction(() async {
+      await (_db.delete(
+        _db.workspaceTabsTable,
+      )..where((table) => table.workspaceId.equals(workspaceId))).go();
+      await (_db.delete(
+        _db.workbenchLayoutsTable,
+      )..where((table) => table.workspaceId.equals(workspaceId))).go();
+    });
   }
 
   @override

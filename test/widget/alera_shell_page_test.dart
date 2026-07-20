@@ -11,6 +11,7 @@ import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/shell/presentation/alera_shell_page.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
+import 'package:alera/src/features/workbench/application/workspace_file_service.dart';
 import 'package:alera/src/features/workbench/application/workspace_folder_opener.dart';
 import 'package:alera/src/features/workbench/application/workspace_graph_repository.dart';
 import 'package:alera/src/features/workbench/domain/workspace_tab_record.dart';
@@ -31,6 +32,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 part 'alera_shell_page_test_harness.dart';
+part 'alera_shell_page_runtime_test_harness.dart';
 part 'alera_shell_page_workbench_test_cases.dart';
 part 'alera_shell_page_sidebar_actions_test_cases.dart';
 part 'alera_shell_page_sidebar_states_test_cases.dart';
@@ -46,6 +48,7 @@ Future<_ShellPumpHarness> _pumpShell(
   _FakeTerminalRuntime? terminalRuntime,
   WorkspaceFolderOpener? workspaceFolderOpener,
   _ShellTestWorkbenchController? controller,
+  EditorSessionRegistry? editorSessionRegistry,
   AleraSettings? settings,
   Map<String, AgentStatusEntry> agentStatuses =
       const <String, AgentStatusEntry>{},
@@ -71,6 +74,10 @@ Future<_ShellPumpHarness> _pumpShell(
               AgentQuotaState.empty(state.activeWorkspace?.hostId ?? 'local'),
         ),
         terminalRuntimeProvider.overrideWith((ref) => runtime),
+        if (editorSessionRegistry != null)
+          editorSessionRegistryProvider.overrideWithValue(
+            editorSessionRegistry,
+          ),
         terminalHostWarmupCoordinatorProvider.overrideWith((ref) {}),
         settingsControllerProvider.overrideWith(() => settingsController),
         if (workspaceFolderOpener != null)

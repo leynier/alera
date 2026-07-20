@@ -835,13 +835,10 @@ impl ServerActor {
             "tab.removeForWorkspace" => {
                 self.require_auth(client_id)?;
                 let workspace_id = require_string_key(payload, "workspaceId")?;
-                json_result(
-                    self.runtime_store
-                        .remove_workspace_tabs_for_workspace(&workspace_id)
-                        .await,
-                )?;
+                json_result(self.runtime_store.sleep_workspace(&workspace_id).await)?;
                 self.terminate_sessions_for_workspace(&workspace_id).await;
                 self.broadcast_authenticated(event("workspaceTabsChanged", json!({})));
+                self.broadcast_authenticated(event("workbenchLayoutsChanged", json!({})));
                 Ok(json!({}))
             }
             "linkedReview.find" => {

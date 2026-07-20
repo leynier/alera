@@ -36,7 +36,7 @@ class _SidebarBody extends StatelessWidget {
   final Future<void> Function(Workspace workspace) onOpenWorkspaceFolder;
   final Future<void> Function(Workspace workspace) onCopyWorkspacePath;
   final Future<void> Function(Workspace workspace) onOpenWorkspaceInBrowser;
-  final void Function(Workspace workspace) onSleepWorkspace;
+  final Future<void> Function(Workspace workspace) onSleepWorkspace;
   final Future<void> Function(Project project) onCreateWorkspace;
   final Future<void> Function(Project project, Workspace workspace)
   onDeleteWorkspace;

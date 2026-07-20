@@ -41,6 +41,8 @@ Project registration, rename, metadata-only removal, effective setup config, and
 
 Terminal workspace tabs store their durable `terminalSessionId` in the tab payload. The runtime host stores socket metadata, terminal checkpoint metadata, and bounded output chunks under the active runtime profile directory, outside Drift, so app/window close can detach from PTYs without killing running commands.
 
+Sleeping a workspace is a confirmed, runtime-owned operation. It atomically removes every workspace tab and the persisted workbench layout, terminates every terminal session owned by that workspace, and leaves the workspace record, branch, files, tags, relations, and other workspaces unchanged. Connected clients receive tab and layout events; the desktop client that initiates Sleep returns to its project workspace list, while mobile remains on its workspace list.
+
 Terminal tabs with `spawnOnCreate` are owned entirely by the runtime host. The host starts their PTY without requiring an attached client, restores pending tabs when the host restarts, and delivers `initialCommand` exactly once per new process. Agent spawning and coordinator worker creation therefore continue on standalone and VPS runtimes with no desktop Flutter process. A normal PTY exit or explicit terminal termination removes the tab and its retained history; stopping the host preserves tabs and checkpoints so they can be reminted later.
 
 Legacy pre-Drift stores are no longer read or migrated.

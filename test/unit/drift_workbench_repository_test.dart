@@ -165,6 +165,12 @@ void main() {
 
         await repository.upsertWorkspace(workspace);
         await repository.upsertWorkspaceTab(tab);
+        await repository.upsertWorkbenchLayout(
+          WorkbenchLayout.single(
+            workspaceId: workspace.id,
+            tabIds: <String>[tab.id],
+          ),
+        );
         await _insertWorkspaceTabRow(
           db,
           workspaceId: workspace.id,
@@ -187,6 +193,7 @@ void main() {
         await repository.removeWorkspaceTabsForWorkspace(workspace.id);
         expect(await repository.findWorkspaceTabById(tab.id), isNull);
         expect(await repository.findWorkspaceTabById('tab-invalid'), isNull);
+        expect(await repository.findWorkbenchLayout(workspace.id), isNull);
       },
     );
 

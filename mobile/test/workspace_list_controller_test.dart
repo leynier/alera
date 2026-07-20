@@ -50,6 +50,9 @@ void main() {
     await notifier.unlinkParent(_workspace('a', parent: 'b'));
     expect(client.calls, contains('unlink b a'));
 
+    await notifier.sleepWorkspace('a');
+    expect(client.calls, contains('sleep a'));
+
     await notifier.deleteWorkspace('a', deleteBranch: true);
     expect(client.calls, contains('remove a true'));
 

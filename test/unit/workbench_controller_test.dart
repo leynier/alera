@@ -35,6 +35,7 @@ import 'fake_git_backend.dart';
 import 'fake_project_config.dart';
 
 part 'workbench_controller_lifecycle_test_cases.dart';
+part 'workbench_controller_sleep_test_cases.dart';
 part 'workbench_controller_layout_persistence_test_cases.dart';
 part 'workbench_controller_view_prefs_test_cases.dart';
 part 'workbench_controller_failure_test_cases.dart';
@@ -59,6 +60,7 @@ void main() {
     });
 
     _registerWorkbenchControllerLifecycleTests();
+    _registerWorkbenchControllerSleepTests();
     _registerWorkbenchControllerLayoutPersistenceTests();
     _registerWorkbenchControllerViewPrefsTests();
     _registerWorkbenchControllerFailureTests();
