@@ -124,7 +124,7 @@ final class RuntimeStateMigration {
       patch['confirmProjectRemoval'] = settings.general.confirmProjectRemoval;
     }
     if (await _metadataValue('settings.agents.quotas') == null) {
-      patch['agentQuotas'] = settings.agents.quotas.forHost('local').toJson();
+      patch['agentQuotas'] = settings.agents.quotas.forHost('local').toMap();
     }
     if (patch.isNotEmpty) {
       await _runtimeClient.runtimeRequest('runtimeSettings.update', patch);

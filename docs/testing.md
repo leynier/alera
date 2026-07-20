@@ -60,6 +60,8 @@ make perf-linux
 
 The harness performs five launches, records startup marks plus first-frame build/raster/total timings, and writes raw samples with median, p95, p99, and median absolute deviation to `.dart_tool/performance/startup_linux.json`. Use `dart tool/performance/alera_performance.dart --runs 5 --enforce` to fail when p95 exceeds `tool/performance/linux_startup_budget.json`; keep the default local command report-only while hardware and runner variance are being calibrated. PR CI runs three samples under Xvfb as an informative, non-blocking smoke and uploads the JSON report.
 
+For macOS CPU and memory profiling, launch `make app-profile`, then run `PERF_SCENARIO=<name> PERF_APP_PID=<profile-pid> make perf-macos-resources` from another terminal while exercising the scenario. The JSON report separates app, runtime host, Flutter tooling, code generation, terminal descendants, and agent CLIs. Use a 250 ms interval for short-lived provider processes and stop the build runner before the final comparison.
+
 Compare measurements only on the same machine, power mode, display configuration, Flutter revision, and build mode. Run at least five samples for a decision, use median for the typical result, p95/p99 for tails, and MAD to spot noisy runs. Do not tighten the checked-in budget from a single capture.
 
 ## Coverage

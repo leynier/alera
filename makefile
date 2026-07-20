@@ -9,9 +9,13 @@ ALERA_CLI_DEBUG_TOKEN ?= dev-token
 ALERA_HOST_EMPTY_SHUTDOWN_SECONDS ?= 30
 ALERA_HOST_DETACHED_SHUTDOWN_SECONDS ?= 3600
 ALERA_HOST_SCROLLBACK_BYTES ?= 10000000
+PERF_SCENARIO ?= idle
+PERF_DURATION_SECONDS ?= 30
+PERF_APP_PID ?=
+PERF_APP_PID_ARG = $(if $(PERF_APP_PID),--app-pid "$(PERF_APP_PID)",)
 ALERA_DEBUG_TOOL = tool/debug/alera_debug.dart
 
-.PHONY: help init-submodules update-submodules frb-generate rust-test cli-build cli-help host-debug app-debug app-debug-bundled-cli debug-processes host-stop perf-linux
+.PHONY: help init-submodules update-submodules frb-generate rust-test cli-build cli-help host-debug app-debug app-profile app-debug-bundled-cli debug-processes host-stop perf-linux perf-macos-resources
 
 # List available make targets.
 help:
@@ -52,6 +56,10 @@ host-debug:
 app-debug:
 	$(DART) $(ALERA_DEBUG_TOOL) app-debug --flutter "$(FLUTTER)" $(APP_DEVICE_ARG) --alera-flavor "$(ALERA_FLAVOR)"
 
+# Run a profile-mode desktop app with performance timeline marks enabled.
+app-profile:
+	$(DART) $(ALERA_DEBUG_TOOL) app-profile --flutter "$(FLUTTER)" $(APP_DEVICE_ARG) --alera-flavor "$(ALERA_FLAVOR)"
+
 # Run the Flutter app against the locally compiled CLI bundle.
 app-debug-bundled-cli:
 	$(DART) $(ALERA_DEBUG_TOOL) app-debug-bundled-cli --flutter "$(FLUTTER)" $(APP_DEVICE_ARG) --alera-flavor "$(ALERA_FLAVOR)" --bundle-dir "$(ALERA_CLI_BUNDLE_DIR)"
@@ -67,3 +75,7 @@ host-stop:
 # Capture startup and first-frame timings from a real Linux profile build.
 perf-linux:
 	$(DART) tool/performance/alera_performance.dart --flutter "$(FLUTTER)"
+
+# Capture macOS CPU and RSS by app, host, tooling, terminal, and agent process.
+perf-macos-resources:
+	$(DART) tool/performance/alera_resource_profile.dart --scenario "$(PERF_SCENARIO)" --output ".dart_tool/performance/resources_$(PERF_SCENARIO).json" --duration-seconds "$(PERF_DURATION_SECONDS)" --interval-ms 250 $(PERF_APP_PID_ARG) --build-mode profile

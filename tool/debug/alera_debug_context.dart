@@ -85,6 +85,16 @@ final class _DebugContext {
     );
   }
 
+  Future<int> appProfile() async {
+    await _prepareFlavor();
+    return _run(
+      _options.flutterExecutable,
+      _flutterRunArguments(profile: true),
+      environment: _flutterEnvironment(),
+      forwardStdin: true,
+    );
+  }
+
   Future<int> appDebugBundledCli() async {
     await _prepareFlavor();
     final buildOutputDir = await _appDebugBundledCliOutputDir();
@@ -132,12 +142,14 @@ final class _DebugContext {
         );
   }
 
-  List<String> _flutterRunArguments() {
+  List<String> _flutterRunArguments({bool profile = false}) {
     return <String>[
       'run',
       '-d',
       _options.device,
+      if (profile) '--profile',
       '--dart-define=ALERA_FLAVOR=${_options.flavor}',
+      if (profile) '--dart-define=ALERA_PERF_TRACE=true',
     ];
   }
 

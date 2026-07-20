@@ -56,8 +56,8 @@ class RuntimeSettingsRepository implements SettingsRepository {
       'workspaceDirectory': settings.general.workspaceDirectory,
       'confirmProjectRemoval': settings.general.confirmProjectRemoval,
       'confirmWorkspaceRemoval': settings.general.confirmWorkspaceRemoval,
-      'agentStatusHooks': settings.agents.agentStatusHooks.toJson(),
-      'agentQuotas': settings.agents.quotas.forHost('local').toJson(),
+      'agentStatusHooks': settings.agents.agentStatusHooks.toMap(),
+      'agentQuotas': settings.agents.quotas.forHost('local').toMap(),
     });
   }
 }

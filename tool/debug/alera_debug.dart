@@ -34,6 +34,7 @@ Future<void> main(List<String> arguments) async {
     'cli-help' => await context.cliHelp(),
     'host-debug' => await context.hostDebugForeground(),
     'app-debug' => await context.appDebug(),
+    'app-profile' => await context.appProfile(),
     'app-debug-bundled-cli' => await context.appDebugBundledCli(),
     'debug-processes' => await context.debugProcesses(),
     'host-stop' => await context.hostStop(),
@@ -58,8 +59,14 @@ Commands:
   cli-help                  Build the sidecar and print alera --help.
   host-debug                Run the Rust alera runtime-host in the foreground.
   app-debug                 Run the Flutter desktop app.
+  app-profile               Run the Flutter desktop app in profile mode.
   app-debug-bundled-cli     Run the app against the compiled CLI bundle.
   debug-processes           List likely Alera UI and host processes.
   host-stop                 Stop the current runtime host from host.json.
+
+Make-only targets:
+  rust-test                 Format, lint, and test the Rust workspace.
+  perf-linux                Capture Linux startup and frame timings.
+  perf-macos-resources      Capture macOS CPU and RSS by process group.
 ''');
 }

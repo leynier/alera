@@ -194,9 +194,38 @@ void main() {
     );
 
     expect(runtime.requests, <String>['agentQuota.snapshot']);
-    expect(runtime.payloads.single['forceRefresh'], isTrue);
+    expect(runtime.payloads.single['forceRefresh'], isFalse);
     expect(runtime.timeouts.single, const Duration(seconds: 45));
     expect(runner.executable, isNull);
+  });
+
+  test('manual quota refresh is consumed once for its host', () {
+    final service = AgentQuotaService(
+      RuntimeProxyClient(processRunner: _RecordingRunner()),
+    );
+
+    service.requestForceRefresh('local');
+
+    expect(service.consumeForceRefresh('local'), isTrue);
+    expect(service.consumeForceRefresh('local'), isFalse);
+    expect(service.consumeForceRefresh('remote'), isFalse);
+  });
+
+  test('manual local quota fetch bypasses the runtime host cache', () async {
+    final runtime = _RecordingRuntimeHostClient();
+    final service = AgentQuotaService(
+      RuntimeProxyClient(processRunner: _RecordingRunner()),
+      runtime,
+    );
+
+    await service.fetch(
+      hostId: 'local',
+      target: null,
+      settings: AgentQuotaHostSettings.defaults,
+      forceRefresh: true,
+    );
+
+    expect(runtime.payloads.single['forceRefresh'], isTrue);
   });
 
   test('sends the independent Claude Default setting to the sidecar', () async {
@@ -226,6 +255,7 @@ void main() {
     final request = jsonDecode(runner.stdin.trim()) as Map<String, Object?>;
     final payload = request['payload'] as Map<String, Object?>;
     expect(payload['claudeDefaultEnabled'], isFalse);
+    expect(payload['allowCliFallback'], isFalse);
     expect(payload['claudeProfiles'], hasLength(1));
     final environmentNames =
         payload['environmentNames'] as Map<String, Object?>;

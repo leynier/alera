@@ -5,6 +5,7 @@ async fn fetch_codex() -> QuotaSnapshot {
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
+            .kill_on_drop(true)
             .spawn()
             .context("Codex CLI not found or could not start")?;
         let mut stdin = child.stdin.take().context("Codex RPC stdin unavailable")?;
@@ -33,6 +34,7 @@ async fn fetch_codex() -> QuotaSnapshot {
                 continue;
             }
             let _ = child.kill().await;
+            let _ = child.wait().await;
             if let Some(error) = message
                 .get("error")
                 .and_then(|value| value.get("message"))
