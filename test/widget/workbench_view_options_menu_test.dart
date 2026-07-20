@@ -4,6 +4,7 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
+import 'package:alera/src/features/workbench/application/workspace_graph_repository.dart';
 import 'package:alera/src/features/workbench/domain/workbench_view_prefs.dart';
 import 'package:alera/src/features/workbench/presentation/widgets/workbench_view_options_menu.dart';
 import 'package:flutter/gestures.dart';
@@ -266,6 +267,10 @@ class _ViewOptionsTestController extends WorkbenchController {
 
   @override
   Future<void> bootstrap() async {}
+
+  @override
+  Future<List<WorkspaceTag>> listWorkspaceTags() async =>
+      const <WorkspaceTag>[];
 
   @override
   void setGroupBy(WorkbenchGroupBy groupBy) {
