@@ -30,7 +30,8 @@ use crate::terminal_host::protocol::{
     RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY, RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY,
     RUNTIME_HOST_MOBILE_PROJECT_MANAGEMENT_CAPABILITY,
     RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY, RUNTIME_HOST_MOBILE_TAB_RENAME_CAPABILITY,
-    RUNTIME_HOST_ORCHESTRATION_CAPABILITY, RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
+    RUNTIME_HOST_MOBILE_TERMINAL_TITLES_CAPABILITY, RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
+    RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
 };
 use crate::terminal_host::session::{Session, SessionDriver};
 
@@ -322,6 +323,7 @@ impl ServerActor {
                         RUNTIME_HOST_MOBILE_PROJECT_MANAGEMENT_CAPABILITY,
                         RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY,
                         RUNTIME_HOST_MOBILE_TAB_RENAME_CAPABILITY,
+                        RUNTIME_HOST_MOBILE_TERMINAL_TITLES_CAPABILITY,
                         RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY,
                         RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY,
                         RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY,
@@ -543,6 +545,7 @@ impl ServerActor {
                         RUNTIME_HOST_MOBILE_PROJECT_MANAGEMENT_CAPABILITY,
                         RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY,
                         RUNTIME_HOST_MOBILE_TAB_RENAME_CAPABILITY,
+                        RUNTIME_HOST_MOBILE_TERMINAL_TITLES_CAPABILITY,
                         RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY,
                         RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY,
                         RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY,
@@ -803,7 +806,16 @@ impl ServerActor {
             "tab.list" => {
                 self.require_auth(client_id)?;
                 let workspace_id = require_string_key(payload, "workspaceId")?;
-                json_result(self.runtime_store.list_workspace_tabs(&workspace_id).await)
+                let tabs = self
+                    .runtime_store
+                    .list_workspace_tabs(&workspace_id)
+                    .await
+                    .map_err(|error| HostError::state(error.to_string()))?;
+                if self.is_mobile_client(client_id) {
+                    Ok(self.mobile_workspace_tabs_payload(tabs))
+                } else {
+                    Ok(json!(tabs))
+                }
             }
             "tab.find" => {
                 self.require_auth(client_id)?;

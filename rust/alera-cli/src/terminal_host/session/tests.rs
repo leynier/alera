@@ -62,14 +62,15 @@ fn test_session() -> Session {
         durable_output_batch_armed: false,
         durable_output_batch_sequence: 0,
         output_stream_bytes: 0,
+        title_tracker: TerminalTitleTracker::default(),
     }
 }
 
 #[test]
 fn output_batch_coalesces_until_flush() {
     let mut session = test_session();
-    assert_eq!(session.append_output(b"ab"), (Some(0), Some(0)));
-    assert_eq!(session.append_output(b"cd"), (None, None));
+    assert_eq!(session.append_output(b"ab"), (Some(0), Some(0), None));
+    assert_eq!(session.append_output(b"cd"), (None, None, None));
     assert!(session.output_batch_due(0));
     let batch = session.flush_output_batch().expect("batch");
     assert_eq!(batch.payload["sessionId"], "session-1");
@@ -108,10 +109,10 @@ fn output_backpressure_pauses_only_the_slow_client_until_resumed() {
 #[test]
 fn output_batch_empty_flush_disarms_timer() {
     let mut session = test_session();
-    assert_eq!(session.append_output(b"a"), (Some(0), Some(0)));
+    assert_eq!(session.append_output(b"a"), (Some(0), Some(0), None));
     assert!(session.flush_output_batch().is_some());
     assert!(session.flush_output_batch().is_none());
-    assert_eq!(session.append_output(b"b"), (Some(1), None));
+    assert_eq!(session.append_output(b"b"), (Some(1), None, None));
     assert!(!session.output_batch_due(0));
     assert!(session.output_batch_due(1));
     assert!(session.flush_output_batch().is_some());
@@ -136,6 +137,16 @@ fn output_stream_range_remains_monotonic_when_scrollback_trims() {
 fn remint_keeps_the_persisted_absolute_stream_position() {
     assert_eq!(resumed_output_stream_bytes(10, 4), 10);
     assert_eq!(resumed_output_stream_bytes(0, 4), 4);
+}
+
+#[test]
+fn session_reports_title_changes_from_pty_output() {
+    let mut session = test_session();
+
+    let (_, _, title_change) = session.append_output(b"\x1b]2;Review Tests\x07");
+
+    assert_eq!(title_change.as_deref(), Some("Review Tests"));
+    assert_eq!(session.runtime_title(), Some("Review Tests"));
 }
 
 #[tokio::test]
@@ -170,6 +181,43 @@ async fn restored_output_stream_range_keeps_absolute_cursor() {
     .unwrap();
 
     assert_eq!(session.output_stream_range(), (6, 10));
+}
+
+#[tokio::test]
+async fn restored_session_recovers_the_latest_title_from_scrollback() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
+    store
+        .upsert(TerminalHostCheckpoint {
+            session_id: "restored-title".to_string(),
+            workspace_id: "workspace-1".to_string(),
+            tab_id: "tab-1".to_string(),
+            working_directory: "/repo".to_string(),
+            running: false,
+            exit_code: Some(0),
+            ended_at: Some(Utc::now()),
+            output_stream_bytes: 0,
+            updated_at: Utc::now(),
+            buffer: Vec::new(),
+        })
+        .await
+        .unwrap();
+    store
+        .append_output("restored-title", 0, b"\x1b]0;Restored Task\x07")
+        .await
+        .unwrap();
+
+    let session = Session::restore_exited(
+        "restored-title".to_string(),
+        "workspace-1".to_string(),
+        "tab-1".to_string(),
+        &store,
+        1024,
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(session.runtime_title(), Some("Restored Task"));
 }
 
 #[test]

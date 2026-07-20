@@ -7,6 +7,7 @@ class WorkspaceTabSummary {
     required this.kind,
     required this.title,
     required this.payload,
+    this.runtimeTitle,
   });
 
   final String id;
@@ -14,8 +15,22 @@ class WorkspaceTabSummary {
   final String kind;
   final String title;
   final Map<String, Object?> payload;
+  final String? runtimeTitle;
 
   bool get isTerminal => kind == 'terminal';
+
+  bool get hasManualTitle => payload['manualTitle'] == true;
+
+  String get displayTitle {
+    if (hasManualTitle) {
+      return title;
+    }
+    final automaticTitle = runtimeTitle?.trim() ?? '';
+    if (automaticTitle.isEmpty || automaticTitle == 'Terminal') {
+      return title;
+    }
+    return automaticTitle;
+  }
 
   /// The PTY session handle for terminal tabs; the runtime falls back to the
   /// tab id when the payload carries no explicit session id.
@@ -29,6 +44,18 @@ class WorkspaceTabSummary {
       kind: json.requiredString('kind'),
       title: json.requiredString('title'),
       payload: json.mapValue('payload'),
+      runtimeTitle: json.optionalString('runtimeTitle'),
+    );
+  }
+
+  WorkspaceTabSummary copyWithRuntimeTitle(String value) {
+    return WorkspaceTabSummary(
+      id: id,
+      workspaceId: workspaceId,
+      kind: kind,
+      title: title,
+      payload: payload,
+      runtimeTitle: value,
     );
   }
 }

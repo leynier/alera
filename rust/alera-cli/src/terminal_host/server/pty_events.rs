@@ -22,20 +22,42 @@ impl ServerActor {
 
     async fn handle_pty_output(&mut self, session_id: String, data: Vec<u8>) {
         let state = self.sessions.get_mut(&session_id).map(|session| {
-            let (output_generation, durable_generation) = session.append_output(&data);
+            let (output_generation, durable_generation, title_change) =
+                session.append_output(&data);
+            let title_event = title_change.map(|title| {
+                event(
+                    "terminalTitleChanged",
+                    json!({
+                        "sessionId": session.id,
+                        "workspaceId": session.workspace_id,
+                        "tabId": session.tab_id,
+                        "title": title,
+                    }),
+                )
+            });
             (
                 output_generation,
                 session.output_batch_len(),
                 durable_generation,
                 session.durable_output_batch_len(),
                 session.arm_checkpoint(),
+                title_event,
             )
         });
-        let Some((output_generation, output_len, durable_generation, durable_len, checkpoint)) =
-            state
+        let Some((
+            output_generation,
+            output_len,
+            durable_generation,
+            durable_len,
+            checkpoint,
+            title_event,
+        )) = state
         else {
             return;
         };
+        if let Some(title_event) = title_event {
+            self.broadcast_authenticated_mobile(title_event);
+        }
         self.record_orchestration_output_activity(&session_id).await;
         if let Some(generation) = output_generation {
             self.spawn_output_batch_timer(session_id.clone(), generation);
