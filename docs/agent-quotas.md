@@ -1,6 +1,6 @@
 # Agent Quotas
 
-Alera displays agent subscription and usage quotas in a status bar at the bottom of the active workbench. Each provider uses its agent icon and exposes all available windows directly in the bar, including Claude 5-hour, weekly, and Fable quotas and every Antigravity model-group window. Hovering a quota opens a structured card with one row per window, an exact remaining percentage, a semantic completion bar, and a reset countdown in a compact format such as `1d 3h 45m`. It behaves like a tooltip and does not require a click or open a menu. Quotas refresh every 5 minutes, can be refreshed manually from the button immediately after the last agent, and retain the last successful values as stale data when a refresh fails.
+Alera displays agent subscription and usage quotas in a status bar at the bottom of the active workbench. Each provider uses its agent icon and exposes all available windows directly in the bar, including Claude 5-hour, weekly, and Fable quotas and every Antigravity model-group window. Hovering a quota opens a structured card with one row per window, an exact remaining percentage, a semantic completion bar, and a reset countdown in a compact format such as `1d 3h 45m`. It behaves like a tooltip and does not require a click or open a menu. Quotas refresh every 15 minutes, can be refreshed manually from the button immediately after the last agent, and retain the last successful values as stale data when a refresh fails.
 
 The left-to-right provider order is configurable in **Settings → Quotas → Providers**. Claude CCS profiles can also be reordered independently; Default remains first when enabled.
 
@@ -14,9 +14,9 @@ The left-to-right provider order is configurable in **Settings → Quotas → Pr
 - MiniMax Token Plan.
 - Z.ai.
 
-The quota host follows the active workspace. Local desktop and mobile requests go through the runtime-host quota service, which keeps a five-minute in-memory cache and returns the last successful snapshot as stale data when a provider refresh fails. SSH workspaces run `alera runtime-proxy` through the Alera runtime installed on that remote host, so credentials stay on the machine where the agent runs.
+The quota host follows the active workspace. Local desktop and mobile requests go through the runtime-host quota service, which keeps a 15-minute in-memory cache and returns the last successful snapshot as stale data when a provider refresh fails. Automatic reads reuse that cache; the explicit refresh button bypasses it. SSH workspaces run `alera runtime-proxy` through the Alera runtime installed on that remote host, so credentials stay on the machine where the agent runs.
 
-Mobile exposes a dedicated **Quotas** screen with the same provider ordering, Claude Default and CCS profile configuration, environment variable names, manual refresh, and remaining/reset details as desktop. It refreshes when opened and every five minutes while visible. Disabling every provider is supported and produces an empty snapshot rather than falling back to defaults.
+Mobile exposes a dedicated **Quotas** screen with the same provider ordering, Claude Default and CCS profile configuration, environment variable names, manual refresh, and remaining/reset details as desktop. It refreshes when opened and every 15 minutes while visible. Disabling every provider is supported and produces an empty snapshot rather than falling back to defaults.
 
 ## Claude CCS Profiles
 
@@ -25,7 +25,9 @@ Configure the Claude provider, Default account, and CCS profiles together in **S
 - **Alias**: the familiar command name, such as `ccdev`.
 - **Profile**: the CCS instance directory name under `$CCS_DIR/instances` or `~/.ccs/instances`.
 
-Alera sets `CLAUDE_CONFIG_DIR` only for the hidden quota query. The default Claude account can be enabled or disabled independently from the Claude provider, so configured CCS profiles remain available without querying Default. When enabled, the status bar shows Default first, followed by every configured CCS profile in settings order using its configured alias. Quota queries do not change how terminals launch Claude.
+Alera sets `CLAUDE_CONFIG_DIR` only for the quota query. On macOS it reads each profile's scoped Claude Code Keychain item and queries the OAuth usage endpoint directly; older credential files remain a cross-platform fallback. A CCS profile never falls back to Default's legacy Keychain item. If a signed-in profile has an expired token, an explicit manual refresh may invoke the CLI once to repair it, after which routine refreshes return to the low-resource OAuth path. Accounts without OAuth or API credentials are reported as signed out without launching Claude.
+
+The default Claude account can be enabled or disabled independently from the Claude provider, so configured CCS profiles remain available without querying Default. When enabled, the status bar shows Default first, followed by every configured CCS profile in settings order using its configured alias. Quota queries do not change how terminals launch Claude.
 
 ## Environment-Based Plans
 
@@ -39,7 +41,8 @@ The Kimi, MiniMax, and Z.ai variable names can be changed per host in settings. 
 
 ## Provider Data Sources
 
-- Claude and Antigravity use their official interactive usage commands in hidden PTYs.
+- Claude prefers scoped Keychain or credential-file OAuth data and the official usage endpoint. A hidden PTY is reserved for an explicit manual fallback or credential repair.
+- Antigravity uses its official interactive usage command in a hidden PTY.
 - Codex uses the read-only app-server rate-limit method.
 - Kimi calls its usage endpoint with the API key from the configured host environment variable, which defaults to `KIMI_API_KEY`.
 - Grok reads its existing local login metadata and calls its usage endpoint.

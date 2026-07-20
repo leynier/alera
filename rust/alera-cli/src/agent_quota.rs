@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::process::Stdio;
-use std::sync::mpsc;
+use std::sync::{mpsc, Arc};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use anyhow::{anyhow, Context, Result};
@@ -11,13 +11,17 @@ use regex::Regex;
 use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+#[cfg(target_os = "macos")]
+use sha2::{Digest, Sha256};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader as AsyncBufReader};
 use tokio::process::Command;
+use tokio::sync::Semaphore;
 
 const FETCH_TIMEOUT: Duration = Duration::from_secs(12);
 const PTY_TIMEOUT: Duration = Duration::from_secs(18);
 const SESSION_WINDOW_MINUTES: i64 = 300;
 const WEEKLY_WINDOW_MINUTES: i64 = 10_080;
+const AGENT_QUOTA_CLI_CONCURRENCY: usize = 2;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -40,6 +44,8 @@ struct AgentQuotaFetchRequest {
     claude_profiles: Vec<ClaudeProfileRequest>,
     #[serde(default)]
     environment_names: EnvironmentNames,
+    #[serde(default = "default_true")]
+    allow_cli_fallback: bool,
 }
 
 fn default_true() -> bool {
@@ -225,20 +231,33 @@ pub(crate) async fn fetch_agent_quotas(payload: Value) -> Result<Value> {
         request.providers.clone()
     };
 
+    let cli_permits = Arc::new(Semaphore::new(AGENT_QUOTA_CLI_CONCURRENCY));
     let mut tasks = tokio::task::JoinSet::new();
     for provider in providers {
         match provider.as_str() {
             "claude" => {
                 if request.claude_default_enabled {
-                    tasks.spawn(async { fetch_claude(None).await });
+                    let permits = Arc::clone(&cli_permits);
+                    let allow_cli_fallback = request.allow_cli_fallback;
+                    tasks.spawn(
+                        async move { fetch_claude(None, permits, allow_cli_fallback).await },
+                    );
                 }
                 for profile in &request.claude_profiles {
                     let profile = profile.clone();
-                    tasks.spawn(async move { fetch_claude(Some(&profile)).await });
+                    let permits = Arc::clone(&cli_permits);
+                    let allow_cli_fallback = request.allow_cli_fallback;
+                    tasks.spawn(async move {
+                        fetch_claude(Some(&profile), permits, allow_cli_fallback).await
+                    });
                 }
             }
             "codex" => {
-                tasks.spawn(fetch_codex());
+                let permits = Arc::clone(&cli_permits);
+                tasks.spawn(async move {
+                    let _permit = permits.acquire_owned().await.ok();
+                    fetch_codex().await
+                });
             }
             "kimi" => {
                 let names = request.environment_names.clone();
@@ -248,12 +267,11 @@ pub(crate) async fn fetch_agent_quotas(payload: Value) -> Result<Value> {
                 tasks.spawn(fetch_grok());
             }
             "antigravity" => {
-                tasks.spawn(fetch_tui_provider(
-                    "antigravity",
-                    "Antigravity",
-                    "agy",
-                    "/usage",
-                ));
+                let permits = Arc::clone(&cli_permits);
+                tasks.spawn(async move {
+                    let _permit = permits.acquire_owned().await.ok();
+                    fetch_tui_provider("antigravity", "Antigravity", "agy", "/usage").await
+                });
             }
             "minimax" => {
                 let names = request.environment_names.clone();

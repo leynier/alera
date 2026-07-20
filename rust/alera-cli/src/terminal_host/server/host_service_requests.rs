@@ -14,7 +14,7 @@ use crate::terminal_host::protocol::{error_response, event, ok_response};
 
 use super::{ServerActor, ServerCommand};
 
-const AGENT_QUOTA_CACHE_TTL: Duration = Duration::from_secs(5 * 60);
+const AGENT_QUOTA_CACHE_TTL: Duration = Duration::from_secs(15 * 60);
 
 impl ServerActor {
     pub(super) async fn apply_mobile_runtime_settings(
@@ -124,6 +124,7 @@ impl ServerActor {
                     "claudeDefaultEnabled": settings.claude_default_enabled,
                     "claudeProfiles": settings.claude_profiles,
                     "environmentNames": settings.environment,
+                    "allowCliFallback": force_refresh,
                 });
                 fetch_agent_quotas(quota_payload)
                     .await

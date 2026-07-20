@@ -141,4 +141,4 @@ final class AgentQuotaStateProvider
   }
 }
 
-String _$agentQuotaStateHash() => r'232a76d722561d56391a36e512e17a96a660f3d3';
+String _$agentQuotaStateHash() => r'b237c82a99cea9e924f8e4c5c692a8f0a84507e1';

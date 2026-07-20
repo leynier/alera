@@ -32,6 +32,11 @@ class AgentQuotaStatusBar extends ConsumerWidget {
     );
     final quota = ref.watch(agentQuotaStateProvider);
     final state = quota.value;
+    void refresh() {
+      ref.read(agentQuotaServiceProvider).requestForceRefresh(hostId);
+      ref.invalidate(agentQuotaStateProvider);
+    }
+
     if (state != null) {
       return AgentQuotaStatusBarView(
         hostId: state.hostId,
@@ -39,7 +44,7 @@ class AgentQuotaStatusBar extends ConsumerWidget {
         settings: settings,
         error: state.error,
         loading: quota.isLoading,
-        onRefresh: () => ref.invalidate(agentQuotaStateProvider),
+        onRefresh: refresh,
       );
     }
     return quota.when(
@@ -48,21 +53,21 @@ class AgentQuotaStatusBar extends ConsumerWidget {
         snapshots: const <AgentQuotaSnapshot>[],
         settings: settings,
         loading: true,
-        onRefresh: () => ref.invalidate(agentQuotaStateProvider),
+        onRefresh: refresh,
       ),
       error: (error, _) => AgentQuotaStatusBarView(
         hostId: hostId,
         snapshots: const <AgentQuotaSnapshot>[],
         settings: settings,
         error: error.toString(),
-        onRefresh: () => ref.invalidate(agentQuotaStateProvider),
+        onRefresh: refresh,
       ),
       data: (_) => AgentQuotaStatusBarView(
         hostId: hostId,
         snapshots: const <AgentQuotaSnapshot>[],
         settings: settings,
         loading: true,
-        onRefresh: () => ref.invalidate(agentQuotaStateProvider),
+        onRefresh: refresh,
       ),
     );
   }
