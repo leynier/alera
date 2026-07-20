@@ -464,12 +464,51 @@ jobs:
         working-directory: mobile
         run: flutter test
 
+      - name: Decode Android signing keystore
+        shell: bash
+        env:
+          ALERA_ANDROID_KEYSTORE_BASE64: ${{ secrets.ALERA_ANDROID_KEYSTORE_BASE64 }}
+          ALERA_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ALERA_ANDROID_KEYSTORE_PASSWORD }}
+          ALERA_ANDROID_KEY_ALIAS: ${{ secrets.ALERA_ANDROID_KEY_ALIAS }}
+          ALERA_ANDROID_KEY_PASSWORD: ${{ secrets.ALERA_ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          # Unlike desktop platforms, an Android APK signed with an ephemeral
+          # debug key silently breaks in-place updates for every installed user,
+          # so the release keystore is mandatory here, not warning-only.
+          for var in ALERA_ANDROID_KEYSTORE_BASE64 ALERA_ANDROID_KEYSTORE_PASSWORD ALERA_ANDROID_KEY_ALIAS ALERA_ANDROID_KEY_PASSWORD; do
+            if [[ -z "${!var:-}" ]]; then
+              echo "::error::$var is not configured. Android releases must be signed with the stable release keystore; see docs/release-trust.md."
+              exit 1
+            fi
+          done
+          keystore_path="$RUNNER_TEMP/alera-upload.keystore"
+          echo "$ALERA_ANDROID_KEYSTORE_BASE64" | base64 -d > "$keystore_path"
+          chmod 600 "$keystore_path"
+          cat > mobile/android/key.properties <<EOF
+          storePassword=$ALERA_ANDROID_KEYSTORE_PASSWORD
+          keyPassword=$ALERA_ANDROID_KEY_PASSWORD
+          keyAlias=$ALERA_ANDROID_KEY_ALIAS
+          storeFile=$keystore_path
+          EOF
+          echo "ALERA_ANDROID_KEYSTORE=$keystore_path" >> "$GITHUB_ENV"
+
       - name: Build Android release APKs
         working-directory: mobile
         run: |
           set -euo pipefail
           flutter build apk --release
           flutter build apk --release --split-per-abi
+
+      - name: Verify Android APK signatures
+        shell: bash
+        run: |
+          set -euo pipefail
+          apksigner="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          for apk in mobile/build/app/outputs/flutter-apk/*-release.apk; do
+            "$apksigner" verify --print-certs "$apk" | tee /tmp/apk-cert.txt
+            grep -q "certificate SHA-256 digest" /tmp/apk-cert.txt
+          done
 
       - name: Stage and verify Android release assets
         shell: bash
