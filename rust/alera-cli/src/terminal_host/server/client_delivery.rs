@@ -82,6 +82,7 @@ mod tests {
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
+            agent_quota_cache: None,
             clients: HashMap::from([(
                 1,
                 ClientState {

@@ -11,9 +11,9 @@ use uuid::Uuid;
 use super::{
     CascadePreview, LinkedReview, MobileAccessSettings, MobileDevice, MobileDevicePermission,
     MobileEndpointMode, MobilePairingOffer, Project, ProjectConfig, ProjectConfigMap,
-    ProjectConfigRecord, ProjectKind, RuntimeAgentStatusHookSettings, RuntimeSettings, SshAuthKind,
-    SshBootstrapStatus, SshTarget, WorkbenchLayoutRecord, Workspace, WorkspaceKind,
-    WorkspaceRelation, WorkspaceStatus, WorkspaceTabRecord, WorkspaceTag,
+    ProjectConfigRecord, ProjectKind, RuntimeSettings, SshAuthKind, SshBootstrapStatus, SshTarget,
+    WorkbenchLayoutRecord, Workspace, WorkspaceKind, WorkspaceRelation, WorkspaceStatus,
+    WorkspaceTabRecord, WorkspaceTag,
 };
 
 pub const RUNTIME_DATABASE_FILE_NAME: &str = "runtime.sqlite";
@@ -252,36 +252,6 @@ impl RuntimeStore {
         Ok(())
     }
 
-    pub async fn runtime_settings(&self) -> Result<RuntimeSettings> {
-        Ok(RuntimeSettings {
-            workspace_directory: self.get_workspace_directory().await?,
-            confirm_workspace_removal: self.confirm_workspace_removal().await?,
-            agent_status_hooks: self.agent_status_hook_settings().await?,
-        })
-    }
-
-    pub async fn agent_status_hook_settings(&self) -> Result<RuntimeAgentStatusHookSettings> {
-        let Some(encoded) = self
-            .get_metadata("settings.agents.agentStatusHooks")
-            .await?
-        else {
-            return Ok(RuntimeAgentStatusHookSettings::default());
-        };
-        Ok(serde_json::from_str(&encoded).unwrap_or_default())
-    }
-
-    pub async fn set_agent_status_hook_settings(
-        &self,
-        settings: &RuntimeAgentStatusHookSettings,
-    ) -> Result<RuntimeSettings> {
-        self.set_metadata(
-            "settings.agents.agentStatusHooks",
-            &serde_json::to_string(settings)?,
-        )
-        .await?;
-        self.runtime_settings().await
-    }
-
     pub async fn get_workspace_directory(&self) -> Result<Option<String>> {
         self.get_metadata("settings.general.workspaceDirectory")
             .await
@@ -300,23 +270,6 @@ impl RuntimeStore {
                     .await?;
             }
         }
-        self.runtime_settings().await
-    }
-
-    pub async fn confirm_workspace_removal(&self) -> Result<bool> {
-        Ok(self
-            .get_metadata("settings.general.confirmWorkspaceRemoval")
-            .await?
-            .and_then(|value| value.parse::<bool>().ok())
-            .unwrap_or(true))
-    }
-
-    pub async fn set_confirm_workspace_removal(&self, value: bool) -> Result<RuntimeSettings> {
-        self.set_metadata(
-            "settings.general.confirmWorkspaceRemoval",
-            if value { "true" } else { "false" },
-        )
-        .await?;
         self.runtime_settings().await
     }
 
@@ -949,6 +902,32 @@ impl RuntimeStore {
         .execute(&self.pool)
         .await?;
         Ok(tab)
+    }
+
+    pub async fn rename_workspace_tab(
+        &self,
+        tab_id: &str,
+        title: &str,
+    ) -> Result<WorkspaceTabRecord> {
+        let title = title.trim();
+        if title.is_empty() {
+            anyhow::bail!(RuntimeStoreError::Message(
+                "Tab title cannot be empty.".to_string(),
+            ));
+        }
+        let mut tab = self.find_workspace_tab(tab_id).await?.ok_or_else(|| {
+            RuntimeStoreError::Message(format!("Workspace tab not found: {tab_id}"))
+        })?;
+        tab.title = title.to_string();
+        tab.updated_at = Utc::now();
+        if !tab.payload.is_object() {
+            tab.payload = serde_json::json!({});
+        }
+        tab.payload
+            .as_object_mut()
+            .expect("tab payload was normalized to an object")
+            .insert("manualTitle".to_string(), serde_json::json!(true));
+        self.upsert_workspace_tab(tab).await
     }
 
     pub async fn remove_workspace_tab(&self, tab_id: &str) -> Result<()> {

@@ -11,6 +11,7 @@ mod project_clone_job_store;
 mod project_clone_models;
 mod schema_migrations;
 mod settings_models;
+mod settings_store;
 mod store;
 mod workbench_shared_state_models;
 mod workbench_shared_state_store;

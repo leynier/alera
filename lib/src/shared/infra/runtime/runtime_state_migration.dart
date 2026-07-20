@@ -21,6 +21,8 @@ const _legacyDriftRuntimeStateMigrationKey =
     'legacy_drift_runtime_state_migrated_v1';
 const _legacyDriftRuntimeSettingsMigrationKey =
     'legacy_drift_runtime_settings_migrated_v1';
+const _legacyDriftPortableSettingsMigrationKey =
+    'legacy_drift_portable_settings_migrated_v2';
 
 @Riverpod(keepAlive: true)
 RuntimeStateMigration runtimeStateMigration(Ref ref) {
@@ -104,6 +106,28 @@ final class RuntimeStateMigration {
         'true') {
       await _migrateSettingsAndProjectConfig(legacy);
       await _setMetadataValue(_legacyDriftRuntimeSettingsMigrationKey, 'true');
+    }
+    if (await _metadataValue(_legacyDriftPortableSettingsMigrationKey) !=
+        'true') {
+      await _migratePortableSettings(legacy);
+      await _setMetadataValue(_legacyDriftPortableSettingsMigrationKey, 'true');
+    }
+  }
+
+  Future<void> _migratePortableSettings(
+    RuntimeStateLegacyRepositories legacy,
+  ) async {
+    final settings = await legacy.settingsRepository.load();
+    final patch = <String, Object?>{};
+    if (await _metadataValue('settings.general.confirmProjectRemoval') ==
+        null) {
+      patch['confirmProjectRemoval'] = settings.general.confirmProjectRemoval;
+    }
+    if (await _metadataValue('settings.agents.quotas') == null) {
+      patch['agentQuotas'] = settings.agents.quotas.forHost('local').toJson();
+    }
+    if (patch.isNotEmpty) {
+      await _runtimeClient.runtimeRequest('runtimeSettings.update', patch);
     }
   }
 

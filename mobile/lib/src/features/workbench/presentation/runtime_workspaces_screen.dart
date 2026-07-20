@@ -3,8 +3,10 @@ import 'package:alera_mobile/src/features/hosts/application/paired_hosts_control
 import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
 import 'package:alera_mobile/src/features/hosts/presentation/rename_host_dialog.dart';
 import 'package:alera_mobile/src/features/projects/presentation/projects_screen.dart';
+import 'package:alera_mobile/src/features/quotas/presentation/agent_quotas_screen.dart';
 import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
 import 'package:alera_mobile/src/features/runtime/presentation/host_dashboard_screen.dart';
+import 'package:alera_mobile/src/features/settings/presentation/host_settings_screen.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/workspace_tabs_screen.dart';
 import 'package:alera_mobile/src/features/workbench/application/mobile_view_prefs_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/mobile_workspace_rows.dart';
@@ -20,7 +22,14 @@ import 'package:alera_mobile/src/features/workbench/presentation/workspace_view_
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-enum _ScreenMenuAction { groupByProject, projects, hostDetails, renameHost }
+enum _ScreenMenuAction {
+  groupByProject,
+  projects,
+  quotas,
+  settings,
+  hostDetails,
+  renameHost,
+}
 
 /// Host detail screen: the workspace list mirroring the desktop sidebar,
 /// with pinning, project grouping, and the parent/child tree.
@@ -68,6 +77,14 @@ class RuntimeWorkspacesScreen extends ConsumerWidget {
               const PopupMenuItem<_ScreenMenuAction>(
                 value: _ScreenMenuAction.projects,
                 child: Text('Projects'),
+              ),
+              const PopupMenuItem<_ScreenMenuAction>(
+                value: _ScreenMenuAction.quotas,
+                child: Text('Quotas'),
+              ),
+              const PopupMenuItem<_ScreenMenuAction>(
+                value: _ScreenMenuAction.settings,
+                child: Text('Settings'),
               ),
               const PopupMenuItem<_ScreenMenuAction>(
                 value: _ScreenMenuAction.hostDetails,
@@ -160,6 +177,22 @@ class RuntimeWorkspacesScreen extends ConsumerWidget {
           Navigator.of(context).push(
             MaterialPageRoute<void>(
               builder: (_) => ProjectsScreen(host: currentHost),
+            ),
+          );
+        }
+      case _ScreenMenuAction.quotas:
+        if (context.mounted) {
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => AgentQuotasScreen(host: currentHost),
+            ),
+          );
+        }
+      case _ScreenMenuAction.settings:
+        if (context.mounted) {
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => HostSettingsScreen(host: currentHost),
             ),
           );
         }

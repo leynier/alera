@@ -8,7 +8,6 @@ use alera_core::{
 use chrono::{DateTime, Utc};
 use serde_json::{json, Map, Value};
 
-use crate::agent_status::reconcile_agent_integrations;
 use crate::managed_workspace::{
     create_managed_workspace, remove_managed_workspace, ManagedWorkspaceCreateRequest,
     ManagedWorkspaceRemoveRequest,
@@ -26,10 +25,12 @@ use crate::terminal_host::protocol::{
     error_response, event, int_or, ok_response, require_object, TerminalHostConfig,
     TerminalHostLaunch, PROTOCOL_VERSION, RUNTIME_HOST_AGENT_STATUS_CAPABILITY,
     RUNTIME_HOST_BOOTSTRAP_CAPABILITY, RUNTIME_HOST_CAPABILITY, RUNTIME_HOST_LIFECYCLE_CAPABILITY,
-    RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY, RUNTIME_HOST_MOBILE_CAPABILITY,
-    RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY, RUNTIME_HOST_MOBILE_PROJECT_MANAGEMENT_CAPABILITY,
-    RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY, RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
-    RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
+    RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY, RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY,
+    RUNTIME_HOST_MOBILE_CAPABILITY, RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY,
+    RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY, RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY,
+    RUNTIME_HOST_MOBILE_PROJECT_MANAGEMENT_CAPABILITY,
+    RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY, RUNTIME_HOST_MOBILE_TAB_RENAME_CAPABILITY,
+    RUNTIME_HOST_ORCHESTRATION_CAPABILITY, RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
 };
 use crate::terminal_host::session::{Session, SessionDriver};
 
@@ -150,6 +151,28 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
                 self.queue_terminal_input(client_id, request_id, payload)
+            }
+            "agentQuota.snapshot" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.start_agent_quota_request(client_id, request_id, payload)?;
+                Ok(true)
+            }
+            "cliRegistration.status" | "cliRegistration.install" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.start_cli_registration_request(
+                    client_id,
+                    request_id,
+                    request_type.ends_with("install"),
+                );
+                Ok(true)
+            }
+            "agentSkill.install" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.start_skill_install_request(client_id, request_id, payload)?;
+                Ok(true)
             }
             _ => Ok(false),
         }
@@ -298,6 +321,10 @@ impl ServerActor {
                         RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY,
                         RUNTIME_HOST_MOBILE_PROJECT_MANAGEMENT_CAPABILITY,
                         RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY,
+                        RUNTIME_HOST_MOBILE_TAB_RENAME_CAPABILITY,
+                        RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY,
+                        RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY,
+                        RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY,
                         RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
                         RUNTIME_HOST_LIFECYCLE_CAPABILITY,
                         RUNTIME_HOST_AGENT_STATUS_CAPABILITY,
@@ -514,6 +541,10 @@ impl ServerActor {
                         RUNTIME_HOST_MOBILE_CAPABILITY,
                         RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY,
                         RUNTIME_HOST_MOBILE_PROJECT_MANAGEMENT_CAPABILITY,
+                        RUNTIME_HOST_MOBILE_TAB_RENAME_CAPABILITY,
+                        RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY,
+                        RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY,
+                        RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY,
                         RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
                         RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
                         RUNTIME_HOST_LIFECYCLE_CAPABILITY,
@@ -542,60 +573,32 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 json_result(self.runtime_store.runtime_settings().await)
             }
+            "mobile.runtimeSettings.get" => {
+                self.require_auth(client_id)?;
+                json_result(self.runtime_store.runtime_settings().await)
+            }
             "runtimeSettings.update" => {
                 self.require_auth(client_id)?;
-                if let Some(value) = payload.get("workspaceDirectory") {
-                    let workspace_directory = match value {
-                        Value::String(value) => Some(value.as_str()),
-                        Value::Null => None,
-                        _ => {
-                            return Err(HostError::format(
-                                "workspaceDirectory must be a string or null.",
-                            ))
-                        }
-                    };
-                    json_result(
-                        self.runtime_store
-                            .set_workspace_directory(workspace_directory)
-                            .await,
-                    )?;
+                self.apply_mobile_runtime_settings(payload).await
+            }
+            "mobile.runtimeSettings.update" => {
+                self.require_auth(client_id)?;
+                const ALLOWED: [&str; 5] = [
+                    "workspaceDirectory",
+                    "confirmProjectRemoval",
+                    "confirmWorkspaceRemoval",
+                    "agentStatusHooks",
+                    "agentQuotas",
+                ];
+                if let Some(key) = payload
+                    .as_object()
+                    .and_then(|object| object.keys().find(|key| !ALLOWED.contains(&key.as_str())))
+                {
+                    return Err(HostError::format(format!(
+                        "Unsupported mobile setting: {key}."
+                    )));
                 }
-                if let Some(value) = payload.get("confirmWorkspaceRemoval") {
-                    let value = value.as_bool().ok_or_else(|| {
-                        HostError::format("confirmWorkspaceRemoval must be a boolean.")
-                    })?;
-                    json_result(
-                        self.runtime_store
-                            .set_confirm_workspace_removal(value)
-                            .await,
-                    )?;
-                }
-                if let Some(value) = payload.get("agentStatusHooks") {
-                    let settings = serde_json::from_value(value.clone()).map_err(|_| {
-                        HostError::format("agentStatusHooks must contain boolean agent switches.")
-                    })?;
-                    json_result(
-                        self.runtime_store
-                            .set_agent_status_hook_settings(&settings)
-                            .await,
-                    )?;
-                    self.agent_presence
-                        .retain_enabled(&settings.enabled_agents());
-                    let runtime_dir = self.runtime_dir.clone();
-                    let reconcile_settings = settings.clone();
-                    let warnings = tokio::task::spawn_blocking(move || {
-                        reconcile_agent_integrations(&runtime_dir, &reconcile_settings)
-                    })
-                    .await
-                    .unwrap_or_else(|error| vec![error.to_string()]);
-                    for warning in warnings {
-                        eprintln!("alera agent integration warning: {warning}");
-                    }
-                    self.broadcast_agent_presence_changed();
-                }
-                let value = json_result(self.runtime_store.runtime_settings().await)?;
-                self.broadcast_authenticated(event("runtimeSettingsChanged", json!({})));
-                Ok(value)
+                self.apply_mobile_runtime_settings(payload).await
             }
             "workspaceSidebar.snapshot" => self.workspace_sidebar_snapshot(client_id).await,
             "workbenchViewPrefs.get" => self.workbench_view_prefs(client_id).await,
@@ -811,6 +814,15 @@ impl ServerActor {
                 let tab: WorkspaceTabRecord = parse_payload(payload)?;
                 let value = self.upsert_workspace_tab_and_spawn(tab).await?;
                 Ok(json!(value))
+            }
+            "tab.rename" => {
+                self.require_auth(client_id)?;
+                let id = require_string_key(payload, "id")?;
+                let title = require_string_key(payload, "title")?;
+                let value =
+                    json_result(self.runtime_store.rename_workspace_tab(&id, &title).await)?;
+                self.broadcast_authenticated(event("workspaceTabsChanged", json!({})));
+                Ok(value)
             }
             "tab.remove" => {
                 self.require_auth(client_id)?;

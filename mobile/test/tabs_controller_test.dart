@@ -63,6 +63,30 @@ void main() {
     },
   );
 
+  test('Renames terminal and non-terminal tabs through the runtime', () async {
+    final client = FakeTerminalClient()
+      ..tabs = <WorkspaceTabSummary>[
+        fakeTab(id: 'tab-1', title: 'Terminal 1'),
+        fakeTab(id: 'editor-1', title: 'Notes', kind: 'editor'),
+      ];
+    final container = _container(client);
+    final notifier = container.read(
+      tabsControllerProvider('host-1', 'workspace-1').notifier,
+    );
+    await container.read(
+      tabsControllerProvider('host-1', 'workspace-1').future,
+    );
+
+    await notifier.renameTab(client.tabs.first, 'Build');
+    await notifier.renameTab(client.tabs.last, 'Plan');
+
+    expect(
+      client.calls,
+      containsAll(<String>['renameTab tab-1 Build', 'renameTab editor-1 Plan']),
+    );
+    expect(client.tabs.map((tab) => tab.title), <String>['Build', 'Plan']);
+  });
+
   test('Session controller attaches, writes, resizes, and detaches', () async {
     final client = FakeTerminalClient()
       ..tabs = <WorkspaceTabSummary>[fakeTab(id: 'tab-1', title: 'Terminal 1')];

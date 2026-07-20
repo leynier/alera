@@ -6,6 +6,7 @@ import 'package:alera/src/features/agent_quota/infra/runtime_proxy_client.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/alera_cli_sidecar.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:alera/src/shared/infra/process/command_environment_resolver.dart';
 import 'package:alera/src/shared/infra/process/process_runner.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -178,6 +179,26 @@ void main() {
     expect(resolver.requests.single, contains('CUSTOM_KIMI_KEY'));
   });
 
+  test('local quota fetches use the runtime host service', () async {
+    final runner = _RecordingRunner();
+    final runtime = _RecordingRuntimeHostClient();
+    final service = AgentQuotaService(
+      RuntimeProxyClient(processRunner: runner),
+      runtime,
+    );
+
+    await service.fetch(
+      hostId: 'local',
+      target: null,
+      settings: AgentQuotaHostSettings.defaults,
+    );
+
+    expect(runtime.requests, <String>['agentQuota.snapshot']);
+    expect(runtime.payloads.single['forceRefresh'], isTrue);
+    expect(runtime.timeouts.single, const Duration(seconds: 45));
+    expect(runner.executable, isNull);
+  });
+
   test('sends the independent Claude Default setting to the sidecar', () async {
     final runner = _RecordingRunner();
     final client = RuntimeProxyClient(
@@ -228,6 +249,27 @@ class _FakeEnvironmentResolver implements CommandEnvironmentResolver {
       for (final name in names)
         if (values.containsKey(name)) name: values[name]!,
     };
+  }
+}
+
+class _RecordingRuntimeHostClient implements RuntimeHostClient {
+  final List<String> requests = <String>[];
+  final List<Map<String, Object?>> payloads = <Map<String, Object?>>[];
+  final List<Duration?> timeouts = <Duration?>[];
+
+  @override
+  Stream<RuntimeHostEvent> get runtimeEvents => const Stream.empty();
+
+  @override
+  Future<Object?> runtimeRequest(
+    String type, [
+    Map<String, Object?> payload = const <String, Object?>{},
+    Duration? timeout,
+  ]) async {
+    requests.add(type);
+    payloads.add(payload);
+    timeouts.add(timeout);
+    return <String, Object?>{'snapshots': <Object?>[]};
   }
 }
 

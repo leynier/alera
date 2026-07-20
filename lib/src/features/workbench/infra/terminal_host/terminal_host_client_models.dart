@@ -225,6 +225,8 @@ const Set<String> runtimeHostEventNames = <String>{
   'workspaceTagsChanged',
   'workspaceRelationsChanged',
   'runtimeSettingsChanged',
+  'agentQuotasChanged',
+  'agentSkillInstallProgress',
   'workbenchViewPrefsChanged',
   'workspaceActivityChanged',
   'projectConfigsChanged',

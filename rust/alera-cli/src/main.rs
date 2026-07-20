@@ -4,6 +4,7 @@ mod cli;
 mod cli_orchestration;
 #[cfg(test)]
 mod cli_tests;
+mod host_tools;
 mod managed_workspace;
 mod mobile_access;
 mod orchestration_commands;

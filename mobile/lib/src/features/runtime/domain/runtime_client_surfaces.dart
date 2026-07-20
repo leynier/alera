@@ -13,6 +13,10 @@ const String mobileWorkspaceMutationsCapability = 'mobileWorkspaceMutations';
 const String mobileWorkspaceSidebarParityCapability =
     'mobileWorkspaceSidebarParityV1';
 const String mobileProjectManagementCapability = 'mobileProjectManagementV1';
+const String mobileTabRenameCapability = 'mobileTabRenameV1';
+const String mobilePortableSettingsCapability = 'mobilePortableSettingsV1';
+const String mobileAgentQuotaCapability = 'mobileAgentQuotaV1';
+const String mobileHostToolsCapability = 'mobileHostToolsV1';
 
 class MobileRuntimeEvent {
   const MobileRuntimeEvent(this.name, this.payload);
@@ -58,6 +62,7 @@ abstract interface class MobileWorkspaceClient {
   Stream<MobileRuntimeEvent> get events;
   bool get supportsWorkspaceMutations;
   bool get supportsWorkspaceSidebarParity;
+  bool get supportsTabRename;
   Future<WorkspaceSidebarSnapshot> workspaceSidebarSnapshot();
   Future<MobileViewPrefs> loadWorkbenchViewPrefs();
   Future<MobileViewPrefs> updateWorkbenchViewPrefs(MobileViewPrefs prefs);
@@ -85,6 +90,7 @@ abstract interface class MobileWorkspaceClient {
   Future<void> removeManagedWorkspace(String workspaceId, {bool? deleteBranch});
   Future<List<String>> cascadePreview(String workspaceId);
   Future<void> removeTab(String tabId);
+  Future<WorkspaceTabSummary> renameTab(String tabId, String title);
   Future<WorkspaceSummary> renameWorkspace(String workspaceId, String name);
   Future<void> sleepWorkspace(String workspaceId);
   Future<String?> workspaceRepositoryRemoteUrl(String workspaceId);

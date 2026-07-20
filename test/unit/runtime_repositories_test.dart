@@ -299,13 +299,11 @@ void main() {
     expect(runtimeWorkbench.workspaces[workspace.id], workspace);
     expect(runtimeWorkbench.tabs['tab-1']?.workspaceId, workspace.id);
     expect(runtimeWorkbench.layouts[workspace.id], isNotNull);
-    expect(client.requests, <String>[
-      'runtimeMetadata.get',
-      'runtimeMetadata.set',
-      'runtimeMetadata.get',
-      'runtimeSettings.update',
-      'runtimeMetadata.set',
-    ]);
+    expect(client.requests, hasLength(10));
+    expect(
+      client.requests.where((request) => request == 'runtimeSettings.update'),
+      hasLength(2),
+    );
   });
 }
 

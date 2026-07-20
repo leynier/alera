@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_creation_result.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
+import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snapshot.dart';
 import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_client.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
@@ -123,6 +124,9 @@ class _FakeWorkspaceClient implements MobileWorkspaceClient {
   bool get supportsWorkspaceSidebarParity => true;
 
   @override
+  bool get supportsTabRename => true;
+
+  @override
   Future<WorkspaceSidebarSnapshot> workspaceSidebarSnapshot() async {
     return WorkspaceSidebarSnapshot(
       projects: await listProjects(),
@@ -221,6 +225,18 @@ class _FakeWorkspaceClient implements MobileWorkspaceClient {
   @override
   Future<void> removeTab(String tabId) async {
     calls.add('removeTab $tabId');
+  }
+
+  @override
+  Future<WorkspaceTabSummary> renameTab(String tabId, String title) async {
+    calls.add('renameTab $tabId $title');
+    return WorkspaceTabSummary(
+      id: tabId,
+      workspaceId: 'a',
+      kind: 'terminal',
+      title: title,
+      payload: const <String, Object?>{},
+    );
   }
 
   @override

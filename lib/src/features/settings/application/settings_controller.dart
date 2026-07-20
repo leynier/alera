@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:alera/src/features/ai_text_generation/domain/ai_text_generation_settings.dart';
 import 'package:alera/src/features/settings/application/settings_providers.dart';
+import 'package:alera/src/features/settings/application/runtime_settings_changes.dart';
 import 'package:alera/src/features/agent_status/domain/agent_status.dart';
 import 'package:alera/src/features/keyboard/domain/keyboard_action.dart';
 import 'package:alera/src/features/settings/application/settings_repository.dart';
@@ -18,6 +19,11 @@ class SettingsController extends _$SettingsController {
 
   @override
   AleraSettings build() {
+    ref.listen(runtimeSettingsChangesProvider, (previous, next) {
+      if (next.hasValue) {
+        unawaited(load());
+      }
+    });
     if (!_loadStarted) {
       _loadStarted = true;
       unawaited(load());

@@ -43,6 +43,7 @@ use crate::terminal_host::session::{PtyEvent, PtyWriteCompletion, Session};
 mod agent_hook_events;
 mod client_delivery;
 mod coordinator_requests;
+mod host_service_requests;
 mod lifecycle;
 mod mobile_terminal_requests;
 mod orchestration_requests;
@@ -131,6 +132,18 @@ pub enum ServerCommand {
         client_id: u64,
         request_id: i64,
         result: HostResult<Value>,
+    },
+    AgentQuotaFinished {
+        client_id: u64,
+        request_id: i64,
+        result: HostResult<Value>,
+    },
+    HostToolFinished {
+        client_id: u64,
+        request_id: i64,
+        result: HostResult<Value>,
+        operation_id: Option<String>,
+        skill: Option<String>,
     },
     /// A parked `check --wait`/`ask` request hit its server-side deadline.
     OrchestrationWaitTimeout {
@@ -237,6 +250,7 @@ pub async fn run_terminal_host_server(
         ssh_bootstrap_jobs: HashMap::new(),
         project_clone_jobs: HashMap::new(),
         managed_workspace_jobs: 0,
+        agent_quota_cache: None,
         clients: HashMap::new(),
         pending_output_writes: HashMap::new(),
         agent_presence: AgentPresenceRegistry::default(),
@@ -317,6 +331,7 @@ struct ServerActor {
     ssh_bootstrap_jobs: HashMap<String, SshBootstrapJobState>,
     project_clone_jobs: HashMap<String, tokio::sync::oneshot::Sender<()>>,
     managed_workspace_jobs: usize,
+    agent_quota_cache: Option<(Instant, Value)>,
     clients: HashMap<u64, ClientState>,
     pending_output_writes: HashMap<String, Vec<JoinHandle<()>>>,
     agent_presence: AgentPresenceRegistry,
@@ -555,6 +570,18 @@ impl ServerActor {
                 self.handle_managed_workspace_removed(client_id, request_id, result)
                     .await
             }
+            ServerCommand::AgentQuotaFinished {
+                client_id,
+                request_id,
+                result,
+            } => self.handle_agent_quota_finished(client_id, request_id, result),
+            ServerCommand::HostToolFinished {
+                client_id,
+                request_id,
+                result,
+                operation_id,
+                skill,
+            } => self.handle_host_tool_finished(client_id, request_id, result, operation_id, skill),
             ServerCommand::OrchestrationWaitTimeout {
                 waiter_id,
                 waited_ms,
@@ -1194,6 +1221,7 @@ mod tests {
             )]),
             project_clone_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
+            agent_quota_cache: None,
             clients: HashMap::from([(1, ClientState::local(handle, true))]),
             pending_output_writes: HashMap::new(),
             agent_presence: AgentPresenceRegistry::default(),
@@ -1257,6 +1285,7 @@ mod tests {
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
+            agent_quota_cache: None,
             clients: HashMap::new(),
             pending_output_writes: HashMap::new(),
             agent_presence: AgentPresenceRegistry::default(),
@@ -1309,6 +1338,7 @@ mod tests {
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
+            agent_quota_cache: None,
             clients: HashMap::new(),
             pending_output_writes: HashMap::new(),
             agent_presence: AgentPresenceRegistry::default(),
@@ -1365,6 +1395,7 @@ mod tests {
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
+            agent_quota_cache: None,
             clients: HashMap::new(),
             pending_output_writes: HashMap::new(),
             agent_presence: AgentPresenceRegistry::default(),
@@ -1441,6 +1472,7 @@ mod tests {
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
+            agent_quota_cache: None,
             clients: HashMap::new(),
             pending_output_writes: HashMap::new(),
             agent_presence: AgentPresenceRegistry::default(),
@@ -1539,6 +1571,7 @@ mod tests {
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
+            agent_quota_cache: None,
             clients: HashMap::new(),
             pending_output_writes: HashMap::new(),
             agent_presence: AgentPresenceRegistry::default(),
@@ -1610,6 +1643,7 @@ mod tests {
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
+            agent_quota_cache: None,
             clients: HashMap::from([(1, ClientState::local(handle, false))]),
             pending_output_writes: HashMap::new(),
             agent_presence: AgentPresenceRegistry::default(),
@@ -1668,6 +1702,7 @@ mod tests {
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
+            agent_quota_cache: None,
             clients: HashMap::from([
                 (1, ClientState::local(first_app_handle, true)),
                 (2, ClientState::local(second_app_handle, true)),

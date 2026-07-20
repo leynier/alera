@@ -214,6 +214,7 @@ mod tests {
             ssh_bootstrap_jobs: HashMap::new(),
             project_clone_jobs: HashMap::new(),
             managed_workspace_jobs: 0,
+            agent_quota_cache: None,
             clients,
             pending_output_writes: HashMap::new(),
             agent_presence: AgentPresenceRegistry::default(),

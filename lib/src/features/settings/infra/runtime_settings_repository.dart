@@ -26,6 +26,9 @@ class RuntimeSettingsRepository implements SettingsRepository {
       return legacy.copyWith(
         general: legacy.general.copyWith(
           workspaceDirectory: runtime['workspaceDirectory'] as String?,
+          confirmProjectRemoval:
+              runtime['confirmProjectRemoval'] as bool? ??
+              legacy.general.confirmProjectRemoval,
           confirmWorkspaceRemoval:
               runtime['confirmWorkspaceRemoval'] as bool? ??
               legacy.general.confirmWorkspaceRemoval,
@@ -33,6 +36,10 @@ class RuntimeSettingsRepository implements SettingsRepository {
         agents: legacy.agents.copyWith(
           agentStatusHooks: AgentStatusHookSettings.fromJson(
             _asMap(runtime['agentStatusHooks']),
+          ),
+          quotas: legacy.agents.quotas.withHost(
+            'local',
+            AgentQuotaHostSettings.fromJson(_asMap(runtime['agentQuotas'])),
           ),
         ),
       );
@@ -47,8 +54,10 @@ class RuntimeSettingsRepository implements SettingsRepository {
     await beforeAccess?.call();
     await client.runtimeRequest('runtimeSettings.update', <String, Object?>{
       'workspaceDirectory': settings.general.workspaceDirectory,
+      'confirmProjectRemoval': settings.general.confirmProjectRemoval,
       'confirmWorkspaceRemoval': settings.general.confirmWorkspaceRemoval,
       'agentStatusHooks': settings.agents.agentStatusHooks.toJson(),
+      'agentQuotas': settings.agents.quotas.forHost('local').toJson(),
     });
   }
 }

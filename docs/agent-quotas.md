@@ -14,7 +14,9 @@ The left-to-right provider order is configurable in **Settings → Quotas → Pr
 - MiniMax Token Plan.
 - Z.ai.
 
-The quota host follows the active workspace. Local workspaces query the bundled `alera runtime-proxy` sidecar. SSH workspaces run the same command through the Alera runtime installed on that remote host, so credentials stay on the machine where the agent runs.
+The quota host follows the active workspace. Local desktop and mobile requests go through the runtime-host quota service, which keeps a five-minute in-memory cache and returns the last successful snapshot as stale data when a provider refresh fails. SSH workspaces run `alera runtime-proxy` through the Alera runtime installed on that remote host, so credentials stay on the machine where the agent runs.
+
+Mobile exposes a dedicated **Quotas** screen with the same provider ordering, Claude Default and CCS profile configuration, environment variable names, manual refresh, and remaining/reset details as desktop. It refreshes when opened and every five minutes while visible. Disabling every provider is supported and produces an empty snapshot rather than falling back to defaults.
 
 ## Claude CCS Profiles
 
