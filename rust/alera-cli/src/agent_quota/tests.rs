@@ -1,5 +1,33 @@
 use super::*;
 
+#[tokio::test]
+async fn accepts_only_configured_transient_environment_values() {
+    let secret = "quota-secret-must-not-be-returned";
+    let payload = fetch_agent_quotas(json!({
+        "providers": ["__none__"],
+        "environmentNames": {
+            "kimiApiKey": "ALERA_TEST_KIMI_KEY",
+            "zaiApiKey": "ALERA_TEST_ZAI_KEY",
+            "zaiBaseUrl": "ALERA_TEST_ZAI_URL",
+            "minimaxApiKey": "ALERA_TEST_MINIMAX_KEY",
+            "minimaxApiHost": "ALERA_TEST_MINIMAX_HOST"
+        },
+        "environmentValues": {
+            "ALERA_TEST_KIMI_KEY": secret,
+            "UNCONFIGURED_SECRET": secret
+        }
+    }))
+    .await
+    .expect("quota payload");
+
+    assert_eq!(
+        payload["environment"]["ALERA_TEST_KIMI_KEY"],
+        Value::Bool(true)
+    );
+    assert!(payload["environment"].get("UNCONFIGURED_SECRET").is_none());
+    assert!(!payload.to_string().contains(secret));
+}
+
 #[test]
 fn parses_tui_used_and_remaining_percentages() {
     let snapshot = parse_tui_snapshot(

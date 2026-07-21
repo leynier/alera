@@ -1,3 +1,5 @@
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 use std::time::{Duration, Instant};
 
 use alera_core::runtime::RuntimeAgentQuotaSettings;
@@ -98,9 +100,16 @@ impl ServerActor {
             .get("forceRefresh")
             .and_then(Value::as_bool)
             .unwrap_or(false);
+        let environment_values = payload
+            .get("environmentValues")
+            .cloned()
+            .unwrap_or_else(|| json!({}));
+        let environment_signature = quota_environment_signature(&environment_values);
         if !force_refresh {
-            if let Some((fetched_at, cached)) = &self.agent_quota_cache {
-                if fetched_at.elapsed() < AGENT_QUOTA_CACHE_TTL {
+            if let Some((fetched_at, cached_signature, cached)) = &self.agent_quota_cache {
+                if *cached_signature == environment_signature
+                    && fetched_at.elapsed() < AGENT_QUOTA_CACHE_TTL
+                {
                     self.client_write(client_id, ok_response(request_id, cached.clone()));
                     return Ok(());
                 }
@@ -124,6 +133,7 @@ impl ServerActor {
                     "claudeDefaultEnabled": settings.claude_default_enabled,
                     "claudeProfiles": settings.claude_profiles,
                     "environmentNames": settings.environment,
+                    "environmentValues": environment_values,
                     "allowCliFallback": force_refresh,
                 });
                 fetch_agent_quotas(quota_payload)
@@ -134,6 +144,7 @@ impl ServerActor {
             let _ = inbox.send(ServerCommand::AgentQuotaFinished {
                 client_id,
                 request_id,
+                environment_signature,
                 result,
             });
         });
@@ -144,6 +155,7 @@ impl ServerActor {
         &mut self,
         client_id: u64,
         request_id: i64,
+        environment_signature: u64,
         result: HostResult<Value>,
     ) {
         match result {
@@ -151,14 +163,20 @@ impl ServerActor {
                 let merged = self
                     .agent_quota_cache
                     .as_ref()
-                    .map(|(_, cached)| merge_quota_snapshots(cached, fresh.clone()))
+                    .filter(|(_, cached_signature, _)| *cached_signature == environment_signature)
+                    .map(|(_, _, cached)| merge_quota_snapshots(cached, fresh.clone()))
                     .unwrap_or(fresh);
-                self.agent_quota_cache = Some((Instant::now(), merged.clone()));
+                self.agent_quota_cache =
+                    Some((Instant::now(), environment_signature, merged.clone()));
                 self.client_write(client_id, ok_response(request_id, merged));
                 self.broadcast_authenticated(event("agentQuotasChanged", json!({})));
             }
             Err(error) => {
-                if let Some((_, cached)) = &self.agent_quota_cache {
+                if let Some((_, cached_signature, cached)) = &self.agent_quota_cache {
+                    if *cached_signature != environment_signature {
+                        self.client_write(client_id, error_response(request_id, &error));
+                        return;
+                    }
                     self.client_write(
                         client_id,
                         ok_response(
@@ -295,6 +313,23 @@ impl ServerActor {
             ));
         }
     }
+}
+
+fn quota_environment_signature(value: &Value) -> u64 {
+    let normalized = value
+        .as_object()
+        .map(|values| {
+            let mut entries = values
+                .iter()
+                .filter_map(|(name, value)| value.as_str().map(|value| (name, value)))
+                .collect::<Vec<_>>();
+            entries.sort_unstable();
+            entries
+        })
+        .unwrap_or_default();
+    let mut hasher = DefaultHasher::new();
+    normalized.hash(&mut hasher);
+    hasher.finish()
 }
 
 fn validate_agent_quota_settings(settings: &RuntimeAgentQuotaSettings) -> HostResult<()> {
