@@ -1,5 +1,8 @@
-async fn fetch_minimax(names: &EnvironmentNames) -> QuotaSnapshot {
-    let Some(api_key) = environment_secret(&names.minimax_api_key) else {
+async fn fetch_minimax(
+    names: &EnvironmentNames,
+    environment: &QuotaEnvironment,
+) -> QuotaSnapshot {
+    let Some(api_key) = environment.value(&names.minimax_api_key) else {
         return QuotaSnapshot::unavailable(
             "minimax",
             "default",
@@ -10,8 +13,9 @@ async fn fetch_minimax(names: &EnvironmentNames) -> QuotaSnapshot {
             ),
         );
     };
-    let configured_host = std::env::var(&names.minimax_api_host)
-        .unwrap_or_else(|_| "https://api.minimax.io".to_string());
+    let configured_host = environment
+        .value(&names.minimax_api_host)
+        .unwrap_or_else(|| "https://api.minimax.io".to_string());
     let endpoint_host = if configured_host.contains("minimaxi") {
         "https://www.minimaxi.com"
     } else {
@@ -132,8 +136,8 @@ fn minimax_bucket(model: &Value, name: &str, weekly: bool) -> Option<QuotaBucket
     })
 }
 
-async fn fetch_zai(names: &EnvironmentNames) -> QuotaSnapshot {
-    let Some(api_key) = environment_secret(&names.zai_api_key) else {
+async fn fetch_zai(names: &EnvironmentNames, environment: &QuotaEnvironment) -> QuotaSnapshot {
+    let Some(api_key) = environment.value(&names.zai_api_key) else {
         return QuotaSnapshot::unavailable(
             "zai",
             "default",
@@ -144,8 +148,9 @@ async fn fetch_zai(names: &EnvironmentNames) -> QuotaSnapshot {
             ),
         );
     };
-    let configured = std::env::var(&names.zai_base_url)
-        .unwrap_or_else(|_| "https://api.z.ai/api/anthropic".to_string());
+    let configured = environment
+        .value(&names.zai_base_url)
+        .unwrap_or_else(|| "https://api.z.ai/api/anthropic".to_string());
     let parsed = match url::Url::parse(&configured) {
         Ok(value) => value,
         Err(error) => return QuotaSnapshot::error("zai", "default", "Z.ai", error.to_string()),

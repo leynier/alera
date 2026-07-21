@@ -1,7 +1,7 @@
 const KIMI_API_KEY_ENV: &str = "KIMI_API_KEY";
 
-async fn fetch_kimi(names: &EnvironmentNames) -> QuotaSnapshot {
-    let Some(api_key) = environment_secret(&names.kimi_api_key) else {
+async fn fetch_kimi(names: &EnvironmentNames, environment: &QuotaEnvironment) -> QuotaSnapshot {
+    let Some(api_key) = environment.value(&names.kimi_api_key) else {
         return QuotaSnapshot::unavailable(
             "kimi",
             "default",

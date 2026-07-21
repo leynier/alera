@@ -44,8 +44,39 @@ struct AgentQuotaFetchRequest {
     claude_profiles: Vec<ClaudeProfileRequest>,
     #[serde(default)]
     environment_names: EnvironmentNames,
+    #[serde(default)]
+    environment_values: BTreeMap<String, String>,
     #[serde(default = "default_true")]
     allow_cli_fallback: bool,
+}
+
+#[derive(Debug, Clone, Default)]
+struct QuotaEnvironment {
+    overrides: BTreeMap<String, String>,
+}
+
+impl QuotaEnvironment {
+    fn from_request(request: &AgentQuotaFetchRequest) -> Self {
+        let overrides = request
+            .environment_values
+            .iter()
+            .filter(|(name, value)| {
+                request.environment_names.contains(name)
+                    && !name.trim().is_empty()
+                    && !value.trim().is_empty()
+            })
+            .map(|(name, value)| (name.clone(), value.trim().to_string()))
+            .collect();
+        Self { overrides }
+    }
+
+    fn value(&self, name: &str) -> Option<String> {
+        environment_secret(name).or_else(|| self.overrides.get(name).cloned())
+    }
+
+    fn present(&self, name: &str) -> bool {
+        self.value(name).is_some()
+    }
 }
 
 fn default_true() -> bool {
@@ -78,6 +109,20 @@ impl Default for EnvironmentNames {
             minimax_api_key: "MINIMAX_API_KEY".to_string(),
             minimax_api_host: "MINIMAX_API_HOST".to_string(),
         }
+    }
+}
+
+impl EnvironmentNames {
+    fn contains(&self, candidate: &str) -> bool {
+        [
+            &self.kimi_api_key,
+            &self.zai_api_key,
+            &self.zai_base_url,
+            &self.minimax_api_key,
+            &self.minimax_api_host,
+        ]
+        .iter()
+        .any(|name| name.as_str() == candidate)
     }
 }
 
@@ -217,6 +262,7 @@ async fn handle_proxy_request(request: ProxyRequest) -> Value {
 pub(crate) async fn fetch_agent_quotas(payload: Value) -> Result<Value> {
     let request: AgentQuotaFetchRequest =
         serde_json::from_value(payload).context("Invalid agent quota request")?;
+    let environment = QuotaEnvironment::from_request(&request);
     let providers = if request.providers.is_empty() {
         vec![
             "claude".to_string(),
@@ -261,7 +307,8 @@ pub(crate) async fn fetch_agent_quotas(payload: Value) -> Result<Value> {
             }
             "kimi" => {
                 let names = request.environment_names.clone();
-                tasks.spawn(async move { fetch_kimi(&names).await });
+                let environment = environment.clone();
+                tasks.spawn(async move { fetch_kimi(&names, &environment).await });
             }
             "grok" => {
                 tasks.spawn(fetch_grok());
@@ -275,11 +322,13 @@ pub(crate) async fn fetch_agent_quotas(payload: Value) -> Result<Value> {
             }
             "minimax" => {
                 let names = request.environment_names.clone();
-                tasks.spawn(async move { fetch_minimax(&names).await });
+                let environment = environment.clone();
+                tasks.spawn(async move { fetch_minimax(&names, &environment).await });
             }
             "zai" => {
                 let names = request.environment_names.clone();
-                tasks.spawn(async move { fetch_zai(&names).await });
+                let environment = environment.clone();
+                tasks.spawn(async move { fetch_zai(&names, &environment).await });
             }
             _ => {}
         }
@@ -299,23 +348,23 @@ pub(crate) async fn fetch_agent_quotas(payload: Value) -> Result<Value> {
     let environment = BTreeMap::from([
         (
             request.environment_names.kimi_api_key.clone(),
-            environment_present(&request.environment_names.kimi_api_key),
+            environment.present(&request.environment_names.kimi_api_key),
         ),
         (
             request.environment_names.zai_api_key.clone(),
-            environment_present(&request.environment_names.zai_api_key),
+            environment.present(&request.environment_names.zai_api_key),
         ),
         (
             request.environment_names.zai_base_url.clone(),
-            environment_present(&request.environment_names.zai_base_url),
+            environment.present(&request.environment_names.zai_base_url),
         ),
         (
             request.environment_names.minimax_api_key.clone(),
-            environment_present(&request.environment_names.minimax_api_key),
+            environment.present(&request.environment_names.minimax_api_key),
         ),
         (
             request.environment_names.minimax_api_host.clone(),
-            environment_present(&request.environment_names.minimax_api_host),
+            environment.present(&request.environment_names.minimax_api_host),
         ),
     ]);
     Ok(json!({ "snapshots": snapshots, "environment": environment }))
@@ -354,10 +403,6 @@ fn strip_terminal_sequences(value: &str) -> String {
     controls
         .replace_all(&ansi.replace_all(value, ""), "")
         .to_string()
-}
-
-fn environment_present(name: &str) -> bool {
-    environment_secret(name).is_some()
 }
 
 fn environment_secret(name: &str) -> Option<String> {

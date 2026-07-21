@@ -117,25 +117,30 @@ class AgentQuotaService {
     bool forceRefresh = false,
   }) async {
     try {
+      final environmentNames = <String>[
+        settings.environment.kimiApiKey,
+        settings.environment.zaiApiKey,
+        settings.environment.zaiBaseUrl,
+        settings.environment.minimaxApiKey,
+        settings.environment.minimaxApiHost,
+      ];
+      final environmentValues = hostId == 'local' && _runtimeClient != null
+          ? await _client.resolveMissingLocalEnvironment(environmentNames)
+          : const <String, String>{};
       final payload = hostId == 'local' && _runtimeClient != null
           ? _mapValue(
-              await _runtimeClient.runtimeRequest(
-                'agentQuota.snapshot',
-                <String, Object?>{'forceRefresh': forceRefresh},
-                const Duration(seconds: 45),
-              ),
+              await _runtimeClient
+                  .runtimeRequest('agentQuota.snapshot', <String, Object?>{
+                    'forceRefresh': forceRefresh,
+                    if (environmentValues.isNotEmpty)
+                      'environmentValues': environmentValues,
+                  }, const Duration(seconds: 45)),
             )
           : await _client.request(
               hostId: hostId,
               target: target,
               type: 'agentQuota.fetch',
-              localEnvironmentNames: <String>[
-                settings.environment.kimiApiKey,
-                settings.environment.zaiApiKey,
-                settings.environment.zaiBaseUrl,
-                settings.environment.minimaxApiKey,
-                settings.environment.minimaxApiHost,
-              ],
+              localEnvironmentNames: environmentNames,
               payload: <String, Object?>{
                 'providers': <String>[
                   for (final provider in settings.enabledProviders)

@@ -94,6 +94,12 @@ class RuntimeProxyClient {
     }
   }
 
+  Future<Map<String, String>> resolveMissingLocalEnvironment(
+    List<String> names,
+  ) async {
+    return await _localEnvironment(names) ?? const <String, String>{};
+  }
+
   /// Shell-rc exports for [names] that the GUI process does not already
   /// carry. Remote hosts run through a login shell and see them natively;
   /// this fills the same gap for the local sidecar. Variables present in the

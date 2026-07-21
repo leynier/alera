@@ -17,7 +17,7 @@ use tokio::sync::mpsc::error::TrySendError;
 use tokio::sync::mpsc::{self, UnboundedSender};
 use tokio::task::JoinHandle;
 
-use crate::agent_status::{start_hook_receiver, AgentHookEvent};
+use crate::agent_status::{reconcile_agent_integrations, start_hook_receiver, AgentHookEvent};
 use crate::ssh_bootstrap::{
     cancel_ssh_bootstrap, mark_ssh_bootstrap_installing, new_bootstrap_job_id, run_ssh_bootstrap,
     SshTargetBootstrapJob, SshTargetBootstrapProgress, SshTargetBootstrapRequest,
@@ -136,6 +136,7 @@ pub enum ServerCommand {
     AgentQuotaFinished {
         client_id: u64,
         request_id: i64,
+        environment_signature: u64,
         result: HostResult<Value>,
     },
     HostToolFinished {
@@ -265,6 +266,16 @@ pub async fn run_terminal_host_server(
         shutdown_gen: 0,
         disposed: false,
     };
+    let hook_settings = actor.runtime_store.agent_status_hook_settings().await?;
+    let hook_runtime_dir = actor.runtime_dir.clone();
+    let hook_warnings = tokio::task::spawn_blocking(move || {
+        reconcile_agent_integrations(&hook_runtime_dir, &hook_settings)
+    })
+    .await
+    .unwrap_or_else(|error| vec![error.to_string()]);
+    for warning in hook_warnings {
+        eprintln!("alera agent integration warning: {warning}");
+    }
     if let Err(error) = actor.restart_mobile_gateway().await {
         eprintln!("alera mobile gateway unavailable: {}", error.wire_message());
     }
@@ -331,7 +342,7 @@ struct ServerActor {
     ssh_bootstrap_jobs: HashMap<String, SshBootstrapJobState>,
     project_clone_jobs: HashMap<String, tokio::sync::oneshot::Sender<()>>,
     managed_workspace_jobs: usize,
-    agent_quota_cache: Option<(Instant, Value)>,
+    agent_quota_cache: Option<(Instant, u64, Value)>,
     clients: HashMap<u64, ClientState>,
     pending_output_writes: HashMap<String, Vec<JoinHandle<()>>>,
     agent_presence: AgentPresenceRegistry,
@@ -573,8 +584,14 @@ impl ServerActor {
             ServerCommand::AgentQuotaFinished {
                 client_id,
                 request_id,
+                environment_signature,
                 result,
-            } => self.handle_agent_quota_finished(client_id, request_id, result),
+            } => self.handle_agent_quota_finished(
+                client_id,
+                request_id,
+                environment_signature,
+                result,
+            ),
             ServerCommand::HostToolFinished {
                 client_id,
                 request_id,

@@ -1,6 +1,8 @@
 use serde_json::json;
 
-use crate::agent_status::{normalize_hook_event, AgentHookEvent};
+use crate::agent_status::{
+    hook_event_closes_session, hook_event_resets_session, normalize_hook_event, AgentHookEvent,
+};
 
 use super::ServerActor;
 
@@ -18,11 +20,7 @@ impl ServerActor {
         if session.workspace_id != event.workspace_id || session.tab_id != event.tab_id {
             return;
         }
-        let previous = self.agent_presence.get(&event.terminal_session_id);
-        let Some(normalized) = normalize_hook_event(&event, previous) else {
-            return;
-        };
-        if normalized.resets_session || normalized.closes_session {
+        if hook_event_resets_session(&event) || hook_event_closes_session(&event) {
             let _ = self
                 .orchestration_agent_status(&json!({
                     "entries": [{
@@ -33,6 +31,10 @@ impl ServerActor {
                 .await;
             return;
         }
+        let previous = self.agent_presence.get(&event.terminal_session_id);
+        let Some(normalized) = normalize_hook_event(&event, previous) else {
+            return;
+        };
         let now = chrono::Utc::now();
         let state_started_at = previous
             .filter(|entry| entry.state == normalized.state)

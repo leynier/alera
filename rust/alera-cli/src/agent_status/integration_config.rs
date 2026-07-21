@@ -8,6 +8,17 @@ use sha2::{Digest, Sha256};
 use super::integration_plugins::{install_amp_plugin, install_opencode_plugin, install_pi_plugin};
 
 const MANAGED_MARKER: &str = "alera-runtime-agent-hook";
+const LEGACY_MANAGED_MARKERS: [&str; 9] = [
+    "alera-codex-hook.",
+    "alera-claude-hook.",
+    "alera-copilot-hook.",
+    "alera-cursor-hook.",
+    "alera-agy-hook.",
+    "alera-opencode-hook.",
+    "alera-pi-hook.",
+    "alera-amp-hook.",
+    "alera-grok-hook.",
+];
 
 pub fn prepare_enabled_integrations(
     runtime_dir: &Path,
@@ -320,8 +331,16 @@ fn clean_managed_definitions(value: Option<Value>) -> Vec<Value> {
         .and_then(|value| value.as_array().cloned())
         .unwrap_or_default()
         .into_iter()
-        .filter(|definition| !definition.to_string().contains(MANAGED_MARKER))
+        .filter(|definition| !is_alera_managed_definition(definition))
         .collect()
+}
+
+fn is_alera_managed_definition(definition: &Value) -> bool {
+    let encoded = definition.to_string();
+    encoded.contains(MANAGED_MARKER)
+        || LEGACY_MANAGED_MARKERS
+            .iter()
+            .any(|marker| encoded.contains(marker))
 }
 
 fn object_field<'a>(object: &'a mut Map<String, Value>, key: &str) -> &'a mut Map<String, Value> {
@@ -425,6 +444,9 @@ fn sh_quote(value: &str) -> String {
 }
 
 const POSIX_HOOK_SCRIPT: &str = r#"#!/bin/sh
+if [ -z "$ALERA_AGENT_HOOK_ENDPOINT" ] && [ -n "$ALERA_RUNTIME_DIR" ]; then
+  ALERA_AGENT_HOOK_ENDPOINT="$ALERA_RUNTIME_DIR/agent-hooks/endpoint.env"
+fi
 if [ -n "$ALERA_AGENT_HOOK_ENDPOINT" ] && [ -r "$ALERA_AGENT_HOOK_ENDPOINT" ]; then
   . "$ALERA_AGENT_HOOK_ENDPOINT" 2>/dev/null || :
 fi
@@ -449,6 +471,7 @@ exit 0
 #[cfg(windows)]
 const WINDOWS_HOOK_SCRIPT: &str = r#"@echo off
 setlocal
+if not defined ALERA_AGENT_HOOK_ENDPOINT if defined ALERA_RUNTIME_DIR set "ALERA_AGENT_HOOK_ENDPOINT=%ALERA_RUNTIME_DIR%\agent-hooks\endpoint.cmd"
 if defined ALERA_AGENT_HOOK_ENDPOINT if exist "%ALERA_AGENT_HOOK_ENDPOINT%" call "%ALERA_AGENT_HOOK_ENDPOINT%" 2>nul
 if "%ALERA_AGENT_HOOK_PORT%"=="" exit /b 0
 if "%ALERA_AGENT_HOOK_TOKEN%"=="" exit /b 0
@@ -458,3 +481,7 @@ if "%ALERA_TAB_ID%"=="" exit /b 0
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$inputData=[Console]::In.ReadToEnd(); if ([string]::IsNullOrWhiteSpace($inputData)) { $inputData='{}' }; try { $body=@{ terminalSessionId=$env:ALERA_TERMINAL_SESSION_ID; workspaceId=$env:ALERA_WORKSPACE_ID; tabId=$env:ALERA_TAB_ID; hookEventName=$env:ALERA_AGENT_HOOK_EVENT; version=$env:ALERA_AGENT_HOOK_VERSION; payload=($inputData | ConvertFrom-Json) } | ConvertTo-Json -Depth 100 -Compress; Invoke-WebRequest -UseBasicParsing -Method Post -Uri ('http://127.0.0.1:' + $env:ALERA_AGENT_HOOK_PORT + '/hook/' + $env:ALERA_AGENT_TYPE) -ContentType 'application/json' -Headers @{ 'X-Alera-Agent-Hook-Token'=$env:ALERA_AGENT_HOOK_TOKEN } -Body $body | Out-Null } catch {}"
 exit /b 0
 "#;
+
+#[cfg(test)]
+#[path = "integration_config_tests.rs"]
+mod tests;

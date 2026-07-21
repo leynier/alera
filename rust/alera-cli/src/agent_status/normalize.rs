@@ -12,8 +12,23 @@ pub struct NormalizedAgentStatus {
     pub tool_input: Option<String>,
     pub last_assistant_message: Option<String>,
     pub interrupted: Option<bool>,
-    pub closes_session: bool,
-    pub resets_session: bool,
+}
+
+pub fn hook_event_closes_session(event: &AgentHookEvent) -> bool {
+    let Some(event_name) = normalized_event_name(event) else {
+        return false;
+    };
+    matches!(
+        (event.agent_type.as_str(), event_name.as_str()),
+        ("copilot", "SessionEnd")
+            | ("cursor", "sessionEnd")
+            | ("pi", "session_shutdown")
+            | ("grok", "SessionEnd")
+    )
+}
+
+pub fn hook_event_resets_session(event: &AgentHookEvent) -> bool {
+    event.agent_type == "grok" && normalized_event_name(event).as_deref() == Some("SessionStart")
 }
 
 pub fn normalize_hook_event(
@@ -21,16 +36,9 @@ pub fn normalize_hook_event(
     previous: Option<&AgentPresence>,
 ) -> Option<NormalizedAgentStatus> {
     let event_name = normalized_event_name(event)?;
-    let tool_name = first_string(&event.payload, &["tool_name", "toolName", "name", "tool"]);
+    let tool_name = tool_name(&event.payload);
     let state = normalize_state(event, &event_name, tool_name.as_deref(), previous)?;
-    let closes_session = matches!(
-        (event.agent_type.as_str(), event_name.as_str()),
-        ("copilot", "SessionEnd")
-            | ("cursor", "sessionEnd")
-            | ("pi", "session_shutdown")
-            | ("grok", "SessionEnd")
-    );
-    let resets_session = event.agent_type == "grok" && event_name == "SessionStart";
+    let starts_turn = starts_new_turn(event, &event_name);
     let prompt = first_string(
         &event.payload,
         &[
@@ -44,31 +52,29 @@ pub fn normalize_hook_event(
             "message",
         ],
     )
-    .unwrap_or_else(|| previous.map_or_else(String::new, |entry| entry.prompt.clone()));
-    let tool_input = first_value(
-        &event.payload,
-        &[
-            "tool_input",
-            "toolInput",
-            "input",
-            "arguments",
-            "args",
-            "command",
-        ],
-    )
-    .map(value_preview)
-    .or_else(|| previous.and_then(|entry| entry.tool_input.clone()));
+    .unwrap_or_else(|| {
+        previous
+            .filter(|_| !starts_turn)
+            .map_or_else(String::new, |entry| entry.prompt.clone())
+    });
+    let tool_input = tool_input(&event.payload).map(value_preview).or_else(|| {
+        previous
+            .filter(|_| !starts_turn)
+            .and_then(|entry| entry.tool_input.clone())
+    });
     let last_assistant_message = assistant_message(event, &event_name)
         .or_else(|| previous.and_then(|entry| entry.last_assistant_message.clone()));
     Some(NormalizedAgentStatus {
         state,
         prompt,
-        tool_name: tool_name.or_else(|| previous.and_then(|entry| entry.tool_name.clone())),
+        tool_name: tool_name.or_else(|| {
+            previous
+                .filter(|_| !starts_turn)
+                .and_then(|entry| entry.tool_name.clone())
+        }),
         tool_input,
         last_assistant_message,
         interrupted: interrupted(event, &event_name, state),
-        closes_session,
-        resets_session,
     })
 }
 
@@ -78,12 +84,7 @@ fn normalize_state(
     tool_name: Option<&str>,
     previous: Option<&AgentPresence>,
 ) -> Option<AgentPresenceState> {
-    let human_input = tool_name.is_some_and(|tool| {
-        let normalized = tool.to_ascii_lowercase();
-        normalized.contains("askuser")
-            || normalized.contains("request_user_input")
-            || normalized.contains("human")
-    });
+    let human_input = tool_name.is_some_and(is_human_input_tool);
     match event.agent_type.as_str() {
         "codex" => match name {
             "SessionStart" | "UserPromptSubmit" | "PostToolUse" => {
@@ -149,7 +150,9 @@ fn normalize_state(
             _ => None,
         },
         "amp" => match name {
-            "agent.start" | "tool.call" | "tool.result" => Some(AgentPresenceState::Working),
+            "session.start" | "agent.start" | "tool.call" | "tool.result" => {
+                Some(AgentPresenceState::Working)
+            }
             "agent.end" => Some(AgentPresenceState::Done),
             _ => None,
         },
@@ -230,7 +233,12 @@ fn normalized_event_name(event: &AgentHookEvent) -> Option<String> {
             &event.payload,
             &["hook_event_name", "hookEventName", "hook_type", "hookType"],
         )
-    })?;
+    });
+    let raw = if event.agent_type == "copilot" {
+        raw.or_else(|| infer_copilot_event_name(&event.payload))?
+    } else {
+        raw?
+    };
     if event.agent_type == "copilot" {
         return Some(
             match raw.as_str() {
@@ -285,6 +293,9 @@ fn assistant_message(event: &AgentHookEvent, name: &str) -> Option<String> {
     if event.agent_type == "cursor" && name == "afterAgentResponse" {
         return first_string(&event.payload, &["text"]);
     }
+    if event.agent_type == "amp" && name == "agent.end" {
+        return last_assistant_message(&event.payload);
+    }
     first_string(
         &event.payload,
         &[
@@ -293,6 +304,95 @@ fn assistant_message(event: &AgentHookEvent, name: &str) -> Option<String> {
             "assistantMessage",
         ],
     )
+}
+
+fn starts_new_turn(event: &AgentHookEvent, name: &str) -> bool {
+    matches!(
+        (event.agent_type.as_str(), name),
+        ("codex", "SessionStart")
+            | ("codex", "UserPromptSubmit")
+            | ("claude", "UserPromptSubmit")
+            | ("copilot", "SessionStart")
+            | ("copilot", "UserPromptSubmit")
+            | ("cursor", "beforeSubmitPrompt")
+            | ("cursor", "sessionStart")
+            | ("agy", "PreInvocation")
+            | ("pi", "before_agent_start")
+            | ("amp", "session.start")
+            | ("amp", "agent.start")
+            | ("grok", "UserPromptSubmit")
+    )
+}
+
+fn is_human_input_tool(value: &str) -> bool {
+    let normalized = value
+        .chars()
+        .filter(|char| char.is_ascii_alphanumeric())
+        .collect::<String>()
+        .to_ascii_lowercase();
+    [
+        "askuser",
+        "askuserquestion",
+        "requestuserinput",
+        "humaninput",
+        "elicitation",
+    ]
+    .iter()
+    .any(|candidate| normalized.contains(candidate))
+}
+
+fn tool_name(payload: &Value) -> Option<String> {
+    first_string(payload, &["tool_name", "toolName", "name", "tool"])
+        .or_else(|| {
+            nested_value(payload, &["tool_call", "toolCall"])
+                .and_then(|value| first_string(value, &["tool_name", "toolName", "name", "tool"]))
+        })
+        .or_else(|| {
+            first_array_value(payload, &["tool_calls", "toolCalls"])
+                .and_then(|value| first_string(value, &["tool_name", "toolName", "name", "tool"]))
+        })
+}
+
+fn tool_input(payload: &Value) -> Option<&Value> {
+    const INPUT_KEYS: &[&str] = &[
+        "tool_input",
+        "toolInput",
+        "input",
+        "arguments",
+        "args",
+        "command",
+    ];
+    first_value(payload, INPUT_KEYS)
+        .or_else(|| {
+            nested_value(payload, &["tool_call", "toolCall"])
+                .and_then(|value| first_value(value, INPUT_KEYS))
+        })
+        .or_else(|| {
+            first_array_value(payload, &["tool_calls", "toolCalls"])
+                .and_then(|value| first_value(value, INPUT_KEYS))
+        })
+}
+
+fn infer_copilot_event_name(payload: &Value) -> Option<String> {
+    if first_value(payload, &["tool_name", "toolName", "tool_call", "toolCall"]).is_some() {
+        return Some("PreToolUse".to_string());
+    }
+    if first_string(payload, &["notification_type", "notificationType"]).is_some() {
+        return Some("Notification".to_string());
+    }
+    if first_string(payload, &["prompt", "user_prompt", "userPrompt"]).is_some() {
+        return Some("UserPromptSubmit".to_string());
+    }
+    None
+}
+
+fn last_assistant_message(payload: &Value) -> Option<String> {
+    let messages = first_value(payload, &["messages"])?.as_array()?;
+    messages.iter().rev().find_map(|message| {
+        (first_string(message, &["role"]).as_deref() == Some("assistant"))
+            .then(|| first_string(message, &["text", "content"]))
+            .flatten()
+    })
 }
 
 fn interrupted(event: &AgentHookEvent, name: &str, state: AgentPresenceState) -> Option<bool> {
@@ -318,6 +418,14 @@ fn first_value<'a>(value: &'a Value, keys: &[&str]) -> Option<&'a Value> {
     keys.iter().find_map(|key| record.get(*key))
 }
 
+fn nested_value<'a>(value: &'a Value, keys: &[&str]) -> Option<&'a Value> {
+    first_value(value, keys).filter(|entry| entry.is_object())
+}
+
+fn first_array_value<'a>(value: &'a Value, keys: &[&str]) -> Option<&'a Value> {
+    first_value(value, keys)?.as_array()?.first()
+}
+
 fn bool_field(value: &Value, key: &str) -> Option<bool> {
     value.as_object()?.get(key)?.as_bool()
 }
@@ -331,62 +439,5 @@ fn value_preview(value: &Value) -> String {
 }
 
 #[cfg(test)]
-mod tests {
-    use serde_json::json;
-
-    use super::*;
-
-    fn event(agent_type: &str, event_name: &str, payload: Value) -> AgentHookEvent {
-        AgentHookEvent {
-            terminal_session_id: "session-1".into(),
-            workspace_id: "workspace-1".into(),
-            tab_id: "tab-1".into(),
-            agent_type: agent_type.into(),
-            payload,
-            event_name: Some(event_name.into()),
-        }
-    }
-
-    #[test]
-    fn every_supported_agent_reports_working() {
-        for (agent_type, event_name) in [
-            ("codex", "UserPromptSubmit"),
-            ("claude", "UserPromptSubmit"),
-            ("copilot", "userPromptSubmitted"),
-            ("cursor", "beforeSubmitPrompt"),
-            ("agy", "PreInvocation"),
-            ("opencode", "SessionBusy"),
-            ("pi", "agent_start"),
-            ("amp", "agent.start"),
-            ("grok", "UserPromptSubmit"),
-        ] {
-            let status = normalize_hook_event(&event(agent_type, event_name, json!({})), None)
-                .unwrap_or_else(|| panic!("{agent_type} event was not normalized"));
-            assert_eq!(status.state, AgentPresenceState::Working, "{agent_type}");
-        }
-    }
-
-    #[test]
-    fn codex_waiting_status_preserves_prompt_and_tool_details() {
-        let status = normalize_hook_event(
-            &event(
-                "codex",
-                "PreToolUse",
-                json!({
-                    "prompt": "Choose a deployment",
-                    "tool_name": "request_user_input",
-                    "tool_input": {"environment": "production"}
-                }),
-            ),
-            None,
-        )
-        .expect("codex status");
-
-        assert_eq!(status.state, AgentPresenceState::Waiting);
-        assert_eq!(status.prompt, "Choose a deployment");
-        assert_eq!(status.tool_name.as_deref(), Some("request_user_input"));
-        assert!(status.tool_input.as_deref().is_some_and(|value| {
-            value.contains("environment") && value.contains("production")
-        }));
-    }
-}
+#[path = "normalize_tests.rs"]
+mod tests;

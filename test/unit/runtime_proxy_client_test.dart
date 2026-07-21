@@ -199,6 +199,36 @@ void main() {
     expect(runner.executable, isNull);
   });
 
+  test('local runtime quota fetch forwards missing shell variables', () async {
+    final runtime = _RecordingRuntimeHostClient();
+    final resolver = _FakeEnvironmentResolver(<String, String>{
+      'CUSTOM_KIMI_KEY': 'secret-from-zshrc',
+    });
+    final service = AgentQuotaService(
+      RuntimeProxyClient(
+        processRunner: _RecordingRunner(),
+        environmentResolver: resolver,
+        platformEnvironment: const <String, String>{},
+      ),
+      runtime,
+    );
+
+    await service.fetch(
+      hostId: 'local',
+      target: null,
+      settings: const AgentQuotaHostSettings(
+        enabledProviders: <AgentQuotaProviderId>[AgentQuotaProviderId.kimi],
+        environment: AgentQuotaEnvironmentSettings(
+          kimiApiKey: 'CUSTOM_KIMI_KEY',
+        ),
+      ),
+    );
+
+    expect(runtime.payloads.single['environmentValues'], <String, String>{
+      'CUSTOM_KIMI_KEY': 'secret-from-zshrc',
+    });
+  });
+
   test('manual quota refresh is consumed once for its host', () {
     final service = AgentQuotaService(
       RuntimeProxyClient(processRunner: _RecordingRunner()),

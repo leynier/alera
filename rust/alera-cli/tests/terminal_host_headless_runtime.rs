@@ -5,7 +5,9 @@ use std::net::TcpStream;
 use std::process::{Child, Command};
 use std::time::{Duration, Instant};
 
-use alera_core::runtime::{RuntimeStore, Workspace, WorkspaceTabRecord};
+use alera_core::runtime::{
+    RuntimeAgentStatusHookSettings, RuntimeStore, Workspace, WorkspaceTabRecord,
+};
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine as _;
 use serde_json::{json, Value};
@@ -62,6 +64,8 @@ fn connect(port: u16, token: &str) -> (TcpStream, BufReader<TcpStream>) {
 
 fn spawn_host(runtime_dir: &std::path::Path, token: &str) -> (HostGuard, u16) {
     let control_path = runtime_dir.join("runtime-host.json");
+    let test_home = runtime_dir.join("test-home");
+    std::fs::create_dir_all(&test_home).unwrap();
     let child = Command::new(env!("CARGO_BIN_EXE_alera"))
         .args([
             "terminal-host",
@@ -76,6 +80,14 @@ fn spawn_host(runtime_dir: &std::path::Path, token: &str) -> (HostGuard, u16) {
             "--detached-session-shutdown-delay-seconds",
             "60",
         ])
+        .env("HOME", test_home)
+        .env_remove("CLAUDE_CONFIG_DIR")
+        .env_remove("CODEX_HOME")
+        .env_remove("COPILOT_HOME")
+        .env_remove("GROK_HOME")
+        .env_remove("OPENCODE_CONFIG_DIR")
+        .env_remove("PI_CODING_AGENT_DIR")
+        .env_remove("AMP_CONFIG_DIR")
         .spawn()
         .unwrap();
     let guard = HostGuard(child);
@@ -88,6 +100,46 @@ fn spawn_host(runtime_dir: &std::path::Path, token: &str) -> (HostGuard, u16) {
         assert!(Instant::now() < deadline, "control file was never written");
         std::thread::sleep(Duration::from_millis(50));
     }
+}
+
+#[cfg(unix)]
+fn hook_endpoint(runtime_dir: &std::path::Path) -> (u16, String) {
+    let contents = std::fs::read_to_string(runtime_dir.join("agent-hooks/endpoint.env")).unwrap();
+    let values = contents
+        .lines()
+        .filter_map(|line| line.split_once('='))
+        .collect::<std::collections::HashMap<_, _>>();
+    (
+        values["ALERA_AGENT_HOOK_PORT"].parse().unwrap(),
+        values["ALERA_AGENT_HOOK_TOKEN"].to_string(),
+    )
+}
+
+#[cfg(unix)]
+fn post_hook(runtime_dir: &std::path::Path, agent: &str, event_name: &str) {
+    let (port, token) = hook_endpoint(runtime_dir);
+    let body = serde_json::to_string(&json!({
+        "terminalSessionId": "hook-session",
+        "workspaceId": "hook-workspace",
+        "tabId": "hook-tab",
+        "hookEventName": event_name,
+        "payload": {"prompt": format!("{agent} is working")}
+    }))
+    .unwrap();
+    let mut stream = TcpStream::connect(("127.0.0.1", port)).unwrap();
+    write!(
+        stream,
+        "POST /hook/{agent} HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nX-Alera-Agent-Hook-Token: {token}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+        body.len()
+    )
+    .unwrap();
+    stream.flush().unwrap();
+    let mut response = String::new();
+    std::io::Read::read_to_string(&mut stream, &mut response).unwrap();
+    assert!(
+        response.starts_with("HTTP/1.1 204"),
+        "hook failed: {response}"
+    );
 }
 
 fn assert_session_is_not_attached(
@@ -261,4 +313,96 @@ fn runtime_start_reconciles_persisted_spawn_on_create_tabs() {
         json!({"id": 1, "type": "tab.find", "payload": {"id": "reconcile-tab"}}),
     );
     assert_eq!(read_response(&mut reader, 1)["payload"], Value::Null);
+}
+
+#[test]
+#[cfg(unix)]
+fn runtime_hook_receiver_detects_every_enabled_agent() {
+    let dir = tempfile::tempdir().unwrap();
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    runtime.block_on(async {
+        let store = RuntimeStore::open(dir.path()).await.unwrap();
+        store
+            .set_agent_status_hook_settings(&RuntimeAgentStatusHookSettings {
+                codex: true,
+                claude: true,
+                copilot: true,
+                cursor: true,
+                agy: true,
+                opencode: true,
+                pi: true,
+                amp: true,
+                grok: true,
+            })
+            .await
+            .unwrap();
+    });
+
+    let token = "agent-hook-token";
+    let (_guard, port) = spawn_host(dir.path(), token);
+    let test_home = dir.path().join("test-home");
+    for integration in [
+        dir.path().join("agent-runtime-homes/codex/home/hooks.json"),
+        dir.path()
+            .join("agent-runtime-homes/claude/home/settings.json"),
+        test_home.join(".copilot/hooks/alera.json"),
+        test_home.join(".cursor/hooks.json"),
+        test_home.join(".gemini/config/hooks.json"),
+        test_home.join(".grok/hooks/alera-status.json"),
+        test_home.join(".config/opencode/plugins/alera-agent-status.js"),
+        test_home.join(".pi/agent/extensions/alera-agent-status.ts"),
+        test_home.join(".config/amp/plugins/alera-agent-status.ts"),
+    ] {
+        assert!(
+            integration.exists(),
+            "integration was not reconciled: {}",
+            integration.display()
+        );
+    }
+    let (mut writer, mut reader) = connect(port, token);
+    send(
+        &mut writer,
+        json!({"id": 1, "type": "createOrAttach", "payload": {
+            "sessionId": "hook-session", "workspaceId": "hook-workspace", "tabId": "hook-tab",
+            "workingDirectory": "/tmp", "launch": {"shell": "/bin/sh", "arguments": ["-c", "sleep 30"],
+            "environment": {"PATH": "/usr/bin:/bin", "TERM": "xterm"}}, "cols": 80, "rows": 24
+        }}),
+    );
+    assert_eq!(read_response(&mut reader, 1)["ok"], json!(true));
+
+    for (index, (agent, event_name)) in [
+        ("codex", "UserPromptSubmit"),
+        ("claude", "UserPromptSubmit"),
+        ("copilot", "userPromptSubmitted"),
+        ("cursor", "beforeSubmitPrompt"),
+        ("agy", "PreInvocation"),
+        ("opencode", "SessionBusy"),
+        ("pi", "agent_start"),
+        ("amp", "session.start"),
+        ("grok", "UserPromptSubmit"),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        post_hook(dir.path(), agent, event_name);
+        let request_id = index as i64 + 2;
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            send(
+                &mut writer,
+                json!({"id": request_id, "type": "agentPresence.list", "payload": {}}),
+            );
+            let response = read_response(&mut reader, request_id);
+            let detected = response["payload"].as_array().is_some_and(|items| {
+                items
+                    .iter()
+                    .any(|item| item["agentType"] == agent && item["agentState"] == "working")
+            });
+            if detected {
+                break;
+            }
+            assert!(Instant::now() < deadline, "{agent} was not detected");
+            std::thread::sleep(Duration::from_millis(25));
+        }
+    }
 }
