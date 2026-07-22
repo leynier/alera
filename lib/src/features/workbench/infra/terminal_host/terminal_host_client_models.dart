@@ -237,4 +237,5 @@ const Set<String> runtimeHostEventNames = <String>{
   'mobilePairingsChanged',
   'mobileDevicesChanged',
   'mobileGatewayChanged',
+  'agentPresenceChanged',
 };
