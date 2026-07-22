@@ -3,9 +3,12 @@ use std::path::{Path, PathBuf};
 
 use alera_core::runtime::RuntimeAgentStatusHookSettings;
 use serde_json::{json, Map, Value};
-use sha2::{Digest, Sha256};
 
+use self::codex_hook_trust::{codex_trusted_hash, remap_codex_source_hook_trust};
 use super::integration_plugins::{install_amp_plugin, install_opencode_plugin, install_pi_plugin};
+
+#[path = "integration_config_codex_trust.rs"]
+mod codex_hook_trust;
 
 const MANAGED_MARKER: &str = "alera-runtime-agent-hook";
 const LEGACY_MANAGED_MARKERS: [&str; 9] = [
@@ -130,7 +133,11 @@ fn prepare_codex(runtime_dir: &Path, script: &Path) -> anyhow::Result<PathBuf> {
         .ok_or_else(|| anyhow::anyhow!("Codex config.toml root is not a table"))?;
     table_field(root, "features").insert("hooks".to_string(), toml::Value::Boolean(true));
     let state = table_field(table_field(root, "hooks"), "state");
-    let canonical_hooks_path = std::fs::canonicalize(&hooks_path).unwrap_or(hooks_path);
+    let canonical_hooks_path = std::fs::canonicalize(&hooks_path).unwrap_or(hooks_path.clone());
+    // Source-home trust keys still point at ~/.codex/hooks.json after the
+    // definitions are copied into the isolated runtime home; remap only those
+    // existing records so already-trusted user hooks stay trusted.
+    remap_codex_source_hook_trust(state, &source.join("hooks.json"), &canonical_hooks_path);
     for (label, index, command) in trust {
         let key = format!("{}:{label}:{index}:0", canonical_hooks_path.display());
         let mut entry = toml::map::Map::new();
@@ -411,18 +418,6 @@ fn link_if_present(source: &Path, target: &Path) {
             let _ = std::os::windows::fs::symlink_file(source, target);
         }
     }
-}
-
-fn codex_trusted_hash(event_label: &str, command: &str) -> String {
-    let identity = BTreeMap::from([
-        ("event_name", json!(event_label)),
-        (
-            "hooks",
-            json!([{ "async": false, "command": command, "timeout": 600, "type": "command" }]),
-        ),
-    ]);
-    let serialized = serde_json::to_string(&identity).expect("serializable trust identity");
-    format!("sha256:{:x}", Sha256::digest(serialized.as_bytes()))
 }
 
 fn home_dir() -> anyhow::Result<PathBuf> {
