@@ -199,6 +199,36 @@ void _registerTerminalHostClientResilienceTests() {
       expect(server.requestTypes, <String>['hello', 'detach']);
     },
   );
+
+  test('forwards agentPresenceChanged on runtimeEvents', () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'alera-host-client-agent-presence-',
+    );
+    addTearDown(() async {
+      if (await tempDir.exists()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+    final server = await _TerminalHostTestServer.start();
+    addTearDown(server.dispose);
+    final client = SocketTerminalHostClient(
+      launcher: _FakeTerminalHostLauncher(server: server),
+      applicationSupportDirectory: () async => tempDir,
+    );
+    addTearDown(client.dispose);
+
+    await client.ensureStarted(config: TerminalHostConfig.defaults);
+    final runtimeEvent = client.runtimeEvents.first;
+
+    server.send(<String, Object?>{
+      'event': 'agentPresenceChanged',
+      'payload': <String, Object?>{},
+    });
+
+    final event = await runtimeEvent;
+    expect(event.name, 'agentPresenceChanged');
+    expect(event.payload, <String, Object?>{});
+  });
 }
 
 Future<void> _waitForServerRequestCount(

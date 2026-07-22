@@ -3,9 +3,12 @@ use std::path::{Path, PathBuf};
 
 use alera_core::runtime::RuntimeAgentStatusHookSettings;
 use serde_json::{json, Map, Value};
-use sha2::{Digest, Sha256};
 
+use self::codex_hook_trust::{codex_trusted_hash, remap_codex_source_hook_trust};
 use super::integration_plugins::{install_amp_plugin, install_opencode_plugin, install_pi_plugin};
+
+#[path = "integration_config_codex_trust.rs"]
+mod codex_hook_trust;
 
 const MANAGED_MARKER: &str = "alera-runtime-agent-hook";
 const LEGACY_MANAGED_MARKERS: [&str; 9] = [
@@ -415,62 +418,6 @@ fn link_if_present(source: &Path, target: &Path) {
             let _ = std::os::windows::fs::symlink_file(source, target);
         }
     }
-}
-
-fn codex_trusted_hash(event_label: &str, command: &str) -> String {
-    let identity = BTreeMap::from([
-        ("event_name", json!(event_label)),
-        (
-            "hooks",
-            json!([{ "async": false, "command": command, "timeout": 600, "type": "command" }]),
-        ),
-    ]);
-    let serialized = serde_json::to_string(&identity).expect("serializable trust identity");
-    format!("sha256:{:x}", Sha256::digest(serialized.as_bytes()))
-}
-
-fn remap_codex_source_hook_trust(
-    state: &mut toml::map::Map<String, toml::Value>,
-    source_hooks_path: &Path,
-    runtime_hooks_path: &Path,
-) {
-    let source_prefixes = codex_hook_path_key_prefixes(source_hooks_path);
-    if source_prefixes.is_empty() {
-        return;
-    }
-    let runtime_prefix = format!("{}:", runtime_hooks_path.display());
-    let mut remaps = Vec::new();
-    for key in state.keys() {
-        for source_prefix in &source_prefixes {
-            let old_prefix = format!("{source_prefix}:");
-            if let Some(suffix) = key.strip_prefix(&old_prefix) {
-                remaps.push((key.clone(), format!("{runtime_prefix}{suffix}")));
-                break;
-            }
-        }
-    }
-    for (old_key, new_key) in remaps {
-        if let Some(entry) = state.remove(&old_key) {
-            state.insert(new_key, entry);
-        }
-    }
-}
-
-fn codex_hook_path_key_prefixes(path: &Path) -> Vec<String> {
-    let mut prefixes = Vec::new();
-    let display = path.display().to_string();
-    if !display.is_empty() {
-        prefixes.push(display.clone());
-    }
-    if let Ok(canonical) = std::fs::canonicalize(path) {
-        let canonical_display = canonical.display().to_string();
-        if !canonical_display.is_empty()
-            && !prefixes.iter().any(|value| value == &canonical_display)
-        {
-            prefixes.push(canonical_display);
-        }
-    }
-    prefixes
 }
 
 fn home_dir() -> anyhow::Result<PathBuf> {
