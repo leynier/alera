@@ -26,6 +26,7 @@ void main() {
           'codex',
           'kimi',
           'grok',
+          'cursor',
           'antigravity',
           'minimax',
           'zai',
