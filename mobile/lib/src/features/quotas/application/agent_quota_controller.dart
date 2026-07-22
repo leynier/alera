@@ -32,4 +32,44 @@ class AgentQuotaController extends _$AgentQuotaController {
       () => client.fetchAgentQuotas(forceRefresh: true),
     );
   }
+
+  Future<void> tryClaudeWithTui(QuotaSnapshot snapshot) async {
+    final client = await ref.read(
+      hostConnectionControllerProvider(hostId).future,
+    );
+    if (!client.supportsAgentQuotaClaudeTui) {
+      throw UnsupportedError('Update The Runtime To Try Claude With TUI.');
+    }
+    final updated = await client.fetchClaudeQuotaViaTui(
+      accountId: snapshot.accountId,
+      displayName: snapshot.displayName,
+    );
+    final previous = state.value;
+    if (previous == null) {
+      ref.invalidateSelf();
+      return;
+    }
+    final snapshots = <QuotaSnapshot>[
+      for (final item in previous.snapshots)
+        if (item.provider == updated.provider &&
+            item.accountId == updated.accountId)
+          updated
+        else
+          item,
+    ];
+    if (!snapshots.any(
+      (item) =>
+          item.provider == updated.provider &&
+          item.accountId == updated.accountId,
+    )) {
+      snapshots.add(updated);
+    }
+    state = AsyncData(
+      QuotaSnapshotState(
+        snapshots: snapshots,
+        environment: previous.environment,
+        fetchedAt: DateTime.now().toUtc(),
+      ),
+    );
+  }
 }

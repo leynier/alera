@@ -280,6 +280,8 @@ String _providerDescription(AgentQuotaProviderId provider) {
       'Read Kimi Coding Plan Usage With An API Key From The Host Environment.',
     AgentQuotaProviderId.grok =>
       'Read Grok Build Usage Through Its Official Interactive CLI.',
+    AgentQuotaProviderId.cursor =>
+      'Read Cursor Plan Usage From The Local Cursor CLI Session.',
     AgentQuotaProviderId.antigravity =>
       'Read Antigravity Usage Through The Official Agy CLI.',
     AgentQuotaProviderId.minimax =>

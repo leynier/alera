@@ -161,7 +161,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 
 | Feature | Difficulty | Utility | Status | Notes |
 |---|:---:|:---:|:---:|---|
-| Agent quota status bar | 3 | 4 | Shipped | Bottom status bar with local/remote quota usage for Claude Code and CCS profiles, Codex, Kimi, Grok Build, Antigravity, MiniMax, and Z.ai |
+| Agent quota status bar | 3 | 4 | Shipped | Bottom status bar with local/remote quota usage for Claude Code and CCS profiles, Codex, Kimi, Grok Build, Cursor, Antigravity, MiniMax, and Z.ai |
 | Per-agent usage charts | 3 | 4 | Planned | Daily usage visualization per agent provider |
 | Cost tracking | 3 | 4 | Planned | API cost monitoring and visualization |
 | Share/export usage | 2 | 2 | Planned | Export or share usage stats |

@@ -210,6 +210,7 @@ pub(super) fn mobile_request_allowed(request_type: &str) -> bool {
             | "mobile.runtimeSettings.get"
             | "mobile.runtimeSettings.update"
             | "agentQuota.snapshot"
+            | "agentQuota.fetchClaudeTui"
             | "cliRegistration.status"
             | "cliRegistration.install"
             | "agentSkill.install"

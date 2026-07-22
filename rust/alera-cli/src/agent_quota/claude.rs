@@ -1,49 +1,7 @@
-async fn fetch_claude(
-    profile: Option<&ClaudeProfileRequest>,
-    cli_permits: Arc<Semaphore>,
-    allow_cli_fallback: bool,
-) -> QuotaSnapshot {
-    let (account_id, display_name, config_dir, env) = match profile {
-        None => {
-            let config_dir = home_dir().map(|home| home.join(".claude"));
-            (
-                "default".to_string(),
-                "Default".to_string(),
-                config_dir,
-                BTreeMap::new(),
-            )
-        }
-        Some(profile) => {
-            let Some(home) = home_dir() else {
-                return QuotaSnapshot::unavailable(
-                    "claude",
-                    &profile.profile,
-                    &profile.alias,
-                    "Home directory is unavailable",
-                );
-            };
-            let ccs_root = std::env::var("CCS_DIR")
-                .map(PathBuf::from)
-                .unwrap_or_else(|_| home.join(".ccs"));
-            let config_dir = ccs_root.join("instances").join(&profile.profile);
-            if !config_dir.exists() {
-                return QuotaSnapshot::unavailable(
-                    "claude",
-                    &profile.profile,
-                    &profile.alias,
-                    format!("CCS profile not found: {}", profile.profile),
-                );
-            }
-            (
-                profile.profile.clone(),
-                profile.alias.clone(),
-                Some(config_dir.clone()),
-                BTreeMap::from([(
-                    "CLAUDE_CONFIG_DIR".to_string(),
-                    config_dir.to_string_lossy().to_string(),
-                )]),
-            )
-        }
+async fn fetch_claude(profile: Option<&ClaudeProfileRequest>) -> QuotaSnapshot {
+    let (account_id, display_name, config_dir, _env) = match resolve_claude_account(profile) {
+        Ok(value) => value,
+        Err(snapshot) => return snapshot,
     };
     let api_environment_present = anthropic_api_environment_present();
     let oauth = match config_dir.as_deref() {
@@ -53,26 +11,47 @@ async fn fetch_claude(
         None => ClaudeOAuthFetch::CredentialsMissing,
     };
     match oauth {
-        ClaudeOAuthFetch::Snapshot(snapshot) => return snapshot,
+        ClaudeOAuthFetch::Snapshot(snapshot) => snapshot,
         ClaudeOAuthFetch::CredentialsMissing if !api_environment_present => {
-            return QuotaSnapshot::unavailable(
+            QuotaSnapshot::unavailable(
                 "claude",
                 &account_id,
                 &display_name,
                 "Not signed in to Claude",
             )
         }
-        ClaudeOAuthFetch::CredentialsMissing | ClaudeOAuthFetch::FallbackRequired => {}
+        ClaudeOAuthFetch::CredentialsMissing | ClaudeOAuthFetch::FallbackRequired => {
+            QuotaSnapshot::unavailable(
+                "claude",
+                &account_id,
+                &display_name,
+                "Claude OAuth usage is unavailable",
+            )
+        }
     }
-    if !allow_cli_fallback {
-        return QuotaSnapshot::unavailable(
-            "claude",
-            &account_id,
-            &display_name,
-            "Claude OAuth usage is unavailable",
-        );
-    }
-    let _permit = cli_permits.acquire_owned().await.ok();
+}
+
+/// Explicit Claude TUI scrape for one account. Used by `agentQuota.fetchClaudeTui`.
+pub(crate) async fn fetch_claude_tui(account_id: &str, display_name: &str) -> Value {
+    let snapshot = fetch_claude_tui_snapshot(account_id, display_name).await;
+    serde_json::to_value(snapshot).expect("quota snapshot serializes")
+}
+
+async fn fetch_claude_tui_snapshot(account_id: &str, display_name: &str) -> QuotaSnapshot {
+    let profile = if account_id == "default" {
+        None
+    } else {
+        Some(ClaudeProfileRequest {
+            alias: display_name.to_string(),
+            profile: account_id.to_string(),
+        })
+    };
+    let (account_id, display_name, _config_dir, env) = match resolve_claude_account(profile.as_ref())
+    {
+        Ok(value) => value,
+        Err(snapshot) => return snapshot,
+    };
+    let api_environment_present = anthropic_api_environment_present();
     if !api_environment_present && claude_auth_status(&env).await == Some(false) {
         return QuotaSnapshot::unavailable(
             "claude",
@@ -97,6 +76,56 @@ async fn fetch_claude(
     {
         Ok(output) => parse_tui_snapshot("claude", &account_id, &display_name, &output),
         Err(error) => command_error_snapshot("claude", &account_id, &display_name, error),
+    }
+}
+
+type ClaudeAccountParts = (String, String, Option<PathBuf>, BTreeMap<String, String>);
+
+#[allow(clippy::result_large_err, clippy::type_complexity)]
+fn resolve_claude_account(
+    profile: Option<&ClaudeProfileRequest>,
+) -> Result<ClaudeAccountParts, QuotaSnapshot> {
+    match profile {
+        None => {
+            let config_dir = home_dir().map(|home| home.join(".claude"));
+            Ok((
+                "default".to_string(),
+                "Default".to_string(),
+                config_dir,
+                BTreeMap::new(),
+            ))
+        }
+        Some(profile) => {
+            let Some(home) = home_dir() else {
+                return Err(QuotaSnapshot::unavailable(
+                    "claude",
+                    &profile.profile,
+                    &profile.alias,
+                    "Home directory is unavailable",
+                ));
+            };
+            let ccs_root = std::env::var("CCS_DIR")
+                .map(PathBuf::from)
+                .unwrap_or_else(|_| home.join(".ccs"));
+            let config_dir = ccs_root.join("instances").join(&profile.profile);
+            if !config_dir.exists() {
+                return Err(QuotaSnapshot::unavailable(
+                    "claude",
+                    &profile.profile,
+                    &profile.alias,
+                    format!("CCS profile not found: {}", profile.profile),
+                ));
+            }
+            Ok((
+                profile.profile.clone(),
+                profile.alias.clone(),
+                Some(config_dir.clone()),
+                BTreeMap::from([(
+                    "CLAUDE_CONFIG_DIR".to_string(),
+                    config_dir.to_string_lossy().to_string(),
+                )]),
+            ))
+        }
     }
 }
 

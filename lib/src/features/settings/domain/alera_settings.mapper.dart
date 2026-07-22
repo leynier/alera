@@ -85,6 +85,8 @@ class AgentQuotaProviderIdMapper extends EnumMapper<AgentQuotaProviderId> {
         return AgentQuotaProviderId.kimi;
       case r'grok':
         return AgentQuotaProviderId.grok;
+      case r'cursor':
+        return AgentQuotaProviderId.cursor;
       case r'antigravity':
         return AgentQuotaProviderId.antigravity;
       case r'minimax':
@@ -107,6 +109,8 @@ class AgentQuotaProviderIdMapper extends EnumMapper<AgentQuotaProviderId> {
         return r'kimi';
       case AgentQuotaProviderId.grok:
         return r'grok';
+      case AgentQuotaProviderId.cursor:
+        return r'cursor';
       case AgentQuotaProviderId.antigravity:
         return r'antigravity';
       case AgentQuotaProviderId.minimax:

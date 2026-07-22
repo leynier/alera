@@ -43,6 +43,7 @@ use crate::terminal_host::session::{PtyEvent, PtyWriteCompletion, Session};
 mod agent_hook_events;
 mod client_delivery;
 mod coordinator_requests;
+mod host_service_agent_quota;
 mod host_service_requests;
 mod lifecycle;
 mod mobile_terminal_requests;
@@ -134,6 +135,12 @@ pub enum ServerCommand {
         result: HostResult<Value>,
     },
     AgentQuotaFinished {
+        client_id: u64,
+        request_id: i64,
+        environment_signature: u64,
+        result: HostResult<Value>,
+    },
+    AgentQuotaClaudeTuiFinished {
         client_id: u64,
         request_id: i64,
         environment_signature: u64,
@@ -587,6 +594,17 @@ impl ServerActor {
                 environment_signature,
                 result,
             } => self.handle_agent_quota_finished(
+                client_id,
+                request_id,
+                environment_signature,
+                result,
+            ),
+            ServerCommand::AgentQuotaClaudeTuiFinished {
+                client_id,
+                request_id,
+                environment_signature,
+                result,
+            } => self.handle_agent_quota_claude_tui_finished(
                 client_id,
                 request_id,
                 environment_signature,

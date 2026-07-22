@@ -8,11 +8,13 @@ class _AgentQuotaHoverCard extends StatelessWidget {
     required this.snapshots,
     this.profileLabels = const <String, String>{},
     this.emptyMessage = 'Quota Data Unavailable',
+    this.hostId = 'local',
   });
 
   final List<AgentQuotaSnapshot> snapshots;
   final Map<String, String> profileLabels;
   final String emptyMessage;
+  final String hostId;
 
   @override
   Widget build(BuildContext context) {
@@ -54,6 +56,7 @@ class _AgentQuotaHoverCard extends StatelessWidget {
                 _AgentQuotaHoverSection(
                   snapshot: snapshot,
                   profileLabel: profileLabels[snapshot.key],
+                  hostId: hostId,
                 ),
               ],
             ],
@@ -68,10 +71,12 @@ class _AgentQuotaHoverSection extends StatelessWidget {
   const _AgentQuotaHoverSection({
     required this.snapshot,
     required this.profileLabel,
+    required this.hostId,
   });
 
   final AgentQuotaSnapshot snapshot;
   final String? profileLabel;
+  final String hostId;
 
   @override
   Widget build(BuildContext context) {
@@ -128,7 +133,85 @@ class _AgentQuotaHoverSection extends StatelessWidget {
               if (index > 0) const SizedBox(height: AleraTokens.space12),
               _QuotaHoverReading(entry: entry, status: snapshot.status),
             ],
+          if (_shouldOfferClaudeTui(snapshot)) ...<Widget>[
+            const SizedBox(height: AleraTokens.space12),
+            _ClaudeTryWithTuiButton(hostId: hostId, snapshot: snapshot),
+          ],
         ],
+      ),
+    );
+  }
+}
+
+bool _shouldOfferClaudeTui(AgentQuotaSnapshot snapshot) {
+  return snapshot.provider == AgentQuotaProviderId.claude &&
+      snapshot.status != AgentQuotaStatus.ok;
+}
+
+class _ClaudeTryWithTuiButton extends ConsumerStatefulWidget {
+  const _ClaudeTryWithTuiButton({required this.hostId, required this.snapshot});
+
+  final String hostId;
+  final AgentQuotaSnapshot snapshot;
+
+  @override
+  ConsumerState<_ClaudeTryWithTuiButton> createState() =>
+      _ClaudeTryWithTuiButtonState();
+}
+
+class _ClaudeTryWithTuiButtonState
+    extends ConsumerState<_ClaudeTryWithTuiButton> {
+  var _loading = false;
+
+  Future<void> _run() async {
+    if (_loading) {
+      return;
+    }
+    setState(() => _loading = true);
+    try {
+      final hostId = widget.hostId;
+      final targets = ref.read(sshTargetsProvider).value ?? const <SshTarget>[];
+      final target = hostId == 'local'
+          ? null
+          : targets.where((candidate) => candidate.id == hostId).firstOrNull;
+      await ref
+          .read(agentQuotaServiceProvider)
+          .fetchClaudeTui(
+            hostId: hostId,
+            target: target,
+            accountId: widget.snapshot.accountId,
+            displayName: widget.snapshot.displayName,
+          );
+      ref.invalidate(agentQuotaStateProvider);
+    } on Object {
+      // Status bar refresh / next poll shows the updated error snapshot.
+      ref.invalidate(agentQuotaStateProvider);
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: TextButton(
+        onPressed: _loading ? null : _run,
+        style: TextButton.styleFrom(
+          foregroundColor: AleraTokens.accent,
+          padding: EdgeInsets.zero,
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        child: Text(
+          _loading ? 'Trying With TUI...' : 'Try With TUI',
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+            color: _loading ? AleraTokens.foregroundFaint : AleraTokens.accent,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
     );
   }

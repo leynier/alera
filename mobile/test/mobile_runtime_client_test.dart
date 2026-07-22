@@ -10,6 +10,106 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 
 void main() {
   test(
+    'Feature detects Claude TUI quota capability during authentication',
+    () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      final sockets = <WebSocket>[];
+      addTearDown(() async {
+        for (final socket in sockets) {
+          await socket.close();
+        }
+        await server.close(force: true);
+      });
+      final subscription = server.listen((request) async {
+        final socket = await WebSocketTransformer.upgrade(request);
+        sockets.add(socket);
+        socket.listen((raw) {
+          final message = jsonDecode(raw as String) as Map<String, Object?>;
+          socket.add(
+            jsonEncode(<String, Object?>{
+              'id': message['id'],
+              'ok': true,
+              'payload': <String, Object?>{
+                'runtimeCapabilities': <String>[
+                  mobileAgentQuotaClaudeTuiCapability,
+                ],
+              },
+            }),
+          );
+        });
+      });
+      addTearDown(subscription.cancel);
+
+      final client = await MobileRuntimeClient.connect(
+        'ws://${server.address.address}:${server.port}',
+      );
+      addTearDown(client.dispose);
+      expect(client.supportsAgentQuotaClaudeTui, isFalse);
+
+      await client.authenticate(deviceId: 'device-1', deviceToken: 'token-1');
+
+      expect(client.supportsAgentQuotaClaudeTui, isTrue);
+    },
+  );
+
+  test('Claude TUI quota fetch uses the dedicated runtime request', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    final sockets = <WebSocket>[];
+    final requests = <Map<String, Object?>>[];
+    addTearDown(() async {
+      for (final socket in sockets) {
+        await socket.close();
+      }
+      await server.close(force: true);
+    });
+    final subscription = server.listen((request) async {
+      final socket = await WebSocketTransformer.upgrade(request);
+      sockets.add(socket);
+      socket.listen((raw) {
+        final message = jsonDecode(raw as String) as Map<String, Object?>;
+        requests.add(message);
+        socket.add(
+          jsonEncode(<String, Object?>{
+            'id': message['id'],
+            'ok': true,
+            'payload': <String, Object?>{
+              'snapshot': <String, Object?>{
+                'provider': 'claude',
+                'accountId': 'partsbase',
+                'displayName': 'Partsbase',
+                'status': 'ok',
+                'updatedAt': DateTime.utc(2026).millisecondsSinceEpoch,
+                'windows': <Object?>[],
+                'buckets': <Object?>[],
+              },
+            },
+          }),
+        );
+      });
+    });
+    addTearDown(subscription.cancel);
+
+    final client = await MobileRuntimeClient.connect(
+      'ws://${server.address.address}:${server.port}',
+    );
+    addTearDown(client.dispose);
+
+    final snapshot = await client.fetchClaudeQuotaViaTui(
+      accountId: 'partsbase',
+      displayName: 'Partsbase',
+    );
+
+    expect(snapshot.accountId, 'partsbase');
+    expect(snapshot.status, 'ok');
+    expect(requests, hasLength(1));
+    expect(requests.single['type'], 'agentQuota.fetchClaudeTui');
+    expect(requests.single['payload'], <String, Object?>{
+      'accountId': 'partsbase',
+      'displayName': 'Partsbase',
+    });
+  });
+
+  test(
     'Feature detects synchronized terminal titles during authentication',
     () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);

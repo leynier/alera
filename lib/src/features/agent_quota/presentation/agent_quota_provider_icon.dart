@@ -23,6 +23,7 @@ class AgentQuotaProviderIcon extends StatelessWidget {
       AgentQuotaProviderId.claude => AgentType.claude,
       AgentQuotaProviderId.codex => AgentType.codex,
       AgentQuotaProviderId.grok => AgentType.grok,
+      AgentQuotaProviderId.cursor => AgentType.cursor,
       AgentQuotaProviderId.antigravity => AgentType.agy,
       _ => null,
     };

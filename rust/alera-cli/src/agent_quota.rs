@@ -46,7 +46,9 @@ struct AgentQuotaFetchRequest {
     environment_names: EnvironmentNames,
     #[serde(default)]
     environment_values: BTreeMap<String, String>,
-    #[serde(default = "default_true")]
+    /// Retained for older clients; Claude snapshot never opens a TUI.
+    #[serde(default)]
+    #[allow(dead_code)]
     allow_cli_fallback: bool,
 }
 
@@ -247,6 +249,7 @@ pub(crate) async fn run_runtime_proxy() -> i32 {
 async fn handle_proxy_request(request: ProxyRequest) -> Value {
     let result = match request.request_type.as_str() {
         "agentQuota.fetch" => fetch_agent_quotas(request.payload).await,
+        "agentQuota.fetchClaudeTui" => fetch_claude_tui_proxy(request.payload).await,
         other => Err(anyhow!("Unsupported runtime proxy request: {other}")),
     };
     match result {
@@ -259,6 +262,27 @@ async fn handle_proxy_request(request: ProxyRequest) -> Value {
     }
 }
 
+async fn fetch_claude_tui_proxy(payload: Value) -> Result<Value> {
+    let account_id = payload
+        .get("accountId")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| anyhow!("accountId must be a non-empty string"))?;
+    let display_name = payload
+        .get("displayName")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or(account_id);
+    let snapshot = fetch_claude_tui(account_id, display_name).await;
+    Ok(json!({
+        "snapshot": snapshot.clone(),
+        "snapshots": [snapshot],
+        "environment": {},
+    }))
+}
+
 pub(crate) async fn fetch_agent_quotas(payload: Value) -> Result<Value> {
     let request: AgentQuotaFetchRequest =
         serde_json::from_value(payload).context("Invalid agent quota request")?;
@@ -269,6 +293,7 @@ pub(crate) async fn fetch_agent_quotas(payload: Value) -> Result<Value> {
             "codex".to_string(),
             "kimi".to_string(),
             "grok".to_string(),
+            "cursor".to_string(),
             "antigravity".to_string(),
             "minimax".to_string(),
             "zai".to_string(),
@@ -283,19 +308,11 @@ pub(crate) async fn fetch_agent_quotas(payload: Value) -> Result<Value> {
         match provider.as_str() {
             "claude" => {
                 if request.claude_default_enabled {
-                    let permits = Arc::clone(&cli_permits);
-                    let allow_cli_fallback = request.allow_cli_fallback;
-                    tasks.spawn(
-                        async move { fetch_claude(None, permits, allow_cli_fallback).await },
-                    );
+                    tasks.spawn(async move { fetch_claude(None).await });
                 }
                 for profile in &request.claude_profiles {
                     let profile = profile.clone();
-                    let permits = Arc::clone(&cli_permits);
-                    let allow_cli_fallback = request.allow_cli_fallback;
-                    tasks.spawn(async move {
-                        fetch_claude(Some(&profile), permits, allow_cli_fallback).await
-                    });
+                    tasks.spawn(async move { fetch_claude(Some(&profile)).await });
                 }
             }
             "codex" => {
@@ -312,6 +329,9 @@ pub(crate) async fn fetch_agent_quotas(payload: Value) -> Result<Value> {
             }
             "grok" => {
                 tasks.spawn(fetch_grok());
+            }
+            "cursor" => {
+                tasks.spawn(fetch_cursor());
             }
             "antigravity" => {
                 let permits = Arc::clone(&cli_permits);
@@ -374,6 +394,7 @@ include!("agent_quota/claude.rs");
 include!("agent_quota/tui.rs");
 include!("agent_quota/codex.rs");
 include!("agent_quota/grok.rs");
+include!("agent_quota/cursor.rs");
 include!("agent_quota/kimi.rs");
 include!("agent_quota/plans.rs");
 
