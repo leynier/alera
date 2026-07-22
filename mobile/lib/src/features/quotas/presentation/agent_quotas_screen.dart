@@ -3,7 +3,11 @@ import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart'
 import 'package:alera_mobile/src/features/quotas/application/agent_quota_controller.dart';
 import 'package:alera_mobile/src/features/quotas/domain/quota_settings.dart';
 import 'package:alera_mobile/src/features/quotas/domain/quota_snapshot.dart';
+import 'package:alera_mobile/src/features/quotas/presentation/agent_quota_provider_icon.dart';
+import 'package:alera_mobile/src/features/quotas/presentation/quota_display_labels.dart';
+import 'package:alera_mobile/src/features/quotas/presentation/quota_ordering.dart';
 import 'package:alera_mobile/src/features/quotas/presentation/quota_settings_screen.dart';
+import 'package:alera_mobile/src/features/quotas/presentation/quota_status_pill.dart';
 import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
 import 'package:alera_mobile/src/features/settings/application/host_settings_controller.dart';
 import 'package:flutter/material.dart';
@@ -78,18 +82,7 @@ class _QuotaList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final order = settings?.enabledProviders ?? supportedQuotaProviders;
-    final snapshots = state.snapshots.toList()
-      ..sort((left, right) {
-        final leftIndex = order.indexOf(left.provider);
-        final rightIndex = order.indexOf(right.provider);
-        final byProvider = (leftIndex < 0 ? order.length : leftIndex).compareTo(
-          rightIndex < 0 ? order.length : rightIndex,
-        );
-        return byProvider != 0
-            ? byProvider
-            : left.displayName.compareTo(right.displayName);
-      });
+    final snapshots = sortedQuotaSnapshots(state.snapshots, settings: settings);
     return RefreshIndicator(
       onRefresh: onRefresh,
       child: ListView(
@@ -132,7 +125,7 @@ class _QuotaCardState extends ConsumerState<_QuotaCard> {
   @override
   Widget build(BuildContext context) {
     final snapshot = widget.snapshot;
-    final meters = <QuotaMeter>[...snapshot.windows, ...snapshot.buckets];
+    final meters = sortedQuotaMeters(snapshot);
     final connection = ref.watch(
       hostConnectionControllerProvider(widget.hostId),
     );
@@ -150,49 +143,32 @@ class _QuotaCardState extends ConsumerState<_QuotaCard> {
           children: <Widget>[
             Row(
               children: <Widget>[
-                CircleAvatar(
-                  radius: AleraTokens.spaceLg,
-                  backgroundColor: AleraTokens.surfaceVariant,
-                  child: Text(
-                    (quotaProviderLabels[snapshot.provider] ??
-                            snapshot.provider)
-                        .characters
-                        .first
-                        .toUpperCase(),
-                  ),
-                ),
+                AgentQuotaProviderIcon(provider: snapshot.provider, size: 22),
                 const SizedBox(width: AleraTokens.spaceMd),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        quotaProviderLabels[snapshot.provider] ??
-                            snapshot.provider,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      Text(
-                        snapshot.displayName,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AleraTokens.foregroundMuted,
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    quotaSnapshotTitle(
+                      provider: snapshot.provider,
+                      accountId: snapshot.accountId,
+                      displayName: snapshot.displayName,
+                    ),
+                    style: Theme.of(context).textTheme.titleMedium,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                _StatusPill(status: snapshot.status),
+                QuotaStatusPill(status: snapshot.status),
               ],
             ),
             if (meters.isNotEmpty) ...<Widget>[
               const SizedBox(height: AleraTokens.spaceLg),
               for (final meter in meters) ...<Widget>[
-                _QuotaMeterRow(meter: meter),
+                _QuotaMeterRow(provider: snapshot.provider, meter: meter),
                 const SizedBox(height: AleraTokens.spaceMd),
               ],
             ],
             if (snapshot.error case final error?)
               Text(
-                error,
+                normalizeQuotaText(error),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: snapshot.status == 'stale'
                       ? AleraTokens.warning
@@ -236,8 +212,9 @@ class _QuotaCardState extends ConsumerState<_QuotaCard> {
 }
 
 class _QuotaMeterRow extends StatelessWidget {
-  const _QuotaMeterRow({required this.meter});
+  const _QuotaMeterRow({required this.provider, required this.meter});
 
+  final String provider;
   final QuotaMeter meter;
 
   @override
@@ -253,7 +230,9 @@ class _QuotaMeterRow extends StatelessWidget {
       children: <Widget>[
         Row(
           children: <Widget>[
-            Expanded(child: Text(meter.label)),
+            Expanded(
+              child: Text(quotaMeterDisplayLabel(provider, meter.label)),
+            ),
             Text('${remaining.toStringAsFixed(0)}% Remaining'),
           ],
         ),
@@ -278,39 +257,6 @@ class _QuotaMeterRow extends StatelessWidget {
           ),
         ],
       ],
-    );
-  }
-}
-
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.status});
-
-  final String status;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = switch (status) {
-      'ok' => AleraTokens.success,
-      'stale' => AleraTokens.warning,
-      _ => AleraTokens.error,
-    };
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AleraTokens.spaceSm,
-        vertical: AleraTokens.spaceXs,
-      ),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: AleraTokens.emphasisOverlayAlpha),
-        borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
-      ),
-      child: Text(
-        status == 'ok'
-            ? 'Live'
-            : status == 'stale'
-            ? 'Stale'
-            : 'Unavailable',
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(color: color),
-      ),
     );
   }
 }

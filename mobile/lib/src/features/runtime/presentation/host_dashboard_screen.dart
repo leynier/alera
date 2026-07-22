@@ -30,6 +30,7 @@ class HostDashboardScreen extends ConsumerWidget {
         host;
     return Scaffold(
       appBar: AppBar(
+        centerTitle: true,
         title: Text(currentHost.effectiveName),
         actions: <Widget>[
           PopupMenuButton<String>(

@@ -90,6 +90,9 @@ class TabsController extends _$TabsController {
 
   Future<void> closeTab(WorkspaceTabSummary tab) async {
     final client = await ref.read(terminalClientProvider(hostId).future);
+    if (!ref.mounted) {
+      return;
+    }
     if (tab.isTerminal) {
       try {
         await client.terminateSession(tab.terminalSessionId);
@@ -97,10 +100,16 @@ class TabsController extends _$TabsController {
         // A tab whose session already exited still gets removed below.
       }
     }
+    if (!ref.mounted) {
+      return;
+    }
     final workspaceClient = await ref.read(
       workspaceClientProvider(hostId).future,
     );
     await workspaceClient.removeTab(tab.id);
+    if (!ref.mounted) {
+      return;
+    }
     ref.invalidateSelf();
   }
 

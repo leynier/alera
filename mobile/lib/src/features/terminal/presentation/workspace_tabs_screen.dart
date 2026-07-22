@@ -217,6 +217,7 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
     }
     return Scaffold(
       appBar: AppBar(
+        centerTitle: true,
         title: Text(widget.workspace.name, overflow: TextOverflow.ellipsis),
         bottom: tabs.value?.isNotEmpty == true
             ? PreferredSize(
@@ -318,7 +319,17 @@ class _TabStrip extends StatelessWidget {
                       .where((status) => status.tabId == tab.id)
                       .firstOrNull,
                 ),
-                label: Text(tab.displayTitle, overflow: TextOverflow.ellipsis),
+                label: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: _tabTitleMaxWidth(tab.kind),
+                  ),
+                  child: Text(
+                    tab.displayTitle,
+                    maxLines: 1,
+                    softWrap: false,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
                 selected: tab.id == selectedTabId,
                 // Non-terminal tabs remain disabled content surfaces, while
                 // their metadata actions stay available through long press.
@@ -373,6 +384,15 @@ class _TabAvatar extends StatelessWidget {
       ),
     );
   }
+}
+
+double _tabTitleMaxWidth(String kind) {
+  return switch (kind) {
+    'editor' || 'markdownViewer' || 'pdf' || 'gitDiff' =>
+      AleraTokens.tabTitleMaxWidthEditor,
+    'terminal' || 'browser' => AleraTokens.tabTitleMaxWidthTerminal,
+    _ => AleraTokens.tabTitleMaxWidthTerminal,
+  };
 }
 
 class _EmptyTabs extends StatelessWidget {

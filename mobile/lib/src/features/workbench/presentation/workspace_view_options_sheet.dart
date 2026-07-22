@@ -1,3 +1,5 @@
+import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/design_system/forms/alera_dropdown_field.dart';
 import 'package:alera_mobile/src/features/workbench/application/mobile_view_prefs_controller.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_list_controller.dart';
 import 'package:alera_mobile/src/features/workbench/domain/mobile_view_prefs.dart';
@@ -23,6 +25,22 @@ class _WorkspaceViewOptions extends ConsumerWidget {
   final String hostId;
   final WorkspaceListData data;
 
+  static const List<AleraDropdownFieldEntry<MobileWorkbenchSortBy>>
+  _sortEntries = <AleraDropdownFieldEntry<MobileWorkbenchSortBy>>[
+    AleraDropdownFieldEntry(
+      value: MobileWorkbenchSortBy.name,
+      label: 'Name',
+    ),
+    AleraDropdownFieldEntry(
+      value: MobileWorkbenchSortBy.recent,
+      label: 'Recent',
+    ),
+    AleraDropdownFieldEntry(
+      value: MobileWorkbenchSortBy.activity,
+      label: 'Agent Activity',
+    ),
+  ];
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final prefs = ref.watch(mobileViewPrefsControllerProvider(hostId)).value;
@@ -32,71 +50,93 @@ class _WorkspaceViewOptions extends ConsumerWidget {
     final controller = ref.read(
       mobileViewPrefsControllerProvider(hostId).notifier,
     );
+    final groupByProject = prefs.groupBy == MobileWorkspaceGroupBy.project;
     return SafeArea(
       child: DraggableScrollableSheet(
         expand: false,
         initialChildSize: 0.78,
         builder: (context, scrollController) => ListView(
           controller: scrollController,
+          padding: const EdgeInsets.all(AleraTokens.space16),
           children: <Widget>[
-            const ListTile(title: Text('View Options')),
-            const Divider(height: 1),
+            Text('View Options', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: AleraTokens.space12),
             SwitchListTile(
+              contentPadding: EdgeInsets.zero,
               title: const Text('Group By Project'),
-              value: prefs.groupBy == MobileWorkspaceGroupBy.project,
+              value: groupByProject,
               onChanged: (value) => controller.setGroupBy(
                 value
                     ? MobileWorkspaceGroupBy.project
                     : MobileWorkspaceGroupBy.none,
               ),
             ),
-            _SortTile(
-              label: 'Project Sort',
-              value: prefs.projectSort,
-              onChanged: controller.setProjectSort,
-            ),
-            _SortTile(
-              label: 'Workspace Sort',
-              value: prefs.workspaceSort,
-              onChanged: controller.setWorkspaceSort,
-            ),
-            ListTile(
-              title: const Text('Workspace Type'),
-              trailing: DropdownButton<MobileWorkspaceKindFilter>(
-                value: prefs.workspaceKindFilter,
-                onChanged: (value) {
-                  if (value != null) controller.setKindFilter(value);
-                },
-                items: const <DropdownMenuItem<MobileWorkspaceKindFilter>>[
-                  DropdownMenuItem(
-                    value: MobileWorkspaceKindFilter.all,
-                    child: Text('All'),
-                  ),
-                  DropdownMenuItem(
-                    value: MobileWorkspaceKindFilter.defaultOnly,
-                    child: Text('Default Only'),
-                  ),
-                  DropdownMenuItem(
-                    value: MobileWorkspaceKindFilter.nonDefaultOnly,
-                    child: Text('Non-Default Only'),
-                  ),
-                ],
+            const SizedBox(height: AleraTokens.space8),
+            if (groupByProject) ...<Widget>[
+              AleraDropdownField<MobileWorkbenchSortBy>(
+                labelText: 'Sort Projects By',
+                value: prefs.projectSort,
+                onChanged: controller.setProjectSort,
+                entries: _sortEntries,
               ),
+              const SizedBox(height: AleraTokens.space12),
+              AleraDropdownField<MobileWorkbenchSortBy>(
+                labelText: 'Then Workspaces By',
+                value: prefs.workspaceSort,
+                onChanged: controller.setWorkspaceSort,
+                entries: _sortEntries,
+              ),
+            ] else
+              AleraDropdownField<MobileWorkbenchSortBy>(
+                labelText: 'Sort Workspaces By',
+                value: prefs.workspaceSort,
+                onChanged: controller.setWorkspaceSort,
+                entries: _sortEntries,
+              ),
+            const SizedBox(height: AleraTokens.space12),
+            AleraDropdownField<MobileWorkspaceKindFilter>(
+              labelText: 'Show Workspaces',
+              value: prefs.workspaceKindFilter,
+              onChanged: controller.setKindFilter,
+              entries:
+                  const <AleraDropdownFieldEntry<MobileWorkspaceKindFilter>>[
+                    AleraDropdownFieldEntry(
+                      value: MobileWorkspaceKindFilter.all,
+                      label: 'All',
+                    ),
+                    AleraDropdownFieldEntry(
+                      value: MobileWorkspaceKindFilter.defaultOnly,
+                      label: 'Default Only',
+                    ),
+                    AleraDropdownFieldEntry(
+                      value: MobileWorkspaceKindFilter.nonDefaultOnly,
+                      label: 'Non-Default Only',
+                    ),
+                  ],
             ),
-            const Divider(),
-            const ListTile(title: Text('Projects')),
+            const SizedBox(height: AleraTokens.space16),
+            const Divider(height: 1),
+            const ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text('Projects'),
+            ),
             for (final project in data.projects)
               CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
                 title: Text(project.name),
                 value: prefs.selectedProjectIds.contains(project.id),
                 onChanged: (_) => controller.setProjectFilter(
                   _toggle(prefs.selectedProjectIds, project.id),
                 ),
               ),
-            const Divider(),
-            const ListTile(title: Text('Tags')),
+            const Divider(height: 1),
+            const ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text('Tags'),
+            ),
             for (final tag in data.tags)
               CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
                 title: Text(tag.name),
                 value: prefs.selectedTagIds.contains(tag.id),
                 onChanged: (_) => controller.setTagFilter(
@@ -105,45 +145,6 @@ class _WorkspaceViewOptions extends ConsumerWidget {
               ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _SortTile extends StatelessWidget {
-  const _SortTile({
-    required this.label,
-    required this.value,
-    required this.onChanged,
-  });
-
-  final String label;
-  final MobileWorkbenchSortBy value;
-  final ValueChanged<MobileWorkbenchSortBy> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      title: Text(label),
-      trailing: DropdownButton<MobileWorkbenchSortBy>(
-        value: value,
-        onChanged: (value) {
-          if (value != null) onChanged(value);
-        },
-        items: const <DropdownMenuItem<MobileWorkbenchSortBy>>[
-          DropdownMenuItem(
-            value: MobileWorkbenchSortBy.name,
-            child: Text('Name'),
-          ),
-          DropdownMenuItem(
-            value: MobileWorkbenchSortBy.recent,
-            child: Text('Recent'),
-          ),
-          DropdownMenuItem(
-            value: MobileWorkbenchSortBy.activity,
-            child: Text('Activity'),
-          ),
-        ],
       ),
     );
   }

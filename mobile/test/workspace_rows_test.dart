@@ -157,6 +157,36 @@ void main() {
           .toList();
       expect(entryIds, <String>['w1', 'w1-child']);
     });
+
+    test('Omits All header when flat and nothing is pinned', () {
+      final rows = buildMobileWorkspaceRows(
+        workspaces: <WorkspaceSummary>[
+          _workspace('a', project: 'p1'),
+          _workspace('b', project: 'p1'),
+        ],
+        projects: <ProjectSummary>[_project('p1')],
+        prefs: const MobileViewPrefs(groupBy: MobileWorkspaceGroupBy.none),
+      );
+
+      expect(rows.whereType<MobileAllHeaderRow>(), isEmpty);
+      expect(
+        rows.whereType<MobileWorkspaceEntryRow>().map((row) => row.entry.workspace.id),
+        <String>['a', 'b'],
+      );
+    });
+
+    test('Keeps All header when flat list also has pinned section', () {
+      final rows = buildMobileWorkspaceRows(
+        workspaces: <WorkspaceSummary>[
+          _workspace('a', project: 'p1'),
+          _workspace('b', project: 'p1', pinned: true),
+        ],
+        projects: <ProjectSummary>[_project('p1')],
+        prefs: const MobileViewPrefs(groupBy: MobileWorkspaceGroupBy.none),
+      );
+
+      expect(rows.whereType<MobileAllHeaderRow>(), hasLength(1));
+    });
   });
 }
 

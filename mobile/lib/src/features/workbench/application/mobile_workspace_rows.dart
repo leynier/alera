@@ -176,14 +176,19 @@ List<MobileWorkspaceRow> buildMobileWorkspaceRows({
       }
     }
   } else {
-    rows.add(
-      MobileAllHeaderRow(
-        count: visibleWorkspaces.length,
-        collapsed: prefs.allSectionCollapsed,
-      ),
-    );
-    if (prefs.allSectionCollapsed) {
-      return rows;
+    // Without project grouping, "All" is only useful as a sibling of Pinned.
+    // A lone All header just adds an extra collapse step.
+    final showAllHeader = pinned.isNotEmpty;
+    if (showAllHeader) {
+      rows.add(
+        MobileAllHeaderRow(
+          count: visibleWorkspaces.length,
+          collapsed: prefs.allSectionCollapsed,
+        ),
+      );
+      if (prefs.allSectionCollapsed) {
+        return rows;
+      }
     }
     for (final entry in buildWorkspaceTree(
       entries: visibleWorkspaces,
