@@ -11,6 +11,8 @@ const String aleraRuntimeHostBootstrapCapability = 'sshTargetBootstrap';
 const String aleraRuntimeHostManagedWorkspaceCapability =
     'managedWorkspaceLifecycle';
 const String aleraRuntimeHostOrchestrationCapability = 'orchestration';
+const String aleraRuntimeHostAgentQuotaClaudeTuiCapability =
+    'agentQuotaClaudeTuiV1';
 const String aleraRuntimeHostConnectedEvent = 'runtimeHostConnected';
 const int defaultTerminalHostEmptyShutdownDelaySeconds = 30;
 const int defaultTerminalHostDetachedSessionShutdownDelaySeconds = 60 * 60;

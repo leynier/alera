@@ -154,7 +154,7 @@ class AgentQuotaService {
                       'profile': profile.profile,
                     },
                 ],
-                'allowCliFallback': forceRefresh,
+                'allowCliFallback': false,
                 'environmentNames': <String, String>{
                   'kimiApiKey': settings.environment.kimiApiKey,
                   'zaiApiKey': settings.environment.zaiApiKey,
@@ -215,6 +215,63 @@ class AgentQuotaService {
         error: error.toString(),
       );
     }
+  }
+
+  Future<AgentQuotaSnapshot> fetchClaudeTui({
+    required String hostId,
+    required SshTarget? target,
+    required String accountId,
+    String? displayName,
+  }) async {
+    final payload = hostId == 'local' && _runtimeClient != null
+        ? _mapValue(
+            await _runtimeClient
+                .runtimeRequest('agentQuota.fetchClaudeTui', <String, Object?>{
+                  'accountId': accountId,
+                  if (displayName != null && displayName.trim().isNotEmpty)
+                    'displayName': displayName.trim(),
+                }, const Duration(seconds: 60)),
+          )
+        : await _client.request(
+            hostId: hostId,
+            target: target,
+            type: 'agentQuota.fetchClaudeTui',
+            payload: <String, Object?>{
+              'accountId': accountId,
+              if (displayName != null && displayName.trim().isNotEmpty)
+                'displayName': displayName.trim(),
+            },
+            timeout: const Duration(seconds: 60),
+          );
+    final raw = payload['snapshot'];
+    if (raw is! Map) {
+      throw const FormatException('Claude TUI response missing snapshot.');
+    }
+    final snapshot = AgentQuotaSnapshot.tryFromJson(
+      Map<String, Object?>.from(raw),
+    );
+    if (snapshot == null) {
+      throw const FormatException(
+        'Claude TUI response had an unknown provider.',
+      );
+    }
+    final previous = _cache[hostId];
+    if (previous != null) {
+      final snapshots = <AgentQuotaSnapshot>[
+        for (final item in previous.snapshots)
+          if (item.key == snapshot.key) snapshot else item,
+      ];
+      if (!snapshots.any((item) => item.key == snapshot.key)) {
+        snapshots.add(snapshot);
+      }
+      _cache[hostId] = AgentQuotaState(
+        hostId: hostId,
+        snapshots: snapshots,
+        environment: previous.environment,
+        fetchedAt: DateTime.now().toUtc(),
+      );
+    }
+    return snapshot;
   }
 }
 

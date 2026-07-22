@@ -5,11 +5,13 @@ class _QuotaProviderSummary extends StatelessWidget {
     required this.snapshot,
     required this.profileLabel,
     required this.compact,
+    required this.hostId,
   });
 
   final AgentQuotaSnapshot snapshot;
   final String? profileLabel;
   final bool compact;
+  final String hostId;
 
   @override
   Widget build(BuildContext context) {
@@ -23,6 +25,7 @@ class _QuotaProviderSummary extends StatelessWidget {
           profileLabels: profileLabel == null
               ? const <String, String>{}
               : <String, String>{snapshot.key: profileLabel!},
+          hostId: hostId,
         ),
         child: Container(
           height: AleraTokens.statusBarHeight,
@@ -119,6 +122,7 @@ class _CollapsedQuotaBar extends StatelessWidget {
               card: _AgentQuotaHoverCard(
                 snapshots: snapshots,
                 emptyMessage: error ?? 'No Quota Data',
+                hostId: hostId,
                 profileLabels: <String, String>{
                   for (final snapshot in snapshots)
                     if (snapshot.provider == AgentQuotaProviderId.claude)

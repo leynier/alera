@@ -5,6 +5,8 @@ import 'package:alera/src/design_system/surfaces/alera_hover_card.dart';
 import 'package:alera/src/features/agent_quota/application/agent_quota_providers.dart';
 import 'package:alera/src/features/agent_quota/domain/agent_quota.dart';
 import 'package:alera/src/features/agent_quota/presentation/agent_quota_provider_icon.dart';
+import 'package:alera/src/features/remote_hosts/application/ssh_target_providers.dart';
+import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
@@ -146,6 +148,7 @@ class AgentQuotaStatusBarView extends StatelessWidget {
                           snapshot: snapshot,
                           profileLabel: _claudeProfileLabel(snapshot),
                           compact: compact,
+                          hostId: hostId,
                         ),
                       if (visible.isEmpty)
                         Padding(

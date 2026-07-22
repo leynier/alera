@@ -11,17 +11,20 @@ Widget agentQuotaStatusBarPreview() => SizedBox(
     hostId: 'local',
     settings: const AgentQuotaHostSettings(
       claudeProfiles: <ClaudeQuotaProfileSettings>[
+        ClaudeQuotaProfileSettings(alias: 'Partsbase', profile: 'partsbase'),
         ClaudeQuotaProfileSettings(alias: 'ccdev', profile: 'leynierdev'),
         ClaudeQuotaProfileSettings(alias: 'cceducup', profile: 'educup'),
       ],
     ),
     snapshots: <AgentQuotaSnapshot>[
       _claudeSnapshot(),
+      _claudeUnavailableSnapshot(),
       _claudeProfileSnapshot('leynierdev', 'ccdev', 34),
       _claudeProfileSnapshot('educup', 'cceducup', 61),
       _snapshot(AgentQuotaProviderId.codex, 'Codex', 43),
       _snapshot(AgentQuotaProviderId.kimi, 'Kimi', 8),
       _snapshot(AgentQuotaProviderId.grok, 'Grok Build', 72),
+      _snapshot(AgentQuotaProviderId.cursor, 'Cursor', 14),
       _antigravitySnapshot(),
       _snapshot(AgentQuotaProviderId.minimax, 'MiniMax', 56),
       _snapshot(AgentQuotaProviderId.zai, 'Z.ai', 11),
@@ -29,6 +32,19 @@ Widget agentQuotaStatusBarPreview() => SizedBox(
     onRefresh: () {},
   ),
 );
+
+AgentQuotaSnapshot _claudeUnavailableSnapshot() {
+  return AgentQuotaSnapshot(
+    provider: AgentQuotaProviderId.claude,
+    accountId: 'partsbase',
+    displayName: 'Partsbase',
+    status: AgentQuotaStatus.unavailable,
+    updatedAt: DateTime.now().toUtc(),
+    error: 'Claude OAuth usage is unavailable',
+    windows: const <AgentQuotaWindow>[],
+    buckets: const <AgentQuotaBucket>[],
+  );
+}
 
 AgentQuotaSnapshot _claudeSnapshot() {
   return AgentQuotaSnapshot(

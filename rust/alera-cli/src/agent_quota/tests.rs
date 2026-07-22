@@ -86,6 +86,50 @@ fn maps_kimi_api_usage_windows() {
 }
 
 #[test]
+fn maps_cursor_period_usage_like_cli_usage_panel() {
+    // Matches cursor-agent /usage: Included/Auto/API percentages, not spend/limit.
+    let snapshot = parse_cursor_period_usage(&json!({
+        "billingCycleStart": "1783357994000",
+        "billingCycleEnd": "1786036394000",
+        "planUsage": {
+            "totalSpend": 625,
+            "includedSpend": 625,
+            "remaining": 1375,
+            "limit": 2000,
+            "autoPercentUsed": 0,
+            "apiPercentUsed": 14.08888888888889,
+            "totalPercentUsed": 1.8376811594202898
+        },
+        "displayMessage": "You've used 32% of your included usage"
+    }));
+
+    assert_eq!(snapshot.status, "ok");
+    assert_eq!(snapshot.provider, "cursor");
+    assert_eq!(snapshot.windows.len(), 3);
+    assert_eq!(snapshot.windows[0].label, "Included");
+    assert!((snapshot.windows[0].used_percent - 1.8376811594202898).abs() < 1e-9);
+    assert_eq!(snapshot.windows[0].resets_at, Some(1_786_036_394_000));
+    assert_eq!(snapshot.windows[1].label, "Auto");
+    assert_eq!(snapshot.windows[1].used_percent, 0.0);
+    assert_eq!(snapshot.windows[2].label, "API");
+    assert!((snapshot.windows[2].used_percent - 14.08888888888889).abs() < 1e-9);
+    // Spend/limit must not drive Included (would incorrectly be ~31%).
+    assert!(snapshot.windows[0].used_percent < 5.0);
+}
+
+#[test]
+fn cursor_period_usage_without_percentages_is_error() {
+    let snapshot = parse_cursor_period_usage(&json!({
+        "planUsage": {
+            "limit": 2000,
+            "remaining": 1000
+        }
+    }));
+    assert_eq!(snapshot.status, "error");
+    assert!(snapshot.windows.is_empty());
+}
+
+#[test]
 fn maps_claude_oauth_usage_windows() {
     let value = json!({
         "utilization": 42,
@@ -169,7 +213,7 @@ fn redacts_bearer_and_api_keys() {
 fn defaults_claude_default_to_enabled_for_older_clients() {
     let request: AgentQuotaFetchRequest = serde_json::from_value(json!({})).unwrap();
     assert!(request.claude_default_enabled);
-    assert!(request.allow_cli_fallback);
+    assert!(!request.allow_cli_fallback);
     assert_eq!(request.environment_names.kimi_api_key, KIMI_API_KEY_ENV);
 }
 
@@ -181,8 +225,25 @@ fn accepts_disabling_claude_default_independently() {
 }
 
 #[test]
-fn accepts_disabling_cli_fallback_for_background_refreshes() {
+fn accepts_legacy_cli_fallback_flag_without_enabling_tui() {
     let request: AgentQuotaFetchRequest =
-        serde_json::from_value(json!({ "allowCliFallback": false })).unwrap();
-    assert!(!request.allow_cli_fallback);
+        serde_json::from_value(json!({ "allowCliFallback": true })).unwrap();
+    assert!(request.allow_cli_fallback);
+}
+
+#[tokio::test]
+#[ignore = "network smoke; run with --ignored when signed into cursor-agent"]
+async fn live_fetch_cursor_period_usage_when_signed_in() {
+    let payload = fetch_agent_quotas(json!({ "providers": ["cursor"] }))
+        .await
+        .expect("cursor quota fetch");
+    let snapshots = payload["snapshots"].as_array().expect("snapshots");
+    assert_eq!(snapshots.len(), 1);
+    let snapshot = &snapshots[0];
+    assert_eq!(snapshot["provider"], "cursor");
+    assert_eq!(snapshot["status"], "ok");
+    let windows = snapshot["windows"].as_array().expect("windows");
+    assert!(windows.iter().any(|w| w["label"] == "Included"));
+    assert!(windows.iter().any(|w| w["label"] == "API"));
+    println!("{}", serde_json::to_string_pretty(snapshot).unwrap());
 }

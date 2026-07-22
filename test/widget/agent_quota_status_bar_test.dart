@@ -226,6 +226,65 @@ void main() {
     );
   });
 
+  testWidgets('offers Try With TUI only for Claude profiles that are not ok', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(
+        settings: const AgentQuotaHostSettings(
+          enabledProviders: <AgentQuotaProviderId>[
+            AgentQuotaProviderId.claude,
+            AgentQuotaProviderId.antigravity,
+          ],
+          claudeProfiles: <ClaudeQuotaProfileSettings>[
+            ClaudeQuotaProfileSettings(alias: 'ccdev', profile: 'dev'),
+          ],
+        ),
+        snapshots: <AgentQuotaSnapshot>[
+          _snapshot(
+            provider: AgentQuotaProviderId.claude,
+            windows: <AgentQuotaWindow>[_window('Weekly', 40)],
+          ),
+          _snapshot(
+            provider: AgentQuotaProviderId.claude,
+            accountId: 'dev',
+            displayName: 'ignored-dev-label',
+            status: AgentQuotaStatus.unavailable,
+            error: 'OAuth Unavailable',
+          ),
+          _snapshot(
+            provider: AgentQuotaProviderId.antigravity,
+            status: AgentQuotaStatus.error,
+            error: 'TUI Failed',
+            buckets: <AgentQuotaBucket>[_bucket('Gemini Models - Weekly', 15)],
+          ),
+        ],
+      ),
+    );
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: Offset.zero);
+
+    await mouse.moveTo(tester.getCenter(find.text('Default')));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Try With TUI'), findsNothing);
+
+    await mouse.moveTo(const Offset(10, 10));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await mouse.moveTo(tester.getCenter(find.text('ccdev')));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Try With TUI'), findsOneWidget);
+
+    await mouse.moveTo(const Offset(10, 10));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await mouse.moveTo(tester.getCenter(find.text('G·W')));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Try With TUI'), findsNothing);
+  });
+
   testWidgets('capitalizes MiniMax model names in the hover card', (
     tester,
   ) async {
@@ -292,6 +351,8 @@ AgentQuotaSnapshot _snapshot({
   required AgentQuotaProviderId provider,
   String accountId = 'default',
   String displayName = 'Default',
+  AgentQuotaStatus status = AgentQuotaStatus.ok,
+  String? error,
   List<AgentQuotaWindow> windows = const <AgentQuotaWindow>[],
   List<AgentQuotaBucket> buckets = const <AgentQuotaBucket>[],
 }) {
@@ -299,9 +360,9 @@ AgentQuotaSnapshot _snapshot({
     provider: provider,
     accountId: accountId,
     displayName: displayName,
-    status: AgentQuotaStatus.ok,
+    status: status,
     updatedAt: DateTime.utc(2026),
-    error: null,
+    error: error,
     windows: windows,
     buckets: buckets,
   );

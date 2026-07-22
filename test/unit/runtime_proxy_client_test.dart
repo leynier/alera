@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:alera/src/features/agent_quota/application/agent_quota_providers.dart';
+import 'package:alera/src/features/agent_quota/domain/agent_quota.dart';
 import 'package:alera/src/features/agent_quota/infra/runtime_proxy_client.dart';
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
@@ -258,6 +259,41 @@ void main() {
     expect(runtime.payloads.single['forceRefresh'], isTrue);
   });
 
+  test('claude TUI fetch uses the dedicated runtime request', () async {
+    final runtime = _RecordingRuntimeHostClient(
+      responses: <String, Map<String, Object?>>{
+        'agentQuota.fetchClaudeTui': <String, Object?>{
+          'snapshot': <String, Object?>{
+            'provider': 'claude',
+            'accountId': 'partsbase',
+            'displayName': 'Partsbase',
+            'status': 'ok',
+            'updatedAt': 1,
+            'windows': <Object?>[],
+            'buckets': <Object?>[],
+          },
+        },
+      },
+    );
+    final service = AgentQuotaService(
+      RuntimeProxyClient(processRunner: _RecordingRunner()),
+      runtime,
+    );
+
+    final snapshot = await service.fetchClaudeTui(
+      hostId: 'local',
+      target: null,
+      accountId: 'partsbase',
+      displayName: 'Partsbase',
+    );
+
+    expect(runtime.requests, <String>['agentQuota.fetchClaudeTui']);
+    expect(runtime.payloads.single['accountId'], 'partsbase');
+    expect(runtime.timeouts.single, const Duration(seconds: 60));
+    expect(snapshot.accountId, 'partsbase');
+    expect(snapshot.status, AgentQuotaStatus.ok);
+  });
+
   test('sends the independent Claude Default setting to the sidecar', () async {
     final runner = _RecordingRunner();
     final client = RuntimeProxyClient(
@@ -291,6 +327,27 @@ void main() {
         payload['environmentNames'] as Map<String, Object?>;
     expect(environmentNames['kimiApiKey'], 'CUSTOM_KIMI_KEY');
   });
+
+  test('proxy quota fetch never enables Claude CLI fallback', () async {
+    final runner = _RecordingRunner();
+    final client = RuntimeProxyClient(
+      processRunner: runner,
+      cliResolver: const _Resolver(),
+      applicationSupportDirectory: () async => Directory('/tmp/alera'),
+    );
+    final service = AgentQuotaService(client);
+
+    await service.fetch(
+      hostId: 'local',
+      target: null,
+      settings: AgentQuotaHostSettings.defaults,
+      forceRefresh: true,
+    );
+
+    final request = jsonDecode(runner.stdin.trim()) as Map<String, Object?>;
+    final payload = request['payload'] as Map<String, Object?>;
+    expect(payload['allowCliFallback'], isFalse);
+  });
 }
 
 class _FakeEnvironmentResolver implements CommandEnvironmentResolver {
@@ -313,6 +370,11 @@ class _FakeEnvironmentResolver implements CommandEnvironmentResolver {
 }
 
 class _RecordingRuntimeHostClient implements RuntimeHostClient {
+  _RecordingRuntimeHostClient({
+    this.responses = const <String, Map<String, Object?>>{},
+  });
+
+  final Map<String, Map<String, Object?>> responses;
   final List<String> requests = <String>[];
   final List<Map<String, Object?>> payloads = <Map<String, Object?>>[];
   final List<Duration?> timeouts = <Duration?>[];
@@ -329,7 +391,7 @@ class _RecordingRuntimeHostClient implements RuntimeHostClient {
     requests.add(type);
     payloads.add(payload);
     timeouts.add(timeout);
-    return <String, Object?>{'snapshots': <Object?>[]};
+    return responses[type] ?? <String, Object?>{'snapshots': <Object?>[]};
   }
 }
 

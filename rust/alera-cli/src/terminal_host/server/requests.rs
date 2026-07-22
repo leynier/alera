@@ -23,8 +23,9 @@ use crate::ssh_bootstrap::{build_ssh_bootstrap_plan, SshTargetBootstrapRequest};
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::{
     error_response, event, int_or, ok_response, require_object, TerminalHostConfig,
-    TerminalHostLaunch, PROTOCOL_VERSION, RUNTIME_HOST_AGENT_STATUS_CAPABILITY,
-    RUNTIME_HOST_BOOTSTRAP_CAPABILITY, RUNTIME_HOST_CAPABILITY, RUNTIME_HOST_LIFECYCLE_CAPABILITY,
+    TerminalHostLaunch, PROTOCOL_VERSION, RUNTIME_HOST_AGENT_QUOTA_CLAUDE_TUI_CAPABILITY,
+    RUNTIME_HOST_AGENT_STATUS_CAPABILITY, RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
+    RUNTIME_HOST_CAPABILITY, RUNTIME_HOST_LIFECYCLE_CAPABILITY,
     RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY, RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY,
     RUNTIME_HOST_MOBILE_CAPABILITY, RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY,
     RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY, RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY,
@@ -157,6 +158,12 @@ impl ServerActor {
                 self.require_auth(client_id)?;
                 self.require_request_allowed(client_id, request_type)?;
                 self.start_agent_quota_request(client_id, request_id, payload)?;
+                Ok(true)
+            }
+            "agentQuota.fetchClaudeTui" => {
+                self.require_auth(client_id)?;
+                self.require_request_allowed(client_id, request_type)?;
+                self.start_agent_quota_claude_tui_request(client_id, request_id, payload)?;
                 Ok(true)
             }
             "cliRegistration.status" | "cliRegistration.install" => {
@@ -326,6 +333,7 @@ impl ServerActor {
                         RUNTIME_HOST_MOBILE_TERMINAL_TITLES_CAPABILITY,
                         RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY,
                         RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY,
+                        RUNTIME_HOST_AGENT_QUOTA_CLAUDE_TUI_CAPABILITY,
                         RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY,
                         RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
                         RUNTIME_HOST_LIFECYCLE_CAPABILITY,
@@ -548,6 +556,7 @@ impl ServerActor {
                         RUNTIME_HOST_MOBILE_TERMINAL_TITLES_CAPABILITY,
                         RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY,
                         RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY,
+                        RUNTIME_HOST_AGENT_QUOTA_CLAUDE_TUI_CAPABILITY,
                         RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY,
                         RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
                         RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,

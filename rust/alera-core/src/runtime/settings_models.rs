@@ -53,11 +53,12 @@ impl Default for RuntimeAgentQuotaSettings {
 
 impl RuntimeAgentQuotaSettings {
     pub fn normalized(mut self) -> Self {
-        const SUPPORTED: [&str; 7] = [
+        const SUPPORTED: [&str; 8] = [
             "claude",
             "codex",
             "kimi",
             "grok",
+            "cursor",
             "antigravity",
             "minimax",
             "zai",
@@ -127,6 +128,7 @@ fn default_quota_providers() -> Vec<String> {
         "codex",
         "kimi",
         "grok",
+        "cursor",
         "antigravity",
         "minimax",
         "zai",

@@ -4,6 +4,7 @@ import 'package:alera_mobile/src/features/quotas/application/agent_quota_control
 import 'package:alera_mobile/src/features/quotas/domain/quota_settings.dart';
 import 'package:alera_mobile/src/features/quotas/domain/quota_snapshot.dart';
 import 'package:alera_mobile/src/features/quotas/presentation/quota_settings_screen.dart';
+import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
 import 'package:alera_mobile/src/features/settings/application/host_settings_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -47,6 +48,7 @@ class AgentQuotasScreen extends ConsumerWidget {
       body: SafeArea(
         child: quotaValue != null
             ? _QuotaList(
+                hostId: host.id,
                 state: quotaValue,
                 settings: settings?.agentQuotas,
                 onRefresh: ref
@@ -61,19 +63,21 @@ class AgentQuotasScreen extends ConsumerWidget {
   }
 }
 
-class _QuotaList extends StatelessWidget {
+class _QuotaList extends ConsumerWidget {
   const _QuotaList({
+    required this.hostId,
     required this.state,
     required this.settings,
     required this.onRefresh,
   });
 
+  final String hostId;
   final QuotaSnapshotState state;
   final QuotaSettings? settings;
   final Future<void> Function() onRefresh;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final order = settings?.enabledProviders ?? supportedQuotaProviders;
     final snapshots = state.snapshots.toList()
       ..sort((left, right) {
@@ -103,7 +107,7 @@ class _QuotaList extends StatelessWidget {
             const _EmptyQuotas()
           else
             for (final snapshot in snapshots) ...<Widget>[
-              _QuotaCard(snapshot: snapshot),
+              _QuotaCard(hostId: hostId, snapshot: snapshot),
               const SizedBox(height: AleraTokens.spaceMd),
             ],
         ],
@@ -112,14 +116,32 @@ class _QuotaList extends StatelessWidget {
   }
 }
 
-class _QuotaCard extends StatelessWidget {
-  const _QuotaCard({required this.snapshot});
+class _QuotaCard extends ConsumerStatefulWidget {
+  const _QuotaCard({required this.hostId, required this.snapshot});
 
+  final String hostId;
   final QuotaSnapshot snapshot;
 
   @override
+  ConsumerState<_QuotaCard> createState() => _QuotaCardState();
+}
+
+class _QuotaCardState extends ConsumerState<_QuotaCard> {
+  var _tryingTui = false;
+
+  @override
   Widget build(BuildContext context) {
+    final snapshot = widget.snapshot;
     final meters = <QuotaMeter>[...snapshot.windows, ...snapshot.buckets];
+    final connection = ref.watch(
+      hostConnectionControllerProvider(widget.hostId),
+    );
+    final supportsClaudeTui =
+        connection.asData?.value.supportsAgentQuotaClaudeTui ?? false;
+    final showTryTui =
+        supportsClaudeTui &&
+        snapshot.provider == 'claude' &&
+        snapshot.status != 'ok';
     return Card(
       child: Padding(
         padding: AleraTokens.contentPadding,
@@ -177,6 +199,35 @@ class _QuotaCard extends StatelessWidget {
                       : AleraTokens.error,
                 ),
               ),
+            if (showTryTui) ...<Widget>[
+              const SizedBox(height: AleraTokens.spaceMd),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton(
+                  onPressed: _tryingTui
+                      ? null
+                      : () async {
+                          setState(() => _tryingTui = true);
+                          try {
+                            await ref
+                                .read(
+                                  agentQuotaControllerProvider(
+                                    widget.hostId,
+                                  ).notifier,
+                                )
+                                .tryClaudeWithTui(snapshot);
+                          } finally {
+                            if (mounted) {
+                              setState(() => _tryingTui = false);
+                            }
+                          }
+                        },
+                  child: Text(
+                    _tryingTui ? 'Trying With TUI...' : 'Try With TUI',
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),

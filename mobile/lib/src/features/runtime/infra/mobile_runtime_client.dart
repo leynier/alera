@@ -127,6 +127,8 @@ class MobileRuntimeClient
       _runtimeCapabilities.contains(mobilePortableSettingsCapability);
   bool get supportsAgentQuotas =>
       _runtimeCapabilities.contains(mobileAgentQuotaCapability);
+  bool get supportsAgentQuotaClaudeTui =>
+      _runtimeCapabilities.contains(mobileAgentQuotaClaudeTuiCapability);
   bool get supportsHostTools =>
       _runtimeCapabilities.contains(mobileHostToolsCapability);
 
