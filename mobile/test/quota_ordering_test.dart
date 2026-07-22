@@ -13,14 +13,11 @@ void main() {
       ],
       environment: const QuotaEnvironment(),
     );
-    final ordered = sortedQuotaSnapshots(
-      <QuotaSnapshot>[
-        _snapshot(provider: 'claude', accountId: 'partsbase', name: 'Partsbase'),
-        _snapshot(provider: 'minimax', accountId: 'default', name: 'MiniMax'),
-        _snapshot(provider: 'claude', accountId: 'default', name: 'Default'),
-      ],
-      settings: settings,
-    );
+    final ordered = sortedQuotaSnapshots(<QuotaSnapshot>[
+      _snapshot(provider: 'claude', accountId: 'partsbase', name: 'Partsbase'),
+      _snapshot(provider: 'minimax', accountId: 'default', name: 'MiniMax'),
+      _snapshot(provider: 'claude', accountId: 'default', name: 'Default'),
+    ], settings: settings);
 
     expect(
       ordered.map((item) => '${item.provider}:${item.accountId}').toList(),
@@ -61,10 +58,11 @@ void main() {
       ),
     );
 
-    expect(
-      meters.map((meter) => meter.label).toList(),
-      <String>['5 Hour', 'Weekly', 'Fable'],
-    );
+    expect(meters.map((meter) => meter.label).toList(), <String>[
+      '5 Hour',
+      'Weekly',
+      'Fable',
+    ]);
   });
 }
 

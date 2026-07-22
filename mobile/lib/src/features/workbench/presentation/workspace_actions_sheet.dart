@@ -279,10 +279,7 @@ class _WorkspaceActionsHeader extends StatelessWidget {
               runSpacing: AleraTokens.space6,
               children: <Widget>[
                 for (final tag in tags)
-                  AleraChip(
-                    label: tag,
-                    leading: AleraIcons.tag,
-                  ),
+                  AleraChip(label: tag, leading: AleraIcons.tag),
               ],
             ),
           ],

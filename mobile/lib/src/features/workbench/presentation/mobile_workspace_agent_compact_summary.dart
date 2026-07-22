@@ -73,9 +73,7 @@ class MobileWorkspaceAgentCompactSummary extends StatelessWidget {
         onTap: onToggle,
         borderRadius: BorderRadius.circular(AleraTokens.radiusSm),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            minWidth: AleraTokens.minTapTarget,
-          ),
+          constraints: const BoxConstraints(minWidth: AleraTokens.minTapTarget),
           child: Padding(
             padding: EdgeInsets.symmetric(
               horizontal: AleraTokens.space8,

@@ -3,10 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('strips MiniMax provider suffix from meter labels', () {
-    expect(
-      quotaMeterDisplayLabel('minimax', 'General en MiniMax'),
-      'General',
-    );
+    expect(quotaMeterDisplayLabel('minimax', 'General en MiniMax'), 'General');
     expect(
       quotaMeterDisplayLabel('minimax', 'general Weekly'),
       'General Weekly',
@@ -18,10 +15,7 @@ void main() {
   });
 
   test('keeps non-MiniMax labels normalized without forced capitalization', () {
-    expect(
-      quotaMeterDisplayLabel('claude', '5 Hour'),
-      '5 Hour',
-    );
+    expect(quotaMeterDisplayLabel('claude', '5 Hour'), '5 Hour');
     expect(normalizeQuotaText('Gpt-4 – Plan'), 'GPT-4 - Plan');
   });
   test('builds Claude titles with Default or CCS profile', () {

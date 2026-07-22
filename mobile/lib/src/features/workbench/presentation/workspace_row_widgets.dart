@@ -135,8 +135,7 @@ class MobileWorkspaceListRow extends StatelessWidget {
     final entry = row.entry;
     final workspace = entry.workspace;
     final tags = _tagLabels(workspace);
-    final depthPad =
-        (row.isPinnedCopy ? 0 : entry.depth) * AleraTokens.space12;
+    final depthPad = (row.isPinnedCopy ? 0 : entry.depth) * AleraTokens.space12;
     final rowLeft = AleraTokens.space12 + depthPad;
     final canToggleChildren = !row.isPinnedCopy && entry.hasVisibleChildren;
     final hasAgents = agentPresence.isNotEmpty;
@@ -363,9 +362,7 @@ class _WorkspaceStatusIndicator extends StatelessWidget {
         ),
       );
     }
-    final color = interrupted == true
-        ? AleraTokens.error
-        : _stateColor(state!);
+    final color = interrupted == true ? AleraTokens.error : _stateColor(state!);
     final icon = interrupted == true
         ? AleraIcons.cancel
         : switch (state) {

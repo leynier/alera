@@ -170,7 +170,9 @@ void main() {
 
       expect(rows.whereType<MobileAllHeaderRow>(), isEmpty);
       expect(
-        rows.whereType<MobileWorkspaceEntryRow>().map((row) => row.entry.workspace.id),
+        rows.whereType<MobileWorkspaceEntryRow>().map(
+          (row) => row.entry.workspace.id,
+        ),
         <String>['a', 'b'],
       );
     });

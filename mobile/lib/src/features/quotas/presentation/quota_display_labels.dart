@@ -2,9 +2,7 @@ import 'package:alera_mobile/src/features/quotas/domain/quota_settings.dart';
 
 /// Normalizes quota copy to match desktop hover/status presentation.
 String normalizeQuotaText(String value) {
-  return value
-      .replaceAll('–', '-')
-      .replaceAll(RegExp(r'\bGpt\b'), 'GPT');
+  return value.replaceAll('–', '-').replaceAll(RegExp(r'\bGpt\b'), 'GPT');
 }
 
 /// Meter / window label for quotas UI (Home summary and Quotas screen).
@@ -21,7 +19,10 @@ String quotaMeterDisplayLabel(String provider, String value) {
 
   label = label
       .replaceFirst(
-        RegExp('^${RegExp.escape(providerLabel)}[-:\\s]+', caseSensitive: false),
+        RegExp(
+          '^${RegExp.escape(providerLabel)}[-:\\s]+',
+          caseSensitive: false,
+        ),
         '',
       )
       .replaceFirst(

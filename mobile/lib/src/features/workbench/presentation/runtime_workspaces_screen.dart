@@ -55,10 +55,7 @@ class RuntimeWorkspacesScreen extends ConsumerWidget {
         title: Stack(
           clipBehavior: Clip.none,
           children: <Widget>[
-            Text(
-              currentHost.effectiveName,
-              overflow: TextOverflow.ellipsis,
-            ),
+            Text(currentHost.effectiveName, overflow: TextOverflow.ellipsis),
             Positioned(
               right: -AleraTokens.space12,
               top: -AleraTokens.space2,

@@ -79,8 +79,10 @@ abstract final class AleraTokens {
   static const double squareAspectRatio = 1;
   static const double pairingViewfinderSize = 260;
   static const double tabStripHeight = 56;
+
   /// Matches desktop terminal/browser tab title max width.
   static const double tabTitleMaxWidthTerminal = 92;
+
   /// Matches desktop editor-like tab title max width.
   static const double tabTitleMaxWidthEditor = 180;
   static const double accessoryBarHeight = 44;

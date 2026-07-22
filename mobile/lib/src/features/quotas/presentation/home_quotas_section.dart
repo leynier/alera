@@ -90,8 +90,9 @@ class HomeQuotasSection extends ConsumerWidget {
           ),
         _HomeQuotaErrorCard(
           message: error.toString(),
-          onRetry: () =>
-              ref.read(agentQuotaControllerProvider(host.id).notifier).refresh(),
+          onRetry: () => ref
+              .read(agentQuotaControllerProvider(host.id).notifier)
+              .refresh(),
           onOpen: () => _openQuotas(context, host),
         ),
         const SizedBox(height: AleraTokens.spaceMd),
@@ -103,10 +104,7 @@ class HomeQuotasSection extends ConsumerWidget {
       return const <Widget>[];
     }
 
-    final snapshots = sortedQuotaSnapshots(
-      state.snapshots,
-      settings: settings,
-    );
+    final snapshots = sortedQuotaSnapshots(state.snapshots, settings: settings);
 
     return <Widget>[
       if (showHostHeading)
@@ -267,9 +265,9 @@ class _HomeQuotaErrorCard extends StatelessWidget {
           children: <Widget>[
             Text(
               message,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AleraTokens.error,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AleraTokens.error),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),

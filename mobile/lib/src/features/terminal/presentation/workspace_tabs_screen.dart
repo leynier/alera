@@ -388,8 +388,10 @@ class _TabAvatar extends StatelessWidget {
 
 double _tabTitleMaxWidth(String kind) {
   return switch (kind) {
-    'editor' || 'markdownViewer' || 'pdf' || 'gitDiff' =>
-      AleraTokens.tabTitleMaxWidthEditor,
+    'editor' ||
+    'markdownViewer' ||
+    'pdf' ||
+    'gitDiff' => AleraTokens.tabTitleMaxWidthEditor,
     'terminal' || 'browser' => AleraTokens.tabTitleMaxWidthTerminal,
     _ => AleraTokens.tabTitleMaxWidthTerminal,
   };

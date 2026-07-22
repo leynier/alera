@@ -9,9 +9,9 @@ List<QuotaSnapshot> sortedQuotaSnapshots(
   final order = settings?.enabledProviders ?? supportedQuotaProviders;
   final byProvider = <String, List<QuotaSnapshot>>{};
   for (final snapshot in snapshots) {
-    byProvider.putIfAbsent(snapshot.provider, () => <QuotaSnapshot>[]).add(
-      snapshot,
-    );
+    byProvider
+        .putIfAbsent(snapshot.provider, () => <QuotaSnapshot>[])
+        .add(snapshot);
   }
 
   final visible = <QuotaSnapshot>[];
@@ -63,7 +63,8 @@ List<QuotaSnapshot> _orderedClaudeSnapshots(
     added.add('default');
   }
 
-  for (final profile in settings?.claudeProfiles ?? const <ClaudeQuotaProfile>[]) {
+  for (final profile
+      in settings?.claudeProfiles ?? const <ClaudeQuotaProfile>[]) {
     final snapshot = byAccount[profile.profile];
     if (snapshot != null) {
       ordered.add(snapshot);
@@ -71,10 +72,11 @@ List<QuotaSnapshot> _orderedClaudeSnapshots(
     }
   }
 
-  final leftovers = candidates
-      .where((snapshot) => !added.contains(snapshot.accountId))
-      .toList()
-    ..sort((left, right) => left.displayName.compareTo(right.displayName));
+  final leftovers =
+      candidates
+          .where((snapshot) => !added.contains(snapshot.accountId))
+          .toList()
+        ..sort((left, right) => left.displayName.compareTo(right.displayName));
   ordered.addAll(leftovers);
   return ordered;
 }
@@ -83,8 +85,10 @@ List<QuotaSnapshot> _orderedClaudeSnapshots(
 List<QuotaMeter> sortedQuotaMeters(QuotaSnapshot snapshot) {
   final meters = <QuotaMeter>[...snapshot.windows, ...snapshot.buckets]
     ..sort(
-      (left, right) => quotaMeterReadingOrder(snapshot.provider, left.label)
-          .compareTo(quotaMeterReadingOrder(snapshot.provider, right.label)),
+      (left, right) => quotaMeterReadingOrder(
+        snapshot.provider,
+        left.label,
+      ).compareTo(quotaMeterReadingOrder(snapshot.provider, right.label)),
     );
   return meters;
 }

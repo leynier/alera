@@ -27,10 +27,7 @@ class _WorkspaceViewOptions extends ConsumerWidget {
 
   static const List<AleraDropdownFieldEntry<MobileWorkbenchSortBy>>
   _sortEntries = <AleraDropdownFieldEntry<MobileWorkbenchSortBy>>[
-    AleraDropdownFieldEntry(
-      value: MobileWorkbenchSortBy.name,
-      label: 'Name',
-    ),
+    AleraDropdownFieldEntry(value: MobileWorkbenchSortBy.name, label: 'Name'),
     AleraDropdownFieldEntry(
       value: MobileWorkbenchSortBy.recent,
       label: 'Recent',
