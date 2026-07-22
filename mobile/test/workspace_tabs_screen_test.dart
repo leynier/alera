@@ -1,3 +1,4 @@
+import 'package:alera_mobile/src/design_system/forms/alera_rename_dialog.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
@@ -61,7 +62,7 @@ void main() {
     await tester.pumpAndSettle();
     final field = tester.widget<TextField>(
       find.descendant(
-        of: find.byType(AlertDialog),
+        of: find.byType(AleraRenameDialog),
         matching: find.byType(TextField),
       ),
     );

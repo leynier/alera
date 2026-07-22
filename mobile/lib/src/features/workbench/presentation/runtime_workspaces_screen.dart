@@ -21,6 +21,7 @@ import 'package:alera_mobile/src/features/workbench/application/workspace_agent_
 import 'package:alera_mobile/src/features/workbench/application/workspace_search_controller.dart';
 import 'package:alera_mobile/src/features/workbench/domain/mobile_view_prefs.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/create_workspace_screen.dart';
+import 'package:alera_mobile/src/features/workbench/presentation/mobile_section_header.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_actions_sheet.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_agent_terminal_actions.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/workspace_row_widgets.dart';
