@@ -53,8 +53,8 @@ void main() {
         overrides: [
           hostRepositoryProvider.overrideWithValue(repository),
           // Home quotas watch host connections; keep the smoke test offline.
-          hostConnectionControllerProvider.overrideWith(
-            _OfflineHostConnection.new,
+          hostConnectionControllerProvider.overrideWith2(
+            (_) => _OfflineHostConnection(),
           ),
         ],
         child: const AleraMobileApp(),
