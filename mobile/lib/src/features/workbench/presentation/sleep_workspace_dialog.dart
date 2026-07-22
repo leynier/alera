@@ -1,3 +1,4 @@
+import 'package:alera_mobile/src/design_system/layout/alera_confirm_dialog.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:flutter/material.dart';
 
@@ -7,26 +8,13 @@ Future<bool> showSleepWorkspaceDialog(
 }) async {
   final confirmed = await showDialog<bool>(
     context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('Sleep Workspace?'),
-      content: Text(
-        'This Closes All Tabs And Terminal Sessions For "${workspace.name}". '
-        'The Workspace, Branch, And Files Will Be Preserved.',
-      ),
-      actions: <Widget>[
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          style: FilledButton.styleFrom(
-            backgroundColor: Theme.of(context).colorScheme.error,
-            foregroundColor: Theme.of(context).colorScheme.onError,
-          ),
-          onPressed: () => Navigator.of(context).pop(true),
-          child: const Text('Sleep'),
-        ),
-      ],
+    builder: (context) => AleraConfirmDialog(
+      title: 'Sleep Workspace?',
+      message:
+          'This Closes All Tabs And Terminal Sessions For "${workspace.name}". '
+          'The Workspace, Branch, And Files Will Be Preserved.',
+      confirmLabel: 'Sleep',
+      destructive: true,
     ),
   );
   return confirmed == true;

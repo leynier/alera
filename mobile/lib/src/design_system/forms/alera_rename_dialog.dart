@@ -1,4 +1,6 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/design_system/forms/alera_text_field.dart';
+import 'package:alera_mobile/src/design_system/layout/alera_dialog.dart';
 import 'package:flutter/material.dart';
 
 /// Prompts for a new name and pops with the trimmed value. When [allowEmpty]
@@ -49,30 +51,44 @@ class _AleraRenameDialogState extends State<AleraRenameDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(widget.title),
-      content: TextField(
-        controller: _controller,
-        autofocus: true,
-        onSubmitted: (_) => _submit(),
-        decoration: InputDecoration(
-          labelText: widget.labelText,
-          helperText: widget.helperText,
-          helperMaxLines: 2,
+    final theme = Theme.of(context);
+    return AleraDialog(
+      maxWidth: 420,
+      child: Padding(
+        padding: const EdgeInsets.all(AleraTokens.space20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(widget.title, style: theme.textTheme.titleMedium),
+            const SizedBox(height: AleraTokens.space12),
+            AleraTextField(
+              controller: _controller,
+              autofocus: true,
+              labelText: widget.labelText,
+              helperText: widget.helperText,
+              onSubmitted: (_) => _submit(),
+            ),
+            const SizedBox(height: AleraTokens.space20),
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+                const SizedBox(width: AleraTokens.space8),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: _submit,
+                    child: const Text('Rename'),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
-      ),
-      actions: <Widget>[
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(onPressed: _submit, child: const Text('Rename')),
-      ],
-      actionsPadding: const EdgeInsets.fromLTRB(
-        AleraTokens.spaceLg,
-        0,
-        AleraTokens.spaceLg,
-        AleraTokens.spaceLg,
       ),
     );
   }

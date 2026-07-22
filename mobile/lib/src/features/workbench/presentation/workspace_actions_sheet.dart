@@ -1,3 +1,6 @@
+import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/design_system/chips/alera_chip.dart';
+import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/workbench/application/workspace_list_controller.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/delete_workspace_dialog.dart';
@@ -36,85 +39,102 @@ Future<void> showWorkspaceActionsSheet(
   }
   final action = await showModalBottomSheet<_WorkspaceAction>(
     context: context,
+    isScrollControlled: true,
     builder: (context) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          ListTile(
-            title: Text(
-              workspace.name,
-              style: Theme.of(context).textTheme.titleMedium,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Text(
-              workspace.branch ?? workspace.path,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          const Divider(height: 1),
-          ListTile(
-            leading: const Icon(Icons.edit_outlined),
-            title: const Text('Rename Workspace'),
-            onTap: () => Navigator.of(context).pop(_WorkspaceAction.rename),
-          ),
-          ListTile(
-            leading: Icon(
-              workspace.isPinned ? Icons.push_pin_outlined : Icons.push_pin,
-            ),
-            title: Text(workspace.isPinned ? 'Unpin' : 'Pin'),
-            onTap: () => Navigator.of(context).pop(
-              workspace.isPinned
-                  ? _WorkspaceAction.unpin
-                  : _WorkspaceAction.pin,
-            ),
-          ),
-          ListTile(
-            leading: const Icon(Icons.sell_outlined),
-            title: const Text('Tags'),
-            onTap: () => Navigator.of(context).pop(_WorkspaceAction.tags),
-          ),
-          ListTile(
-            leading: const Icon(Icons.account_tree_outlined),
-            title: const Text('Configure Parent'),
-            onTap: () =>
-                Navigator.of(context).pop(_WorkspaceAction.configureParent),
-          ),
-          if (workspace.hasParent)
-            ListTile(
-              leading: const Icon(Icons.link_off),
-              title: const Text('Unlink Parent'),
-              onTap: () =>
-                  Navigator.of(context).pop(_WorkspaceAction.unlinkParent),
-            ),
-          ListTile(
-            leading: const Icon(Icons.open_in_browser),
-            title: const Text('Open Repository'),
-            onTap: () =>
-                Navigator.of(context).pop(_WorkspaceAction.openRepository),
-          ),
-          ListTile(
-            leading: const Icon(Icons.copy_outlined),
-            title: const Text('Copy Path'),
-            onTap: () => Navigator.of(context).pop(_WorkspaceAction.copyPath),
-          ),
-          ListTile(
-            leading: const Icon(Icons.bedtime_outlined),
-            title: const Text('Sleep Workspace'),
-            onTap: () => Navigator.of(context).pop(_WorkspaceAction.sleep),
-          ),
-          if (!workspace.isMain)
-            ListTile(
-              leading: Icon(
-                Icons.delete_outline,
-                color: Theme.of(context).colorScheme.error,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.85,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            _WorkspaceActionsHeader(workspace: workspace),
+            const Divider(height: 1),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: <Widget>[
+                  ListTile(
+                    leading: const Icon(AleraIcons.edit, size: 20),
+                    title: const Text('Rename'),
+                    onTap: () =>
+                        Navigator.of(context).pop(_WorkspaceAction.rename),
+                  ),
+                  ListTile(
+                    leading: Icon(
+                      workspace.isPinned ? AleraIcons.pinOff : AleraIcons.pin,
+                      size: 20,
+                    ),
+                    title: Text(
+                      workspace.isPinned ? 'Unpin Workspace' : 'Pin Workspace',
+                    ),
+                    onTap: () => Navigator.of(context).pop(
+                      workspace.isPinned
+                          ? _WorkspaceAction.unpin
+                          : _WorkspaceAction.pin,
+                    ),
+                  ),
+                  ListTile(
+                    leading: const Icon(AleraIcons.tag, size: 20),
+                    title: const Text('Manage Tags'),
+                    onTap: () =>
+                        Navigator.of(context).pop(_WorkspaceAction.tags),
+                  ),
+                  ListTile(
+                    leading: const Icon(AleraIcons.link, size: 20),
+                    title: const Text('Set Parent Workspace'),
+                    onTap: () => Navigator.of(
+                      context,
+                    ).pop(_WorkspaceAction.configureParent),
+                  ),
+                  if (workspace.hasParent)
+                    ListTile(
+                      leading: const Icon(AleraIcons.close, size: 20),
+                      title: const Text('Clear Parent Workspace'),
+                      onTap: () => Navigator.of(
+                        context,
+                      ).pop(_WorkspaceAction.unlinkParent),
+                    ),
+                  ListTile(
+                    leading: const Icon(AleraIcons.external, size: 20),
+                    title: const Text('Open in Browser'),
+                    onTap: () => Navigator.of(
+                      context,
+                    ).pop(_WorkspaceAction.openRepository),
+                  ),
+                  ListTile(
+                    leading: const Icon(AleraIcons.copy, size: 20),
+                    title: const Text('Copy Path'),
+                    onTap: () =>
+                        Navigator.of(context).pop(_WorkspaceAction.copyPath),
+                  ),
+                  ListTile(
+                    leading: const Icon(AleraIcons.theme, size: 20),
+                    title: const Text('Sleep'),
+                    onTap: () =>
+                        Navigator.of(context).pop(_WorkspaceAction.sleep),
+                  ),
+                  if (!workspace.isMain)
+                    ListTile(
+                      leading: Icon(
+                        AleraIcons.delete,
+                        size: 20,
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                      title: Text(
+                        'Remove',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                      onTap: () =>
+                          Navigator.of(context).pop(_WorkspaceAction.delete),
+                    ),
+                ],
               ),
-              title: Text(
-                'Delete Workspace',
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-              onTap: () => Navigator.of(context).pop(_WorkspaceAction.delete),
             ),
-        ],
+          ],
+        ),
       ),
     ),
   );
@@ -184,6 +204,103 @@ Future<void> showWorkspaceActionsSheet(
       );
     }
   }
+}
+
+class _WorkspaceActionsHeader extends StatelessWidget {
+  const _WorkspaceActionsHeader({required this.workspace});
+
+  final WorkspaceSummary workspace;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final branch = workspace.branch?.trim();
+    final tags = _workspaceTagLabels(workspace);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AleraTokens.space16,
+        AleraTokens.space16,
+        AleraTokens.space16,
+        AleraTokens.space12,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  workspace.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              if (workspace.isMain) ...<Widget>[
+                const SizedBox(width: AleraTokens.space8),
+                const Icon(
+                  AleraIcons.workspaceMain,
+                  size: 16,
+                  color: AleraTokens.foregroundMuted,
+                ),
+              ],
+            ],
+          ),
+          if (branch != null && branch.isNotEmpty) ...<Widget>[
+            const SizedBox(height: AleraTokens.space8),
+            Row(
+              children: <Widget>[
+                const Icon(
+                  AleraIcons.gitBranch,
+                  size: 14,
+                  color: AleraTokens.foregroundMuted,
+                ),
+                const SizedBox(width: AleraTokens.space6),
+                Expanded(
+                  child: Text(
+                    branch,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: AleraTokens.foregroundMuted,
+                      fontFamily: AleraTokens.monoFontFamily,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          if (tags.isNotEmpty) ...<Widget>[
+            const SizedBox(height: AleraTokens.space8),
+            Wrap(
+              spacing: AleraTokens.space6,
+              runSpacing: AleraTokens.space6,
+              children: <Widget>[
+                for (final tag in tags)
+                  AleraChip(label: tag, leading: AleraIcons.tag),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+List<String> _workspaceTagLabels(WorkspaceSummary workspace) {
+  final names = workspace.tagNames
+      .map((tag) => tag.trim())
+      .where((tag) => tag.isNotEmpty)
+      .toList(growable: false);
+  if (names.isNotEmpty) {
+    return names;
+  }
+  return workspace.tagIds
+      .map((tag) => tag.trim())
+      .where((tag) => tag.isNotEmpty)
+      .toList(growable: false);
 }
 
 Future<void> _confirmAndDelete(

@@ -1,8 +1,12 @@
 import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
+import 'package:alera_mobile/src/design_system/icons/alera_icons.dart';
+import 'package:alera_mobile/src/design_system/layout/alera_section_header.dart';
 import 'package:alera_mobile/src/features/hosts/application/paired_hosts_controller.dart';
 import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
 import 'package:alera_mobile/src/features/hosts/presentation/pair_host_screen.dart';
 import 'package:alera_mobile/src/features/hosts/presentation/rename_host_dialog.dart';
+import 'package:alera_mobile/src/features/quotas/presentation/home_quotas_section.dart';
+import 'package:alera_mobile/src/features/settings/presentation/app_settings_screen.dart';
 import 'package:alera_mobile/src/features/workbench/presentation/runtime_workspaces_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -87,12 +91,27 @@ class HostListScreen extends ConsumerWidget {
     final hosts = ref.watch(pairedHostsControllerProvider);
     return Scaffold(
       appBar: AppBar(
+        centerTitle: true,
+        leading: const Padding(
+          padding: EdgeInsets.all(AleraTokens.space12),
+          child: Image(
+            image: AssetImage('assets/branding/alera-logo-white.png'),
+            fit: BoxFit.contain,
+            filterQuality: FilterQuality.medium,
+          ),
+        ),
         title: const Text('Alera'),
         actions: <Widget>[
           IconButton(
-            tooltip: 'Pair Host',
-            onPressed: () => _pairHost(context),
-            icon: const Icon(Icons.qr_code_scanner),
+            tooltip: 'Settings',
+            onPressed: () {
+              Navigator.of(context).push<void>(
+                MaterialPageRoute<void>(
+                  builder: (_) => const AppSettingsScreen(),
+                ),
+              );
+            },
+            icon: const Icon(AleraIcons.settings),
           ),
         ],
       ),
@@ -101,26 +120,42 @@ class HostListScreen extends ConsumerWidget {
           AsyncData(value: final hostList) when hostList.isEmpty => _EmptyHosts(
             onPairHost: () => _pairHost(context),
           ),
-          AsyncData(value: final hostList) => ListView.separated(
-            padding: AleraTokens.pagePadding,
-            itemBuilder: (context, index) {
-              final host = hostList[index];
-              return _HostCard(
-                host: host,
-                onOpen: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => RuntimeWorkspacesScreen(host: host),
-                    ),
-                  );
-                },
-                onRemove: () => _removeHost(context, ref, host),
-                onLongPress: () => _showHostActions(context, ref, host),
-              );
-            },
-            separatorBuilder: (_, _) =>
-                const SizedBox(height: AleraTokens.spaceMd),
-            itemCount: hostList.length,
+          AsyncData(value: final hostList) => ListView(
+            padding: const EdgeInsets.fromLTRB(
+              AleraTokens.space16,
+              AleraTokens.space4,
+              AleraTokens.space16,
+              AleraTokens.space16,
+            ),
+            children: <Widget>[
+              const AleraSectionHeader(
+                label: 'Hosts',
+                padding: EdgeInsets.only(
+                  left: AleraTokens.space4,
+                  right: AleraTokens.space8,
+                  bottom: AleraTokens.space4,
+                ),
+              ),
+              for (var index = 0; index < hostList.length; index++) ...<Widget>[
+                _HostCard(
+                  host: hostList[index],
+                  onOpen: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            RuntimeWorkspacesScreen(host: hostList[index]),
+                      ),
+                    );
+                  },
+                  onRemove: () => _removeHost(context, ref, hostList[index]),
+                  onLongPress: () =>
+                      _showHostActions(context, ref, hostList[index]),
+                ),
+                if (index < hostList.length - 1)
+                  const SizedBox(height: AleraTokens.spaceMd),
+              ],
+              HomeQuotasSection(hosts: hostList),
+            ],
           ),
           AsyncError(:final error) => Center(child: Text(error.toString())),
           _ => const Center(child: CircularProgressIndicator()),

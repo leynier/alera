@@ -6,7 +6,6 @@ import 'package:alera_mobile/src/features/quotas/presentation/agent_quotas_scree
 import 'package:alera_mobile/src/features/settings/application/host_settings_controller.dart';
 import 'package:alera_mobile/src/features/settings/domain/portable_host_settings.dart';
 import 'package:alera_mobile/src/features/settings/presentation/host_agent_tools_section.dart';
-import 'package:alera_mobile/src/features/terminal/presentation/terminal_keys_settings_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -27,7 +26,7 @@ class HostSettingsScreen extends ConsumerWidget {
       }
     });
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      appBar: AppBar(title: const Text('Host Settings')),
       body: SafeArea(
         child: settingsValue != null
             ? _SettingsBody(host: host, settings: settingsValue)
@@ -140,16 +139,6 @@ class _SettingsBody extends ConsumerWidget {
                 onTap: () => Navigator.of(context).push<void>(
                   MaterialPageRoute<void>(
                     builder: (_) => AgentQuotasScreen(host: host),
-                  ),
-                ),
-              ),
-              _NavigationTile(
-                icon: Icons.keyboard_outlined,
-                title: 'Terminal Quick Keys',
-                scope: 'On This Phone',
-                onTap: () => Navigator.of(context).push<void>(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const TerminalKeysSettingsScreen(),
                   ),
                 ),
               ),

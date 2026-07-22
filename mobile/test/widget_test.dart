@@ -4,6 +4,8 @@ import 'package:alera_mobile/src/features/hosts/application/host_providers.dart'
 import 'package:alera_mobile/src/features/hosts/domain/paired_device_credentials.dart';
 import 'package:alera_mobile/src/features/hosts/domain/paired_host_profile.dart';
 import 'package:alera_mobile/src/features/hosts/domain/pairing_offer.dart';
+import 'package:alera_mobile/src/features/runtime/application/host_connection_controller.dart';
+import 'package:alera_mobile/src/features/runtime/infra/mobile_runtime_client.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -48,7 +50,13 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [hostRepositoryProvider.overrideWithValue(repository)],
+        overrides: [
+          hostRepositoryProvider.overrideWithValue(repository),
+          // Home quotas watch host connections; keep the smoke test offline.
+          hostConnectionControllerProvider.overrideWith2(
+            (_) => _OfflineHostConnection(),
+          ),
+        ],
         child: const AleraMobileApp(),
       ),
     );
@@ -57,4 +65,11 @@ void main() {
     expect(find.text('Alera Dev'), findsOneWidget);
     expect(await repository.readDeviceToken('runtime'), 'device-token');
   });
+}
+
+class _OfflineHostConnection extends HostConnectionController {
+  @override
+  Future<MobileRuntimeClient> build(String hostId) async {
+    throw UnsupportedError('Offline In Test');
+  }
 }

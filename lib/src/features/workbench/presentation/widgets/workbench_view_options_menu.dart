@@ -270,7 +270,7 @@ class _WorkbenchViewOptionsPanelState
                   if (prefs.groupBy == WorkbenchGroupBy.project) ...<Widget>[
                     const SizedBox(height: AleraTokens.space8),
                     _SortRow(
-                      label: 'Then By',
+                      label: 'Then Workspaces By',
                       value: prefs.workspaceSort,
                       onChanged: controller.setWorkspaceSort,
                     ),
