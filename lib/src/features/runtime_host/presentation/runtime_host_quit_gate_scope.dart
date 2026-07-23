@@ -1,12 +1,14 @@
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
+import 'package:alera/src/features/app_window/application/app_window_platform.dart';
 import 'package:alera/src/features/app_window/application/app_window_providers.dart';
 import 'package:alera/src/features/runtime_host/application/runtime_host_lifecycle_providers.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
+import 'package:alera/src/shared/infra/storage/storage_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Binds the runtime stop-on-quit gate once a [BuildContext] is available.
+/// Binds the runtime stop-on-quit gate once the app database is ready.
 class RuntimeHostQuitGateScope extends ConsumerStatefulWidget {
   const RuntimeHostQuitGateScope({super.key, required this.child});
 
@@ -19,23 +21,7 @@ class RuntimeHostQuitGateScope extends ConsumerStatefulWidget {
 
 class _RuntimeHostQuitGateScopeState
     extends ConsumerState<RuntimeHostQuitGateScope> {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) {
-        return;
-      }
-      ref.read(appWindowLifecycleCoordinatorProvider).bindCloseGate(_closeGate);
-    });
-  }
-
-  @override
-  void dispose() {
-    // Avoid invoking Riverpod during dispose; clear via a sync read if still
-    // mounted is unsafe here, so leave the coordinator gate until process exit.
-    super.dispose();
-  }
+  bool _bound = false;
 
   Future<bool> _closeGate() async {
     final stopOnQuit = ref
@@ -44,10 +30,7 @@ class _RuntimeHostQuitGateScopeState
         .stopRuntimeOnAppQuit;
     final allowed = await ref
         .read(runtimeHostLifecycleServiceProvider)
-        .prepareAppQuit(
-          stopOnQuit: stopOnQuit,
-          confirmForce: _confirmForce,
-        );
+        .prepareAppQuit(stopOnQuit: stopOnQuit, confirmForce: _confirmForce);
     if (!allowed) {
       return false;
     }
@@ -77,5 +60,21 @@ class _RuntimeHostQuitGateScopeState
   }
 
   @override
-  Widget build(BuildContext context) => widget.child;
+  Widget build(BuildContext context) {
+    if (supportsDesktopAppWindowState) {
+      final db = ref.watch(aleraDatabaseProvider);
+      if (db.hasValue && !_bound) {
+        _bound = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) {
+            return;
+          }
+          ref
+              .read(appWindowLifecycleCoordinatorProvider)
+              .bindCloseGate(_closeGate);
+        });
+      }
+    }
+    return widget.child;
+  }
 }

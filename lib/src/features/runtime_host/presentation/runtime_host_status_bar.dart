@@ -64,22 +64,30 @@ class _RuntimeHostStatusBarControlState
                   onRefresh: () {
                     ref.invalidate(runtimeHostStatusProvider);
                   },
-                  onStart: () => unawaited(_runAction((_) async {
-                    await ref.read(runtimeHostLifecycleServiceProvider).start();
-                    ref.invalidate(runtimeHostStatusProvider);
-                  })),
-                  onStop: () => unawaited(_runAction((confirm) async {
-                    await ref
-                        .read(runtimeHostLifecycleServiceProvider)
-                        .stop(confirmForce: confirm);
-                    ref.invalidate(runtimeHostStatusProvider);
-                  })),
-                  onUpdate: () => unawaited(_runAction((confirm) async {
-                    await ref
-                        .read(runtimeHostLifecycleServiceProvider)
-                        .updateIfNewer(confirmForce: confirm);
-                    ref.invalidate(runtimeHostStatusProvider);
-                  })),
+                  onStart: () => unawaited(
+                    _runAction((_) async {
+                      await ref
+                          .read(runtimeHostLifecycleServiceProvider)
+                          .start();
+                      ref.invalidate(runtimeHostStatusProvider);
+                    }),
+                  ),
+                  onStop: () => unawaited(
+                    _runAction((confirm) async {
+                      await ref
+                          .read(runtimeHostLifecycleServiceProvider)
+                          .stop(confirmForce: confirm);
+                      ref.invalidate(runtimeHostStatusProvider);
+                    }),
+                  ),
+                  onUpdate: () => unawaited(
+                    _runAction((confirm) async {
+                      await ref
+                          .read(runtimeHostLifecycleServiceProvider)
+                          .updateIfNewer(confirmForce: confirm);
+                      ref.invalidate(runtimeHostStatusProvider);
+                    }),
+                  ),
                   onStopRuntimeOnAppQuitChanged: (value) {
                     final current = ref.read(settingsControllerProvider);
                     unawaited(

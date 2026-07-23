@@ -126,9 +126,7 @@ final class RuntimeHostLifecycleService {
     await _waitUntilStopped();
   }
 
-  Future<void> updateIfNewer({
-    RuntimeHostForceConfirm? confirmForce,
-  }) async {
+  Future<void> updateIfNewer({RuntimeHostForceConfirm? confirmForce}) async {
     final status = await loadStatus();
     if (!status.updateAvailable) {
       return;

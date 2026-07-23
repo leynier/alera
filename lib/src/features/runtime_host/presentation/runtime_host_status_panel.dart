@@ -260,7 +260,10 @@ class _StatusRow extends StatelessWidget {
   }
 }
 
-String _chipLabel(RuntimeHostStatusSnapshot? snapshot, {required bool loading}) {
+String _chipLabel(
+  RuntimeHostStatusSnapshot? snapshot, {
+  required bool loading,
+}) {
   if (loading && snapshot == null) {
     return 'Runtime';
   }

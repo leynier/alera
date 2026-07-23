@@ -52,11 +52,11 @@ final class ProcessBundledSidecarVersionProbe
     final support = await _applicationSupportDirectory();
     final runtimeDir = p.join(support.path, 'terminal_host');
     final command = await _cliResolver.resolve(runtimeDir: runtimeDir);
-    final result = await _runProcess(
-      command.executable,
-      <String>[...command.prefixArguments, 'version', '--json'],
-      workingDirectory: command.workingDirectory,
-    );
+    final result = await _runProcess(command.executable, <String>[
+      ...command.prefixArguments,
+      'version',
+      '--json',
+    ], workingDirectory: command.workingDirectory);
     if (result.exitCode != 0) {
       throw StateError(
         'Failed to resolve bundled sidecar version '
