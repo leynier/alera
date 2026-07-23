@@ -113,7 +113,8 @@ void main() {
 
   group('RuntimeHostBusyException', () {
     test('stringifies to its message', () {
-      const error = RuntimeHostBusyException(
+      // Non-const so coverage counts the constructor declaration line.
+      final error = RuntimeHostBusyException(
         message: 'busy host',
         activeSessions: 1,
         activeJobs: 2,
@@ -126,13 +127,14 @@ void main() {
 
   group('BundledSidecarVersion', () {
     test('stores version and optional commit', () {
-      const withCommit = BundledSidecarVersion(
+      // Non-const so coverage counts the constructor declaration line.
+      final withCommit = BundledSidecarVersion(
         version: '1.2.3',
         commit: 'abcdef',
       );
       expect(withCommit.version, '1.2.3');
       expect(withCommit.commit, 'abcdef');
-      expect(const BundledSidecarVersion(version: '1.0.0').commit, isNull);
+      expect(BundledSidecarVersion(version: '1.0.0').commit, isNull);
     });
   });
 }
