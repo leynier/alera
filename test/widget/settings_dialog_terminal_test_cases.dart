@@ -63,14 +63,6 @@ void _registerSettingsDialogTerminalTests() {
     );
     expect(after.scrollbackLines, greaterThan(before.scrollbackLines));
     expect(after.hostScrollbackBytes, greaterThan(before.hostScrollbackBytes));
-    expect(
-      after.hostEmptyShutdownDelaySeconds,
-      greaterThan(before.hostEmptyShutdownDelaySeconds),
-    );
-    expect(
-      after.hostDetachedSessionShutdownDelaySeconds,
-      greaterThan(before.hostDetachedSessionShutdownDelaySeconds),
-    );
     expect(after.colorOverrides.background, '#223344');
     expect(after.colorOverrides.cursor, '#445566');
     expect(after.colorOverrides.selection, '#667788');

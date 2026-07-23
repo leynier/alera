@@ -33,6 +33,8 @@ AppWindowLifecycleCoordinator appWindowLifecycleCoordinator(Ref ref) {
     window: ref.watch(appWindowControllerProvider),
     closeStrategy: PlatformAppWindowCloseStrategy(
       beforeLinuxExit: () async {
+        // Prefer the quit-gate dispose path; keep this as a safety net when the
+        // gate was never bound (tests / early exit).
         ref.read(runtimeHostClientProvider).dispose();
       },
     ),

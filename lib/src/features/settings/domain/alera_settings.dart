@@ -72,6 +72,7 @@ class TerminalSettings with TerminalSettingsMappable {
     this.hostEmptyShutdownDelaySeconds = 30,
     this.hostDetachedSessionShutdownDelaySeconds = 60 * 60,
     this.hostScrollbackBytes = 10 * 1000 * 1000,
+    this.stopRuntimeOnAppQuit = false,
     this.loginShell,
   });
 
@@ -95,6 +96,7 @@ class TerminalSettings with TerminalSettingsMappable {
   final int hostEmptyShutdownDelaySeconds;
   final int hostDetachedSessionShutdownDelaySeconds;
   final int hostScrollbackBytes;
+  final bool stopRuntimeOnAppQuit;
 
   /// `null` keeps the platform default resolved by [resolvedLoginShell].
   final bool? loginShell;
@@ -132,6 +134,7 @@ class TerminalSettings with TerminalSettingsMappable {
     hostEmptyShutdownDelaySeconds: 30,
     hostDetachedSessionShutdownDelaySeconds: 60 * 60,
     hostScrollbackBytes: 10 * 1000 * 1000,
+    stopRuntimeOnAppQuit: false,
   );
 
   factory TerminalSettings.fromJson(Map<String, Object?> json) =>

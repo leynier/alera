@@ -33,6 +33,7 @@ void main() {
       expect(terminal.hostEmptyShutdownDelaySeconds, 30);
       expect(terminal.hostDetachedSessionShutdownDelaySeconds, 60 * 60);
       expect(terminal.hostScrollbackBytes, 10 * 1000 * 1000);
+      expect(terminal.stopRuntimeOnAppQuit, isFalse);
     });
 
     test('general safety defaults are conservative', () {

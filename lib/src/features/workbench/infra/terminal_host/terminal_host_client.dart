@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:alera/src/features/runtime_host/domain/runtime_host_status.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client_models.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_process_launcher.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
@@ -250,6 +251,54 @@ final class SocketTerminalHostClient
     return _runtimeRequest(type, payload, timeout);
   }
 
+  /// Connects to a live host when one is already published; never launches.
+  ///
+  /// Returns `null` when no compatible host is reachable.
+  Future<Map<String, Object?>?> probeRuntimeStatus() async {
+    if (_disposed) {
+      throw StateError('Terminal host client is disposed.');
+    }
+    try {
+      final connection = await _connectRuntime(launchIfMissing: false);
+      final payload = await _requestOnConnection(
+        connection,
+        'status.get',
+        const <String, Object?>{},
+      );
+      return asTerminalHostMap(payload, 'runtime status');
+    } on StateError catch (error) {
+      if (error.message.contains('No live Alera runtime host')) {
+        return null;
+      }
+      rethrow;
+    }
+  }
+
+  Future<RuntimeHostShutdownResult> shutdownRuntime({
+    bool force = false,
+  }) async {
+    if (_disposed) {
+      throw StateError('Terminal host client is disposed.');
+    }
+    try {
+      final connection = await _connectRuntime(launchIfMissing: false);
+      final payload = await _requestOnConnection(
+        connection,
+        'host.shutdown',
+        <String, Object?>{'force': force},
+      );
+      return RuntimeHostShutdownResult.fromJson(
+        asTerminalHostMap(payload, 'runtime shutdown'),
+      );
+    } on StateError catch (error) {
+      final busy = _busyExceptionFromShutdown(error.message);
+      if (busy != null) {
+        throw busy;
+      }
+      rethrow;
+    }
+  }
+
   Future<_TerminalHostConnection> _connectTerminal() {
     if (_terminalConnection case final connection?) {
       return Future<_TerminalHostConnection>.value(connection);
@@ -275,6 +324,7 @@ final class SocketTerminalHostClient
 
   Future<_TerminalHostConnection> _connectRuntime({
     bool requireOrchestration = false,
+    bool launchIfMissing = true,
   }) async {
     if (_runtimeConnection case final connection?
         when _supportsRuntime(connection, requireOrchestration)) {
@@ -323,8 +373,11 @@ final class SocketTerminalHostClient
       }
     }
     late final Future<_TerminalHostConnection> next;
-    next = _openRuntimeConnection(requireOrchestration: requireOrchestration)
-        .whenComplete(() {
+    next =
+        _openRuntimeConnection(
+          requireOrchestration: requireOrchestration,
+          launchIfMissing: launchIfMissing,
+        ).whenComplete(() {
           if (identical(_runtimeConnectionFuture, next)) {
             _runtimeConnectionFuture = null;
           }
@@ -387,6 +440,7 @@ final class SocketTerminalHostClient
 
   Future<_TerminalHostConnection> _openRuntimeConnection({
     bool requireOrchestration = false,
+    bool launchIfMissing = true,
   }) async {
     final runtime = await _runtimePaths();
     final control = await _readControl(runtime.controlFile);
@@ -419,6 +473,9 @@ final class SocketTerminalHostClient
         throw StateError(_orchestrationHostRestartRequiredMessage);
       }
       await _deleteControlFile(runtime.runtimeControlFile);
+    }
+    if (!launchIfMissing) {
+      throw StateError('No live Alera runtime host is available.');
     }
     return _launchAndConnect(
       runtime,
@@ -810,4 +867,20 @@ final class SocketTerminalHostClient
       socket?.destroy();
     }
   }
+}
+
+final _shutdownBusyPattern = RegExp(
+  r'Runtime host has (\d+) active terminal session\(s\) and (\d+) active background job\(s\)',
+);
+
+RuntimeHostBusyException? _busyExceptionFromShutdown(String message) {
+  final match = _shutdownBusyPattern.firstMatch(message);
+  if (match == null) {
+    return null;
+  }
+  return RuntimeHostBusyException(
+    message: message,
+    activeSessions: int.tryParse(match.group(1) ?? '') ?? 0,
+    activeJobs: int.tryParse(match.group(2) ?? '') ?? 0,
+  );
 }

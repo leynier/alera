@@ -274,34 +274,6 @@ class TerminalSettingsPane extends StatelessWidget {
                   settings.copyWith(hostScrollbackBytes: value * 1000 * 1000),
                 ),
               ),
-              SettingsIntegerRow(
-                title: 'Empty Host Shutdown',
-                description:
-                    'Seconds to keep the host alive after the app closes with no running sessions.',
-                value: settings.hostEmptyShutdownDelaySeconds,
-                min: 5,
-                max: 3600,
-                step: 5,
-                suffix: 's',
-                onChanged: (value) => onChanged(
-                  settings.copyWith(hostEmptyShutdownDelaySeconds: value),
-                ),
-              ),
-              SettingsIntegerRow(
-                title: 'Detached Session Shutdown',
-                description:
-                    'Seconds to keep detached running sessions alive after the app closes.',
-                value: settings.hostDetachedSessionShutdownDelaySeconds,
-                min: 5,
-                max: 86400,
-                step: 60,
-                suffix: 's',
-                onChanged: (value) => onChanged(
-                  settings.copyWith(
-                    hostDetachedSessionShutdownDelaySeconds: value,
-                  ),
-                ),
-              ),
               SettingsTextRow(
                 title: 'Word Separators',
                 description:

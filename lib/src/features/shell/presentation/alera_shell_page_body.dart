@@ -221,7 +221,9 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                       ],
                     ),
                   ),
-                  const AgentQuotaStatusBar(),
+                  const AgentQuotaStatusBar(
+                    trailing: RuntimeHostStatusBarControl(),
+                  ),
                 ],
               );
             },

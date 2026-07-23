@@ -18,7 +18,9 @@ part 'agent_quota_hover_card.dart';
 part 'agent_quota_status_bar_readings.dart';
 
 class AgentQuotaStatusBar extends ConsumerWidget {
-  const AgentQuotaStatusBar({super.key});
+  const AgentQuotaStatusBar({super.key, this.trailing});
+
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -47,6 +49,7 @@ class AgentQuotaStatusBar extends ConsumerWidget {
         error: state.error,
         loading: quota.isLoading,
         onRefresh: refresh,
+        trailing: trailing,
       );
     }
     return quota.when(
@@ -56,6 +59,7 @@ class AgentQuotaStatusBar extends ConsumerWidget {
         settings: settings,
         loading: true,
         onRefresh: refresh,
+        trailing: trailing,
       ),
       error: (error, _) => AgentQuotaStatusBarView(
         hostId: hostId,
@@ -63,6 +67,7 @@ class AgentQuotaStatusBar extends ConsumerWidget {
         settings: settings,
         error: error.toString(),
         onRefresh: refresh,
+        trailing: trailing,
       ),
       data: (_) => AgentQuotaStatusBarView(
         hostId: hostId,
@@ -70,6 +75,7 @@ class AgentQuotaStatusBar extends ConsumerWidget {
         settings: settings,
         loading: true,
         onRefresh: refresh,
+        trailing: trailing,
       ),
     );
   }
@@ -84,6 +90,7 @@ class AgentQuotaStatusBarView extends StatelessWidget {
     required this.onRefresh,
     this.loading = false,
     this.error,
+    this.trailing,
   });
 
   final String hostId;
@@ -92,6 +99,7 @@ class AgentQuotaStatusBarView extends StatelessWidget {
   final VoidCallback onRefresh;
   final bool loading;
   final String? error;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -111,6 +119,7 @@ class AgentQuotaStatusBarView extends StatelessWidget {
               loading: loading,
               error: error,
               onRefresh: onRefresh,
+              trailing: trailing,
             );
           }
           final compact = constraints.maxWidth < 1400;
@@ -172,6 +181,7 @@ class AgentQuotaStatusBarView extends StatelessWidget {
                   ),
                 ),
               ),
+              trailing ?? const SizedBox.shrink(),
             ],
           );
         },

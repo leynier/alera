@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alera/src/features/app_window/application/app_window_controller.dart';
 import 'package:alera/src/features/app_window/application/app_window_platform.dart';
 import 'package:alera/src/features/app_window/application/app_window_providers.dart';
+import 'package:alera/src/features/runtime_host/presentation/runtime_host_quit_gate_scope.dart';
 import 'package:alera/src/shared/infra/storage/storage_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -54,7 +55,7 @@ class _AppWindowLifecycleScopeState
         });
       }
     }
-    return widget.child;
+    return RuntimeHostQuitGateScope(child: widget.child);
   }
 
   @override
