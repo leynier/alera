@@ -332,7 +332,7 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
       _activePtyGeneration = generation;
       try {
         final sanitizedLaunch = _launchWithSanitizedAgentHookEnvironment(
-          launch,
+          _settings.resolvedLoginShell ? _launchAsLoginShell(launch) : launch,
           agentHookEnvironment,
         );
         final workspaceAwarePowerShellLaunch =

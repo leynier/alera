@@ -143,6 +143,7 @@ async fn claude_auth_status(environment: &BTreeMap<String, String>) -> Option<bo
         .stdin(Stdio::null())
         .stderr(Stdio::null())
         .kill_on_drop(true);
+    crate::login_shell_environment::apply_login_shell_path(&mut command).await;
     let output = tokio::time::timeout(Duration::from_secs(3), command.output())
         .await
         .ok()?

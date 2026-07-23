@@ -25,6 +25,7 @@ final class TerminalHostConfig {
     this.detachedSessionShutdownDelaySeconds =
         defaultTerminalHostDetachedSessionShutdownDelaySeconds,
     this.scrollbackBytes = defaultTerminalHostScrollbackBytes,
+    this.loginShell = false,
   });
 
   factory TerminalHostConfig.fromJson(Map<String, Object?> json) {
@@ -38,6 +39,7 @@ final class TerminalHostConfig {
         'detachedSessionShutdownDelaySeconds',
       ),
       scrollbackBytes: _positiveInt(json['scrollbackBytes'], 'scrollbackBytes'),
+      loginShell: json['loginShell'] == true,
     );
   }
 
@@ -47,12 +49,17 @@ final class TerminalHostConfig {
   final int detachedSessionShutdownDelaySeconds;
   final int scrollbackBytes;
 
+  /// Start interactive shells as login shells. Always sent explicitly so the
+  /// host does not have to fall back to its own platform default.
+  final bool loginShell;
+
   Map<String, Object?> toJson() {
     return <String, Object?>{
       'emptyShutdownDelaySeconds': emptyShutdownDelaySeconds,
       'detachedSessionShutdownDelaySeconds':
           detachedSessionShutdownDelaySeconds,
       'scrollbackBytes': scrollbackBytes,
+      'loginShell': loginShell,
     };
   }
 }

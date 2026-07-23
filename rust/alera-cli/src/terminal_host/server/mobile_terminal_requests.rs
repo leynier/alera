@@ -69,8 +69,14 @@ impl ServerActor {
             .upsert_workspace_tab(tab)
             .await
             .map_err(|error| HostError::state(error.to_string()))?;
-        let attachment_payload =
-            mobile_terminal_attachment_payload(&workspace, &tab.id, &session_id, payload);
+        let attachment_payload = mobile_terminal_attachment_payload(
+            &workspace,
+            &tab.id,
+            &session_id,
+            payload,
+            self.config.login_shell,
+        )
+        .await;
         match self.create_or_attach(client_id, &attachment_payload).await {
             Ok(mut attachment) => {
                 self.broadcast_authenticated(event("workspaceTabsChanged", json!({})));
@@ -141,8 +147,14 @@ impl ServerActor {
         let session_id = optional_string_key(payload, "sessionId")
             .or_else(|| terminal_session_id_from_tab(&tab))
             .unwrap_or_else(|| tab.id.clone());
-        let attachment_payload =
-            mobile_terminal_attachment_payload(&workspace, &tab.id, &session_id, payload);
+        let attachment_payload = mobile_terminal_attachment_payload(
+            &workspace,
+            &tab.id,
+            &session_id,
+            payload,
+            self.config.login_shell,
+        )
+        .await;
         let mut attachment = self
             .create_or_attach(client_id, &attachment_payload)
             .await?;
@@ -154,18 +166,22 @@ impl ServerActor {
     }
 }
 
-fn mobile_terminal_attachment_payload(
+async fn mobile_terminal_attachment_payload(
     workspace: &Workspace,
     tab_id: &str,
     session_id: &str,
     payload: &Value,
+    login_shell: bool,
 ) -> Value {
     json!({
         "sessionId": session_id,
         "workspaceId": workspace.id.clone(),
         "tabId": tab_id,
         "workingDirectory": workspace.path.clone(),
-        "launch": default_terminal_launch(&workspace.path).launch.to_json(),
+        "launch": default_terminal_launch(&workspace.path, login_shell)
+            .await
+            .launch
+            .to_json(),
         "cols": int_or(payload, "cols", 80),
         "rows": int_or(payload, "rows", 24),
     })

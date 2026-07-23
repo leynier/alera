@@ -300,10 +300,11 @@ void main() {
         expect(client.ensureStartedConfigs, hasLength(1));
         expect(
           client.ensureStartedConfigs.single.toJson(),
-          const TerminalHostConfig(
+          TerminalHostConfig(
             emptyShutdownDelaySeconds: 7,
             detachedSessionShutdownDelaySeconds: 14,
             scrollbackBytes: 4096,
+            loginShell: TerminalSettings.defaults.resolvedLoginShell,
           ).toJson(),
         );
       },

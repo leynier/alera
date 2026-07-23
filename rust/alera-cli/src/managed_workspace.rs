@@ -1,4 +1,3 @@
-use std::env;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 
@@ -13,11 +12,8 @@ use chrono::Utc;
 use serde::Deserialize;
 use tokio::io::AsyncReadExt;
 use tokio::process::Command;
-use tokio::time::{timeout, Duration};
 use uuid::Uuid;
 
-const SHELL_PATH_HYDRATION_DELIMITER: &str = "__ALERA_SHELL_PATH__";
-const SHELL_PATH_HYDRATION_TIMEOUT: Duration = Duration::from_secs(5);
 const SETUP_OUTPUT_TAIL_BYTES: usize = 16 * 1024;
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -551,7 +547,7 @@ async fn run_setup_config(
     let command_environment = if config.worktree.setup.is_empty() {
         Vec::new()
     } else {
-        setup_command_environment().await
+        crate::login_shell_environment::setup_command_environment().await
     };
     for command in &config.worktree.setup {
         let report = run_setup_command(&workspace.path, command, &command_environment).await;
@@ -822,106 +818,6 @@ impl BoundedOutputTail {
     }
 }
 
-pub(crate) async fn setup_command_environment() -> Vec<(String, String)> {
-    let mut environment = env::vars().collect::<Vec<_>>();
-    if cfg!(windows) {
-        return environment;
-    }
-    let Some(shell) = pick_user_shell() else {
-        return environment;
-    };
-    if let Some(segments) = hydrate_shell_path(&shell).await {
-        merge_path_segments(&mut environment, &segments);
-    }
-    environment
-}
-
-fn pick_user_shell() -> Option<String> {
-    let shell = env::var("SHELL").ok().map(|value| value.trim().to_string());
-    if let Some(shell) = shell.filter(|value| !value.is_empty()) {
-        return Some(shell);
-    }
-    if cfg!(target_os = "macos") {
-        Some("/bin/zsh".to_string())
-    } else {
-        Some("/bin/bash".to_string())
-    }
-}
-
-async fn hydrate_shell_path(shell: &str) -> Option<Vec<String>> {
-    let command = format!(
-        "printf '%s' '{delimiter}'; printf '%s' \"$PATH\"; printf '%s' '{delimiter}'",
-        delimiter = SHELL_PATH_HYDRATION_DELIMITER,
-    );
-    let mut process = Command::new(shell);
-    process.args(["-ilc", &command]);
-    let output = match timeout(SHELL_PATH_HYDRATION_TIMEOUT, process.output()).await {
-        Ok(Ok(output)) => output,
-        Ok(Err(_)) | Err(_) => return None,
-    };
-    let segments = parse_hydrated_shell_path(&output.stdout);
-    if segments.is_empty() {
-        None
-    } else {
-        Some(segments)
-    }
-}
-
-fn parse_hydrated_shell_path(stdout: &[u8]) -> Vec<String> {
-    let cleaned = String::from_utf8_lossy(stdout);
-    let Some(first) = cleaned.find(SHELL_PATH_HYDRATION_DELIMITER) else {
-        return Vec::new();
-    };
-    let start = first + SHELL_PATH_HYDRATION_DELIMITER.len();
-    let Some(second) = cleaned[start..].find(SHELL_PATH_HYDRATION_DELIMITER) else {
-        return Vec::new();
-    };
-    cleaned[start..start + second]
-        .trim()
-        .split(':')
-        .filter(|segment| !segment.is_empty())
-        .map(ToString::to_string)
-        .collect()
-}
-
-fn merge_path_segments(environment: &mut Vec<(String, String)>, shell_segments: &[String]) {
-    let existing = environment
-        .iter()
-        .position(|(key, _)| key == "PATH")
-        .and_then(|index| {
-            environment
-                .get(index)
-                .map(|(_, value)| (index, value.clone()))
-        });
-    let existing_segments = existing
-        .as_ref()
-        .map(|(_, path)| split_path_segments(path))
-        .unwrap_or_default();
-    let mut merged = Vec::<String>::new();
-    for segment in shell_segments.iter().chain(existing_segments.iter()) {
-        if !segment.is_empty() && !merged.iter().any(|value| value == segment) {
-            merged.push(segment.clone());
-        }
-    }
-    if merged.is_empty() {
-        return;
-    }
-    let value = merged.join(":");
-    if let Some((index, _)) = existing {
-        environment[index].1 = value;
-    } else {
-        environment.push(("PATH".to_string(), value));
-    }
-}
-
-fn split_path_segments(value: &str) -> Vec<String> {
-    value
-        .split(':')
-        .filter(|segment| !segment.is_empty())
-        .map(ToString::to_string)
-        .collect()
-}
-
 fn shell_invocation(command: &str) -> (&'static str, Vec<String>) {
     if cfg!(windows) {
         (
@@ -964,8 +860,7 @@ mod tests {
     use chrono::Utc;
 
     use super::{
-        create_managed_workspace, merge_path_segments, parse_hydrated_shell_path, prepare_target,
-        slugify, text_tail, ManagedWorkspaceCreateRequest,
+        create_managed_workspace, prepare_target, slugify, text_tail, ManagedWorkspaceCreateRequest,
     };
 
     #[test]
@@ -988,28 +883,6 @@ mod tests {
     #[test]
     fn text_tail_trims_empty_output() {
         assert_eq!(text_tail(b" \n\t "), None);
-    }
-
-    #[test]
-    fn parse_hydrated_shell_path_extracts_marked_segments() {
-        let stdout = b"noise__ALERA_SHELL_PATH__/shell/bin:/usr/bin__ALERA_SHELL_PATH__";
-
-        assert_eq!(
-            parse_hydrated_shell_path(stdout),
-            vec!["/shell/bin".to_string(), "/usr/bin".to_string()]
-        );
-    }
-
-    #[test]
-    fn merge_path_segments_prepends_shell_path_without_duplicates() {
-        let mut environment = vec![("PATH".to_string(), "/usr/bin:/bin".to_string())];
-
-        merge_path_segments(
-            &mut environment,
-            &["/custom/bin".to_string(), "/usr/bin".to_string()],
-        );
-
-        assert_eq!(environment[0].1, "/custom/bin:/usr/bin:/bin");
     }
 
     #[tokio::test]

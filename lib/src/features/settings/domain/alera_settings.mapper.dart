@@ -455,6 +455,12 @@ class TerminalSettingsMapper extends ClassMapperBase<TerminalSettings> {
     opt: true,
     def: 10 * 1000 * 1000,
   );
+  static bool? _$loginShell(TerminalSettings v) => v.loginShell;
+  static const Field<TerminalSettings, bool> _f$loginShell = Field(
+    'loginShell',
+    _$loginShell,
+    opt: true,
+  );
 
   @override
   final MappableFields<TerminalSettings> fields = const {
@@ -479,6 +485,7 @@ class TerminalSettingsMapper extends ClassMapperBase<TerminalSettings> {
     #hostDetachedSessionShutdownDelaySeconds:
         _f$hostDetachedSessionShutdownDelaySeconds,
     #hostScrollbackBytes: _f$hostScrollbackBytes,
+    #loginShell: _f$loginShell,
   };
 
   static TerminalSettings _instantiate(DecodingData data) {
@@ -505,6 +512,7 @@ class TerminalSettingsMapper extends ClassMapperBase<TerminalSettings> {
         _f$hostDetachedSessionShutdownDelaySeconds,
       ),
       hostScrollbackBytes: data.dec(_f$hostScrollbackBytes),
+      loginShell: data.dec(_f$loginShell),
     );
   }
 
@@ -597,6 +605,7 @@ abstract class TerminalSettingsCopyWith<$R, $In extends TerminalSettings, $Out>
     int? hostEmptyShutdownDelaySeconds,
     int? hostDetachedSessionShutdownDelaySeconds,
     int? hostScrollbackBytes,
+    bool? loginShell,
   });
   TerminalSettingsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -641,6 +650,7 @@ class _TerminalSettingsCopyWithImpl<$R, $Out>
     int? hostEmptyShutdownDelaySeconds,
     int? hostDetachedSessionShutdownDelaySeconds,
     int? hostScrollbackBytes,
+    Object? loginShell = $none,
   }) => $apply(
     FieldCopyWithData({
       if (fontFamily != null) #fontFamily: fontFamily,
@@ -669,6 +679,7 @@ class _TerminalSettingsCopyWithImpl<$R, $Out>
             hostDetachedSessionShutdownDelaySeconds,
       if (hostScrollbackBytes != null)
         #hostScrollbackBytes: hostScrollbackBytes,
+      if (loginShell != $none) #loginShell: loginShell,
     }),
   );
   @override
@@ -714,6 +725,7 @@ class _TerminalSettingsCopyWithImpl<$R, $Out>
       #hostScrollbackBytes,
       or: $value.hostScrollbackBytes,
     ),
+    loginShell: data.get(#loginShell, or: $value.loginShell),
   );
 
   @override

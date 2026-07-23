@@ -109,7 +109,8 @@ impl ServerActor {
         let (initial_scrollback, initial_output_stream_bytes) = self
             .take_terminal_restart_state(&session_id, &workspace.id, &tab.id, max_bytes)
             .await;
-        let default_launch = default_terminal_launch(&workspace.path);
+        let default_launch =
+            default_terminal_launch(&workspace.path, self.config.login_shell).await;
         self.start_new_terminal_session(
             session_id.clone(),
             workspace.id,
@@ -314,8 +315,11 @@ impl ServerActor {
     }
 }
 
-pub(super) fn default_terminal_launch(working_directory: &str) -> DefaultTerminalLaunch {
-    let environment = terminal_environment();
+pub(super) async fn default_terminal_launch(
+    working_directory: &str,
+    login_shell: bool,
+) -> DefaultTerminalLaunch {
+    let environment = terminal_environment().await;
     #[cfg(windows)]
     let platform = TerminalPlatform::Windows;
     #[cfg(not(windows))]
@@ -326,7 +330,13 @@ pub(super) fn default_terminal_launch(working_directory: &str) -> DefaultTermina
         }
         TerminalPlatform::Posix => std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string()),
     };
-    default_terminal_launch_for(platform, working_directory, &shell, environment)
+    default_terminal_launch_for(
+        platform,
+        working_directory,
+        &shell,
+        environment,
+        login_shell,
+    )
 }
 
 fn default_terminal_launch_for(
@@ -334,6 +344,7 @@ fn default_terminal_launch_for(
     working_directory: &str,
     interactive_shell: &str,
     environment: BTreeMap<String, String>,
+    login_shell: bool,
 ) -> DefaultTerminalLaunch {
     match platform {
         TerminalPlatform::Windows => DefaultTerminalLaunch {
@@ -350,28 +361,41 @@ fn default_terminal_launch_for(
                 environment,
             },
         },
-        TerminalPlatform::Posix => DefaultTerminalLaunch {
-            interactive_shell: interactive_shell.to_string(),
-            launch: TerminalHostLaunch {
-                label: "shell".to_string(),
-                shell: "/bin/sh".to_string(),
-                arguments: vec![
-                    "-c".to_string(),
-                    format!(
-                        "cd {} || true; exec {}",
-                        sh_quote(working_directory),
-                        sh_quote(interactive_shell)
-                    ),
-                ],
-                environment,
-            },
-        },
+        TerminalPlatform::Posix => {
+            let mut exec_command = format!(
+                "cd {} || true; exec {}",
+                sh_quote(working_directory),
+                sh_quote(interactive_shell)
+            );
+            if login_shell {
+                for argument in login_shell_arguments(interactive_shell) {
+                    exec_command.push(' ');
+                    exec_command.push_str(&sh_quote(argument));
+                }
+            }
+            DefaultTerminalLaunch {
+                interactive_shell: interactive_shell.to_string(),
+                launch: TerminalHostLaunch {
+                    label: "shell".to_string(),
+                    shell: "/bin/sh".to_string(),
+                    arguments: vec!["-c".to_string(), exec_command],
+                    environment,
+                },
+            }
+        }
     }
 }
 
-fn terminal_environment() -> BTreeMap<String, String> {
+async fn terminal_environment() -> BTreeMap<String, String> {
     let mut environment = std::env::vars().collect::<BTreeMap<_, _>>();
     if !cfg!(windows) {
+        if let Some(path) = crate::login_shell_environment::login_shell_merged_path(
+            environment.get("PATH").map(String::as_str),
+        )
+        .await
+        {
+            environment.insert("PATH".to_string(), path);
+        }
         environment
             .entry("PATH".to_string())
             .or_insert_with(|| "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin".to_string());
@@ -380,6 +404,17 @@ fn terminal_environment() -> BTreeMap<String, String> {
             .or_insert_with(|| "xterm-256color".to_string());
     }
     environment
+}
+
+/// Flags that make `shell` read the login profile files (`~/.zprofile`,
+/// `~/.profile`). Unknown shells are left alone rather than guessing a flag.
+fn login_shell_arguments(shell: &str) -> &'static [&'static str] {
+    let executable = shell.rsplit('/').next().unwrap_or(shell);
+    match executable {
+        "zsh" | "bash" | "sh" | "dash" | "ksh" | "ksh93" | "mksh" | "tcsh" | "csh" => &["-l"],
+        "fish" | "nu" | "nushell" | "elvish" | "xonsh" => &["--login"],
+        _ => &[],
+    }
 }
 
 fn spawns_on_create(tab: &WorkspaceTabRecord) -> bool {
@@ -423,6 +458,7 @@ mod tests {
             "/repo's root",
             "/bin/zsh",
             BTreeMap::new(),
+            false,
         );
         assert_eq!(posix.launch.shell, "/bin/sh");
         assert_eq!(
@@ -436,11 +472,72 @@ mod tests {
             r#"C:\repo "main""#,
             "cmd.exe",
             BTreeMap::new(),
+            false,
         );
         assert_eq!(windows.launch.shell, "cmd.exe");
         assert_eq!(
             windows.launch.arguments,
             ["/d", "/s", "/k", r#"cd /d "C:\repo ""main""""#]
+        );
+    }
+
+    #[test]
+    fn posix_login_launch_adds_the_shell_login_flag() {
+        let zsh = default_terminal_launch_for(
+            TerminalPlatform::Posix,
+            "/repo",
+            "/bin/zsh",
+            BTreeMap::new(),
+            true,
+        );
+        assert_eq!(
+            zsh.launch.arguments,
+            ["-c", "cd '/repo' || true; exec '/bin/zsh' '-l'"]
+        );
+
+        let fish = default_terminal_launch_for(
+            TerminalPlatform::Posix,
+            "/repo",
+            "/opt/homebrew/bin/fish",
+            BTreeMap::new(),
+            true,
+        );
+        assert_eq!(
+            fish.launch.arguments,
+            [
+                "-c",
+                "cd '/repo' || true; exec '/opt/homebrew/bin/fish' '--login'"
+            ]
+        );
+    }
+
+    #[test]
+    fn unknown_login_shells_keep_their_default_arguments() {
+        let launch = default_terminal_launch_for(
+            TerminalPlatform::Posix,
+            "/repo",
+            "/usr/local/bin/exoticsh",
+            BTreeMap::new(),
+            true,
+        );
+        assert_eq!(
+            launch.launch.arguments,
+            ["-c", "cd '/repo' || true; exec '/usr/local/bin/exoticsh'"]
+        );
+    }
+
+    #[test]
+    fn windows_launch_ignores_the_login_shell_flag() {
+        let windows = default_terminal_launch_for(
+            TerminalPlatform::Windows,
+            r"C:\repo",
+            "cmd.exe",
+            BTreeMap::new(),
+            true,
+        );
+        assert_eq!(
+            windows.launch.arguments,
+            ["/d", "/s", "/k", r#"cd /d "C:\repo""#]
         );
     }
 }

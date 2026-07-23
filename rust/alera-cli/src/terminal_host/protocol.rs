@@ -49,6 +49,12 @@ pub const DEFAULT_EMPTY_SHUTDOWN_DELAY_SECONDS: u64 = 30;
 pub const DEFAULT_DETACHED_SESSION_SHUTDOWN_DELAY_SECONDS: u64 = 60 * 60;
 pub const DEFAULT_SCROLLBACK_BYTES: u64 = 10 * 1000 * 1000;
 
+/// Interactive shells start as login shells on macOS, where GUI apps inherit a
+/// minimal `launchd` PATH and `~/.zprofile` is the usual place PATH is set up.
+pub const fn default_login_shell() -> bool {
+    cfg!(target_os = "macos")
+}
+
 /// Host-side lifecycle and retention configuration. Mirrors `TerminalHostConfig`.
 #[derive(Debug, Clone, Copy)]
 pub struct TerminalHostConfig {
@@ -56,6 +62,7 @@ pub struct TerminalHostConfig {
     pub detached_session_shutdown_delay_seconds: u64,
     pub scrollback_bytes: u64,
     pub persistent: bool,
+    pub login_shell: bool,
 }
 
 impl Default for TerminalHostConfig {
@@ -66,6 +73,7 @@ impl Default for TerminalHostConfig {
                 DEFAULT_DETACHED_SESSION_SHUTDOWN_DELAY_SECONDS,
             scrollback_bytes: DEFAULT_SCROLLBACK_BYTES,
             persistent: false,
+            login_shell: default_login_shell(),
         }
     }
 }
@@ -85,6 +93,10 @@ impl TerminalHostConfig {
             )?,
             scrollback_bytes: positive_int(value.get("scrollbackBytes"), "scrollbackBytes")?,
             persistent: false,
+            login_shell: value
+                .get("loginShell")
+                .and_then(Value::as_bool)
+                .unwrap_or_else(default_login_shell),
         })
     }
 
@@ -96,6 +108,7 @@ impl TerminalHostConfig {
             "detachedSessionShutdownDelaySeconds": self.detached_session_shutdown_delay_seconds,
             "scrollbackBytes": self.scrollback_bytes,
             "persistent": self.persistent,
+            "loginShell": self.login_shell,
         })
     }
 }
@@ -239,11 +252,26 @@ mod tests {
             detached_session_shutdown_delay_seconds: 6,
             scrollback_bytes: 7,
             persistent: false,
+            login_shell: !default_login_shell(),
         };
         let parsed = TerminalHostConfig::from_json(&config.to_json()).unwrap();
         assert_eq!(parsed.empty_shutdown_delay_seconds, 5);
         assert_eq!(parsed.detached_session_shutdown_delay_seconds, 6);
         assert_eq!(parsed.scrollback_bytes, 7);
+        assert_eq!(parsed.login_shell, !default_login_shell());
+    }
+
+    #[test]
+    fn config_without_login_shell_key_uses_the_platform_default() {
+        let parsed = TerminalHostConfig::from_json(&json!({
+            "emptyShutdownDelaySeconds": 5,
+            "detachedSessionShutdownDelaySeconds": 6,
+            "scrollbackBytes": 7,
+        }))
+        .unwrap();
+
+        assert_eq!(parsed.login_shell, default_login_shell());
+        assert_eq!(parsed.login_shell, cfg!(target_os = "macos"));
     }
 
     #[test]
