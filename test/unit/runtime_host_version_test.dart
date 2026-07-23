@@ -20,6 +20,21 @@ void main() {
       expect(compareRuntimeHostVersions('1.2.3-beta', '1.2.3'), 0);
       expect(isRuntimeHostVersionNewer('1.2.4-rc.1', '1.2.3'), isTrue);
     });
+
+    test('handles unparseable versions', () {
+      expect(
+        compareRuntimeHostVersions('dev', 'local'),
+        'dev'.compareTo('local'),
+      );
+      expect(compareRuntimeHostVersions('not-a-version', '1.0.0'), lessThan(0));
+      expect(
+        compareRuntimeHostVersions('1.0.0', 'not-a-version'),
+        greaterThan(0),
+      );
+      expect(compareRuntimeHostVersions('', '1.0.0'), lessThan(0));
+      expect(compareRuntimeHostVersions('1.2.3.4', '1.2.3'), lessThan(0));
+      expect(compareRuntimeHostVersions('1.-2.3', '1.0.0'), lessThan(0));
+    });
   });
 
   group('RuntimeHostStatusSnapshot.updateAvailable', () {
@@ -56,6 +71,68 @@ void main() {
         ).updateAvailable,
         isFalse,
       );
+      expect(
+        const RuntimeHostStatusSnapshot(
+          running: true,
+          bundledVersion: '1.3.0',
+          runtimeHostVersion: '',
+        ).updateAvailable,
+        isFalse,
+      );
+      expect(
+        const RuntimeHostStatusSnapshot(
+          running: true,
+          bundledVersion: '1.3.0',
+        ).updateAvailable,
+        isFalse,
+      );
+    });
+  });
+
+  group('RuntimeHostShutdownResult', () {
+    test('parses json with and without optional counts', () {
+      final full = RuntimeHostShutdownResult.fromJson(const <String, Object?>{
+        'stopped': true,
+        'forced': true,
+        'activeSessions': 2,
+        'activeJobs': 1,
+      });
+      expect(full.stopped, isTrue);
+      expect(full.forced, isTrue);
+      expect(full.activeSessions, 2);
+      expect(full.activeJobs, 1);
+
+      final sparse = RuntimeHostShutdownResult.fromJson(const <String, Object?>{
+        'stopped': true,
+        'forced': false,
+      });
+      expect(sparse.activeSessions, 0);
+      expect(sparse.activeJobs, 0);
+    });
+  });
+
+  group('RuntimeHostBusyException', () {
+    test('stringifies to its message', () {
+      const error = RuntimeHostBusyException(
+        message: 'busy host',
+        activeSessions: 1,
+        activeJobs: 2,
+      );
+      expect(error.toString(), 'busy host');
+      expect(error.activeSessions, 1);
+      expect(error.activeJobs, 2);
+    });
+  });
+
+  group('BundledSidecarVersion', () {
+    test('stores version and optional commit', () {
+      const withCommit = BundledSidecarVersion(
+        version: '1.2.3',
+        commit: 'abcdef',
+      );
+      expect(withCommit.version, '1.2.3');
+      expect(withCommit.commit, 'abcdef');
+      expect(const BundledSidecarVersion(version: '1.0.0').commit, isNull);
     });
   });
 }
