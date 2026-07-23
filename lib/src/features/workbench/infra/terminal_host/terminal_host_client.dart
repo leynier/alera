@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:alera/src/features/runtime_host/domain/runtime_host_status.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client_models.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_process_launcher.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
@@ -16,6 +17,7 @@ export 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_p
 
 part 'terminal_host_client_types.dart';
 part 'terminal_host_client_requests.dart';
+part 'terminal_host_client_lifecycle.dart';
 
 final class SocketTerminalHostClient
     implements TerminalHostClient, RuntimeHostClient {
@@ -275,6 +277,7 @@ final class SocketTerminalHostClient
 
   Future<_TerminalHostConnection> _connectRuntime({
     bool requireOrchestration = false,
+    bool launchIfMissing = true,
   }) async {
     if (_runtimeConnection case final connection?
         when _supportsRuntime(connection, requireOrchestration)) {
@@ -323,8 +326,11 @@ final class SocketTerminalHostClient
       }
     }
     late final Future<_TerminalHostConnection> next;
-    next = _openRuntimeConnection(requireOrchestration: requireOrchestration)
-        .whenComplete(() {
+    next =
+        _openRuntimeConnection(
+          requireOrchestration: requireOrchestration,
+          launchIfMissing: launchIfMissing,
+        ).whenComplete(() {
           if (identical(_runtimeConnectionFuture, next)) {
             _runtimeConnectionFuture = null;
           }
@@ -387,6 +393,7 @@ final class SocketTerminalHostClient
 
   Future<_TerminalHostConnection> _openRuntimeConnection({
     bool requireOrchestration = false,
+    bool launchIfMissing = true,
   }) async {
     final runtime = await _runtimePaths();
     final control = await _readControl(runtime.controlFile);
@@ -419,6 +426,9 @@ final class SocketTerminalHostClient
         throw StateError(_orchestrationHostRestartRequiredMessage);
       }
       await _deleteControlFile(runtime.runtimeControlFile);
+    }
+    if (!launchIfMissing) {
+      throw StateError('No live Alera runtime host is available.');
     }
     return _launchAndConnect(
       runtime,
@@ -773,41 +783,6 @@ final class SocketTerminalHostClient
   ) {
     if (requireOrchestration && !_supportsRuntime(connection, true)) {
       throw StateError(_orchestrationHostRestartRequiredMessage);
-    }
-  }
-
-  Future<bool> _controlAcceptsHello(_TerminalHostControl control) async {
-    Socket? socket;
-    try {
-      socket = await Socket.connect(
-        InternetAddress.loopbackIPv4,
-        control.port,
-        timeout: _terminalHostConnectTimeout,
-      );
-      final lines = socket
-          .cast<List<int>>()
-          .transform(utf8.decoder)
-          .transform(const LineSplitter());
-      socket.writeln(
-        jsonEncode(<String, Object?>{
-          'id': 0,
-          'type': 'hello',
-          'payload': <String, Object?>{
-            'protocolVersion': aleraTerminalHostProtocolVersion,
-            'token': control.token,
-          },
-        }),
-      );
-      final line = await lines.first.timeout(_terminalHostConnectTimeout);
-      final message = asTerminalHostMap(
-        jsonDecode(line),
-        'Terminal host hello response',
-      );
-      return message['id'] == 0 && message['ok'] == true;
-    } catch (_) {
-      return false;
-    } finally {
-      socket?.destroy();
     }
   }
 }

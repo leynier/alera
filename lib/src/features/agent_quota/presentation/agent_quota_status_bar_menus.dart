@@ -90,6 +90,7 @@ class _CollapsedQuotaBar extends StatelessWidget {
     required this.loading,
     required this.error,
     required this.onRefresh,
+    this.trailing,
   });
 
   final String hostId;
@@ -97,6 +98,7 @@ class _CollapsedQuotaBar extends StatelessWidget {
   final bool loading;
   final String? error;
   final VoidCallback onRefresh;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -158,6 +160,7 @@ class _CollapsedQuotaBar extends StatelessWidget {
           ),
         ),
         _QuotaRefreshButton(loading: loading, onRefresh: onRefresh),
+        trailing ?? const SizedBox.shrink(),
       ],
     );
   }

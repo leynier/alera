@@ -30,8 +30,6 @@ void _registerSettingsDialogTerminalTests() {
     await tapStepper(AleraIcons.chevronUp, 7);
     await tapStepper(AleraIcons.chevronUp, 8);
     await tapStepper(AleraIcons.chevronUp, 9);
-    await tapStepper(AleraIcons.chevronUp, 10);
-    await tapStepper(AleraIcons.chevronUp, 11);
 
     Future<void> setSwatchColor(int index, Color color) async {
       final swatch = find.byType(AleraColorSwatch).at(index);
@@ -63,14 +61,6 @@ void _registerSettingsDialogTerminalTests() {
     );
     expect(after.scrollbackLines, greaterThan(before.scrollbackLines));
     expect(after.hostScrollbackBytes, greaterThan(before.hostScrollbackBytes));
-    expect(
-      after.hostEmptyShutdownDelaySeconds,
-      greaterThan(before.hostEmptyShutdownDelaySeconds),
-    );
-    expect(
-      after.hostDetachedSessionShutdownDelaySeconds,
-      greaterThan(before.hostDetachedSessionShutdownDelaySeconds),
-    );
     expect(after.colorOverrides.background, '#223344');
     expect(after.colorOverrides.cursor, '#445566');
     expect(after.colorOverrides.selection, '#667788');

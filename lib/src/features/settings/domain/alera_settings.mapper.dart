@@ -455,6 +455,14 @@ class TerminalSettingsMapper extends ClassMapperBase<TerminalSettings> {
     opt: true,
     def: 10 * 1000 * 1000,
   );
+  static bool _$stopRuntimeOnAppQuit(TerminalSettings v) =>
+      v.stopRuntimeOnAppQuit;
+  static const Field<TerminalSettings, bool> _f$stopRuntimeOnAppQuit = Field(
+    'stopRuntimeOnAppQuit',
+    _$stopRuntimeOnAppQuit,
+    opt: true,
+    def: false,
+  );
   static bool? _$loginShell(TerminalSettings v) => v.loginShell;
   static const Field<TerminalSettings, bool> _f$loginShell = Field(
     'loginShell',
@@ -485,6 +493,7 @@ class TerminalSettingsMapper extends ClassMapperBase<TerminalSettings> {
     #hostDetachedSessionShutdownDelaySeconds:
         _f$hostDetachedSessionShutdownDelaySeconds,
     #hostScrollbackBytes: _f$hostScrollbackBytes,
+    #stopRuntimeOnAppQuit: _f$stopRuntimeOnAppQuit,
     #loginShell: _f$loginShell,
   };
 
@@ -512,6 +521,7 @@ class TerminalSettingsMapper extends ClassMapperBase<TerminalSettings> {
         _f$hostDetachedSessionShutdownDelaySeconds,
       ),
       hostScrollbackBytes: data.dec(_f$hostScrollbackBytes),
+      stopRuntimeOnAppQuit: data.dec(_f$stopRuntimeOnAppQuit),
       loginShell: data.dec(_f$loginShell),
     );
   }
@@ -605,6 +615,7 @@ abstract class TerminalSettingsCopyWith<$R, $In extends TerminalSettings, $Out>
     int? hostEmptyShutdownDelaySeconds,
     int? hostDetachedSessionShutdownDelaySeconds,
     int? hostScrollbackBytes,
+    bool? stopRuntimeOnAppQuit,
     bool? loginShell,
   });
   TerminalSettingsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
@@ -650,6 +661,7 @@ class _TerminalSettingsCopyWithImpl<$R, $Out>
     int? hostEmptyShutdownDelaySeconds,
     int? hostDetachedSessionShutdownDelaySeconds,
     int? hostScrollbackBytes,
+    bool? stopRuntimeOnAppQuit,
     Object? loginShell = $none,
   }) => $apply(
     FieldCopyWithData({
@@ -679,6 +691,8 @@ class _TerminalSettingsCopyWithImpl<$R, $Out>
             hostDetachedSessionShutdownDelaySeconds,
       if (hostScrollbackBytes != null)
         #hostScrollbackBytes: hostScrollbackBytes,
+      if (stopRuntimeOnAppQuit != null)
+        #stopRuntimeOnAppQuit: stopRuntimeOnAppQuit,
       if (loginShell != $none) #loginShell: loginShell,
     }),
   );
@@ -724,6 +738,10 @@ class _TerminalSettingsCopyWithImpl<$R, $Out>
     hostScrollbackBytes: data.get(
       #hostScrollbackBytes,
       or: $value.hostScrollbackBytes,
+    ),
+    stopRuntimeOnAppQuit: data.get(
+      #stopRuntimeOnAppQuit,
+      or: $value.stopRuntimeOnAppQuit,
     ),
     loginShell: data.get(#loginShell, or: $value.loginShell),
   );

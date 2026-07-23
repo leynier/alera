@@ -438,20 +438,6 @@ const List<SettingsSearchEntry> terminalSearchEntries = <SettingsSearchEntry>[
     groupId: 'advanced',
   ),
   SettingsSearchEntry(
-    title: 'Empty Host Shutdown',
-    description:
-        'Stop the terminal host after the app closes with no sessions.',
-    keywords: <String>['host', 'sidecar', 'lifetime', 'timeout'],
-    groupId: 'advanced',
-  ),
-  SettingsSearchEntry(
-    title: 'Detached Session Shutdown',
-    description:
-        'Stop detached running terminal sessions after the app stays closed.',
-    keywords: <String>['host', 'sidecar', 'session', 'timeout'],
-    groupId: 'advanced',
-  ),
-  SettingsSearchEntry(
     title: 'Word Separators',
     description: 'Characters that break double-click word selection.',
     keywords: <String>['boundary', 'selection', 'double click'],

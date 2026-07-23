@@ -128,12 +128,14 @@ class AppWindowLifecycleCoordinator extends AppWindowEventListener {
     AppWindowCloseStrategy closeStrategy =
         const DestroyAppWindowCloseStrategy(),
     Duration saveDebounce = const Duration(milliseconds: 350),
+    Future<bool> Function()? closeGate,
     Logger? logger,
   }) : this._(
          repository: repository,
          window: window,
          closeStrategy: closeStrategy,
          saveDebounce: saveDebounce,
+         closeGate: closeGate,
          logger: logger ?? Logger('AppWindowLifecycleCoordinator'),
        );
 
@@ -142,6 +144,7 @@ class AppWindowLifecycleCoordinator extends AppWindowEventListener {
     required this._window,
     required this._closeStrategy,
     required this._saveDebounce,
+    required this._closeGate,
     required this._logger,
   });
 
@@ -149,6 +152,7 @@ class AppWindowLifecycleCoordinator extends AppWindowEventListener {
   final AppWindowController _window;
   final AppWindowCloseStrategy _closeStrategy;
   final Duration _saveDebounce;
+  Future<bool> Function()? _closeGate;
   final Logger _logger;
 
   AppWindowState? _lastState;
@@ -156,6 +160,13 @@ class AppWindowLifecycleCoordinator extends AppWindowEventListener {
   Future<void> _saveQueue = Future<void>.value();
   bool _started = false;
   bool _closing = false;
+
+  /// Optional gate invoked before the window is destroyed. Return `false` to
+  /// cancel the close (for example when the user declines force-stopping the
+  /// runtime). Replaces any previous gate.
+  void bindCloseGate(Future<bool> Function()? closeGate) {
+    _closeGate = closeGate;
+  }
 
   Future<void> start() async {
     if (_started) {
@@ -241,6 +252,20 @@ class AppWindowLifecycleCoordinator extends AppWindowEventListener {
   }
 
   Future<void> _flushAndDestroy() async {
+    try {
+      final gate = _closeGate;
+      if (gate != null) {
+        final allowClose = await gate();
+        if (!allowClose) {
+          _closing = false;
+          return;
+        }
+      }
+    } catch (error, stackTrace) {
+      _logger.warning('app window close gate failed', error, stackTrace);
+      _closing = false;
+      return;
+    }
     try {
       await flush();
     } catch (error, stackTrace) {
