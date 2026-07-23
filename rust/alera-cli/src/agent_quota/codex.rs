@@ -1,11 +1,14 @@
 async fn fetch_codex() -> QuotaSnapshot {
     let result = tokio::time::timeout(FETCH_TIMEOUT, async {
-        let mut child = Command::new("codex")
+        let mut command = Command::new("codex");
+        command
             .args(["-s", "read-only", "-a", "untrusted", "app-server"])
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
-            .kill_on_drop(true)
+            .kill_on_drop(true);
+        crate::login_shell_environment::apply_login_shell_path(&mut command).await;
+        let mut child = command
             .spawn()
             .context("Codex CLI not found or could not start")?;
         let mut stdin = child.stdin.take().context("Codex RPC stdin unavailable")?;

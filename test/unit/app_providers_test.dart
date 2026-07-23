@@ -297,15 +297,14 @@ void main() {
         container.read(terminalHostWarmupCoordinatorProvider);
         await Future<void>.delayed(Duration.zero);
 
-        expect(client.ensureStartedConfigs, hasLength(1));
-        expect(
-          client.ensureStartedConfigs.single.toJson(),
-          const TerminalHostConfig(
+        expect(client.ensureStartedConfigs.map((c) => c.toJson()), <Object?>[
+          TerminalHostConfig(
             emptyShutdownDelaySeconds: 7,
             detachedSessionShutdownDelaySeconds: 14,
             scrollbackBytes: 4096,
+            loginShell: settings.terminal.resolvedLoginShell,
           ).toJson(),
-        );
+        ]);
       },
     );
 

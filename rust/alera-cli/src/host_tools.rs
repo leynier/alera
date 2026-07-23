@@ -5,7 +5,7 @@ use anyhow::{Context, Result};
 use serde::Serialize;
 use tokio::process::Command;
 
-use crate::managed_workspace::setup_command_environment;
+use crate::login_shell_environment::setup_command_environment;
 
 const WRAPPER_MARKER: &str = "alera-managed-cli-wrapper-v1";
 const SKILL_REPOSITORY: &str = "https://github.com/leynier/alera";

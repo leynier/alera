@@ -102,6 +102,21 @@ fn spawn_host(runtime_dir: &std::path::Path, token: &str) -> (HostGuard, u16) {
     }
 }
 
+/// Agent integrations are reconciled after the host starts accepting, so the
+/// control file can appear before the hook files are on disk.
+#[cfg(unix)]
+fn wait_for_path(path: &std::path::Path) {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !path.exists() {
+        assert!(
+            Instant::now() < deadline,
+            "integration was not reconciled: {}",
+            path.display()
+        );
+        std::thread::sleep(Duration::from_millis(50));
+    }
+}
+
 #[cfg(unix)]
 fn hook_endpoint(runtime_dir: &std::path::Path) -> (u16, String) {
     let contents = std::fs::read_to_string(runtime_dir.join("agent-hooks/endpoint.env")).unwrap();
@@ -353,11 +368,7 @@ fn runtime_hook_receiver_detects_every_enabled_agent() {
         test_home.join(".pi/agent/extensions/alera-agent-status.ts"),
         test_home.join(".config/amp/plugins/alera-agent-status.ts"),
     ] {
-        assert!(
-            integration.exists(),
-            "integration was not reconciled: {}",
-            integration.display()
-        );
+        wait_for_path(&integration);
     }
     let (mut writer, mut reader) = connect(port, token);
     send(

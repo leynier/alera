@@ -5,6 +5,7 @@ mod cli_orchestration;
 #[cfg(test)]
 mod cli_tests;
 mod host_tools;
+mod login_shell_environment;
 mod managed_workspace;
 mod mobile_access;
 mod orchestration_commands;
@@ -208,6 +209,7 @@ async fn run_terminal_host(args: TerminalHostArgs) -> i32 {
         detached_session_shutdown_delay_seconds: args.detached_session_shutdown_delay_seconds,
         scrollback_bytes: args.scrollback_bytes,
         persistent: args.persistent,
+        login_shell: terminal_host::protocol::default_login_shell(),
     };
 
     match run_terminal_host_server(

@@ -316,6 +316,7 @@ TerminalHostConfig _terminalHostConfigFor(TerminalSettings settings) {
     detachedSessionShutdownDelaySeconds:
         settings.hostDetachedSessionShutdownDelaySeconds,
     scrollbackBytes: settings.hostScrollbackBytes,
+    loginShell: settings.resolvedLoginShell,
   );
 }
 

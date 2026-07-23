@@ -4,6 +4,7 @@ import 'package:alera/src/features/keyboard/domain/keyboard_shortcut_settings.da
 import 'package:alera/src/features/settings/domain/editor_syntax_theme_catalog.dart';
 import 'package:alera/src/features/settings/domain/terminal_theme_catalog.dart';
 import 'package:dart_mappable/dart_mappable.dart';
+import 'package:flutter/foundation.dart';
 
 part 'alera_settings.mapper.dart';
 
@@ -71,6 +72,7 @@ class TerminalSettings with TerminalSettingsMappable {
     this.hostEmptyShutdownDelaySeconds = 30,
     this.hostDetachedSessionShutdownDelaySeconds = 60 * 60,
     this.hostScrollbackBytes = 10 * 1000 * 1000,
+    this.loginShell,
   });
 
   final String fontFamily;
@@ -93,6 +95,20 @@ class TerminalSettings with TerminalSettingsMappable {
   final int hostEmptyShutdownDelaySeconds;
   final int hostDetachedSessionShutdownDelaySeconds;
   final int hostScrollbackBytes;
+
+  /// `null` keeps the platform default resolved by [resolvedLoginShell].
+  final bool? loginShell;
+
+  /// Whether terminals start the user shell as a login shell.
+  ///
+  /// macOS GUI apps inherit a minimal `launchd` PATH and never read
+  /// `~/.zprofile`, where Homebrew and similar prefixes are set up, so login
+  /// shells are the default there. Other platforms keep the plain interactive
+  /// shell their terminal emulators use.
+  bool get resolvedLoginShell => loginShell ?? defaultLoginShell;
+
+  static bool get defaultLoginShell =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.macOS;
 
   double get padding =>
       paddingX == paddingY ? paddingX : (paddingX + paddingY) / 2;

@@ -243,6 +243,14 @@ class TerminalSettingsPane extends StatelessWidget {
             description:
                 'History, detached host lifetime and double-click selection behavior.',
             children: <Widget>[
+              SettingsSwitchRow(
+                title: 'Use Login Shell',
+                description:
+                    'Start shells as login shells so profile files such as ~/.zprofile and ~/.profile are loaded.',
+                value: settings.resolvedLoginShell,
+                onChanged: (value) =>
+                    onChanged(settings.copyWith(loginShell: value)),
+              ),
               SettingsIntegerRow(
                 title: 'Scrollback Lines',
                 description: 'Maximum terminal history retained per session.',

@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use alera_core::runtime::{WorkspaceStatus, WorkspaceTabRecord};
 use serde_json::{json, Value};
 
@@ -9,24 +7,13 @@ use crate::terminal_host::protocol::{event, TerminalHostLaunch};
 use crate::terminal_host::session::{PtyWriteCompletion, Session};
 
 use super::pty_event_forwarder::forward_pty_event;
+use super::terminal_launch_defaults::default_terminal_launch;
 use super::{ServerActor, ServerCommand};
 
 const DEFAULT_TERMINAL_COLS: u16 = 80;
 const DEFAULT_TERMINAL_ROWS: u16 = 24;
 const STARTUP_INPUT_DELAY_MS: u64 = 120;
 const STARTUP_SUBMIT_DELAY_MS: u64 = 500;
-
-pub(super) struct DefaultTerminalLaunch {
-    pub launch: TerminalHostLaunch,
-    pub interactive_shell: String,
-}
-
-#[derive(Clone, Copy)]
-#[allow(dead_code)]
-enum TerminalPlatform {
-    Posix,
-    Windows,
-}
 
 impl ServerActor {
     pub(super) async fn reconcile_spawn_on_create_tabs(&mut self) {
@@ -109,7 +96,8 @@ impl ServerActor {
         let (initial_scrollback, initial_output_stream_bytes) = self
             .take_terminal_restart_state(&session_id, &workspace.id, &tab.id, max_bytes)
             .await;
-        let default_launch = default_terminal_launch(&workspace.path);
+        let default_launch =
+            default_terminal_launch(&workspace.path, self.config.login_shell).await;
         self.start_new_terminal_session(
             session_id.clone(),
             workspace.id,
@@ -314,74 +302,6 @@ impl ServerActor {
     }
 }
 
-pub(super) fn default_terminal_launch(working_directory: &str) -> DefaultTerminalLaunch {
-    let environment = terminal_environment();
-    #[cfg(windows)]
-    let platform = TerminalPlatform::Windows;
-    #[cfg(not(windows))]
-    let platform = TerminalPlatform::Posix;
-    let shell = match platform {
-        TerminalPlatform::Windows => {
-            std::env::var("COMSPEC").unwrap_or_else(|_| "cmd.exe".to_string())
-        }
-        TerminalPlatform::Posix => std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string()),
-    };
-    default_terminal_launch_for(platform, working_directory, &shell, environment)
-}
-
-fn default_terminal_launch_for(
-    platform: TerminalPlatform,
-    working_directory: &str,
-    interactive_shell: &str,
-    environment: BTreeMap<String, String>,
-) -> DefaultTerminalLaunch {
-    match platform {
-        TerminalPlatform::Windows => DefaultTerminalLaunch {
-            interactive_shell: interactive_shell.to_string(),
-            launch: TerminalHostLaunch {
-                label: "shell".to_string(),
-                shell: interactive_shell.to_string(),
-                arguments: vec![
-                    "/d".to_string(),
-                    "/s".to_string(),
-                    "/k".to_string(),
-                    format!("cd /d {}", cmd_quote(working_directory)),
-                ],
-                environment,
-            },
-        },
-        TerminalPlatform::Posix => DefaultTerminalLaunch {
-            interactive_shell: interactive_shell.to_string(),
-            launch: TerminalHostLaunch {
-                label: "shell".to_string(),
-                shell: "/bin/sh".to_string(),
-                arguments: vec![
-                    "-c".to_string(),
-                    format!(
-                        "cd {} || true; exec {}",
-                        sh_quote(working_directory),
-                        sh_quote(interactive_shell)
-                    ),
-                ],
-                environment,
-            },
-        },
-    }
-}
-
-fn terminal_environment() -> BTreeMap<String, String> {
-    let mut environment = std::env::vars().collect::<BTreeMap<_, _>>();
-    if !cfg!(windows) {
-        environment
-            .entry("PATH".to_string())
-            .or_insert_with(|| "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin".to_string());
-        environment
-            .entry("TERM".to_string())
-            .or_insert_with(|| "xterm-256color".to_string());
-    }
-    environment
-}
-
 fn spawns_on_create(tab: &WorkspaceTabRecord) -> bool {
     tab.kind == "terminal"
         && tab.payload.get("spawnOnCreate").and_then(Value::as_bool) == Some(true)
@@ -402,45 +322,4 @@ fn initial_command(tab: &WorkspaceTabRecord) -> Option<String> {
         .and_then(Value::as_str)
         .filter(|value| !value.is_empty())
         .map(str::to_string)
-}
-
-fn sh_quote(value: &str) -> String {
-    format!("'{}'", value.replace('\'', "'\\''"))
-}
-
-fn cmd_quote(value: &str) -> String {
-    format!("\"{}\"", value.replace('"', "\"\""))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn default_launches_are_explicit_for_posix_and_windows() {
-        let posix = default_terminal_launch_for(
-            TerminalPlatform::Posix,
-            "/repo's root",
-            "/bin/zsh",
-            BTreeMap::new(),
-        );
-        assert_eq!(posix.launch.shell, "/bin/sh");
-        assert_eq!(
-            posix.launch.arguments,
-            ["-c", "cd '/repo'\\''s root' || true; exec '/bin/zsh'"]
-        );
-        assert_eq!(posix.interactive_shell, "/bin/zsh");
-
-        let windows = default_terminal_launch_for(
-            TerminalPlatform::Windows,
-            r#"C:\repo "main""#,
-            "cmd.exe",
-            BTreeMap::new(),
-        );
-        assert_eq!(windows.launch.shell, "cmd.exe");
-        assert_eq!(
-            windows.launch.arguments,
-            ["/d", "/s", "/k", r#"cd /d "C:\repo ""main""""#]
-        );
-    }
 }
