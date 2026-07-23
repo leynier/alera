@@ -11,7 +11,7 @@ use chrono::Utc;
 use uuid::Uuid;
 
 use super::requests::{optional_string_key, require_string_key, terminal_session_id_from_tab};
-use super::terminal_spawn::default_terminal_launch;
+use super::terminal_launch_defaults::default_terminal_launch;
 use super::ServerActor;
 
 impl ServerActor {

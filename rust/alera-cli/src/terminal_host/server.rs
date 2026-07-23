@@ -56,6 +56,7 @@ mod pty_events;
 mod requests;
 mod terminal_driver;
 mod terminal_input_requests;
+mod terminal_launch_defaults;
 mod terminal_spawn;
 mod workspace_pinning;
 mod workspace_sidebar_requests;

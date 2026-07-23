@@ -22,6 +22,7 @@ import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
 import 'package:xterm/xterm.dart' as xterm;
 
 part 'terminal_runtime_helper_group.dart';
+part 'terminal_login_shell_group.dart';
 part 'terminal_runtime_factory_group.dart';
 part 'terminal_runtime_clipboard_cases.dart';
 part 'terminal_runtime_xterm_session_cases.dart';
@@ -32,6 +33,7 @@ part 'terminal_runtime_native_test_harness.dart';
 
 void main() {
   _registerTerminalRuntimeHelperGroup();
+  _registerTerminalLoginShellGroup();
   _registerTerminalRuntimeFactoryGroup();
   group('XtermTerminalRuntime', () {
     _registerXtermRuntimeClipboardTests();
