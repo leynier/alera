@@ -189,7 +189,9 @@ class SettingsController extends _$SettingsController {
         ),
     };
     final unpinned = current.unpinnedQuotaKeys
-        .where((key) => !key.startsWith('claude:') || validClaudeKeys.contains(key))
+        .where(
+          (key) => !key.startsWith('claude:') || validClaudeKeys.contains(key),
+        )
         .toList();
     await _saveQuotaHost(
       hostId,

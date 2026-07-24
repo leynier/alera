@@ -2,11 +2,7 @@ import 'package:alera/src/design_system/alera_preview.dart';
 import 'package:alera/src/design_system/layout/alera_choice_dialog.dart';
 import 'package:flutter/material.dart';
 
-@AleraPreview(
-  name: 'Busy Quit',
-  group: 'Choice Dialog',
-  size: Size(480, 320),
-)
+@AleraPreview(name: 'Busy Quit', group: 'Choice Dialog', size: Size(480, 320))
 WidgetBuilder aleraChoiceDialogPreview() =>
     (context) => const AleraChoiceDialog<String>(
       title: 'Runtime Still Has Work',

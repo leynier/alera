@@ -51,7 +51,11 @@ class AgentQuotaStatusBar extends ConsumerWidget {
       unawaited(
         ref
             .read(settingsControllerProvider.notifier)
-            .setAgentQuotaPinned(hostId: hostId, pinKey: pinKey, pinned: pinned),
+            .setAgentQuotaPinned(
+              hostId: hostId,
+              pinKey: pinKey,
+              pinned: pinned,
+            ),
       );
     }
 

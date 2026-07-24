@@ -39,8 +39,7 @@ class AleraChoiceDialog<T> extends StatelessWidget {
             foregroundColor: AleraTokens.onError,
           )
         : null;
-    final hasSecondary =
-        secondaryLabel != null && secondaryValue != null;
+    final hasSecondary = secondaryLabel != null && secondaryValue != null;
     return AleraDialog(
       maxWidth: 440,
       child: Padding(
@@ -89,8 +88,7 @@ class AleraChoiceDialog<T> extends StatelessWidget {
                 const SizedBox(width: AleraTokens.space8),
                 Expanded(
                   child: FilledButton(
-                    onPressed: () =>
-                        Navigator.of(context).pop(primaryValue),
+                    onPressed: () => Navigator.of(context).pop(primaryValue),
                     child: Text(
                       primaryLabel,
                       maxLines: 1,

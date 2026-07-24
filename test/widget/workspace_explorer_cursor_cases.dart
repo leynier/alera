@@ -19,7 +19,9 @@ void _registerWorkspaceExplorerCursorTests() {
     addTearDown(gesture.removePointer);
     await tester.pump();
 
-    await gesture.moveTo(tester.getCenter(find.byIcon(AleraIcons.chevronRight)));
+    await gesture.moveTo(
+      tester.getCenter(find.byIcon(AleraIcons.chevronRight)),
+    );
     await tester.pumpAndSettle();
 
     expect(

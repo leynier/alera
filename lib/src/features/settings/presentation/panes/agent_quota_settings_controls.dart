@@ -155,8 +155,7 @@ class _ClaudeProfilesControl extends StatelessWidget {
               _QuotaPinButton(
                 pinned: isPinned(profile.profile),
                 enabled: true,
-                onChanged: (pinned) =>
-                    onPinnedChanged(profile.profile, pinned),
+                onChanged: (pinned) => onPinnedChanged(profile.profile, pinned),
               ),
               const SizedBox(width: AleraTokens.space4),
               AleraIconButton(

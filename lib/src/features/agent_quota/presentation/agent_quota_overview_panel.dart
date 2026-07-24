@@ -219,7 +219,6 @@ Color _quotaOverviewNameColor(AgentQuotaStatus status) {
   return switch (status) {
     AgentQuotaStatus.ok => AleraTokens.foreground,
     AgentQuotaStatus.stale => AleraTokens.foregroundFaint,
-    AgentQuotaStatus.error ||
-    AgentQuotaStatus.unavailable => AleraTokens.error,
+    AgentQuotaStatus.error || AgentQuotaStatus.unavailable => AleraTokens.error,
   };
 }

@@ -70,10 +70,7 @@ void main() {
     await tester.tap(find.byTooltip('Refresh Commits'));
     await tester.pumpAndSettle();
     expect(find.text('Add Feature'), findsOneWidget);
-    expect(
-      backend.calls.where((call) => call.method == 'history').length,
-      2,
-    );
+    expect(backend.calls.where((call) => call.method == 'history').length, 2);
   });
 }
 

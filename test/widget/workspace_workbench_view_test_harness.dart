@@ -345,7 +345,12 @@ class _SelectedTabAction {
 }
 
 class _MovedTabAction {
-  const _MovedTabAction(this.tabId, this.targetGroupId, this.zone, {this.index});
+  const _MovedTabAction(
+    this.tabId,
+    this.targetGroupId,
+    this.zone, {
+    this.index,
+  });
 
   final String tabId;
   final String targetGroupId;

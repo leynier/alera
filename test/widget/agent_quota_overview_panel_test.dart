@@ -91,7 +91,10 @@ void main() {
       lessThan(tester.getCenter(find.text('Default')).dx),
     );
 
-    await tester.tap(find.byIcon(AleraIcons.quota), kind: PointerDeviceKind.mouse);
+    await tester.tap(
+      find.byIcon(AleraIcons.quota),
+      kind: PointerDeviceKind.mouse,
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Claude Code Default'), findsOneWidget);
@@ -129,7 +132,10 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byIcon(AleraIcons.quota), kind: PointerDeviceKind.mouse);
+    await tester.tap(
+      find.byIcon(AleraIcons.quota),
+      kind: PointerDeviceKind.mouse,
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('Unpin From Status Bar'));
@@ -162,7 +168,10 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byIcon(AleraIcons.quota), kind: PointerDeviceKind.mouse);
+    await tester.tap(
+      find.byIcon(AleraIcons.quota),
+      kind: PointerDeviceKind.mouse,
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Codex'), findsOneWidget);
@@ -215,7 +224,10 @@ void main() {
 
     expect(find.text('G·W'), findsOneWidget);
 
-    await tester.tap(find.byIcon(AleraIcons.quota), kind: PointerDeviceKind.mouse);
+    await tester.tap(
+      find.byIcon(AleraIcons.quota),
+      kind: PointerDeviceKind.mouse,
+    );
     await tester.pumpAndSettle();
     // One reading in the bar and one in the panel row.
     expect(find.text('G·W'), findsNWidgets(2));

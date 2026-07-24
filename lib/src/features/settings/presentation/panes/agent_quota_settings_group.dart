@@ -76,7 +76,9 @@ class AgentQuotaSettingsPane extends ConsumerWidget {
                         unawaited(
                           controller.setAgentQuotaPinned(
                             hostId: hostId,
-                            pinKey: AgentQuotaHostSettings.quotaPinKey(provider),
+                            pinKey: AgentQuotaHostSettings.quotaPinKey(
+                              provider,
+                            ),
                             pinned: pinned,
                           ),
                         );

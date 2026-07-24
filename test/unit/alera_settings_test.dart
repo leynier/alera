@@ -340,35 +340,38 @@ void main() {
       expect(restored.keepRuntimeOpenOnAppQuit, isFalse);
     });
 
-    test('legacy stopRuntimeOnAppQuit migrates to keepRuntimeOpenOnAppQuit', () {
-      final keptOpen = TerminalSettings.fromJson(<String, Object?>{
-        'fontFamily': 'JetBrains Mono',
-        'fontSize': 13,
-        'lineHeight': 1.3,
-        'cursorShape': 'block',
-        'scrollbackLines': 10000,
-        'stopRuntimeOnAppQuit': false,
-      });
-      final stoppedOnQuit = TerminalSettings.fromJson(<String, Object?>{
-        'fontFamily': 'JetBrains Mono',
-        'fontSize': 13,
-        'lineHeight': 1.3,
-        'cursorShape': 'block',
-        'scrollbackLines': 10000,
-        'stopRuntimeOnAppQuit': true,
-      });
-      final omittedQuitFlag = TerminalSettings.fromJson(<String, Object?>{
-        'fontFamily': 'JetBrains Mono',
-        'fontSize': 13,
-        'lineHeight': 1.3,
-        'cursorShape': 'block',
-        'scrollbackLines': 10000,
-      });
+    test(
+      'legacy stopRuntimeOnAppQuit migrates to keepRuntimeOpenOnAppQuit',
+      () {
+        final keptOpen = TerminalSettings.fromJson(<String, Object?>{
+          'fontFamily': 'JetBrains Mono',
+          'fontSize': 13,
+          'lineHeight': 1.3,
+          'cursorShape': 'block',
+          'scrollbackLines': 10000,
+          'stopRuntimeOnAppQuit': false,
+        });
+        final stoppedOnQuit = TerminalSettings.fromJson(<String, Object?>{
+          'fontFamily': 'JetBrains Mono',
+          'fontSize': 13,
+          'lineHeight': 1.3,
+          'cursorShape': 'block',
+          'scrollbackLines': 10000,
+          'stopRuntimeOnAppQuit': true,
+        });
+        final omittedQuitFlag = TerminalSettings.fromJson(<String, Object?>{
+          'fontFamily': 'JetBrains Mono',
+          'fontSize': 13,
+          'lineHeight': 1.3,
+          'cursorShape': 'block',
+          'scrollbackLines': 10000,
+        });
 
-      expect(keptOpen.keepRuntimeOpenOnAppQuit, isTrue);
-      expect(stoppedOnQuit.keepRuntimeOpenOnAppQuit, isFalse);
-      expect(omittedQuitFlag.keepRuntimeOpenOnAppQuit, isTrue);
-    });
+        expect(keptOpen.keepRuntimeOpenOnAppQuit, isTrue);
+        expect(stoppedOnQuit.keepRuntimeOpenOnAppQuit, isFalse);
+        expect(omittedQuitFlag.keepRuntimeOpenOnAppQuit, isTrue);
+      },
+    );
 
     test('terminal parsing rejects missing required fields', () {
       expect(
@@ -472,5 +475,4 @@ void main() {
       },
     );
   });
-
 }

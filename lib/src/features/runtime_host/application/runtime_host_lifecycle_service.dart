@@ -119,8 +119,7 @@ final class RuntimeHostLifecycleService {
       }
       final confirmed = await confirmForce(
         title: 'Force Stop Runtime',
-        message:
-            '${runtimeHostBusyMessage(busy)} Force stop terminates them.',
+        message: '${runtimeHostBusyMessage(busy)} Force stop terminates them.',
         confirmLabel: 'Force Stop',
       );
       if (!confirmed) {

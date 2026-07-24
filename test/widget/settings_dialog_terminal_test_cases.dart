@@ -66,51 +66,52 @@ void _registerSettingsDialogTerminalTests() {
     expect(after.colorOverrides.selection, '#667788');
   });
 
-  testWidgets('edits runtime host lifecycle settings from the application pane', (
-    tester,
-  ) async {
-    final container = await _pumpSettingsDialog(tester);
-    final before = container.read(settingsControllerProvider).terminal;
-    expect(before.keepRuntimeOpenOnAppQuit, isFalse);
+  testWidgets(
+    'edits runtime host lifecycle settings from the application pane',
+    (tester) async {
+      final container = await _pumpSettingsDialog(tester);
+      final before = container.read(settingsControllerProvider).terminal;
+      expect(before.keepRuntimeOpenOnAppQuit, isFalse);
 
-    final toggle = find.descendant(
-      of: find.ancestor(
-        of: find.text('Keep Runtime Open When App Quits'),
-        matching: find.byType(SettingsSwitchRow),
-      ),
-      matching: find.byType(Switch),
-    );
-    await tester.ensureVisible(toggle);
-    await tester.pumpAndSettle();
-    await tester.tap(toggle);
-    await tester.pumpAndSettle();
-
-    Future<void> bumpDelay(String title) async {
-      final stepper = find.descendant(
+      final toggle = find.descendant(
         of: find.ancestor(
-          of: find.text(title),
-          matching: find.byType(SettingsIntegerRow),
+          of: find.text('Keep Runtime Open When App Quits'),
+          matching: find.byType(SettingsSwitchRow),
         ),
-        matching: find.byIcon(AleraIcons.chevronUp),
+        matching: find.byType(Switch),
       );
-      await tester.ensureVisible(stepper);
+      await tester.ensureVisible(toggle);
       await tester.pumpAndSettle();
-      await tester.tap(stepper);
-      await tester.pump(const Duration(milliseconds: 50));
-    }
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
 
-    await bumpDelay('Empty Host Shutdown');
-    await bumpDelay('Detached Session Shutdown');
+      Future<void> bumpDelay(String title) async {
+        final stepper = find.descendant(
+          of: find.ancestor(
+            of: find.text(title),
+            matching: find.byType(SettingsIntegerRow),
+          ),
+          matching: find.byIcon(AleraIcons.chevronUp),
+        );
+        await tester.ensureVisible(stepper);
+        await tester.pumpAndSettle();
+        await tester.tap(stepper);
+        await tester.pump(const Duration(milliseconds: 50));
+      }
 
-    final after = container.read(settingsControllerProvider).terminal;
-    expect(after.keepRuntimeOpenOnAppQuit, isTrue);
-    expect(
-      after.hostEmptyShutdownDelaySeconds,
-      greaterThan(before.hostEmptyShutdownDelaySeconds),
-    );
-    expect(
-      after.hostDetachedSessionShutdownDelaySeconds,
-      greaterThan(before.hostDetachedSessionShutdownDelaySeconds),
-    );
-  });
+      await bumpDelay('Empty Host Shutdown');
+      await bumpDelay('Detached Session Shutdown');
+
+      final after = container.read(settingsControllerProvider).terminal;
+      expect(after.keepRuntimeOpenOnAppQuit, isTrue);
+      expect(
+        after.hostEmptyShutdownDelaySeconds,
+        greaterThan(before.hostEmptyShutdownDelaySeconds),
+      );
+      expect(
+        after.hostDetachedSessionShutdownDelaySeconds,
+        greaterThan(before.hostDetachedSessionShutdownDelaySeconds),
+      );
+    },
+  );
 }

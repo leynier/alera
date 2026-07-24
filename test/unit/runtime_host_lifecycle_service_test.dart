@@ -49,26 +49,29 @@ void main() {
       expect(status.activeSessions, 1);
     });
 
-    test('prepareAppQuit skips shutdown when keepRuntimeOpen is true', () async {
-      final client = _FakeRuntimeClient(
-        status: <String, Object?>{
-          'runtimeHostVersion': '1.2.0',
-          'persistent': false,
-        },
-      );
-      final service = RuntimeHostLifecycleService(
-        client: client,
-        bundledVersionProbe: _FakeBundledProbe(
-          const BundledSidecarVersion(version: '1.2.0'),
-        ),
-        readConfig: () => TerminalHostConfig.defaults,
-      );
+    test(
+      'prepareAppQuit skips shutdown when keepRuntimeOpen is true',
+      () async {
+        final client = _FakeRuntimeClient(
+          status: <String, Object?>{
+            'runtimeHostVersion': '1.2.0',
+            'persistent': false,
+          },
+        );
+        final service = RuntimeHostLifecycleService(
+          client: client,
+          bundledVersionProbe: _FakeBundledProbe(
+            const BundledSidecarVersion(version: '1.2.0'),
+          ),
+          readConfig: () => TerminalHostConfig.defaults,
+        );
 
-      final allowed = await service.prepareAppQuit(keepRuntimeOpen: true);
+        final allowed = await service.prepareAppQuit(keepRuntimeOpen: true);
 
-      expect(allowed, isTrue);
-      expect(client.shutdownCalls, isEmpty);
-    });
+        expect(allowed, isTrue);
+        expect(client.shutdownCalls, isEmpty);
+      },
+    );
 
     test('prepareAppQuit skips shutdown for persistent hosts', () async {
       final client = _FakeRuntimeClient(
@@ -163,33 +166,36 @@ void main() {
       expect(client.shutdownCalls, <bool>[false]);
     });
 
-    test('prepareAppQuit leaves host running when busy quit chooses leave', () async {
-      final client = _FakeRuntimeClient(
-        status: <String, Object?>{
-          'runtimeHostVersion': '1.2.0',
-          'persistent': false,
-        },
-        busyOnSoftStop: true,
-      );
-      final service = RuntimeHostLifecycleService(
-        client: client,
-        bundledVersionProbe: _FakeBundledProbe(
-          const BundledSidecarVersion(version: '1.2.0'),
-        ),
-        readConfig: () => TerminalHostConfig.defaults,
-      );
+    test(
+      'prepareAppQuit leaves host running when busy quit chooses leave',
+      () async {
+        final client = _FakeRuntimeClient(
+          status: <String, Object?>{
+            'runtimeHostVersion': '1.2.0',
+            'persistent': false,
+          },
+          busyOnSoftStop: true,
+        );
+        final service = RuntimeHostLifecycleService(
+          client: client,
+          bundledVersionProbe: _FakeBundledProbe(
+            const BundledSidecarVersion(version: '1.2.0'),
+          ),
+          readConfig: () => TerminalHostConfig.defaults,
+        );
 
-      final allowed = await service.prepareAppQuit(
-        keepRuntimeOpen: false,
-        confirmBusyQuit:
-            ({required String title, required String message}) async =>
-                RuntimeHostQuitDecision.leaveRuntimeOpen,
-      );
+        final allowed = await service.prepareAppQuit(
+          keepRuntimeOpen: false,
+          confirmBusyQuit:
+              ({required String title, required String message}) async =>
+                  RuntimeHostQuitDecision.leaveRuntimeOpen,
+        );
 
-      expect(allowed, isTrue);
-      expect(client.shutdownCalls, <bool>[false]);
-      expect(await client.probeRuntimeStatus(), isNotNull);
-    });
+        expect(allowed, isTrue);
+        expect(client.shutdownCalls, <bool>[false]);
+        expect(await client.probeRuntimeStatus(), isNotNull);
+      },
+    );
 
     test('prepareAppQuit force-stops when busy quit chooses force', () async {
       final client = _FakeRuntimeClient(

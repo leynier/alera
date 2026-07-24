@@ -100,9 +100,7 @@ void main() {
         unorderedEquals(<String>['codex', 'claude:leynierdev']),
       );
       expect(
-        controller.state.agents.quotas
-            .forHost('remote')
-            .unpinnedQuotaKeys,
+        controller.state.agents.quotas.forHost('remote').unpinnedQuotaKeys,
         isEmpty,
       );
 
