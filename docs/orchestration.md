@@ -9,7 +9,9 @@ Alera orchestration is owned by the Rust runtime-host. Tasks, dispatches, messag
 - Dispatch preamble: 2.
 - Installed skill contract: 2.
 
-`alera version --json` reports the CLI build and expected contracts, then queries an already-running compatible runtime host for its actual build and contract versions. Host fields are `null` and `runtimeHostAvailable` is `false` when no compatible host is reachable; the command never invents host equality from the CLI build.
+`alera version --json` reports the CLI build and expected contracts, then queries an already-running compatible runtime host for its actual build and contract versions. Cargo builds embed `ALERA_BUILD_COMMIT` when supplied and otherwise resolve the current Git commit at build time. Host fields are `null` and `runtimeHostAvailable` is `false` when no compatible host is reachable; the command never invents host equality from the CLI build.
+
+Runtime-host features are negotiated additively. Terminal inspection and prune commands require `orchestrationTerminalInspectionV1`, waits require `orchestrationWaitV1`, explicit agent overrides require `orchestrationAssumeAgentV1`, and deferred Enter/submit requires `terminalDeferredInputV1`; the CLI asks for a host restart instead of sending unsupported RPCs.
 
 The v2 schema is incompatible at the SQL constraint level, so the runtime performs a transactional table rebuild that preserves v1 messages, tasks, dispatches, gates, and runs while filling new ownership and scope fields with conservative defaults. Unknown future schema versions fail closed instead of deleting state.
 
@@ -27,21 +29,25 @@ alera orchestration run-show --id <run-id>
 alera orchestration run-stop --id <run-id> [--cancel-active] --reason "Stopped by coordinator"
 ```
 
+`task-create`, `agent-spawn`, and `run` default `--workspace` from `ALERA_WORKSPACE_ID`. Use `alera orchestration current` to inspect the current workspace and terminal identity.
+
 `run-stop` is graceful by default: it stops new scheduling while active workers retain authority to finish and persists the supplied reason on the run. `--cancel-active` applies cooperative cancellation to active tasks. Only the owning coordinator can stop the run normally; `--force` is reserved for audited administrative recovery, and forced child cancellations retain the administrative actor in their audit records.
 
 ## Agent Spawn And Readiness
 
-`agent-spawn` creates or selects a terminal, launches the requested agent, waits for hook-based readiness, injects the v2 preamble, forces submission through the agent adapter, and waits for acceptance.
+`agent-spawn` creates or selects a terminal, starts the requested agent, delivers its bootstrap through the registered adapter, and waits for acceptance. Codex receives a short positional bootstrap after the host creates the dispatch and installs its context, so its first turn does not depend on a prior readiness hook. Other adapters retain hook-based readiness injection.
 
 ```bash
-alera orchestration agent-spawn --workspace <workspace-id> --agent codex --task <task-id> --title "Review Tests"
+alera orchestration agent-spawn --agent codex --task <task-id> --title "Review Tests" --timeout-ms 90000
 alera orchestration terminal-wait --terminal <handle> --for agent-ready --timeout-ms 30000
 alera orchestration terminal-wait --terminal <handle> --for dispatch-accepted --timeout-ms 60000
 ```
 
 The built-in registry supports `codex`, `claude`, `copilot`, `cursor`, `agy`, `opencode`, `pi`, and `amp`, with default commands `codex`, `claude`, `copilot`, `cursor-agent`, `agy`, `opencode`, `pi`, and `amp`. `agent-spawn --command` overrides the default without changing the agent type.
 
-Startup states distinguish process creation, agent detection, agent readiness, submitted-but-unconfirmed dispatch, acceptance, failure, and stall. An unaccepted coordinator dispatch expires after the same 90-second deadline used by `agent-spawn`; three startup/acceptance failures stall the task without consuming the execution circuit breaker. Wait commands return startup failures immediately as non-zero errors instead of reporting a normal timeout.
+Startup states distinguish process creation, agent detection, agent readiness, submitted-but-unconfirmed dispatch, acceptance, failure, and stall. `agent-spawn --timeout-ms` controls how long the CLI waits for acceptance, up to the host acceptance limit of 90000 milliseconds. A failed spawn removes only the terminal created and owned by that attempt; reused terminals are never removed, and `--keep-on-failure` preserves a new terminal for diagnosis. Three startup/acceptance failures stall the task without consuming the execution circuit breaker.
+
+For manual recovery, dispatch without `--inject`. The response prints a short bootstrap that tells the agent to accept and read `context`; add `--return-preamble` only when the full v2 preamble is needed. If hooks cannot describe an agent that the operator has independently confirmed is idle, `dispatch --inject --assume-agent codex` performs an audited adapter override.
 
 ## Worker Context And Lifecycle
 
@@ -54,6 +60,8 @@ alera orchestration heartbeat --phase reviewing
 alera orchestration escalate --subject "Blocked" --body "Missing credentials"
 alera orchestration complete --summary "Review complete" --completion-kind success --artifacts '[]' --files-modified "path/a" --validation '[]'
 ```
+
+`context` returns the effective task spec for the current dispatch. For coordinator-created Codex workers, the host removes the internal `allow-stale-base: true` directive and includes the captured preflight result in `baseDrift` with `base`, `behind`, and `recentSubjects`; `baseDrift` is `null` when no drift was captured. Preflight metadata is matched to both task and dispatch IDs so a later dispatch cannot inherit stale context.
 
 Completion validates structured results and atomically commits task/dispatch state, promotes DAG dependants, invalidates scoped operational messages, and returns lifecycle reconciliation in one response. A completed dispatch is accepted idempotently only when its task is also completed; dispatches closed by a decision gate reject late completion. `worker-done --task --dispatch --summary` is the explicit idempotent recovery form. Generic `send --type worker_done` and arbitrary `task-update --status` are rejected.
 
@@ -77,7 +85,14 @@ Message admission is bounded at the storage boundary: handles and thread IDs are
 
 PTY input and durable output use bounded asynchronous queues. A blocked terminal writer cannot stall the host actor or unrelated terminals, and delivery is acknowledged only after the queued paste and optional submit complete. Absolute output cursors remain monotonic when retained scrollback is trimmed and when an exited session is reminted.
 
-Wait commands return exit 0 for normal timeouts with `{ "outcome": "timeout", "items": [], "waitedMs": ... }`. Usage, transport, and runtime failures remain non-zero errors.
+Wait commands return exit 0 for normal timeouts with `{ "outcome": "timeout", "waitedMs": ... }`; message waits also include `items: []`. Usage, transport, and runtime failures remain non-zero errors.
+
+Terminal and task waits are parked in the runtime host, not implemented as CLI polling. Their deadline handler performs a final durable-state check before returning timeout, so a transition at the boundary is not lost.
+
+```bash
+alera orchestration task-wait --task <task-id> --for completed,failed,stalled --timeout-ms 300000
+alera terminal wait --terminal <handle> --for dispatch-accepted --timeout-ms 60000
+```
 
 ## Observability And Terminal Diagnostics
 
@@ -85,11 +100,17 @@ Wait commands return exit 0 for normal timeouts with `{ "outcome": "timeout", "i
 alera orchestration status --id <run-id>
 alera orchestration task-show --id <task-id>
 alera orchestration terminal-show --handle <handle>
+alera terminal list --workspace <workspace-id>
+alera terminal show --handle <handle>
 alera terminal read --handle <handle> --max-bytes 65536
 alera terminal read --handle <handle> --cursor <nextCursor>
 alera terminal write --handle <handle> --text "continue" --enter
-alera terminal write --handle <handle> --stdin --enter
+alera terminal write --handle <handle> --stdin --submit
+alera terminal prune --workspace <workspace-id>
+alera terminal prune --workspace <workspace-id> --apply
 ```
+
+`terminal write --enter` writes the content and sends carriage return in a second operation after the first write completes. `--submit` additionally wraps the content in bracketed paste for interactive TUIs. `terminal prune` is a dry run unless `--apply` is present and only targets stopped terminals in the selected workspace.
 
 Terminal reads return raw retained bytes, lossy text, an absolute monotonic stream cursor, the current retained `baseCursor`, and a 64 KiB default limit. If a requested cursor predates retained scrollback, reading resumes at `baseCursor` with `truncated: true`. Reads do not apply heuristic secret redaction because that could hide authentication or trust prompts.
 

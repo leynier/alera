@@ -62,6 +62,14 @@ pub(super) fn wait_timeout_ms(payload: &Value) -> u64 {
         .min(MAX_WAIT_TIMEOUT_MS)
 }
 
+pub(super) fn state_wait_timeout_ms(payload: &Value) -> u64 {
+    payload
+        .get("timeoutMs")
+        .and_then(Value::as_u64)
+        .unwrap_or(DEFAULT_WAIT_TIMEOUT_MS)
+        .min(MAX_WAIT_TIMEOUT_MS)
+}
+
 pub(super) fn state_error(error: impl std::fmt::Display) -> HostError {
     HostError::state(error.to_string())
 }
@@ -79,6 +87,25 @@ pub(super) fn prefixed_subject(prefix: &str, subject: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn wait_timeouts_apply_the_shared_upper_bound() {
+        let payload = serde_json::json!({"timeoutMs": 900_000});
+        assert_eq!(state_wait_timeout_ms(&payload), MAX_WAIT_TIMEOUT_MS);
+        assert_eq!(wait_timeout_ms(&payload), MAX_WAIT_TIMEOUT_MS);
+        assert_eq!(
+            state_wait_timeout_ms(&serde_json::json!({"timeoutMs": u64::MAX})),
+            MAX_WAIT_TIMEOUT_MS
+        );
+        assert_eq!(
+            state_wait_timeout_ms(&serde_json::json!({"timeoutMs": 300_000})),
+            300_000
+        );
+        assert_eq!(
+            state_wait_timeout_ms(&serde_json::json!({})),
+            DEFAULT_WAIT_TIMEOUT_MS
+        );
+    }
 
     #[test]
     fn prefixed_subject_stays_within_the_storage_limit_on_utf8_boundaries() {

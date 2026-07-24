@@ -1,4 +1,5 @@
-use alera_core::runtime::OrchestrationMessageType;
+use alera_core::runtime::{OrchestrationMessageType, OrchestrationTaskStatus};
+use std::time::Instant;
 
 /// What a blocked request is waiting for.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -15,6 +16,12 @@ pub enum WaitKind {
         thread_id: String,
         after_sequence: i64,
     },
+    TerminalState {
+        target: String,
+    },
+    TaskState {
+        targets: Vec<OrchestrationTaskStatus>,
+    },
 }
 
 /// A client request parked until a matching message arrives or the deadline
@@ -26,6 +33,7 @@ pub struct MessageWaiter {
     pub request_id: i64,
     pub handle: String,
     pub kind: WaitKind,
+    pub started_at: Instant,
 }
 
 /// Registry of parked long-poll requests, owned by the server actor.
@@ -51,6 +59,7 @@ impl MessageWaiterRegistry {
             request_id,
             handle,
             kind,
+            started_at: Instant::now(),
         });
         waiter_id
     }
@@ -80,6 +89,7 @@ impl MessageWaiterRegistry {
                         // the handler re-checks the thread and re-parks
                         // on a miss.
                         WaitKind::Ask { .. } => true,
+                        WaitKind::TerminalState { .. } | WaitKind::TaskState { .. } => false,
                     }
             });
         self.waiters = parked;

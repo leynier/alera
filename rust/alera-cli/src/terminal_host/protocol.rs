@@ -12,6 +12,7 @@ pub const PROTOCOL_VERSION: i64 = 4;
 pub const ORCHESTRATION_PROTOCOL_VERSION: i64 = 2;
 pub const DISPATCH_PREAMBLE_VERSION: i64 = 2;
 pub const ORCHESTRATION_SKILL_VERSION: i64 = 2;
+pub const ORCHESTRATION_ACCEPTANCE_TIMEOUT_MS: u64 = 90_000;
 pub const RUNTIME_HOST_CAPABILITY: &str = "runtimeStore";
 pub const RUNTIME_HOST_BOOTSTRAP_CAPABILITY: &str = "sshTargetBootstrap";
 pub const RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY: &str = "managedWorkspaceLifecycle";
@@ -31,6 +32,16 @@ pub const RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY: &str = "mobileHostToolsV1";
 // Advertised additively: older hosts stay usable for non-orchestration verbs,
 // so clients must feature-check this capability instead of the protocol version.
 pub const RUNTIME_HOST_ORCHESTRATION_CAPABILITY: &str = "orchestration";
+pub const RUNTIME_HOST_ORCHESTRATION_TERMINAL_INSPECTION_CAPABILITY: &str =
+    "orchestrationTerminalInspectionV1";
+pub const RUNTIME_HOST_ORCHESTRATION_WAIT_CAPABILITY: &str = "orchestrationWaitV1";
+// Advertised once dispatch honors the explicit agent adapter override. Older
+// hosts ignore assumeAgent, so callers must negotiate this capability first.
+pub const RUNTIME_HOST_ORCHESTRATION_ASSUME_AGENT_CAPABILITY: &str = "orchestrationAssumeAgentV1";
+// Advertised once terminal.write supports host-sequenced bracketed paste and
+// deferred Enter. Older hosts ignore those fields, so CLI callers must require
+// this capability before relying on --enter or --submit.
+pub const RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY: &str = "terminalDeferredInputV1";
 // Advertised once the host tracks terminal viewport drivers (mobile presence
 // lock): `terminalDriverChanged` events, `terminal.reclaim`, and
 // `terminal.driver.list`.

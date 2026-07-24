@@ -10,7 +10,8 @@ pub const COORDINATOR_MAX_CONCURRENT_DEFAULT: usize = 4;
 /// considered hung. Warn-only: killing a slow-but-correct worker costs more
 /// than a hung worker holding a slot.
 pub const COORDINATOR_HUNG_THRESHOLD_MINUTES: i64 = 10;
-pub const COORDINATOR_ACCEPTANCE_TIMEOUT_SECONDS: i64 = 90;
+pub const COORDINATOR_ACCEPTANCE_TIMEOUT_SECONDS: i64 =
+    (crate::terminal_host::protocol::ORCHESTRATION_ACCEPTANCE_TIMEOUT_MS / 1_000) as i64;
 /// Worktrees more than this many commits behind their base are skipped at
 /// dispatch pre-flight (silently retried next tick) unless the spec carries
 /// `allow-stale-base: true`.

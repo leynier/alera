@@ -1,4 +1,5 @@
 use std::io::Write;
+use std::sync::mpsc::TrySendError;
 
 use super::*;
 
@@ -24,6 +25,21 @@ struct FailingWriter;
 impl Write for FailingWriter {
     fn write(&mut self, _bytes: &[u8]) -> std::io::Result<usize> {
         Err(std::io::Error::other("writer failed"))
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+struct RecordingWriter {
+    bytes: Arc<std::sync::Mutex<Vec<u8>>>,
+}
+
+impl Write for RecordingWriter {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        self.bytes.lock().unwrap().extend_from_slice(bytes);
+        Ok(bytes.len())
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
@@ -244,6 +260,7 @@ fn blocked_writer_applies_local_backpressure_without_blocking_sender() {
                 request_id: 10,
             },
             bytes: b"first".to_vec(),
+            deferred: None,
         })
         .unwrap();
     started_rx
@@ -256,6 +273,7 @@ fn blocked_writer_applies_local_backpressure_without_blocking_sender() {
                 request_id: 11,
             },
             bytes: b"second".to_vec(),
+            deferred: None,
         })
         .unwrap();
     assert!(matches!(
@@ -265,6 +283,7 @@ fn blocked_writer_applies_local_backpressure_without_blocking_sender() {
                 request_id: 12,
             },
             bytes: b"third".to_vec(),
+            deferred: None,
         }),
         Err(TrySendError::Full(_))
     ));
@@ -294,6 +313,67 @@ fn blocked_writer_applies_local_backpressure_without_blocking_sender() {
 }
 
 #[test]
+fn deferred_write_keeps_its_suffix_ahead_of_queued_input() {
+    let (input_tx, input_rx) = sync_channel(2);
+    let recorded = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let (event_tx, event_rx) = std::sync::mpsc::channel();
+    let on_event: Arc<dyn Fn(PtyEvent) + Send + Sync> = Arc::new(move |event| {
+        event_tx.send(event).unwrap();
+    });
+    spawn_writer(
+        Box::new(RecordingWriter {
+            bytes: Arc::clone(&recorded),
+        }),
+        input_rx,
+        on_event,
+    );
+    input_tx
+        .try_send(PtyWrite {
+            completion: PtyWriteCompletion::ClientRequest {
+                client_id: 1,
+                request_id: 10,
+            },
+            bytes: b"A".to_vec(),
+            deferred: Some(PtyDeferredWrite {
+                delay: std::time::Duration::from_millis(10),
+                bytes: b"\r".to_vec(),
+            }),
+        })
+        .unwrap();
+    input_tx
+        .try_send(PtyWrite {
+            completion: PtyWriteCompletion::ClientRequest {
+                client_id: 2,
+                request_id: 11,
+            },
+            bytes: b"B".to_vec(),
+            deferred: None,
+        })
+        .unwrap();
+
+    assert!(matches!(
+        event_rx
+            .recv_timeout(std::time::Duration::from_secs(1))
+            .unwrap(),
+        PtyEvent::InputWritten {
+            completion: PtyWriteCompletion::ClientRequest { request_id: 10, .. },
+            error: None,
+        }
+    ));
+    assert!(recorded.lock().unwrap().starts_with(b"A\r"));
+    assert!(matches!(
+        event_rx
+            .recv_timeout(std::time::Duration::from_secs(1))
+            .unwrap(),
+        PtyEvent::InputWritten {
+            completion: PtyWriteCompletion::ClientRequest { request_id: 11, .. },
+            error: None,
+        }
+    ));
+    assert_eq!(*recorded.lock().unwrap(), b"A\rB");
+}
+
+#[test]
 fn failed_writer_completes_every_queued_request_with_the_same_error() {
     let (input_tx, input_rx) = sync_channel(3);
     for request_id in 10..13 {
@@ -304,6 +384,7 @@ fn failed_writer_completes_every_queued_request_with_the_same_error() {
                     request_id,
                 },
                 bytes: vec![request_id as u8],
+                deferred: None,
             })
             .unwrap();
     }

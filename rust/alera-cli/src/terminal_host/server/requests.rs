@@ -31,7 +31,10 @@ use crate::terminal_host::protocol::{
     RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY, RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY,
     RUNTIME_HOST_MOBILE_PROJECT_MANAGEMENT_CAPABILITY,
     RUNTIME_HOST_MOBILE_SIDEBAR_PARITY_CAPABILITY, RUNTIME_HOST_MOBILE_TAB_RENAME_CAPABILITY,
-    RUNTIME_HOST_MOBILE_TERMINAL_TITLES_CAPABILITY, RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
+    RUNTIME_HOST_MOBILE_TERMINAL_TITLES_CAPABILITY,
+    RUNTIME_HOST_ORCHESTRATION_ASSUME_AGENT_CAPABILITY, RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
+    RUNTIME_HOST_ORCHESTRATION_TERMINAL_INSPECTION_CAPABILITY,
+    RUNTIME_HOST_ORCHESTRATION_WAIT_CAPABILITY, RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY,
     RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
 };
 use crate::terminal_host::session::{Session, SessionDriver};
@@ -390,16 +393,11 @@ impl ServerActor {
                 let active_jobs = self.ssh_bootstrap_jobs.len()
                     + usize::from(self.managed_workspace_jobs > 0)
                     + self.coordinators.len();
-                let active_agents = self
-                    .agent_presence_items()
-                    .as_array()
-                    .map_or(0, Vec::len);
+                let active_agents = self.agent_presence_items().as_array().map_or(0, Vec::len);
                 if !force {
-                    if let Some(message) = host_shutdown_busy_message(
-                        active_agents,
-                        active_sessions,
-                        active_jobs,
-                    ) {
+                    if let Some(message) =
+                        host_shutdown_busy_message(active_agents, active_sessions, active_jobs)
+                    {
                         return Err(HostError::state(message));
                     }
                 }
@@ -568,6 +566,10 @@ impl ServerActor {
                         RUNTIME_HOST_AGENT_QUOTA_CLAUDE_TUI_CAPABILITY,
                         RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY,
                         RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
+                        RUNTIME_HOST_ORCHESTRATION_ASSUME_AGENT_CAPABILITY,
+                        RUNTIME_HOST_ORCHESTRATION_TERMINAL_INSPECTION_CAPABILITY,
+                        RUNTIME_HOST_ORCHESTRATION_WAIT_CAPABILITY,
+                        RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY,
                         RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
                         RUNTIME_HOST_LIFECYCLE_CAPABILITY,
                         RUNTIME_HOST_AGENT_STATUS_CAPABILITY,

@@ -328,7 +328,10 @@ impl RuntimeHostControl {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::terminal_host::protocol::RUNTIME_HOST_ORCHESTRATION_CAPABILITY;
+    use crate::terminal_host::protocol::{
+        RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
+        RUNTIME_HOST_ORCHESTRATION_TERMINAL_INSPECTION_CAPABILITY,
+    };
 
     fn control(capabilities: &[&str]) -> RuntimeHostControl {
         RuntimeHostControl {
@@ -357,6 +360,19 @@ mod tests {
             RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
         ];
         assert!(control(&with_orchestration).is_usable(Some(RUNTIME_HOST_ORCHESTRATION_CAPABILITY)));
+        assert!(!control(&with_orchestration).is_usable(Some(
+            RUNTIME_HOST_ORCHESTRATION_TERMINAL_INSPECTION_CAPABILITY
+        )));
+
+        let with_terminal_inspection = [
+            RUNTIME_HOST_CAPABILITY,
+            RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
+            RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY,
+            RUNTIME_HOST_ORCHESTRATION_TERMINAL_INSPECTION_CAPABILITY,
+        ];
+        assert!(control(&with_terminal_inspection).is_usable(Some(
+            RUNTIME_HOST_ORCHESTRATION_TERMINAL_INSPECTION_CAPABILITY
+        )));
 
         let with_mobile = [
             RUNTIME_HOST_CAPABILITY,

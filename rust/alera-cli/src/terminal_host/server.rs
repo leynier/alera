@@ -47,9 +47,12 @@ mod host_service_agent_quota;
 mod host_service_requests;
 mod lifecycle;
 mod mobile_terminal_requests;
+mod orchestration_agent_spawn_requests;
+mod orchestration_owned_spawn;
 mod orchestration_requests;
 mod orchestration_terminal_requests;
 mod orchestration_validation;
+mod orchestration_wait_requests;
 mod project_requests;
 mod pty_event_forwarder;
 mod pty_events;
@@ -159,6 +162,7 @@ pub enum ServerCommand {
         waiter_id: u64,
         waited_ms: u64,
     },
+    OrchestrationStateWaitPoll(u64),
     /// Fires the deferred Enter after an injected orchestration banner.
     OrchestrationDeferredEnter {
         session_id: String,
@@ -624,6 +628,9 @@ impl ServerActor {
             } => {
                 self.handle_orchestration_wait_timeout(waiter_id, waited_ms)
                     .await
+            }
+            ServerCommand::OrchestrationStateWaitPoll(waiter_id) => {
+                self.handle_orchestration_state_wait_poll(waiter_id).await
             }
             ServerCommand::OrchestrationDeferredEnter {
                 session_id,

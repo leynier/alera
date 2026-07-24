@@ -51,7 +51,8 @@ pub fn sanitize_agent_prompt_text(text: &str) -> String {
 
 /// Build bracketed-paste payload for an agent prompt (no trailing submit).
 pub fn build_agent_prompt_paste_bytes(prompt: &str) -> Vec<u8> {
-    let sanitized = sanitize_agent_prompt_text(prompt);
+    let normalized = prompt.replace("\r\n", "\n");
+    let sanitized = sanitize_agent_prompt_text(&normalized);
     let mut bytes = Vec::with_capacity(
         BRACKETED_PASTE_START.len() + sanitized.len() + BRACKETED_PASTE_END.len(),
     );
@@ -110,6 +111,16 @@ mod tests {
         assert!(as_str.contains("<0x1B>"));
         let inner = &paste[BRACKETED_PASTE_START.len()..paste.len() - BRACKETED_PASTE_END.len()];
         assert!(!inner.contains(&0x1b));
+    }
+
+    #[test]
+    fn paste_normalizes_crlf_but_sanitizes_isolated_carriage_returns() {
+        let crlf = build_agent_prompt_paste_bytes("hello\r\nworld");
+        let crlf_inner = &crlf[BRACKETED_PASTE_START.len()..crlf.len() - BRACKETED_PASTE_END.len()];
+        assert_eq!(crlf_inner, b"hello\nworld");
+
+        let isolated = String::from_utf8(build_agent_prompt_paste_bytes("hello\rworld")).unwrap();
+        assert!(isolated.contains("hello<0x0D>world"));
     }
 
     #[test]

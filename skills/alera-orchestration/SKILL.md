@@ -12,14 +12,15 @@ Use this skill for structured multi-agent work in Alera. The runtime-host owns l
 ## Preconditions
 
 - Run inside an Alera terminal so `ALERA_TERMINAL_HANDLE` identifies the caller.
+- `ALERA_WORKSPACE_ID` supplies the default workspace for task creation, direct spawn, coordinator runs, and terminal listings. Use `alera orchestration current` to inspect both inferred identities.
 - Use `alera version --json` when CLI/host/skill compatibility is uncertain.
 - Keep every coordinated task scoped to a workspace and coordinator. A workspace may have one active coordinator run; different workspaces may run concurrently. Tasks created for a run and injected worker terminals must match that run's workspace and coordinator.
 
 ## Coordinator Workflow
 
 ```bash
-alera orchestration --json task-create --workspace <workspace-id> --task-title "Review Tests" --spec "Review automated test coverage"
-alera orchestration --json run --workspace <workspace-id> --agent codex --spec "Audit the repository"
+alera orchestration --json task-create --task-title "Review Tests" --spec "Review automated test coverage"
+alera orchestration --json run --agent codex --spec "Audit the repository"
 alera orchestration --json run-list --workspace <workspace-id>
 alera orchestration --json status --id <run-id>
 ```
@@ -29,11 +30,20 @@ Use `--agent codex|claude|copilot|cursor|agy|opencode|pi|amp`. The runtime may c
 For direct assignment:
 
 ```bash
-alera orchestration --json agent-spawn --workspace <workspace-id> --agent codex --task <task-id> --title "Review Tests"
-alera orchestration --json terminal-wait --terminal <handle> --for dispatch-accepted --timeout-ms 60000
+alera orchestration --json agent-spawn --agent codex --task <task-id> --title "Review Tests" --timeout-ms 90000
+alera terminal --json wait --terminal <handle> --for dispatch-accepted --timeout-ms 60000
 ```
 
-`agent-spawn` encapsulates terminal creation, native agent startup, readiness, forced preamble submission, and acceptance. A timeout is an exit-0 outcome, not a transport failure.
+`agent-spawn` creates the dispatch before launching Codex and supplies a short first-turn bootstrap that tells the worker to accept and read its context. Other adapters use hook-based readiness injection. Its `--timeout-ms` value may not exceed the host acceptance limit of 90000 milliseconds. A startup failure removes only a terminal created by that spawn; add `--keep-on-failure` to retain it for diagnosis. Reused terminals are never removed.
+
+Manual fallback is:
+
+```bash
+alera orchestration dispatch --task <task-id> --to <handle>
+alera terminal write --handle <handle> --text "<returned bootstrap>" --submit
+```
+
+The default dispatch response returns the short bootstrap. Use `--return-preamble` only when the complete preamble is explicitly needed. If an agent is confirmed idle but its hooks are unavailable, `dispatch --inject --assume-agent codex` is an audited override.
 
 ## Worker Contract
 
@@ -65,6 +75,7 @@ If the task defines a custom result schema, add its properties with `--result-ex
 ```bash
 alera orchestration task-list --run <run-id>
 alera orchestration task-show --id <task-id>
+alera orchestration task-wait --task <task-id> --for completed,failed,stalled --timeout-ms 300000
 alera orchestration gate-create --task <task-id> --question "Choose approach" --options '["A","B"]'
 alera orchestration gate-resolve --id <gate-id> --resolution "A"
 alera orchestration task-cancel --id <task-id> --reason "No longer needed"
@@ -88,10 +99,16 @@ alera orchestration inbox --terminal <handle> --direction inbox
 alera orchestration inbox --terminal <handle> --direction outbox
 alera orchestration check --wait --types escalation,decision_gate --timeout-ms 300000
 alera orchestration terminal-show --handle <handle>
+alera terminal list
 alera terminal read --handle <handle> --max-bytes 65536
 alera terminal write --handle <handle> --text "continue" --enter
+alera terminal write --handle <handle> --stdin --submit
+alera terminal prune
+alera terminal prune --apply
 ```
 
-Use `--body-file` or `--body-stdin` for multiline content. Operational messages become expired or obsolete when their scope ends. List commands return `{kind, items, filters}`; use `items` in automation.
+`--enter` sends content first and a separate delayed carriage return. Use `--submit` for bracketed-paste TUI input. `terminal prune` is dry-run by default and only removes stopped terminal tabs when `--apply` is present.
+
+Use `--body-file` or `--body-stdin` for multiline content. Operational messages become expired or obsolete when their scope ends. List commands return `{kind, items, filters}`; use `items` in automation. Terminal and task waits are held by the runtime host and make a final state check at timeout.
 
 For the compact command contract at runtime, call `alera orchestration worker-help`.

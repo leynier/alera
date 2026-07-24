@@ -113,22 +113,10 @@ impl ServerActor {
             PtyWriteCompletion::ClientRequest {
                 client_id,
                 request_id,
-            } => match error {
-                Some(message) => self.client_write(
-                    client_id,
-                    crate::terminal_host::protocol::error_response(
-                        request_id,
-                        &HostError::state(message),
-                    ),
-                ),
-                None => {
-                    self.client_write(
-                        client_id,
-                        crate::terminal_host::protocol::ok_response(request_id, json!({})),
-                    );
-                    self.retry_backpressured_delivery_if_idle(&session_id).await;
-                }
-            },
+            } => {
+                self.finish_terminal_client_write(&session_id, client_id, request_id, error)
+                    .await
+            }
             PtyWriteCompletion::OrchestrationPaste {
                 session_instance_id,
                 message_ids,
@@ -227,8 +215,11 @@ impl ServerActor {
 
     pub(super) async fn handle_session_exit(&mut self, session_id: String, exit_code: i32) {
         let reason = format!("terminal exited with code {exit_code}");
+        let keep_failed_spawn = self.should_keep_failed_owned_spawn(&session_id).await;
         self.cleanup_orchestration_for_closed_session(&session_id, &reason)
             .await;
+        let keep_failed_spawn =
+            keep_failed_spawn && self.make_failed_owned_spawn_inert(&session_id).await;
         self.flush_all_output(&session_id);
         let broadcast = self.sessions.get_mut(&session_id).and_then(|session| {
             let payload = session.handle_exit(exit_code)?;
@@ -237,15 +228,19 @@ impl ServerActor {
         });
         if let Some((frame, clients)) = broadcast {
             self.broadcast(&clients, frame);
-            match self.remove_terminal_session_tab(&session_id).await {
-                Ok(true) => {}
-                Ok(false) => self.immediate_checkpoint(&session_id).await,
-                Err(error) => {
-                    eprintln!(
-                        "failed to remove tab for exited terminal {session_id}: {}",
-                        error.wire_message()
-                    );
-                    self.immediate_checkpoint(&session_id).await;
+            if keep_failed_spawn {
+                self.immediate_checkpoint(&session_id).await;
+            } else {
+                match self.remove_terminal_session_tab(&session_id).await {
+                    Ok(true) => {}
+                    Ok(false) => self.immediate_checkpoint(&session_id).await,
+                    Err(error) => {
+                        eprintln!(
+                            "failed to remove tab for exited terminal {session_id}: {}",
+                            error.wire_message()
+                        );
+                        self.immediate_checkpoint(&session_id).await;
+                    }
                 }
             }
         }
@@ -304,35 +299,6 @@ impl ServerActor {
         self.orchestration_delivery_backpressured.remove(session_id);
         self.fail_active_dispatch_for_closed_session(session_id, reason)
             .await;
-    }
-
-    async fn fail_active_dispatch_for_closed_session(&self, session_id: &str, reason: &str) {
-        let dispatch = match self
-            .runtime_store
-            .active_orchestration_dispatch_for_handle(session_id)
-            .await
-        {
-            Ok(dispatch) => dispatch,
-            Err(error) => {
-                eprintln!(
-                    "failed to inspect active orchestration dispatch for exited terminal {session_id}: {error}"
-                );
-                return;
-            }
-        };
-        let Some(dispatch) = dispatch else {
-            return;
-        };
-        if let Err(error) = self
-            .runtime_store
-            .fail_orchestration_dispatch(&dispatch.id, reason)
-            .await
-        {
-            eprintln!(
-                "failed to mark orchestration dispatch {} failed after terminal close: {error}",
-                dispatch.id
-            );
-        }
     }
 
     pub(super) fn handle_output_batch_tick(&mut self, session_id: String, generation: u64) {

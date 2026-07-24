@@ -6,12 +6,18 @@ use crate::cli_orchestration::{
     OrchestrationAction, OrchestrationAskArgs, OrchestrationCheckArgs, OrchestrationCommand,
     OrchestrationSendArgs,
 };
+#[cfg(test)]
+use crate::orchestration_terminal_commands::terminal_startup_error;
+use crate::orchestration_terminal_commands::{run_agent_spawn, run_terminal_wait};
 use crate::runtime_host_client::RuntimeHostRpcClient;
+use crate::terminal_host::protocol::RUNTIME_HOST_ORCHESTRATION_ASSUME_AGENT_CAPABILITY;
 use crate::terminal_host::protocol::RUNTIME_HOST_ORCHESTRATION_CAPABILITY;
+use crate::terminal_host::protocol::RUNTIME_HOST_ORCHESTRATION_TERMINAL_INSPECTION_CAPABILITY;
+use crate::terminal_host::protocol::RUNTIME_HOST_ORCHESTRATION_WAIT_CAPABILITY;
 
 const USAGE_EXIT_CODE: i32 = 64;
 /// Grace added to the server-side wait deadline so the client outlives it.
-const WAIT_CLIENT_GRACE_MS: u64 = 5_000;
+pub(crate) const WAIT_CLIENT_GRACE_MS: u64 = 5_000;
 const DEFAULT_WAIT_TIMEOUT_MS: u64 = 120_000;
 
 const LIFECYCLE_TYPES: &[&str] = &["worker_done", "heartbeat"];
@@ -65,6 +71,11 @@ pub async fn run_orchestration_command(command: OrchestrationCommand) -> i32 {
             };
             let created_by = terminal_handle_env();
             let coordinator = args.coordinator.or_else(|| created_by.clone());
+            let Some(workspace) = args.workspace.or_else(workspace_id_env) else {
+                return usage_error(
+                    "--workspace is required (or run inside an Alera terminal where ALERA_WORKSPACE_ID is set).",
+                );
+            };
             request(
                 &runtime,
                 "orchestration.taskCreate",
@@ -75,7 +86,7 @@ pub async fn run_orchestration_command(command: OrchestrationCommand) -> i32 {
                     "parent": args.parent,
                     "createdBy": created_by,
                     "coordinator": coordinator,
-                    "workspace": args.workspace,
+                    "workspace": workspace,
                     "run": args.run,
                     "resultSchema": args.result_schema,
                 }),
@@ -110,6 +121,22 @@ pub async fn run_orchestration_command(command: OrchestrationCommand) -> i32 {
                 json!({ "id": args.id }),
                 json_output,
                 None,
+            )
+            .await
+        }
+        OrchestrationAction::TaskWait(args) => {
+            let targets = comma_separated_values(&args.targets);
+            request_with_capability(
+                &runtime,
+                RUNTIME_HOST_ORCHESTRATION_WAIT_CAPABILITY,
+                "orchestration.taskWait",
+                json!({
+                    "task": args.task,
+                    "targets": targets,
+                    "timeoutMs": args.timeout_ms,
+                }),
+                json_output,
+                Some(args.timeout_ms.saturating_add(WAIT_CLIENT_GRACE_MS)),
             )
             .await
         }
@@ -162,19 +189,22 @@ pub async fn run_orchestration_command(command: OrchestrationCommand) -> i32 {
             .await
         }
         OrchestrationAction::Dispatch(args) => {
+            let required_capability = dispatch_required_capability(args.assume_agent.as_deref());
             let Some(from) = args.from.or_else(terminal_handle_env) else {
                 return usage_error(
                     "--from is required (or set ALERA_TERMINAL_HANDLE) so the preamble can name the coordinator.",
                 );
             };
-            request(
+            request_with_capability(
                 &runtime,
+                required_capability,
                 "orchestration.dispatch",
                 json!({
                     "task": args.task,
                     "to": args.to,
                     "from": from,
                     "inject": args.inject,
+                    "assumeAgent": args.assume_agent,
                     "dryRun": args.dry_run,
                     "returnPreamble": args.return_preamble,
                     "allowSelfDispatch": args.allow_self_dispatch,
@@ -409,6 +439,11 @@ pub async fn run_orchestration_command(command: OrchestrationCommand) -> i32 {
                     "--from is required (or set ALERA_TERMINAL_HANDLE) so workers can contact the coordinator.",
                 );
             };
+            let Some(workspace) = args.workspace.or_else(workspace_id_env) else {
+                return usage_error(
+                    "--workspace is required (or run inside an Alera terminal where ALERA_WORKSPACE_ID is set).",
+                );
+            };
             request(
                 &runtime,
                 "orchestration.run",
@@ -417,7 +452,7 @@ pub async fn run_orchestration_command(command: OrchestrationCommand) -> i32 {
                     "from": from,
                     "pollIntervalMs": args.poll_interval_ms,
                     "maxConcurrent": args.max_concurrent,
-                    "workspace": args.workspace,
+                    "workspace": workspace,
                     "agent": args.agent,
                 }),
                 json_output,
@@ -471,19 +506,21 @@ pub async fn run_orchestration_command(command: OrchestrationCommand) -> i32 {
             )
             .await
         }
-        OrchestrationAction::TerminalList => {
-            request(
+        OrchestrationAction::TerminalList(args) => {
+            request_with_capability(
                 &runtime,
+                RUNTIME_HOST_ORCHESTRATION_TERMINAL_INSPECTION_CAPABILITY,
                 "orchestration.terminals",
-                json!({}),
+                json!({ "workspace": args.workspace.or_else(workspace_id_env) }),
                 json_output,
                 None,
             )
             .await
         }
         OrchestrationAction::TerminalShow(args) => {
-            request(
+            request_with_capability(
                 &runtime,
+                RUNTIME_HOST_ORCHESTRATION_TERMINAL_INSPECTION_CAPABILITY,
                 "orchestration.terminalShow",
                 json!({ "handle": args.handle }),
                 json_output,
@@ -502,6 +539,39 @@ pub async fn run_orchestration_command(command: OrchestrationCommand) -> i32 {
             )
             .await
         }
+        OrchestrationAction::TerminalPrune(args) => {
+            request_with_capability(
+                &runtime,
+                RUNTIME_HOST_ORCHESTRATION_TERMINAL_INSPECTION_CAPABILITY,
+                "orchestration.terminalPrune",
+                json!({
+                    "workspace": args.workspace.or_else(workspace_id_env),
+                    "apply": args.apply,
+                }),
+                json_output,
+                None,
+            )
+            .await
+        }
+        OrchestrationAction::Current => {
+            let value = json!({
+                "workspaceId": workspace_id_env(),
+                "terminalHandle": terminal_handle_env(),
+            });
+            if json_output {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&value).unwrap_or_else(|_| "{}".to_string())
+                );
+            } else {
+                println!(
+                    "workspace={} terminal={}",
+                    value["workspaceId"].as_str().unwrap_or("unavailable"),
+                    value["terminalHandle"].as_str().unwrap_or("unavailable")
+                );
+            }
+            0
+        }
         OrchestrationAction::Reset(args) => {
             request(
                 &runtime,
@@ -519,169 +589,12 @@ pub async fn run_orchestration_command(command: OrchestrationCommand) -> i32 {
     }
 }
 
-async fn run_agent_spawn(
-    runtime: &RuntimeDirArgs,
-    args: crate::cli_orchestration::OrchestrationAgentSpawnArgs,
-    json_output: bool,
-) -> i32 {
-    let Some(from) = args.from.or_else(terminal_handle_env) else {
-        return usage_error("--from is required (or set ALERA_TERMINAL_HANDLE).");
-    };
-    let value = match request_value(
-        runtime,
-        "orchestration.agentSpawn",
-        json!({
-            "workspace": args.workspace,
-            "agent": args.agent,
-            "task": args.task,
-            "title": args.title,
-            "terminal": args.terminal,
-            "command": args.command,
-            "from": from,
-        }),
-        None,
-    )
-    .await
-    {
-        Ok(value) => value,
-        Err(error) => {
-            eprintln!("{error}");
-            return 1;
-        }
-    };
-    let Some(handle) = value
-        .get("terminalHandle")
-        .or_else(|| value.get("assigneeHandle"))
-        .and_then(Value::as_str)
-    else {
-        if json_output {
-            println!("{value}");
-        }
-        return 0;
-    };
-    run_terminal_wait(
-        runtime,
-        handle,
-        "dispatch-accepted",
-        90_000,
-        json_output,
-        true,
-    )
-    .await
-}
-
-async fn run_terminal_wait(
-    runtime: &RuntimeDirArgs,
-    terminal: &str,
-    target: &str,
-    timeout_ms: u64,
-    json_output: bool,
-    reconcile_spawn_timeout: bool,
-) -> i32 {
-    let started = std::time::Instant::now();
-    loop {
-        match request_value(
-            runtime,
-            "orchestration.terminalShow",
-            json!({ "handle": terminal }),
-            None,
-        )
-        .await
-        {
-            Ok(value) => {
-                let state = value
-                    .get("startupState")
-                    .and_then(Value::as_str)
-                    .unwrap_or("");
-                if let Some(error) = terminal_startup_error(&value) {
-                    if reconcile_spawn_timeout {
-                        reconcile_agent_spawn_failure(runtime, terminal).await;
-                    }
-                    let response = json!({
-                        "outcome": "failed",
-                        "waitedMs": started.elapsed().as_millis(),
-                        "error": error,
-                        "terminal": value,
-                    });
-                    if json_output {
-                        println!("{response}");
-                    } else {
-                        eprintln!("{error}");
-                    }
-                    return 1;
-                }
-                let reached = match target {
-                    "process-started" => !state.is_empty() && state != "failed",
-                    "agent-detected" => matches!(
-                        state,
-                        "agent_detected"
-                            | "agent_ready"
-                            | "dispatch_submitted_unconfirmed"
-                            | "accepted"
-                            | "completed"
-                    ),
-                    "agent-ready" => matches!(
-                        state,
-                        "agent_ready" | "dispatch_submitted_unconfirmed" | "accepted" | "completed"
-                    ),
-                    "dispatch-accepted" => matches!(state, "accepted" | "completed"),
-                    _ => false,
-                };
-                if reached {
-                    let response = json!({
-                        "outcome": "reached",
-                        "waitedMs": started.elapsed().as_millis(),
-                        "terminal": value,
-                    });
-                    if json_output {
-                        println!("{response}");
-                    } else {
-                        println!("{state}");
-                    }
-                    return 0;
-                }
-            }
-            Err(error) if started.elapsed().as_millis() < timeout_ms as u128 => {
-                let _ = error;
-            }
-            Err(error) => {
-                eprintln!("{error}");
-                return 1;
-            }
-        }
-        if started.elapsed().as_millis() >= timeout_ms as u128 {
-            if reconcile_spawn_timeout {
-                reconcile_agent_spawn_failure(runtime, terminal).await;
-            }
-            let response = json!({ "outcome": "timeout", "items": [], "waitedMs": timeout_ms });
-            if json_output {
-                println!("{response}");
-            } else {
-                println!("timeout");
-            }
-            return 0;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+fn dispatch_required_capability(assume_agent: Option<&str>) -> &'static str {
+    if assume_agent.is_some() {
+        RUNTIME_HOST_ORCHESTRATION_ASSUME_AGENT_CAPABILITY
+    } else {
+        RUNTIME_HOST_ORCHESTRATION_CAPABILITY
     }
-}
-
-async fn reconcile_agent_spawn_failure(runtime: &RuntimeDirArgs, terminal: &str) {
-    let _ = request_value(
-        runtime,
-        "orchestration.agentSpawnTimeout",
-        json!({ "terminal": terminal }),
-        None,
-    )
-    .await;
-}
-
-fn terminal_startup_error(terminal: &Value) -> Option<&str> {
-    (terminal.get("startupState").and_then(Value::as_str) == Some("failed")).then(|| {
-        terminal
-            .get("startupError")
-            .and_then(Value::as_str)
-            .unwrap_or("terminal startup failed")
-    })
 }
 
 fn build_send_payload(args: OrchestrationSendArgs) -> Result<Value, String> {
@@ -718,6 +631,14 @@ fn build_send_payload(args: OrchestrationSendArgs) -> Result<Value, String> {
     insert_opt(&mut payload, "threadId", args.thread_id);
     insert_opt(&mut payload, "payload", payload_json);
     Ok(Value::Object(payload))
+}
+
+fn comma_separated_values(raw: &str) -> Vec<String> {
+    raw.split(',')
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+        .collect()
 }
 
 fn read_body(
@@ -937,15 +858,32 @@ async fn request(
     }
 }
 
-async fn request_value(
+pub(crate) async fn request_value(
     runtime: &RuntimeDirArgs,
+    request_type: &str,
+    payload: Value,
+    deadline_ms: Option<u64>,
+) -> anyhow::Result<Value> {
+    request_value_with_capability(
+        runtime,
+        RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
+        request_type,
+        payload,
+        deadline_ms,
+    )
+    .await
+}
+
+pub(crate) async fn request_value_with_capability(
+    runtime: &RuntimeDirArgs,
+    required_capability: &str,
     request_type: &str,
     payload: Value,
     deadline_ms: Option<u64>,
 ) -> anyhow::Result<Value> {
     let mut client = RuntimeHostRpcClient::connect_or_start_with_required_capability(
         &crate::runtime_dir(runtime),
-        RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
+        required_capability,
     )
     .await?;
     match deadline_ms {
@@ -955,6 +893,41 @@ async fn request_value(
                 .await
         }
         None => client.request_value(request_type, &payload).await,
+    }
+}
+
+async fn request_with_capability(
+    runtime: &RuntimeDirArgs,
+    required_capability: &str,
+    request_type: &str,
+    payload: Value,
+    json_output: bool,
+    deadline_ms: Option<u64>,
+) -> i32 {
+    match request_value_with_capability(
+        runtime,
+        required_capability,
+        request_type,
+        payload,
+        deadline_ms,
+    )
+    .await
+    {
+        Ok(value) => {
+            if json_output {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&value).unwrap_or_else(|_| "{}".to_string())
+                );
+            } else {
+                println!("{}", human_summary(request_type, &value));
+            }
+            0
+        }
+        Err(error) => {
+            eprintln!("{error}");
+            1
+        }
     }
 }
 
@@ -1001,6 +974,12 @@ fn human_summary(request_type: &str, value: &Value) -> String {
         "orchestration.taskUpdate" => "task updated".to_string(),
         "orchestration.dispatch" => value
             .get("preamble")
+            .or_else(|| {
+                (value.get("startupState").and_then(Value::as_str)
+                    == Some("awaiting_manual_delivery"))
+                .then(|| value.get("bootstrap"))
+                .flatten()
+            })
             .and_then(Value::as_str)
             .map(str::to_string)
             .unwrap_or_else(|| {
@@ -1123,14 +1102,21 @@ fn merge_result_extra(result: &mut Value, raw: Option<&str>) -> Result<(), Strin
     Ok(())
 }
 
-fn terminal_handle_env() -> Option<String> {
+pub(crate) fn terminal_handle_env() -> Option<String> {
     std::env::var("ALERA_TERMINAL_HANDLE")
         .ok()
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty())
 }
 
-fn usage_error(message: &str) -> i32 {
+pub(crate) fn workspace_id_env() -> Option<String> {
+    std::env::var("ALERA_WORKSPACE_ID")
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+}
+
+pub(crate) fn usage_error(message: &str) -> i32 {
     eprintln!("{message}");
     USAGE_EXIT_CODE
 }
@@ -1192,6 +1178,18 @@ mod tests {
             }),
         );
         assert_eq!(summary, "handoff text to paste");
+    }
+
+    #[test]
+    fn dispatch_requires_override_capability_only_when_assuming_an_agent() {
+        assert_eq!(
+            dispatch_required_capability(None),
+            RUNTIME_HOST_ORCHESTRATION_CAPABILITY
+        );
+        assert_eq!(
+            dispatch_required_capability(Some("codex")),
+            RUNTIME_HOST_ORCHESTRATION_ASSUME_AGENT_CAPABILITY
+        );
     }
 
     #[test]
