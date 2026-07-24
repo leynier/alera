@@ -15,6 +15,7 @@ import 'package:alera/src/shared/infra/git/git_backend.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -68,6 +69,35 @@ void main() {
     await tester.tap(find.text('readme.md'));
     await tester.pumpAndSettle();
     expect(opened, <String>['readme.md']);
+  });
+
+  testWidgets('hovering the folder expander resolves the click cursor', (
+    tester,
+  ) async {
+    final service = _FakeWorkspaceFileService()
+      ..childrenByDirectory[''] = <native.WorkspaceFileEntry>[
+        _directory('src', hasChildrenHint: true),
+      ]
+      ..childrenByDirectory['src'] = <native.WorkspaceFileEntry>[
+        _file('src/main.dart'),
+      ];
+
+    await _pumpExplorer(tester, service);
+
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await gesture.addPointer(location: Offset.zero);
+    addTearDown(gesture.removePointer);
+    await tester.pump();
+
+    await gesture.moveTo(
+      tester.getCenter(find.byIcon(AleraIcons.chevronRight)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      RendererBinding.instance.mouseTracker.debugDeviceActiveCursor(1),
+      SystemMouseCursors.click,
+    );
   });
 
   testWidgets(

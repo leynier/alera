@@ -10,21 +10,24 @@ import 'package:alera/src/features/updater/presentation/update_settings_section.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// App-level preferences: storage, safety confirmations, updates, and the
-/// support row.
+/// App-level preferences: storage, safety confirmations, runtime lifecycle,
+/// updates, and the support row.
 class ApplicationSettingsPane extends ConsumerWidget {
   const ApplicationSettingsPane({
     super.key,
     required this.general,
+    required this.terminal,
     this.groupKeys = const <String, GlobalKey>{},
   });
 
   final GeneralSettings general;
+  final TerminalSettings terminal;
   final Map<String, GlobalKey> groupKeys;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final starState = ref.watch(gitHubStarControllerProvider);
+    final controller = ref.read(settingsControllerProvider.notifier);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
@@ -34,9 +37,7 @@ class ApplicationSettingsPane extends ConsumerWidget {
             children: <Widget>[
               WorkspaceDirectoryRow(
                 value: general.workspaceDirectory,
-                onChanged: (next) => ref
-                    .read(settingsControllerProvider.notifier)
-                    .updateWorkspaceDirectory(next),
+                onChanged: (next) => controller.updateWorkspaceDirectory(next),
               ),
             ],
           ),
@@ -54,18 +55,64 @@ class ApplicationSettingsPane extends ConsumerWidget {
                 description:
                     'Ask before unregistering a project and deleting its workspace metadata.',
                 value: general.confirmProjectRemoval,
-                onChanged: (value) => ref
-                    .read(settingsControllerProvider.notifier)
-                    .setConfirmProjectRemoval(value),
+                onChanged: (value) =>
+                    controller.setConfirmProjectRemoval(value),
               ),
               SettingsSwitchRow(
                 title: 'Confirm Workspace Removal',
                 description:
                     'Ask before removing a linked workspace and deleting its branch.',
                 value: general.confirmWorkspaceRemoval,
-                onChanged: (value) => ref
-                    .read(settingsControllerProvider.notifier)
-                    .setConfirmWorkspaceRemoval(value),
+                onChanged: (value) =>
+                    controller.setConfirmWorkspaceRemoval(value),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AleraTokens.space16),
+        KeyedSubtree(
+          key: groupKeys['runtime'],
+          child: AleraSettingsGroup(
+            title: 'Runtime',
+            description:
+                'Lifecycle of the local runtime host that owns terminal sessions.',
+            children: <Widget>[
+              SettingsSwitchRow(
+                title: 'Stop Runtime When App Quits',
+                description:
+                    'Shut down the local runtime when the last Alera window closes.',
+                value: terminal.stopRuntimeOnAppQuit,
+                onChanged: (value) => controller.updateTerminal(
+                  terminal.copyWith(stopRuntimeOnAppQuit: value),
+                ),
+              ),
+              SettingsIntegerRow(
+                title: 'Empty Host Shutdown',
+                description:
+                    'Seconds to keep the host alive after the app closes with no running sessions.',
+                value: terminal.hostEmptyShutdownDelaySeconds,
+                min: 5,
+                max: 3600,
+                step: 5,
+                suffix: 's',
+                onChanged: (value) => controller.updateTerminal(
+                  terminal.copyWith(hostEmptyShutdownDelaySeconds: value),
+                ),
+              ),
+              SettingsIntegerRow(
+                title: 'Detached Session Shutdown',
+                description:
+                    'Seconds to keep detached running sessions alive after the app closes.',
+                value: terminal.hostDetachedSessionShutdownDelaySeconds,
+                min: 5,
+                max: 86400,
+                step: 60,
+                suffix: 's',
+                onChanged: (value) => controller.updateTerminal(
+                  terminal.copyWith(
+                    hostDetachedSessionShutdownDelaySeconds: value,
+                  ),
+                ),
               ),
             ],
           ),

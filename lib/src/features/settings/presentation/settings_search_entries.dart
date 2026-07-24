@@ -21,6 +21,26 @@ const List<SettingsSearchEntry> applicationSearchEntries =
         groupId: 'safety',
       ),
       SettingsSearchEntry(
+        title: 'Stop Runtime When App Quits',
+        description: 'Shut down the local runtime when the last window closes.',
+        keywords: <String>['host', 'sidecar', 'lifecycle', 'quit', 'shutdown'],
+        groupId: 'runtime',
+      ),
+      SettingsSearchEntry(
+        title: 'Empty Host Shutdown',
+        description:
+            'Stop the terminal host after the app closes with no sessions.',
+        keywords: <String>['host', 'sidecar', 'lifetime', 'timeout'],
+        groupId: 'runtime',
+      ),
+      SettingsSearchEntry(
+        title: 'Detached Session Shutdown',
+        description:
+            'Stop detached running terminal sessions after the app stays closed.',
+        keywords: <String>['host', 'sidecar', 'session', 'timeout'],
+        groupId: 'runtime',
+      ),
+      SettingsSearchEntry(
         title: 'Updates',
         description: 'Check desktop releases for this platform.',
         keywords: <String>['release', 'download', 'version'],
@@ -424,26 +444,6 @@ const List<SettingsSearchEntry> terminalSearchEntries = <SettingsSearchEntry>[
     description: 'Allow terminal applications to replace the clipboard.',
     keywords: <String>['clipboard', 'tui', 'ssh', 'tmux', 'osc52'],
     groupId: 'interaction',
-  ),
-  SettingsSearchEntry(
-    title: 'Stop Runtime When App Quits',
-    description: 'Shut down the local runtime when the last window closes.',
-    keywords: <String>['host', 'sidecar', 'lifecycle', 'quit', 'shutdown'],
-    groupId: 'runtime',
-  ),
-  SettingsSearchEntry(
-    title: 'Empty Host Shutdown',
-    description:
-        'Stop the terminal host after the app closes with no sessions.',
-    keywords: <String>['host', 'sidecar', 'lifetime', 'timeout'],
-    groupId: 'runtime',
-  ),
-  SettingsSearchEntry(
-    title: 'Detached Session Shutdown',
-    description:
-        'Stop detached running terminal sessions after the app stays closed.',
-    keywords: <String>['host', 'sidecar', 'session', 'timeout'],
-    groupId: 'runtime',
   ),
   SettingsSearchEntry(
     title: 'Scrollback Lines',

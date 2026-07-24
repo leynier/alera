@@ -237,58 +237,11 @@ class TerminalSettingsPane extends StatelessWidget {
         ),
         const SizedBox(height: AleraTokens.space16),
         KeyedSubtree(
-          key: groupKeys['runtime'],
-          child: AleraSettingsGroup(
-            title: 'Runtime',
-            description:
-                'Lifecycle of the local runtime host that owns terminal sessions.',
-            children: <Widget>[
-              SettingsSwitchRow(
-                title: 'Stop Runtime When App Quits',
-                description:
-                    'Shut down the local runtime when the last Alera window closes.',
-                value: settings.stopRuntimeOnAppQuit,
-                onChanged: (value) =>
-                    onChanged(settings.copyWith(stopRuntimeOnAppQuit: value)),
-              ),
-              SettingsIntegerRow(
-                title: 'Empty Host Shutdown',
-                description:
-                    'Seconds to keep the host alive after the app closes with no running sessions.',
-                value: settings.hostEmptyShutdownDelaySeconds,
-                min: 5,
-                max: 3600,
-                step: 5,
-                suffix: 's',
-                onChanged: (value) => onChanged(
-                  settings.copyWith(hostEmptyShutdownDelaySeconds: value),
-                ),
-              ),
-              SettingsIntegerRow(
-                title: 'Detached Session Shutdown',
-                description:
-                    'Seconds to keep detached running sessions alive after the app closes.',
-                value: settings.hostDetachedSessionShutdownDelaySeconds,
-                min: 5,
-                max: 86400,
-                step: 60,
-                suffix: 's',
-                onChanged: (value) => onChanged(
-                  settings.copyWith(
-                    hostDetachedSessionShutdownDelaySeconds: value,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: AleraTokens.space16),
-        KeyedSubtree(
           key: groupKeys['advanced'],
           child: AleraSettingsGroup(
             title: 'Advanced',
             description:
-                'History, detached host lifetime and double-click selection behavior.',
+                'History, shell startup and double-click selection behavior.',
             children: <Widget>[
               SettingsSwitchRow(
                 title: 'Use Login Shell',

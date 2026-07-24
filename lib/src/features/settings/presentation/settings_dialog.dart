@@ -108,6 +108,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
     const applicationGroups = <SettingsGroupSpec>[
       SettingsGroupSpec(id: 'storage', title: 'Storage'),
       SettingsGroupSpec(id: 'safety', title: 'Safety'),
+      SettingsGroupSpec(id: 'runtime', title: 'Runtime'),
       SettingsGroupSpec(id: 'updates', title: 'Updates'),
       SettingsGroupSpec(id: 'support', title: 'Support'),
     ];
@@ -130,7 +131,6 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
       SettingsGroupSpec(id: 'cursor', title: 'Cursor'),
       SettingsGroupSpec(id: 'appearance', title: 'Appearance'),
       SettingsGroupSpec(id: 'interaction', title: 'Interaction'),
-      SettingsGroupSpec(id: 'runtime', title: 'Runtime'),
       SettingsGroupSpec(id: 'advanced', title: 'Advanced'),
     ];
     const mobileDeviceGroups = <SettingsGroupSpec>[
@@ -144,12 +144,13 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
       SettingsSectionData(
         id: 'application',
         title: 'Application',
-        description: 'Storage, safety, updates and support.',
+        description: 'Storage, safety, runtime, updates and support.',
         icon: AleraIcons.tune,
         entries: applicationSearchEntries,
         groups: applicationGroups,
         builder: (_) => ApplicationSettingsPane(
           general: settings.general,
+          terminal: settings.terminal,
           groupKeys: _paneKeys('application', applicationGroups),
         ),
       ),

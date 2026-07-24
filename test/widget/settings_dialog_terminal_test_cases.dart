@@ -28,9 +28,8 @@ void _registerSettingsDialogTerminalTests() {
     await tapStepper(AleraIcons.chevronUp, 5);
     await tapStepper(AleraIcons.chevronUp, 6);
     await tapStepper(AleraIcons.chevronUp, 7);
-    // 8 and 9 are the Runtime group delays, which this case does not touch.
-    await tapStepper(AleraIcons.chevronUp, 10);
-    await tapStepper(AleraIcons.chevronUp, 11);
+    await tapStepper(AleraIcons.chevronUp, 8);
+    await tapStepper(AleraIcons.chevronUp, 9);
 
     Future<void> setSwatchColor(int index, Color color) async {
       final swatch = find.byType(AleraColorSwatch).at(index);
@@ -67,11 +66,10 @@ void _registerSettingsDialogTerminalTests() {
     expect(after.colorOverrides.selection, '#667788');
   });
 
-  testWidgets('edits runtime host lifecycle settings from the terminal pane', (
+  testWidgets('edits runtime host lifecycle settings from the application pane', (
     tester,
   ) async {
     final container = await _pumpSettingsDialog(tester);
-    await _selectTerminalSection(tester);
     final before = container.read(settingsControllerProvider).terminal;
     expect(before.stopRuntimeOnAppQuit, isFalse);
 
