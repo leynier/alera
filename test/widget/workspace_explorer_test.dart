@@ -23,10 +23,12 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../unit/fake_git_backend.dart';
 
+part 'workspace_explorer_cursor_cases.dart';
 part 'workspace_explorer_git_snapshot_cases.dart';
 
 void main() {
   _registerWorkspaceExplorerGitSnapshotTests();
+  _registerWorkspaceExplorerCursorTests();
 
   testWidgets('single click toggles folders and rows expose click cursors', (
     tester,
@@ -69,35 +71,6 @@ void main() {
     await tester.tap(find.text('readme.md'));
     await tester.pumpAndSettle();
     expect(opened, <String>['readme.md']);
-  });
-
-  testWidgets('hovering the folder expander resolves the click cursor', (
-    tester,
-  ) async {
-    final service = _FakeWorkspaceFileService()
-      ..childrenByDirectory[''] = <native.WorkspaceFileEntry>[
-        _directory('src', hasChildrenHint: true),
-      ]
-      ..childrenByDirectory['src'] = <native.WorkspaceFileEntry>[
-        _file('src/main.dart'),
-      ];
-
-    await _pumpExplorer(tester, service);
-
-    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
-    await gesture.addPointer(location: Offset.zero);
-    addTearDown(gesture.removePointer);
-    await tester.pump();
-
-    await gesture.moveTo(
-      tester.getCenter(find.byIcon(AleraIcons.chevronRight)),
-    );
-    await tester.pumpAndSettle();
-
-    expect(
-      RendererBinding.instance.mouseTracker.debugDeviceActiveCursor(1),
-      SystemMouseCursors.click,
-    );
   });
 
   testWidgets(

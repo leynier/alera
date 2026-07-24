@@ -110,58 +110,27 @@ class _GitHistoryPanelState extends State<_GitHistoryPanel> {
             decoration: const BoxDecoration(color: AleraTokens.surface),
             child: SizedBox(
               height: AleraTokens.sidebarHeaderHeight,
-              child: Padding(
+              // The whole strip toggles the section, so the hover tint runs
+              // edge to edge and stays square: a rounded inset block would
+              // read as a button instead of a section row.
+              child: HoverContainer(
+                onTap: widget.onToggle,
+                hoverColor: AleraTokens.surfaceVariant,
+                borderRadius: 0,
                 padding: const EdgeInsets.symmetric(
                   horizontal: AleraTokens.space8,
-                  vertical: AleraTokens.space4,
                 ),
                 child: Row(
                   children: <Widget>[
-                    OutlinedButton.icon(
-                      onPressed: widget.onToggle,
-                      icon: Icon(
-                        widget.collapsed
-                            ? AleraIcons.chevronRight
-                            : AleraIcons.chevronDown,
-                        size: 15,
-                      ),
-                      label: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          Text(
-                            'Commits',
-                            style: Theme.of(context).textTheme.labelSmall
-                                ?.copyWith(
-                                  color: AleraTokens.foregroundMuted,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                          ),
-                          if (result != null) ...<Widget>[
-                            const SizedBox(width: AleraTokens.space6),
-                            Text(
-                              result.hasMore ? '$count+' : '$count',
-                              style: Theme.of(context).textTheme.labelSmall
-                                  ?.copyWith(
-                                    color: AleraTokens.foregroundFaint,
-                                  ),
-                            ),
-                          ],
-                        ],
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AleraTokens.foregroundMuted,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AleraTokens.space8,
-                          vertical: AleraTokens.space4,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                            AleraTokens.radiusMd,
-                          ),
-                        ),
+                    Expanded(
+                      child: _HistoryHeaderLabel(
+                        collapsed: widget.collapsed,
+                        count: count,
+                        hasMore: result?.hasMore ?? false,
+                        showCount: result != null,
                       ),
                     ),
-                    const Spacer(),
+                    const SizedBox(width: AleraTokens.space4),
                     _RefreshCommitsButton(
                       loading: widget.state.loading,
                       onPressed: () => unawaited(widget.onRefresh()),
@@ -330,6 +299,52 @@ class _GitHistoryPanelState extends State<_GitHistoryPanel> {
           'Commit Message',
         );
     }
+  }
+}
+
+class _HistoryHeaderLabel extends StatelessWidget {
+  const _HistoryHeaderLabel({
+    required this.collapsed,
+    required this.count,
+    required this.hasMore,
+    required this.showCount,
+  });
+
+  final bool collapsed;
+  final int count;
+  final bool hasMore;
+  final bool showCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: <Widget>[
+        Icon(
+          collapsed ? AleraIcons.chevronRight : AleraIcons.chevronDown,
+          size: 14,
+          color: AleraTokens.foregroundMuted,
+        ),
+        const SizedBox(width: AleraTokens.space6),
+        Text(
+          'Commits'.toUpperCase(),
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: AleraTokens.foregroundMuted,
+            letterSpacing: 0.6,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        if (showCount) ...<Widget>[
+          const SizedBox(width: AleraTokens.space6),
+          Text(
+            hasMore ? '$count+' : '$count',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: AleraTokens.foregroundFaint,
+            ),
+          ),
+        ],
+      ],
+    );
   }
 }
 
