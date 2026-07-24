@@ -45,7 +45,6 @@ void main() {
             inputMode: TerminalInputMode.compose,
             onKey: written.add,
             onToggleMode: () {},
-            onOpenSettings: () {},
           ),
         ),
       ),

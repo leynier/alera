@@ -10,7 +10,6 @@ import 'package:alera_mobile/src/features/terminal/domain/terminal_accessory_key
 import 'package:alera_mobile/src/features/terminal/domain/terminal_input_mode.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_accessory_bar.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_compose_bar.dart';
-import 'package:alera_mobile/src/features/terminal/presentation/terminal_keys_settings_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:xterm/xterm.dart';
@@ -56,13 +55,6 @@ class TerminalTabView extends ConsumerWidget {
             onToggleMode: ref
                 .read(terminalInputModeControllerProvider(tabId).notifier)
                 .toggle,
-            onOpenSettings: () {
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const TerminalKeysSettingsScreen(),
-                ),
-              );
-            },
           ),
           if (inputMode == TerminalInputMode.compose)
             TerminalComposeBar(

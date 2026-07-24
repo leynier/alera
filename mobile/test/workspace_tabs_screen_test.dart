@@ -2,6 +2,7 @@ import 'package:alera_mobile/src/design_system/forms/alera_rename_dialog.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_providers.dart';
+import 'package:alera_mobile/src/features/terminal/presentation/terminal_keys_settings_screen.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/workspace_tabs_screen.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:flutter/material.dart';
@@ -41,6 +42,20 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Initial Task'), findsOneWidget);
+    expect(tester.widget<InputChip>(find.byType(InputChip)).avatar, isNull);
+    expect(
+      find.descendant(
+        of: find.byType(AppBar),
+        matching: find.byTooltip('Configure Quick Keys'),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byTooltip('Configure Quick Keys'));
+    await tester.pumpAndSettle();
+    expect(find.byType(TerminalKeysSettingsScreen), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
 
     client.emitTerminalTitle(
       workspaceId: 'workspace-1',
