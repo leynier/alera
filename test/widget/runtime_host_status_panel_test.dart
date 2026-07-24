@@ -54,7 +54,7 @@ void main() {
     expect(find.text('0.1.0'), findsNothing);
     expect(find.text('Host Commit'), findsNothing);
     expect(find.text('1234567'), findsNothing);
-    expect(find.text('Stop Runtime When App Quits'), findsNothing);
+    expect(find.text('Keep Runtime Open When App Quits'), findsNothing);
     expect(find.text('Empty Host Shutdown'), findsNothing);
     expect(find.text('Detached Session Shutdown'), findsNothing);
     expect(find.text('Refresh'), findsOneWidget);
@@ -80,6 +80,31 @@ void main() {
       tester.widget<Text>(find.text('Stopped')).style?.color,
       isNot(AleraTokens.success),
     );
+  });
+
+  testWidgets('the longest label keeps a gap before its value', (tester) async {
+    await tester.pumpWidget(
+      _wrapPanel(
+        const RuntimeHostStatusSnapshot(
+          running: true,
+          bundledVersion: '0.1.0',
+          runtimeHostVersion: '0.1.0',
+        ),
+      ),
+    );
+
+    final label = tester.getRect(find.text('Bundled Version'));
+    final value = tester.getRect(
+      find.descendant(
+        of: find.ancestor(
+          of: find.text('Bundled Version'),
+          matching: find.byType(Row),
+        ),
+        matching: find.text('v0.1.0'),
+      ),
+    );
+
+    expect(value.left - label.right, greaterThanOrEqualTo(AleraTokens.space8));
   });
 
   testWidgets('actions sit at the end of the panel', (tester) async {

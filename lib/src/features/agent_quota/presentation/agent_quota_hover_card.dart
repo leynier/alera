@@ -196,7 +196,7 @@ class _ClaudeTryWithTuiButtonState
   @override
   Widget build(BuildContext context) {
     return Align(
-      alignment: Alignment.centerLeft,
+      alignment: Alignment.centerRight,
       child: TextButton(
         onPressed: _loading ? null : _run,
         style: TextButton.styleFrom(

@@ -56,7 +56,7 @@ final class BundledSidecarVersionProbeProvider
 }
 
 String _$bundledSidecarVersionProbeHash() =>
-    r'runtime_host_bundled_sidecar_version_probe_v1';
+    r'83977a1f5bfff07d2534ee4010220e3147d0d306';
 
 @ProviderFor(runtimeHostLifecycleService)
 final runtimeHostLifecycleServiceProvider =
@@ -105,7 +105,7 @@ final class RuntimeHostLifecycleServiceProvider
 }
 
 String _$runtimeHostLifecycleServiceHash() =>
-    r'runtime_host_lifecycle_service_v1';
+    r'dbafafe463896e0eb5d61afdb432dcae48e27f9c';
 
 @ProviderFor(runtimeHostStatus)
 final runtimeHostStatusProvider = RuntimeHostStatusProvider._();
@@ -146,4 +146,4 @@ final class RuntimeHostStatusProvider
   }
 }
 
-String _$runtimeHostStatusHash() => r'runtime_host_status_v1';
+String _$runtimeHostStatusHash() => r'a44ba2341aed8ceae83e4f0133cda4a6202bce0e';

@@ -19,8 +19,8 @@ void main() {
           await tester.tap(find.byTooltip('Application Menu'));
           await tester.pumpAndSettle();
 
-          expect(find.text('Settings ...'), findsOneWidget);
-          expect(find.text('Check for Updates ...'), findsOneWidget);
+          expect(find.text('Settings'), findsOneWidget);
+          expect(find.text('Check for Updates'), findsOneWidget);
           expect(find.text('Undo'), findsOneWidget);
           expect(find.text('Cut'), findsOneWidget);
           expect(find.text('About $kAleraAppName'), findsOneWidget);

@@ -51,18 +51,31 @@ extension SocketTerminalHostClientLifecycle on SocketTerminalHostClient {
 }
 
 final _shutdownBusyPattern = RegExp(
+  r'Runtime host has (\d+) active agent\(s\), (\d+) active terminal session\(s\) and (\d+) active background job\(s\)',
+);
+
+final _legacyShutdownBusyPattern = RegExp(
   r'Runtime host has (\d+) active terminal session\(s\) and (\d+) active background job\(s\)',
 );
 
 RuntimeHostBusyException? _busyExceptionFromShutdown(String message) {
   final match = _shutdownBusyPattern.firstMatch(message);
-  if (match == null) {
+  if (match != null) {
+    return RuntimeHostBusyException(
+      message: message,
+      activeAgents: int.tryParse(match.group(1) ?? '') ?? 0,
+      activeSessions: int.tryParse(match.group(2) ?? '') ?? 0,
+      activeJobs: int.tryParse(match.group(3) ?? '') ?? 0,
+    );
+  }
+  final legacy = _legacyShutdownBusyPattern.firstMatch(message);
+  if (legacy == null) {
     return null;
   }
   return RuntimeHostBusyException(
     message: message,
-    activeSessions: int.tryParse(match.group(1) ?? '') ?? 0,
-    activeJobs: int.tryParse(match.group(2) ?? '') ?? 0,
+    activeSessions: int.tryParse(legacy.group(1) ?? '') ?? 0,
+    activeJobs: int.tryParse(legacy.group(2) ?? '') ?? 0,
   );
 }
 

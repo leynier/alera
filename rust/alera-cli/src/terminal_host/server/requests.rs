@@ -390,10 +390,18 @@ impl ServerActor {
                 let active_jobs = self.ssh_bootstrap_jobs.len()
                     + usize::from(self.managed_workspace_jobs > 0)
                     + self.coordinators.len();
-                if !force && (active_sessions > 0 || active_jobs > 0) {
-                    return Err(HostError::state(format!(
-                        "Runtime host has {active_sessions} active terminal session(s) and {active_jobs} active background job(s). Retry with --force to stop it."
-                    )));
+                let active_agents = self
+                    .agent_presence_items()
+                    .as_array()
+                    .map_or(0, Vec::len);
+                if !force {
+                    if let Some(message) = host_shutdown_busy_message(
+                        active_agents,
+                        active_sessions,
+                        active_jobs,
+                    ) {
+                        return Err(HostError::state(message));
+                    }
                 }
                 let _ = self.inbox.send(ServerCommand::RequestedShutdown);
                 Ok(json!({
@@ -401,6 +409,7 @@ impl ServerActor {
                     "forced": force,
                     "activeSessions": active_sessions,
                     "activeJobs": active_jobs,
+                    "activeAgents": active_agents,
                 }))
             }
             "createOrAttach" => {
@@ -1354,6 +1363,19 @@ fn trailing_incomplete_utf8_start(bytes: &[u8]) -> Option<usize> {
 
 fn is_utf8_continuation(byte: u8) -> bool {
     byte & 0b1100_0000 == 0b1000_0000
+}
+
+fn host_shutdown_busy_message(
+    active_agents: usize,
+    active_sessions: usize,
+    active_jobs: usize,
+) -> Option<String> {
+    if active_agents == 0 && active_sessions == 0 && active_jobs == 0 {
+        return None;
+    }
+    Some(format!(
+        "Runtime host has {active_agents} active agent(s), {active_sessions} active terminal session(s) and {active_jobs} active background job(s). Retry with --force to stop it."
+    ))
 }
 
 fn parse_payload<T>(payload: &Value) -> HostResult<T>

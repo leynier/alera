@@ -21,7 +21,10 @@ void main() {
       ),
     );
 
-    expect(find.text(kAleraAppName), findsOneWidget);
+    final nameFinder = find.text(kAleraAppName);
+    expect(nameFinder, findsOneWidget);
+    final logoRect = tester.getRect(find.byType(Image));
+    expect(logoRect.right, lessThanOrEqualTo(tester.getRect(nameFinder).left));
     expect(find.byTooltip('Add Project'), findsOneWidget);
     expect(find.byTooltip('Collapse Sidebar'), findsOneWidget);
     expect(find.byTooltip('Expand Sidebar'), findsNothing);

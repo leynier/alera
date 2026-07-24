@@ -21,9 +21,17 @@ const List<SettingsSearchEntry> applicationSearchEntries =
         groupId: 'safety',
       ),
       SettingsSearchEntry(
-        title: 'Stop Runtime When App Quits',
-        description: 'Shut down the local runtime when the last window closes.',
-        keywords: <String>['host', 'sidecar', 'lifecycle', 'quit', 'shutdown'],
+        title: 'Keep Runtime Open When App Quits',
+        description:
+            'Leave the app-launched sidecar running after a clean quit.',
+        keywords: <String>[
+          'host',
+          'sidecar',
+          'lifecycle',
+          'quit',
+          'shutdown',
+          'leave',
+        ],
         groupId: 'runtime',
       ),
       SettingsSearchEntry(

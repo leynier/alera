@@ -6,6 +6,10 @@ import 'package:flutter/material.dart';
 const double runtimeHostPanelWidth = 240;
 const double runtimeHostPanelMaxHeight = 360;
 
+/// Label column of the status rows. Wide enough for "Bundled Version", the
+/// longest label, so it never runs into the value beside it.
+const double _statusLabelWidth = 116;
+
 /// Compact status-bar chip for the local runtime host.
 class RuntimeHostStatusChip extends StatelessWidget {
   const RuntimeHostStatusChip({
@@ -207,7 +211,7 @@ class _StatusRow extends StatelessWidget {
       child: Row(
         children: <Widget>[
           SizedBox(
-            width: 100,
+            width: _statusLabelWidth,
             child: Text(
               label,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -215,6 +219,7 @@ class _StatusRow extends StatelessWidget {
               ),
             ),
           ),
+          const SizedBox(width: AleraTokens.space8),
           Expanded(
             child: Text(
               value,

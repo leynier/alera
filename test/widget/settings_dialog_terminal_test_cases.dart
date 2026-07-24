@@ -71,11 +71,11 @@ void _registerSettingsDialogTerminalTests() {
   ) async {
     final container = await _pumpSettingsDialog(tester);
     final before = container.read(settingsControllerProvider).terminal;
-    expect(before.stopRuntimeOnAppQuit, isFalse);
+    expect(before.keepRuntimeOpenOnAppQuit, isFalse);
 
     final toggle = find.descendant(
       of: find.ancestor(
-        of: find.text('Stop Runtime When App Quits'),
+        of: find.text('Keep Runtime Open When App Quits'),
         matching: find.byType(SettingsSwitchRow),
       ),
       matching: find.byType(Switch),
@@ -103,7 +103,7 @@ void _registerSettingsDialogTerminalTests() {
     await bumpDelay('Detached Session Shutdown');
 
     final after = container.read(settingsControllerProvider).terminal;
-    expect(after.stopRuntimeOnAppQuit, isTrue);
+    expect(after.keepRuntimeOpenOnAppQuit, isTrue);
     expect(
       after.hostEmptyShutdownDelaySeconds,
       greaterThan(before.hostEmptyShutdownDelaySeconds),
