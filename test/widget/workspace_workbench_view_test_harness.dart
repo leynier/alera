@@ -70,8 +70,11 @@ Future<void> _pumpWorkbenchView(
                     required String tabId,
                     required String targetGroupId,
                     required WorkbenchDropZone zone,
+                    int? index,
                   }) async {
-                    movedTabs.add(_MovedTabAction(tabId, targetGroupId, zone));
+                    movedTabs.add(
+                      _MovedTabAction(tabId, targetGroupId, zone, index: index),
+                    );
                   },
               onSplitGroup:
                   ({
@@ -342,22 +345,28 @@ class _SelectedTabAction {
 }
 
 class _MovedTabAction {
-  const _MovedTabAction(this.tabId, this.targetGroupId, this.zone);
+  const _MovedTabAction(this.tabId, this.targetGroupId, this.zone, {this.index});
 
   final String tabId;
   final String targetGroupId;
   final WorkbenchDropZone zone;
+  final int? index;
 
   @override
   bool operator ==(Object other) {
     return other is _MovedTabAction &&
         other.tabId == tabId &&
         other.targetGroupId == targetGroupId &&
-        other.zone == zone;
+        other.zone == zone &&
+        other.index == index;
   }
 
   @override
-  int get hashCode => Object.hash(tabId, targetGroupId, zone);
+  int get hashCode => Object.hash(tabId, targetGroupId, zone, index);
+
+  @override
+  String toString() =>
+      '_MovedTabAction($tabId, $targetGroupId, $zone, index: $index)';
 }
 
 class _SplitGroupAction {

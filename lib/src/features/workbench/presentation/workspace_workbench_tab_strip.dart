@@ -17,6 +17,7 @@ class _WorkspaceTabStrip extends StatefulWidget {
     required this.onCreateTab,
     required this.onSplitGroup,
     required this.onMergeGroup,
+    required this.onMoveTab,
   });
 
   final Workspace workspace;
@@ -34,6 +35,7 @@ class _WorkspaceTabStrip extends StatefulWidget {
   final VoidCallback onCreateTab;
   final ValueChanged<WorkbenchDropZone> onSplitGroup;
   final VoidCallback onMergeGroup;
+  final MoveWorkspaceTabCallback onMoveTab;
 
   @override
   State<_WorkspaceTabStrip> createState() => _WorkspaceTabStripState();
@@ -42,6 +44,7 @@ class _WorkspaceTabStrip extends StatefulWidget {
 class _WorkspaceTabStripState extends State<_WorkspaceTabStrip> {
   final ScrollController _scrollController = ScrollController();
   bool _hasOverflow = false;
+  int? _insertionGapIndex;
 
   @override
   void initState() {
@@ -91,72 +94,129 @@ class _WorkspaceTabStripState extends State<_WorkspaceTabStrip> {
     );
   }
 
+  int? _resolvedDropIndex(_WorkspaceTabDragData data, int gapIndex) {
+    return resolveWorkbenchTabStripDropIndex(
+      tabIds: <String>[for (final tab in widget.tabs) tab.id],
+      sourceGroupId: data.sourceGroupId,
+      targetGroupId: widget.groupId,
+      draggedTabId: data.tabId,
+      gapIndex: gapIndex,
+    );
+  }
+
+  void _handleGapHover(_WorkspaceTabDragData data, int gapIndex) {
+    final next = _resolvedDropIndex(data, gapIndex) == null ? null : gapIndex;
+    if (next != _insertionGapIndex) {
+      setState(() => _insertionGapIndex = next);
+    }
+  }
+
+  void _handleGapLeave() {
+    if (_insertionGapIndex != null) {
+      setState(() => _insertionGapIndex = null);
+    }
+  }
+
+  void _handleGapDrop(_WorkspaceTabDragData data, int gapIndex) {
+    setState(() => _insertionGapIndex = null);
+    final index = _resolvedDropIndex(data, gapIndex);
+    if (index == null) {
+      return;
+    }
+    unawaited(
+      widget.onMoveTab(
+        tabId: data.tabId,
+        targetGroupId: widget.groupId,
+        zone: WorkbenchDropZone.center,
+        index: index,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     WidgetsBinding.instance.addPostFrameCallback((_) => _syncOverflow());
     final addButton = _NewTerminalButton(onPressed: widget.onCreateTab);
     return ColoredBox(
       color: AleraTokens.surface,
-      child: SizedBox(
-        height: AleraTokens.sidebarHeaderHeight,
-        child: Row(
-          children: <Widget>[
-            Expanded(
-              child: SingleChildScrollView(
-                controller: _scrollController,
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AleraTokens.space8,
-                  vertical: AleraTokens.space6,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    for (final tab in widget.tabs)
-                      _DraggableWorkspaceTabChip(
-                        workspace: widget.workspace,
-                        groupId: widget.groupId,
-                        tab: tab,
-                        active: tab.id == widget.activeTabId,
-                        terminalRuntime: widget.terminalRuntime,
-                        status: widget.agentStatuses[tab.terminalSessionId],
-                        completionAcknowledged: widget
-                            .completionAcknowledgements
-                            .isAcknowledged(
-                              widget.agentStatuses[tab.terminalSessionId],
-                            ),
-                        groupTabs: widget.tabs,
-                        onSelect: () {
-                          setState(() {
-                            widget.completionAcknowledgements.acknowledge(
-                              widget.agentStatuses[tab.terminalSessionId],
-                            );
-                          });
-                          widget.onSelectTab(tab.id);
-                        },
-                        onClose: () => widget.onCloseTab(tab.id),
-                        onCloseTabs: widget.onCloseTabs,
-                        onRename: (title) =>
-                            widget.onRenameTab(tabId: tab.id, title: title),
-                        onSplit: widget.onSplitGroup,
-                      ),
-                    if (!_hasOverflow) addButton,
-                  ],
+      child: _TabStripAppendDropTarget(
+        workspaceId: widget.workspace.id,
+        tabCount: widget.tabs.length,
+        onHoverGap: _handleGapHover,
+        onLeave: _handleGapLeave,
+        onDropGap: _handleGapDrop,
+        child: SizedBox(
+          height: AleraTokens.sidebarHeaderHeight,
+          child: Row(
+            children: <Widget>[
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: _scrollController,
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AleraTokens.space8,
+                    vertical: AleraTokens.space6,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      for (final (index, tab) in widget.tabs.indexed)
+                        _TabStripChipDropTarget(
+                          chipIndex: index,
+                          workspaceId: widget.workspace.id,
+                          showLeadingIndicator:
+                              index == 0 && _insertionGapIndex == 0,
+                          showTrailingIndicator:
+                              _insertionGapIndex == index + 1,
+                          onHoverGap: _handleGapHover,
+                          onLeave: _handleGapLeave,
+                          onDropGap: _handleGapDrop,
+                          child: _DraggableWorkspaceTabChip(
+                            workspace: widget.workspace,
+                            groupId: widget.groupId,
+                            tab: tab,
+                            active: tab.id == widget.activeTabId,
+                            terminalRuntime: widget.terminalRuntime,
+                            status: widget.agentStatuses[tab.terminalSessionId],
+                            completionAcknowledged: widget
+                                .completionAcknowledgements
+                                .isAcknowledged(
+                                  widget.agentStatuses[tab.terminalSessionId],
+                                ),
+                            groupTabs: widget.tabs,
+                            onSelect: () {
+                              setState(() {
+                                widget.completionAcknowledgements.acknowledge(
+                                  widget.agentStatuses[tab.terminalSessionId],
+                                );
+                              });
+                              widget.onSelectTab(tab.id);
+                            },
+                            onClose: () => widget.onCloseTab(tab.id),
+                            onCloseTabs: widget.onCloseTabs,
+                            onRename: (title) =>
+                                widget.onRenameTab(tabId: tab.id, title: title),
+                            onSplit: widget.onSplitGroup,
+                          ),
+                        ),
+                      if (!_hasOverflow) addButton,
+                    ],
+                  ),
                 ),
               ),
-            ),
-            if (_hasOverflow)
-              Padding(
-                padding: const EdgeInsets.only(right: AleraTokens.space8),
-                child: addButton,
+              if (_hasOverflow)
+                Padding(
+                  padding: const EdgeInsets.only(right: AleraTokens.space8),
+                  child: addButton,
+                ),
+              _PaneMenuButton(
+                canCloseSplit: widget.canCloseSplit,
+                onSplitGroup: widget.onSplitGroup,
+                onMergeGroup: widget.onMergeGroup,
               ),
-            _PaneMenuButton(
-              canCloseSplit: widget.canCloseSplit,
-              onSplitGroup: widget.onSplitGroup,
-              onMergeGroup: widget.onMergeGroup,
-            ),
-            const SizedBox(width: AleraTokens.space4),
-          ],
+              const SizedBox(width: AleraTokens.space4),
+            ],
+          ),
         ),
       ),
     );
