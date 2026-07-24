@@ -48,4 +48,42 @@ void _registerSettingsDialogQuotaTests() {
       'CUSTOM_KIMI_KEY',
     );
   });
+
+  testWidgets('toggles quota pinning from the settings pane', (tester) async {
+    final container = await _pumpSettingsDialog(
+      tester,
+      extraOverrides: <dynamic>[
+        agentQuotaStateProvider.overrideWith(
+          (ref) async => AgentQuotaState.empty('local'),
+        ),
+      ],
+    );
+
+    await tester.tap(find.text('Quotas').first);
+    await tester.pump();
+
+    // Every provider row plus Claude Default starts pinned.
+    expect(find.byTooltip('Shown In Status Bar'), findsWidgets);
+    expect(
+      find.byTooltip('Hidden From Status Bar - Available In The Quota Panel'),
+      findsNothing,
+    );
+
+    await tester.tap(find.byTooltip('Shown In Status Bar').first);
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(
+      container
+          .read(settingsControllerProvider)
+          .agents
+          .quotas
+          .forHost('local')
+          .unpinnedQuotaKeys,
+      hasLength(1),
+    );
+    expect(
+      find.byTooltip('Hidden From Status Bar - Available In The Quota Panel'),
+      findsOneWidget,
+    );
+  });
 }

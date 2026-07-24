@@ -34,10 +34,52 @@ void main() {
       );
     },
   );
+
+  test(
+    'load preserves UI-only quota fields the runtime does not store',
+    () async {
+      final legacyRepository = _MemorySettingsRepository();
+      legacyRepository.settings = AleraSettings.defaults.copyWith(
+        agents: AleraSettings.defaults.agents.copyWith(
+          quotas: AgentQuotaSettings.defaults.withHost(
+            'local',
+            const AgentQuotaHostSettings(
+              selectedClaudeProfile: 'leynierdev',
+              unpinnedQuotaKeys: <String>['codex', 'claude:leynierdev'],
+            ),
+          ),
+        ),
+      );
+      final client = _RecordingRuntimeHostClient();
+      client.responses['runtimeSettings.get'] = <String, Object?>{
+        'workspaceDirectory': '/tmp/workspaces',
+        'agentQuotas': <String, Object?>{
+          'enabledProviders': <String>['claude', 'codex'],
+          'claudeDefaultEnabled': false,
+        },
+      };
+      final repository = RuntimeSettingsRepository(
+        client: client,
+        legacyRepository: legacyRepository,
+      );
+
+      final loaded = await repository.load();
+      final local = loaded.agents.quotas.forHost('local');
+
+      expect(local.enabledProviders, <AgentQuotaProviderId>[
+        AgentQuotaProviderId.claude,
+        AgentQuotaProviderId.codex,
+      ]);
+      expect(local.claudeDefaultEnabled, isFalse);
+      expect(local.selectedClaudeProfile, 'leynierdev');
+      expect(local.unpinnedQuotaKeys, <String>['codex', 'claude:leynierdev']);
+    },
+  );
 }
 
 final class _RecordingRuntimeHostClient implements RuntimeHostClient {
   final payloads = <String, List<Map<String, Object?>>>{};
+  final responses = <String, Object?>{};
 
   @override
   Stream<RuntimeHostEvent> get runtimeEvents => const Stream.empty();
@@ -49,7 +91,7 @@ final class _RecordingRuntimeHostClient implements RuntimeHostClient {
     Duration? timeout,
   ]) async {
     payloads.putIfAbsent(type, () => <Map<String, Object?>>[]).add(payload);
-    return null;
+    return responses[type];
   }
 }
 

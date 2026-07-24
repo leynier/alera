@@ -7,13 +7,11 @@ class _AgentQuotaHoverCard extends StatelessWidget {
   const _AgentQuotaHoverCard({
     required this.snapshots,
     this.profileLabels = const <String, String>{},
-    this.emptyMessage = 'Quota Data Unavailable',
     this.hostId = 'local',
   });
 
   final List<AgentQuotaSnapshot> snapshots;
   final Map<String, String> profileLabels;
-  final String emptyMessage;
   final String hostId;
 
   @override
@@ -44,7 +42,7 @@ class _AgentQuotaHoverCard extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.all(AleraTokens.space12),
                   child: Text(
-                    _normalizeQuotaText(emptyMessage),
+                    _normalizeQuotaText('Quota Data Unavailable'),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AleraTokens.foregroundMuted,
                     ),

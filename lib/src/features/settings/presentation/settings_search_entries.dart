@@ -186,6 +186,9 @@ const List<SettingsSearchEntry> quotaSearchEntries = <SettingsSearchEntry>[
       'minimax',
       'z.ai',
       'order',
+      'pin',
+      'pinned',
+      'status bar',
     ],
     groupId: 'providers',
   ),
@@ -204,7 +207,16 @@ const List<SettingsSearchEntry> quotaSearchEntries = <SettingsSearchEntry>[
   SettingsSearchEntry(
     title: 'Claude CCS Profiles',
     description: 'Configure CCS Alias And Profile Pairs For Claude Quotas.',
-    keywords: <String>['claude', 'ccs', 'profile', 'alias', 'quota'],
+    keywords: <String>[
+      'claude',
+      'ccs',
+      'profile',
+      'alias',
+      'quota',
+      'pin',
+      'pinned',
+      'status bar',
+    ],
     groupId: 'claude',
   ),
   SettingsSearchEntry(

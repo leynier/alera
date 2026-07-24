@@ -12,6 +12,45 @@ void main() {
       expect(local.claudeDefaultEnabled, isTrue);
       expect(local.selectedClaudeProfile, 'default');
       expect(local.environment.kimiApiKey, 'KIMI_API_KEY');
+      expect(local.unpinnedQuotaKeys, isEmpty);
+      for (final provider in AgentQuotaProviderId.values) {
+        expect(local.isQuotaPinned(provider), isTrue);
+      }
+    });
+
+    test('derives stable pin keys per provider and claude account', () {
+      expect(
+        AgentQuotaHostSettings.quotaPinKey(AgentQuotaProviderId.codex),
+        'codex',
+      );
+      expect(
+        AgentQuotaHostSettings.quotaPinKey(AgentQuotaProviderId.claude),
+        'claude:default',
+      );
+      expect(
+        AgentQuotaHostSettings.quotaPinKey(
+          AgentQuotaProviderId.claude,
+          claudeAccountId: 'leynierdev',
+        ),
+        'claude:leynierdev',
+      );
+    });
+
+    test('parses unpinned quota keys with absence meaning pinned', () {
+      final host = AgentQuotaHostSettings.fromJson(<String, Object?>{
+        'unpinnedQuotaKeys': <String>['codex', 'claude:leynierdev'],
+      });
+
+      expect(host.isQuotaPinned(AgentQuotaProviderId.codex), isFalse);
+      expect(
+        host.isQuotaPinned(
+          AgentQuotaProviderId.claude,
+          claudeAccountId: 'leynierdev',
+        ),
+        isFalse,
+      );
+      expect(host.isQuotaPinned(AgentQuotaProviderId.claude), isTrue);
+      expect(host.isQuotaPinned(AgentQuotaProviderId.kimi), isTrue);
     });
 
     test('parses host-specific quota configuration', () {

@@ -1749,6 +1749,15 @@ class AgentQuotaHostSettingsMapper
     opt: true,
     def: AgentQuotaEnvironmentSettings.defaults,
   );
+  static List<String> _$unpinnedQuotaKeys(AgentQuotaHostSettings v) =>
+      v.unpinnedQuotaKeys;
+  static const Field<AgentQuotaHostSettings, List<String>>
+  _f$unpinnedQuotaKeys = Field(
+    'unpinnedQuotaKeys',
+    _$unpinnedQuotaKeys,
+    opt: true,
+    def: const <String>[],
+  );
 
   @override
   final MappableFields<AgentQuotaHostSettings> fields = const {
@@ -1757,6 +1766,7 @@ class AgentQuotaHostSettingsMapper
     #claudeProfiles: _f$claudeProfiles,
     #selectedClaudeProfile: _f$selectedClaudeProfile,
     #environment: _f$environment,
+    #unpinnedQuotaKeys: _f$unpinnedQuotaKeys,
   };
 
   static AgentQuotaHostSettings _instantiate(DecodingData data) {
@@ -1766,6 +1776,7 @@ class AgentQuotaHostSettingsMapper
       claudeProfiles: data.dec(_f$claudeProfiles),
       selectedClaudeProfile: data.dec(_f$selectedClaudeProfile),
       environment: data.dec(_f$environment),
+      unpinnedQuotaKeys: data.dec(_f$unpinnedQuotaKeys),
     );
   }
 
@@ -1861,12 +1872,15 @@ abstract class AgentQuotaHostSettingsCopyWith<
     AgentQuotaEnvironmentSettings
   >
   get environment;
+  ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>>
+  get unpinnedQuotaKeys;
   $R call({
     List<AgentQuotaProviderId>? enabledProviders,
     bool? claudeDefaultEnabled,
     List<ClaudeQuotaProfileSettings>? claudeProfiles,
     String? selectedClaudeProfile,
     AgentQuotaEnvironmentSettings? environment,
+    List<String>? unpinnedQuotaKeys,
   });
   AgentQuotaHostSettingsCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -1917,12 +1931,20 @@ class _AgentQuotaHostSettingsCopyWithImpl<$R, $Out>
   get environment =>
       $value.environment.copyWith.$chain((v) => call(environment: v));
   @override
+  ListCopyWith<$R, String, ObjectCopyWith<$R, String, String>>
+  get unpinnedQuotaKeys => ListCopyWith(
+    $value.unpinnedQuotaKeys,
+    (v, t) => ObjectCopyWith(v, $identity, t),
+    (v) => call(unpinnedQuotaKeys: v),
+  );
+  @override
   $R call({
     List<AgentQuotaProviderId>? enabledProviders,
     bool? claudeDefaultEnabled,
     List<ClaudeQuotaProfileSettings>? claudeProfiles,
     String? selectedClaudeProfile,
     AgentQuotaEnvironmentSettings? environment,
+    List<String>? unpinnedQuotaKeys,
   }) => $apply(
     FieldCopyWithData({
       if (enabledProviders != null) #enabledProviders: enabledProviders,
@@ -1932,6 +1954,7 @@ class _AgentQuotaHostSettingsCopyWithImpl<$R, $Out>
       if (selectedClaudeProfile != null)
         #selectedClaudeProfile: selectedClaudeProfile,
       if (environment != null) #environment: environment,
+      if (unpinnedQuotaKeys != null) #unpinnedQuotaKeys: unpinnedQuotaKeys,
     }),
   );
   @override
@@ -1947,6 +1970,10 @@ class _AgentQuotaHostSettingsCopyWithImpl<$R, $Out>
       or: $value.selectedClaudeProfile,
     ),
     environment: data.get(#environment, or: $value.environment),
+    unpinnedQuotaKeys: data.get(
+      #unpinnedQuotaKeys,
+      or: $value.unpinnedQuotaKeys,
+    ),
   );
 
   @override

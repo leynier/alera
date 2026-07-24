@@ -180,12 +180,42 @@ class SettingsController extends _$SettingsController {
             )
         ? current.selectedClaudeProfile
         : 'default';
+    final validClaudeKeys = <String>{
+      AgentQuotaHostSettings.quotaPinKey(AgentQuotaProviderId.claude),
+      for (final profile in profiles)
+        AgentQuotaHostSettings.quotaPinKey(
+          AgentQuotaProviderId.claude,
+          claudeAccountId: profile.profile,
+        ),
+    };
+    final unpinned = current.unpinnedQuotaKeys
+        .where((key) => !key.startsWith('claude:') || validClaudeKeys.contains(key))
+        .toList();
     await _saveQuotaHost(
       hostId,
       current.copyWith(
         claudeProfiles: profiles,
         selectedClaudeProfile: selected,
+        unpinnedQuotaKeys: unpinned,
       ),
+    );
+  }
+
+  Future<void> setAgentQuotaPinned({
+    required String hostId,
+    required String pinKey,
+    required bool pinned,
+  }) async {
+    final current = state.agents.quotas.forHost(hostId);
+    final unpinned = <String>{...current.unpinnedQuotaKeys};
+    if (pinned) {
+      unpinned.remove(pinKey);
+    } else {
+      unpinned.add(pinKey);
+    }
+    await _saveQuotaHost(
+      hostId,
+      current.copyWith(unpinnedQuotaKeys: unpinned.toList()),
     );
   }
 

@@ -16,22 +16,52 @@ Widget agentQuotaStatusBarPreview() => SizedBox(
         ClaudeQuotaProfileSettings(alias: 'cceducup', profile: 'educup'),
       ],
     ),
-    snapshots: <AgentQuotaSnapshot>[
-      _claudeSnapshot(),
-      _claudeUnavailableSnapshot(),
-      _claudeProfileSnapshot('leynierdev', 'ccdev', 34),
-      _claudeProfileSnapshot('educup', 'cceducup', 61),
-      _snapshot(AgentQuotaProviderId.codex, 'Codex', 43),
-      _snapshot(AgentQuotaProviderId.kimi, 'Kimi', 8),
-      _snapshot(AgentQuotaProviderId.grok, 'Grok Build', 72),
-      _snapshot(AgentQuotaProviderId.cursor, 'Cursor', 14),
-      _antigravitySnapshot(),
-      _snapshot(AgentQuotaProviderId.minimax, 'MiniMax', 56),
-      _snapshot(AgentQuotaProviderId.zai, 'Z.ai', 11),
-    ],
+    snapshots: _previewSnapshots(),
     onRefresh: () {},
+    onTogglePinned: (_, _) {},
   ),
 );
+
+@AleraPreview(name: 'Agent Quotas - Unpinned', group: 'Status Bar')
+Widget agentQuotaStatusBarUnpinnedPreview() => SizedBox(
+  width: 1100,
+  child: AgentQuotaStatusBarView(
+    hostId: 'local',
+    settings: const AgentQuotaHostSettings(
+      claudeProfiles: <ClaudeQuotaProfileSettings>[
+        ClaudeQuotaProfileSettings(alias: 'Partsbase', profile: 'partsbase'),
+        ClaudeQuotaProfileSettings(alias: 'ccdev', profile: 'leynierdev'),
+        ClaudeQuotaProfileSettings(alias: 'cceducup', profile: 'educup'),
+      ],
+      unpinnedQuotaKeys: <String>[
+        'claude:educup',
+        'kimi',
+        'grok',
+        'cursor',
+        'antigravity',
+        'minimax',
+        'zai',
+      ],
+    ),
+    snapshots: _previewSnapshots(),
+    onRefresh: () {},
+    onTogglePinned: (_, _) {},
+  ),
+);
+
+List<AgentQuotaSnapshot> _previewSnapshots() => <AgentQuotaSnapshot>[
+  _claudeSnapshot(),
+  _claudeUnavailableSnapshot(),
+  _claudeProfileSnapshot('leynierdev', 'ccdev', 34),
+  _claudeProfileSnapshot('educup', 'cceducup', 61),
+  _snapshot(AgentQuotaProviderId.codex, 'Codex', 43),
+  _snapshot(AgentQuotaProviderId.kimi, 'Kimi', 8),
+  _snapshot(AgentQuotaProviderId.grok, 'Grok Build', 72),
+  _snapshot(AgentQuotaProviderId.cursor, 'Cursor', 14),
+  _antigravitySnapshot(),
+  _snapshot(AgentQuotaProviderId.minimax, 'MiniMax', 56),
+  _snapshot(AgentQuotaProviderId.zai, 'Z.ai', 11),
+];
 
 AgentQuotaSnapshot _claudeUnavailableSnapshot() {
   return AgentQuotaSnapshot(

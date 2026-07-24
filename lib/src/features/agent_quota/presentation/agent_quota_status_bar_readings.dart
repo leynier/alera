@@ -5,11 +5,17 @@ class _QuotaReading {
     required this.label,
     required this.remainingPercent,
     required this.order,
+    required this.fullLabel,
+    required this.resetsAt,
+    required this.resetDescription,
   });
 
   final String label;
   final double remainingPercent;
   final int order;
+  final String fullLabel;
+  final DateTime? resetsAt;
+  final String? resetDescription;
 }
 
 class _QuotaReadingView extends StatelessWidget {
@@ -57,12 +63,18 @@ List<_QuotaReading> _quotaReadings(AgentQuotaSnapshot snapshot) {
         label: _windowReadingLabel(snapshot.provider, window.label),
         remainingPercent: window.remainingPercent,
         order: _readingOrder(snapshot.provider, window.label),
+        fullLabel: window.label,
+        resetsAt: window.resetsAt,
+        resetDescription: window.resetDescription,
       ),
     for (final bucket in snapshot.buckets)
       _QuotaReading(
         label: _bucketReadingLabel(snapshot.provider, bucket),
         remainingPercent: bucket.remainingPercent,
         order: _readingOrder(snapshot.provider, bucket.name),
+        fullLabel: bucket.name,
+        resetsAt: bucket.resetsAt,
+        resetDescription: bucket.resetDescription,
       ),
   ];
   readings.sort((left, right) => left.order.compareTo(right.order));

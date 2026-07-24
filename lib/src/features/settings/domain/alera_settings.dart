@@ -363,6 +363,7 @@ class AgentQuotaHostSettings with AgentQuotaHostSettingsMappable {
     this.claudeProfiles = const <ClaudeQuotaProfileSettings>[],
     this.selectedClaudeProfile = 'default',
     this.environment = AgentQuotaEnvironmentSettings.defaults,
+    this.unpinnedQuotaKeys = const <String>[],
   });
 
   final List<AgentQuotaProviderId> enabledProviders;
@@ -371,7 +372,32 @@ class AgentQuotaHostSettings with AgentQuotaHostSettingsMappable {
   final String selectedClaudeProfile;
   final AgentQuotaEnvironmentSettings environment;
 
+  /// Quotas hidden from the status bar (still visible in the overview panel).
+  /// Absence means pinned, so older settings blobs keep today's behavior.
+  final List<String> unpinnedQuotaKeys;
+
   static const AgentQuotaHostSettings defaults = AgentQuotaHostSettings();
+
+  /// Stable pin key: provider name for single-account providers, and
+  /// `claude:<accountId>` for Claude, matching the status bar account keys.
+  static String quotaPinKey(
+    AgentQuotaProviderId provider, {
+    String claudeAccountId = 'default',
+  }) {
+    if (provider == AgentQuotaProviderId.claude) {
+      return 'claude:$claudeAccountId';
+    }
+    return provider.name;
+  }
+
+  bool isQuotaPinned(
+    AgentQuotaProviderId provider, {
+    String claudeAccountId = 'default',
+  }) {
+    return !unpinnedQuotaKeys.contains(
+      quotaPinKey(provider, claudeAccountId: claudeAccountId),
+    );
+  }
 
   factory AgentQuotaHostSettings.fromJson(Map<String, Object?> json) =>
       AgentQuotaHostSettingsMapper.fromMap(Map<String, dynamic>.from(json));

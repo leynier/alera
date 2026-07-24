@@ -88,7 +88,8 @@ void main() {
     expect(find.byType(PopupMenuButton), findsNothing);
     expect(find.text('Claude Code'), findsNothing);
     expect(find.text('Antigravity'), findsNothing);
-    expect(find.byType(AleraHoverCard), findsNWidgets(4));
+    // One hover card per pinned provider summary plus the overview button.
+    expect(find.byType(AleraHoverCard), findsNWidgets(5));
 
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
     addTearDown(mouse.removePointer);
@@ -406,6 +407,7 @@ Widget _wrap({
       AgentQuotaProviderId.antigravity,
     ],
   ),
+  AgentQuotaPinToggle? onTogglePinned,
 }) {
   return MaterialApp(
     theme: buildAleraDarkTheme(),
@@ -418,6 +420,7 @@ Widget _wrap({
           settings: settings,
           loading: loading,
           onRefresh: () {},
+          onTogglePinned: onTogglePinned ?? (_, _) {},
         ),
       ),
     ),

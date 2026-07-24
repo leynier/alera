@@ -219,12 +219,16 @@ class SettingsSwitchRow extends StatelessWidget {
     required this.description,
     required this.value,
     required this.onChanged,
+    this.secondary,
   });
 
   final String title;
   final String description;
   final bool value;
   final ValueChanged<bool> onChanged;
+
+  /// Optional control rendered before the switch (e.g., a pin toggle).
+  final Widget? secondary;
 
   @override
   Widget build(BuildContext context) {
@@ -233,7 +237,13 @@ class SettingsSwitchRow extends StatelessWidget {
       description: description,
       child: Align(
         alignment: Alignment.centerRight,
-        child: Switch(value: value, onChanged: onChanged),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            ?secondary,
+            Switch(value: value, onChanged: onChanged),
+          ],
+        ),
       ),
     );
   }

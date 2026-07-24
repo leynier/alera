@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/design_system/badges/alera_badge.dart';
+import 'package:alera/src/design_system/buttons/alera_icon_button.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/surfaces/alera_hover_card.dart';
 import 'package:alera/src/features/agent_quota/application/agent_quota_providers.dart';
@@ -16,6 +19,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 part 'agent_quota_status_bar_menus.dart';
 part 'agent_quota_hover_card.dart';
 part 'agent_quota_status_bar_readings.dart';
+part 'agent_quota_overview_panel.dart';
+
+typedef AgentQuotaPinToggle = void Function(String pinKey, bool pinned);
 
 class AgentQuotaStatusBar extends ConsumerWidget {
   const AgentQuotaStatusBar({super.key, this.trailing});
@@ -41,6 +47,14 @@ class AgentQuotaStatusBar extends ConsumerWidget {
       ref.invalidate(agentQuotaStateProvider);
     }
 
+    void togglePinned(String pinKey, bool pinned) {
+      unawaited(
+        ref
+            .read(settingsControllerProvider.notifier)
+            .setAgentQuotaPinned(hostId: hostId, pinKey: pinKey, pinned: pinned),
+      );
+    }
+
     if (state != null) {
       return AgentQuotaStatusBarView(
         hostId: state.hostId,
@@ -49,6 +63,7 @@ class AgentQuotaStatusBar extends ConsumerWidget {
         error: state.error,
         loading: quota.isLoading,
         onRefresh: refresh,
+        onTogglePinned: togglePinned,
         trailing: trailing,
       );
     }
@@ -59,6 +74,7 @@ class AgentQuotaStatusBar extends ConsumerWidget {
         settings: settings,
         loading: true,
         onRefresh: refresh,
+        onTogglePinned: togglePinned,
         trailing: trailing,
       ),
       error: (error, _) => AgentQuotaStatusBarView(
@@ -67,6 +83,7 @@ class AgentQuotaStatusBar extends ConsumerWidget {
         settings: settings,
         error: error.toString(),
         onRefresh: refresh,
+        onTogglePinned: togglePinned,
         trailing: trailing,
       ),
       data: (_) => AgentQuotaStatusBarView(
@@ -75,6 +92,7 @@ class AgentQuotaStatusBar extends ConsumerWidget {
         settings: settings,
         loading: true,
         onRefresh: refresh,
+        onTogglePinned: togglePinned,
         trailing: trailing,
       ),
     );
@@ -88,6 +106,7 @@ class AgentQuotaStatusBarView extends StatelessWidget {
     required this.snapshots,
     required this.settings,
     required this.onRefresh,
+    required this.onTogglePinned,
     this.loading = false,
     this.error,
     this.trailing,
@@ -97,13 +116,15 @@ class AgentQuotaStatusBarView extends StatelessWidget {
   final List<AgentQuotaSnapshot> snapshots;
   final AgentQuotaHostSettings settings;
   final VoidCallback onRefresh;
+  final AgentQuotaPinToggle onTogglePinned;
   final bool loading;
   final String? error;
   final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
-    final visible = _visibleSnapshots();
+    final enabled = _enabledSnapshots();
+    final pinned = _pinnedSnapshots(enabled);
     return Container(
       height: AleraTokens.statusBarHeight,
       decoration: const BoxDecoration(
@@ -115,10 +136,12 @@ class AgentQuotaStatusBarView extends StatelessWidget {
           if (constraints.maxWidth < 500) {
             return _CollapsedQuotaBar(
               hostId: hostId,
-              snapshots: visible,
+              snapshots: enabled,
+              settings: settings,
               loading: loading,
               error: error,
               onRefresh: onRefresh,
+              onTogglePinned: onTogglePinned,
               trailing: trailing,
             );
           }
@@ -147,19 +170,28 @@ class AgentQuotaStatusBarView extends StatelessWidget {
                 ),
               ),
               const VerticalDivider(width: 1, color: AleraTokens.borderSubtle),
+              _QuotaOverviewButton(
+                snapshots: enabled,
+                settings: settings,
+                hostId: hostId,
+                error: error,
+                onTogglePinned: onTogglePinned,
+                profileLabelFor: _claudeProfileLabel,
+              ),
+              const VerticalDivider(width: 1, color: AleraTokens.borderSubtle),
               Expanded(
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: <Widget>[
-                      for (final snapshot in visible)
+                      for (final snapshot in pinned)
                         _QuotaProviderSummary(
                           snapshot: snapshot,
                           profileLabel: _claudeProfileLabel(snapshot),
                           compact: compact,
                           hostId: hostId,
                         ),
-                      if (visible.isEmpty)
+                      if (enabled.isEmpty)
                         Padding(
                           padding: const EdgeInsets.symmetric(
                             horizontal: AleraTokens.space8,
@@ -189,7 +221,14 @@ class AgentQuotaStatusBarView extends StatelessWidget {
     );
   }
 
-  List<AgentQuotaSnapshot> _visibleSnapshots() {
+  List<AgentQuotaSnapshot> _pinnedSnapshots(List<AgentQuotaSnapshot> enabled) {
+    return <AgentQuotaSnapshot>[
+      for (final snapshot in enabled)
+        if (!settings.unpinnedQuotaKeys.contains(snapshot.pinKey)) snapshot,
+    ];
+  }
+
+  List<AgentQuotaSnapshot> _enabledSnapshots() {
     final byProvider = <AgentQuotaProviderId, List<AgentQuotaSnapshot>>{};
     for (final snapshot in snapshots) {
       byProvider.putIfAbsent(snapshot.provider, () => []).add(snapshot);
