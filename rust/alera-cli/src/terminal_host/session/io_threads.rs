@@ -54,11 +54,20 @@ pub(super) fn spawn_writer(
             while let Ok(request) = input_rx.recv() {
                 let error = match writer_failure.as_ref() {
                     Some(message) => Some(message.clone()),
-                    None => writer
-                        .write_all(&request.bytes)
-                        .and_then(|_| writer.flush())
-                        .err()
-                        .map(|error| error.to_string()),
+                    None => {
+                        let mut result = writer
+                            .write_all(&request.bytes)
+                            .and_then(|_| writer.flush());
+                        if result.is_ok() {
+                            if let Some(deferred) = request.deferred {
+                                std::thread::sleep(deferred.delay);
+                                result = writer
+                                    .write_all(&deferred.bytes)
+                                    .and_then(|_| writer.flush());
+                            }
+                        }
+                        result.err().map(|error| error.to_string())
+                    }
                 };
                 if writer_failure.is_none() {
                     writer_failure.clone_from(&error);

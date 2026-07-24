@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::mpsc::{sync_channel, SyncSender, TrySendError};
+use std::sync::mpsc::{sync_channel, SyncSender};
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
@@ -15,12 +15,16 @@ use crate::terminal_host::protocol::{encode_bytes, TerminalHostLaunch};
 mod checkpoint_restore;
 #[cfg(test)]
 mod driver_test_stub;
+mod input_queue;
 mod io_threads;
 mod output_backpressure;
 #[cfg(test)]
 mod tests;
 mod title_tracker;
 
+#[cfg(test)]
+use input_queue::PtyDeferredWrite;
+use input_queue::PtyWrite;
 use io_threads::{spawn_reader, spawn_writer};
 use title_tracker::TerminalTitleTracker;
 
@@ -71,11 +75,6 @@ pub enum PtyWriteCompletion {
     StartupSubmit {
         session_instance_id: u64,
     },
-}
-
-struct PtyWrite {
-    completion: PtyWriteCompletion,
-    bytes: Vec<u8>,
 }
 
 pub struct OutputBatch {
@@ -265,32 +264,6 @@ impl Session {
         self.clients.remove(&client_id);
         self.output_paused_clients.remove(&client_id);
         self.output_resync_pending_clients.remove(&client_id);
-    }
-
-    /// Queue input for the session-local blocking writer.
-    pub fn queue_write(&mut self, completion: PtyWriteCompletion, bytes: &[u8]) -> HostResult<()> {
-        if bytes.is_empty() {
-            return Ok(());
-        }
-        if !self.running {
-            return Err(HostError::state("Terminal session is not running."));
-        }
-        let Some(input_tx) = self.input_tx.as_ref() else {
-            return Err(HostError::state("terminal input writer is unavailable"));
-        };
-        input_tx
-            .try_send(PtyWrite {
-                completion,
-                bytes: bytes.to_vec(),
-            })
-            .map_err(|error| match error {
-                TrySendError::Full(_) => {
-                    HostError::state("terminal_input_backpressure: terminal input queue is full")
-                }
-                TrySendError::Disconnected(_) => {
-                    HostError::state("terminal input writer is unavailable")
-                }
-            })
     }
 
     pub fn resize(&mut self, cols: u16, rows: u16) {

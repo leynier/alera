@@ -15,6 +15,7 @@ import 'package:alera/src/shared/infra/git/git_backend.dart';
 import 'package:alera/src/shared/infra/git/git_providers.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -22,10 +23,12 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../unit/fake_git_backend.dart';
 
+part 'workspace_explorer_cursor_cases.dart';
 part 'workspace_explorer_git_snapshot_cases.dart';
 
 void main() {
   _registerWorkspaceExplorerGitSnapshotTests();
+  _registerWorkspaceExplorerCursorTests();
 
   testWidgets('single click toggles folders and rows expose click cursors', (
     tester,

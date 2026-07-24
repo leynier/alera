@@ -131,6 +131,9 @@ class AgentQuotaSnapshot {
 
   String get key => '${provider.name}:$accountId';
 
+  String get pinKey =>
+      AgentQuotaHostSettings.quotaPinKey(provider, claudeAccountId: accountId);
+
   bool get hasUsage => windows.isNotEmpty || buckets.isNotEmpty;
 
   double? get remainingPercent {

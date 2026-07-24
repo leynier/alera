@@ -33,7 +33,7 @@ void main() {
       expect(terminal.hostEmptyShutdownDelaySeconds, 30);
       expect(terminal.hostDetachedSessionShutdownDelaySeconds, 60 * 60);
       expect(terminal.hostScrollbackBytes, 10 * 1000 * 1000);
-      expect(terminal.stopRuntimeOnAppQuit, isFalse);
+      expect(terminal.keepRuntimeOpenOnAppQuit, isFalse);
     });
 
     test('general safety defaults are conservative', () {
@@ -320,6 +320,7 @@ void main() {
         'hostEmptyShutdownDelaySeconds': 45,
         'hostDetachedSessionShutdownDelaySeconds': 600,
         'hostScrollbackBytes': 16 * 1000 * 1000,
+        'keepRuntimeOpenOnAppQuit': false,
       });
 
       expect(restored.fontSize, 18);
@@ -336,7 +337,41 @@ void main() {
       expect(restored.hostEmptyShutdownDelaySeconds, 45);
       expect(restored.hostDetachedSessionShutdownDelaySeconds, 600);
       expect(restored.hostScrollbackBytes, 16 * 1000 * 1000);
+      expect(restored.keepRuntimeOpenOnAppQuit, isFalse);
     });
+
+    test(
+      'legacy stopRuntimeOnAppQuit migrates to keepRuntimeOpenOnAppQuit',
+      () {
+        final keptOpen = TerminalSettings.fromJson(<String, Object?>{
+          'fontFamily': 'JetBrains Mono',
+          'fontSize': 13,
+          'lineHeight': 1.3,
+          'cursorShape': 'block',
+          'scrollbackLines': 10000,
+          'stopRuntimeOnAppQuit': false,
+        });
+        final stoppedOnQuit = TerminalSettings.fromJson(<String, Object?>{
+          'fontFamily': 'JetBrains Mono',
+          'fontSize': 13,
+          'lineHeight': 1.3,
+          'cursorShape': 'block',
+          'scrollbackLines': 10000,
+          'stopRuntimeOnAppQuit': true,
+        });
+        final omittedQuitFlag = TerminalSettings.fromJson(<String, Object?>{
+          'fontFamily': 'JetBrains Mono',
+          'fontSize': 13,
+          'lineHeight': 1.3,
+          'cursorShape': 'block',
+          'scrollbackLines': 10000,
+        });
+
+        expect(keptOpen.keepRuntimeOpenOnAppQuit, isTrue);
+        expect(stoppedOnQuit.keepRuntimeOpenOnAppQuit, isFalse);
+        expect(omittedQuitFlag.keepRuntimeOpenOnAppQuit, isTrue);
+      },
+    );
 
     test('terminal parsing rejects missing required fields', () {
       expect(
@@ -439,56 +474,5 @@ void main() {
         expect(normalizeTerminalHexColor(42), isNull);
       },
     );
-  });
-
-  group('KeyboardShortcutSettings', () {
-    test('defaults are app-first with no overrides', () {
-      const settings = KeyboardShortcutSettings.defaults;
-      expect(settings.terminalPolicy, TerminalShortcutPolicy.appFirst);
-      expect(settings.overrides, isEmpty);
-    });
-
-    test('round-trips overrides and policy through json', () {
-      const settings = KeyboardShortcutSettings(
-        terminalPolicy: TerminalShortcutPolicy.terminalFirst,
-        overrides: <KeyboardActionId, List<String>>{
-          KeyboardActionId.newTerminalTab: <String>['Mod+Shift+T'],
-          KeyboardActionId.closeTab: <String>[],
-        },
-      );
-
-      final restored = KeyboardShortcutSettings.fromJson(
-        Map<String, Object?>.from(settings.toMap()),
-      );
-
-      expect(restored.terminalPolicy, TerminalShortcutPolicy.terminalFirst);
-      expect(restored.overrides[KeyboardActionId.newTerminalTab], <String>[
-        'Mod+Shift+T',
-      ]);
-      expect(restored.isDisabled(KeyboardActionId.closeTab), isTrue);
-    });
-
-    test('fromJson rejects unknown actions and invalid policy values', () {
-      expect(
-        () => KeyboardShortcutSettings.fromJson(<String, Object?>{
-          'terminalPolicy': 'nonsense',
-          'overrides': <String, Object?>{
-            'newTerminalTab': <String>['Mod+T'],
-            'thisActionDoesNotExist': <String>['Mod+Z'],
-          },
-        }),
-        throwsA(isA<MapperException>()),
-      );
-    });
-
-    test('copyWithOverride restores the default when given null', () {
-      const settings = KeyboardShortcutSettings(
-        overrides: <KeyboardActionId, List<String>>{
-          KeyboardActionId.closeTab: <String>['Mod+Q'],
-        },
-      );
-      final next = settings.copyWithOverride(KeyboardActionId.closeTab, null);
-      expect(next.hasOverride(KeyboardActionId.closeTab), isFalse);
-    });
   });
 }

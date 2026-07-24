@@ -49,7 +49,7 @@ class TerminalColorOverrides with TerminalColorOverridesMappable {
       TerminalColorOverridesMapper.fromMap(Map<String, dynamic>.from(json));
 }
 
-@MappableClass()
+@MappableClass(hook: _LegacyKeepRuntimeOpenHook())
 class TerminalSettings with TerminalSettingsMappable {
   const TerminalSettings({
     required this.fontFamily,
@@ -72,7 +72,7 @@ class TerminalSettings with TerminalSettingsMappable {
     this.hostEmptyShutdownDelaySeconds = 30,
     this.hostDetachedSessionShutdownDelaySeconds = 60 * 60,
     this.hostScrollbackBytes = 10 * 1000 * 1000,
-    this.stopRuntimeOnAppQuit = false,
+    this.keepRuntimeOpenOnAppQuit = false,
     this.loginShell,
   });
 
@@ -96,7 +96,7 @@ class TerminalSettings with TerminalSettingsMappable {
   final int hostEmptyShutdownDelaySeconds;
   final int hostDetachedSessionShutdownDelaySeconds;
   final int hostScrollbackBytes;
-  final bool stopRuntimeOnAppQuit;
+  final bool keepRuntimeOpenOnAppQuit;
 
   /// `null` keeps the platform default resolved by [resolvedLoginShell].
   final bool? loginShell;
@@ -134,11 +134,43 @@ class TerminalSettings with TerminalSettingsMappable {
     hostEmptyShutdownDelaySeconds: 30,
     hostDetachedSessionShutdownDelaySeconds: 60 * 60,
     hostScrollbackBytes: 10 * 1000 * 1000,
-    stopRuntimeOnAppQuit: false,
+    keepRuntimeOpenOnAppQuit: false,
   );
 
   factory TerminalSettings.fromJson(Map<String, Object?> json) =>
       TerminalSettingsMapper.fromMap(Map<String, dynamic>.from(json));
+}
+
+/// Maps the inverted legacy `stopRuntimeOnAppQuit` flag to
+/// `keepRuntimeOpenOnAppQuit` so older settings blobs keep their intent.
+///
+/// Blobs that never stored either flag used the old implicit default (leave
+/// the runtime open on quit), so they migrate to `keepRuntimeOpenOnAppQuit:
+/// true`. Fresh installs use [TerminalSettings.defaults] without decoding.
+class _LegacyKeepRuntimeOpenHook extends MappingHook {
+  const _LegacyKeepRuntimeOpenHook();
+
+  @override
+  Object? beforeDecode(Object? value) {
+    if (value is! Map) {
+      return value;
+    }
+    if (value.containsKey('keepRuntimeOpenOnAppQuit')) {
+      return value;
+    }
+    if (value.containsKey('stopRuntimeOnAppQuit')) {
+      return <String, dynamic>{
+        for (final entry in value.entries)
+          if (entry.key.toString() != 'stopRuntimeOnAppQuit')
+            entry.key.toString(): entry.value,
+        'keepRuntimeOpenOnAppQuit': value['stopRuntimeOnAppQuit'] != true,
+      };
+    }
+    return <String, dynamic>{
+      for (final entry in value.entries) entry.key.toString(): entry.value,
+      'keepRuntimeOpenOnAppQuit': true,
+    };
+  }
 }
 
 @MappableClass()
@@ -331,6 +363,7 @@ class AgentQuotaHostSettings with AgentQuotaHostSettingsMappable {
     this.claudeProfiles = const <ClaudeQuotaProfileSettings>[],
     this.selectedClaudeProfile = 'default',
     this.environment = AgentQuotaEnvironmentSettings.defaults,
+    this.unpinnedQuotaKeys = const <String>[],
   });
 
   final List<AgentQuotaProviderId> enabledProviders;
@@ -339,7 +372,32 @@ class AgentQuotaHostSettings with AgentQuotaHostSettingsMappable {
   final String selectedClaudeProfile;
   final AgentQuotaEnvironmentSettings environment;
 
+  /// Quotas hidden from the status bar (still visible in the overview panel).
+  /// Absence means pinned, so older settings blobs keep today's behavior.
+  final List<String> unpinnedQuotaKeys;
+
   static const AgentQuotaHostSettings defaults = AgentQuotaHostSettings();
+
+  /// Stable pin key: provider name for single-account providers, and
+  /// `claude:<accountId>` for Claude, matching the status bar account keys.
+  static String quotaPinKey(
+    AgentQuotaProviderId provider, {
+    String claudeAccountId = 'default',
+  }) {
+    if (provider == AgentQuotaProviderId.claude) {
+      return 'claude:$claudeAccountId';
+    }
+    return provider.name;
+  }
+
+  bool isQuotaPinned(
+    AgentQuotaProviderId provider, {
+    String claudeAccountId = 'default',
+  }) {
+    return !unpinnedQuotaKeys.contains(
+      quotaPinKey(provider, claudeAccountId: claudeAccountId),
+    );
+  }
 
   factory AgentQuotaHostSettings.fromJson(Map<String, Object?> json) =>
       AgentQuotaHostSettingsMapper.fromMap(Map<String, dynamic>.from(json));

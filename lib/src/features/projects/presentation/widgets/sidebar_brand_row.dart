@@ -39,11 +39,24 @@ class SidebarBrandRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: AleraTokens.space12),
       child: Row(
         children: <Widget>[
-          Text(
-            kAleraAppName,
-            style: theme.textTheme.titleSmall?.copyWith(
-              color: AleraTokens.foreground,
-              fontWeight: FontWeight.w600,
+          Image.asset(
+            'assets/logo/alera-logo-white.png',
+            width: AleraTokens.space16,
+            height: AleraTokens.space16,
+            filterQuality: FilterQuality.medium,
+          ),
+          const SizedBox(width: AleraTokens.space8),
+          // The logo leaves the name less room, so it yields first when the
+          // sidebar is dragged toward its minimum width.
+          Flexible(
+            child: Text(
+              kAleraAppName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleSmall?.copyWith(
+                color: AleraTokens.foreground,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
           const SizedBox(width: AleraTokens.space4),

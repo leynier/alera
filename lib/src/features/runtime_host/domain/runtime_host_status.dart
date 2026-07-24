@@ -39,6 +39,7 @@ final class RuntimeHostShutdownResult {
     required this.forced,
     this.activeSessions = 0,
     this.activeJobs = 0,
+    this.activeAgents = 0,
   });
 
   factory RuntimeHostShutdownResult.fromJson(Map<String, Object?> json) {
@@ -49,6 +50,9 @@ final class RuntimeHostShutdownResult {
           ? json['activeSessions'] as int
           : 0,
       activeJobs: json['activeJobs'] is int ? json['activeJobs'] as int : 0,
+      activeAgents: json['activeAgents'] is int
+          ? json['activeAgents'] as int
+          : 0,
     );
   }
 
@@ -56,6 +60,7 @@ final class RuntimeHostShutdownResult {
   final bool forced;
   final int activeSessions;
   final int activeJobs;
+  final int activeAgents;
 }
 
 final class RuntimeHostBusyException implements Exception {
@@ -63,11 +68,13 @@ final class RuntimeHostBusyException implements Exception {
     required this.message,
     this.activeSessions = 0,
     this.activeJobs = 0,
+    this.activeAgents = 0,
   });
 
   final String message;
   final int activeSessions;
   final int activeJobs;
+  final int activeAgents;
 
   @override
   String toString() => message;

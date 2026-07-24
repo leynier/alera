@@ -348,12 +348,18 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
             );
           },
           onMoveTab:
-              ({required tabId, required targetGroupId, required zone}) async {
+              ({
+                required tabId,
+                required targetGroupId,
+                required zone,
+                int? index,
+              }) async {
                 await controller.moveWorkspaceTab(
                   workspaceId: workspace.id,
                   tabId: tabId,
                   targetGroupId: targetGroupId,
                   zone: zone,
+                  index: index,
                 );
               },
           onSplitGroup: ({required groupId, required zone}) async {

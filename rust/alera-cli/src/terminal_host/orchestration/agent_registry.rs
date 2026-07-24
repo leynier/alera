@@ -4,6 +4,13 @@ pub struct AgentAdapter {
     pub default_command: &'static str,
     pub force_submit: bool,
     pub interrupt_bytes: &'static [u8],
+    pub startup_delivery: AgentStartupDelivery,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AgentStartupDelivery {
+    InitialPromptArgument,
+    ReadinessInjection,
 }
 
 const CTRL_C: &[u8] = b"\x03";
@@ -14,48 +21,56 @@ pub const AGENT_ADAPTERS: &[AgentAdapter] = &[
         default_command: "codex",
         force_submit: true,
         interrupt_bytes: CTRL_C,
+        startup_delivery: AgentStartupDelivery::InitialPromptArgument,
     },
     AgentAdapter {
         agent_type: "claude",
         default_command: "claude",
         force_submit: true,
         interrupt_bytes: CTRL_C,
+        startup_delivery: AgentStartupDelivery::ReadinessInjection,
     },
     AgentAdapter {
         agent_type: "copilot",
         default_command: "copilot",
         force_submit: true,
         interrupt_bytes: CTRL_C,
+        startup_delivery: AgentStartupDelivery::ReadinessInjection,
     },
     AgentAdapter {
         agent_type: "cursor",
         default_command: "cursor-agent",
         force_submit: true,
         interrupt_bytes: CTRL_C,
+        startup_delivery: AgentStartupDelivery::ReadinessInjection,
     },
     AgentAdapter {
         agent_type: "agy",
         default_command: "agy",
         force_submit: true,
         interrupt_bytes: CTRL_C,
+        startup_delivery: AgentStartupDelivery::ReadinessInjection,
     },
     AgentAdapter {
         agent_type: "opencode",
         default_command: "opencode",
         force_submit: true,
         interrupt_bytes: CTRL_C,
+        startup_delivery: AgentStartupDelivery::ReadinessInjection,
     },
     AgentAdapter {
         agent_type: "pi",
         default_command: "pi",
         force_submit: true,
         interrupt_bytes: CTRL_C,
+        startup_delivery: AgentStartupDelivery::ReadinessInjection,
     },
     AgentAdapter {
         agent_type: "amp",
         default_command: "amp",
         force_submit: true,
         interrupt_bytes: CTRL_C,
+        startup_delivery: AgentStartupDelivery::ReadinessInjection,
     },
 ];
 

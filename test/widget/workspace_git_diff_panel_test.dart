@@ -364,7 +364,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Commits'));
+    await tester.tap(find.text('COMMITS'));
     await tester.pumpAndSettle();
 
     expect(find.text('Add Feature'), findsOneWidget);
@@ -469,7 +469,7 @@ void main() {
 
       await _pumpPanel(tester, backend: backend, watcher: watcher);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Commits'));
+      await tester.tap(find.text('COMMITS'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Add Feature'));
       await tester.pumpAndSettle();
@@ -546,11 +546,11 @@ void main() {
     await _pumpPanel(tester, backend: backend);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Commits'));
+    await tester.tap(find.text('COMMITS'));
     await tester.pumpAndSettle();
     expect(find.text('Old Commit'), findsOneWidget);
 
-    await tester.tap(find.text('Commits'));
+    await tester.tap(find.text('COMMITS'));
     await tester.pumpAndSettle();
     backend.gitHistoryResult = const GitHistoryResult(
       currentRef: GitHistoryItemRef(
@@ -574,7 +574,7 @@ void main() {
 
     await tester.tap(find.text('Stage All'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Commits'));
+    await tester.tap(find.text('COMMITS'));
     await tester.pumpAndSettle();
 
     expect(find.text('New Commit'), findsOneWidget);
@@ -607,9 +607,9 @@ void main() {
     await _pumpPanel(tester, backend: backend);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Commits'));
+    await tester.tap(find.text('COMMITS'));
     await tester.pump();
-    await tester.tap(find.text('Commits'));
+    await tester.tap(find.text('COMMITS'));
     await tester.pump();
 
     backend.gitHistoryResult = const GitHistoryResult(
@@ -656,7 +656,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Commits'));
+    await tester.tap(find.text('COMMITS'));
     await tester.pumpAndSettle();
 
     expect(find.text('New Commit'), findsOneWidget);
@@ -700,7 +700,7 @@ void main() {
       await _pumpPanel(tester, backend: backend, watcher: watcher);
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Commits'));
+      await tester.tap(find.text('COMMITS'));
       await tester.pumpAndSettle();
       expect(find.text('Old Commit'), findsOneWidget);
 

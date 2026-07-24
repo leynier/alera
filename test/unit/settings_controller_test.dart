@@ -62,6 +62,98 @@ void main() {
       expect((await repository.load()).terminal.fontFamily, 'JetBrains Mono');
     });
 
+    test('pins and unpins agent quotas per host', () async {
+      final db = AleraDatabase(executor: NativeDatabase.memory());
+      addTearDown(db.close);
+      final repository = DriftSettingsRepository(db);
+      final container = ProviderContainer(
+        overrides: [settingsRepositoryProvider.overrideWithValue(repository)],
+      );
+      addTearDown(container.dispose);
+      final controller = container.read(settingsControllerProvider.notifier);
+      await controller.load();
+
+      await controller.setAgentQuotaPinned(
+        hostId: 'local',
+        pinKey: 'codex',
+        pinned: false,
+      );
+      await controller.setAgentQuotaPinned(
+        hostId: 'local',
+        pinKey: 'codex',
+        pinned: false,
+      );
+      await controller.setAgentQuotaPinned(
+        hostId: 'local',
+        pinKey: 'claude:leynierdev',
+        pinned: false,
+      );
+
+      final unpinned = controller.state.agents.quotas
+          .forHost('local')
+          .unpinnedQuotaKeys;
+      expect(unpinned, unorderedEquals(<String>['codex', 'claude:leynierdev']));
+      expect(
+        (await repository.load()).agents.quotas
+            .forHost('local')
+            .unpinnedQuotaKeys,
+        unorderedEquals(<String>['codex', 'claude:leynierdev']),
+      );
+      expect(
+        controller.state.agents.quotas.forHost('remote').unpinnedQuotaKeys,
+        isEmpty,
+      );
+
+      await controller.setAgentQuotaPinned(
+        hostId: 'local',
+        pinKey: 'codex',
+        pinned: true,
+      );
+      expect(
+        controller.state.agents.quotas.forHost('local').unpinnedQuotaKeys,
+        <String>['claude:leynierdev'],
+      );
+    });
+
+    test('prunes orphaned claude pin keys when profiles change', () async {
+      final db = AleraDatabase(executor: NativeDatabase.memory());
+      addTearDown(db.close);
+      final repository = DriftSettingsRepository(db);
+      final container = ProviderContainer(
+        overrides: [settingsRepositoryProvider.overrideWithValue(repository)],
+      );
+      addTearDown(container.dispose);
+      final controller = container.read(settingsControllerProvider.notifier);
+      await controller.load();
+
+      await controller.setAgentQuotaPinned(
+        hostId: 'local',
+        pinKey: 'claude:old',
+        pinned: false,
+      );
+      await controller.setAgentQuotaPinned(
+        hostId: 'local',
+        pinKey: 'claude:default',
+        pinned: false,
+      );
+      await controller.setAgentQuotaPinned(
+        hostId: 'local',
+        pinKey: 'kimi',
+        pinned: false,
+      );
+      await controller.setClaudeQuotaProfiles(
+        hostId: 'local',
+        profiles: const <ClaudeQuotaProfileSettings>[
+          ClaudeQuotaProfileSettings(alias: 'ccdev', profile: 'dev'),
+        ],
+      );
+
+      expect(
+        controller.state.agents.quotas.forHost('local').unpinnedQuotaKeys,
+        unorderedEquals(<String>['claude:default', 'kimi']),
+      );
+    });
+
     test('persists and resets editor settings', () async {
       final db = AleraDatabase(executor: NativeDatabase.memory());
       addTearDown(db.close);

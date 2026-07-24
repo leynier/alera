@@ -1,38 +1,65 @@
 import 'package:alera/src/features/settings/presentation/settings_sections.dart';
 
-const List<SettingsSearchEntry> applicationSearchEntries =
-    <SettingsSearchEntry>[
-      SettingsSearchEntry(
-        title: 'Workspace Directory',
-        description: 'Where new linked workspaces are created on disk.',
-        keywords: <String>['worktree', 'folder', 'location', 'path'],
-        groupId: 'storage',
-      ),
-      SettingsSearchEntry(
-        title: 'Confirm Project Removal',
-        description: 'Ask before unregistering a project.',
-        keywords: <String>['safety', 'destructive', 'remove', 'delete'],
-        groupId: 'safety',
-      ),
-      SettingsSearchEntry(
-        title: 'Confirm Workspace Removal',
-        description: 'Ask before removing a workspace worktree.',
-        keywords: <String>['safety', 'destructive', 'remove', 'delete'],
-        groupId: 'safety',
-      ),
-      SettingsSearchEntry(
-        title: 'Updates',
-        description: 'Check desktop releases for this platform.',
-        keywords: <String>['release', 'download', 'version'],
-        groupId: 'updates',
-      ),
-      SettingsSearchEntry(
-        title: 'Star Alera on GitHub',
-        description: 'Show your support for the project.',
-        keywords: <String>['support', 'github', 'star'],
-        groupId: 'support',
-      ),
-    ];
+const List<SettingsSearchEntry>
+applicationSearchEntries = <SettingsSearchEntry>[
+  SettingsSearchEntry(
+    title: 'Workspace Directory',
+    description: 'Where new linked workspaces are created on disk.',
+    keywords: <String>['worktree', 'folder', 'location', 'path'],
+    groupId: 'storage',
+  ),
+  SettingsSearchEntry(
+    title: 'Confirm Project Removal',
+    description: 'Ask before unregistering a project.',
+    keywords: <String>['safety', 'destructive', 'remove', 'delete'],
+    groupId: 'safety',
+  ),
+  SettingsSearchEntry(
+    title: 'Confirm Workspace Removal',
+    description: 'Ask before removing a workspace worktree.',
+    keywords: <String>['safety', 'destructive', 'remove', 'delete'],
+    groupId: 'safety',
+  ),
+  SettingsSearchEntry(
+    title: 'Keep Runtime Open When App Quits',
+    description: 'Leave the app-launched sidecar running after a clean quit.',
+    keywords: <String>[
+      'host',
+      'sidecar',
+      'lifecycle',
+      'quit',
+      'shutdown',
+      'leave',
+    ],
+    groupId: 'runtime',
+  ),
+  SettingsSearchEntry(
+    title: 'Empty Host Shutdown',
+    description:
+        'Stop the terminal host after the app closes with no sessions.',
+    keywords: <String>['host', 'sidecar', 'lifetime', 'timeout'],
+    groupId: 'runtime',
+  ),
+  SettingsSearchEntry(
+    title: 'Detached Session Shutdown',
+    description:
+        'Stop detached running terminal sessions after the app stays closed.',
+    keywords: <String>['host', 'sidecar', 'session', 'timeout'],
+    groupId: 'runtime',
+  ),
+  SettingsSearchEntry(
+    title: 'Updates',
+    description: 'Check desktop releases for this platform.',
+    keywords: <String>['release', 'download', 'version'],
+    groupId: 'updates',
+  ),
+  SettingsSearchEntry(
+    title: 'Star Alera on GitHub',
+    description: 'Show your support for the project.',
+    keywords: <String>['support', 'github', 'star'],
+    groupId: 'support',
+  ),
+];
 
 const List<SettingsSearchEntry> agentsSearchEntries = <SettingsSearchEntry>[
   SettingsSearchEntry(
@@ -158,6 +185,9 @@ const List<SettingsSearchEntry> quotaSearchEntries = <SettingsSearchEntry>[
       'minimax',
       'z.ai',
       'order',
+      'pin',
+      'pinned',
+      'status bar',
     ],
     groupId: 'providers',
   ),
@@ -176,7 +206,16 @@ const List<SettingsSearchEntry> quotaSearchEntries = <SettingsSearchEntry>[
   SettingsSearchEntry(
     title: 'Claude CCS Profiles',
     description: 'Configure CCS Alias And Profile Pairs For Claude Quotas.',
-    keywords: <String>['claude', 'ccs', 'profile', 'alias', 'quota'],
+    keywords: <String>[
+      'claude',
+      'ccs',
+      'profile',
+      'alias',
+      'quota',
+      'pin',
+      'pinned',
+      'status bar',
+    ],
     groupId: 'claude',
   ),
   SettingsSearchEntry(

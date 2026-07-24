@@ -15,14 +15,12 @@ class TerminalAccessoryBar extends StatelessWidget {
     required this.inputMode,
     required this.onKey,
     required this.onToggleMode,
-    required this.onOpenSettings,
   });
 
   final List<TerminalAccessoryKey> keys;
   final TerminalInputMode inputMode;
   final ValueChanged<List<int>> onKey;
   final VoidCallback onToggleMode;
-  final VoidCallback onOpenSettings;
 
   @override
   Widget build(BuildContext context) {
@@ -56,11 +54,6 @@ class TerminalAccessoryBar extends StatelessWidget {
               isSelected: inputMode == TerminalInputMode.direct,
               icon: const Icon(Icons.keyboard_alt_outlined),
               selectedIcon: const Icon(Icons.bolt),
-            ),
-            IconButton(
-              tooltip: 'Configure Quick Keys',
-              onPressed: onOpenSettings,
-              icon: const Icon(Icons.tune),
             ),
           ],
         ),

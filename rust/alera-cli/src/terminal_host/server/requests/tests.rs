@@ -82,3 +82,20 @@ fn terminal_text_window_skips_an_explicit_cursor_inside_a_scalar() {
     assert_eq!(align_terminal_text_window(bytes, 0, 2, 3), (3, 3));
     assert_eq!(align_terminal_text_window(&[0x80, b'a'], 0, 0, 1), (0, 1));
 }
+
+#[test]
+fn soft_shutdown_busy_message_includes_agents() {
+    assert_eq!(host_shutdown_busy_message(0, 0, 0), None);
+    assert_eq!(
+        host_shutdown_busy_message(2, 1, 0).as_deref(),
+        Some(
+            "Runtime host has 2 active agent(s), 1 active terminal session(s) and 0 active background job(s). Retry with --force to stop it."
+        )
+    );
+    assert_eq!(
+        host_shutdown_busy_message(1, 0, 0).as_deref(),
+        Some(
+            "Runtime host has 1 active agent(s), 0 active terminal session(s) and 0 active background job(s). Retry with --force to stop it."
+        )
+    );
+}

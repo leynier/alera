@@ -4,7 +4,7 @@ use alera_core::runtime::{
     NewOrchestrationMessage, NewOrchestrationTask, OrchestrationCoordinatorStatus,
     OrchestrationDispatchContext, OrchestrationDispatchStatus, OrchestrationGateStatus,
     OrchestrationMessage, OrchestrationMessagePriority, OrchestrationMessageType,
-    OrchestrationTaskStatus, WorkspaceStatus, WorkspaceTabRecord,
+    OrchestrationTaskStatus,
 };
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -13,8 +13,8 @@ use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::orchestration::agent_presence::{AgentPresence, AgentPresenceState};
 use crate::terminal_host::orchestration::agent_registry::adapter_for;
 use crate::terminal_host::orchestration::dispatch_preamble::{
-    build_dispatch_preamble, parse_allow_stale_base_from_spec, GateResolution, PreambleParams,
-    WorkerKind,
+    build_dispatch_bootstrap, build_dispatch_preamble, build_worker_contract,
+    parse_allow_stale_base_from_spec, GateResolution, PreambleParams, WorkerKind,
 };
 use crate::terminal_host::orchestration::group_resolution::{
     is_group_address, resolve_group_address, GroupResolutionTerminal,
@@ -135,9 +135,20 @@ impl ServerActor {
             "orchestration.inbox" => self.orchestration_inbox(payload).await.map(Some),
             "orchestration.ask" => self.orchestration_ask(client_id, request_id, payload).await,
             "orchestration.agentStatus" => self.orchestration_agent_status(payload).await.map(Some),
-            "orchestration.terminals" => Ok(Some(self.orchestration_terminals())),
+            "orchestration.terminals" => Ok(Some(self.orchestration_terminals(payload))),
             "orchestration.terminalShow" => {
                 self.orchestration_terminal_show(payload).await.map(Some)
+            }
+            "orchestration.terminalPrune" => {
+                self.orchestration_terminal_prune(payload).await.map(Some)
+            }
+            "orchestration.terminalWait" => {
+                self.orchestration_terminal_wait(client_id, request_id, payload)
+                    .await
+            }
+            "orchestration.taskWait" => {
+                self.orchestration_task_wait(client_id, request_id, payload)
+                    .await
             }
             "orchestration.taskCreate" => self.orchestration_task_create(payload).await.map(Some),
             "orchestration.taskList" => self.orchestration_task_list(payload).await.map(Some),
@@ -178,143 +189,6 @@ impl ServerActor {
                 "Unknown orchestration request: {other}"
             ))),
         }
-    }
-
-    async fn orchestration_agent_spawn(&mut self, payload: &Value) -> HostResult<Value> {
-        let workspace_id = require_string(payload, "workspace")?;
-        let agent_type = require_string(payload, "agent")?;
-        let task_id = require_string(payload, "task")?;
-        let from = require_string(payload, "from")?;
-        let adapter = adapter_for(&agent_type)
-            .ok_or_else(|| HostError::format(format!("unsupported agent type: {agent_type}")))?;
-        let task = self
-            .runtime_store
-            .orchestration_task_by_id(&task_id)
-            .await
-            .map_err(state_error)?
-            .ok_or_else(|| HostError::state(format!("orchestration task not found: {task_id}")))?;
-        if task.workspace_id != workspace_id {
-            return Err(HostError::state(format!(
-                "task belongs to workspace {}, not {workspace_id}",
-                task.workspace_id
-            )));
-        }
-        if task.coordinator_handle != from {
-            return Err(HostError::state(format!(
-                "coordinator ownership conflict: task is owned by {}",
-                task.coordinator_handle
-            )));
-        }
-        if let Some(terminal) = optional_string(payload, "terminal") {
-            let response = self
-                .orchestration_dispatch(&json!({
-                    "task": task_id,
-                    "to": terminal,
-                    "from": from,
-                    "inject": true,
-                    "forceSubmit": adapter.force_submit,
-                    "completionPolicy": "return-immediately",
-                    "terminalPolicy": "keep-open",
-                }))
-                .await?;
-            return Ok(response);
-        }
-        let workspace = self
-            .runtime_store
-            .find_workspace(&workspace_id)
-            .await
-            .map_err(state_error)?
-            .ok_or_else(|| HostError::state(format!("workspace not found: {workspace_id}")))?;
-        if workspace.status != WorkspaceStatus::Active {
-            return Err(HostError::state(format!(
-                "workspace is not active: {workspace_id}"
-            )));
-        }
-        let id = uuid::Uuid::new_v4().to_string();
-        let command = optional_string(payload, "command")
-            .unwrap_or_else(|| adapter.default_command.to_string());
-        let now = chrono::Utc::now();
-        let tab = WorkspaceTabRecord {
-            id: id.clone(),
-            workspace_id: workspace_id.clone(),
-            kind: "terminal".to_string(),
-            title: optional_string(payload, "title")
-                .unwrap_or_else(|| format!("{} Worker", agent_type)),
-            created_at: now,
-            updated_at: now,
-            payload: json!({
-                "terminalSessionId": id,
-                "initialCommand": command,
-                "spawnOnCreate": true,
-                "pendingOrchestration": {
-                    "task": task_id,
-                    "from": from,
-                    "agent": agent_type,
-                }
-            }),
-        };
-        self.upsert_workspace_tab_and_spawn(tab).await?;
-        Ok(json!({
-            "terminalHandle": id,
-            "agentType": adapter.agent_type,
-            "taskId": task.id,
-            "runId": task.run_id,
-            "workspaceId": workspace_id,
-            "coordinatorHandle": task.coordinator_handle,
-            "assigneeHandle": id,
-            "startupState": "terminal_started",
-            "acceptanceState": "pending_agent_readiness",
-        }))
-    }
-
-    async fn orchestration_agent_spawn_timeout(&mut self, payload: &Value) -> HostResult<Value> {
-        let handle = require_string(payload, "terminal")?;
-        if let Some(dispatch) = self
-            .runtime_store
-            .active_orchestration_dispatch_for_handle(&handle)
-            .await
-            .map_err(state_error)?
-        {
-            if dispatch.status == OrchestrationDispatchStatus::AwaitingAcceptance {
-                let failed = self
-                    .runtime_store
-                    .fail_orchestration_startup(&dispatch.id, "acceptance timeout")
-                    .await
-                    .map_err(state_error)?;
-                self.remove_dispatch_context(&handle);
-                return Ok(json!({ "outcome": "startup_failed", "dispatch": failed }));
-            }
-        }
-        let mut tab = self
-            .runtime_store
-            .find_workspace_tab(&handle)
-            .await
-            .map_err(state_error)?;
-        let task_id = tab
-            .as_ref()
-            .and_then(|tab| tab.payload.get("pendingOrchestration"))
-            .and_then(|pending| pending.get("task"))
-            .and_then(Value::as_str)
-            .map(str::to_string)
-            .ok_or_else(|| HostError::state("no pending spawn or acceptance for terminal"))?;
-        if let Some(tab) = tab.as_mut() {
-            tab.payload["pendingOrchestration"] = Value::Null;
-            tab.updated_at = chrono::Utc::now();
-            self.runtime_store
-                .upsert_workspace_tab(tab.clone())
-                .await
-                .map_err(state_error)?;
-            self.broadcast_authenticated(crate::terminal_host::protocol::event(
-                "workspaceTabsChanged",
-                json!({}),
-            ));
-        }
-        let task = self
-            .runtime_store
-            .record_orchestration_task_startup_failure(&task_id, "agent readiness timeout")
-            .await
-            .map_err(state_error)?;
-        Ok(json!({ "outcome": "startup_failed", "task": task }))
     }
 
     // --- send -------------------------------------------------------------
@@ -1086,7 +960,7 @@ impl ServerActor {
 
     // --- dispatch -------------------------------------------------------------
 
-    async fn orchestration_dispatch(&mut self, payload: &Value) -> HostResult<Value> {
+    pub(super) async fn orchestration_dispatch(&mut self, payload: &Value) -> HostResult<Value> {
         let task_id = require_string(payload, "task")?;
         let to = require_string(payload, "to")?;
         let from = require_string(payload, "from")?;
@@ -1102,6 +976,14 @@ impl ServerActor {
             .get("returnPreamble")
             .and_then(Value::as_bool)
             .unwrap_or(false);
+        let assume_agent = optional_string(payload, "assumeAgent");
+        let assumed_adapter = assume_agent
+            .as_deref()
+            .map(|agent| {
+                adapter_for(agent)
+                    .ok_or_else(|| HostError::format(format!("unsupported agent type: {agent}")))
+            })
+            .transpose()?;
         let allow_self_dispatch = payload
             .get("allowSelfDispatch")
             .and_then(Value::as_bool)
@@ -1165,12 +1047,12 @@ impl ServerActor {
                     session.workspace_id, task.workspace_id
                 )));
             }
-            if self.agent_presence.get(&to).is_none() {
+            if self.agent_presence.get(&to).is_none() && assumed_adapter.is_none() {
                 return Err(HostError::state(format!(
-                    "no agent detected in terminal {to}; use --dry-run and paste the preamble manually"
+                    "no agent detected in terminal {to}; use --assume-agent <agent> for an audited injection override or dispatch without --inject and submit the returned bootstrap manually"
                 )));
             }
-            if !self.agent_presence.is_injection_ready(&to) {
+            if !self.agent_presence.is_injection_ready(&to) && assumed_adapter.is_none() {
                 return Err(HostError::state(format!(
                     "agent in terminal {to} is not idle; cannot inject"
                 )));
@@ -1202,6 +1084,20 @@ impl ServerActor {
             )
             .await
             .map_err(state_error)?;
+        if let Some(adapter) = assumed_adapter {
+            self.runtime_store
+                .insert_orchestration_audit_event(
+                    Some(&from),
+                    "dispatch.inject.assume_agent",
+                    &dispatch.id,
+                    &format!(
+                        "agent readiness bypassed with explicit adapter {}",
+                        adapter.agent_type
+                    ),
+                )
+                .await
+                .map_err(state_error)?;
+        }
         self.orchestration_activity_last_recorded.remove(&to);
         if let Err(error) = self.install_dispatch_context(&to, &dispatch.id, &context_token) {
             let _ = self
@@ -1236,7 +1132,11 @@ impl ServerActor {
             let force_submit = payload
                 .get("forceSubmit")
                 .and_then(Value::as_bool)
-                .unwrap_or(false);
+                .unwrap_or_else(|| {
+                    assumed_adapter
+                        .map(|adapter| adapter.force_submit)
+                        .unwrap_or(false)
+                });
             if let Err(error) =
                 self.queue_orchestration_paste(&to, &preamble, Vec::new(), force_submit)
             {
@@ -1261,10 +1161,15 @@ impl ServerActor {
             "dispatchPreambleVersion": 2,
             "contextToken": context_token,
             "contextPath": self.dispatch_context_path(&to),
+            "assumedAgent": assume_agent,
         });
-        if return_preamble || !inject {
+        let bootstrap = build_dispatch_bootstrap();
+        if return_preamble {
             response["preamble"] = Value::String(preamble);
+        } else if !inject {
+            response["preamble"] = Value::String(bootstrap.clone());
         }
+        response["bootstrap"] = Value::String(bootstrap);
         Ok(response)
     }
 
@@ -1325,6 +1230,7 @@ impl ServerActor {
             )
             .await
             .map_err(state_error)?;
+        self.consume_owned_spawn_metadata(&terminal).await;
         Ok(json!({ "outcome": "accepted", "dispatch": accepted }))
     }
 
@@ -1381,6 +1287,7 @@ impl ServerActor {
     fn orchestration_worker_help(&self) -> Value {
         json!({
             "dispatchPreambleVersion": 2,
+            "workerInstructions": build_worker_contract("<coordinator-handle>", WorkerKind::PromptReturningAgent),
             "commands": [
                 "alera orchestration dispatch-accept",
                 "alera orchestration --json context",
@@ -1393,20 +1300,72 @@ impl ServerActor {
 
     async fn orchestration_context(&mut self, payload: &Value) -> HostResult<Value> {
         let dispatch = self.active_worker_dispatch(payload).await?;
-        let task = self
+        let mut task = self
             .runtime_store
             .orchestration_task_by_id(&dispatch.task_id)
             .await
             .map_err(state_error)?;
+        let mut base_drift = Value::Null;
+        if let Some((task_spec, stored_drift)) =
+            self.orchestration_preflight_context(&dispatch).await?
+        {
+            if let Some(task) = task.as_mut() {
+                task.spec = task_spec;
+            }
+            base_drift = stored_drift;
+        }
+        let gate_resolution = self.latest_resolved_gate(&dispatch.task_id).await?;
+        let worker_instructions = build_worker_contract(
+            &dispatch.coordinator_handle,
+            WorkerKind::PromptReturningAgent,
+        );
         Ok(json!({
             "task": task,
             "dispatch": dispatch,
+            "baseDrift": base_drift,
+            "gateResolution": gate_resolution.map(|gate| json!({
+                "question": gate.question,
+                "resolution": gate.resolution,
+            })),
+            "workerInstructions": worker_instructions,
             "coordinatorHandle": dispatch.coordinator_handle,
             "assigneeHandle": dispatch.assignee_handle,
             "phase": dispatch.status.as_str(),
             "lastActivityAt": dispatch.last_activity_at,
             "completionState": dispatch.status.as_str(),
         }))
+    }
+
+    async fn orchestration_preflight_context(
+        &self,
+        dispatch: &OrchestrationDispatchContext,
+    ) -> HostResult<Option<(String, Value)>> {
+        let Some(handle) = dispatch.assignee_handle.as_deref() else {
+            return Ok(None);
+        };
+        let Some(tab) = self
+            .runtime_store
+            .find_workspace_tab(handle)
+            .await
+            .map_err(state_error)?
+        else {
+            return Ok(None);
+        };
+        let Some(preflight) = tab.payload.get("orchestrationPreflight") else {
+            return Ok(None);
+        };
+        if preflight.get("taskId").and_then(Value::as_str) != Some(dispatch.task_id.as_str())
+            || preflight.get("dispatchId").and_then(Value::as_str) != Some(dispatch.id.as_str())
+        {
+            return Ok(None);
+        }
+        let Some(task_spec) = preflight.get("taskSpec").and_then(Value::as_str) else {
+            return Ok(None);
+        };
+        Ok(Some((
+            task_spec.to_string(),
+            preflight.get("baseDrift").cloned().unwrap_or(Value::Null),
+        )))
     }
 
     async fn orchestration_heartbeat(&mut self, payload: &Value) -> HostResult<Value> {
@@ -1683,7 +1642,7 @@ impl ServerActor {
         if let Some(coordinator_handle) = run.coordinator_handle.as_deref() {
             run_handles.insert(coordinator_handle);
         }
-        let terminals = self.orchestration_terminals()["items"]
+        let terminals = self.orchestration_terminals(&json!({}))["items"]
             .as_array()
             .into_iter()
             .flatten()
@@ -1900,6 +1859,9 @@ impl ServerActor {
                     }
                 }
             }
+            WaitKind::TerminalState { .. } | WaitKind::TaskState { .. } => {
+                self.orchestration_waiters.repark(waiter);
+            }
         }
     }
 
@@ -1911,9 +1873,18 @@ impl ServerActor {
         let Some(waiter) = self.orchestration_waiters.take_by_id(waiter_id) else {
             return;
         };
+        if matches!(
+            &waiter.kind,
+            WaitKind::TerminalState { .. } | WaitKind::TaskState { .. }
+        ) {
+            self.finish_orchestration_state_wait_timeout(waiter, waited_ms)
+                .await;
+            return;
+        }
         let mut payload = match waiter.kind {
             WaitKind::Check { inject, .. } => check_response(&[], inject),
             WaitKind::Ask { .. } => json!({ "answered": false }),
+            WaitKind::TerminalState { .. } | WaitKind::TaskState { .. } => unreachable!(),
         };
         payload["timedOut"] = Value::Bool(true);
         payload["outcome"] = Value::String("timeout".to_string());
@@ -1921,7 +1892,7 @@ impl ServerActor {
         self.client_write(waiter.client_id, ok_response(waiter.request_id, payload));
     }
 
-    fn spawn_wait_timeout(&self, waiter_id: u64, timeout_ms: u64) {
+    pub(super) fn spawn_wait_timeout(&self, waiter_id: u64, timeout_ms: u64) {
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
             tokio::time::sleep(Duration::from_millis(timeout_ms)).await;

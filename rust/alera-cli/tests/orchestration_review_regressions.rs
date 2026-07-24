@@ -12,6 +12,14 @@ const PROTOCOL_VERSION: i64 = 4;
 
 #[path = "orchestration_review_regressions/deferred_delivery_cases.rs"]
 mod deferred_delivery_cases;
+#[path = "orchestration_review_regressions/orchestration_pain_point_cases.rs"]
+mod orchestration_pain_point_cases;
+#[path = "orchestration_review_regressions/readiness_spawn_exit_cases.rs"]
+mod readiness_spawn_exit_cases;
+#[path = "orchestration_review_regressions/terminal_prune_cases.rs"]
+mod terminal_prune_cases;
+#[path = "orchestration_review_regressions/terminal_wait_input_cases.rs"]
+mod terminal_wait_input_cases;
 
 struct HostGuard(Child);
 
@@ -55,6 +63,8 @@ fn start_host() -> Host {
         "--detached-session-shutdown-delay-seconds",
         "60",
     ]);
+    #[cfg(unix)]
+    command.env("SHELL", "/bin/bash");
     let child = command.spawn().expect("failed to spawn alera runtime-host");
     let guard = HostGuard(child);
     let deadline = Instant::now() + Duration::from_secs(10);
@@ -1172,7 +1182,7 @@ fn coordinator_run_does_not_consume_unhandled_status_message() {
 
 #[test]
 #[cfg(unix)]
-fn coordinator_reuses_idle_worker_after_stale_base_skip() {
+fn coordinator_codex_spawn_respects_stale_base_skip() {
     let repo_dir = worktree_behind_upstream(21);
     let host = start_host();
     let (mut writer, mut reader) = connect(host.port);
@@ -1197,22 +1207,6 @@ fn coordinator_reuses_idle_worker_after_stale_base_skip() {
     ));
     let allowed_task_id = allowed["id"].as_str().unwrap().to_string();
 
-    attach_shell_session(
-        &mut writer,
-        &mut reader,
-        87,
-        "idle-worker",
-        "ws-stale",
-        "idle-worker-tab",
-        &["-lc", "stty -echo; cat"],
-    );
-    expect_ok(request(
-        &mut writer,
-        &mut reader,
-        88,
-        "orchestration.agentStatus",
-        json!({"entries": [{"terminalSessionId": "idle-worker", "agentType": "claude", "state": "done"}]}),
-    ));
     expect_ok(request(
         &mut writer,
         &mut reader,
@@ -1223,7 +1217,8 @@ fn coordinator_reuses_idle_worker_after_stale_base_skip() {
             "spec": "coordinate",
             "pollIntervalMs": 100,
             "maxConcurrent": 1,
-            "workspace": "ws-stale"
+            "workspace": "ws-stale",
+            "agent": "codex"
         }),
     ));
 
@@ -1248,16 +1243,48 @@ fn coordinator_reuses_idle_worker_after_stale_base_skip() {
         json!("awaiting_acceptance"),
         "{allowed_show}"
     );
-    assert_eq!(
-        allowed_show["active"]["assignee_handle"],
-        json!("idle-worker"),
-        "{allowed_show}"
+    let worker_handle = allowed_show["active"]["assignee_handle"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let context_file = std::fs::read_to_string(
+        host._dir
+            .path()
+            .join("orchestration-contexts")
+            .join(format!("{worker_handle}.json")),
+    )
+    .unwrap();
+    let context_credentials: Value = serde_json::from_str(&context_file).unwrap();
+    let context_token = context_credentials["token"].as_str().unwrap();
+    expect_ok(request(
+        &mut writer,
+        &mut reader,
+        92,
+        "orchestration.dispatchAccept",
+        json!({"terminal": &worker_handle, "contextToken": context_token}),
+    ));
+    let context = expect_ok(request(
+        &mut writer,
+        &mut reader,
+        93,
+        "orchestration.context",
+        json!({"terminal": &worker_handle, "contextToken": context_token}),
+    ));
+    assert_eq!(context["task"]["spec"], json!("can still dispatch"));
+    assert_eq!(context["baseDrift"]["base"], json!("origin/main"));
+    assert_eq!(context["baseDrift"]["behind"], json!(21));
+    assert!(
+        !context["baseDrift"]["recentSubjects"]
+            .as_array()
+            .unwrap()
+            .is_empty(),
+        "{context}"
     );
 
     expect_ok(request(
         &mut writer,
         &mut reader,
-        92,
+        94,
         "orchestration.runStop",
         json!({"force": true}),
     ));
@@ -2557,64 +2584,6 @@ fn pty_output_refreshes_active_dispatch_activity() {
             .unwrap()
             .is_empty());
     });
-}
-
-#[test]
-#[cfg(unix)]
-fn timed_out_agent_spawn_cannot_dispatch_on_late_readiness() {
-    let host = start_host();
-    let (mut writer, mut reader) = connect(host.port);
-    handshake(&mut writer, &mut reader, &host.token);
-    seed_workspace(&mut writer, &mut reader, "ws-1");
-    let task = expect_ok(request(
-        &mut writer,
-        &mut reader,
-        113,
-        "orchestration.taskCreate",
-        json!({"spec": "late worker", "workspace": "ws-1", "coordinator": "coord"}),
-    ));
-    let task_id = task["id"].as_str().unwrap();
-    let spawned = expect_ok(request(
-        &mut writer,
-        &mut reader,
-        114,
-        "orchestration.agentSpawn",
-        json!({"workspace": "ws-1", "agent": "codex", "task": task_id, "from": "coord"}),
-    ));
-    let handle = spawned["terminalHandle"].as_str().unwrap();
-    expect_ok(request(
-        &mut writer,
-        &mut reader,
-        115,
-        "orchestration.agentSpawnTimeout",
-        json!({"terminal": handle}),
-    ));
-
-    attach_shell_session(
-        &mut writer,
-        &mut reader,
-        116,
-        handle,
-        "ws-1",
-        handle,
-        &["-c", "stty -echo; cat"],
-    );
-    expect_ok(request(
-        &mut writer,
-        &mut reader,
-        117,
-        "orchestration.agentStatus",
-        json!({"entries": [{"terminalSessionId": handle, "agentType": "codex", "state": "done"}]}),
-    ));
-    let show = expect_ok(request(
-        &mut writer,
-        &mut reader,
-        118,
-        "orchestration.dispatchShow",
-        json!({"task": task_id}),
-    ));
-    assert!(show["active"].is_null(), "{show}");
-    assert!(show["history"].as_array().unwrap().is_empty(), "{show}");
 }
 
 #[test]

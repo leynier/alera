@@ -2,6 +2,7 @@ mod agent_quota;
 mod agent_status;
 mod cli;
 mod cli_orchestration;
+mod cli_orchestration_terminal;
 #[cfg(test)]
 mod cli_tests;
 mod host_tools;
@@ -9,12 +10,14 @@ mod login_shell_environment;
 mod managed_workspace;
 mod mobile_access;
 mod orchestration_commands;
+mod orchestration_terminal_commands;
 mod project_management;
 mod runtime_archive;
 mod runtime_commands;
 mod runtime_host_client;
 mod ssh_bootstrap;
 mod tailscale;
+mod terminal_alias_commands;
 mod terminal_host;
 mod workspace_pinning;
 
@@ -108,11 +111,28 @@ async fn run() -> i32 {
 }
 
 async fn run_terminal_command(command: TerminalCommand) -> i32 {
-    let mut client = match runtime_host_required(&command.runtime).await {
+    let required_capability = terminal_alias_commands::required_capability(&command.action);
+    let client = match required_capability {
+        Some(capability) => {
+            RuntimeHostRpcClient::connect_or_start_with_required_capability(
+                &runtime_dir(&command.runtime),
+                capability,
+            )
+            .await
+        }
+        None => runtime_host_required(&command.runtime).await,
+    };
+    let mut client = match client {
         Ok(client) => client,
         Err(error) => return print_error(error),
     };
     match command.action {
+        action @ (TerminalAction::List(_)
+        | TerminalAction::Show(_)
+        | TerminalAction::Wait(_)
+        | TerminalAction::Prune(_)) => {
+            terminal_alias_commands::run(&mut client, action, command.output.json).await
+        }
         TerminalAction::Read(args) => match client
             .request_value(
                 "terminal.read",
@@ -131,7 +151,7 @@ async fn run_terminal_command(command: TerminalCommand) -> i32 {
             Err(error) => print_error(error),
         },
         TerminalAction::Write(args) => {
-            let mut bytes = if let Some(text) = args.text {
+            let bytes = if let Some(text) = args.text {
                 text.into_bytes()
             } else if let Some(path) = args.file {
                 match std::fs::read(path) {
@@ -147,13 +167,15 @@ async fn run_terminal_command(command: TerminalCommand) -> i32 {
             } else {
                 return required_option_error("", "text, --file, or --stdin").unwrap_or(USAGE_EXIT_CODE);
             };
-            if args.enter {
-                bytes.push(b'\r');
-            }
             match client
                 .request_value(
                     "write",
-                    &json!({ "sessionId": args.handle, "dataBase64": STANDARD.encode(bytes) }),
+                    &json!({
+                        "sessionId": args.handle,
+                        "dataBase64": STANDARD.encode(bytes),
+                        "deferredEnter": args.enter || args.submit,
+                        "bracketedPaste": args.submit,
+                    }),
                 )
                 .await
             {
@@ -1242,7 +1264,7 @@ async fn cascade_preview(
         .await
 }
 
-fn print_value<T: Serialize>(value: &T, json_output: bool, message: &str) {
+pub(crate) fn print_value<T: Serialize>(value: &T, json_output: bool, message: &str) {
     if json_output {
         println!(
             "{}",
@@ -1253,7 +1275,7 @@ fn print_value<T: Serialize>(value: &T, json_output: bool, message: &str) {
     }
 }
 
-fn print_error(error: impl std::fmt::Display) -> i32 {
+pub(crate) fn print_error(error: impl std::fmt::Display) -> i32 {
     eprintln!("{error}");
     1
 }

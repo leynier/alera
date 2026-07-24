@@ -1,7 +1,8 @@
-import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
+import 'package:alera/src/design_system/layout/alera_choice_dialog.dart';
 import 'package:alera/src/features/app_window/application/app_window_platform.dart';
 import 'package:alera/src/features/app_window/application/app_window_providers.dart';
 import 'package:alera/src/features/runtime_host/application/runtime_host_lifecycle_providers.dart';
+import 'package:alera/src/features/runtime_host/domain/runtime_host_quit_decision.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/shared/infra/runtime/runtime_host_providers.dart';
 import 'package:alera/src/shared/infra/storage/storage_providers.dart';
@@ -24,13 +25,16 @@ class _RuntimeHostQuitGateScopeState
   bool _bound = false;
 
   Future<bool> _closeGate() async {
-    final stopOnQuit = ref
+    final keepRuntimeOpen = ref
         .read(settingsControllerProvider)
         .terminal
-        .stopRuntimeOnAppQuit;
+        .keepRuntimeOpenOnAppQuit;
     final allowed = await ref
         .read(runtimeHostLifecycleServiceProvider)
-        .prepareAppQuit(stopOnQuit: stopOnQuit, confirmForce: _confirmForce);
+        .prepareAppQuit(
+          keepRuntimeOpen: keepRuntimeOpen,
+          confirmBusyQuit: _confirmBusyQuit,
+        );
     if (!allowed) {
       return false;
     }
@@ -39,24 +43,26 @@ class _RuntimeHostQuitGateScopeState
     return true;
   }
 
-  Future<bool> _confirmForce({
+  Future<RuntimeHostQuitDecision> _confirmBusyQuit({
     required String title,
     required String message,
-    required String confirmLabel,
   }) async {
     if (!mounted) {
-      return false;
+      return RuntimeHostQuitDecision.cancel;
     }
-    final confirmed = await showDialog<bool>(
+    final decision = await showDialog<RuntimeHostQuitDecision>(
       context: context,
-      builder: (_) => AleraConfirmDialog(
+      builder: (_) => AleraChoiceDialog<RuntimeHostQuitDecision>(
         title: title,
         message: message,
-        confirmLabel: confirmLabel,
-        destructive: true,
+        primaryLabel: 'Quit And Leave Runtime Open',
+        primaryValue: RuntimeHostQuitDecision.leaveRuntimeOpen,
+        secondaryLabel: 'Force Stop And Quit',
+        secondaryValue: RuntimeHostQuitDecision.forceStop,
+        destructiveSecondary: true,
       ),
     );
-    return confirmed == true;
+    return decision ?? RuntimeHostQuitDecision.cancel;
   }
 
   @override

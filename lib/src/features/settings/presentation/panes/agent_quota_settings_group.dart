@@ -69,6 +69,21 @@ class AgentQuotaSettingsPane extends ConsumerWidget {
                     title: '${provider.label} Quotas',
                     description: _providerDescription(provider),
                     value: hostSettings.enabledProviders.contains(provider),
+                    secondary: _QuotaPinButton(
+                      pinned: hostSettings.isQuotaPinned(provider),
+                      enabled: hostSettings.enabledProviders.contains(provider),
+                      onChanged: (pinned) {
+                        unawaited(
+                          controller.setAgentQuotaPinned(
+                            hostId: hostId,
+                            pinKey: AgentQuotaHostSettings.quotaPinKey(
+                              provider,
+                            ),
+                            pinned: pinned,
+                          ),
+                        );
+                      },
+                    ),
                     onChanged: (value) {
                       unawaited(
                         controller.setAgentQuotaProviderEnabled(
@@ -128,6 +143,27 @@ class AgentQuotaSettingsPane extends ConsumerWidget {
                 description:
                     'Query The Default Claude Account Separately From Configured CCS Profiles.',
                 value: hostSettings.claudeDefaultEnabled,
+                secondary: _QuotaPinButton(
+                  pinned: hostSettings.isQuotaPinned(
+                    AgentQuotaProviderId.claude,
+                  ),
+                  enabled:
+                      hostSettings.claudeDefaultEnabled &&
+                      hostSettings.enabledProviders.contains(
+                        AgentQuotaProviderId.claude,
+                      ),
+                  onChanged: (pinned) {
+                    unawaited(
+                      controller.setAgentQuotaPinned(
+                        hostId: hostId,
+                        pinKey: AgentQuotaHostSettings.quotaPinKey(
+                          AgentQuotaProviderId.claude,
+                        ),
+                        pinned: pinned,
+                      ),
+                    );
+                  },
+                ),
                 onChanged: (value) {
                   unawaited(
                     controller.setClaudeDefaultQuotaEnabled(
@@ -144,6 +180,22 @@ class AgentQuotaSettingsPane extends ConsumerWidget {
                 controlWidth: 420,
                 child: _ClaudeProfilesControl(
                   profiles: hostSettings.claudeProfiles,
+                  isPinned: (profile) => hostSettings.isQuotaPinned(
+                    AgentQuotaProviderId.claude,
+                    claudeAccountId: profile,
+                  ),
+                  onPinnedChanged: (profile, pinned) {
+                    unawaited(
+                      controller.setAgentQuotaPinned(
+                        hostId: hostId,
+                        pinKey: AgentQuotaHostSettings.quotaPinKey(
+                          AgentQuotaProviderId.claude,
+                          claudeAccountId: profile,
+                        ),
+                        pinned: pinned,
+                      ),
+                    );
+                  },
                   onChanged: (profiles) {
                     unawaited(
                       controller.setClaudeQuotaProfiles(

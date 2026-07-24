@@ -71,6 +71,14 @@ pub struct TerminalCommand {
 
 #[derive(Debug, Subcommand)]
 pub enum TerminalAction {
+    /// List live terminal sessions.
+    List(crate::cli_orchestration::OrchestrationTerminalListArgs),
+    /// Show one terminal session.
+    Show(crate::cli_orchestration::OrchestrationTerminalShowArgs),
+    /// Wait for a terminal lifecycle state.
+    Wait(crate::cli_orchestration::OrchestrationTerminalWaitArgs),
+    /// List or remove stopped terminal sessions.
+    Prune(crate::cli_orchestration::OrchestrationTerminalPruneArgs),
     /// Read retained terminal output, optionally from an incremental cursor.
     Read(TerminalReadArgs),
     /// Write text, a file, or stdin to a terminal.
@@ -97,8 +105,11 @@ pub struct TerminalWriteArgs {
     pub file: Option<String>,
     #[arg(long, conflicts_with_all = ["text", "file"])]
     pub stdin: bool,
-    #[arg(long)]
+    #[arg(long, conflicts_with = "submit")]
     pub enter: bool,
+    /// Submit to an interactive TUI using bracketed paste and a delayed Enter.
+    #[arg(long, conflicts_with = "enter")]
+    pub submit: bool,
 }
 
 #[derive(Debug, Args)]

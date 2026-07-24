@@ -111,6 +111,15 @@ impl ServerActor {
         )
         .await?;
         if let Some(command) = initial_command(tab) {
+            let command = initial_prompt(tab)
+                .map(|prompt| {
+                    crate::terminal_host::orchestration::agent_startup_command::command_with_initial_prompt(
+                        &command,
+                        &prompt,
+                        &default_launch.interactive_shell,
+                    )
+                })
+                .unwrap_or(command);
             let instance_id = self
                 .sessions
                 .get(&session_id)
@@ -319,6 +328,14 @@ fn terminal_session_id(tab: &WorkspaceTabRecord) -> String {
 fn initial_command(tab: &WorkspaceTabRecord) -> Option<String> {
     tab.payload
         .get("initialCommand")
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+}
+
+fn initial_prompt(tab: &WorkspaceTabRecord) -> Option<String> {
+    tab.payload
+        .get("initialPrompt")
         .and_then(Value::as_str)
         .filter(|value| !value.is_empty())
         .map(str::to_string)

@@ -3,9 +3,8 @@ import 'package:alera_mobile/src/design_system/forms/alera_rename_dialog.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_summary.dart';
 import 'package:alera_mobile/src/features/runtime/domain/workspace_tab_summary.dart';
 import 'package:alera_mobile/src/features/terminal/application/tabs_controller.dart';
-import 'package:alera_mobile/src/features/terminal/application/agent_presence_controller.dart';
-import 'package:alera_mobile/src/features/runtime/domain/workspace_sidebar_snapshot.dart';
 import 'package:alera_mobile/src/features/terminal/application/terminal_session_controller.dart';
+import 'package:alera_mobile/src/features/terminal/presentation/terminal_keys_settings_screen.dart';
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_tab_view.dart';
 import 'package:alera_mobile/src/features/workbench/application/workbench_providers.dart';
 import 'package:flutter/material.dart';
@@ -188,9 +187,6 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
     final tabs = ref.watch(
       tabsControllerProvider(widget.hostId, widget.workspace.id),
     );
-    final agentPresence =
-        ref.watch(agentPresenceControllerProvider(widget.hostId)).value ??
-        const <AgentPresenceSummary>[];
     final selectedTab = tabs.value == null ? null : _selectedTab(tabs.value!);
     final canRename =
         ref
@@ -219,6 +215,19 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
       appBar: AppBar(
         centerTitle: true,
         title: Text(widget.workspace.name, overflow: TextOverflow.ellipsis),
+        actions: <Widget>[
+          IconButton(
+            tooltip: 'Configure Quick Keys',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const TerminalKeysSettingsScreen(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.tune),
+          ),
+        ],
         bottom: tabs.value?.isNotEmpty == true
             ? PreferredSize(
                 preferredSize: const Size.fromHeight(
@@ -237,7 +246,6 @@ class _WorkspaceTabsScreenState extends ConsumerState<WorkspaceTabsScreen> {
                   onActions: (tab) =>
                       _showTabActions(tab, canRename: canRename),
                   onCreate: _createTab,
-                  agentPresence: agentPresence,
                 ),
               )
             : null,
@@ -274,7 +282,6 @@ class _TabStrip extends StatelessWidget {
     required this.onClose,
     required this.onActions,
     required this.onCreate,
-    required this.agentPresence,
   });
 
   final List<WorkspaceTabSummary> tabs;
@@ -284,19 +291,6 @@ class _TabStrip extends StatelessWidget {
   final ValueChanged<WorkspaceTabSummary> onClose;
   final ValueChanged<WorkspaceTabSummary> onActions;
   final VoidCallback onCreate;
-  final List<AgentPresenceSummary> agentPresence;
-
-  IconData _kindIcon(String kind) {
-    return switch (kind) {
-      'terminal' => Icons.terminal,
-      'editor' => Icons.edit_note,
-      'markdownViewer' => Icons.article_outlined,
-      'pdf' => Icons.picture_as_pdf_outlined,
-      'gitDiff' => Icons.difference_outlined,
-      'browser' => Icons.public,
-      _ => Icons.tab,
-    };
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -313,12 +307,6 @@ class _TabStrip extends StatelessWidget {
             GestureDetector(
               onLongPress: () => onActions(tab),
               child: InputChip(
-                avatar: _TabAvatar(
-                  icon: _kindIcon(tab.kind),
-                  status: agentPresence
-                      .where((status) => status.tabId == tab.id)
-                      .firstOrNull,
-                ),
                 label: ConstrainedBox(
                   constraints: BoxConstraints(
                     maxWidth: _tabTitleMaxWidth(tab.kind),
@@ -353,34 +341,6 @@ class _TabStrip extends StatelessWidget {
                 : const Icon(Icons.add),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _TabAvatar extends StatelessWidget {
-  const _TabAvatar({required this.icon, this.status});
-
-  final IconData icon;
-  final AgentPresenceSummary? status;
-
-  @override
-  Widget build(BuildContext context) {
-    final current = status;
-    if (current == null) {
-      return Icon(icon, size: AleraTokens.spaceLg);
-    }
-    final color = switch (current.state) {
-      'blocked' => Theme.of(context).colorScheme.error,
-      'waiting' => AleraTokens.warning,
-      'working' => AleraTokens.info,
-      _ => AleraTokens.success,
-    };
-    return Tooltip(
-      message: '${current.agentType} ${current.state}',
-      child: Badge(
-        backgroundColor: color,
-        child: Icon(icon, size: AleraTokens.spaceLg),
       ),
     );
   }

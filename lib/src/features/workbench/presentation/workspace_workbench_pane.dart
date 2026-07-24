@@ -106,6 +106,7 @@ class _WorkbenchPane extends StatelessWidget {
                 onSplitGroup: (zone) =>
                     unawaited(onSplitGroup(groupId: groupId, zone: zone)),
                 onMergeGroup: () => unawaited(onMergeGroup(groupId: groupId)),
+                onMoveTab: onMoveTab,
               ),
               const Divider(height: 1, color: AleraTokens.borderSubtle),
               Expanded(

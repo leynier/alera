@@ -87,17 +87,21 @@ class _CollapsedQuotaBar extends StatelessWidget {
   const _CollapsedQuotaBar({
     required this.hostId,
     required this.snapshots,
+    required this.settings,
     required this.loading,
     required this.error,
     required this.onRefresh,
+    required this.onTogglePinned,
     this.trailing,
   });
 
   final String hostId;
   final List<AgentQuotaSnapshot> snapshots;
+  final AgentQuotaHostSettings settings;
   final bool loading;
   final String? error;
   final VoidCallback onRefresh;
+  final AgentQuotaPinToggle onTogglePinned;
   final Widget? trailing;
 
   @override
@@ -121,10 +125,12 @@ class _CollapsedQuotaBar extends StatelessWidget {
             cursor: SystemMouseCursors.click,
             child: AleraHoverCard(
               semanticsLabel: semanticsLabel,
-              card: _AgentQuotaHoverCard(
+              card: _AgentQuotaOverviewPanel(
                 snapshots: snapshots,
+                settings: settings,
                 emptyMessage: error ?? 'No Quota Data',
                 hostId: hostId,
+                onTogglePinned: onTogglePinned,
                 profileLabels: <String, String>{
                   for (final snapshot in snapshots)
                     if (snapshot.provider == AgentQuotaProviderId.claude)

@@ -45,7 +45,6 @@ void main() {
             inputMode: TerminalInputMode.compose,
             onKey: written.add,
             onToggleMode: () {},
-            onOpenSettings: () {},
           ),
         ),
       ),
@@ -62,7 +61,7 @@ void main() {
     ]);
   });
 
-  testWidgets('Compose bar sends text with a newline and clears the field', (
+  testWidgets('Compose bar sends text with Enter and clears the field', (
     tester,
   ) async {
     final sent = <String>[];
@@ -70,8 +69,8 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: TerminalComposeBar(
-            onSend: (text, {required bool withNewline}) {
-              sent.add(withNewline ? '$text\\n' : text);
+            onSend: (text, {required bool withEnter}) {
+              sent.add(withEnter ? '$text\\r' : text);
             },
           ),
         ),
@@ -83,11 +82,11 @@ void main() {
     await tester.tap(find.byTooltip('Send'));
     await tester.pump();
 
-    expect(sent, <String>['ls -la\\n']);
+    expect(sent, <String>['ls -la\\r']);
     expect(find.text('ls -la'), findsNothing);
 
     // An empty send still presses Enter.
     await tester.tap(find.byTooltip('Send'));
-    expect(sent, <String>['ls -la\\n', '\\n']);
+    expect(sent, <String>['ls -la\\r', '\\r']);
   });
 }

@@ -43,25 +43,14 @@ pub enum WorkerKind {
     BareShell,
 }
 
-/// The dispatch preamble teaches agents Alera's CLI commands for structured
-/// communication. Behavioral rules live as inline comments above the relevant
-/// CLI example, not as a separate prose block - LLM readers anchor on
-/// examples and skim trailing prose, so rules must land at the point of use.
-pub fn build_dispatch_preamble(params: &PreambleParams<'_>) -> String {
-    let PreambleParams {
-        task_id,
-        dispatch_id,
-        coordinator_handle,
-        ..
-    } = params;
-    let post_done = build_post_worker_done_instructions(params.worker_kind);
-    let header = format!(
-        r#"You are working inside Alera, a multi-agent IDE. You are a dispatched worker.
-Your coordinator's terminal handle is: {coordinator_handle}
-Your task ID is: {task_id}
-Your dispatch ID is: {dispatch_id}
+pub fn build_dispatch_bootstrap() -> String {
+    "You have an active Alera orchestration dispatch in this terminal. Run `alera orchestration dispatch-accept` first, then run `alera orchestration --json context` to read the complete task and worker instructions. Follow that context exactly.".to_string()
+}
 
-You talk to the coordinator only through the CLI commands below. Do not use
+pub fn build_worker_contract(coordinator_handle: &str, worker_kind: WorkerKind) -> String {
+    let post_done = build_post_worker_done_instructions(worker_kind);
+    format!(
+        r#"You talk to the coordinator only through the CLI commands below. Do not use
 Slack, GitHub comments, or any other channel to reach a human during the run.
 
 === CLI COMMANDS ===
@@ -98,7 +87,29 @@ Slack, GitHub comments, or any other channel to reach a human during the run.
   # Check for messages from the coordinator:
   alera orchestration check
 
-{post_done}"#,
+{post_done}"#
+    )
+}
+
+/// The dispatch preamble teaches agents Alera's CLI commands for structured
+/// communication. Behavioral rules live as inline comments above the relevant
+/// CLI example, not as a separate prose block - LLM readers anchor on
+/// examples and skim trailing prose, so rules must land at the point of use.
+pub fn build_dispatch_preamble(params: &PreambleParams<'_>) -> String {
+    let PreambleParams {
+        task_id,
+        dispatch_id,
+        coordinator_handle,
+        ..
+    } = params;
+    let worker_contract = build_worker_contract(coordinator_handle, params.worker_kind);
+    let header = format!(
+        r#"You are working inside Alera, a multi-agent IDE. You are a dispatched worker.
+Your coordinator's terminal handle is: {coordinator_handle}
+Your task ID is: {task_id}
+Your dispatch ID is: {dispatch_id}
+
+{worker_contract}"#,
     );
 
     let drift = params
@@ -225,6 +236,23 @@ mod tests {
         assert!(!preamble.contains("\\\n"));
         assert!(!preamble.contains("BASE DRIFT"));
         assert!(!preamble.contains("DECISION GATE RESOLVED"));
+    }
+
+    #[test]
+    fn worker_contract_contains_lifecycle_and_communication_rules() {
+        let contract = build_worker_contract("term_coord", WorkerKind::PromptReturningAgent);
+        for command in ["heartbeat", "complete", "ask", "escalate", "check"] {
+            assert!(
+                contract.contains(command),
+                "{command} missing from {contract}"
+            );
+        }
+        assert!(contract.contains("exactly once"));
+        assert!(contract.contains("NEVER use AskUserQuestion"));
+        assert!(contract.contains("return to an idle prompt"));
+        assert!(contract.contains("do NOT run a sleep/poll loop"));
+        assert!(!contract.contains("=== TASK ==="));
+        assert!(!contract.contains("Fix the login button CSS"));
     }
 
     #[test]

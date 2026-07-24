@@ -1,5 +1,32 @@
 part of 'agent_quota_settings_group.dart';
 
+class _QuotaPinButton extends StatelessWidget {
+  const _QuotaPinButton({
+    required this.pinned,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final bool pinned;
+  final bool enabled;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return AleraIconButton(
+      tooltip: pinned
+          ? 'Shown In Status Bar'
+          : 'Hidden From Status Bar - Available In The Quota Panel',
+      icon: pinned ? AleraIcons.pin : AleraIcons.pinOff,
+      iconSize: 13,
+      iconColor: pinned
+          ? AleraTokens.foregroundMuted
+          : AleraTokens.foregroundFaint,
+      onPressed: enabled ? () => onChanged(!pinned) : null,
+    );
+  }
+}
+
 class _ProviderOrderControl extends StatelessWidget {
   const _ProviderOrderControl({
     required this.providers,
@@ -79,10 +106,14 @@ List<AgentQuotaProviderId> _moveProvider(
 class _ClaudeProfilesControl extends StatelessWidget {
   const _ClaudeProfilesControl({
     required this.profiles,
+    required this.isPinned,
+    required this.onPinnedChanged,
     required this.onChanged,
   });
 
   final List<ClaudeQuotaProfileSettings> profiles;
+  final bool Function(String profile) isPinned;
+  final void Function(String profile, bool pinned) onPinnedChanged;
   final ValueChanged<List<ClaudeQuotaProfileSettings>> onChanged;
 
   @override
@@ -121,6 +152,12 @@ class _ClaudeProfilesControl extends StatelessWidget {
                   ],
                 ),
               ),
+              _QuotaPinButton(
+                pinned: isPinned(profile.profile),
+                enabled: true,
+                onChanged: (pinned) => onPinnedChanged(profile.profile, pinned),
+              ),
+              const SizedBox(width: AleraTokens.space4),
               AleraIconButton(
                 tooltip: 'Move ${profile.alias} Earlier',
                 icon: AleraIcons.chevronUp,

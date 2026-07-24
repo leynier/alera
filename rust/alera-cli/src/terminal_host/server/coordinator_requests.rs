@@ -1,6 +1,6 @@
 use alera_core::runtime::{
     OrchestrationCoordinatorStatus, OrchestrationGateStatus, OrchestrationMessageType,
-    OrchestrationTaskStatus, WorkspaceStatus,
+    OrchestrationTaskStatus,
 };
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -477,6 +477,7 @@ impl ServerActor {
         for dispatch in unaccepted {
             if let Some(handle) = dispatch.assignee_handle.as_deref() {
                 self.remove_dispatch_context(handle);
+                self.cleanup_failed_owned_spawn(handle).await;
             }
             self.coordinator_log(&format!(
                 "dispatch {} did not accept before the startup deadline",
@@ -666,6 +667,14 @@ impl ServerActor {
                 pending += 1;
                 continue;
             }
+            let active_dispatch = self
+                .runtime_store
+                .active_orchestration_dispatch_for_handle(&handle)
+                .await?
+                .is_some();
+            if active_dispatch {
+                continue;
+            }
             let Some(presence) = self.agent_presence.get(&handle) else {
                 pending += 1;
                 continue;
@@ -676,68 +685,9 @@ impl ServerActor {
             if presence.state == AgentPresenceState::Done {
                 continue;
             }
-            let active_dispatch = self
-                .runtime_store
-                .active_orchestration_dispatch_for_handle(&handle)
-                .await?
-                .is_some();
-            if !active_dispatch {
-                pending += 1;
-            }
+            pending += 1;
         }
         Ok(pending)
-    }
-
-    /// Mints and starts a terminal tab with the default agent command.
-    async fn coordinator_create_worker_terminal(
-        &mut self,
-        config: &CoordinatorConfig,
-        ready: &[alera_core::runtime::OrchestrationTask],
-    ) -> anyhow::Result<()> {
-        let Some(workspace_id) = &config.workspace_id else {
-            self.coordinator_log(
-                "no idle worker terminals and no --workspace scope; cannot create workers",
-            );
-            return Ok(());
-        };
-        let Some(workspace) = self.runtime_store.find_workspace(workspace_id).await? else {
-            self.coordinator_log(&format!(
-                "workspace {workspace_id} not found; cannot create worker terminal"
-            ));
-            return Ok(());
-        };
-        if workspace.status != WorkspaceStatus::Active {
-            self.coordinator_log(&format!(
-                "workspace {workspace_id} is not active; cannot create worker terminal"
-            ));
-            return Ok(());
-        }
-        let spec_preview: String = ready
-            .first()
-            .map(|task| task.spec.chars().take(40).collect())
-            .unwrap_or_else(|| "orchestration".to_string());
-        let adapter = adapter_for(&config.agent_type)
-            .ok_or_else(|| anyhow::anyhow!("unsupported agent type: {}", config.agent_type))?;
-        let now = chrono::Utc::now();
-        let id = uuid::Uuid::new_v4().to_string();
-        let tab = alera_core::runtime::WorkspaceTabRecord {
-            id: id.clone(),
-            workspace_id: workspace_id.clone(),
-            kind: "terminal".to_string(),
-            title: format!("Worker: {spec_preview}"),
-            created_at: now,
-            updated_at: now,
-            payload: json!({
-                "terminalSessionId": id,
-                "initialCommand": adapter.default_command,
-                "spawnOnCreate": true,
-            }),
-        };
-        self.upsert_workspace_tab_and_spawn(tab)
-            .await
-            .map_err(|error| anyhow::anyhow!(error.wire_message()))?;
-        self.coordinator_log(&format!("created worker terminal tab {id}"));
-        Ok(())
     }
 
     /// Dispatch with the stale-base pre-flight: a drift beyond the threshold
@@ -752,17 +702,10 @@ impl ServerActor {
         let Some(task) = self.runtime_store.orchestration_task_by_id(task_id).await? else {
             return Ok(false);
         };
-        let (allow_stale, stripped_spec) = parse_allow_stale_base_from_spec(&task.spec);
-        let drift = self.coordinator_probe_drift(config).await;
-        if let Some(drift) = &drift {
-            if drift.behind > COORDINATOR_DISPATCH_STALE_THRESHOLD && !allow_stale {
-                self.coordinator_log(&format!(
-                    "worktree is {} commits behind {}; skipping dispatch of {task_id} this tick",
-                    drift.behind, drift.base
-                ));
-                return Ok(false);
-            }
-        }
+        let Some((stripped_spec, drift)) = self.coordinator_dispatch_preflight(config, &task).await
+        else {
+            return Ok(false);
+        };
         let gates = self
             .runtime_store
             .list_orchestration_gates(Some(task_id), Some(OrchestrationGateStatus::Resolved))
@@ -852,6 +795,25 @@ impl ServerActor {
         })
     }
 
+    pub(super) async fn coordinator_dispatch_preflight(
+        &self,
+        config: &CoordinatorConfig,
+        task: &alera_core::runtime::OrchestrationTask,
+    ) -> Option<(String, Option<BaseDrift>)> {
+        let (allow_stale, stripped_spec) = parse_allow_stale_base_from_spec(&task.spec);
+        let drift = self.coordinator_probe_drift(config).await;
+        if let Some(drift) = &drift {
+            if drift.behind > COORDINATOR_DISPATCH_STALE_THRESHOLD && !allow_stale {
+                self.coordinator_log(&format!(
+                    "worktree is {} commits behind {}; skipping dispatch of {} this tick",
+                    drift.behind, drift.base, task.id
+                ));
+                return None;
+            }
+        }
+        Some((stripped_spec, drift))
+    }
+
     /// Done when every task is completed or failed. Stuck (only blocked left)
     /// keeps the loop alive but logs the situation.
     async fn coordinator_check_convergence(
@@ -918,7 +880,7 @@ impl ServerActor {
         Ok(None)
     }
 
-    fn coordinator_log(&self, message: &str) {
+    pub(super) fn coordinator_log(&self, message: &str) {
         eprintln!("[coordinator] {message}");
         self.broadcast_authenticated(event(
             "orchestrationCoordinatorLog",

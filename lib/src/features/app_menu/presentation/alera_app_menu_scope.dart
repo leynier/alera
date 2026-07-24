@@ -130,11 +130,11 @@ class _AleraAppMenuButtonState extends ConsumerState<AleraAppMenuButton> {
       items: const <PopupMenuEntry<_AppMenuAction>>[
         AleraDropdownEntry<_AppMenuAction>(
           value: _AppMenuAction.openSettings,
-          label: 'Settings ...',
+          label: 'Settings',
         ),
         AleraDropdownEntry<_AppMenuAction>(
           value: _AppMenuAction.checkForUpdates,
-          label: 'Check for Updates ...',
+          label: 'Check for Updates',
         ),
         PopupMenuDivider(height: AleraTokens.space8),
         AleraDropdownEntry<_AppMenuAction>(
@@ -255,7 +255,7 @@ class _MacOsPlatformMenuBar extends ConsumerWidget {
             PlatformMenuItemGroup(
               members: <PlatformMenuItem>[
                 PlatformMenuItem(
-                  label: 'Settings ...',
+                  label: 'Settings',
                   // Do not register a platform shortcut: Mod+Comma is already
                   // handled by KeyboardShortcutsScope. A duplicate native
                   // accelerator can open Settings twice.
@@ -264,7 +264,7 @@ class _MacOsPlatformMenuBar extends ConsumerWidget {
                   },
                 ),
                 PlatformMenuItem(
-                  label: 'Check for Updates ...',
+                  label: 'Check for Updates',
                   onSelected: () {
                     unawaited(checkForUpdatesFromAppMenu(context, ref));
                   },

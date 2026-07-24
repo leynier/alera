@@ -96,11 +96,13 @@ void main() {
         'forced': true,
         'activeSessions': 2,
         'activeJobs': 1,
+        'activeAgents': 3,
       });
       expect(full.stopped, isTrue);
       expect(full.forced, isTrue);
       expect(full.activeSessions, 2);
       expect(full.activeJobs, 1);
+      expect(full.activeAgents, 3);
 
       final sparse = RuntimeHostShutdownResult.fromJson(const <String, Object?>{
         'stopped': true,
@@ -108,6 +110,7 @@ void main() {
       });
       expect(sparse.activeSessions, 0);
       expect(sparse.activeJobs, 0);
+      expect(sparse.activeAgents, 0);
     });
   });
 

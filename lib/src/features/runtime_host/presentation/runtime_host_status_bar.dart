@@ -5,7 +5,6 @@ import 'package:alera/src/features/runtime_host/application/runtime_host_lifecyc
 import 'package:alera/src/features/runtime_host/application/runtime_host_lifecycle_service.dart';
 import 'package:alera/src/features/runtime_host/domain/runtime_host_status.dart';
 import 'package:alera/src/features/runtime_host/presentation/runtime_host_status_panel.dart';
-import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -26,9 +25,6 @@ class _RuntimeHostStatusBarControlState
   @override
   Widget build(BuildContext context) {
     final statusAsync = ref.watch(runtimeHostStatusProvider);
-    final terminal = ref.watch(
-      settingsControllerProvider.select((settings) => settings.terminal),
-    );
     final snapshot = statusAsync.value;
     final loading = statusAsync.isLoading && snapshot == null;
 
@@ -56,11 +52,6 @@ class _RuntimeHostStatusBarControlState
                   snapshot: snapshot,
                   loading: loading || statusAsync.isLoading,
                   busy: _busy,
-                  stopRuntimeOnAppQuit: terminal.stopRuntimeOnAppQuit,
-                  emptyShutdownDelaySeconds:
-                      terminal.hostEmptyShutdownDelaySeconds,
-                  detachedSessionShutdownDelaySeconds:
-                      terminal.hostDetachedSessionShutdownDelaySeconds,
                   onRefresh: () {
                     ref.invalidate(runtimeHostStatusProvider);
                   },
@@ -88,42 +79,6 @@ class _RuntimeHostStatusBarControlState
                       ref.invalidate(runtimeHostStatusProvider);
                     }),
                   ),
-                  onStopRuntimeOnAppQuitChanged: (value) {
-                    final current = ref.read(settingsControllerProvider);
-                    unawaited(
-                      ref
-                          .read(settingsControllerProvider.notifier)
-                          .updateTerminal(
-                            current.terminal.copyWith(
-                              stopRuntimeOnAppQuit: value,
-                            ),
-                          ),
-                    );
-                  },
-                  onEmptyShutdownDelayChanged: (value) {
-                    final current = ref.read(settingsControllerProvider);
-                    unawaited(
-                      ref
-                          .read(settingsControllerProvider.notifier)
-                          .updateTerminal(
-                            current.terminal.copyWith(
-                              hostEmptyShutdownDelaySeconds: value,
-                            ),
-                          ),
-                    );
-                  },
-                  onDetachedSessionShutdownDelayChanged: (value) {
-                    final current = ref.read(settingsControllerProvider);
-                    unawaited(
-                      ref
-                          .read(settingsControllerProvider.notifier)
-                          .updateTerminal(
-                            current.terminal.copyWith(
-                              hostDetachedSessionShutdownDelaySeconds: value,
-                            ),
-                          ),
-                    );
-                  },
                 ),
               ),
             ],

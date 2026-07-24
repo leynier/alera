@@ -23,6 +23,16 @@ pub(crate) async fn run_runtime_command(command: RuntimeCommand) -> i32 {
                 Ok(Some(mut client)) => client.request_value("status.get", &json!({})).await.ok(),
                 Ok(None) | Err(_) => None,
             };
+            let message = match &host {
+                Some(status) => {
+                    let sessions = status
+                        .get("activeSessions")
+                        .and_then(Value::as_u64)
+                        .unwrap_or(0);
+                    format!("runtime host running ({sessions} active session(s))")
+                }
+                None => "runtime host not running".to_string(),
+            };
             let payload = json!({
                 "runtimeDir": runtime_dir.display().to_string(),
                 "database": runtime_dir.join(RUNTIME_DATABASE_FILE_NAME).display().to_string(),
@@ -31,7 +41,7 @@ pub(crate) async fn run_runtime_command(command: RuntimeCommand) -> i32 {
                 "host": host,
                 "agentStatusHooks": store.agent_status_hook_settings().await.unwrap_or_default(),
             });
-            print_value(&payload, command.output.json, "runtime ok");
+            print_value(&payload, command.output.json, &message);
             0
         }
         RuntimeAction::Start => {

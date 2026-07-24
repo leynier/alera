@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alera/src/features/runtime_host/domain/runtime_host_quit_decision.dart';
 import 'package:alera/src/features/runtime_host/domain/runtime_host_status.dart';
 import 'package:alera/src/features/runtime_host/infra/bundled_sidecar_version_probe.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client.dart';
@@ -10,6 +11,12 @@ typedef RuntimeHostForceConfirm =
       required String title,
       required String message,
       required String confirmLabel,
+    });
+
+typedef RuntimeHostBusyQuitConfirm =
+    Future<RuntimeHostQuitDecision> Function({
+      required String title,
+      required String message,
     });
 
 abstract interface class RuntimeHostLifecycleClient {
@@ -112,10 +119,7 @@ final class RuntimeHostLifecycleService {
       }
       final confirmed = await confirmForce(
         title: 'Force Stop Runtime',
-        message:
-            'The runtime has ${busy.activeSessions} active terminal '
-            'session(s) and ${busy.activeJobs} active background job(s). '
-            'Force stop terminates them.',
+        message: '${runtimeHostBusyMessage(busy)} Force stop terminates them.',
         confirmLabel: 'Force Stop',
       );
       if (!confirmed) {
@@ -135,15 +139,37 @@ final class RuntimeHostLifecycleService {
     await start();
   }
 
-  /// Soft-stop the runtime when quitting the app. Returns `false` when the
-  /// user cancels a force-stop confirmation so the window should stay open.
+  /// Prepare the local runtime for an intentional app quit.
+  ///
+  /// Persistent CLI hosts and the keep-open setting leave the host running.
+  /// App-launched sidecars soft-stop when idle; when busy, [confirmBusyQuit]
+  /// chooses cancel, leave-open, or force-stop. Returns `false` only when the
+  /// user cancels so the window should stay open.
   Future<bool> prepareAppQuit({
-    required bool stopOnQuit,
-    RuntimeHostForceConfirm? confirmForce,
+    required bool keepRuntimeOpen,
+    RuntimeHostBusyQuitConfirm? confirmBusyQuit,
   }) async {
-    if (!stopOnQuit) {
+    if (keepRuntimeOpen) {
       return true;
     }
+
+    Map<String, Object?>? liveStatus;
+    var statusUncertain = false;
+    try {
+      liveStatus = await _client.probeRuntimeStatus();
+    } catch (_) {
+      // Probe failure must not skip shutdown: the host may still be live.
+      statusUncertain = true;
+      liveStatus = null;
+    }
+
+    if (!statusUncertain && liveStatus == null) {
+      return true;
+    }
+    if (liveStatus != null && liveStatus['persistent'] == true) {
+      return true;
+    }
+
     try {
       await _client.shutdownRuntime(force: false);
       await _waitUntilStopped();
@@ -154,23 +180,25 @@ final class RuntimeHostLifecycleService {
       }
       rethrow;
     } on RuntimeHostBusyException catch (busy) {
-      if (confirmForce == null) {
+      if (confirmBusyQuit == null) {
         return false;
       }
-      final confirmed = await confirmForce(
-        title: 'Force Stop And Quit',
+      final decision = await confirmBusyQuit(
+        title: 'Runtime Still Has Work',
         message:
-            'The runtime has ${busy.activeSessions} active terminal '
-            'session(s) and ${busy.activeJobs} active background job(s). '
-            'Force stop terminates them and quits Alera.',
-        confirmLabel: 'Force Stop And Quit',
+            '${runtimeHostBusyMessage(busy)} '
+            'You can quit and leave the runtime running, or force stop it.',
       );
-      if (!confirmed) {
-        return false;
+      switch (decision) {
+        case RuntimeHostQuitDecision.cancel:
+          return false;
+        case RuntimeHostQuitDecision.leaveRuntimeOpen:
+          return true;
+        case RuntimeHostQuitDecision.forceStop:
+          await _client.shutdownRuntime(force: true);
+          await _waitUntilStopped();
+          return true;
       }
-      await _client.shutdownRuntime(force: true);
-      await _waitUntilStopped();
-      return true;
     }
   }
 
@@ -184,4 +212,27 @@ final class RuntimeHostLifecycleService {
       await Future<void>.delayed(const Duration(milliseconds: 100));
     }
   }
+}
+
+String runtimeHostBusyMessage(RuntimeHostBusyException busy) {
+  final parts = <String>[];
+  if (busy.activeAgents > 0) {
+    parts.add('${busy.activeAgents} open agent(s)');
+  }
+  if (busy.activeSessions > 0) {
+    parts.add('${busy.activeSessions} active terminal session(s)');
+  }
+  if (busy.activeJobs > 0) {
+    parts.add('${busy.activeJobs} active background job(s)');
+  }
+  if (parts.isEmpty) {
+    return 'The runtime still has active work.';
+  }
+  if (parts.length == 1) {
+    return 'The runtime has ${parts.single}.';
+  }
+  if (parts.length == 2) {
+    return 'The runtime has ${parts[0]} and ${parts[1]}.';
+  }
+  return 'The runtime has ${parts[0]}, ${parts[1]}, and ${parts[2]}.';
 }

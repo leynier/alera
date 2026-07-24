@@ -1,6 +1,7 @@
 use clap::{Args, Subcommand};
 
 use crate::cli::{OutputArgs, RuntimeDirArgs};
+pub use crate::cli_orchestration_terminal::*;
 
 /// `alera orchestration ...` - inter-agent messaging, task DAG, dispatch,
 /// decision gates, and the coordinator loop. All verbs are RPC calls to the
@@ -40,6 +41,9 @@ pub enum OrchestrationAction {
     /// Show one task with its active dispatch.
     #[command(name = "task-show")]
     TaskShow(OrchestrationTaskIdArgs),
+    /// Wait until a task reaches one of the requested states.
+    #[command(name = "task-wait")]
+    TaskWait(OrchestrationTaskWaitArgs),
     /// Cancel a task and its not-yet-started descendants.
     #[command(name = "task-cancel")]
     TaskCancel(OrchestrationTaskCancelArgs),
@@ -98,33 +102,20 @@ pub enum OrchestrationAction {
     RunStop(OrchestrationRunStopArgs),
     /// List live terminals with agent presence.
     #[command(name = "terminal-list")]
-    TerminalList,
+    TerminalList(OrchestrationTerminalListArgs),
     /// Show one terminal with explicit startup and agent state.
     #[command(name = "terminal-show")]
     TerminalShow(OrchestrationTerminalShowArgs),
     /// Wait for a terminal lifecycle state without caller-side polling.
     #[command(name = "terminal-wait")]
     TerminalWait(OrchestrationTerminalWaitArgs),
+    /// List or remove stopped terminal sessions.
+    #[command(name = "terminal-prune")]
+    TerminalPrune(OrchestrationTerminalPruneArgs),
+    /// Show the workspace and terminal inferred from this environment.
+    Current,
     /// Clear orchestration state (default: everything).
     Reset(OrchestrationResetArgs),
-}
-
-#[derive(Debug, Args)]
-pub struct OrchestrationAgentSpawnArgs {
-    #[arg(long = "workspace", value_name = "workspace_id")]
-    pub workspace: String,
-    #[arg(long = "agent", value_name = "agent_type")]
-    pub agent: String,
-    #[arg(long = "task", value_name = "task_id")]
-    pub task: String,
-    #[arg(long = "title", value_name = "text")]
-    pub title: Option<String>,
-    #[arg(long = "terminal", value_name = "handle")]
-    pub terminal: Option<String>,
-    #[arg(long = "command", value_name = "command")]
-    pub command: Option<String>,
-    #[arg(long = "from", value_name = "handle")]
-    pub from: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -285,7 +276,7 @@ pub struct OrchestrationTaskCreateArgs {
 
     /// Workspace that owns the task.
     #[arg(long = "workspace", value_name = "workspace_id")]
-    pub workspace: String,
+    pub workspace: Option<String>,
 
     /// Coordinator run for a coordinated task.
     #[arg(long = "run", value_name = "run_id")]
@@ -319,6 +310,20 @@ pub struct OrchestrationTaskListArgs {
 pub struct OrchestrationTaskIdArgs {
     #[arg(long = "id", value_name = "task_id")]
     pub id: String,
+}
+
+#[derive(Debug, Args)]
+pub struct OrchestrationTaskWaitArgs {
+    #[arg(long = "task", value_name = "task_id")]
+    pub task: String,
+    #[arg(
+        long = "for",
+        value_name = "status_csv",
+        default_value = "completed,failed,stalled,cancelled"
+    )]
+    pub targets: String,
+    #[arg(long = "timeout-ms", default_value_t = 120_000)]
+    pub timeout_ms: u64,
 }
 
 #[derive(Debug, Args)]
@@ -425,6 +430,10 @@ pub struct OrchestrationDispatchArgs {
     #[arg(long = "inject")]
     pub inject: bool,
 
+    /// Audited manual override when hooks cannot report an already-running agent.
+    #[arg(long = "assume-agent", value_name = "agent_type", requires = "inject")]
+    pub assume_agent: Option<String>,
+
     /// Build the preamble without mutating any state.
     #[arg(long = "dry-run")]
     pub dry_run: bool,
@@ -521,7 +530,7 @@ pub struct OrchestrationRunArgs {
 
     /// Workspace id that scopes worker terminals and drift checks.
     #[arg(long = "workspace", value_name = "workspace_id")]
-    pub workspace: String,
+    pub workspace: Option<String>,
 
     /// Agent type used when the coordinator creates worker terminals.
     #[arg(long = "agent", default_value = "codex")]
@@ -551,22 +560,6 @@ pub struct OrchestrationRunStopArgs {
     /// Bypass coordinator ownership for an audited administrative stop.
     #[arg(long)]
     pub force: bool,
-}
-
-#[derive(Debug, Args)]
-pub struct OrchestrationTerminalShowArgs {
-    #[arg(long = "handle", value_name = "terminal_handle")]
-    pub handle: String,
-}
-
-#[derive(Debug, Args)]
-pub struct OrchestrationTerminalWaitArgs {
-    #[arg(long = "terminal")]
-    pub terminal: String,
-    #[arg(long = "for", value_parser = ["process-started", "agent-detected", "agent-ready", "dispatch-accepted"])]
-    pub target: String,
-    #[arg(long = "timeout-ms", default_value_t = 30_000)]
-    pub timeout_ms: u64,
 }
 
 #[derive(Debug, Args)]

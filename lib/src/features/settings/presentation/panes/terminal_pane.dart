@@ -241,7 +241,7 @@ class TerminalSettingsPane extends StatelessWidget {
           child: AleraSettingsGroup(
             title: 'Advanced',
             description:
-                'History, detached host lifetime and double-click selection behavior.',
+                'History, shell startup and double-click selection behavior.',
             children: <Widget>[
               SettingsSwitchRow(
                 title: 'Use Login Shell',

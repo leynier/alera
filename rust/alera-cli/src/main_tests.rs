@@ -36,3 +36,70 @@ fn host_accessible_path_resolves_relative_workspace_paths_for_rpc() {
 
     assert_eq!(resolved, current_dir.join("relative-worktree"));
 }
+
+#[test]
+fn terminal_actions_require_the_capability_for_their_rpc_surface() {
+    use crate::cli::{TerminalReadArgs, TerminalWriteArgs};
+    use crate::cli_orchestration::{
+        OrchestrationTerminalListArgs, OrchestrationTerminalPruneArgs,
+        OrchestrationTerminalShowArgs, OrchestrationTerminalWaitArgs,
+    };
+    use crate::terminal_host::protocol::{
+        RUNTIME_HOST_ORCHESTRATION_TERMINAL_INSPECTION_CAPABILITY,
+        RUNTIME_HOST_ORCHESTRATION_WAIT_CAPABILITY,
+        RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY,
+    };
+
+    let list = TerminalAction::List(OrchestrationTerminalListArgs { workspace: None });
+    let show = TerminalAction::Show(OrchestrationTerminalShowArgs {
+        handle: "term-1".to_string(),
+    });
+    let prune = TerminalAction::Prune(OrchestrationTerminalPruneArgs {
+        workspace: None,
+        apply: false,
+    });
+    let wait = TerminalAction::Wait(OrchestrationTerminalWaitArgs {
+        terminal: "term-1".to_string(),
+        target: "agent-ready".to_string(),
+        timeout_ms: 30_000,
+    });
+    let read = TerminalAction::Read(TerminalReadArgs {
+        handle: "term-1".to_string(),
+        cursor: None,
+        max_bytes: 1024,
+    });
+    let write = |enter, submit| {
+        TerminalAction::Write(TerminalWriteArgs {
+            handle: "term-1".to_string(),
+            text: Some("input".to_string()),
+            file: None,
+            stdin: false,
+            enter,
+            submit,
+        })
+    };
+
+    for action in [&list, &show, &prune] {
+        assert_eq!(
+            terminal_alias_commands::required_capability(action),
+            Some(RUNTIME_HOST_ORCHESTRATION_TERMINAL_INSPECTION_CAPABILITY)
+        );
+    }
+    assert_eq!(
+        terminal_alias_commands::required_capability(&wait),
+        Some(RUNTIME_HOST_ORCHESTRATION_WAIT_CAPABILITY)
+    );
+    assert_eq!(terminal_alias_commands::required_capability(&read), None);
+    assert_eq!(
+        terminal_alias_commands::required_capability(&write(false, false)),
+        None
+    );
+    assert_eq!(
+        terminal_alias_commands::required_capability(&write(true, false)),
+        Some(RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY)
+    );
+    assert_eq!(
+        terminal_alias_commands::required_capability(&write(false, true)),
+        Some(RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY)
+    );
+}

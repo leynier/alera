@@ -23,6 +23,7 @@ class RuntimeSettingsRepository implements SettingsRepository {
       if (!runtime.containsKey('workspaceDirectory')) {
         return legacy;
       }
+      final legacyLocalQuotas = legacy.agents.quotas.forHost('local');
       return legacy.copyWith(
         general: legacy.general.copyWith(
           workspaceDirectory: runtime['workspaceDirectory'] as String?,
@@ -39,7 +40,15 @@ class RuntimeSettingsRepository implements SettingsRepository {
           ),
           quotas: legacy.agents.quotas.withHost(
             'local',
-            AgentQuotaHostSettings.fromJson(_asMap(runtime['agentQuotas'])),
+            // The runtime host stores only the quota fields it needs to fetch
+            // usage, so UI-only fields must survive the merge from the local
+            // repository or every runtimeSettingsChanged event resets them.
+            AgentQuotaHostSettings.fromJson(
+              _asMap(runtime['agentQuotas']),
+            ).copyWith(
+              selectedClaudeProfile: legacyLocalQuotas.selectedClaudeProfile,
+              unpinnedQuotaKeys: legacyLocalQuotas.unpinnedQuotaKeys,
+            ),
           ),
         ),
       );

@@ -31,28 +31,20 @@ Widget runtimeHostStatusChipUpdatePreview() => Material(
   ),
 );
 
-@AleraPreview(name: 'Runtime Panel', group: 'Status Bar', size: Size(380, 560))
+@AleraPreview(name: 'Runtime Panel', group: 'Status Bar', size: Size(280, 300))
 Widget runtimeHostStatusPanelPreview() => Material(
   child: RuntimeHostStatusPanel(
     snapshot: const RuntimeHostStatusSnapshot(
       running: true,
       bundledVersion: '1.3.0',
-      bundledCommit: 'abcdef0',
       runtimeHostVersion: '1.2.3',
-      runtimeHostCommit: '1234567',
       activeSessions: 2,
       activeAgents: 1,
     ),
     loading: false,
-    stopRuntimeOnAppQuit: false,
-    emptyShutdownDelaySeconds: 30,
-    detachedSessionShutdownDelaySeconds: 3600,
     onRefresh: () {},
     onStart: () {},
     onStop: () {},
     onUpdate: () {},
-    onStopRuntimeOnAppQuitChanged: (_) {},
-    onEmptyShutdownDelayChanged: (_) {},
-    onDetachedSessionShutdownDelayChanged: (_) {},
   ),
 );

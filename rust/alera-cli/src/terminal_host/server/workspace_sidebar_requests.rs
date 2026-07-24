@@ -28,7 +28,7 @@ struct SetWorkspaceTagsRequest {
 
 impl ServerActor {
     pub(super) fn agent_presence_items(&self) -> Value {
-        let items = self.orchestration_terminals()["items"]
+        let items = self.orchestration_terminals(&json!({}))["items"]
             .as_array()
             .into_iter()
             .flatten()

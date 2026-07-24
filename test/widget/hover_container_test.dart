@@ -41,4 +41,35 @@ void main() {
     await tester.pumpAndSettle(AleraTokens.durationFast);
     expect(decorationOf().color, Colors.red);
   });
+
+  testWidgets('tappable hover container answers on empty space', (
+    tester,
+  ) async {
+    var taps = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 200,
+              height: 40,
+              child: HoverContainer(
+                onTap: () => taps++,
+                child: const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('Label'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final box = tester.getRect(find.byType(HoverContainer));
+    await tester.tapAt(Offset(box.right - 4, box.center.dy));
+    await tester.pumpAndSettle();
+
+    expect(taps, 1);
+  });
 }

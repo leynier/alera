@@ -356,12 +356,12 @@ fn task_dag_dispatch_and_worker_done() {
         "orchestration.dispatch",
         json!({"task": a_id, "to": "w1", "from": "coord"}),
     ));
-    let dispatch_id = dispatched["dispatch"]["id"].as_str().unwrap().to_string();
     let context_token = dispatched["contextToken"].as_str().unwrap().to_string();
-    assert!(dispatched["preamble"]
-        .as_str()
-        .unwrap()
-        .contains(&dispatch_id));
+    assert_eq!(dispatched["preamble"], dispatched["bootstrap"]);
+    let manual_bootstrap = dispatched["preamble"].as_str().unwrap();
+    assert!(manual_bootstrap.contains("dispatch-accept"));
+    assert!(manual_bootstrap.contains("orchestration --json context"));
+    assert!(!manual_bootstrap.contains("=== TASK ==="));
 
     expect_ok(request(
         &mut writer,

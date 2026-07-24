@@ -188,15 +188,15 @@ class _WorkspaceExplorerState extends ConsumerState<WorkspaceExplorer> {
     bool expanded,
     VoidCallback _,
   ) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: InkWell(
-        onTap: () => unawaited(_toggleDirectory(node)),
-        child: Icon(
-          expanded ? AleraIcons.chevronDown : AleraIcons.chevronRight,
-          size: 16,
-          color: AleraTokens.foregroundMuted,
-        ),
+    return InkWell(
+      onTap: () => unawaited(_toggleDirectory(node)),
+      // InkWell defaults to adaptiveClickable, which is the basic arrow off the
+      // web, so the hand cursor has to be requested explicitly here.
+      mouseCursor: SystemMouseCursors.click,
+      child: Icon(
+        expanded ? AleraIcons.chevronDown : AleraIcons.chevronRight,
+        size: 16,
+        color: AleraTokens.foregroundMuted,
       ),
     );
   }
