@@ -130,6 +130,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
       SettingsGroupSpec(id: 'cursor', title: 'Cursor'),
       SettingsGroupSpec(id: 'appearance', title: 'Appearance'),
       SettingsGroupSpec(id: 'interaction', title: 'Interaction'),
+      SettingsGroupSpec(id: 'runtime', title: 'Runtime'),
       SettingsGroupSpec(id: 'advanced', title: 'Advanced'),
     ];
     const mobileDeviceGroups = <SettingsGroupSpec>[

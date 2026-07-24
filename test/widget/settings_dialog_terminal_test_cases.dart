@@ -28,8 +28,9 @@ void _registerSettingsDialogTerminalTests() {
     await tapStepper(AleraIcons.chevronUp, 5);
     await tapStepper(AleraIcons.chevronUp, 6);
     await tapStepper(AleraIcons.chevronUp, 7);
-    await tapStepper(AleraIcons.chevronUp, 8);
-    await tapStepper(AleraIcons.chevronUp, 9);
+    // 8 and 9 are the Runtime group delays, which this case does not touch.
+    await tapStepper(AleraIcons.chevronUp, 10);
+    await tapStepper(AleraIcons.chevronUp, 11);
 
     Future<void> setSwatchColor(int index, Color color) async {
       final swatch = find.byType(AleraColorSwatch).at(index);
@@ -64,5 +65,54 @@ void _registerSettingsDialogTerminalTests() {
     expect(after.colorOverrides.background, '#223344');
     expect(after.colorOverrides.cursor, '#445566');
     expect(after.colorOverrides.selection, '#667788');
+  });
+
+  testWidgets('edits runtime host lifecycle settings from the terminal pane', (
+    tester,
+  ) async {
+    final container = await _pumpSettingsDialog(tester);
+    await _selectTerminalSection(tester);
+    final before = container.read(settingsControllerProvider).terminal;
+    expect(before.stopRuntimeOnAppQuit, isFalse);
+
+    final toggle = find.descendant(
+      of: find.ancestor(
+        of: find.text('Stop Runtime When App Quits'),
+        matching: find.byType(SettingsSwitchRow),
+      ),
+      matching: find.byType(Switch),
+    );
+    await tester.ensureVisible(toggle);
+    await tester.pumpAndSettle();
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+
+    Future<void> bumpDelay(String title) async {
+      final stepper = find.descendant(
+        of: find.ancestor(
+          of: find.text(title),
+          matching: find.byType(SettingsIntegerRow),
+        ),
+        matching: find.byIcon(AleraIcons.chevronUp),
+      );
+      await tester.ensureVisible(stepper);
+      await tester.pumpAndSettle();
+      await tester.tap(stepper);
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+
+    await bumpDelay('Empty Host Shutdown');
+    await bumpDelay('Detached Session Shutdown');
+
+    final after = container.read(settingsControllerProvider).terminal;
+    expect(after.stopRuntimeOnAppQuit, isTrue);
+    expect(
+      after.hostEmptyShutdownDelaySeconds,
+      greaterThan(before.hostEmptyShutdownDelaySeconds),
+    );
+    expect(
+      after.hostDetachedSessionShutdownDelaySeconds,
+      greaterThan(before.hostDetachedSessionShutdownDelaySeconds),
+    );
   });
 }

@@ -426,6 +426,26 @@ const List<SettingsSearchEntry> terminalSearchEntries = <SettingsSearchEntry>[
     groupId: 'interaction',
   ),
   SettingsSearchEntry(
+    title: 'Stop Runtime When App Quits',
+    description: 'Shut down the local runtime when the last window closes.',
+    keywords: <String>['host', 'sidecar', 'lifecycle', 'quit', 'shutdown'],
+    groupId: 'runtime',
+  ),
+  SettingsSearchEntry(
+    title: 'Empty Host Shutdown',
+    description:
+        'Stop the terminal host after the app closes with no sessions.',
+    keywords: <String>['host', 'sidecar', 'lifetime', 'timeout'],
+    groupId: 'runtime',
+  ),
+  SettingsSearchEntry(
+    title: 'Detached Session Shutdown',
+    description:
+        'Stop detached running terminal sessions after the app stays closed.',
+    keywords: <String>['host', 'sidecar', 'session', 'timeout'],
+    groupId: 'runtime',
+  ),
+  SettingsSearchEntry(
     title: 'Scrollback Lines',
     description: 'Maximum terminal history retained per session.',
     keywords: <String>['history', 'buffer'],
