@@ -2,12 +2,12 @@ import 'package:alera_mobile/src/app/theme/alera_tokens.dart';
 import 'package:flutter/material.dart';
 
 /// Compose-mode input: type the full text, then send it as one write. Send
-/// appends a newline; long-press Send offers sending without one.
+/// appends Enter (`\r`); long-press Send offers sending without it.
 class TerminalComposeBar extends StatefulWidget {
   const TerminalComposeBar({super.key, required this.onSend});
 
-  /// Called with the composed text; [withNewline] appends `\n`.
-  final void Function(String text, {required bool withNewline}) onSend;
+  /// Called with the composed text; [withEnter] appends Enter (`\r`).
+  final void Function(String text, {required bool withEnter}) onSend;
 
   @override
   State<TerminalComposeBar> createState() => _TerminalComposeBarState();
@@ -36,22 +36,22 @@ class _TerminalComposeBarState extends State<TerminalComposeBar> {
     super.dispose();
   }
 
-  void _send({required bool withNewline}) {
+  void _send({required bool withEnter}) {
     final text = _controller.text;
-    if (text.isEmpty && withNewline) {
+    if (text.isEmpty && withEnter) {
       // An empty send still means "press Enter" in a terminal.
-      widget.onSend('', withNewline: true);
+      widget.onSend('', withEnter: true);
       return;
     }
     if (text.isEmpty) {
       return;
     }
-    widget.onSend(text, withNewline: withNewline);
+    widget.onSend(text, withEnter: withEnter);
     _controller.clear();
   }
 
   Future<void> _sendOptions() async {
-    final withNewline = await showModalBottomSheet<bool>(
+    final withEnter = await showModalBottomSheet<bool>(
       context: context,
       builder: (context) => SafeArea(
         child: Column(
@@ -59,20 +59,20 @@ class _TerminalComposeBarState extends State<TerminalComposeBar> {
           children: <Widget>[
             ListTile(
               leading: const Icon(Icons.keyboard_return),
-              title: const Text('Send With Newline'),
+              title: const Text('Send With Enter'),
               onTap: () => Navigator.of(context).pop(true),
             ),
             ListTile(
               leading: const Icon(Icons.text_fields),
-              title: const Text('Send Without Newline'),
+              title: const Text('Send Without Enter'),
               onTap: () => Navigator.of(context).pop(false),
             ),
           ],
         ),
       ),
     );
-    if (withNewline != null) {
-      _send(withNewline: withNewline);
+    if (withEnter != null) {
+      _send(withEnter: withEnter);
     }
   }
 
@@ -97,12 +97,12 @@ class _TerminalComposeBarState extends State<TerminalComposeBar> {
                 maxLines: AleraTokens.composeBarMaxLines,
                 autocorrect: false,
                 enableSuggestions: false,
+                textInputAction: TextInputAction.newline,
                 style: const TextStyle(fontFamily: AleraTokens.monoFontFamily),
                 decoration: const InputDecoration(
                   hintText: 'Type A Command',
                   isDense: true,
                 ),
-                onSubmitted: (_) => _send(withNewline: true),
               ),
             ),
             const SizedBox(width: AleraTokens.spaceXs),
@@ -110,8 +110,8 @@ class _TerminalComposeBarState extends State<TerminalComposeBar> {
               onLongPress: _hasText ? _sendOptions : null,
               child: IconButton.filled(
                 tooltip: 'Send',
-                onPressed: () => _send(withNewline: true),
-                icon: const Icon(Icons.send),
+                onPressed: () => _send(withEnter: true),
+                icon: const Icon(Icons.arrow_upward),
               ),
             ),
           ],

@@ -66,8 +66,8 @@ class TerminalTabView extends ConsumerWidget {
           ),
           if (inputMode == TerminalInputMode.compose)
             TerminalComposeBar(
-              onSend: (text, {required bool withNewline}) {
-                notifier.write(utf8.encode(withNewline ? '$text\n' : text));
+              onSend: (text, {required bool withEnter}) {
+                notifier.write(utf8.encode(withEnter ? '$text\r' : text));
               },
             ),
         ],
