@@ -315,6 +315,83 @@ void main() {
     expect(find.text('General Weekly'), findsOneWidget);
   });
 
+  testWidgets('pins the provider card on click until the next click', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(
+        settings: const AgentQuotaHostSettings(
+          enabledProviders: <AgentQuotaProviderId>[
+            AgentQuotaProviderId.claude,
+            AgentQuotaProviderId.antigravity,
+          ],
+        ),
+        snapshots: <AgentQuotaSnapshot>[
+          _snapshot(
+            provider: AgentQuotaProviderId.claude,
+            windows: <AgentQuotaWindow>[_window('Weekly', 40)],
+          ),
+          _snapshot(
+            provider: AgentQuotaProviderId.antigravity,
+            buckets: <AgentQuotaBucket>[_bucket('Gemini Models - Weekly', 15)],
+          ),
+        ],
+      ),
+    );
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: Offset.zero);
+
+    await tester.tap(find.text('G·W'), kind: PointerDeviceKind.mouse);
+    await tester.pumpAndSettle();
+    expect(find.text('Antigravity'), findsOneWidget);
+
+    // The pointer left the entry, so only the pin keeps the card open.
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Antigravity'), findsOneWidget);
+
+    // A second card must not overlap the pinned one. The status bar shows the
+    // bare reading while the card spells it out as "60% Left".
+    final claudeEntry = find.text('60%');
+    await tester.tap(claudeEntry, kind: PointerDeviceKind.mouse);
+    await tester.pumpAndSettle();
+    expect(find.text('Antigravity'), findsNothing);
+    expect(find.text('Claude Code'), findsOneWidget);
+
+    await tester.tap(claudeEntry, kind: PointerDeviceKind.mouse);
+    await tester.pumpAndSettle();
+    expect(find.text('Claude Code'), findsNothing);
+  });
+
+  testWidgets('closes the pinned card when clicking outside of it', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(
+        settings: const AgentQuotaHostSettings(
+          enabledProviders: <AgentQuotaProviderId>[
+            AgentQuotaProviderId.antigravity,
+          ],
+        ),
+        snapshots: <AgentQuotaSnapshot>[
+          _snapshot(
+            provider: AgentQuotaProviderId.antigravity,
+            buckets: <AgentQuotaBucket>[_bucket('Gemini Models - Weekly', 15)],
+          ),
+        ],
+      ),
+    );
+
+    await tester.tap(find.text('G·W'), kind: PointerDeviceKind.mouse);
+    await tester.pumpAndSettle();
+    expect(find.text('Antigravity'), findsOneWidget);
+
+    await tester.tapAt(const Offset(20, 20), kind: PointerDeviceKind.mouse);
+    await tester.pumpAndSettle();
+    expect(find.text('Antigravity'), findsNothing);
+  });
+
   test('refreshes quotas automatically every fifteen minutes', () {
     expect(agentQuotaRefreshInterval, const Duration(minutes: 15));
   });

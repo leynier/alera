@@ -26,5 +26,5 @@ Widget aleraHoverCardPreview() => AleraHoverCard(
       ],
     ),
   ),
-  child: const Text('Hover For Details'),
+  child: const Text('Hover Or Click For Details'),
 );
