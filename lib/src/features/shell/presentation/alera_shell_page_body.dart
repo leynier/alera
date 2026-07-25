@@ -223,7 +223,13 @@ class _AleraShellPageBodyState extends ConsumerState<_AleraShellPageBody> {
                     ),
                   ),
                   const AgentQuotaStatusBar(
-                    trailing: RuntimeHostStatusBarControl(),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        ResourceStatusBarControl(),
+                        RuntimeHostStatusBarControl(),
+                      ],
+                    ),
                   ),
                 ],
               );
