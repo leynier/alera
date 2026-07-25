@@ -26,12 +26,10 @@ This document defines contributor and agent governance only. It does not change 
 ## Code Generation Workflow
 
 - Riverpod providers MUST use code generation (`riverpod_generator`) rather than hand-written provider declarations.
-- When a task may touch Riverpod, Drift, or `dart_mappable` generated code, agents MUST ensure a single repo-scoped `build_runner` watcher is active before editing generated surfaces.
-- The standard watcher command for this repository is `flutter pub run build_runner watch -d`.
-- Agents MUST use the repo-scoped PID/log convention under `.dart_tool/copilot/`: `build_runner_watch.pid` for the active watcher PID and `build_runner_watch.log` for output.
-- Before starting a watcher, agents MUST check whether the PID file exists and whether `ps -p <pid>` confirms that process is still alive. If it is alive, reuse that watcher. If it is stale, delete the PID file and start a new watcher.
-- Agents MUST NOT start a second watcher for the same repository while a live PID is already recorded.
-- If the watcher exits unexpectedly, agents should restart it, refresh the PID file, and continue using the same repo-scoped convention.
+- This repository does NOT use a `build_runner` watcher. Agents MUST NOT run `build_runner watch` or keep any background code-generation process alive.
+- When a planned batch of edits touches Riverpod, Drift, or `dart_mappable` generated surfaces, agents MUST finish the planned edits first and then regenerate code once for the whole batch with `flutter pub run build_runner build -d`. Do not regenerate after every individual edit.
+- The one-shot generation MUST run before `dart format`, `flutter analyze`, and tests, so formatting, static analysis, and test runs always see the final generated code.
+- Agents MUST verify the regenerated files are included alongside the source changes that produced them.
 
 ## Native Rust Layer
 

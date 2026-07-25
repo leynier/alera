@@ -13,7 +13,7 @@ This file applies under `mobile/`. The root `AGENTS.md` also applies; this file 
 ## State Management
 
 - Riverpod with `riverpod_generator` codegen is mandatory, same as the desktop app. No hand-written provider declarations and no new `StatefulWidget`-plus-`setState` state that belongs in a controller.
-- The build_runner watcher convention from the root `AGENTS.md` applies scoped to this package: run `flutter pub run build_runner watch -d` from `mobile/` with the PID/log files under `mobile/.dart_tool/copilot/`.
+- The one-shot build_runner convention from the root `AGENTS.md` applies scoped to this package: after finishing a planned batch of edits that touches generated surfaces, run `flutter pub run build_runner build -d` once from `mobile/`, before formatting, analysis, and tests. Do not run a watcher.
 
 ## Testing
 

@@ -134,7 +134,7 @@ final class MacOsResourceProfiler {
     flutterPids.remove(hostPid);
 
     final buildRunnerRoots = processes
-        .where((process) => process.command.contains('build_runner watch'))
+        .where((process) => process.command.contains('build_runner'))
         .map((process) => process.pid);
     final buildRunnerPids = <int>{
       for (final root in buildRunnerRoots) root,

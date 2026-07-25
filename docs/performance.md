@@ -41,7 +41,7 @@ PERF_SCENARIO=idle PERF_DURATION_SECONDS=30 PERF_APP_PID=<profile-pid> make perf
 
 The report under `.dart_tool/performance/resources_<scenario>.json` contains 250 ms samples and median, p95, and maximum CPU, RSS, and process counts. It separates the Alera app, runtime host, Flutter tooling, build runner, terminal descendants, provider CLIs, and the tracked total. Pass `PERF_APP_PID` whenever a Debug and Profile instance can coexist so the capture cannot select the wrong process.
 
-Capture idle, a common workbench flow, a terminal-output burst, a quota refresh, and representative agent launches independently. Keep the `build_runner` watcher stopped during final captures. Its memory is development tooling and must be reported separately from the shipped app.
+Capture idle, a common workbench flow, a terminal-output burst, a quota refresh, and representative agent launches independently. Do not run `build_runner` during final captures. Its memory is development tooling and must be reported separately from the shipped app.
 
 The latest detailed macOS investigation and before/after results are recorded in [`performance-resource-profile-2026-07-19.md`](performance-resource-profile-2026-07-19.md).
 
