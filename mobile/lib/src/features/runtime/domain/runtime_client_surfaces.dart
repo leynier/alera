@@ -14,6 +14,12 @@ const String mobileWorkspaceSidebarParityCapability =
     'mobileWorkspaceSidebarParityV1';
 const String mobileProjectManagementCapability = 'mobileProjectManagementV1';
 const String mobileTabRenameCapability = 'mobileTabRenameV1';
+
+/// The runtime can send terminal output as a binary WebSocket message instead
+/// of base64 inside JSON. Feature-detected, never version-gated: the runtime
+/// requires an exact `aleraMobileProtocolVersion` match, so bumping it would
+/// lock out every device that has not updated at the same moment.
+const String mobileBinaryFramesCapability = 'binaryFrames';
 const String mobileTerminalTitlesCapability = 'mobileTerminalTitlesV1';
 const String mobilePortableSettingsCapability = 'mobilePortableSettingsV1';
 const String mobileAgentQuotaCapability = 'mobileAgentQuotaV1';

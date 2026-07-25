@@ -24,4 +24,5 @@ This file applies under `mobile/`. The root `AGENTS.md` also applies; this file 
 ## Protocol
 
 - The runtime gateway protocol version is `aleraMobileProtocolVersion` in `lib/src/core/mobile_protocol.dart`. The runtime enforces strict equality during `mobile.hello`, so never bump it for additive changes; feature-detect through the `runtimeCapabilities` array returned by the handshake instead.
+- Terminal output may arrive as a binary WebSocket message (`[u16be idLength][sessionId][raw bytes]`) instead of base64 inside JSON. The app asks for it with `binaryFrames: true` in `mobile.hello` and the runtime answers with what it granted; feature-detect through that response and `runtimeCapabilities`, never through `aleraMobileProtocolVersion`. The WebSocket already delimits messages, so there is no length-prefixed framing here, unlike the desktop socket.
 - Requests the gateway accepts from mobile clients are allowlisted in `rust/alera-cli/src/terminal_host/server/requests.rs` (`mobile_request_allowed`). Adding a new request type to the mobile app requires allowlisting it there first.

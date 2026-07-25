@@ -10,6 +10,7 @@ use tokio::task::JoinHandle;
 use tokio_tungstenite::{accept_async, tungstenite::Message};
 
 use crate::terminal_host::client::{ClientFrame, ClientHandle, CLIENT_TERMINAL_OUT_QUEUE_CAPACITY};
+use crate::terminal_host::frame_codec::encode_output_payload;
 use crate::terminal_host::server::{ClientKind, ServerCommand};
 
 pub fn spawn_mobile_gateway_accept_loop(
@@ -60,6 +61,7 @@ async fn mobile_websocket_loop(
     mut terminal_out_rx: Receiver<ClientFrame>,
 ) {
     let (mut write, mut read) = socket.split();
+    let mut binary = false;
     loop {
         tokio::select! {
             inbound = read.next() => {
@@ -101,12 +103,14 @@ async fn mobile_websocket_loop(
                             let Ok(terminal_value) = terminal_out_rx.try_recv() else {
                                 break;
                             };
-                            if send_mobile_value(&mut write, &terminal_value).await.is_err() {
+                            if send_mobile_value(&mut write, &terminal_value, &mut binary)
+                                .await
+                                .is_err() {
                                 failed = true;
                                 break;
                             }
                         }
-                        if failed || send_mobile_value(&mut write, &value).await.is_err() {
+                        if failed || send_mobile_value(&mut write, &value, &mut binary).await.is_err() {
                             let _ = inbox.send(ServerCommand::ClientDisconnected { id });
                             break;
                         }
@@ -117,7 +121,7 @@ async fn mobile_websocket_loop(
             outbound = terminal_out_rx.recv() => {
                 match outbound {
                     Some(value) => {
-                        if send_mobile_value(&mut write, &value).await.is_err() {
+                        if send_mobile_value(&mut write, &value, &mut binary).await.is_err() {
                             let _ = inbox.send(ServerCommand::ClientDisconnected { id });
                             break;
                         }
@@ -129,12 +133,30 @@ async fn mobile_websocket_loop(
     }
 }
 
-/// The mobile transport is still text-only, so a frame is flattened back into
-/// the JSON event a mobile client expects.
+/// Sends one frame over the WebSocket.
+///
+/// The WebSocket already delimits messages, so a device that negotiated binary
+/// output just gets a `Message::Binary` with the session id and the raw bytes.
+/// No length-prefixed framing is needed here, unlike the local TCP socket.
 async fn send_mobile_value(
     write: &mut SplitSink<tokio_tungstenite::WebSocketStream<TcpStream>, Message>,
     frame: &ClientFrame,
+    binary: &mut bool,
 ) -> anyhow::Result<()> {
+    if let ClientFrame::UpgradeToBinary = frame {
+        *binary = true;
+        return Ok(());
+    }
+    if *binary {
+        if let ClientFrame::Output { session_id, data } = frame {
+            write
+                .send(Message::Binary(
+                    encode_output_payload(session_id, data).into(),
+                ))
+                .await?;
+            return Ok(());
+        }
+    }
     let Some(value) = frame.as_json() else {
         return Ok(());
     };
