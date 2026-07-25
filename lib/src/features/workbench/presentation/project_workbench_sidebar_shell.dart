@@ -48,7 +48,6 @@ class _ProjectWorkbenchSidebarState
       searchQuery: sidebar.searchQuery,
       collapsed: sidebar.collapsed,
     );
-    final orderMemory = ref.read(sidebarOrderMemoryProvider);
     final controller = ref.read(workbenchControllerProvider.notifier);
     final workspaceFolderOpener = ref.read(workspaceFolderOpenerProvider);
     if (state.collapsed) {
@@ -91,43 +90,44 @@ class _ProjectWorkbenchSidebarState
                 ),
                 const Divider(height: 1, color: AleraTokens.borderSubtle),
                 Expanded(
-                  child: state.projects.isEmpty
-                      ? _EmptyProjectsView(onAddProject: _addProject)
-                      : Consumer(
-                          builder: (context, ref, _) {
-                            final agentStatuses = ref.watch(
-                              agentStatusControllerProvider,
-                            );
-                            final lastActivity = ref.watch(
-                              workspaceActivityControllerProvider,
-                            );
-                            return _SidebarBody(
-                              state: state,
-                              controller: controller,
-                              agentStatuses: agentStatuses,
-                              lastActivityByWorkspaceId: lastActivity,
-                              orderMemory: orderMemory,
-                              onOpenWorkspace: _openWorkspace,
-                              onOpenWorkspaceFolder: openWorkspaceFolder,
-                              onCopyWorkspacePath: copyWorkspacePath,
-                              onOpenWorkspaceInBrowser: openWorkspaceInBrowser,
-                              onSleepWorkspace: sleepWorkspace,
-                              onCreateWorkspace: _createWorkspace,
-                              onDeleteWorkspace: _deleteWorkspace,
-                              onRenameProject: _renameProject,
-                              onRemoveProject: _removeProject,
-                              onRenameWorkspace: _renameWorkspace,
-                              onSetWorkspacePinned: _setWorkspacePinned,
-                              onManageWorkspaceTags: _manageWorkspaceTags,
-                              onSetWorkspaceParent: _setWorkspaceParent,
-                              onClearWorkspaceParent: _clearWorkspaceParent,
-                              fileManagerLabel:
-                                  workspaceFolderOpener.fileManagerLabel,
-                              onSelectTerminal: _selectTerminal,
-                              onCloseTerminal: _closeTerminal,
-                            );
-                          },
-                        ),
+                  // One ticker for every agent spinner in the list.
+                  child: AgentRunSpinnerScope(
+                    child: state.projects.isEmpty
+                        ? _EmptyProjectsView(onAddProject: _addProject)
+                        : Consumer(
+                            builder: (context, ref, _) {
+                              // The rows are memoized in a provider, so this only
+                              // rebuilds when the computed list actually changes.
+                              final rows = ref.watch(
+                                workbenchSidebarRowsProvider,
+                              );
+                              return _SidebarBody(
+                                state: state,
+                                controller: controller,
+                                rows: rows,
+                                onOpenWorkspace: _openWorkspace,
+                                onOpenWorkspaceFolder: openWorkspaceFolder,
+                                onCopyWorkspacePath: copyWorkspacePath,
+                                onOpenWorkspaceInBrowser:
+                                    openWorkspaceInBrowser,
+                                onSleepWorkspace: sleepWorkspace,
+                                onCreateWorkspace: _createWorkspace,
+                                onDeleteWorkspace: _deleteWorkspace,
+                                onRenameProject: _renameProject,
+                                onRemoveProject: _removeProject,
+                                onRenameWorkspace: _renameWorkspace,
+                                onSetWorkspacePinned: _setWorkspacePinned,
+                                onManageWorkspaceTags: _manageWorkspaceTags,
+                                onSetWorkspaceParent: _setWorkspaceParent,
+                                onClearWorkspaceParent: _clearWorkspaceParent,
+                                fileManagerLabel:
+                                    workspaceFolderOpener.fileManagerLabel,
+                                onSelectTerminal: _selectTerminal,
+                                onCloseTerminal: _closeTerminal,
+                              );
+                            },
+                          ),
+                  ),
                 ),
                 const Divider(height: 1, color: AleraTokens.borderSubtle),
                 _SidebarFooter(

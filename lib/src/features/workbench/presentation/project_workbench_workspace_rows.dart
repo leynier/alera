@@ -195,14 +195,18 @@ class _WorkspaceRowState extends State<_WorkspaceRow> {
                         SizedBox.square(
                           dimension: _statusSlotSize,
                           child: Center(
-                            child: widget.status == null
-                                ? AleraStatusDot(
-                                    active: isActive || widget.hasTerminalTabs,
-                                  )
-                                : AgentRunStateIndicator(
-                                    status: widget.status!,
-                                    size: _statusSlotSize - 1,
-                                  ),
+                            // One widget type in this slot regardless of state:
+                            // swapping types here destroyed the element and
+                            // restarted the spinner whenever an agent started
+                            // or finished.
+                            child: AgentRunStateIndicator(
+                              key: const ValueKey<String>(
+                                'workspace-status-glyph',
+                              ),
+                              status: widget.status,
+                              size: _statusSlotSize - 1,
+                              idleDotActive: isActive || widget.hasTerminalTabs,
+                            ),
                           ),
                         ),
                         const SizedBox(width: AleraTokens.space8),

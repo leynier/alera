@@ -9,6 +9,7 @@ import 'package:alera/src/features/projects/domain/project.dart';
 import 'package:alera/src/features/settings/application/settings_controller.dart';
 import 'package:alera/src/features/settings/domain/alera_settings.dart';
 import 'package:alera/src/features/workbench/application/workbench_controller.dart';
+import 'package:alera/src/features/workbench/application/workbench_listing.dart';
 import 'package:alera/src/features/workbench/application/workbench_repository.dart';
 import 'package:alera/src/features/workbench/application/workbench_state.dart';
 import 'package:alera/src/features/workbench/application/workbench_view_prefs_repository.dart';
@@ -79,6 +80,44 @@ WorkbenchViewPrefsRepository workbenchViewPrefsRepository(Ref ref) {
 @Riverpod(keepAlive: true)
 SidebarOrderMemory sidebarOrderMemory(Ref ref) {
   return SidebarOrderMemory();
+}
+
+/// The sidebar row list, recomputed once per state change instead of once per
+/// widget rebuild.
+///
+/// `buildSidebarRows` filters and multi-key sorts every workspace, and the
+/// sidebar used to run it inline on every rebuild while also mutating the
+/// order memory during build.
+@Riverpod(keepAlive: true)
+List<WorkbenchSidebarRow> workbenchSidebarRows(Ref ref) {
+  final state = ref.watch(
+    workbenchControllerProvider.select(
+      (state) => (
+        activeWorkspaceId: state.activeWorkspaceId,
+        projects: state.projects,
+        searchQuery: state.searchQuery,
+        tabsByWorkspace: state.tabsByWorkspace,
+        viewPrefs: state.viewPrefs,
+        workspacesByProject: state.workspacesByProject,
+      ),
+    ),
+  );
+  final orderMemory = ref.read(sidebarOrderMemoryProvider);
+  final rows = buildSidebarRows(
+    WorkbenchState(
+      projects: state.projects,
+      workspacesByProject: state.workspacesByProject,
+      tabsByWorkspace: state.tabsByWorkspace,
+      viewPrefs: state.viewPrefs,
+      activeWorkspaceId: state.activeWorkspaceId,
+      searchQuery: state.searchQuery,
+    ),
+    agentStatuses: ref.watch(agentStatusControllerProvider),
+    lastActivityByWorkspaceId: ref.watch(workspaceActivityControllerProvider),
+    previousWorkspaceOrder: orderMemory.order,
+  );
+  orderMemory.order = workspaceOrderOfRows(rows);
+  return rows;
 }
 
 @Riverpod(keepAlive: true)

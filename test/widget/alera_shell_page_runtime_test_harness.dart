@@ -10,10 +10,15 @@ class _ShellSettingsController extends SettingsController {
 }
 
 class _ShellPumpHarness {
-  const _ShellPumpHarness({required this.controller, required this.runtime});
+  const _ShellPumpHarness({
+    required this.controller,
+    required this.runtime,
+    required this.agentStatus,
+  });
 
   final _ShellTestWorkbenchController controller;
   final _FakeTerminalRuntime runtime;
+  final _ShellTestAgentStatusController agentStatus;
 }
 
 class _FakeTerminalRuntime implements TerminalRuntime {

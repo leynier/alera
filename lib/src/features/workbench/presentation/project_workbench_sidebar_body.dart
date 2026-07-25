@@ -4,9 +4,7 @@ class _SidebarBody extends StatelessWidget {
   const _SidebarBody({
     required this.state,
     required this.controller,
-    required this.agentStatuses,
-    required this.lastActivityByWorkspaceId,
-    required this.orderMemory,
+    required this.rows,
     required this.onOpenWorkspace,
     required this.onOpenWorkspaceFolder,
     required this.onCopyWorkspacePath,
@@ -28,9 +26,7 @@ class _SidebarBody extends StatelessWidget {
 
   final WorkbenchState state;
   final WorkbenchController controller;
-  final Map<String, AgentStatusEntry> agentStatuses;
-  final Map<String, DateTime> lastActivityByWorkspaceId;
-  final SidebarOrderMemory orderMemory;
+  final List<WorkbenchSidebarRow> rows;
   final Future<void> Function(Project project, Workspace workspace)
   onOpenWorkspace;
   final Future<void> Function(Workspace workspace) onOpenWorkspaceFolder;
@@ -54,13 +50,6 @@ class _SidebarBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final rows = buildSidebarRows(
-      state,
-      agentStatuses: agentStatuses,
-      lastActivityByWorkspaceId: lastActivityByWorkspaceId,
-      previousWorkspaceOrder: orderMemory.order,
-    );
-    orderMemory.order = workspaceOrderOfRows(rows);
     if (rows.isEmpty) {
       return _EmptyResultsView(query: state.searchQuery);
     }
@@ -71,7 +60,10 @@ class _SidebarBody extends StatelessWidget {
       ),
       itemCount: rows.length,
       itemBuilder: (context, index) {
-        return _buildRow(rows, index);
+        return KeyedSubtree(
+          key: ValueKey<String>(rows[index].key),
+          child: _buildRow(rows, index),
+        );
       },
     );
   }
@@ -119,23 +111,15 @@ class _SidebarBody extends StatelessWidget {
     }
     if (row is WorkbenchWorkspaceRow) {
       final leftPadding = _indentPadding(row.indent);
-      final tabs = state.tabsFor(row.workspace.id);
-      final agentRuns = visibleWorkspaceAgentRuns(
-        tabs: tabs,
-        agentStatuses: agentStatuses,
-      );
-      final hasTerminalTabs = tabs.any(
-        (tab) => tab.kind == WorkspaceTabKind.terminal,
-      );
       return Padding(
         padding: EdgeInsets.only(left: leftPadding, right: AleraTokens.space8),
         child: _WorkspaceRow(
           project: row.project,
           workspace: row.workspace,
-          agentRuns: agentRuns,
-          agentRunGroups: groupWorkspaceAgentRuns(agentRuns),
-          status: agentRuns.isEmpty ? null : agentRuns.first.status,
-          hasTerminalTabs: hasTerminalTabs,
+          agentRuns: row.agentRuns,
+          agentRunGroups: row.agentRunGroups,
+          status: row.aggregateStatus,
+          hasTerminalTabs: row.hasTerminalTabs,
           isActive: row.workspace.id == state.activeWorkspaceId,
           activeTabId: state.activeTabIdByWorkspace[row.workspace.id],
           showProject: row.showProjectChip,
