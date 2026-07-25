@@ -87,6 +87,9 @@ pub enum OrchestrationAction {
     /// List decision gates.
     #[command(name = "gate-list")]
     GateList(OrchestrationGateListArgs),
+    /// List the user-declared agent profiles available for dispatch.
+    #[command(name = "agent-profiles")]
+    AgentProfiles,
     /// Start the background coordinator loop.
     Run(OrchestrationRunArgs),
     /// List durable coordinator runs.

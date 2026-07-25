@@ -11,7 +11,7 @@ use crate::terminal_host::host_error::{HostError, HostResult};
 pub const PROTOCOL_VERSION: i64 = 4;
 pub const ORCHESTRATION_PROTOCOL_VERSION: i64 = 2;
 pub const DISPATCH_PREAMBLE_VERSION: i64 = 2;
-pub const ORCHESTRATION_SKILL_VERSION: i64 = 2;
+pub const ORCHESTRATION_SKILL_VERSION: i64 = 3;
 pub const ORCHESTRATION_ACCEPTANCE_TIMEOUT_MS: u64 = 90_000;
 pub const RUNTIME_HOST_CAPABILITY: &str = "runtimeStore";
 pub const RUNTIME_HOST_BOOTSTRAP_CAPABILITY: &str = "sshTargetBootstrap";
@@ -38,6 +38,10 @@ pub const RUNTIME_HOST_ORCHESTRATION_WAIT_CAPABILITY: &str = "orchestrationWaitV
 // Advertised once dispatch honors the explicit agent adapter override. Older
 // hosts ignore assumeAgent, so callers must negotiate this capability first.
 pub const RUNTIME_HOST_ORCHESTRATION_ASSUME_AGENT_CAPABILITY: &str = "orchestrationAssumeAgentV1";
+// Advertised once the host stores the user-declared agent profile catalog.
+// Purely additive: older hosts simply do not answer agentProfile.* verbs, so
+// callers negotiate this instead of comparing protocol versions.
+pub const RUNTIME_HOST_AGENT_PROFILES_CAPABILITY: &str = "orchestrationAgentProfilesV1";
 // Advertised once terminal.write supports host-sequenced bracketed paste and
 // deferred Enter. Older hosts ignore those fields, so CLI callers must require
 // this capability before relying on --enter or --submit.

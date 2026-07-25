@@ -6,10 +6,12 @@ use crate::cli_orchestration::{
     OrchestrationAction, OrchestrationAskArgs, OrchestrationCheckArgs, OrchestrationCommand,
     OrchestrationSendArgs,
 };
+use crate::orchestration_command_summaries::human_summary;
 #[cfg(test)]
 use crate::orchestration_terminal_commands::terminal_startup_error;
 use crate::orchestration_terminal_commands::{run_agent_spawn, run_terminal_wait};
 use crate::runtime_host_client::RuntimeHostRpcClient;
+use crate::terminal_host::protocol::RUNTIME_HOST_AGENT_PROFILES_CAPABILITY;
 use crate::terminal_host::protocol::RUNTIME_HOST_ORCHESTRATION_ASSUME_AGENT_CAPABILITY;
 use crate::terminal_host::protocol::RUNTIME_HOST_ORCHESTRATION_CAPABILITY;
 use crate::terminal_host::protocol::RUNTIME_HOST_ORCHESTRATION_TERMINAL_INSPECTION_CAPABILITY;
@@ -415,6 +417,20 @@ pub async fn run_orchestration_command(command: OrchestrationCommand) -> i32 {
                 &runtime,
                 "orchestration.gateResolve",
                 json!({ "id": args.id, "resolution": args.resolution }),
+                json_output,
+                None,
+            )
+            .await
+        }
+        // Read-only on purpose: a coordinator discovers what it may dispatch
+        // to, but only the user adds or edits profiles, so the orchestrator
+        // picks from a closed list instead of inventing launch commands.
+        OrchestrationAction::AgentProfiles => {
+            request_with_capability(
+                &runtime,
+                RUNTIME_HOST_AGENT_PROFILES_CAPABILITY,
+                "agentProfile.list",
+                json!({}),
                 json_output,
                 None,
             )
@@ -929,158 +945,6 @@ async fn request_with_capability(
             1
         }
     }
-}
-
-fn human_summary(request_type: &str, value: &Value) -> String {
-    match request_type {
-        "orchestration.send" => {
-            let recipients = value
-                .get("recipients")
-                .and_then(Value::as_array)
-                .map(|entries| entries.len())
-                .unwrap_or(0);
-            format!("message sent to {recipients} recipient(s)")
-        }
-        "orchestration.check" => {
-            if let Some(formatted) = value.get("formatted").and_then(Value::as_str) {
-                if !formatted.is_empty() {
-                    return formatted.to_string();
-                }
-            }
-            check_message_summary(value)
-        }
-        "orchestration.reply" => "reply sent".to_string(),
-        "orchestration.inbox" => {
-            let count = value
-                .get("items")
-                .and_then(Value::as_array)
-                .map(|messages| messages.len())
-                .unwrap_or(0);
-            format!("{count} message(s)")
-        }
-        "orchestration.taskCreate" => value
-            .get("id")
-            .and_then(Value::as_str)
-            .map(|id| format!("task created: {id}"))
-            .unwrap_or_else(|| "task created".to_string()),
-        "orchestration.taskList" => {
-            let count = value
-                .get("items")
-                .and_then(Value::as_array)
-                .map(|tasks| tasks.len())
-                .unwrap_or(0);
-            format!("{count} task(s)")
-        }
-        "orchestration.taskUpdate" => "task updated".to_string(),
-        "orchestration.dispatch" => value
-            .get("preamble")
-            .or_else(|| {
-                (value.get("startupState").and_then(Value::as_str)
-                    == Some("awaiting_manual_delivery"))
-                .then(|| value.get("bootstrap"))
-                .flatten()
-            })
-            .and_then(Value::as_str)
-            .map(str::to_string)
-            .unwrap_or_else(|| {
-                if value
-                    .get("dryRun")
-                    .and_then(Value::as_bool)
-                    .unwrap_or(false)
-                {
-                    "dispatch dry run".to_string()
-                } else {
-                    "task dispatched".to_string()
-                }
-            }),
-        "orchestration.dispatchShow" => {
-            serde_json::to_string_pretty(value).unwrap_or_else(|_| "dispatch context".to_string())
-        }
-        "orchestration.gateCreate" => value
-            .get("id")
-            .and_then(Value::as_str)
-            .map(|id| format!("gate created: {id}"))
-            .unwrap_or_else(|| "gate created".to_string()),
-        "orchestration.gateResolve" => "gate resolved".to_string(),
-        "orchestration.gateList" => {
-            let count = value
-                .get("items")
-                .and_then(Value::as_array)
-                .map(|gates| gates.len())
-                .unwrap_or(0);
-            format!("{count} gate(s)")
-        }
-        "orchestration.run" => value
-            .get("runId")
-            .and_then(Value::as_str)
-            .map(|id| format!("coordinator run started: {id}"))
-            .unwrap_or_else(|| "coordinator run started".to_string()),
-        "orchestration.runStop" => "coordinator run stopped".to_string(),
-        "orchestration.terminals" => {
-            let count = value
-                .get("items")
-                .and_then(Value::as_array)
-                .map(|terminals| terminals.len())
-                .unwrap_or(0);
-            format!("{count} terminal(s)")
-        }
-        "orchestration.reset" => "orchestration state reset".to_string(),
-        _ => serde_json::to_string_pretty(value).unwrap_or_else(|_| "ok".to_string()),
-    }
-}
-
-fn check_message_summary(value: &Value) -> String {
-    let Some(messages) = value.get("messages").and_then(Value::as_array) else {
-        return "0 message(s)".to_string();
-    };
-    if messages.is_empty() {
-        return "0 message(s)".to_string();
-    }
-    messages
-        .iter()
-        .map(check_message_item_summary)
-        .collect::<Vec<_>>()
-        .join("\n\n")
-}
-
-fn check_message_item_summary(message: &Value) -> String {
-    let id = message.get("id").and_then(Value::as_str).unwrap_or("");
-    let from = message
-        .get("from_handle")
-        .and_then(Value::as_str)
-        .unwrap_or("<unknown>");
-    let message_type = message
-        .get("type")
-        .and_then(Value::as_str)
-        .unwrap_or("status");
-    let subject = message
-        .get("subject")
-        .and_then(Value::as_str)
-        .unwrap_or("<no subject>");
-    let mut lines = vec![
-        format!("From: {from} ({message_type})"),
-        format!("Subject: {subject}"),
-    ];
-    if let Some(body) = message
-        .get("body")
-        .and_then(Value::as_str)
-        .filter(|body| !body.is_empty())
-    {
-        lines.push(body.to_string());
-    }
-    if let Some(payload) = message
-        .get("payload")
-        .and_then(Value::as_str)
-        .filter(|payload| !payload.is_empty())
-    {
-        lines.push(format!("[Payload: {payload}]"));
-    }
-    if !id.is_empty() {
-        lines.push(format!(
-            "[Reply: alera orchestration reply --id {id} --body \"...\"]"
-        ));
-    }
-    lines.join("\n")
 }
 
 fn insert_opt(payload: &mut Map<String, Value>, key: &str, value: Option<String>) {

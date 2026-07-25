@@ -7,11 +7,11 @@ Alera orchestration is owned by the Rust runtime-host. Tasks, dispatches, messag
 - Terminal-host protocol: 4.
 - Orchestration protocol: 2.
 - Dispatch preamble: 2.
-- Installed skill contract: 2.
+- Installed skill contract: 3.
 
 `alera version --json` reports the CLI build and expected contracts, then queries an already-running compatible runtime host for its actual build and contract versions. Cargo builds embed `ALERA_BUILD_COMMIT` when supplied and otherwise resolve the current Git commit at build time. Host fields are `null` and `runtimeHostAvailable` is `false` when no compatible host is reachable; the command never invents host equality from the CLI build.
 
-Runtime-host features are negotiated additively. Terminal inspection and prune commands require `orchestrationTerminalInspectionV1`, waits require `orchestrationWaitV1`, explicit agent overrides require `orchestrationAssumeAgentV1`, and deferred Enter/submit requires `terminalDeferredInputV1`; the CLI asks for a host restart instead of sending unsupported RPCs.
+Runtime-host features are negotiated additively. Terminal inspection and prune commands require `orchestrationTerminalInspectionV1`, waits require `orchestrationWaitV1`, explicit agent overrides require `orchestrationAssumeAgentV1`, the agent profile catalog requires `orchestrationAgentProfilesV1`, and deferred Enter/submit requires `terminalDeferredInputV1`; the CLI asks for a host restart instead of sending unsupported RPCs.
 
 The v2 schema is incompatible at the SQL constraint level, so the runtime performs a transactional table rebuild that preserves v1 messages, tasks, dispatches, gates, and runs while filling new ownership and scope fields with conservative defaults. Unknown future schema versions fail closed instead of deleting state.
 
@@ -32,6 +32,22 @@ alera orchestration run-stop --id <run-id> [--cancel-active] --reason "Stopped b
 `task-create`, `agent-spawn`, and `run` default `--workspace` from `ALERA_WORKSPACE_ID`. Use `alera orchestration current` to inspect the current workspace and terminal identity.
 
 `run-stop` is graceful by default: it stops new scheduling while active workers retain authority to finish and persists the supplied reason on the run. `--cancel-active` applies cooperative cancellation to active tasks. Only the owning coordinator can stop the run normally; `--force` is reserved for audited administrative recovery, and forced child cancellations retain the administrative actor in their audit records.
+
+## Agent Profile Catalog
+
+An agent profile is a user-declared launch configuration a run can dispatch to. Each profile carries a unique name, an adapter type from the built-in registry, the interactive launch command, a free-text description used as a routing signal, and an optional quota group. Profiles are user configuration, not run state: they live in the runtime schema next to `sshTargets`, so resetting orchestration state never destroys them.
+
+```bash
+alera orchestration agent-profiles --json
+```
+
+The CLI surface is read-only by design. A coordinator discovers what it may dispatch to and what each option is good for, but only the user creates or edits profiles, through Settings -> Agent Profiles. The orchestrator therefore picks from a closed list the user approved instead of inventing launch commands.
+
+The adapter type is required because the registry is more than a command: it decides how the host detects readiness, injects the dispatch preamble, and forces submission. The host rejects a profile whose adapter is not in `AGENT_ADAPTERS`, so `grok` cannot be targeted until it gains a spawn adapter. The command must be the interactive form the adapter expects; a one-shot mode cannot satisfy the accept/heartbeat/complete worker contract.
+
+The quota group declares which profiles drain the same usage bucket. Alera never measures, predicts, or verifies quota here; the grouping is an assertion the user makes, and its only purpose is to let a later fallback prefer a candidate from a different bucket.
+
+The app manages the catalog with `agentProfile.list`, `agentProfile.upsert`, and `agentProfile.remove`, and refreshes on the `agentProfilesChanged` event.
 
 ## Agent Spawn And Readiness
 

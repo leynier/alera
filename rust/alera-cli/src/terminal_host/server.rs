@@ -43,6 +43,7 @@ use crate::terminal_host::session::{PtyEvent, PtyWriteCompletion, Session};
 mod agent_hook_events;
 mod client_delivery;
 mod coordinator_requests;
+mod declared_catalog_requests;
 mod host_service_agent_quota;
 mod host_service_requests;
 mod lifecycle;

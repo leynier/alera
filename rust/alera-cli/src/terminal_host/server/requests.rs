@@ -1,8 +1,8 @@
 use alera_core::{
     git as core_git,
     runtime::{
-        LinkedReview, Project, ProjectConfig, SshTarget, WorkbenchLayoutRecord, Workspace,
-        WorkspaceTabRecord, WorkspaceTag,
+        LinkedReview, Project, ProjectConfig, WorkbenchLayoutRecord, Workspace, WorkspaceTabRecord,
+        WorkspaceTag,
     },
 };
 use chrono::{DateTime, Utc};
@@ -23,9 +23,10 @@ use crate::ssh_bootstrap::{build_ssh_bootstrap_plan, SshTargetBootstrapRequest};
 use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::{
     error_response, event, int_or, ok_response, require_object, TerminalHostConfig,
-    TerminalHostLaunch, PROTOCOL_VERSION, RUNTIME_HOST_AGENT_QUOTA_CLAUDE_TUI_CAPABILITY,
-    RUNTIME_HOST_AGENT_STATUS_CAPABILITY, RUNTIME_HOST_BINARY_FRAMES_CAPABILITY,
-    RUNTIME_HOST_BOOTSTRAP_CAPABILITY, RUNTIME_HOST_CAPABILITY, RUNTIME_HOST_LIFECYCLE_CAPABILITY,
+    TerminalHostLaunch, PROTOCOL_VERSION, RUNTIME_HOST_AGENT_PROFILES_CAPABILITY,
+    RUNTIME_HOST_AGENT_QUOTA_CLAUDE_TUI_CAPABILITY, RUNTIME_HOST_AGENT_STATUS_CAPABILITY,
+    RUNTIME_HOST_BINARY_FRAMES_CAPABILITY, RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
+    RUNTIME_HOST_CAPABILITY, RUNTIME_HOST_LIFECYCLE_CAPABILITY,
     RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY, RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY,
     RUNTIME_HOST_MOBILE_CAPABILITY, RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY,
     RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY, RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY,
@@ -565,6 +566,7 @@ impl ServerActor {
                         RUNTIME_HOST_AGENT_QUOTA_CLAUDE_TUI_CAPABILITY,
                         RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY,
                         RUNTIME_HOST_ORCHESTRATION_CAPABILITY,
+                        RUNTIME_HOST_AGENT_PROFILES_CAPABILITY,
                         RUNTIME_HOST_ORCHESTRATION_ASSUME_AGENT_CAPABILITY,
                         RUNTIME_HOST_ORCHESTRATION_TERMINAL_INSPECTION_CAPABILITY,
                         RUNTIME_HOST_ORCHESTRATION_WAIT_CAPABILITY,
@@ -1018,34 +1020,29 @@ impl ServerActor {
                         .await,
                 )
             }
+            "agentProfile.list" => {
+                self.require_auth(client_id)?;
+                self.agent_profile_list().await
+            }
+            "agentProfile.upsert" => {
+                self.require_auth(client_id)?;
+                self.agent_profile_upsert(payload).await
+            }
+            "agentProfile.remove" => {
+                self.require_auth(client_id)?;
+                self.agent_profile_remove(payload).await
+            }
             "sshTarget.list" => {
                 self.require_auth(client_id)?;
-                json_result(self.runtime_store.list_ssh_targets().await)
+                self.ssh_target_list().await
             }
             "sshTarget.upsert" => {
                 self.require_auth(client_id)?;
-                let mut target: SshTarget = parse_payload(payload)?;
-                if payload.get("installDir").is_none() {
-                    if let Some(existing) = self
-                        .runtime_store
-                        .find_ssh_target(&target.id)
-                        .await
-                        .map_err(|error| HostError::state(error.to_string()))?
-                    {
-                        target.install_dir = existing.install_dir;
-                    }
-                }
-                let value = json_result(self.runtime_store.upsert_ssh_target(target).await)?;
-                self.broadcast_authenticated(event("sshTargetsChanged", json!({})));
-                Ok(value)
+                self.ssh_target_upsert(payload).await
             }
             "sshTarget.remove" => {
                 self.require_auth(client_id)?;
-                let id = require_string_key(payload, "id")?;
-                self.cancel_ssh_bootstrap_job_before_remove(&id).await?;
-                json_result(self.runtime_store.remove_ssh_target(&id).await)?;
-                self.broadcast_authenticated(event("sshTargetsChanged", json!({})));
-                Ok(json!({}))
+                self.ssh_target_remove(payload).await
             }
             "sshTarget.bootstrap.plan" => {
                 self.require_auth(client_id)?;
