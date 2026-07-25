@@ -279,6 +279,10 @@ pub struct OrchestrationTask {
     pub startup_failure_count: i64,
     pub cancelled_at: Option<String>,
     pub stalled_at: Option<String>,
+    /// The execution-policy stage this task belongs to, when its run has one.
+    /// Resolves the preferred profile and the fallback list for the task.
+    #[serde(default)]
+    pub stage_id: Option<String>,
     /// Populated by list-with-dispatch queries: the active dispatch, if any.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub assignee_handle: Option<String>,
@@ -334,4 +338,56 @@ pub struct OrchestrationCoordinatorRun {
     pub max_concurrent: i64,
     pub last_activity_at: String,
     pub stop_reason: Option<String>,
+    /// The stage plan the user approved for this run, as JSON. `None` means the
+    /// run predates policies or never had one, and behaves exactly as before.
+    #[serde(default)]
+    pub execution_policy: Option<String>,
+    #[serde(default)]
+    pub execution_policy_status: OrchestrationPolicyStatus,
+    #[serde(default)]
+    pub execution_policy_updated_at: Option<String>,
+}
+
+/// Approval state of a run's execution policy.
+///
+/// Stored without a SQL CHECK constraint on purpose: widening a CHECK requires
+/// a table rebuild, and this set is the kind that grows.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum OrchestrationPolicyStatus {
+    /// No policy was ever proposed. The run schedules exactly as it did before
+    /// policies existed.
+    #[default]
+    None,
+    /// Proposed and awaiting the user. The coordinator must not dispatch.
+    Draft,
+    Approved,
+    Rejected,
+}
+
+impl OrchestrationPolicyStatus {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            OrchestrationPolicyStatus::None => "none",
+            OrchestrationPolicyStatus::Draft => "draft",
+            OrchestrationPolicyStatus::Approved => "approved",
+            OrchestrationPolicyStatus::Rejected => "rejected",
+        }
+    }
+
+    pub fn parse(value: &str) -> Option<Self> {
+        match value {
+            "none" => Some(OrchestrationPolicyStatus::None),
+            "draft" => Some(OrchestrationPolicyStatus::Draft),
+            "approved" => Some(OrchestrationPolicyStatus::Approved),
+            "rejected" => Some(OrchestrationPolicyStatus::Rejected),
+            _ => None,
+        }
+    }
+
+    /// Only a proposed-but-unresolved policy blocks scheduling. A run with no
+    /// policy, an approved one, or a rejected one all keep scheduling.
+    pub fn blocks_dispatch(self) -> bool {
+        matches!(self, OrchestrationPolicyStatus::Draft)
+    }
 }

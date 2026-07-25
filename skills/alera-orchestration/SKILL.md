@@ -35,6 +35,30 @@ alera orchestration --json agent-profiles
 
 Each profile carries `name`, `agentType`, `command`, `description`, and an optional `quotaGroup`. Use `description` to choose a profile for a stage, and pass its `agentType` and `command` to `agent-spawn`. The catalog is read-only: never invent a profile or a launch command, and never edit one on the user's behalf. Profiles sharing a `quotaGroup` drain the same usage bucket, so falling back inside one group buys nothing. Stop scheduling with `run-stop --id`; add `--cancel-active` only when active work should receive cooperative cancellation. Run stop, task recovery, and dispatch interruption require the owning coordinator; `--force` is the audited administrative recovery path.
 
+### Planning A Run
+
+When a run should be split across agents, propose a stage plan and let the user approve it before dispatching:
+
+```bash
+alera orchestration --json run-policy-propose --run <run-id> --policy-file plan.json
+alera orchestration --json run-policy-show --run <run-id>
+alera orchestration --json task-create --run <run-id> --stage implementation --spec "..."
+```
+
+```json
+{
+  "version": 1,
+  "stallPolicy": "ask",
+  "stages": [
+    {"id": "implementation", "title": "Implementation", "profile": "Codex GPT-5.6-Sol", "fallbacks": ["Claude Sonnet 5"]}
+  ]
+}
+```
+
+Pick each stage's profile by reading the catalog descriptions; every profile named, preferred or fallback, must already exist there. Prefer a fallback from a different `quotaGroup`, since a fallback inside the same bucket buys nothing. `stallPolicy` is `ask`, `auto-failover`, or `wait`.
+
+A proposed plan holds scheduling until the user resolves it, so propose before creating stage-bound tasks and then wait. Do not approve your own plan: approval is the user's decision. A plan is revised by proposing again, not by re-approving.
+
 For direct assignment:
 
 ```bash

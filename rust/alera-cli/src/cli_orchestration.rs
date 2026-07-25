@@ -1,6 +1,7 @@
 use clap::{Args, Subcommand};
 
 use crate::cli::{OutputArgs, RuntimeDirArgs};
+pub use crate::cli_orchestration_runs::*;
 pub use crate::cli_orchestration_terminal::*;
 
 /// `alera orchestration ...` - inter-agent messaging, task DAG, dispatch,
@@ -90,6 +91,18 @@ pub enum OrchestrationAction {
     /// List the user-declared agent profiles available for dispatch.
     #[command(name = "agent-profiles")]
     AgentProfiles,
+    /// Propose a stage plan for a run. Holds scheduling until it is resolved.
+    #[command(name = "run-policy-propose")]
+    RunPolicyPropose(OrchestrationRunPolicyProposeArgs),
+    /// Show a run's execution policy and its approval state.
+    #[command(name = "run-policy-show")]
+    RunPolicyShow(OrchestrationRunPolicyShowArgs),
+    /// Approve a proposed execution policy so the run may schedule.
+    #[command(name = "run-policy-approve")]
+    RunPolicyApprove(OrchestrationRunPolicyShowArgs),
+    /// Reject a proposed execution policy.
+    #[command(name = "run-policy-reject")]
+    RunPolicyReject(OrchestrationRunPolicyRejectArgs),
     /// Start the background coordinator loop.
     Run(OrchestrationRunArgs),
     /// List durable coordinator runs.
@@ -284,6 +297,11 @@ pub struct OrchestrationTaskCreateArgs {
     /// Coordinator run for a coordinated task.
     #[arg(long = "run", value_name = "run_id")]
     pub run: Option<String>,
+
+    /// Execution-policy stage this task belongs to. Must be declared by the
+    /// run's policy, which is what resolves the profile and fallbacks.
+    #[arg(long = "stage", value_name = "stage_id")]
+    pub stage: Option<String>,
 
     /// Coordinator terminal for a manual task. Defaults to ALERA_TERMINAL_HANDLE.
     #[arg(long = "coordinator", value_name = "handle")]
@@ -511,58 +529,6 @@ pub struct OrchestrationGateListArgs {
     /// Filter by status: pending|resolved|timeout.
     #[arg(long = "status", value_name = "status")]
     pub status: Option<String>,
-}
-
-#[derive(Debug, Args)]
-pub struct OrchestrationRunArgs {
-    /// Run objective recorded on the coordinator run.
-    #[arg(long = "spec", value_name = "text")]
-    pub spec: String,
-
-    /// Coordinator handle. Defaults to ALERA_TERMINAL_HANDLE.
-    #[arg(long = "from", value_name = "handle")]
-    pub from: Option<String>,
-
-    /// Poll interval in milliseconds (default 2000).
-    #[arg(long = "poll-interval-ms", value_name = "ms")]
-    pub poll_interval_ms: Option<u64>,
-
-    /// Maximum concurrent dispatches (default 4).
-    #[arg(long = "max-concurrent", value_name = "n")]
-    pub max_concurrent: Option<u64>,
-
-    /// Workspace id that scopes worker terminals and drift checks.
-    #[arg(long = "workspace", value_name = "workspace_id")]
-    pub workspace: Option<String>,
-
-    /// Agent type used when the coordinator creates worker terminals.
-    #[arg(long = "agent", default_value = "codex")]
-    pub agent: String,
-}
-
-#[derive(Debug, Args)]
-pub struct OrchestrationRunListArgs {
-    #[arg(long = "workspace", value_name = "workspace_id")]
-    pub workspace: Option<String>,
-}
-
-#[derive(Debug, Args)]
-pub struct OrchestrationRunIdArgs {
-    #[arg(long = "id", value_name = "run_id")]
-    pub id: String,
-}
-
-#[derive(Debug, Args)]
-pub struct OrchestrationRunStopArgs {
-    #[arg(long = "id", value_name = "run_id")]
-    pub id: String,
-    #[arg(long = "cancel-active")]
-    pub cancel_active: bool,
-    #[arg(long = "reason", default_value = "coordinator stopped")]
-    pub reason: String,
-    /// Bypass coordinator ownership for an audited administrative stop.
-    #[arg(long)]
-    pub force: bool,
 }
 
 #[derive(Debug, Args)]

@@ -8,6 +8,7 @@ use sqlx::{Row, SqlitePool};
 use thiserror::Error;
 use uuid::Uuid;
 
+use super::runtime_schema::RUNTIME_SCHEMA;
 use super::{
     CascadePreview, LinkedReview, MobileAccessSettings, MobileDevice, MobileDevicePermission,
     MobileEndpointMode, MobilePairingOffer, Project, ProjectConfig, ProjectConfigMap,
@@ -104,6 +105,25 @@ impl RuntimeStore {
             "TEXT NOT NULL DEFAULT 'loopback'",
         )
         .await?;
+        // Orchestration tables are created idempotently above, but CREATE TABLE
+        // IF NOT EXISTS is a no-op on an existing database, so every column
+        // added after the v2 rebuild must also be backfilled here.
+        self.ensure_column("orchestrationCoordinatorRuns", "execution_policy", "TEXT")
+            .await?;
+        self.ensure_column(
+            "orchestrationCoordinatorRuns",
+            "execution_policy_status",
+            "TEXT NOT NULL DEFAULT 'none'",
+        )
+        .await?;
+        self.ensure_column(
+            "orchestrationCoordinatorRuns",
+            "execution_policy_updated_at",
+            "TEXT",
+        )
+        .await?;
+        self.ensure_column("orchestrationTasks", "stage_id", "TEXT")
+            .await?;
         Ok(())
     }
 
@@ -1655,157 +1675,6 @@ pub fn parse_timestamp(value: &str) -> DateTime<Utc> {
 fn empty_to_none(value: Option<String>) -> Option<String> {
     value.and_then(|v| if v.trim().is_empty() { None } else { Some(v) })
 }
-
-const RUNTIME_SCHEMA: &[&str] = &[
-    "CREATE TABLE IF NOT EXISTS runtimeMetadata (
-        key TEXT PRIMARY KEY,
-        value TEXT NOT NULL,
-        updatedAt TEXT NOT NULL
-    );",
-    "CREATE TABLE IF NOT EXISTS projects (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        repoPath TEXT NOT NULL,
-        createdAt TEXT NOT NULL,
-        updatedAt TEXT NOT NULL,
-        kind TEXT NOT NULL
-    );",
-    "CREATE TABLE IF NOT EXISTS projectConfigs (
-        projectId TEXT PRIMARY KEY,
-        dataJson TEXT NOT NULL,
-        updatedAt TEXT NOT NULL
-    );",
-    "CREATE TABLE IF NOT EXISTS workspaces (
-        id TEXT PRIMARY KEY,
-        instanceId TEXT NOT NULL,
-        hostId TEXT NOT NULL,
-        projectId TEXT NOT NULL,
-        name TEXT NOT NULL,
-        branch TEXT,
-        path TEXT NOT NULL,
-        createdAt TEXT NOT NULL,
-        updatedAt TEXT NOT NULL,
-        kind TEXT NOT NULL,
-        status TEXT NOT NULL,
-        sourceBranch TEXT,
-        reusesExistingBranch INTEGER NOT NULL DEFAULT 0,
-        isPinned INTEGER NOT NULL DEFAULT 0
-    );",
-    "CREATE INDEX IF NOT EXISTS workspacesProjectStatusIdx ON workspaces(projectId, status, kind, createdAt);",
-    "CREATE UNIQUE INDEX IF NOT EXISTS workspacesInstanceIdx ON workspaces(instanceId);",
-    "CREATE TABLE IF NOT EXISTS workspaceTabs (
-        id TEXT PRIMARY KEY,
-        workspaceId TEXT NOT NULL,
-        kind TEXT NOT NULL,
-        title TEXT NOT NULL,
-        createdAt TEXT NOT NULL,
-        updatedAt TEXT NOT NULL,
-        payloadJson TEXT NOT NULL DEFAULT '{}'
-    );",
-    "CREATE INDEX IF NOT EXISTS workspaceTabsWorkspaceIdx ON workspaceTabs(workspaceId, createdAt);",
-    "CREATE TABLE IF NOT EXISTS linkedReviews (
-        workspaceId TEXT PRIMARY KEY,
-        dismissed INTEGER NOT NULL DEFAULT 0,
-        provider TEXT,
-        number INTEGER,
-        url TEXT,
-        linkedAt TEXT NOT NULL
-    );",
-    "CREATE TABLE IF NOT EXISTS workbenchLayouts (
-        workspaceId TEXT PRIMARY KEY,
-        dataJson TEXT NOT NULL
-    );",
-    "CREATE TABLE IF NOT EXISTS workspaceTags (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        color TEXT,
-        createdAt TEXT NOT NULL,
-        updatedAt TEXT NOT NULL
-    );",
-    "CREATE UNIQUE INDEX IF NOT EXISTS workspaceTagsNameIdx ON workspaceTags(name COLLATE NOCASE);",
-    "CREATE TABLE IF NOT EXISTS workspaceTagAssignments (
-        workspaceId TEXT NOT NULL,
-        tagId TEXT NOT NULL,
-        PRIMARY KEY(workspaceId, tagId)
-    );",
-    "CREATE INDEX IF NOT EXISTS workspaceTagAssignmentsTagIdx ON workspaceTagAssignments(tagId, workspaceId);",
-    "CREATE TABLE IF NOT EXISTS workspaceRelations (
-        id TEXT PRIMARY KEY,
-        parentWorkspaceId TEXT NOT NULL,
-        parentInstanceId TEXT NOT NULL,
-        childWorkspaceId TEXT NOT NULL,
-        childInstanceId TEXT NOT NULL,
-        createdAt TEXT NOT NULL
-    );",
-    "CREATE UNIQUE INDEX IF NOT EXISTS workspaceRelationsPairIdx ON workspaceRelations(parentWorkspaceId, childWorkspaceId);",
-    "CREATE UNIQUE INDEX IF NOT EXISTS workspaceRelationsChildIdx ON workspaceRelations(childWorkspaceId);",
-    "CREATE INDEX IF NOT EXISTS workspaceRelationsParentIdx ON workspaceRelations(parentWorkspaceId);",
-    "CREATE TABLE IF NOT EXISTS sshTargets (
-        id TEXT PRIMARY KEY,
-        alias TEXT NOT NULL,
-        host TEXT NOT NULL,
-        port INTEGER NOT NULL,
-        username TEXT NOT NULL,
-        platform TEXT,
-        arch TEXT,
-        authKind TEXT NOT NULL,
-        createdAt TEXT NOT NULL,
-        updatedAt TEXT NOT NULL,
-        lastStatus TEXT,
-        installDir TEXT,
-        runtimeVersion TEXT,
-        runtimePlatform TEXT,
-        runtimeArch TEXT,
-        bootstrapStatus TEXT NOT NULL DEFAULT 'notInstalled',
-        lastBootstrapAt TEXT,
-        lastCheckedAt TEXT,
-        lastError TEXT
-    );",
-    "CREATE UNIQUE INDEX IF NOT EXISTS sshTargetsAliasIdx ON sshTargets(alias COLLATE NOCASE);",
-    "CREATE TABLE IF NOT EXISTS agentProfiles (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        agentType TEXT NOT NULL,
-        command TEXT NOT NULL,
-        description TEXT NOT NULL DEFAULT '',
-        quotaGroup TEXT,
-        createdAt TEXT NOT NULL,
-        updatedAt TEXT NOT NULL
-    );",
-    "CREATE UNIQUE INDEX IF NOT EXISTS agentProfilesNameIdx ON agentProfiles(name COLLATE NOCASE);",
-    "CREATE TABLE IF NOT EXISTS mobileAccessSettings (
-        id INTEGER PRIMARY KEY CHECK (id = 1),
-        enabled INTEGER NOT NULL DEFAULT 0,
-        bindHost TEXT NOT NULL,
-        port INTEGER NOT NULL,
-        endpointMode TEXT NOT NULL DEFAULT 'loopback',
-        serverPublicKeyB64 TEXT,
-        updatedAt TEXT NOT NULL
-    );",
-    "CREATE TABLE IF NOT EXISTS mobileDevices (
-        id TEXT PRIMARY KEY,
-        displayName TEXT NOT NULL,
-        tokenHash TEXT NOT NULL,
-        publicKeyB64 TEXT,
-        permission TEXT NOT NULL,
-        pairedAt TEXT NOT NULL,
-        lastSeenAt TEXT,
-        revokedAt TEXT
-    );",
-    "CREATE UNIQUE INDEX IF NOT EXISTS mobileDevicesTokenHashIdx ON mobileDevices(tokenHash);",
-    "CREATE INDEX IF NOT EXISTS mobileDevicesRevokedIdx ON mobileDevices(revokedAt, pairedAt);",
-    "CREATE TABLE IF NOT EXISTS mobilePairingOffers (
-        id TEXT PRIMARY KEY,
-        endpoint TEXT NOT NULL,
-        secretHash TEXT NOT NULL,
-        expectedDeviceName TEXT,
-        serverPublicKeyB64 TEXT,
-        createdAt TEXT NOT NULL,
-        expiresAt TEXT NOT NULL,
-        claimedDeviceId TEXT
-    );",
-    "CREATE INDEX IF NOT EXISTS mobilePairingOffersActiveIdx ON mobilePairingOffers(expiresAt, claimedDeviceId);",
-];
 
 #[cfg(test)]
 mod tests {

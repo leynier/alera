@@ -64,6 +64,34 @@ pub(crate) fn human_summary(request_type: &str, value: &Value) -> String {
             }
             lines.join("\n")
         }
+        "orchestration.runPolicyPropose"
+        | "orchestration.runPolicyShow"
+        | "orchestration.runPolicyApprove"
+        | "orchestration.runPolicyReject" => {
+            let status = value
+                .get("status")
+                .and_then(Value::as_str)
+                .unwrap_or("none");
+            let stages = value
+                .get("policy")
+                .and_then(|policy| policy.get("stages"))
+                .and_then(Value::as_array)
+                .map(Vec::len)
+                .unwrap_or(0);
+            if status == "none" {
+                return "run has no execution policy".to_string();
+            }
+            let blocked = value
+                .get("blocksDispatch")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            let suffix = if blocked {
+                " (scheduling held until it is resolved)"
+            } else {
+                ""
+            };
+            format!("execution policy {status}, {stages} stage(s){suffix}")
+        }
         "orchestration.taskUpdate" => "task updated".to_string(),
         "orchestration.dispatch" => value
             .get("preamble")
