@@ -4,13 +4,12 @@ use std::sync::{
 };
 
 use futures_util::{stream::SplitSink, SinkExt as _, StreamExt as _};
-use serde_json::Value;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc::{self, Receiver, UnboundedReceiver, UnboundedSender};
 use tokio::task::JoinHandle;
 use tokio_tungstenite::{accept_async, tungstenite::Message};
 
-use crate::terminal_host::client::{ClientHandle, CLIENT_TERMINAL_OUT_QUEUE_CAPACITY};
+use crate::terminal_host::client::{ClientFrame, ClientHandle, CLIENT_TERMINAL_OUT_QUEUE_CAPACITY};
 use crate::terminal_host::server::{ClientKind, ServerCommand};
 
 pub fn spawn_mobile_gateway_accept_loop(
@@ -38,9 +37,9 @@ async fn accept_mobile_connection(
     inbox: UnboundedSender<ServerCommand>,
 ) -> anyhow::Result<()> {
     let socket = accept_async(stream).await?;
-    let (control_out_tx, control_out_rx) = mpsc::unbounded_channel::<Value>();
+    let (control_out_tx, control_out_rx) = mpsc::unbounded_channel::<ClientFrame>();
     let (terminal_out_tx, terminal_out_rx) =
-        mpsc::channel::<Value>(CLIENT_TERMINAL_OUT_QUEUE_CAPACITY);
+        mpsc::channel::<ClientFrame>(CLIENT_TERMINAL_OUT_QUEUE_CAPACITY);
     inbox.send(ServerCommand::ClientConnected {
         id,
         handle: ClientHandle {
@@ -57,8 +56,8 @@ async fn mobile_websocket_loop(
     socket: tokio_tungstenite::WebSocketStream<TcpStream>,
     id: u64,
     inbox: UnboundedSender<ServerCommand>,
-    mut control_out_rx: UnboundedReceiver<Value>,
-    mut terminal_out_rx: Receiver<Value>,
+    mut control_out_rx: UnboundedReceiver<ClientFrame>,
+    mut terminal_out_rx: Receiver<ClientFrame>,
 ) {
     let (mut write, mut read) = socket.split();
     loop {
@@ -130,11 +129,16 @@ async fn mobile_websocket_loop(
     }
 }
 
+/// The mobile transport is still text-only, so a frame is flattened back into
+/// the JSON event a mobile client expects.
 async fn send_mobile_value(
     write: &mut SplitSink<tokio_tungstenite::WebSocketStream<TcpStream>, Message>,
-    value: &Value,
+    frame: &ClientFrame,
 ) -> anyhow::Result<()> {
-    let text = serde_json::to_string(value)?;
+    let Some(value) = frame.as_json() else {
+        return Ok(());
+    };
+    let text = serde_json::to_string(&value)?;
     write.send(Message::Text(text.into())).await?;
     Ok(())
 }

@@ -46,6 +46,10 @@ pub const RUNTIME_HOST_TERMINAL_DEFERRED_INPUT_CAPABILITY: &str = "terminalDefer
 // lock): `terminalDriverChanged` events, `terminal.reclaim`, and
 // `terminal.driver.list`.
 pub const RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY: &str = "terminalDriverPresence";
+/// The client may ask, in its `hello`, to switch this connection to
+/// length-prefixed binary frames. Negotiated per client, so an older app and
+/// the `alera` CLI keep getting newline-delimited JSON from the same host.
+pub const RUNTIME_HOST_BINARY_FRAMES_CAPABILITY: &str = "binaryFrames";
 pub const RUNTIME_HOST_LIFECYCLE_CAPABILITY: &str = "runtimeHostLifecycleV1";
 pub const RUNTIME_HOST_AGENT_STATUS_CAPABILITY: &str = "runtimeAgentStatusV1";
 

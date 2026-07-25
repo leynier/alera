@@ -13,6 +13,11 @@ const String aleraRuntimeHostManagedWorkspaceCapability =
 const String aleraRuntimeHostOrchestrationCapability = 'orchestration';
 const String aleraRuntimeHostAgentQuotaClaudeTuiCapability =
     'agentQuotaClaudeTuiV1';
+
+/// The host will switch this connection to length-prefixed binary frames if
+/// the client asks for it in `hello`. Negotiated per client, so an older app
+/// and the `alera` CLI keep getting newline-delimited JSON from the same host.
+const String aleraRuntimeHostBinaryFramesCapability = 'binaryFrames';
 const String aleraRuntimeHostConnectedEvent = 'runtimeHostConnected';
 const int defaultTerminalHostEmptyShutdownDelaySeconds = 30;
 const int defaultTerminalHostDetachedSessionShutdownDelaySeconds = 60 * 60;

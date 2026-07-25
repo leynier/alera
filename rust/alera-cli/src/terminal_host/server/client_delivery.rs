@@ -1,4 +1,5 @@
 use super::*;
+use crate::terminal_host::protocol::PROTOCOL_VERSION;
 
 impl ServerActor {
     pub(super) fn require_auth(&self, client_id: u64) -> HostResult<()> {
@@ -23,9 +24,49 @@ impl ServerActor {
         Ok(session_id)
     }
 
+    /// Authenticates a client and negotiates the wire format for it.
+    pub(super) fn handle_hello(&mut self, client_id: u64, payload: &Value) -> HostResult<Value> {
+        let version_ok = payload.get("protocolVersion") == Some(&json!(PROTOCOL_VERSION));
+        let token_ok = payload.get("token").and_then(Value::as_str) == Some(self.token.as_str());
+        if !version_ok || !token_ok {
+            return Err(HostError::state("Terminal host authentication failed."));
+        }
+        let binary_frames = payload
+            .get("binaryFrames")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        if let Some(client) = self.clients.get_mut(&client_id) {
+            client.authenticated = true;
+            client.binary_frames = binary_frames;
+        }
+        self.cancel_shutdown_timer();
+        if binary_frames {
+            // Queued after this response on the same lane, so the writer emits
+            // the response as a line and only then switches. A shared flag
+            // could flip first and frame the response the client is still
+            // reading as a line.
+            self.upgrade_client_to_binary(client_id);
+        }
+        Ok(json!({ "binaryFrames": binary_frames }))
+    }
+
+    /// Queues the in-band switch to binary frames for one client.
+    pub(super) fn upgrade_client_to_binary(&self, client_id: u64) {
+        if let Some(client) = self.clients.get(&client_id) {
+            if client
+                .handle
+                .control_out
+                .send(ClientFrame::UpgradeToBinary)
+                .is_err()
+            {
+                self.disconnect_client_soon(client_id);
+            }
+        }
+    }
+
     pub(super) fn client_write(&self, client_id: u64, message: Value) {
         if let Some(client) = self.clients.get(&client_id) {
-            if client.handle.control_out.send(message).is_err() {
+            if client.handle.control_out.send(message.into()).is_err() {
                 self.disconnect_client_soon(client_id);
             }
         }
@@ -34,7 +75,12 @@ impl ServerActor {
     pub(super) fn broadcast(&self, client_ids: &[u64], message: Value) {
         for id in client_ids {
             if let Some(client) = self.clients.get(id) {
-                if client.handle.control_out.send(message.clone()).is_err() {
+                if client
+                    .handle
+                    .control_out
+                    .send(message.clone().into())
+                    .is_err()
+                {
                     self.disconnect_client_soon(*id);
                 }
             }
@@ -43,7 +89,13 @@ impl ServerActor {
 
     pub(super) fn broadcast_authenticated(&self, message: Value) {
         for (client_id, client) in &self.clients {
-            if client.authenticated && client.handle.control_out.send(message.clone()).is_err() {
+            if client.authenticated
+                && client
+                    .handle
+                    .control_out
+                    .send(message.clone().into())
+                    .is_err()
+            {
                 self.disconnect_client_soon(*client_id);
             }
         }
@@ -53,7 +105,11 @@ impl ServerActor {
         for (client_id, client) in &self.clients {
             if client.authenticated
                 && client.kind == ClientKind::Mobile
-                && client.handle.control_out.send(message.clone()).is_err()
+                && client
+                    .handle
+                    .control_out
+                    .send(message.clone().into())
+                    .is_err()
             {
                 self.disconnect_client_soon(*client_id);
             }
@@ -78,9 +134,12 @@ mod tests {
         let runtime_store = RuntimeStore::open(dir.path()).await.unwrap();
         let (inbox, mut inbox_rx) = mpsc::unbounded_channel();
         let (control_out, mut control_out_rx) = mpsc::unbounded_channel();
-        let (terminal_out, _terminal_out_rx) = mpsc::channel(CLIENT_TERMINAL_OUT_QUEUE_CAPACITY);
+        let (terminal_out, _terminal_out_rx) =
+            mpsc::channel::<ClientFrame>(CLIENT_TERMINAL_OUT_QUEUE_CAPACITY);
         for index in 0..CLIENT_TERMINAL_OUT_QUEUE_CAPACITY {
-            terminal_out.try_send(json!({"terminal": index})).unwrap();
+            terminal_out
+                .try_send(json!({"terminal": index}).into())
+                .unwrap();
         }
         let actor = ServerActor {
             runtime_dir: dir.path().to_path_buf(),
@@ -102,6 +161,7 @@ mod tests {
                         terminal_out,
                     },
                     authenticated: true,
+                    binary_frames: false,
                     kind: ClientKind::Local,
                     mobile_device_id: None,
                     mobile_device_name: None,

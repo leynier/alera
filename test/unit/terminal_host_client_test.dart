@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_frame_codec.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
@@ -10,10 +11,13 @@ import 'package:path/path.dart' as p;
 
 part 'terminal_host_client_resilience_cases.dart';
 part 'terminal_host_client_timeout_cases.dart';
+part 'terminal_host_client_binary_frames_cases.dart';
+part 'terminal_host_test_server.dart';
 
 void main() {
   _registerTerminalHostClientResilienceTests();
   _registerTerminalHostClientTimeoutTests();
+  _registerTerminalHostClientBinaryFrameTests();
 
   test('connects through launcher and sends lifecycle requests', () async {
     final tempDir = await Directory.systemTemp.createTemp('alera-host-client-');
@@ -977,6 +981,7 @@ Future<void> _writeControlFile({
   bool includeBootstrapCapability = true,
   bool includeManagedWorkspaceCapability = true,
   bool includeOrchestrationCapability = true,
+  bool includeBinaryFramesCapability = false,
 }) async {
   final runtimeDir = Directory(p.join(tempDir.path, 'terminal_host'));
   await runtimeDir.create(recursive: true);
@@ -993,6 +998,7 @@ Future<void> _writeControlFile({
         aleraRuntimeHostManagedWorkspaceCapability,
       if (includeOrchestrationCapability)
         aleraRuntimeHostOrchestrationCapability,
+      if (includeBinaryFramesCapability) aleraRuntimeHostBinaryFramesCapability,
     ],
   ];
   if (capabilities.isNotEmpty) {
@@ -1099,135 +1105,5 @@ final class _NoopTerminalHostLauncher implements TerminalHostProcessLauncher {
     required TerminalHostConfig config,
   }) async {
     starts += 1;
-  }
-}
-
-final class _TerminalHostTestServer {
-  _TerminalHostTestServer._(
-    this._server, {
-    this.errorForType,
-    this.closeForType,
-    this.beforeResponse,
-  });
-
-  static Future<_TerminalHostTestServer> start({
-    String? errorForType,
-    String? closeForType,
-    Future<void> Function(String type)? beforeResponse,
-  }) async {
-    final socket = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
-    final server = _TerminalHostTestServer._(
-      socket,
-      errorForType: errorForType,
-      closeForType: closeForType,
-      beforeResponse: beforeResponse,
-    );
-    server._sub = socket.listen(server._accept, onError: (_) {});
-    return server;
-  }
-
-  final ServerSocket _server;
-  final String? errorForType;
-  final String? closeForType;
-  final Future<void> Function(String type)? beforeResponse;
-  final List<Map<String, Object?>> requests = <Map<String, Object?>>[];
-  StreamSubscription<Socket>? _sub;
-  Socket? _client;
-  String token = 'existing-token';
-  int acceptedConnections = 0;
-
-  int get port => _server.port;
-
-  List<String> get requestTypes {
-    return <String>[for (final request in requests) request['type']! as String];
-  }
-
-  Map<String, Object?> payloadFor(String type) {
-    return requests
-        .where((request) => request['type'] == type)
-        .map((request) => request['payload']! as Map<String, Object?>)
-        .last;
-  }
-
-  void _accept(Socket socket) {
-    acceptedConnections += 1;
-    _client = socket;
-    socket
-        .cast<List<int>>()
-        .transform(utf8.decoder)
-        .transform(const LineSplitter())
-        .listen(
-          (line) => unawaited(_handleLine(socket, line).catchError((_) {})),
-          onError: (_) {},
-        );
-  }
-
-  Future<void> _handleLine(Socket socket, String line) async {
-    final request = Map<String, Object?>.from(jsonDecode(line) as Map);
-    final payload = Map<String, Object?>.from(request['payload'] as Map);
-    request['payload'] = payload;
-    requests.add(request);
-    final id = request['id'] as int;
-    final type = request['type'] as String;
-    await beforeResponse?.call(type);
-    if (type == closeForType) {
-      socket.destroy();
-      return;
-    }
-    if (type == errorForType) {
-      socket.writeln(
-        jsonEncode(<String, Object?>{
-          'id': id,
-          'ok': false,
-          'error': '$type failed',
-        }),
-      );
-      return;
-    }
-    if (type == 'createOrAttach') {
-      socket.writeln(
-        jsonEncode(<String, Object?>{
-          'id': id,
-          'ok': true,
-          'payload': <String, Object?>{
-            'sessionId': 'session-1',
-            'created': true,
-            'running': true,
-            'snapshotBase64': encodeTerminalHostBytes(<int>[65, 66]),
-          },
-        }),
-      );
-      return;
-    }
-    if (type == 'setOutputPaused') {
-      socket.writeln(
-        jsonEncode(<String, Object?>{
-          'id': id,
-          'ok': true,
-          'payload': <String, Object?>{
-            'sessionId': 'session-1',
-            'snapshotBase64': encodeTerminalHostBytes(<int>[83, 78, 65, 80]),
-          },
-        }),
-      );
-      return;
-    }
-    socket.writeln(
-      jsonEncode(<String, Object?>{
-        'id': id,
-        'ok': true,
-        'payload': const <String, Object?>{},
-      }),
-    );
-  }
-
-  void send(Map<String, Object?> message) {
-    _client!.writeln(jsonEncode(message));
-  }
-
-  Future<void> dispose() async {
-    await _sub?.cancel();
-    _client?.destroy();
-    await _server.close();
   }
 }

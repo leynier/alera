@@ -6,6 +6,7 @@ import 'dart:typed_data';
 
 import 'package:alera/src/features/runtime_host/domain/runtime_host_status.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client_models.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_frame_codec.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_process_launcher.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
@@ -72,6 +73,12 @@ final class SocketTerminalHostClient
   int _nextRequestId = 1;
   bool _disposed = false;
   TerminalHostConfig _config;
+
+  @override
+  StreamController<TerminalHostEvent> get _globalEvents => _events;
+
+  @override
+  StreamController<RuntimeHostEvent> get _runtimeEventSink => _runtimeEvents;
 
   @override
   Stream<TerminalHostEvent> get events => _events.stream;
@@ -507,6 +514,15 @@ final class SocketTerminalHostClient
         },
       ),
     );
+    // Output frames bypass the JSON path entirely: no line split, no
+    // jsonDecode, no base64. That is the whole point of the binary mode.
+    connection.outputFrames.listen(
+      (frame) => _emitHostEvent(
+        frame.sessionId,
+        TerminalHostOutputEvent(frame.sessionId, frame.data),
+      ),
+      onError: (Object _) {},
+    );
     final lineSub = connection.lines.listen(
       (line) {
         try {
@@ -527,6 +543,7 @@ final class SocketTerminalHostClient
           'protocolVersion': aleraTerminalHostProtocolVersion,
           'token': control.token,
           'clientKind': 'app',
+          if (control.supportsBinaryFrames) 'binaryFrames': true,
         },
       });
       await connection.authenticated.timeout(
@@ -597,6 +614,9 @@ final class SocketTerminalHostClient
         connection.completeAuthenticationError(error);
         _handleConnectionClosed(connection, error);
       } else {
+        if (message['binaryFrames'] == true) {
+          connection.upgradeToBinaryFrames();
+        }
         connection.completeAuthentication();
       }
       return;
@@ -612,45 +632,6 @@ final class SocketTerminalHostClient
       completer.completeError(
         StateError((message['error'] as String?) ?? 'Terminal host error.'),
       );
-    }
-  }
-
-  void _handleEvent(String event, Map<String, Object?> payload) {
-    if (runtimeHostEventNames.contains(event) && !_runtimeEvents.isClosed) {
-      _runtimeEvents.add(RuntimeHostEvent(event, payload));
-    }
-    final sessionId = payload['sessionId'];
-    if (sessionId is! String || _events.isClosed) {
-      return;
-    }
-    void emit(TerminalHostEvent hostEvent) {
-      _events.add(hostEvent);
-      _emitSessionEvent(sessionId, hostEvent);
-    }
-
-    switch (event) {
-      case 'output':
-        emit(
-          TerminalHostOutputEvent(
-            sessionId,
-            decodeTerminalHostBytes(payload['dataBase64']),
-          ),
-        );
-      case 'outputResyncRequired':
-        emit(TerminalHostOutputResyncRequiredEvent(sessionId));
-      case 'exit':
-        emit(
-          TerminalHostExitEvent(sessionId, (payload['exitCode'] as int?) ?? -1),
-        );
-      case 'error':
-        emit(
-          TerminalHostErrorEvent(
-            sessionId,
-            payload['error'] ?? 'Unknown terminal host error.',
-          ),
-        );
-      case 'terminalDriverChanged':
-        emit(TerminalHostDriverChangedEvent.fromPayload(sessionId, payload));
     }
   }
 
@@ -748,6 +729,9 @@ final class SocketTerminalHostClient
             capabilities.contains(aleraRuntimeHostManagedWorkspaceCapability),
         supportsOrchestration: capabilities.contains(
           aleraRuntimeHostOrchestrationCapability,
+        ),
+        supportsBinaryFrames: capabilities.contains(
+          aleraRuntimeHostBinaryFramesCapability,
         ),
       );
     } catch (_) {

@@ -23,7 +23,7 @@ use crate::ssh_bootstrap::{
     SshTargetBootstrapJob, SshTargetBootstrapProgress, SshTargetBootstrapRequest,
 };
 use crate::terminal_host::client::{
-    connection_loop, ClientHandle, CLIENT_TERMINAL_OUT_QUEUE_CAPACITY,
+    connection_loop, ClientFrame, ClientHandle, CLIENT_TERMINAL_OUT_QUEUE_CAPACITY,
 };
 use crate::terminal_host::control_file;
 use crate::terminal_host::history_store::TerminalHostHistoryStore;
@@ -202,6 +202,7 @@ pub(crate) enum ClientKind {
 struct ClientState {
     handle: ClientHandle,
     authenticated: bool,
+    binary_frames: bool,
     kind: ClientKind,
     mobile_device_id: Option<String>,
     mobile_device_name: Option<String>,
@@ -214,6 +215,7 @@ impl ClientState {
         ClientState {
             handle,
             authenticated: true,
+            binary_frames: false,
             kind: ClientKind::Local,
             mobile_device_id: None,
             mobile_device_name: None,
@@ -314,9 +316,9 @@ fn spawn_accept_loop(
         while let Ok((stream, _)) = listener.accept().await {
             let _ = stream.set_nodelay(true);
             let id = next_client_id.fetch_add(1, Ordering::Relaxed);
-            let (control_out_tx, control_out_rx) = mpsc::unbounded_channel::<Value>();
+            let (control_out_tx, control_out_rx) = mpsc::unbounded_channel::<ClientFrame>();
             let (terminal_out_tx, terminal_out_rx) =
-                mpsc::channel::<Value>(CLIENT_TERMINAL_OUT_QUEUE_CAPACITY);
+                mpsc::channel::<ClientFrame>(CLIENT_TERMINAL_OUT_QUEUE_CAPACITY);
             // Register the client before its lines can arrive: the
             // ClientConnected command is enqueued before the connection loop
             // (and thus any ClientLine) starts.
@@ -533,6 +535,7 @@ impl ServerActor {
                     ClientState {
                         handle,
                         authenticated: false,
+                        binary_frames: false,
                         kind,
                         mobile_device_id: None,
                         mobile_device_name: None,

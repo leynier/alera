@@ -77,8 +77,13 @@ pub enum PtyWriteCompletion {
     },
 }
 
+/// Raw PTY bytes, not an encoded payload.
+///
+/// Whether these travel as a binary frame or as base64 inside JSON depends on
+/// what each client negotiated, so the encoding decision belongs to the writer
+/// and a binary client never pays for base64 at all.
 pub struct OutputBatch {
-    pub payload: Value,
+    pub data: Vec<u8>,
 }
 
 mod driver;
@@ -332,8 +337,7 @@ impl Session {
         self.output_batch_gen = self.output_batch_gen.wrapping_add(1);
         self.output_batch_armed = false;
         let data = std::mem::take(&mut self.output_batch);
-        let payload = json!({ "sessionId": self.id, "dataBase64": encode_bytes(&data) });
-        Some(OutputBatch { payload })
+        Some(OutputBatch { data })
     }
 
     pub fn durable_output_batch_len(&self) -> usize {

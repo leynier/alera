@@ -282,19 +282,7 @@ impl ServerActor {
         payload: &Value,
     ) -> HostResult<Value> {
         match request_type {
-            "hello" => {
-                let version_ok = payload.get("protocolVersion") == Some(&json!(PROTOCOL_VERSION));
-                let token_ok =
-                    payload.get("token").and_then(Value::as_str) == Some(self.token.as_str());
-                if !version_ok || !token_ok {
-                    return Err(HostError::state("Terminal host authentication failed."));
-                }
-                if let Some(client) = self.clients.get_mut(&client_id) {
-                    client.authenticated = true;
-                }
-                self.cancel_shutdown_timer();
-                Ok(json!({}))
-            }
+            "hello" => self.handle_hello(client_id, payload),
             "mobile.hello" => {
                 if !self.is_mobile_client(client_id) {
                     return Err(HostError::state(
