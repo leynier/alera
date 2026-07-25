@@ -32,6 +32,12 @@ class _FakeTerminalRuntime implements TerminalRuntime {
   }) {
     throw UnimplementedError();
   }
+
+  @override
+  TerminalSessionHandle? peekSession(String tabId) => null;
+
+  @override
+  void setActiveWorkspace(String? workspaceId) {}
 }
 
 class _FocusableTerminalRuntime implements TerminalRuntime {
@@ -52,6 +58,12 @@ class _FocusableTerminalRuntime implements TerminalRuntime {
   void dispose() {
     _events.close();
   }
+
+  @override
+  TerminalSessionHandle? peekSession(String tabId) => null;
+
+  @override
+  void setActiveWorkspace(String? workspaceId) {}
 
   @override
   TerminalSessionHandle sessionFor({

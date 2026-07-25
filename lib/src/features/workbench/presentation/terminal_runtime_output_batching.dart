@@ -100,6 +100,7 @@ void _drainSessionTerminalOutputChunk(_XtermTerminalSessionHandle handle) {
     return;
   }
   handle._writeToTerminal(frame.toString());
+  handle._advanceRestore(written);
 }
 
 void _flushSessionTerminalOutputNow(_XtermTerminalSessionHandle handle) {

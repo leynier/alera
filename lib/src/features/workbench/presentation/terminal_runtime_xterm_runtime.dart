@@ -50,6 +50,7 @@ class XtermTerminalRuntime implements TerminalRuntime {
   final TerminalClipboard _terminalClipboard;
   final void Function(String message, {bool error})? _interactionNotice;
   TerminalSettings _settings;
+  String? _activeWorkspaceId;
   final StreamController<TerminalRuntimeExitEvent> _exitController =
       StreamController<TerminalRuntimeExitEvent>.broadcast();
   final Map<String, _XtermTerminalSessionHandle> _sessions =
@@ -64,6 +65,9 @@ class XtermTerminalRuntime implements TerminalRuntime {
     for (final session in _sessions.values) {
       session.applySettings(settings);
     }
+    // Lowering the budget in settings has to take effect now, not at the next
+    // workspace switch.
+    _enforceBufferBudget();
   }
 
   @override
@@ -87,9 +91,63 @@ class XtermTerminalRuntime implements TerminalRuntime {
             _interactionNotice,
             _notifyOsc52Blocked,
             _handleSessionExit,
+            _handleVisibilityChanged,
           );
         })
         .sync(workspace: workspace, tab: tab);
+  }
+
+  @override
+  TerminalSessionHandle? peekSession(String tabId) => _sessions[tabId];
+
+  @override
+  void setActiveWorkspace(String? workspaceId) {
+    if (_activeWorkspaceId == workspaceId) {
+      return;
+    }
+    _activeWorkspaceId = workspaceId;
+    _enforceBufferBudget();
+  }
+
+  void _handleVisibilityChanged(_XtermTerminalSessionHandle handle) {
+    if (handle.isVisible) {
+      return;
+    }
+    // A terminal going off screen is the only moment a new eviction candidate
+    // appears, so this is the sweep trigger rather than a timer.
+    _enforceBufferBudget();
+  }
+
+  /// Detaches the coldest terminals until the estimated buffer total fits.
+  ///
+  /// Eviction never terminates the PTY, so the agent keeps running on the host
+  /// and the scrollback is restored from the host snapshot on return.
+  void _enforceBufferBudget() {
+    final budget = TerminalBufferBudget(
+      budgetBytes: _settings.bufferBudgetMegabytes * 1024 * 1024,
+    );
+    if (budget.isUnbounded || _sessions.isEmpty) {
+      return;
+    }
+    final pinned = <String>{
+      for (final entry in _sessions.entries)
+        if (entry.value.isVisible ||
+            (_activeWorkspaceId != null &&
+                entry.value.workspaceId == _activeWorkspaceId))
+          entry.key,
+    };
+    final evictions = budget.selectEvictions(
+      live: <TerminalBufferUsage>[
+        for (final session in _sessions.values) session.bufferUsage,
+      ],
+      pinnedTabIds: pinned,
+    );
+    for (final tabId in evictions) {
+      final session = _sessions.remove(tabId);
+      if (session != null) {
+        _disposeSession(session, terminatePty: false);
+      }
+    }
   }
 
   void _notifyOsc52Blocked() {

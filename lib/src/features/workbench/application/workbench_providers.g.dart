@@ -270,6 +270,61 @@ final class WorkbenchSidebarRowsProvider
 String _$workbenchSidebarRowsHash() =>
     r'f549c71cd45c77050faa6ce3d2908407e9911a01';
 
+/// Keeps the terminal runtime's pinned workspace in sync with the active one,
+/// so the memory budget never evicts a terminal in the workspace being worked
+/// in.
+
+@ProviderFor(terminalRuntimeActiveWorkspaceCoordinator)
+final terminalRuntimeActiveWorkspaceCoordinatorProvider =
+    TerminalRuntimeActiveWorkspaceCoordinatorProvider._();
+
+/// Keeps the terminal runtime's pinned workspace in sync with the active one,
+/// so the memory budget never evicts a terminal in the workspace being worked
+/// in.
+
+final class TerminalRuntimeActiveWorkspaceCoordinatorProvider
+    extends $FunctionalProvider<void, void, void>
+    with $Provider<void> {
+  /// Keeps the terminal runtime's pinned workspace in sync with the active one,
+  /// so the memory budget never evicts a terminal in the workspace being worked
+  /// in.
+  TerminalRuntimeActiveWorkspaceCoordinatorProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'terminalRuntimeActiveWorkspaceCoordinatorProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() =>
+      _$terminalRuntimeActiveWorkspaceCoordinatorHash();
+
+  @$internal
+  @override
+  $ProviderElement<void> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  void create(Ref ref) {
+    return terminalRuntimeActiveWorkspaceCoordinator(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(void value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<void>(value),
+    );
+  }
+}
+
+String _$terminalRuntimeActiveWorkspaceCoordinatorHash() =>
+    r'e01d17c5ce70a9aaa04ee477b661703888484b84';
+
 @ProviderFor(workspaceActivityRepository)
 final workspaceActivityRepositoryProvider =
     WorkspaceActivityRepositoryProvider._();
