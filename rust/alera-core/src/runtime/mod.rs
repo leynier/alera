@@ -12,6 +12,8 @@ mod orchestration_models;
 mod orchestration_policy_store;
 #[cfg(test)]
 mod orchestration_policy_store_tests;
+#[cfg(test)]
+mod orchestration_profile_attempt_tests;
 mod orchestration_run_store;
 #[cfg(test)]
 mod orchestration_store_tests;

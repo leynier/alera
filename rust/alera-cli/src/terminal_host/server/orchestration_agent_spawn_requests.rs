@@ -109,6 +109,7 @@ impl ServerActor {
                 else {
                     continue;
                 };
+                let profile = self.coordinator_profile_for_task(task).await;
                 let handle = self
                     .coordinator_spawn_predispatched_worker(
                         workspace_id,
@@ -116,6 +117,7 @@ impl ServerActor {
                         &task.id,
                         config.coordinator_handle.as_deref(),
                         preflight,
+                        profile.as_deref(),
                     )
                     .await?;
                 self.coordinator_log(&format!(
@@ -128,6 +130,12 @@ impl ServerActor {
         }
         let now = chrono::Utc::now();
         let id = uuid::Uuid::new_v4().to_string();
+        // Hook-driven adapters get a bare terminal that dispatches once the
+        // agent reports presence, so the stage profile only decides the command.
+        let launch_command = match ready.first() {
+            None => None,
+            Some(task) => self.coordinator_profile_command_for_task(task).await,
+        };
         let tab = WorkspaceTabRecord {
             id: id.clone(),
             workspace_id: workspace_id.clone(),
@@ -137,7 +145,8 @@ impl ServerActor {
             updated_at: now,
             payload: json!({
                 "terminalSessionId": id,
-                "initialCommand": adapter.default_command,
+                "initialCommand": launch_command
+                    .unwrap_or_else(|| adapter.default_command.to_string()),
                 "spawnOnCreate": true,
             }),
         };
@@ -159,9 +168,13 @@ impl ServerActor {
         preflight: Option<(String, Option<BaseDrift>)>,
     ) -> HostResult<Value> {
         let workspace_id = require_string(payload, "workspace")?;
-        let agent_type = require_string(payload, "agent")?;
         let task_id = require_string(payload, "task")?;
         let from = require_string(payload, "from")?;
+        // A profile is the single source of truth for the adapter and the
+        // launch command, so it replaces --agent/--command rather than layering
+        // on top of them.
+        let resolved = self.resolve_spawn_profile(payload).await?;
+        let agent_type = resolved.agent_type.clone();
         let adapter = adapter_for(&agent_type)
             .ok_or_else(|| HostError::format(format!("unsupported agent type: {agent_type}")))?;
         let task = self
@@ -192,6 +205,8 @@ impl ServerActor {
                     "forceSubmit": adapter.force_submit,
                     "completionPolicy": "return-immediately",
                     "terminalPolicy": "keep-open",
+                    "agentProfile": resolved.profile_name,
+                    "agentQuotaGroup": resolved.quota_group,
                 }))
                 .await?;
             return Ok(response);
@@ -208,7 +223,9 @@ impl ServerActor {
             )));
         }
         let id = uuid::Uuid::new_v4().to_string();
-        let command = optional_string(payload, "command")
+        let command = resolved
+            .command
+            .clone()
             .unwrap_or_else(|| adapter.default_command.to_string());
         let keep_on_failure = payload
             .get("keepOnFailure")
@@ -225,6 +242,8 @@ impl ServerActor {
                     "inject": false,
                     "completionPolicy": "return-immediately",
                     "terminalPolicy": "keep-open",
+                    "agentProfile": resolved.profile_name,
+                    "agentQuotaGroup": resolved.quota_group,
                 }))
                 .await?,
             )
@@ -238,6 +257,8 @@ impl ServerActor {
                     "task": task_id,
                     "from": from,
                     "agent": agent_type,
+                    "profile": resolved.profile_name,
+                    "quotaGroup": resolved.quota_group,
                 })
             });
         let orchestration_preflight = preflight.as_ref().and_then(|(task_spec, base_drift)| {
@@ -426,12 +447,16 @@ impl ServerActor {
         task_id: &str,
         coordinator_handle: Option<&str>,
         preflight: (String, Option<BaseDrift>),
+        profile: Option<&str>,
     ) -> anyhow::Result<String> {
+        // A profile supersedes the run-level agent type, so send only one of
+        // them: the host rejects both together.
         let response = self
             .orchestration_agent_spawn_with_preflight(
                 &json!({
                     "workspace": workspace_id,
-                    "agent": agent_type,
+                    "agent": profile.is_none().then_some(agent_type),
+                    "profile": profile,
                     "task": task_id,
                     "from": coordinator_handle,
                 }),

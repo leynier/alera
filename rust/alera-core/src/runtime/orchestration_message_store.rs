@@ -92,7 +92,9 @@ pub(super) const ORCHESTRATION_SCHEMA: &[&str] = &[
         context_token_hash TEXT,
         completion_policy TEXT NOT NULL DEFAULT 'return-immediately',
         terminal_policy TEXT NOT NULL DEFAULT 'keep-open',
-        startup_error TEXT
+        startup_error TEXT,
+        agent_profile TEXT,
+        agent_quota_group TEXT
     );",
     "CREATE INDEX IF NOT EXISTS orchestrationDispatchTaskIdx ON orchestrationDispatchContexts(task_id);",
     "CREATE INDEX IF NOT EXISTS orchestrationDispatchStatusIdx ON orchestrationDispatchContexts(status);",

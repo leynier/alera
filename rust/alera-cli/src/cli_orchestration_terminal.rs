@@ -39,8 +39,19 @@ pub struct OrchestrationTerminalPruneArgs {
 pub struct OrchestrationAgentSpawnArgs {
     #[arg(long = "workspace", value_name = "workspace_id")]
     pub workspace: Option<String>,
-    #[arg(long = "agent", value_name = "agent_type")]
-    pub agent: String,
+    /// Adapter type. Not needed when --profile resolves it.
+    #[arg(
+        long = "agent",
+        value_name = "agent_type",
+        required_unless_present = "profile",
+        conflicts_with = "profile"
+    )]
+    pub agent: Option<String>,
+
+    /// Declared agent profile to launch. Resolves the adapter and the command
+    /// host-side, so it cannot be combined with --agent or --command.
+    #[arg(long = "profile", value_name = "name", conflicts_with = "command")]
+    pub profile: Option<String>,
     #[arg(long = "task", value_name = "task_id")]
     pub task: String,
     #[arg(long = "title", value_name = "text")]

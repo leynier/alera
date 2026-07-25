@@ -16,7 +16,7 @@ pub const ORCHESTRATION_CIRCUIT_BREAKER_THRESHOLD: i64 = 3;
 const DISPATCH_COLUMNS: &str = "id, task_id, assignee_handle, status, failure_count, \
      last_failure, dispatched_at, completed_at, created_at, last_heartbeat_at, run_id, workspace_id, \
      coordinator_handle, accepted_at, last_activity_at, context_token_hash, completion_policy, \
-     terminal_policy, startup_error";
+     terminal_policy, startup_error, agent_profile, agent_quota_group";
 
 const GATE_COLUMNS: &str =
     "id, task_id, question, options, status, resolution, created_at, resolved_at";
@@ -44,6 +44,8 @@ fn dispatch_from_row(row: SqliteRow) -> Result<OrchestrationDispatchContext> {
         completion_policy: row.try_get("completion_policy")?,
         terminal_policy: row.try_get("terminal_policy")?,
         startup_error: row.try_get("startup_error")?,
+        agent_profile: row.try_get("agent_profile")?,
+        agent_quota_group: row.try_get("agent_quota_group")?,
     })
 }
 

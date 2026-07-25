@@ -664,6 +664,8 @@ impl ServerActor {
                 .and_then(Value::as_str)
                 .and_then(adapter_for)
                 .is_some_and(|adapter| adapter.force_submit),
+            "agentProfile": pending.get("profile").cloned(),
+            "agentQuotaGroup": pending.get("quotaGroup").cloned(),
             "completionPolicy": "return-immediately",
             "terminalPolicy": "keep-open",
         });
@@ -1112,6 +1114,16 @@ impl ServerActor {
                 optional_string(payload, "terminalPolicy")
                     .as_deref()
                     .unwrap_or("keep-open"),
+            )
+            .await
+            .map_err(state_error)?;
+        // Recorded even when null so `task-show` always reports how the worker
+        // was launched, and so fallback selection can read the attempt history.
+        self.runtime_store
+            .set_orchestration_dispatch_profile(
+                &dispatch.id,
+                optional_string(payload, "agentProfile").as_deref(),
+                optional_string(payload, "agentQuotaGroup").as_deref(),
             )
             .await
             .map_err(state_error)?;

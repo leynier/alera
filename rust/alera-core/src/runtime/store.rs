@@ -124,6 +124,10 @@ impl RuntimeStore {
         .await?;
         self.ensure_column("orchestrationTasks", "stage_id", "TEXT")
             .await?;
+        self.ensure_column("orchestrationDispatchContexts", "agent_profile", "TEXT")
+            .await?;
+        self.ensure_column("orchestrationDispatchContexts", "agent_quota_group", "TEXT")
+            .await?;
         Ok(())
     }
 
