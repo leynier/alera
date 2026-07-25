@@ -179,10 +179,7 @@ fn prepare_claude(runtime_dir: &Path, script: &Path) -> anyhow::Result<PathBuf> 
     ] {
         let command = managed_command(script, "claude", event);
         let mut definitions = clean_managed_definitions(hooks.remove(event));
-        definitions.push(json!({
-            "matcher": matcher,
-            "hooks": [{ "type": "command", "command": command }],
-        }));
+        definitions.push(managed_hook_definition(matcher, &command));
         hooks.insert(event.to_string(), Value::Array(definitions));
     }
     write_json_object(&runtime_home.join("settings.json"), &settings)?;
@@ -265,7 +262,10 @@ fn install_grok(script: &Path) -> anyhow::Result<()> {
     .map(|(event, matcher)| {
         (
             event.to_string(),
-            json!([{ "matcher": matcher, "hooks": [{ "type": "command", "command": managed_command(script, "grok", event) }] }]),
+            json!([managed_hook_definition(
+                matcher,
+                &managed_command(script, "grok", event)
+            )]),
         )
     })
     .collect::<Map<_, _>>();
@@ -290,6 +290,20 @@ fn install_agy(script: &Path) -> anyhow::Result<()> {
         json!([{ "matcher": "*", "hooks": [{ "type": "command", "command": managed_command(script, "agy", "PostToolUse") }] }]),
     );
     write_json_object(&path, &config)
+}
+
+// Non-tool events have nothing to match on. Their schemas expect the key to be
+// absent rather than null, so emitting `null` trips agent-side validation.
+fn managed_hook_definition(matcher: Option<&str>, command: &str) -> Value {
+    let mut definition = Map::new();
+    if let Some(matcher) = matcher {
+        definition.insert("matcher".to_string(), json!(matcher));
+    }
+    definition.insert(
+        "hooks".to_string(),
+        json!([{ "type": "command", "command": command }]),
+    );
+    Value::Object(definition)
 }
 
 fn managed_command(script: &Path, agent: &str, event: &str) -> String {
