@@ -5,6 +5,7 @@ import 'package:alera/src/app/theme/alera_tokens.dart';
 import 'package:alera/src/features/agent_status/application/runtime_agent_status_sync.dart';
 import 'package:alera/src/features/agent_quota/presentation/agent_quota_status_bar.dart';
 import 'package:alera/src/features/runtime_host/presentation/runtime_host_status_bar.dart';
+import 'package:alera/src/features/resource_manager/presentation/resource_status_bar_control.dart';
 import 'package:alera/src/design_system/feedback/alera_toast.dart';
 import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_confirm_dialog.dart';
