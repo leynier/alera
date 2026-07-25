@@ -50,6 +50,9 @@ pub const RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY: &str = "terminalDriverPresenc
 /// length-prefixed binary frames. Negotiated per client, so an older app and
 /// the `alera` CLI keep getting newline-delimited JSON from the same host.
 pub const RUNTIME_HOST_BINARY_FRAMES_CAPABILITY: &str = "binaryFrames";
+/// Last line before the connection switches to frames. Everything after it is
+/// framed, so a reader can flip on seeing it without any out-of-band signal.
+pub const BINARY_FRAMES_ENABLED_EVENT: &str = "binaryFramesEnabled";
 pub const RUNTIME_HOST_LIFECYCLE_CAPABILITY: &str = "runtimeHostLifecycleV1";
 pub const RUNTIME_HOST_AGENT_STATUS_CAPABILITY: &str = "runtimeAgentStatusV1";
 

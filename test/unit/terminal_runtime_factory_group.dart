@@ -191,6 +191,10 @@ void _registerTerminalRuntimeFactoryGroup() {
                   !readyCompleter.isCompleted) {
                 readyCompleter.complete();
               }
+            case TerminalPtyOutputTextEvent():
+              // Only the socket path produces decoded text; the native PTY
+              // adapters under test always emit bytes.
+              break;
             case TerminalPtySnapshotEvent():
               break;
             case TerminalPtyExitEvent():
@@ -254,6 +258,10 @@ void _registerTerminalRuntimeFactoryGroup() {
                   !readyCompleter.isCompleted) {
                 readyCompleter.complete();
               }
+            case TerminalPtyOutputTextEvent():
+              // Only the socket path produces decoded text; the native PTY
+              // adapters under test always emit bytes.
+              break;
             case TerminalPtySnapshotEvent():
               break;
             case TerminalPtyExitEvent():

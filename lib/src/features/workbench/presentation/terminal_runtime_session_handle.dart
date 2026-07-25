@@ -456,6 +456,12 @@ class _XtermTerminalSessionHandle extends TerminalSessionHandle {
         if (_visible) {
           _ptyOutputController.add(data);
         }
+      case TerminalPtyOutputTextEvent(:final text):
+        // Already decoded by the reader isolate, so it skips the local
+        // decoder entirely.
+        if (_visible) {
+          _handleTerminalOutput(text);
+        }
       case TerminalPtySnapshotEvent(:final data, :final resetInteractionModes):
         _pendingInteractionModeReset |= resetInteractionModes;
         if (_visible) {

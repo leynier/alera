@@ -87,6 +87,16 @@ final class _TerminalHostTestServer {
           if (accepted) 'binaryFrames': true,
         }),
       );
+      if (accepted) {
+        // Mirrors the host: a sentinel line, then frames. The reader flips on
+        // seeing it, so nothing has to signal the switch out of band.
+        socket.writeln(
+          jsonEncode(<String, Object?>{
+            'event': terminalHostBinaryFramesEnabledLine,
+            'payload': const <String, Object?>{},
+          }),
+        );
+      }
       _binaryFrames = accepted;
       return;
     }
