@@ -16,6 +16,7 @@ use crate::terminal_host::protocol::RUNTIME_HOST_ORCHESTRATION_ASSUME_AGENT_CAPA
 use crate::terminal_host::protocol::RUNTIME_HOST_ORCHESTRATION_CAPABILITY;
 use crate::terminal_host::protocol::RUNTIME_HOST_ORCHESTRATION_TERMINAL_INSPECTION_CAPABILITY;
 use crate::terminal_host::protocol::RUNTIME_HOST_ORCHESTRATION_WAIT_CAPABILITY;
+use crate::terminal_host::protocol::RUNTIME_HOST_RUN_POLICY_CAPABILITY;
 
 const USAGE_EXIT_CODE: i32 = 64;
 /// Grace added to the server-side wait deadline so the client outlives it.
@@ -90,6 +91,7 @@ pub async fn run_orchestration_command(command: OrchestrationCommand) -> i32 {
                     "coordinator": coordinator,
                     "workspace": workspace,
                     "run": args.run,
+                    "stage": args.stage,
                     "resultSchema": args.result_schema,
                 }),
                 json_output,
@@ -436,6 +438,58 @@ pub async fn run_orchestration_command(command: OrchestrationCommand) -> i32 {
             )
             .await
         }
+        OrchestrationAction::RunPolicyPropose(args) => {
+            let policy = match read_policy_document(&args.policy_file) {
+                Ok(policy) => policy,
+                Err(message) => return usage_error(&message),
+            };
+            request_with_capability(
+                &runtime,
+                RUNTIME_HOST_RUN_POLICY_CAPABILITY,
+                "orchestration.runPolicyPropose",
+                json!({ "run": args.run, "policy": policy }),
+                json_output,
+                None,
+            )
+            .await
+        }
+        OrchestrationAction::RunPolicyShow(args) => {
+            request_with_capability(
+                &runtime,
+                RUNTIME_HOST_RUN_POLICY_CAPABILITY,
+                "orchestration.runPolicyShow",
+                json!({ "run": args.run }),
+                json_output,
+                None,
+            )
+            .await
+        }
+        OrchestrationAction::RunPolicyApprove(args) => {
+            request_with_capability(
+                &runtime,
+                RUNTIME_HOST_RUN_POLICY_CAPABILITY,
+                "orchestration.runPolicyApprove",
+                json!({ "run": args.run, "actor": terminal_handle_env() }),
+                json_output,
+                None,
+            )
+            .await
+        }
+        OrchestrationAction::RunPolicyReject(args) => {
+            request_with_capability(
+                &runtime,
+                RUNTIME_HOST_RUN_POLICY_CAPABILITY,
+                "orchestration.runPolicyReject",
+                json!({
+                    "run": args.run,
+                    "reason": args.reason,
+                    "actor": terminal_handle_env(),
+                }),
+                json_output,
+                None,
+            )
+            .await
+        }
         OrchestrationAction::GateList(args) => {
             let mut payload = Map::new();
             insert_opt(&mut payload, "task", args.task);
@@ -655,6 +709,23 @@ fn comma_separated_values(raw: &str) -> Vec<String> {
         .filter(|value| !value.is_empty())
         .map(str::to_string)
         .collect()
+}
+
+/// Reads and parses a policy document from a path, or from stdin when the path
+/// is `-`. Parsed here so a malformed file is a usage error instead of a round
+/// trip to the host.
+fn read_policy_document(path: &str) -> Result<Value, String> {
+    let raw = if path == "-" {
+        let mut buffer = String::new();
+        std::io::stdin()
+            .read_to_string(&mut buffer)
+            .map_err(|error| format!("could not read policy from stdin: {error}"))?;
+        buffer
+    } else {
+        std::fs::read_to_string(path)
+            .map_err(|error| format!("could not read policy file: {error}"))?
+    };
+    serde_json::from_str(&raw).map_err(|error| format!("policy file is not valid JSON: {error}"))
 }
 
 fn read_body(

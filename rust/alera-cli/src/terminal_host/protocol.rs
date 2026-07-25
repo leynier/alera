@@ -42,6 +42,9 @@ pub const RUNTIME_HOST_ORCHESTRATION_ASSUME_AGENT_CAPABILITY: &str = "orchestrat
 // Purely additive: older hosts simply do not answer agentProfile.* verbs, so
 // callers negotiate this instead of comparing protocol versions.
 pub const RUNTIME_HOST_AGENT_PROFILES_CAPABILITY: &str = "orchestrationAgentProfilesV1";
+// Advertised once runs carry a user-approved execution policy. A run without a
+// policy schedules exactly as before, so this stays a feature check.
+pub const RUNTIME_HOST_RUN_POLICY_CAPABILITY: &str = "orchestrationRunPolicyV1";
 // Advertised once terminal.write supports host-sequenced bracketed paste and
 // deferred Enter. Older hosts ignore those fields, so CLI callers must require
 // this capability before relying on --enter or --submit.
