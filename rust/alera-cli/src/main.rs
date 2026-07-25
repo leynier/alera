@@ -9,6 +9,7 @@ mod host_tools;
 mod login_shell_environment;
 mod managed_workspace;
 mod mobile_access;
+mod orchestration_command_summaries;
 mod orchestration_commands;
 mod orchestration_terminal_commands;
 mod project_management;

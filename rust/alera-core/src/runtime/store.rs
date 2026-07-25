@@ -1762,6 +1762,17 @@ const RUNTIME_SCHEMA: &[&str] = &[
         lastError TEXT
     );",
     "CREATE UNIQUE INDEX IF NOT EXISTS sshTargetsAliasIdx ON sshTargets(alias COLLATE NOCASE);",
+    "CREATE TABLE IF NOT EXISTS agentProfiles (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        agentType TEXT NOT NULL,
+        command TEXT NOT NULL,
+        description TEXT NOT NULL DEFAULT '',
+        quotaGroup TEXT,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+    );",
+    "CREATE UNIQUE INDEX IF NOT EXISTS agentProfilesNameIdx ON agentProfiles(name COLLATE NOCASE);",
     "CREATE TABLE IF NOT EXISTS mobileAccessSettings (
         id INTEGER PRIMARY KEY CHECK (id = 1),
         enabled INTEGER NOT NULL DEFAULT 0,

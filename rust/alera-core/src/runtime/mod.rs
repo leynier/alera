@@ -1,3 +1,7 @@
+mod agent_profile_models;
+mod agent_profile_store;
+#[cfg(test)]
+mod agent_profile_store_tests;
 #[cfg(test)]
 mod mobile_store_tests;
 mod models;
@@ -21,6 +25,7 @@ mod workspace_pin_store;
 #[cfg(test)]
 mod workspace_pin_store_tests;
 
+pub use agent_profile_models::*;
 pub use models::*;
 pub use orchestration_dispatch_store::ORCHESTRATION_CIRCUIT_BREAKER_THRESHOLD;
 pub use orchestration_message_store::{

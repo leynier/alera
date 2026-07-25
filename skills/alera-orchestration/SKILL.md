@@ -2,7 +2,7 @@
 name: alera-orchestration
 description: Use when coordinating multiple coding agents through Alera orchestration protocol v2, including scoped runs, task DAGs, atomic lifecycle operations, decision gates, and worker recovery.
 metadata:
-  version: 2
+  version: 3
 ---
 
 # Alera Inter-Agent Orchestration
@@ -25,7 +25,15 @@ alera orchestration --json run-list --workspace <workspace-id>
 alera orchestration --json status --id <run-id>
 ```
 
-Use `--agent codex|claude|copilot|cursor|agy|opencode|pi|amp`. The runtime may create workers through the built-in adapter registry. Stop scheduling with `run-stop --id`; add `--cancel-active` only when active work should receive cooperative cancellation. Run stop, task recovery, and dispatch interruption require the owning coordinator; `--force` is the audited administrative recovery path.
+Use `--agent codex|claude|copilot|cursor|agy|opencode|pi|amp`. The runtime may create workers through the built-in adapter registry.
+
+To discover the launch configurations the user declared, read the catalog:
+
+```bash
+alera orchestration --json agent-profiles
+```
+
+Each profile carries `name`, `agentType`, `command`, `description`, and an optional `quotaGroup`. Use `description` to choose a profile for a stage, and pass its `agentType` and `command` to `agent-spawn`. The catalog is read-only: never invent a profile or a launch command, and never edit one on the user's behalf. Profiles sharing a `quotaGroup` drain the same usage bucket, so falling back inside one group buys nothing. Stop scheduling with `run-stop --id`; add `--cancel-active` only when active work should receive cooperative cancellation. Run stop, task recovery, and dispatch interruption require the owning coordinator; `--force` is the audited administrative recovery path.
 
 For direct assignment:
 

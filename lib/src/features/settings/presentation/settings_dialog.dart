@@ -4,6 +4,7 @@ import 'package:alera/src/design_system/icons/alera_icons.dart';
 import 'package:alera/src/design_system/layout/alera_dialog.dart';
 import 'package:alera/src/features/keyboard/presentation/keyboard_settings_pane.dart';
 import 'package:alera/src/features/settings/infra/system_font_service.dart';
+import 'package:alera/src/features/settings/presentation/panes/agent_profiles_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/agents_pane.dart';
 import 'package:alera/src/features/settings/presentation/panes/agent_quota_settings_group.dart';
 import 'package:alera/src/features/settings/presentation/panes/ai_text_pane.dart';
@@ -16,6 +17,7 @@ import 'package:alera/src/features/settings/presentation/panes/terminal_pane.dar
 import 'package:alera/src/features/settings/presentation/settings_dialog_content.dart';
 import 'package:alera/src/features/settings/presentation/settings_dialog_sidebar.dart';
 import 'package:alera/src/features/settings/presentation/settings_search_entries.dart';
+import 'package:alera/src/features/settings/presentation/settings_search_entries_resources.dart';
 import 'package:alera/src/features/settings/presentation/settings_sections.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -258,6 +260,15 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         entries: remoteHostSearchEntries,
         navGroup: SettingsNavGroup.resources,
         builder: (_) => const RemoteHostSettingsPane(),
+      ),
+      SettingsSectionData(
+        id: 'agentProfiles',
+        title: 'Agent Profiles',
+        description: 'Launch configurations orchestration can dispatch to.',
+        icon: AleraIcons.agent,
+        entries: agentProfileSearchEntries,
+        navGroup: SettingsNavGroup.resources,
+        builder: (_) => const AgentProfilesSettingsPane(),
       ),
     ];
 
