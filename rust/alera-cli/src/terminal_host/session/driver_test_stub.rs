@@ -20,6 +20,7 @@ impl Session {
             running: true,
             exit_code: None,
             ended_at: None,
+            shell_pid: None,
             master: None,
             input_tx: None,
             killer: None,
