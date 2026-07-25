@@ -7,82 +7,130 @@ on:
       - synchronize
       - reopened
 
+# A newer commit makes the checks for the previous one irrelevant, and superseded
+# runs otherwise keep saturating the runner pool for the whole repository.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Must match the number of shard entries in the test matrix below. Past four
+  # the fixed per-shard setup costs more than the test time it buys back.
+  TEST_SHARDS: 4
+
 jobs:
-  flutter:
+  # Runs once for the whole repository rather than per shard. None of these
+  # commands run native asset build hooks, so this job skips Zig, the native
+  # asset cache and the preflight.
+  static:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          submodules: recursive
+          submodules: false
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - name: Setup Flutter workspace
+        uses: ./.github/actions/setup-flutter-workspace
         with:
-          channel: stable
-          cache: true
-
-      - name: Install Linux Flutter dependencies
-        run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Setup Zig
-        uses: mlugg/setup-zig@v2
-        with:
-          version: 0.15.2
-
-      - name: Cache native assets
-        uses: actions/cache@v6
-        with:
-          path: |
-            .dart_tool/hooks_runner
-            .dart_tool/native_assets
-            .dart_tool/native_assets_builder
-          key: native-assets-${{ runner.os }}-${{ runner.arch }}-flutter-${{ hashFiles('pubspec.lock', 'third_party/dart_terminal/pkgs/vte/ghostty_vte/third_party/ghostty/build.zig.zon') }}
-          restore-keys: |
-            native-assets-${{ runner.os }}-${{ runner.arch }}-flutter-
-
-      - name: Patch native asset CI workarounds
-        run: dart tool/ci/patch_native_asset_ci_workarounds.dart
-
-      - name: Native asset preflight
-        shell: bash
-        run: |
-          set -euo pipefail
-          for attempt in 1 2 3; do
-            if flutter test test/unit/native_asset_preflight_test.dart --name "native asset package graph is available"; then
-              exit 0
-            fi
-            echo "Native asset preflight failed on attempt ${attempt}; retrying..."
-            sleep $((attempt * 10))
-          done
-          flutter test test/unit/native_asset_preflight_test.dart --name "native asset package graph is available"
+          native-assets: 'false'
+          preflight: 'false'
 
       - name: Format
         run: dart format --set-exit-if-changed lib test integration_test tool
 
+      # `dart run` would resolve the package and fire the native asset build
+      # hooks, which this job deliberately has no Zig for. The script imports
+      # only dart:io, so run the file directly.
       - name: Max lines ratchet
-        run: dart run tool/quality/check_max_lines.dart
+        run: dart tool/quality/check_max_lines.dart
 
       - name: Analyze
         run: flutter analyze
 
+  test:
+    name: test ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: shard 0
+            shard: '0'
+          - name: shard 1
+            shard: '1'
+          - name: shard 2
+            shard: '2'
+          - name: shard 3
+            shard: '3'
+          - name: golden
+            shard: golden
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: false
+
+      - name: Setup Flutter workspace
+        uses: ./.github/actions/setup-flutter-workspace
+
+      # The shard split happens on the file list, not through
+      # --total-shards/--shard-index: that flag slices the tests inside each
+      # suite after loading it, so every shard would still compile every file.
       - name: Test
-        run: flutter test --coverage --exclude-tags golden
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ matrix.shard }}" = "golden" ]; then
+            flutter test test/golden
+            exit 0
+          fi
+          mapfile -t files < <(dart tool/ci/select_test_shard.dart --total ${{ env.TEST_SHARDS }} --index "${{ matrix.shard }}" --skip test/golden)
+          # Process substitution swallows the selector's exit code, and an empty
+          # list would make flutter test silently run everything instead.
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "Shard ${{ matrix.shard }} selected no test files." >&2
+            exit 1
+          fi
+          echo "shard ${{ matrix.shard }}: ${#files[@]} test files"
+          flutter test --coverage --coverage-path "coverage/lcov-shard-${{ matrix.shard }}.info" "${files[@]}"
 
-      - name: Coverage report
-        run: dart run tool/quality/coverage_report.dart --input coverage/lcov.info --min-lines 100 --worst 25
-
-      - name: Upload coverage
-        if: always()
+      - name: Upload shard coverage
+        if: matrix.shard != 'golden'
         uses: actions/upload-artifact@v7
         with:
-          name: flutter-coverage
-          path: coverage/lcov.info
-          if-no-files-found: ignore
+          name: coverage-shard-${{ matrix.shard }}
+          path: coverage/lcov-shard-${{ matrix.shard }}.info
+          if-no-files-found: error
+
+  # Only needs Dart: coverage_report.dart imports dart:io and nothing else, so
+  # setting up Flutter here would cost more than the gate itself.
+  coverage:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: false
+
+      - name: Setup Dart
+        uses: dart-lang/setup-dart@v1
+
+      - name: Download shard coverage
+        uses: actions/download-artifact@v7
+        with:
+          pattern: coverage-shard-*
+          merge-multiple: true
+          path: coverage-shards
+
+      # --expect-inputs is what stops a lost shard artifact from quietly
+      # shrinking the totals into a passing gate.
+      - name: Coverage report
+        run: dart tool/quality/coverage_report.dart --input-dir coverage-shards --expect-inputs ${{ env.TEST_SHARDS }} --min-lines 100 --worst 25
 
   mobile:
     runs-on: ubuntu-latest
@@ -94,16 +142,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          submodules: recursive
+          submodules: false
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      # The mobile package overrides xterm to ../third_party/xterm and runs no
+      # native asset hooks, so it needs neither the other submodule nor Zig.
+      - name: Setup Flutter workspace
+        uses: ./.github/actions/setup-flutter-workspace
         with:
-          channel: stable
-          cache: true
-
-      - name: Install dependencies
-        run: flutter pub get
+          working-directory: mobile
+          submodules: third_party/xterm
+          linux-toolchain: 'false'
+          native-assets: 'false'
+          preflight: 'false'
 
       - name: Format
         run: dart format --set-exit-if-changed lib test
@@ -114,62 +164,6 @@ jobs:
       - name: Test
         run: flutter test
 
-  golden:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-        with:
-          submodules: recursive
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-
-      - name: Install Linux Flutter dependencies
-        run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Setup Zig
-        uses: mlugg/setup-zig@v2
-        with:
-          version: 0.15.2
-
-      - name: Cache native assets
-        uses: actions/cache@v6
-        with:
-          path: |
-            .dart_tool/hooks_runner
-            .dart_tool/native_assets
-            .dart_tool/native_assets_builder
-          key: native-assets-${{ runner.os }}-${{ runner.arch }}-golden-${{ hashFiles('pubspec.lock', 'third_party/dart_terminal/pkgs/vte/ghostty_vte/third_party/ghostty/build.zig.zon') }}
-          restore-keys: |
-            native-assets-${{ runner.os }}-${{ runner.arch }}-golden-
-
-      - name: Patch native asset CI workarounds
-        run: dart tool/ci/patch_native_asset_ci_workarounds.dart
-
-      - name: Native asset preflight
-        shell: bash
-        run: |
-          set -euo pipefail
-          for attempt in 1 2 3; do
-            if flutter test test/unit/native_asset_preflight_test.dart --name "native asset package graph is available"; then
-              exit 0
-            fi
-            echo "Native asset preflight failed on attempt ${attempt}; retrying..."
-            sleep $((attempt * 10))
-          done
-          flutter test test/unit/native_asset_preflight_test.dart --name "native asset package graph is available"
-
-      - name: Golden tests
-        run: flutter test --tags golden
-
   desktop-e2e-linux:
     runs-on: ubuntu-latest
     timeout-minutes: 35
@@ -177,82 +171,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          submodules: recursive
+          submodules: false
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - name: Setup Flutter workspace
+        uses: ./.github/actions/setup-flutter-workspace
         with:
-          channel: stable
-          cache: true
-
-      - name: Install Linux Flutter dependencies
-        run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev xvfb
-
-      - name: Enable Linux desktop
-        run: flutter config --enable-linux-desktop
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Setup Zig
-        uses: mlugg/setup-zig@v2
-        with:
-          version: 0.15.2
-
-      - name: Cache native assets
-        uses: actions/cache@v6
-        with:
-          path: |
-            .dart_tool/hooks_runner
-            .dart_tool/native_assets
-            .dart_tool/native_assets_builder
-          key: native-assets-${{ runner.os }}-${{ runner.arch }}-desktop-e2e-${{ hashFiles('pubspec.lock', 'third_party/dart_terminal/pkgs/vte/ghostty_vte/third_party/ghostty/build.zig.zon') }}
-          restore-keys: |
-            native-assets-${{ runner.os }}-${{ runner.arch }}-desktop-e2e-
-
-      - name: Patch native asset CI workarounds
-        run: dart tool/ci/patch_native_asset_ci_workarounds.dart
-
-      # The Linux build hook compiles the Rust terminal-host sidecar via cargo.
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: "1.96"
-          components: rustfmt, clippy
-
-      - name: Cache Rust build
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: rust
-
-      - name: Native asset preflight
-        shell: bash
-        run: |
-          set -euo pipefail
-          for attempt in 1 2 3; do
-            if flutter test test/unit/native_asset_preflight_test.dart --name "native asset package graph is available"; then
-              exit 0
-            fi
-            echo "Native asset preflight failed on attempt ${attempt}; retrying..."
-            sleep $((attempt * 10))
-          done
-          flutter test test/unit/native_asset_preflight_test.dart --name "native asset package graph is available"
+          xvfb: 'true'
+          enable-linux-desktop: 'true'
+          rust: 'true'
 
       - name: Desktop E2E
         run: xvfb-run -a flutter test integration_test -d linux -r github
 
-      - name: Linux startup performance smoke
-        continue-on-error: true
-        run: xvfb-run -a dart tool/performance/alera_performance.dart --runs 3 --output .dart_tool/performance-ci
-
-      - name: Upload Linux startup performance report
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: linux-startup-performance
-          path: .dart_tool/performance-ci/startup_linux.json
-          if-no-files-found: ignore
-
+  # Split out of desktop-e2e-linux: the smoke run takes about as long as the
+  # integration tests themselves and is continue-on-error, so it can never fail
+  # a pull request, yet it was what made that job the critical path.
   rust:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -266,10 +199,14 @@ jobs:
           toolchain: "1.96"
           components: rustfmt, clippy
 
+      # A separate shared-key from the build jobs on purpose: this cache holds
+      # dev-dependencies and test binaries, which is legitimately different
+      # content from what the native build hooks produce.
       - name: Cache Rust build
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: rust
+          shared-key: alera-tests
 
       - name: Format
         run: cargo fmt --check

@@ -1,0 +1,31 @@
+name: Initialize required submodules
+description: >-
+  Clones only the submodules CI actually builds against. The eight
+  reference_projects/* submodules are reading material for contributors and are
+  excluded from analysis, but they carry 649 MB of history that every job used
+  to clone through `submodules: recursive`.
+
+inputs:
+  paths:
+    description: >-
+      Space separated submodule paths to initialize. Defaults to the two
+      third_party submodules that pubspec.yaml overrides depend on.
+    required: false
+    default: third_party/xterm third_party/dart_terminal
+
+runs:
+  using: composite
+  steps:
+    # --recursive is mandatory: third_party/dart_terminal nests the ghostty
+    # submodule, and the native asset cache key hashes a file inside it. Without
+    # it hashFiles() does not fail, it silently hashes a different set and the
+    # ghostty_vte build hook is left without sources.
+    #
+    # No --depth 1 either: both submodules pin `branch = next` at commits that
+    # are not necessarily the branch tip, so a shallow fetch of a loose SHA only
+    # works by way of the server allowing arbitrary SHA1 uploads.
+    - name: Initialize required submodules
+      shell: bash
+      run: |
+        set -euo pipefail
+        git submodule update --init --recursive ${{ inputs.paths }}

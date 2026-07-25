@@ -8,6 +8,12 @@ on:
       - reopened
   workflow_dispatch:
 
+# A newer commit makes the checks for the previous one irrelevant, and superseded
+# runs otherwise keep saturating the runner pool for the whole repository.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 env:
   ALERA_FLAVOR: release
 
@@ -30,81 +36,47 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          submodules: recursive
+          submodules: false
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - name: Setup Flutter workspace
+        uses: ./.github/actions/setup-flutter-workspace
         with:
-          channel: stable
-          cache: true
+          rust: 'true'
 
-      - name: Install Linux Flutter dependencies
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev
+      - name: Tune Windows build environment
+        if: runner.os == 'Windows'
+        uses: ./.github/actions/tune-windows-build
 
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Setup Zig
-        uses: mlugg/setup-zig@v2
+      # Swatinem/rust-cache only covers rust/target, which is the alera-cli
+      # sidecar. cargokit compiles alera_native and code_forge into the Flutter
+      # build directory instead, so 1.3 GB of release artifacts were rebuilt
+      # from scratch on every run. Only the warm-cache workflow saves, so pull
+      # requests never write a private copy back.
+      - name: Restore cargokit build
+        uses: actions/cache/restore@v6
         with:
-          version: 0.15.2
-
-      - name: Cache native assets
-        uses: actions/cache@v6
-        with:
-          path: |
-            .dart_tool/hooks_runner
-            .dart_tool/native_assets
-            .dart_tool/native_assets_builder
-          key: native-assets-${{ runner.os }}-${{ runner.arch }}-build-${{ matrix.platform }}-${{ hashFiles('pubspec.lock', 'third_party/dart_terminal/pkgs/vte/ghostty_vte/third_party/ghostty/build.zig.zon') }}
+          path: build/**/cargokit_build
+          key: cargokit-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust/Cargo.lock') }}-
           restore-keys: |
-            native-assets-${{ runner.os }}-${{ runner.arch }}-build-${{ matrix.platform }}-
-
-      - name: Patch native asset CI workarounds
-        run: dart tool/ci/patch_native_asset_ci_workarounds.dart
-
-      - name: Setup portable PTY prebuilt
-        if: matrix.platform == 'macos'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          for attempt in 1 2 3; do
-            if dart run portable_pty:setup --platform macos-arm64; then
-              exit 0
-            fi
-            echo "portable_pty setup failed on attempt ${attempt}; retrying..."
-            sleep $((attempt * 10))
-          done
-          dart run portable_pty:setup --platform macos-arm64
-
-      # The native build hooks compile both the Rust terminal-host sidecar
-      # (alera-cli) and the flutter_rust_bridge git library (alera_native).
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: "1.96"
-          components: rustfmt, clippy
-
-      - name: Cache Rust build
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: rust
-
-      - name: Native asset preflight
-        shell: bash
-        run: |
-          set -euo pipefail
-          for attempt in 1 2 3; do
-            if flutter test test/unit/native_asset_preflight_test.dart --name "native asset package graph is available"; then
-              exit 0
-            fi
-            echo "Native asset preflight failed on attempt ${attempt}; retrying..."
-            sleep $((attempt * 10))
-          done
-          flutter test test/unit/native_asset_preflight_test.dart --name "native asset package graph is available"
+            cargokit-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust/Cargo.lock') }}-
+            cargokit-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Build desktop app
         run: flutter build ${{ matrix.platform }} --release --dart-define=ALERA_FLAVOR=release
+
+      # The cargokit temp directory layout differs per platform and is only
+      # confirmed for Linux, so report what was actually produced until the
+      # macOS and Windows paths have been observed on a real run.
+      - name: Report cargokit build layout
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          found=$(find build -type d -name cargokit_build 2>/dev/null || true)
+          if [ -z "$found" ]; then
+            echo "No cargokit_build directory under build/ on ${{ runner.os }}."
+            exit 0
+          fi
+          echo "$found" | while read -r dir; do
+            du -sh "$dir" 2>/dev/null || echo "$dir"
+          done

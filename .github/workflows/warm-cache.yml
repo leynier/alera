@@ -1,0 +1,89 @@
+name: Warm CI caches
+
+# GitHub Actions caches are scoped per ref: a run reads its own scope plus the
+# base branch's, but only ever writes to its own. pr.yml and desktop-build.yml
+# are pull_request-only, so nothing ever wrote to main's scope and every pull
+# request started cold, downloaded the Flutter SDK, and then spent minutes
+# saving a private copy no other pull request could read. The repository sat at
+# 11.5 GB against a 10 GB limit, evicting continuously.
+#
+# This workflow populates main's scope so pull requests restore exact primary
+# hits, which also makes their cache save steps no-ops.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'pubspec.lock'
+      - 'rust/Cargo.lock'
+      - 'third_party/**'
+      - '.github/actions/**'
+      - '.github/workflows/warm-cache.yml'
+  # Unused caches are evicted after seven days, so refresh them even when the
+  # inputs above have not moved.
+  schedule:
+    - cron: '0 5 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: warm-cache
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  ALERA_FLAVOR: release
+
+jobs:
+  warm:
+    name: warm ${{ matrix.platform }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos
+            os: macos-latest
+          - platform: windows
+            os: windows-latest
+          - platform: linux
+            os: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: false
+
+      - name: Setup Flutter workspace
+        uses: ./.github/actions/setup-flutter-workspace
+        with:
+          rust: 'true'
+
+      - name: Tune Windows build environment
+        if: runner.os == 'Windows'
+        uses: ./.github/actions/tune-windows-build
+
+      - name: Restore cargokit build
+        uses: actions/cache/restore@v6
+        with:
+          path: build/**/cargokit_build
+          key: cargokit-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust/Cargo.lock') }}-
+          restore-keys: |
+            cargokit-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust/Cargo.lock') }}-
+            cargokit-${{ runner.os }}-${{ runner.arch }}-
+
+      # Running the real release build is the point: a prologue-only warm job
+      # would populate the Flutter SDK and pub caches but leave the Rust build
+      # cache cold, which is the more expensive half.
+      - name: Build desktop app
+        run: flutter build ${{ matrix.platform }} --release --dart-define=ALERA_FLAVOR=release
+
+      # This workflow is the only writer, so pull requests restore a shared
+      # entry instead of each saving a private copy into their own ref scope.
+      - name: Save cargokit build
+        uses: actions/cache/save@v6
+        with:
+          path: build/**/cargokit_build
+          key: cargokit-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust/Cargo.lock') }}-${{ github.sha }}
