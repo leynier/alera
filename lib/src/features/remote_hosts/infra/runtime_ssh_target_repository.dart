@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:alera/src/features/remote_hosts/domain/ssh_target.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
+import 'package:alera/src/shared/infra/runtime/runtime_change_coalescer.dart';
+import 'package:alera/src/shared/infra/runtime/runtime_snapshot_stream.dart';
 
 class RuntimeSshTargetRepository {
   RuntimeSshTargetRepository(
@@ -9,11 +11,13 @@ class RuntimeSshTargetRepository {
     this.beforeAccess,
     this.bootstrapDefaults =
         const RuntimeSshBootstrapDefaults.fromEnvironment(),
-  });
+    RuntimeChangeCoalescer? coalescer,
+  }) : _coalescer = coalescer ?? RuntimeChangeCoalescer();
 
   final RuntimeHostClient _client;
   final Future<void> Function()? beforeAccess;
   final RuntimeSshBootstrapDefaults bootstrapDefaults;
+  final RuntimeChangeCoalescer _coalescer;
 
   Future<List<SshTarget>> list() async {
     await beforeAccess?.call();
@@ -21,13 +25,14 @@ class RuntimeSshTargetRepository {
     return _targetListFromPayload(payload);
   }
 
-  Stream<List<SshTarget>> watchAll() async* {
-    yield await list();
-    await for (final event in _client.runtimeEvents) {
-      if (event.name == 'sshTargetsChanged') {
-        yield await list();
-      }
-    }
+  Stream<List<SshTarget>> watchAll() {
+    return runtimeSnapshotStream(
+      client: _client,
+      eventNames: const <String>{'sshTargetsChanged'},
+      readSnapshot: list,
+      coalesceKey: 'sshTargets',
+      coalescer: _coalescer,
+    );
   }
 
   Stream<SshTargetBootstrapProgress> watchBootstrapProgress() async* {

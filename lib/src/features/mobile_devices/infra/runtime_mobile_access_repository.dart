@@ -4,6 +4,8 @@ import 'package:alera/src/features/mobile_devices/domain/mobile_access_status.da
 import 'package:alera/src/features/mobile_devices/domain/mobile_device.dart';
 import 'package:alera/src/features/mobile_devices/domain/mobile_pairing_offer.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
+import 'package:alera/src/shared/infra/runtime/runtime_change_coalescer.dart';
+import 'package:alera/src/shared/infra/runtime/runtime_snapshot_stream.dart';
 
 const Set<String> _mobileChangeEventNames = <String>{
   'mobileSettingsChanged',
@@ -13,22 +15,27 @@ const Set<String> _mobileChangeEventNames = <String>{
 };
 
 class RuntimeMobileAccessRepository {
-  RuntimeMobileAccessRepository(this._client);
+  RuntimeMobileAccessRepository(
+    this._client, {
+    RuntimeChangeCoalescer? coalescer,
+  }) : _coalescer = coalescer ?? RuntimeChangeCoalescer();
 
   final RuntimeHostClient _client;
+  final RuntimeChangeCoalescer _coalescer;
 
   Future<MobileAccessStatus> status() async {
     final payload = await _client.runtimeRequest('mobile.status.get');
     return MobileAccessStatus.fromJson(_mapFromPayload(payload));
   }
 
-  Stream<MobileAccessStatus> watchStatus() async* {
-    yield await status();
-    await for (final event in _client.runtimeEvents) {
-      if (_mobileChangeEventNames.contains(event.name)) {
-        yield await status();
-      }
-    }
+  Stream<MobileAccessStatus> watchStatus() {
+    return runtimeSnapshotStream(
+      client: _client,
+      eventNames: _mobileChangeEventNames,
+      readSnapshot: status,
+      coalesceKey: 'mobileStatus',
+      coalescer: _coalescer,
+    );
   }
 
   Future<MobileGatewaySettings> updateSettings({

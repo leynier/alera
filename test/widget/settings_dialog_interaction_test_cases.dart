@@ -424,7 +424,10 @@ void _registerSettingsDialogAdvancedTests() {
       starController: _FakeGitHubStarController(GitHubStarState.hidden),
       extraOverrides: <dynamic>[
         sshTargetRepositoryProvider.overrideWithValue(
-          RuntimeSshTargetRepository(runtimeClient),
+          RuntimeSshTargetRepository(
+            runtimeClient,
+            coalescer: _immediateCoalescer(),
+          ),
         ),
       ],
     );
@@ -503,7 +506,10 @@ void _registerSettingsDialogAdvancedTests() {
       starController: _FakeGitHubStarController(GitHubStarState.hidden),
       extraOverrides: <dynamic>[
         sshTargetRepositoryProvider.overrideWithValue(
-          RuntimeSshTargetRepository(runtimeClient),
+          RuntimeSshTargetRepository(
+            runtimeClient,
+            coalescer: _immediateCoalescer(),
+          ),
         ),
       ],
     );
@@ -558,7 +564,10 @@ void _registerSettingsDialogAdvancedTests() {
       starController: _FakeGitHubStarController(GitHubStarState.hidden),
       extraOverrides: <dynamic>[
         sshTargetRepositoryProvider.overrideWithValue(
-          RuntimeSshTargetRepository(runtimeClient),
+          RuntimeSshTargetRepository(
+            runtimeClient,
+            coalescer: _immediateCoalescer(),
+          ),
         ),
       ],
     );
@@ -614,7 +623,10 @@ void _registerSettingsDialogAdvancedTests() {
       starController: _FakeGitHubStarController(GitHubStarState.hidden),
       extraOverrides: <dynamic>[
         sshTargetRepositoryProvider.overrideWithValue(
-          RuntimeSshTargetRepository(runtimeClient),
+          RuntimeSshTargetRepository(
+            runtimeClient,
+            coalescer: _immediateCoalescer(),
+          ),
         ),
       ],
     );
@@ -668,7 +680,10 @@ void _registerSettingsDialogAdvancedTests() {
       starController: _FakeGitHubStarController(GitHubStarState.hidden),
       extraOverrides: <dynamic>[
         sshTargetRepositoryProvider.overrideWithValue(
-          RuntimeSshTargetRepository(runtimeClient),
+          RuntimeSshTargetRepository(
+            runtimeClient,
+            coalescer: _immediateCoalescer(),
+          ),
         ),
       ],
     );
@@ -722,7 +737,10 @@ void _registerSettingsDialogAdvancedTests() {
       starController: _FakeGitHubStarController(GitHubStarState.hidden),
       extraOverrides: <dynamic>[
         sshTargetRepositoryProvider.overrideWithValue(
-          RuntimeSshTargetRepository(runtimeClient),
+          RuntimeSshTargetRepository(
+            runtimeClient,
+            coalescer: _immediateCoalescer(),
+          ),
         ),
       ],
     );
@@ -752,7 +770,10 @@ void _registerSettingsDialogAdvancedTests() {
       starController: _FakeGitHubStarController(GitHubStarState.hidden),
       extraOverrides: <dynamic>[
         sshTargetRepositoryProvider.overrideWithValue(
-          RuntimeSshTargetRepository(runtimeClient),
+          RuntimeSshTargetRepository(
+            runtimeClient,
+            coalescer: _immediateCoalescer(),
+          ),
         ),
       ],
     );
@@ -781,7 +802,10 @@ void _registerSettingsDialogAdvancedTests() {
       starController: _FakeGitHubStarController(GitHubStarState.hidden),
       extraOverrides: <dynamic>[
         sshTargetRepositoryProvider.overrideWithValue(
-          RuntimeSshTargetRepository(runtimeClient),
+          RuntimeSshTargetRepository(
+            runtimeClient,
+            coalescer: _immediateCoalescer(),
+          ),
         ),
       ],
     );
@@ -831,7 +855,10 @@ void _registerSettingsDialogAdvancedTests() {
       starController: _FakeGitHubStarController(GitHubStarState.hidden),
       extraOverrides: <dynamic>[
         sshTargetRepositoryProvider.overrideWithValue(
-          RuntimeSshTargetRepository(runtimeClient),
+          RuntimeSshTargetRepository(
+            runtimeClient,
+            coalescer: _immediateCoalescer(),
+          ),
         ),
       ],
     );
@@ -880,7 +907,10 @@ void _registerSettingsDialogAdvancedTests() {
       starController: _FakeGitHubStarController(GitHubStarState.hidden),
       extraOverrides: <dynamic>[
         sshTargetRepositoryProvider.overrideWithValue(
-          RuntimeSshTargetRepository(runtimeClient),
+          RuntimeSshTargetRepository(
+            runtimeClient,
+            coalescer: _immediateCoalescer(),
+          ),
         ),
       ],
     );

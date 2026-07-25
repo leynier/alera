@@ -81,6 +81,11 @@ class WorkbenchController extends _$WorkbenchController
       }
       _projectsSub = _projectsService.projectRepository.watchAll().listen(
         _onProjectsChanged,
+        // A dead watcher is never re-created, so a stream that errors or
+        // completes must not leave a stale subscription behind.
+        onError: (Object _) {},
+        onDone: () => _projectsSub = null,
+        cancelOnError: false,
       );
       final initialProjects = await _projectsService.projectRepository
           .listAll();
