@@ -20,6 +20,13 @@ const int terminalHostFrameKindOutput = 2;
 /// Kind byte plus the u32 length.
 const int terminalHostFrameHeaderLength = 5;
 
+/// Last line before the stream switches to frames.
+///
+/// The switch has to be visible in the bytes: the reader can live in another
+/// isolate, so anything that flips it from outside races with the port
+/// round-trip and mis-parses whatever arrived in between.
+const String terminalHostBinaryFramesEnabledLine = 'binaryFramesEnabled';
+
 sealed class TerminalHostFrame {
   const TerminalHostFrame();
 }
@@ -77,6 +84,9 @@ class TerminalHostFrameReader {
     }
     final line = utf8.decode(_buffer.sublist(0, newline), allowMalformed: true);
     _buffer.removeRange(0, newline + 1);
+    if (line.contains(terminalHostBinaryFramesEnabledLine)) {
+      _binary = true;
+    }
     return TerminalHostJsonFrame(line);
   }
 

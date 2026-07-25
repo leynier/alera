@@ -4,6 +4,7 @@ use tokio::net::TcpStream;
 use tokio::sync::mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
 
 use crate::terminal_host::frame_codec::{encode_json_frame, encode_output_frame};
+use crate::terminal_host::protocol::BINARY_FRAMES_ENABLED_EVENT;
 use crate::terminal_host::server::ServerCommand;
 
 /// One outbound item on a client's lane.
@@ -160,6 +161,17 @@ async fn write_frame(
 ) -> std::io::Result<()> {
     match frame {
         ClientFrame::UpgradeToBinary => {
+            // A sentinel line, not a silent flag flip. The reader may live in
+            // another isolate, so the switch has to be visible in the byte
+            // stream itself: anything else races with the port round-trip.
+            write_json_line(
+                write_half,
+                &crate::terminal_host::protocol::event(
+                    BINARY_FRAMES_ENABLED_EVENT,
+                    serde_json::json!({}),
+                ),
+            )
+            .await?;
             *binary = true;
             Ok(())
         }

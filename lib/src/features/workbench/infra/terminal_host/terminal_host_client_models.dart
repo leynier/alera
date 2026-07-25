@@ -120,6 +120,16 @@ final class TerminalHostOutputEvent extends TerminalHostEvent {
   final Uint8List data;
 }
 
+/// Output that the socket reader isolate already decoded.
+///
+/// The isolate holds one decoder per session, so a code point split across
+/// chunks is reassembled there rather than on the UI isolate.
+final class TerminalHostOutputTextEvent extends TerminalHostEvent {
+  const TerminalHostOutputTextEvent(super.sessionId, this.text);
+
+  final String text;
+}
+
 final class TerminalHostOutputResyncRequiredEvent extends TerminalHostEvent {
   const TerminalHostOutputResyncRequiredEvent(super.sessionId);
 }

@@ -227,6 +227,14 @@ final class TerminalPtyOutputEvent extends TerminalPtySessionEvent {
   final Uint8List data;
 }
 
+/// Output already decoded off the UI isolate. Byte-based PTY adapters keep
+/// using [TerminalPtyOutputEvent]; only the socket path produces this.
+final class TerminalPtyOutputTextEvent extends TerminalPtySessionEvent {
+  const TerminalPtyOutputTextEvent(this.text);
+
+  final String text;
+}
+
 final class TerminalPtySnapshotEvent extends TerminalPtySessionEvent {
   const TerminalPtySnapshotEvent(
     this.data, {

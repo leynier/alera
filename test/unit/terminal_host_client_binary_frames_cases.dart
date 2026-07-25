@@ -40,16 +40,16 @@ void _registerTerminalHostClientBinaryFrameTests() {
     );
     expect(server.usingBinaryFrames, isTrue);
 
+    // On the framed path the reader isolate also decodes, so the UI isolate
+    // receives text it can hand straight to the emulator.
     final output = client
         .eventsForSession('session-1')
-        .where((event) => event is TerminalHostOutputEvent)
-        .cast<TerminalHostOutputEvent>()
+        .where((event) => event is TerminalHostOutputTextEvent)
+        .cast<TerminalHostOutputTextEvent>()
         .first;
-    // Bytes that are not valid UTF-8 and would not survive a JSON round-trip
-    // without base64. Here they travel raw.
-    server.sendOutput('session-1', <int>[0x1b, 0x5b, 0x6d, 0xff, 0x00]);
+    server.sendOutput('session-1', utf8.encode('hola ñ'));
 
-    expect((await output).data, <int>[0x1b, 0x5b, 0x6d, 0xff, 0x00]);
+    expect((await output).text, 'hola ñ');
   });
 
   test('control events still arrive once framed', () async {

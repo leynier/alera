@@ -339,6 +339,8 @@ final class TerminalHostPtySession implements TerminalPtySession {
     switch (event) {
       case TerminalHostOutputEvent(:final data):
         _events.add(TerminalPtyOutputEvent(data));
+      case TerminalHostOutputTextEvent(:final text):
+        _events.add(TerminalPtyOutputTextEvent(text));
       case TerminalHostOutputResyncRequiredEvent():
         _requestOutputResync();
       case TerminalHostExitEvent(:final exitCode):

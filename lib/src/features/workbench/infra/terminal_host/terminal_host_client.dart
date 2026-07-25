@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:alera/src/features/runtime_host/domain/runtime_host_status.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_client_models.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_frame_codec.dart';
+import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_socket_isolate.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_process_launcher.dart';
 import 'package:alera/src/features/workbench/infra/terminal_host/terminal_host_protocol.dart';
 import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
@@ -21,6 +23,7 @@ part 'terminal_host_client_requests.dart';
 part 'terminal_host_client_lifecycle.dart';
 part 'terminal_host_client_heartbeat.dart';
 part 'terminal_host_client_session_events.dart';
+part 'terminal_host_client_socket_reader.dart';
 
 final class SocketTerminalHostClient
     with _TerminalHostClientHeartbeat, _TerminalHostClientSessionEvents
@@ -496,16 +499,7 @@ final class SocketTerminalHostClient
     _TerminalHostControl control,
     _HostConnectionRole role,
   ) async {
-    final socket = await Socket.connect(
-      InternetAddress.loopbackIPv4,
-      control.port,
-      timeout: _terminalHostConnectTimeout,
-    );
-    final connection = _TerminalHostConnection(
-      socket,
-      supportsRuntime: control.supportsRuntime,
-      supportsOrchestration: control.supportsOrchestration,
-    );
+    final connection = await _openHostConnection(control);
     unawaited(
       connection.done.then(
         (_) => _handleConnectionClosed(connection),
@@ -521,6 +515,10 @@ final class SocketTerminalHostClient
         frame.sessionId,
         TerminalHostOutputEvent(frame.sessionId, frame.data),
       ),
+      onError: (Object _) {},
+    );
+    connection.decodedOutput.listen(
+      (event) => _emitHostEvent(event.sessionId, event),
       onError: (Object _) {},
     );
     final lineSub = connection.lines.listen(
@@ -614,9 +612,6 @@ final class SocketTerminalHostClient
         connection.completeAuthenticationError(error);
         _handleConnectionClosed(connection, error);
       } else {
-        if (message['binaryFrames'] == true) {
-          connection.upgradeToBinaryFrames();
-        }
         connection.completeAuthentication();
       }
       return;
