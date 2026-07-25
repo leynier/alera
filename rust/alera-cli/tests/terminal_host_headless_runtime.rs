@@ -104,6 +104,36 @@ fn spawn_host(runtime_dir: &std::path::Path, token: &str) -> (HostGuard, u16) {
 
 /// Agent integrations are reconciled after the host starts accepting, so the
 /// control file can appear before the hook files are on disk.
+/// Agent hook schemas expect `matcher` to be a string or absent, so a null
+/// value makes the agent print validation warnings on every startup.
+#[cfg(unix)]
+fn assert_no_null_matchers(path: &std::path::Path) {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let config = loop {
+        let parsed = std::fs::read_to_string(path)
+            .ok()
+            .and_then(|contents| serde_json::from_str::<Value>(&contents).ok());
+        if let Some(config) = parsed {
+            break config;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "integration config never became readable JSON: {}",
+            path.display()
+        );
+        std::thread::sleep(Duration::from_millis(50));
+    };
+    for (event, definitions) in config["hooks"].as_object().expect("hooks object") {
+        for definition in definitions.as_array().expect("definition array") {
+            assert!(
+                !matches!(definition.get("matcher"), Some(Value::Null)),
+                "{} emitted a null matcher for {event}",
+                path.display()
+            );
+        }
+    }
+}
+
 #[cfg(unix)]
 fn wait_for_path(path: &std::path::Path) {
     let deadline = Instant::now() + Duration::from_secs(10);
@@ -356,19 +386,25 @@ fn runtime_hook_receiver_detects_every_enabled_agent() {
     let token = "agent-hook-token";
     let (_guard, port) = spawn_host(dir.path(), token);
     let test_home = dir.path().join("test-home");
+    let claude_settings = dir
+        .path()
+        .join("agent-runtime-homes/claude/home/settings.json");
+    let grok_hooks = test_home.join(".grok/hooks/alera-status.json");
     for integration in [
         dir.path().join("agent-runtime-homes/codex/home/hooks.json"),
-        dir.path()
-            .join("agent-runtime-homes/claude/home/settings.json"),
+        claude_settings.clone(),
         test_home.join(".copilot/hooks/alera.json"),
         test_home.join(".cursor/hooks.json"),
         test_home.join(".gemini/config/hooks.json"),
-        test_home.join(".grok/hooks/alera-status.json"),
+        grok_hooks.clone(),
         test_home.join(".config/opencode/plugins/alera-agent-status.js"),
         test_home.join(".pi/agent/extensions/alera-agent-status.ts"),
         test_home.join(".config/amp/plugins/alera-agent-status.ts"),
     ] {
         wait_for_path(&integration);
+    }
+    for hooks in [&claude_settings, &grok_hooks] {
+        assert_no_null_matchers(hooks);
     }
     let (mut writer, mut reader) = connect(port, token);
     send(
