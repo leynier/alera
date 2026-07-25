@@ -6,6 +6,16 @@ import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
 abstract interface class TerminalHostClient {
   Stream<TerminalHostEvent> get events;
 
+  /// Events for one PTY session only.
+  ///
+  /// Every session used to filter the global stream, so one output chunk was
+  /// dispatched to every live terminal and discarded by all but one. That is
+  /// O(open terminals) per chunk.
+  Stream<TerminalHostEvent> eventsForSession(String sessionId);
+
+  /// Drops the per-session stream once nobody is listening to it.
+  void releaseSession(String sessionId);
+
   Future<void> ensureStarted({required TerminalHostConfig config});
 
   Future<void> configure(TerminalHostConfig config);

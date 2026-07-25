@@ -46,6 +46,7 @@ import 'fake_git_backend.dart';
 import 'fake_project_config.dart';
 
 part 'app_providers_test_harness.dart';
+part 'app_providers_terminal_fakes.dart';
 part 'app_providers_wrapper_path_test_cases.dart';
 
 void main() {

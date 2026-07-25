@@ -113,6 +113,11 @@ class _FakeTerminalSessionHandle extends TerminalSessionHandle {
   String get displayTitle => tab.title;
 
   @override
+  late final ValueListenable<String> titleListenable = ValueNotifier<String>(
+    displayTitle,
+  );
+
+  @override
   bool get isRunning => _started;
 
   @override

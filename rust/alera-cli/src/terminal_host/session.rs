@@ -384,6 +384,20 @@ impl Session {
         })
     }
 
+    /// Applies a pause toggle and returns the payload the client needs.
+    ///
+    /// Only a resume needs the scrollback. Pausing used to ship the whole
+    /// buffer, up to 10 MB base64'd, for the client to decode on its UI thread
+    /// and then throw away.
+    pub fn set_output_paused_payload(&mut self, client_id: u64, paused: bool) -> Value {
+        self.set_output_paused(client_id, paused);
+        if paused {
+            json!({})
+        } else {
+            self.snapshot_payload()
+        }
+    }
+
     pub fn snapshot_payload(&self) -> Value {
         json!({
             "sessionId": self.id,

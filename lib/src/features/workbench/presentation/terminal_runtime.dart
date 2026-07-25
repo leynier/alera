@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:ffi' as ffi;
 import 'dart:io' show File, Platform;
@@ -44,6 +45,13 @@ abstract class TerminalSessionHandle extends ChangeNotifier {
   String get workspaceId;
 
   String get displayTitle;
+
+  /// Title-only notifications.
+  ///
+  /// Shells emit an OSC title per prompt. Routing those through the handle's
+  /// own notifier rebuilt the whole terminal view and every tab chip, so the
+  /// tab strip listens here instead.
+  ValueListenable<String> get titleListenable;
 
   bool get isRunning;
 

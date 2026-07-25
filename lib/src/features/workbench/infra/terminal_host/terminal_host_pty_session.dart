@@ -96,7 +96,7 @@ final class TerminalHostPtySession implements TerminalPtySession {
     _cols = cols;
     _rows = rows;
     _onProcessCreated = onProcessCreated;
-    _hostSub ??= _client.events.listen(_handleHostEvent);
+    _hostSub ??= _client.eventsForSession(_sessionId).listen(_handleHostEvent);
     late final Future<void> startFuture;
     startFuture = _createOrAttach()
         .then((attachment) async {
@@ -327,6 +327,7 @@ final class TerminalHostPtySession implements TerminalPtySession {
     _started = false;
     unawaited(_hostSub?.cancel());
     _hostSub = null;
+    _client.releaseSession(_sessionId);
     unawaited(_client.terminate(_sessionId).catchError((_) {}));
     unawaited(_events.close());
   }
