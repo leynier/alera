@@ -24,8 +24,8 @@ use crate::terminal_host::host_error::{HostError, HostResult};
 use crate::terminal_host::protocol::{
     error_response, event, int_or, ok_response, require_object, TerminalHostConfig,
     TerminalHostLaunch, PROTOCOL_VERSION, RUNTIME_HOST_AGENT_QUOTA_CLAUDE_TUI_CAPABILITY,
-    RUNTIME_HOST_AGENT_STATUS_CAPABILITY, RUNTIME_HOST_BOOTSTRAP_CAPABILITY,
-    RUNTIME_HOST_CAPABILITY, RUNTIME_HOST_LIFECYCLE_CAPABILITY,
+    RUNTIME_HOST_AGENT_STATUS_CAPABILITY, RUNTIME_HOST_BINARY_FRAMES_CAPABILITY,
+    RUNTIME_HOST_BOOTSTRAP_CAPABILITY, RUNTIME_HOST_CAPABILITY, RUNTIME_HOST_LIFECYCLE_CAPABILITY,
     RUNTIME_HOST_MANAGED_WORKSPACE_CAPABILITY, RUNTIME_HOST_MOBILE_AGENT_QUOTA_CAPABILITY,
     RUNTIME_HOST_MOBILE_CAPABILITY, RUNTIME_HOST_MOBILE_HOST_TOOLS_CAPABILITY,
     RUNTIME_HOST_MOBILE_MUTATIONS_CAPABILITY, RUNTIME_HOST_MOBILE_PORTABLE_SETTINGS_CAPABILITY,
@@ -303,12 +303,23 @@ impl ServerActor {
                 )
                 .await
                 .map_err(|error| HostError::state(error.to_string()))?;
+                let binary_frames = payload
+                    .get("binaryFrames")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false);
                 if let Some(client) = self.clients.get_mut(&client_id) {
                     client.authenticated = true;
+                    client.binary_frames = binary_frames;
                     client.mobile_device_id = Some(device.id.clone());
                     client.mobile_device_name = Some(device.display_name.clone());
                 }
                 self.cancel_shutdown_timer();
+                if binary_frames {
+                    // Same in-band ordering as the desktop socket: queued
+                    // behind this response so the device never sees a binary
+                    // message before it knows to expect one.
+                    self.upgrade_client_to_binary(client_id);
+                }
                 self.broadcast_authenticated(event("mobileDevicesChanged", json!({})));
                 Ok(json!({
                     "protocolVersion": MOBILE_PROTOCOL_VERSION,
@@ -329,8 +340,10 @@ impl ServerActor {
                         RUNTIME_HOST_TERMINAL_DRIVER_CAPABILITY,
                         RUNTIME_HOST_LIFECYCLE_CAPABILITY,
                         RUNTIME_HOST_AGENT_STATUS_CAPABILITY,
+                        RUNTIME_HOST_BINARY_FRAMES_CAPABILITY,
                     ],
                     "authenticated": true,
+                    "binaryFrames": binary_frames,
                     "device": device,
                 }))
             }

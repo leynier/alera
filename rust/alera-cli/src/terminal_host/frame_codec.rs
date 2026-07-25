@@ -32,12 +32,20 @@ pub fn encode_json_frame(value: &Value) -> std::io::Result<Vec<u8>> {
 
 /// Encodes PTY output without base64, which is the whole point of the format.
 pub fn encode_output_frame(session_id: &str, data: &[u8]) -> Vec<u8> {
+    frame(FRAME_KIND_OUTPUT, &encode_output_payload(session_id, data))
+}
+
+/// The output payload on its own, without the length-prefixed header.
+///
+/// Used by the mobile WebSocket transport, which already frames messages, so
+/// it needs the session id and the raw bytes but not a length prefix.
+pub fn encode_output_payload(session_id: &str, data: &[u8]) -> Vec<u8> {
     let id = session_id.as_bytes();
     let mut payload = Vec::with_capacity(2 + id.len() + data.len());
     payload.extend_from_slice(&(id.len() as u16).to_be_bytes());
     payload.extend_from_slice(id);
     payload.extend_from_slice(data);
-    frame(FRAME_KIND_OUTPUT, &payload)
+    payload
 }
 
 fn frame(kind: u8, payload: &[u8]) -> Vec<u8> {

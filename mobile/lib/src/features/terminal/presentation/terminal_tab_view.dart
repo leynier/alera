@@ -12,6 +12,7 @@ import 'package:alera_mobile/src/features/terminal/presentation/terminal_accesso
 import 'package:alera_mobile/src/features/terminal/presentation/terminal_compose_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:alera_mobile/src/features/terminal/domain/terminal_output_batcher.dart';
 import 'package:xterm/xterm.dart';
 
 /// One terminal tab filling the available space, with the quick-key bar and
@@ -96,6 +97,7 @@ class _TerminalSurface extends StatefulWidget {
 class _TerminalSurfaceState extends State<_TerminalSurface> {
   late final Terminal _terminal;
   late final TerminalController _controller;
+  late final TerminalOutputBatcher _batcher;
   StreamSubscription<Uint8List>? _outputSub;
 
   @override
@@ -107,19 +109,23 @@ class _TerminalSurfaceState extends State<_TerminalSurface> {
       onResize: (width, height, _, _) => widget.onViewportResize(width, height),
     );
     _controller = TerminalController();
+    // One write per frame. Writing every chunk straight through made a noisy
+    // build parse and repaint many times inside a single frame.
+    _batcher = TerminalOutputBatcher(write: _terminal.write);
     if (widget.session.snapshot.isNotEmpty) {
-      _terminal.write(
+      _batcher.addSnapshot(
         utf8.decode(widget.session.snapshot, allowMalformed: true),
       );
     }
     _outputSub = widget.session.output.listen((data) {
-      _terminal.write(utf8.decode(data, allowMalformed: true));
+      _batcher.add(utf8.decode(data, allowMalformed: true));
     });
   }
 
   @override
   void dispose() {
     unawaited(_outputSub?.cancel());
+    _batcher.dispose();
     super.dispose();
   }
 

@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:alera_mobile/src/core/json_payload_fields.dart';
 import 'package:alera_mobile/src/core/mobile_protocol.dart';
 import 'package:alera_mobile/src/features/hosts/domain/paired_device_credentials.dart';
+import 'package:alera_mobile/src/features/runtime/infra/mobile_binary_output_payload.dart';
 import 'package:alera_mobile/src/features/hosts/domain/pairing_offer.dart';
 import 'package:alera_mobile/src/features/runtime/domain/mobile_runtime_status.dart';
 import 'package:alera_mobile/src/features/runtime/domain/project_summary.dart';
@@ -100,6 +101,7 @@ class MobileRuntimeClient
   StackTrace? _closedStackTrace;
 
   Set<String> _runtimeCapabilities = const <String>{};
+  bool _binaryFrames = false;
 
   @override
   Stream<MobileRuntimeEvent> get events => _events.stream;
@@ -140,8 +142,12 @@ class MobileRuntimeClient
       'protocolVersion': aleraMobileProtocolVersion,
       'deviceId': deviceId,
       'deviceToken': deviceToken,
+      'binaryFrames': true,
     });
     _runtimeCapabilities = payload.stringList('runtimeCapabilities').toSet();
+    // The response decides, not the request: an older runtime simply omits it
+    // and keeps sending base64 inside JSON.
+    _binaryFrames = payload['binaryFrames'] == true;
     return payload;
   }
 
@@ -424,6 +430,15 @@ class MobileRuntimeClient
   }
 
   void _handleMessage(Object? raw) {
+    // Once negotiated, a binary message is terminal output and never JSON, so
+    // it skips jsonDecode and base64Decode entirely.
+    if (_binaryFrames && raw is List<int>) {
+      final output = decodeMobileBinaryOutput(raw);
+      if (output != null && !_terminalOutput.isClosed) {
+        _terminalOutput.add(output);
+      }
+      return;
+    }
     final decoded = switch (raw) {
       String text => jsonDecode(text),
       List<int> bytes => jsonDecode(utf8.decode(bytes)),
