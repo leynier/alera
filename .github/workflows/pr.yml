@@ -7,6 +7,12 @@ on:
       - synchronize
       - reopened
 
+# A newer commit makes the checks for the previous one irrelevant, and superseded
+# runs otherwise keep saturating the runner pool for the whole repository.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   flutter:
     runs-on: ubuntu-latest

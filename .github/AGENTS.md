@@ -12,6 +12,7 @@ This file applies to GitHub metadata and GitHub Actions workflows.
 - Flutter jobs that can run native asset hooks must set up Zig 0.15.2, restore the native asset cache, apply the temporary native asset CI workarounds, and run the native asset preflight before longer test/build commands. This keeps clean runners resilient when `ghostty_vte`, PDFium, or `portable_pty` prebuilt downloads are missing or transiently unavailable.
 - Pull request workflows must initialize required submodules before dependency resolution.
 - Pull request workflows must not rerun solely because a draft pull request becomes ready for review; the existing checks for the same commit remain authoritative.
+- Pull request workflows must declare a `concurrency` group keyed by `${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}` with `cancel-in-progress: true`, so a new commit cancels the superseded run instead of leaving it to saturate the shared runner pool. `release-cut.yml` is deliberately excluded: it keeps its own `release-cut` group with `cancel-in-progress: false`, because cancelling mid-publish would expose a partial release.
 - Do not expose partial releases to users.
 - `release-cut.yml` is the single manual release entry point. It must plan desktop and mobile independently, skip unchanged products, and preserve their separate version and tag sequences.
 - Release automation must publish drafts first, verify required assets and update manifests, then publish public releases.
