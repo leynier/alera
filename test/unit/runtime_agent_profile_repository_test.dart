@@ -44,6 +44,21 @@ void main() {
       expect(profile.quotaGroup, isNull);
     });
 
+    test('falls back to the epoch for an unparseable timestamp', () {
+      final profile = AgentProfile.fromJson(<String, Object?>{
+        'id': 'prof_1',
+        'name': 'Codex Sol',
+        'agentType': 'codex',
+        'command': 'codex',
+        'createdAt': 'not-a-date',
+        'updatedAt': 42,
+      });
+
+      final epoch = DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+      expect(profile.createdAt, epoch);
+      expect(profile.updatedAt, epoch);
+    });
+
     test('rejects a payload missing a required field', () {
       expect(
         () => AgentProfile.fromJson(<String, Object?>{
