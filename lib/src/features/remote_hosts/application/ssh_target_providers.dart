@@ -7,7 +7,10 @@ part 'ssh_target_providers.g.dart';
 
 @Riverpod(keepAlive: true)
 RuntimeSshTargetRepository sshTargetRepository(Ref ref) {
-  return RuntimeSshTargetRepository(ref.watch(runtimeHostClientProvider));
+  return RuntimeSshTargetRepository(
+    ref.watch(runtimeHostClientProvider),
+    coalescer: ref.watch(runtimeChangeCoalescerProvider),
+  );
 }
 
 @Riverpod(keepAlive: true)
