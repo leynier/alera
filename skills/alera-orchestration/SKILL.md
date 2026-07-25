@@ -66,6 +66,8 @@ alera orchestration --json agent-spawn --agent codex --task <task-id> --title "R
 alera terminal --json wait --terminal <handle> --for dispatch-accepted --timeout-ms 60000
 ```
 
+`agent-spawn --profile <name>` launches a declared profile, resolving the adapter and command host-side; it replaces `--agent` and cannot be combined with `--agent` or `--command`. For a task bound to a policy stage the coordinator selects the profile itself, preferring a fallback from a different quota group.
+
 `agent-spawn` creates the dispatch before launching Codex and supplies a short first-turn bootstrap that tells the worker to accept and read its context. Other adapters use hook-based readiness injection. Its `--timeout-ms` value may not exceed the host acceptance limit of 90000 milliseconds. A startup failure removes only a terminal created by that spawn; add `--keep-on-failure` to retain it for diagnosis. Reused terminals are never removed.
 
 Manual fallback is:

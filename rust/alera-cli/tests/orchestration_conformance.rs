@@ -18,6 +18,8 @@ mod agent_profiles;
 mod limits;
 #[path = "orchestration_conformance/messaging.rs"]
 mod messaging;
+#[path = "orchestration_conformance/profile_spawn.rs"]
+mod profile_spawn;
 #[path = "orchestration_conformance/run_policy.rs"]
 mod run_policy;
 

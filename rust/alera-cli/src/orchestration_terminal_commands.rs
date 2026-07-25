@@ -28,6 +28,7 @@ pub(crate) async fn run_agent_spawn(
         json!({
             "workspace": workspace,
             "agent": args.agent,
+        "profile": args.profile,
             "task": args.task,
             "title": args.title,
             "terminal": args.terminal,

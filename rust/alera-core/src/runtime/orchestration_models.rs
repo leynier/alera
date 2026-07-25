@@ -311,6 +311,12 @@ pub struct OrchestrationDispatchContext {
     pub completion_policy: String,
     pub terminal_policy: String,
     pub startup_error: Option<String>,
+    /// Which declared profile launched this dispatch, when one was used.
+    /// Recorded so fallback selection knows what has already been tried.
+    #[serde(default)]
+    pub agent_profile: Option<String>,
+    #[serde(default)]
+    pub agent_quota_group: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
