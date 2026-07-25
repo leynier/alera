@@ -175,6 +175,7 @@ mod tests {
     use crate::terminal_host::orchestration::agent_presence::AgentPresenceRegistry;
     use crate::terminal_host::orchestration::message_waiters::MessageWaiterRegistry;
     use crate::terminal_host::protocol::TerminalHostConfig;
+    use crate::terminal_host::server::resource_requests::ResourceMonitorState;
     use crate::terminal_host::session::{Session, SessionDriver};
 
     use super::super::{ClientKind, ClientState, ServerActor};
@@ -225,6 +226,7 @@ mod tests {
             orchestration_delivery_backpressured: HashSet::new(),
             orchestration_activity_last_recorded: HashMap::new(),
             coordinators: HashMap::new(),
+            resources: ResourceMonitorState::default(),
             inbox,
             next_client_id: Arc::new(AtomicU64::new(10)),
             mobile_gateway: None,

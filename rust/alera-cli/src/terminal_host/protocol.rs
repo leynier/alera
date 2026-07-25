@@ -61,6 +61,10 @@ pub const RUNTIME_HOST_BINARY_FRAMES_CAPABILITY: &str = "binaryFrames";
 /// framed, so a reader can flip on seeing it without any out-of-band signal.
 pub const BINARY_FRAMES_ENABLED_EVENT: &str = "binaryFramesEnabled";
 pub const RUNTIME_HOST_LIFECYCLE_CAPABILITY: &str = "runtimeHostLifecycleV1";
+// Advertised once the host samples per-session CPU and memory and answers
+// `resources.snapshot`. Additive: older hosts simply do not offer the verb, so
+// clients feature-check this instead of the protocol version.
+pub const RUNTIME_HOST_RESOURCE_MONITOR_CAPABILITY: &str = "resourceMonitorV1";
 pub const RUNTIME_HOST_AGENT_STATUS_CAPABILITY: &str = "runtimeAgentStatusV1";
 
 // Retained for the later packaging/resolver phase (sidecar discovery).

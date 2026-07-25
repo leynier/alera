@@ -11,9 +11,9 @@
 1339	test/widget/workspace_explorer_test.dart
 1388	rust/src/api/git.rs
 1396	rust/src/api/workspace_files.rs
-1436	rust/alera-cli/tests/terminal_host_conformance.rs
+1519	rust/alera-cli/tests/terminal_host_conformance.rs
 1724	test/widget/workspace_git_diff_panel_test.dart
-1787	rust/alera-cli/src/terminal_host/server.rs
+1810	rust/alera-cli/src/terminal_host/server.rs
 3017	rust/alera-cli/tests/orchestration_review_regressions.rs
 2181	rust/alera-core/src/runtime/store.rs
 2055	rust/src/api/git_tests.rs
