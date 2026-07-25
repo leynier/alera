@@ -55,7 +55,7 @@ final class WorkbenchRepositoryProvider
 }
 
 String _$workbenchRepositoryHash() =>
-    r'382cb08ed64259de6254c2daeb3c0e6d23bd57ef';
+    r'8c1302e94b473115830f6b43e487e1a2d8b87156';
 
 @ProviderFor(workspaceGraphRepository)
 final workspaceGraphRepositoryProvider = WorkspaceGraphRepositoryProvider._();

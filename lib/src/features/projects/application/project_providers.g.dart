@@ -143,7 +143,7 @@ final class ProjectRepositoryProvider
   }
 }
 
-String _$projectRepositoryHash() => r'b4b7463c17f617fdbee9bd3d53f3e60db761ada9';
+String _$projectRepositoryHash() => r'8bd00ca14d93ab693a5609a51e09bd273fdfde8a';
 
 @ProviderFor(projectList)
 final projectListProvider = ProjectListProvider._();
@@ -230,7 +230,7 @@ final class ProjectConfigRepositoryProvider
 }
 
 String _$projectConfigRepositoryHash() =>
-    r'482eaa38d3736a9e96fa7708141e943b2e5576f9';
+    r'672bb0f4478a9be3f4962fe3454048c47a71a748';
 
 @ProviderFor(projectConfigFileStore)
 final projectConfigFileStoreProvider = ProjectConfigFileStoreProvider._();

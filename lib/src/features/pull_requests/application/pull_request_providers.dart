@@ -37,6 +37,7 @@ LinkedReviewRepository linkedReviewRepository(Ref ref) {
   return RuntimeLinkedReviewRepository(
     ref.watch(runtimeHostClientProvider),
     beforeAccess: ref.watch(runtimeStateMigrationProvider).ensureMigrated,
+    coalescer: ref.watch(runtimeChangeCoalescerProvider),
   );
 }
 

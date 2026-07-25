@@ -53,6 +53,7 @@ WorkbenchRepository workbenchRepository(Ref ref) {
   return RuntimeWorkbenchRepository(
     ref.watch(runtimeHostClientProvider),
     beforeAccess: ref.watch(runtimeStateMigrationProvider).ensureMigrated,
+    coalescer: ref.watch(runtimeChangeCoalescerProvider),
   );
 }
 
