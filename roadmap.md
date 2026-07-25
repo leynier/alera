@@ -172,7 +172,7 @@ Comprehensive feature roadmap for Alera. Each feature is scored on two axes:
 
 | Feature | Difficulty | Utility | Status | Notes |
 |---|:---:|:---:|:---:|---|
-| Resource manage | 3 | 3 | Planned | System resource consumption monitoring |
+| Resource manage | 3 | 3 | Shipped | Status-bar Resource Manager: per-session CPU/memory attributed to Project -> Workspace -> Tab, orphan session detection and kill, host memory and load; local host only |
 | Space analyzer | 2 | 3 | Planned | Disk space tracking and compaction per workspace |
 | Port scanning & dev server management | 3 | 4 | Planned | Auto-detect open ports, panel listing active dev servers |
 

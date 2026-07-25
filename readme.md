@@ -34,6 +34,7 @@ Alera takes the opposite bet:
 - **Native performance.** Flutter for a fast, consistent desktop UI. Rust for the PTY and process layer (`portable_pty`). Ghostty's VTE engine for terminal parsing. No Electron, no embedded browser, no JS event loop in the hot path
 - **See what your agents are doing.** Lifecycle hooks for the most popular CLI agents stream their activity into Alera so you can tell, at a glance, which terminals are idle, working, or waiting on you
 - **Track agent quotas.** A bottom status bar shows local or remote quota usage for Claude Code and CCS profiles, Codex, Kimi, Grok Build, Antigravity, MiniMax, and Z.ai
+- **See what they cost.** A Resource Manager in the status bar attributes live CPU and memory to each project, workspace, and terminal tab, so you can tell which agent is eating the machine
 - **Never lose a terminal again.** Terminal sessions persist across restarts. Close the app, reboot the machine, come back, and your scrollback, processes, and layout are still there
 
 ---
@@ -81,6 +82,10 @@ Managed lifecycle hooks for Claude, Codex, Grok Build, Amp, OpenCode, Antigravit
 ### 📊 Agent quota tracking
 
 A bottom status bar keeps provider quota usage in sight while agents run: Claude Code and CCS profiles, Codex, Kimi, Grok Build, Antigravity, MiniMax, and Z.ai, resolved locally or remotely. Hover for the detailed breakdown, and know before an agent stalls that you're about to hit a limit.
+
+### 🧮 Resource Manager
+
+A status-bar chip opens a panel that attributes live CPU and memory to **Project → Workspace → Terminal tab**, with memory sparklines, Alera's own app and sidecar rows, and machine memory and load for context. Terminal sessions the host still holds but no tab claims are listed as orphans and can be killed in one click. Sampling runs in the Rust sidecar and only while something is watching.
 
 ### 🕸️ Inter-agent orchestration
 
