@@ -43,5 +43,40 @@ jobs:
         with:
           rust: 'true'
 
+      - name: Tune Windows build environment
+        if: runner.os == 'Windows'
+        uses: ./.github/actions/tune-windows-build
+
+      # Swatinem/rust-cache only covers rust/target, which is the alera-cli
+      # sidecar. cargokit compiles alera_native and code_forge into the Flutter
+      # build directory instead, so 1.3 GB of release artifacts were rebuilt
+      # from scratch on every run. Only the warm-cache workflow saves, so pull
+      # requests never write a private copy back.
+      - name: Restore cargokit build
+        uses: actions/cache/restore@v6
+        with:
+          path: build/**/cargokit_build
+          key: cargokit-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust/Cargo.lock') }}-
+          restore-keys: |
+            cargokit-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust/Cargo.lock') }}-
+            cargokit-${{ runner.os }}-${{ runner.arch }}-
+
       - name: Build desktop app
         run: flutter build ${{ matrix.platform }} --release --dart-define=ALERA_FLAVOR=release
+
+      # The cargokit temp directory layout differs per platform and is only
+      # confirmed for Linux, so report what was actually produced until the
+      # macOS and Windows paths have been observed on a real run.
+      - name: Report cargokit build layout
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          found=$(find build -type d -name cargokit_build 2>/dev/null || true)
+          if [ -z "$found" ]; then
+            echo "No cargokit_build directory under build/ on ${{ runner.os }}."
+            exit 0
+          fi
+          echo "$found" | while read -r dir; do
+            du -sh "$dir" 2>/dev/null || echo "$dir"
+          done

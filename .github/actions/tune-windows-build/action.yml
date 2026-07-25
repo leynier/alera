@@ -1,0 +1,36 @@
+name: Tune Windows build environment
+description: >-
+  Windows-only build settings for the desktop build jobs. Windows takes roughly
+  twice as long as Linux for the same Flutter release build, and a large part of
+  that is per-file overhead over the millions of small object files cargo and
+  MSBuild write.
+
+runs:
+  using: composite
+  steps:
+    # Real-time scanning is a documented tax on Rust and C++ builds, which write
+    # millions of small .rlib/.obj files. The runner user is an administrator,
+    # so the exclusions apply. Best effort: a failure here must not fail the
+    # build, since this is a speed measure and nothing depends on it.
+    - name: Exclude build directories from Defender
+      shell: pwsh
+      continue-on-error: true
+      run: |
+        $paths = @(
+          $env:GITHUB_WORKSPACE,
+          "$env:USERPROFILE\.cargo",
+          "$env:USERPROFILE\.rustup",
+          "$env:LOCALAPPDATA\Pub\Cache"
+        )
+        foreach ($path in $paths) {
+          if ($path) {
+            Add-MpPreference -ExclusionPath $path -ErrorAction SilentlyContinue
+            Write-Host "Excluded $path"
+          }
+        }
+
+    # Correctness rather than speed: cargokit nests its target directory deep
+    # inside the Flutter build tree, which overruns the legacy path limit.
+    - name: Allow long paths
+      shell: pwsh
+      run: git config --system core.longpaths true
