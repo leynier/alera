@@ -57,6 +57,7 @@ mod project_requests;
 mod pty_event_forwarder;
 mod pty_events;
 mod requests;
+mod runtime_change_broadcasts;
 mod terminal_driver;
 mod terminal_input_requests;
 mod terminal_launch_defaults;

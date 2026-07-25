@@ -5,7 +5,7 @@
 use serde_json::{json, Value};
 
 use crate::terminal_host::host_error::{HostError, HostResult};
-use crate::terminal_host::protocol::{event, int_or};
+use crate::terminal_host::protocol::int_or;
 use alera_core::runtime::{Workspace, WorkspaceTabRecord};
 use chrono::Utc;
 use uuid::Uuid;
@@ -79,7 +79,7 @@ impl ServerActor {
         .await;
         match self.create_or_attach(client_id, &attachment_payload).await {
             Ok(mut attachment) => {
-                self.broadcast_authenticated(event("workspaceTabsChanged", json!({})));
+                self.broadcast_workspace_tabs_changed(Some(&workspace.id));
                 self.claim_mobile_terminal_viewport(
                     client_id,
                     &session_id,

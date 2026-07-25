@@ -187,7 +187,8 @@ impl ServerActor {
             .rename_workspace(workspace_id, name)
             .await
             .map_err(state_error)?;
-        self.broadcast_authenticated(event("workspacesChanged", json!({})));
+        let project_id = workspace.project_id.clone();
+        self.broadcast_workspaces_changed(Some(&project_id));
         serde_json::to_value(workspace).map_err(state_error)
     }
 
@@ -207,12 +208,7 @@ impl ServerActor {
             .record_workspace_activity(workspace_id, Utc::now())
             .await
             .map_err(state_error)?;
-        self.broadcast_authenticated(event(
-            "workspaceTabsChanged",
-            json!({
-                "workspaceId": workspace_id,
-            }),
-        ));
+        self.broadcast_workspace_tabs_changed(Some(workspace_id));
         self.broadcast_authenticated(event(
             "workbenchLayoutsChanged",
             json!({
@@ -289,7 +285,8 @@ impl ServerActor {
             .set_workspace_tags(&request.workspace_id, &request.tag_ids)
             .await
             .map_err(state_error)?;
-        self.broadcast_authenticated(event("workspacesChanged", json!({})));
+        let project_id = workspace.project_id.clone();
+        self.broadcast_workspaces_changed(Some(&project_id));
         serde_json::to_value(workspace).map_err(state_error)
     }
 }

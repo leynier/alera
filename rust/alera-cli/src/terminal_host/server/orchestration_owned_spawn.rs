@@ -1,4 +1,4 @@
-use serde_json::{json, Value};
+use serde_json::Value;
 
 use super::ServerActor;
 
@@ -83,14 +83,12 @@ impl ServerActor {
             payload.remove("orchestrationSpawn");
         }
         updated.updated_at = chrono::Utc::now();
+        let workspace_id = updated.workspace_id.clone();
         if let Err(error) = self.runtime_store.upsert_workspace_tab(updated).await {
             eprintln!("failed to consume orchestration spawn prompt for tab {tab_id}: {error}");
             return;
         }
-        self.broadcast_authenticated(crate::terminal_host::protocol::event(
-            "workspaceTabsChanged",
-            json!({}),
-        ));
+        self.broadcast_workspace_tabs_changed(Some(&workspace_id));
     }
 
     pub(super) async fn should_keep_failed_owned_spawn(&self, session_id: &str) -> bool {
@@ -151,14 +149,12 @@ impl ServerActor {
             Value::String(reason.to_string()),
         );
         tab.updated_at = chrono::Utc::now();
+        let workspace_id = tab.workspace_id.clone();
         if let Err(error) = self.runtime_store.upsert_workspace_tab(tab).await {
             eprintln!("failed to persist orchestration spawn failure for tab {tab_id}: {error}");
             return false;
         }
-        self.broadcast_authenticated(crate::terminal_host::protocol::event(
-            "workspaceTabsChanged",
-            json!({}),
-        ));
+        self.broadcast_workspace_tabs_changed(Some(&workspace_id));
         true
     }
 
@@ -189,16 +185,14 @@ impl ServerActor {
         spawn.insert("startupFailureRecorded".to_string(), Value::Bool(true));
         spawn.insert("retainedAfterFailure".to_string(), Value::Bool(true));
         tab.updated_at = chrono::Utc::now();
+        let workspace_id = tab.workspace_id.clone();
         if let Err(error) = self.runtime_store.upsert_workspace_tab(tab).await {
             eprintln!(
                 "failed to preserve orchestration spawn diagnostics for tab {tab_id}: {error}"
             );
             return false;
         }
-        self.broadcast_authenticated(crate::terminal_host::protocol::event(
-            "workspaceTabsChanged",
-            json!({}),
-        ));
+        self.broadcast_workspace_tabs_changed(Some(&workspace_id));
         true
     }
 }

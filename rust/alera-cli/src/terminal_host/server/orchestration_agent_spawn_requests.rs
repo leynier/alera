@@ -415,10 +415,7 @@ impl ServerActor {
             return false;
         }
         self.terminate_sessions_for_tab(&tab.id).await;
-        self.broadcast_authenticated(crate::terminal_host::protocol::event(
-            "workspaceTabsChanged",
-            json!({}),
-        ));
+        self.broadcast_workspace_tabs_changed(Some(&tab.workspace_id));
         true
     }
 

@@ -260,8 +260,8 @@ impl ServerActor {
 
     fn broadcast_project_state_changed(&self) {
         self.broadcast_authenticated(event("projectsChanged", json!({})));
-        self.broadcast_authenticated(event("workspacesChanged", json!({})));
-        self.broadcast_authenticated(event("workspaceTabsChanged", json!({})));
+        self.broadcast_workspaces_changed(None);
+        self.broadcast_workspace_tabs_changed(None);
     }
 }
 

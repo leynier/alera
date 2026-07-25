@@ -1,9 +1,9 @@
 use alera_core::runtime::{WorkspaceStatus, WorkspaceTabRecord};
-use serde_json::{json, Value};
+use serde_json::Value;
 
 use crate::agent_status::prepare_launch_environment;
 use crate::terminal_host::host_error::{HostError, HostResult};
-use crate::terminal_host::protocol::{event, TerminalHostLaunch};
+use crate::terminal_host::protocol::TerminalHostLaunch;
 use crate::terminal_host::session::{PtyWriteCompletion, Session};
 
 use super::pty_event_forwarder::forward_pty_event;
@@ -62,7 +62,7 @@ impl ServerActor {
             self.terminate_sessions_for_tab(&saved.id).await;
             return Err(error);
         }
-        self.broadcast_authenticated(event("workspaceTabsChanged", json!({})));
+        self.broadcast_workspace_tabs_changed(Some(&saved.workspace_id));
         Ok(saved)
     }
 
