@@ -13,8 +13,16 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+env:
+  # Must match the number of shard entries in the test matrix below. Past four
+  # the fixed per-shard setup costs more than the test time it buys back.
+  TEST_SHARDS: 4
+
 jobs:
-  flutter:
+  # Runs once for the whole repository rather than per shard. None of these
+  # commands run native asset build hooks, so this job skips Zig, the native
+  # asset cache and the preflight.
+  static:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -25,29 +33,104 @@ jobs:
 
       - name: Setup Flutter workspace
         uses: ./.github/actions/setup-flutter-workspace
+        with:
+          native-assets: 'false'
+          preflight: 'false'
 
       - name: Format
         run: dart format --set-exit-if-changed lib test integration_test tool
 
+      # `dart run` would resolve the package and fire the native asset build
+      # hooks, which this job deliberately has no Zig for. The script imports
+      # only dart:io, so run the file directly.
       - name: Max lines ratchet
-        run: dart run tool/quality/check_max_lines.dart
+        run: dart tool/quality/check_max_lines.dart
 
       - name: Analyze
         run: flutter analyze
 
+  test:
+    name: test ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: shard 0
+            shard: '0'
+          - name: shard 1
+            shard: '1'
+          - name: shard 2
+            shard: '2'
+          - name: shard 3
+            shard: '3'
+          - name: golden
+            shard: golden
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: false
+
+      - name: Setup Flutter workspace
+        uses: ./.github/actions/setup-flutter-workspace
+
+      # The shard split happens on the file list, not through
+      # --total-shards/--shard-index: that flag slices the tests inside each
+      # suite after loading it, so every shard would still compile every file.
       - name: Test
-        run: flutter test --coverage --exclude-tags golden
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ matrix.shard }}" = "golden" ]; then
+            flutter test test/golden
+            exit 0
+          fi
+          mapfile -t files < <(dart tool/ci/select_test_shard.dart --total ${{ env.TEST_SHARDS }} --index "${{ matrix.shard }}" --skip test/golden)
+          # Process substitution swallows the selector's exit code, and an empty
+          # list would make flutter test silently run everything instead.
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "Shard ${{ matrix.shard }} selected no test files." >&2
+            exit 1
+          fi
+          echo "shard ${{ matrix.shard }}: ${#files[@]} test files"
+          flutter test --coverage --coverage-path "coverage/lcov-shard-${{ matrix.shard }}.info" "${files[@]}"
 
-      - name: Coverage report
-        run: dart run tool/quality/coverage_report.dart --input coverage/lcov.info --min-lines 100 --worst 25
-
-      - name: Upload coverage
-        if: always()
+      - name: Upload shard coverage
+        if: matrix.shard != 'golden'
         uses: actions/upload-artifact@v7
         with:
-          name: flutter-coverage
-          path: coverage/lcov.info
-          if-no-files-found: ignore
+          name: coverage-shard-${{ matrix.shard }}
+          path: coverage/lcov-shard-${{ matrix.shard }}.info
+          if-no-files-found: error
+
+  # Only needs Dart: coverage_report.dart imports dart:io and nothing else, so
+  # setting up Flutter here would cost more than the gate itself.
+  coverage:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: false
+
+      - name: Setup Dart
+        uses: dart-lang/setup-dart@v1
+
+      - name: Download shard coverage
+        uses: actions/download-artifact@v7
+        with:
+          pattern: coverage-shard-*
+          merge-multiple: true
+          path: coverage-shards
+
+      # --expect-inputs is what stops a lost shard artifact from quietly
+      # shrinking the totals into a passing gate.
+      - name: Coverage report
+        run: dart tool/quality/coverage_report.dart --input-dir coverage-shards --expect-inputs ${{ env.TEST_SHARDS }} --min-lines 100 --worst 25
 
   mobile:
     runs-on: ubuntu-latest
@@ -80,21 +163,6 @@ jobs:
 
       - name: Test
         run: flutter test
-
-  golden:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-        with:
-          submodules: false
-
-      - name: Setup Flutter workspace
-        uses: ./.github/actions/setup-flutter-workspace
-
-      - name: Golden tests
-        run: flutter test --tags golden
 
   desktop-e2e-linux:
     runs-on: ubuntu-latest
