@@ -18,6 +18,7 @@ import 'package:alera/src/shared/infra/storage/drift_database.dart';
 
 import 'e2e_git_backend.dart';
 import 'package:drift/native.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -238,6 +239,11 @@ class _E2eTerminalSessionHandle extends TerminalSessionHandle {
 
   @override
   String get displayTitle => tab.title;
+
+  @override
+  late final ValueListenable<String> titleListenable = ValueNotifier<String>(
+    displayTitle,
+  );
 
   @override
   String? get errorMessage => null;
