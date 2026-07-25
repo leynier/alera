@@ -1,3 +1,8 @@
+import 'package:dart_mappable/dart_mappable.dart';
+
+part 'agent_status.mapper.dart';
+
+@MappableEnum()
 enum AgentStatusState {
   working('working'),
   waiting('waiting'),
@@ -9,6 +14,7 @@ enum AgentStatusState {
   final String key;
 }
 
+@MappableEnum()
 enum AgentType {
   codex('codex'),
   claude('claude'),
@@ -45,7 +51,11 @@ class AgentHookEvent {
   final String? version;
 }
 
-class AgentStatusEntry {
+/// Value equality matters here: the host snapshot rebuilds these on every
+/// presence event, so without it no Riverpod short-circuit can fire and an
+/// unchanged snapshot still rebuilds the sidebar.
+@MappableClass()
+class AgentStatusEntry with AgentStatusEntryMappable {
   const AgentStatusEntry({
     required this.terminalSessionId,
     required this.workspaceId,
@@ -73,40 +83,4 @@ class AgentStatusEntry {
   final String? toolInput;
   final String? lastAssistantMessage;
   final bool? interrupted;
-
-  AgentStatusEntry copyWith({
-    String? terminalSessionId,
-    String? workspaceId,
-    String? tabId,
-    AgentType? agentType,
-    AgentStatusState? state,
-    String? prompt,
-    DateTime? updatedAt,
-    DateTime? stateStartedAt,
-    Object? toolName = _sentinel,
-    Object? toolInput = _sentinel,
-    Object? lastAssistantMessage = _sentinel,
-    Object? interrupted = _sentinel,
-  }) {
-    return AgentStatusEntry(
-      terminalSessionId: terminalSessionId ?? this.terminalSessionId,
-      workspaceId: workspaceId ?? this.workspaceId,
-      tabId: tabId ?? this.tabId,
-      agentType: agentType ?? this.agentType,
-      state: state ?? this.state,
-      prompt: prompt ?? this.prompt,
-      updatedAt: updatedAt ?? this.updatedAt,
-      stateStartedAt: stateStartedAt ?? this.stateStartedAt,
-      toolName: toolName == _sentinel ? this.toolName : toolName as String?,
-      toolInput: toolInput == _sentinel ? this.toolInput : toolInput as String?,
-      lastAssistantMessage: lastAssistantMessage == _sentinel
-          ? this.lastAssistantMessage
-          : lastAssistantMessage as String?,
-      interrupted: interrupted == _sentinel
-          ? this.interrupted
-          : interrupted as bool?,
-    );
-  }
 }
-
-const Object _sentinel = Object();
