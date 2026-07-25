@@ -1,0 +1,54 @@
+name: Startup Performance
+
+# Runs on main rather than on pull requests. The measurement launches the real
+# app three times under xvfb, so it cost about nine minutes and was the critical
+# path of PR Checks, while gating nothing: the script is invoked without
+# --enforce-budget and the step is continue-on-error, so a budget violation
+# cannot fail anything. Software rendering under xvfb on a shared runner also
+# makes the raster metrics too noisy to read per pull request. Sampling every
+# commit on main under the same conditions gives a usable trend instead.
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: '30 5 * * *'
+  workflow_dispatch:
+
+# Every commit is a data point, so superseded runs are not cancelled.
+concurrency:
+  group: startup-performance
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  linux-startup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: false
+
+      - name: Setup Flutter workspace
+        uses: ./.github/actions/setup-flutter-workspace
+        with:
+          xvfb: 'true'
+          enable-linux-desktop: 'true'
+          rust: 'true'
+
+      - name: Linux startup performance smoke
+        continue-on-error: true
+        run: xvfb-run -a dart tool/performance/alera_performance.dart --runs 3 --output .dart_tool/performance-ci
+
+      - name: Upload Linux startup performance report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: linux-startup-performance-${{ github.sha }}
+          path: .dart_tool/performance-ci/startup_linux.json
+          if-no-files-found: ignore
+          retention-days: 90

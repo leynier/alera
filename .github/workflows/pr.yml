@@ -186,34 +186,6 @@ jobs:
   # Split out of desktop-e2e-linux: the smoke run takes about as long as the
   # integration tests themselves and is continue-on-error, so it can never fail
   # a pull request, yet it was what made that job the critical path.
-  perf-smoke:
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-        with:
-          submodules: false
-
-      - name: Setup Flutter workspace
-        uses: ./.github/actions/setup-flutter-workspace
-        with:
-          xvfb: 'true'
-          enable-linux-desktop: 'true'
-          rust: 'true'
-
-      - name: Linux startup performance smoke
-        continue-on-error: true
-        run: xvfb-run -a dart tool/performance/alera_performance.dart --runs 3 --output .dart_tool/performance-ci
-
-      - name: Upload Linux startup performance report
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: linux-startup-performance
-          path: .dart_tool/performance-ci/startup_linux.json
-          if-no-files-found: ignore
-
   rust:
     runs-on: ubuntu-latest
     timeout-minutes: 20
