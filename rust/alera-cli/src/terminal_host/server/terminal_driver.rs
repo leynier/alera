@@ -183,6 +183,7 @@ mod tests {
         ClientState {
             handle,
             authenticated: true,
+            binary_frames: false,
             kind: ClientKind::Mobile,
             mobile_device_id: Some(device.to_string()),
             mobile_device_name: Some(format!("{device} phone")),
@@ -193,6 +194,7 @@ mod tests {
         ClientState {
             handle,
             authenticated: true,
+            binary_frames: false,
             kind: ClientKind::Local,
             mobile_device_id: None,
             mobile_device_name: None,
@@ -251,7 +253,11 @@ mod tests {
         assert_eq!(session.driver, mobile_driver("a", 2));
         assert_eq!(session.desktop_dims, Some((120, 40)));
         assert_eq!(session.current_dims, (48, 22));
-        let event = out_rx.try_recv().expect("driver change broadcast");
+        let event = out_rx
+            .try_recv()
+            .expect("driver change broadcast")
+            .as_json()
+            .expect("a driver change is a JSON frame");
         assert_eq!(event["event"], "terminalDriverChanged");
         assert_eq!(event["payload"]["sessionId"], "s1");
         assert_eq!(event["payload"]["driver"]["kind"], "mobile");

@@ -89,11 +89,9 @@ fn output_batch_coalesces_until_flush() {
     assert_eq!(session.append_output(b"cd"), (None, None, None));
     assert!(session.output_batch_due(0));
     let batch = session.flush_output_batch().expect("batch");
-    assert_eq!(batch.payload["sessionId"], "session-1");
-    assert_eq!(
-        batch.payload["dataBase64"],
-        serde_json::Value::String(encode_bytes(b"abcd"))
-    );
+    // Raw bytes, not an encoded payload: whether these go out as a binary
+    // frame or as base64 inside JSON is the writer's decision, per client.
+    assert_eq!(batch.data, b"abcd");
     assert_eq!(session.output_batch_len(), 0);
     assert!(!session.output_batch_due(0));
     let durable = session.flush_durable_output_batch().expect("durable batch");

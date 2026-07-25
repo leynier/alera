@@ -324,16 +324,23 @@ impl ServerActor {
     fn flush_output_batch(&mut self, session_id: &str) {
         let broadcast = self.sessions.get_mut(session_id).and_then(|session| {
             let batch = session.flush_output_batch()?;
-            Some((event("output", batch.payload), session.output_clients()))
+            Some((batch.data, session.output_clients()))
         });
-        if let Some((frame, clients)) = broadcast {
+        if let Some((data, clients)) = broadcast {
             for client_id in clients {
-                self.send_terminal_output(session_id, client_id, frame.clone());
+                self.send_terminal_output(
+                    session_id,
+                    client_id,
+                    ClientFrame::Output {
+                        session_id: session_id.to_string(),
+                        data: data.clone(),
+                    },
+                );
             }
         }
     }
 
-    fn send_terminal_output(&mut self, session_id: &str, client_id: u64, frame: Value) {
+    fn send_terminal_output(&mut self, session_id: &str, client_id: u64, frame: ClientFrame) {
         let result = self
             .clients
             .get(&client_id)
@@ -367,7 +374,7 @@ impl ServerActor {
         let result = self
             .clients
             .get(&client_id)
-            .map(|client| client.handle.terminal_out.try_send(frame));
+            .map(|client| client.handle.terminal_out.try_send(frame.clone().into()));
         match result {
             Some(Ok(())) => {
                 if let Some(session) = self.sessions.get_mut(&session_id) {

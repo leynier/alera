@@ -5,16 +5,57 @@ final class _TerminalHostConnection {
     this._socket, {
     required this.supportsRuntime,
     required this.supportsOrchestration,
-  }) : lines = _socket
-           .cast<List<int>>()
-           .transform(utf8.decoder)
-           .transform(const LineSplitter())
-           .asBroadcastStream();
+  }) {
+    _socketSub = _socket.cast<List<int>>().listen(
+      _consume,
+      onError: _lines.addError,
+      onDone: () {
+        unawaited(_lines.close());
+        unawaited(_output.close());
+      },
+    );
+    lines = _lines.stream.asBroadcastStream();
+    outputFrames = _output.stream.asBroadcastStream();
+  }
 
   final Socket _socket;
   final bool supportsRuntime;
   final bool supportsOrchestration;
-  final Stream<String> lines;
+
+  /// One reader for the whole connection. It starts newline-delimited so the
+  /// handshake works against a host without the capability, and switches to
+  /// length-prefixed frames once the hello response confirms the upgrade.
+  final TerminalHostFrameReader _reader = TerminalHostFrameReader();
+  final StreamController<String> _lines = StreamController<String>();
+  final StreamController<TerminalHostOutputFrame> _output =
+      StreamController<TerminalHostOutputFrame>();
+  StreamSubscription<List<int>>? _socketSub;
+
+  /// Control traffic: responses and events, still JSON.
+  late final Stream<String> lines;
+
+  /// PTY output, delivered as raw bytes with no base64 or JSON in the way.
+  late final Stream<TerminalHostOutputFrame> outputFrames;
+
+  void _consume(List<int> chunk) {
+    for (final frame in _reader.add(chunk)) {
+      switch (frame) {
+        case TerminalHostJsonFrame(:final json):
+          if (!_lines.isClosed) {
+            _lines.add(json);
+          }
+        case TerminalHostOutputFrame():
+          if (!_output.isClosed) {
+            _output.add(frame);
+          }
+      }
+    }
+  }
+
+  /// Switches the reader after the hello response has been consumed. The host
+  /// queues its upgrade marker behind that response on the same lane, so every
+  /// byte from here on is framed.
+  void upgradeToBinaryFrames() => _reader.upgradeToBinary();
   final Completer<void> _authenticated = Completer<void>();
   bool _isClosed = false;
 
@@ -45,6 +86,10 @@ final class _TerminalHostConnection {
 
   void dispose() {
     _isClosed = true;
+    unawaited(_socketSub?.cancel());
+    _socketSub = null;
+    unawaited(_lines.close());
+    unawaited(_output.close());
     _socket.destroy();
   }
 }
@@ -67,12 +112,14 @@ final class _TerminalHostControl {
     required this.token,
     required this.supportsRuntime,
     required this.supportsOrchestration,
+    this.supportsBinaryFrames = false,
   });
 
   final int port;
   final String token;
   final bool supportsRuntime;
   final bool supportsOrchestration;
+  final bool supportsBinaryFrames;
 }
 
 final class _PendingHostRequest {
