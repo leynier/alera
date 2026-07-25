@@ -20,9 +20,13 @@ Future<Object?> _sendTerminalHostRequest(
           identical(pending.completer, completer)) {
         client._pending.remove(id);
       }
-      final error = TerminalHostRequestTimeoutException(type, requestTimeout);
-      client._handleConnectionClosed(connection, error);
-      throw error;
+      // A timeout means one request was slow, not that the socket is dead.
+      // Terminal and runtime traffic share this connection, so tearing it
+      // down here would kill every live PTY and every runtime watcher over a
+      // host that is merely saturated. Real death is reported by the socket
+      // itself, and by the heartbeat for a peer that is alive but wedged.
+      client._noteRequestTimedOut(connection);
+      throw TerminalHostRequestTimeoutException(type, requestTimeout);
     },
   );
   try {

@@ -9,9 +9,11 @@ import 'package:ghostty_vte_flutter/ghostty_vte_flutter.dart';
 import 'package:path/path.dart' as p;
 
 part 'terminal_host_client_resilience_cases.dart';
+part 'terminal_host_client_timeout_cases.dart';
 
 void main() {
   _registerTerminalHostClientResilienceTests();
+  _registerTerminalHostClientTimeoutTests();
 
   test('connects through launcher and sends lifecycle requests', () async {
     final tempDir = await Directory.systemTemp.createTemp('alera-host-client-');
@@ -1132,6 +1134,7 @@ final class _TerminalHostTestServer {
   StreamSubscription<Socket>? _sub;
   Socket? _client;
   String token = 'existing-token';
+  int acceptedConnections = 0;
 
   int get port => _server.port;
 
@@ -1147,6 +1150,7 @@ final class _TerminalHostTestServer {
   }
 
   void _accept(Socket socket) {
+    acceptedConnections += 1;
     _client = socket;
     socket
         .cast<List<int>>()

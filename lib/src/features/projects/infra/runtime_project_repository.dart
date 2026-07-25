@@ -21,7 +21,11 @@ class RuntimeProjectRepository implements ProjectRepository {
   @override
   Future<List<Project>> listAll() async {
     await _ensureReady();
-    final payload = await _client.runtimeRequest('project.list');
+    final payload = await _client.runtimeRequest(
+      'project.list',
+      const <String, Object?>{},
+      runtimeSnapshotRequestTimeout,
+    );
     return _asList(payload).map(projectFromRuntimeJson).toList(growable: false);
   }
 
