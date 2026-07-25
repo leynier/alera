@@ -37,6 +37,7 @@ impl Session {
             running: false,
             exit_code,
             ended_at,
+            shell_pid: None,
             master: None,
             input_tx: None,
             killer: None,

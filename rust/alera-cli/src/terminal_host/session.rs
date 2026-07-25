@@ -116,6 +116,10 @@ pub struct Session {
     running: bool,
     exit_code: Option<i32>,
     ended_at: Option<DateTime<Utc>>,
+    /// PID of the shell this session spawned, while it is still alive. Cleared
+    /// on exit and on terminate: the OS recycles PIDs, so a stale value would
+    /// attribute an unrelated process to this session.
+    shell_pid: Option<u32>,
     master: Option<Box<dyn MasterPty + Send>>,
     input_tx: Option<SyncSender<PtyWrite>>,
     killer: Option<Box<dyn ChildKiller + Send + Sync>>,
@@ -189,6 +193,9 @@ impl Session {
         drop(pair.slave);
 
         let killer = child.clone_killer();
+        // Read before the child moves into the reader thread, which owns it
+        // until exit. This is the root the resource sampler walks down from.
+        let shell_pid = child.process_id();
         let reader = pair
             .master
             .try_clone_reader()
@@ -218,6 +225,7 @@ impl Session {
             running: true,
             exit_code: None,
             ended_at: None,
+            shell_pid,
             master: Some(pair.master),
             input_tx: Some(input_tx),
             killer: Some(killer),
@@ -249,6 +257,14 @@ impl Session {
 
     pub fn workspace_id(&self) -> &str {
         &self.workspace_id
+    }
+
+    /// PID of the live shell, or `None` once it has exited or was never spawned
+    /// (restored checkpoints and test stubs have no process behind them).
+    // Read by the resource sampler, which lands in the following change.
+    #[allow(dead_code)]
+    pub fn shell_pid(&self) -> Option<u32> {
+        self.shell_pid
     }
 
     pub fn instance_id(&self) -> u64 {
@@ -370,6 +386,7 @@ impl Session {
         self.running = false;
         self.exit_code = Some(exit_code);
         self.ended_at = Some(Utc::now());
+        self.shell_pid = None;
         Some(json!({ "sessionId": self.id, "exitCode": exit_code }))
     }
 
@@ -414,6 +431,7 @@ impl Session {
     pub async fn terminate(&mut self, remove_history: bool, store: &TerminalHostHistoryStore) {
         self.terminated = true;
         self.running = false;
+        self.shell_pid = None;
         if let Some(mut killer) = self.killer.take() {
             // The child may have already exited between checks.
             let _ = killer.kill();

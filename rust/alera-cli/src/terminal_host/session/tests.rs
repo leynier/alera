@@ -64,6 +64,7 @@ fn test_session() -> Session {
         running: true,
         exit_code: None,
         ended_at: None,
+        shell_pid: None,
         master: None,
         input_tx: None,
         killer: None,
@@ -232,6 +233,39 @@ async fn restored_session_recovers_the_latest_title_from_scrollback() {
     .unwrap();
 
     assert_eq!(session.runtime_title(), Some("Restored Task"));
+}
+
+#[test]
+fn exiting_clears_the_shell_pid() {
+    let mut session = test_session();
+    session.shell_pid = Some(4242);
+    assert_eq!(session.shell_pid(), Some(4242));
+
+    session.handle_exit(0);
+
+    // The OS recycles PIDs, so keeping the old value would let the resource
+    // sampler attribute an unrelated process to this session.
+    assert_eq!(session.shell_pid(), None);
+}
+
+#[tokio::test]
+async fn terminating_clears_the_shell_pid() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = TerminalHostHistoryStore::open(dir.path()).await.unwrap();
+    let mut session = test_session();
+    session.shell_pid = Some(4242);
+
+    session.terminate(true, &store).await;
+
+    assert_eq!(session.shell_pid(), None);
+}
+
+#[test]
+fn a_session_without_a_pty_has_no_shell_pid() {
+    // Stubs and restored checkpoints have no process behind them, so there is
+    // nothing to sample.
+    let session = Session::driver_test_stub("stub", 80, 24);
+    assert_eq!(session.shell_pid(), None);
 }
 
 #[test]
