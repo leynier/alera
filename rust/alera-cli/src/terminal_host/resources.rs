@@ -16,8 +16,17 @@ pub const RESOURCE_SAMPLE_INTERVAL: Duration = Duration::from_secs(2);
 /// The ticker stops itself once no client has asked for a snapshot this long,
 /// so an unattended host does not sweep the process table forever.
 pub const RESOURCE_IDLE_STOP: Duration = Duration::from_secs(10);
-/// `sysinfo` derives CPU from the delta between two refreshes, so the first
-/// sweep after a (re)start reports zero for everything.
+/// `sysinfo` derives CPU from the delta between refreshes, so the first sweeps
+/// after a (re)start report zero for every process.
+///
+/// Windows needs one sweep more than the others. Measured on sysinfo 0.39.6
+/// against processes pegging a full core: Linux and macOS report ~100% on the
+/// second sweep, Windows still reports 0.0 there and only reports ~96% on the
+/// third. Treating the second sweep as valid on Windows would publish a
+/// confident 0% for a machine that is actually saturated.
+#[cfg(windows)]
+const REFRESHES_BEFORE_CPU_IS_VALID: u32 = 3;
+#[cfg(not(windows))]
 const REFRESHES_BEFORE_CPU_IS_VALID: u32 = 2;
 
 /// The attribution root for one terminal session.
@@ -236,24 +245,33 @@ mod tests {
     }
 
     #[test]
-    fn a_sample_measures_this_process_and_reports_warming_first() {
+    fn a_sample_measures_this_process_and_reports_warming_until_cpu_is_valid() {
         let mut sampler = ResourceSampler::default();
         let self_pid = std::process::id();
 
-        let first = sampler.sample(&[], self_pid, None);
-        assert_eq!(first["warming"], json!(true));
-        assert!(first["processes"]["host"]["memoryBytes"].as_u64().unwrap() > 0);
-        assert_eq!(first["processes"]["app"], Value::Null);
+        // Every sweep before the platform threshold is warming, because its CPU
+        // numbers would all read zero.
+        for _ in 1..REFRESHES_BEFORE_CPU_IS_VALID {
+            let warming = sampler.sample(&[], self_pid, None);
+            assert_eq!(warming["warming"], json!(true));
+            assert!(
+                warming["processes"]["host"]["memoryBytes"]
+                    .as_u64()
+                    .unwrap()
+                    > 0
+            );
+            assert_eq!(warming["processes"]["app"], Value::Null);
+        }
 
-        let second = sampler.sample(&[], self_pid, None);
-        assert_eq!(second["warming"], json!(false));
-        // Two samples of the same key, so the sparkline has two points.
+        let settled = sampler.sample(&[], self_pid, None);
+        assert_eq!(settled["warming"], json!(false));
+        // One history point per sweep taken so far.
         assert_eq!(
-            second["processes"]["host"]["history"]
+            settled["processes"]["host"]["history"]
                 .as_array()
                 .unwrap()
                 .len(),
-            2
+            REFRESHES_BEFORE_CPU_IS_VALID as usize
         );
     }
 
@@ -280,8 +298,14 @@ mod tests {
     fn resetting_the_baseline_marks_the_next_sample_as_warming() {
         let mut sampler = ResourceSampler::default();
         let self_pid = std::process::id();
-        sampler.sample(&[], self_pid, None);
-        sampler.sample(&[], self_pid, None);
+        for _ in 0..REFRESHES_BEFORE_CPU_IS_VALID {
+            sampler.sample(&[], self_pid, None);
+        }
+        assert_eq!(
+            sampler.sample(&[], self_pid, None)["warming"],
+            json!(false),
+            "the sampler should have settled before the reset"
+        );
 
         sampler.reset_cpu_baseline();
 
